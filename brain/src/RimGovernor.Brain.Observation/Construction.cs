@@ -1,4 +1,4 @@
-using Placement = RimGovernor.Protocol.Placement;
+using Placement = RimGovernor.Contracts.Wire.Placement;
 
 namespace RimGovernor.Brain.Observation;
 
@@ -76,7 +76,7 @@ internal sealed class ConstructionState
     // Projects row into the state, marking the lists dirty only when the row's projection differs from the one held.
     private void Set(string id, O.BuildingState row)
     {
-        switch (row.Status)
+        switch (row.Status.GetValueOrDefault())
         {
             case O.BuildingStatus.Built:
             {
@@ -261,20 +261,20 @@ public static partial class ObservationPackage
     /// <summary>Projects one built row for the construction census; known is false for a row whose stuff the native could not say.</summary>
     internal static (CurrentBuilding Building, bool Known) CurrentBuildingOf(O.BuildingState row)
     {
-        var stuff = row.Stuff;
-        if (!row.HasStuff)
+        var stuff = (row.Stuff ?? "");
+        if (row.Stuff is null)
         {
             var notApplicable = false;
             foreach (var issue in row.Issues)
             {
-                notApplicable = notApplicable || (issue.Field == "stuff" && issue.Unavailable?.Reason == C.UnavailableReason.NotApplicable);
+                notApplicable = notApplicable || ((issue.Field ?? "") == "stuff" && (issue.Unavailable?.Reason).GetValueOrDefault() == C.UnavailableReason.NotApplicable);
             }
             if (!notApplicable)
             {
                 return (new CurrentBuilding(), false);
             }
         }
-        var building = new Building(row.Building?.DefName ?? "", CellOf(row.Building?.Position), RotationOf(row.Rotation), stuff);
+        var building = new Building(row.Building?.DefName ?? "", CellOf(row.Building?.Position), RotationOf(row.Rotation.GetValueOrDefault()), stuff);
         var cells = RectCells(row.Occupied);
         if (row.Occupied is not null && cells is null)
         {
@@ -289,47 +289,47 @@ public static partial class ObservationPackage
         var site = new ConstructionSite();
         try
         {
-            var stage = SiteStage(row.Status);
-            if (stage is null || row.BuildDefName == "")
+            var stage = SiteStage(row.Status.GetValueOrDefault());
+            if (stage is null || (row.BuildDefName ?? "") == "")
             {
                 return (site, false, null);
             }
-            var b = new Building(row.BuildDefName, CellOf(row.Building?.Position), RotationOf(row.Rotation), row.Stuff);
+            var b = new Building((row.BuildDefName ?? ""), CellOf(row.Building?.Position), RotationOf(row.Rotation.GetValueOrDefault()), (row.Stuff ?? ""));
             var state = row.Construction;
             site = new ConstructionSite { Building = b, Stage = stage, Id = row.Building?.Id ?? "" };
             if (state is not null)
             {
-                if (state.MinimumFinishingSkill < 0 || state.MinimumFinishingSkill > 1000 || state.NativeFinishingSkill < 0 || state.EligibleFinishers < 0)
+                if (state.MinimumFinishingSkill.GetValueOrDefault() < 0 || state.MinimumFinishingSkill.GetValueOrDefault() > 1000 || state.NativeFinishingSkill.GetValueOrDefault() < 0 || state.EligibleFinishers.GetValueOrDefault() < 0)
                 {
                     throw new ObservationContractException("construction state out of range");
                 }
                 site = site with
                 {
-                    ResourcesComplete = Optional(state.HasResourcesComplete, state.ResourcesComplete),
-                    QualitySensitive = Optional(state.HasQualitySensitive, state.QualitySensitive),
+                    ResourcesComplete = Optional(state.ResourcesComplete is not null, state.ResourcesComplete.GetValueOrDefault()),
+                    QualitySensitive = Optional(state.QualitySensitive is not null, state.QualitySensitive.GetValueOrDefault()),
                 };
-                if (state.HasMinimumFinishingSkill)
+                if (state.MinimumFinishingSkill is not null)
                 {
-                    site = site with { MinimumFinishingSkill = Known(state.MinimumFinishingSkill) };
+                    site = site with { MinimumFinishingSkill = Known(state.MinimumFinishingSkill.GetValueOrDefault()) };
                 }
-                if (state.HasNativeFinishingSkill)
+                if (state.NativeFinishingSkill is not null)
                 {
-                    site = site with { NativeFinishingSkill = Known(state.NativeFinishingSkill) };
+                    site = site with { NativeFinishingSkill = Known(state.NativeFinishingSkill.GetValueOrDefault()) };
                 }
-                if (state.HasEligibleFinishers)
+                if (state.EligibleFinishers is not null)
                 {
-                    site = site with { EligibleFinishers = Known(state.EligibleFinishers) };
+                    site = site with { EligibleFinishers = Known(state.EligibleFinishers.GetValueOrDefault()) };
                 }
-                if (state.HasTier)
+                if (state.Tier is not null)
                 {
-                    var tier = (ConstructionTier)state.Tier;
+                    var tier = (ConstructionTier)state.Tier.GetValueOrDefault();
                     if (!Enum.IsDefined(tier))
                     {
                         throw new ObservationContractException("invalid construction tier");
                     }
                     site = site with { Tier = Known(tier) };
                 }
-                site = site with { FinishingBlocker = state.FinishingBlocker };
+                site = site with { FinishingBlocker = state.FinishingBlocker ?? "" };
             }
             return (site, true, null);
         }
@@ -349,13 +349,13 @@ public static partial class ObservationPackage
         }
         foreach (var need in row.Construction?.Resources ?? [])
         {
-            if (need is null || need.DefName == "" || !need.HasStillNeeded || need.StillNeeded < 0)
+            if (need is null || (need.DefName ?? "") == "" || need.StillNeeded is null || need.StillNeeded.GetValueOrDefault() < 0)
             {
                 return ([], false);
             }
-            if (need.StillNeeded > 0)
+            if (need.StillNeeded.GetValueOrDefault() > 0)
             {
-                needs.Add(new SiteNeed(new Resource(need.DefName), need.StillNeeded));
+                needs.Add(new SiteNeed(new Resource((need.DefName ?? "")), need.StillNeeded.GetValueOrDefault()));
             }
         }
         return (needs, true);
@@ -409,20 +409,20 @@ public static partial class ObservationPackage
             {
                 foreach (var r in bill.Reservations)
                 {
-                    if (r.PawnId == "")
+                    if ((r.PawnId ?? "") == "")
                     {
                         return unknown;
                     }
                     var items = new List<Amount>();
                     foreach (var item in r.Items)
                     {
-                        if (item.DefName == "" || !item.HasUnits || item.Units < 0)
+                        if ((item.DefName ?? "") == "" || item.Units is null || item.Units.GetValueOrDefault() < 0)
                         {
                             return unknown;
                         }
-                        items.Add(new Amount(new Resource(item.DefName), item.Units));
+                        items.Add(new Amount(new Resource((item.DefName ?? "")), item.Units.GetValueOrDefault()));
                     }
-                    output.Add(new IngredientReservation { Pawn = new PawnId(r.PawnId), Items = items });
+                    output.Add(new IngredientReservation { Pawn = new PawnId((r.PawnId ?? "")), Items = items });
                 }
             }
         }

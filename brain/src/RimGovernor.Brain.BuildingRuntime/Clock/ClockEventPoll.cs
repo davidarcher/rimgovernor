@@ -1,5 +1,3 @@
-using Google.Protobuf;
-
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Port of internal/buildingruntime/clock_poll.go (PollEvents and its page predicates). The lease and its renewal are
@@ -125,7 +123,7 @@ internal sealed class ClockEventPoll(
 
     private static bool MatchesAuthority(PbCommon.ObservationContext observed, ControlState state) =>
         !state.Enabled
-        || (state.ObservationKnown && observed.Identity.Equals(Boundary.Identity(state.Snapshot)) && observed.HasNativeGeneration && observed.NativeGeneration == (ulong)state.Snapshot.Native.Value);
+        || (state.ObservationKnown && Equals(observed.Identity, Boundary.Identity(state.Snapshot)) && observed.NativeGeneration is not null && observed.NativeGeneration.GetValueOrDefault() == (ulong)state.Snapshot.Native.Value);
 
     private async Task<PbCommon.Identity> EventsIdentityAsync(CancellationToken ct)
     {
@@ -136,7 +134,7 @@ internal sealed class ClockEventPoll(
         var snapshot = await native.ReadStepAsync(new BridgeApi.StepRequest(), ct).ConfigureAwait(false)
             ?? throw new HeldException("events identity read returned nothing");
         BridgeApi.ValidateContext(snapshot.Context);
-        return snapshot.Context.Identity.Clone();
+        return snapshot.Context?.Identity ?? throw new BridgeContractException("events identity read carried no identity");
     }
 
     /// <summary>Polls once (Go <c>PollEvents</c>); a held review is a <see cref="HeldException"/>.</summary>
@@ -227,13 +225,13 @@ internal sealed class ClockEventPoll(
                 {
                     for (var attempt = 0; ; attempt++)
                     {
-                        request = new PbClock.EventsRequest { Identity = identity.Clone(), AfterCursor = review.InboxCursor, Limit = config.PageLimit };
+                        request = new PbClock.EventsRequest { Identity = identity, AfterCursor = review.InboxCursor, Limit = config.PageLimit };
                         readError = null;
                         try
                         {
                             reply = await native.ReadClockEventsAsync(request, call).ConfigureAwait(false);
                         }
-                        catch (NativeFailureException e) when (attempt == 0 && e.Value.Code == PbCommon.FailureCode.StaleIdentity && e.Value.ObservedContext?.Identity is not null)
+                        catch (NativeFailureException e) when (attempt == 0 && e.Value.Code.GetValueOrDefault() == PbCommon.FailureCode.StaleIdentity && e.Value.ObservedContext?.Identity is not null)
                         {
                             identity = e.Value.ObservedContext.Identity;
                             continue;
@@ -250,10 +248,10 @@ internal sealed class ClockEventPoll(
                 await ReadAsync().ConfigureAwait(false);
                 // A journal that never read this profile adopts the native backlog but its newest page as history
                 // instead of replaying every earlier session a page per poll.
-                if (readError is null && reply?.Page is { } first && review.InboxCursor == 0 && !_history.Known && !first.Gap
+                if (readError is null && reply?.Outcome?.Page is { } first && review.InboxCursor == 0 && !_history.Known && !first.Gap.GetValueOrDefault()
                     && first.NewestCursor - config.PageLimit > 0 && first.NewestCursor > LastCursor(first))
                 {
-                    var skip = first.NewestCursor - config.PageLimit;
+                    var skip = first.NewestCursor.GetValueOrDefault() - config.PageLimit;
                     if (await journal.AdoptClockBacklogAsync(config.Profile, skip, call).ConfigureAwait(false))
                     {
                         ClockEvents.Event("clock-scheduler", "clock_journal", "clock journal adopted native backlog", ("through_cursor", skip), ("newest_cursor", first.NewestCursor));
@@ -270,10 +268,10 @@ internal sealed class ClockEventPoll(
                     _identity = null;
                     return await FailAsync(readError).ConfigureAwait(false);
                 }
-                var page = reply?.Page ?? throw new BridgeContractException("events reply carried no page");
-                var current = page.Context;
-                BridgeApi.ValidateContext(current);
-                _identity = current.Identity.Clone();
+                var page = reply?.Outcome?.Page ?? throw new BridgeContractException("events reply carried no page");
+                BridgeApi.ValidateContext(page.Context);
+                var current = page.Context ?? throw new BridgeContractException("events page carried no context");
+                _identity = current.Identity;
                 var state = session.State();
                 if (!MatchesAuthority(current, state))
                 {
@@ -298,32 +296,33 @@ internal sealed class ClockEventPoll(
                     }
                 }
                 BridgeApi.ValidateClockEventsPage(page, request);
-                fresh = page.Gap || page.Events.Count > 0;
+                fresh = page.Gap.GetValueOrDefault() || page.Events.Count > 0;
                 // The first page fixes the history watermark: native's newest cursor when this process first read
                 // events. While nothing is enabled, a page at or before it is not fresh evidence.
                 if (!_history.Known)
                 {
-                    _history = new ClockHistory(page.NewestCursor, true, !state.Enabled);
+                    _history = new ClockHistory(page.NewestCursor.GetValueOrDefault(), true, !state.Enabled);
                 }
                 // The grant the page carries is remembered first.
                 if (Grant(page) is { } granted0)
                 {
                     _grant = granted0;
                 }
-                var history = !page.Gap && LastCursor(page) <= _history.Cursor && (!state.Enabled || (_history.Unowned && _grant.CursorFor(state) < 0));
+                var pageGap = page.Gap.GetValueOrDefault();
+                var history = !pageGap && LastCursor(page) <= _history.Cursor && (!state.Enabled || (_history.Unowned && _grant.CursorFor(state) < 0));
                 if (history)
                 {
                     fresh = false;
                 }
                 var latest = session.State();
-                if (!history && !MatchesAuthority(page.Context, latest))
+                if (!history && !MatchesAuthority(current, latest))
                 {
-                    if (latest != state && !interrupted && !page.Gap && !Interrupts(page))
+                    if (latest != state && !interrupted && !pageGap && !Interrupts(page))
                     {
                         throw new AuthorityException();
                     }
                     ClockEvents.AuthorityLost("events page context does not match the held authority",
-                        ("held_known", latest.ObservationKnown), ("held", latest.Snapshot.ToString()), ("observed_generation", page.Context.NativeGeneration), ("observed_tick", page.Context.Tick), ("gap", page.Gap), ("events", EventKinds(page)));
+                        ("held_known", latest.ObservationKnown), ("held", latest.Snapshot.ToString()), ("observed_generation", current.NativeGeneration), ("observed_tick", current.Tick), ("gap", pageGap), ("events", EventKinds(page)));
                     try
                     {
                         session.DisableObserved(latest);
@@ -332,7 +331,7 @@ internal sealed class ClockEventPoll(
                     catch (ConflictException)
                     {
                         // Interruption evidence must still be captured even if authority changed.
-                        if (!page.Gap && !Interrupts(page))
+                        if (!pageGap && !Interrupts(page))
                         {
                             throw new AuthorityException();
                         }
@@ -347,14 +346,14 @@ internal sealed class ClockEventPoll(
                 {
                     grantedAt = _history.Cursor;
                 }
-                var answered = !page.Gap && !InterruptsAfter(page, grantedAt);
+                var answered = !pageGap && !InterruptsAfter(page, grantedAt);
                 if (standing && !_grant.Answers(latest, review.Holds, grantedAt))
                 {
                     await InvalidateAsync("found a standing hold the held grant does not answer", ("holds", review.Holds.Count), ("granted_cursor", grantedAt)).ConfigureAwait(false);
                 }
-                if (page.Gap || InterruptsAfter(page, grantedAt))
+                if (pageGap || InterruptsAfter(page, grantedAt))
                 {
-                    await InvalidateAsync("found interrupting events", ("gap", page.Gap), ("events", EventKinds(page)), ("granted_cursor", grantedAt)).ConfigureAwait(false);
+                    await InvalidateAsync("found interrupting events", ("gap", pageGap), ("events", EventKinds(page)), ("granted_cursor", grantedAt)).ConfigureAwait(false);
                 }
                 call.ThrowIfCancellationRequested();
                 var (_, created) = await journal.AppendClockEventsAsync(config.Profile, request, page, call).ConfigureAwait(false);
@@ -367,7 +366,7 @@ internal sealed class ClockEventPoll(
                 DateTimeOffset? stoppedAt = null;
                 if (captured)
                 {
-                    Tel.ObserveTick((long)page.Context.Tick);
+                    Tel.ObserveTick(current.Tick.GetValueOrDefault());
                     Publish(page);
                     if (ManualAfter(page, _history.Floor))
                     {
@@ -441,16 +440,16 @@ internal sealed class ClockEventPoll(
         }
     }
 
-    private static long LastCursor(PbClock.EventsPage page) => page.Events.Count == 0 ? -1 : page.Events[^1].Cursor;
+    private static long LastCursor(PbClock.EventsPage page) => page.Events.Count == 0 ? -1 : page.Events[^1].Cursor.GetValueOrDefault();
 
     private static ClockGrant? Grant(PbClock.EventsPage page)
     {
         ClockGrant? found = null;
         foreach (var @event in page.Events)
         {
-            if (@event.EventCase == PbClock.Event.EventOneofCase.AuthorityChanged && @event.AuthorityChanged.Active && @event.AuthorityChanged.HasGeneration)
+            if (@event.Event is PbClock.ClockEventEvent.AuthorityChangedCase { Value: { Active: true, Generation: { } generation } })
             {
-                found = new ClockGrant(@event.AuthorityChanged.Generation, @event.Cursor, true);
+                found = new ClockGrant(generation, @event.Cursor.GetValueOrDefault(), true);
             }
         }
         return found;
@@ -459,19 +458,23 @@ internal sealed class ClockEventPoll(
     private static bool Interrupts(PbClock.EventsPage page) => InterruptsAfter(page, -1);
 
     private static bool InterruptsAfter(PbClock.EventsPage page, long granted) =>
-        page.Events.Any(e => e.Cursor > granted && ClockJournal.PageInterrupts(e, page));
+        page.Events.Any(e => e.Cursor.GetValueOrDefault() > granted && ClockJournal.PageInterrupts(e, page));
 
     private static bool StoppedIn(PbClock.EventsPage page) =>
-        page.Events.Any(e => e.EventCase == PbClock.Event.EventOneofCase.Stopped && !ClockJournal.OtherWorld(e, page));
+        page.Events.Any(e => e.Event is PbClock.ClockEventEvent.StoppedCase && !ClockJournal.OtherWorld(e, page));
 
     // Whether the page carries a Manual authority change past the cursor: the player pressed a speed key, which
     // revokes authority before the service re-acquires it (Go clockPollManual).
     private static bool ManualAfter(PbClock.EventsPage page, long after) =>
-        page.Events.Any(e => e.Cursor > after && e.EventCase == PbClock.Event.EventOneofCase.AuthorityChanged && e.AuthorityChanged.Reason == "Manual");
+        page.Events.Any(e => e.Cursor.GetValueOrDefault() > after && e.Event is PbClock.ClockEventEvent.AuthorityChangedCase { Value: var changed } && (changed.Reason ?? "") == "Manual");
+
+    // The oneof case name of a wire choice record ("StoppedCase" -> "Stopped"), "None" when no case is set.
+    private static string CaseName(object? choice) =>
+        choice is null ? "None" : choice.GetType().Name.Replace("Case", "", StringComparison.Ordinal);
 
     // Names, for the clock trace, which events tripped the interruption check (Go clockPollEventKinds).
     private static string EventKinds(PbClock.EventsPage page) =>
-        string.Join(",", page.Events.Select(e => e.EventCase == PbClock.Event.EventOneofCase.Stopped ? "Stopped(" + e.Stopped.Reason + ")" : e.EventCase.ToString()));
+        string.Join(",", page.Events.Select(e => e.Event is PbClock.ClockEventEvent.StoppedCase { Value: var stop } ? "Stopped(" + stop.Reason.GetValueOrDefault() + ")" : CaseName(e.Event)));
 
     // Publishes the typed service events a committed page carries: clock_stop, authority and alert rows; the rule
     // events file their rule rows. Every other kind is the step reason's business (Go clockPollEvents).
@@ -479,19 +482,18 @@ internal sealed class ClockEventPoll(
     {
         foreach (var @event in page.Events)
         {
-            switch (@event.EventCase)
+            switch (@event.Event)
             {
-                case PbClock.Event.EventOneofCase.Stopped:
-                    ClockEvents.Event("clock-scheduler", "clock_stop", "window stopped", [("reason", @event.Stopped.Reason.ToString()), ("evidence", StopEvidence(@event.Stopped)), ("cursor", @event.Cursor), ("observed_at_unix_ms", @event.ObservedAtUnixMs), ("benign", ClockJournal.BenignStopEvent(@event.Stopped)), .. StopLegs(@event, @event.Stopped)]);
+                case PbClock.ClockEventEvent.StoppedCase { Value: var stop }:
+                    ClockEvents.Event("clock-scheduler", "clock_stop", "window stopped", [("reason", stop.Reason.ToString()), ("evidence", StopEvidence(stop)), ("cursor", @event.Cursor.GetValueOrDefault()), ("observed_at_unix_ms", @event.ObservedAtUnixMs.GetValueOrDefault()), ("benign", ClockJournal.BenignStopEvent(stop)), .. StopLegs(@event, stop)]);
                     break;
-                case PbClock.Event.EventOneofCase.AuthorityChanged:
-                    var changed = @event.AuthorityChanged;
-                    ClockEvents.Event("clock-scheduler", "authority", "authority changed", ("change", "changed"), ("reason", changed.Reason), ("active", changed.Active), ("generation", changed.Generation), ("previous_generation", changed.PreviousGeneration), ("cursor", @event.Cursor));
+                case PbClock.ClockEventEvent.AuthorityChangedCase { Value: var changed }:
+                    ClockEvents.Event("clock-scheduler", "authority", "authority changed", ("change", "changed"), ("reason", (changed.Reason ?? "")), ("active", changed.Active.GetValueOrDefault()), ("generation", changed.Generation.GetValueOrDefault()), ("previous_generation", changed.PreviousGeneration.GetValueOrDefault()), ("cursor", @event.Cursor.GetValueOrDefault()));
                     break;
-                case PbClock.Event.EventOneofCase.Alert:
-                    ClockEvents.Event("clock-scheduler", "alert", "game alert", ("key", @event.Alert.Key), ("label", @event.Alert.Label), ("priority", @event.Alert.Priority), ("cursor", @event.Cursor));
+                case PbClock.ClockEventEvent.AlertCase { Value: var alert }:
+                    ClockEvents.Event("clock-scheduler", "alert", "game alert", ("key", (alert.Key ?? "")), ("label", (alert.Label ?? "")), ("priority", (alert.Priority ?? "")), ("cursor", @event.Cursor.GetValueOrDefault()));
                     break;
-                case PbClock.Event.EventOneofCase.RuleFired or PbClock.Event.EventOneofCase.RuleLeaseExpired:
+                case PbClock.ClockEventEvent.RuleFiredCase or PbClock.ClockEventEvent.RuleLeaseExpiredCase:
                     Tel.Decide(RuleDecision(@event));
                     break;
             }
@@ -500,47 +502,46 @@ internal sealed class ClockEventPoll(
 
     // The "rule" row of a native rule event: a firing is verdict fired, reason the trigger word, target the actor; a
     // lapsed lease is verdict expired, reason lease_expired, target the rule runtime (Go ruleDecision).
-    private static Decision RuleDecision(PbClock.Event @event)
+    private static Decision RuleDecision(PbClock.ClockEvent @event)
     {
         var attrs = new Dictionary<string, object?> { ["cursor"] = @event.Cursor };
-        if (@event.EventCase == PbClock.Event.EventOneofCase.RuleFired)
+        if (@event.Event is PbClock.ClockEventEvent.RuleFiredCase { Value: var fired })
         {
-            var fired = @event.RuleFired;
             attrs["rule"] = fired.RuleId;
             attrs["target"] = fired.TargetId;
             attrs["params"] = new Dictionary<string, object?> { ["job"] = fired.Job, ["radius"] = fired.Radius };
             attrs["tick"] = fired.Tick;
-            return new Decision { Kind = "rule", Component = "clock-scheduler", Verdict = "fired", Reason = "prey_killed", Target = fired.ActorId, Attrs = attrs };
+            return new Decision { Kind = "rule", Component = "clock-scheduler", Verdict = "fired", Reason = "prey_killed", Target = fired.ActorId ?? "", Attrs = attrs };
         }
-        var expired = @event.RuleLeaseExpired;
-        attrs["expires_at_tick"] = expired.ExpiresAtTick;
-        attrs["deactivated"] = expired.Deactivated;
+        var expired = @event.Event?.RuleLeaseExpired;
+        attrs["expires_at_tick"] = expired?.ExpiresAtTick;
+        attrs["deactivated"] = expired?.Deactivated;
         return new Decision { Kind = "rule", Component = "clock-scheduler", Verdict = "expired", Reason = "lease_expired", Target = "rules", Attrs = attrs };
     }
 
     // The stop's latency legs on the row: the live half of the split the throughput report computes offline (Go clockStopLegs).
-    private static (string, object?)[] StopLegs(PbClock.Event @event, PbClock.StopEvent stop)
+    private static (string, object?)[] StopLegs(PbClock.ClockEvent @event, PbClock.StopEvent stop)
     {
         var tick = @event.Context?.Tick ?? 0;
         var attrs = new List<(string, object?)> { ("tick", tick) };
-        if (stop.HasDetectedTick)
+        if (stop.DetectedTick is not null)
         {
-            attrs.Add(("detected_tick", stop.DetectedTick));
-            attrs.Add(("stop_ticks", tick - stop.DetectedTick));
-            if (stop.HasOccurrenceTick)
+            attrs.Add(("detected_tick", stop.DetectedTick.GetValueOrDefault()));
+            attrs.Add(("stop_ticks", tick - stop.DetectedTick.GetValueOrDefault()));
+            if (stop.OccurrenceTick is not null)
             {
-                attrs.Add(("occurrence_tick", stop.OccurrenceTick));
-                attrs.Add(("detect_ticks", stop.DetectedTick - stop.OccurrenceTick));
+                attrs.Add(("occurrence_tick", stop.OccurrenceTick.GetValueOrDefault()));
+                attrs.Add(("detect_ticks", stop.DetectedTick.GetValueOrDefault() - stop.OccurrenceTick.GetValueOrDefault()));
             }
         }
-        if (@event.HasAgeAtReplyMs)
+        if (@event.AgeAtReplyMs is { } ageAtReplyMs)
         {
-            attrs.Add(("age_at_reply_ms", (double)@event.AgeAtReplyMs));
+            attrs.Add(("age_at_reply_ms", (double)ageAtReplyMs));
         }
         return [.. attrs];
     }
 
     // Names the evidence a stop event carries (the oneof case: budget, pause, watch, ...), "" when it carries none.
     private static string StopEvidence(PbClock.StopEvent stop) =>
-        stop.EvidenceCase == PbClock.StopEvent.EvidenceOneofCase.None ? "" : stop.EvidenceCase.ToString().ToLowerInvariant();
+        stop.Evidence is null ? "" : CaseName(stop.Evidence).ToLowerInvariant();
 }

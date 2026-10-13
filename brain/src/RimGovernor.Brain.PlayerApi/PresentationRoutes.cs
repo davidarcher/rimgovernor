@@ -1,10 +1,12 @@
+using System.Collections;
+using System.Reflection;
+using System.Text;
 using System.Text.Json;
-using Google.Protobuf;
-using Google.Protobuf.Reflection;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Presentation;
+using RimGovernor.Contracts.Wire;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.PlayerApi;
 
@@ -48,23 +50,23 @@ public static class PresentationRoutes
         {
             registrations.Add(routes.Map("GET", CameraPath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await reader.ReadCameraAsync(new ReadRequest { Identity = id.Clone() }, token).ConfigureAwait(false);
-                return (reply, reply.Camera?.Context);
+                var reply = await reader.ReadCameraAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
+                return (reply, reply.Outcome?.Camera?.Context);
             }, ct), Bounded));
             registrations.Add(routes.Map("GET", SelectionPath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await reader.ReadSelectionAsync(new ReadRequest { Identity = id.Clone() }, token).ConfigureAwait(false);
-                return (reply, reply.Selection?.Context);
+                var reply = await reader.ReadSelectionAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
+                return (reply, reply.Outcome?.Selection?.Context);
             }, ct), Bounded));
             registrations.Add(routes.Map("GET", ColonistsPath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await reader.ReadColonistRosterAsync(new ColonistRosterRequest { Identity = id.Clone(), CurrentMapOnly = true, IncludeDossier = true }, token).ConfigureAwait(false);
-                return (reply, reply.Roster?.Context);
+                var reply = await reader.ReadColonistRosterAsync(new ColonistRosterRequest { Identity = id, CurrentMapOnly = true, IncludeDossier = true }, token).ConfigureAwait(false);
+                return (reply, reply.Outcome?.Roster?.Context);
             }, ct), Bounded));
             registrations.Add(routes.Map("GET", RenderStatePath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await reader.ReadRenderStateAsync(new ReadRequest { Identity = id.Clone() }, token).ConfigureAwait(false);
-                return (reply, reply.Status?.Context);
+                var reply = await reader.ReadRenderStateAsync(new ReadRequest { Identity = id }, token).ConfigureAwait(false);
+                return (reply, reply.Outcome?.Status?.Context);
             }, ct), Bounded));
         }
 
@@ -75,7 +77,7 @@ public static class PresentationRoutes
                 var reply = await notifications.ReadNotificationsAsync(
                     new NotificationsRequest
                     {
-                        Identity = id.Clone(),
+                        Identity = id,
                         IncludeLetters = true,
                         IncludeMessages = true,
                         IncludeAlerts = true,
@@ -84,11 +86,11 @@ public static class PresentationRoutes
                         AlertLimit = 40,
                     },
                     token).ConfigureAwait(false);
-                var snapshot = reply.Notifications;
+                var snapshot = reply.Outcome?.Notifications;
                 if (snapshot is null
-                    || (snapshot.Letters?.Observed is null && snapshot.Letters?.Unavailable is null)
-                    || (snapshot.Messages?.Observed is null && snapshot.Messages?.Unavailable is null)
-                    || (snapshot.Alerts?.Observed is null && snapshot.Alerts?.Unavailable is null))
+                    || (snapshot.Letters?.Outcome?.Observed is null && snapshot.Letters?.Outcome?.Unavailable is null)
+                    || (snapshot.Messages?.Outcome?.Observed is null && snapshot.Messages?.Outcome?.Unavailable is null)
+                    || (snapshot.Alerts?.Outcome?.Observed is null && snapshot.Alerts?.Outcome?.Unavailable is null))
                 {
                     throw new InvalidOperationException("requested notification section missing");
                 }
@@ -105,10 +107,10 @@ public static class PresentationRoutes
         return new ReadRoutes.Registrations(registrations);
     }
 
-    private static async Task<ChannelResponse> ReadAsync(
+    private static async Task<ChannelResponse> ReadAsync<TReply>(
         ISnapshotProvider snapshots,
         ChannelRequest request,
-        Func<WireIdentity, CancellationToken, Task<(IMessage Reply, ObservationContext? Observed)>> read,
+        Func<WireIdentity, CancellationToken, Task<(TReply Reply, ObservationContext? Observed)>> read,
         CancellationToken ct)
     {
         if (request.Query.Length != 0)
@@ -130,16 +132,16 @@ public static class PresentationRoutes
         }
     }
 
-    private static async Task<ChannelResponse> WriteAsync(
+    private static async Task<ChannelResponse> WriteAsync<TReply>(
         ISnapshotProvider snapshots,
         ObservedIdentity identity,
         WireIdentity wire,
-        IMessage reply,
+        TReply reply,
         ObservationContext? observed,
         CancellationToken ct)
     {
         BridgeFunctions.ValidateContext(observed);
-        if (!wire.Equals(observed!.Identity) || observed.Tick < identity.Tick.Value)
+        if (!wire.Equals(observed!.Identity) || observed.Tick.GetValueOrDefault() < identity.Tick.Value)
         {
             throw new InvalidOperationException("presentation context changed");
         }
@@ -150,20 +152,21 @@ public static class PresentationRoutes
             throw new InvalidOperationException("presentation world changed");
         }
 
-        // The provider validates native domain facts. Reject unrepresentable values before the JSON formatter
-        // can silently discard unknown binary fields or stringify NaN.
-        if (BridgeFunctions.HasUnknownFields(reply) || !Representable(reply))
+        // The provider validates native domain facts. Reject unrepresentable values before the JSON writer
+        // can stringify NaN.
+        if (!Representable(reply))
         {
             throw new InvalidOperationException("invalid presentation wire");
         }
 
-        if (reply.CalculateSize() > MaxReplyBytes)
+        var json = WireJson.Serialize(reply);
+        if (Encoding.UTF8.GetByteCount(json) > MaxReplyBytes)
         {
             return ChannelResponse.Failure(503, "response_limit", "Presentation response exceeds its configured bound");
         }
 
         ct.ThrowIfCancellationRequested();
-        return ChannelResponse.Json(200, new JsonFormatter(JsonFormatter.Settings.Default).Format(reply) + "\n");
+        return ChannelResponse.Json(200, json + "\n");
     }
 
     private static async Task<ChannelResponse> DemandAsync(ISnapshotProvider snapshots, IPresentationMediaWriter media, ChannelRequest request, CancellationToken ct)
@@ -195,7 +198,7 @@ public static class PresentationRoutes
                 new RenderDemand { Viewer = new PlayerIdentity { Identity = Wire(identity) }, LeaseSeconds = seconds },
                 ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
-            var status = reply.Status;
+            var status = reply.Outcome?.Status;
             return ChannelResponse.Json(200, PlayerJson.Serialize(new RenderStatusDto(
                 status?.Supported ?? false,
                 status?.Suspended ?? false,
@@ -230,27 +233,49 @@ public static class PresentationRoutes
         MapId = identity.Map.Value,
     };
 
-    /// <summary>Go <c>presentationWire</c>: no field outside the descriptor and no non-finite float anywhere in the reply.</summary>
-    private static bool Representable(IMessage message)
+    /// <summary>Go <c>presentationWire</c>: no non-finite float anywhere in the reply. (Unknown fields cannot exist on a record.)</summary>
+    private static bool Representable(object? value)
     {
-        foreach (var field in message.Descriptor.Fields.InDeclarationOrder())
+        switch (value)
         {
-            var value = field.Accessor.GetValue(message);
-            if (field.IsMap)
+            case null:
+                return true;
+            case double d:
+                return double.IsFinite(d);
+            case float f:
+                return float.IsFinite(f);
+            case string or Enum or bool or decimal:
+                return true;
+        }
+
+        var type = value.GetType();
+        if (type.IsPrimitive)
+        {
+            return true;
+        }
+
+        if (value is IEnumerable items)
+        {
+            foreach (var item in items)
             {
-                if (value is System.Collections.IDictionary map && !map.Values.Cast<object>().All(item => Representable(field, item)))
+                if (!Representable(item))
                 {
                     return false;
                 }
             }
-            else if (field.IsRepeated)
-            {
-                if (value is System.Collections.IEnumerable list && !list.Cast<object>().All(item => Representable(field, item)))
-                {
-                    return false;
-                }
-            }
-            else if (field.FieldType == FieldType.Message ? value is not null && !Representable(field, value) : !Representable(field, value))
+
+            return true;
+        }
+
+        var isPair = type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>);
+        if (!isPair && type.Namespace?.StartsWith("RimGovernor.Contracts.Wire", StringComparison.Ordinal) != true)
+        {
+            return true;
+        }
+
+        foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (property.GetIndexParameters().Length == 0 && property.CanRead && !Representable(property.GetValue(value)))
             {
                 return false;
             }
@@ -258,14 +283,6 @@ public static class PresentationRoutes
 
         return true;
     }
-
-    private static bool Representable(FieldDescriptor field, object? value) => value switch
-    {
-        double d => double.IsFinite(d),
-        float f => float.IsFinite(f),
-        IMessage nested => Representable(nested),
-        _ => true,
-    };
 }
 
 internal sealed record RenderStatusDto(bool Supported, bool Suspended, bool WindowVisible, uint RemainingLeaseMs);

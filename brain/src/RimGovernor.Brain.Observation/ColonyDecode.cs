@@ -45,7 +45,7 @@ public static partial class ObservationPackage
     internal static Fact<T> Optional<T>(bool has, T value) => has ? Known(value) : Unknown<T>();
 
     /// <summary>A reference's id, unknown without a reference.</summary>
-    internal static Fact<string> OptionalRef(C.Ref? r) => r is null ? Unknown<string>() : Optional(r.HasId, r.Id);
+    internal static Fact<string> OptionalRef(C.Ref? r) => r is null ? Unknown<string>() : Optional(r.Id is not null, (r.Id ?? ""));
 
     internal static Fact<long> CountFact(bool has, uint value) => has ? Known((long)value) : Unknown<long>();
 
@@ -53,7 +53,7 @@ public static partial class ObservationPackage
     {
         foreach (var issue in issues)
         {
-            if (issue.Field == field)
+            if ((issue.Field ?? "") == field)
             {
                 return true;
             }
@@ -81,15 +81,15 @@ public static partial class ObservationPackage
         {
             throw new ObservationContractException("missing colony facts reply");
         }
-        if (reply.Unavailable is not null)
+        if (reply.Outcome?.Unavailable is not null)
         {
             throw new BridgeUnavailableException();
         }
-        if (reply.Failure is not null)
+        if (reply.Outcome?.Failure is not null)
         {
             throw new BridgeRefusedException();
         }
-        var v = reply.Observed ?? throw new ObservationContractException("missing colony facts");
+        var v = reply.Outcome?.Observed ?? throw new ObservationContractException("missing colony facts");
         BridgeFunctions.ValidateColonyFacts(v, new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value });
         var identity = ContextIdentity(v.Context);
         // The colony facts row may come from the step's fact cache at any earlier tick; only another generation
@@ -103,7 +103,7 @@ public static partial class ObservationPackage
         {
             Identity = identity,
             Bounds = new Bounds((int)(v.MapSize?.Width ?? 0), (int)(v.MapSize?.Height ?? 0)),
-            PlayerTechLevel = Optional(v.HasPlayerTechLevel, v.PlayerTechLevel),
+            PlayerTechLevel = Optional(v.PlayerTechLevel is not null, (v.PlayerTechLevel ?? "")),
             Threat = ProjectColonyThreat(v),
         };
         // The race rows are static for a load and come from the catalog; an unbuildable race table fails the reading.
@@ -120,7 +120,7 @@ public static partial class ObservationPackage
             policies = policies with { Books = catalog!.Books(), Foods = catalog.Foods() };
             if (v.Biome is not null)
             {
-                policies = policies with { BiomeDiseases = catalog.BiomeDiseases(v.Biome) };
+                policies = policies with { BiomeDiseases = catalog.BiomeDiseases((v.Biome ?? "")) };
             }
             r = r with { Policies = Known(policies) };
         }
@@ -167,12 +167,12 @@ public static partial class ObservationPackage
         };
         var f = new RoundsFacts
         {
-            Colonists = CountFact(v.HasColonistCount, v.ColonistCount),
-            BedCapacity = CountFact(v.HasBedCapacity, v.BedCapacity),
-            IndoorCapacity = CountFact(v.HasIndoorSleepingCapacity, v.IndoorSleepingCapacity),
-            SleepingMin = Optional(v.HasSleepingTemperatureMinC, v.SleepingTemperatureMinC),
-            SleepingMax = Optional(v.HasSleepingTemperatureMaxC, v.SleepingTemperatureMaxC),
-            OutdoorTemperature = Optional(v.HasOutdoorTemperatureC, v.OutdoorTemperatureC),
+            Colonists = CountFact(v.ColonistCount is not null, v.ColonistCount.GetValueOrDefault()),
+            BedCapacity = CountFact(v.BedCapacity is not null, v.BedCapacity.GetValueOrDefault()),
+            IndoorCapacity = CountFact(v.IndoorSleepingCapacity is not null, v.IndoorSleepingCapacity.GetValueOrDefault()),
+            SleepingMin = Optional(v.SleepingTemperatureMinC is not null, v.SleepingTemperatureMinC.GetValueOrDefault()),
+            SleepingMax = Optional(v.SleepingTemperatureMaxC is not null, v.SleepingTemperatureMaxC.GetValueOrDefault()),
+            OutdoorTemperature = Optional(v.OutdoorTemperatureC is not null, v.OutdoorTemperatureC.GetValueOrDefault()),
         };
         f = f with
         {
@@ -195,7 +195,7 @@ public static partial class ObservationPackage
         {
             f = f with { PenGrazing = Known(channels.Grazing), Pasture = Known(channels.Pasture) };
         }
-        if (v.Development?.Observed is { } development && Resolved(buildings, development.Power, row => row.Building))
+        if (v.Development?.Outcome?.Observed is { } development && Resolved(buildings, development.Power, row => row.Building))
         {
             var power = new List<PowerBuilding>(development.Power.Count);
             var topology = new PowerTopology();
@@ -216,8 +216,8 @@ public static partial class ObservationPackage
             foreach (var row in development.Power)
             {
                 buildings.TryGetRow(row.Building, out var b);
-                var s = b!.Service;
-                var def = b.Building?.HasDefName == true ? b.Building.DefName : null;
+                var s = b!.Service ?? new O.BuildingServiceState();
+                var def = b.Building?.DefName;
                 // Whether rain shorts the building is its def's, not the frame's.
                 var rainVulnerable = Unknown<bool>();
                 if (def is not null && catalog is not null)
@@ -247,22 +247,22 @@ public static partial class ObservationPackage
                     Cell = CellOf(reference?.Position),
                     Occupied = RectCells(b.Occupied),
                     BaseW = baseW,
-                    OutputW = Optional(s.HasPowerOutputW, s.PowerOutputW),
-                    Powered = Optional(s.HasPowerOn, s.PowerOn),
-                    Connected = Optional(s.HasConnected, s.Connected),
-                    Network = Optional(s.HasPowerNetId, s.PowerNetId),
-                    Forbidden = Optional(b.Settings.HasForbidden, b.Settings.Forbidden),
-                    SwitchedOn = Optional(s.HasSwitchedOn, s.SwitchedOn),
-                    Fuel = Optional(s.HasFuel, s.Fuel),
-                    TargetFuel = Optional(s.HasTargetFuel, s.TargetFuel),
-                    OutOfFuel = Optional(s.HasOutOfFuel, s.OutOfFuel),
-                    BrokenDown = Optional(s.HasBrokenDown, s.BrokenDown),
+                    OutputW = Optional(s.PowerOutputW is not null, s.PowerOutputW.GetValueOrDefault()),
+                    Powered = Optional(s.PowerOn is not null, s.PowerOn.GetValueOrDefault()),
+                    Connected = Optional(s.Connected is not null, s.Connected.GetValueOrDefault()),
+                    Network = Optional(s.PowerNetId is not null, s.PowerNetId ?? ""),
+                    Forbidden = Optional(b.Settings?.Forbidden is not null, b.Settings?.Forbidden.GetValueOrDefault() ?? false),
+                    SwitchedOn = Optional(s.SwitchedOn is not null, s.SwitchedOn.GetValueOrDefault()),
+                    Fuel = Optional(s.Fuel is not null, s.Fuel.GetValueOrDefault()),
+                    TargetFuel = Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
+                    OutOfFuel = Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
+                    BrokenDown = Optional(s.BrokenDown is not null, s.BrokenDown.GetValueOrDefault()),
                     FuelDefinitions = fuels,
-                    Stored = Optional(row.HasStoredWattDays, row.StoredWattDays),
+                    Stored = Optional(row.StoredWattDays is not null, row.StoredWattDays.GetValueOrDefault()),
                     Capacity = capacity,
                     RainVulnerable = rainVulnerable,
-                    Roofed = Optional(row.HasRoofed, row.Roofed),
-                    TurretDps = Optional(row.HasTurretDps, row.TurretDps),
+                    Roofed = Optional(row.Roofed is not null, row.Roofed.GetValueOrDefault()),
+                    TurretDps = Optional(row.TurretDps is not null, row.TurretDps.GetValueOrDefault()),
                 };
                 power.Add(site);
                 var consumer = FuelConsumerOf(catalog, site.Id, site.Definition, site, out var refuelable);
@@ -270,7 +270,7 @@ public static partial class ObservationPackage
                 {
                     fuel.Add(consumer);
                 }
-                geometryKnown = geometryKnown && reference is { HasDefName: true, Position: not null } && site.Occupied.Count > 0;
+                geometryKnown = geometryKnown && reference is { DefName: not null, Position: not null } && site.Occupied.Count > 0;
                 sites.Add(site);
                 if (site.TurretDps.IsKnown)
                 {
@@ -284,11 +284,11 @@ public static partial class ObservationPackage
             var unsafeConduits = new List<Cell>();
             foreach (var row in buildings.Table.Sorted())
             {
-                if (row.Status != O.BuildingStatus.Built || row.Building is not { HasDefName: true } || catalog is null)
+                if (row.Status.GetValueOrDefault() != O.BuildingStatus.Built || row.Building is not { DefName: not null } || catalog is null)
                 {
                     continue;
                 }
-                if (!catalog.PlainConduit(row.Building.DefName))
+                if (!catalog.PlainConduit((row.Building.DefName ?? "")))
                 {
                     continue;
                 }
@@ -299,7 +299,7 @@ public static partial class ObservationPackage
                 }
                 var cell = CellOf(row.Building.Position);
                 conduits.Add(cell);
-                if (row.Building.DefName == "PowerConduit")
+                if ((row.Building.DefName ?? "") == "PowerConduit")
                 {
                     unsafeConduits.Add(cell);
                 }
@@ -309,11 +309,11 @@ public static partial class ObservationPackage
             {
                 networks.Add(new PowerNetworkFact
                 {
-                    Id = row.Id,
-                    GenerationW = Optional(row.HasGenerationW, row.GenerationW),
-                    ConsumptionW = Optional(row.HasConsumptionW, row.ConsumptionW),
-                    StoredWD = Optional(row.HasStoredWattDays, row.StoredWattDays),
-                    CapacityWD = Optional(row.HasCapacityWattDays, row.CapacityWattDays),
+                    Id = row.Id ?? "",
+                    GenerationW = Optional(row.GenerationW is not null, row.GenerationW.GetValueOrDefault()),
+                    ConsumptionW = Optional(row.ConsumptionW is not null, row.ConsumptionW.GetValueOrDefault()),
+                    StoredWD = Optional(row.StoredWattDays is not null, row.StoredWattDays.GetValueOrDefault()),
+                    CapacityWD = Optional(row.CapacityWattDays is not null, row.CapacityWattDays.GetValueOrDefault()),
                 });
             }
             var geysers = new List<PowerGeyser>();
@@ -330,7 +330,7 @@ public static partial class ObservationPackage
                 {
                     geyserCells.Add(CellOf(cell));
                 }
-                geysers.Add(new PowerGeyser { Id = reference.Id, Cell = CellOf(reference.Position), Occupied = row.Occupied, Cells = geyserCells });
+                geysers.Add(new PowerGeyser { Id = reference.Id ?? "", Cell = CellOf(reference.Position), Occupied = row.Occupied.GetValueOrDefault(), Cells = geyserCells });
             }
             topology = topology with { Conduits = conduits, UnsafeConduits = unsafeConduits, Networks = networks, Geysers = geysers };
             if (geometryKnown)
@@ -345,7 +345,7 @@ public static partial class ObservationPackage
             {
                 f = f with { PowerWeatherSafe = Known(false) };
             }
-            if (development.HasShortCircuitTick)
+            if (development.ShortCircuitTick is not null)
             {
                 f = f with { ShortCircuitTick = Known(new Tick((long)development.ShortCircuitTick)) };
             }
@@ -357,21 +357,21 @@ public static partial class ObservationPackage
             {
                 CropClimate = new CropClimate
                 {
-                    Sowing = Optional(climate.HasSowingNow, climate.SowingNow),
-                    DaysRemaining = Optional(climate.HasGrowingDaysRemaining, climate.GrowingDaysRemaining),
+                    Sowing = Optional(climate.SowingNow is not null, climate.SowingNow.GetValueOrDefault()),
+                    DaysRemaining = Optional(climate.GrowingDaysRemaining is not null, climate.GrowingDaysRemaining.GetValueOrDefault()),
                     OutdoorsDark = outdoorsDark,
-                    Biome = Optional<string>(v.HasBiome, v.Biome ?? ""),
+                    Biome = Optional<string>(v.Biome is not null, v.Biome ?? ""),
                 },
             };
             f = f with { Calendar = ColonyCalendar(climate) };
         }
-        var curve = v.Planning?.Observed?.Gear?.OutdoorTemperatureByTwelfthC;
-        if (curve is not null && curve.Count == 12)
+        var curve = v.Planning?.Outcome?.Observed?.Gear?.OutdoorTemperatureByTwelfthC;
+        if (curve is { } curveTemps && curveTemps.Count == 12)
         {
-            var temps = new double[curve.Count];
-            for (var i = 0; i < curve.Count; i++)
+            var temps = new double[curveTemps.Count];
+            for (var i = 0; i < curveTemps.Count; i++)
             {
-                temps[i] = curve[i];
+                temps[i] = curveTemps[i];
             }
             r = r with
             {
@@ -394,7 +394,7 @@ public static partial class ObservationPackage
                 {
                     Id = b.Bench?.Id ?? "",
                     Definition = buildings.Entity(b.Bench)?.DefName ?? "",
-                    Usable = Optional(b.HasUsable, b.Usable),
+                    Usable = Optional(b.Usable is not null, b.Usable.GetValueOrDefault()),
                     Room = OptionalRef(b.Room),
                 });
             }
@@ -440,13 +440,13 @@ public static partial class ObservationPackage
         {
             letters.Add(new JoinerLetterOffer
             {
-                Id = row.LetterId,
-                Token = row.SnapshotToken,
-                Pawn = new PawnId(row.PawnId),
-                Expires = new Tick((long)row.ExpiresTick),
-                Label = row.AcceptLabel,
-                CanAccept = row.CanAccept,
-                CreepJoiner = row.Creepjoiner,
+                Id = row.LetterId.GetValueOrDefault(),
+                Token = row.SnapshotToken ?? "",
+                Pawn = new PawnId((row.PawnId ?? "")),
+                Expires = new Tick((long)row.ExpiresTick.GetValueOrDefault()),
+                Label = row.AcceptLabel ?? "",
+                CanAccept = row.CanAccept.GetValueOrDefault(),
+                CreepJoiner = row.Creepjoiner.GetValueOrDefault(),
             });
         }
         f = f with { JoinerLetters = Known(EquatableArray.From(letters)) };
@@ -459,15 +459,15 @@ public static partial class ObservationPackage
                 {
                     Id = bench.Bench?.Id ?? "",
                     Definition = buildings.Entity(bench.Bench)?.DefName ?? "",
-                    Usable = Optional(bench.HasUsable, bench.Usable),
+                    Usable = Optional(bench.Usable is not null, bench.Usable.GetValueOrDefault()),
                     Room = OptionalRef(bench.Room),
-                    AutoRefuel = Optional(bench.HasAutoRefuel, bench.AutoRefuel),
+                    AutoRefuel = Optional(bench.AutoRefuel is not null, bench.AutoRefuel.GetValueOrDefault()),
                 });
             }
             r = r with { CookingBenches = Known(EquatableArray.From(benches)) };
         }
         // A food supply whose stock the things table misses stays unknown until a later frame.
-        if (v.FoodSupply?.Observed is { } food)
+        if (v.FoodSupply?.Outcome?.Observed is { } food)
         {
             if (DecodeFoodSupply(food, tables.Things, catalog) is { } supply)
             {
@@ -475,7 +475,7 @@ public static partial class ObservationPackage
                 f = f with { FoodStorageUpkeep = PolicyFunctions.FoodStorageStocks(supply, RequireCatalog(catalog).Derived.FullRotRateC) };
             }
         }
-        if (v.Forecast?.Observed is { } forecast)
+        if (v.Forecast?.Outcome?.Observed is { } forecast)
         {
             var combined = DecodeFoodSupply(forecast.CombinedFoodSupply, tables.Things, catalog);
             if (combined is not null)
@@ -502,9 +502,9 @@ public static partial class ObservationPackage
             }
         }
         f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = r.CombinedFoodSupply } };
-        if (v.HasWorkerCount)
+        if (v.WorkerCount is not null)
         {
-            r = r with { Workers = Known((int)v.WorkerCount) };
+            r = r with { Workers = Known((int)v.WorkerCount.GetValueOrDefault()) };
         }
         if (!HasIssue(v.Issues, "resources"))
         {
@@ -514,16 +514,16 @@ public static partial class ObservationPackage
             var stock = new Dictionary<Resource, long>();
             foreach (var q in v.Resources)
             {
-                if (q.DefName == "WoodLog")
+                if ((q.DefName ?? "") == "WoodLog")
                 {
-                    f = f with { Wood = Optional(q.HasUnits, q.Units) };
+                    f = f with { Wood = Optional(q.Units is not null, q.Units.GetValueOrDefault()) };
                 }
-                complete = complete && q.HasUnits;
-                rows.Add(new Amount(new Resource(q.DefName), q.Units));
-                if (q.HasUnits)
+                complete = complete && q.Units is not null;
+                rows.Add(new Amount(new Resource((q.DefName ?? "")), q.Units.GetValueOrDefault()));
+                if (q.Units is not null)
                 {
-                    var key = new Resource(q.DefName);
-                    stock[key] = stock.GetValueOrDefault(key) + q.Units;
+                    var key = new Resource((q.DefName ?? ""));
+                    stock[key] = stock.GetValueOrDefault(key) + q.Units.GetValueOrDefault();
                 }
             }
             if (complete)
@@ -532,7 +532,7 @@ public static partial class ObservationPackage
             }
             r = r with { Resources = Known<IReadOnlyDictionary<Resource, long>>(stock) };
         }
-        if (v.EventLoot?.Observed is { } loot && Headed(tables, loot.Items, row => row.Item))
+        if (v.EventLoot?.Outcome?.Observed is { } loot && Headed(tables, loot.Items, row => row.Item))
         {
             var rows = new List<LootItem>(loot.Items.Count);
             var spawnForbidden = RequireCatalog(catalog).SpawnForbiddenProducts();
@@ -542,29 +542,29 @@ public static partial class ObservationPackage
                 var item = new LootItem
                 {
                     Supply = new StartingSupply { Thing = row.Item?.Id ?? "", Definition = head?.DefName ?? "", Cell = CellOf(head?.Position) },
-                    Forbidden = row.Forbidden,
-                    SafeToHaul = row.SafeToHaul,
-                    SafetyKnown = row.HasSafeToHaul,
-                    Count = row.Count,
+                    Forbidden = row.Forbidden.GetValueOrDefault(),
+                    SafeToHaul = row.SafeToHaul.GetValueOrDefault(),
+                    SafetyKnown = row.SafeToHaul is not null,
+                    Count = row.Count.GetValueOrDefault(),
                     SpawnForbidden = spawnForbidden.Contains(head?.DefName ?? ""),
                 };
-                if (row.HasPathLength)
+                if (row.PathLength is not null)
                 {
-                    item = item with { PathLength = Known(row.PathLength) };
+                    item = item with { PathLength = Known(row.PathLength.GetValueOrDefault()) };
                 }
-                if (row.HasStorageHeadroom)
+                if (row.StorageHeadroom is not null)
                 {
-                    item = item with { StorageHeadroom = Known(row.StorageHeadroom) };
+                    item = item with { StorageHeadroom = Known(row.StorageHeadroom.GetValueOrDefault()) };
                 }
                 rows.Add(item);
             }
             f = f with { EventLoot = Known(EquatableArray.From(rows)) };
         }
-        if (v.Planning?.Observed is { } planningObserved && planningObserved.Environment is { } planningEnvironment
+        if (v.Planning?.Outcome?.Observed is { } planningObserved && planningObserved.Environment is { } planningEnvironment
             && !HasIssue(planningObserved.Issues, "environment")
             && Headed(buildings, planningEnvironment.Lights, l => l.Building) && Headed(buildings, planningEnvironment.Growers, g => g.Building))
         {
-            var environment = ColonyEnvironment(planningEnvironment, v.HasOutdoorTemperatureC ? v.OutdoorTemperatureC : null, buildings, catalog);
+            var environment = ColonyEnvironment(planningEnvironment, v.OutdoorTemperatureC is not null ? v.OutdoorTemperatureC.GetValueOrDefault() : null, buildings, catalog);
             r = r with { Environment = Known(environment) };
         }
         // Facts.Gear needs the catalog: ObserveColony fills it.
@@ -593,12 +593,12 @@ public static partial class ObservationPackage
         var e = new ControlledEnvironment
         {
             OutdoorTemperatureC = outdoor is { } temperature ? Known(temperature) : Unknown<double>(),
-            Daylight = Optional(v.HasDaylight, v.Daylight),
+            Daylight = Optional(v.Daylight is not null, v.Daylight.GetValueOrDefault()),
             WeatherAccuracy = Unknown<double>(),
         };
         if (v.Weather is not null)
         {
-            e = e with { WeatherAccuracy = Known(RequireCatalog(catalog).WeatherAccuracy(v.Weather)) };
+            e = e with { WeatherAccuracy = Known(RequireCatalog(catalog).WeatherAccuracy((v.Weather ?? ""))) };
         }
         var lights = new List<GrowLight>();
         foreach (var row in v.Lights)
@@ -611,10 +611,10 @@ public static partial class ObservationPackage
                 Definition = reference?.DefName ?? "",
                 Cell = CellOf(reference?.Position),
                 Room = OptionalRef(row.Room),
-                Network = Optional(row.HasPowerNetId, row.PowerNetId),
-                Powered = Optional(row.HasPowered, row.Powered),
+                Network = Optional(row.PowerNetId is not null, (row.PowerNetId ?? "")),
+                Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
                 PowerW = power,
-                LitNow = Optional(row.HasLitNow, row.LitNow),
+                LitNow = Optional(row.LitNow is not null, row.LitNow.GetValueOrDefault()),
                 GrowthCells = CellsOf(row.GrowthCells),
             });
         }
@@ -630,13 +630,13 @@ public static partial class ObservationPackage
                 Definition = reference?.DefName ?? "",
                 Cell = CellOf(reference?.Position),
                 Room = OptionalRef(row.Room),
-                Network = Optional(row.HasPowerNetId, row.PowerNetId),
-                Powered = Optional(row.HasPowered, row.Powered),
+                Network = Optional(row.PowerNetId is not null, (row.PowerNetId ?? "")),
+                Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
                 PowerW = power,
                 Fertility = fertility,
                 SowTag = sowTag,
-                Crop = Optional(row.HasCropDefName, row.CropDefName),
-                CanSow = Optional(row.HasCanSow, row.CanSow),
+                Crop = Optional(row.CropDefName is not null, (row.CropDefName ?? "")),
+                CanSow = Optional(row.CanSow is not null, row.CanSow.GetValueOrDefault()),
                 Cells = CellsOf(row.PlantCells),
             });
         }
@@ -646,12 +646,12 @@ public static partial class ObservationPackage
             rooms.Add(new GrowRoom
             {
                 Id = row.Room?.Id ?? "",
-                TemperatureC = Optional(row.HasTemperatureC, row.TemperatureC),
-                Cells = Count(row.HasCellCount, row.CellCount),
-                OpenRoof = Count(row.HasOpenRoofCount, row.OpenRoofCount),
-                Lit = Count(row.HasLitCells, row.LitCells),
-                Proper = Optional(row.HasProperRoom, row.ProperRoom),
-                Outdoors = Optional(row.HasPsychologicallyOutdoors, row.PsychologicallyOutdoors),
+                TemperatureC = Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
+                Cells = Count(row.CellCount is not null, row.CellCount.GetValueOrDefault()),
+                OpenRoof = Count(row.OpenRoofCount is not null, row.OpenRoofCount.GetValueOrDefault()),
+                Lit = Count(row.LitCells is not null, row.LitCells.GetValueOrDefault()),
+                Proper = Optional(row.ProperRoom is not null, row.ProperRoom.GetValueOrDefault()),
+                Outdoors = Optional(row.PsychologicallyOutdoors is not null, row.PsychologicallyOutdoors.GetValueOrDefault()),
             });
         }
         var networks = new List<PowerHeadroom>();
@@ -659,14 +659,14 @@ public static partial class ObservationPackage
         {
             networks.Add(new PowerHeadroom
             {
-                Id = row.Id,
-                GenerationW = Optional(row.HasGenerationW, row.GenerationW),
-                SolarW = Optional(row.HasSolarW, row.SolarW),
-                WindW = Optional(row.HasWindW, row.WindW),
-                ConsumptionW = Optional(row.HasConsumptionW, row.ConsumptionW),
-                StoredWattDays = Optional(row.HasStoredWattDays, row.StoredWattDays),
-                CapacityWattDays = Optional(row.HasCapacityWattDays, row.CapacityWattDays),
-                ActiveSource = Optional(row.HasHasActiveSource, row.HasActiveSource),
+                Id = row.Id ?? "",
+                GenerationW = Optional(row.GenerationW is not null, row.GenerationW.GetValueOrDefault()),
+                SolarW = Optional(row.SolarW is not null, row.SolarW.GetValueOrDefault()),
+                WindW = Optional(row.WindW is not null, row.WindW.GetValueOrDefault()),
+                ConsumptionW = Optional(row.ConsumptionW is not null, row.ConsumptionW.GetValueOrDefault()),
+                StoredWattDays = Optional(row.StoredWattDays is not null, row.StoredWattDays.GetValueOrDefault()),
+                CapacityWattDays = Optional(row.CapacityWattDays is not null, row.CapacityWattDays.GetValueOrDefault()),
+                ActiveSource = Optional(row.HasActiveSource is not null, row.HasActiveSource.GetValueOrDefault()),
             });
         }
         return e with { Lights = [.. lights], Growers = [.. growers], Rooms = [.. rooms], Networks = [.. networks] };

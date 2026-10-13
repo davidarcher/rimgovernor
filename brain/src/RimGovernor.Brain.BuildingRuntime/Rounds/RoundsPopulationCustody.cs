@@ -112,7 +112,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("step: emergency context", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("step: emergency read older than the review");
         }
@@ -135,7 +135,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
         ids.Add(choice.Pawn.Value);
         var (reply, _) = await native.ReadCombatPawnsAsync(identityCtx, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new ControlException("step: observed == nil");
+        var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == nil");
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -160,12 +160,12 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var seen = new HashSet<string>();
         foreach (var row in observed.Pawns)
         {
-            if (row is null || row.Pawn is null || !seen.Add(row.Pawn.Id))
+            if (row is null || row.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("step: row missing or repeated");
             }
 
-            var pawn = new PawnId(row.Pawn.Id);
+            var pawn = new PawnId((row.Pawn.Id ?? ""));
             if (pawn == choice.Pawn)
             {
                 patient = row;

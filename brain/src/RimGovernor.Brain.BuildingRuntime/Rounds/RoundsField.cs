@@ -347,7 +347,7 @@ public sealed partial class RoundsFieldPlanner
                     FieldEdit("refused", "preview_refused", crop.Name, new Dictionary<string, object?> { ["detail"] = refused }, call);
                     return (new RoundsFieldResult { Verdict = SiteBlocked("field_zone", "preview_refused"), NativeWorkTicks = wait }, false);
                 }
-                var ev = reply?.Evaluated ?? throw new ControlException("enact: accepted preview carries no evaluation");
+                var ev = reply?.Outcome?.Evaluated ?? throw new ControlException("enact: accepted preview carries no evaluation");
                 try
                 {
                     Boundary.Context(ev.Context, snapshot);
@@ -472,7 +472,7 @@ public sealed partial class RoundsFieldPlanner
             FieldEdit("refused", "preview_refused", edit.Crop, new Dictionary<string, object?> { ["detail"] = refused }, call);
             return (new RoundsFieldResult { Verdict = SiteBlocked("field_zone", "preview_refused"), NativeWorkTicks = wait }, false);
         }
-        var v = reply?.Evaluated ?? throw new ControlException("enactBlock: accepted preview carries no evaluation");
+        var v = reply?.Outcome?.Evaluated ?? throw new ControlException("enactBlock: accepted preview carries no evaluation");
         try
         {
             Boundary.Context(v.Context, snapshot);

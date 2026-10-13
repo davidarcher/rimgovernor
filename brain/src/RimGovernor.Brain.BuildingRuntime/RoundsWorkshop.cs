@@ -102,7 +102,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = await source.ReadColonyFactsAsync(identity, Concern == MaintainEquipment, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("prepareWorkshop: observed == nil || bridge.ValidateColonyFacts(observed, identity) != nil");
@@ -123,7 +123,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
-        if (observed.Context.Tick < review.Tick.Value)
+        if ((observed.Context?.Tick).GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
@@ -136,7 +136,7 @@ public sealed partial class RoundsBuildingPlanner
         List<Pol.Resource> products = [];
         if (Concern == MaintainEquipment)
         {
-            var gear = observed.Planning?.Observed?.Gear;
+            var gear = observed.Planning?.Outcome?.Observed?.Gear;
             if (gear is null)
             {
                 return (null, FieldUnavailable("gear_census"));
@@ -177,11 +177,11 @@ public sealed partial class RoundsBuildingPlanner
         var census = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false)).Benches;
         if (resource.ToString() == "Beer")
         {
-            if (!observed.HasFermentingBarrels)
+            if (observed.FermentingBarrels is null)
             {
                 return (null, FieldUnavailable("fermenting_barrels"));
             }
-            if (observed.FermentingBarrels == 0)
+            if (observed.FermentingBarrels.GetValueOrDefault() == 0)
             {
                 var barrel = new WorkshopSelection { Barrel = true, Resource = resource, Candidates = ["FermentingBarrel"] };
                 return (barrel, new Verdict());

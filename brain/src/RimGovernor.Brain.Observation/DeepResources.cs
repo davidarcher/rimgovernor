@@ -66,7 +66,7 @@ public static partial class ObservationPackage
     /// <summary>Validates the census before projection. Missing sections remain unknown; an observed empty census establishes that no lumps/scanners exist.</summary>
     internal static Fact<DeepResources> ColonyDeepResources(O.DeepResourcesSection? section, DefinitionCatalog? catalog)
     {
-        var f = section?.Observed;
+        var f = section?.Outcome?.Observed;
         if (f is null)
         {
             return default;
@@ -74,7 +74,7 @@ public static partial class ObservationPackage
         var lumps = new List<DeepResourceLump>();
         foreach (var row in f.Lumps)
         {
-            lumps.Add(new DeepResourceLump { Definition = row.DefName, Count = row.Count, Centre = new Cell(row.Centre?.X ?? 0, row.Centre?.Z ?? 0), CellCount = row.CellCount });
+            lumps.Add(new DeepResourceLump { Definition = row.DefName ?? "", Count = row.Count.GetValueOrDefault(), Centre = new Cell(row.Centre?.X ?? 0, row.Centre?.Z ?? 0), CellCount = row.CellCount.GetValueOrDefault() });
         }
         List<MineralScanner> Scanners(IEnumerable<O.MineralScannerState> rows)
         {
@@ -83,13 +83,13 @@ public static partial class ObservationPackage
             {
                 result.Add(new MineralScanner
                 {
-                    ID = row.BuildingId,
-                    Definition = row.DefName,
+                    ID = row.BuildingId ?? "",
+                    Definition = row.DefName ?? "",
                     Position = new Cell(row.Position?.X ?? 0, row.Position?.Z ?? 0),
-                    Built = Optional(row.HasBuilt, row.Built),
-                    Powered = Optional(row.HasPowered, row.Powered),
-                    Working = Optional(row.HasWorking, row.Working),
-                    TicksToNextFind = Optional(row.HasTicksToNextFind, row.TicksToNextFind),
+                    Built = Optional(row.Built is not null, row.Built.GetValueOrDefault()),
+                    Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
+                    Working = Optional(row.Working is not null, row.Working.GetValueOrDefault()),
+                    TicksToNextFind = Optional(row.TicksToNextFind is not null, row.TicksToNextFind.GetValueOrDefault()),
                     TargetResource = TargetResource(row, catalog),
                 });
             }
@@ -100,14 +100,14 @@ public static partial class ObservationPackage
         {
             drills.Add(new DeepDrill
             {
-                ID = row.BuildingId,
-                Definition = row.DefName,
+                ID = row.BuildingId ?? "",
+                Definition = row.DefName ?? "",
                 Position = new Cell(row.Position?.X ?? 0, row.Position?.Z ?? 0),
-                Powered = Optional(row.HasPowered, row.Powered),
-                Depleted = Optional(row.HasDepleted, row.Depleted),
-                Designated = Optional(row.HasDesignated, row.Designated),
-                Resource = Optional(row.HasResource, row.Resource),
-                Remaining = Optional(row.HasRemaining, row.Remaining),
+                Powered = Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
+                Depleted = Optional(row.Depleted is not null, row.Depleted.GetValueOrDefault()),
+                Designated = Optional(row.Designated is not null, row.Designated.GetValueOrDefault()),
+                Resource = Optional(row.Resource is not null, row.Resource ?? ""),
+                Remaining = Optional(row.Remaining is not null, row.Remaining.GetValueOrDefault()),
             });
         }
         return Known(new DeepResources { Lumps = lumps, GroundScanners = Scanners(f.GroundScanners), LongRangeScanners = Scanners(f.LongRangeScanners), Drills = drills });
@@ -116,11 +116,11 @@ public static partial class ObservationPackage
     /// <summary>What a long-range scanner's aimed mineable yields, read from the mineable's def row; unknown when the scanner reports no target or the catalog has no yield for it.</summary>
     private static Fact<string> TargetResource(O.MineralScannerState row, DefinitionCatalog? catalog)
     {
-        if (!row.HasTargetMineable)
+        if (row.TargetMineable is null)
         {
             return default;
         }
-        var yield = RequireCatalog(catalog).MineableYield(row.TargetMineable);
+        var yield = RequireCatalog(catalog).MineableYield((row.TargetMineable ?? ""));
         return yield != "" ? Known(yield) : default;
     }
 }

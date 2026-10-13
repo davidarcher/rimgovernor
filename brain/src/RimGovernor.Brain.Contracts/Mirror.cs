@@ -513,17 +513,33 @@ public abstract record CombatGeometryProposeRole
 {
     private protected CombatGeometryProposeRole() { }
 
+    /// <summary>The <c>CoverBehindLine</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatCoverBehindLine? CoverBehindLine => (this as CoverBehindLineCase)?.Value;
+
     public sealed record CoverBehindLineCase(CombatCoverBehindLine Value) : CombatGeometryProposeRole;
 
     public static implicit operator CombatGeometryProposeRole(CombatCoverBehindLine value) => new CoverBehindLineCase(value);
+
+    /// <summary>The <c>AdjacentToChoke</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatAdjacentToChoke? AdjacentToChoke => (this as AdjacentToChokeCase)?.Value;
 
     public sealed record AdjacentToChokeCase(CombatAdjacentToChoke Value) : CombatGeometryProposeRole;
 
     public static implicit operator CombatGeometryProposeRole(CombatAdjacentToChoke value) => new AdjacentToChokeCase(value);
 
+    /// <summary>The <c>FiringCells</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatFiringCells? FiringCells => (this as FiringCellsCase)?.Value;
+
     public sealed record FiringCellsCase(CombatFiringCells Value) : CombatGeometryProposeRole;
 
     public static implicit operator CombatGeometryProposeRole(CombatFiringCells value) => new FiringCellsCase(value);
+
+    /// <summary>The <c>RescuePath</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatRescuePath? RescuePath => (this as RescuePathCase)?.Value;
 
     public sealed record RescuePathCase(CombatRescuePath Value) : CombatGeometryProposeRole;
 
@@ -696,9 +712,17 @@ public abstract record CombatGeometryReplyOutcome
 {
     private protected CombatGeometryReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatGeometry? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(CombatGeometry Value) : CombatGeometryReplyOutcome;
 
     public static implicit operator CombatGeometryReplyOutcome(CombatGeometry value) => new ObservedCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : CombatGeometryReplyOutcome;
 
@@ -756,11 +780,19 @@ public abstract record FieldArrayForm
     /// <summary>
     /// presence and Fact[bool] fields, one byte per cell
     /// </summary>
+    /// <summary>The <c>Codes</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public byte[]? Codes => (this as CodesCase)?.Value;
+
     public sealed record CodesCase(byte[] Value) : FieldArrayForm;
 
     /// <summary>
     /// string fields: string table indexes
     /// </summary>
+    /// <summary>The <c>Indexes</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PackedUint32? Indexes => (this as IndexesCase)?.Value;
+
     public sealed record IndexesCase(PackedUint32 Value) : FieldArrayForm;
 
     public static implicit operator FieldArrayForm(PackedUint32 value) => new IndexesCase(value);
@@ -768,9 +800,17 @@ public abstract record FieldArrayForm
     /// <summary>
     /// Fact[float64] fields
     /// </summary>
+    /// <summary>The <c>Numbers</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PackedDouble? Numbers => (this as NumbersCase)?.Value;
+
     public sealed record NumbersCase(PackedDouble Value) : FieldArrayForm;
 
     public static implicit operator FieldArrayForm(PackedDouble value) => new NumbersCase(value);
+
+    /// <summary>The <c>Sparse</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SparseArray? Sparse => (this as SparseCase)?.Value;
 
     public sealed record SparseCase(SparseArray Value) : FieldArrayForm;
 
@@ -949,21 +989,41 @@ public abstract record ThingState
 {
     private protected ThingState() { }
 
+    /// <summary>The <c>Plant</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PlantState? Plant => (this as PlantCase)?.Value;
+
     public sealed record PlantCase(PlantState Value) : ThingState;
 
     public static implicit operator ThingState(PlantState value) => new PlantCase(value);
+
+    /// <summary>The <c>Corpse</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CorpseState? Corpse => (this as CorpseCase)?.Value;
 
     public sealed record CorpseCase(CorpseState Value) : ThingState;
 
     public static implicit operator ThingState(CorpseState value) => new CorpseCase(value);
 
+    /// <summary>The <c>Filth</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FilthState? Filth => (this as FilthCase)?.Value;
+
     public sealed record FilthCase(FilthState Value) : ThingState;
 
     public static implicit operator ThingState(FilthState value) => new FilthCase(value);
 
+    /// <summary>The <c>Building</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BuildingState? Building => (this as BuildingCase)?.Value;
+
     public sealed record BuildingCase(BuildingState Value) : ThingState;
 
     public static implicit operator ThingState(BuildingState value) => new BuildingCase(value);
+
+    /// <summary>The <c>Item</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ItemState? Item => (this as ItemCase)?.Value;
 
     public sealed record ItemCase(ItemState Value) : ThingState;
 

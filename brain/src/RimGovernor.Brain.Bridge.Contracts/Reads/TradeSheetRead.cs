@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Common;
-using TradeTarget = RimGovernor.Protocol.Common.TradeTarget;
+using RimGovernor.Contracts.Wire.Common;
+using TradeTarget = RimGovernor.Contracts.Wire.Common.TradeTarget;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 

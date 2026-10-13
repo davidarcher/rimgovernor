@@ -8,7 +8,7 @@
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Facts/RimGovernor.Brain.Facts.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
   </ItemGroup>
@@ -27,11 +27,11 @@
     <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Static="true" />
     <!-- Wire namespaces under the short names the Go imports used (c, d, o, l, operationspb). -->
-    <Using Include="RimGovernor.Protocol.Common" Alias="C" />
-    <Using Include="RimGovernor.Protocol.Defs" Alias="D" />
-    <Using Include="RimGovernor.Protocol.Observations" Alias="O" />
-    <Using Include="RimGovernor.Protocol.Lifecycle" Alias="L" />
-    <Using Include="RimGovernor.Protocol.Operations" Alias="Ops" />
+    <Using Include="RimGovernor.Contracts.Wire.Common" Alias="C" />
+    <Using Include="RimGovernor.Contracts.Wire.Defs" Alias="D" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations" Alias="O" />
+    <Using Include="RimGovernor.Contracts.Wire.Lifecycle" Alias="L" />
+    <Using Include="RimGovernor.Contracts.Wire.Operations" Alias="Ops" />
     <!-- The wire message shares this name with the domain value; this project names the domain value. -->
     <Using Include="RimGovernor.Brain.Domain.Cell" Alias="Cell" />
     <!-- Domain and Policy each declare a PawnId (Go domain.PawnID and policy.PawnID); the policy one is the common case. -->

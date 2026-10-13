@@ -289,7 +289,7 @@ public static partial class ObservationPackage
     /// <summary>Projects a validated section; an absent or unavailable one is an unknown fact.</summary>
     internal static Fact<BiotechColony> ColonyBiotech(O.BiotechSection? section)
     {
-        var f = section?.Observed;
+        var f = section?.Outcome?.Observed;
         if (f is null)
         {
             return default;
@@ -298,7 +298,7 @@ public static partial class ObservationPackage
         var polluters = new List<Polluter>();
         foreach (var x in f.Polluters)
         {
-            polluters.Add(WithRow(new Polluter { Polluting = Optional(x.HasPolluting, x.Polluting), CellsPerDay = Optional(x.HasCellsPerDay, x.CellsPerDay) }, x.ThingId, x.DefName, x.Position));
+            polluters.Add(WithRow(new Polluter { Polluting = Optional(x.Polluting is not null, x.Polluting.GetValueOrDefault()), CellsPerDay = Optional(x.CellsPerDay is not null, x.CellsPerDay.GetValueOrDefault()) }, x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var wastepacks = new List<Wastepack>();
         foreach (var x in f.Wastepacks)
@@ -306,15 +306,15 @@ public static partial class ObservationPackage
             wastepacks.Add(WithRow(
                 new Wastepack
                 {
-                    Count = x.Count,
-                    Frozen = Optional(x.HasFrozen, x.Frozen),
-                    Outdoors = Optional(x.HasOutdoors, x.Outdoors),
-                    InAtomizer = Optional(x.HasInAtomizer, x.InAtomizer),
-                    CanDissolveNow = Optional(x.HasCanDissolveNow, x.CanDissolveNow),
-                    Forbidden = Optional(x.HasForbidden, x.Forbidden),
-                    DeteriorationRate = Optional(x.HasDeteriorationRate, x.DeteriorationRate),
+                    Count = x.Count.GetValueOrDefault(),
+                    Frozen = Optional(x.Frozen is not null, x.Frozen.GetValueOrDefault()),
+                    Outdoors = Optional(x.Outdoors is not null, x.Outdoors.GetValueOrDefault()),
+                    InAtomizer = Optional(x.InAtomizer is not null, x.InAtomizer.GetValueOrDefault()),
+                    CanDissolveNow = Optional(x.CanDissolveNow is not null, x.CanDissolveNow.GetValueOrDefault()),
+                    Forbidden = Optional(x.Forbidden is not null, x.Forbidden.GetValueOrDefault()),
+                    DeteriorationRate = Optional(x.DeteriorationRate is not null, x.DeteriorationRate.GetValueOrDefault()),
                 },
-                x.ThingId, x.DefName, x.Position));
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var atomizers = new List<WastepackAtomizer>();
         foreach (var x in f.Atomizers)
@@ -322,20 +322,20 @@ public static partial class ObservationPackage
             atomizers.Add(WithRow(
                 new WastepackAtomizer
                 {
-                    Powered = Optional(x.HasPowered, x.Powered),
-                    AutoLoad = Optional(x.HasAutoLoad, x.AutoLoad),
-                    SpaceLeft = Optional(x.HasSpaceLeft, x.SpaceLeft),
-                    TicksLeft = Optional(x.HasTicksLeft, x.TicksLeft),
-                    FillPercent = Optional(x.HasFillPercent, x.FillPercent),
+                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    AutoLoad = Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()),
+                    SpaceLeft = Optional(x.SpaceLeft is not null, x.SpaceLeft.GetValueOrDefault()),
+                    TicksLeft = Optional(x.TicksLeft is not null, x.TicksLeft.GetValueOrDefault()),
+                    FillPercent = Optional(x.FillPercent is not null, x.FillPercent.GetValueOrDefault()),
                 },
-                x.ThingId, x.DefName, x.Position));
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var pumps = new List<PollutionPump>();
         foreach (var x in f.Pumps)
         {
             pumps.Add(WithRow(
-                new PollutionPump { Powered = Optional(x.HasPowered, x.Powered), DisabledByArtificialBuildings = Optional(x.HasDisabledByArtificialBuildings, x.DisabledByArtificialBuildings) },
-                x.ThingId, x.DefName, x.Position));
+                new PollutionPump { Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()), DisabledByArtificialBuildings = Optional(x.DisabledByArtificialBuildings is not null, x.DisabledByArtificialBuildings.GetValueOrDefault()) },
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var gestators = new List<MechGestator>();
         foreach (var x in f.Gestators)
@@ -343,17 +343,17 @@ public static partial class ObservationPackage
             gestators.Add(WithRow(
                 new MechGestator
                 {
-                    Powered = Optional(x.HasPowered, x.Powered),
-                    BillID = Optional(x.HasBillId, x.BillId),
-                    State = Optional(x.HasState, x.State),
-                    MechKind = Optional(x.HasMechKind, x.MechKind),
-                    BoundPawnID = Optional(x.HasBoundPawnId, x.BoundPawnId),
-                    CyclesCompleted = Optional(x.HasCyclesCompleted, x.CyclesCompleted),
-                    WasteCount = Optional(x.HasWasteCount, x.WasteCount),
-                    BandwidthCost = Optional(x.HasBandwidthCost, x.BandwidthCost),
-                    FormingPercent = Optional(x.HasFormingPercent, x.FormingPercent),
+                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    BillID = Optional(x.BillId is not null, x.BillId ?? ""),
+                    State = Optional(x.State is not null, x.State ?? ""),
+                    MechKind = Optional(x.MechKind is not null, x.MechKind ?? ""),
+                    BoundPawnID = Optional(x.BoundPawnId is not null, x.BoundPawnId ?? ""),
+                    CyclesCompleted = Optional(x.CyclesCompleted is not null, x.CyclesCompleted.GetValueOrDefault()),
+                    WasteCount = Optional(x.WasteCount is not null, x.WasteCount.GetValueOrDefault()),
+                    BandwidthCost = Optional(x.BandwidthCost is not null, x.BandwidthCost.GetValueOrDefault()),
+                    FormingPercent = Optional(x.FormingPercent is not null, x.FormingPercent.GetValueOrDefault()),
                 },
-                x.ThingId, x.DefName, x.Position));
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var chargers = new List<MechChargerRow>();
         foreach (var x in f.Chargers)
@@ -361,12 +361,12 @@ public static partial class ObservationPackage
             chargers.Add(WithRow(
                 new MechChargerRow
                 {
-                    Powered = Optional(x.HasPowered, x.Powered),
-                    FullOfWaste = Optional(x.HasFullOfWaste, x.FullOfWaste),
-                    ChargingMechID = Optional(x.HasChargingMechId, x.ChargingMechId),
-                    WasteCount = Optional(x.HasWasteCount, x.WasteCount),
+                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    FullOfWaste = Optional(x.FullOfWaste is not null, x.FullOfWaste.GetValueOrDefault()),
+                    ChargingMechID = Optional(x.ChargingMechId is not null, x.ChargingMechId ?? ""),
+                    WasteCount = Optional(x.WasteCount is not null, x.WasteCount.GetValueOrDefault()),
                 },
-                x.ThingId, x.DefName, x.Position));
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var babies = new List<BabyCare>();
         foreach (var x in f.Babies)
@@ -374,15 +374,15 @@ public static partial class ObservationPackage
             var feeders = new List<BabyAutofeeder>();
             foreach (var a in x.Autofeeders)
             {
-                feeders.Add(new BabyAutofeeder(a.PawnId, a.Mode));
+                feeders.Add(new BabyAutofeeder(a.PawnId ?? "", a.Mode ?? ""));
             }
             babies.Add(new BabyCare
             {
-                PawnID = x.PawnId,
-                WantsSuckle = Optional(x.HasWantsSuckle, x.WantsSuckle),
-                CanSuckleNow = Optional(x.HasCanSuckleNow, x.CanSuckleNow),
-                BeingPlayedWith = Optional(x.HasBeingPlayedWith, x.BeingPlayedWith),
-                InBed = Optional(x.HasInBed, x.InBed),
+                PawnID = x.PawnId ?? "",
+                WantsSuckle = Optional(x.WantsSuckle is not null, x.WantsSuckle.GetValueOrDefault()),
+                CanSuckleNow = Optional(x.CanSuckleNow is not null, x.CanSuckleNow.GetValueOrDefault()),
+                BeingPlayedWith = Optional(x.BeingPlayedWith is not null, x.BeingPlayedWith.GetValueOrDefault()),
+                InBed = Optional(x.InBed is not null, x.InBed.GetValueOrDefault()),
                 Autofeeders = feeders,
             });
         }
@@ -390,8 +390,8 @@ public static partial class ObservationPackage
         foreach (var x in f.GeneBanks)
         {
             banks.Add(WithRow(
-                new GeneBank { Powered = Optional(x.HasPowered, x.Powered), AutoLoad = Optional(x.HasAutoLoad, x.AutoLoad), Capacity = Optional(x.HasCapacity, x.Capacity), PackIDs = [.. x.PackIds] },
-                x.ThingId, x.DefName, x.Position));
+                new GeneBank { Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()), AutoLoad = Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()), Capacity = Optional(x.Capacity is not null, x.Capacity.GetValueOrDefault()), PackIDs = [.. x.PackIds] },
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var assemblers = new List<GeneAssembler>();
         foreach (var x in f.GeneAssemblers)
@@ -399,17 +399,17 @@ public static partial class ObservationPackage
             assemblers.Add(WithRow(
                 new GeneAssembler
                 {
-                    Powered = Optional(x.HasPowered, x.Powered),
-                    Working = Optional(x.HasWorking, x.Working),
-                    CanWorkNow = Optional(x.HasCanWorkNow, x.CanWorkNow),
-                    Progress = Optional(x.HasProgress, x.Progress),
-                    TotalWork = Optional(x.HasTotalWork, x.TotalWork),
-                    ArchitesOwed = Optional(x.HasArchitesOwed, x.ArchitesOwed),
-                    MaxComplexity = Optional(x.HasMaxComplexity, x.MaxComplexity),
+                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    Working = Optional(x.Working is not null, x.Working.GetValueOrDefault()),
+                    CanWorkNow = Optional(x.CanWorkNow is not null, x.CanWorkNow.GetValueOrDefault()),
+                    Progress = Optional(x.Progress is not null, x.Progress.GetValueOrDefault()),
+                    TotalWork = Optional(x.TotalWork is not null, x.TotalWork.GetValueOrDefault()),
+                    ArchitesOwed = Optional(x.ArchitesOwed is not null, x.ArchitesOwed.GetValueOrDefault()),
+                    MaxComplexity = Optional(x.MaxComplexity is not null, x.MaxComplexity.GetValueOrDefault()),
                     PackIDs = [.. x.PackIds],
                     LinkedBankIDs = [.. x.LinkedBankIds],
                 },
-                x.ThingId, x.DefName, x.Position));
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var extractors = new List<GeneExtractor>();
         foreach (var x in f.GeneExtractors)
@@ -417,28 +417,28 @@ public static partial class ObservationPackage
             extractors.Add(WithRow(
                 new GeneExtractor
                 {
-                    Powered = Optional(x.HasPowered, x.Powered),
-                    Working = Optional(x.HasWorking, x.Working),
-                    SelectedPawnID = Optional(x.HasSelectedPawnId, x.SelectedPawnId),
-                    OccupantID = Optional(x.HasOccupantId, x.OccupantId),
-                    TicksRemaining = Optional(x.HasTicksRemaining, x.TicksRemaining),
-                    PowerCutTicks = Optional(x.HasPowerCutTicks, x.PowerCutTicks),
+                    Powered = Optional(x.Powered is not null, x.Powered.GetValueOrDefault()),
+                    Working = Optional(x.Working is not null, x.Working.GetValueOrDefault()),
+                    SelectedPawnID = Optional(x.SelectedPawnId is not null, x.SelectedPawnId ?? ""),
+                    OccupantID = Optional(x.OccupantId is not null, x.OccupantId ?? ""),
+                    TicksRemaining = Optional(x.TicksRemaining is not null, x.TicksRemaining.GetValueOrDefault()),
+                    PowerCutTicks = Optional(x.PowerCutTicks is not null, x.PowerCutTicks.GetValueOrDefault()),
                 },
-                x.ThingId, x.DefName, x.Position));
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         var packs = new List<Genepack>();
         foreach (var x in f.Genepacks)
         {
             packs.Add(new Genepack
             {
-                ID = x.ThingId,
-                Definition = x.DefName,
+                ID = x.ThingId ?? "",
+                Definition = x.DefName ?? "",
                 Genes = [.. x.Genes],
-                Totals = GeneTotalsOf(x.HasComplexity, x.Complexity, x.HasMetabolism, x.Metabolism, x.HasArchites, x.Archites),
-                BankID = Optional(x.HasBankId, x.BankId),
-                Deteriorating = Optional(x.HasDeteriorating, x.Deteriorating),
-                AutoLoad = Optional(x.HasAutoLoad, x.AutoLoad),
-                HitPoints = Optional(x.HasHitPoints, x.HitPoints),
+                Totals = GeneTotalsOf(x.Complexity is not null, x.Complexity.GetValueOrDefault(), x.Metabolism is not null, x.Metabolism.GetValueOrDefault(), x.Archites is not null, x.Archites.GetValueOrDefault()),
+                BankID = Optional(x.BankId is not null, x.BankId ?? ""),
+                Deteriorating = Optional(x.Deteriorating is not null, x.Deteriorating.GetValueOrDefault()),
+                AutoLoad = Optional(x.AutoLoad is not null, x.AutoLoad.GetValueOrDefault()),
+                HitPoints = Optional(x.HitPoints is not null, x.HitPoints.GetValueOrDefault()),
                 Position = x.Position is null ? default : Known(CellOf(x.Position)),
             });
         }
@@ -448,27 +448,27 @@ public static partial class ObservationPackage
             var implants = new List<ImplantMetabolism>();
             foreach (var m in x.ImplantMetabolism)
             {
-                implants.Add(new ImplantMetabolism(m.PawnId, Optional(m.HasMetabolismAfter, m.MetabolismAfter)));
+                implants.Add(new ImplantMetabolism(m.PawnId ?? "", Optional(m.MetabolismAfter is not null, m.MetabolismAfter.GetValueOrDefault())));
             }
             xenogerms.Add(WithRow(
                 new Xenogerm
                 {
                     Genes = [.. x.Genes],
-                    Totals = GeneTotalsOf(x.HasComplexity, x.Complexity, x.HasMetabolism, x.Metabolism, x.HasArchites, x.Archites),
-                    TargetPawnID = Optional(x.HasTargetPawnId, x.TargetPawnId),
-                    Forbidden = Optional(x.HasForbidden, x.Forbidden),
+                    Totals = GeneTotalsOf(x.Complexity is not null, x.Complexity.GetValueOrDefault(), x.Metabolism is not null, x.Metabolism.GetValueOrDefault(), x.Archites is not null, x.Archites.GetValueOrDefault()),
+                    TargetPawnID = Optional(x.TargetPawnId is not null, x.TargetPawnId ?? ""),
+                    Forbidden = Optional(x.Forbidden is not null, x.Forbidden.GetValueOrDefault()),
                     ImplantMetabolism = implants,
                 },
-                x.ThingId, x.DefName, x.Position));
+                x.ThingId ?? "", x.DefName ?? "", x.Position));
         }
         return Known(new BiotechColony
         {
-            TotalPollution = Optional(p.HasTotalPollution, p.TotalPollution),
-            PollutableCells = Optional(p.HasPollutableCells, p.PollutableCells),
-            ClearAreaID = Optional(p.HasClearAreaId, p.ClearAreaId),
-            ClearAreaCells = Optional(p.HasClearAreaCells, p.ClearAreaCells),
-            PollutedCells = Optional(p.HasPollutedCells, p.PollutedCells),
-            PollutedUncoveredCells = Optional(p.HasPollutedUncoveredCells, p.PollutedUncoveredCells),
+            TotalPollution = Optional(p.TotalPollution is not null, p.TotalPollution.GetValueOrDefault()),
+            PollutableCells = Optional(p.PollutableCells is not null, p.PollutableCells.GetValueOrDefault()),
+            ClearAreaID = Optional(p.ClearAreaId is not null, p.ClearAreaId ?? ""),
+            ClearAreaCells = Optional(p.ClearAreaCells is not null, p.ClearAreaCells.GetValueOrDefault()),
+            PollutedCells = Optional(p.PollutedCells is not null, p.PollutedCells.GetValueOrDefault()),
+            PollutedUncoveredCells = Optional(p.PollutedUncoveredCells is not null, p.PollutedUncoveredCells.GetValueOrDefault()),
             Breastfeeders = [.. f.Breastfeeders],
             Polluters = polluters,
             Wastepacks = wastepacks,

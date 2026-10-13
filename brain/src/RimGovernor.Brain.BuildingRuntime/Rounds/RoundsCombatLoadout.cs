@@ -130,7 +130,7 @@ public sealed partial class RoundsDefensePlanner
     internal async Task<List<LoadoutApparel>> LoadoutBeltsAsync(IColonyFactsReader source, C.Identity identity, ControlState state, CancellationToken call)
     {
         var reply = await _reviewer.ColonyFactsAsync(source, identity, true, call).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new ControlException("loadoutBelts: observed == nil");
+        var observed = reply.Outcome?.Observed ?? throw new ControlException("loadoutBelts: observed == nil");
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -142,7 +142,7 @@ public sealed partial class RoundsDefensePlanner
         var things = await FrameThingsOfAsync(source, identity, call).ConfigureAwait(false);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var output = new List<LoadoutApparel>();
-        foreach (var pawn in observed.Planning?.Observed?.Gear?.Pawns ?? [])
+        foreach (var pawn in observed.Planning?.Outcome?.Observed?.Gear?.Pawns ?? [])
         {
             foreach (var candidate in pawn.Candidates)
             {
@@ -152,11 +152,11 @@ public sealed partial class RoundsDefensePlanner
                     continue;
                 }
                 things.TryRow(thing, out var row);
-                if (row?.Thing_?.DefName != ShieldBeltDef || thing.Id == "" || !seen.Add(thing.Id))
+                if (row?.Entity is not { } entity || entity.DefName != ShieldBeltDef || string.IsNullOrEmpty(thing.Id) || !seen.Add(thing.Id))
                 {
                     continue;
                 }
-                var cell = row.Thing_.Position is { } at ? new Cell(at.X, at.Z) : default;
+                var cell = entity.Position is { } at ? new Cell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault()) : default;
                 output.Add(new LoadoutApparel(thing.Id, ShieldBeltDef, cell));
             }
         }
@@ -176,8 +176,8 @@ internal static partial class BuildingRuntimePackage
         }
         foreach (var item in equipment.Equipped)
         {
-            var id = equipment.PrimaryId;
-            if (id != "" && item.Thing?.Id == id)
+            var id = (equipment.PrimaryId ?? "");
+            if (id != "" && (item.Thing?.Id ?? "") == id)
             {
                 return GearDef(things, item.Thing);
             }

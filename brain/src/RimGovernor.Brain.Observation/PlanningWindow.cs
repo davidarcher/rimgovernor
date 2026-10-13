@@ -44,7 +44,7 @@ public static partial class ObservationPackage
     /// </summary>
     internal static async Task<ColonyProjection> FillPlanningWindow(O.ColonyFactsReply reply, C.Identity identity, ColonyProjection projection, CancellationToken cancellationToken)
     {
-        if (reply.Observed?.Planning?.Observed is null)
+        if (reply.Outcome?.Observed?.Planning?.Outcome?.Observed is null)
         {
             return projection;
         }

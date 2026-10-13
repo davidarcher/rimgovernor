@@ -47,7 +47,7 @@ public sealed class FirstSeenRecord
             foreach (var (pawnId, row) in pawns.Table.All())
             {
                 var standing = row.Standing;
-                if (standing is null || !row.Humanlike)
+                if (standing is null || !row.Humanlike.GetValueOrDefault())
                 {
                     continue;
                 }
@@ -58,11 +58,11 @@ public sealed class FirstSeenRecord
                 _seen[pawnId] = new PawnFirstSeen
                 {
                     Tick = id.Tick,
-                    Faction = standing.FactionDefName,
-                    Title = standing.RoyalTitle,
+                    Faction = standing.FactionDefName ?? "",
+                    Title = standing.RoyalTitle ?? "",
                     HostFaction = standing.HostFaction?.Id ?? "",
-                    Guest = standing.GuestStatus,
-                    QuestLodger = standing.QuestLodger,
+                    Guest = standing.GuestStatus ?? "",
+                    QuestLodger = standing.QuestLodger.GetValueOrDefault(),
                 };
             }
         }

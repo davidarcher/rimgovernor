@@ -92,11 +92,11 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
             }
             catch (NativeFailureException refused)
             {
-                Tel.Decide(StockpileEditDecision("refused", refused.Value.Code.ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = refused.Value.Detail }));
+                Tel.Decide(StockpileEditDecision("refused", refused.Value.Code.GetValueOrDefault().ToString(), e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = (refused.Value.Detail ?? "") }));
                 continue;
             }
-            var v = reply.Evaluated;
-            if (v is null || !v.Accepted)
+            var v = reply.Outcome?.Evaluated;
+            if (v is null || !v.Accepted.GetValueOrDefault())
             {
                 Tel.Decide(StockpileEditDecision("refused", "preview_not_accepted", e.Role, new Dictionary<string, object?> { ["kind"] = "create", ["detail"] = v?.Reason ?? "" }));
                 continue;
@@ -109,7 +109,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
             {
                 throw new ControlException("create: err != nil || domain.Tick(v.Context.GetTick()) < tick", err);
             }
-            if (new Tick(v.Context.Tick) < tick)
+            if (new Tick((v.Context?.Tick).GetValueOrDefault()) < tick)
             {
                 throw new ControlException("create: err != nil || domain.Tick(v.Context.GetTick()) < tick");
             }

@@ -83,7 +83,7 @@ public sealed class RoundsTendPlanner
         }
         var ids = emergency.Facts.Colonists.Select(pawn => pawn.Id.Value).ToList();
         var (reply, _) = await _native.ReadTendPawnsAsync(identity, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("step: observed == nil");
@@ -106,11 +106,11 @@ public sealed class RoundsTendPlanner
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in observed.Pawns)
         {
-            if (row is null || row.Pawn is null || !seen.Add(row.Pawn.Id))
+            if (row is null || row.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]");
             }
-            var pawn = new PawnId(row.Pawn.Id);
+            var pawn = new PawnId((row.Pawn.Id ?? ""));
             doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, ""));
             var patientFacts = TendFacts.NewTendPatientFacts(pawn, row, "") with { Threatened = threatened.Contains(pawn) };
             patients.Add(patientFacts);

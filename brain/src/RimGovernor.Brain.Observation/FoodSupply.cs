@@ -35,10 +35,10 @@ public static partial class ObservationPackage
             {
                 corpses.Add(new CorpseHandling
                 {
-                    InStorage = Optional(row.HasInStorage, row.InStorage),
+                    InStorage = Optional(row.InStorage is not null, row.InStorage.GetValueOrDefault()),
                     Id = row.StockId,
                     Cell = CellOf(row.Cell),
-                    Hauler = new PawnId(row.HaulerId),
+                    Hauler = new PawnId((row.HaulerId ?? "")),
                     FrozenDestination = row.FrozenDestination,
                 });
             }
@@ -57,9 +57,9 @@ public static partial class ObservationPackage
         {
             consumers.Add(new FoodConsumer
             {
-                Id = new PawnId(row.PawnId),
-                NutritionPerDay = Optional(row.HasNutritionPerDay, row.NutritionPerDay),
-                HumanMeatAcceptable = Optional(row.HasHumanMeatAcceptable, row.HumanMeatAcceptable),
+                Id = new PawnId((row.PawnId ?? "")),
+                NutritionPerDay = Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
+                HumanMeatAcceptable = Optional(row.HumanMeatAcceptable is not null, row.HumanMeatAcceptable.GetValueOrDefault()),
             });
         }
         var stocks = new List<FoodStock>();
@@ -68,29 +68,29 @@ public static partial class ObservationPackage
         {
             rows.TryGetValue(s.Item?.Id ?? "", out var row);
             row ??= new O.Thing();
-            var def = row.Thing_?.DefName ?? "";
-            var defFacts = FoodDefFactsOf(catalog, def, row.Corpse);
+            var def = row.Entity?.DefName ?? "";
+            var defFacts = FoodDefFactsOf(catalog, def, row.Corpse.GetValueOrDefault());
             // A thing rots exactly while it has a rot deadline.
             var stock = new FoodStock
             {
                 Id = s.Item?.Id ?? "",
-                IsHumanMeat = row.IsHumanMeat,
+                IsHumanMeat = row.IsHumanMeat.GetValueOrDefault(),
                 RawMeat = defFacts.RawMeat,
                 IsHumanlike = defFacts.Humanlike,
                 Vegetable = defFacts.Vegetable,
                 RawClass = Known(defFacts.Class),
                 Holder = Known(new PawnId(s.Holder?.Id ?? "")),
-                Nutrition = Optional(s.HasNutrition, s.Nutrition),
-                Perishable = Known(row.HasRotTicks),
-                RotTicks = Optional(row.HasRotTicks, row.RotTicks),
+                Nutrition = Optional(s.Nutrition is not null, s.Nutrition.GetValueOrDefault()),
+                Perishable = Known(row.RotTicks is not null),
+                RotTicks = Optional(row.RotTicks is not null, row.RotTicks.GetValueOrDefault()),
                 DefName = new Resource(def),
-                Roofed = Optional(row.HasRoofed, row.Roofed),
-                TemperatureC = Optional(row.HasTemperatureC, row.TemperatureC),
+                Roofed = Optional(row.Roofed is not null, row.Roofed.GetValueOrDefault()),
+                TemperatureC = Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
                 Room = OptionalRef(row.Room),
             };
-            if (row.HasStackCount)
+            if (row.StackCount is not null)
             {
-                stock = stock with { Count = Known((long)row.StackCount) };
+                stock = stock with { Count = Known((long)row.StackCount.GetValueOrDefault()) };
             }
             try
             {
@@ -100,11 +100,11 @@ public static partial class ObservationPackage
             {
                 // A def with no readable mass leaves the unit mass unknown.
             }
-            stock = stock with { Corpse = row.Corpse };
+            stock = stock with { Corpse = row.Corpse.GetValueOrDefault() };
             // A forbidden stack is the travel reserve when its def is one; any other forbidden stack has no
             // eaters and counts only as human meat.
             var barred = false;
-            if (row.Forbidden && !stock.Corpse)
+            if (row.Forbidden.GetValueOrDefault() && !stock.Corpse)
             {
                 var reserve = PolicyFunctions.ReserveFoodDefinition(stock.DefName);
                 stock = stock with { Reserve = reserve };
@@ -112,10 +112,10 @@ public static partial class ObservationPackage
             }
             stock = stock with
             {
-                Forbidden = Optional(row.HasForbidden, row.Forbidden),
-                MeatAmount = Optional(row.HasMeatAmount, row.MeatAmount),
-                BodySize = Optional(row.HasBodySize, row.BodySize),
-                TileFootprint = Optional(row.HasTileFootprint, (long)row.TileFootprint),
+                Forbidden = Optional(row.Forbidden is not null, row.Forbidden.GetValueOrDefault()),
+                MeatAmount = Optional(row.MeatAmount is not null, row.MeatAmount.GetValueOrDefault()),
+                BodySize = Optional(row.BodySize is not null, row.BodySize.GetValueOrDefault()),
+                TileFootprint = Optional(row.TileFootprint is not null, (long)row.TileFootprint.GetValueOrDefault()),
             };
             if (barred && !stock.IsHumanMeat)
             {

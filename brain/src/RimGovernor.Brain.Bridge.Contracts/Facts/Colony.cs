@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -37,24 +37,24 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>ProjectColonyThreat</c>: reads the threat section of a validated census.</summary>
     public static ColonyThreat ProjectColonyThreat(ColonyFactsSnapshot census)
     {
-        var facts = census.Threat?.Observed;
+        var facts = census.Threat?.Outcome?.Observed;
         if (facts is null)
         {
             return new ColonyThreat();
         }
 
-        static Fact<double> Number(bool present, double value) => present && double.IsFinite(value) ? Known(value) : Unknown<double>();
+        static Fact<double> Number(double? value) => value is { } v && double.IsFinite(v) ? Known(v) : Unknown<double>();
 
         return new ColonyThreat
         {
-            RaidPoints = Number(facts.HasRaidPoints, facts.RaidPoints),
-            WealthTotal = Number(facts.HasWealthTotal, facts.WealthTotal),
-            WealthItems = Number(facts.HasWealthItems, facts.WealthItems),
-            WealthBuildings = Number(facts.HasWealthBuildings, facts.WealthBuildings),
-            WealthPawns = Number(facts.HasWealthPawns, facts.WealthPawns),
-            StorytellerWealth = Number(facts.HasStorytellerWealth, facts.StorytellerWealth),
-            AdaptationFactor = Number(facts.HasAdaptationFactor, facts.AdaptationFactor),
-            DifficultyThreatScale = Number(facts.HasDifficultyThreatScale, facts.DifficultyThreatScale),
+            RaidPoints = Number(facts.RaidPoints),
+            WealthTotal = Number(facts.WealthTotal),
+            WealthItems = Number(facts.WealthItems),
+            WealthBuildings = Number(facts.WealthBuildings),
+            WealthPawns = Number(facts.WealthPawns),
+            StorytellerWealth = Number(facts.StorytellerWealth),
+            AdaptationFactor = Number(facts.AdaptationFactor),
+            DifficultyThreatScale = Number(facts.DifficultyThreatScale),
             Raids = ValidateRaidTracks(facts.Raids), // validated with the census
         };
     }
@@ -66,6 +66,6 @@ public static partial class BridgeFunctions
     public static PlanningSection NotRequestedPlanning() =>
         new()
         {
-            Unavailable = new Unavailable { Reason = UnavailableReason.NotRequested, Detail = "Planning was not requested." },
+            Outcome = new Unavailable { Reason = UnavailableReason.NotRequested, Detail = "Planning was not requested." },
         };
 }

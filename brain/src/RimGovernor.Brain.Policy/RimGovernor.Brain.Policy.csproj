@@ -5,7 +5,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- The mood audit table is the Go package's file, embedded unchanged so one copy serves both until cutover. -->

@@ -1,6 +1,6 @@
-using RimGovernor.Protocol.Clock;
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Receipts;
+using RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -22,7 +22,7 @@ public static partial class BridgeFunctions
     {
         ClockWire(request);
         ValidateIdentity(request.Identity);
-        if (!request.HasAfterCursor || request.AfterCursor < 0 || !request.HasLimit || request.Limit < 1 || request.Limit > 128)
+        if (request.AfterCursor is null || request.AfterCursor.GetValueOrDefault() < 0 || request.Limit is null || request.Limit.GetValueOrDefault() < 1 || request.Limit.GetValueOrDefault() > 128)
         {
             throw Contract("clock events cursor/limit");
         }
@@ -38,108 +38,105 @@ public static partial class BridgeFunctions
         }
         ClockWire(page);
         ValidateContext(page.Context);
-        if (!SameIdentity(page.Context.Identity, request.Identity))
+        if (!SameIdentity(page.Context?.Identity, request.Identity))
         {
             throw Contract("clock events page identity mismatch");
         }
-        if (!page.HasNewestCursor
-            || !page.HasNextCursor
-            || !page.HasGap
-            || !page.HasLostCount
-            || (page.HasOldestCursor && page.OldestCursor < 0)
-            || page.NewestCursor < 0
-            || page.NextCursor < request.AfterCursor
-            || page.NextCursor > page.NewestCursor
-            || page.NewestCursor < request.AfterCursor
-            || page.Events.Count > (int)request.Limit)
+        if (page.NewestCursor is null
+            || page.NextCursor is null
+            || page.Gap is null
+            || page.LostCount is null
+            || (page.OldestCursor is not null && page.OldestCursor.GetValueOrDefault() < 0)
+            || page.NewestCursor.GetValueOrDefault() < 0
+            || page.NextCursor.GetValueOrDefault() < request.AfterCursor.GetValueOrDefault()
+            || page.NextCursor.GetValueOrDefault() > page.NewestCursor.GetValueOrDefault()
+            || page.NewestCursor.GetValueOrDefault() < request.AfterCursor.GetValueOrDefault()
+            || page.Events.Count > (int)request.Limit.GetValueOrDefault())
         {
             throw Contract("clock events cursor presence or bounds");
         }
-        if (page.HasOldestCursor && (page.OldestCursor > page.NewestCursor + 1 || (page.OldestCursor == 0 && page.NewestCursor != 0)))
+        if (page.OldestCursor is not null && (page.OldestCursor.GetValueOrDefault() > page.NewestCursor.GetValueOrDefault() + 1 || (page.OldestCursor.GetValueOrDefault() == 0 && page.NewestCursor.GetValueOrDefault() != 0)))
         {
             throw Contract("clock journal retained range");
         }
         // oldest_cursor is the native process's first cursor; those below it predate the process, so a read from
         // below starts just before it with no loss. From there native scans cursor positions, counting evicted rows
         // as lost. Subtract validated nonnegative ordered cursors before converting to avoid overflow.
-        var start = Math.Max(request.AfterCursor, page.OldestCursor - 1);
-        if (page.NextCursor < start)
+        var start = Math.Max(request.AfterCursor.GetValueOrDefault(), page.OldestCursor.GetValueOrDefault() - 1);
+        if (page.NextCursor.GetValueOrDefault() < start)
         {
             throw Contract("clock events cursor presence or bounds");
         }
-        var span = (ulong)(page.NextCursor - start);
-        if (span > request.Limit || (ulong)page.Events.Count > span || page.LostCount != span - (ulong)page.Events.Count)
+        var span = (ulong)(page.NextCursor.GetValueOrDefault() - start);
+        if (span > request.Limit.GetValueOrDefault() || (ulong)page.Events.Count > span || page.LostCount.GetValueOrDefault() != span - (ulong)page.Events.Count)
         {
             throw Contract("clock events scanned span/loss mismatch");
         }
-        var previous = request.AfterCursor;
+        var previous = request.AfterCursor.GetValueOrDefault();
         foreach (var @event in page.Events)
         {
-            ClockEvent(@event);
-            if (@event.Cursor <= previous
-                || (page.HasOldestCursor && @event.Cursor < page.OldestCursor)
-                || @event.Cursor > page.NextCursor)
+            ClockJournalEvent(@event);
+            if (@event.Cursor.GetValueOrDefault() <= previous
+                || (page.OldestCursor is not null && @event.Cursor.GetValueOrDefault() < page.OldestCursor.GetValueOrDefault())
+                || @event.Cursor.GetValueOrDefault() > page.NextCursor.GetValueOrDefault())
             {
                 throw Contract("clock events order/range");
             }
-            previous = @event.Cursor;
+            previous = @event.Cursor.GetValueOrDefault();
         }
-        if (page.Gap != page.LostCount > 0)
+        if (page.Gap.GetValueOrDefault() != page.LostCount.GetValueOrDefault() > 0)
         {
             throw Contract("clock events next cursor or loss mismatch");
         }
     }
 
-    private static void ClockEvent(Event @event)
+    private static void ClockJournalEvent(ClockEvent @event)
     {
         // Only an authority change observed outside any epoch and the native rule events (rules run with or
         // without an epoch) have no owner.
-        var ownerless = @event.EventCase is Event.EventOneofCase.AuthorityChanged or Event.EventOneofCase.RuleFired or Event.EventOneofCase.RuleLeaseExpired;
+        var ownerless = @event.Event is ClockEventEvent.AuthorityChangedCase or ClockEventEvent.RuleFiredCase or ClockEventEvent.RuleLeaseExpiredCase;
         if (@event.Owner is not null || !ownerless)
         {
             ClockOwner(@event.Owner);
         }
         ValidateContext(@event.Context);
-        if (!@event.HasCursor
+        if (@event.Cursor is null
             || @event.Cursor <= 0
-            || !@event.HasObservedAtUnixMs
+            || @event.ObservedAtUnixMs is null
             || @event.ObservedAtUnixMs < 0
-            || !Diagnostic(@event.HasDetail, @event.Detail))
+            || !Diagnostic(@event.Detail is not null, @event.Detail ?? ""))
         {
             throw Contract("clock event header");
         }
-        switch (@event.EventCase)
+        switch (@event.Event)
         {
-            case Event.EventOneofCase.Started:
-                var started = @event.Started;
+            case ClockEventEvent.StartedCase { Value: var started }:
                 ClockEpoch(started.Epoch);
-                if (!Equals(started.Epoch.Owner, @event.Owner) || !Equals(started.Epoch.Origin, @event.Context))
+                if (!Equals(started.Epoch?.Owner, @event.Owner) || !Equals(started.Epoch?.Origin, @event.Context))
                 {
                     throw Contract("clock started origin mismatch");
                 }
                 break;
-            case Event.EventOneofCase.SpeedChanged:
-                var changed = @event.SpeedChanged;
-                if (!changed.HasSpeed || changed.MaxTicksPerSecond > 60000 || changed.RegulatedTicksPerSecond > 60000 || changed.BlindTicks < 0)
+            case ClockEventEvent.SpeedChangedCase { Value: var changed }:
+                if (changed.Speed is null || changed.MaxTicksPerSecond > 60000 || changed.RegulatedTicksPerSecond > 60000 || changed.BlindTicks < 0)
                 {
                     throw Contract("clock speed evidence required");
                 }
                 break;
-            case Event.EventOneofCase.Stopped:
-                ClockStopEvent(@event.Stopped);
+            case ClockEventEvent.StoppedCase { Value: var stopped }:
+                ClockStopEvent(stopped);
                 break;
-            case Event.EventOneofCase.Notification:
-                ClockNotification(@event.Notification);
+            case ClockEventEvent.NotificationCase { Value: var notification }:
+                ClockNotification(notification);
                 break;
-            case Event.EventOneofCase.Alert:
-                ClockAlert(@event.Alert);
+            case ClockEventEvent.AlertCase { Value: var alert }:
+                ClockAlert(alert);
                 break;
-            case Event.EventOneofCase.InjuryObserved:
-                ClockInjury(@event.InjuryObserved);
+            case ClockEventEvent.InjuryObservedCase { Value: var injury }:
+                ClockInjury(injury);
                 break;
-            case Event.EventOneofCase.HostilesCleared:
-                var cleared = @event.HostilesCleared;
-                if (cleared.HasConsciousHostilesBefore && cleared.ConsciousHostilesBefore < 0)
+            case ClockEventEvent.HostilesClearedCase { Value: var cleared }:
+                if (cleared.ConsciousHostilesBefore < 0)
                 {
                     throw Contract("clock hostile count");
                 }
@@ -149,58 +146,53 @@ public static partial class BridgeFunctions
                     foreach (var pawn in rows)
                     {
                         ClockPawn(pawn);
-                        if (!seen.Add(pawn.PawnId))
+                        if (!seen.Add(pawn.PawnId ?? ""))
                         {
                             throw Contract("duplicate clock pawn evidence");
                         }
                     }
                 }
                 break;
-            case Event.EventOneofCase.PauseFailed:
-                ClockStopEvent(@event.PauseFailed.Pending);
+            case ClockEventEvent.PauseFailedCase { Value: var pauseFailed }:
+                ClockStopEvent(pauseFailed.Pending);
                 break;
-            case Event.EventOneofCase.ForcePauseWaiting:
-                ClockPauseEvidence(@event.ForcePauseWaiting.Pause);
+            case ClockEventEvent.ForcePauseWaitingCase { Value: var waiting }:
+                ClockPauseEvidence(waiting.Pause);
                 break;
-            case Event.EventOneofCase.ForcePauseCleared:
+            case ClockEventEvent.ForcePauseClearedCase:
                 break;
-            case Event.EventOneofCase.OperationOutcome:
-                ClockOperationOutcome(@event.OperationOutcome);
+            case ClockEventEvent.OperationOutcomeCase { Value: var outcome }:
+                ClockOperationOutcome(outcome);
                 break;
-            case Event.EventOneofCase.AuthorityChanged:
-                var authority = @event.AuthorityChanged;
-                if (!authority.HasGeneration
-                    || authority.Generation == 0
-                    || (authority.HasPreviousGeneration && authority.PreviousGeneration >= authority.Generation)
-                    || !Diagnostic(authority.HasReason, authority.Reason))
+            case ClockEventEvent.AuthorityChangedCase { Value: var authority }:
+                if (authority.Generation is null or 0
+                    || (authority.PreviousGeneration is not null && authority.PreviousGeneration >= authority.Generation)
+                    || !Diagnostic(authority.Reason is not null, authority.Reason ?? ""))
                 {
                     throw Contract("clock authority change evidence");
                 }
                 break;
-            case Event.EventOneofCase.RuleFired:
-                var rule = @event.RuleFired;
-                if (!IsValidId(rule.RuleId)
-                    || !IsValidId(rule.Job)
-                    || !IsValidId(rule.ActorId)
-                    || !IsValidId(rule.TargetId)
-                    || !rule.HasTick
+            case ClockEventEvent.RuleFiredCase { Value: var rule }:
+                if (!IsValidId(rule.RuleId ?? "")
+                    || !IsValidId(rule.Job ?? "")
+                    || !IsValidId(rule.ActorId ?? "")
+                    || !IsValidId(rule.TargetId ?? "")
+                    || rule.Tick is null
                     || rule.Tick < 0)
                 {
                     throw Contract("clock rule fired evidence");
                 }
                 break;
-            case Event.EventOneofCase.RuleLeaseExpired:
-                var lease = @event.RuleLeaseExpired;
-                if (!lease.HasExpiresAtTick || !lease.HasDeactivated)
+            case ClockEventEvent.RuleLeaseExpiredCase { Value: var lease }:
+                if (lease.ExpiresAtTick is null || lease.Deactivated is null)
                 {
                     throw Contract("clock rule lease evidence");
                 }
                 break;
-            case Event.EventOneofCase.ObservationInvalidated:
-                var invalidated = @event.ObservationInvalidated;
+            case ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated }:
                 if (invalidated.Families.Count == 0
                     || invalidated.Families.Count > FactFamilies().Count
-                    || !Diagnostic(invalidated.HasReason, invalidated.Reason))
+                    || !Diagnostic(invalidated.Reason is not null, invalidated.Reason ?? ""))
                 {
                     throw Contract("clock observation invalidation evidence");
                 }
@@ -236,7 +228,7 @@ public static partial class BridgeFunctions
         {
             ValidCell(cells.Minimum);
             ValidCell(cells.Maximum);
-            if (cells.Minimum.X > cells.Maximum.X || cells.Minimum.Z > cells.Maximum.Z)
+            if ((cells.Minimum?.X ?? 0) > (cells.Maximum?.X ?? 0) || (cells.Minimum?.Z ?? 0) > (cells.Maximum?.Z ?? 0))
             {
                 throw Contract("clock observation invalidation rectangle bounds");
             }
@@ -246,22 +238,22 @@ public static partial class BridgeFunctions
     // Go's validCell (observation geometry): a cell carries both coordinates and neither is negative.
     private static void ValidCell(Cell? cell)
     {
-        if (cell is null || !cell.HasX || !cell.HasZ || cell.X < 0 || cell.Z < 0)
+        if (cell is null || cell.X is null || cell.Z is null || cell.X.GetValueOrDefault() < 0 || cell.Z.GetValueOrDefault() < 0)
         {
             throw Contract("invalid cell");
         }
     }
 
-    // Go's clockAttemptKey: a complete attempt key; unknown fields were already rejected by the enclosing walk.
+    // Go's clockAttemptKey: a complete attempt key; unknown members are rejected by the JSON decoder.
     private static void ClockAttemptKey(AttemptKey? attempt)
     {
         if (attempt is null
-            || !attempt.HasControllerSessionId
-            || !attempt.HasActionId
-            || !attempt.HasAttemptId
-            || attempt.AttemptId == 0
-            || !IsValidId(attempt.ControllerSessionId)
-            || !IsValidId(attempt.ActionId))
+            || attempt.ControllerSessionId is null
+            || attempt.ActionId is null
+            || attempt.AttemptId is null
+            || attempt.AttemptId.GetValueOrDefault() == 0
+            || !IsValidId((attempt.ControllerSessionId ?? ""))
+            || !IsValidId((attempt.ActionId ?? "")))
         {
             throw Contract("clock attempt key presence");
         }
@@ -276,36 +268,35 @@ public static partial class BridgeFunctions
             throw Contract("clock operation outcome required");
         }
         ClockAttemptKey(v.Attempt);
-        if (!v.HasLatchedTick || v.LatchedTick < 0)
+        if (v.LatchedTick is null || v.LatchedTick.GetValueOrDefault() < 0)
         {
             throw Contract("clock operation outcome tick");
         }
-        switch (v.OutcomeCase)
+        switch (v.Outcome)
         {
-            case OperationOutcome.OutcomeOneofCase.Completed:
-                if (v.Completed.Evidence is null || v.Completed.Evidence.EffectCase == EffectEvidence.EffectOneofCase.None)
+            case OperationOutcomeOutcome.CompletedCase { Value: var completed }:
+                if (completed.Evidence?.Effect is null)
                 {
                     throw Contract("clock completed outcome evidence");
                 }
                 break;
-            case OperationOutcome.OutcomeOneofCase.Unsuccessful:
-                var unsuccessful = v.Unsuccessful;
-                if (!unsuccessful.HasReason
-                    || (int)unsuccessful.Reason < 1
-                    || unsuccessful.Reason > UnsuccessfulReason.OutcomeNotAchieved
-                    || !Diagnostic(unsuccessful.HasDetail, unsuccessful.Detail))
+            case OperationOutcomeOutcome.UnsuccessfulCase { Value: var unsuccessful }:
+                if (unsuccessful.Reason is null
+                    || (int)unsuccessful.Reason.GetValueOrDefault() < 1
+                    || unsuccessful.Reason.GetValueOrDefault() > UnsuccessfulReason.OutcomeNotAchieved
+                    || !Diagnostic(unsuccessful.Detail is not null, (unsuccessful.Detail ?? "")))
                 {
                     throw Contract("clock unsuccessful outcome evidence");
                 }
                 break;
-            case OperationOutcome.OutcomeOneofCase.Absent:
-                if (!v.Absent.HasInspectionToken || !IsValidId(v.Absent.InspectionToken))
+            case OperationOutcomeOutcome.AbsentCase { Value: var absent }:
+                if (absent.InspectionToken is null || !IsValidId(absent.InspectionToken))
                 {
                     throw Contract("clock absent outcome evidence");
                 }
                 break;
-            case OperationOutcome.OutcomeOneofCase.Unknown:
-                if (!Diagnostic(v.Unknown.HasReason, v.Unknown.Reason))
+            case OperationOutcomeOutcome.UnknownCase { Value: var unknown }:
+                if (!Diagnostic(unknown.Reason is not null, unknown.Reason ?? ""))
                 {
                     throw Contract("clock unknown outcome evidence");
                 }
@@ -317,11 +308,11 @@ public static partial class BridgeFunctions
 
     private static void ClockPawn(PawnEvent? pawn)
     {
-        if (pawn is null || !IsValidId(pawn.PawnId) || !Diagnostic(pawn.HasName, pawn.Name) || !Diagnostic(pawn.HasReason, pawn.Reason))
+        if (pawn is null || !IsValidId((pawn.PawnId ?? "")) || !Diagnostic(pawn.Name is not null, (pawn.Name ?? "")) || !Diagnostic(pawn.Reason is not null, (pawn.Reason ?? "")))
         {
             throw Contract("clock pawn evidence");
         }
-        if (pawn.Position is { } p && (!p.HasX || !p.HasZ || p.X < 0 || p.Z < 0))
+        if (pawn.Position is { } p && (p.X is null || p.Z is null || p.X.GetValueOrDefault() < 0 || p.Z.GetValueOrDefault() < 0))
         {
             throw Contract("clock pawn position");
         }
@@ -329,7 +320,7 @@ public static partial class BridgeFunctions
 
     private static void ClockAlert(Alert? v)
     {
-        if (v is null || !IsValidId(v.Key) || !Diagnostic(v.HasLabel, v.Label) || !Diagnostic(v.HasPriority, v.Priority))
+        if (v is null || !IsValidId((v.Key ?? "")) || !Diagnostic(v.Label is not null, (v.Label ?? "")) || !Diagnostic(v.Priority is not null, (v.Priority ?? "")))
         {
             throw Contract("clock alert evidence");
         }
@@ -337,7 +328,7 @@ public static partial class BridgeFunctions
 
     private static void ClockLetter(Letter? v)
     {
-        if (v is null || !IsValidId(v.Id) || !Diagnostic(v.HasLabel, v.Label) || (v.HasDefName && !IsValidId(v.DefName)))
+        if (v is null || !IsValidId((v.Id ?? "")) || !Diagnostic(v.Label is not null, (v.Label ?? "")) || (v.DefName is not null && !IsValidId((v.DefName ?? ""))))
         {
             throw Contract("clock letter evidence");
         }
@@ -349,13 +340,13 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock notification required");
         }
-        switch (v.SourceCase)
+        switch (v.Source)
         {
-            case Notification.SourceOneofCase.Letter:
-                ClockLetter(v.Letter);
+            case NotificationSource.LetterCase { Value: var letter }:
+                ClockLetter(letter);
                 break;
-            case Notification.SourceOneofCase.Message:
-                ClockMessage(v.Message);
+            case NotificationSource.MessageCase { Value: var message }:
+                ClockMessage(message);
                 break;
             default:
                 throw Contract("clock notification source required");
@@ -365,10 +356,10 @@ public static partial class BridgeFunctions
     private static void ClockMessage(TransientMessage? v)
     {
         if (v is null
-            || !IsValidId(v.Id)
-            || !Diagnostic(v.HasText, v.Text)
-            || (v.HasTypeDef && !IsValidId(v.TypeDef))
-            || (v.HasStartingTick && v.StartingTick < 0))
+            || !IsValidId((v.Id ?? ""))
+            || !Diagnostic(v.Text is not null, (v.Text ?? ""))
+            || (v.TypeDef is not null && !IsValidId((v.TypeDef ?? "")))
+            || (v.StartingTick is not null && v.StartingTick.GetValueOrDefault() < 0))
         {
             throw Contract("clock message evidence");
         }
@@ -412,38 +403,31 @@ public static partial class BridgeFunctions
 
     private static void ClockStopEvent(StopEvent? v)
     {
-        if (v is null || !v.HasReason)
+        if (v is null || v.Reason is null)
         {
             throw Contract("clock stop reason required");
         }
-        switch (v.EvidenceCase)
+        switch (v.Evidence)
         {
-            case StopEvent.EvidenceOneofCase.Notifications:
-                foreach (var letter in v.Notifications.Letters)
+            case StopEventEvidence.NotificationsCase { Value: var notifications }:
+                foreach (var letter in notifications.Letters)
                 {
                     ClockLetter(letter);
                 }
-                foreach (var message in v.Notifications.Messages)
+                foreach (var message in notifications.Messages)
                 {
                     ClockMessage(message);
                 }
                 break;
-            case StopEvent.EvidenceOneofCase.Pawn:
-                ClockPawn(v.Pawn);
+            case StopEventEvidence.PawnCase { Value: var pawn }:
+                ClockPawn(pawn);
                 break;
-            case StopEvent.EvidenceOneofCase.Injury:
-                ClockInjury(v.Injury);
+            case StopEventEvidence.InjuryCase { Value: var injury }:
+                ClockInjury(injury);
                 break;
-            case StopEvent.EvidenceOneofCase.Health:
-                var health = v.Health;
+            case StopEventEvidence.HealthCase { Value: var health }:
                 ClockPawn(health.Pawn);
-                foreach (var value in new float?[]
-                {
-                    health.HasHealthAtStart ? health.HealthAtStart : null,
-                    health.HasHealthNow ? health.HealthNow : null,
-                    health.HasMinHealthFraction ? health.MinHealthFraction : null,
-                    health.HasHealthDropFraction ? health.HealthDropFraction : null,
-                })
+                foreach (var value in new[] { health.HealthAtStart, health.HealthNow, health.MinHealthFraction, health.HealthDropFraction })
                 {
                     if (value is < 0 or > 1)
                     {
@@ -451,35 +435,34 @@ public static partial class BridgeFunctions
                     }
                 }
                 break;
-            case StopEvent.EvidenceOneofCase.Budget:
-                var b = v.Budget;
-                if (!b.HasStartTick
-                    || !b.HasTickDeadline
-                    || !b.HasActualTick
-                    || b.StartTick < 0
-                    || b.TickDeadline <= b.StartTick
-                    || b.TickDeadline - b.StartTick > 1800000
-                    || b.ActualTick < b.TickDeadline)
+            case StopEventEvidence.BudgetCase { Value: var b }:
+                if (b.StartTick is null
+                    || b.TickDeadline is null
+                    || b.ActualTick is null
+                    || b.StartTick.GetValueOrDefault() < 0
+                    || b.TickDeadline.GetValueOrDefault() <= b.StartTick.GetValueOrDefault()
+                    || b.TickDeadline.GetValueOrDefault() - b.StartTick.GetValueOrDefault() > 1800000
+                    || b.ActualTick.GetValueOrDefault() < b.TickDeadline.GetValueOrDefault())
                 {
                     throw Contract("clock tick budget evidence");
                 }
                 break;
-            case StopEvent.EvidenceOneofCase.Pause:
-                ClockPauseEvidence(v.Pause);
+            case StopEventEvidence.PauseCase { Value: var pause }:
+                ClockPauseEvidence(pause);
                 break;
-            case StopEvent.EvidenceOneofCase.Unavailable:
-                ValidateUnavailable(v.Unavailable);
+            case StopEventEvidence.UnavailableCase { Value: var unavailable }:
+                ValidateUnavailable(unavailable);
                 break;
-            case StopEvent.EvidenceOneofCase.Watch:
-                if (!v.Watch.HasTickDeadline || v.Watch.TickDeadline <= 0)
+            case StopEventEvidence.WatchCase { Value: var watch }:
+                if (watch.TickDeadline is null || watch.TickDeadline <= 0)
                 {
                     throw Contract("clock watch stop evidence");
                 }
-                ClockOperationOutcome(v.Watch.Outcome);
+                ClockOperationOutcome(watch.Outcome);
                 break;
-            case StopEvent.EvidenceOneofCase.Combat:
+            case StopEventEvidence.CombatCase { Value: var combat }:
                 // An armed combat event: the event is required, the thing and reason are descriptive.
-                if (v.Combat.Event == CombatEvent.Unspecified)
+                if ((combat.Event ?? CombatEvent.Unspecified) == CombatEvent.Unspecified)
                 {
                     throw Contract("clock combat stop evidence");
                 }

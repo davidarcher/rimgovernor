@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 

@@ -520,7 +520,15 @@ public abstract record AssignmentValue
 {
     private protected AssignmentValue() { }
 
+    /// <summary>The <c>EntityId</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? EntityId => (this as EntityIdCase)?.Value;
+
     public sealed record EntityIdCase(string Value) : AssignmentValue;
+
+    /// <summary>The <c>Clear</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Clear? Clear => (this as ClearCase)?.Value;
 
     public sealed record ClearCase(Clear Value) : AssignmentValue;
 
@@ -562,9 +570,17 @@ public abstract record CellsSelection
 {
     private protected CellsSelection() { }
 
+    /// <summary>The <c>ExplicitCells</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CellList? ExplicitCells => (this as ExplicitCellsCase)?.Value;
+
     public sealed record ExplicitCellsCase(CellList Value) : CellsSelection;
 
     public static implicit operator CellsSelection(CellList value) => new ExplicitCellsCase(value);
+
+    /// <summary>The <c>Rectangle</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Rectangle? Rectangle => (this as RectangleCase)?.Value;
 
     public sealed record RectangleCase(Rectangle Value) : CellsSelection;
 
@@ -640,9 +656,17 @@ public abstract record CombatAnimalAreaArea
 {
     private protected CombatAnimalAreaArea() { }
 
+    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Cell? Cell => (this as CellCase)?.Value;
+
     public sealed record CellCase(Common.Cell Value) : CombatAnimalAreaArea;
 
     public static implicit operator CombatAnimalAreaArea(Common.Cell value) => new CellCase(value);
+
+    /// <summary>The <c>Clear</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Clear? Clear => (this as ClearCase)?.Value;
 
     public sealed record ClearCase(Clear Value) : CombatAnimalAreaArea;
 
@@ -684,6 +708,10 @@ public abstract record CombatOrderOrder
 {
     private protected CombatOrderOrder() { }
 
+    /// <summary>The <c>Move</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Cell? Move => (this as MoveCase)?.Value;
+
     public sealed record MoveCase(Common.Cell Value) : CombatOrderOrder;
 
     /// <summary>
@@ -693,22 +721,54 @@ public abstract record CombatOrderOrder
     /// picks melee or ranged as the vanilla float menu does for the pawn's
     /// weapon; there is no other attack order.
     /// </summary>
+    /// <summary>The <c>Attack</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public EntityPrecondition? Attack => (this as AttackCase)?.Value;
+
     public sealed record AttackCase(EntityPrecondition Value) : CombatOrderOrder;
 
     /// <summary>
     /// Force-fire a ground-targetable verb (grenades, launchers) at a cell.
     /// </summary>
+    /// <summary>The <c>AttackGround</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Cell? AttackGround => (this as AttackGroundCase)?.Value;
+
     public sealed record AttackGroundCase(Common.Cell Value) : CombatOrderOrder;
+
+    /// <summary>The <c>FireMode</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatFireMode? FireMode => (this as FireModeCase)?.Value;
 
     public sealed record FireModeCase(CombatFireMode Value) : CombatOrderOrder;
 
+    /// <summary>The <c>HoldPosition</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Clear? HoldPosition => (this as HoldPositionCase)?.Value;
+
     public sealed record HoldPositionCase(Clear Value) : CombatOrderOrder;
+
+    /// <summary>The <c>Door</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatDoor? Door => (this as DoorCase)?.Value;
 
     public sealed record DoorCase(CombatDoor Value) : CombatOrderOrder;
 
+    /// <summary>The <c>Stop</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Clear? Stop => (this as StopCase)?.Value;
+
     public sealed record StopCase(Clear Value) : CombatOrderOrder;
 
+    /// <summary>The <c>Rescue</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatRescue? Rescue => (this as RescueCase)?.Value;
+
     public sealed record RescueCase(CombatRescue Value) : CombatOrderOrder;
+
+    /// <summary>The <c>Repair</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatRepair? Repair => (this as RepairCase)?.Value;
 
     public sealed record RepairCase(CombatRepair Value) : CombatOrderOrder;
 
@@ -717,6 +777,10 @@ public abstract record CombatOrderOrder
     /// again. The controller undrafts pawns no live plan needs.
     /// Refusal: cannot_draft (not eligible).
     /// </summary>
+    /// <summary>The <c>Draft</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Clear? Draft => (this as DraftCase)?.Value;
+
     public sealed record DraftCase(Clear Value) : CombatOrderOrder;
 
     /// <summary>
@@ -724,7 +788,15 @@ public abstract record CombatOrderOrder
     /// on the cell (vanilla ManTurret, which loads shells from stock); one
     /// already manning it applies. Refusals: not_a_mortar, unreachable.
     /// </summary>
+    /// <summary>The <c>ManMortar</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Cell? ManMortar => (this as ManMortarCase)?.Value;
+
     public sealed record ManMortarCase(Common.Cell Value) : CombatOrderOrder;
+
+    /// <summary>The <c>MortarFire</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatMortarFire? MortarFire => (this as MortarFireCase)?.Value;
 
     public sealed record MortarFireCase(CombatMortarFire Value) : CombatOrderOrder;
 
@@ -733,7 +805,15 @@ public abstract record CombatOrderOrder
     /// pawn by the vanilla melee attack job, as a released animal does.
     /// Refusals: not_ours, untrained, not_found, cannot_hit, unreachable.
     /// </summary>
+    /// <summary>The <c>Release</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public EntityPrecondition? Release => (this as ReleaseCase)?.Value;
+
     public sealed record ReleaseCase(EntityPrecondition Value) : CombatOrderOrder;
+
+    /// <summary>The <c>AnimalArea</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatAnimalArea? AnimalArea => (this as AnimalAreaCase)?.Value;
 
     public sealed record AnimalAreaCase(CombatAnimalArea Value) : CombatOrderOrder;
 
@@ -743,6 +823,10 @@ public abstract record CombatOrderOrder
     /// Refusals: not_a_drug (the def is not a drug), no_drug (none carried),
     /// native_refused (vanilla declined the ordered job).
     /// </summary>
+    /// <summary>The <c>CombatDrug</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? CombatDrug => (this as CombatDrugCase)?.Value;
+
     public sealed record CombatDrugCase(string Value) : CombatOrderOrder;
 }
 
@@ -779,9 +863,21 @@ public abstract record FilterSelectorDefinition
 {
     private protected FilterSelectorDefinition() { }
 
+    /// <summary>The <c>ThingDef</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? ThingDef => (this as ThingDefCase)?.Value;
+
     public sealed record ThingDefCase(string Value) : FilterSelectorDefinition;
 
+    /// <summary>The <c>CategoryDef</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? CategoryDef => (this as CategoryDefCase)?.Value;
+
     public sealed record CategoryDefCase(string Value) : FilterSelectorDefinition;
+
+    /// <summary>The <c>SpecialFilterDef</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? SpecialFilterDef => (this as SpecialFilterDefCase)?.Value;
 
     public sealed record SpecialFilterDefCase(string Value) : FilterSelectorDefinition;
 }
@@ -832,7 +928,15 @@ public abstract record BillStoreDestination
 {
     private protected BillStoreDestination() { }
 
+    /// <summary>The <c>Mode</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public StoreMode? Mode => (this as ModeCase)?.Value;
+
     public sealed record ModeCase(StoreMode Value) : BillStoreDestination;
+
+    /// <summary>The <c>ZoneId</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? ZoneId => (this as ZoneIdCase)?.Value;
 
     public sealed record ZoneIdCase(string Value) : BillStoreDestination;
 }
@@ -1040,9 +1144,17 @@ public abstract record ZonePreviewReplyOutcome
 {
     private protected ZonePreviewReplyOutcome() { }
 
+    /// <summary>The <c>Evaluated</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ZonePreview? Evaluated => (this as EvaluatedCase)?.Value;
+
     public sealed record EvaluatedCase(ZonePreview Value) : ZonePreviewReplyOutcome;
 
     public static implicit operator ZonePreviewReplyOutcome(ZonePreview value) => new EvaluatedCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ZonePreviewReplyOutcome;
 
@@ -1134,57 +1246,113 @@ public abstract record ActionIntent
 {
     private protected ActionIntent() { }
 
+    /// <summary>The <c>Trade</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public TradeIntent? Trade => (this as TradeCase)?.Value;
+
     public sealed record TradeCase(TradeIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(TradeIntent value) => new TradeCase(value);
+
+    /// <summary>The <c>Building</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BuildingIntent? Building => (this as BuildingCase)?.Value;
 
     public sealed record BuildingCase(BuildingIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(BuildingIntent value) => new BuildingCase(value);
 
+    /// <summary>The <c>Move</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public MoveIntent? Move => (this as MoveCase)?.Value;
+
     public sealed record MoveCase(MoveIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(MoveIntent value) => new MoveCase(value);
+
+    /// <summary>The <c>Haul</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HaulIntent? Haul => (this as HaulCase)?.Value;
 
     public sealed record HaulCase(HaulIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(HaulIntent value) => new HaulCase(value);
 
+    /// <summary>The <c>ApparelPolicy</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ApparelPolicyIntent? ApparelPolicy => (this as ApparelPolicyCase)?.Value;
+
     public sealed record ApparelPolicyCase(ApparelPolicyIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(ApparelPolicyIntent value) => new ApparelPolicyCase(value);
+
+    /// <summary>The <c>Research</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ResearchIntent? Research => (this as ResearchCase)?.Value;
 
     public sealed record ResearchCase(ResearchIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(ResearchIntent value) => new ResearchCase(value);
 
+    /// <summary>The <c>Dialog</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DialogIntent? Dialog => (this as DialogCase)?.Value;
+
     public sealed record DialogCase(DialogIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(DialogIntent value) => new DialogCase(value);
+
+    /// <summary>The <c>Prisoner</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PrisonerInteractionIntent? Prisoner => (this as PrisonerCase)?.Value;
 
     public sealed record PrisonerCase(PrisonerInteractionIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(PrisonerInteractionIntent value) => new PrisonerCase(value);
 
+    /// <summary>The <c>AcceptQuest</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AcceptQuestIntent? AcceptQuest => (this as AcceptQuestCase)?.Value;
+
     public sealed record AcceptQuestCase(AcceptQuestIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(AcceptQuestIntent value) => new AcceptQuestCase(value);
+
+    /// <summary>The <c>FormCaravan</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FormCaravanIntent? FormCaravan => (this as FormCaravanCase)?.Value;
 
     public sealed record FormCaravanCase(FormCaravanIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(FormCaravanIntent value) => new FormCaravanCase(value);
 
+    /// <summary>The <c>Assign</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AssignIntent? Assign => (this as AssignCase)?.Value;
+
     public sealed record AssignCase(AssignIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(AssignIntent value) => new AssignCase(value);
+
+    /// <summary>The <c>WorkSettings</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public WorkSettingsIntent? WorkSettings => (this as WorkSettingsCase)?.Value;
 
     public sealed record WorkSettingsCase(WorkSettingsIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(WorkSettingsIntent value) => new WorkSettingsCase(value);
 
+    /// <summary>The <c>ProductionBill</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ProductionBillIntent? ProductionBill => (this as ProductionBillCase)?.Value;
+
     public sealed record ProductionBillCase(ProductionBillIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(ProductionBillIntent value) => new ProductionBillCase(value);
+
+    /// <summary>The <c>Husbandry</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HusbandryIntent? Husbandry => (this as HusbandryCase)?.Value;
 
     public sealed record HusbandryCase(HusbandryIntent Value) : ActionIntent;
 
@@ -1193,117 +1361,233 @@ public abstract record ActionIntent
     /// <summary>
     /// Applied evidence names the zone (or the storage building's settings).
     /// </summary>
+    /// <summary>The <c>Zone</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ZoneIntent? Zone => (this as ZoneCase)?.Value;
+
     public sealed record ZoneCase(ZoneIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(ZoneIntent value) => new ZoneCase(value);
+
+    /// <summary>The <c>Designate</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DesignateIntent? Designate => (this as DesignateCase)?.Value;
 
     public sealed record DesignateCase(DesignateIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(DesignateIntent value) => new DesignateCase(value);
 
+    /// <summary>The <c>Relocate</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RelocateIntent? Relocate => (this as RelocateCase)?.Value;
+
     public sealed record RelocateCase(RelocateIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(RelocateIntent value) => new RelocateCase(value);
+
+    /// <summary>The <c>BuildingPatch</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BuildingPatchIntent? BuildingPatch => (this as BuildingPatchCase)?.Value;
 
     public sealed record BuildingPatchCase(BuildingPatchIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(BuildingPatchIntent value) => new BuildingPatchCase(value);
 
+    /// <summary>The <c>GiveJob</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public GiveJobIntent? GiveJob => (this as GiveJobCase)?.Value;
+
     public sealed record GiveJobCase(GiveJobIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(GiveJobIntent value) => new GiveJobCase(value);
+
+    /// <summary>The <c>Draft</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DraftIntent? Draft => (this as DraftCase)?.Value;
 
     public sealed record DraftCase(DraftIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(DraftIntent value) => new DraftCase(value);
 
+    /// <summary>The <c>CombatOrders</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatOrders? CombatOrders => (this as CombatOrdersCase)?.Value;
+
     public sealed record CombatOrdersCase(CombatOrders Value) : ActionIntent;
 
     public static implicit operator ActionIntent(CombatOrders value) => new CombatOrdersCase(value);
+
+    /// <summary>The <c>Area</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AreaIntent? Area => (this as AreaCase)?.Value;
 
     public sealed record AreaCase(AreaIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(AreaIntent value) => new AreaCase(value);
 
+    /// <summary>The <c>AutoHomeArea</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AutoHomeAreaIntent? AutoHomeArea => (this as AutoHomeAreaCase)?.Value;
+
     public sealed record AutoHomeAreaCase(AutoHomeAreaIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(AutoHomeAreaIntent value) => new AutoHomeAreaCase(value);
+
+    /// <summary>The <c>PawnSettings</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PawnSettingsIntent? PawnSettings => (this as PawnSettingsCase)?.Value;
 
     public sealed record PawnSettingsCase(PawnSettingsIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(PawnSettingsIntent value) => new PawnSettingsCase(value);
 
+    /// <summary>The <c>PolicyPrune</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PolicyPruneIntent? PolicyPrune => (this as PolicyPruneCase)?.Value;
+
     public sealed record PolicyPruneCase(PolicyPruneIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(PolicyPruneIntent value) => new PolicyPruneCase(value);
+
+    /// <summary>The <c>RemoveFloor</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RemoveFloorIntent? RemoveFloor => (this as RemoveFloorCase)?.Value;
 
     public sealed record RemoveFloorCase(RemoveFloorIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(RemoveFloorIntent value) => new RemoveFloorCase(value);
 
+    /// <summary>The <c>RemoveRoof</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RemoveRoofIntent? RemoveRoof => (this as RemoveRoofCase)?.Value;
+
     public sealed record RemoveRoofCase(RemoveRoofIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(RemoveRoofIntent value) => new RemoveRoofCase(value);
+
+    /// <summary>The <c>ReadingPolicy</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ReadingPolicyIntent? ReadingPolicy => (this as ReadingPolicyCase)?.Value;
 
     public sealed record ReadingPolicyCase(ReadingPolicyIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(ReadingPolicyIntent value) => new ReadingPolicyCase(value);
 
+    /// <summary>The <c>DrugPolicy</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DrugPolicyIntent? DrugPolicy => (this as DrugPolicyCase)?.Value;
+
     public sealed record DrugPolicyCase(DrugPolicyIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(DrugPolicyIntent value) => new DrugPolicyCase(value);
+
+    /// <summary>The <c>AreaPlantCut</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AreaPlantCutIntent? AreaPlantCut => (this as AreaPlantCutCase)?.Value;
 
     public sealed record AreaPlantCutCase(AreaPlantCutIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(AreaPlantCutIntent value) => new AreaPlantCutCase(value);
 
+    /// <summary>The <c>FoodPolicy</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FoodPolicyIntent? FoodPolicy => (this as FoodPolicyCase)?.Value;
+
     public sealed record FoodPolicyCase(FoodPolicyIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(FoodPolicyIntent value) => new FoodPolicyCase(value);
+
+    /// <summary>The <c>Ritual</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RitualIntent? Ritual => (this as RitualCase)?.Value;
 
     public sealed record RitualCase(RitualIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(RitualIntent value) => new RitualCase(value);
 
+    /// <summary>The <c>Ability</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AbilityIntent? Ability => (this as AbilityCase)?.Value;
+
     public sealed record AbilityCase(AbilityIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(AbilityIntent value) => new AbilityCase(value);
+
+    /// <summary>The <c>Ignite</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public IgniteIntent? Ignite => (this as IgniteCase)?.Value;
 
     public sealed record IgniteCase(IgniteIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(IgniteIntent value) => new IgniteCase(value);
 
+    /// <summary>The <c>RulesAttach</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RulesAttachIntent? RulesAttach => (this as RulesAttachCase)?.Value;
+
     public sealed record RulesAttachCase(RulesAttachIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(RulesAttachIntent value) => new RulesAttachCase(value);
+
+    /// <summary>The <c>RemoveProductionBill</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RemoveProductionBillIntent? RemoveProductionBill => (this as RemoveProductionBillCase)?.Value;
 
     public sealed record RemoveProductionBillCase(RemoveProductionBillIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(RemoveProductionBillIntent value) => new RemoveProductionBillCase(value);
 
+    /// <summary>The <c>IdeoligionReform</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public IdeoligionReformIntent? IdeoligionReform => (this as IdeoligionReformCase)?.Value;
+
     public sealed record IdeoligionReformCase(IdeoligionReformIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(IdeoligionReformIntent value) => new IdeoligionReformCase(value);
+
+    /// <summary>The <c>QuestShuttle</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public QuestShuttleIntent? QuestShuttle => (this as QuestShuttleCase)?.Value;
 
     public sealed record QuestShuttleCase(QuestShuttleIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(QuestShuttleIntent value) => new QuestShuttleCase(value);
 
+    /// <summary>The <c>HackDesignation</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HackDesignationIntent? HackDesignation => (this as HackDesignationCase)?.Value;
+
     public sealed record HackDesignationCase(HackDesignationIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(HackDesignationIntent value) => new HackDesignationCase(value);
+
+    /// <summary>The <c>GiveItem</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public GiveItemIntent? GiveItem => (this as GiveItemCase)?.Value;
 
     public sealed record GiveItemCase(GiveItemIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(GiveItemIntent value) => new GiveItemCase(value);
 
+    /// <summary>The <c>CommsTradeRequest</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CommsTradeRequestIntent? CommsTradeRequest => (this as CommsTradeRequestCase)?.Value;
+
     public sealed record CommsTradeRequestCase(CommsTradeRequestIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(CommsTradeRequestIntent value) => new CommsTradeRequestCase(value);
 
+    /// <summary>The <c>Gathering</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public GatheringIntent? Gathering => (this as GatheringCase)?.Value;
+
     public sealed record GatheringCase(GatheringIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(GatheringIntent value) => new GatheringCase(value);
+
+    /// <summary>The <c>BuildRoof</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BuildRoofIntent? BuildRoof => (this as BuildRoofCase)?.Value;
 
     public sealed record BuildRoofCase(BuildRoofIntent Value) : ActionIntent;
 
@@ -1392,6 +1676,10 @@ public abstract record AbilityIntentSource
     /// <summary>
     /// An acting royal permit (royalAid) the pawn holds with a faction.
     /// </summary>
+    /// <summary>The <c>Permit</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PermitAbility? Permit => (this as PermitCase)?.Value;
+
     public sealed record PermitCase(PermitAbility Value) : AbilityIntentSource;
 
     public static implicit operator AbilityIntentSource(PermitAbility value) => new PermitCase(value);
@@ -1399,6 +1687,10 @@ public abstract record AbilityIntentSource
     /// <summary>
     /// A psycast the pawn knows.
     /// </summary>
+    /// <summary>The <c>Psycast</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PsycastAbility? Psycast => (this as PsycastCase)?.Value;
+
     public sealed record PsycastCase(PsycastAbility Value) : AbilityIntentSource;
 
     public static implicit operator AbilityIntentSource(PsycastAbility value) => new PsycastCase(value);
@@ -1414,11 +1706,27 @@ public abstract record AbilityIntentTarget
 {
     private protected AbilityIntentTarget() { }
 
+    /// <summary>The <c>NoTarget</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AbilityNoTarget? NoTarget => (this as NoTargetCase)?.Value;
+
     public sealed record NoTargetCase(AbilityNoTarget Value) : AbilityIntentTarget;
+
+    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Cell? Cell => (this as CellCase)?.Value;
 
     public sealed record CellCase(Common.Cell Value) : AbilityIntentTarget;
 
+    /// <summary>The <c>Pawn</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? Pawn => (this as PawnCase)?.Value;
+
     public sealed record PawnCase(string Value) : AbilityIntentTarget;
+
+    /// <summary>The <c>Thing</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? Thing => (this as ThingCase)?.Value;
 
     public sealed record ThingCase(string Value) : AbilityIntentTarget;
 }
@@ -1532,29 +1840,81 @@ public abstract record PawnSettingsIntentSetting
 {
     private protected PawnSettingsIntentSetting() { }
 
+    /// <summary>The <c>HostilityResponse</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HostilityResponse? HostilityResponse => (this as HostilityResponseCase)?.Value;
+
     public sealed record HostilityResponseCase(HostilityResponse Value) : PawnSettingsIntentSetting;
+
+    /// <summary>The <c>SelfTend</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public bool? SelfTend => (this as SelfTendCase)?.Value;
 
     public sealed record SelfTendCase(bool Value) : PawnSettingsIntentSetting;
 
+    /// <summary>The <c>ReadingPolicy</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? ReadingPolicy => (this as ReadingPolicyCase)?.Value;
+
     public sealed record ReadingPolicyCase(string Value) : PawnSettingsIntentSetting;
+
+    /// <summary>The <c>MedicineCarry</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public int? MedicineCarry => (this as MedicineCarryCase)?.Value;
 
     public sealed record MedicineCarryCase(int Value) : PawnSettingsIntentSetting;
 
+    /// <summary>The <c>Nickname</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? Nickname => (this as NicknameCase)?.Value;
+
     public sealed record NicknameCase(string Value) : PawnSettingsIntentSetting;
+
+    /// <summary>The <c>MedicalCare</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public MedicalCare? MedicalCare => (this as MedicalCareCase)?.Value;
 
     public sealed record MedicalCareCase(MedicalCare Value) : PawnSettingsIntentSetting;
 
+    /// <summary>The <c>DrugPolicy</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? DrugPolicy => (this as DrugPolicyCase)?.Value;
+
     public sealed record DrugPolicyCase(string Value) : PawnSettingsIntentSetting;
+
+    /// <summary>The <c>FoodPolicy</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? FoodPolicy => (this as FoodPolicyCase)?.Value;
 
     public sealed record FoodPolicyCase(string Value) : PawnSettingsIntentSetting;
 
+    /// <summary>The <c>MechWorkMode</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? MechWorkMode => (this as MechWorkModeCase)?.Value;
+
     public sealed record MechWorkModeCase(string Value) : PawnSettingsIntentSetting;
+
+    /// <summary>The <c>MechControlGroup</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public int? MechControlGroup => (this as MechControlGroupCase)?.Value;
 
     public sealed record MechControlGroupCase(int Value) : PawnSettingsIntentSetting;
 
+    /// <summary>The <c>ChoosePermit</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PermitChoice? ChoosePermit => (this as ChoosePermitCase)?.Value;
+
     public sealed record ChoosePermitCase(PermitChoice Value) : PawnSettingsIntentSetting;
 
+    /// <summary>The <c>ExtractBioferrite</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public bool? ExtractBioferrite => (this as ExtractBioferriteCase)?.Value;
+
     public sealed record ExtractBioferriteCase(bool Value) : PawnSettingsIntentSetting;
+
+    /// <summary>The <c>EatTrigger</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public float? EatTrigger => (this as EatTriggerCase)?.Value;
 
     public sealed record EatTriggerCase(float Value) : PawnSettingsIntentSetting;
 }
@@ -1848,17 +2208,45 @@ public abstract record BuildingPatchIntentChange
 {
     private protected BuildingPatchIntentChange() { }
 
+    /// <summary>The <c>TargetTemperature</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public float? TargetTemperature => (this as TargetTemperatureCase)?.Value;
+
     public sealed record TargetTemperatureCase(float Value) : BuildingPatchIntentChange;
+
+    /// <summary>The <c>Medical</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public bool? Medical => (this as MedicalCase)?.Value;
 
     public sealed record MedicalCase(bool Value) : BuildingPatchIntentChange;
 
+    /// <summary>The <c>ForPrisoners</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Clear? ForPrisoners => (this as ForPrisonersCase)?.Value;
+
     public sealed record ForPrisonersCase(Clear Value) : BuildingPatchIntentChange;
+
+    /// <summary>The <c>PlantDef</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? PlantDef => (this as PlantDefCase)?.Value;
 
     public sealed record PlantDefCase(string Value) : BuildingPatchIntentChange;
 
+    /// <summary>The <c>Claim</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Clear? Claim => (this as ClaimCase)?.Value;
+
     public sealed record ClaimCase(Clear Value) : BuildingPatchIntentChange;
 
+    /// <summary>The <c>ForSlaves</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Clear? ForSlaves => (this as ForSlavesCase)?.Value;
+
     public sealed record ForSlavesCase(Clear Value) : BuildingPatchIntentChange;
+
+    /// <summary>The <c>AutoRefuel</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public bool? AutoRefuel => (this as AutoRefuelCase)?.Value;
 
     public sealed record AutoRefuelCase(bool Value) : BuildingPatchIntentChange;
 }
@@ -2130,7 +2518,15 @@ public abstract record QuestShuttleIntentLoading
 {
     private protected QuestShuttleIntentLoading() { }
 
+    /// <summary>The <c>Autoload</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public bool? Autoload => (this as AutoloadCase)?.Value;
+
     public sealed record AutoloadCase(bool Value) : QuestShuttleIntentLoading;
+
+    /// <summary>The <c>ExplicitPawns</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ShuttlePawnList? ExplicitPawns => (this as ExplicitPawnsCase)?.Value;
 
     public sealed record ExplicitPawnsCase(ShuttlePawnList Value) : QuestShuttleIntentLoading;
 
@@ -2260,17 +2656,33 @@ public abstract record TradeIntentStep
 {
     private protected TradeIntentStep() { }
 
+    /// <summary>The <c>Open</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public OpenTrade? Open => (this as OpenCase)?.Value;
+
     public sealed record OpenCase(OpenTrade Value) : TradeIntentStep;
 
     public static implicit operator TradeIntentStep(OpenTrade value) => new OpenCase(value);
+
+    /// <summary>The <c>SetLines</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SetTradeLines? SetLines => (this as SetLinesCase)?.Value;
 
     public sealed record SetLinesCase(SetTradeLines Value) : TradeIntentStep;
 
     public static implicit operator TradeIntentStep(SetTradeLines value) => new SetLinesCase(value);
 
+    /// <summary>The <c>Accept</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AcceptTrade? Accept => (this as AcceptCase)?.Value;
+
     public sealed record AcceptCase(AcceptTrade Value) : TradeIntentStep;
 
     public static implicit operator TradeIntentStep(AcceptTrade value) => new AcceptCase(value);
+
+    /// <summary>The <c>End</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public EndTrade? End => (this as EndCase)?.Value;
 
     public sealed record EndCase(EndTrade Value) : TradeIntentStep;
 
@@ -2321,13 +2733,25 @@ public abstract record ActionResultOutcome
 {
     private protected ActionResultOutcome() { }
 
+    /// <summary>The <c>Applied</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Receipts.Receipt? Applied => (this as AppliedCase)?.Value;
+
     public sealed record AppliedCase(Receipts.Receipt Value) : ActionResultOutcome;
 
     public static implicit operator ActionResultOutcome(Receipts.Receipt value) => new AppliedCase(value);
 
+    /// <summary>The <c>Refused</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Refusal? Refused => (this as RefusedCase)?.Value;
+
     public sealed record RefusedCase(Refusal Value) : ActionResultOutcome;
 
     public static implicit operator ActionResultOutcome(Refusal value) => new RefusedCase(value);
+
+    /// <summary>The <c>Failed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failed => (this as FailedCase)?.Value;
 
     public sealed record FailedCase(Common.Failure Value) : ActionResultOutcome;
 
@@ -2434,9 +2858,17 @@ public abstract record RulesAttachReplyOutcome
 {
     private protected RulesAttachReplyOutcome() { }
 
+    /// <summary>The <c>Attached</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RulesAttached? Attached => (this as AttachedCase)?.Value;
+
     public sealed record AttachedCase(RulesAttached Value) : RulesAttachReplyOutcome;
 
     public static implicit operator RulesAttachReplyOutcome(RulesAttached value) => new AttachedCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : RulesAttachReplyOutcome;
 
@@ -2468,9 +2900,17 @@ public abstract record RulesClearReplyOutcome
 {
     private protected RulesClearReplyOutcome() { }
 
+    /// <summary>The <c>Cleared</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RulesCleared? Cleared => (this as ClearedCase)?.Value;
+
     public sealed record ClearedCase(RulesCleared Value) : RulesClearReplyOutcome;
 
     public static implicit operator RulesClearReplyOutcome(RulesCleared value) => new ClearedCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : RulesClearReplyOutcome;
 
@@ -2530,9 +2970,17 @@ public abstract record RulesStatusReplyOutcome
 {
     private protected RulesStatusReplyOutcome() { }
 
+    /// <summary>The <c>Status</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RulesStatus? Status => (this as StatusCase)?.Value;
+
     public sealed record StatusCase(RulesStatus Value) : RulesStatusReplyOutcome;
 
     public static implicit operator RulesStatusReplyOutcome(RulesStatus value) => new StatusCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : RulesStatusReplyOutcome;
 

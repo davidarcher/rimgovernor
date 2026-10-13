@@ -642,21 +642,41 @@ public abstract record StatusState
 {
     private protected StatusState() { }
 
+    /// <summary>The <c>Running</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Running? Running => (this as RunningCase)?.Value;
+
     public sealed record RunningCase(Running Value) : StatusState;
 
     public static implicit operator StatusState(Running value) => new RunningCase(value);
+
+    /// <summary>The <c>Stopping</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Stopping? Stopping => (this as StoppingCase)?.Value;
 
     public sealed record StoppingCase(Stopping Value) : StatusState;
 
     public static implicit operator StatusState(Stopping value) => new StoppingCase(value);
 
+    /// <summary>The <c>Stopped</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Stopped? Stopped => (this as StoppedCase)?.Value;
+
     public sealed record StoppedCase(Stopped Value) : StatusState;
 
     public static implicit operator StatusState(Stopped value) => new StoppedCase(value);
 
+    /// <summary>The <c>NeverStarted</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public NeverStarted? NeverStarted => (this as NeverStartedCase)?.Value;
+
     public sealed record NeverStartedCase(NeverStarted Value) : StatusState;
 
     public static implicit operator StatusState(NeverStarted value) => new NeverStartedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : StatusState;
 
@@ -695,9 +715,17 @@ public abstract record StatusReplyOutcome
 {
     private protected StatusReplyOutcome() { }
 
+    /// <summary>The <c>Status</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Status? Status => (this as StatusCase)?.Value;
+
     public sealed record StatusCase(Status Value) : StatusReplyOutcome;
 
     public static implicit operator StatusReplyOutcome(Status value) => new StatusCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : StatusReplyOutcome;
 
@@ -742,9 +770,17 @@ public abstract record ControlReceiptOutcome
 {
     private protected ControlReceiptOutcome() { }
 
+    /// <summary>The <c>Applied</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AppliedControl? Applied => (this as AppliedCase)?.Value;
+
     public sealed record AppliedCase(AppliedControl Value) : ControlReceiptOutcome;
 
     public static implicit operator ControlReceiptOutcome(AppliedControl value) => new AppliedCase(value);
+
+    /// <summary>The <c>Uncertain</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public UncertainControl? Uncertain => (this as UncertainCase)?.Value;
 
     public sealed record UncertainCase(UncertainControl Value) : ControlReceiptOutcome;
 
@@ -768,13 +804,25 @@ public abstract record ControlReplyOutcome
 {
     private protected ControlReplyOutcome() { }
 
+    /// <summary>The <c>Receipt</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ControlReceipt? Receipt => (this as ReceiptCase)?.Value;
+
     public sealed record ReceiptCase(ControlReceipt Value) : ControlReplyOutcome;
 
     public static implicit operator ControlReplyOutcome(ControlReceipt value) => new ReceiptCase(value);
 
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
+
     public sealed record FailureCase(Common.Failure Value) : ControlReplyOutcome;
 
     public static implicit operator ControlReplyOutcome(Common.Failure value) => new FailureCase(value);
+
+    /// <summary>The <c>LongEventPending</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LongEventPending? LongEventPending => (this as LongEventPendingCase)?.Value;
 
     public sealed record LongEventPendingCase(LongEventPending Value) : ControlReplyOutcome;
 
@@ -807,13 +855,25 @@ public abstract record AttemptReplyOutcome
 {
     private protected AttemptReplyOutcome() { }
 
+    /// <summary>The <c>Receipt</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ControlReceipt? Receipt => (this as ReceiptCase)?.Value;
+
     public sealed record ReceiptCase(ControlReceipt Value) : AttemptReplyOutcome;
 
     public static implicit operator AttemptReplyOutcome(ControlReceipt value) => new ReceiptCase(value);
 
+    /// <summary>The <c>Unknown</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AttemptUnknown? Unknown => (this as UnknownCase)?.Value;
+
     public sealed record UnknownCase(AttemptUnknown Value) : AttemptReplyOutcome;
 
     public static implicit operator AttemptReplyOutcome(AttemptUnknown value) => new UnknownCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : AttemptReplyOutcome;
 
@@ -857,9 +917,17 @@ public abstract record NotificationSource
 {
     private protected NotificationSource() { }
 
+    /// <summary>The <c>Letter</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Letter? Letter => (this as LetterCase)?.Value;
+
     public sealed record LetterCase(Letter Value) : NotificationSource;
 
     public static implicit operator NotificationSource(Letter value) => new LetterCase(value);
+
+    /// <summary>The <c>Message</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public TransientMessage? Message => (this as MessageCase)?.Value;
 
     public sealed record MessageCase(TransientMessage Value) : NotificationSource;
 
@@ -1012,17 +1080,33 @@ public abstract record OperationOutcomeOutcome
 {
     private protected OperationOutcomeOutcome() { }
 
+    /// <summary>The <c>Completed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Receipts.CompletedEffect? Completed => (this as CompletedCase)?.Value;
+
     public sealed record CompletedCase(Receipts.CompletedEffect Value) : OperationOutcomeOutcome;
 
     public static implicit operator OperationOutcomeOutcome(Receipts.CompletedEffect value) => new CompletedCase(value);
+
+    /// <summary>The <c>Unsuccessful</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Receipts.UnsuccessfulEffect? Unsuccessful => (this as UnsuccessfulCase)?.Value;
 
     public sealed record UnsuccessfulCase(Receipts.UnsuccessfulEffect Value) : OperationOutcomeOutcome;
 
     public static implicit operator OperationOutcomeOutcome(Receipts.UnsuccessfulEffect value) => new UnsuccessfulCase(value);
 
+    /// <summary>The <c>Absent</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Receipts.AbsentEffect? Absent => (this as AbsentCase)?.Value;
+
     public sealed record AbsentCase(Receipts.AbsentEffect Value) : OperationOutcomeOutcome;
 
     public static implicit operator OperationOutcomeOutcome(Receipts.AbsentEffect value) => new AbsentCase(value);
+
+    /// <summary>The <c>Unknown</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Receipts.UnknownEffect? Unknown => (this as UnknownCase)?.Value;
 
     public sealed record UnknownCase(Receipts.UnknownEffect Value) : OperationOutcomeOutcome;
 
@@ -1119,37 +1203,73 @@ public abstract record StopEventEvidence
 {
     private protected StopEventEvidence() { }
 
+    /// <summary>The <c>Notifications</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public NotificationBatch? Notifications => (this as NotificationsCase)?.Value;
+
     public sealed record NotificationsCase(NotificationBatch Value) : StopEventEvidence;
 
     public static implicit operator StopEventEvidence(NotificationBatch value) => new NotificationsCase(value);
+
+    /// <summary>The <c>Pawn</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PawnEvent? Pawn => (this as PawnCase)?.Value;
 
     public sealed record PawnCase(PawnEvent Value) : StopEventEvidence;
 
     public static implicit operator StopEventEvidence(PawnEvent value) => new PawnCase(value);
 
+    /// <summary>The <c>Injury</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Injury? Injury => (this as InjuryCase)?.Value;
+
     public sealed record InjuryCase(Injury Value) : StopEventEvidence;
 
     public static implicit operator StopEventEvidence(Injury value) => new InjuryCase(value);
+
+    /// <summary>The <c>Health</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HealthThreshold? Health => (this as HealthCase)?.Value;
 
     public sealed record HealthCase(HealthThreshold Value) : StopEventEvidence;
 
     public static implicit operator StopEventEvidence(HealthThreshold value) => new HealthCase(value);
 
+    /// <summary>The <c>Budget</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BudgetReached? Budget => (this as BudgetCase)?.Value;
+
     public sealed record BudgetCase(BudgetReached Value) : StopEventEvidence;
 
     public static implicit operator StopEventEvidence(BudgetReached value) => new BudgetCase(value);
+
+    /// <summary>The <c>Pause</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PauseEvidence? Pause => (this as PauseCase)?.Value;
 
     public sealed record PauseCase(PauseEvidence Value) : StopEventEvidence;
 
     public static implicit operator StopEventEvidence(PauseEvidence value) => new PauseCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : StopEventEvidence;
 
     public static implicit operator StopEventEvidence(Common.Unavailable value) => new UnavailableCase(value);
 
+    /// <summary>The <c>Watch</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public WatchLatched? Watch => (this as WatchCase)?.Value;
+
     public sealed record WatchCase(WatchLatched Value) : StopEventEvidence;
 
     public static implicit operator StopEventEvidence(WatchLatched value) => new WatchCase(value);
+
+    /// <summary>The <c>Combat</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatEventStop? Combat => (this as CombatCase)?.Value;
 
     public sealed record CombatCase(CombatEventStop Value) : StopEventEvidence;
 
@@ -1295,61 +1415,121 @@ public abstract record ClockEventEvent
 {
     private protected ClockEventEvent() { }
 
+    /// <summary>The <c>Started</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public EpochStarted? Started => (this as StartedCase)?.Value;
+
     public sealed record StartedCase(EpochStarted Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(EpochStarted value) => new StartedCase(value);
+
+    /// <summary>The <c>SpeedChanged</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SpeedChanged? SpeedChanged => (this as SpeedChangedCase)?.Value;
 
     public sealed record SpeedChangedCase(SpeedChanged Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(SpeedChanged value) => new SpeedChangedCase(value);
 
+    /// <summary>The <c>Stopped</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public StopEvent? Stopped => (this as StoppedCase)?.Value;
+
     public sealed record StoppedCase(StopEvent Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(StopEvent value) => new StoppedCase(value);
+
+    /// <summary>The <c>Notification</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Notification? Notification => (this as NotificationCase)?.Value;
 
     public sealed record NotificationCase(Notification Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(Notification value) => new NotificationCase(value);
 
+    /// <summary>The <c>Alert</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Alert? Alert => (this as AlertCase)?.Value;
+
     public sealed record AlertCase(Alert Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(Alert value) => new AlertCase(value);
+
+    /// <summary>The <c>InjuryObserved</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Injury? InjuryObserved => (this as InjuryObservedCase)?.Value;
 
     public sealed record InjuryObservedCase(Injury Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(Injury value) => new InjuryObservedCase(value);
 
+    /// <summary>The <c>HostilesCleared</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HostilesCleared? HostilesCleared => (this as HostilesClearedCase)?.Value;
+
     public sealed record HostilesClearedCase(HostilesCleared Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(HostilesCleared value) => new HostilesClearedCase(value);
+
+    /// <summary>The <c>PauseFailed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PauseFailed? PauseFailed => (this as PauseFailedCase)?.Value;
 
     public sealed record PauseFailedCase(PauseFailed Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(PauseFailed value) => new PauseFailedCase(value);
 
+    /// <summary>The <c>ForcePauseWaiting</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ForcePauseWaiting? ForcePauseWaiting => (this as ForcePauseWaitingCase)?.Value;
+
     public sealed record ForcePauseWaitingCase(ForcePauseWaiting Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(ForcePauseWaiting value) => new ForcePauseWaitingCase(value);
+
+    /// <summary>The <c>ForcePauseCleared</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ForcePauseCleared? ForcePauseCleared => (this as ForcePauseClearedCase)?.Value;
 
     public sealed record ForcePauseClearedCase(ForcePauseCleared Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(ForcePauseCleared value) => new ForcePauseClearedCase(value);
 
+    /// <summary>The <c>OperationOutcome</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public OperationOutcome? OperationOutcome => (this as OperationOutcomeCase)?.Value;
+
     public sealed record OperationOutcomeCase(OperationOutcome Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(OperationOutcome value) => new OperationOutcomeCase(value);
+
+    /// <summary>The <c>AuthorityChanged</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AuthorityChanged? AuthorityChanged => (this as AuthorityChangedCase)?.Value;
 
     public sealed record AuthorityChangedCase(AuthorityChanged Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(AuthorityChanged value) => new AuthorityChangedCase(value);
 
+    /// <summary>The <c>ObservationInvalidated</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ObservationInvalidated? ObservationInvalidated => (this as ObservationInvalidatedCase)?.Value;
+
     public sealed record ObservationInvalidatedCase(ObservationInvalidated Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(ObservationInvalidated value) => new ObservationInvalidatedCase(value);
 
+    /// <summary>The <c>RuleFired</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RuleFired? RuleFired => (this as RuleFiredCase)?.Value;
+
     public sealed record RuleFiredCase(RuleFired Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(RuleFired value) => new RuleFiredCase(value);
+
+    /// <summary>The <c>RuleLeaseExpired</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RuleLeaseExpired? RuleLeaseExpired => (this as RuleLeaseExpiredCase)?.Value;
 
     public sealed record RuleLeaseExpiredCase(RuleLeaseExpired Value) : ClockEventEvent;
 
@@ -1396,9 +1576,17 @@ public abstract record EventsReplyOutcome
 {
     private protected EventsReplyOutcome() { }
 
+    /// <summary>The <c>Page</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public EventsPage? Page => (this as PageCase)?.Value;
+
     public sealed record PageCase(EventsPage Value) : EventsReplyOutcome;
 
     public static implicit operator EventsReplyOutcome(EventsPage value) => new PageCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : EventsReplyOutcome;
 

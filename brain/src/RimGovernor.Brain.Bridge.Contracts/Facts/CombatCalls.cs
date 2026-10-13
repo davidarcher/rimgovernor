@@ -1,7 +1,7 @@
-using RimGovernor.Protocol.Mirror;
-using RimGovernor.Protocol.Operations;
-using RimGovernor.Protocol.Receipts;
-using Receipt = RimGovernor.Protocol.Receipts.Receipt;
+using RimGovernor.Contracts.Wire.Mirror;
+using RimGovernor.Contracts.Wire.Operations;
+using RimGovernor.Contracts.Wire.Receipts;
+using Receipt = RimGovernor.Contracts.Wire.Receipts.Receipt;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -45,13 +45,13 @@ public static partial class BridgeFunctions
 
     /// <summary>Go's <c>UndraftAction</c>: the wire intent that undrafts one pawn no live plan needs.</summary>
     /// <exception cref="BridgeContractException">The key or the pawn is not a valid identifier.</exception>
-    public static RimGovernor.Protocol.Operations.Action UndraftAction(string key, PawnId pawn)
+    public static RimGovernor.Contracts.Wire.Operations.Action UndraftAction(string key, PawnId pawn)
     {
         if (!IsValidId(key) || !IsValidId(pawn.Value))
         {
             throw Contract("undraft requires a key and a pawn");
         }
-        return new RimGovernor.Protocol.Operations.Action { Key = key, Draft = new DraftIntent { PawnId = pawn.Value, Drafted = false } };
+        return new RimGovernor.Contracts.Wire.Operations.Action { Key = key, Intent = new DraftIntent { PawnId = pawn.Value, Drafted = false } };
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ public static partial class BridgeFunctions
     /// row with strategy pods.
     /// </summary>
     public static bool DropPodArrival(CombatEventRow row) =>
-        row.HasKind && row.Kind == CombatLogKind.HostileArrived && row.HasRaidStrategy && row.RaidStrategy == PodsStrategy;
+        row.Kind is not null && row.Kind.GetValueOrDefault() == CombatLogKind.HostileArrived && row.RaidStrategy is not null && (row.RaidStrategy ?? "") == PodsStrategy;
 
     /// <summary>
     /// Go's <c>CombatOrderResults</c>: decodes an applied combat_orders action receipt against its request, one
@@ -69,15 +69,15 @@ public static partial class BridgeFunctions
     /// <exception cref="BridgeContractException">The receipt does not answer the request.</exception>
     public static IReadOnlyList<CombatOrderResult> CombatOrderResults(Receipt receipt, CombatOrders command)
     {
-        if (receipt.OutcomeCase == Receipt.OutcomeOneofCase.Uncertain)
+        if (receipt.Outcome is ReceiptOutcome.UncertainCase)
         {
             return [];
         }
-        if (receipt.OutcomeCase != Receipt.OutcomeOneofCase.Applied)
+        if (receipt.Outcome is not ReceiptOutcome.AppliedCase)
         {
             throw Contract("combat orders receipt not applied");
         }
-        var effect = receipt.Applied.Observed?.CombatOrders ?? throw Contract("combat orders evidence missing");
+        var effect = receipt.Outcome?.Applied?.Observed?.Effect?.CombatOrders ?? throw Contract("combat orders evidence missing");
         if (effect.Results.Count != command.Orders.Count)
         {
             throw Contract($"combat orders: {effect.Results.Count} results for {command.Orders.Count} orders");
@@ -86,19 +86,19 @@ public static partial class BridgeFunctions
         for (var i = 0; i < effect.Results.Count; i++)
         {
             var v = effect.Results[i];
-            if (v is null || !v.HasIndex || v.Index != i || !v.HasApplied)
+            if (v is null || v.Index is null || v.Index != i || v.Applied is null)
             {
                 throw Contract($"combat order result {i} index or outcome missing");
             }
             var want = command.Orders[i].Pawn?.EntityId ?? "";
-            if (v.PawnId != want)
+            if ((v.PawnId ?? "") != want)
             {
                 throw Contract($"combat order result {i} names pawn \"{v.PawnId}\", want \"{want}\"");
             }
-            var result = new CombatOrderResult { Index = i, PawnId = v.PawnId, Applied = v.Applied, Refusal = v.Refusal, JobDef = v.JobDef };
+            var result = new CombatOrderResult { Index = i, PawnId = v.PawnId ?? "", Applied = v.Applied.GetValueOrDefault(), Refusal = v.Refusal ?? "", JobDef = v.JobDef ?? "" };
             if (result.Applied)
             {
-                if (v.HasRefusal)
+                if (v.Refusal is not null)
                 {
                     throw Contract($"combat order result {i} applied with a refusal");
                 }
@@ -111,7 +111,7 @@ public static partial class BridgeFunctions
             {
                 throw Contract($"combat order result {i} refused without a known reason: \"{result.Refusal}\"");
             }
-            else if (v.HasJobDef)
+            else if (v.JobDef is not null)
             {
                 throw Contract($"combat order result {i} refused with a job");
             }
@@ -123,12 +123,12 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>CombatGeometryAsk</c>: a request for <paramref name="identity"/>'s cells and hostiles.</summary>
     public static CombatGeometryRequest CombatGeometryAsk(Identity identity, IEnumerable<Cell> cells, IEnumerable<string> hostiles, string pawnId)
     {
-        var request = new CombatGeometryRequest { Identity = identity.Clone() };
-        request.Cells.AddRange(cells);
-        request.HostileIds.AddRange(hostiles);
+        var request = new CombatGeometryRequest { Identity = identity };
+        request = request with { Cells = [.. request.Cells, .. cells] };
+        request = request with { HostileIds = [.. request.HostileIds, .. hostiles] };
         if (pawnId.Length != 0)
         {
-            request.PawnId = pawnId;
+            request = request with { PawnId = pawnId };
         }
         return request;
     }
@@ -140,7 +140,7 @@ public static partial class BridgeFunctions
     public static CombatGeometryRequest CombatGeometryProposeAsk(Identity identity, CombatGeometryPropose propose, IEnumerable<string> hostiles, string pawnId)
     {
         var request = CombatGeometryAsk(identity, [], hostiles, pawnId);
-        request.Propose = propose;
+        request = request with { Propose = propose };
         return request;
     }
 }

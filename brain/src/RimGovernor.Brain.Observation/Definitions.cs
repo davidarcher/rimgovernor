@@ -76,8 +76,8 @@ internal sealed class DefinitionFacts
         {
             d = d with
             {
-                NutritionDemandPerDay = Optional(crop.HasNutritionDemandPerDay, crop.NutritionDemandPerDay),
-                DietAllowed = Optional(crop.HasDietAllowed, crop.DietAllowed),
+                NutritionDemandPerDay = Optional(crop.NutritionDemandPerDay is not null, crop.NutritionDemandPerDay.GetValueOrDefault()),
+                DietAllowed = Optional(crop.DietAllowed is not null, crop.DietAllowed.GetValueOrDefault()),
             };
         }
         return d;
@@ -136,7 +136,7 @@ public static partial class ObservationPackage
         {
             foreach (var row in planning.Crops)
             {
-                rows[row.DefName] = row;
+                rows[(row.DefName ?? "")] = row;
             }
         }
         return rows;

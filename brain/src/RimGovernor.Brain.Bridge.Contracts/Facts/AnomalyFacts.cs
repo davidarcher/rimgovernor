@@ -1,4 +1,4 @@
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 using PolicyBuildingAnomaly = RimGovernor.Brain.Policy.BuildingAnomaly;
 using PolicyContainmentDoor = RimGovernor.Brain.Policy.ContainmentDoor;
 using PolicyContainmentMode = RimGovernor.Brain.Policy.ContainmentMode;
@@ -19,16 +19,16 @@ public static partial class BridgeFunctions
             ? null
             : new PolicyStudyState
             {
-                StudyEnabled = OptionalFact(study.HasStudyEnabled, study.StudyEnabled),
-                Completed = OptionalFact(study.HasCompleted, study.Completed),
-                EverStudiable = OptionalFact(study.HasEverStudiable, study.EverStudiable),
-                CurrentlyStudiable = OptionalFact(study.HasCurrentlyStudiable, study.CurrentlyStudiable),
-                ProgressPercent = OptionalFact(study.HasProgressPercent, study.ProgressPercent),
-                StudyPoints = OptionalFact(study.HasStudyPoints, study.StudyPoints),
-                KnowledgeGained = OptionalFact(study.HasAnomalyKnowledgeGained, study.AnomalyKnowledgeGained),
-                AnomalyKnowledge = OptionalFact(study.HasAnomalyKnowledge, study.AnomalyKnowledge),
-                Interactions = OptionalInt(study.HasStudyInteractions, study.StudyInteractions),
-                KnowledgeCategory = OptionalFact(study.HasKnowledgeCategory, study.KnowledgeCategory),
+                StudyEnabled = OptionalFact(study.StudyEnabled is not null, study.StudyEnabled.GetValueOrDefault()),
+                Completed = OptionalFact(study.Completed is not null, study.Completed.GetValueOrDefault()),
+                EverStudiable = OptionalFact(study.EverStudiable is not null, study.EverStudiable.GetValueOrDefault()),
+                CurrentlyStudiable = OptionalFact(study.CurrentlyStudiable is not null, study.CurrentlyStudiable.GetValueOrDefault()),
+                ProgressPercent = OptionalFact(study.ProgressPercent is not null, study.ProgressPercent.GetValueOrDefault()),
+                StudyPoints = OptionalFact(study.StudyPoints is not null, study.StudyPoints.GetValueOrDefault()),
+                KnowledgeGained = OptionalFact(study.AnomalyKnowledgeGained is not null, study.AnomalyKnowledgeGained.GetValueOrDefault()),
+                AnomalyKnowledge = OptionalFact(study.AnomalyKnowledge is not null, study.AnomalyKnowledge.GetValueOrDefault()),
+                Interactions = OptionalInt(study.StudyInteractions is not null, study.StudyInteractions.GetValueOrDefault()),
+                KnowledgeCategory = OptionalFact(study.KnowledgeCategory is not null, (study.KnowledgeCategory ?? "")),
             };
 
     /// <summary>Go's <c>containmentMode</c>: an unmapped mode reads as the strictest, Execute.</summary>
@@ -44,7 +44,7 @@ public static partial class BridgeFunctions
     /// Go's <c>PawnAnomaly</c>: lifts a pawn row's Anomaly block; unknown when the row carries none (no Anomaly).
     /// A block a read issue names stays unknown.
     /// </summary>
-    public static Fact<PolicyPawnAnomaly> PawnAnomaly(RimGovernor.Protocol.Observations.PawnAnomaly? anomaly)
+    public static Fact<PolicyPawnAnomaly> PawnAnomaly(RimGovernor.Contracts.Wire.Observations.PawnAnomaly? anomaly)
     {
         if (anomaly is null)
         {
@@ -53,13 +53,13 @@ public static partial class BridgeFunctions
         var failed = FailedFields(anomaly.Issues);
         var result = new PolicyPawnAnomaly
         {
-            Entity = OptionalFact(anomaly.HasEntity, anomaly.Entity),
-            Mutant = OptionalFact(anomaly.HasMutant, anomaly.Mutant),
-            Shambler = OptionalFact(anomaly.HasShambler, anomaly.Shambler),
-            MinContainmentStrength = OptionalFact(anomaly.HasMinContainmentStrength, anomaly.MinContainmentStrength),
-            HiddenFromPlayer = OptionalFact(anomaly.HasHiddenFromPlayer, anomaly.HiddenFromPlayer),
-            PsychicRitualInvoker = OptionalFact(anomaly.HasPsychicRitualInvoker, anomaly.PsychicRitualInvoker),
-            MeleeOnly = OptionalFact(anomaly.HasMeleeOnly, anomaly.MeleeOnly),
+            Entity = OptionalFact(anomaly.Entity is not null, anomaly.Entity.GetValueOrDefault()),
+            Mutant = OptionalFact(anomaly.Mutant is not null, anomaly.Mutant.GetValueOrDefault()),
+            Shambler = OptionalFact(anomaly.Shambler is not null, anomaly.Shambler.GetValueOrDefault()),
+            MinContainmentStrength = OptionalFact(anomaly.MinContainmentStrength is not null, anomaly.MinContainmentStrength.GetValueOrDefault()),
+            HiddenFromPlayer = OptionalFact(anomaly.HiddenFromPlayer is not null, anomaly.HiddenFromPlayer.GetValueOrDefault()),
+            PsychicRitualInvoker = OptionalFact(anomaly.PsychicRitualInvoker is not null, anomaly.PsychicRitualInvoker.GetValueOrDefault()),
+            MeleeOnly = OptionalFact(anomaly.MeleeOnly is not null, anomaly.MeleeOnly.GetValueOrDefault()),
             Held = Unknown<PolicyEntityHeld?>(),
             Study = Unknown<PolicyStudyState?>(),
             CreepJoiner = Unknown<PolicyCreepJoiner?>(),
@@ -69,9 +69,9 @@ public static partial class BridgeFunctions
             PolicyCreepJoiner? joiner = anomaly.Creepjoiner is { } c
                 ? new PolicyCreepJoiner
                 {
-                    Form = OptionalFact(c.HasForm, c.Form),
-                    Benefit = OptionalFact(c.HasBenefit, c.Benefit),
-                    DownsideTriggered = OptionalFact(c.HasDownsideTriggered, c.DownsideTriggered),
+                    Form = OptionalFact(c.Form is not null, (c.Form ?? "")),
+                    Benefit = OptionalFact(c.Benefit is not null, (c.Benefit ?? "")),
+                    DownsideTriggered = OptionalFact(c.DownsideTriggered is not null, c.DownsideTriggered.GetValueOrDefault()),
                 }
                 : null;
             result = result with { CreepJoiner = Known(joiner) };
@@ -83,16 +83,16 @@ public static partial class BridgeFunctions
             {
                 held = new PolicyEntityHeld
                 {
-                    Held = OptionalFact(h.HasHeld, h.Held),
-                    Escaping = OptionalFact(h.HasEscaping, h.Escaping),
-                    ExtractBioferrite = OptionalFact(h.HasExtractBioferrite, h.ExtractBioferrite),
-                    NeedsTend = OptionalFact(h.HasNeedsTend, h.NeedsTend),
-                    Bleeding = OptionalFact(h.HasBleeding, h.Bleeding),
-                    HarvesterAttached = OptionalFact(h.HasHarvesterAttached, h.HarvesterAttached),
-                    BioferritePerDay = OptionalFact(h.HasBioferritePerDay, h.BioferritePerDay),
-                    CanBeCaptured = OptionalFact(h.HasCanBeCaptured, h.CanBeCaptured),
+                    Held = OptionalFact(h.Held is not null, h.Held.GetValueOrDefault()),
+                    Escaping = OptionalFact(h.Escaping is not null, h.Escaping.GetValueOrDefault()),
+                    ExtractBioferrite = OptionalFact(h.ExtractBioferrite is not null, h.ExtractBioferrite.GetValueOrDefault()),
+                    NeedsTend = OptionalFact(h.NeedsTend is not null, h.NeedsTend.GetValueOrDefault()),
+                    Bleeding = OptionalFact(h.Bleeding is not null, h.Bleeding.GetValueOrDefault()),
+                    HarvesterAttached = OptionalFact(h.HarvesterAttached is not null, h.HarvesterAttached.GetValueOrDefault()),
+                    BioferritePerDay = OptionalFact(h.BioferritePerDay is not null, h.BioferritePerDay.GetValueOrDefault()),
+                    CanBeCaptured = OptionalFact(h.CanBeCaptured is not null, h.CanBeCaptured.GetValueOrDefault()),
                     Platform = Known(h.Platform?.Id ?? ""),
-                    Mode = h.HasMode ? Known(ContainmentModeOf(h.Mode)) : Unknown<PolicyContainmentMode>(),
+                    Mode = h.Mode is not null ? Known(ContainmentModeOf(h.Mode.GetValueOrDefault())) : Unknown<PolicyContainmentMode>(),
                 };
             }
             result = result with { Held = Known(held) };
@@ -123,8 +123,8 @@ public static partial class BridgeFunctions
             {
                 holder = new PolicyEntityHolder
                 {
-                    ContainmentStrength = OptionalFact(h.HasContainmentStrength, h.ContainmentStrength),
-                    Available = OptionalFact(h.HasAvailable, h.Available),
+                    ContainmentStrength = OptionalFact(h.ContainmentStrength is not null, h.ContainmentStrength.GetValueOrDefault()),
+                    Available = OptionalFact(h.Available is not null, h.Available.GetValueOrDefault()),
                     HeldPawn = h.HeldPawn?.Id ?? "",
                     Doors = Unknown<EquatableArray<PolicyContainmentDoor>>(),
                 };
@@ -137,10 +137,10 @@ public static partial class BridgeFunctions
                             new PolicyContainmentDoor
                             {
                                 Cell = ToDomainCell(door.Cell),
-                                Open = OptionalFact(door.HasOpen, door.Open),
-                                HoldOpen = OptionalFact(door.HasHoldOpen, door.HoldOpen),
-                                Breached = OptionalFact(door.HasContainmentBreached, door.ContainmentBreached),
-                                BlockedOpen = OptionalFact(door.HasBlockedOpen, door.BlockedOpen),
+                                Open = OptionalFact(door.Open is not null, door.Open.GetValueOrDefault()),
+                                HoldOpen = OptionalFact(door.HoldOpen is not null, door.HoldOpen.GetValueOrDefault()),
+                                Breached = OptionalFact(door.ContainmentBreached is not null, door.ContainmentBreached.GetValueOrDefault()),
+                                BlockedOpen = OptionalFact(door.BlockedOpen is not null, door.BlockedOpen.GetValueOrDefault()),
                             });
                     }
                     holder = holder with { Doors = Known(EquatableArray.From(doors)) };

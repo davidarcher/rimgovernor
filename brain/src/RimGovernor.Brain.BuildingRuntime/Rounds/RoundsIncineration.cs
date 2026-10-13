@@ -70,7 +70,7 @@ internal static partial class BuildingRuntimePackage
 
         var ids = emergency.Facts.Colonists.Select(pawn => pawn.Id.Value).ToList();
         var (reply, _) = await native.ReadTendPawnsAsync(identityRef, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("colonistRows: no observed pawns");

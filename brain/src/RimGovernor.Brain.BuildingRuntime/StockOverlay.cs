@@ -111,16 +111,16 @@ public sealed partial class Rounder
         var output = new List<Pol.StockZone>();
         foreach (var row in projection.Zones?.Value.Rows ?? [])
         {
-            if (row.Type != "stockpile")
+            if ((row.Type ?? "") != "stockpile")
             {
                 continue;
             }
             var z = new Pol.StockZone
             {
-                Id = row.Id,
-                Label = row.Label,
-                FoodStorage = row.FoodStorage,
-                Cells = cells.TryGetValue(row.Id, out var own) ? [.. own] : [],
+                Id = row.Id ?? "",
+                Label = row.Label ?? "",
+                FoodStorage = row.FoodStorage.GetValueOrDefault(),
+                Cells = cells.TryGetValue((row.Id ?? ""), out var own) ? [.. own] : [],
             };
             if (owned.TryGetValue(z.Id, out var claim) && claim.Kind == Domain.ZoneKind.Stockpile)
             {
@@ -141,9 +141,9 @@ public sealed partial class Rounder
             if (row.Bounds is { } b && z.Cells.Count == 0)
             {
                 var all = new List<Cell>();
-                for (var x = b.Minimum.X; x <= b.Maximum.X; x++)
+                for (var x = (b.Minimum?.X).GetValueOrDefault(); x <= (b.Maximum?.X).GetValueOrDefault(); x++)
                 {
-                    for (var zz = b.Minimum.Z; zz <= b.Maximum.Z; zz++)
+                    for (var zz = (b.Minimum?.Z).GetValueOrDefault(); zz <= (b.Maximum?.Z).GetValueOrDefault(); zz++)
                     {
                         all.Add(new Cell(x, zz));
                     }

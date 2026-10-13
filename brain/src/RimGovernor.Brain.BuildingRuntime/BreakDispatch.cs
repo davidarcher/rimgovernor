@@ -14,11 +14,11 @@ internal static class BreakDispatch
     public static Fact<Cell> BreakCell(PbObservations.PawnState row)
     {
         var p = row.Pawn?.Position;
-        if (p is null || !p.HasX || !p.HasZ)
+        if (p is null || p.X is null || p.Z is null)
         {
             return Unknown<Cell>();
         }
-        return Known(new Cell(p.X, p.Z));
+        return Known(new Cell(p.X.GetValueOrDefault(), p.Z.GetValueOrDefault()));
     }
 
     /// <summary>
@@ -120,7 +120,7 @@ public sealed partial class Worker
         if (aggressive.Count > 0)
         {
             var reply = await _config.BreakSource.ReadCombatPawnsAsync(Boundary.Identity(current), ids, ct).ConfigureAwait(false);
-            var observed = reply.Observed ?? throw new ControlException("breakDispatchHolds: observed == nil");
+            var observed = reply.Outcome?.Observed ?? throw new ControlException("breakDispatchHolds: observed == nil");
             if (observed.Pawns.Count != ids.Count)
             {
                 throw new ControlException("breakDispatchHolds: len(observed.Pawns) != len(ids)");

@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Mirror;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Mirror;
+using RimGovernor.Contracts.Wire.Observations;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 
 namespace RimGovernor.Brain.Bridge.Contracts;

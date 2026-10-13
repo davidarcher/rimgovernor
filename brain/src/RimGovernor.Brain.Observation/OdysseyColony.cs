@@ -92,7 +92,7 @@ public static partial class ObservationPackage
     /// <summary>Projects a validated section; an absent or unavailable one is an unknown fact.</summary>
     internal static Fact<OdysseyColony> ColonyOdyssey(O.OdysseySection? section)
     {
-        var f = section?.Observed;
+        var f = section?.Outcome?.Observed;
         if (f is null)
         {
             return default;
@@ -102,13 +102,13 @@ public static partial class ObservationPackage
         {
             conditions.Add(new ActiveCondition
             {
-                ID = x.ConditionId,
-                Definition = x.DefName,
-                Class = x.ConditionClass,
-                Permanent = x.Permanent,
-                TicksPassed = Optional(x.HasTicksPassed, x.TicksPassed),
-                TicksLeft = Optional(x.HasTicksLeft, x.TicksLeft),
-                CauserID = Optional(x.HasCauserId, x.CauserId),
+                ID = x.ConditionId ?? "",
+                Definition = x.DefName ?? "",
+                Class = x.ConditionClass ?? "",
+                Permanent = x.Permanent.GetValueOrDefault(),
+                TicksPassed = Optional(x.TicksPassed is not null, x.TicksPassed.GetValueOrDefault()),
+                TicksLeft = Optional(x.TicksLeft is not null, x.TicksLeft.GetValueOrDefault()),
+                CauserID = Optional(x.CauserId is not null, x.CauserId ?? ""),
             });
         }
         var hazards = new List<HazardTerrain>();
@@ -116,18 +116,18 @@ public static partial class ObservationPackage
         {
             hazards.Add(new HazardTerrain
             {
-                Definition = x.DefName,
-                Cells = x.Cells,
-                Dangerous = Optional(x.HasDangerous, x.Dangerous),
-                BurnDamage = Optional(x.HasBurnDamage, x.BurnDamage),
-                HeatPerTick = Optional(x.HasHeatPerTick, x.HeatPerTick),
-                ToxicBuildupFactor = Optional(x.HasToxicBuildupFactor, x.ToxicBuildupFactor),
+                Definition = x.DefName ?? "",
+                Cells = x.Cells.GetValueOrDefault(),
+                Dangerous = Optional(x.Dangerous is not null, x.Dangerous.GetValueOrDefault()),
+                BurnDamage = Optional(x.BurnDamage is not null, x.BurnDamage.GetValueOrDefault()),
+                HeatPerTick = Optional(x.HeatPerTick is not null, x.HeatPerTick.GetValueOrDefault()),
+                ToxicBuildupFactor = Optional(x.ToxicBuildupFactor is not null, x.ToxicBuildupFactor.GetValueOrDefault()),
             });
         }
         var lava = new List<LavaEmergence>();
         foreach (var x in f.LavaEmergences)
         {
-            lava.Add(new LavaEmergence(x.ThingId, CellOf(x.Position)));
+            lava.Add(new LavaEmergence(x.ThingId ?? "", CellOf(x.Position)));
         }
         var sites = new List<UndergroundSite>();
         foreach (var x in f.Sites)
@@ -137,23 +137,23 @@ public static partial class ObservationPackage
             {
                 hackables.Add(new UndergroundHackable
                 {
-                    ID = h.ThingId,
-                    Definition = h.DefName,
+                    ID = h.ThingId ?? "",
+                    Definition = h.DefName ?? "",
                     Position = CellOf(h.Position),
-                    ProgressPercent = Optional(h.HasProgressPercent, h.ProgressPercent),
-                    Defence = Optional(h.HasDefence, h.Defence),
-                    Hacked = Optional(h.HasHacked, h.Hacked),
-                    LockedOut = Optional(h.HasLockedOut, h.LockedOut),
-                    Autohack = Optional(h.HasAutohack, h.Autohack),
+                    ProgressPercent = Optional(h.ProgressPercent is not null, h.ProgressPercent.GetValueOrDefault()),
+                    Defence = Optional(h.Defence is not null, h.Defence.GetValueOrDefault()),
+                    Hacked = Optional(h.Hacked is not null, h.Hacked.GetValueOrDefault()),
+                    LockedOut = Optional(h.LockedOut is not null, h.LockedOut.GetValueOrDefault()),
+                    Autohack = Optional(h.Autohack is not null, h.Autohack.GetValueOrDefault()),
                 });
             }
             sites.Add(new UndergroundSite
             {
-                HatchID = x.HatchId,
-                PocketMapID = x.PocketMapId,
-                StockpileType = Optional(x.HasStockpileType, x.StockpileType),
-                Layout = Optional(x.HasLayout, x.Layout),
-                ColonistsPresent = Optional(x.HasColonistsPresent, x.ColonistsPresent),
+                HatchID = x.HatchId ?? "",
+                PocketMapID = x.PocketMapId.GetValueOrDefault(),
+                StockpileType = Optional(x.StockpileType is not null, x.StockpileType ?? ""),
+                Layout = Optional(x.Layout is not null, x.Layout ?? ""),
+                ColonistsPresent = Optional(x.ColonistsPresent is not null, x.ColonistsPresent.GetValueOrDefault()),
                 Hackables = hackables,
             });
         }

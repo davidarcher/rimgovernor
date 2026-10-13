@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 
 namespace RimGovernor.Brain.Bridge.Contracts;

@@ -44,7 +44,7 @@ public sealed partial class RoundsDefensePlanner
         }
         foreach (var raider in DownedRaiders(combat))
         {
-            var id = new PawnId(raider.Id);
+            var id = new PawnId((raider.Id ?? ""));
             var strip = StripState.StripNone;
             if (strips.TryGetValue(id, out var plan))
             {
@@ -57,7 +57,7 @@ public sealed partial class RoundsDefensePlanner
                 case PostFightStep.Strip:
                     return (CommitStrip(incident, id, call, epoch), true);
             }
-            if (PolicyApi.CaptureWorthy(new CombatPawnState { Luciferium = raider.LuciferiumAddicted }))
+            if (PolicyApi.CaptureWorthy(new CombatPawnState { Luciferium = raider.LuciferiumAddicted.GetValueOrDefault() }))
             {
                 continue; // stripped; the custody capture takes it
             }
@@ -84,20 +84,20 @@ public sealed partial class RoundsDefensePlanner
         var p = _reviewer.Player;
         var waiting = new RoundsDefenseResult { Verdict = BuildingReasonExistingWork, Plan = fightPlan };
         var pawn = Stripper(combat, raider);
-        if (pawn is null || (pawn.TargetId == raider.Id && pawn.Job != StripJob && pawn.Drafted))
+        if (pawn is null || ((pawn.TargetId ?? "") == (raider.Id ?? "") && (pawn.Job ?? "") != StripJob && pawn.Drafted.GetValueOrDefault()))
         {
             return waiting;
         }
-        var id = new PawnId(pawn.Id);
+        var id = new PawnId((pawn.Id ?? ""));
         if (!arbiter.TryClaim([id]))
         {
             return waiting;
         }
-        IReadOnlyList<PawnId> drafts = pawn.Drafted ? [] : [id];
-        IReadOnlyList<CombatOrder> orders = [new CombatOrder { Pawn = id, Kind = CombatOrderKind.Attack, Target = new PawnId(raider.Id), Reason = CombatOrderReason.Finish }];
+        IReadOnlyList<PawnId> drafts = pawn.Drafted.GetValueOrDefault() ? [] : [id];
+        IReadOnlyList<CombatOrder> orders = [new CombatOrder { Pawn = id, Kind = CombatOrderKind.Attack, Target = new PawnId((raider.Id ?? "")), Reason = CombatOrderReason.Finish }];
         p.Current(call, epoch);
         var tick = new Tick(combat.Context?.Tick ?? 0);
-        var label = string.Create(CultureInfo.InvariantCulture, $"{fightPlan}-finish-{raider.Id}-{tick.Value}");
+        var label = string.Create(CultureInfo.InvariantCulture, $"{fightPlan}-finish-{(raider.Id ?? "")}-{tick.Value}");
         var batch = CombatBatchPlan(fightPlan, label, drafts, orders);
         var (results, sent) = await SendCombatBatchAsync(state, fightPlan, label, drafts, orders, call).ConfigureAwait(false);
         (results, memory) = RecordDrafts(fightPlan, drafts, results, memory, call);
@@ -122,11 +122,11 @@ internal static partial class BuildingRuntimePackage
         var output = new List<M.CombatPawn>();
         foreach (var row in combat.Pawns)
         {
-            if (row.Side != M.CombatSide.Hostile || !row.Downed || row.Dead)
+            if (row.Side.GetValueOrDefault() != M.CombatSide.Hostile || !row.Downed.GetValueOrDefault() || row.Dead.GetValueOrDefault())
             {
                 continue;
             }
-            if (combat.Detail.TryGetValue(row.Id, out var detail) && detail is not null && detail.HasHumanlike && !detail.Humanlike)
+            if (combat.Detail.TryGetValue((row.Id ?? ""), out var detail) && detail is not null && detail.Humanlike is not null && !detail.Humanlike.GetValueOrDefault())
             {
                 continue; // an animal has nothing to strip and is never captured here
             }
@@ -170,19 +170,19 @@ internal static partial class BuildingRuntimePackage
         var at = raider.Cell;
         foreach (var row in combat.Pawns)
         {
-            if (row.Side != M.CombatSide.Colonist || row.Downed || row.Dead)
+            if (row.Side.GetValueOrDefault() != M.CombatSide.Colonist || row.Downed.GetValueOrDefault() || row.Dead.GetValueOrDefault())
             {
                 continue;
             }
             var dist = 1L << 40;
-            if (row.TargetId == raider.Id)
+            if ((row.TargetId ?? "") == (raider.Id ?? ""))
             {
                 dist = -1;
             }
             else if (row.Cell is { } c && at is not null)
             {
-                long dx = c.X - at.X;
-                long dz = c.Z - at.Z;
+                long dx = c.X.GetValueOrDefault() - at.X.GetValueOrDefault();
+                long dz = c.Z.GetValueOrDefault() - at.Z.GetValueOrDefault();
                 dist = (dx * dx) + (dz * dz);
             }
             if (best is null || dist < bestDist || (dist == bestDist && string.CompareOrdinal(row.Id, best.Id) < 0))

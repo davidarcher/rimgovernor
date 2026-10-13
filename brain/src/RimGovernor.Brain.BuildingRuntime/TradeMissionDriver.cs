@@ -402,7 +402,7 @@ public sealed partial class RoundsTradePlanner
                 Colony = state.Snapshot.Colony,
                 Load = state.Snapshot.Load,
                 Map = state.Snapshot.Map,
-                Tick = new Tick(reply.Observed?.Context?.Tick ?? 0),
+                Tick = new Tick(reply.Outcome?.Observed?.Context?.Tick ?? 0),
             },
             tables,
             catalog);

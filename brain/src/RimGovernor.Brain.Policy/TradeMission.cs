@@ -1,4 +1,4 @@
-using O = RimGovernor.Protocol.Observations;
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -110,24 +110,18 @@ public static partial class PolicyFunctions
     public static bool SafeTradeMissionPack(O.TradePackEstimate? pack, int homeTile, int settlementTile)
     {
         if (
-            pack is null
-            || !pack.HasCanPack
-            || !pack.CanPack
-            || !pack.HasMassUsage
-            || !pack.HasMassCapacity
-            || !FoodNumber(pack.MassUsage)
-            || !FoodNumber(pack.MassCapacity)
-            || pack.MassUsage > pack.MassCapacity
-            || !pack.HasFoodDays
-            || !pack.HasFoodRotDays
-            || !FoodNumber(pack.FoodDays)
-            || !FoodNumber(pack.FoodRotDays)
+            pack is not { CanPack: true, MassUsage: { } massUsage, MassCapacity: { } massCapacity, FoodDays: { } foodDays, FoodRotDays: { } foodRotDays }
+            || !FoodNumber(massUsage)
+            || !FoodNumber(massCapacity)
+            || massUsage > massCapacity
+            || !FoodNumber(foodDays)
+            || !FoodNumber(foodRotDays)
         )
         {
             return false;
         }
         var (days, known) = TradeMissionRouteDays(pack, homeTile, settlementTile);
-        return known && pack.FoodDays >= Math.Max(1, days) && pack.FoodRotDays >= Math.Max(1, days);
+        return known && foodDays >= Math.Max(1, days) && foodRotDays >= Math.Max(1, days);
     }
 
     public static (double Days, bool Ok) TradeMissionRouteDays(O.TradePackEstimate? pack, int homeTile, int settlementTile)
@@ -136,16 +130,17 @@ public static partial class PolicyFunctions
         {
             return (0, false);
         }
+        double ticks = 0;
         O.WorldRoute?[] routes = [pack.Outbound, pack.Home];
         for (var i = 0; i < routes.Length; i++)
         {
             var tile = i == 1 ? homeTile : settlementTile;
-            var route = routes[i];
-            if (route is null || !route.HasDestination || route.Destination != tile || !route.HasReachable || !route.Reachable || !route.HasEstimatedTicks || route.EstimatedTicks < 0)
+            if (routes[i] is not { Destination: { } destination, Reachable: true, EstimatedTicks: >= 0 and var estimated } || destination != tile)
             {
                 return (0, false);
             }
+            ticks += estimated;
         }
-        return (((double)pack.Outbound.EstimatedTicks + (double)pack.Home.EstimatedTicks) / GameTime.TicksPerDay, true);
+        return (ticks / GameTime.TicksPerDay, true);
     }
 }

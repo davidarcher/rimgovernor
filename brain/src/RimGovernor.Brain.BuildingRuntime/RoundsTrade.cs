@@ -413,7 +413,7 @@ public sealed partial class RoundsTradePlanner
     {
         var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("selection: observed == nil");
@@ -437,10 +437,10 @@ public sealed partial class RoundsTradePlanner
         var medicalFacts = ObservationPackage.ColonyMedicalReserve(observed, tables, catalog);
         medicalFacts = medicalFacts with { Catalog = items };
         var medical = Pol.PolicyFunctions.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, Reviewer.Policy.MedicalReserve);
-        var projection = ObservationPackage.DecodeColony(reply, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context.Tick) }, tables, catalog);
+        var projection = ObservationPackage.DecodeColony(reply, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context?.Tick ?? 0) }, tables, catalog);
         projection = projection with { Facts = projection.Facts with { Items = items } };
         var zoneNative = Native as Observation.IZonesNative;
-        projection = await ObservationPackage.FillZones(zoneNative, observed.Context.Identity, projection.Identity, projection, call).ConfigureAwait(false);
+        projection = await ObservationPackage.FillZones(zoneNative, observed.Context?.Identity ?? identity,projection.Identity, projection, call).ConfigureAwait(false);
         // The food plan reads the caravans on the census as present, the session's priced by the offers just recorded from this sheet.
         projection = projection with { Facts = projection.Facts with { Traders = Known<EquatableArray<Pol.TraderFacts>>([.. traders]) } };
         Reviewer.PlanFood(ref projection);

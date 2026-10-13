@@ -1,6 +1,6 @@
 using DomainHostility = RimGovernor.Brain.Domain.HostilityResponse;
 using DomainMedicalCare = RimGovernor.Brain.Domain.MedicalCare;
-using Op = RimGovernor.Protocol.Operations;
+using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -12,14 +12,14 @@ public static partial class BridgeFunctions
     private static Op.Action ReadingPolicyAction(DomainAction action)
     {
         var v = action.ReadingPolicy ?? throw Contract("not a reading policy action");
-        return new Op.Action { ReadingPolicy = new Op.ReadingPolicyIntent { Name = v.Name, AllowedDefs = { v.Definitions } } };
+        return new Op.Action { Intent = new Op.ReadingPolicyIntent { Name = v.Name, AllowedDefs = [.. v.Definitions] } };
     }
 
     /// <summary>Go's <c>foodPolicyAction</c>: the FoodPolicyIntent of one per-pawn food policy, the label and the allowed food definitions.</summary>
     private static Op.Action FoodPolicyAction(DomainAction action)
     {
         var v = action.FoodPolicy ?? throw Contract("not a food policy action");
-        return new Op.Action { FoodPolicy = new Op.FoodPolicyIntent { Name = v.Name, AllowedDefs = { v.Definitions } } };
+        return new Op.Action { Intent = new Op.FoodPolicyIntent { Name = v.Name, AllowedDefs = [.. v.Definitions] } };
     }
 
     /// <summary>Go's <c>drugPolicyAction</c>: the DrugPolicyIntent of one per-pawn drug policy, the label and the entries that allow anything; native checks the drugs are the policy's (NativeDrugPolicy.cs).</summary>
@@ -29,8 +29,7 @@ public static partial class BridgeFunctions
         var intent = new Op.DrugPolicyIntent { Name = v.Name };
         foreach (var e in v.Entries)
         {
-            intent.Entries.Add(
-                new Op.DrugPolicyEntry
+            intent = intent with { Entries = [.. intent.Entries, new Op.DrugPolicyEntry
                 {
                     DrugDef = e.Drug,
                     AllowedForJoy = e.Joy,
@@ -40,10 +39,9 @@ public static partial class BridgeFunctions
                     OnlyIfMoodBelow = (float)e.OnlyIfMoodBelow,
                     OnlyIfJoyBelow = (float)e.OnlyIfJoyBelow,
                     TakeToInventory = e.TakeToInventory,
-                }
-            );
+                }] };
         }
-        return new Op.Action { DrugPolicy = intent };
+        return new Op.Action { Intent = intent };
     }
 
     // Go hostilityWire.
@@ -79,49 +77,49 @@ public static partial class BridgeFunctions
         switch (v.Kind)
         {
             case SettingKind.Hostility:
-                intent.HostilityResponse = HostilityWire(v.Hostility ?? throw Contract("hostility setting without a mode"));
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.HostilityResponseCase(HostilityWire(v.Hostility ?? throw Contract("hostility setting without a mode"))) };
                 break;
             case SettingKind.SelfTend:
-                intent.SelfTend = v.SelfTend;
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.SelfTendCase(v.SelfTend) };
                 break;
             case SettingKind.MedicineCarry:
-                intent.MedicineCarry = v.MedicineCarry ?? 0;
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MedicineCarryCase(v.MedicineCarry ?? 0) };
                 break;
             case SettingKind.Nickname:
-                intent.Nickname = v.LeaveName;
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.NicknameCase(v.LeaveName) };
                 break;
             case SettingKind.MedicalCare:
-                intent.MedicalCare = MedicalCareWire(v.MedicalCare ?? throw Contract("medical care setting without a tier"));
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MedicalCareCase(MedicalCareWire(v.MedicalCare ?? throw Contract("medical care setting without a tier"))) };
                 break;
             case SettingKind.ReadingPolicy:
-                intent.ReadingPolicy = v.ReadingPolicy ?? "";
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ReadingPolicyCase(v.ReadingPolicy ?? "") };
                 break;
             case SettingKind.DrugPolicy:
-                intent.DrugPolicy = v.DrugPolicy ?? "";
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.DrugPolicyCase(v.DrugPolicy ?? "") };
                 break;
             case SettingKind.FoodPolicy:
-                intent.FoodPolicy = v.FoodPolicy ?? "";
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.FoodPolicyCase(v.FoodPolicy ?? "") };
                 break;
             case SettingKind.MechWorkMode:
-                intent.MechWorkMode = v.MechWorkMode ?? "";
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MechWorkModeCase(v.MechWorkMode ?? "") };
                 break;
             case SettingKind.MechControlGroup:
-                intent.MechControlGroup = v.MechControlGroup ?? 0;
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.MechControlGroupCase(v.MechControlGroup ?? 0) };
                 break;
             case SettingKind.ChoosePermit:
                 var (faction, permit) = v.ChoosePermit ?? throw Contract("choose permit setting without a permit");
-                intent.ChoosePermit = new Op.PermitChoice { FactionDef = faction, Permit = permit };
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ChoosePermitCase(new Op.PermitChoice { FactionDef = faction, Permit = permit }) };
                 break;
             case SettingKind.ExtractBioferrite:
-                intent.ExtractBioferrite = v.ExtractBioferrite ?? false;
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ExtractBioferriteCase(v.ExtractBioferrite ?? false) };
                 break;
             case SettingKind.EatTrigger:
-                intent.EatTrigger = (float)(v.EatTrigger ?? 0);
+                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.EatTriggerCase((float)(v.EatTrigger ?? 0)) };
                 break;
             default:
                 throw Contract("unknown pawn setting");
         }
-        return new Op.Action { PawnSettings = intent };
+        return new Op.Action { Intent = intent };
     }
 
     private static Op.RuleTrigger? RuleTriggerWire(RuleTrigger trigger) => trigger == RuleTrigger.PreyKilled ? Op.RuleTrigger.PreyKilled : null;
@@ -163,10 +161,10 @@ public static partial class BridgeFunctions
             };
             foreach (var predicate in rule.Predicates)
             {
-                wire.Predicates.Add(RulePredicateWire(predicate) ?? throw Contract($"unsupported rule predicate {Domain.Wire.Name(predicate)}"));
+                wire = wire with { Predicates = [.. wire.Predicates, RulePredicateWire(predicate) ?? throw Contract($"unsupported rule predicate {Domain.Wire.Name(predicate)}")] };
             }
-            intent.Rules.Add(wire);
+            intent = intent with { Rules = [.. intent.Rules, wire] };
         }
-        return new Op.Action { RulesAttach = intent };
+        return new Op.Action { Intent = intent };
     }
 }

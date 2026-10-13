@@ -18,11 +18,11 @@ public sealed partial class ClockCoordinator
         // Either mode acknowledges only the downed colonists the window decision names below; combat mode also its
         // hostile pawns (none when the fight is against a hostile building alone). Medical suppression never.
         var p = intent.Command.Start.Policy;
-        if (p is null || p.AcknowledgedInjuredColonistIds.Count + p.SurgicalRecoveryIds.Count + p.MedicalRestIds.Count != 0 || p.InjuryStopCooldownMs != 0)
+        if (p is null || p.AcknowledgedInjuredColonistIds.Count + p.SurgicalRecoveryIds.Count + p.MedicalRestIds.Count != 0 || p.InjuryStopCooldownMs.GetValueOrDefault() != 0)
         {
             return Held();
         }
-        switch (p.Mode)
+        switch (p.Mode.GetValueOrDefault())
         {
             case PbClock.WatchMode.Colony:
                 if (p.AcknowledgedHostileIds.Count != 0)
@@ -37,7 +37,7 @@ public sealed partial class ClockCoordinator
         }
 
         // The start is copied so the revalidation below reads the policy this command was admitted with.
-        var start = intent.Command.Start with { Policy = p.Clone() };
+        var start = intent.Command.Start with { Policy = p };
         intent = intent with { Command = intent.Command with { Start = start } };
 
         void Check(ClockIntent value)
@@ -66,7 +66,7 @@ public sealed partial class ClockCoordinator
             {
                 return null;
             }
-            return request.Status.Clone();
+            return request.Status;
         }
 
         return CommandAsync(intent, Check, Observed, ct);
@@ -93,7 +93,7 @@ public sealed partial class ClockCoordinator
             default:
                 throw new HeldException();
         }
-        if (p is null || p.Mode != mode || p.AcknowledgedHostileIds.Count != decision.Hostiles.Count)
+        if (p is null || p.Mode.GetValueOrDefault() != mode || p.AcknowledgedHostileIds.Count != decision.Hostiles.Count)
         {
             throw new HeldException();
         }

@@ -8,7 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -16,9 +16,9 @@
     <Using Include="RimGovernor.Brain.Domain" />
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
     <!-- The wire messages share these names with domain values; this project names the wire message. -->
-    <Using Include="RimGovernor.Protocol.Common.Identity" Alias="Identity" />
-    <Using Include="RimGovernor.Protocol.Common.Cell" Alias="Cell" />
-    <Using Include="RimGovernor.Protocol.Receipts.UnsuccessfulReason" Alias="UnsuccessfulReason" />
+    <Using Include="RimGovernor.Contracts.Wire.Common.Identity" Alias="Identity" />
+    <Using Include="RimGovernor.Contracts.Wire.Common.Cell" Alias="Cell" />
+    <Using Include="RimGovernor.Contracts.Wire.Receipts.UnsuccessfulReason" Alias="UnsuccessfulReason" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeConstants" Static="true" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Static="true" />
   </ItemGroup>

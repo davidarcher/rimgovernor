@@ -1,4 +1,4 @@
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 using PolicyPawnBiotech = RimGovernor.Brain.Policy.PawnBiotech;
 using PolicyPawnDeathrest = RimGovernor.Brain.Policy.PawnDeathrest;
 using PolicyPawnGene = RimGovernor.Brain.Policy.PawnGene;
@@ -16,7 +16,7 @@ public static partial class BridgeFunctions
     /// Go's <c>PawnBiotech</c>: lifts a pawn row's Biotech block; unknown when the row carries none (no Biotech).
     /// A field a read issue names stays unknown.
     /// </summary>
-    public static Fact<PolicyPawnBiotech> PawnBiotech(RimGovernor.Protocol.Observations.PawnBiotech? biotech)
+    public static Fact<PolicyPawnBiotech> PawnBiotech(RimGovernor.Contracts.Wire.Observations.PawnBiotech? biotech)
     {
         if (biotech is null)
         {
@@ -25,24 +25,24 @@ public static partial class BridgeFunctions
         var failed = FailedFields(biotech.Issues);
         var result = new PolicyPawnBiotech
         {
-            LifeStage = OptionalFact(biotech.HasLifeStage, biotech.LifeStage),
-            DevelopmentalStage = OptionalFact(biotech.HasDevelopmentalStage, biotech.DevelopmentalStage),
-            Learning = OptionalFact(biotech.HasLearning, biotech.Learning),
-            LearningCategory = OptionalFact(biotech.HasLearningCategory, biotech.LearningCategory),
+            LifeStage = OptionalFact(biotech.LifeStage is not null, (biotech.LifeStage ?? "")),
+            DevelopmentalStage = OptionalFact(biotech.DevelopmentalStage is not null, (biotech.DevelopmentalStage ?? "")),
+            Learning = OptionalFact(biotech.Learning is not null, biotech.Learning.GetValueOrDefault()),
+            LearningCategory = OptionalFact(biotech.LearningCategory is not null, (biotech.LearningCategory ?? "")),
         };
-        if (!failed.Contains("genes") && biotech.HasXenotypeName)
+        if (!failed.Contains("genes") && biotech.XenotypeName is not null)
         {
             // Genes exist only on a pawn with a gene tracker; the xenotype name is read with them.
             EquatableArray<PolicyPawnGene> genes =
             [
-                .. biotech.Genes.Select(gene => new PolicyPawnGene { Name = gene.DefName, Xenogene = Known(gene.Xenogene), Active = Known(gene.Active) }),
+                .. biotech.Genes.Select(gene => new PolicyPawnGene { Name = gene.DefName ?? "", Xenogene = Known(gene.Xenogene.GetValueOrDefault()), Active = Known(gene.Active.GetValueOrDefault()) }),
             ];
             result = result with
             {
                 Genes = Known(genes),
-                Xenotype = Known(biotech.Xenotype),
-                XenotypeName = Known(biotech.XenotypeName),
-                Hybrid = OptionalFact(biotech.HasHybrid, biotech.Hybrid),
+                Xenotype = Known((biotech.Xenotype ?? "")),
+                XenotypeName = Known((biotech.XenotypeName ?? "")),
+                Hybrid = OptionalFact(biotech.Hybrid is not null, biotech.Hybrid.GetValueOrDefault()),
             };
         }
         if (!failed.Contains("mechanitor"))
@@ -50,11 +50,11 @@ public static partial class BridgeFunctions
             PolicyPawnMechanitor? mechanitor = biotech.Mechanitor is { } v
                 ? new PolicyPawnMechanitor
                 {
-                    UsedBandwidth = OptionalInt(v.HasUsedBandwidth, v.UsedBandwidth),
-                    TotalBandwidth = OptionalInt(v.HasTotalBandwidth, v.TotalBandwidth),
-                    GestationBandwidth = OptionalInt(v.HasUsedBandwidthFromGestation, v.UsedBandwidthFromGestation),
-                    ControlGroups = OptionalInt(v.HasControlGroups, v.ControlGroups),
-                    ControlledMechs = [.. v.ControlledMechs.Select(mech => mech.Id)],
+                    UsedBandwidth = OptionalInt(v.UsedBandwidth is not null, v.UsedBandwidth.GetValueOrDefault()),
+                    TotalBandwidth = OptionalInt(v.TotalBandwidth is not null, v.TotalBandwidth.GetValueOrDefault()),
+                    GestationBandwidth = OptionalInt(v.UsedBandwidthFromGestation is not null, v.UsedBandwidthFromGestation.GetValueOrDefault()),
+                    ControlGroups = OptionalInt(v.ControlGroups is not null, v.ControlGroups.GetValueOrDefault()),
+                    ControlledMechs = [.. v.ControlledMechs.Select(mech => (mech.Id ?? ""))],
                 }
                 : null;
             result = result with { Mechanitor = Known(mechanitor) };
@@ -67,16 +67,16 @@ public static partial class BridgeFunctions
                 mech = new PolicyPawnMech
                 {
                     Overseer = v.Overseer?.Id ?? "",
-                    WorkMode = OptionalFact(v.HasWorkMode, v.WorkMode),
-                    ControlGroup = OptionalInt(v.HasControlGroup, v.ControlGroup),
-                    Energy = OptionalFact(v.HasEnergy, v.Energy),
+                    WorkMode = OptionalFact(v.WorkMode is not null, (v.WorkMode ?? "")),
+                    ControlGroup = OptionalInt(v.ControlGroup is not null, v.ControlGroup.GetValueOrDefault()),
+                    Energy = OptionalFact(v.Energy is not null, v.Energy.GetValueOrDefault()),
                 };
                 if (!failed.Contains("mech_thresholds"))
                 {
                     mech = mech with
                     {
-                        RechargeBelow = OptionalFact(v.HasRechargeBelow, v.RechargeBelow),
-                        RechargeAbove = OptionalFact(v.HasRechargeAbove, v.RechargeAbove),
+                        RechargeBelow = OptionalFact(v.RechargeBelow is not null, v.RechargeBelow.GetValueOrDefault()),
+                        RechargeAbove = OptionalFact(v.RechargeAbove is not null, v.RechargeAbove.GetValueOrDefault()),
                     };
                 }
             }
@@ -87,13 +87,13 @@ public static partial class BridgeFunctions
             PolicyPawnDeathrest? deathrest = biotech.Deathrest is { } v
                 ? new PolicyPawnDeathrest
                 {
-                    Deathresting = OptionalFact(v.HasDeathresting, v.Deathresting),
-                    Level = OptionalFact(v.HasLevel, v.Level),
-                    LastDeathrestTick = OptionalInt(v.HasLastDeathrestTick, v.LastDeathrestTick),
-                    DeathrestPercent = OptionalFact(v.HasDeathrestPercent, v.DeathrestPercent),
-                    Capacity = OptionalInt(v.HasCapacity, v.Capacity),
-                    BoundBuildings = OptionalInt(v.HasBoundBuildings, v.BoundBuildings),
-                    AutoWake = OptionalFact(v.HasAutoWake, v.AutoWake),
+                    Deathresting = OptionalFact(v.Deathresting is not null, v.Deathresting.GetValueOrDefault()),
+                    Level = OptionalFact(v.Level is not null, v.Level.GetValueOrDefault()),
+                    LastDeathrestTick = OptionalInt(v.LastDeathrestTick is not null, v.LastDeathrestTick.GetValueOrDefault()),
+                    DeathrestPercent = OptionalFact(v.DeathrestPercent is not null, v.DeathrestPercent.GetValueOrDefault()),
+                    Capacity = OptionalInt(v.Capacity is not null, v.Capacity.GetValueOrDefault()),
+                    BoundBuildings = OptionalInt(v.BoundBuildings is not null, v.BoundBuildings.GetValueOrDefault()),
+                    AutoWake = OptionalFact(v.AutoWake is not null, v.AutoWake.GetValueOrDefault()),
                 }
                 : null;
             result = result with { Deathrest = Known(deathrest) };
@@ -102,14 +102,14 @@ public static partial class BridgeFunctions
         {
             result = result with
             {
-                XenogermRegrowTicksLeft = OptionalInt(biotech.HasXenogermRegrowTicksLeft, biotech.XenogermRegrowTicksLeft),
-                XenogermComaTicksLeft = OptionalInt(biotech.HasXenogermComaTicksLeft, biotech.XenogermComaTicksLeft),
-                InExtractor = OptionalFact(biotech.HasInExtractor, biotech.InExtractor),
+                XenogermRegrowTicksLeft = OptionalInt(biotech.XenogermRegrowTicksLeft is not null, biotech.XenogermRegrowTicksLeft.GetValueOrDefault()),
+                XenogermComaTicksLeft = OptionalInt(biotech.XenogermComaTicksLeft is not null, biotech.XenogermComaTicksLeft.GetValueOrDefault()),
+                InExtractor = OptionalFact(biotech.InExtractor is not null, biotech.InExtractor.GetValueOrDefault()),
             };
         }
-        if (!failed.Contains("extractable") && biotech.HasExtractable)
+        if (!failed.Contains("extractable") && biotech.Extractable is not null)
         {
-            result = result with { Extractable = Known(biotech.Extractable), ExtractableReason = Known(biotech.ExtractableReason) };
+            result = result with { Extractable = Known(biotech.Extractable.GetValueOrDefault()), ExtractableReason = Known((biotech.ExtractableReason ?? "")) };
         }
         return Known(result);
     }

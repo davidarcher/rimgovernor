@@ -16,7 +16,7 @@ internal static class ColonyMirror
     public static Dictionary<string, ulong> PublishColony(FactStore m, FactScope scope, PbObservations.ColonyFactsSnapshot observed)
     {
         var split = BridgeApi.SplitColonyFacts(observed);
-        var tick = observed.Context.Tick;
+        var tick = observed.Context?.Tick ?? 0;
         var versions = new Dictionary<string, ulong>(split.Count, StringComparer.Ordinal);
         foreach (var name in BridgeApi.ColonySections())
         {
@@ -72,9 +72,9 @@ public sealed partial class Rounder
         {
             if (!planning)
             {
-                mirrored.Planning = BridgeApi.NotRequestedPlanning();
+                mirrored = mirrored with { Planning = BridgeApi.NotRequestedPlanning() };
             }
-            return new PbObservations.ColonyFactsReply { Observed = mirrored };
+            return new PbObservations.ColonyFactsReply { Outcome = mirrored };
         }
         return await native.ReadColonyFactsAsync(identity, planning, ct).ConfigureAwait(false);
     }
@@ -105,7 +105,7 @@ public sealed partial class Rounder
         {
             return null;
         }
-        if (expected.Colony.Value != identity.ColonyId || expected.Load.Value != identity.LoadToken || expected.Map.Value != identity.MapId)
+        if (expected.Colony.Value != (identity.ColonyId ?? "") || expected.Load.Value != (identity.LoadToken ?? "") || expected.Map.Value != identity.MapId.GetValueOrDefault())
         {
             return null;
         }

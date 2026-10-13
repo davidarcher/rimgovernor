@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 using ChemicalState = RimGovernor.Brain.Policy.ChemicalState;
-using WirePolicyInputs = RimGovernor.Protocol.Observations.PawnPolicyInputs;
+using WirePolicyInputs = RimGovernor.Contracts.Wire.Observations.PawnPolicyInputs;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -29,30 +29,30 @@ public static partial class BridgeFunctions
         return Known(
             new Brain.Policy.PawnPolicyInputs
             {
-                OutfitPolicy = inputs.OutfitPolicyId,
-                DrugPolicy = inputs.DrugPolicyId,
-                ReadingPolicy = inputs.ReadingPolicyId,
+                OutfitPolicy = inputs.OutfitPolicyId ?? "",
+                DrugPolicy = inputs.DrugPolicyId ?? "",
+                ReadingPolicy = inputs.ReadingPolicyId ?? "",
                 DependencyChemicals = [.. inputs.DependencyChemicals],
-                RoyalTitle = inputs.RoyalTitle,
-                Ideo = inputs.IdeoId,
+                RoyalTitle = inputs.RoyalTitle ?? "",
+                Ideo = inputs.IdeoId ?? "",
                 Precepts = [.. inputs.Precepts],
-                IdeoRole = inputs.IdeoRole,
-                IdeoCertainty = OptionalFact(inputs.HasIdeoCertainty, inputs.IdeoCertainty),
+                IdeoRole = inputs.IdeoRole ?? "",
+                IdeoCertainty = OptionalFact(inputs.IdeoCertainty is not null, inputs.IdeoCertainty.GetValueOrDefault()),
                 RoleApparel = ApparelRequirements(inputs.RoleApparel),
                 PreceptApparel = [.. inputs.PreceptApparel],
-                GuestStatus = inputs.GuestStatus,
-                PrisonerInteraction = inputs.PrisonerInteraction,
-                SlaveInteraction = inputs.SlaveInteraction,
-                TendQuality = OptionalFact(inputs.HasMedicalTendQuality, inputs.MedicalTendQuality),
-                InventoryStock = [.. inputs.InventoryStock.Select(stock => new InventoryStock(stock.Group, stock.ThingDef, stock.Count))],
+                GuestStatus = inputs.GuestStatus ?? "",
+                PrisonerInteraction = inputs.PrisonerInteraction ?? "",
+                SlaveInteraction = inputs.SlaveInteraction ?? "",
+                TendQuality = OptionalFact(inputs.MedicalTendQuality is not null, inputs.MedicalTendQuality.GetValueOrDefault()),
+                InventoryStock = [.. inputs.InventoryStock.Select(stock => new InventoryStock((stock.Group ?? ""), (stock.ThingDef ?? ""), stock.Count.GetValueOrDefault()))],
                 Chemicals =
                 [
                     .. inputs.Chemicals.Select(chemical => new ChemicalState
                     {
-                        Chemical = chemical.Chemical,
-                        Addiction = OptionalFact(chemical.HasAddiction, chemical.Addiction),
-                        Withdrawal = chemical.Withdrawal,
-                        Tolerance = OptionalFact(chemical.HasTolerance, chemical.Tolerance),
+                        Chemical = chemical.Chemical ?? "",
+                        Addiction = OptionalFact(chemical.Addiction is not null, chemical.Addiction.GetValueOrDefault()),
+                        Withdrawal = chemical.Withdrawal.GetValueOrDefault(),
+                        Tolerance = OptionalFact(chemical.Tolerance is not null, chemical.Tolerance.GetValueOrDefault()),
                     }),
                 ],
             }

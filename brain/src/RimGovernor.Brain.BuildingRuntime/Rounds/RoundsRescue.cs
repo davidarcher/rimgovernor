@@ -72,7 +72,7 @@ public sealed class RoundsRescuePlanner
             throw new ControlException("step: emergency context", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("step: emergency read older than the review");
         }
@@ -84,7 +84,7 @@ public sealed class RoundsRescuePlanner
 
         var ids = emergency.Facts.Colonists.Select(c => c.Id.Value).ToList();
         var (reply, _) = await native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new ControlException("step: observed == null");
+        var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == null");
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -104,12 +104,12 @@ public sealed class RoundsRescuePlanner
         var seen = new HashSet<string>();
         foreach (var row in observed.Pawns)
         {
-            if (row?.Pawn is null || !seen.Add(row.Pawn.Id))
+            if (row?.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("step: missing or duplicate pawn row");
             }
 
-            var pawn = new PawnId(row.Pawn.Id);
+            var pawn = new PawnId((row.Pawn.Id ?? ""));
             rescuers.Add(RescueFacts.NewRescuerFacts(pawn, row, ""));
             patients.Add(RescueFacts.NewRescuePatientFacts(pawn, row, ""));
         }

@@ -22,7 +22,7 @@ public sealed partial class Player
             return false;
         }
         var identity = loaded.Context.Identity;
-        if (identity.ColonyId != state.Snapshot.Colony.Value || identity.LoadToken != state.Snapshot.Load.Value || new MapId(identity.MapId) == state.Snapshot.Map)
+        if ((identity.ColonyId ?? "") != state.Snapshot.Colony.Value || (identity.LoadToken ?? "") != state.Snapshot.Load.Value || new MapId(identity.MapId.GetValueOrDefault()) == state.Snapshot.Map)
         {
             return false;
         }
@@ -33,7 +33,7 @@ public sealed partial class Player
         }
         var world = BridgeApi.DecodeWorldProgressionSnapshot(loaded.WorldProgression, identity);
         var plans = await Task.Run(() => _journal.PlanHistoryWithMethods(256, ["quest-expedition-*", "quest-site-*-return-*"], call), call).ConfigureAwait(false);
-        if (!ExpeditionHandoffTarget(state.Snapshot, world, plans).TryGetValue(out var target) || target.Map != new MapId(identity.MapId))
+        if (!ExpeditionHandoffTarget(state.Snapshot, world, plans).TryGetValue(out var target) || target.Map != new MapId(identity.MapId.GetValueOrDefault()))
         {
             return false;
         }
@@ -41,7 +41,7 @@ public sealed partial class Player
         {
             return false;
         }
-        var generation = new NativeGeneration(loaded.Context.NativeGeneration);
+        var generation = new NativeGeneration(loaded.Context.NativeGeneration.GetValueOrDefault());
         _session.Disable();
         await confirm.ConfirmMapFocusAsync(state.Snapshot, target, generation, call).ConfigureAwait(false);
         return await HandoffHeldAsync(state, target, generation, call, epoch).ConfigureAwait(false);
@@ -145,11 +145,11 @@ public sealed partial class Player
                         var linked = false;
                         foreach (var site in world.Sites)
                         {
-                            if (site.MapId == m.Id && site.HasMapId && site.Tile == m.Tile)
+                            if (site.MapId.GetValueOrDefault() == m.Id && site.MapId is not null && site.Tile.GetValueOrDefault() == m.Tile)
                             {
                                 foreach (var quest in site.QuestIds)
                                 {
-                                    if (plan.Method.Value.StartsWith("quest-expedition-" + quest + "-" + site.Id + "-", StringComparison.Ordinal))
+                                    if (plan.Method.Value.StartsWith("quest-expedition-" + quest + "-" + (site.Id ?? "") + "-", StringComparison.Ordinal))
                                     {
                                         linked = true;
                                         break;

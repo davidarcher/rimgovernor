@@ -13,10 +13,16 @@
       "rimgovernor.brain.bridge.contracts": {
         "type": "Project",
         "dependencies": {
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
-          "RimGovernor.Brain.Telemetry": "[1.0.0, )",
-          "RimGovernor.Brain.Wire": "[1.0.0, )"
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.domain": {
@@ -26,32 +32,20 @@
         "type": "Project",
         "dependencies": {
           "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
-          "RimGovernor.Brain.Policy": "[1.0.0, )",
-          "RimGovernor.Brain.Wire": "[1.0.0, )"
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.policy": {
         "type": "Project",
         "dependencies": {
-          "RimGovernor.Brain.Domain": "[1.0.0, )",
-          "RimGovernor.Brain.Wire": "[1.0.0, )"
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )"
         }
       },
       "rimgovernor.brain.telemetry": {
         "type": "Project"
-      },
-      "rimgovernor.brain.wire": {
-        "type": "Project",
-        "dependencies": {
-          "Google.Protobuf": "[3.31.1, )"
-        }
-      },
-      "Google.Protobuf": {
-        "type": "CentralTransitive",
-        "requested": "[3.31.1, )",
-        "resolved": "3.31.1",
-        "contentHash": "gSnJbUmGiOTdWddPhqzrEscHq9Ls6sqRDPB9WptckyjTUyx70JOOAaDLkFff8gManZNN3hllQ4aQInnQyq/Z/A=="
       }
     }
   }

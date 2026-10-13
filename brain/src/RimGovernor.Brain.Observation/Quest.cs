@@ -216,36 +216,36 @@ public static partial class ObservationPackage
             }
             targets.Add(new QuestHackTarget
             {
-                Id = t.Id,
-                Map = new MapId(t.MapId),
-                Spawned = Optional(t.HasSpawned, t.Spawned),
-                Hacked = Optional(t.Hackable.HasHacked, t.Hackable.Hacked),
-                LockedOut = Optional(t.Hackable.HasLockedOut, t.Hackable.LockedOut),
-                Autohack = Optional(t.Hackable.HasAutohack, t.Hackable.Autohack),
-                ProgressPercent = Optional(t.Hackable.HasProgressPercent, t.Hackable.ProgressPercent),
-                Defence = Optional(t.Hackable.HasDefence, t.Hackable.Defence),
+                Id = t.Id ?? "",
+                Map = new MapId(t.MapId.GetValueOrDefault()),
+                Spawned = Optional(t.Spawned is not null, t.Spawned.GetValueOrDefault()),
+                Hacked = Optional(t.Hackable?.Hacked is not null, t.Hackable?.Hacked ?? default),
+                LockedOut = Optional(t.Hackable?.LockedOut is not null, t.Hackable?.LockedOut ?? default),
+                Autohack = Optional(t.Hackable?.Autohack is not null, t.Hackable?.Autohack ?? default),
+                ProgressPercent = Optional(t.Hackable?.ProgressPercent is not null, t.Hackable?.ProgressPercent ?? default),
+                Defence = Optional(t.Hackable?.Defence is not null, t.Hackable?.Defence ?? default),
                 EligiblePawnIds = eligible,
-                Satisfied = Optional(t.HasSatisfied, t.Satisfied),
+                Satisfied = Optional(t.Satisfied is not null, t.Satisfied.GetValueOrDefault()),
             });
         }
         row = row with { HackTargets = [.. row.HackTargets, .. targets] };
         if (source.HackRisk is { } risk)
         {
-            row = row with { HackRisk = Known(new QuestHackRisk { FactionId = risk.FactionId, Hostile = Optional(risk.HasHostile, risk.Hostile) }) };
+            row = row with { HackRisk = Known(new QuestHackRisk { FactionId = risk.FactionId ?? "", Hostile = Optional(risk.Hostile is not null, risk.Hostile.GetValueOrDefault()) }) };
         }
         if (source.Gift is { } g)
         {
             // A pending recipient has no dispatch map; retain an unknown request until arrival.
-            if (!g.HasMapId)
+            if (g.MapId is null)
             {
                 return row;
             }
             var gift = new QuestGiftRequest
             {
-                Recipient = new PawnId(g.RecipientId),
-                Def = g.Def,
-                Remaining = Optional(g.HasRemaining, (long)g.Remaining),
-                Map = new MapId(g.MapId),
+                Recipient = new PawnId((g.RecipientId ?? "")),
+                Def = g.Def ?? "",
+                Remaining = Optional(g.Remaining is not null, (long)g.Remaining.GetValueOrDefault()),
+                Map = new MapId(g.MapId.GetValueOrDefault()),
                 PawnIds = [.. g.PawnIds.Select(id => new PawnId(id))],
                 HaulingPawnIds = [.. g.HaulingPawnIds.Select(id => new PawnId(id))],
                 EligiblePawnIds = [.. g.EligiblePawnIds.Select(id => new PawnId(id))],
@@ -268,13 +268,13 @@ public static partial class ObservationPackage
         {
             pieces.Add(new QuestMonumentPiece
             {
-                Def = p.DefName,
-                Stuff = p.Stuff,
+                Def = p.DefName ?? "",
+                Stuff = p.Stuff ?? "",
                 Offset = CellOf(p.Offset),
-                Rotation = (Rotation)p.Rotation,
-                Built = Optional(p.HasBuilt, p.Built),
-                Queued = Optional(p.HasQueued, p.Queued),
-                Allowed = Optional(p.HasAllowed, p.Allowed),
+                Rotation = (Rotation)p.Rotation.GetValueOrDefault(),
+                Built = Optional(p.Built is not null, p.Built.GetValueOrDefault()),
+                Queued = Optional(p.Queued is not null, p.Queued.GetValueOrDefault()),
+                Allowed = Optional(p.Allowed is not null, p.Allowed.GetValueOrDefault()),
             });
         }
         for (var i = 0; i < m.Pieces.Count; i++)
@@ -290,7 +290,7 @@ public static partial class ObservationPackage
             List<QuestMonumentBuildOption> options;
             try
             {
-                (allowed, options) = MonumentPieceOptions(catalog, p.DefName, p.Stuff);
+                (allowed, options) = MonumentPieceOptions(catalog, (p.DefName ?? ""), (p.Stuff ?? ""));
             }
             catch (DomainException)
             {
@@ -303,36 +303,36 @@ public static partial class ObservationPackage
         {
             resources.Add(new QuestMonumentResource
             {
-                Id = r.Id,
-                Def = r.DefName,
+                Id = r.Id ?? "",
+                Def = r.DefName ?? "",
                 Cell = CellOf(r.Cell),
-                InStorage = Optional(r.HasInStorage, r.InStorage),
+                InStorage = Optional(r.InStorage is not null, r.InStorage.GetValueOrDefault()),
                 Haulers = [.. r.EligibleHaulers.Select(pawn => new PawnId(pawn))],
             });
         }
         var supplied = new List<Amount>(m.SuppliedResources.Count);
         foreach (var r in m.SuppliedResources)
         {
-            supplied.Add(new Amount(new Resource(r.DefName), r.Units));
+            supplied.Add(new Amount(new Resource((r.DefName ?? "")), r.Units.GetValueOrDefault()));
         }
         var available = new List<Amount>(m.AvailableResources.Count);
         foreach (var r in m.AvailableResources)
         {
-            available.Add(new Amount(new Resource(r.DefName), r.Units));
+            available.Add(new Amount(new Resource((r.DefName ?? "")), r.Units.GetValueOrDefault()));
         }
         return Known(new QuestMonument
         {
-            Marker = m.MarkerId,
-            Def = m.DefName,
-            Map = new MapId(m.MapId),
-            Packed = Optional(m.HasPacked, m.Packed),
-            Installed = Optional(m.HasInstalled, m.Installed),
-            Complete = Optional(m.HasComplete, m.Complete),
-            AllDone = Optional(m.HasAllDone, m.AllDone),
-            DisallowedBuilding = m.DisallowedBuildingId,
-            DisallowedTicks = Optional(m.HasDisallowedTicks, (long)m.DisallowedTicks),
-            Offered = Optional(m.HasOffered, m.Offered),
-            ClearSite = Optional(m.HasClearSite, m.ClearSite),
+            Marker = m.MarkerId ?? "",
+            Def = m.DefName ?? "",
+            Map = new MapId(m.MapId.GetValueOrDefault()),
+            Packed = Optional(m.Packed is not null, m.Packed.GetValueOrDefault()),
+            Installed = Optional(m.Installed is not null, m.Installed.GetValueOrDefault()),
+            Complete = Optional(m.Complete is not null, m.Complete.GetValueOrDefault()),
+            AllDone = Optional(m.AllDone is not null, m.AllDone.GetValueOrDefault()),
+            DisallowedBuilding = m.DisallowedBuildingId ?? "",
+            DisallowedTicks = Optional(m.DisallowedTicks is not null, (long)m.DisallowedTicks.GetValueOrDefault()),
+            Offered = Optional(m.Offered is not null, m.Offered.GetValueOrDefault()),
+            ClearSite = Optional(m.ClearSite is not null, m.ClearSite.GetValueOrDefault()),
             SuppliedResources = supplied,
             AvailableResources = available,
             Cell = m.Cell is null ? default : CellOf(m.Cell),
@@ -424,27 +424,27 @@ public static partial class ObservationPackage
             var present = new HashSet<string>(m.PawnIds, StringComparer.Ordinal);
             foreach (var p in m.QuestWorkers)
             {
-                if (!present.Contains(p.PawnId))
+                if (!present.Contains((p.PawnId ?? "")))
                 {
                     return unknown;
                 }
                 var rates = new Dictionary<string, double>(StringComparer.Ordinal);
                 foreach (var rate in p.Rates)
                 {
-                    rates[rate.Stat] = rate.Rate;
+                    rates[(rate.Stat ?? "")] = rate.Rate.GetValueOrDefault();
                 }
-                var row = new QuestWorkCapacity { Pawn = new PawnId(p.PawnId), HealthyAdult = Optional(p.HasHealthyAdult, p.HealthyAdult), Rates = rates };
+                var row = new QuestWorkCapacity { Pawn = new PawnId((p.PawnId ?? "")), HealthyAdult = Optional(p.HealthyAdult is not null, p.HealthyAdult.GetValueOrDefault()), Rates = rates };
                 capacity.Add(row);
                 departures.Add(new QuestDeparturePawn
                 {
                     Id = row.Pawn,
                     HealthyAdult = row.HealthyAdult,
-                    CanFight = Optional(p.HasCanFight, p.CanFight),
-                    CarryCapacity = Optional(p.HasCarryCapacity, p.CarryCapacity),
-                    CarriedMass = Optional(p.HasCarriedMass, p.CarriedMass),
-                    SocialLevel = Optional(p.HasSocialLevel, p.SocialLevel),
-                    FactionLeader = Optional(p.HasFactionLeader, p.FactionLeader),
-                    NegotiationAbility = Optional(p.HasNegotiationAbility, p.NegotiationAbility),
+                    CanFight = Optional(p.CanFight is not null, p.CanFight.GetValueOrDefault()),
+                    CarryCapacity = Optional(p.CarryCapacity is not null, p.CarryCapacity.GetValueOrDefault()),
+                    CarriedMass = Optional(p.CarriedMass is not null, p.CarriedMass.GetValueOrDefault()),
+                    SocialLevel = Optional(p.SocialLevel is not null, p.SocialLevel.GetValueOrDefault()),
+                    FactionLeader = Optional(p.FactionLeader is not null, p.FactionLeader.GetValueOrDefault()),
+                    NegotiationAbility = Optional(p.NegotiationAbility is not null, p.NegotiationAbility.GetValueOrDefault()),
                 });
             }
             return (Known(EquatableArray.From(capacity)), Known(EquatableArray.From(departures)));
@@ -468,7 +468,7 @@ public static partial class ObservationPackage
             try
             {
                 var facts = catalog.RecipeFacts();
-                var (billWork, billKnown) = facts.BillWorkOf(w.Recipe);
+                var (billWork, billKnown) = facts.BillWorkOf((w.Recipe ?? ""));
                 work = billWork;
                 if (!billKnown)
                 {
@@ -480,6 +480,6 @@ public static partial class ObservationPackage
                 return Unknown<QuestWorkload>();
             }
         }
-        return Known(new QuestWorkload { Work = work, Stat = w.Stat, Amount = w.Work, RateFactor = w.RateFactor });
+        return Known(new QuestWorkload { Work = work, Stat = w.Stat ?? "", Amount = w.Work.GetValueOrDefault(), RateFactor = w.RateFactor.GetValueOrDefault() });
     }
 }

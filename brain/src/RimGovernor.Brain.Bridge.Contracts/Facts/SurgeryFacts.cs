@@ -1,11 +1,11 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 using PolicyMissingPart = RimGovernor.Brain.Policy.MissingPart;
 using PolicyInstalledPart = RimGovernor.Brain.Policy.InstalledPart;
 using PolicySurgeryKind = RimGovernor.Brain.Policy.SurgeryKind;
 using PolicySurgeryOperation = RimGovernor.Brain.Policy.SurgeryOperation;
-using WireSurgeryKind = RimGovernor.Protocol.Observations.SurgeryKind;
+using WireSurgeryKind = RimGovernor.Contracts.Wire.Observations.SurgeryKind;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -63,11 +63,11 @@ public static partial class BridgeFunctions
                 rows.Add(
                     new PolicyMissingPart
                     {
-                        PartIndex = OptionalInt(part.HasPartIndex, part.PartIndex),
-                        ParentIndex = OptionalInt(part.HasParentIndex, part.ParentIndex),
-                        PartDefName = OptionalFact(part.HasPartDefName, part.PartDefName),
-                        ParentDefName = OptionalFact(part.HasParentDefName, part.ParentDefName),
-                        Vital = OptionalFact(part.HasVital, part.Vital),
+                        PartIndex = OptionalInt(part.PartIndex is not null, part.PartIndex.GetValueOrDefault()),
+                        ParentIndex = OptionalInt(part.ParentIndex is not null, part.ParentIndex.GetValueOrDefault()),
+                        PartDefName = OptionalFact(part.PartDefName is not null, (part.PartDefName ?? "")),
+                        ParentDefName = OptionalFact(part.ParentDefName is not null, (part.ParentDefName ?? "")),
+                        Vital = OptionalFact(part.Vital is not null, part.Vital.GetValueOrDefault()),
                     });
             }
             parts = Known(EquatableArray.From(rows));
@@ -84,31 +84,31 @@ public static partial class BridgeFunctions
         return (parts, operations);
     }
 
-    private static PolicySurgeryOperation SurgeryOperationOf(RimGovernor.Protocol.Observations.SurgeryOperation op, IPartCatalog? catalog)
+    private static PolicySurgeryOperation SurgeryOperationOf(RimGovernor.Contracts.Wire.Observations.SurgeryOperation op, IPartCatalog? catalog)
     {
         var row = new PolicySurgeryOperation
         {
-            PartIndex = OptionalInt(op.HasPartIndex, op.PartIndex),
-            PartDefName = OptionalFact(op.HasPartDefName, op.PartDefName),
+            PartIndex = OptionalInt(op.PartIndex is not null, op.PartIndex.GetValueOrDefault()),
+            PartDefName = OptionalFact(op.PartDefName is not null, (op.PartDefName ?? "")),
             Kind = SurgeryKindOf(op.Kind),
-            SuccessChance = OptionalFact(op.HasSuccessChance, op.SuccessChance),
-            DoctorSuccessChance = OptionalFact(op.HasDoctorSuccessChance, op.DoctorSuccessChance),
-            IngredientsOnMap = OptionalFact(op.HasIngredientsOnMap, op.IngredientsOnMap),
-            Violation = OptionalFact(op.HasViolation, op.Violation),
-            Lethal = OptionalFact(op.HasLethal, op.Lethal),
-            YieldValue = OptionalFact(op.HasYieldMarketValue, op.YieldMarketValue),
-            AddedPart = OptionalFact(op.HasAddedPartHediff, op.AddedPartHediff),
-            YieldThing = OptionalFact(op.HasYieldThingDef, op.YieldThingDef),
-            MedicineValue = OptionalFact(op.HasMedicineMarketValue, op.MedicineMarketValue),
-            CareLimited = OptionalFact(op.HasMedicineCareLimited, op.MedicineCareLimited),
-            EligibleDoctors = op.HasEligibleDoctors ? Known((int)op.EligibleDoctors) : Unknown<int>(),
+            SuccessChance = OptionalFact(op.SuccessChance is not null, op.SuccessChance.GetValueOrDefault()),
+            DoctorSuccessChance = OptionalFact(op.DoctorSuccessChance is not null, op.DoctorSuccessChance.GetValueOrDefault()),
+            IngredientsOnMap = OptionalFact(op.IngredientsOnMap is not null, op.IngredientsOnMap.GetValueOrDefault()),
+            Violation = OptionalFact(op.Violation is not null, op.Violation.GetValueOrDefault()),
+            Lethal = OptionalFact(op.Lethal is not null, op.Lethal.GetValueOrDefault()),
+            YieldValue = OptionalFact(op.YieldMarketValue is not null, op.YieldMarketValue.GetValueOrDefault()),
+            AddedPart = OptionalFact(op.AddedPartHediff is not null, (op.AddedPartHediff ?? "")),
+            YieldThing = OptionalFact(op.YieldThingDef is not null, (op.YieldThingDef ?? "")),
+            MedicineValue = OptionalFact(op.MedicineMarketValue is not null, op.MedicineMarketValue.GetValueOrDefault()),
+            CareLimited = OptionalFact(op.MedicineCareLimited is not null, op.MedicineCareLimited.GetValueOrDefault()),
+            EligibleDoctors = op.EligibleDoctors is not null ? Known((int)op.EligibleDoctors.GetValueOrDefault()) : Unknown<int>(),
         };
         if (op.Recipe is { } recipe)
         {
-            row = row with { Recipe = OptionalFact(recipe.HasDefName, recipe.DefName) };
-            if (recipe.HasDefName && catalog is not null)
+            row = row with { Recipe = OptionalFact(recipe.DefName is not null, (recipe.DefName ?? "")) };
+            if (recipe.DefName is not null && catalog is not null)
             {
-                row = row with { Item = catalog.InstallItem(recipe.DefName), Tier = catalog.PartTier(recipe.DefName) };
+                row = row with { Item = catalog.InstallItem((recipe.DefName ?? "")), Tier = catalog.PartTier((recipe.DefName ?? "")) };
             }
         }
         if (op.DoctorChances.Count > 0)
@@ -149,7 +149,7 @@ public static partial class BridgeFunctions
     public static IReadOnlyList<string>? QueuedSurgeryRecipes(PawnHealth health) =>
         IssueNames(health.Issues, "surgery_bills")
             ? null
-            : [.. health.SurgeryBills.Where(bill => bill.HasRecipe && bill.Recipe.Length > 0).Select(bill => bill.Recipe)];
+            : [.. health.SurgeryBills.Where(bill => bill.Recipe is not null && (bill.Recipe ?? "").Length > 0).Select(bill => (bill.Recipe ?? ""))];
 
     /// <summary>
     /// Go's <c>InstalledParts</c>: maps the native installed added parts. A read issue on installed_parts is
@@ -174,8 +174,8 @@ public static partial class BridgeFunctions
                 new PolicyInstalledPart
                 {
                     Hediff = hediff,
-                    Part = OptionalFact(part.HasPartDefName, part.PartDefName),
-                    PartIndex = OptionalInt(part.HasPartIndex, part.PartIndex),
+                    Part = OptionalFact(part.PartDefName is not null, (part.PartDefName ?? "")),
+                    PartIndex = OptionalInt(part.PartIndex is not null, part.PartIndex.GetValueOrDefault()),
                     Tier = catalog.HediffPartTier(hediff),
                     Item = catalog.HediffSpawnOnRemoved(hediff),
                 });

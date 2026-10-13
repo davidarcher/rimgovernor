@@ -162,42 +162,42 @@ internal static partial class BuildingRuntimePackage
     internal static List<Pol.TradeAcquisitionOption> RequestAcquisitionOptions(ObservationsPb.TradeAcquisition facts, Bridge.DefinitionCatalog catalog, IReadOnlyList<Pol.SupplyDemandResult> demands)
     {
         var options = new List<Pol.TradeAcquisitionOption>();
-        var consoles = facts.Consoles.OrderBy(c => c.Id, StringComparer.Ordinal).ToList();
+        var consoles = facts.Consoles.OrderBy(c => (c.Id ?? ""), StringComparer.Ordinal).ToList();
         foreach (var row in facts.Requests)
         {
             var option = new Pol.TradeAcquisitionOption
             {
-                ID = row.FactionId + "/" + ProtoNames.Of(row.Kind) + "/" + row.TraderKind,
-                Faction = row.FactionId,
-                TraderKind = row.TraderKind,
-                LastRequestTick = row.LastRequestTick,
+                ID = (row.FactionId ?? "") + "/" + ProtoNames.Of(row.Kind) + "/" + (row.TraderKind ?? ""),
+                Faction = row.FactionId ?? "",
+                TraderKind = row.TraderKind ?? "",
+                LastRequestTick = row.LastRequestTick.GetValueOrDefault(),
                 PassingShips = facts.PassingShips.Count,
                 LaborTicks = Known(0.0),
                 Kind = row.Kind == CommonPb.TradeRequestKind.Orbital ? Pol.TradeAcquisitionKind.Orbital : Pol.TradeAcquisitionKind.Caravan,
             };
-            if (row.HasEligible)
+            if (row.Eligible is not null)
             {
-                option = option with { Eligible = Known(row.Eligible) };
+                option = option with { Eligible = Known(row.Eligible.GetValueOrDefault()) };
             }
-            if (row.HasArrivalMaxTicks)
+            if (row.ArrivalMaxTicks is not null)
             {
-                option = option with { LeadDays = Known((double)row.ArrivalMaxTicks / GameTime.TicksPerDay) };
+                option = option with { LeadDays = Known((double)row.ArrivalMaxTicks.GetValueOrDefault() / GameTime.TicksPerDay) };
             }
-            if (row.HasGoodwillCost)
+            if (row.GoodwillCost is not null)
             {
-                option = option with { GoodwillCost = Known(row.GoodwillCost) };
+                option = option with { GoodwillCost = Known(row.GoodwillCost.GetValueOrDefault()) };
             }
-            if (row.HasRelationAfterPayment)
+            if (row.RelationAfterPayment is not null)
             {
-                option = option with { RelationAfterPayment = Known(row.RelationAfterPayment) };
+                option = option with { RelationAfterPayment = Known((row.RelationAfterPayment ?? "")) };
             }
-            if (row.HasCooldownRemainingTicks)
+            if (row.CooldownRemainingTicks is not null)
             {
-                option = option with { CooldownTicks = Known(row.CooldownRemainingTicks) };
+                option = option with { CooldownTicks = Known(row.CooldownRemainingTicks.GetValueOrDefault()) };
             }
-            if (facts.HasOrbitalAvailable)
+            if (facts.OrbitalAvailable is not null)
             {
-                option = option with { OrbitalAvailable = Known(facts.OrbitalAvailable) };
+                option = option with { OrbitalAvailable = Known(facts.OrbitalAvailable.GetValueOrDefault()) };
             }
             var negotiators = row.NegotiatorIds.OrderBy(n => n, StringComparer.Ordinal).ToList();
             foreach (var console in consoles)
@@ -206,7 +206,7 @@ internal static partial class BuildingRuntimePackage
                 {
                     if (console.NegotiatorIds.Contains(pawn))
                     {
-                        option = option with { Console = console.Id };
+                        option = option with { Console = console.Id ?? "" };
                         option = option with { Negotiator = pawn };
                         break;
                     }
@@ -218,14 +218,14 @@ internal static partial class BuildingRuntimePackage
             }
             foreach (var queued in facts.Arrivals)
             {
-                if (queued.FactionId == row.FactionId && queued.Kind == row.Kind)
+                if ((queued.FactionId ?? "") == (row.FactionId ?? "") && queued.Kind == row.Kind)
                 {
                     option = option with { Eligible = Known(false) };
                 }
             }
             foreach (var work in facts.CommsWork)
             {
-                if (work.FactionId == row.FactionId)
+                if ((work.FactionId ?? "") == (row.FactionId ?? ""))
                 {
                     option = option with { Eligible = Known(false) };
                 }

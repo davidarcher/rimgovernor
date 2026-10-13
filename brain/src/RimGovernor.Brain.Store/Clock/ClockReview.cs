@@ -1,7 +1,7 @@
 using System.Collections.Frozen;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store.Codec;
-using Pb = RimGovernor.Protocol.Clock;
+using Pb = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Store;
 
@@ -35,7 +35,7 @@ public static partial class ClockJournal
     }
 
     /// <summary>Go <c>clockReviewBoundary</c>: a cursor the inbox can be reviewed up to.</summary>
-    private static bool ReviewBoundary(ClockInbox inbox, long cursor) => cursor == inbox.Checkpoint.Cursor || inbox.Pages.Any(p => p.Page.NextCursor == cursor);
+    private static bool ReviewBoundary(ClockInbox inbox, long cursor) => cursor == inbox.Checkpoint.Cursor || inbox.Pages.Any(p => p.Page.NextCursor.GetValueOrDefault() == cursor);
 
     /// <summary>
     /// Go <c>BenignStop</c>: whether a stop reason is the controller's own doing (a budget, a requested pause or a
@@ -53,7 +53,7 @@ public static partial class ClockJournal
         {
             return true;
         }
-        return reason == Pb.StopReason.LetterPause && InformationalLetterDefs.Contains(stop?.Pause?.Letter?.DefName ?? "");
+        return reason == Pb.StopReason.LetterPause && InformationalLetterDefs.Contains(stop?.Evidence?.Pause?.Letter?.DefName ?? "");
     }
 
     /// <summary>
@@ -63,23 +63,23 @@ public static partial class ClockJournal
     /// anything that does stop arrives as its own stop event. Shared with the poll loop so both classifications
     /// cannot drift.
     /// </summary>
-    public static bool EventInterrupts(Pb.Event @event) =>
-        @event.EventCase switch
+    public static bool EventInterrupts(Pb.ClockEvent @event) =>
+        @event.Event switch
         {
-            Pb.Event.EventOneofCase.Started
-            or Pb.Event.EventOneofCase.SpeedChanged
-            or Pb.Event.EventOneofCase.HostilesCleared
-            or Pb.Event.EventOneofCase.ForcePauseCleared
-            or Pb.Event.EventOneofCase.ForcePauseWaiting
-            or Pb.Event.EventOneofCase.OperationOutcome
-            or Pb.Event.EventOneofCase.AuthorityChanged
-            or Pb.Event.EventOneofCase.RuleFired
-            or Pb.Event.EventOneofCase.RuleLeaseExpired
-            or Pb.Event.EventOneofCase.ObservationInvalidated
-            or Pb.Event.EventOneofCase.Alert
-            or Pb.Event.EventOneofCase.InjuryObserved
-            or Pb.Event.EventOneofCase.Notification => false,
-            Pb.Event.EventOneofCase.Stopped => !BenignStopEvent(@event.Stopped),
+            Pb.ClockEventEvent.StartedCase
+            or Pb.ClockEventEvent.SpeedChangedCase
+            or Pb.ClockEventEvent.HostilesClearedCase
+            or Pb.ClockEventEvent.ForcePauseClearedCase
+            or Pb.ClockEventEvent.ForcePauseWaitingCase
+            or Pb.ClockEventEvent.OperationOutcomeCase
+            or Pb.ClockEventEvent.AuthorityChangedCase
+            or Pb.ClockEventEvent.RuleFiredCase
+            or Pb.ClockEventEvent.RuleLeaseExpiredCase
+            or Pb.ClockEventEvent.ObservationInvalidatedCase
+            or Pb.ClockEventEvent.AlertCase
+            or Pb.ClockEventEvent.InjuryObservedCase
+            or Pb.ClockEventEvent.NotificationCase => false,
+            Pb.ClockEventEvent.StoppedCase stopped => !BenignStopEvent(stopped.Value),
             _ => true,
         };
 
@@ -87,10 +87,10 @@ public static partial class ClockJournal
     /// Go <c>PageInterrupts</c>: <see cref="EventInterrupts"/> for an event read on a page. A stop taken in another
     /// world than the page's (a kept game's previous load) interrupts nothing in the world read now.
     /// </summary>
-    public static bool PageInterrupts(Pb.Event @event, Pb.EventsPage page) => EventInterrupts(@event) && !OtherWorld(@event, page);
+    public static bool PageInterrupts(Pb.ClockEvent @event, Pb.EventsPage page) => EventInterrupts(@event) && !OtherWorld(@event, page);
 
     /// <summary>Go <c>OtherWorld</c>: whether the event was observed in another world (colony, load or map) than the page's current context.</summary>
-    public static bool OtherWorld(Pb.Event @event, Pb.EventsPage page)
+    public static bool OtherWorld(Pb.ClockEvent @event, Pb.EventsPage page)
     {
         var a = @event.Context?.Identity;
         var b = page.Context?.Identity;
@@ -98,7 +98,7 @@ public static partial class ClockJournal
         {
             return false;
         }
-        return !string.Equals(a.ColonyId, b.ColonyId, StringComparison.Ordinal) || !string.Equals(a.LoadToken, b.LoadToken, StringComparison.Ordinal) || a.MapId != b.MapId;
+        return !string.Equals(a.ColonyId, (b.ColonyId ?? ""), StringComparison.Ordinal) || !string.Equals(a.LoadToken, (b.LoadToken ?? ""), StringComparison.Ordinal) || a.MapId != b.MapId.GetValueOrDefault();
     }
 
     /// <summary>Go <c>clockReviewState</c>.</summary>
@@ -107,23 +107,23 @@ public static partial class ClockJournal
         var holds = new List<ClockHold>();
         foreach (var p in inbox.Pages)
         {
-            if (p.Page.NextCursor > head.Reviewed)
+            if (p.Page.NextCursor.GetValueOrDefault() > head.Reviewed)
             {
                 break;
             }
-            if (p.Page.NextCursor <= head.Acknowledged)
+            if (p.Page.NextCursor.GetValueOrDefault() <= head.Acknowledged)
             {
                 continue;
             }
-            if (p.Page.Gap)
+            if (p.Page.Gap.GetValueOrDefault())
             {
-                holds.Add(new ClockHold(ClockHoldKind.Gap, p.Request.AfterCursor + 1, p.Page.NextCursor));
+                holds.Add(new ClockHold(ClockHoldKind.Gap, p.Request.AfterCursor.GetValueOrDefault() + 1, p.Page.NextCursor.GetValueOrDefault()));
             }
             foreach (var @event in p.Page.Events)
             {
-                if (@event.Cursor > head.Acknowledged && PageInterrupts(@event, p.Page))
+                if (@event.Cursor.GetValueOrDefault() > head.Acknowledged && PageInterrupts(@event, p.Page))
                 {
-                    holds.Add(new ClockHold(ClockHoldKind.Interruption, @event.Cursor, @event.Cursor));
+                    holds.Add(new ClockHold(ClockHoldKind.Interruption, @event.Cursor.GetValueOrDefault(), @event.Cursor.GetValueOrDefault()));
                 }
             }
         }

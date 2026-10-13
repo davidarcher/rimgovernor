@@ -1,8 +1,8 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store.Codec;
-using Pb = RimGovernor.Protocol.Clock;
-using PbCommon = RimGovernor.Protocol.Common;
+using Pb = RimGovernor.Contracts.Wire.Clock;
+using PbCommon = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Store;
 
@@ -18,16 +18,16 @@ public static partial class ClockJournal
         {
             return null;
         }
-        var status = attempt.Reply?.Receipt?.Applied?.Status;
-        if (status?.Running is { } running)
+        var state = attempt.Reply?.Outcome?.Receipt?.Outcome?.Applied?.Status?.State;
+        if (state?.Running is { } running)
         {
             return running.Epoch;
         }
-        if (status?.Stopping is { } stopping)
+        if (state?.Stopping is { } stopping)
         {
             return stopping.Epoch;
         }
-        return status?.Stopped?.Epoch;
+        return state?.Stopped?.Epoch;
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ public static partial class ClockJournal
         var sequence = ParseSequenceText(row.Sequence);
         var value = new ClockEpochObligation(
             id,
-            original.Clone(),
+            original,
             stage,
             sequence,
             row.Context is null ? null : Unmarshal<PbCommon.ObservationContext>(row.Context),
@@ -222,8 +222,8 @@ public static partial class ClockJournal
         {
             throw new DomainException("clock observation context required");
         }
-        var observed = current.Clone();
-        var evidence = status?.Clone();
+        var observed = current;
+        var evidence = status;
         return UpdateEpoch(
             tx,
             id,
@@ -237,7 +237,7 @@ public static partial class ClockJournal
                 GenerationFloor(v.Epoch!.Origin, observed);
                 if (v.Context is not null && SameMessage(v.Context.Identity, observed.Identity))
                 {
-                    var regressed = observed.Tick < v.Context.Tick || (v.Context.HasNativeGeneration && (!observed.HasNativeGeneration || observed.NativeGeneration < v.Context.NativeGeneration));
+                    var regressed = observed.Tick.GetValueOrDefault() < v.Context.Tick.GetValueOrDefault() || (v.Context.NativeGeneration is not null && (observed.NativeGeneration is null || observed.NativeGeneration.GetValueOrDefault() < v.Context.NativeGeneration.GetValueOrDefault()));
                     if (regressed)
                     {
                         throw new ConflictException();
@@ -255,8 +255,8 @@ public static partial class ClockJournal
         if (prior is not null
             && current is not null
             && SameMessage(prior.Identity, current.Identity)
-            && prior.HasNativeGeneration
-            && (!current.HasNativeGeneration || current.NativeGeneration < prior.NativeGeneration))
+            && prior.NativeGeneration is not null
+            && (current.NativeGeneration is null || current.NativeGeneration.GetValueOrDefault() < prior.NativeGeneration.GetValueOrDefault()))
         {
             throw new ConflictException();
         }

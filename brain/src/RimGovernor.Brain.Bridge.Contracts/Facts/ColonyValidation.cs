@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -19,21 +19,21 @@ public static partial class BridgeFunctions
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
-            if (row is null || !IsValidId(row.DefName) || seen.Contains(row.DefName) || (row.HasUnits && row.Units < 0))
+            if (row is null || !IsValidId((row.DefName ?? "")) || seen.Contains((row.DefName ?? "")) || (row.Units is not null && row.Units.GetValueOrDefault() < 0))
             {
                 throw Contract("invalid colony quantity");
             }
-            seen.Add(row.DefName);
+            seen.Add((row.DefName ?? ""));
         }
     }
 
     /// <summary>Go's <c>colonySize</c>: a map size with both sides stated, positive and at most 4096.</summary>
     private static bool ColonySize(MapSize? size) =>
-        size is not null && size.HasWidth && size.HasHeight && size.Width > 0 && size.Height > 0 && size.Width <= 4096 && size.Height <= 4096;
+        size is not null && size.Width is not null && size.Height is not null && size.Width.GetValueOrDefault() > 0 && size.Height.GetValueOrDefault() > 0 && size.Width.GetValueOrDefault() <= 4096 && size.Height.GetValueOrDefault() <= 4096;
 
     /// <summary>Go's <c>colonyCell</c>: a cell with both coordinates stated that lies on the map.</summary>
-    private static bool ColonyCell(Cell? cell, MapSize? size) =>
-        cell is not null && cell.HasX && cell.HasZ && cell.X >= 0 && cell.Z >= 0 && (uint)cell.X < (size?.Width ?? 0) && (uint)cell.Z < (size?.Height ?? 0);
+    private static bool ColonyCell([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Cell? cell, MapSize? size) =>
+        cell is not null && cell.X is not null && cell.Z is not null && cell.X.GetValueOrDefault() >= 0 && cell.Z.GetValueOrDefault() >= 0 && (uint)cell.X.GetValueOrDefault() < (size?.Width ?? 0) && (uint)cell.Z.GetValueOrDefault() < (size?.Height ?? 0);
 
     /// <summary>Go's <c>validIDs</c>: whether every id is valid; <paramref name="unique"/> also refuses a repeat.</summary>
     private static bool ValidIds(IEnumerable<string> ids, bool unique)
@@ -53,7 +53,7 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>optionalID</c>: an absent id or a valid one.</summary>
     private static bool OptionalId(bool present, string value) => !present || IsValidId(value);
 
-    private static bool ContextValid(ObservationContext? context)
+    private static bool ContextValid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] ObservationContext? context)
     {
         try
         {
@@ -82,10 +82,10 @@ public static partial class BridgeFunctions
         ColonyQuantities(v.Resources);
         foreach (var (present, value) in new[]
         {
-            (v.HasColonistCount, v.ColonistCount),
-            (v.HasWorkerCount, v.WorkerCount),
-            (v.HasBedCapacity, v.BedCapacity),
-            (v.HasIndoorSleepingCapacity, v.IndoorSleepingCapacity),
+            (v.ColonistCount is not null, v.ColonistCount.GetValueOrDefault()),
+            (v.WorkerCount is not null, v.WorkerCount.GetValueOrDefault()),
+            (v.BedCapacity is not null, v.BedCapacity.GetValueOrDefault()),
+            (v.IndoorSleepingCapacity is not null, v.IndoorSleepingCapacity.GetValueOrDefault()),
         })
         {
             if (present && value > 65536)
@@ -93,18 +93,18 @@ public static partial class BridgeFunctions
                 throw Contract("colony count exceeds bound");
             }
         }
-        if ((v.HasWorkerCount && v.HasColonistCount && v.WorkerCount > v.ColonistCount)
-            || (v.HasIndoorSleepingCapacity && v.HasBedCapacity && v.IndoorSleepingCapacity > v.BedCapacity))
+        if ((v.WorkerCount is not null && v.ColonistCount is not null && v.WorkerCount.GetValueOrDefault() > v.ColonistCount.GetValueOrDefault())
+            || (v.IndoorSleepingCapacity is not null && v.BedCapacity is not null && v.IndoorSleepingCapacity.GetValueOrDefault() > v.BedCapacity.GetValueOrDefault()))
         {
             throw Contract("inconsistent colony capacity");
         }
         foreach (var (present, value) in new[]
         {
-            (v.HasFoodNutrition, v.FoodNutrition),
-            (v.HasNutritionPerDay, v.NutritionPerDay),
-            (v.HasFoodRunwayDays, v.FoodRunwayDays),
-            (v.HasPendingFoodNutrition, v.PendingFoodNutrition),
-            (v.HasPendingWoodUnits, v.PendingWoodUnits),
+            (v.FoodNutrition is not null, v.FoodNutrition.GetValueOrDefault()),
+            (v.NutritionPerDay is not null, v.NutritionPerDay.GetValueOrDefault()),
+            (v.FoodRunwayDays is not null, v.FoodRunwayDays.GetValueOrDefault()),
+            (v.PendingFoodNutrition is not null, v.PendingFoodNutrition.GetValueOrDefault()),
+            (v.PendingWoodUnits is not null, v.PendingWoodUnits.GetValueOrDefault()),
         })
         {
             if (!NonNegativeNumber(present, value))
@@ -114,9 +114,9 @@ public static partial class BridgeFunctions
         }
         foreach (var (present, value) in new[]
         {
-            (v.HasSleepingTemperatureMinC, v.SleepingTemperatureMinC),
-            (v.HasSleepingTemperatureMaxC, v.SleepingTemperatureMaxC),
-            (v.HasOutdoorTemperatureC, v.OutdoorTemperatureC),
+            (v.SleepingTemperatureMinC is not null, v.SleepingTemperatureMinC.GetValueOrDefault()),
+            (v.SleepingTemperatureMaxC is not null, v.SleepingTemperatureMaxC.GetValueOrDefault()),
+            (v.OutdoorTemperatureC is not null, v.OutdoorTemperatureC.GetValueOrDefault()),
         })
         {
             if (!FiniteNumber(present, value))
@@ -124,11 +124,11 @@ public static partial class BridgeFunctions
                 throw Contract("invalid colony temperature");
             }
         }
-        if (v.HasSleepingTemperatureMinC && v.HasSleepingTemperatureMaxC && v.SleepingTemperatureMinC > v.SleepingTemperatureMaxC)
+        if (v.SleepingTemperatureMinC is not null && v.SleepingTemperatureMaxC is not null && v.SleepingTemperatureMinC.GetValueOrDefault() > v.SleepingTemperatureMaxC.GetValueOrDefault())
         {
             throw Contract("inverted sleeping temperature range");
         }
-        if (v.HasBiome && !IsValidId(v.Biome))
+        if (v.Biome is not null && !IsValidId((v.Biome ?? "")))
         {
             throw Contract("invalid biome");
         }
@@ -136,7 +136,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("invalid tile mutators");
         }
-        if (v.HasPlayerTechLevel && !IsValidId(v.PlayerTechLevel))
+        if (v.PlayerTechLevel is not null && !IsValidId((v.PlayerTechLevel ?? "")))
         {
             throw Contract("invalid player tech level");
         }
@@ -148,7 +148,7 @@ public static partial class BridgeFunctions
         ValidateAnomalyColony(v);
         ValidateOdysseyColony(v);
         ValidateFoodChannels(v);
-        ValidateJoinerLetters(v.JoinerLetters, v.Context.Tick);
+        ValidateJoinerLetters(v.JoinerLetters, v.Context.Tick.GetValueOrDefault());
         ValidateChoiceDialog(v.Dialog);
         ValidateColonyWaste(v.Waste);
         if (v.FoodClimate is { } climate)
@@ -156,10 +156,10 @@ public static partial class BridgeFunctions
             PawnsIssues(climate.Issues, climate);
             foreach (var (present, value) in new[]
             {
-                (climate.HasGrowingDays, climate.GrowingDays),
-                (climate.HasGrowingDaysRemaining, climate.GrowingDaysRemaining),
-                (climate.HasGrowingDaysUntil, climate.GrowingDaysUntil),
-                (climate.HasNonGrowingDays, climate.NonGrowingDays),
+                (climate.GrowingDays is not null, climate.GrowingDays.GetValueOrDefault()),
+                (climate.GrowingDaysRemaining is not null, climate.GrowingDaysRemaining.GetValueOrDefault()),
+                (climate.GrowingDaysUntil is not null, climate.GrowingDaysUntil.GetValueOrDefault()),
+                (climate.NonGrowingDays is not null, climate.NonGrowingDays.GetValueOrDefault()),
             })
             {
                 if (!NonNegativeNumber(present, value) || (present && value > GameTime.DaysPerYear))
@@ -167,11 +167,11 @@ public static partial class BridgeFunctions
                     throw Contract("invalid seasonal crop budget");
                 }
             }
-            if ((climate.HasDayOfYear && (climate.DayOfYear < 0 || climate.DayOfYear >= GameTime.DaysPerYear)) || (climate.HasSeason && !ValidSeason(climate.Season)))
+            if ((climate.DayOfYear is not null && (climate.DayOfYear.GetValueOrDefault() < 0 || climate.DayOfYear.GetValueOrDefault() >= GameTime.DaysPerYear)) || (climate.Season is not null && !ValidSeason((climate.Season ?? ""))))
             {
                 throw Contract("invalid calendar");
             }
-            if (v.Issues.Any(issue => issue.Field == "food_climate"))
+            if (v.Issues.Any(issue => (issue.Field ?? "") == "food_climate"))
             {
                 throw Contract("unavailable climate contains observations");
             }
@@ -180,51 +180,51 @@ public static partial class BridgeFunctions
         ValidateColonyEnvironment(v);
         ValidateColonyRecovery(v);
         ValidateColonyProduction(v);
-        if (v.FoodSupply?.Observed is { } food)
+        if (v.FoodSupply?.Outcome?.Observed is { } food)
         {
             ValidateFoodSupply(food);
         }
         else
         {
-            ValidateUnavailable(v.FoodSupply?.Unavailable);
+            ValidateUnavailable(v.FoodSupply?.Outcome?.Unavailable);
         }
-        if (v.Forecast?.Observed is { } forecast)
+        if (v.Forecast?.Outcome?.Observed is { } forecast)
         {
-            ValidateForecast(forecast, v.FoodSupply?.Observed);
+            ValidateForecast(forecast, v.FoodSupply?.Outcome?.Observed);
         }
         else
         {
-            ValidateUnavailable(v.Forecast?.Unavailable);
+            ValidateUnavailable(v.Forecast?.Outcome?.Unavailable);
         }
-        if (v.Upkeep?.Observed is { } upkeep)
+        if (v.Upkeep?.Outcome?.Observed is { } upkeep)
         {
             ValidateDirectUpkeep(upkeep, v.MapSize);
             ValidateColonyUpkeep(upkeep, v.MapSize);
         }
         else
         {
-            ValidateUnavailable(v.Upkeep?.Unavailable);
+            ValidateUnavailable(v.Upkeep?.Outcome?.Unavailable);
         }
-        if (v.Development?.Observed is { } power)
+        if (v.Development?.Outcome?.Observed is { } power)
         {
             ValidateColonyPower(power, v.MapSize);
         }
         else
         {
-            ValidateUnavailable(v.Development?.Unavailable);
+            ValidateUnavailable(v.Development?.Outcome?.Unavailable);
         }
         ValidateColonyThreat(v.Threat);
         if (v.Planning is null)
         {
             throw Contract("missing planning availability");
         }
-        switch (v.Planning.OutcomeCase)
+        switch (v.Planning.Outcome)
         {
-            case PlanningSection.OutcomeOneofCase.Unavailable:
-                ValidateUnavailable(v.Planning.Unavailable);
+            case PlanningSectionOutcome.UnavailableCase:
+                ValidateUnavailable(v.Planning.Outcome?.Unavailable);
                 return;
-            case PlanningSection.OutcomeOneofCase.Observed:
-                ValidateColonyPlanning(v.Planning.Observed, v.Context, v.MapSize);
+            case PlanningSectionOutcome.ObservedCase:
+                ValidateColonyPlanning(v.Planning.Outcome?.Observed, v.Context, v.MapSize);
                 return;
             default:
                 throw Contract("missing planning outcome");
@@ -245,11 +245,11 @@ public static partial class BridgeFunctions
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var crop in p.Crops)
         {
-            if (crop is null || !IsValidId(crop.DefName) || seen.Contains(crop.DefName) || !crop.HasDietAllowed || !NonNegativeNumber(crop.HasNutritionDemandPerDay, crop.NutritionDemandPerDay))
+            if (crop is null || !IsValidId((crop.DefName ?? "")) || seen.Contains((crop.DefName ?? "")) || crop.DietAllowed is null || !NonNegativeNumber(crop.NutritionDemandPerDay is not null, crop.NutritionDemandPerDay.GetValueOrDefault()))
             {
                 throw Contract("invalid edible crop");
             }
-            seen.Add(crop.DefName);
+            seen.Add((crop.DefName ?? ""));
         }
         if (p.Environment is not null)
         {
@@ -269,7 +269,7 @@ public static partial class BridgeFunctions
         bool Unique(string id) => seen.Add(id);
         foreach (var row in e.Lights)
         {
-            if (row is null || !ValidRef(row.Building) || !Unique("light/" + row.Building.Id) || !OptionalRef(row.Room) || !OptionalId(row.HasPowerNetId, row.PowerNetId) || !Cells(row.GrowthCells))
+            if (row is null || !ValidRef(row.Building) || !Unique("light/" + (row.Building?.Id ?? "")) || !OptionalRef(row.Room) || !OptionalId(row.PowerNetId is not null, (row.PowerNetId ?? "")) || !Cells(row.GrowthCells))
             {
                 throw Contract("invalid environment light");
             }
@@ -279,10 +279,10 @@ public static partial class BridgeFunctions
         {
             if (row is null
                 || !ValidRef(row.Building)
-                || !Unique("grower/" + row.Building.Id)
+                || !Unique("grower/" + (row.Building?.Id ?? ""))
                 || !OptionalRef(row.Room)
-                || !OptionalId(row.HasPowerNetId, row.PowerNetId)
-                || !OptionalId(row.HasCropDefName, row.CropDefName)
+                || !OptionalId(row.PowerNetId is not null, (row.PowerNetId ?? ""))
+                || !OptionalId(row.CropDefName is not null, (row.CropDefName ?? ""))
                 || !Cells(row.PlantCells))
             {
                 throw Contract("invalid environment grower");
@@ -293,27 +293,27 @@ public static partial class BridgeFunctions
         {
             if (row is null
                 || !IsValidId(row.Room?.Id ?? "")
-                || !Unique("room/" + row.Room!.Id)
-                || !FiniteNumber(row.HasTemperatureC, row.TemperatureC)
-                || (row.HasLitCells && row.HasCellCount && row.LitCells > row.CellCount))
+                || !Unique("room/" + (row.Room!.Id ?? ""))
+                || !FiniteNumber(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault())
+                || (row.LitCells is not null && row.CellCount is not null && row.LitCells.GetValueOrDefault() > row.CellCount.GetValueOrDefault()))
             {
                 throw Contract("invalid environment room");
             }
         }
         foreach (var row in e.Networks)
         {
-            if (row is null || !IsValidId(row.Id) || !Unique("network/" + row.Id))
+            if (row is null || !IsValidId((row.Id ?? "")) || !Unique("network/" + (row.Id ?? "")))
             {
                 throw Contract("invalid environment network");
             }
             foreach (var (present, value) in new[]
             {
-                (row.HasGenerationW, row.GenerationW),
-                (row.HasSolarW, row.SolarW),
-                (row.HasWindW, row.WindW),
-                (row.HasConsumptionW, row.ConsumptionW),
-                (row.HasStoredWattDays, row.StoredWattDays),
-                (row.HasCapacityWattDays, row.CapacityWattDays),
+                (row.GenerationW is not null, row.GenerationW.GetValueOrDefault()),
+                (row.SolarW is not null, row.SolarW.GetValueOrDefault()),
+                (row.WindW is not null, row.WindW.GetValueOrDefault()),
+                (row.ConsumptionW is not null, row.ConsumptionW.GetValueOrDefault()),
+                (row.StoredWattDays is not null, row.StoredWattDays.GetValueOrDefault()),
+                (row.CapacityWattDays is not null, row.CapacityWattDays.GetValueOrDefault()),
             })
             {
                 if (!NonNegativeNumber(present, value))
@@ -338,13 +338,13 @@ public static partial class BridgeFunctions
         {
             return;
         }
-        switch (v.OutcomeCase)
+        switch (v.Outcome)
         {
-            case ThreatSection.OutcomeOneofCase.Unavailable:
-                ValidateUnavailable(v.Unavailable);
+            case ThreatSectionOutcome.UnavailableCase:
+                ValidateUnavailable(v.Outcome?.Unavailable);
                 return;
-            case ThreatSection.OutcomeOneofCase.Observed:
-                var facts = v.Observed;
+            case ThreatSectionOutcome.ObservedCase:
+                var facts = v.Outcome?.Observed;
                 if (facts is null)
                 {
                     throw Contract("missing threat facts");
@@ -352,14 +352,14 @@ public static partial class BridgeFunctions
                 PawnsIssues(facts.Issues, facts);
                 foreach (var (present, value) in new[]
                 {
-                    (facts.HasWealthItems, facts.WealthItems),
-                    (facts.HasWealthBuildings, facts.WealthBuildings),
-                    (facts.HasWealthPawns, facts.WealthPawns),
-                    (facts.HasWealthTotal, facts.WealthTotal),
-                    (facts.HasStorytellerWealth, facts.StorytellerWealth),
-                    (facts.HasRaidPoints, facts.RaidPoints),
-                    (facts.HasAdaptationFactor, facts.AdaptationFactor),
-                    (facts.HasDifficultyThreatScale, facts.DifficultyThreatScale),
+                    (facts.WealthItems is not null, facts.WealthItems.GetValueOrDefault()),
+                    (facts.WealthBuildings is not null, facts.WealthBuildings.GetValueOrDefault()),
+                    (facts.WealthPawns is not null, facts.WealthPawns.GetValueOrDefault()),
+                    (facts.WealthTotal is not null, facts.WealthTotal.GetValueOrDefault()),
+                    (facts.StorytellerWealth is not null, facts.StorytellerWealth.GetValueOrDefault()),
+                    (facts.RaidPoints is not null, facts.RaidPoints.GetValueOrDefault()),
+                    (facts.AdaptationFactor is not null, facts.AdaptationFactor.GetValueOrDefault()),
+                    (facts.DifficultyThreatScale is not null, facts.DifficultyThreatScale.GetValueOrDefault()),
                 })
                 {
                     if (!NonNegativeNumber(present, value))
@@ -367,7 +367,7 @@ public static partial class BridgeFunctions
                         throw Contract("invalid colony threat number");
                     }
                 }
-                if (facts.HasColonistCount && facts.ColonistCount > 65536)
+                if (facts.ColonistCount is not null && facts.ColonistCount.GetValueOrDefault() > 65536)
                 {
                     throw Contract("colony count exceeds bound");
                 }

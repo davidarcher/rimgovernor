@@ -32,9 +32,9 @@ internal static class ClockCombatStops
     /// (Go <c>combatStopKind</c>). The wire enum's C# name, lower snake case, is Go's lowercased name without its prefix.
     /// </summary>
     public static string Kind(PbClock.Stopped stopped) =>
-        stopped.HasCombatEvent && stopped.CombatEvent != PbClock.CombatEvent.Unspecified
-            ? Snake(stopped.CombatEvent.ToString())
-            : Snake(stopped.Reason.ToString());
+        stopped.CombatEvent is not null && stopped.CombatEvent.GetValueOrDefault() != PbClock.CombatEvent.Unspecified
+            ? Snake(stopped.CombatEvent.GetValueOrDefault().ToString())
+            : Snake(stopped.Reason.GetValueOrDefault().ToString());
 
     private static string Snake(string pascal)
     {
@@ -100,9 +100,9 @@ internal sealed class CombatStopMetrics
 
             // The stop that ends the combat resumes into a colony window after the full review; its latency is
             // not a combat reaction.
-            if (stopped.HasStoppedAtUnixMs && stopped.StoppedAtUnixMs > 0 && combat)
+            if (stopped.StoppedAtUnixMs is not null && stopped.StoppedAtUnixMs.GetValueOrDefault() > 0 && combat)
             {
-                var latency = now - DateTimeOffset.FromUnixTimeMilliseconds(stopped.StoppedAtUnixMs);
+                var latency = now - DateTimeOffset.FromUnixTimeMilliseconds(stopped.StoppedAtUnixMs.GetValueOrDefault());
                 _latencies.Add(latency);
                 attrs.Add(("resume_latency_ms", (long)latency.TotalMilliseconds));
             }

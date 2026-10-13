@@ -1,4 +1,4 @@
-using RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -33,9 +33,9 @@ public sealed class NativeFailureException(Failure value, Result receipt) : Brid
     public Result Receipt { get; } = receipt;
 
     private static string Describe(Failure value) =>
-        value.HasDetail && value.Detail.Length != 0
-            ? "native read refused: " + value.Code + ": " + value.Detail
-            : "native read refused: " + value.Code;
+        value.Detail is not null && (value.Detail ?? "").Length != 0
+            ? "native read refused: " + value.Code.GetValueOrDefault() + ": " + (value.Detail ?? "")
+            : "native read refused: " + value.Code.GetValueOrDefault();
 }
 
 /// <summary>Go's <c>NativeUnavailable</c>: a typed unavailable reply.</summary>
@@ -46,9 +46,9 @@ public sealed class NativeUnavailableException(Unavailable value, Result receipt
     public Result Receipt { get; } = receipt;
 
     private static string Describe(Unavailable value) =>
-        value.HasDetail && value.Detail.Length != 0
-            ? "native read unavailable: " + value.Reason + ": " + value.Detail
-            : "native read unavailable: " + value.Reason;
+        value.Detail is not null && (value.Detail ?? "").Length != 0
+            ? "native read unavailable: " + value.Reason.GetValueOrDefault() + ": " + (value.Detail ?? "")
+            : "native read unavailable: " + value.Reason.GetValueOrDefault();
 }
 
 /// <summary>Go's <c>Refusal</c>: a named read the native side refused, with the refusal's own account of itself.</summary>

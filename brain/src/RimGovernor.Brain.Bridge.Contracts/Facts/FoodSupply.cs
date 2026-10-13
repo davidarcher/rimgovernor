@@ -1,4 +1,4 @@
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -23,16 +23,16 @@ public static partial class BridgeFunctions
         var consumers = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in supply.Consumers)
         {
-            if (row is null || !IsValidId(row.PawnId) || consumers.Contains(row.PawnId) || !CombatNumber(OptionalDouble(row.HasNutritionPerDay, row.NutritionPerDay), true))
+            if (row is null || !IsValidId((row.PawnId ?? "")) || consumers.Contains((row.PawnId ?? "")) || !CombatNumber(OptionalDouble(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()), true))
             {
                 throw Contract("invalid food consumer");
             }
-            consumers.Add(row.PawnId);
+            consumers.Add((row.PawnId ?? ""));
         }
         var stocks = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in supply.Stocks)
         {
-            if (row is null || !UniqueRef(row.Item, stocks) || !CombatNumber(OptionalDouble(row.HasNutrition, row.Nutrition), true))
+            if (row is null || !UniqueRef(row.Item, stocks) || !CombatNumber(OptionalDouble(row.Nutrition is not null, row.Nutrition.GetValueOrDefault()), true))
             {
                 throw Contract("invalid food stock");
             }
@@ -49,7 +49,7 @@ public static partial class BridgeFunctions
                 }
             }
             if (!OptionalRef(row.Holder)
-                || (row.Holder is not null && (!consumers.Contains(row.Holder.Id) || row.Eaters.Count != 1 || row.Eaters[0].Id != row.Holder.Id)))
+                || (row.Holder is not null && (!consumers.Contains((row.Holder.Id ?? "")) || row.Eaters.Count != 1 || (row.Eaters[0].Id ?? "") != (row.Holder.Id ?? ""))))
             {
                 throw Contract("private food cannot be shared");
             }
@@ -69,8 +69,8 @@ public static partial class BridgeFunctions
                     || !TryProtoCell(row.Cell, out var cell)
                     || cell.X < 0
                     || cell.Z < 0
-                    || (row.HasHaulerId && !IsValidId(row.HaulerId))
-                    || (row.FrozenDestination && row.HaulerId.Length == 0))
+                    || (row.HaulerId is not null && !IsValidId((row.HaulerId ?? "")))
+                    || (row.FrozenDestination && (row.HaulerId ?? "").Length == 0))
                 {
                     throw Contract("invalid corpse handling");
                 }
@@ -96,20 +96,20 @@ public static partial class BridgeFunctions
             {
                 return null;
             }
-            rows[stock.Item.Id] = row;
+            rows[stock.Item?.Id ?? ""] = row;
         }
         foreach (var stock in supply.Stocks)
         {
-            var row = rows[stock.Item.Id];
-            if (!IsValidId(row.Thing_?.DefName ?? ""))
+            var row = rows[stock.Item?.Id ?? ""];
+            if (!IsValidId(row.Entity?.DefName ?? ""))
             {
                 throw Contract("food stock row without a definition");
             }
-            if (stock.Eaters.Count == 0 && !row.Corpse && !row.IsHumanMeat)
+            if (stock.Eaters.Count == 0 && !row.Corpse.GetValueOrDefault() && !row.IsHumanMeat.GetValueOrDefault())
             {
                 throw Contract("missing food eligibility");
             }
-            if (row.Corpse && row.MeatAmount <= 0)
+            if (row.Corpse.GetValueOrDefault() && row.MeatAmount.GetValueOrDefault() <= 0)
             {
                 throw Contract("corpse stock without meat");
             }
@@ -118,7 +118,7 @@ public static partial class BridgeFunctions
         {
             foreach (var corpse in larder.Corpses)
             {
-                if (!rows.TryGetValue(corpse.StockId, out var row) || !row.Corpse)
+                if (!rows.TryGetValue(corpse.StockId, out var row) || !row.Corpse.GetValueOrDefault())
                 {
                     throw Contract("larder corpse is no corpse stock");
                 }

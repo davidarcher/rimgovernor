@@ -51,7 +51,7 @@ public sealed partial class ClockScheduler
 
     /// <summary>Whether a stopped clock's game is running: the player un-paused after an external pause and drives the speed by hand (Go <c>clockPlayerRunning</c>).</summary>
     internal static bool PlayerRunning(PbClock.Status status) =>
-        status.StateCase == PbClock.Status.StateOneofCase.Stopped && status.HasActualPaused && !status.ActualPaused;
+        status.State is PbClock.StatusState.StoppedCase && status.ActualPaused is not null && !status.ActualPaused.GetValueOrDefault();
 
     /// <summary>
     /// Measures the running window's pace from the previous step's status tick: the pace the step's read validity
@@ -60,11 +60,11 @@ public sealed partial class ClockScheduler
     /// </summary>
     internal void LivePace(PbClock.Status status, DateTimeOffset readAt)
     {
-        var tick = (long)status.Context.Tick;
+        var tick = (long)(status.Context?.Tick).GetValueOrDefault();
         var pace = 0.0;
         // The pace is measured under a running window and, the same way, under a stopped clock the player runs by
         // hand; only the window widens the bounds.
-        var running = status.StateCase == PbClock.Status.StateOneofCase.Running;
+        var running = status.State is PbClock.StatusState.RunningCase;
         if ((running || PlayerRunning(status)) && Pace.Known && tick > Pace.Tick && readAt > Pace.At)
         {
             Pace.PerSecond = (tick - Pace.Tick) / (readAt - Pace.At).TotalSeconds;

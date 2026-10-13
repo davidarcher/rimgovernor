@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -18,9 +18,9 @@ public static partial class BridgeFunctions
         {
             return (unknown, Unknown<bool>());
         }
-        var life = OptionalFact(health.HasLifeThreatening, health.LifeThreatening);
+        var life = OptionalFact(health.LifeThreatening is not null, health.LifeThreatening.GetValueOrDefault());
         var completeness = health.HediffCompleteness;
-        if (completeness is null || completeness.Filtered != 0 || !health.HasHiddenHediffs || health.HiddenHediffs != 0 || IssueNames(health.Issues, "hediffs"))
+        if (completeness is null || completeness.Filtered.GetValueOrDefault() != 0 || health.HiddenHediffs is null || health.HiddenHediffs.GetValueOrDefault() != 0 || IssueNames(health.Issues, "hediffs"))
         {
             return (unknown, life);
         }
@@ -30,14 +30,14 @@ public static partial class BridgeFunctions
             rows.Add(
                 new CareCondition
                 {
-                    Severity = OptionalFact(condition.HasSeverity, condition.Severity),
-                    SeverityPerDay = OptionalFact(condition.HasSeverityPerDay, condition.SeverityPerDay),
-                    Immunity = OptionalFact(condition.HasImmunity, condition.Immunity),
-                    ImmunityPerDay = OptionalFact(condition.HasImmunityPerDay, condition.ImmunityPerDay),
-                    Tended = OptionalFact(condition.HasTended, condition.Tended),
-                    TendQuality = OptionalFact(condition.HasTendQuality, condition.TendQuality),
-                    PartIndex = OptionalInt(condition.HasPartIndex, condition.PartIndex),
-                    DefName = OptionalFact(condition.HasDefName, condition.DefName),
+                    Severity = OptionalFact(condition.Severity is not null, condition.Severity.GetValueOrDefault()),
+                    SeverityPerDay = OptionalFact(condition.SeverityPerDay is not null, condition.SeverityPerDay.GetValueOrDefault()),
+                    Immunity = OptionalFact(condition.Immunity is not null, condition.Immunity.GetValueOrDefault()),
+                    ImmunityPerDay = OptionalFact(condition.ImmunityPerDay is not null, condition.ImmunityPerDay.GetValueOrDefault()),
+                    Tended = OptionalFact(condition.Tended is not null, condition.Tended.GetValueOrDefault()),
+                    TendQuality = OptionalFact(condition.TendQuality is not null, condition.TendQuality.GetValueOrDefault()),
+                    PartIndex = OptionalInt(condition.PartIndex is not null, condition.PartIndex.GetValueOrDefault()),
+                    DefName = OptionalFact(condition.DefName is not null, (condition.DefName ?? "")),
                 }
             );
         }

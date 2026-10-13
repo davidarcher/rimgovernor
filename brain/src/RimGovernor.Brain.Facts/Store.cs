@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge;
-using ClockPb = RimGovernor.Protocol.Clock;
+using ClockPb = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Facts;
 

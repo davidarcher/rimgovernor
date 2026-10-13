@@ -9,7 +9,7 @@ internal static class ClockPlayerSpeed
     /// </summary>
     public static ClockStart Follow(ClockStart start, PbClock.Status status)
     {
-        var speed = status.HasPlayerSpeed ? status.PlayerSpeed : PbClock.Speed.Ultrafast;
+        var speed = status.PlayerSpeed is not null ? status.PlayerSpeed.GetValueOrDefault() : PbClock.Speed.Ultrafast;
         return start with { Speed = speed, PlayerAccelerated = speed == PbClock.Speed.Ultrafast };
     }
 }

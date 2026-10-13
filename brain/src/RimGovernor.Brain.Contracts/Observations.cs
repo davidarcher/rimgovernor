@@ -656,13 +656,25 @@ public abstract record ClearanceTargetsReplyOutcome
 {
     private protected ClearanceTargetsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ClearanceTargetsSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ClearanceTargetsSnapshot Value) : ClearanceTargetsReplyOutcome;
 
     public static implicit operator ClearanceTargetsReplyOutcome(ClearanceTargetsSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ClearanceTargetsReplyOutcome;
 
     public static implicit operator ClearanceTargetsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ClearanceTargetsReplyOutcome;
 
@@ -801,13 +813,25 @@ public abstract record AncientShrinesReplyOutcome
 {
     private protected AncientShrinesReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AncientShrinesSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(AncientShrinesSnapshot Value) : AncientShrinesReplyOutcome;
 
     public static implicit operator AncientShrinesReplyOutcome(AncientShrinesSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : AncientShrinesReplyOutcome;
 
     public static implicit operator AncientShrinesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : AncientShrinesReplyOutcome;
 
@@ -853,13 +877,25 @@ public abstract record TargetRefTarget
 {
     private protected TargetRefTarget() { }
 
+    /// <summary>The <c>Entity</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Ref? Entity => (this as EntityCase)?.Value;
+
     public sealed record EntityCase(Common.Ref Value) : TargetRefTarget;
 
     public static implicit operator TargetRefTarget(Common.Ref value) => new EntityCase(value);
 
+    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Cell? Cell => (this as CellCase)?.Value;
+
     public sealed record CellCase(Common.Cell Value) : TargetRefTarget;
 
     public static implicit operator TargetRefTarget(Common.Cell value) => new CellCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : TargetRefTarget;
 
@@ -2184,13 +2220,25 @@ public abstract record ListPawnsReplyOutcome
 {
     private protected ListPawnsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PawnSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(PawnSnapshot Value) : ListPawnsReplyOutcome;
 
     public static implicit operator ListPawnsReplyOutcome(PawnSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ListPawnsReplyOutcome;
 
     public static implicit operator ListPawnsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ListPawnsReplyOutcome;
 
@@ -2349,13 +2397,25 @@ public abstract record ListSuppliesReplyOutcome
 {
     private protected ListSuppliesReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SuppliesSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(SuppliesSnapshot Value) : ListSuppliesReplyOutcome;
 
     public static implicit operator ListSuppliesReplyOutcome(SuppliesSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ListSuppliesReplyOutcome;
 
     public static implicit operator ListSuppliesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ListSuppliesReplyOutcome;
 
@@ -2814,13 +2874,25 @@ public abstract record ListBuildingsReplyOutcome
 {
     private protected ListBuildingsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BuildingsSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(BuildingsSnapshot Value) : ListBuildingsReplyOutcome;
 
     public static implicit operator ListBuildingsReplyOutcome(BuildingsSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ListBuildingsReplyOutcome;
 
     public static implicit operator ListBuildingsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ListBuildingsReplyOutcome;
 
@@ -3005,13 +3077,25 @@ public abstract record ListRoomsReplyOutcome
 {
     private protected ListRoomsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RoomsSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(RoomsSnapshot Value) : ListRoomsReplyOutcome;
 
     public static implicit operator ListRoomsReplyOutcome(RoomsSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ListRoomsReplyOutcome;
 
     public static implicit operator ListRoomsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ListRoomsReplyOutcome;
 
@@ -3091,13 +3175,25 @@ public abstract record ListZonesReplyOutcome
 {
     private protected ListZonesReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ZonesSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ZonesSnapshot Value) : ListZonesReplyOutcome;
 
     public static implicit operator ListZonesReplyOutcome(ZonesSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ListZonesReplyOutcome;
 
     public static implicit operator ListZonesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ListZonesReplyOutcome;
 
@@ -3224,13 +3320,25 @@ public abstract record GetCellsReplyOutcome
 {
     private protected GetCellsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CellsSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(CellsSnapshot Value) : GetCellsReplyOutcome;
 
     public static implicit operator GetCellsReplyOutcome(CellsSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : GetCellsReplyOutcome;
 
     public static implicit operator GetCellsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : GetCellsReplyOutcome;
 
@@ -3374,13 +3482,25 @@ public abstract record ResearchReplyOutcome
 {
     private protected ResearchReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ResearchSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ResearchSnapshot Value) : ResearchReplyOutcome;
 
     public static implicit operator ResearchReplyOutcome(ResearchSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ResearchReplyOutcome;
 
     public static implicit operator ResearchReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ResearchReplyOutcome;
 
@@ -3474,13 +3594,25 @@ public abstract record SpatialAccessReplyOutcome
 {
     private protected SpatialAccessReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SpatialAccessSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(SpatialAccessSnapshot Value) : SpatialAccessReplyOutcome;
 
     public static implicit operator SpatialAccessReplyOutcome(SpatialAccessSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : SpatialAccessReplyOutcome;
 
     public static implicit operator SpatialAccessReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : SpatialAccessReplyOutcome;
 
@@ -3607,13 +3739,25 @@ public abstract record DefenseSiteReplyOutcome
 {
     private protected DefenseSiteReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DefenseSiteSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(DefenseSiteSnapshot Value) : DefenseSiteReplyOutcome;
 
     public static implicit operator DefenseSiteReplyOutcome(DefenseSiteSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : DefenseSiteReplyOutcome;
 
     public static implicit operator DefenseSiteReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : DefenseSiteReplyOutcome;
 
@@ -3682,13 +3826,25 @@ public abstract record LinesOfFireReplyOutcome
 {
     private protected LinesOfFireReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LinesOfFireSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(LinesOfFireSnapshot Value) : LinesOfFireReplyOutcome;
 
     public static implicit operator LinesOfFireReplyOutcome(LinesOfFireSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : LinesOfFireReplyOutcome;
 
     public static implicit operator LinesOfFireReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : LinesOfFireReplyOutcome;
 
@@ -3737,13 +3893,25 @@ public abstract record RoofSupportReplyOutcome
 {
     private protected RoofSupportReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RoofSupportSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(RoofSupportSnapshot Value) : RoofSupportReplyOutcome;
 
     public static implicit operator RoofSupportReplyOutcome(RoofSupportSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : RoofSupportReplyOutcome;
 
     public static implicit operator RoofSupportReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : RoofSupportReplyOutcome;
 
@@ -3814,13 +3982,25 @@ public abstract record ExcavationSiteReplyOutcome
 {
     private protected ExcavationSiteReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ExcavationSiteSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ExcavationSiteSnapshot Value) : ExcavationSiteReplyOutcome;
 
     public static implicit operator ExcavationSiteReplyOutcome(ExcavationSiteSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ExcavationSiteReplyOutcome;
 
     public static implicit operator ExcavationSiteReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ExcavationSiteReplyOutcome;
 
@@ -3904,13 +4084,25 @@ public abstract record WallUpgradeSitesReplyOutcome
 {
     private protected WallUpgradeSitesReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public WallUpgradeSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(WallUpgradeSnapshot Value) : WallUpgradeSitesReplyOutcome;
 
     public static implicit operator WallUpgradeSitesReplyOutcome(WallUpgradeSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : WallUpgradeSitesReplyOutcome;
 
     public static implicit operator WallUpgradeSitesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : WallUpgradeSitesReplyOutcome;
 
@@ -4019,13 +4211,25 @@ public abstract record ResourceSourcesReplyOutcome
 {
     private protected ResourceSourcesReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ResourceSourcesSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ResourceSourcesSnapshot Value) : ResourceSourcesReplyOutcome;
 
     public static implicit operator ResourceSourcesReplyOutcome(ResourceSourcesSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ResourceSourcesReplyOutcome;
 
     public static implicit operator ResourceSourcesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ResourceSourcesReplyOutcome;
 
@@ -4087,13 +4291,25 @@ public abstract record ConsumptionReplyOutcome
 {
     private protected ConsumptionReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ConsumptionSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ConsumptionSnapshot Value) : ConsumptionReplyOutcome;
 
     public static implicit operator ConsumptionReplyOutcome(ConsumptionSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ConsumptionReplyOutcome;
 
     public static implicit operator ConsumptionReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ConsumptionReplyOutcome;
 
@@ -4154,13 +4370,25 @@ public abstract record HusbandryReplyOutcome
 {
     private protected HusbandryReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HusbandrySnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(HusbandrySnapshot Value) : HusbandryReplyOutcome;
 
     public static implicit operator HusbandryReplyOutcome(HusbandrySnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : HusbandryReplyOutcome;
 
     public static implicit operator HusbandryReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : HusbandryReplyOutcome;
 
@@ -4221,13 +4449,25 @@ public abstract record WasteReplyOutcome
 {
     private protected WasteReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public WasteSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(WasteSnapshot Value) : WasteReplyOutcome;
 
     public static implicit operator WasteReplyOutcome(WasteSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : WasteReplyOutcome;
 
     public static implicit operator WasteReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : WasteReplyOutcome;
 
@@ -4275,13 +4515,25 @@ public abstract record RecoveryReplyOutcome
 {
     private protected RecoveryReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RecoverySnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(RecoverySnapshot Value) : RecoveryReplyOutcome;
 
     public static implicit operator RecoveryReplyOutcome(RecoverySnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : RecoveryReplyOutcome;
 
     public static implicit operator RecoveryReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : RecoveryReplyOutcome;
 
@@ -4455,13 +4707,25 @@ public abstract record PopulationReplyOutcome
 {
     private protected PopulationReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PopulationSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(PopulationSnapshot Value) : PopulationReplyOutcome;
 
     public static implicit operator PopulationReplyOutcome(PopulationSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : PopulationReplyOutcome;
 
     public static implicit operator PopulationReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : PopulationReplyOutcome;
 
@@ -4569,13 +4833,25 @@ public abstract record WorldReplyOutcome
 {
     private protected WorldReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public WorldSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(WorldSnapshot Value) : WorldReplyOutcome;
 
     public static implicit operator WorldReplyOutcome(WorldSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : WorldReplyOutcome;
 
     public static implicit operator WorldReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : WorldReplyOutcome;
 
@@ -5247,13 +5523,25 @@ public abstract record WorldProgressionReplyOutcome
 {
     private protected WorldProgressionReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public WorldProgressionSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(WorldProgressionSnapshot Value) : WorldProgressionReplyOutcome;
 
     public static implicit operator WorldProgressionReplyOutcome(WorldProgressionSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : WorldProgressionReplyOutcome;
 
     public static implicit operator WorldProgressionReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : WorldProgressionReplyOutcome;
 
@@ -5294,13 +5582,25 @@ public abstract record BillsReplyOutcome
 {
     private protected BillsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BillsSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(BillsSnapshot Value) : BillsReplyOutcome;
 
     public static implicit operator BillsReplyOutcome(BillsSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : BillsReplyOutcome;
 
     public static implicit operator BillsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : BillsReplyOutcome;
 
@@ -5346,13 +5646,25 @@ public abstract record RecipesReplyOutcome
 {
     private protected RecipesReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RecipesSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(RecipesSnapshot Value) : RecipesReplyOutcome;
 
     public static implicit operator RecipesReplyOutcome(RecipesSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : RecipesReplyOutcome;
 
     public static implicit operator RecipesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : RecipesReplyOutcome;
 
@@ -5380,13 +5692,25 @@ public abstract record BuildingSettingsReplyOutcome
 {
     private protected BuildingSettingsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BuildingSettings? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(BuildingSettings Value) : BuildingSettingsReplyOutcome;
 
     public static implicit operator BuildingSettingsReplyOutcome(BuildingSettings value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : BuildingSettingsReplyOutcome;
 
     public static implicit operator BuildingSettingsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : BuildingSettingsReplyOutcome;
 
@@ -5414,13 +5738,25 @@ public abstract record PawnSettingsReplyOutcome
 {
     private protected PawnSettingsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PawnSettings? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(PawnSettings Value) : PawnSettingsReplyOutcome;
 
     public static implicit operator PawnSettingsReplyOutcome(PawnSettings value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : PawnSettingsReplyOutcome;
 
     public static implicit operator PawnSettingsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : PawnSettingsReplyOutcome;
 
@@ -5453,9 +5789,21 @@ public abstract record ResolveTargetRequestQuery
 {
     private protected ResolveTargetRequestQuery() { }
 
+    /// <summary>The <c>EntityId</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? EntityId => (this as EntityIdCase)?.Value;
+
     public sealed record EntityIdCase(string Value) : ResolveTargetRequestQuery;
 
+    /// <summary>The <c>ExactName</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? ExactName => (this as ExactNameCase)?.Value;
+
     public sealed record ExactNameCase(string Value) : ResolveTargetRequestQuery;
+
+    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Cell? Cell => (this as CellCase)?.Value;
 
     public sealed record CellCase(Common.Cell Value) : ResolveTargetRequestQuery;
 }
@@ -5474,13 +5822,25 @@ public abstract record ResolveTargetReplyOutcome
 {
     private protected ResolveTargetReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ResolveTargetSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ResolveTargetSnapshot Value) : ResolveTargetReplyOutcome;
 
     public static implicit operator ResolveTargetReplyOutcome(ResolveTargetSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ResolveTargetReplyOutcome;
 
     public static implicit operator ResolveTargetReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ResolveTargetReplyOutcome;
 
@@ -5516,9 +5876,21 @@ public abstract record StatSubjectSubject
 {
     private protected StatSubjectSubject() { }
 
+    /// <summary>The <c>Definition</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public StatDefSubject? Definition => (this as DefinitionCase)?.Value;
+
     public sealed record DefinitionCase(StatDefSubject Value) : StatSubjectSubject;
 
+    /// <summary>The <c>ThingId</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? ThingId => (this as ThingIdCase)?.Value;
+
     public sealed record ThingIdCase(string Value) : StatSubjectSubject;
+
+    /// <summary>The <c>PawnId</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? PawnId => (this as PawnIdCase)?.Value;
 
     public sealed record PawnIdCase(string Value) : StatSubjectSubject;
 }
@@ -5571,13 +5943,25 @@ public abstract record EvaluateStatReplyOutcome
 {
     private protected EvaluateStatReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public StatEvaluation? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(StatEvaluation Value) : EvaluateStatReplyOutcome;
 
     public static implicit operator EvaluateStatReplyOutcome(StatEvaluation value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : EvaluateStatReplyOutcome;
 
     public static implicit operator EvaluateStatReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : EvaluateStatReplyOutcome;
 
@@ -5763,13 +6147,25 @@ public abstract record GearReplyOutcome
 {
     private protected GearReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public GearSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(GearSnapshot Value) : GearReplyOutcome;
 
     public static implicit operator GearReplyOutcome(GearSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : GearReplyOutcome;
 
     public static implicit operator GearReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : GearReplyOutcome;
 
@@ -5830,13 +6226,25 @@ public abstract record TradersReplyOutcome
 {
     private protected TradersReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public TradersSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(TradersSnapshot Value) : TradersReplyOutcome;
 
     public static implicit operator TradersReplyOutcome(TradersSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : TradersReplyOutcome;
 
     public static implicit operator TradersReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : TradersReplyOutcome;
 
@@ -5949,13 +6357,25 @@ public abstract record TradeSessionReplyOutcome
 {
     private protected TradeSessionReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public TradeSession? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(TradeSession Value) : TradeSessionReplyOutcome;
 
     public static implicit operator TradeSessionReplyOutcome(TradeSession value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : TradeSessionReplyOutcome;
 
     public static implicit operator TradeSessionReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : TradeSessionReplyOutcome;
 
@@ -6026,13 +6446,25 @@ public abstract record TradeSheetReplyOutcome
 {
     private protected TradeSheetReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public TradeSheet? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(TradeSheet Value) : TradeSheetReplyOutcome;
 
     public static implicit operator TradeSheetReplyOutcome(TradeSheet value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : TradeSheetReplyOutcome;
 
     public static implicit operator TradeSheetReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : TradeSheetReplyOutcome;
 
@@ -6185,13 +6617,25 @@ public abstract record TradeAcquisitionReplyOutcome
 {
     private protected TradeAcquisitionReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public TradeAcquisition? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(TradeAcquisition Value) : TradeAcquisitionReplyOutcome;
 
     public static implicit operator TradeAcquisitionReplyOutcome(TradeAcquisition value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : TradeAcquisitionReplyOutcome;
 
     public static implicit operator TradeAcquisitionReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : TradeAcquisitionReplyOutcome;
 
@@ -6661,9 +7105,17 @@ public abstract record RoyaltySectionOutcome
 {
     private protected RoyaltySectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RoyaltyColonyFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(RoyaltyColonyFacts Value) : RoyaltySectionOutcome;
 
     public static implicit operator RoyaltySectionOutcome(RoyaltyColonyFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : RoyaltySectionOutcome;
 
@@ -7285,9 +7737,17 @@ public abstract record ComfortSectionOutcome
 {
     private protected ComfortSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ComfortFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ComfortFacts Value) : ComfortSectionOutcome;
 
     public static implicit operator ComfortSectionOutcome(ComfortFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : ComfortSectionOutcome;
 
@@ -7307,9 +7767,17 @@ public abstract record FoodSupplySectionOutcome
 {
     private protected FoodSupplySectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FoodSupplyFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(FoodSupplyFacts Value) : FoodSupplySectionOutcome;
 
     public static implicit operator FoodSupplySectionOutcome(FoodSupplyFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : FoodSupplySectionOutcome;
 
@@ -7329,9 +7797,17 @@ public abstract record ForecastSectionOutcome
 {
     private protected ForecastSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ForecastFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ForecastFacts Value) : ForecastSectionOutcome;
 
     public static implicit operator ForecastSectionOutcome(ForecastFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : ForecastSectionOutcome;
 
@@ -7351,9 +7827,17 @@ public abstract record DevelopmentSectionOutcome
 {
     private protected DevelopmentSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DevelopmentFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(DevelopmentFacts Value) : DevelopmentSectionOutcome;
 
     public static implicit operator DevelopmentSectionOutcome(DevelopmentFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : DevelopmentSectionOutcome;
 
@@ -7373,9 +7857,17 @@ public abstract record PlanningSectionOutcome
 {
     private protected PlanningSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PlanningFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(PlanningFacts Value) : PlanningSectionOutcome;
 
     public static implicit operator PlanningSectionOutcome(PlanningFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : PlanningSectionOutcome;
 
@@ -7420,9 +7912,17 @@ public abstract record WallRemovalSectionOutcome
 {
     private protected WallRemovalSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public WallRemovalFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(WallRemovalFacts Value) : WallRemovalSectionOutcome;
 
     public static implicit operator WallRemovalSectionOutcome(WallRemovalFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : WallRemovalSectionOutcome;
 
@@ -7487,9 +7987,17 @@ public abstract record HomeCoverageSectionOutcome
 {
     private protected HomeCoverageSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HomeCoverageFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(HomeCoverageFacts Value) : HomeCoverageSectionOutcome;
 
     public static implicit operator HomeCoverageSectionOutcome(HomeCoverageFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : HomeCoverageSectionOutcome;
 
@@ -7555,9 +8063,17 @@ public abstract record LightingSectionOutcome
 {
     private protected LightingSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LightingFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(LightingFacts Value) : LightingSectionOutcome;
 
     public static implicit operator LightingSectionOutcome(LightingFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : LightingSectionOutcome;
 
@@ -7616,9 +8132,17 @@ public abstract record FlooringSectionOutcome
 {
     private protected FlooringSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FlooringFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(FlooringFacts Value) : FlooringSectionOutcome;
 
     public static implicit operator FlooringSectionOutcome(FlooringFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : FlooringSectionOutcome;
 
@@ -7715,9 +8239,17 @@ public abstract record RoutesSectionOutcome
 {
     private protected RoutesSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RoutesFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(RoutesFacts Value) : RoutesSectionOutcome;
 
     public static implicit operator RoutesSectionOutcome(RoutesFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : RoutesSectionOutcome;
 
@@ -7811,9 +8343,17 @@ public abstract record UpkeepSectionOutcome
 {
     private protected UpkeepSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public UpkeepFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(UpkeepFacts Value) : UpkeepSectionOutcome;
 
     public static implicit operator UpkeepSectionOutcome(UpkeepFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : UpkeepSectionOutcome;
 
@@ -7872,9 +8412,17 @@ public abstract record ThreatSectionOutcome
 {
     private protected ThreatSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ThreatFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ThreatFacts Value) : ThreatSectionOutcome;
 
     public static implicit operator ThreatSectionOutcome(ThreatFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : ThreatSectionOutcome;
 
@@ -7921,9 +8469,17 @@ public abstract record LootSectionOutcome
 {
     private protected LootSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LootCensus? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(LootCensus Value) : LootSectionOutcome;
 
     public static implicit operator LootSectionOutcome(LootCensus value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : LootSectionOutcome;
 
@@ -8175,9 +8731,17 @@ public abstract record FoodChannelsSectionOutcome
 {
     private protected FoodChannelsSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FoodChannelsFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(FoodChannelsFacts Value) : FoodChannelsSectionOutcome;
 
     public static implicit operator FoodChannelsSectionOutcome(FoodChannelsFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : FoodChannelsSectionOutcome;
 
@@ -8285,9 +8849,17 @@ public abstract record DeepResourcesSectionOutcome
 {
     private protected DeepResourcesSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DeepResourcesFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(DeepResourcesFacts Value) : DeepResourcesSectionOutcome;
 
     public static implicit operator DeepResourcesSectionOutcome(DeepResourcesFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : DeepResourcesSectionOutcome;
 
@@ -8386,9 +8958,17 @@ public abstract record DeliveryLedgerSectionOutcome
 {
     private protected DeliveryLedgerSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DeliveryLedgerFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(DeliveryLedgerFacts Value) : DeliveryLedgerSectionOutcome;
 
     public static implicit operator DeliveryLedgerSectionOutcome(DeliveryLedgerFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : DeliveryLedgerSectionOutcome;
 
@@ -8562,9 +9142,17 @@ public abstract record OdysseySectionOutcome
 {
     private protected OdysseySectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public OdysseyColonyFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(OdysseyColonyFacts Value) : OdysseySectionOutcome;
 
     public static implicit operator OdysseySectionOutcome(OdysseyColonyFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : OdysseySectionOutcome;
 
@@ -8695,9 +9283,17 @@ public abstract record AnomalySectionOutcome
 {
     private protected AnomalySectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AnomalyColonyFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(AnomalyColonyFacts Value) : AnomalySectionOutcome;
 
     public static implicit operator AnomalySectionOutcome(AnomalyColonyFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : AnomalySectionOutcome;
 
@@ -8949,9 +9545,17 @@ public abstract record PolicySectionOutcome
 {
     private protected PolicySectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PolicyFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(PolicyFacts Value) : PolicySectionOutcome;
 
     public static implicit operator PolicySectionOutcome(PolicyFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : PolicySectionOutcome;
 
@@ -8987,9 +9591,17 @@ public abstract record BiotechSectionOutcome
 {
     private protected BiotechSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BiotechColonyFacts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(BiotechColonyFacts Value) : BiotechSectionOutcome;
 
     public static implicit operator BiotechSectionOutcome(BiotechColonyFacts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : BiotechSectionOutcome;
 
@@ -9440,13 +10052,25 @@ public abstract record ColonyFactsReplyOutcome
 {
     private protected ColonyFactsReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ColonyFactsSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ColonyFactsSnapshot Value) : ColonyFactsReplyOutcome;
 
     public static implicit operator ColonyFactsReplyOutcome(ColonyFactsSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ColonyFactsReplyOutcome;
 
     public static implicit operator ColonyFactsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ColonyFactsReplyOutcome;
 
@@ -9578,13 +10202,25 @@ public abstract record StatusReplyOutcome
 {
     private protected StatusReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public StatusSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(StatusSnapshot Value) : StatusReplyOutcome;
 
     public static implicit operator StatusReplyOutcome(StatusSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : StatusReplyOutcome;
 
     public static implicit operator StatusReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : StatusReplyOutcome;
 
@@ -9823,13 +10459,25 @@ public abstract record ObservationBatchReplyOutcome
 {
     private protected ObservationBatchReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ObservationBatchSnapshot? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(ObservationBatchSnapshot Value) : ObservationBatchReplyOutcome;
 
     public static implicit operator ObservationBatchReplyOutcome(ObservationBatchSnapshot value) => new ObservedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : ObservationBatchReplyOutcome;
 
     public static implicit operator ObservationBatchReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ObservationBatchReplyOutcome;
 
@@ -10494,17 +11142,33 @@ public abstract record DefinitionCatalogReplyOutcome
 {
     private protected DefinitionCatalogReplyOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DefinitionCatalog? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(DefinitionCatalog Value) : DefinitionCatalogReplyOutcome;
 
     public static implicit operator DefinitionCatalogReplyOutcome(DefinitionCatalog value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : DefinitionCatalogReplyOutcome;
 
     public static implicit operator DefinitionCatalogReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
 
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
+
     public sealed record FailureCase(Common.Failure Value) : DefinitionCatalogReplyOutcome;
 
     public static implicit operator DefinitionCatalogReplyOutcome(Common.Failure value) => new FailureCase(value);
+
+    /// <summary>The <c>Creation</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CreationDefinitionCatalog? Creation => (this as CreationCase)?.Value;
 
     public sealed record CreationCase(CreationDefinitionCatalog Value) : DefinitionCatalogReplyOutcome;
 
@@ -10537,13 +11201,25 @@ public abstract record SnapshotStreamReplyOutcome
 {
     private protected SnapshotStreamReplyOutcome() { }
 
+    /// <summary>The <c>Opened</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SnapshotStreamOpened? Opened => (this as OpenedCase)?.Value;
+
     public sealed record OpenedCase(SnapshotStreamOpened Value) : SnapshotStreamReplyOutcome;
 
     public static implicit operator SnapshotStreamReplyOutcome(SnapshotStreamOpened value) => new OpenedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : SnapshotStreamReplyOutcome;
 
     public static implicit operator SnapshotStreamReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : SnapshotStreamReplyOutcome;
 
@@ -10569,7 +11245,15 @@ public abstract record FlushSnapshotReplyOutcome
 {
     private protected FlushSnapshotReplyOutcome() { }
 
+    /// <summary>The <c>Flushed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public bool? Flushed => (this as FlushedCase)?.Value;
+
     public sealed record FlushedCase(bool Value) : FlushSnapshotReplyOutcome;
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : FlushSnapshotReplyOutcome;
 

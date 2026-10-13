@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
@@ -24,9 +25,9 @@
     <Using Include="RimGovernor.Brain.Store.Store" Alias="StoreJournal" />
     <Using Include="RimGovernor.Brain.Observation.IClock" Alias="ObservationClock" />
     <Using Include="RimGovernor.Brain.Executor.IClock" Alias="ExecutorClock" />
-    <Using Include="RimGovernor.Protocol.Authority" Alias="PbAuthority" />
-    <Using Include="RimGovernor.Protocol.Common" Alias="PbCommon" />
-    <Using Include="RimGovernor.Protocol.Lifecycle" Alias="PbLifecycle" />
-    <Using Include="RimGovernor.Protocol.Operations" Alias="PbOperations" />
+    <Using Include="RimGovernor.Contracts.Wire.Authority" Alias="PbAuthority" />
+    <Using Include="RimGovernor.Contracts.Wire.Common" Alias="PbCommon" />
+    <Using Include="RimGovernor.Contracts.Wire.Lifecycle" Alias="PbLifecycle" />
+    <Using Include="RimGovernor.Contracts.Wire.Operations" Alias="PbOperations" />
   </ItemGroup>
 </Project>

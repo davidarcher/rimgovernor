@@ -10,10 +10,10 @@ global using RimGovernor.Brain.Domain;
 global using static RimGovernor.Brain.BuildingRuntime.BuildingRuntimePackage;
 // Go's policy package functions and concern ids live in PolicyFunctions (port convention of the policy slices).
 global using static RimGovernor.Brain.Policy.PolicyFunctions;
-global using ClockPb = RimGovernor.Protocol.Clock;
-global using CommonPb = RimGovernor.Protocol.Common;
-global using LifecyclePb = RimGovernor.Protocol.Lifecycle;
-global using ObservationsPb = RimGovernor.Protocol.Observations;
-global using OperationsPb = RimGovernor.Protocol.Operations;
+global using ClockPb = RimGovernor.Contracts.Wire.Clock;
+global using CommonPb = RimGovernor.Contracts.Wire.Common;
+global using LifecyclePb = RimGovernor.Contracts.Wire.Lifecycle;
+global using ObservationsPb = RimGovernor.Contracts.Wire.Observations;
+global using OperationsPb = RimGovernor.Contracts.Wire.Operations;
 global using Pol = RimGovernor.Brain.Policy;
 global using Sto = RimGovernor.Brain.Store;

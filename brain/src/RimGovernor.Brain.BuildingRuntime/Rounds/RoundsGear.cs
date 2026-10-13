@@ -130,8 +130,8 @@ internal static partial class BuildingRuntimePackage
     internal static async Task<Things> FrameThingsOfAsync(object native, C.Identity identity, CancellationToken ct) =>
         native is IFrameThingsSource source ? await source.FrameThingsAsync(identity, ct).ConfigureAwait(false) : new Things();
 
-    internal static string GearDef(Things things, C.Ref reference) =>
-        things.TryRow(reference, out var row) ? row.Thing_?.DefName ?? "" : "";
+    internal static string GearDef(Things things, C.Ref? reference) =>
+        things.TryRow(reference, out var row) ? row.Entity?.DefName ?? "" : "";
 }
 
 public sealed partial class RoundsGearPlanner
@@ -146,7 +146,7 @@ public sealed partial class RoundsGearPlanner
 
         var ids = census.Pawns.Select(p => p.Pawn.Value).ToList();
         var (reply, _) = await source.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
-        var pawns = reply.Observed;
+        var pawns = reply.Outcome?.Observed;
         if (pawns is null)
         {
             throw new ControlException("stampCreepjoiners: no observed pawns");
@@ -262,7 +262,7 @@ public sealed partial class RoundsGearPlanner
         var started = Reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
         var reply = await Reviewer.ColonyFactsAsync(Native, identity, true, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("stepOne: no observed colony facts");
@@ -277,13 +277,13 @@ public sealed partial class RoundsGearPlanner
             throw new ControlException("stepOne: observed context", e);
         }
 
-        if (observed.Context.Tick < review.Tick.Value)
+        if ((observed.Context?.Tick).GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("stepOne: observed facts older than the review");
         }
 
-        var gear = observed.Planning?.Observed?.Gear;
-        if (gear is null || !observed.HasColonistCount || (uint)gear.Pawns.Count != observed.ColonistCount)
+        var gear = observed.Planning?.Outcome?.Observed?.Gear;
+        if (gear is null || observed.ColonistCount is null || (uint)gear.Pawns.Count != observed.ColonistCount.GetValueOrDefault())
         {
             return new RoundsGearResult { Verdict = WaitFor(Cause.MethodUsed, "gear_observation") };
         }

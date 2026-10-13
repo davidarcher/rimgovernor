@@ -279,30 +279,30 @@ internal static partial class BuildingRuntimePackage
         // An unset allowed area is an unrestricted pawn (native AllowedArea).
         if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "allowed_area_id"))
         {
-            hand = hand with { Area = Known(settings.AllowedAreaId) };
+            hand = hand with { Area = Known((settings.AllowedAreaId ?? "")) };
         }
-        if (row.Needs is { HasHungerCategory: true } needs && !Boundary.IssueField(needs.Issues, "hunger_category"))
+        if (row.Needs is { HungerCategory: not null } needs && !Boundary.IssueField(needs.Issues, "hunger_category"))
         {
-            hand = hand with { Hungry = Known(needs.HungerCategory != RimGovernor.Protocol.Defs.HungerCategory.Fed) };
+            hand = hand with { Hungry = Known(needs.HungerCategory.GetValueOrDefault() != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
         }
-        var mental = BridgeApi.CellPresence(row.HasMentalState ? row.MentalState : null, row.Issues, "mental_state", false);
-        if (row.Dead || row.Downed || row.Drafted)
+        var mental = BridgeApi.CellPresence(row.MentalState is not null ? (row.MentalState ?? "") : null, row.Issues, "mental_state", false);
+        if (row.Dead.GetValueOrDefault() || row.Downed.GetValueOrDefault() || row.Drafted.GetValueOrDefault())
         {
             hand = hand with { Available = Known(false) };
         }
-        else if (mental.TryGetValue(out var inMental) && row.HasDead && row.HasDowned && row.HasDrafted)
+        else if (mental.TryGetValue(out var inMental) && row.Dead is not null && row.Downed is not null && row.Drafted is not null)
         {
             hand = hand with { Available = Known(!inMental) };
         }
-        if (row.Equipment is { HasArmed: true } equipment && !Boundary.IssueField(equipment.Issues, "armed"))
+        if (row.Equipment is { Armed: not null } equipment && !Boundary.IssueField(equipment.Issues, "armed"))
         {
-            if (!equipment.Armed)
+            if (!equipment.Armed.GetValueOrDefault())
             {
                 hand = hand with { Weapon = Known("") };
             }
-            else if (equipment.HasPrimaryId)
+            else if (equipment.PrimaryId is not null)
             {
-                hand = hand with { Weapon = Known(equipment.PrimaryId) };
+                hand = hand with { Weapon = Known((equipment.PrimaryId ?? "")) };
             }
         }
         return hand;

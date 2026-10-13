@@ -199,7 +199,7 @@ internal static partial class BuildingRuntimePackage
         var (pawns, _) = await native.ReadCombatPawnsAsync(identity, colonists, ct).ConfigureAwait(false);
         var arms = await ReadArmamentAsync(native, identity, ct).ConfigureAwait(false);
         var squad = new List<Pol.ShrineDefenderFacts>();
-        foreach (var row in pawns.Observed?.Pawns ?? [])
+        foreach (var row in pawns.Outcome?.Observed?.Pawns ?? [])
         {
             if (row is null || row.Pawn is null)
             {

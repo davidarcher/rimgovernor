@@ -85,13 +85,25 @@ public abstract record StatusState
 {
     private protected StatusState() { }
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : StatusState;
 
     public static implicit operator StatusState(Common.Unavailable value) => new UnavailableCase(value);
 
+    /// <summary>The <c>Inactive</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public InactiveAuthority? Inactive => (this as InactiveCase)?.Value;
+
     public sealed record InactiveCase(InactiveAuthority Value) : StatusState;
 
     public static implicit operator StatusState(InactiveAuthority value) => new InactiveCase(value);
+
+    /// <summary>The <c>Active</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ActiveAuthority? Active => (this as ActiveCase)?.Value;
 
     public sealed record ActiveCase(ActiveAuthority Value) : StatusState;
 
@@ -116,9 +128,17 @@ public abstract record StatusReplyOutcome
 {
     private protected StatusReplyOutcome() { }
 
+    /// <summary>The <c>Status</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Status? Status => (this as StatusCase)?.Value;
+
     public sealed record StatusCase(Status Value) : StatusReplyOutcome;
 
     public static implicit operator StatusReplyOutcome(Status value) => new StatusCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : StatusReplyOutcome;
 
@@ -178,13 +198,25 @@ public abstract record ControlRequestOperation
 {
     private protected ControlRequestOperation() { }
 
+    /// <summary>The <c>SetMode</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SetMode? SetMode => (this as SetModeCase)?.Value;
+
     public sealed record SetModeCase(SetMode Value) : ControlRequestOperation;
 
     public static implicit operator ControlRequestOperation(SetMode value) => new SetModeCase(value);
 
+    /// <summary>The <c>Revoke</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Revoke? Revoke => (this as RevokeCase)?.Value;
+
     public sealed record RevokeCase(Revoke Value) : ControlRequestOperation;
 
     public static implicit operator ControlRequestOperation(Revoke value) => new RevokeCase(value);
+
+    /// <summary>The <c>FocusMap</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FocusMap? FocusMap => (this as FocusMapCase)?.Value;
 
     public sealed record FocusMapCase(FocusMap Value) : ControlRequestOperation;
 
@@ -220,17 +252,33 @@ public abstract record ControlReplyOutcome
 {
     private protected ControlReplyOutcome() { }
 
+    /// <summary>The <c>Granted</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Granted? Granted => (this as GrantedCase)?.Value;
+
     public sealed record GrantedCase(Granted Value) : ControlReplyOutcome;
 
     public static implicit operator ControlReplyOutcome(Granted value) => new GrantedCase(value);
+
+    /// <summary>The <c>Revoked</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Revoked? Revoked => (this as RevokedCase)?.Value;
 
     public sealed record RevokedCase(Revoked Value) : ControlReplyOutcome;
 
     public static implicit operator ControlReplyOutcome(Revoked value) => new RevokedCase(value);
 
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
+
     public sealed record FailureCase(Common.Failure Value) : ControlReplyOutcome;
 
     public static implicit operator ControlReplyOutcome(Common.Failure value) => new FailureCase(value);
+
+    /// <summary>The <c>FocusedMap</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FocusedMap? FocusedMap => (this as FocusedMapCase)?.Value;
 
     public sealed record FocusedMapCase(FocusedMap Value) : ControlReplyOutcome;
 

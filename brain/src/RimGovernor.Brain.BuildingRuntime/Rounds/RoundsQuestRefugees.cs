@@ -39,7 +39,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             throw new ControlException("admitRefugeeTend: emergency context", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("admitRefugeeTend: emergency read older than the review");
         }
@@ -68,7 +68,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
         ids.Sort(StringComparer.Ordinal);
         var (reply, _) = await native.ReadTendPawnsAsync(identity, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null || observed.Pawns.Count != ids.Count)
         {
             throw new ControlException("admitRefugeeTend: tend read incomplete");
@@ -84,7 +84,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 throw new ControlException("admitRefugeeTend: tend row without a pawn");
             }
 
-            var pawnId = new PawnId(row.Pawn.Id);
+            var pawnId = new PawnId((row.Pawn.Id ?? ""));
             if (refugees.TryGetValue(pawnId, out var refugeeQuest) && !refugeeQuest.IsEmpty && housed.GetValueOrDefault(pawnId))
             {
                 patients.Add(TendFacts.NewTendPatientFacts(pawnId, row, ""));

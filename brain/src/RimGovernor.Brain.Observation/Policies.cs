@@ -70,7 +70,7 @@ public static partial class ObservationPackage
 
     public static Fact<Policies> ColonyPolicies(O.PolicySection? section)
     {
-        var f = section?.Observed;
+        var f = section?.Outcome?.Observed;
         if (f is null)
         {
             return default;
@@ -83,9 +83,9 @@ public static partial class ObservationPackage
                 var drugs = new List<DrugPolicyEntry>();
                 foreach (var d in row.DrugEntries)
                 {
-                    drugs.Add(new DrugPolicyEntry(d.DrugDef, d.AllowedForJoy, d.AllowedForAddiction, d.AllowScheduled, d.DaysFrequency, d.OnlyIfMoodBelow, d.OnlyIfJoyBelow, (int)d.TakeToInventory));
+                    drugs.Add(new DrugPolicyEntry((d.DrugDef ?? ""), d.AllowedForJoy.GetValueOrDefault(), d.AllowedForAddiction.GetValueOrDefault(), d.AllowScheduled.GetValueOrDefault(), d.DaysFrequency.GetValueOrDefault(), d.OnlyIfMoodBelow.GetValueOrDefault(), d.OnlyIfJoyBelow.GetValueOrDefault(), (int)d.TakeToInventory.GetValueOrDefault()));
                 }
-                result.Add(new PolicyEntry { ID = row.Id, Label = row.Label, Pawns = PawnIds(row.PawnIds), Default = row.Default, Allowed = [.. row.AllowedDefs], Drugs = drugs });
+                result.Add(new PolicyEntry { ID = row.Id ?? "", Label = row.Label ?? "", Pawns = PawnIds(row.PawnIds), Default = row.Default.GetValueOrDefault(), Allowed = [.. row.AllowedDefs], Drugs = drugs });
             }
             return result;
         }
@@ -95,14 +95,14 @@ public static partial class ObservationPackage
             var traits = new List<PawnTrait>();
             foreach (var t in e.PawnTraits)
             {
-                traits.Add(new PawnTrait { Name = t.DefName, Degree = (int)t.Degree });
+                traits.Add(new PawnTrait { Name = t.DefName ?? "", Degree = t.Degree.GetValueOrDefault() });
             }
-            eaters.Add(new FoodEater { Pawn = new PawnId(e.PawnId), Animal = e.Kind == O.FoodEaterKind.Animal, Precepts = [.. e.Precepts], Traits = traits });
+            eaters.Add(new FoodEater { Pawn = new PawnId(e.PawnId ?? ""), Animal = e.Kind == O.FoodEaterKind.Animal, Precepts = [.. e.Precepts], Traits = traits });
         }
         var areas = new List<AllowedArea>();
         foreach (var row in f.AllowedAreas)
         {
-            areas.Add(new AllowedArea { ID = row.Id, Label = row.Label, Pawns = PawnIds(row.PawnIds) });
+            areas.Add(new AllowedArea { ID = row.Id ?? "", Label = row.Label ?? "", Pawns = PawnIds(row.PawnIds) });
         }
         return Known(new Policies { Outfit = Entries(f.Outfit), Drug = Entries(f.Drug), Food = Entries(f.Food), Reading = Entries(f.Reading), FoodEaters = eaters, AllowedAreas = areas });
     }

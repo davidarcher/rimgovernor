@@ -15,9 +15,9 @@ internal static partial class BuildingRuntimePackage
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in zones.Value.Rows)
         {
-            if (row.Type == "stockpile")
+            if ((row.Type ?? "") == "stockpile")
             {
-                ids.Add(row.Id);
+                ids.Add((row.Id ?? ""));
             }
         }
         return ids;

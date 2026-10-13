@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Clock;
-using RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -15,11 +15,11 @@ public static partial class BridgeFunctions
             || !Equals(actual.Owner, original.Owner)
             || !Equals(actual.Origin, original.Origin)
             || !Equals(actual.Policy, original.Policy)
-            || actual.StartTick != original.StartTick
-            || actual.TickDeadline != original.TickDeadline
-            || actual.RequestedSpeed != speed
-            || actual.TestAcceleration != original.TestAcceleration
-            || actual.LastTick < original.LastTick)
+            || actual.StartTick.GetValueOrDefault() != original.StartTick.GetValueOrDefault()
+            || actual.TickDeadline.GetValueOrDefault() != original.TickDeadline.GetValueOrDefault()
+            || actual.RequestedSpeed.GetValueOrDefault() != speed
+            || actual.TestAcceleration.GetValueOrDefault() != original.TestAcceleration.GetValueOrDefault()
+            || actual.LastTick.GetValueOrDefault() < original.LastTick.GetValueOrDefault())
         {
             throw Contract("clock immutable epoch mismatch");
         }
@@ -29,46 +29,46 @@ public static partial class BridgeFunctions
     internal static void ClockPolicy(WatchPolicy? p, long budget)
     {
         if (p is null
-            || !p.HasMode
-            || (int)p.Mode < 1
-            || (int)p.Mode > 2
-            || !p.HasHealthDropFraction
-            || !p.HasMinHealthFraction
-            || !p.HasHostileWithin
-            || !p.HasInjuryStopCooldownMs
-            || p.InjuryStopCooldownMs > 1800000)
+            || p.Mode is null
+            || (int)p.Mode.GetValueOrDefault() < 1
+            || (int)p.Mode.GetValueOrDefault() > 2
+            || p.HealthDropFraction is null
+            || p.MinHealthFraction is null
+            || p.HostileWithin is null
+            || p.InjuryStopCooldownMs is null
+            || p.InjuryStopCooldownMs.GetValueOrDefault() > 1800000)
         {
             throw Contract("clock policy presence or bounds");
         }
         ClockWire(p);
-        if (p.HealthDropFraction < 0.01f
-            || p.HealthDropFraction > 1
-            || p.MinHealthFraction < 0.01f
-            || p.MinHealthFraction > 1
-            || p.HostileWithin < 1
-            || p.HostileWithin > 250)
+        if (p.HealthDropFraction.GetValueOrDefault() < 0.01f
+            || p.HealthDropFraction.GetValueOrDefault() > 1
+            || p.MinHealthFraction.GetValueOrDefault() < 0.01f
+            || p.MinHealthFraction.GetValueOrDefault() > 1
+            || p.HostileWithin.GetValueOrDefault() < 1
+            || p.HostileWithin.GetValueOrDefault() > 250)
         {
             throw Contract("clock policy numeric bounds");
         }
-        if (!p.HasSeriousSingleHitDamage
-            || !p.HasSeriousSummaryHealthFloor
-            || !p.HasSeriousBleedRateFloor
-            || !p.HasSeriousVitalPartFloor
-            || !p.HasExplosiveNearMarginCells
-            || !p.HasMeleeReachCells
-            || !p.HasInjurySeverityFloorTicks
-            || !p.HasPredatorMarginCells)
+        if (p.SeriousSingleHitDamage is null
+            || p.SeriousSummaryHealthFloor is null
+            || p.SeriousBleedRateFloor is null
+            || p.SeriousVitalPartFloor is null
+            || p.ExplosiveNearMarginCells is null
+            || p.MeleeReachCells is null
+            || p.InjurySeverityFloorTicks is null
+            || p.PredatorMarginCells is null)
         {
             throw Contract("clock policy hazard thresholds missing");
         }
-        foreach (var v in new[] { p.SeriousSingleHitDamage, p.SeriousSummaryHealthFloor, p.SeriousBleedRateFloor, p.SeriousVitalPartFloor, p.ExplosiveNearMarginCells, p.MeleeReachCells, p.PredatorMarginCells })
+        foreach (var v in new[] { p.SeriousSingleHitDamage.GetValueOrDefault(), p.SeriousSummaryHealthFloor.GetValueOrDefault(), p.SeriousBleedRateFloor.GetValueOrDefault(), p.SeriousVitalPartFloor.GetValueOrDefault(), p.ExplosiveNearMarginCells.GetValueOrDefault(), p.MeleeReachCells.GetValueOrDefault(), p.PredatorMarginCells.GetValueOrDefault() })
         {
             if (!(v > 0) || float.IsInfinity(v))
             {
                 throw Contract("clock policy hazard threshold not finite and positive");
             }
         }
-        if (p.InjurySeverityFloorTicks == 0 || p.InjurySeverityFloorTicks > int.MaxValue)
+        if (p.InjurySeverityFloorTicks.GetValueOrDefault() == 0 || p.InjurySeverityFloorTicks.GetValueOrDefault() > int.MaxValue)
         {
             throw Contract("clock policy injury severity floor bounds");
         }
@@ -87,7 +87,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("medical rest clock budget exceeds 600 ticks");
         }
-        if (p.CombatStopEvents.Count > 0 && p.Mode != WatchMode.Combat)
+        if (p.CombatStopEvents.Count > 0 && p.Mode.GetValueOrDefault() != WatchMode.Combat)
         {
             throw Contract("combat stop events outside combat mode");
         }
@@ -104,12 +104,12 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>clockOwner</c>.</summary>
     internal static void ClockOwner(EpochOwner? owner)
     {
-        if (owner is null || !owner.HasControllerSessionId || !owner.HasEpoch || owner.Epoch <= 0)
+        if (owner is null || owner.ControllerSessionId is null || owner.Epoch is null || owner.Epoch.GetValueOrDefault() <= 0)
         {
             throw Contract("clock epoch owner required");
         }
         ClockWire(owner);
-        ValidId(owner.ControllerSessionId);
+        ValidId((owner.ControllerSessionId ?? ""));
     }
 
     /// <summary>Go's <c>ValidateClockEpoch</c>.</summary>
@@ -125,36 +125,36 @@ public static partial class BridgeFunctions
         ClockWire(e);
         ClockOwner(e.Owner);
         ValidateContext(e.Origin);
-        if (!e.Origin.HasNativeGeneration
-            || !e.HasStartTick
-            || e.StartTick != e.Origin.Tick
-            || !e.HasTickDeadline
-            || e.TickDeadline <= e.StartTick
-            || e.TickDeadline - e.StartTick > 1800000
-            || !e.HasLastTick
-            || e.LastTick < e.StartTick
-            || !e.HasLeaseRemainingMs
-            || e.LeaseRemainingMs > 30000
-            || !e.HasRequestedSpeed
-            || (int)e.RequestedSpeed < 1
-            || (int)e.RequestedSpeed > 4)
+        if (e.Origin?.NativeGeneration is null
+            || e.StartTick is null
+            || e.StartTick.GetValueOrDefault() != e.Origin.Tick.GetValueOrDefault()
+            || e.TickDeadline is null
+            || e.TickDeadline.GetValueOrDefault() <= e.StartTick.GetValueOrDefault()
+            || e.TickDeadline.GetValueOrDefault() - e.StartTick.GetValueOrDefault() > 1800000
+            || e.LastTick is null
+            || e.LastTick.GetValueOrDefault() < e.StartTick.GetValueOrDefault()
+            || e.LeaseRemainingMs is null
+            || e.LeaseRemainingMs.GetValueOrDefault() > 30000
+            || e.RequestedSpeed is null
+            || (int)e.RequestedSpeed.GetValueOrDefault() < 1
+            || (int)e.RequestedSpeed.GetValueOrDefault() > 4)
         {
             throw Contract("clock epoch bounds or presence");
         }
-        if (e.TestAcceleration && e.RequestedSpeed != Speed.Ultrafast)
+        if (e.TestAcceleration.GetValueOrDefault() && e.RequestedSpeed.GetValueOrDefault() != Speed.Ultrafast)
         {
             throw Contract("clock accelerated epoch speed");
         }
-        ClockPolicy(e.Policy, e.TickDeadline - e.StartTick);
+        ClockPolicy(e.Policy, e.TickDeadline.GetValueOrDefault() - e.StartTick.GetValueOrDefault());
     }
 
     /// <summary>Go's <c>clockStatusEpoch</c>: the epoch a running, stopping or stopped status carries, null otherwise.</summary>
     internal static Epoch? ClockStatusEpoch(Status? s) =>
-        s?.StateCase switch
+        s?.State switch
         {
-            Status.StateOneofCase.Running => s.Running.Epoch,
-            Status.StateOneofCase.Stopping => s.Stopping.Epoch,
-            Status.StateOneofCase.Stopped => s.Stopped.Epoch,
+            StatusState.RunningCase { Value: var running } => running.Epoch,
+            StatusState.StoppingCase { Value: var stopping } => stopping.Epoch,
+            StatusState.StoppedCase { Value: var stopped } => stopped.Epoch,
             _ => null,
         };
 
@@ -166,11 +166,11 @@ public static partial class BridgeFunctions
     }
 
     private static bool HealthInBounds(Health h) =>
-        !((h.HasInjuryCount && h.InjuryCount < 0)
-            || (h.HasSeverity && h.Severity < 0)
-            || (h.HasBleedRate && h.BleedRate < 0)
-            || (h.HasBloodLoss && (h.BloodLoss < 0 || h.BloodLoss > 1))
-            || (h.HasSummaryHealth && (h.SummaryHealth < 0 || h.SummaryHealth > 1)));
+        !((h.InjuryCount is not null && h.InjuryCount.GetValueOrDefault() < 0)
+            || (h.Severity is not null && h.Severity.GetValueOrDefault() < 0)
+            || (h.BleedRate is not null && h.BleedRate.GetValueOrDefault() < 0)
+            || (h.BloodLoss is not null && (h.BloodLoss.GetValueOrDefault() < 0 || h.BloodLoss.GetValueOrDefault() > 1))
+            || (h.SummaryHealth is not null && (h.SummaryHealth.GetValueOrDefault() < 0 || h.SummaryHealth.GetValueOrDefault() > 1)));
 
     /// <summary>Go's <c>clockStatus</c>.</summary>
     internal static void ClockStatus(Status? s, Identity? identity)
@@ -181,55 +181,53 @@ public static partial class BridgeFunctions
         }
         ClockWire(s);
         ValidateContext(s.Context);
-        if (!SameIdentity(s.Context.Identity, identity))
+        if (!SameIdentity(s.Context?.Identity, identity))
         {
             throw Contract("clock status identity mismatch");
         }
-        if (s.StateCase == Status.StateOneofCase.Unavailable)
+        if (s.State is StatusState.UnavailableCase { Value: var unavailable })
         {
-            ValidateUnavailable(s.Unavailable);
+            ValidateUnavailable(unavailable);
             return;
         }
-        if (!s.HasNativeTickBoundary
-            || !s.HasDurableEvents
-            || !s.HasNewestCursor
-            || s.NewestCursor < 0
-            || !s.HasObservedSpeed
-            || (int)s.ObservedSpeed < 1
-            || (int)s.ObservedSpeed > 5
-            || !s.HasActualPaused)
+        if (s.NativeTickBoundary is null
+            || s.DurableEvents is null
+            || s.NewestCursor is null
+            || s.NewestCursor.GetValueOrDefault() < 0
+            || s.ObservedSpeed is null
+            || (int)s.ObservedSpeed.GetValueOrDefault() < 1
+            || (int)s.ObservedSpeed.GetValueOrDefault() > 5
+            || s.ActualPaused is null)
         {
             throw Contract("clock status facts missing");
         }
-        if (!Diagnostic(s.HasWatcherError, s.WatcherError) || (s.HasMaxProbeTickGap && s.MaxProbeTickGap < 0))
+        if (!Diagnostic(s.WatcherError is not null, (s.WatcherError ?? "")) || (s.MaxProbeTickGap is not null && s.MaxProbeTickGap.GetValueOrDefault() < 0))
         {
             throw Contract("clock status diagnostics");
         }
-        switch (s.StateCase)
+        switch (s.State)
         {
-            case Status.StateOneofCase.Running:
+            case StatusState.RunningCase:
                 break;
-            case Status.StateOneofCase.Stopping:
-                var stopping = s.Stopping;
-                if (!stopping.HasPendingReason || !Diagnostic(stopping.HasDetail, stopping.Detail) || !stopping.HasActualPaused)
+            case StatusState.StoppingCase { Value: var stopping }:
+                if (stopping.PendingReason is null || !Diagnostic(stopping.Detail is not null, (stopping.Detail ?? "")) || stopping.ActualPaused is null)
                 {
                     throw Contract("missing stopping facts");
                 }
                 break;
-            case Status.StateOneofCase.Stopped:
-                var stopped = s.Stopped;
-                if (!stopped.HasReason
-                    || !Diagnostic(stopped.HasDetail, stopped.Detail)
-                    || !stopped.HasActualPaused
-                    || !stopped.HasPauseVerified
-                    || !stopped.HasPauseRequested
-                    || !stopped.HasStoppedAtUnixMs
-                    || stopped.StoppedAtUnixMs < 0)
+            case StatusState.StoppedCase { Value: var stopped }:
+                if (stopped.Reason is null
+                    || !Diagnostic(stopped.Detail is not null, (stopped.Detail ?? ""))
+                    || stopped.ActualPaused is null
+                    || stopped.PauseVerified is null
+                    || stopped.PauseRequested is null
+                    || stopped.StoppedAtUnixMs is null
+                    || stopped.StoppedAtUnixMs.GetValueOrDefault() < 0)
                 {
                     throw Contract("missing stopped facts");
                 }
                 break;
-            case Status.StateOneofCase.NeverStarted:
+            case StatusState.NeverStartedCase:
                 break;
             default:
                 throw Contract("clock state required");
@@ -239,13 +237,13 @@ public static partial class BridgeFunctions
         {
             ClockEpoch(epoch);
         }
-        else if (s.StateCase != Status.StateOneofCase.NeverStarted)
+        else if (s.State is not StatusState.NeverStartedCase)
         {
             throw Contract("missing clock epoch");
         }
         foreach (var v in s.BaselineAlerts)
         {
-            if (!IsValidId(v.Key) || !Diagnostic(v.HasLabel, v.Label) || !Diagnostic(v.HasPriority, v.Priority))
+            if (!IsValidId((v.Key ?? "")) || !Diagnostic(v.Label is not null, (v.Label ?? "")) || !Diagnostic(v.Priority is not null, (v.Priority ?? "")))
             {
                 throw Contract("clock alert evidence");
             }
@@ -253,15 +251,15 @@ public static partial class BridgeFunctions
         foreach (var v in s.SuppressedInjuries)
         {
             if (v.Pawn is null
-                || !IsValidId(v.Pawn.PawnId)
-                || !Diagnostic(v.Pawn.HasName, v.Pawn.Name)
-                || !Diagnostic(v.Pawn.HasReason, v.Pawn.Reason)
-                || !v.HasSuppression
-                || !v.HasNewWound)
+                || !IsValidId((v.Pawn.PawnId ?? ""))
+                || !Diagnostic(v.Pawn.Name is not null, (v.Pawn.Name ?? ""))
+                || !Diagnostic(v.Pawn.Reason is not null, (v.Pawn.Reason ?? ""))
+                || v.Suppression is null
+                || v.NewWound is null)
             {
                 throw Contract("clock injury evidence");
             }
-            if (v.Pawn.Position is { } p && (!p.HasX || !p.HasZ || p.X < 0 || p.Z < 0))
+            if (v.Pawn.Position is { } p && (p.X is null || p.Z is null || p.X.GetValueOrDefault() < 0 || p.Z.GetValueOrDefault() < 0))
             {
                 throw Contract("clock injury position");
             }
@@ -286,40 +284,39 @@ public static partial class BridgeFunctions
         BuildingAttempt(r.Attempt);
         ValidateContext(r.AdmittedContext);
         if (!Equals(r.Attempt, attempt)
-            || !SameIdentity(r.AdmittedContext.Identity, identity)
-            || !r.AdmittedContext.HasNativeGeneration
-            || (generation != 0 && r.AdmittedContext.NativeGeneration != generation))
+            || !SameIdentity(r.AdmittedContext?.Identity, identity)
+            || r.AdmittedContext?.NativeGeneration is null
+            || (generation != 0 && r.AdmittedContext.NativeGeneration.GetValueOrDefault() != generation))
         {
             throw Contract("clock receipt admission mismatch");
         }
-        switch (r.OutcomeCase)
+        var admittedTick = r.AdmittedContext.Tick.GetValueOrDefault();
+        switch (r.Outcome)
         {
-            case ControlReceipt.OutcomeOneofCase.Applied:
-                var applied = r.Applied;
+            case ControlReceiptOutcome.AppliedCase { Value: var applied }:
                 ClockStatus(applied.Status, identity);
-                if (applied.Status.Context.Tick < r.AdmittedContext.Tick)
+                if (applied.Status?.Context?.Tick.GetValueOrDefault() < admittedTick)
                 {
                     throw Contract("clock status before admission");
                 }
                 var epoch = ClockStatusEpoch(applied.Status);
                 if (epoch is null
-                    || epoch.Owner.ControllerSessionId != (attempt?.ControllerSessionId ?? "")
-                    || !SameIdentity(epoch.Origin.Identity, identity)
-                    || epoch.Origin.Tick > r.AdmittedContext.Tick)
+                    || (epoch.Owner?.ControllerSessionId ?? "") != (attempt?.ControllerSessionId ?? "")
+                    || !SameIdentity(epoch.Origin?.Identity, identity)
+                    || epoch.Origin?.Tick.GetValueOrDefault() > admittedTick)
                 {
                     throw Contract("clock applied epoch admission mismatch");
                 }
                 break;
-            case ControlReceipt.OutcomeOneofCase.Uncertain:
-                var uncertain = r.Uncertain;
-                if (!Diagnostic(uncertain.HasDetail, uncertain.Detail))
+            case ControlReceiptOutcome.UncertainCase { Value: var uncertain }:
+                if (!Diagnostic(uncertain.Detail is not null, (uncertain.Detail ?? "")))
                 {
                     throw Contract("missing uncertain clock");
                 }
                 if (uncertain.LastObserved is not null)
                 {
                     ClockStatus(uncertain.LastObserved, identity);
-                    if (uncertain.LastObserved.Context.Tick < r.AdmittedContext.Tick)
+                    if (uncertain.LastObserved.Context?.Tick.GetValueOrDefault() < admittedTick)
                     {
                         throw Contract("clock uncertain status before admission");
                     }

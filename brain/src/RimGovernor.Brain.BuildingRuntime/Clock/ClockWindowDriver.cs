@@ -92,11 +92,11 @@ public sealed partial class ClockWindowDriver : IClockWorkerStopper, IDisposable
     // acknowledged, a combat bound within the window, a command the bridge validator accepts and a profile directory.
     private static ClockStart Validated(ClockWindowConfig config, ClockSchedulerConfig scheduler)
     {
-        var start = config.Start with { Policy = config.Start.Policy?.Clone() ?? new PbClock.WatchPolicy() };
+        var start = config.Start with { Policy = config.Start.Policy ?? new PbClock.WatchPolicy() };
         var p = start.Policy!;
-        if (p.Mode != PbClock.WatchMode.Colony
+        if (p.Mode.GetValueOrDefault() != PbClock.WatchMode.Colony
             || p.AcknowledgedHostileIds.Count + p.AcknowledgedDownedColonistIds.Count + p.AcknowledgedInjuredColonistIds.Count + p.SurgicalRecoveryIds.Count + p.MedicalRestIds.Count != 0
-            || p.InjuryStopCooldownMs != 0)
+            || p.InjuryStopCooldownMs.GetValueOrDefault() != 0)
         {
             throw new ControlException("NewClockWindowDriver: the start policy is not a plain colony window");
         }
@@ -130,7 +130,7 @@ public sealed partial class ClockWindowDriver : IClockWorkerStopper, IDisposable
             throw new AuthorityException();
         }
         var sequence = await _player.Journal.ReadClockSequenceAsync(ct).ConfigureAwait(false);
-        var intent = new ClockIntent(sequence.NextRequestId(), "", state.Snapshot, new ClockCommand(Speed: new ClockSpeed(original.Clone(), original.RequestedSpeed, ceiling)));
+        var intent = new ClockIntent(sequence.NextRequestId(), "", state.Snapshot, new ClockCommand(Speed: new ClockSpeed(original, original.RequestedSpeed.GetValueOrDefault(), ceiling)));
         var (attempt, error) = await _session.CommandClock(intent, ct).ConfigureAwait(false);
         if (error is not null)
         {

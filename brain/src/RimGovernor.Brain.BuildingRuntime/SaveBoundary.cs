@@ -1,4 +1,3 @@
-using Google.Protobuf;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -80,15 +79,15 @@ public sealed partial class Control
             };
             if (request.HasExpectedTick)
             {
-                req.ExpectedTick = (long)request.ExpectedTick.Value;
+                req = req with { ExpectedTick = (long)request.ExpectedTick.Value };
             }
             var (reply, _) = await save.SaveAsync(req, call).ConfigureAwait(false);
-            var completed = reply.Completed;
+            var completed = reply.Outcome?.Completed;
             if (completed is null)
             {
                 throw new CheckpointException();
             }
-            return new CheckpointResult(current, new Tick(completed.Context?.Tick ?? 0), completed.SaveName, completed.Paused);
+            return new CheckpointResult(current, new Tick(completed.Context?.Tick ?? 0), (completed.SaveName ?? ""), completed.Paused.GetValueOrDefault());
         }
         catch (Exception e) when (e is not CheckpointException)
         {

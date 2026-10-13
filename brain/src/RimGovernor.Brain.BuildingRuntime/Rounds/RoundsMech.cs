@@ -35,7 +35,7 @@ internal static partial class BuildingRuntimePackage
         var hostiles = new List<MechHostile>();
         foreach (var id in hostileIds)
         {
-            if (!rows.TryGetValue(id, out var row) || row is null || row.Dead || row.Downed)
+            if (!rows.TryGetValue(id, out var row) || row is null || row.Dead.GetValueOrDefault() || row.Downed.GetValueOrDefault())
             {
                 continue;
             }

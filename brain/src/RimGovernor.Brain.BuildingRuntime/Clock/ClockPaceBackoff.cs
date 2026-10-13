@@ -309,15 +309,15 @@ public sealed record StepPacing
     /// <summary>Reads the pace out of a status (Go <c>stepPacing</c>).</summary>
     public static StepPacing Of(PbClock.Status status)
     {
-        var pacing = new StepPacing { EffectiveTps = status.HasEffectiveTicksPerSecond ? status.EffectiveTicksPerSecond : 0 };
-        if (status.StateCase == PbClock.Status.StateOneofCase.Running && status.Running.Epoch is { } epoch)
+        var pacing = new StepPacing { EffectiveTps = status.EffectiveTicksPerSecond is not null ? status.EffectiveTicksPerSecond.GetValueOrDefault() : 0 };
+        if (status.State is PbClock.StatusState.RunningCase { Value.Epoch: { } epoch })
         {
             pacing = pacing with
             {
-                PacedTps = epoch.PacedTicksPerSecond,
-                Ceiling = epoch.MaxTicksPerSecond,
-                Player = epoch.HasPacing && epoch.Pacing == PbClock.Pacing.PlayerAccelerated,
-                Reason = epoch.HasPacingReason ? PacingReasonName(epoch.PacingReason) : "",
+                PacedTps = epoch.PacedTicksPerSecond.GetValueOrDefault(),
+                Ceiling = epoch.MaxTicksPerSecond.GetValueOrDefault(),
+                Player = epoch.Pacing is not null && epoch.Pacing.GetValueOrDefault() == PbClock.Pacing.PlayerAccelerated,
+                Reason = epoch.PacingReason is not null ? PacingReasonName(epoch.PacingReason.GetValueOrDefault()) : "",
             };
         }
         return pacing;

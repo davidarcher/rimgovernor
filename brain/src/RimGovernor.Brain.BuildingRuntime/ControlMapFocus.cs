@@ -20,9 +20,9 @@ public sealed partial class Session : IPlayerMapFocus, IPlayerMapFocusConfirmati
         }
         await _control.Config.StopWrites(ct).ConfigureAwait(false);
         var reply = await _control.Native.ReadAuthorityAsync(Control.ControlIdentity(target), ct).ConfigureAwait(false);
-        var status = reply.Status;
+        var status = reply.Outcome?.Status ?? throw new ControlException();
         Control.ControlStatus(reply, target);
-        if (status.Context.NativeGeneration != generation.Value || status.Inactive?.Reason != PbAuthority.RevocationReason.IdentityChanged)
+        if ((status.Context?.NativeGeneration).GetValueOrDefault() != generation.Value || status.State?.Inactive?.Reason != PbAuthority.RevocationReason.IdentityChanged)
         {
             throw new ControlException();
         }
@@ -39,6 +39,6 @@ public sealed partial class Session : IPlayerMapFocus, IPlayerMapFocusConfirmati
         await c.Config.StopWrites(ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
         var reply = await native.FocusMapAsync(new PbAuthority.FocusMap { Identity = Control.ControlIdentity(before), Target = Control.ControlIdentity(target), ExpectedGeneration = before.Native.Value }, ct).ConfigureAwait(false);
-        return new NativeGeneration(reply.FocusedMap?.Context?.NativeGeneration ?? 0);
+        return new NativeGeneration(reply.Outcome?.FocusedMap?.Context?.NativeGeneration ?? 0);
     }
 }

@@ -7,7 +7,7 @@
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite.Core" />
     <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" />
     <PackageReference Include="SourceGear.sqlite3" />

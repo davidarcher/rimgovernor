@@ -65,7 +65,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
         var reply = await reviewer.ColonyFactsAsync(native, identity, false, call).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new ControlException("step: observed == nil");
+        var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == nil");
         try
         {
             BridgeApi.ValidateColonyFacts(observed, identity);
@@ -76,7 +76,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
             throw new ControlException("step: colony facts rejected", e);
         }
 
-        if (observed.Context.Tick < review.Tick.Value)
+        if ((observed.Context?.Tick).GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("step: observed context older than the review");
         }
@@ -96,7 +96,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         var sources = ObservationPackage.ColonyAcquisition(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false));
         var stalledSources = new HashSet<string>();
         bool Medicine(AcquisitionSource row) => new Resource(row.Resource) == medicineResource;
-        foreach (var row in BuildingRuntimePackage.StalledDesignations(sources, false, new Tick(observed.Context.Tick), reviewer.Policy.AcquisitionProgress(), Medicine))
+        foreach (var row in BuildingRuntimePackage.StalledDesignations(sources, false, new Tick((observed.Context?.Tick).GetValueOrDefault()), reviewer.Policy.AcquisitionProgress(), Medicine))
         {
             stalledSources.Add(row.Id);
             var (stallMethod, stallPlan) = BuildingRuntimePackage.StallWithdraw(row);
@@ -382,7 +382,7 @@ internal static partial class BuildingRuntimePackage
 {
     internal const long AmputationRequeueTicks = GameTime.TicksPerHour;
 
-    internal static bool MedicalIssue(IReadOnlyList<O.ReadIssue> issues, string field) => issues.Any(issue => issue.Field == field);
+    internal static bool MedicalIssue(IReadOnlyList<O.ReadIssue> issues, string field) => issues.Any(issue => (issue.Field ?? "") == field);
 
     internal static string UnreadMedicalFact(MedicalReserveObservation facts)
     {

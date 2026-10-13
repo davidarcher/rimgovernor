@@ -127,7 +127,7 @@ public sealed class RoundsRepairPlanner
             throw new ControlException("step: emergency context", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("step: emergency read older than the review");
         }
@@ -139,7 +139,7 @@ public sealed class RoundsRepairPlanner
 
         var ids = emergency.Facts.Colonists.Select(c => c.Id.Value).ToList();
         var (reply, _) = await native.ReadTendPawnsAsync(identityRef, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new ControlException("step: observed == null");
+        var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == null");
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -158,12 +158,12 @@ public sealed class RoundsRepairPlanner
         var seen = new HashSet<string>();
         foreach (var row in observed.Pawns)
         {
-            if (row?.Pawn is null || !seen.Add(row.Pawn.Id))
+            if (row?.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("step: missing or duplicate pawn row");
             }
 
-            pawns.Add(RepairCandidateFactsOf(new PawnId(row.Pawn.Id), row));
+            pawns.Add(RepairCandidateFactsOf(new PawnId((row.Pawn.Id ?? "")), row));
         }
 
         var (structure, pawn, ok) = PolicyFunctions.SelectRepair(structures, pawns);
@@ -205,19 +205,19 @@ public sealed class RoundsRepairPlanner
         var facts = new RepairCandidateFacts
         {
             Pawn = pawn,
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
-            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
+            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
         };
         if (row.Job is not null && !Boundary.IssueField(row.Job.Issues, "player_forced"))
         {
-            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.HasPlayerForced, row.Job.PlayerForced) };
+            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.PlayerForced is not null, row.Job.PlayerForced.GetValueOrDefault()) };
         }
 
         if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts = facts with { NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend), Bleeding = Boundary.FactBool(health.HasBleeding, health.Bleeding) };
+            facts = facts with { NeedsTend = Boundary.FactBool(health.NeedsTend is not null, health.NeedsTend.GetValueOrDefault()), Bleeding = Boundary.FactBool(health.Bleeding is not null, health.Bleeding.GetValueOrDefault()) };
         }
 
         if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "work"))
@@ -232,17 +232,17 @@ public sealed class RoundsRepairPlanner
     {
         foreach (var w in work)
         {
-            if (w is null || w.DefName != "Construction")
+            if (w is null || (w.DefName ?? "") != "Construction")
             {
                 continue;
             }
 
-            if (!w.HasDisabled || !w.HasPriority)
+            if (w.Disabled is null || w.Priority is null)
             {
                 return Unknown<bool>();
             }
 
-            return Known(!w.Disabled && w.Priority > 0);
+            return Known(!w.Disabled.GetValueOrDefault() && w.Priority.GetValueOrDefault() > 0);
 
         }
 

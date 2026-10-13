@@ -232,12 +232,12 @@ public sealed partial class RoundsDefensePlanner
         if (ask.Propose == FormationRole.CoverBehindLine)
         {
             var cover = new M.CombatCoverBehindLine();
-            cover.Line.AddRange(line);
-            propose = new M.CombatGeometryPropose { CoverBehindLine = cover };
+            cover = cover with { Line = [.. cover.Line, .. line] };
+            propose = new M.CombatGeometryPropose { Role = cover };
         }
         else if (ask.Propose == FormationRole.AdjacentToChoke)
         {
-            propose = new M.CombatGeometryPropose { AdjacentToChoke = new M.CombatAdjacentToChoke { Choke = Wire(ask.Choke), OurSide = Wire(ask.OurSide) } };
+            propose = new M.CombatGeometryPropose { Role = new M.CombatAdjacentToChoke { Choke = Wire(ask.Choke), OurSide = Wire(ask.OurSide) } };
         }
         else if (ask.Propose == FormationRole.FiringCells)
         {
@@ -247,8 +247,8 @@ public sealed partial class RoundsDefensePlanner
                 targets = targets.Take(BridgeConstants.CombatGeometryMaxHostiles).ToList();
             }
             var firing = new M.CombatFiringCells { From = Wire(ask.From), Radius = BridgeConstants.CombatGeometryMaxRadius };
-            firing.Targets.AddRange(targets);
-            propose = new M.CombatGeometryPropose { FiringCells = firing };
+            firing = firing with { Targets = [.. firing.Targets, .. targets] };
+            propose = new M.CombatGeometryPropose { Role = firing };
         }
         reply = reply with { Role = ask.Propose };
         var named = ask.Line.ToList();
@@ -275,7 +275,7 @@ public sealed partial class RoundsDefensePlanner
         var cells = named.Select(Wire).ToList();
         var hostiles = ask.Hostiles.Select(h => h.Value).ToList();
         var request = BridgeApi.CombatGeometryAsk(identity, cells, hostiles, "");
-        request.Propose = propose;
+        request = request with { Propose = propose };
         M.CombatGeometry geometry;
         try
         {
@@ -290,17 +290,17 @@ public sealed partial class RoundsDefensePlanner
         var proposals = new List<Cell>();
         foreach (var row in geometry.Cells)
         {
-            if (row.Cell is { } cell && row.Standable)
+            if (row.Cell is { } cell && row.Standable.GetValueOrDefault())
             {
-                standable.Add(new Cell(cell.X, cell.Z));
+                standable.Add(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
             }
         }
         foreach (var row in geometry.Proposed)
         {
             if (row.Cell is { } cell)
             {
-                proposals.Add(new Cell(cell.X, cell.Z));
-                standable.Add(new Cell(cell.X, cell.Z));
+                proposals.Add(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
+                standable.Add(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
             }
         }
         var sightLines = new List<SightLine>();
@@ -311,9 +311,9 @@ public sealed partial class RoundsDefensePlanner
             var coverLines = new List<CoverLine>();
             foreach (var l in row.Lines)
             {
-                var hostile = new PawnId(l.HostileId);
-                coverLines.Add(new CoverLine { Hostile = hostile, Cover = l.Cover, HostileCover = l.HostileCover, LineOfFire = l.LineOfFire });
-                sightLines.Add(new SightLine { Cell = scoredAt, Hostile = hostile, LineOfFire = l.LineOfFire, ColonistInPath = l.ColonistInPath });
+                var hostile = new PawnId((l.HostileId ?? ""));
+                coverLines.Add(new CoverLine { Hostile = hostile, Cover = l.Cover.GetValueOrDefault(), HostileCover = l.HostileCover.GetValueOrDefault(), LineOfFire = l.LineOfFire.GetValueOrDefault() });
+                sightLines.Add(new SightLine { Cell = scoredAt, Hostile = hostile, LineOfFire = l.LineOfFire.GetValueOrDefault(), ColonistInPath = l.ColonistInPath.GetValueOrDefault() });
             }
             scoredCells.Add(new ScoredCell { Cell = scoredAt, Lines = [.. coverLines] });
         }
@@ -328,7 +328,7 @@ public sealed partial class RoundsDefensePlanner
             return reply;
         }
         var hostiles = ask.Hostiles.Select(h => h.Value).ToList();
-        var propose = new M.CombatGeometryPropose { RescuePath = new M.CombatRescuePath { To = new C.Cell { X = ask.To.X, Z = ask.To.Z } } };
+        var propose = new M.CombatGeometryPropose { Role = new M.CombatRescuePath { To = new C.Cell { X = ask.To.X, Z = ask.To.Z } } };
         M.CombatGeometry geometry;
         try
         {
@@ -344,7 +344,7 @@ public sealed partial class RoundsDefensePlanner
         {
             if (row.Cell is { } cell)
             {
-                route.Add(new RouteCell { Cell = new Cell(cell.X, cell.Z), LineOfFire = row.HostileLineOfFire, Door = row.Door });
+                route.Add(new RouteCell { Cell = new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()), LineOfFire = row.HostileLineOfFire.GetValueOrDefault(), Door = row.Door.GetValueOrDefault() });
             }
         }
         return reply with { Route = [.. route] };
@@ -361,47 +361,47 @@ internal static partial class BuildingRuntimePackage
         {
             foreach (var row in combat.Pawns)
             {
-                weapons.TryGetValue(row.Weapon, out var facts);
+                weapons.TryGetValue((row.Weapon ?? ""), out var facts);
                 var s = new CombatPawnState
                 {
-                    Id = new PawnId(row.Id),
-                    Downed = row.Downed,
-                    Dead = row.Dead,
-                    Target = new PawnId(row.TargetId),
-                    Stance = CombatStance(row.Stance),
-                    Weapon = row.Weapon,
+                    Id = new PawnId((row.Id ?? "")),
+                    Downed = row.Downed.GetValueOrDefault(),
+                    Dead = row.Dead.GetValueOrDefault(),
+                    Target = new PawnId((row.TargetId ?? "")),
+                    Stance = CombatStance(row.Stance.GetValueOrDefault()),
+                    Weapon = (row.Weapon ?? ""),
                     WeaponFacts = facts ?? new(),
                     WeaponRange = facts?.Reach ?? 0,
-                    FireMode = BridgeApi.FireModeName(row.FireMode),
-                    Job = row.Job,
-                    TargetMortar = row.TargetMortar,
-                    ShieldBelt = row.ShieldBelt,
-                    MedicalSkill = row.MedicalSkill,
-                    MoveSpeed = row.MoveSpeed,
-                    StunTicks = row.StunTicksLeft,
-                    GoJuice = row.GoJuiceHigh,
-                    Luciferium = row.LuciferiumAddicted,
-                    Animal = row.Side == M.CombatSide.ColonyAnimal,
+                    FireMode = BridgeApi.FireModeName(row.FireMode.GetValueOrDefault()),
+                    Job = row.Job ?? "",
+                    TargetMortar = row.TargetMortar.GetValueOrDefault(),
+                    ShieldBelt = row.ShieldBelt.GetValueOrDefault(),
+                    MedicalSkill = row.MedicalSkill.GetValueOrDefault(),
+                    MoveSpeed = row.MoveSpeed.GetValueOrDefault(),
+                    StunTicks = row.StunTicksLeft.GetValueOrDefault(),
+                    GoJuice = row.GoJuiceHigh.GetValueOrDefault(),
+                    Luciferium = row.LuciferiumAddicted.GetValueOrDefault(),
+                    Animal = row.Side.GetValueOrDefault() == M.CombatSide.ColonyAnimal,
                 };
                 if (row.CarriedDrugs is { } drugs)
                 {
                     s = s with { CarriedDrugs = Known<EquatableArray<string>>([.. drugs.Defs]) };
                 }
-                if (row.Cell is { HasX: true, HasZ: true } cell)
+                if (row.Cell is { X: not null, Z: not null } cell)
                 {
-                    s = s with { Cell = Known(new Cell(cell.X, cell.Z)) };
+                    s = s with { Cell = Known(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault())) };
                 }
-                if (row.HasShieldEnergy)
+                if (row.ShieldEnergy is not null)
                 {
-                    s = s with { Shield = Known(row.ShieldEnergy) };
+                    s = s with { Shield = Known(row.ShieldEnergy.GetValueOrDefault()) };
                 }
-                s = s with { Prisoner = row.Side == M.CombatSide.Prisoner };
-                s = s with { Wild = row.Side == M.CombatSide.WildAnimal };
-                if (row.HasHealth)
+                s = s with { Prisoner = row.Side.GetValueOrDefault() == M.CombatSide.Prisoner };
+                s = s with { Wild = row.Side.GetValueOrDefault() == M.CombatSide.WildAnimal };
+                if (row.Health is not null)
                 {
-                    s = s with { Health = Known(row.Health) };
+                    s = s with { Health = Known(row.Health.GetValueOrDefault()) };
                 }
-                rows.TryGetValue(row.Id, out var pawnRow);
+                rows.TryGetValue((row.Id ?? ""), out var pawnRow);
                 output.Add(ThreatFacts(s, pawnRow, combat.Catalog ?? throw new ControlException("combat pawn states: no definition catalog")));
             }
             return output;
@@ -411,10 +411,10 @@ internal static partial class BuildingRuntimePackage
         foreach (var id in ids)
         {
             var row = rows[id];
-            var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead };
-            if (row.Pawn?.Position is { HasX: true, HasZ: true } position)
+            var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed.GetValueOrDefault(), Dead = row.Dead.GetValueOrDefault() };
+            if (row.Pawn?.Position is { X: not null, Z: not null } position)
             {
-                s = s with { Cell = Known(new Cell(position.X, position.Z)) };
+                s = s with { Cell = Known(new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault())) };
             }
             output.Add(ThreatFacts(s, row, combat.Catalog ?? throw new ControlException("combat pawn states: no definition catalog")));
         }
@@ -445,26 +445,26 @@ internal static partial class BuildingRuntimePackage
         {
             return s;
         }
-        s = s with { Kind = row.KindDefName };
+        s = s with { Kind = row.KindDefName ?? "" };
         var (mech, insect) = catalog.RaceFlags(row.Pawn?.DefName ?? "");
         s = s with { Mech = mech, Insect = insect };
         if (row.Health is { } h)
         {
-            if (h.HasBloodLoss)
+            if (h.BloodLoss is not null)
             {
-                s = s with { BloodLoss = Known(h.BloodLoss) };
+                s = s with { BloodLoss = Known(h.BloodLoss.GetValueOrDefault()) };
             }
-            if (h.HasBleedRatePerDay)
+            if (h.BleedRatePerDay is not null)
             {
-                s = s with { BleedRatePerDay = Known(h.BleedRatePerDay) };
+                s = s with { BleedRatePerDay = Known(h.BleedRatePerDay.GetValueOrDefault()) };
             }
-            if (h.HasHoursUntilDeathFromBloodLoss)
+            if (h.HoursUntilDeathFromBloodLoss is not null)
             {
-                s = s with { HoursUntilBleedDeath = Known(h.HoursUntilDeathFromBloodLoss) };
+                s = s with { HoursUntilBleedDeath = Known(h.HoursUntilDeathFromBloodLoss.GetValueOrDefault()) };
             }
         }
         var toil = row.LordToilClass ?? "";
-        s = s with { Sapper = toil.Contains("Sapper", StringComparison.Ordinal) || toil.Contains("Breach", StringComparison.Ordinal) || row.Job?.DefName == "Mine" };
+        s = s with { Sapper = toil.Contains("Sapper", StringComparison.Ordinal) || toil.Contains("Breach", StringComparison.Ordinal) || (row.Job?.DefName ?? "") == "Mine" };
         return s;
     }
 
@@ -484,7 +484,7 @@ internal static partial class BuildingRuntimePackage
         M.CombatEventRow? newest = null;
         foreach (var row in combat.Events)
         {
-            if (!row.HasStop || row.At.Tick <= since.Value)
+            if (row.Stop is null || (row.At?.Tick).GetValueOrDefault() <= since.Value)
             {
                 continue;
             }
@@ -497,7 +497,7 @@ internal static partial class BuildingRuntimePackage
         {
             return new StopEvent();
         }
-        return new StopEvent { Kind = new CombatStopKind(StopKindName(newest.Stop)), Pawn = new PawnId(newest.ThingId), Target = new PawnId(newest.TargetId) };
+        return new StopEvent { Kind = new CombatStopKind(StopKindName(newest.Stop.GetValueOrDefault())), Pawn = new PawnId((newest.ThingId ?? "")), Target = new PawnId((newest.TargetId ?? "")) };
     }
 
     /// <summary>The wire name of a combat stop event, lower snake case.</summary>

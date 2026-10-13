@@ -72,7 +72,7 @@ public sealed class BuildingBoundary : IBoundary
     public PbCommon.AttemptKey Attempt(Placement p)
     {
         var key = new PbCommon.AttemptKey { ControllerSessionId = _session, ActionId = p.Action.Id.Value };
-        key.AttemptId = p.Attempt.Value;
+        key = key with { AttemptId = p.Attempt.Value };
         return key;
     }
 }
@@ -116,16 +116,16 @@ public static class Boundary
     public static GenerationSnapshot Context(PbCommon.ObservationContext? v, GenerationSnapshot expected)
     {
         BridgeApi.ValidateContext(v);
-        if (v is null || !v.HasNativeGeneration || v.NativeGeneration != expected.Native.Value)
+        if (v is null || v.Identity is null || v.NativeGeneration is null || v.NativeGeneration.GetValueOrDefault() != expected.Native.Value)
         {
             throw new AuthorityException();
         }
         var output = expected with
         {
-            Colony = new ColonyId(v.Identity.ColonyId),
-            Load = new LoadId(v.Identity.LoadToken),
-            Map = new MapId(v.Identity.MapId),
-            Native = new NativeGeneration(v.NativeGeneration),
+            Colony = new ColonyId((v.Identity.ColonyId ?? "")),
+            Load = new LoadId((v.Identity.LoadToken ?? "")),
+            Map = new MapId(v.Identity.MapId.GetValueOrDefault()),
+            Native = new NativeGeneration(v.NativeGeneration.GetValueOrDefault()),
         };
         if (!World(output, expected))
         {
@@ -137,8 +137,8 @@ public static class Boundary
     /// <summary>Checks that a receipt answers exactly the placement's attempt and was admitted in its world.</summary>
     public static void Admission(PbReceipts.Receipt? receipt, Placement placement, string session)
     {
-        if (receipt is null || receipt.Attempt is null || receipt.Attempt.ControllerSessionId != session
-            || receipt.Attempt.ActionId != placement.Action.Id.Value || receipt.Attempt.AttemptId != placement.Attempt.Value)
+        if (receipt is null || receipt.Attempt is null || (receipt.Attempt.ControllerSessionId ?? "") != session
+            || (receipt.Attempt.ActionId ?? "") != placement.Action.Id.Value || receipt.Attempt.AttemptId.GetValueOrDefault() != placement.Attempt.Value)
         {
             throw new EvidenceException();
         }
@@ -153,17 +153,18 @@ public static class Boundary
     public static Domain.Observation Unadmitted(PbReceipts.LookupReply lookup, Placement placement, GenerationSnapshot current)
     {
         var output = new Domain.Observation(placement.Action.Id, placement.Attempt, current, default, Effect.Unknown);
-        switch (lookup.OutcomeCase)
+        switch (lookup.Outcome)
         {
-            case PbReceipts.LookupReply.OutcomeOneofCase.InFlight:
+            case PbReceipts.LookupReplyOutcome.InFlightCase:
                 throw new HeldException($"attempt {placement.Attempt} is admitted and still in flight");
-            case PbReceipts.LookupReply.OutcomeOneofCase.Unknown:
-                var observed = Context(lookup.Unknown.Context, current);
-                if (lookup.Unknown.Context.Tick < placement.Tick.Value)
+            case PbReceipts.LookupReplyOutcome.UnknownCase { Value: var unknown }:
+                var observed = Context(unknown.Context, current);
+                var unknownTick = (unknown.Context?.Tick).GetValueOrDefault();
+                if (unknownTick < placement.Tick.Value)
                 {
                     throw new EvidenceException();
                 }
-                return output with { Snapshot = observed, Tick = new Tick(lookup.Unknown.Context.Tick), Causality = ObservationCausality.AfterDispatch, Effect = Effect.Absent };
+                return output with { Snapshot = observed, Tick = new Tick(unknownTick), Causality = ObservationCausality.AfterDispatch, Effect = Effect.Absent };
             default:
                 throw new EvidenceException();
         }
@@ -188,7 +189,7 @@ public static class Boundary
         }
         foreach (var issue in issues)
         {
-            if (issue.Field == field && issue.Unavailable?.Reason == PbCommon.UnavailableReason.NotApplicable)
+            if ((issue.Field ?? "") == field && (issue.Unavailable?.Reason).GetValueOrDefault() == PbCommon.UnavailableReason.NotApplicable)
             {
                 return Known(false);
             }
@@ -199,23 +200,23 @@ public static class Boundary
     public static string PawnToken(PbObservations.PawnState row, PbCommon.ObservationContext ctx)
     {
         var reference = row.PawnSnapshot;
-        if (reference is null || reference.EntityId != row.Pawn?.Id || !reference.Context.Equals(ctx) || !ValidId(reference.Token))
+        if (reference is null || (reference.EntityId ?? "") != (row.Pawn?.Id ?? "") || !Equals(reference.Context, ctx) || reference.Token is not { } token || !ValidId(token))
         {
             throw new HeldException();
         }
-        return reference.Token;
+        return token;
     }
 
-    public static PbReceipts.JobEffect? ReceiptJob(PbReceipts.Receipt? receipt) => receipt?.OutcomeCase switch
+    public static PbReceipts.JobEffect? ReceiptJob(PbReceipts.Receipt? receipt) => receipt?.Outcome switch
     {
-        PbReceipts.Receipt.OutcomeOneofCase.Applied => receipt.Applied.Observed?.Job,
-        PbReceipts.Receipt.OutcomeOneofCase.NoChange => receipt.NoChange.Observed?.Job,
-        PbReceipts.Receipt.OutcomeOneofCase.Uncertain => receipt.Uncertain.LastObserved?.Job,
+        PbReceipts.ReceiptOutcome.AppliedCase c => c.Value.Observed?.Effect?.Job,
+        PbReceipts.ReceiptOutcome.NoChangeCase c => c.Value.Observed?.Effect?.Job,
+        PbReceipts.ReceiptOutcome.UncertainCase c => c.Value.LastObserved?.Effect?.Job,
         _ => null,
     };
 
     /// <summary>Whether issues names field: the shared "unresolved native issue" check of every pawn-order boundary.</summary>
-    public static bool IssueField(IEnumerable<PbObservations.ReadIssue> issues, string field) => issues.Any(issue => issue.Field == field);
+    public static bool IssueField(IEnumerable<PbObservations.ReadIssue> issues, string field) => issues.Any(issue => (issue.Field ?? "") == field);
 
     /// <summary>
     /// Whether the observed timetable slots are exactly the wanted hour-indexed assignment list: every hour present
@@ -230,11 +231,11 @@ public static class Boundary
         var seen = new bool[24];
         foreach (var slot in slots)
         {
-            if (slot is null || !slot.HasHour || !slot.HasAssignmentDefName || slot.Hour >= 24 || seen[slot.Hour] || slot.AssignmentDefName != wanted[(int)slot.Hour])
+            if (slot is null || slot.Hour is null || slot.AssignmentDefName is null || slot.Hour.GetValueOrDefault() >= 24 || seen[slot.Hour.GetValueOrDefault()] || (slot.AssignmentDefName ?? "") != wanted[(int)slot.Hour.GetValueOrDefault()])
             {
                 return false;
             }
-            seen[slot.Hour] = true;
+            seen[slot.Hour.GetValueOrDefault()] = true;
         }
         return true;
     }
@@ -301,13 +302,12 @@ public static class Boundary
         for (var i = 0; i < results.Count; i++)
         {
             var result = results[i];
-            var applied = result.Applied?.Applied;
-            if (applied is not null)
+            if (result.Outcome?.Applied is { } appliedReceipt && appliedReceipt.Outcome?.Applied is { } applied)
             {
                 output[i].Kind = Domain.Receipt.Accepted;
                 if (placements[i].Action.Kind == ActionKind.CombatBatch)
                 {
-                    foreach (var r in BridgeApi.CombatOrderResults(result.Applied!, actions[i].CombatOrders))
+                    foreach (var r in BridgeApi.CombatOrderResults(appliedReceipt, actions[i].Intent?.CombatOrders ?? throw new EvidenceException()))
                     {
                         RecordCombatOrder(r);
                         output[i].Combat.Add(new CombatResult { Index = r.Index, PawnId = r.PawnId, Applied = r.Applied, Refusal = r.Refusal, JobDef = r.JobDef });
@@ -315,7 +315,7 @@ public static class Boundary
                 }
                 if (placements[i].Action.Kind == ActionKind.ZoneCreate)
                 {
-                    var effect = applied.Observed?.Zone;
+                    var effect = applied.Observed?.Effect?.Zone;
                     var zone = placements[i].Action.ZoneCreate!;
                     if (zone.Kind == Domain.ZoneKind.Stockpile)
                     {
@@ -324,13 +324,13 @@ public static class Boundary
                             var cells = new List<Cell>();
                             foreach (var c in row.Cells)
                             {
-                                if (c is null || !c.HasX || !c.HasZ)
+                                if (c is null || c.X is not { } cellX || c.Z is not { } cellZ)
                                 {
                                     throw new EvidenceException();
                                 }
-                                cells.Add(new Cell(c.X, c.Z));
+                                cells.Add(new Cell(cellX, cellZ));
                             }
-                            output[i].Stockpiles.Add(new CreatedZone(row.ZoneId, cells));
+                            output[i].Stockpiles.Add(new Domain.CreatedZone(row.ZoneId ?? "", cells));
                         }
                         try
                         {
@@ -352,15 +352,15 @@ public static class Boundary
                     output[i].Bill = AppliedBill(applied.Observed);
                 }
             }
-            else if (result.Refused is { } refused)
+            else if (result.Outcome?.Refused is { } refused)
             {
                 output[i].Kind = Domain.Receipt.Refused;
-                output[i].Refusal = NativeRefusalOf(refused.Code, refused.Reason, refused.RefusalClass);
+                output[i].Refusal = NativeRefusalOf(refused.Code.GetValueOrDefault(), (refused.Reason ?? ""), refused.RefusalClass.GetValueOrDefault());
             }
-            else if (result.Failed is { } failed && failed.Code != PbCommon.FailureCode.AttemptConflict)
+            else if (result.Outcome?.Failed is { } failed && failed.Code.GetValueOrDefault() != PbCommon.FailureCode.AttemptConflict)
             {
                 output[i].Kind = Domain.Receipt.Refused;
-                output[i].Refusal = NativeRefusalOf(failed.Code, failed.Detail, failed.RefusalClass);
+                output[i].Refusal = NativeRefusalOf(failed.Code.GetValueOrDefault(), (failed.Detail ?? ""), failed.RefusalClass.GetValueOrDefault());
             }
         }
         return output;
@@ -369,8 +369,8 @@ public static class Boundary
     /// <summary>The native bill id a bill-placing receipt's evidence names: BillEffect for an ordinary or mech bill, SurgeryEffect for a medical one.</summary>
     private static string AppliedBill(PbReceipts.EffectEvidence? evidence)
     {
-        var id = evidence?.Bill?.Bill?.Id ?? "";
-        return id.Length != 0 ? id : evidence?.SurgeryBill?.Bill?.Id ?? "";
+        var id = evidence?.Effect?.Bill?.Bill?.Id ?? "";
+        return id.Length != 0 ? id : evidence?.Effect?.SurgeryBill?.Bill?.Id ?? "";
     }
 
     /// <summary>A refused receipt's journal record: native's failure code, its reason text and the class it assigned. A refusal naming no class is unknown.</summary>

@@ -1,7 +1,7 @@
 using System.Collections.Frozen;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using Op = RimGovernor.Protocol.Operations;
-using WireRef = RimGovernor.Protocol.Common.Ref;
+using Op = RimGovernor.Contracts.Wire.Operations;
+using WireRef = RimGovernor.Contracts.Wire.Common.Ref;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -123,7 +123,7 @@ public static partial class BridgeFunctions
             throw Contract("intent key invalid");
         }
         var wire = build(action);
-        wire.Key = key;
+        wire = wire with { Key = key };
         return wire;
     }
 

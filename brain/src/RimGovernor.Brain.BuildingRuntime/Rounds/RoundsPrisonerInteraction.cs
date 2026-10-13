@@ -194,7 +194,7 @@ public sealed class RoundsPrisonerInteractionPlanner
             throw new ControlException("markJailBed: context", e);
         }
 
-        if (target.Context is not { } targetContext || targetContext.Tick < facts.Identity.Tick.Value)
+        if (target.Context is not { } targetContext || targetContext.Tick.GetValueOrDefault() < facts.Identity.Tick.Value)
         {
             throw new ControlException("markJailBed: target read older than the facts");
         }

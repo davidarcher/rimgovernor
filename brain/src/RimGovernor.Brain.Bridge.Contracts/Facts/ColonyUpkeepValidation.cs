@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -13,7 +13,7 @@ public static partial class BridgeFunctions
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var reference in references)
         {
-            if (!ValidRef(reference) || !seen.Add(reference.Id))
+            if (!ValidRef(reference) || !seen.Add((reference.Id ?? "")))
             {
                 return false;
             }
@@ -50,7 +50,7 @@ public static partial class BridgeFunctions
         {
             counts["routes"] = 1;
         }
-        if (v.Issues.Any(issue => counts.TryGetValue(issue.Field, out var count) && count != 0))
+        if (v.Issues.Any(issue => counts.TryGetValue((issue.Field ?? ""), out var count) && count != 0))
         {
             throw Contract("unavailable upkeep section contains rows");
         }
@@ -59,8 +59,8 @@ public static partial class BridgeFunctions
         {
             if (row is null
                 || !UniqueRef(row.Item, seen)
-                || (row.HasCount && row.Count < 0)
-                || (row.HasRotTicks && row.RotTicks < 0)
+                || (row.Count is not null && row.Count.GetValueOrDefault() < 0)
+                || (row.RotTicks is not null && row.RotTicks.GetValueOrDefault() < 0)
                 || !OnlyFields(row, "item", "count", "roofed", "in_storage", "rot_ticks", "forbidden"))
             {
                 throw Contract("invalid upkeep item");
@@ -81,7 +81,7 @@ public static partial class BridgeFunctions
         seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in v.Fires)
         {
-            if (row is null || !UniqueRef(row.Fire, seen) || !NonNegativeNumber(row.HasSize, row.Size) || !OnlyFields(row, "fire", "size", "home"))
+            if (row is null || !UniqueRef(row.Fire, seen) || !NonNegativeNumber(row.Size is not null, row.Size.GetValueOrDefault()) || !OnlyFields(row, "fire", "size", "home"))
             {
                 throw Contract("invalid upkeep fire");
             }
@@ -91,7 +91,7 @@ public static partial class BridgeFunctions
         {
             if (row is null
                 || !UniqueRef(row.Filth, seen)
-                || (row.HasRoomRole && !IsValidId(row.RoomRole))
+                || (row.RoomRole is not null && !IsValidId((row.RoomRole ?? "")))
                 || !OptionalRef(row.Room)
                 || !OnlyFields(row, "filth", "home", "thickness", "room_role", "room"))
             {
@@ -104,10 +104,10 @@ public static partial class BridgeFunctions
             if (row is null
                 || !UniqueRef(row.Pawn, seen)
                 || !OptionalRef(row.OwnedBed)
-                || !FiniteNumber(row.HasComfortableMinC, row.ComfortableMinC)
-                || !FiniteNumber(row.HasComfortableMaxC, row.ComfortableMaxC)
-                || !FiniteNumber(row.HasTemperatureC, row.TemperatureC)
-                || (row.HasComfortableMinC && row.HasComfortableMaxC && row.ComfortableMinC > row.ComfortableMaxC)
+                || !FiniteNumber(row.ComfortableMinC is not null, row.ComfortableMinC.GetValueOrDefault())
+                || !FiniteNumber(row.ComfortableMaxC is not null, row.ComfortableMaxC.GetValueOrDefault())
+                || !FiniteNumber(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault())
+                || (row.ComfortableMinC is not null && row.ComfortableMaxC is not null && row.ComfortableMinC.GetValueOrDefault() > row.ComfortableMaxC.GetValueOrDefault())
                 || !ValidRefs(row.Partners)
                 || !ValidTitle(row)
                 || !OnlyFields(
@@ -131,13 +131,13 @@ public static partial class BridgeFunctions
         {
             if (row is null
                 || !UniqueRef(row.Bed, seen)
-                || !FiniteNumber(row.HasTemperatureC, row.TemperatureC)
+                || !FiniteNumber(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault())
                 || !ValidRefs(row.Owners)
                 || !ValidRefs(row.Users)
                 || !ValidRefs(row.AccessibleTo)
                 || !OptionalRef(row.Room)
-                || (row.HasQuality && !IsValidId(row.Quality))
-                || (row.HasStuff && !IsValidId(row.Stuff))
+                || (row.Quality is not null && !IsValidId((row.Quality ?? "")))
+                || (row.Stuff is not null && !IsValidId((row.Stuff ?? "")))
                 || !OnlyFields(
                     row,
                     "bed",
@@ -163,7 +163,7 @@ public static partial class BridgeFunctions
             {
                 throw Contract("invalid upkeep animal");
             }
-            if ((row.HasRequiresPen && !row.RequiresPen && row.SuitablePen is not null) || !OnlyFields(row, "pawn", "requires_pen", "suitable_pen"))
+            if ((row.RequiresPen is not null && !row.RequiresPen.GetValueOrDefault() && row.SuitablePen is not null) || !OnlyFields(row, "pawn", "requires_pen", "suitable_pen"))
             {
                 throw Contract("conflicting upkeep animal fields");
             }
@@ -174,7 +174,7 @@ public static partial class BridgeFunctions
         seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in v.WildAnimals)
         {
-            if (row is null || !UniqueRef(row.Pawn, seen) || (row.HasRequiresPen && row.RequiresPen) || !OnlyFields(row, "pawn", "requires_pen"))
+            if (row is null || !UniqueRef(row.Pawn, seen) || (row.RequiresPen is not null && row.RequiresPen.GetValueOrDefault()) || !OnlyFields(row, "pawn", "requires_pen"))
             {
                 throw Contract("invalid wild animal");
             }
@@ -199,13 +199,13 @@ public static partial class BridgeFunctions
 
     private static void ValidateHomeCoverage(HomeCoverageSection section, MapSize? size)
     {
-        var h = section.Observed;
+        var h = section.Outcome?.Observed;
         if (h is null)
         {
-            ValidateUnavailable(section.Unavailable);
+            ValidateUnavailable(section.Outcome?.Unavailable);
             return;
         }
-        if (!h.HasRevision || h.Revision < 0)
+        if (h.Revision is null || h.Revision.GetValueOrDefault() < 0)
         {
             throw Contract("invalid Home coverage census");
         }
@@ -213,26 +213,26 @@ public static partial class BridgeFunctions
         foreach (var row in h.Targets)
         {
             if (row is null
-                || !IsValidId(row.Id)
-                || seen.Contains(row.Id)
+                || !IsValidId((row.Id ?? ""))
+                || seen.Contains((row.Id ?? ""))
                 || row.Snapshot is not null
-                || (row.HasShapeToken && !IsValidId(row.ShapeToken))
-                || !Diagnostic(row.HasBlocker, row.Blocker)
-                || (row.HasExcludedCells && row.HasMissingCells && row.ExcludedCells > row.MissingCells))
+                || (row.ShapeToken is not null && !IsValidId((row.ShapeToken ?? "")))
+                || !Diagnostic(row.Blocker is not null, (row.Blocker ?? ""))
+                || (row.ExcludedCells is not null && row.MissingCells is not null && row.ExcludedCells.GetValueOrDefault() > row.MissingCells.GetValueOrDefault()))
             {
                 throw Contract("invalid Home coverage target");
             }
-            seen.Add(row.Id);
+            seen.Add((row.Id ?? ""));
             if (row.ExtentGeometry is { } g)
             {
-                if (row.Blocker.Length != 0)
+                if ((row.Blocker ?? "").Length != 0)
                 {
                     throw Contract("invalid complete Home extent geometry");
                 }
                 var geometryCells = new HashSet<(int, int)>();
                 foreach (var cell in g.EnclosedInterior.Concat(g.Corridor).Concat(g.Zone))
                 {
-                    if (!ColonyCell(cell, size) || !geometryCells.Add((cell.X, cell.Z)))
+                    if (!ColonyCell(cell, size) || !geometryCells.Add((cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault())))
                     {
                         throw Contract("invalid Home extent cell");
                     }
@@ -245,12 +245,12 @@ public static partial class BridgeFunctions
                 {
                     throw Contract("invalid Home coverage cell");
                 }
-                if (!cells.Add((cell.X, cell.Z)))
+                if (!cells.Add((cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault())))
                 {
                     throw Contract("duplicate Home cell");
                 }
             }
-            if (row.Cells.Count > 0 && row.HasMissingCells && row.MissingCells > (uint)row.Cells.Count)
+            if (row.Cells.Count > 0 && row.MissingCells is not null && row.MissingCells.GetValueOrDefault() > (uint)row.Cells.Count)
             {
                 throw Contract("Home deficit exceeds footprint");
             }
@@ -259,7 +259,7 @@ public static partial class BridgeFunctions
 
     /// <summary>Go's <c>validTitle</c>: a person's royal title and each precept are definition names.</summary>
     private static bool ValidTitle(UpkeepPerson p) =>
-        (!p.HasRoyalTitle || IsValidId(p.RoyalTitle)) && p.Precepts.All(IsValidId);
+        (p.RoyalTitle is null || IsValidId((p.RoyalTitle ?? ""))) && p.Precepts.All(IsValidId);
 
     /// <summary>
     /// Go's <c>validateRoutes</c>: unique facility refs at in-map cells, each travel row naming a listed pawn once
@@ -268,13 +268,13 @@ public static partial class BridgeFunctions
     /// </summary>
     private static void ValidateRoutes(RoutesSection section, MapSize? size)
     {
-        var f = section.Observed;
+        var f = section.Outcome?.Observed;
         if (f is null)
         {
-            ValidateUnavailable(section.Unavailable);
+            ValidateUnavailable(section.Outcome?.Unavailable);
             return;
         }
-        if (!OnlyFields(f, "facilities", "pawn_ids", "traffic", "traffic_samples", "traffic_since_tick") || (f.HasTrafficSinceTick && f.TrafficSinceTick < 0))
+        if (!OnlyFields(f, "facilities", "pawn_ids", "traffic", "traffic_samples", "traffic_since_tick") || (f.TrafficSinceTick is not null && f.TrafficSinceTick.GetValueOrDefault() < 0))
         {
             throw Contract("invalid routes facts");
         }
@@ -291,7 +291,7 @@ public static partial class BridgeFunctions
         {
             if (row is null
                 || !UniqueRef(row.Facility, seen)
-                || RouteKindName(row.Kind).Length == 0
+                || RouteKindName(row.Kind.GetValueOrDefault()).Length == 0
                 || !ColonyCell(row.Cell, size)
                 || !OptionalRef(row.Room)
                 || !OnlyFields(row, "facility", "kind", "cell", "room", "travel", "breaches"))
@@ -302,31 +302,31 @@ public static partial class BridgeFunctions
             foreach (var t in row.Travel)
             {
                 if (t is null
-                    || !pawns.Contains(t.PawnId)
-                    || travelled.Contains(t.PawnId)
-                    || (t.HasPathCost && (t.PathCost < 0 || !t.Reachable))
-                    || (t.HasPathCells && (t.PathCells < 0 || !t.Reachable))
-                    || (t.HasPathSkipped && (!t.Reachable || t.HasPathCost || t.HasPathCells))
+                    || !pawns.Contains((t.PawnId ?? ""))
+                    || travelled.Contains((t.PawnId ?? ""))
+                    || (t.PathCost is not null && (t.PathCost.GetValueOrDefault() < 0 || !t.Reachable.GetValueOrDefault()))
+                    || (t.PathCells is not null && (t.PathCells.GetValueOrDefault() < 0 || !t.Reachable.GetValueOrDefault()))
+                    || (t.PathSkipped is not null && (!t.Reachable.GetValueOrDefault() || t.PathCost is not null || t.PathCells is not null))
                     || !OnlyFields(t, "pawn_id", "reachable", "path_cost", "path_cells", "path_skipped"))
                 {
                     throw Contract("invalid routes travel");
                 }
-                travelled.Add(t.PawnId);
+                travelled.Add((t.PawnId ?? ""));
             }
             var cells = new HashSet<(int, int)>();
             foreach (var b in row.Breaches)
             {
                 if (b is null
                     || !ColonyCell(b.Cell, size)
-                    || !b.HasEdifice
-                    || !IsValidId(b.Edifice)
-                    || (b.HasPending && !IsValidId(b.Pending))
-                    || (b.HasDistance && b.Distance < 0)
+                    || b.Edifice is null
+                    || !IsValidId((b.Edifice ?? ""))
+                    || (b.Pending is not null && !IsValidId((b.Pending ?? "")))
+                    || (b.Distance is not null && b.Distance.GetValueOrDefault() < 0)
                     || !OnlyFields(b, "cell", "edifice", "pending", "distance"))
                 {
                     throw Contract("invalid routes breach");
                 }
-                if (!cells.Add((b.Cell.X, b.Cell.Z)))
+                if (!cells.Add((b.Cell.X.GetValueOrDefault(), b.Cell.Z.GetValueOrDefault())))
                 {
                     throw Contract("routes breaches overlap");
                 }
@@ -341,13 +341,13 @@ public static partial class BridgeFunctions
                 || !ColonyCell(t.Cell, size)
                 || t.Layer < TrafficLayer.Colonist
                 || t.Layer > TrafficLayer.Hostile
-                || (t.HasTerrain && !IsValidId(t.Terrain))
-                || (t.HasPending && !IsValidId(t.Pending))
+                || (t.Terrain is not null && !IsValidId((t.Terrain ?? "")))
+                || (t.Pending is not null && !IsValidId((t.Pending ?? "")))
                 || !OnlyFields(t, "cell", "samples", "terrain", "home", "pending", "layer"))
             {
                 throw Contract("invalid traffic cell");
             }
-            if (!layered.Add(((int)t.Layer, t.Cell.X, t.Cell.Z)))
+            if (!layered.Add(((int)t.Layer, t.Cell.X.GetValueOrDefault(), t.Cell.Z.GetValueOrDefault())))
             {
                 throw Contract("traffic cells overlap");
             }
@@ -357,10 +357,10 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>validateFlooring</c>: unique rooms of unique in-map cells, each naming a terrain (the catalog prices it).</summary>
     private static void ValidateFlooring(FlooringSection section, MapSize? size)
     {
-        var f = section.Observed;
+        var f = section.Outcome?.Observed;
         if (f is null)
         {
-            ValidateUnavailable(section.Unavailable);
+            ValidateUnavailable(section.Outcome?.Unavailable);
             return;
         }
         var rooms = new HashSet<string>(StringComparer.Ordinal);
@@ -369,25 +369,25 @@ public static partial class BridgeFunctions
         {
             if (room is null
                 || !IsValidId(room.Room?.Id ?? "")
-                || rooms.Contains(room.Room!.Id)
-                || (room.HasRole && !IsValidId(room.Role))
+                || rooms.Contains((room.Room!.Id ?? ""))
+                || (room.Role is not null && !IsValidId((room.Role ?? "")))
                 || !OnlyFields(room, "room", "role", "cells"))
             {
                 throw Contract("invalid flooring room");
             }
-            rooms.Add(room.Room.Id);
+            rooms.Add((room.Room.Id ?? ""));
             foreach (var cell in room.Cells)
             {
                 if (cell is null
                     || !ColonyCell(cell.Cell, size)
-                    || !cell.HasTerrain
-                    || !IsValidId(cell.Terrain)
-                    || (cell.HasPending && !IsValidId(cell.Pending))
+                    || cell.Terrain is null
+                    || !IsValidId((cell.Terrain ?? ""))
+                    || (cell.Pending is not null && !IsValidId((cell.Pending ?? "")))
                     || !OnlyFields(cell, "cell", "terrain", "pending"))
                 {
                     throw Contract("invalid flooring cell");
                 }
-                if (!cells.Add((cell.Cell.X, cell.Cell.Z)))
+                if (!cells.Add((cell.Cell.X.GetValueOrDefault(), cell.Cell.Z.GetValueOrDefault())))
                 {
                     throw Contract("flooring cells overlap");
                 }
@@ -401,10 +401,10 @@ public static partial class BridgeFunctions
     /// </summary>
     private static void ValidateLighting(LightingSection section, MapSize? size)
     {
-        var l = section.Observed;
+        var l = section.Outcome?.Observed;
         if (l is null)
         {
-            ValidateUnavailable(section.Unavailable);
+            ValidateUnavailable(section.Outcome?.Unavailable);
             return;
         }
         var benches = new HashSet<string>(StringComparer.Ordinal);
@@ -418,7 +418,7 @@ public static partial class BridgeFunctions
             {
                 throw Contract("invalid lighting work cell");
             }
-            if (row.HasGlow && (double.IsNaN(row.Glow) || row.Glow < 0 || row.Glow > 1))
+            if (row.Glow is not null && (double.IsNaN(row.Glow.GetValueOrDefault()) || row.Glow.GetValueOrDefault() < 0 || row.Glow.GetValueOrDefault() > 1))
             {
                 throw Contract("invalid lighting glow");
             }
@@ -464,16 +464,16 @@ public static partial class BridgeFunctions
         var home = new HashSet<(int, int)>();
         foreach (var cell in v.HomeCells)
         {
-            if (!ColonyCell(cell, size) || !home.Add((cell.X, cell.Z)))
+            if (!ColonyCell(cell, size) || !home.Add((cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault())))
             {
                 throw Contract("invalid home cell");
             }
         }
         PawnsIssues(v.Issues, v);
-        var comfort = v.Comfort?.Observed;
+        var comfort = v.Comfort?.Outcome?.Observed;
         if (comfort is null)
         {
-            ValidateUnavailable(v.Comfort?.Unavailable);
+            ValidateUnavailable(v.Comfort?.Outcome?.Unavailable);
             return;
         }
         var people = new HashSet<string>(StringComparer.Ordinal);
@@ -487,15 +487,16 @@ public static partial class BridgeFunctions
         var surfaces = new HashSet<string>(StringComparer.Ordinal);
         foreach (var surface in comfort.Surfaces)
         {
-            if (surface is null || !IsValidId(surface.Id) || surfaces.Contains(surface.Id) || !OptionalRef(surface.Room))
+            var surfaceId = surface?.Id ?? "";
+            if (surface is null || !IsValidId(surfaceId) || surfaces.Contains(surfaceId) || !OptionalRef(surface.Room))
             {
                 throw Contract("invalid dining surface");
             }
-            surfaces.Add(surface.Id);
+            surfaces.Add(surfaceId);
             var cells = new HashSet<(int, int)>();
             foreach (var cell in surface.Adjacent)
             {
-                if (!ColonyCell(cell, size) || !cells.Add((cell.X, cell.Z)))
+                if (!ColonyCell(cell, size) || !cells.Add((cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault())))
                 {
                     throw Contract("invalid dining adjacency");
                 }
@@ -507,16 +508,17 @@ public static partial class BridgeFunctions
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var f in facilityLists[kind])
             {
+                var facilityId = f?.Id ?? "";
                 if (f is null
-                    || !IsValidId(f.Id)
-                    || seen.Contains(f.Id)
-                    || (kind == 0 && f.HasKind)
-                    || (kind == 1 && !IsValidId(f.Kind))
+                    || !IsValidId(facilityId)
+                    || seen.Contains(facilityId)
+                    || (kind == 0 && f.Kind is not null)
+                    || (kind == 1 && !IsValidId(f.Kind ?? ""))
                     || !OptionalRef(f.Room))
                 {
                     throw Contract("invalid comfort facility");
                 }
-                seen.Add(f.Id);
+                seen.Add(facilityId);
                 foreach (var ids in new[] { RefIds(f.AccessibleTo), RefIds(f.Users) })
                 {
                     var found = new HashSet<string>(StringComparer.Ordinal);
@@ -557,11 +559,11 @@ public static partial class BridgeFunctions
         var available = new HashSet<string>(StringComparer.Ordinal);
         foreach (var f in v.Recreation)
         {
-            if (!kinds.Contains(f.Kind))
+            if (!kinds.Contains((f.Kind ?? "")))
             {
                 throw Bad();
             }
-            available.Add(f.Kind);
+            available.Add((f.Kind ?? ""));
         }
         if (available.Count != kinds.Count)
         {

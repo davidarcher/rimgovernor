@@ -1,8 +1,8 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Mirror;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Mirror;
+using RimGovernor.Contracts.Wire.Observations;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Observation;

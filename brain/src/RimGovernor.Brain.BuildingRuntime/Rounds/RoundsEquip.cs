@@ -93,7 +93,7 @@ public sealed class RoundsEquipPlanner
         }
         var ids = emergency.Facts.Colonists.Select(c => c.Id.Value).ToList();
         var (reply, _) = await _native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("step: observed == nil");
@@ -116,7 +116,7 @@ public sealed class RoundsEquipPlanner
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in observed.Pawns)
         {
-            if (row is null || row.Pawn is null || !seen.Add(row.Pawn.Id))
+            if (row is null || row.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]");
             }
@@ -126,7 +126,7 @@ public sealed class RoundsEquipPlanner
             {
                 foreach (var item in row.Equipment!.Equipped)
                 {
-                    if (item.Thing?.Id == current)
+                    if ((item.Thing?.Id ?? "") == current)
                     {
                         var def = GearDef(things, item.Thing);
                         var rows = catalog.WeaponOf(def);
@@ -137,8 +137,8 @@ public sealed class RoundsEquipPlanner
                                 Thing = current,
                                 Definition = def,
                                 Class = PolicyApi.ClassifyWeapon(true, rows.Ranged, rows.Melee),
-                                BiocodedTo = new Domain.PawnId(item.BiocodedTo),
-                                Biocoded = item.Biocoded,
+                                BiocodedTo = new Domain.PawnId((item.BiocodedTo ?? "")),
+                                Biocoded = item.Biocoded.GetValueOrDefault(),
                                 Facts = rows,
                             },
                         };
@@ -257,11 +257,11 @@ public sealed class RoundsEquipPlanner
     {
         var facts = new EquipCandidatePawn
         {
-            Pawn = new Domain.PawnId(row.Pawn.Id),
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
-            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
+            Pawn = new Domain.PawnId((row.Pawn?.Id ?? "")),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
+            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
         };
         var work = ObservationApi.WorkPawnRow(row, catalog, things);
         facts = facts with { Profile = PolicyApi.BuildProfile(work) };
@@ -275,11 +275,11 @@ public sealed class RoundsEquipPlanner
                 }
             }
         }
-        if (row.HasRaidArmor && !Boundary.IssueField(row.Issues, "raid_armor"))
+        if (row.RaidArmor is not null && !Boundary.IssueField(row.Issues, "raid_armor"))
         {
-            facts = facts with { RaidArmor = Known(row.RaidArmor) };
+            facts = facts with { RaidArmor = Known(row.RaidArmor.GetValueOrDefault()) };
         }
-        facts = facts with { Position = new Cell(row.Pawn.Position?.X ?? 0, row.Pawn.Position?.Z ?? 0) };
+        facts = facts with { Position = new Cell(row.Pawn?.Position?.X ?? 0, row.Pawn?.Position?.Z ?? 0) };
         if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "disabled_work_tags"))
         {
             var capable = true;
@@ -296,9 +296,9 @@ public sealed class RoundsEquipPlanner
             }
             facts = facts with { IncapableOfViolence = Known(!capable) };
         }
-        if (row.Equipment is { HasArmed: true } equipment && !Boundary.IssueField(equipment.Issues, "armed"))
+        if (row.Equipment is { Armed: not null } equipment && !Boundary.IssueField(equipment.Issues, "armed"))
         {
-            facts = facts with { Armed = Known(equipment.Armed) };
+            facts = facts with { Armed = Known(equipment.Armed.GetValueOrDefault()) };
         }
         facts = facts with { NoArms = catalog.CreepJoinerDownsides().ArmsHold(BridgeApi.CreepJoinerPawn(row)) };
         return facts;

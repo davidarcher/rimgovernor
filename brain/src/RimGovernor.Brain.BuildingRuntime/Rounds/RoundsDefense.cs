@@ -163,7 +163,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }
-        if (combat.Context is null || combat.Emergency.Context is null || combat.Context.Tick < review.Tick.Value)
+        if (combat.Context is null || combat.Emergency.Context is null || combat.Context.Tick.GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }
@@ -332,7 +332,7 @@ public sealed partial class RoundsDefensePlanner
         var orderable = new List<PawnId>();
         foreach (var pawn in fight.Roster)
         {
-            if (rows.TryGetValue(pawn.Value, out var row) && row is not null && Boundary.FactBool(row.HasDrafted, row.Drafted) == Known(true))
+            if (rows.TryGetValue(pawn.Value, out var row) && row is not null && Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()) == Known(true))
             {
                 orderable.Add((PawnId)pawn);
             }
@@ -416,7 +416,7 @@ internal static partial class BuildingRuntimePackage
         {
             foreach (var id in huntPrey)
             {
-                if (combat.Detail.TryGetValue(id.Value, out var row) && row is not null && Boundary.FactBool(row.HasDead, row.Dead) != Known(true))
+                if (combat.Detail.TryGetValue(id.Value, out var row) && row is not null && Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()) != Known(true))
                 {
                     inp.Prey.Add(id.Value);
                 }
@@ -460,7 +460,7 @@ internal static partial class BuildingRuntimePackage
         }
         foreach (var pawn in combat.Pawns)
         {
-            var def = pawn.Weapon;
+            var def = (pawn.Weapon ?? "");
             if (def == "" || inp.Weapons.ContainsKey(def))
             {
                 continue;
@@ -480,13 +480,13 @@ internal static partial class BuildingRuntimePackage
         var melee = new Dictionary<PawnId, Fact<double>>();
         foreach (var row in combat.Pawns)
         {
-            if (row.HasArmor)
+            if (row.Armor is not null)
             {
-                armor[new PawnId(row.Id)] = row.Armor;
+                armor[new PawnId((row.Id ?? ""))] = row.Armor.GetValueOrDefault();
             }
-            if (row.HasMeleePower && row.HasHealth)
+            if (row.MeleePower is not null && row.Health is not null)
             {
-                melee[new PawnId(row.Id)] = Known(row.MeleePower * row.Health);
+                melee[new PawnId((row.Id ?? ""))] = Known(row.MeleePower.GetValueOrDefault() * row.Health.GetValueOrDefault());
             }
         }
         var defenders = new List<SquadDefenderFacts>();
@@ -585,10 +585,10 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed, Dead = row.Dead, Wild = true };
-            if (row.Pawn?.Position is { HasX: true, HasZ: true } position)
+            var s = new CombatPawnState { Id = new PawnId(id), Downed = row.Downed.GetValueOrDefault(), Dead = row.Dead.GetValueOrDefault(), Wild = true };
+            if (row.Pawn?.Position is { X: not null, Z: not null } position)
             {
-                s = s with { Cell = Known(new Cell(position.X, position.Z)) };
+                s = s with { Cell = Known(new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault())) };
             }
             states.Add(ThreatFacts(s, row, catalog));
         }
@@ -613,9 +613,9 @@ internal static partial class BuildingRuntimePackage
         var landing = new List<Cell>();
         foreach (var c in newest.LandingCells)
         {
-            landing.Add(new Cell(c.X, c.Z));
+            landing.Add(new Cell(c.X.GetValueOrDefault(), c.Z.GetValueOrDefault()));
         }
-        return Known(new PodArrival { Open = new Tick(newest.OpenTick), Landing = [.. landing] });
+        return Known(new PodArrival { Open = new Tick(newest.OpenTick.GetValueOrDefault()), Landing = [.. landing] });
     }
 
     /// <summary>The shooters with a line of fire to each threatening building: for every known line within the weapon reach, the shooters standing at its origin.</summary>
@@ -636,7 +636,7 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            var at = new Cell(row.Pawn.Position.X, row.Pawn.Position.Z);
+            var at = new Cell(row.Pawn.Position.X.GetValueOrDefault(), row.Pawn.Position.Z.GetValueOrDefault());
             if (!shooters.TryGetValue(at, out var list))
             {
                 shooters[at] = list = [];
@@ -680,28 +680,28 @@ internal static partial class BuildingRuntimePackage
         var facts = new DefensiveThreatFacts
         {
             Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
         };
-        if (row.HasHumanlike)
+        if (row.Humanlike is not null)
         {
-            facts = facts with { Humanlike = Known(row.Humanlike) };
+            facts = facts with { Humanlike = Known(row.Humanlike.GetValueOrDefault()) };
         }
-        if (row.HasLordJobClass && !Boundary.IssueField(row.Issues, "lord_job_class"))
+        if (row.LordJobClass is not null && !Boundary.IssueField(row.Issues, "lord_job_class"))
         {
-            facts = facts with { LordJobClass = Known(row.LordJobClass) };
+            facts = facts with { LordJobClass = Known((row.LordJobClass ?? "")) };
         }
-        if (row.HasLordToilClass && !Boundary.IssueField(row.Issues, "lord_toil_class"))
+        if (row.LordToilClass is not null && !Boundary.IssueField(row.Issues, "lord_toil_class"))
         {
-            facts = facts with { LordToilClass = Known(row.LordToilClass) };
+            facts = facts with { LordToilClass = Known((row.LordToilClass ?? "")) };
         }
-        if (row.HasNearestColonistDistance && !Boundary.IssueField(row.Issues, "nearest_colonist_distance"))
+        if (row.NearestColonistDistance is not null && !Boundary.IssueField(row.Issues, "nearest_colonist_distance"))
         {
-            facts = facts with { NearestColonistDistance = Known(row.NearestColonistDistance) };
+            facts = facts with { NearestColonistDistance = Known(row.NearestColonistDistance.GetValueOrDefault()) };
         }
-        if (row.Pawn?.Position is { HasX: true, HasZ: true } position)
+        if (row.Pawn?.Position is { X: not null, Z: not null } position)
         {
-            facts = facts with { Position = Known(new Cell(position.X, position.Z)) };
+            facts = facts with { Position = Known(new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault())) };
         }
         return facts;
     }

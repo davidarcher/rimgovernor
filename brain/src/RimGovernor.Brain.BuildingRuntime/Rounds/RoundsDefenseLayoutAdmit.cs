@@ -438,9 +438,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var stockpiles = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in zones.Value.Rows)
         {
-            if (row.Type == "stockpile")
+            if ((row.Type ?? "") == "stockpile")
             {
-                stockpiles.Add(row.Id);
+                stockpiles.Add((row.Id ?? ""));
             }
         }
         var storage = new List<Cell>();

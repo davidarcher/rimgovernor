@@ -22,7 +22,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("stepMonolith: emergency read outside the review", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("stepMonolith: emergency read outside the review");
         }

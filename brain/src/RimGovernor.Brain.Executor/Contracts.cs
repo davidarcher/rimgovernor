@@ -95,7 +95,7 @@ public interface IJournal
     /// <summary>Records an applied bill placement's receipt with the native bill id its evidence named.</summary>
     Task<Progress> RecordBillReceiptAsync(PlanId plan, ActionId action, AttemptId attempt, string bill, CancellationToken ct);
 
-    Task<Progress> ObserveAsync(PlanId plan, Observation observation, GenerationSnapshot current, CancellationToken ct);
+    Task<Progress> ObserveAsync(PlanId plan, Domain.Observation observation, GenerationSnapshot current, CancellationToken ct);
 
     Task<Progress> CancelAsync(PlanId plan, ActionId action, CancellationToken ct);
 

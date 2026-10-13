@@ -46,7 +46,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
     public Task<(L.IdentityReply Reply, Result Receipt)> IdentityAsync(CancellationToken cancellationToken) => inner.IdentityAsync(cancellationToken);
 
     public Task<(O.ColonyFactsReply Reply, Result Receipt)> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
-        Task.FromResult((new O.ColonyFactsReply { Observed = frame.Colony }, new Result()));
+        Task.FromResult((new O.ColonyFactsReply { Outcome = frame.Colony is { } colony ? (O.ColonyFactsReplyOutcome)colony : null }, new Result()));
 
     public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken)
     {
@@ -195,14 +195,14 @@ public static partial class ObservationPackage
                 },
                 MechCatalog = catalog?.Biotech?.MechCatalog() ?? new(),
                 WorkPawns = RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),
-                MeditateAvailable = Optional(pawns.HasMeditateAssignmentAvailable, pawns.MeditateAssignmentAvailable),
+                MeditateAvailable = Optional(pawns.MeditateAssignmentAvailable is not null, pawns.MeditateAssignmentAvailable.GetValueOrDefault()),
             };
             p = p with { Facts = p.Facts with { MedicalPawns = RoundsMedical(colony, emergency, pawns, RequireCatalog(catalog)) } };
             p = p with { Facts = p.Facts with { MoodPawns = RoundsMood(colony, emergency, pawns) } };
             var thoughtFacts = catalog?.AllThoughtFacts() ?? new Dictionary<string, ThoughtFacts>();
             p = p with { Facts = p.Facts with { MoodLedger = RoundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts) } };
         }
-        else if (emergency.ColonistsComplete.TryGetValue(out var complete) && complete && emergency.Colonists.Count == 0 && colony.HasColonistCount && colony.ColonistCount == 0)
+        else if (emergency.ColonistsComplete.TryGetValue(out var complete) && complete && emergency.Colonists.Count == 0 && colony.ColonistCount is not null && colony.ColonistCount.GetValueOrDefault() == 0)
         {
             p = p with
             {
@@ -243,9 +243,9 @@ public static partial class ObservationPackage
         {
             p = p with { Facts = p.Facts with { QuestDeparturePawns = ProjectDepartureStrength(p.Facts.QuestDeparturePawns, RoundsDefenders(colony, emergency, pawns)) } };
         }
-        if (frame.Quests?.Context is { HasTick: true } questContext)
+        if (frame.Quests?.Context is { Tick: not null } questContext)
         {
-            p = p with { Facts = p.Facts with { QuestObservedTick = Known(new Tick(questContext.Tick)) } };
+            p = p with { Facts = p.Facts with { QuestObservedTick = Known(new Tick(questContext.Tick.GetValueOrDefault())) } };
         }
         p = p with
         {
@@ -385,7 +385,7 @@ public static partial class ObservationPackage
         new()
         {
             Catalog = catalog,
-            Crops = CropRows(frame.Colony?.Planning?.Observed),
+            Crops = CropRows(frame.Colony?.Planning?.Outcome?.Observed),
             Finished = frame.Research is { } research ? FinishedSet(research.Finished) : default,
         };
 

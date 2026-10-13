@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Protocol.Clock;
-using PbCommon = RimGovernor.Protocol.Common;
+using Pb = RimGovernor.Contracts.Wire.Clock;
+using PbCommon = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Store;
 

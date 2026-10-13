@@ -1,5 +1,3 @@
-using Google.Protobuf;
-
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The native side of the buildings and bills sections (the bridge client's ReadBuildings and ReadBillStacks); the scheduler requires it. The zone census is <see cref="IZonesNative"/>'s.</summary>
@@ -7,7 +5,7 @@ public interface IEntityNative
 {
     Task<EntityRows<PbObservations.BuildingState>> ReadBuildingsAsync(PbCommon.Identity identity, CancellationToken ct);
 
-    Task<EntityRows<PbObservations.BillStack>> ReadBillStacksAsync(PbCommon.Identity identity, CancellationToken ct);
+    Task<EntityRows<PbObservations.BillStackRow>> ReadBillStacksAsync(PbCommon.Identity identity, CancellationToken ct);
 }
 
 internal static class ClockEntities
@@ -26,7 +24,7 @@ internal static class ClockEntities
     }
 
     private static async Task RefreshEntitySectionAsync<T>(ClockFacts f, FactScope scope, FactSection section, string source, Func<Task<EntityRows<T>>> read)
-        where T : class, IMessage<T>
+        where T : class
     {
         EntityRows<T> full;
         try

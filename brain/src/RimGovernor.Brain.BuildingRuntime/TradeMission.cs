@@ -76,11 +76,11 @@ async
             var pack = new OperationsPb.FormCaravanIntent { DestinationTile = d.DestinationTile };
             foreach (var id in d.Crew)
             {
-                pack.PawnIds.Add(id.Value);
+                pack = pack with { PawnIds = [.. pack.PawnIds, id.Value] };
             }
             foreach (var item in d.Cargo)
             {
-                pack.Cargo.Add(new OperationsPb.DefCount { DefName = item.Definition, Count = (int)item.Count });
+                pack = pack with { Cargo = [.. pack.Cargo, new OperationsPb.DefCount { DefName = item.Definition, Count = (int)item.Count }] };
             }
             var (read, _) = await source.ReadTradeAcquisitionAsync(Boundary.Identity(world), pack, ct).ConfigureAwait(false);
             return read?.Pack ?? throw new DomainException("pack_unknown");
@@ -88,9 +88,9 @@ async
 
         var seed = await PreviewAsync(departure).ConfigureAwait(false);
         var (days, daysKnown) = Pol.PolicyFunctions.TradeMissionRouteDays(seed, homeTile, settlement.Tile);
-        if (!daysKnown || !seed.HasMassUsage || !seed.HasMassCapacity
-            || double.IsNaN(seed.MassUsage) || double.IsNaN(seed.MassCapacity)
-            || double.IsInfinity(seed.MassUsage) || double.IsInfinity(seed.MassCapacity) || seed.MassUsage < 0)
+        if (!daysKnown || seed.MassUsage is null || seed.MassCapacity is null
+            || double.IsNaN(seed.MassUsage.GetValueOrDefault()) || double.IsNaN(seed.MassCapacity.GetValueOrDefault())
+            || double.IsInfinity(seed.MassUsage.GetValueOrDefault()) || double.IsInfinity(seed.MassCapacity.GetValueOrDefault()) || seed.MassUsage.GetValueOrDefault() < 0)
         {
             throw new DomainException("unknown_trip_facts");
         }
@@ -114,7 +114,7 @@ async
             }
             seedFoodMass += mass * item.Count;
         }
-        var (food, foodSkip) = Pol.PolicyFunctions.TradeMissionFood(facts, crew, days, seed.MassCapacity - seed.MassUsage + seedFoodMass, thresholds);
+        var (food, foodSkip) = Pol.PolicyFunctions.TradeMissionFood(facts, crew, days, seed.MassCapacity.GetValueOrDefault() - seed.MassUsage.GetValueOrDefault() + seedFoodMass, thresholds);
         if (!foodSkip.IsNone)
         {
             throw new DomainException(foodSkip.Value);
@@ -165,8 +165,8 @@ async
             LeadDays = Fact.Known(days),
             OutboundDays = Fact.Known((double)(final.Outbound?.EstimatedTicks ?? 0) / GameTime.TicksPerDay),
             ReturnDays = Fact.Known((double)(final.Home?.EstimatedTicks ?? 0) / GameTime.TicksPerDay),
-            FoodDays = Fact.Known(final.FoodDays),
-            RotDays = Fact.Known(final.FoodRotDays),
+            FoodDays = Fact.Known(final.FoodDays.GetValueOrDefault()),
+            RotDays = Fact.Known(final.FoodRotDays.GetValueOrDefault()),
             LaborTicks = Fact.Known(days * GameTime.TicksPerDay * crew.Count),
         };
         return (m, option);
@@ -181,7 +181,7 @@ async
         if (!TradeMissionValid(m)
             || (m.Phase != TradeMissionPhase.Planned && m.Phase != TradeMissionPhase.Departing && m.Phase != TradeMissionPhase.Outbound)
             || read?.Context?.Identity is null
-            || read.Context.Identity.ColonyId != m.HomeColony.Value)
+            || (read.Context.Identity.ColonyId ?? "") != m.HomeColony.Value)
         {
             return (m.Phase, null, false);
         }
@@ -230,8 +230,8 @@ internal static partial class BuildingRuntimePackage
         {
             return false;
         }
-        return id.ColonyId == world.Colony.Value && id.MapId == world.Map.Value && id.LoadToken == world.Load.Value
-            && new NativeGeneration(read.Context.NativeGeneration) == world.Native;
+        return (id.ColonyId ?? "") == world.Colony.Value && id.MapId.GetValueOrDefault() == world.Map.Value && (id.LoadToken ?? "") == world.Load.Value
+            && new NativeGeneration(read.Context.NativeGeneration.GetValueOrDefault()) == world.Native;
     }
 
     internal static bool TradeMissionCrewAtHome(TradeMission m, WorldProgressionRead read)

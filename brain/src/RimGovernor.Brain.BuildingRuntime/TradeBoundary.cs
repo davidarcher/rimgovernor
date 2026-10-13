@@ -86,32 +86,32 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         output = output with
         {
             Snapshot = Boundary.Context(facts.Context, target.Snapshot),
-            Tick = new Tick(facts.Context.Tick),
+            Tick = new Tick(facts.Context.Tick.GetValueOrDefault()),
         };
         var kind = request.Kind == TradeRequestKind.Orbital ? CommonPb.TradeRequestKind.Orbital : CommonPb.TradeRequestKind.Caravan;
         foreach (var row in facts.Requests)
         {
-            if (row.FactionId == request.Faction && row.Kind == kind && row.TraderKind == request.TraderKind)
+            if ((row.FactionId ?? "") == request.Faction && row.Kind == kind && (row.TraderKind ?? "") == request.TraderKind)
             {
                 output = output with
                 {
                     RequestKnown = true,
-                    LastRequestTick = row.LastRequestTick,
-                    Eligible = row.Eligible && row.NegotiatorIds.Contains(request.Negotiator)
-                        && facts.Consoles.Any(c => c.Id == request.Console && c.NegotiatorIds.Contains(request.Negotiator)),
+                    LastRequestTick = row.LastRequestTick.GetValueOrDefault(),
+                    Eligible = row.Eligible.GetValueOrDefault() && row.NegotiatorIds.Contains(request.Negotiator)
+                        && facts.Consoles.Any(c => (c.Id ?? "") == request.Console && c.NegotiatorIds.Contains(request.Negotiator)),
                 };
             }
         }
         foreach (var work in facts.CommsWork)
         {
-            if (work.FactionId == request.Faction && work.ConsoleId == request.Console && work.NegotiatorId == request.Negotiator)
+            if ((work.FactionId ?? "") == request.Faction && (work.ConsoleId ?? "") == request.Console && (work.NegotiatorId ?? "") == request.Negotiator)
             {
                 output = output with { MatchingWork = true };
             }
         }
         foreach (var arrival in facts.Arrivals)
         {
-            if (arrival.FactionId == request.Faction && arrival.Kind == kind && arrival.TraderKind == request.TraderKind)
+            if ((arrival.FactionId ?? "") == request.Faction && arrival.Kind == kind && (arrival.TraderKind ?? "") == request.TraderKind)
             {
                 output = output with { MatchingArrival = true };
             }
@@ -129,7 +129,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         {
             throw new EvidenceException();
         }
-        output = output with { Tick = new Tick(sellers.Context!.Tick) };
+        output = output with { Tick = new Tick(sellers.Context!.Tick.GetValueOrDefault()) };
         foreach (var seller in sellers.Traders)
         {
             if (seller.Faction == request.Faction && seller.Kind == request.TraderKind)

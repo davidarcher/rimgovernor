@@ -210,7 +210,7 @@ public sealed partial class ClockScheduler
 
     /// <summary>The store scope an observation context establishes: the load token, map and native generation.</summary>
     internal static FactScope FactScope(PbCommon.ObservationContext context) =>
-        new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration);
+        new((context.Identity?.LoadToken ?? ""), context.Identity?.MapId.GetValueOrDefault() ?? 0, context.NativeGeneration.GetValueOrDefault());
 
     /// <summary>The ticks to wait when any isolated planner failure of the step is a native refusal; zero otherwise.</summary>
     internal static uint PlannerRefusalWait(IEnumerable<Exception> failures) =>
@@ -290,25 +290,26 @@ public sealed partial class ClockScheduler
             var loaded = await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true, Emergency = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
             BridgeApi.ValidateContext(loaded.Context);
+            var loadedContext = loaded.Context ?? throw new BridgeContractException("step read carried no context");
             if (await _player.ExpeditionIncomingHandoffAsync(loaded, call, epoch).ConfigureAwait(false))
             {
                 result.Deferred = true;
                 return result;
             }
-            if (Config.WorldReady is { } ready && await ready(loaded.Context, call).ConfigureAwait(false) && Config.Rounds is not null)
+            if (Config.WorldReady is { } ready && await ready(loadedContext, call).ConfigureAwait(false) && Config.Rounds is not null)
             {
                 reason = reason with { Cause = StepCause.Full };
                 ReplanAfterFailure();
                 reviews = StepReviews(reason);
             }
-            var scope = FactScope(loaded.Context);
+            var scope = FactScope(loadedContext);
             window.Scope = scope;
-            (zones.Scope, zones.Tick) = (scope, (long)loaded.Context.Tick);
-            var id = loaded.Context.Identity;
-            var tick = new Tick((long)loaded.Context.Tick);
+            (zones.Scope, zones.Tick) = (scope, (long)loadedContext.Tick.GetValueOrDefault());
+            var id = loadedContext.Identity ?? throw new BridgeContractException("step read carried no identity");
+            var tick = new Tick((long)loadedContext.Tick.GetValueOrDefault());
             var state = _player.State();
-            var observed = new GenerationSnapshot { Colony = new ColonyId(id.ColonyId), Load = new LoadId(id.LoadToken), Map = new MapId(id.MapId) };
-            if (!state.ObservationKnown || !Boundary.World(state.Snapshot, observed) || loaded.Context.NativeGeneration != (ulong)state.Snapshot.Native.Value)
+            var observed = new GenerationSnapshot { Colony = new ColonyId((id.ColonyId ?? "")), Load = new LoadId((id.LoadToken ?? "")), Map = new MapId(id.MapId.GetValueOrDefault()) };
+            if (!state.ObservationKnown || !Boundary.World(state.Snapshot, observed) || loadedContext.NativeGeneration.GetValueOrDefault() != (ulong)state.Snapshot.Native.Value)
             {
                 ClockEvents.AuthorityLost("observed scope does not match the held authority");
                 throw new AuthorityException("observed scope does not match the held authority");
@@ -320,24 +321,24 @@ public sealed partial class ClockScheduler
                     ? null
                     : await _player.Journal.LayoutPlanAsync(world, tick, c).ConfigureAwait(false);
             };
-            var status = loaded.ClockStatus;
-            _stepContext = status.Context;
-            BridgeApi.ValidateClockStatus(status, id);
-            if ((long)status.Context.Tick < (long)loaded.Context.Tick)
+            _stepContext = loaded.ClockStatus?.Context;
+            var status = ClockCoordinator.ValidatedStatus(loaded.ClockStatus, id);
+            var statusTick = (long)(status.Context ?? throw new BridgeContractException("clock status carried no context")).Tick.GetValueOrDefault();
+            if (statusTick < (long)loadedContext.Tick.GetValueOrDefault())
             {
                 ClockEvents.AuthorityLost("clock status is behind the scope tick");
                 throw new EvidenceException("clock status is behind the scope tick");
             }
             _running = false;
             StepStatus = status;
-            reason = reason with { TickAdvanced = !_lastTickKnown || (long)status.Context.Tick != _lastTick };
-            (_lastTick, _lastTickKnown) = ((long)status.Context.Tick, true);
+            reason = reason with { TickAdvanced = !_lastTickKnown || statusTick != _lastTick };
+            (_lastTick, _lastTickKnown) = (statusTick, true);
             LivePace(status, started);
             result.Pacing = StepPacing.Of(status);
             // The step's scope and tick are fixed: every read and decision below, and the Worker's dispatches under
             // the window this step may admit, judge their facts against this validity.
-            using var validity = ReadValidityScope.With(FixValidity(state.Snapshot, (long)status.Context.Tick));
-            Tel.ObserveTick((long)status.Context.Tick);
+            using var validity = ReadValidityScope.With(FixValidity(state.Snapshot, statusTick));
+            Tel.ObserveTick(statusTick);
             if (reason.Cause == StepCause.Timer && FullStepDue())
             {
                 reason = reason with { Cause = StepCause.Full };
@@ -348,13 +349,13 @@ public sealed partial class ClockScheduler
                 throw new AuthorityException("authority is not enabled");
             }
             _player.Current(call, epoch);
-            var sel = await SelectPlannersAsync(reason, (long)status.Context.Tick, call).ConfigureAwait(false);
+            var sel = await SelectPlannersAsync(reason, statusTick, call).ConfigureAwait(false);
             result.Waiting = [.. sel.Waiting];
             if (sel.Planners && Config.Rounds is not null)
             {
                 try
                 {
-                    result.Planners = await RunPlannerWaveAsync(result, sel, (long)status.Context.Tick, false, call, epoch).ConfigureAwait(false);
+                    result.Planners = await RunPlannerWaveAsync(result, sel, statusTick, false, call, epoch).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -534,10 +535,9 @@ public sealed partial class ClockScheduler
         // the step's status read.
         Func<TimeSpan, bool, Task> watched = static (_, _) => Task.CompletedTask;
         var readAt = Pace.Known ? Pace.At : _clock.Now();
-        if (Backoff is { } backoff && StepStatus is { StateCase: PbClock.Status.StateOneofCase.Running } running
-            && running.Running.Epoch is { HasPacing: true, Pacing: PbClock.Pacing.PlayerAccelerated } paced)
+        if (Backoff is { } backoff && StepStatus is { State: PbClock.StatusState.RunningCase { Value.Epoch: { Pacing: PbClock.Pacing.PlayerAccelerated } paced } })
         {
-            backoff.Epoch = paced.Clone();
+            backoff.Epoch = paced;
             watched = backoff.Watch(readAt, call);
         }
         try
@@ -547,10 +547,11 @@ public sealed partial class ClockScheduler
                 // Ordinary section refreshes belong after protective execution too. Failed reads retain the
                 // existing explicit stale/unknown evidence.
                 var stepContext = _stepContext ?? throw new HeldException("planner wave ran before the step read its status");
-                await ClockEntities.RefreshEntitySectionsAsync(_native, _facts, stepContext.Identity, FactScope(stepContext), call).ConfigureAwait(false);
+                var stepIdentity = stepContext.Identity ?? throw new HeldException("planner wave ran before the step read its identity");
+                await ClockEntities.RefreshEntitySectionsAsync(_native, _facts, stepIdentity, FactScope(stepContext), call).ConfigureAwait(false);
                 try
                 {
-                    _ = await ObservationApi.ReadZoneSection(_native, stepContext.Identity, call).ConfigureAwait(false);
+                    _ = await ObservationApi.ReadZoneSection(_native, stepIdentity, call).ConfigureAwait(false);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {

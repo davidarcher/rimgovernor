@@ -1,4 +1,4 @@
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 using PolicyCreepJoiner = RimGovernor.Brain.Policy.CreepJoiner;
 using PolicyCreepJoinerPawn = RimGovernor.Brain.Policy.CreepJoinerPawn;
 
@@ -30,7 +30,7 @@ public static partial class BridgeFunctions
         }
         if (row.Biography is { } biography && !FailedFields(biography.Issues).Contains("traits"))
         {
-            result = result with { Traits = Known(EquatableArray.From(biography.Traits.Select(trait => trait.DefName))) };
+            result = result with { Traits = Known(EquatableArray.From(biography.Traits.Select(trait => (trait.DefName ?? "")))) };
         }
         if (row.Health is { } health
             && !FailedFields(row.Issues).Contains("health")
@@ -41,14 +41,14 @@ public static partial class BridgeFunctions
             var known = true;
             foreach (var hediff in health.Hediffs)
             {
-                if (!hediff.HasVisible)
+                if (hediff.Visible is null)
                 {
                     known = false;
                     break;
                 }
-                if (hediff.Visible)
+                if (hediff.Visible.GetValueOrDefault())
                 {
-                    hediffs.Add(hediff.DefName);
+                    hediffs.Add((hediff.DefName ?? ""));
                 }
             }
             if (known)

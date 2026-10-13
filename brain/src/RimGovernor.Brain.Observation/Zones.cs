@@ -69,7 +69,7 @@ public static partial class ObservationPackage
             if (row.Farm is { } farm)
             {
                 farms.Add(farm);
-                zoneFacts.Add(new FarmZoneFact { Id = row.Id, Crop = farm.Crop, UsableCells = Optional(farm.HasUsableCells, farm.UsableCells) });
+                zoneFacts.Add(new FarmZoneFact { Id = row.Id ?? "", Crop = farm.Crop ?? "", UsableCells = Optional(farm.UsableCells is not null, farm.UsableCells.GetValueOrDefault()) });
             }
         }
         p = p with { Farms = zoneFacts };

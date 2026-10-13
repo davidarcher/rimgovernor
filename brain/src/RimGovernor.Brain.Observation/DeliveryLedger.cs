@@ -85,7 +85,7 @@ public static partial class ObservationPackage
     /// <summary>Unknown for a missing, unavailable or malformed census, never an empty ledger: zero deliveries would read as a measured zero.</summary>
     internal static Fact<DeliveryLedger> ColonyDeliveryLedger(O.DeliveryLedgerSection? section, long tick)
     {
-        var f = section?.Observed;
+        var f = section?.Outcome?.Observed;
         if (f is null || !ValidDeliveryLedger(f, tick))
         {
             return Unknown<DeliveryLedger>();
@@ -94,17 +94,17 @@ public static partial class ObservationPackage
         var kills = new List<Kill>(f.Kills.Count);
         foreach (var k in f.Kills)
         {
-            kills.Add(new Kill { CorpseID = k.CorpseId, PawnID = k.PawnId, Race = k.Race, BodySize = k.BodySize, PotentialNutrition = k.PotentialNutrition, Tick = k.Tick });
+            kills.Add(new Kill { CorpseID = k.CorpseId ?? "", PawnID = k.PawnId ?? "", Race = k.Race ?? "", BodySize = k.BodySize.GetValueOrDefault(), PotentialNutrition = k.PotentialNutrition.GetValueOrDefault(), Tick = k.Tick.GetValueOrDefault() });
         }
         var butchers = new List<Butcher>(f.Butchers.Count);
         foreach (var b in f.Butchers)
         {
-            butchers.Add(new Butcher { CorpseID = b.CorpseId, Recipe = b.Recipe, MeatDef = b.MeatDef, MeatUnits = b.MeatUnits, MeatNutrition = b.MeatNutrition, LeatherUnits = b.LeatherUnits, Tick = b.Tick });
+            butchers.Add(new Butcher { CorpseID = b.CorpseId ?? "", Recipe = b.Recipe ?? "", MeatDef = b.MeatDef ?? "", MeatUnits = b.MeatUnits.GetValueOrDefault(), MeatNutrition = b.MeatNutrition.GetValueOrDefault(), LeatherUnits = b.LeatherUnits.GetValueOrDefault(), Tick = b.Tick.GetValueOrDefault() });
         }
         foreach (var row in f.Rows)
         {
-            counts[new DeliveryKey(DeliveryKindOf(row.SourceKind), row.SourceId, row.DefName)] = new DeliveryCount(row.Units, row.LastTick, row.Nutrition);
+            counts[new DeliveryKey(DeliveryKindOf(row.SourceKind.GetValueOrDefault()), row.SourceId ?? "", row.DefName ?? "")] = new DeliveryCount(row.Units.GetValueOrDefault(), row.LastTick.GetValueOrDefault(), row.Nutrition.GetValueOrDefault());
         }
-        return Known(new DeliveryLedger { LoadToken = f.Epoch, Counts = counts, Kills = kills, Butchers = butchers });
+        return Known(new DeliveryLedger { LoadToken = f.Epoch ?? "", Counts = counts, Kills = kills, Butchers = butchers });
     }
 }

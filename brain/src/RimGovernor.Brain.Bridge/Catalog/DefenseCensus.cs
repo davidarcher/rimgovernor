@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using CoverKind = RimGovernor.Protocol.Observations.CoverKind;
+using CoverKind = RimGovernor.Contracts.Wire.Observations.CoverKind;
 using Domain = RimGovernor.Brain.Domain;
 using P = RimGovernor.Brain.Policy;
 

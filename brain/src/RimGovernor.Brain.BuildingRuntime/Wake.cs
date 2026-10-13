@@ -157,35 +157,35 @@ internal static partial class Pkg
         DateTimeOffset? stopAt = null;
         foreach (var @event in page.Events)
         {
-            switch (@event.EventCase)
+            switch (@event.Event)
             {
-                case ClockPb.Event.EventOneofCase.OperationOutcome:
-                    outcomes.Add(WakeOutcomeOf(@event.OperationOutcome));
+                case ClockPb.ClockEventEvent.OperationOutcomeCase { Value: var operationOutcome }:
+                    outcomes.Add(WakeOutcomeOf(operationOutcome));
                     break;
-                case ClockPb.Event.EventOneofCase.Stopped:
+                case ClockPb.ClockEventEvent.StoppedCase { Value: var stoppedEvent }:
                     if (Sto.ClockJournal.OtherWorld(@event, page))
                     {
                         continue; // a previous load's stop
                     }
                     stopped = true;
-                    if (@event.HasObservedAtUnixMs && @event.ObservedAtUnixMs > 0)
+                    if (@event.ObservedAtUnixMs is not null && @event.ObservedAtUnixMs.GetValueOrDefault() > 0)
                     {
-                        var at = DateTimeOffset.FromUnixTimeMilliseconds(@event.ObservedAtUnixMs);
+                        var at = DateTimeOffset.FromUnixTimeMilliseconds(@event.ObservedAtUnixMs.GetValueOrDefault());
                         if (stopAt is null || at < stopAt)
                         {
                             stopAt = at;
                         }
                     }
-                    if (@event.Stopped.Watch is { } watch)
+                    if (stoppedEvent.Evidence?.Watch is { Outcome: { } watchOutcome })
                     {
-                        outcomes.Add(WakeOutcomeOf(watch.Outcome));
+                        outcomes.Add(WakeOutcomeOf(watchOutcome));
                     }
                     break;
-                case ClockPb.Event.EventOneofCase.AuthorityChanged:
+                case ClockPb.ClockEventEvent.AuthorityChangedCase:
                     authority = true;
                     break;
-                case ClockPb.Event.EventOneofCase.ObservationInvalidated:
-                    foreach (var wire in @event.ObservationInvalidated.Families)
+                case ClockPb.ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated }:
+                    foreach (var wire in invalidated.Families)
                     {
                         if (!BridgeApi.FactFamilyFromWire(wire, out var family))
                         {
@@ -216,11 +216,11 @@ internal static partial class Pkg
         var seen = new HashSet<Facts.Section>();
         foreach (var @event in page.Events)
         {
-            if (@event.EventCase != ClockPb.Event.EventOneofCase.ObservationInvalidated)
+            if (@event.Event is not ClockPb.ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated })
             {
                 continue;
             }
-            if (!Facts.Invalidation.TryFromWire(@event.ObservationInvalidated, out var inv))
+            if (!Facts.Invalidation.TryFromWire(invalidated, out var inv))
             {
                 continue;
             }
@@ -237,7 +237,7 @@ internal static partial class Pkg
 
     internal static WakeOutcome WakeOutcomeOf(ClockPb.OperationOutcome o)
     {
-        var unknown = o.OutcomeCase == ClockPb.OperationOutcome.OutcomeOneofCase.Unknown;
+        var unknown = o.Outcome is ClockPb.OperationOutcomeOutcome.UnknownCase;
         return new WakeOutcome(new ActionId(o.Attempt?.ActionId ?? ""), new AttemptId(o.Attempt?.AttemptId ?? 0), !unknown);
     }
 }

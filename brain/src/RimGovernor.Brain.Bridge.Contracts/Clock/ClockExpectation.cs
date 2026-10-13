@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Clock;
-using RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -65,7 +65,7 @@ public static partial class BridgeFunctions
             }
         }
         ClockEpoch(original);
-        if (original!.Origin.NativeGeneration != e.NativeGeneration || !SameIdentity(original.Origin.Identity, e.Identity))
+        if (original!.Origin?.NativeGeneration.GetValueOrDefault() != e.NativeGeneration || !SameIdentity(original.Origin?.Identity, e.Identity))
         {
             throw Contract("clock original epoch mismatch");
         }
@@ -80,23 +80,23 @@ public static partial class BridgeFunctions
     {
         ValidateClockExpectation(e);
         ClockReceipt(r, e.Identity, e.Attempt, e.NativeGeneration);
-        if (r!.OutcomeCase == ControlReceipt.OutcomeOneofCase.Uncertain)
+        if (r!.Outcome is ControlReceiptOutcome.UncertainCase)
         {
             return;
         }
-        var actual = ClockStatusEpoch(r.Applied.Status);
+        var actual = ClockStatusEpoch(r.Outcome?.Applied?.Status);
         if (e.Command.Start is { } start)
         {
             if (actual is null
                 || !Equals(actual.Origin, r.AdmittedContext)
-                || actual.TickDeadline - actual.StartTick != start.MaxTicks
-                || actual.RequestedSpeed != start.Speed
-                || actual.TestAcceleration != start.TestAcceleration
+                || actual.TickDeadline.GetValueOrDefault() - actual.StartTick.GetValueOrDefault() != start.MaxTicks
+                || actual.RequestedSpeed.GetValueOrDefault() != start.Speed
+                || actual.TestAcceleration.GetValueOrDefault() != start.TestAcceleration
                 || !Equals(actual.Policy, start.Policy)
-                || actual.LeaseRemainingMs > start.LeaseMs
-                || actual.BlindTickBudget != start.BlindTickBudget
-                || actual.MaxTicksPerSecond != start.MaxTicksPerSecond
-                || (actual.Pacing == Pacing.PlayerAccelerated) != start.PlayerAccelerated)
+                || actual.LeaseRemainingMs.GetValueOrDefault() > start.LeaseMs
+                || actual.BlindTickBudget.GetValueOrDefault() != start.BlindTickBudget
+                || actual.MaxTicksPerSecond.GetValueOrDefault() != start.MaxTicksPerSecond
+                || (actual.Pacing.GetValueOrDefault() == Pacing.PlayerAccelerated) != start.PlayerAccelerated)
             {
                 throw Contract("clock start epoch mismatch");
             }
@@ -105,7 +105,7 @@ public static partial class BridgeFunctions
         if (e.Command.Renew is { } renew)
         {
             ClockSameEpoch(actual, renew.Original, renew.Original?.RequestedSpeed ?? Speed.Unspecified);
-            if (actual!.LeaseRemainingMs > renew.LeaseMs)
+            if (actual!.LeaseRemainingMs.GetValueOrDefault() > renew.LeaseMs)
             {
                 throw Contract("clock renewal lease exceeds request");
             }
@@ -113,7 +113,7 @@ public static partial class BridgeFunctions
         }
         var change = e.Command.Speed!;
         ClockSameEpoch(actual, change.Original, change.Speed);
-        if (change.MaxTicksPerSecond is { } ceiling && actual!.MaxTicksPerSecond != ceiling)
+        if (change.MaxTicksPerSecond is { } ceiling && actual!.MaxTicksPerSecond.GetValueOrDefault() != ceiling)
         {
             throw Contract("clock tick rate ceiling mismatch");
         }
@@ -127,18 +127,18 @@ public static partial class BridgeFunctions
     {
         ValidateClockExpectation(e);
         ClockWire(reply);
-        switch (reply!.OutcomeCase)
+        switch (reply!.Outcome)
         {
-            case ControlReply.OutcomeOneofCase.Receipt:
-                ValidateClockReceipt(reply.Receipt, e);
+            case ControlReplyOutcome.ReceiptCase:
+                ValidateClockReceipt(reply.Outcome?.Receipt, e);
                 return;
-            case ControlReply.OutcomeOneofCase.Failure:
+            case ControlReplyOutcome.FailureCase:
                 // A valid failure is typed refusal evidence (Go's NativeFailure is accepted); a malformed one is a
                 // contract error.
-                ValidateFailure(reply.Failure);
+                ValidateFailure(reply.Outcome?.Failure);
                 return;
-            case ControlReply.OutcomeOneofCase.LongEventPending:
-                if (reply.LongEventPending is { } pending && Diagnostic(pending.HasDetail, pending.Detail))
+            case ControlReplyOutcome.LongEventPendingCase:
+                if (reply.Outcome?.LongEventPending is { } pending && Diagnostic(pending.Detail is not null, (pending.Detail ?? "")))
                 {
                     return;
                 }
@@ -165,11 +165,11 @@ public static partial class BridgeFunctions
                 throw Contract("clock cleanup context mismatch");
             }
         }
-        if (!SameIdentity(original!.Origin.Identity, current!.Identity))
+        if (!SameIdentity(original!.Origin?.Identity, current!.Identity))
         {
             return ClockEpochState.Superseded;
         }
-        if (current.Tick < original.LastTick)
+        if (current.Tick.GetValueOrDefault() < original.LastTick.GetValueOrDefault())
         {
             throw Contract("clock cleanup observation regressed");
         }
@@ -177,7 +177,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("same-world clock status required");
         }
-        if (status.StateCase is Status.StateOneofCase.Unavailable or Status.StateOneofCase.NeverStarted)
+        if (status.State is StatusState.UnavailableCase or StatusState.NeverStartedCase)
         {
             return ClockEpochState.Uncertain;
         }
@@ -188,18 +188,17 @@ public static partial class BridgeFunctions
         }
         if (!Equals(actual.Origin, original.Origin)
             || !Equals(actual.Policy, original.Policy)
-            || actual.StartTick != original.StartTick
-            || actual.TickDeadline != original.TickDeadline
-            || actual.LastTick < original.LastTick)
+            || actual.StartTick.GetValueOrDefault() != original.StartTick.GetValueOrDefault()
+            || actual.TickDeadline.GetValueOrDefault() != original.TickDeadline.GetValueOrDefault()
+            || actual.LastTick.GetValueOrDefault() < original.LastTick.GetValueOrDefault())
         {
             throw Contract("clock cleanup original epoch mismatch");
         }
-        if (status.StateCase == Status.StateOneofCase.Stopped)
+        if (status.State is StatusState.StoppedCase { Value: var stopped })
         {
-            var stopped = status.Stopped;
-            return status.ActualPaused && stopped.ActualPaused && stopped.PauseVerified ? ClockEpochState.Paused : ClockEpochState.Retired;
+            return status.ActualPaused.GetValueOrDefault() && stopped.ActualPaused.GetValueOrDefault() && stopped.PauseVerified.GetValueOrDefault() ? ClockEpochState.Paused : ClockEpochState.Retired;
         }
-        return status.StateCase == Status.StateOneofCase.Running ? ClockEpochState.Required : ClockEpochState.Uncertain;
+        return status.State is StatusState.RunningCase ? ClockEpochState.Required : ClockEpochState.Uncertain;
     }
 
     /// <summary>
@@ -208,14 +207,14 @@ public static partial class BridgeFunctions
     /// </summary>
     public static WatchPolicy WithHazardThresholds(WatchPolicy p)
     {
-        p.SeriousSingleHitDamage = Policy.PolicyFunctions.SeriousSingleHitDamage;
-        p.SeriousSummaryHealthFloor = Policy.PolicyFunctions.SeriousSummaryHealthFloor;
-        p.SeriousBleedRateFloor = Policy.PolicyFunctions.SeriousBleedRateFloor;
-        p.SeriousVitalPartFloor = Policy.PolicyFunctions.SeriousVitalPartFloor;
-        p.ExplosiveNearMarginCells = Policy.PolicyFunctions.ExplosiveNearMarginCells;
-        p.MeleeReachCells = Policy.PolicyFunctions.MeleeReachCells;
-        p.InjurySeverityFloorTicks = Policy.PolicyFunctions.InjurySeverityFloorTicks;
-        p.PredatorMarginCells = Policy.PolicyFunctions.HuntPredatorMarginCells;
+        p = p with { SeriousSingleHitDamage = Policy.PolicyFunctions.SeriousSingleHitDamage };
+        p = p with { SeriousSummaryHealthFloor = Policy.PolicyFunctions.SeriousSummaryHealthFloor };
+        p = p with { SeriousBleedRateFloor = Policy.PolicyFunctions.SeriousBleedRateFloor };
+        p = p with { SeriousVitalPartFloor = Policy.PolicyFunctions.SeriousVitalPartFloor };
+        p = p with { ExplosiveNearMarginCells = Policy.PolicyFunctions.ExplosiveNearMarginCells };
+        p = p with { MeleeReachCells = Policy.PolicyFunctions.MeleeReachCells };
+        p = p with { InjurySeverityFloorTicks = Policy.PolicyFunctions.InjurySeverityFloorTicks };
+        p = p with { PredatorMarginCells = Policy.PolicyFunctions.HuntPredatorMarginCells };
         return p;
     }
 }

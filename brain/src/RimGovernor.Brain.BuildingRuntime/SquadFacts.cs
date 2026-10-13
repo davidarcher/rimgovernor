@@ -36,29 +36,29 @@ internal sealed partial class Armament
     /// </summary>
     private (Pol.WeaponDef Weapon, bool Known) PrimaryWeapon(ObservationsPb.PawnEquipment equipment)
     {
-        if (!equipment.HasArmed)
+        if (equipment.Armed is null)
         {
             return (new Pol.WeaponDef(), false);
         }
-        if (!equipment.Armed)
+        if (!equipment.Armed.GetValueOrDefault())
         {
             return (new Pol.WeaponDef(), true);
         }
-        if (!equipment.HasPrimaryId || Catalog is null)
+        if (equipment.PrimaryId is null || Catalog is null)
         {
             return (new Pol.WeaponDef(), false);
         }
         foreach (var item in equipment.Equipped)
         {
-            if ((item.Thing?.Id ?? "") != equipment.PrimaryId)
+            if ((item.Thing?.Id ?? "") != (equipment.PrimaryId ?? ""))
             {
                 continue;
             }
-            if (item.Thing is null || !Things.TryRow(item.Thing, out var row) || (row.Thing_?.DefName ?? "").Length == 0)
+            if (item.Thing is null || !Things.TryRow(item.Thing, out var row) || (row.Entity?.DefName ?? "").Length == 0)
             {
                 return (new Pol.WeaponDef(), false);
             }
-            return (Catalog.WeaponOf(row.Thing_?.DefName ?? ""), true);
+            return (Catalog.WeaponOf(row.Entity?.DefName ?? ""), true);
         }
         return (new Pol.WeaponDef(), false);
     }
@@ -83,16 +83,16 @@ internal static partial class BuildingRuntimePackage
     /// </summary>
     internal static Fact<bool> MeleeCapable(ObservationsPb.PawnEquipment? equipment)
     {
-        if (equipment is null || !equipment.HasArmed || Boundary.IssueField(equipment.Issues, "equipped") || Boundary.IssueField(equipment.Issues, "armed"))
+        if (equipment is null || equipment.Armed is null || Boundary.IssueField(equipment.Issues, "equipped") || Boundary.IssueField(equipment.Issues, "armed"))
         {
             return Fact.Unknown<bool>();
         }
-        var known = !equipment.Armed;
-        if (equipment.Armed && equipment.HasPrimaryId)
+        var known = !equipment.Armed.GetValueOrDefault();
+        if (equipment.Armed.GetValueOrDefault() && equipment.PrimaryId is not null)
         {
             foreach (var item in equipment.Equipped)
             {
-                if (item.Thing?.Id == equipment.PrimaryId)
+                if ((item.Thing?.Id ?? "") == (equipment.PrimaryId ?? ""))
                 {
                     known = true;
                 }
@@ -110,16 +110,16 @@ internal static partial class BuildingRuntimePackage
         var facts = new Pol.SquadThreatFacts
         {
             Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
         };
-        if (row.HasHumanlike)
+        if (row.Humanlike is not null)
         {
-            facts = facts with { Humanlike = Fact.Known(row.Humanlike) };
+            facts = facts with { Humanlike = Fact.Known(row.Humanlike.GetValueOrDefault()) };
         }
-        if (row.HasAnimal)
+        if (row.Animal is not null)
         {
-            facts = facts with { Animal = Fact.Known(row.Animal) };
+            facts = facts with { Animal = Fact.Known(row.Animal.GetValueOrDefault()) };
         }
         facts = facts with { Anomaly = BridgeApi.PawnAnomaly(row.Anomaly), RangedEquipped = ranged };
         // A wild animal has no equipment tracker (the equipped field reads as a missing native component); it
@@ -128,7 +128,7 @@ internal static partial class BuildingRuntimePackage
         {
             facts = facts with { RangedEquipped = Fact.Known(false) };
         }
-        facts = facts with { Manhunter = ManhunterFact(row.HasMentalState ? row.MentalState : null, row.Issues) };
+        facts = facts with { Manhunter = ManhunterFact(row.MentalState is not null ? (row.MentalState ?? "") : null, row.Issues) };
         if (races.Race(new Pol.Resource(row.Pawn?.DefName ?? ""), out var race))
         {
             facts = facts with { BodySize = race.BodySize };
@@ -148,7 +148,7 @@ internal static partial class BuildingRuntimePackage
         }
         foreach (var issue in issues)
         {
-            if (issue.Field == "mental_state" && issue.Unavailable?.Reason == CommonPb.UnavailableReason.NotApplicable)
+            if ((issue.Field ?? "") == "mental_state" && (issue.Unavailable?.Reason).GetValueOrDefault() == CommonPb.UnavailableReason.NotApplicable)
             {
                 return Fact.Known(false);
             }
@@ -172,10 +172,10 @@ internal static partial class BuildingRuntimePackage
         var facts = seed with
         {
             Id = new PawnId(row.Pawn?.Id ?? ""),
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
-            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
+            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
         };
         facts = facts with { DraftOwned = Fact.Known(needed.Contains(new Domain.PawnId(facts.Id.Value))) };
         if (BridgeApi.PawnBiotech(row.Biotech).TryGetValue(out var bt))
@@ -184,14 +184,14 @@ internal static partial class BuildingRuntimePackage
         }
         if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs"))
         {
-            facts = facts with { PlayerForced = Boundary.FactBool(job.HasPlayerForced, job.PlayerForced), QueuedJobs = Boundary.FactUint(job.HasQueuedJobs, job.QueuedJobs) };
+            facts = facts with { PlayerForced = Boundary.FactBool(job.PlayerForced is not null, job.PlayerForced.GetValueOrDefault()), QueuedJobs = Boundary.FactUint(job.QueuedJobs is not null, job.QueuedJobs.GetValueOrDefault()) };
         }
         if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts = facts with { NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend) };
-            if (health.HasSummaryFraction)
+            facts = facts with { NeedsTend = Boundary.FactBool(health.NeedsTend is not null, health.NeedsTend.GetValueOrDefault()) };
+            if (health.SummaryFraction is not null)
             {
-                facts = facts with { HealthFraction = Fact.Known(health.SummaryFraction) };
+                facts = facts with { HealthFraction = Fact.Known(health.SummaryFraction.GetValueOrDefault()) };
             }
         }
         if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "disabled_work_tags"))
@@ -200,9 +200,9 @@ internal static partial class BuildingRuntimePackage
             facts = facts with { ViolenceCapable = Fact.Known(capable) };
         }
         facts = facts with { RangedEquipped = ranged, MeleeEquipped = MeleeCapable(row.Equipment) };
-        if (row.Equipment is { } equipment && equipment.HasArmed && !Boundary.IssueField(equipment.Issues, "armed"))
+        if (row.Equipment is { } equipment && equipment.Armed is not null && !Boundary.IssueField(equipment.Issues, "armed"))
         {
-            facts = facts with { Armed = Fact.Known(equipment.Armed) };
+            facts = facts with { Armed = Fact.Known(equipment.Armed.GetValueOrDefault()) };
         }
         return facts;
     }

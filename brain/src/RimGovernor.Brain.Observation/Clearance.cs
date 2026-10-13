@@ -74,15 +74,15 @@ public static partial class ObservationPackage
             throw new ObservationContractException("missing clearance targets reply");
         }
         // Test and staged native sources can return the typed stub without an error.
-        if (reply.Unavailable is { } u)
+        if (reply.Outcome?.Unavailable is { } u)
         {
-            if (u.Reason == C.UnavailableReason.Unspecified || !Enum.IsDefined(u.Reason))
+            if (u.Reason.GetValueOrDefault() == C.UnavailableReason.Unspecified || !Enum.IsDefined(u.Reason.GetValueOrDefault()))
             {
                 throw new ObservationContractException("unavailable reply without a reason");
             }
             return unknown;
         }
-        var v = reply.Observed ?? throw new ObservationContractException("missing clearance targets");
+        var v = reply.Outcome?.Observed ?? throw new ObservationContractException("missing clearance targets");
         var actual = ContextIdentity(v.Context);
         if (!SameColonyContext(actual, expected))
         {
@@ -93,19 +93,19 @@ public static partial class ObservationPackage
         {
             var target = new ClearanceTarget
             {
-                EntityId = row.EntityId,
-                DefName = row.DefName,
+                EntityId = row.EntityId ?? "",
+                DefName = row.DefName ?? "",
                 Class = ClearanceClassName(row.Class),
                 Minimum = CellOf(row.Occupied?.Minimum),
                 Maximum = CellOf(row.Occupied?.Maximum),
-                Deconstructible = row.Deconstructible,
-                InHome = row.InHome,
-                AncientDanger = row.AncientDanger,
-                RoofBlocker = row.RoofBlocker,
-                Designated = row.Designated,
-                Player = row.HasEnclosesRoom,
-                EnclosesRoom = row.EnclosesRoom,
-                SalvageSkipped = row.SalvageSkipped,
+                Deconstructible = row.Deconstructible.GetValueOrDefault(),
+                InHome = row.InHome.GetValueOrDefault(),
+                AncientDanger = row.AncientDanger.GetValueOrDefault(),
+                RoofBlocker = row.RoofBlocker ?? "",
+                Designated = row.Designated.GetValueOrDefault(),
+                Player = row.EnclosesRoom is not null,
+                EnclosesRoom = row.EnclosesRoom.GetValueOrDefault(),
+                SalvageSkipped = row.SalvageSkipped.GetValueOrDefault(),
             };
             if (row.Salvage is { } s)
             {
@@ -114,7 +114,7 @@ public static partial class ObservationPackage
                 {
                     yields.Add(PolicyFunctions.SourceYield(new ResourceKey { Def = new Resource(y.DefName) }, y.Count, y.UnitValue, Known((long)y.StorageHeadroom)));
                 }
-                var candidate = PolicyFunctions.SourceCandidate(CandidateKind.Salvage, row.EntityId, Known(s.Labor), Known(s.PathLength), true, SalvageUnitsPerTrip, [.. yields]);
+                var candidate = PolicyFunctions.SourceCandidate(CandidateKind.Salvage, (row.EntityId ?? ""), Known(s.Labor), Known(s.PathLength), true, SalvageUnitsPerTrip, [.. yields]);
                 target = target with { Salvage = new SalvageEvidence { Safe = Known(s.Safe), Candidate = candidate, AgeTicks = (int)s.AgeTicks } };
             }
             rows.Add(target);
@@ -124,18 +124,18 @@ public static partial class ObservationPackage
         {
             chunks.Add(new ClearanceChunk
             {
-                EntityId = row.EntityId,
-                DefName = row.DefName,
+                EntityId = row.EntityId ?? "",
+                DefName = row.DefName ?? "",
                 Cell = CellOf(row.Cell),
-                Forbidden = row.Forbidden,
-                Stored = row.Stored,
-                Destination = row.Destination,
+                Forbidden = row.Forbidden.GetValueOrDefault(),
+                Stored = row.Stored.GetValueOrDefault(),
+                Destination = row.Destination.GetValueOrDefault(),
             });
         }
         var floors = new List<ClearanceFloor>(v.Floors.Count);
         foreach (var row in v.Floors)
         {
-            floors.Add(new ClearanceFloor { Cell = CellOf(row.Cell), DefName = row.DefName, Designated = row.Designated });
+            floors.Add(new ClearanceFloor { Cell = CellOf(row.Cell), DefName = row.DefName ?? "", Designated = row.Designated.GetValueOrDefault() });
         }
         cancellationToken.ThrowIfCancellationRequested();
         return Known(new ClearanceCensus { Targets = EquatableArray.From(rows), Chunks = EquatableArray.From(chunks), Floors = EquatableArray.From(floors) });

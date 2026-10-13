@@ -41,7 +41,7 @@ internal static partial class BuildingRuntimePackage
 
     internal static async Task<FoodStorageObservation> FoodStorageObservationFactsAsync(IRoundsFoodStorageUpkeepSource native, O.ColonyFactsSnapshot v, CancellationToken ct)
     {
-        var food = v.FoodSupply?.Observed;
+        var food = v.FoodSupply?.Outcome?.Observed;
         if (food is null)
         {
             return new FoodStorageObservation();
@@ -146,7 +146,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
 
         var identity = Boundary.Identity(state.Snapshot);
         var reply = await Reviewer.ColonyFactsAsync(Native, identity, false, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("step: no observed colony facts");
@@ -162,7 +162,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             throw new ControlException("step: observed context", e);
         }
 
-        if (observed.Context.Tick < review.Tick.Value)
+        if ((observed.Context?.Tick).GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("step: observed facts older than the review");
         }
@@ -173,7 +173,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
             Colony = state.Snapshot.Colony,
             Load = state.Snapshot.Load,
             Map = state.Snapshot.Map,
-            Tick = new Tick(observed.Context.Tick),
+            Tick = new Tick((observed.Context?.Tick).GetValueOrDefault()),
             NativeGeneration = Known(state.Snapshot.Native),
         };
         var reading = await Reviewer.ObserveOwnedAsync(Reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
@@ -184,7 +184,7 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
 
         if (reading.Projection.Facts.FoodReserve.TryGetValue(out var reserve) && (reserve.Hold.Count > 0 || reserve.Release.Count > 0))
         {
-            if (reading.Projection.Identity.Tick != new Tick(observed.Context.Tick))
+            if (reading.Projection.Identity.Tick != new Tick((observed.Context?.Tick).GetValueOrDefault()))
             {
                 return new RoundsFoodStorageUpkeepResult { Verdict = FieldUnavailable("food_reserve") };
             }

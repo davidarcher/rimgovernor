@@ -15,7 +15,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var ids = read.Emergency.Colonists.Select(p => p.Id.Value).ToList();
         var (reply, _) = await _native.ReadCombatPawnsAsync(Boundary.Identity(state.Snapshot), ids, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null || observed.Pawns.Count != ids.Count)
         {
             throw DefenseControlErr(248);

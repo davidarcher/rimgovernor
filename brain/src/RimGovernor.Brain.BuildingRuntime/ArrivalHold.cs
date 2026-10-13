@@ -84,7 +84,7 @@ public sealed partial class Worker
                     continue;
                 }
                 held.Add(waiting);
-                if (row.Drafted && row.Job?.DefName != "Goto" && resent.Add(move.Action.Id) && _config.Moves is not null)
+                if (row.Drafted.GetValueOrDefault() && (row.Job?.DefName ?? "") != "Goto" && resent.Add(move.Action.Id) && _config.Moves is not null)
                 {
                     await ResendMoveAsync(current, move, tick, ct).ConfigureAwait(false);
                 }
@@ -109,7 +109,7 @@ public sealed partial class Worker
         {
             return (rows, 0);
         }
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             return (rows, 0);

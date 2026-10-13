@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Observations;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
@@ -21,27 +21,27 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>protoCell</c>: the cell, false when it or a coordinate is absent.</summary>
     internal static bool TryProtoCell(Cell? cell, out DomainCell value)
     {
-        if (cell is null || !cell.HasX || !cell.HasZ)
+        if (cell is null || cell.X is null || cell.Z is null)
         {
             value = default;
             return false;
         }
-        value = new DomainCell(cell.X, cell.Z);
+        value = new DomainCell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault());
         return true;
     }
 
     /// <summary>Go's <c>validRef</c>: a reference with a valid id and no unknown fields.</summary>
-    internal static bool ValidRef(Ref? reference) =>
-        reference is not null && reference.HasId && IsValidId(reference.Id) && !UnknownFields.Present(reference);
+    internal static bool ValidRef([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Ref? reference) =>
+        reference is not null && reference.Id is not null && IsValidId(reference.Id);
 
     /// <summary>Go's <c>optionalRef</c>: an absent reference or a valid one.</summary>
     internal static bool OptionalRef(Ref? reference) => reference is null || ValidRef(reference);
 
     /// <summary>Go's <c>uniqueRef</c>: a valid reference not yet in <paramref name="seen"/>, which it joins.</summary>
-    internal static bool UniqueRef(Ref? reference, ISet<string> seen) => ValidRef(reference) && seen.Add(reference!.Id);
+    internal static bool UniqueRef([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Ref? reference, ISet<string> seen) => ValidRef(reference) && seen.Add(reference.Id ?? "");
 
     /// <summary>Go's <c>RefIDs</c>: the ids of the references, in order.</summary>
-    public static IReadOnlyList<string> RefIds(IEnumerable<Ref> references) => [.. references.Select(reference => reference.Id)];
+    public static IReadOnlyList<string> RefIds(IEnumerable<Ref> references) => [.. references.Select(reference => (reference.Id ?? ""))];
 
     /// <summary>Go's <c>combatNumber</c>: an absent number or a finite one, non-negative when asked.</summary>
     internal static bool CombatNumber(double? value, bool nonnegative) =>
@@ -53,19 +53,18 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>validQuality</c>.</summary>
     internal static bool ValidQuality(int quality) => quality is >= 0 and <= 6;
 
-    /// <summary>Go's <c>buildingUnknown</c>: rejects a message, or one inside it, that carries fields its type lacks.</summary>
-    internal static void BuildingUnknown(Google.Protobuf.IMessage? message)
+    /// <summary>Go's <c>buildingUnknown</c>: rejects a missing message. Unknown fields cannot survive decoding into a record.</summary>
+    internal static void BuildingUnknown(object? message)
     {
         if (message is null)
         {
             throw Contract("missing building message");
         }
-        UnknownFields.Reject(message, "building");
     }
 
     /// <summary>Go's <c>healthIssue</c> and <c>surgeryIssue</c>: whether a read issue names the field.</summary>
-    internal static bool IssueNames(IEnumerable<ReadIssue> issues, string field) => issues.Any(issue => issue.Field == field);
+    internal static bool IssueNames(IEnumerable<ReadIssue> issues, string field) => issues.Any(issue => (issue.Field ?? "") == field);
 
     /// <summary>Go's <c>failedFields</c>: the fields the read issues name.</summary>
-    internal static HashSet<string> FailedFields(IEnumerable<ReadIssue> issues) => new(issues.Select(issue => issue.Field), StringComparer.Ordinal);
+    internal static HashSet<string> FailedFields(IEnumerable<ReadIssue> issues) => new(issues.Select(issue => (issue.Field ?? "")), StringComparer.Ordinal);
 }

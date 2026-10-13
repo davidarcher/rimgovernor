@@ -42,22 +42,22 @@ public static partial class ObservationPackage
             var offered = new AcquisitionSource
             {
                 Id = row.Source?.Id ?? "",
-                Resource = row.Resource,
+                Resource = row.Resource ?? "",
                 Token = row.SourceSnapshot?.Token ?? "",
                 Definition = source?.DefName ?? "",
                 Cell = CellOf(source?.Position),
-                Hunt = row.Hunt,
-                Food = row.Food,
-                Designated = row.Designated,
-                Yield = row.Yield,
-                HerdSize = (int)row.HerdSize,
-                Downed = row.Downed,
-                Sleeping = row.Sleeping,
+                Hunt = row.Hunt.GetValueOrDefault(),
+                Food = row.Food.GetValueOrDefault(),
+                Designated = row.Designated.GetValueOrDefault(),
+                Yield = row.Yield.GetValueOrDefault(),
+                HerdSize = (int)row.HerdSize.GetValueOrDefault(),
+                Downed = row.Downed.GetValueOrDefault(),
+                Sleeping = row.Sleeping.GetValueOrDefault(),
                 Pest = race.Pest,
-                DesignatedTick = new Tick((long)row.DesignatedTick),
-                Taken = row.Taken,
-                Growth = row.Growth,
-                Plantation = row.Plantation,
+                DesignatedTick = new Tick((long)row.DesignatedTick.GetValueOrDefault()),
+                Taken = row.Taken.GetValueOrDefault(),
+                Growth = row.Growth.GetValueOrDefault(),
+                Plantation = row.Plantation.GetValueOrDefault(),
             };
             if (offered.Hunt)
             {
@@ -71,11 +71,11 @@ public static partial class ObservationPackage
                 offered = offered with { RevengeChance = chance };
                 if (!race.Pest)
                 {
-                    if (!race.MeatNutritionPerUnit.TryGetValue(out var perUnit) || !row.HasMeatAmount)
+                    if (!race.MeatNutritionPerUnit.TryGetValue(out var perUnit) || row.MeatAmount is null)
                     {
                         return unknown;
                     }
-                    offered = offered with { NutritionYield = Math.Max(0, row.MeatAmount) * perUnit };
+                    offered = offered with { NutritionYield = Math.Max(0, row.MeatAmount.GetValueOrDefault()) * perUnit };
                 }
                 offered = offered with { MeleeOnly = Meleeable(row, tables.Pawns, race, offered) };
             }
@@ -88,7 +88,7 @@ public static partial class ObservationPackage
                     bool shown;
                     try
                     {
-                        (nutrition, shown) = catalog.ShownStatValue(row.Resource, "", StatNutrition);
+                        (nutrition, shown) = catalog.ShownStatValue((row.Resource ?? ""), "", StatNutrition);
                     }
                     catch (DomainException)
                     {
@@ -96,14 +96,14 @@ public static partial class ObservationPackage
                     }
                     if (shown)
                     {
-                        offered = offered with { NutritionYield = row.Yield * (float)nutrition };
+                        offered = offered with { NutritionYield = row.Yield.GetValueOrDefault() * (float)nutrition };
                     }
                 }
             }
             if (offered.Hunt)
             {
                 offered = offered with { Products = race.Butchery };
-                var verdict = census.Gate(new HuntPrey { Source = offered, Fogged = row.Fogged, Mental = row.InMentalState });
+                var verdict = census.Gate(new HuntPrey { Source = offered, Fogged = row.Fogged.GetValueOrDefault(), Mental = row.InMentalState.GetValueOrDefault() });
                 if (verdict.Hold is { } held)
                 {
                     holds.Add(held with { Source = offered });
@@ -126,7 +126,7 @@ public static partial class ObservationPackage
     /// </summary>
     private static bool Meleeable(O.AcquisitionFacts row, Pawns pawns, AnimalRace race, AcquisitionSource prey)
     {
-        if (row.InMentalState || race.Predator || !race.MeatNutritionPerUnit.TryGetValue(out var nutrition) || !(nutrition > 0))
+        if (row.InMentalState.GetValueOrDefault() || race.Predator || !race.MeatNutritionPerUnit.TryGetValue(out var nutrition) || !(nutrition > 0))
         {
             return false;
         }
@@ -142,11 +142,11 @@ public static partial class ObservationPackage
         {
             return false;
         }
-        if (!state.AnimalState.HasLifeStageIndex)
+        if (state.AnimalState.LifeStageIndex is null)
         {
             return false;
         }
-        var index = state.AnimalState.LifeStageIndex;
+        var index = state.AnimalState.LifeStageIndex.GetValueOrDefault();
         if (index < 0 || index >= race.LifeStages.Count)
         {
             return false;
@@ -164,7 +164,7 @@ public static partial class ObservationPackage
             var bills = new List<HuntBill>();
             foreach (var bill in b.Bills)
             {
-                var repeat = bill.RepeatMode switch
+                var repeat = bill.RepeatMode.GetValueOrDefault() switch
                 {
                     Ops.RepeatMode.Forever => HuntRepeat.Forever,
                     Ops.RepeatMode.Count => HuntRepeat.Count,
@@ -173,16 +173,16 @@ public static partial class ObservationPackage
                 };
                 bills.Add(new HuntBill
                 {
-                    Suspended = bill.Suspended,
-                    Paused = bill.Paused,
-                    Count = (int)bill.RepeatCount,
-                    Target = (int)bill.TargetCount,
+                    Suspended = bill.Suspended.GetValueOrDefault(),
+                    Paused = bill.Paused.GetValueOrDefault(),
+                    Count = (int)bill.RepeatCount.GetValueOrDefault(),
+                    Target = (int)bill.TargetCount.GetValueOrDefault(),
                     AllowedCorpses = Set(bill.AllowedCorpses),
                     Repeat = repeat,
-                    Product = bill.HasProductCount ? (int)bill.ProductCount : null,
+                    Product = bill.ProductCount is not null ? (int)bill.ProductCount.GetValueOrDefault() : null,
                 });
             }
-            benches.Add(new HuntBench { ID = b.BenchId, Usable = b.Usable, Bills = bills });
+            benches.Add(new HuntBench { ID = b.BenchId ?? "", Usable = b.Usable.GetValueOrDefault(), Bills = bills });
         }
         foreach (var h in v?.Hunters ?? [])
         {
@@ -191,38 +191,38 @@ public static partial class ObservationPackage
             var skipped = new HashSet<string>(StringComparer.Ordinal);
             foreach (var r in h.Routes)
             {
-                if (r.Skipped)
+                if (r.Skipped.GetValueOrDefault())
                 {
-                    skipped.Add(r.PreyId);
+                    skipped.Add((r.PreyId ?? ""));
                 }
-                else if (r.Safe)
+                else if (r.Safe.GetValueOrDefault())
                 {
-                    safe.Add(r.PreyId);
+                    safe.Add((r.PreyId ?? ""));
                 }
                 else
                 {
-                    unsafePrey.Add(r.PreyId);
+                    unsafePrey.Add((r.PreyId ?? ""));
                 }
             }
             hunters.Add(new HuntHunter
             {
-                ID = h.PawnId,
+                ID = h.PawnId ?? "",
                 Cell = CellOf(h.Position),
-                Downed = h.Downed,
-                MentalState = h.InMentalState,
-                Drafted = h.Drafted,
-                HuntingPriority = (int)h.HuntingPriority,
-                HuntingActive = h.HuntingActive,
-                HuntingDisabled = h.HuntingDisabled,
-                CookingActive = h.CookingActive,
-                HasHuntingWeapon = h.HasHuntingWeapon,
-                RangedBlockingShield = h.RangedBlockingShield,
+                Downed = h.Downed.GetValueOrDefault(),
+                MentalState = h.InMentalState.GetValueOrDefault(),
+                Drafted = h.Drafted.GetValueOrDefault(),
+                HuntingPriority = (int)h.HuntingPriority.GetValueOrDefault(),
+                HuntingActive = h.HuntingActive.GetValueOrDefault(),
+                HuntingDisabled = h.HuntingDisabled.GetValueOrDefault(),
+                CookingActive = h.CookingActive.GetValueOrDefault(),
+                HasHuntingWeapon = h.HasHuntingWeapon.GetValueOrDefault(),
+                RangedBlockingShield = h.RangedBlockingShield.GetValueOrDefault(),
                 ReachableBenches = Set(h.ReachableBenches),
                 RouteSafePrey = safe,
                 RouteUnsafePrey = unsafePrey,
                 RouteSkippedPrey = skipped,
                 // The weapon's verbs and projectile are the def rows' (Catalog.HuntWeapon).
-                Weapon = catalog.HuntWeapon(h.WeaponDef),
+                Weapon = catalog.HuntWeapon((h.WeaponDef ?? "")),
             });
         }
         return new HuntCensus { Benches = benches, Hunters = hunters };
@@ -236,15 +236,15 @@ public static partial class ObservationPackage
         r = r with { Acquisition = sources, HuntHolds = holds };
         if (!HasIssue(v.Issues, "pending_food_nutrition"))
         {
-            r = r with { PendingFoodNutrition = Optional(v.HasPendingFoodNutrition, v.PendingFoodNutrition) };
+            r = r with { PendingFoodNutrition = Optional(v.PendingFoodNutrition is not null, v.PendingFoodNutrition.GetValueOrDefault()) };
         }
-        if (!HasIssue(v.Issues, "pending_hunts") && v.HasPendingHunts)
+        if (!HasIssue(v.Issues, "pending_hunts") && v.PendingHunts is not null)
         {
-            r = r with { PendingHunts = Known((int)v.PendingHunts) };
+            r = r with { PendingHunts = Known((int)v.PendingHunts.GetValueOrDefault()) };
         }
         if (!HasIssue(v.Issues, "pending_wood_units"))
         {
-            r = r with { PendingWoodUnits = Optional(v.HasPendingWoodUnits, v.PendingWoodUnits) };
+            r = r with { PendingWoodUnits = Optional(v.PendingWoodUnits is not null, v.PendingWoodUnits.GetValueOrDefault()) };
         }
     }
 }

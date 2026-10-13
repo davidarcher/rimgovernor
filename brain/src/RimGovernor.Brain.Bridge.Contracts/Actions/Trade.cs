@@ -1,5 +1,5 @@
-using Op = RimGovernor.Protocol.Operations;
-using WireCommon = RimGovernor.Protocol.Common;
+using Op = RimGovernor.Contracts.Wire.Operations;
+using WireCommon = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public static partial class BridgeFunctions
 {
     /// <summary>Go's <c>mapTradeTarget</c>: the wire target of a map trader.</summary>
-    internal static WireCommon.TradeTarget MapTradeTarget(string id) => new() { MapTrader = new WireCommon.MapTradeTarget { TraderId = id } };
+    internal static WireCommon.TradeTarget MapTradeTarget(string id) => new() { Kind = new WireCommon.MapTradeTarget { TraderId = id } };
 
     /// <summary>Go's <c>tradeAction</c>: the Actions/Apply trade arm of one domain trade action.</summary>
     private static Op.Action TradeAction(DomainAction action)
@@ -29,17 +29,17 @@ public static partial class BridgeFunctions
                 target = MapTradeTarget(participant.Id);
                 break;
             case TradeParticipantKind.Settlement:
-                target = new WireCommon.TradeTarget { Settlement = new WireCommon.SettlementTradeTarget { SettlementId = participant.Id, CaravanId = participant.Caravan } };
+                target = new WireCommon.TradeTarget { Kind = new WireCommon.SettlementTradeTarget { SettlementId = participant.Id, CaravanId = participant.Caravan } };
                 break;
             case TradeParticipantKind.Orbital:
-                target = new WireCommon.TradeTarget { OrbitalShip = new WireCommon.OrbitalTradeTarget { ShipId = participant.Id } };
+                target = new WireCommon.TradeTarget { Kind = new WireCommon.OrbitalTradeTarget { ShipId = participant.Id } };
                 break;
         }
         var intent = new Op.TradeIntent { Target = target, NegotiatorId = negotiator };
         switch (t.Kind)
         {
             case TradeOperationKind.Open:
-                intent.Open = new Op.OpenTrade { GiftMode = t.GiftMode };
+                intent = intent with { Step = new Op.TradeIntentStep.OpenCase(new Op.OpenTrade { GiftMode = t.GiftMode }) };
                 break;
             case TradeOperationKind.SetLines:
                 var rows = new List<Op.TradeLine>(t.Lines.Count);
@@ -56,14 +56,14 @@ public static partial class BridgeFunctions
                 {
                     throw Contract("set trade lines requires lines");
                 }
-                intent.SetLines = new Op.SetTradeLines { Lines = { rows }, AllowPawns = t.AllowPawns };
+                intent = intent with { Step = new Op.TradeIntentStep.SetLinesCase(new Op.SetTradeLines { Lines = [.. rows], AllowPawns = t.AllowPawns }) };
                 break;
             case TradeOperationKind.Accept:
                 if (!IsValidId(t.ExpectedDealSignature))
                 {
                     throw Contract("accept trade requires a deal signature");
                 }
-                intent.Accept = new Op.AcceptTrade { ExpectedDealSignature = t.ExpectedDealSignature, AllowEmpty = t.AllowEmpty, ReceiveQuest = t.ReceiveQuest };
+                intent = intent with { Step = new Op.TradeIntentStep.AcceptCase(new Op.AcceptTrade { ExpectedDealSignature = t.ExpectedDealSignature, AllowEmpty = t.AllowEmpty, ReceiveQuest = t.ReceiveQuest }) };
                 break;
             case TradeOperationKind.End:
                 var kind = t.EndKind switch
@@ -72,11 +72,11 @@ public static partial class BridgeFunctions
                     TradeEndKind.CloseDialog => Op.EndTradeKind.CloseDialog,
                     _ => throw Contract("end trade requires cancel or close_dialog"),
                 };
-                intent.End = new Op.EndTrade { Kind = kind, ReceiveQuest = t.ReceiveQuest };
+                intent = intent with { Step = new Op.TradeIntentStep.EndCase(new Op.EndTrade { Kind = kind, ReceiveQuest = t.ReceiveQuest }) };
                 break;
             default:
                 throw Contract("unknown trade step");
         }
-        return new Op.Action { Trade = intent };
+        return new Op.Action { Intent = intent };
     }
 }

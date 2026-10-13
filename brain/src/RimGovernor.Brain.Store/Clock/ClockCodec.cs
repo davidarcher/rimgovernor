@@ -1,12 +1,12 @@
 using System.Globalization;
 using System.Text;
-using Google.Protobuf;
 using Microsoft.Data.Sqlite;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store.Codec;
-using Pb = RimGovernor.Protocol.Clock;
-using PbCommon = RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire;
+using Pb = RimGovernor.Contracts.Wire.Clock;
+using PbCommon = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Store;
 
@@ -31,40 +31,40 @@ public static partial class ClockJournal
 
     internal const int InboxBytes = 16 << 20;
 
-    private const int RecursionLimit = 64;
-
     /// <summary>Go <c>clockBinary</c>: the deterministic encoding of a clock evidence message, bounded.</summary>
-    internal static byte[] Binary(IMessage message)
+    internal static byte[] Binary<T>(T message)
+        where T : class
     {
-        var bytes = message.ToByteArray();
+        var bytes = WireJson.SerializeToUtf8Bytes(message);
         DomainException.Require(bytes.Length <= RecordLimit, "clock evidence exceeds bound");
         return bytes;
     }
 
     /// <summary>Go <c>canonicalClockBytes</c>: the encoding without the record bound, for comparing retained pages.</summary>
-    internal static byte[] CanonicalBytes(IMessage message) => message.ToByteArray();
+    internal static byte[] CanonicalBytes<T>(T message)
+        where T : class => WireJson.SerializeToUtf8Bytes(message);
 
-    /// <summary>Parses a protobuf record with the recursion limit the journal applies; no canonical check.</summary>
+    /// <summary>Parses a wire-JSON record; no canonical check. The decoder rejects unknown members.</summary>
     internal static T Parse<T>(byte[] bytes, int sizeLimit = RecordLimit)
-        where T : class, IMessage<T>, new()
+        where T : class
     {
-        var message = new T();
+        if (bytes.Length > sizeLimit)
+        {
+            throw new StoreCorruptException("clock evidence exceeds bound");
+        }
         try
         {
-            using var stream = new MemoryStream(bytes, writable: false);
-            using var input = CodedInputStream.CreateWithLimits(stream, sizeLimit, RecursionLimit);
-            message.MergeFrom(input);
+            return WireJson.Deserialize<T>(bytes);
         }
-        catch (InvalidProtocolBufferException e)
+        catch (System.Text.Json.JsonException e)
         {
-            throw new StoreCorruptException("undecodable clock protobuf: " + e.Message);
+            throw new StoreCorruptException("undecodable clock record: " + e.Message);
         }
-        return message;
     }
 
     /// <summary>Go <c>clockUnmarshal</c>: parses a persisted record and rejects anything that is not its own canonical encoding.</summary>
     internal static T Unmarshal<T>(byte[] bytes)
-        where T : class, IMessage<T>, new()
+        where T : class
     {
         if (bytes.Length > RecordLimit)
         {
@@ -103,34 +103,15 @@ public static partial class ClockJournal
 
     /// <summary>Go <c>clockReplyPhase</c>: the phase a control reply establishes.</summary>
     internal static ClockPhase ReplyPhase(Pb.ControlReply reply) =>
-        reply.OutcomeCase switch
+        reply.Outcome switch
         {
-            Pb.ControlReply.OutcomeOneofCase.Receipt => reply.Receipt.OutcomeCase == Pb.ControlReceipt.OutcomeOneofCase.Applied ? ClockPhase.Applied : ClockPhase.Uncertain,
-            Pb.ControlReply.OutcomeOneofCase.Failure => reply.Failure.Code == PbCommon.FailureCode.AttemptConflict ? ClockPhase.Uncertain : ClockPhase.Refused,
+            Pb.ControlReplyOutcome.ReceiptCase receipt => receipt.Value.Outcome is Pb.ControlReceiptOutcome.AppliedCase ? ClockPhase.Applied : ClockPhase.Uncertain,
+            Pb.ControlReplyOutcome.FailureCase failure => failure.Value.Code.GetValueOrDefault() == PbCommon.FailureCode.AttemptConflict ? ClockPhase.Uncertain : ClockPhase.Refused,
             _ => ClockPhase.Refused,
         };
 
     /// <summary>Go's <c>proto.Equal</c>: value equality, with two absent messages equal.</summary>
-    internal static bool SameMessage(IMessage? a, IMessage? b) => Equals(a, b);
-
-    /// <summary>
-    /// Whether <paramref name="message"/> itself (not a nested message) carries a field its descriptor lacks: Go's
-    /// <c>len(m.ProtoReflect().GetUnknown()) != 0</c>.
-    /// </summary>
-    internal static bool HasUnknownFields(IMessage message)
-    {
-        using var input = new CodedInputStream(message.ToByteArray());
-        uint tag;
-        while ((tag = input.ReadTag()) != 0)
-        {
-            if (message.Descriptor.FindFieldByNumber(WireFormat.GetTagFieldNumber(tag)) is null)
-            {
-                return true;
-            }
-            input.SkipLastField();
-        }
-        return false;
-    }
+    internal static bool SameMessage(object? a, object? b) => Equals(a, b);
 
     // ---- intent columns -------------------------------------------------------------------------------------
 
@@ -147,8 +128,8 @@ public static partial class ClockJournal
         int Speed,
         uint LeaseMs,
         uint MaxTicks,
-        ByteString Policy,
-        ByteString Original,
+        string Policy,
+        string Original,
         bool TestAcceleration,
         uint BlindTickBudget,
         uint MaxTicksPerSecond,
@@ -184,8 +165,8 @@ public static partial class ClockJournal
         bool test = false;
         bool ceilingSet = false;
         bool player = false;
-        var policy = ByteString.Empty;
-        var original = ByteString.Empty;
+        var policy = "";
+        var original = "";
         if (intent.Command.Start is { } start)
         {
             kind = "start";
@@ -196,13 +177,13 @@ public static partial class ClockJournal
             blind = start.BlindTickBudget;
             perSecond = start.MaxTicksPerSecond;
             player = start.PlayerAccelerated;
-            policy = ByteString.CopyFrom(Binary(start.Policy!));
+            policy = Encoding.UTF8.GetString(Binary(start.Policy!));
         }
         else if (intent.Command.Renew is { } renew)
         {
             kind = "renew";
             lease = renew.LeaseMs;
-            original = ByteString.CopyFrom(Binary(renew.Original!));
+            original = Encoding.UTF8.GetString(Binary(renew.Original!));
         }
         else
         {
@@ -214,7 +195,7 @@ public static partial class ClockJournal
                 perSecond = ceiling;
                 ceilingSet = true;
             }
-            original = ByteString.CopyFrom(Binary(change.Original!));
+            original = Encoding.UTF8.GetString(Binary(change.Original!));
         }
         var w = intent.Window;
         return new IntentRow(
@@ -258,8 +239,8 @@ public static partial class ClockJournal
             ("$speed", row.Speed),
             ("$lease", (long)row.LeaseMs),
             ("$maxticks", (long)row.MaxTicks),
-            ("$policy", row.Policy.ToByteArray()),
-            ("$original", row.Original.ToByteArray()),
+            ("$policy", Encoding.UTF8.GetBytes(row.Policy)),
+            ("$original", Encoding.UTF8.GetBytes(row.Original)),
             ("$test", row.TestAcceleration ? 1 : 0),
             ("$blind", (long)row.BlindTickBudget),
             ("$perSecond", (long)row.MaxTicksPerSecond),
@@ -286,8 +267,8 @@ public static partial class ClockJournal
             checked((int)r.GetInt64(at + 8)),
             checked((uint)r.GetInt64(at + 9)),
             checked((uint)r.GetInt64(at + 10)),
-            ByteString.CopyFrom(r.RequiredBlob(at + 11)),
-            ByteString.CopyFrom(r.RequiredBlob(at + 12)),
+            Encoding.UTF8.GetString(r.RequiredBlob(at + 11)),
+            Encoding.UTF8.GetString(r.RequiredBlob(at + 12)),
             r.GetInt64(at + 13) != 0,
             checked((uint)r.GetInt64(at + 14)),
             checked((uint)r.GetInt64(at + 15)),
@@ -324,7 +305,7 @@ public static partial class ClockJournal
                 command = new ClockCommand(
                     Start: new ClockStart(
                         (Pb.Speed)row.Speed,
-                        Unmarshal<Pb.WatchPolicy>(row.Policy.ToByteArray()),
+                        Unmarshal<Pb.WatchPolicy>(Encoding.UTF8.GetBytes(row.Policy)),
                         row.LeaseMs,
                         row.MaxTicks,
                         row.TestAcceleration,
@@ -335,11 +316,11 @@ public static partial class ClockJournal
                 );
                 break;
             case "renew":
-                command = new ClockCommand(Renew: new ClockRenew(Unmarshal<Pb.Epoch>(row.Original.ToByteArray()), row.LeaseMs));
+                command = new ClockCommand(Renew: new ClockRenew(Unmarshal<Pb.Epoch>(Encoding.UTF8.GetBytes(row.Original)), row.LeaseMs));
                 break;
             case "speed":
                 command = new ClockCommand(
-                    Speed: new ClockSpeed(Unmarshal<Pb.Epoch>(row.Original.ToByteArray()), (Pb.Speed)row.Speed, row.CeilingSet ? row.MaxTicksPerSecond : null)
+                    Speed: new ClockSpeed(Unmarshal<Pb.Epoch>(Encoding.UTF8.GetBytes(row.Original)), (Pb.Speed)row.Speed, row.CeilingSet ? row.MaxTicksPerSecond : null)
                 );
                 break;
             default:

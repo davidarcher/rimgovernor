@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Protocol.Observations;
+using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 

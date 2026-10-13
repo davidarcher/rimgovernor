@@ -159,7 +159,7 @@ public sealed partial class RoundsFieldPlanner
                     continue;
                 }
 
-                Boundary.Context(reply?.Evaluated?.Context, state.Snapshot);
+                Boundary.Context(reply?.Outcome?.Evaluated?.Context, state.Snapshot);
                 var spec = new PlanSpec(id, new PlanRevision(1), [action]);
                 _reviewer.Player.Current(call, epoch);
                 Identity actual;

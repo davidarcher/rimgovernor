@@ -103,7 +103,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                             break;
                         }
 
-                        Boundary.Context(reply?.Evaluated?.Context, snapshot);
+                        Boundary.Context(reply?.Outcome?.Evaluated?.Context, snapshot);
                         var action = DomainAction.NewZoneCreateAction(new ActionId($"{id}-{i}"), zone);
                         actions.Add(action);
                         previews.Add(new Preview

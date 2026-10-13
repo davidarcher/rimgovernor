@@ -173,11 +173,11 @@ public static partial class ObservationPackage
         item = default!;
         has = false;
         var e = row?.Equipment;
-        if (e is null || !e.HasArmed || e.Issues.Count > 0)
+        if (e is null || e.Armed is null || e.Issues.Count > 0)
         {
             return false;
         }
-        if (!e.Armed)
+        if (!e.Armed.GetValueOrDefault())
         {
             return true;
         }
@@ -188,27 +188,27 @@ public static partial class ObservationPackage
         foreach (var g in e.Equipped)
         {
             var id = g.Thing?.Id ?? "";
-            if (id.Length == 0 || id != e.PrimaryId)
+            if (id.Length == 0 || id != (e.PrimaryId ?? ""))
             {
                 continue;
             }
             var ok = tables.Things.TryGetRow(g.Thing, out var thing);
-            var def = thing?.Thing_?.DefName ?? "";
-            if (!ok || def.Length == 0 || !g.HasConditionFraction)
+            var def = thing?.Entity?.DefName ?? "";
+            if (!ok || def.Length == 0 || g.ConditionFraction is null)
             {
                 return false;
             }
-            var quality = g.HasQuality ? (int)g.Quality : 2;
+            var quality = g.Quality is not null ? (int)g.Quality.GetValueOrDefault() : 2;
             double baseValue;
             try
             {
-                baseValue = OptionStat(catalog, def, g.Stuff, StatMarketValue, true);
+                baseValue = OptionStat(catalog, def, (g.Stuff ?? ""), StatMarketValue, true);
             }
             catch (DomainException)
             {
                 return false;
             }
-            item = new PersonalItem { Definition = new Resource(def), Stuff = new Resource(g.Stuff), Quality = quality, Condition = g.ConditionFraction, Base = Known(baseValue) };
+            item = new PersonalItem { Definition = new Resource(def), Stuff = new Resource((g.Stuff ?? "")), Quality = quality, Condition = g.ConditionFraction.GetValueOrDefault(), Base = Known(baseValue) };
             has = true;
             return true;
         }

@@ -144,26 +144,26 @@ public static partial class ObservationPackage
     private static Fact<EquatableArray<MoodPawn>> RoundsMood(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot)
     {
         var unknown = Unknown<EquatableArray<MoodPawn>>();
-        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || !colony.HasColonistCount || snapshot is null
-            || colony.ColonistCount != emergency.Colonists.Count)
+        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || colony.ColonistCount is null || snapshot is null
+            || colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count)
         {
             return unknown;
         }
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var p in snapshot.Pawns)
         {
-            if (p is null || p.Pawn is null || byId.ContainsKey(p.Pawn.Id))
+            if (p is null || p.Pawn is null || byId.ContainsKey((p.Pawn.Id ?? "")))
             {
                 return unknown;
             }
-            byId[p.Pawn.Id] = p;
+            byId[(p.Pawn.Id ?? "")] = p;
         }
         var forecasts = new Dictionary<string, O.PatientForecast>(StringComparer.Ordinal);
-        if (colony.Forecast?.Observed is { } observed)
+        if (colony.Forecast?.Outcome?.Observed is { } observed)
         {
             foreach (var f in observed.Patients)
             {
-                forecasts[f.PawnId] = f;
+                forecasts[f.PawnId ?? ""] = f;
             }
         }
         var rows = new List<MoodPawn>();
@@ -176,7 +176,7 @@ public static partial class ObservationPackage
             }
             var dk = pawn.Dead.TryGetValue(out var dead);
             var nk = pawn.Downed.TryGetValue(out var downed);
-            if (!dk || !nk || !r.HasDead || !r.HasDowned || r.Dead != dead || r.Downed != downed || !r.HasColonist || !r.Colonist)
+            if (!dk || !nk || r.Dead is null || r.Downed is null || r.Dead.GetValueOrDefault() != dead || r.Downed.GetValueOrDefault() != downed || r.Colonist is null || !r.Colonist.GetValueOrDefault())
             {
                 return unknown;
             }
@@ -184,34 +184,34 @@ public static partial class ObservationPackage
             {
                 Break = pawn.MentalState,
                 Id = pawn.Id,
-                Dead = Optional(r.HasDead, r.Dead),
-                Downed = Optional(r.HasDowned, r.Downed),
-                Drafted = Optional(r.HasDrafted, r.Drafted),
+                Dead = Optional(r.Dead is not null, r.Dead.GetValueOrDefault()),
+                Downed = Optional(r.Downed is not null, r.Downed.GetValueOrDefault()),
+                Drafted = Optional(r.Drafted is not null, r.Drafted.GetValueOrDefault()),
                 Mental = NativePresence(r.MentalState, r.Issues, "mental_state"),
             };
             if (r.Job is { } job && !HasIssue(r.Issues, "job"))
             {
-                p = p with { PlayerForced = Optional(job.HasPlayerForced, job.PlayerForced) };
+                p = p with { PlayerForced = Optional(job.PlayerForced is not null, job.PlayerForced.GetValueOrDefault()) };
             }
             if (r.Needs is { } n && !HasIssue(r.Issues, "needs"))
             {
                 p = p with
                 {
-                    Mood = Optional(n.HasMood, n.Mood),
-                    Threshold = Optional(n.HasBreakThresholdMinor, n.BreakThresholdMinor),
-                    Food = Optional(n.HasFood, n.Food),
-                    Rest = Optional(n.HasRest, n.Rest),
-                    Joy = Optional(n.HasJoy, n.Joy),
+                    Mood = Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
+                    Threshold = Optional(n.BreakThresholdMinor is not null, n.BreakThresholdMinor.GetValueOrDefault()),
+                    Food = Optional(n.Food is not null, n.Food.GetValueOrDefault()),
+                    Rest = Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
+                    Joy = Optional(n.Joy is not null, n.Joy.GetValueOrDefault()),
                 };
             }
             if (forecasts.TryGetValue(pawn.Id.Value, out var f) && !HasIssue(f.Issues, "mood_target"))
             {
-                p = p with { Target = Optional(f.HasMoodTarget, f.MoodTarget) };
+                p = p with { Target = Optional(f.MoodTarget is not null, f.MoodTarget.GetValueOrDefault()) };
             }
             p = p with { Thoughts = MoodThoughts(r) };
             if (r.Social is { } social && !HasIssue(r.Issues, "social"))
             {
-                p = p with { HighExpectations = Optional(social.HasHighExpectations, social.HighExpectations) };
+                p = p with { HighExpectations = Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
             }
             rows.Add(p);
         }
@@ -237,11 +237,11 @@ public static partial class ObservationPackage
         {
             foreach (var t in rows)
             {
-                if (t is null || !t.HasMoodOffsetTotal)
+                if (t is null || t.MoodOffsetTotal is null)
                 {
                     return unknown;
                 }
-                byDef[t.DefName] = byDef.GetValueOrDefault(t.DefName) + t.MoodOffsetTotal;
+                byDef[(t.DefName ?? "")] = byDef.GetValueOrDefault((t.DefName ?? "")) + t.MoodOffsetTotal.GetValueOrDefault();
             }
         }
         var result = new List<MoodThought>();
@@ -293,11 +293,11 @@ public static partial class ObservationPackage
             {
                 if (r.Biography is { } b && !HasIssue(b.Issues, "traits"))
                 {
-                    pawn = pawn with { Traits = Known<EquatableArray<string>>([.. b.Traits.Select(t => t.DefName)]) };
+                    pawn = pawn with { Traits = Known<EquatableArray<string>>([.. b.Traits.Select(t => (t.DefName ?? ""))]) };
                 }
-                if (r.Social is { } s && !HasIssue(r.Issues, "social") && s.HasExpectationDefName)
+                if (r.Social is { } s && !HasIssue(r.Issues, "social") && s.ExpectationDefName is not null)
                 {
-                    pawn = pawn with { Expectation = Known(s.ExpectationDefName) };
+                    pawn = pawn with { Expectation = Known((s.ExpectationDefName ?? "")) };
                 }
                 if (r.Settings is { } settings && !HasIssue(settings.Issues, "policy_inputs") && PawnPolicyInputs(settings.PolicyInputs).TryGetValue(out var inputs))
                 {
@@ -321,7 +321,7 @@ public static partial class ObservationPackage
     private static (Fact<long> Armed, Fact<long> Unarmed) RoundsArmed(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns, CreepJoinerDownsides downsides)
     {
         var unknown = Unknown<long>();
-        if (colony is null || !colony.HasColonistCount || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || colony.ColonistCount is null || colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
             return (unknown, unknown);
         }
@@ -337,7 +337,7 @@ public static partial class ObservationPackage
             byId.TryGetValue(pawn.Id.Value, out var row);
             var dk = pawn.Dead.TryGetValue(out var dead);
             var nk = pawn.Downed.TryGetValue(out var downed);
-            if (row is null || !dk || !nk || !row.HasDead || !row.HasDowned || row.Dead != dead || row.Downed != downed || !row.HasColonist || !row.Colonist)
+            if (row is null || !dk || !nk || row.Dead is null || row.Downed is null || row.Dead.GetValueOrDefault() != dead || row.Downed.GetValueOrDefault() != downed || row.Colonist is null || !row.Colonist.GetValueOrDefault())
             {
                 return (unknown, unknown);
             }
@@ -345,11 +345,11 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            if (row.Equipment is null || !row.Equipment.HasArmed)
+            if (row.Equipment is null || row.Equipment.Armed is null)
             {
                 return (unknown, unknown);
             }
-            if (row.Equipment.Armed)
+            if (row.Equipment.Armed.GetValueOrDefault())
             {
                 armed++;
                 continue;
@@ -387,7 +387,7 @@ public static partial class ObservationPackage
     private static Fact<EquatableArray<SquadDefenderFacts>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
     {
         var unknown = Unknown<EquatableArray<SquadDefenderFacts>>();
-        if (colony is null || !colony.HasColonistCount || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || colony.ColonistCount is null || colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
             return unknown;
         }
@@ -419,10 +419,10 @@ public static partial class ObservationPackage
             }
             if (row.Equipment is { } e)
             {
-                d = d with { RangedDPS = Optional(e.HasRangedDps, e.RangedDps) };
-                if (e.HasMeleeDps && row.Health is { } health && health.HasSummaryFraction)
+                d = d with { RangedDPS = Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault()) };
+                if (e.MeleeDps is not null && row.Health is { } health && health.SummaryFraction is not null)
                 {
-                    d = d with { MeleePower = Known(e.MeleeDps * health.SummaryFraction) };
+                    d = d with { MeleePower = Known(e.MeleeDps.GetValueOrDefault() * health.SummaryFraction.GetValueOrDefault()) };
                 }
             }
             output.Add(d);

@@ -75,7 +75,7 @@ public static partial class ObservationPackage
         if (planning)
         {
             projection = await FillPlanningWindow(reply, id, projection, cancellationToken).ConfigureAwait(false);
-            var facts = await ReadDefinitionFacts(source, id, reply.Observed?.Planning?.Observed, cancellationToken).ConfigureAwait(false);
+            var facts = await ReadDefinitionFacts(source, id, reply.Outcome?.Observed?.Planning?.Outcome?.Observed, cancellationToken).ConfigureAwait(false);
             if (facts is not null)
             {
                 var definitions = facts.AppendDefinitions([.. projection.Definitions], StarterDefinitions);
@@ -87,7 +87,7 @@ public static partial class ObservationPackage
                 var shapes = facts.Catalog.PieceShapes();
                 definitions = facts.AppendDefinitions(definitions, shapes.Furniture.Definitions());
                 var gearDefs = new GearDefinitions { Catalog = facts.Catalog, Finished = facts.Finished };
-                var gear = GearFacts(reply.Observed!, tables, gearDefs);
+                var gear = GearFacts(reply.Outcome?.Observed!, tables, gearDefs);
                 projection = projection with
                 {
                     Definitions = definitions,

@@ -64,7 +64,7 @@ public sealed class RoundsDialogPlanner
         }
         var identity = Boundary.Identity(state.Snapshot);
         var reply = await _reviewer.ColonyFactsAsync(_native, identity, false, call).ConfigureAwait(false);
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("step: observed == nil");
@@ -77,34 +77,34 @@ public sealed class RoundsDialogPlanner
         {
             throw new ControlException("step: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
-        if (observed.Context.Tick < review.Tick.Value)
+        if ((observed.Context?.Tick).GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("step: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
         var dialog = observed.Dialog;
-        if (dialog is null || !dialog.HasWindowId)
+        if (dialog is null || dialog.WindowId is null)
         {
             return new RoundsDialogResult { Verdict = FieldUnavailable("dialog") };
         }
-        if (!dialog.Interactive)
+        if (!dialog.Interactive.GetValueOrDefault())
         {
             return new RoundsDialogResult { Verdict = BuildingReasonNotInteractive };
         }
         var options = new List<DialogOption>(dialog.Options.Count);
         foreach (var option in dialog.Options)
         {
-            options.Add(new DialogOption { Index = option.Index, Label = option.Label, Keys = [.. option.Keys], Selectable = option.Selectable, Resolves = option.Resolves });
+            options.Add(new DialogOption { Index = option.Index.GetValueOrDefault(), Label = option.Label ?? "", Keys = [.. option.Keys], Selectable = option.Selectable.GetValueOrDefault(), Resolves = option.Resolves.GetValueOrDefault() });
         }
         if (PolicyApi.VoidNodeDisruptAbsent(options))
         {
-            DefenseAction("routine-dialog", TelemetryLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = dialog.WindowId }, call);
+            DefenseAction("routine-dialog", TelemetryLevel.Error, "refused", "void_node_disrupt_absent", "void_node", new Dictionary<string, object?> { ["window"] = dialog.WindowId.GetValueOrDefault() }, call);
         }
         var chosen = PolicyApi.ChooseDialogOption(options, _policy);
         if (chosen is null)
         {
             return new RoundsDialogResult { Verdict = WaitFor(Cause.MethodUsed, "no_selectable_dialog_option") };
         }
-        var windowId = dialog.WindowId;
+        var windowId = dialog.WindowId.GetValueOrDefault();
         var digest = SHA256.HashData(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"{windowId}/{chosen.Index}/{chosen.Label}")));
         var method = new MethodId("dialog-" + Convert.ToHexStringLower(digest.AsSpan(0, 16)));
         if (incident!.Methods.Any(m => m.Method == method))

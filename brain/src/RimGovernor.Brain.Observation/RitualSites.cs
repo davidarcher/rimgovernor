@@ -29,7 +29,7 @@ public static partial class ObservationPackage
         foreach (var row in census.Rows.Table.Values())
         {
             var def = row.Building?.DefName ?? "";
-            if (row.Status != O.BuildingStatus.Built || !wanted.Contains(def))
+            if (row.Status.GetValueOrDefault() != O.BuildingStatus.Built || !wanted.Contains(def))
             {
                 continue;
             }
@@ -44,5 +44,5 @@ public static partial class ObservationPackage
 
     /// <summary>A cell fact: unknown unless both coordinates are present.</summary>
     internal static Fact<Cell> RowCell(C.Cell? cell) =>
-        cell is null || !cell.HasX || !cell.HasZ ? Unknown<Cell>() : Known(new Cell(cell.X, cell.Z));
+        cell is null || cell.X is null || cell.Z is null ? Unknown<Cell>() : Known(new Cell(cell.X.GetValueOrDefault(), cell.Z.GetValueOrDefault()));
 }

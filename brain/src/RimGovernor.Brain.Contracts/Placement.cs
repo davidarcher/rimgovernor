@@ -81,9 +81,17 @@ public abstract record PlacementReplyOutcome
 {
     private protected PlacementReplyOutcome() { }
 
+    /// <summary>The <c>Batch</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PlacementBatch? Batch => (this as BatchCase)?.Value;
+
     public sealed record BatchCase(PlacementBatch Value) : PlacementReplyOutcome;
 
     public static implicit operator PlacementReplyOutcome(PlacementBatch value) => new BatchCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : PlacementReplyOutcome;
 
@@ -111,9 +119,17 @@ public abstract record CandidateReplyOutcome
 {
     private protected CandidateReplyOutcome() { }
 
+    /// <summary>The <c>Evaluated</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PlacementEvaluated? Evaluated => (this as EvaluatedCase)?.Value;
+
     public sealed record EvaluatedCase(PlacementEvaluated Value) : CandidateReplyOutcome;
 
     public static implicit operator CandidateReplyOutcome(PlacementEvaluated value) => new EvaluatedCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : CandidateReplyOutcome;
 
@@ -166,9 +182,17 @@ public abstract record PlacementMaterialsAvailability
 {
     private protected PlacementMaterialsAvailability() { }
 
+    /// <summary>The <c>Known</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public MaterialRows? Known => (this as KnownCase)?.Value;
+
     public sealed record KnownCase(MaterialRows Value) : PlacementMaterialsAvailability;
 
     public static implicit operator PlacementMaterialsAvailability(MaterialRows value) => new KnownCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : PlacementMaterialsAvailability;
 

@@ -46,7 +46,7 @@ public static partial class ObservationPackage
             return (unknown, null);
         }
         var (reply, receipt) = await source.ReadConstructionBuildingsAsync(identity, ids, cancellationToken).ConfigureAwait(false);
-        var observed = reply?.Observed;
+        var observed = reply?.Outcome?.Observed;
         if (observed is null || observed.Buildings.Count != ids.Count)
         {
             return (unknown, receipt);
@@ -58,10 +58,10 @@ public static partial class ObservationPackage
             {
                 return (unknown, receipt);
             }
-            cooler = cooler with { Rotation = RotationOf(row.Rotation) };
+            cooler = cooler with { Rotation = RotationOf(row.Rotation.GetValueOrDefault()) };
             if (row.Settings is { } settings)
             {
-                cooler = cooler with { Target = Optional(settings.HasTargetTemperatureC, settings.TargetTemperatureC) };
+                cooler = cooler with { Target = Optional(settings.TargetTemperatureC is not null, settings.TargetTemperatureC.GetValueOrDefault()) };
             }
             coolers.Add(cooler);
         }

@@ -80,7 +80,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("stepContainment: emergency read outside the review", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("stepContainment: emergency read outside the review");
         }
@@ -101,7 +101,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
         ids.Add(patient.Value);
         var (reply, _) = await native.ReadTendPawnsAsync(identity, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new ControlException("stepContainment: observed == nil");
+        var observed = reply.Outcome?.Observed ?? throw new ControlException("stepContainment: observed == nil");
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -121,12 +121,12 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var seen = new HashSet<string>();
         foreach (var row in observed.Pawns)
         {
-            if (row is null || row.Pawn is null || !seen.Add(row.Pawn.Id))
+            if (row is null || row.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("stepContainment: tend row missing or repeated");
             }
 
-            var pawn = new PawnId(row.Pawn.Id);
+            var pawn = new PawnId((row.Pawn.Id ?? ""));
             if (pawn == (PawnId)patient)
             {
                 patients.Add(TendFacts.NewTendPatientFacts(pawn, row, ""));

@@ -1,6 +1,6 @@
-using RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using WireRectangle = RimGovernor.Protocol.Observations.Rectangle;
+using WireRectangle = RimGovernor.Contracts.Wire.Observations.Rectangle;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -16,14 +16,14 @@ public static partial class BridgeFunctions
     {
         var lo = rectangle?.Minimum;
         var hi = rectangle?.Maximum;
-        if (lo is null || hi is null || !lo.HasX || !lo.HasZ || !hi.HasX || !hi.HasZ || hi.X < lo.X || hi.Z < lo.Z)
+        if (lo is null || hi is null || lo.X is null || lo.Z is null || hi.X is null || hi.Z is null || hi.X.GetValueOrDefault() < lo.X.GetValueOrDefault() || hi.Z.GetValueOrDefault() < lo.Z.GetValueOrDefault())
         {
             return [];
         }
-        var cells = new List<DomainCell>(checked((hi.X - lo.X + 1) * (hi.Z - lo.Z + 1)));
-        for (var z = lo.Z; z <= hi.Z; z++)
+        var cells = new List<DomainCell>(checked((hi.X.GetValueOrDefault() - lo.X.GetValueOrDefault() + 1) * (hi.Z.GetValueOrDefault() - lo.Z.GetValueOrDefault() + 1)));
+        for (var z = lo.Z.GetValueOrDefault(); z <= hi.Z.GetValueOrDefault(); z++)
         {
-            for (var x = lo.X; x <= hi.X; x++)
+            for (var x = lo.X.GetValueOrDefault(); x <= hi.X.GetValueOrDefault(); x++)
             {
                 cells.Add(new DomainCell(x, z));
             }

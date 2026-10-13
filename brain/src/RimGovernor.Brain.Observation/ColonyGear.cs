@@ -10,8 +10,8 @@ public static partial class ObservationPackage
     /// </summary>
     public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs)
     {
-        var gear = v.Planning?.Observed?.Gear;
-        if (gear is null || defs.Catalog is null || !defs.Finished.IsKnown || !v.HasOutdoorTemperatureC || !v.HasColonistCount || (uint)gear.Pawns.Count != v.ColonistCount)
+        var gear = v.Planning?.Outcome?.Observed?.Gear;
+        if (gear is null || defs.Catalog is null || !defs.Finished.IsKnown || v.OutdoorTemperatureC is null || v.ColonistCount is null || (uint)gear.Pawns.Count != v.ColonistCount.GetValueOrDefault())
         {
             return Unknown<GearObservation>();
         }
@@ -31,7 +31,7 @@ public static partial class ObservationPackage
             };
             try
             {
-                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC, p, policy) };
+                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, v.OutdoorTemperatureC.GetValueOrDefault(), p, policy) };
             }
             catch (DomainException e)
             {
@@ -75,7 +75,7 @@ public static partial class ObservationPackage
         {
             throw new DomainException("apparel policy facts unavailable (wearer inputs or definition catalog)");
         }
-        if (!p.HasGender || !p.HasComfortableMinC || !p.HasComfortableMaxC)
+        if (p.Gender is null || p.ComfortableMinC is null || p.ComfortableMaxC is null)
         {
             throw new DomainException("missing gender, comfortable temperatures or outdoor temperature");
         }
@@ -84,16 +84,16 @@ public static partial class ObservationPackage
         var input = new GearLoadoutInput
         {
             Role = role.Role,
-            Female = p.Gender == D.Gender.Female,
+            Female = p.Gender.GetValueOrDefault() == D.Gender.Female,
             Research = EquatableArray.From(research),
             Ambient = outdoor,
-            ComfortableMin = p.ComfortableMinC,
-            ComfortableMax = p.ComfortableMaxC,
+            ComfortableMin = p.ComfortableMinC.GetValueOrDefault(),
+            ComfortableMax = p.ComfortableMaxC.GetValueOrDefault(),
         };
         var traits = new List<PawnTrait>();
         foreach (var t in m.Traits)
         {
-            traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
+            traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName ?? "", Degree = (int)t.Degree.GetValueOrDefault() }));
         }
         var work = input.Role.Work with { Traits = Known(EquatableArray.From(traits)) };
         if (work.Work.TryGetValue(out var rows))
@@ -122,7 +122,7 @@ public static partial class ObservationPackage
         var options = new List<GearOption>();
         foreach (var x in m.Options)
         {
-            if (GearLoadoutOption(x, catalog) is { } option && (allowed is null || allowed.Contains(x.DefName)))
+            if (GearLoadoutOption(x, catalog) is { } option && (allowed is null || allowed.Contains((x.DefName ?? ""))))
             {
                 options.Add(option);
             }
@@ -140,10 +140,10 @@ public static partial class ObservationPackage
     /// </summary>
     private static GearOption? GearLoadoutOption(O.GearLoadoutOption x, DefinitionCatalog catalog)
     {
-        var (row, apparel) = ApparelRow(catalog, x.DefName);
+        var (row, apparel) = ApparelRow(catalog, (x.DefName ?? ""));
         if (apparel is null)
         {
-            throw new DomainException($"gear option {x.Id}: no apparel row for def {x.DefName}");
+            throw new DomainException($"gear option {(x.Id ?? "")}: no apparel row for def {(x.DefName ?? "")}");
         }
         var layers = Distinct((apparel.layers ?? []).Select(l => l.defName));
         var groups = Distinct((apparel.bodyPartGroups ?? []).Select(g => g.defName));
@@ -153,29 +153,29 @@ public static partial class ObservationPackage
         }
         var option = new GearOption
         {
-            ID = x.Id,
-            Definition = new Resource(x.DefName),
-            Stuff = new Resource(x.Stuff),
-            Quality = (int)x.Quality,
+            ID = x.Id ?? "",
+            Definition = new Resource((x.DefName ?? "")),
+            Stuff = new Resource((x.Stuff ?? "")),
+            Quality = (int)x.Quality.GetValueOrDefault(),
             Slot = slot,
             Layers = layers,
             Groups = groups,
             Source = WireParse<GearSource>(x.Source),
-            Condition = x.Condition,
+            Condition = x.Condition.GetValueOrDefault(),
             WearPerDay = apparel.wearPerDay,
             MoveSpeed = StatOffset(row, StatMoveSpeed),
-            Tainted = x.Tainted,
+            Tainted = x.Tainted.GetValueOrDefault(),
             SlaveOnly = apparel.slaveApparel,
-            Locked = x.Locked,
+            Locked = x.Locked.GetValueOrDefault(),
             Shield = HasShield(row),
             Psychic = StatOffset(row, StatPsychic) < 0,
-            Smokepop = catalog.SmokePop(x.DefName),
+            Smokepop = catalog.SmokePop((x.DefName ?? "")),
         };
         if (option.Source == GearSource.Bill)
         {
-            if (catalog.ApparelBill(x.DefName, x.Stuff) is not var (research, ingredients))
+            if (catalog.ApparelBill((x.DefName ?? ""), (x.Stuff ?? "")) is not var (research, ingredients))
             {
-                throw new DomainException($"gear option {x.Id}: no recipe makes {x.DefName}");
+                throw new DomainException($"gear option {(x.Id ?? "")}: no recipe makes {(x.DefName ?? "")}");
             }
             var amounts = new List<Amount>();
             foreach (var cost in ingredients)
@@ -186,12 +186,12 @@ public static partial class ObservationPackage
         }
         option = option with
         {
-            Sharp = OptionStat(catalog, x.DefName, x.Stuff, StatArmorSharp, false),
-            Blunt = OptionStat(catalog, x.DefName, x.Stuff, StatArmorBlunt, false),
-            Cold = OptionStat(catalog, x.DefName, x.Stuff, StatInsulationCold, false),
-            Heat = OptionStat(catalog, x.DefName, x.Stuff, StatInsulationHeat, false),
-            Cost = OptionStat(catalog, x.DefName, x.Stuff, StatMarketValue, true),
-            MaxHitPoints = OptionStat(catalog, x.DefName, x.Stuff, StatMaxHitPoints, true),
+            Sharp = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatArmorSharp, false),
+            Blunt = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatArmorBlunt, false),
+            Cold = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatInsulationCold, false),
+            Heat = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatInsulationHeat, false),
+            Cost = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatMarketValue, true),
+            MaxHitPoints = OptionStat(catalog, (x.DefName ?? ""), (x.Stuff ?? ""), StatMaxHitPoints, true),
         };
         return option;
     }
@@ -245,7 +245,7 @@ public static partial class ObservationPackage
         var rows = new List<GearStock>();
         foreach (var row in gear.StoredApparel.Rows)
         {
-            rows.Add(new GearStock { Definition = new Resource(row.DefName), Stuff = new Resource(row.Stuff), Quality = (int)row.Quality, HPBand = (int)row.HpBand, Count = (int)row.Count });
+            rows.Add(new GearStock { Definition = new Resource((row.DefName ?? "")), Stuff = new Resource((row.Stuff ?? "")), Quality = (int)row.Quality.GetValueOrDefault(), HPBand = (int)row.HpBand.GetValueOrDefault(), Count = (int)row.Count.GetValueOrDefault() });
         }
         return Known(EquatableArray.From(rows));
     }
@@ -259,13 +259,13 @@ public static partial class ObservationPackage
         }
         var climate = new GearClimate
         {
-            CurrentTwelfth = (int)gear.CurrentTwelfth,
-            TicksToNextTwelfth = (long)gear.TicksToNextTwelfth,
+            CurrentTwelfth = (int)gear.CurrentTwelfth.GetValueOrDefault(),
+            TicksToNextTwelfth = (long)gear.TicksToNextTwelfth.GetValueOrDefault(),
             Temperatures = EquatableArray.From(gear.OutdoorTemperatureByTwelfthC.Select(n => (double)n)),
         };
         if (gear.ActiveWeather is { } w)
         {
-            climate = climate with { Weather = new GearWeather { Definition = w.DefName, RemainingTicks = w.RemainingTicks, TemperatureOffset = w.TemperatureOffsetC } };
+            climate = climate with { Weather = new GearWeather { Definition = w.DefName ?? "", RemainingTicks = w.RemainingTicks.GetValueOrDefault(), TemperatureOffset = w.TemperatureOffsetC.GetValueOrDefault() } };
         }
         return climate;
     }
@@ -284,15 +284,15 @@ public static partial class ObservationPackage
         {
             var item = c.Item;
             var head = tables.Entity(item?.Thing);
-            if (head is null || catalog.FindThing(head.DefName) is null)
+            if (head is null || catalog.FindThing((head.DefName ?? "")) is null)
             {
                 return Unknown<EquatableArray<GearCandidate>>();
             }
-            if (ApparelRow(catalog, head.DefName).Apparel is null)
+            if (ApparelRow(catalog, (head.DefName ?? "")).Apparel is null)
             {
                 continue;
             }
-            candidates.Add(new GearCandidate(item?.Thing?.Id ?? "", c.Gain, new Resource(head.DefName)));
+            candidates.Add(new GearCandidate(item?.Thing?.Id ?? "", c.Gain.GetValueOrDefault(), new Resource((head.DefName ?? ""))));
         }
         return Known(EquatableArray.From(candidates));
     }
@@ -321,7 +321,7 @@ public static partial class ObservationPackage
             {
                 return Unknown<EquatableArray<GearApparel>>();
             }
-            apparel.Add(new GearApparel { Definition = new Resource(def), Condition = item.HasConditionFraction ? item.ConditionFraction : 1, Groups = Distinct((worn.bodyPartGroups ?? []).Select(g => g.defName)) });
+            apparel.Add(new GearApparel { Definition = new Resource(def), Condition = item.ConditionFraction is not null ? item.ConditionFraction.GetValueOrDefault() : 1, Groups = Distinct((worn.bodyPartGroups ?? []).Select(g => g.defName)) });
         }
         return Known(EquatableArray.From(apparel));
     }
@@ -441,14 +441,14 @@ public static partial class ObservationPackage
         }
         var s = new ApparelPolicyState
         {
-            Token = v.Token,
-            PawnName = v.PawnName,
-            PolicyID = v.PolicyId,
+            Token = v.Token ?? "",
+            PawnName = v.PawnName ?? "",
+            PolicyID = v.PolicyId ?? "",
             Required = EquatableArray.From(v.RequiredDefs),
-            Nude = v.Nude,
-            ExcludesTainted = v.ExcludesTainted,
-            Role = new GearRoleInput { Child = v.Child, Slave = v.Slave, IncapableOfViolence = v.IncapableOfViolence, DraftedSquad = v.Drafted },
-            Current = new ApparelPolicySpec(default, "", v.Name, EquatableArray.From(v.AllowedDefs), v.MinHitPoints, v.MaxHitPoints, (int)v.MinQuality, (int)v.MaxQuality),
+            Nude = v.Nude.GetValueOrDefault(),
+            ExcludesTainted = v.ExcludesTainted.GetValueOrDefault(),
+            Role = new GearRoleInput { Child = v.Child.GetValueOrDefault(), Slave = v.Slave.GetValueOrDefault(), IncapableOfViolence = v.IncapableOfViolence.GetValueOrDefault(), DraftedSquad = v.Drafted.GetValueOrDefault() },
+            Current = new ApparelPolicySpec(default, "", (v.Name ?? ""), EquatableArray.From(v.AllowedDefs), v.MinHitPoints.GetValueOrDefault(), v.MaxHitPoints.GetValueOrDefault(), (int)v.MinQuality.GetValueOrDefault(), (int)v.MaxQuality.GetValueOrDefault()),
         };
         var wearer = WearerOf(p);
         if (wearer is null || catalog is null)
@@ -458,12 +458,12 @@ public static partial class ObservationPackage
         s = s with { Definitions = ApparelDefinitions(catalog, wearer) };
         foreach (var a in p.Equipment?.Apparel ?? [])
         {
-            s = s with { Overrides = s.Overrides || a.Forced || a.Locked };
+            s = s with { Overrides = s.Overrides || a.Forced.GetValueOrDefault() || a.Locked.GetValueOrDefault() };
         }
         var priorities = new List<WorkPriority>();
         foreach (var w in v.Work)
         {
-            priorities.Add(new WorkPriority { Work = WireParse<WorkType>(w.DefName), Priority = (int)w.Priority, Disabled = w.Disabled });
+            priorities.Add(new WorkPriority { Work = WireParse<WorkType>(w.DefName), Priority = (int)w.Priority.GetValueOrDefault(), Disabled = w.Disabled.GetValueOrDefault() });
         }
         var work = s.Role.Work with { Work = Known(EquatableArray.From(priorities)) };
         // An older producer omits skills; the role then splits on priorities alone.
@@ -472,7 +472,7 @@ public static partial class ObservationPackage
             var skills = new List<WorkSkill>();
             foreach (var sk in v.Skills)
             {
-                skills.Add(new WorkSkill { Name = sk.DefName, Level = (int)sk.Level, Passion = SkillPassion(sk.Passion), Disabled = sk.Disabled });
+                skills.Add(new WorkSkill { Name = sk.DefName ?? "", Level = (int)sk.Level.GetValueOrDefault(), Passion = SkillPassion(sk.Passion.GetValueOrDefault()), Disabled = sk.Disabled.GetValueOrDefault() });
             }
             work = work with { Skills = Known(EquatableArray.From(skills)) };
         }

@@ -125,22 +125,22 @@ public sealed class ColonyStatus
         var decoded = ObservationApi.DecodeIdentity(identityReply);
         var identity = new PbCommon.Identity { ColonyId = decoded.Colony.Value, LoadToken = decoded.Load.Value, MapId = decoded.Map.Value };
         var colony = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
-        var observed = colony.Observed ?? throw new ControlException("Read: observed == nil");
+        var observed = colony.Outcome?.Observed ?? throw new ControlException("Read: observed == nil");
         var roster = await Native.ReadHomeColonistsAsync(identity, call).ConfigureAwait(false);
-        var pawns = roster.Observed ?? throw new ControlException("Read: pawns == nil");
+        var pawns = roster.Outcome?.Observed ?? throw new ControlException("Read: pawns == nil");
         var report = new ColonyStatusReport
         {
             Tick = new Tick((long)(observed.Context?.Tick ?? 0)),
             RosterTick = new Tick((long)(pawns.Context?.Tick ?? 0)),
-            Colonists = CountFact(observed.HasColonistCount, observed.ColonistCount),
-            Workers = CountFact(observed.HasWorkerCount, observed.WorkerCount),
-            FoodNutrition = OptionalFact(observed.HasFoodNutrition, observed.FoodNutrition),
-            NutritionPerDay = OptionalFact(observed.HasNutritionPerDay, observed.NutritionPerDay),
-            FoodRunwayDays = OptionalFact(observed.HasFoodRunwayDays, observed.FoodRunwayDays),
-            PendingFoodNutrition = OptionalFact(observed.HasPendingFoodNutrition, observed.PendingFoodNutrition),
+            Colonists = CountFact(observed.ColonistCount is not null, observed.ColonistCount.GetValueOrDefault()),
+            Workers = CountFact(observed.WorkerCount is not null, observed.WorkerCount.GetValueOrDefault()),
+            FoodNutrition = OptionalFact(observed.FoodNutrition is not null, observed.FoodNutrition.GetValueOrDefault()),
+            NutritionPerDay = OptionalFact(observed.NutritionPerDay is not null, observed.NutritionPerDay.GetValueOrDefault()),
+            FoodRunwayDays = OptionalFact(observed.FoodRunwayDays is not null, observed.FoodRunwayDays.GetValueOrDefault()),
+            PendingFoodNutrition = OptionalFact(observed.PendingFoodNutrition is not null, observed.PendingFoodNutrition.GetValueOrDefault()),
             Threat = BridgeApi.ProjectColonyThreat(observed),
             Shrines = Unknown<EquatableArray<AncientShrine>>(),
-            PlayerTechLevel = observed.HasPlayerTechLevel ? Known(observed.PlayerTechLevel) : Unknown<string>(),
+            PlayerTechLevel = observed.PlayerTechLevel is not null ? Known((observed.PlayerTechLevel ?? "")) : Unknown<string>(),
             TechTier = Unknown<TechTier>(),
             Stockpiles = Unknown<EquatableArray<StockpileRoleCount>>(),
             ForbiddenSupplies = Unknown<bool>(),
@@ -184,14 +184,14 @@ public sealed class ColonyStatus
         var rows = new List<ColonyStatusPawn>();
         foreach (var row in pawns.Pawns)
         {
-            if (row?.Pawn is null || row.Pawn.Id == "" || row.Dead)
+            if (row?.Pawn is null || (row.Pawn.Id ?? "") == "" || row.Dead.GetValueOrDefault())
             {
                 continue;
             }
-            var pawn = new ColonyStatusPawn { Id = new PawnId(row.Pawn.Id), Label = row.Pawn.Label, Downed = OptionalFact(row.HasDowned, row.Downed) };
+            var pawn = new ColonyStatusPawn { Id = new PawnId((row.Pawn.Id ?? "")), Label = row.Pawn.Label ?? "", Downed = OptionalFact(row.Downed is not null, row.Downed.GetValueOrDefault()) };
             if (row.Needs is { } needs)
             {
-                pawn = pawn with { Mood = OptionalFact(needs.HasMood, needs.Mood), Food = OptionalFact(needs.HasFood, needs.Food) };
+                pawn = pawn with { Mood = OptionalFact(needs.Mood is not null, needs.Mood.GetValueOrDefault()), Food = OptionalFact(needs.Food is not null, needs.Food.GetValueOrDefault()) };
             }
             if (shares is not null && shares.TryGetValue(pawn.Id, out var share))
             {

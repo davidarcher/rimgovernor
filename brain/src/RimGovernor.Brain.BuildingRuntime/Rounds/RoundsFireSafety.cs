@@ -97,11 +97,10 @@ public sealed class RoundsFireSafetyPlanner
         }
         var ids = emergency.Facts.Colonists.Select(pawn => pawn.Id.Value).ToList();
         var reply = await _native.ReadTendPawnsAsync(identityRef, ids, call).ConfigureAwait(false);
-        if (reply.Observed is null)
+        if (reply.Outcome?.Observed is not { } observed)
         {
             throw new ControlException("step: observed == nil");
         }
-        var observed = reply.Observed;
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -118,11 +117,11 @@ public sealed class RoundsFireSafetyPlanner
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in observed.Pawns)
         {
-            if (row is null || row.Pawn is null || !seen.Add(row.Pawn.Id))
+            if (row is null || row.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]");
             }
-            pawns.Add(FireSafetyPawnFactsOf(new Domain.PawnId(row.Pawn.Id), row));
+            pawns.Add(FireSafetyPawnFactsOf(new Domain.PawnId((row.Pawn.Id ?? "")), row));
         }
         p.Current(call, epoch);
         if (p.Session.State() != state)
@@ -153,20 +152,20 @@ internal static partial class BuildingRuntimePackage
         var facts = new FireSafetyPawnFacts
         {
             Pawn = pawn,
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
-            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
+            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
         };
         if (row.Job is not null && !Boundary.IssueField(row.Job.Issues, "player_forced"))
         {
-            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.HasPlayerForced, row.Job.PlayerForced) };
+            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.PlayerForced is not null, row.Job.PlayerForced.GetValueOrDefault()) };
         }
         var health = row.Health;
         if (health is not null && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts = facts with { NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend) };
-            facts = facts with { Bleeding = Boundary.FactBool(health.HasBleeding, health.Bleeding) };
+            facts = facts with { NeedsTend = Boundary.FactBool(health.NeedsTend is not null, health.NeedsTend.GetValueOrDefault()) };
+            facts = facts with { Bleeding = Boundary.FactBool(health.Bleeding is not null, health.Bleeding.GetValueOrDefault()) };
         }
         var settings = row.Settings;
         if (settings is not null && !Boundary.IssueField(settings.Issues, "work"))
@@ -180,15 +179,15 @@ internal static partial class BuildingRuntimePackage
     {
         foreach (var w in work)
         {
-            if (w is null || w.DefName != defName)
+            if (w is null || (w.DefName ?? "") != defName)
             {
                 continue;
             }
-            if (!w.HasDisabled || !w.HasPriority)
+            if (w.Disabled is null || w.Priority is null)
             {
                 return Unknown<bool>();
             }
-            return Known(!w.Disabled && w.Priority > 0);
+            return Known(!w.Disabled.GetValueOrDefault() && w.Priority.GetValueOrDefault() > 0);
         }
         return Unknown<bool>();
     }

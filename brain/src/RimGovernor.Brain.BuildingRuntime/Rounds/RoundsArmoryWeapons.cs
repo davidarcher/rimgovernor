@@ -15,12 +15,12 @@ public sealed partial class RoundsArmoryPlanner
         var identity = Boundary.Identity(snapshot);
         var things = await FrameThingsOfAsync(_native, identity, ct).ConfigureAwait(false);
         var reply = (await source.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false)).Reply;
-        var observed = reply.Observed;
+        var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
             throw new ControlException("weaponDemand: observed == nil");
         }
-        if (!ContextMatches(observed.Context, snapshot) || observed.Context.Tick < minTick)
+        if (!ContextMatches(observed.Context, snapshot) || observed.Context.Tick.GetValueOrDefault() < minTick)
         {
             throw new ControlException("weaponDemand: err != nil || observed.Context.GetTick() < minTick");
         }
@@ -36,7 +36,7 @@ public sealed partial class RoundsArmoryPlanner
             pawns.Add(RoundsEquipPlanner.EquipCandidatePawnFacts(p, catalog, things));
             if (ArmoryPrimaryOf(p, things, catalog) is { } primary)
             {
-                primaries[new Domain.PawnId(p.Pawn.Id)] = primary;
+                primaries[new Domain.PawnId(p.Pawn?.Id ?? "")] = primary;
             }
         }
         var (bounds, _) = await source.ReadMapBoundsAsync(identity, default(Cell), ct).ConfigureAwait(false);
@@ -99,7 +99,7 @@ public sealed partial class RoundsArmoryPlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>Whether the observation context belongs to the snapshot's world: Go tested <c>boundary.Context</c> for an error, and its only errors are an invalid context and a foreign generation.</summary>
-    internal static bool ContextMatches(PbCommon.ObservationContext? context, GenerationSnapshot snapshot)
+    internal static bool ContextMatches([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] PbCommon.ObservationContext? context, GenerationSnapshot snapshot)
     {
         try
         {
@@ -138,7 +138,7 @@ internal static partial class BuildingRuntimePackage
         }
         foreach (var item in equipment.Equipped)
         {
-            if (item.Thing is not { } thing || thing.Id != id)
+            if (item.Thing is not { } thing || (thing.Id ?? "") != id)
             {
                 continue;
             }
@@ -149,9 +149,9 @@ internal static partial class BuildingRuntimePackage
             }
             var facts = catalog.WeaponOf(def);
             var quality = 2; // QualityCategory.Normal
-            if (item.HasQuality)
+            if (item.Quality is not null)
             {
-                quality = (int)item.Quality;
+                quality = (int)item.Quality.GetValueOrDefault();
             }
             return new ArmoryPrimary { Definition = def, Ranged = facts.Ranged, Quality = quality, Facts = facts };
         }

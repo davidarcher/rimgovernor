@@ -11,29 +11,29 @@ public static partial class ObservationPackage
     private static bool PrimaryWeapon(DefinitionCatalog catalog, O.PawnEquipment equipment, Things things, out WeaponDef weapon)
     {
         weapon = new WeaponDef();
-        if (!equipment.HasArmed)
+        if (equipment.Armed is null)
         {
             return false;
         }
-        if (!equipment.Armed)
+        if (!equipment.Armed.GetValueOrDefault())
         {
             return true;
         }
-        if (!equipment.HasPrimaryId)
+        if (equipment.PrimaryId is null)
         {
             return false;
         }
         foreach (var item in equipment.Equipped)
         {
-            if ((item.Thing?.Id ?? "") != equipment.PrimaryId)
+            if ((item.Thing?.Id ?? "") != (equipment.PrimaryId ?? ""))
             {
                 continue;
             }
-            if (item.Thing is null || !things.TryRow(item.Thing, out var row) || (row.Thing_?.DefName ?? "").Length == 0)
+            if (item.Thing is null || !things.TryRow(item.Thing, out var row) || (row.Entity?.DefName ?? "").Length == 0)
             {
                 return false;
             }
-            weapon = catalog.WeaponOf(row.Thing_?.DefName ?? "");
+            weapon = catalog.WeaponOf(row.Entity?.DefName ?? "");
             return true;
         }
         return false;
@@ -42,7 +42,7 @@ public static partial class ObservationPackage
     internal static Fact<EquatableArray<WorkPawn>> RoundsWork(
         O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot snapshot, DefinitionCatalog? catalog, Things things)
     {
-        if (colony is null || !colony.HasColonistCount || (int)colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || colony.ColonistCount is null || (int)colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
             return Unknown<EquatableArray<WorkPawn>>();
         }
@@ -57,7 +57,7 @@ public static partial class ObservationPackage
         {
             if (!byId.TryGetValue(p.Id.Value, out var row)
                 || !p.Dead.TryGetValue(out var dead) || !p.Downed.TryGetValue(out var downed)
-                || !row.HasDead || !row.HasDowned || row.Dead != dead || row.Downed != downed || !row.HasColonist || !row.Colonist)
+                || row.Dead is null || row.Downed is null || row.Dead.GetValueOrDefault() != dead || row.Downed.GetValueOrDefault() != downed || row.Colonist is null || !row.Colonist.GetValueOrDefault())
             {
                 return Unknown<EquatableArray<WorkPawn>>();
             }
@@ -98,9 +98,9 @@ public static partial class ObservationPackage
         var w = WorkPawnRowFrom(row);
         // Native writes the Biotech block on every pawn when Biotech is active and always names the developmental
         // stage; a row without one is a contract break, not an adult.
-        if (row.Biotech is { } b && !b.HasDevelopmentalStage)
+        if (row.Biotech is { } b && b.DevelopmentalStage is null)
         {
-            throw new ObservationContractException($"pawn {row.Pawn?.Id} has a Biotech block without a developmental stage");
+            throw new ObservationContractException($"pawn {(row.Pawn?.Id ?? "")} has a Biotech block without a developmental stage");
         }
         if (row.Equipment is { } e)
         {
@@ -143,26 +143,26 @@ public static partial class ObservationPackage
 
     private static WorkPawn WorkPawnRowFrom(O.PawnState row)
     {
-        var w = new WorkPawn { Id = new PawnId(row.Pawn?.Id ?? ""), ConstructionAble = Optional(row.HasConstructionCapable, row.ConstructionCapable) };
-        var mentalKnown = NativePresence(row.HasMentalState ? row.MentalState : null, row.Issues, "mental_state").TryGetValue(out var mental);
-        if (row.Dead || row.Downed || row.Drafted || (mentalKnown && mental))
+        var w = new WorkPawn { Id = new PawnId(row.Pawn?.Id ?? ""), ConstructionAble = Optional(row.ConstructionCapable is not null, row.ConstructionCapable.GetValueOrDefault()) };
+        var mentalKnown = NativePresence(row.MentalState is not null ? (row.MentalState ?? "") : null, row.Issues, "mental_state").TryGetValue(out var mental);
+        if (row.Dead.GetValueOrDefault() || row.Downed.GetValueOrDefault() || row.Drafted.GetValueOrDefault() || (mentalKnown && mental))
         {
             w = w with { Available = Known(false) };
         }
-        else if (row.HasDead && row.HasDowned && row.HasDrafted && mentalKnown)
+        else if (row.Dead is not null && row.Downed is not null && row.Drafted is not null && mentalKnown)
         {
             w = w with { Available = Known(true) };
         }
         if (row.Settings is { } s)
         {
-            if (s.FoodRestriction is { } food && food.HasPolicyId && !HasIssue(s.Issues, "food_restriction"))
+            if (s.FoodRestriction is { } food && food.PolicyId is not null && !HasIssue(s.Issues, "food_restriction"))
             {
-                w = w with { FoodRestriction = Known(new FoodRestriction { PolicyId = food.PolicyId, Allowed = [.. food.AllowedDefs] }) };
+                w = w with { FoodRestriction = Known(new FoodRestriction { PolicyId = (food.PolicyId ?? ""), Allowed = [.. food.AllowedDefs] }) };
             }
             w = w with { PolicyInputs = PawnPolicyInputs(s.PolicyInputs) };
-            if (s.HasEatTrigger)
+            if (s.EatTrigger is not null)
             {
-                w = w with { EatTrigger = Known((double)s.EatTrigger) };
+                w = w with { EatTrigger = Known((double)s.EatTrigger.GetValueOrDefault()) };
             }
             if (s.Body is { } b && !HasIssue(s.Issues, "body"))
             {
@@ -170,27 +170,27 @@ public static partial class ObservationPackage
                 {
                     Body = Known(new PawnBody
                     {
-                        ComfortableMinC = Optional(b.HasComfortableMinC, b.ComfortableMinC),
-                        ComfortableMaxC = Optional(b.HasComfortableMaxC, b.ComfortableMaxC),
-                        MoveSpeed = Optional(b.HasMoveSpeed, b.MoveSpeed),
-                        CarryCapacity = Optional(b.HasCarryCapacity, b.CarryCapacity),
-                        ToxicResistance = Optional(b.HasToxicEnvironmentResistance, b.ToxicEnvironmentResistance),
-                        CellTemperatureC = Optional(b.HasCellTemperatureC, b.CellTemperatureC),
-                        Hypothermia = Optional(b.HasHypothermia, b.Hypothermia),
-                        Heatstroke = Optional(b.HasHeatstroke, b.Heatstroke),
-                        Frostbite = Optional(b.HasFrostbite, b.Frostbite),
-                        ToxicBuildup = Optional(b.HasToxicBuildup, b.ToxicBuildup),
-                        Moving = Optional(b.HasMoving, b.Moving),
-                        Manipulation = Optional(b.HasManipulation, b.Manipulation),
-                        Consciousness = Optional(b.HasConsciousness, b.Consciousness),
+                        ComfortableMinC = Optional(b.ComfortableMinC is not null, b.ComfortableMinC.GetValueOrDefault()),
+                        ComfortableMaxC = Optional(b.ComfortableMaxC is not null, b.ComfortableMaxC.GetValueOrDefault()),
+                        MoveSpeed = Optional(b.MoveSpeed is not null, b.MoveSpeed.GetValueOrDefault()),
+                        CarryCapacity = Optional(b.CarryCapacity is not null, b.CarryCapacity.GetValueOrDefault()),
+                        ToxicResistance = Optional(b.ToxicEnvironmentResistance is not null, b.ToxicEnvironmentResistance.GetValueOrDefault()),
+                        CellTemperatureC = Optional(b.CellTemperatureC is not null, b.CellTemperatureC.GetValueOrDefault()),
+                        Hypothermia = Optional(b.Hypothermia is not null, b.Hypothermia.GetValueOrDefault()),
+                        Heatstroke = Optional(b.Heatstroke is not null, b.Heatstroke.GetValueOrDefault()),
+                        Frostbite = Optional(b.Frostbite is not null, b.Frostbite.GetValueOrDefault()),
+                        ToxicBuildup = Optional(b.ToxicBuildup is not null, b.ToxicBuildup.GetValueOrDefault()),
+                        Moving = Optional(b.Moving is not null, b.Moving.GetValueOrDefault()),
+                        Manipulation = Optional(b.Manipulation is not null, b.Manipulation.GetValueOrDefault()),
+                        Consciousness = Optional(b.Consciousness is not null, b.Consciousness.GetValueOrDefault()),
                     }),
                 };
             }
-            if (s.HasMedicalCare && !HasIssue(s.Issues, "medical_care"))
+            if (s.MedicalCare is not null && !HasIssue(s.Issues, "medical_care"))
             {
-                w = w with { MedicalCare = Known(MedicalCareName(s.MedicalCare)) };
+                w = w with { MedicalCare = Known(MedicalCareName(s.MedicalCare.GetValueOrDefault())) };
             }
-            w = w with { Applies = Optional(s.HasWorkApplies, s.WorkApplies), Manual = Optional(s.HasManualWorkPriorities, s.ManualWorkPriorities) };
+            w = w with { Applies = Optional(s.WorkApplies is not null, s.WorkApplies.GetValueOrDefault()), Manual = Optional(s.ManualWorkPriorities is not null, s.ManualWorkPriorities.GetValueOrDefault()) };
             if (!HasIssue(s.Issues, "schedule") && s.Schedule.Count == 24)
             {
                 var slots = new string[24];
@@ -198,13 +198,13 @@ public static partial class ObservationPackage
                 var seen = new bool[24];
                 foreach (var slot in s.Schedule)
                 {
-                    if (!slot.HasHour || !slot.HasAssignmentDefName || slot.Hour >= 24 || seen[slot.Hour] || slot.AssignmentDefName.Length == 0)
+                    if (slot.Hour is null || slot.AssignmentDefName is null || slot.Hour.GetValueOrDefault() >= 24 || seen[slot.Hour.GetValueOrDefault()] || (slot.AssignmentDefName ?? "").Length == 0)
                     {
                         known = false;
                         break;
                     }
-                    seen[slot.Hour] = true;
-                    slots[slot.Hour] = slot.AssignmentDefName;
+                    seen[slot.Hour.GetValueOrDefault()] = true;
+                    slots[slot.Hour.GetValueOrDefault()] = slot.AssignmentDefName ?? "";
                 }
                 if (known)
                 {
@@ -217,12 +217,12 @@ public static partial class ObservationPackage
                 var known = true;
                 foreach (var entry in s.Work)
                 {
-                    if (!entry.HasPriority || !entry.HasDisabled)
+                    if (entry.Priority is null || entry.Disabled is null)
                     {
                         known = false;
                         break;
                     }
-                    work.Add(new WorkPriority { Work = WireParse<WorkType>(entry.DefName), Priority = (int)entry.Priority, Disabled = entry.Disabled });
+                    work.Add(new WorkPriority { Work = WireParse<WorkType>(entry.DefName), Priority = (int)entry.Priority.GetValueOrDefault(), Disabled = entry.Disabled.GetValueOrDefault() });
                 }
                 if (known)
                 {
@@ -234,13 +234,13 @@ public static partial class ObservationPackage
         {
             // JobRow: a pawn with no job carries the current_job issue and no def; a job always carries its def and,
             // when a work giver issued it, that giver's work type.
-            if (HasIssue(j.Issues, "current_job") && !j.HasDefName)
+            if (HasIssue(j.Issues, "current_job") && j.DefName is null)
             {
                 w = w with { Job = Known(new PawnJob()) };
             }
-            else if (!HasIssue(j.Issues, "current_job") && j.HasDefName)
+            else if (!HasIssue(j.Issues, "current_job") && j.DefName is not null)
             {
-                w = w with { Job = Known(new PawnJob { Def = j.DefName, Work = WireParse<WorkType>(j.WorkTypeDefName), Target = JobTarget(j.TargetA, j.TargetACell) }) };
+                w = w with { Job = Known(new PawnJob { Def = (j.DefName ?? ""), Work = WireParse<WorkType>(j.WorkTypeDefName), Target = JobTarget(j.TargetA, j.TargetACell) }) };
             }
         }
         if (row.Biography is { } bio)
@@ -251,12 +251,12 @@ public static partial class ObservationPackage
                 var known = true;
                 foreach (var entry in bio.Skills)
                 {
-                    if (!entry.HasLevel || !entry.HasDisabled || !entry.HasPassion)
+                    if (entry.Level is null || entry.Disabled is null || entry.Passion is null)
                     {
                         known = false;
                         break;
                     }
-                    skills.Add(new WorkSkill { Name = entry.DefName, Level = (int)entry.Level, Stored = (int)entry.StoredLevel, Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) });
+                    skills.Add(new WorkSkill { Name = entry.DefName ?? "", Level = (int)entry.Level.GetValueOrDefault(), Stored = (int)entry.StoredLevel.GetValueOrDefault(), Disabled = entry.Disabled.GetValueOrDefault(), Passion = SkillPassion(entry.Passion.GetValueOrDefault()) });
                 }
                 if (known)
                 {
@@ -270,7 +270,7 @@ public static partial class ObservationPackage
                 var traits = new List<PawnTrait>();
                 foreach (var entry in bio.Traits)
                 {
-                    traits.Add(new PawnTrait { Name = entry.DefName, Degree = (int)entry.Degree });
+                    traits.Add(new PawnTrait { Name = entry.DefName ?? "", Degree = (int)entry.Degree.GetValueOrDefault() });
                 }
                 w = w with { Traits = Known(EquatableArray.From(traits)) };
             }
@@ -279,20 +279,20 @@ public static partial class ObservationPackage
             {
                 incapable.Add(WireParse<WorkType>(name));
             }
-            w = w with { Incapable = Known(EquatableArray.From(incapable)), Age = Optional(bio.HasBiologicalAgeYears, bio.BiologicalAgeYears) };
+            w = w with { Incapable = Known(EquatableArray.From(incapable)), Age = Optional(bio.BiologicalAgeYears is not null, bio.BiologicalAgeYears.GetValueOrDefault()) };
         }
-        w = w with { Inspiration = Optional(row.HasInspiration, row.Inspiration), Biotech = PawnBiotech(row.Biotech) };
+        w = w with { Inspiration = Optional(row.Inspiration is not null, (row.Inspiration ?? "")), Biotech = PawnBiotech(row.Biotech) };
         if (w.Biotech.TryGetValue(out var bt) && bt.IsDeathresting())
         {
             w = w with { Available = Known(false) };
         }
-        if (row.Settings is { } hs && hs.HasHostilityResponse && !HasIssue(hs.Issues, "hostility_response") && HostilityName(hs.HostilityResponse) is { } hostility)
+        if (row.Settings is { } hs && hs.HostilityResponse is not null && !HasIssue(hs.Issues, "hostility_response") && HostilityName(hs.HostilityResponse.GetValueOrDefault()) is { } hostility)
         {
             w = w with { Hostility = Known(hostility) };
         }
-        if (row.Settings is { } ts && ts.HasSelfTend && !HasIssue(ts.Issues, "self_tend"))
+        if (row.Settings is { } ts && ts.SelfTend is not null && !HasIssue(ts.Issues, "self_tend"))
         {
-            w = w with { SelfTend = Known(ts.SelfTend) };
+            w = w with { SelfTend = Known(ts.SelfTend.GetValueOrDefault()) };
         }
         if (row.Biography is { } db && !HasIssue(db.Issues, "disabled_work_tags"))
         {
@@ -305,25 +305,25 @@ public static partial class ObservationPackage
         }
         if (row.Health is { } h)
         {
-            w = w with { BloodLoss = Optional(h.HasBloodLoss, h.BloodLoss), Health = Optional(h.HasSummaryFraction, h.SummaryFraction) };
+            w = w with { BloodLoss = Optional(h.BloodLoss is not null, h.BloodLoss.GetValueOrDefault()), Health = Optional(h.SummaryFraction is not null, h.SummaryFraction.GetValueOrDefault()) };
         }
         if (row.Needs is { } n && !HasIssue(row.Issues, "needs"))
         {
             w = w with
             {
-                Rest = Optional(n.HasRest, n.Rest),
-                Joy = Optional(n.HasJoy, n.Joy),
-                Mood = Optional(n.HasMood, n.Mood),
-                BreakThreshold = Optional(n.HasBreakThresholdMinor, n.BreakThresholdMinor),
+                Rest = Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
+                Joy = Optional(n.Joy is not null, n.Joy.GetValueOrDefault()),
+                Mood = Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
+                BreakThreshold = Optional(n.BreakThresholdMinor is not null, n.BreakThresholdMinor.GetValueOrDefault()),
             };
         }
         if (row.Social is { } social && !HasIssue(row.Issues, "social"))
         {
-            w = w with { HighExpectations = Optional(social.HasHighExpectations, social.HighExpectations) };
+            w = w with { HighExpectations = Optional(social.HighExpectations is not null, social.HighExpectations.GetValueOrDefault()) };
         }
-        if (row.Needs is { } pn && pn.HasPsyfocus && pn.HasPsyfocusTarget && pn.HasPsylinkLevel)
+        if (row.Needs is { } pn && pn.Psyfocus is not null && pn.PsyfocusTarget is not null && pn.PsylinkLevel is not null)
         {
-            w = w with { Psyfocus = Known((double)pn.Psyfocus), PsyfocusTarget = Known((double)pn.PsyfocusTarget), PsylinkLevel = Known((int)pn.PsylinkLevel) };
+            w = w with { Psyfocus = Known((double)pn.Psyfocus.GetValueOrDefault()), PsyfocusTarget = Known((double)pn.PsyfocusTarget.GetValueOrDefault()), PsylinkLevel = Known((int)pn.PsylinkLevel.GetValueOrDefault()) };
         }
         return w;
     }
@@ -335,12 +335,12 @@ public static partial class ObservationPackage
         {
             return Unknown<JobTarget>();
         }
-        if (t.Entity is { } e)
+        if (t.Target?.Entity is { } e)
         {
-            var target = new JobTarget { Thing = e.Id };
-            if (at is { HasX: true, HasZ: true })
+            var target = new JobTarget { Thing = e.Id ?? "" };
+            if (at is { X: not null, Z: not null })
             {
-                target = target with { Cell = Known(new Cell(at.X, at.Z)) };
+                target = target with { Cell = Known(new Cell(at.X.GetValueOrDefault(), at.Z.GetValueOrDefault())) };
             }
             if (target.Thing.Length == 0 && !target.Cell.TryGetValue(out _))
             {
@@ -348,11 +348,11 @@ public static partial class ObservationPackage
             }
             return Known(target);
         }
-        if (t.Cell is { HasX: true, HasZ: true } c)
+        if (t.Target?.Cell is { X: not null, Z: not null } c)
         {
-            return Known(new JobTarget { Cell = Known(new Cell(c.X, c.Z)) });
+            return Known(new JobTarget { Cell = Known(new Cell(c.X.GetValueOrDefault(), c.Z.GetValueOrDefault())) });
         }
-        if (t.Unavailable is not null)
+        if (t.Target?.Unavailable is not null)
         {
             return Known(new JobTarget());
         }

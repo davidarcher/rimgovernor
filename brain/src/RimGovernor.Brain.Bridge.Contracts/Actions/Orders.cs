@@ -1,6 +1,6 @@
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using Op = RimGovernor.Protocol.Operations;
-using WireDesign = RimGovernor.Protocol.Common.IdeoligionDesign;
+using Op = RimGovernor.Contracts.Wire.Operations;
+using WireDesign = RimGovernor.Contracts.Wire.Common.IdeoligionDesign;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -16,7 +16,7 @@ public static partial class BridgeFunctions
     {
         var v = action.ResearchSelect ?? throw Contract("not a research select action");
         ValidId(v.Project);
-        return new Op.Action { Research = new Op.ResearchIntent { ProjectDef = v.Project } };
+        return new Op.Action { Intent = new Op.ResearchIntent { ProjectDef = v.Project } };
     }
 
     /// <summary>
@@ -33,9 +33,9 @@ public static partial class BridgeFunctions
         var intent = new Op.DialogIntent { WindowId = v.WindowId, OptionIndex = v.OptionIndex, OptionLabel = v.OptionLabel };
         if (v.LetterToken.Length != 0)
         {
-            intent.JoinerLetterToken = v.LetterToken;
+            intent = intent with { JoinerLetterToken = v.LetterToken };
         }
-        return new Op.Action { Dialog = intent };
+        return new Op.Action { Intent = intent };
     }
 
     // Go prisonerInteractionWire: each domain mode to the exclusive interaction native sets. Enslave and Convert exist
@@ -63,7 +63,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("invalid prisoner interaction");
         }
-        return new Op.Action { Prisoner = new Op.PrisonerInteractionIntent { PawnId = v.Pawn.Value, Interaction = wire } };
+        return new Op.Action { Intent = new Op.PrisonerInteractionIntent { PawnId = v.Pawn.Value, Interaction = wire } };
     }
 
     /// <summary>
@@ -80,9 +80,9 @@ public static partial class BridgeFunctions
         var intent = new Op.AcceptQuestIntent { QuestId = accept.Quest.Value, RewardChoice = accept.RewardChoice };
         if (accept.AccepterPawn.Value.Length != 0)
         {
-            intent.AccepterPawnId = accept.AccepterPawn.Value;
+            intent = intent with { AccepterPawnId = accept.AccepterPawn.Value };
         }
-        return new Op.Action { AcceptQuest = intent };
+        return new Op.Action { Intent = intent };
     }
 
     private static Op.Action QuestShuttleAction(DomainAction action)
@@ -92,19 +92,19 @@ public static partial class BridgeFunctions
         switch (s.Loading)
         {
             case ShuttleLoading.Autoload:
-                intent.Autoload = s.Autoload;
+                intent = intent with { Loading = new Op.QuestShuttleIntentLoading.AutoloadCase(s.Autoload) };
                 break;
             case ShuttleLoading.ExplicitPawns:
-                intent.ExplicitPawns = new Op.ShuttlePawnList { PawnIds = { s.Pawns.Select(pawn => pawn.Value) } };
+                intent = intent with { Loading = new Op.QuestShuttleIntentLoading.ExplicitPawnsCase(new Op.ShuttlePawnList { PawnIds = [.. s.Pawns.Select(pawn => pawn.Value)] }) };
                 break;
         }
-        return new Op.Action { QuestShuttle = intent };
+        return new Op.Action { Intent = intent };
     }
 
     private static Op.Action HackDesignationAction(DomainAction action)
     {
         var h = action.HackDesignation ?? throw Contract("not a hack designation action");
-        return new Op.Action { HackDesignation = new Op.HackDesignationIntent { Target = NewRef(h.Target), Enabled = h.Enabled } };
+        return new Op.Action { Intent = new Op.HackDesignationIntent { Target = NewRef(h.Target), Enabled = h.Enabled } };
     }
 
     private static Op.Action GiveItemAction(DomainAction action)
@@ -112,7 +112,7 @@ public static partial class BridgeFunctions
         var g = action.GiveItem ?? throw Contract("not a give item action");
         return new Op.Action
         {
-            GiveItem = new Op.GiveItemIntent
+            Intent = new Op.GiveItemIntent
             {
                 Hauler = NewRef(g.Hauler.Value),
                 Recipient = NewRef(g.Recipient.Value),
@@ -136,28 +136,28 @@ public static partial class BridgeFunctions
             case RitualVerb.Start:
                 break;
             case RitualVerb.Begin:
-                intent.Spot = WireCell(ritual.Spot);
+                intent = intent with { Spot = WireCell(ritual.Spot) };
                 foreach (var slot in ritual.Slots)
                 {
-                    intent.Roles.Add(new Op.RitualRoleAssignment { Slot = slot.Slot, PawnIds = { slot.Pawns.Select(pawn => pawn.Value) } });
+                    intent = intent with { Roles = [.. intent.Roles, new Op.RitualRoleAssignment { Slot = slot.Slot, PawnIds = [.. slot.Pawns.Select(pawn => pawn.Value)] }] };
                 }
-                intent.SpectatorPawnIds.Add(ritual.Spectators.Select(pawn => pawn.Value));
+                intent = intent with { SpectatorPawnIds = [.. intent.SpectatorPawnIds, .. ritual.Spectators.Select(pawn => pawn.Value)] };
                 break;
             default:
                 throw Contract("ritual requires a pawn, a known ritual and a known verb");
         }
-        return new Op.Action { Ritual = intent };
+        return new Op.Action { Intent = intent };
     }
 
     /// <summary>Go's <c>WireIdeoligionDesign</c>: the wire form of a domain ideoligion design.</summary>
-    public static WireDesign WireIdeoligionDesign(IdeoligionDesign v) => new() { Memes = { v.Memes }, Precepts = { v.Precepts }, Fluid = v.Fluid };
+    public static WireDesign WireIdeoligionDesign(IdeoligionDesign v) => new() { Memes = [.. v.Memes], Precepts = [.. v.Precepts], Fluid = v.Fluid };
 
     private static Op.Action IdeoligionReformAction(DomainAction action)
     {
         var v = action.IdeoligionReform ?? throw Contract("not an ideoligion reform action");
         return new Op.Action
         {
-            IdeoligionReform = new Op.IdeoligionReformIntent
+            Intent = new Op.IdeoligionReformIntent
             {
                 IdeoId = v.IdeoId,
                 Expected = WireIdeoligionDesign(v.Expected),
@@ -173,7 +173,7 @@ public static partial class BridgeFunctions
     /// </summary>
     public static void ValidateIdeoligionDesign(WireDesign? design)
     {
-        if (design is null || !design.HasFluid || design.Memes.Count == 0 || design.Memes.Count > 5 || design.Precepts.Count > 256)
+        if (design is null || design.Fluid is null || design.Memes.Count == 0 || design.Memes.Count > 5 || design.Precepts.Count > 256)
         {
             throw Contract("invalid ideoligion design");
         }
@@ -202,10 +202,10 @@ public static partial class BridgeFunctions
         switch (source.Kind)
         {
             case AbilitySourceKind.Permit:
-                intent.Permit = new Op.PermitAbility { FactionDef = source.Faction, Permit = source.Def };
+                intent = intent with { Source = new Op.AbilityIntentSource.PermitCase(new Op.PermitAbility { FactionDef = source.Faction, Permit = source.Def }) };
                 break;
             case AbilitySourceKind.Psycast:
-                intent.Psycast = new Op.PsycastAbility { Ability = source.Def };
+                intent = intent with { Source = new Op.AbilityIntentSource.PsycastCase(new Op.PsycastAbility { Ability = source.Def }) };
                 break;
             default:
                 throw Contract($"unsupported ability source \"{Domain.Wire.Name(source.Kind)}\"");
@@ -214,35 +214,35 @@ public static partial class BridgeFunctions
         switch (target.Kind)
         {
             case AbilityTargetKind.None:
-                intent.NoTarget = new Op.AbilityNoTarget();
+                intent = intent with { Target = new Op.AbilityIntentTarget.NoTargetCase(new Op.AbilityNoTarget()) };
                 break;
             case AbilityTargetKind.Cell:
-                intent.Cell = WireCell(target.Cell);
+                intent = intent with { Target = new Op.AbilityIntentTarget.CellCase(WireCell(target.Cell)) };
                 break;
             case AbilityTargetKind.Pawn:
-                intent.Pawn = target.Id;
+                intent = intent with { Target = new Op.AbilityIntentTarget.PawnCase(target.Id) };
                 break;
             case AbilityTargetKind.Thing:
-                intent.Thing = target.Id;
+                intent = intent with { Target = new Op.AbilityIntentTarget.ThingCase(target.Id) };
                 break;
             default:
                 throw Contract($"unsupported ability target \"{Domain.Wire.Name(target.Kind)}\"");
         }
-        return new Op.Action { Ability = intent };
+        return new Op.Action { Intent = intent };
     }
 
     /// <summary>Go's <c>igniteAction</c>: the Actions/Apply ignite arm, the pawn throws a molotov at the cell. Room occupancy is policy (BurnOccupied).</summary>
     private static Op.Action IgniteAction(DomainAction action)
     {
         var ignite = action.Ignite ?? throw Contract("not an ignite action");
-        return new Op.Action { Ignite = new Op.IgniteIntent { PawnId = ignite.Pawn.Value, Cell = WireCell(ignite.Cell) } };
+        return new Op.Action { Intent = new Op.IgniteIntent { PawnId = ignite.Pawn.Value, Cell = WireCell(ignite.Cell) } };
     }
 
     /// <summary>Go's <c>gatheringAction</c>: the Actions/Apply gathering arm, the organizer starts one vanilla GatheringDef. The intent names no spot; the game chooses it.</summary>
     private static Op.Action GatheringAction(DomainAction action)
     {
         var gathering = action.Gathering ?? throw Contract("not a gathering action");
-        return new Op.Action { Gathering = new Op.GatheringIntent { GatheringDef = gathering.Def, Organizer = NewRef(gathering.Organizer.Value) } };
+        return new Op.Action { Intent = new Op.GatheringIntent { GatheringDef = gathering.Def, Organizer = NewRef(gathering.Organizer.Value) } };
     }
 
     /// <summary>
@@ -257,10 +257,10 @@ public static partial class BridgeFunctions
         var mode = door.HoldOpen ? Op.CombatDoorMode.HoldOpen : Op.CombatDoorMode.Close;
         var command = new Op.CombatOrders
         {
-            Orders = { new Op.CombatOrder { Door = new Op.CombatDoor { Cell = WireCell(door.Cell), Mode = mode } } },
+            Orders = [new Op.CombatOrder { Order = new Op.CombatOrderOrder.DoorCase(new Op.CombatDoor { Cell = WireCell(door.Cell), Mode = mode }) }],
         };
         ValidateCombatOrders(command);
-        return new Op.Action { CombatOrders = command };
+        return new Op.Action { Intent = command };
     }
 
     /// <summary>
@@ -281,7 +281,7 @@ public static partial class BridgeFunctions
             {
                 throw Contract("invalid caravan crew pawn");
             }
-            intent.PawnIds.Add(pawn.Value);
+            intent = intent with { PawnIds = [.. intent.PawnIds, pawn.Value] };
         }
         foreach (var item in departure.Cargo)
         {
@@ -289,9 +289,9 @@ public static partial class BridgeFunctions
             {
                 throw Contract("invalid caravan cargo item");
             }
-            intent.Cargo.Add(new Op.DefCount { DefName = item.Definition, Count = (int)item.Count });
+            intent = intent with { Cargo = [.. intent.Cargo, new Op.DefCount { DefName = item.Definition, Count = (int)item.Count }] };
         }
-        return new Op.Action { FormCaravan = intent };
+        return new Op.Action { Intent = intent };
     }
 
     /// <summary>
@@ -302,13 +302,13 @@ public static partial class BridgeFunctions
     private static Op.Action AssignAction(DomainAction action)
     {
         var v = action.Assign ?? throw Contract("not an assign action");
-        var previous = v.Previous.Clear ? new Op.Assignment { Clear = new Op.Clear() } : new Op.Assignment { EntityId = v.Previous.Id };
+        var previous = v.Previous.Clear ? new Op.Assignment { Value = new Op.Clear() } : new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(v.Previous.Id) };
         var intent = new Op.AssignIntent { PawnId = v.Pawn.Value, ThingId = v.Thing, ExpectedPrevious = previous };
         if (v.Swap)
         {
-            intent.Swap = true;
+            intent = intent with { Swap = true };
         }
-        return new Op.Action { Assign = intent };
+        return new Op.Action { Intent = intent };
     }
 
     // Go husbandryOrders: each domain method to the order native applies (HusbandryActionHandler).
@@ -344,20 +344,20 @@ public static partial class BridgeFunctions
         switch (v.Method)
         {
             case HusbandryMethod.Train:
-                intent.TrainableDef = v.Argument;
+                intent = intent with { TrainableDef = v.Argument };
                 break;
             case HusbandryMethod.AllowedArea or HusbandryMethod.Master:
                 // An empty argument clears the assignment.
                 if (v.Argument.Length != 0)
                 {
-                    intent.TargetId = v.Argument;
+                    intent = intent with { TargetId = v.Argument };
                 }
                 break;
             case HusbandryMethod.FollowDrafted or HusbandryMethod.FollowFieldwork:
-                intent.Follow = v.Argument == "true";
+                intent = intent with { Follow = v.Argument == "true" };
                 break;
         }
-        return new Op.Action { Husbandry = intent };
+        return new Op.Action { Intent = intent };
     }
 
     /// <summary>
@@ -370,11 +370,11 @@ public static partial class BridgeFunctions
         var s = v.Spec;
         return new Op.Action
         {
-            ApparelPolicy = new Op.ApparelPolicyIntent
+            Intent = new Op.ApparelPolicyIntent
             {
                 PawnId = s.Pawn.Value,
                 Name = s.Name,
-                AllowedDefs = { s.Definitions },
+                AllowedDefs = [.. s.Definitions],
                 MinHitPoints = (float)s.MinHP,
                 MaxHitPoints = (float)s.MaxHP,
                 MinQuality = s.MinQuality,

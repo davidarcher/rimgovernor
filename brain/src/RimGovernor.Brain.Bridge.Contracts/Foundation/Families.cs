@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Policy;
-using WireFactFamily = RimGovernor.Protocol.Clock.FactFamily;
+using WireFactFamily = RimGovernor.Contracts.Wire.Clock.FactFamily;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 

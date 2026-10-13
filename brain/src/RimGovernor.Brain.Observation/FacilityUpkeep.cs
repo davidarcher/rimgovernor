@@ -4,21 +4,21 @@ public static partial class ObservationPackage
 {
     internal static Fact<HomeCoverageObservation> ColonyHomeCoverage(O.ColonyFactsSnapshot v)
     {
-        var u = v.Upkeep?.Observed;
+        var u = v.Upkeep?.Outcome?.Observed;
         if (u is null || HasIssue(u.Issues, "home_coverage"))
         {
             return Unknown<HomeCoverageObservation>();
         }
-        var h = u.HomeCoverage?.Observed;
+        var h = u.HomeCoverage?.Outcome?.Observed;
         if (h is null)
         {
             return Unknown<HomeCoverageObservation>();
         }
         var targets = new List<HomeCoverageTarget>(h.Targets.Count);
-        var r = new HomeCoverageObservation { Revision = (long)h.Revision };
-        if (u.HasAutoHomeArea && !HasIssue(u.Issues, "auto_home_area"))
+        var r = new HomeCoverageObservation { Revision = h.Revision.GetValueOrDefault() };
+        if (u.AutoHomeArea is not null && !HasIssue(u.Issues, "auto_home_area"))
         {
-            r = r with { AutoHome = Known(u.AutoHomeArea) };
+            r = r with { AutoHome = Known(u.AutoHomeArea.GetValueOrDefault()) };
         }
         if (!HasIssue(u.Issues, "home_cells"))
         {
@@ -28,18 +28,18 @@ public static partial class ObservationPackage
         {
             var t = new HomeCoverageTarget
             {
-                Id = row.Id,
-                Shape = Optional(row.HasShapeToken, row.ShapeToken),
-                Blocker = row.Blocker,
+                Id = row.Id ?? "",
+                Shape = Optional(row.ShapeToken is not null, row.ShapeToken ?? ""),
+                Blocker = row.Blocker ?? "",
                 Cells = CellsOf(row.Cells),
             };
-            if (row.HasMissingCells)
+            if (row.MissingCells is not null)
             {
-                t = t with { Missing = Known((long)row.MissingCells) };
+                t = t with { Missing = Known((long)row.MissingCells.GetValueOrDefault()) };
             }
-            if (row.HasExcludedCells)
+            if (row.ExcludedCells is not null)
             {
-                t = t with { Excluded = Known((long)row.ExcludedCells) };
+                t = t with { Excluded = Known((long)row.ExcludedCells.GetValueOrDefault()) };
             }
             if (row.ExtentGeometry is { } geometry)
             {
@@ -60,7 +60,7 @@ public static partial class ObservationPackage
 
     internal static Fact<EquatableArray<StoneStructure>> ColonyStoneStructures(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var u = v.Upkeep?.Observed;
+        var u = v.Upkeep?.Outcome?.Observed;
         if (u is null || HasIssue(u.Issues, "structures"))
         {
             return Unknown<EquatableArray<StoneStructure>>();
@@ -80,13 +80,13 @@ public static partial class ObservationPackage
             double flammability;
             try
             {
-                flammability = catalog.PlannerStatValue(head.DefName, row.Stuff, StatFlammability);
+                flammability = catalog.PlannerStatValue((head.DefName ?? ""), (row.Stuff ?? ""), StatFlammability);
             }
             catch (DomainException e)
             {
                 throw new BridgeContractException($"stone structure {r.Building?.Id}: {e.Message}");
             }
-            rows.Add(new StoneStructure { Id = r.Building?.Id ?? "", Definition = new Resource(head.DefName), Flammability = Known((double)(float)flammability) });
+            rows.Add(new StoneStructure { Id = r.Building?.Id ?? "", Definition = new Resource((head.DefName ?? "")), Flammability = Known((double)(float)flammability) });
         }
         return Known(EquatableArray.From(rows));
     }

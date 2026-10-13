@@ -55,11 +55,11 @@ public sealed partial class RoundsDefensePlanner
             var stop = new StopEvent();
             foreach (var ev in combat.Events)
             {
-                var stopKind = ev.Stop;
-                if (ev.At.Tick > fight.Memory.Tick.Value && participants.Contains(new Domain.PawnId(ev.ThingId))
+                var stopKind = ev.Stop.GetValueOrDefault();
+                if ((ev.At?.Tick).GetValueOrDefault() > fight.Memory.Tick.Value && participants.Contains(new Domain.PawnId((ev.ThingId ?? "")))
                     && (stopKind == K.CombatEvent.SeriousInjury || stopKind == K.CombatEvent.Downed))
                 {
-                    stop = new StopEvent { Kind = new CombatStopKind(stopKind == K.CombatEvent.SeriousInjury ? "serious_injury" : "downed"), Pawn = new PawnId(ev.ThingId) };
+                    stop = new StopEvent { Kind = new CombatStopKind(stopKind == K.CombatEvent.SeriousInjury ? "serious_injury" : "downed"), Pawn = new PawnId((ev.ThingId ?? "")) };
                     active = false;
                 }
             }
@@ -99,7 +99,7 @@ public sealed partial class RoundsDefensePlanner
                     orders.Add(new CombatOrder { Pawn = new PawnId(draft.Pawn.Value), Kind = CombatOrderKind.Stop });
                 }
             }
-            var batchLabel = $"{method.Plan}-subdue-stop-{combatContext.Tick.ToString(CultureInfo.InvariantCulture)}";
+            var batchLabel = $"{method.Plan}-subdue-stop-{combatContext.Tick.GetValueOrDefault().ToString(CultureInfo.InvariantCulture)}";
             var batch = CombatBatchPlan(method.Plan, batchLabel, [], orders);
             var (results, _) = await SendCombatBatchAsync(state, method.Plan, batchLabel, [], orders, call).ConfigureAwait(false);
             var confirmed = results is not null;
@@ -112,8 +112,8 @@ public sealed partial class RoundsDefensePlanner
                 foreach (var order in orders)
                 {
                     var ok = fresh.Detail.TryGetValue(order.Pawn.Value, out var row);
-                    confirmed = confirmed && ok && row is not null && row.Job is not null && row.Job.HasPlayerForced && !row.Job.PlayerForced
-                        && row.Job.HasQueuedJobs && row.Job.QueuedJobs == 0 && row.Job.Issues.Count == 0;
+                    confirmed = confirmed && ok && row is not null && row.Job is not null && row.Job.PlayerForced is not null && !row.Job.PlayerForced.GetValueOrDefault()
+                        && row.Job.QueuedJobs is not null && row.Job.QueuedJobs.GetValueOrDefault() == 0 && row.Job.Issues.Count == 0;
                 }
                 if (confirmed)
                 {
@@ -126,7 +126,7 @@ public sealed partial class RoundsDefensePlanner
                             v.Action,
                             v.Attempt,
                             scope,
-                            new Tick(freshContext.Tick),
+                            new Tick(freshContext.Tick.GetValueOrDefault()),
                             Effect.Completed,
                             ObservationCausality.AfterDispatch), scope, call);
                         p.Journal.RetireCombatBatch(batch.Id, call);
@@ -148,7 +148,7 @@ public sealed partial class RoundsDefensePlanner
             }
             if (entries.Count > 0)
             {
-                var record = new CombatStopRecord(batch.Id, new Tick(combatContext.Tick), stop, [.. entries]);
+                var record = new CombatStopRecord(batch.Id, new Tick(combatContext.Tick.GetValueOrDefault()), stop, [.. entries]);
                 p.Journal.RecordCombatStop(method.Plan, record, fight.Memory, call);
             }
             if (confirmed && !unresolved)

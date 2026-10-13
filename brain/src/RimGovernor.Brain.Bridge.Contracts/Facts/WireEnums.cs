@@ -1,10 +1,10 @@
-using RimGovernor.Protocol.Observations;
-using RimGovernor.Protocol.Operations;
-using RimGovernor.Protocol.Receipts;
+using RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Contracts.Wire.Operations;
+using RimGovernor.Contracts.Wire.Receipts;
 using DomainHostility = RimGovernor.Brain.Domain.HostilityResponse;
 using DomainMedicalCare = RimGovernor.Brain.Domain.MedicalCare;
-using WireHostility = RimGovernor.Protocol.Operations.HostilityResponse;
-using WireMedicalCare = RimGovernor.Protocol.Operations.MedicalCare;
+using WireHostility = RimGovernor.Contracts.Wire.Operations.HostilityResponse;
+using WireMedicalCare = RimGovernor.Contracts.Wire.Operations.MedicalCare;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 

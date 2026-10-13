@@ -162,7 +162,7 @@ public static partial class ObservationPackage
     /// <summary>Projects a validated section; an absent or unavailable one is an unknown fact.</summary>
     internal static Fact<AnomalyColony> ColonyAnomaly(O.AnomalySection? section)
     {
-        var f = section?.Observed;
+        var f = section?.Outcome?.Observed;
         if (f is null)
         {
             return default;
@@ -172,26 +172,26 @@ public static partial class ObservationPackage
         {
             knowledge.Add(new KnowledgeProgress
             {
-                Category = x.Category,
-                CurrentProject = Optional(x.HasCurrentProject, x.CurrentProject),
-                Knowledge = Optional(x.HasKnowledge, x.Knowledge),
-                ProjectsAvailable = Optional(x.HasProjectsAvailable, x.ProjectsAvailable),
+                Category = x.Category ?? "",
+                CurrentProject = Optional(x.CurrentProject is not null, x.CurrentProject ?? ""),
+                Knowledge = Optional(x.Knowledge is not null, x.Knowledge.GetValueOrDefault()),
+                ProjectsAvailable = Optional(x.ProjectsAvailable is not null, x.ProjectsAvailable.GetValueOrDefault()),
             });
         }
         var codex = new List<CodexProgress>();
         foreach (var x in f.Codex)
         {
-            codex.Add(new CodexProgress(x.Category, x.Entries, x.Discovered));
+            codex.Add(new CodexProgress(x.Category ?? "", x.Entries.GetValueOrDefault(), x.Discovered.GetValueOrDefault()));
         }
         var held = new List<HeldEntity>();
         foreach (var x in f.HeldEntities)
         {
-            held.Add(new HeldEntity(x.PawnId, x.PlatformId));
+            held.Add(new HeldEntity(x.PawnId ?? "", x.PlatformId ?? ""));
         }
         var r = new AnomalyColony
         {
             DiscoveredEntries = [.. f.DiscoveredEntries],
-            HoldingPlatformAvailable = Optional(f.HasHoldingPlatformAvailable, f.HoldingPlatformAvailable),
+            HoldingPlatformAvailable = Optional(f.HoldingPlatformAvailable is not null, f.HoldingPlatformAvailable.GetValueOrDefault()),
             Knowledge = knowledge,
             Codex = codex,
             HeldEntities = held,
@@ -202,18 +202,18 @@ public static partial class ObservationPackage
             {
                 Incidents = Known(new AnomalyIncidents
                 {
-                    MonolithSpawned = Optional(i.HasMonolithSpawned, i.MonolithSpawned),
-                    QuestlineEnded = Optional(i.HasQuestlineEnded, i.QuestlineEnded),
-                    AmbientHorrorMode = Optional(i.HasAmbientHorrorMode, i.AmbientHorrorMode),
-                    AnomalyStudyEnabled = Optional(i.HasAnomalyStudyEnabled, i.AnomalyStudyEnabled),
-                    VoidAwakeningActive = Optional(i.HasVoidAwakeningActive, i.VoidAwakeningActive),
-                    AwokenCorpseActive = Optional(i.HasAwokenCorpseActive, i.AwokenCorpseActive),
-                    MetalhorrorImplantPossible = Optional(i.HasMetalhorrorImplantPossible, i.MetalhorrorImplantPossible),
-                    LevelDef = Optional(i.HasLevelDef, i.LevelDef),
-                    Level = Optional(i.HasLevel, i.Level),
-                    HighestLevelReached = Optional(i.HasHighestLevelReached, i.HighestLevelReached),
-                    TicksSinceLevelChange = Optional(i.HasTicksSinceLevelChange, i.TicksSinceLevelChange),
-                    ThreatFractionNow = Optional(i.HasAnomalyThreatFractionNow, i.AnomalyThreatFractionNow),
+                    MonolithSpawned = Optional(i.MonolithSpawned is not null, i.MonolithSpawned.GetValueOrDefault()),
+                    QuestlineEnded = Optional(i.QuestlineEnded is not null, i.QuestlineEnded.GetValueOrDefault()),
+                    AmbientHorrorMode = Optional(i.AmbientHorrorMode is not null, i.AmbientHorrorMode.GetValueOrDefault()),
+                    AnomalyStudyEnabled = Optional(i.AnomalyStudyEnabled is not null, i.AnomalyStudyEnabled.GetValueOrDefault()),
+                    VoidAwakeningActive = Optional(i.VoidAwakeningActive is not null, i.VoidAwakeningActive.GetValueOrDefault()),
+                    AwokenCorpseActive = Optional(i.AwokenCorpseActive is not null, i.AwokenCorpseActive.GetValueOrDefault()),
+                    MetalhorrorImplantPossible = Optional(i.MetalhorrorImplantPossible is not null, i.MetalhorrorImplantPossible.GetValueOrDefault()),
+                    LevelDef = Optional(i.LevelDef is not null, i.LevelDef ?? ""),
+                    Level = Optional(i.Level is not null, i.Level.GetValueOrDefault()),
+                    HighestLevelReached = Optional(i.HighestLevelReached is not null, i.HighestLevelReached.GetValueOrDefault()),
+                    TicksSinceLevelChange = Optional(i.TicksSinceLevelChange is not null, i.TicksSinceLevelChange.GetValueOrDefault()),
+                    ThreatFractionNow = Optional(i.AnomalyThreatFractionNow is not null, i.AnomalyThreatFractionNow.GetValueOrDefault()),
                 }),
             };
         }
@@ -223,20 +223,20 @@ public static partial class ObservationPackage
             {
                 Monolith = Known(new MonolithState
                 {
-                    CanActivate = Optional(m.HasCanActivate, m.CanActivate),
-                    NextLevelDef = Optional(m.HasNextLevelDef, m.NextLevelDef),
-                    NextLevelCodexCategory = Optional(m.HasNextLevelCodexCategory, m.NextLevelCodexCategory),
-                    NextLevelCodexRequired = Optional(m.HasNextLevelCodexRequired, m.NextLevelCodexRequired),
-                    CodexShortfall = Optional(m.HasCodexShortfall, m.CodexShortfall),
+                    CanActivate = Optional(m.CanActivate is not null, m.CanActivate.GetValueOrDefault()),
+                    NextLevelDef = Optional(m.NextLevelDef is not null, m.NextLevelDef ?? ""),
+                    NextLevelCodexCategory = Optional(m.NextLevelCodexCategory is not null, m.NextLevelCodexCategory ?? ""),
+                    NextLevelCodexRequired = Optional(m.NextLevelCodexRequired is not null, m.NextLevelCodexRequired.GetValueOrDefault()),
+                    CodexShortfall = Optional(m.CodexShortfall is not null, m.CodexShortfall.GetValueOrDefault()),
                     BlockingConditions = [.. m.BlockingConditions],
-                    GleamingInteractionAvailable = Optional(m.HasGleamingInteractionAvailable, m.GleamingInteractionAvailable),
-                    VoidStructures = Optional(m.HasVoidStructures, m.VoidStructures),
-                    VoidStructuresActivated = Optional(m.HasVoidStructuresActivated, m.VoidStructuresActivated),
-                    VoidNodeExists = Optional(m.HasVoidNodeExists, m.VoidNodeExists),
-                    VoidAwakeningStage = Optional(m.HasVoidAwakeningStage, m.VoidAwakeningStage),
-                    MonolithID = Optional(m.HasMonolithId, m.MonolithId),
+                    GleamingInteractionAvailable = Optional(m.GleamingInteractionAvailable is not null, m.GleamingInteractionAvailable.GetValueOrDefault()),
+                    VoidStructures = Optional(m.VoidStructures is not null, m.VoidStructures.GetValueOrDefault()),
+                    VoidStructuresActivated = Optional(m.VoidStructuresActivated is not null, m.VoidStructuresActivated.GetValueOrDefault()),
+                    VoidNodeExists = Optional(m.VoidNodeExists is not null, m.VoidNodeExists.GetValueOrDefault()),
+                    VoidAwakeningStage = Optional(m.VoidAwakeningStage is not null, m.VoidAwakeningStage.GetValueOrDefault()),
+                    MonolithID = Optional(m.MonolithId is not null, m.MonolithId ?? ""),
                     PendingVoidStructureIDs = [.. m.PendingVoidStructureIds],
-                    VoidNodeID = m.VoidNodeId,
+                    VoidNodeID = m.VoidNodeId ?? "",
                     VoidNodePawnIDs = [.. m.VoidNodePawnIds],
                 }),
             };

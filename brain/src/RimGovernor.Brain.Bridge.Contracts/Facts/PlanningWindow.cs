@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Observations;
 using Rectangle = RimGovernor.Brain.Policy.Rectangle;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
@@ -45,9 +45,9 @@ public static partial class BridgeFunctions
         }
         foreach (var issue in issues)
         {
-            if (issue.Field == field)
+            if ((issue.Field ?? "") == field)
             {
-                return issue.Unavailable?.Reason == UnavailableReason.NotApplicable ? Known(false) : Unknown<bool>();
+                return (issue.Unavailable?.Reason).GetValueOrDefault() == UnavailableReason.NotApplicable ? Known(false) : Unknown<bool>();
             }
         }
         return applied ? Known(false) : Unknown<bool>();

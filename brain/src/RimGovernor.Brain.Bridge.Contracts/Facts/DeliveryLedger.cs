@@ -1,4 +1,4 @@
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -11,7 +11,7 @@ public static partial class BridgeFunctions
     /// </summary>
     public static bool ValidDeliveryLedger(DeliveryLedgerFacts? ledger, long tick)
     {
-        if (ledger is null || !ledger.HasEpoch || !IsValidId(ledger.Epoch))
+        if (ledger is null || ledger.Epoch is null || !IsValidId((ledger.Epoch ?? "")))
         {
             return false;
         }
@@ -22,12 +22,12 @@ public static partial class BridgeFunctions
             {
                 return false;
             }
-            var kind = row.SourceKind;
+            var kind = row.SourceKind.GetValueOrDefault();
             if (kind is < DeliverySourceKind.Crop or > DeliverySourceKind.AnimalProduct
                 || !ValidDeliveryCounters(row, tick)
-                || !IsValidId(row.SourceId)
-                || !IsValidId(row.DefName)
-                || !seen.Add((kind.ToString(), row.SourceId, row.DefName)))
+                || !IsValidId((row.SourceId ?? ""))
+                || !IsValidId((row.DefName ?? ""))
+                || !seen.Add((kind.ToString(), (row.SourceId ?? ""), (row.DefName ?? ""))))
             {
                 return false;
             }
@@ -45,50 +45,50 @@ public static partial class BridgeFunctions
         foreach (var kill in ledger.Kills)
         {
             if (kill is null
-                || !IsValidId(kill.CorpseId)
-                || killed.Contains(kill.CorpseId)
-                || !IsValidId(kill.Race)
-                || !IsValidId(kill.PawnId)
-                || !kill.HasBodySize
+                || !IsValidId((kill.CorpseId ?? ""))
+                || killed.Contains((kill.CorpseId ?? ""))
+                || !IsValidId((kill.Race ?? ""))
+                || !IsValidId((kill.PawnId ?? ""))
+                || kill.BodySize is null
                 || !CombatNumber(kill.BodySize, true)
-                || !kill.HasPotentialNutrition
+                || kill.PotentialNutrition is null
                 || !CombatNumber(kill.PotentialNutrition, true)
-                || !kill.HasTick
-                || kill.Tick < 0
-                || kill.Tick > tick)
+                || kill.Tick is null
+                || kill.Tick.GetValueOrDefault() < 0
+                || kill.Tick.GetValueOrDefault() > tick)
             {
                 return false;
             }
-            killed.Add(kill.CorpseId);
+            killed.Add((kill.CorpseId ?? ""));
         }
         var butchered = new HashSet<string>(StringComparer.Ordinal);
         foreach (var butcher in ledger.Butchers)
         {
             if (butcher is null
-                || !IsValidId(butcher.CorpseId)
-                || butchered.Contains(butcher.CorpseId)
-                || !IsValidId(butcher.Recipe)
-                || !butcher.HasMeatUnits
-                || butcher.MeatUnits < 0
-                || !butcher.HasMeatNutrition
+                || !IsValidId((butcher.CorpseId ?? ""))
+                || butchered.Contains((butcher.CorpseId ?? ""))
+                || !IsValidId((butcher.Recipe ?? ""))
+                || butcher.MeatUnits is null
+                || butcher.MeatUnits.GetValueOrDefault() < 0
+                || butcher.MeatNutrition is null
                 || !CombatNumber(butcher.MeatNutrition, true)
-                || !butcher.HasLeatherUnits
-                || butcher.LeatherUnits < 0
-                || !butcher.HasTick
-                || butcher.Tick < 0
-                || butcher.Tick > tick
-                || (butcher.MeatUnits > 0 && !IsValidId(butcher.MeatDef)))
+                || butcher.LeatherUnits is null
+                || butcher.LeatherUnits.GetValueOrDefault() < 0
+                || butcher.Tick is null
+                || butcher.Tick.GetValueOrDefault() < 0
+                || butcher.Tick.GetValueOrDefault() > tick
+                || (butcher.MeatUnits.GetValueOrDefault() > 0 && !IsValidId((butcher.MeatDef ?? ""))))
             {
                 return false;
             }
-            butchered.Add(butcher.CorpseId);
+            butchered.Add((butcher.CorpseId ?? ""));
         }
         return true;
     }
 
     /// <summary>Go's <c>validDeliveryCounters</c>.</summary>
     private static bool ValidDeliveryCounters(DeliveryRow row, long tick) =>
-        row.HasUnits && row.Units >= 0
-        && row.HasNutrition && CombatNumber(row.Nutrition, true)
-        && row.HasLastTick && row.LastTick >= 0 && row.LastTick <= tick;
+        row.Units is not null && row.Units.GetValueOrDefault() >= 0
+        && row.Nutrition is not null && CombatNumber(row.Nutrition, true)
+        && row.LastTick is not null && row.LastTick.GetValueOrDefault() >= 0 && row.LastTick.GetValueOrDefault() <= tick;
 }

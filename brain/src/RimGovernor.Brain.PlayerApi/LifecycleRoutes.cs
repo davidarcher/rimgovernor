@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Lifecycle;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.PlayerApi;
 
@@ -180,7 +180,7 @@ public static class LifecycleRoutes
             var load = new LoadRequest { RequestId = id, SaveName = saveName, Readiness = readiness, TimeoutMs = timeoutMs };
             if (expected is not null)
             {
-                load.ExpectedPlayer = expected;
+                load = load with { ExpectedPlayer = expected };
             }
 
             var reply = await lifecycle.LoadAsync(load, ct).ConfigureAwait(false);
@@ -204,7 +204,7 @@ public static class LifecycleRoutes
         try
         {
             decoded = NewColonyJson.Decode(request.Body);
-            if (!new PlanId(decoded.RequestId).IsValid)
+            if (!new PlanId((decoded.RequestId ?? "")).IsValid)
             {
                 throw new StrictJsonException("invalid request id");
             }
@@ -258,7 +258,7 @@ public static class LifecycleRoutes
     // A save is completed or it is not shown: an uncertain or refused save is an unavailable read.
     private static ChannelResponse SaveResponse(SaveReply reply, int completedStatus)
     {
-        if (reply.Completed is not { } done)
+        if (reply.Outcome?.Completed is not { } done)
         {
             return ReadRoutes.ReadFailure(new InvalidOperationException("save not completed"));
         }
@@ -266,26 +266,25 @@ public static class LifecycleRoutes
         var observed = done.Context;
         var identity = observed?.Identity;
         return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new SaveReplyDto(
-            done.RequestId,
-            done.SaveName,
+            (done.RequestId ?? ""),
+            (done.SaveName ?? ""),
             new IdentityDto(identity?.ColonyId ?? "", identity?.MapId ?? 0, identity?.LoadToken ?? ""),
             observed?.Tick ?? 0,
-            done.Paused,
-            done.ByteLength)));
+            done.Paused.GetValueOrDefault(),
+            done.ByteLength.GetValueOrDefault())));
     }
 
     // A load is completed, still in progress (202, the poller's ordinary case), or superseded (409).
     private static ChannelResponse LoadResponse(LoadReply reply, int completedStatus)
     {
-        switch (reply.OutcomeCase)
+        switch (reply.Outcome)
         {
-            case LoadReply.OutcomeOneofCase.Pending:
-                return ChannelResponse.Json(202, PlayerJson.Serialize(new LoadPendingDto("pending", reply.Pending.RequestId, reply.Pending.Detail)));
-            case LoadReply.OutcomeOneofCase.Superseded:
-                return ChannelResponse.Failure(409, "superseded", reply.Superseded.Detail);
-            case LoadReply.OutcomeOneofCase.Completed:
-                var done = reply.Completed;
-                var readiness = done.Readiness switch
+            case LoadReplyOutcome.PendingCase { Value: var pending }:
+                return ChannelResponse.Json(202, PlayerJson.Serialize(new LoadPendingDto("pending", (pending.RequestId ?? ""), (pending.Detail ?? ""))));
+            case LoadReplyOutcome.SupersededCase { Value: var superseded }:
+                return ChannelResponse.Failure(409, "superseded", (superseded.Detail ?? ""));
+            case LoadReplyOutcome.CompletedCase { Value: var done }:
+                var readiness = done.Readiness.GetValueOrDefault() switch
                 {
                     Readiness.Map => "map",
                     Readiness.Visual => "visual",
@@ -299,8 +298,8 @@ public static class LifecycleRoutes
                 var loaded = done.Loaded;
                 var identity = loaded?.Context?.Identity;
                 return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new LoadReplyDto(
-                    done.RequestId,
-                    done.SaveName,
+                    (done.RequestId ?? ""),
+                    (done.SaveName ?? ""),
                     new IdentityDto(identity?.ColonyId ?? "", identity?.MapId ?? 0, identity?.LoadToken ?? ""),
                     loaded?.Paused ?? false,
                     readiness)));
@@ -312,35 +311,32 @@ public static class LifecycleRoutes
     // A new colony is completed, still pending (the poller's ordinary case), superseded (409) or refused by native.
     private static ChannelResponse NewColonyResponse(NewColonyReply reply, int completedStatus, int pendingStatus)
     {
-        switch (reply.OutcomeCase)
+        switch (reply.Outcome)
         {
-            case NewColonyReply.OutcomeOneofCase.Pending:
-                var pending = reply.Pending;
+            case NewColonyReplyOutcome.PendingCase { Value: var pending }:
                 return ChannelResponse.Json(pendingStatus, PlayerJson.Serialize(new NewColonyPendingDto(
                     "pending",
-                    pending.RequestId,
-                    PhaseName(pending.Phase),
-                    pending.Detail,
-                    pending.ElapsedMs,
-                    pending.RerollCount)));
-            case NewColonyReply.OutcomeOneofCase.Superseded:
-                return ChannelResponse.Failure(409, "superseded", reply.Superseded.Detail);
-            case NewColonyReply.OutcomeOneofCase.Failure:
-                var failure = reply.Failure;
-                return ChannelResponse.Failure(RefusalStatus(failure.Code), "native_" + CodeName(failure.Code), failure.Detail);
-            case NewColonyReply.OutcomeOneofCase.Completed:
-                var done = reply.Completed;
+                    (pending.RequestId ?? ""),
+                    PhaseName(pending.Phase.GetValueOrDefault()),
+                    (pending.Detail ?? ""),
+                    pending.ElapsedMs.GetValueOrDefault(),
+                    pending.RerollCount.GetValueOrDefault())));
+            case NewColonyReplyOutcome.SupersededCase { Value: var superseded }:
+                return ChannelResponse.Failure(409, "superseded", (superseded.Detail ?? ""));
+            case NewColonyReplyOutcome.FailureCase { Value: var failure }:
+                return ChannelResponse.Failure(RefusalStatus(failure.Code.GetValueOrDefault()), "native_" + CodeName(failure.Code.GetValueOrDefault()), (failure.Detail ?? ""));
+            case NewColonyReplyOutcome.CompletedCase { Value: var done }:
                 var observed = done.Context;
                 var identity = observed?.Identity;
                 return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new NewColonyCompletedDto(
                     "completed",
-                    done.RequestId,
-                    done.SaveName,
+                    (done.RequestId ?? ""),
+                    (done.SaveName ?? ""),
                     new IdentityDto(identity?.ColonyId ?? "", identity?.MapId ?? 0, identity?.LoadToken ?? ""),
                     observed?.Tick ?? 0,
-                    done.Paused,
-                    done.ByteLength,
-                    done.Seed)));
+                    done.Paused.GetValueOrDefault(),
+                    done.ByteLength.GetValueOrDefault(),
+                    (done.Seed ?? ""))));
             default:
                 return ReadRoutes.ReadFailure(new InvalidOperationException("new colony not completed"));
         }
@@ -367,7 +363,7 @@ public static class LifecycleRoutes
 
     // Go lower-cases the enum name after FAILURE_CODE_.
     private static string CodeName(FailureCode code) =>
-        (CommonReflection.Descriptor.EnumTypes.Single(e => e.ClrType == typeof(FailureCode)).FindValueByNumber((int)code)?.Name ?? "")
+        Domain.Wire.Name(code)
         .Replace("FAILURE_CODE_", "", StringComparison.Ordinal)
         .ToLowerInvariant();
 }

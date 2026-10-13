@@ -344,7 +344,7 @@ public sealed partial class Executor
                 }
                 var observed = await _journal.ObserveAsync(
                     view.Plan,
-                    new Observation(view.Action, view.Attempt, snapshot, read.Tick, effect, ObservationCausality.AfterDispatch, reason),
+                    new Domain.Observation(view.Action, view.Attempt, snapshot, read.Tick, effect, ObservationCausality.AfterDispatch, reason),
                     snapshot,
                     ct
                 ).ConfigureAwait(false);

@@ -183,13 +183,25 @@ public abstract record TradeTargetKind
 {
     private protected TradeTargetKind() { }
 
+    /// <summary>The <c>MapTrader</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public MapTradeTarget? MapTrader => (this as MapTraderCase)?.Value;
+
     public sealed record MapTraderCase(MapTradeTarget Value) : TradeTargetKind;
 
     public static implicit operator TradeTargetKind(MapTradeTarget value) => new MapTraderCase(value);
 
+    /// <summary>The <c>Settlement</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SettlementTradeTarget? Settlement => (this as SettlementCase)?.Value;
+
     public sealed record SettlementCase(SettlementTradeTarget Value) : TradeTargetKind;
 
     public static implicit operator TradeTargetKind(SettlementTradeTarget value) => new SettlementCase(value);
+
+    /// <summary>The <c>OrbitalShip</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public OrbitalTradeTarget? OrbitalShip => (this as OrbitalShipCase)?.Value;
 
     public sealed record OrbitalShipCase(OrbitalTradeTarget Value) : TradeTargetKind;
 

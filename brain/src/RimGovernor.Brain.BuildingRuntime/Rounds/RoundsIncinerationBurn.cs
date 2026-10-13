@@ -32,19 +32,19 @@ internal static partial class BuildingRuntimePackage
         var facts = new CleanCandidateFacts
         {
             Pawn = pawn,
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
-            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
+            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
         };
         if (row.Job is not null && !Boundary.IssueField(row.Job.Issues, "player_forced"))
         {
-            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.HasPlayerForced, row.Job.PlayerForced) };
+            facts = facts with { PlayerForced = Boundary.FactBool(row.Job.PlayerForced is not null, row.Job.PlayerForced.GetValueOrDefault()) };
         }
 
         if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
         {
-            facts = facts with { NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend), Bleeding = Boundary.FactBool(health.HasBleeding, health.Bleeding) };
+            facts = facts with { NeedsTend = Boundary.FactBool(health.NeedsTend is not null, health.NeedsTend.GetValueOrDefault()), Bleeding = Boundary.FactBool(health.Bleeding is not null, health.Bleeding.GetValueOrDefault()) };
         }
 
         if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "work"))
@@ -59,17 +59,17 @@ internal static partial class BuildingRuntimePackage
     {
         foreach (var w in work)
         {
-            if (w is null || w.DefName != "Cleaning")
+            if (w is null || (w.DefName ?? "") != "Cleaning")
             {
                 continue;
             }
 
-            if (!w.HasDisabled || !w.HasPriority)
+            if (w.Disabled is null || w.Priority is null)
             {
                 return Unknown<bool>();
             }
 
-            return Known(!w.Disabled);
+            return Known(!w.Disabled.GetValueOrDefault());
         }
 
         return Unknown<bool>();
@@ -121,7 +121,7 @@ public sealed partial class RoundsIncinerationPlanner
                 throw new ControlException("cleanAsh: row or its pawn is missing");
             }
 
-            pawns.Add(CleanCandidateFactsOf(new PawnId(row.Pawn.Id), row));
+            pawns.Add(CleanCandidateFactsOf(new PawnId((row.Pawn.Id ?? "")), row));
         }
 
         var selected = PolicyFunctions.SelectClean(ash, pawns);
@@ -163,7 +163,7 @@ public sealed partial class RoundsIncinerationPlanner
                 throw new ControlException("burnRoom: row or its pawn is missing");
             }
 
-            var pawn = new PawnId(row.Pawn.Id);
+            var pawn = new PawnId((row.Pawn.Id ?? ""));
             var arm = RoundsEquipPlanner.EquipCandidatePawnFacts(row, catalog, things);
             candidates.Add(new BurnCandidate { Arm = arm, Fire = FireSafetyPawnFactsOf(new Domain.PawnId(pawn.Value), row), Holds = PrimaryDef(row, things) == PolicyFunctions.MolotovDef });
         }

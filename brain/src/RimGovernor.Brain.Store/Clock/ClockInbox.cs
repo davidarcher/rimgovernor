@@ -3,7 +3,7 @@ using System.Globalization;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store.Codec;
-using Pb = RimGovernor.Protocol.Clock;
+using Pb = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.Store;
 
@@ -109,8 +109,6 @@ public static partial class ClockJournal
     internal static (ClockInboxState State, bool Created) AppendEvents(StoreTransaction tx, string path, Pb.EventsRequest request, Pb.EventsPage page)
     {
         BridgeFunctions.ValidateClockEventsPage(page, request);
-        request = request.Clone();
-        page = page.Clone();
         var rb = CanonicalBytes(request);
         var pb = CanonicalBytes(page);
         var (inbox, size) = ReadInbox(tx, path, InboxCapacity);
@@ -121,11 +119,11 @@ public static partial class ClockJournal
                 return (inbox.State, false);
             }
         }
-        if (request.AfterCursor != inbox.State.Cursor)
+        if (request.AfterCursor.GetValueOrDefault() != inbox.State.Cursor)
         {
             throw new ConflictException();
         }
-        if (page.NextCursor == inbox.State.Cursor)
+        if (page.NextCursor.GetValueOrDefault() == inbox.State.Cursor)
         {
             return (inbox.State, false);
         }
@@ -137,8 +135,8 @@ public static partial class ClockJournal
         _ = tx.Execute(
             "INSERT INTO clock_event_pages(sequence,after_cursor,next_cursor,request,page) VALUES($sequence,$after,$next,$request,$page)",
             ("$sequence", sequence),
-            ("$after", request.AfterCursor),
-            ("$next", page.NextCursor),
+            ("$after", request.AfterCursor.GetValueOrDefault()),
+            ("$next", page.NextCursor.GetValueOrDefault()),
             ("$request", rb),
             ("$page", pb)
         );
@@ -146,16 +144,16 @@ public static partial class ClockJournal
         {
             _ = tx.Execute(
                 "INSERT INTO clock_inbox_events(cursor,page_sequence,payload) VALUES($cursor,$sequence,$payload)",
-                ("$cursor", @event.Cursor),
+                ("$cursor", @event.Cursor.GetValueOrDefault()),
                 ("$sequence", sequence),
                 ("$payload", CanonicalBytes(@event))
             );
         }
         var next = inbox.State with
         {
-            Cursor = page.NextCursor,
-            Gap = inbox.State.Gap || page.Gap,
-            LostCount = inbox.State.LostCount + page.LostCount,
+            Cursor = page.NextCursor.GetValueOrDefault(),
+            Gap = inbox.State.Gap || page.Gap.GetValueOrDefault(),
+            LostCount = inbox.State.LostCount + page.LostCount.GetValueOrDefault(),
             PageCount = inbox.State.PageCount + 1,
             EventCount = inbox.State.EventCount + page.Events.Count,
         };
@@ -200,14 +198,14 @@ public static partial class ClockJournal
                 || !CanonicalBytes(page).AsSpan().SequenceEqual(row.Page)
                 || row.Sequence != checkpoint.Pages + retained.Count + 1
                 || row.After != state.Cursor
-                || row.After != request.AfterCursor
-                || row.Next != page.NextCursor
+                || row.After != request.AfterCursor.GetValueOrDefault()
+                || row.Next != page.NextCursor.GetValueOrDefault()
                 || row.Next <= row.After)
             {
                 throw new StoreCorruptException("invalid clock inbox replay");
             }
             retained.Add(new ClockEventPage(request, page));
-            state = state with { Cursor = row.Next, Gap = state.Gap || page.Gap, LostCount = state.LostCount + page.LostCount, EventCount = state.EventCount + page.Events.Count };
+            state = state with { Cursor = row.Next, Gap = state.Gap || page.Gap.GetValueOrDefault(), LostCount = state.LostCount + page.LostCount.GetValueOrDefault(), EventCount = state.EventCount + page.Events.Count };
         }
         state = state with { PageCount = retained.Count };
         if (state.EventCount != events || state.PageCount != pages)
@@ -225,7 +223,7 @@ public static partial class ClockJournal
                     throw new StoreCorruptException("missing clock inbox event");
                 }
                 var row = eventRows[at++];
-                if (row.Cursor != @event.Cursor || row.Sequence != checkpoint.Pages + i + 1 || !CanonicalBytes(@event).AsSpan().SequenceEqual(row.Payload))
+                if (row.Cursor != @event.Cursor.GetValueOrDefault() || row.Sequence != checkpoint.Pages + i + 1 || !CanonicalBytes(@event).AsSpan().SequenceEqual(row.Payload))
                 {
                     throw new StoreCorruptException(string.Create(CultureInfo.InvariantCulture, $"invalid clock inbox event {row.Cursor}"));
                 }

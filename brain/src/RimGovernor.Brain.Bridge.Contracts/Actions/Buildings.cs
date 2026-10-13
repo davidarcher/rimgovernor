@@ -1,7 +1,7 @@
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using Op = RimGovernor.Protocol.Operations;
-using PlacementRotation = RimGovernor.Protocol.Placement.Rotation;
-using WireCandidate = RimGovernor.Protocol.Placement.PlacementCandidate;
+using Op = RimGovernor.Contracts.Wire.Operations;
+using PlacementRotation = RimGovernor.Contracts.Wire.Placement.Rotation;
+using WireCandidate = RimGovernor.Contracts.Wire.Placement.PlacementCandidate;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -26,7 +26,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("haul intent requires a distinct pawn and item");
         }
-        return new Op.Action { Haul = new Op.HaulIntent { PawnId = pawn, ThingId = thing } };
+        return new Op.Action { Intent = new Op.HaulIntent { PawnId = pawn, ThingId = thing } };
     }
 
     /// <summary>Go's <c>movementAction</c>: the Actions/Apply move arm of one domain movement.</summary>
@@ -36,13 +36,13 @@ public static partial class BridgeFunctions
         ValidId(m.Pawn.Value);
         var cell = WireCell(m.Destination);
         MovementCell(cell);
-        return new Op.Action { Move = new Op.MoveIntent { PawnId = m.Pawn.Value, Destination = cell } };
+        return new Op.Action { Intent = new Op.MoveIntent { PawnId = m.Pawn.Value, Destination = cell } };
     }
 
     /// <summary>Go's <c>movementCell</c>: a present, non-negative cell with no fields the schema lacks.</summary>
     internal static void MovementCell(Cell? cell)
     {
-        if (cell is null || !cell.HasX || !cell.HasZ || cell.X < 0 || cell.Z < 0)
+        if (cell is null || cell.X is null || cell.Z is null || cell.X.GetValueOrDefault() < 0 || cell.Z.GetValueOrDefault() < 0)
         {
             throw Contract("movement destination missing or invalid");
         }
@@ -62,7 +62,7 @@ public static partial class BridgeFunctions
     {
         var f = action.FloorRemoval ?? throw Contract("not a floor removal action");
         ValidId(f.Definition);
-        return new Op.Action { RemoveFloor = new Op.RemoveFloorIntent { Cell = WireCell(f.Cell), DefName = f.Definition } };
+        return new Op.Action { Intent = new Op.RemoveFloorIntent { Cell = WireCell(f.Cell), DefName = f.Definition } };
     }
 
     // Go moveRotations / buildingAction's rotation table: the cardinal rotations only.
@@ -92,21 +92,21 @@ public static partial class BridgeFunctions
         var intent = new Op.BuildingIntent { Placement = candidate };
         if (action.FinishingSkill.TryGetValue(out var minimum))
         {
-            intent.MinimumFinishingSkill = minimum;
+            intent = intent with { MinimumFinishingSkill = minimum };
         }
         if (action.Tier.TryGetValue(out var tier))
         {
-            intent.Tier = (int)tier;
+            intent = intent with { Tier = (int)tier };
         }
         if (action.ConstructionTarget.Length != 0)
         {
-            intent.ExistingTargetId = action.ConstructionTarget;
+            intent = intent with { ExistingTargetId = action.ConstructionTarget };
         }
         if (action.ReplacesWall)
         {
-            intent.ReplaceWall = true;
+            intent = intent with { ReplaceWall = true };
         }
-        return new Op.Action { Building = intent };
+        return new Op.Action { Intent = intent };
     }
 
     /// <summary>
@@ -127,22 +127,20 @@ public static partial class BridgeFunctions
         }
         return new Op.Action
         {
-            Relocate = new Op.RelocateIntent { ThingId = m.Thing, Destination = WireCell(m.Cell), Rotation = rotation, Uninstall = uninstall },
+            Intent = new Op.RelocateIntent { ThingId = m.Thing, Destination = WireCell(m.Cell), Rotation = rotation, Uninstall = uninstall },
         };
     }
 
     // building_patch.go: one settings change on one exact building, a cooler or heater target, a bed's medical flag or
     // prisoner use, a grower's crop, a claim. Native checks the building and the game's own rules live; applied means
     // set, and the next building read confirms it.
-    private static Op.Action BuildingPatch(string thing, Action<Op.BuildingPatchIntent> change)
+    private static Op.Action BuildingPatch(string thing, Op.BuildingPatchIntentChange change)
     {
         if (!IsValidId(thing))
         {
             throw Contract("building patch requires an exact building");
         }
-        var intent = new Op.BuildingPatchIntent { ThingId = thing };
-        change(intent);
-        return new Op.Action { BuildingPatch = intent };
+        return new Op.Action { Intent = new Op.BuildingPatchIntent { ThingId = thing, Change = change } };
     }
 
     private static Op.Action BuildingTemperatureAction(DomainAction action)
@@ -151,30 +149,18 @@ public static partial class BridgeFunctions
         {
             throw Contract("not a building temperature action");
         }
-        return BuildingPatch(v.Thing, i => i.TargetTemperature = (float)v.Celsius);
+        return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.TargetTemperatureCase((float)v.Celsius));
     }
 
     private static Op.Action BedUseAction(DomainAction action)
     {
         var v = action.BedUse ?? throw Contract("not a bed use action");
-        return BuildingPatch(
-            v.Thing,
-            i =>
-            {
-                if (v.Prisoners)
-                {
-                    i.ForPrisoners = new Op.Clear();
-                }
-                else if (v.Slaves)
-                {
-                    i.ForSlaves = new Op.Clear();
-                }
-                else
-                {
-                    i.Medical = v.Medical;
-                }
-            }
-        );
+        Op.BuildingPatchIntentChange change = v.Prisoners
+            ? new Op.BuildingPatchIntentChange.ForPrisonersCase(new Op.Clear())
+            : v.Slaves
+                ? new Op.BuildingPatchIntentChange.ForSlavesCase(new Op.Clear())
+                : new Op.BuildingPatchIntentChange.MedicalCase(v.Medical);
+        return BuildingPatch(v.Thing, change);
     }
 
     private static Op.Action GrowerCropAction(DomainAction action)
@@ -183,23 +169,23 @@ public static partial class BridgeFunctions
         {
             throw Contract("not a grower crop action");
         }
-        return BuildingPatch(v.Thing, i => i.PlantDef = v.Crop);
+        return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.PlantDefCase(v.Crop));
     }
 
     private static Op.Action AutoRefuelAction(DomainAction action)
     {
         var v = action.AutoRefuel ?? throw Contract("not an auto refuel action");
-        return BuildingPatch(v.Thing, i => i.AutoRefuel = v.Allow);
+        return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.AutoRefuelCase(v.Allow));
     }
 
     private static Op.Action ClaimBuildingAction(DomainAction action)
     {
         var v = action.ClaimBuilding ?? throw Contract("not a claim building action");
-        return BuildingPatch(v.Thing, i => i.Claim = new Op.Clear());
+        return BuildingPatch(v.Thing, new Op.BuildingPatchIntentChange.ClaimCase(new Op.Clear()));
     }
 
     /// <summary>Go's <c>designate</c>: wraps one DesignateIntent as an Actions/Apply action.</summary>
-    private static Op.Action Designate(Op.DesignateIntent intent) => new() { Designate = intent };
+    private static Op.Action Designate(Op.DesignateIntent intent) => new() { Intent = intent };
 
     /// <summary>
     /// Go's <c>deconstructAction</c>: the DECONSTRUCT Designate of one exact building under the enclosure guard. Native
@@ -216,7 +202,7 @@ public static partial class BridgeFunctions
         var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Target = NewRef(v.Target), Guard = Op.DesignationGuard.Enclosure };
         if (v.ReplacesWithWall)
         {
-            intent.ReplaceWithWall = true;
+            intent = intent with { ReplaceWithWall = true };
         }
         return Designate(intent);
     }
@@ -243,9 +229,9 @@ public static partial class BridgeFunctions
         var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Cell = WireCell(w.Cell), Guard = Op.DesignationGuard.WallUpgrade };
         if (w.Original.Length != 0)
         {
-            intent.Target = NewRef(w.Original);
+            intent = intent with { Target = NewRef(w.Original) };
         }
-        return new Op.Action { Designate = intent };
+        return new Op.Action { Intent = intent };
     }
 
     /// <summary>
@@ -272,7 +258,7 @@ public static partial class BridgeFunctions
         var intent = new Op.DesignateIntent { Designation = known.Designation, Target = NewRef(v.Thing), Cell = WireCell(v.Cell) };
         if (known.Guard != Op.DesignationGuard.Unspecified)
         {
-            intent.Guard = known.Guard;
+            intent = intent with { Guard = known.Guard };
         }
         return Designate(intent);
     }
@@ -308,7 +294,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("cut plant target invalid");
         }
-        return new Op.Action { Designate = new Op.DesignateIntent { ThingId = v.Plant, Designation = Op.ThingDesignation.CutPlant } };
+        return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Plant, Designation = Op.ThingDesignation.CutPlant } };
     }
 
     /// <summary>
@@ -323,7 +309,7 @@ public static partial class BridgeFunctions
             throw Contract("supply target invalid");
         }
         var designation = v.Forbidden ? Op.ThingDesignation.Forbid : Op.ThingDesignation.Allow;
-        return new Op.Action { Designate = new Op.DesignateIntent { ThingId = v.Thing, Designation = designation } };
+        return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Thing, Designation = designation } };
     }
 
     /// <summary>
@@ -337,7 +323,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("strip target invalid");
         }
-        return new Op.Action { Designate = new Op.DesignateIntent { ThingId = v.Target, Designation = Op.ThingDesignation.Strip } };
+        return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Target, Designation = Op.ThingDesignation.Strip } };
     }
 
     /// <summary>
@@ -372,15 +358,15 @@ public static partial class BridgeFunctions
         };
         if (withdraw)
         {
-            intent.Withdraw = true;
+            intent = intent with { Withdraw = true };
         }
-        return new Op.Action { Designate = intent };
+        return new Op.Action { Intent = intent };
     }
 
     /// <summary>Go's <c>autoHomeAreaAction</c>: the AutoHomeAreaIntent that sets the game's home-area auto-expand. A value that already holds applies again.</summary>
     private static Op.Action AutoHomeAreaAction(DomainAction action)
     {
         var enabled = action.AutoHomeArea ?? throw Contract("not an auto home area action");
-        return new Op.Action { AutoHomeArea = new Op.AutoHomeAreaIntent { Enabled = enabled } };
+        return new Op.Action { Intent = new Op.AutoHomeAreaIntent { Enabled = enabled } };
     }
 }

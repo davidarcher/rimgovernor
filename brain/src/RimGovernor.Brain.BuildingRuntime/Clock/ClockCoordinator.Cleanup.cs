@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Lifecycle;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Port of internal/buildingruntime/clock_cleanup.go.
@@ -92,13 +93,13 @@ public sealed partial class ClockCoordinator
     {
         var reply = await _native.IdentityAsync(ctx).ConfigureAwait(false);
         ctx.ThrowIfCancellationRequested();
-        if (reply.OutcomeCase != PbLifecycle.IdentityReply.OutcomeOneofCase.Loaded)
+        if (reply.Outcome is not IdentityReplyOutcome.LoadedCase { Value: var loaded })
         {
             throw new HeldException();
         }
-        var current = reply.Loaded.Context;
+        var current = loaded.Context;
         BridgeApi.ValidateContext(current);
-        return current.Clone();
+        return current ?? throw new InvalidOperationException("observation context required");
     }
 
     private async Task CleanupStartAsync(ClockAttempt v, CancellationToken ctx)
@@ -124,26 +125,27 @@ public sealed partial class ClockCoordinator
     {
         PbCommon.ObservationContext current;
         PbClock.Status? status = null;
-        if (observed is not null && Equals(observed.Context?.Identity, v.Epoch!.Origin.Identity))
+        if (observed is not null && Equals(observed.Context?.Identity, v.Epoch!.Origin?.Identity))
         {
-            current = observed.Context!.Clone();
+            current = observed.Context!;
             status = observed;
         }
         else
         {
             current = await CleanupIdentityAsync(ctx).ConfigureAwait(false);
         }
-        if (status is null && Equals(current.Identity, v.Epoch!.Origin.Identity))
+        if (status is null && Equals(current.Identity, v.Epoch!.Origin?.Identity))
         {
-            var reply = await _native.ReadClockStatusAsync(current.Identity, ctx).ConfigureAwait(false);
-            status = reply.Status;
-            BridgeApi.ValidateClockStatus(status, current.Identity);
-            if (status.Context.Tick < current.Tick
-                || (current.HasNativeGeneration && (!status.Context.HasNativeGeneration || status.Context.NativeGeneration < current.NativeGeneration)))
+            var reply = await _native.ReadClockStatusAsync(current.Identity!, ctx).ConfigureAwait(false);
+            var read = ValidatedStatus(reply.Outcome is PbClock.StatusReplyOutcome.StatusCase { Value: var s } ? s : null, current.Identity);
+            var readContext = read.Context ?? throw new InvalidOperationException("clock status context required");
+            if (readContext.Tick.GetValueOrDefault() < current.Tick.GetValueOrDefault()
+                || (current.NativeGeneration is not null && (readContext.NativeGeneration is null || readContext.NativeGeneration.GetValueOrDefault() < current.NativeGeneration.GetValueOrDefault())))
             {
                 throw new BridgeContractException("clock status older than the observed identity");
             }
-            current = status.Context;
+            status = read;
+            current = readContext;
         }
         ctx.ThrowIfCancellationRequested();
         v = await _journal.ObserveClockEpochAsync(v.StartRequestId, v.Sequence, current, status, ctx).ConfigureAwait(false);
@@ -162,27 +164,27 @@ public sealed partial class ClockCoordinator
         {
             throw await PauseUncertainAsync(v, new OperationCanceledException(ctx)).ConfigureAwait(false);
         }
-        PbClock.StatusReply reply2;
+        PbClock.Status paused;
         try
         {
-            reply2 = await _writer.OwnedPauseAsync(
-                new PbClock.OwnedRequest { Identity = v.Epoch!.Origin.Identity.Clone(), Owner = v.Epoch.Owner.Clone() },
+            var reply2 = await _writer.OwnedPauseAsync(
+                new PbClock.OwnedRequest { Identity = v.Epoch!.Origin?.Identity, Owner = v.Epoch.Owner },
                 ctx).ConfigureAwait(false);
-            if (reply2.OutcomeCase != PbClock.StatusReply.OutcomeOneofCase.Status)
+            if (reply2.Outcome is not PbClock.StatusReplyOutcome.StatusCase { Value: var pausedStatus })
             {
                 throw new HeldException();
             }
+            paused = pausedStatus;
         }
         catch (Exception e)
         {
             throw await PauseUncertainAsync(v, ErrorJoin.Of(e, CancelledBy(ctx), new HeldException())!).ConfigureAwait(false);
         }
-        status = reply2.Status;
         ClockEpochObligation settled;
         try
         {
             using var persist = new CancellationTokenSource(_config.JournalTimeout);
-            settled = await _journal.ObserveClockEpochAsync(v.StartRequestId, v.Sequence, status.Context, status, persist.Token).ConfigureAwait(false);
+            settled = await _journal.ObserveClockEpochAsync(v.StartRequestId, v.Sequence, paused.Context ?? throw new EvidenceException(), paused, persist.Token).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -218,8 +220,8 @@ public sealed partial class ClockCoordinator
     /// </summary>
     public async Task<PbClock.Status> RepauseObserved(PbClock.Status observed, CancellationToken ct)
     {
-        var epoch = observed.StateCase == PbClock.Status.StateOneofCase.Stopped ? observed.Stopped.Epoch : null;
-        if (epoch is null || epoch.Owner is null || epoch.Origin is null || observed.Context?.Identity is null)
+        var epoch = observed.State is PbClock.StatusState.StoppedCase { Value: var stopped } ? stopped.Epoch : null;
+        if (epoch is null || epoch.Owner is null || epoch.Origin is null || observed.Context is not { Identity: { } identity, Tick: var observedTick })
         {
             throw new EvidenceException();
         }
@@ -228,11 +230,9 @@ public sealed partial class ClockCoordinator
         {
             using var call = CancellationTokenSource.CreateLinkedTokenSource(ct);
             call.CancelAfter(_config.CallTimeout);
-            var identity = observed.Context.Identity.Clone();
-            var reply = await _writer.OwnedPauseAsync(new PbClock.OwnedRequest { Identity = identity, Owner = epoch.Owner.Clone() }, call.Token).ConfigureAwait(false);
-            var status = reply.Status;
-            BridgeApi.ValidateClockStatus(status, identity);
-            if (status.StateCase != PbClock.Status.StateOneofCase.Stopped || status.Context.Tick < observed.Context.Tick)
+            var reply = await _writer.OwnedPauseAsync(new PbClock.OwnedRequest { Identity = identity, Owner = epoch.Owner }, call.Token).ConfigureAwait(false);
+            var status = ValidatedStatus(reply.Outcome is PbClock.StatusReplyOutcome.StatusCase { Value: var s } ? s : null, identity);
+            if (status.State is not PbClock.StatusState.StoppedCase || status.Context?.Tick < observedTick.GetValueOrDefault())
             {
                 throw new EvidenceException();
             }

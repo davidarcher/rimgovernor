@@ -20,9 +20,9 @@ internal static partial class BuildingRuntimePackage
 
             foreach (var item in row.Equipment?.Apparel ?? [])
             {
-                if (PolicyConstants.LanceDefs.ContainsKey(new Resource(GearDef(things, item.Thing))) && item.Thing.Id != "")
+                if (PolicyConstants.LanceDefs.ContainsKey(new Resource(GearDef(things, item.Thing))) && (item.Thing?.Id ?? "") != "")
                 {
-                    output.Add(new LanceUser(new PawnId(row.Pawn.Id), item.Thing.Id));
+                    output.Add(new LanceUser(new PawnId(row.Pawn?.Id ?? ""), item.Thing?.Id ?? ""));
                     break;
                 }
             }
@@ -48,7 +48,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("stepLance: emergency context", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < reviewTick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < reviewTick.Value)
         {
             throw new ControlException("stepLance: emergency context");
         }
@@ -65,7 +65,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         }
 
         var (reply, _) = await native.ReadCombatPawnsAsync(identityCtx, ids, call).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new ControlException("stepLance: observed == nil");
+        var observed = reply.Outcome?.Observed ?? throw new ControlException("stepLance: observed == nil");
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);

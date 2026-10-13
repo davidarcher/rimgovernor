@@ -1,4 +1,4 @@
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Observations;
 using PolicyPawnId = RimGovernor.Brain.Policy.PawnId;
 using PolicyPermitCooldown = RimGovernor.Brain.Policy.PermitCooldown;
 using PolicyPsycast = RimGovernor.Brain.Policy.Psycast;
@@ -47,7 +47,7 @@ public static partial class BridgeFunctions
             var holdings = new List<PolicyRoyalHolding>(row.Holdings.Count);
             foreach (var holding in row.Holdings)
             {
-                if (!IsValidId(holding.FactionDef) || (holding.HasTitle && !IsValidId(holding.Title)))
+                if (!IsValidId((holding.FactionDef ?? "")) || (holding.Title is not null && !IsValidId((holding.Title ?? ""))))
                 {
                     throw Contract("invalid royalty holding");
                 }
@@ -58,28 +58,28 @@ public static partial class BridgeFunctions
                 var cooldowns = new Dictionary<string, PolicyPermitCooldown>(StringComparer.Ordinal);
                 foreach (var cooldown in holding.PermitCooldowns)
                 {
-                    if (!IsValidId(cooldown.Permit) || cooldown.LastUsedTick < 0 || cooldown.CooldownRemainingTicks < 0)
+                    if (!IsValidId((cooldown.Permit ?? "")) || cooldown.LastUsedTick.GetValueOrDefault() < 0 || cooldown.CooldownRemainingTicks.GetValueOrDefault() < 0)
                     {
                         throw Contract("invalid royalty permit cooldown");
                     }
                     if (!cooldowns.TryAdd(
-                        cooldown.Permit,
+                        (cooldown.Permit ?? ""),
                         new PolicyPermitCooldown
                         {
-                            LastUsedTick = OptionalInt(cooldown.HasLastUsedTick, cooldown.LastUsedTick),
-                            RemainingTicks = OptionalInt(cooldown.HasCooldownRemainingTicks, cooldown.CooldownRemainingTicks),
+                            LastUsedTick = OptionalInt(cooldown.LastUsedTick is not null, cooldown.LastUsedTick.GetValueOrDefault()),
+                            RemainingTicks = OptionalInt(cooldown.CooldownRemainingTicks is not null, cooldown.CooldownRemainingTicks.GetValueOrDefault()),
                         }))
                     {
-                        throw Contract($"duplicate royalty permit cooldown {cooldown.Permit}");
+                        throw Contract($"duplicate royalty permit cooldown {(cooldown.Permit ?? "")}");
                     }
                 }
                 holdings.Add(
                     new PolicyRoyalHolding
                     {
-                        FactionDef = holding.FactionDef,
-                        Title = holding.Title,
-                        Favor = OptionalInt(holding.HasFavor, holding.Favor),
-                        PermitPoints = OptionalInt(holding.HasPermitPoints, holding.PermitPoints),
+                        FactionDef = (holding.FactionDef ?? ""),
+                        Title = holding.Title ?? "",
+                        Favor = OptionalInt(holding.Favor is not null, holding.Favor.GetValueOrDefault()),
+                        PermitPoints = OptionalInt(holding.PermitPoints is not null, holding.PermitPoints.GetValueOrDefault()),
                         Permits = EquatableArray.From(holding.Permits),
                         Cooldowns = cooldowns,
                     });
@@ -90,22 +90,22 @@ public static partial class BridgeFunctions
             var known = new HashSet<string>(StringComparer.Ordinal);
             foreach (var cast in row.Psycasts)
             {
-                if (!IsValidId(cast.DefName) || !known.Add(cast.DefName) || cast.CooldownRemainingTicks < 0)
+                if (!IsValidId((cast.DefName ?? "")) || !known.Add((cast.DefName ?? "")) || cast.CooldownRemainingTicks.GetValueOrDefault() < 0)
                 {
                     throw Contract("invalid royalty psycast");
                 }
-                casts.Add(psycast(cast.DefName) with { CooldownRemaining = OptionalInt(cast.HasCooldownRemainingTicks, cast.CooldownRemainingTicks) });
+                casts.Add(psycast((cast.DefName ?? "")) with { CooldownRemaining = OptionalInt(cast.CooldownRemainingTicks is not null, cast.CooldownRemainingTicks.GetValueOrDefault()) });
             }
             psycasts[key] = EquatableArray.From(casts);
-            if (row.Psyfocus is < 0 or > 1 || row.Entropy < 0 || row.EntropyMax < 0)
+            if (row.Psyfocus is < 0 or > 1 || row.Entropy.GetValueOrDefault() < 0 || row.EntropyMax.GetValueOrDefault() < 0)
             {
                 throw Contract("invalid royalty psycaster state");
             }
             casters[key] = new PolicyPsycasterState
             {
-                Psyfocus = OptionalFact(row.HasPsyfocus, row.Psyfocus),
-                Entropy = OptionalFact(row.HasEntropy, row.Entropy),
-                EntropyMax = OptionalFact(row.HasEntropyMax, row.EntropyMax),
+                Psyfocus = OptionalFact(row.Psyfocus is not null, row.Psyfocus.GetValueOrDefault()),
+                Entropy = OptionalFact(row.Entropy is not null, row.Entropy.GetValueOrDefault()),
+                EntropyMax = OptionalFact(row.EntropyMax is not null, row.EntropyMax.GetValueOrDefault()),
             };
         }
         return new PolicyRoyaltyFacts { Holders = holders, Psycasts = psycasts, Casters = casters };

@@ -1,7 +1,7 @@
-using RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire.Common;
 using DomainCorpseOf = RimGovernor.Brain.Domain.CorpseOf;
 using DomainRotStage = RimGovernor.Brain.Domain.RotStage;
-using WireRotStage = RimGovernor.Protocol.Common.RotStage;
+using WireRotStage = RimGovernor.Contracts.Wire.Common.RotStage;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 

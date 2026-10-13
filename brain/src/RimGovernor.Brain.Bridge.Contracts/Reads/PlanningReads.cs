@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Policy;
-using RimGovernor.Protocol.Common;
+using RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using TradeTarget = RimGovernor.Protocol.Common.TradeTarget;
+using TradeTarget = RimGovernor.Contracts.Wire.Common.TradeTarget;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 

@@ -4,8 +4,8 @@ public static partial class ObservationPackage
 {
     internal static Fact<SleepingObservation> ColonySleeping(O.ColonyFactsSnapshot v, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var u = v.Upkeep?.Observed;
-        if (u is null || !v.HasColonistCount || HasIssue(u.Issues, "people") || HasIssue(u.Issues, "beds"))
+        var u = v.Upkeep?.Outcome?.Observed;
+        if (u is null || v.ColonistCount is null || HasIssue(u.Issues, "people") || HasIssue(u.Issues, "beds"))
         {
             return Unknown<SleepingObservation>();
         }
@@ -24,18 +24,18 @@ public static partial class ObservationPackage
             foreach (var p in rows)
             {
                 RoyalTitle? title = null;
-                if (p.HasRoyalTitle)
+                if (p.RoyalTitle is not null)
                 {
-                    title = RequireCatalog(catalog).RoyalTitleOf(p.RoyalTitle, p.Ascetic, p.Precepts);
+                    title = RequireCatalog(catalog).RoyalTitleOf((p.RoyalTitle ?? ""), p.Ascetic.GetValueOrDefault(), p.Precepts);
                 }
                 output.Add(new SleepingPerson
                 {
                     Id = new PawnId(p.Pawn?.Id ?? ""),
                     OwnedBed = Known(p.OwnedBed?.Id ?? ""),
-                    ComfortableMin = Optional(p.HasComfortableMinC, p.ComfortableMinC),
-                    ComfortableMax = Optional(p.HasComfortableMaxC, p.ComfortableMaxC),
+                    ComfortableMin = Optional(p.ComfortableMinC is not null, p.ComfortableMinC.GetValueOrDefault()),
+                    ComfortableMax = Optional(p.ComfortableMaxC is not null, p.ComfortableMaxC.GetValueOrDefault()),
                     Partners = Ids(RefIds(p.Partners)),
-                    BedSharingAllowed = Optional(p.HasBedSharingAllowed, p.BedSharingAllowed),
+                    BedSharingAllowed = Optional(p.BedSharingAllowed is not null, p.BedSharingAllowed.GetValueOrDefault()),
                     Title = title,
                 });
             }
@@ -43,7 +43,7 @@ public static partial class ObservationPackage
         }
         var r = new SleepingObservation
         {
-            Colonists = (int)v.ColonistCount,
+            Colonists = (int)v.ColonistCount.GetValueOrDefault(),
             People = People(u.People),
             Slaves = People(u.Slaves),
             Guests = People(u.Guests),
@@ -65,9 +65,9 @@ public static partial class ObservationPackage
             double rest;
             try
             {
-                humanlike = catalog.BedHumanlike(head.DefName);
-                crib = catalog.BedCrib(head.DefName);
-                rest = catalog.PlannerStatValue(head.DefName, b.Stuff, StatBedRestEffectiveness);
+                humanlike = catalog.BedHumanlike((head.DefName ?? ""));
+                crib = catalog.BedCrib((head.DefName ?? ""));
+                rest = catalog.PlannerStatValue((head.DefName ?? ""), b.Stuff ?? "", StatBedRestEffectiveness);
             }
             catch (DomainException e)
             {
@@ -76,21 +76,21 @@ public static partial class ObservationPackage
             beds.Add(new SleepingBed
             {
                 Id = b.Bed?.Id ?? "",
-                Definition = new Resource(head.DefName),
+                Definition = new Resource((head.DefName ?? "")),
                 Humanlike = Known(humanlike),
                 Crib = crib,
-                Medical = Optional(b.HasMedical, b.Medical),
-                Prisoners = Optional(b.HasPrisoners, b.Prisoners),
-                Slaves = b.ForSlaves,
-                Roofed = Optional(b.HasRoofed, b.Roofed),
+                Medical = Optional(b.Medical is not null, b.Medical.GetValueOrDefault()),
+                Prisoners = Optional(b.Prisoners is not null, b.Prisoners.GetValueOrDefault()),
+                Slaves = b.ForSlaves.GetValueOrDefault(),
+                Roofed = Optional(b.Roofed is not null, b.Roofed.GetValueOrDefault()),
                 RestEffectiveness = Known((double)(float)rest),
-                Temperature = Optional(b.HasTemperatureC, b.TemperatureC),
+                Temperature = Optional(b.TemperatureC is not null, b.TemperatureC.GetValueOrDefault()),
                 Owners = Ids(RefIds(b.Owners)),
                 Users = Ids(RefIds(b.Users)),
                 AccessibleTo = Ids(RefIds(b.AccessibleTo)),
                 Room = OptionalRef(b.Room),
-                Quality = Optional(b.HasQuality, b.Quality),
-                Stuff = Optional(b.HasStuff, b.Stuff),
+                Quality = Optional(b.Quality is not null, b.Quality ?? ""),
+                Stuff = Optional(b.Stuff is not null, b.Stuff ?? ""),
                 Cell = CellOf(head.Position),
             });
         }
@@ -131,13 +131,13 @@ public static partial class ObservationPackage
         var rows = new List<UpkeepRoom>();
         foreach (var r in census?.Rooms ?? [])
         {
-            var role = r.Role;
-            var held = owned.GetValueOrDefault(r.Id) ?? [];
-            if (held.Count == 0 && (r.Fogged || (role != "DiningRoom" && role != "RecRoom")))
+            var role = (r.Role ?? "");
+            var held = owned.GetValueOrDefault((r.Id ?? "")) ?? [];
+            if (held.Count == 0 && (r.Fogged.GetValueOrDefault() || (role != "DiningRoom" && role != "RecRoom")))
             {
                 continue;
             }
-            var cells = r.HasCellCount ? Known((int)r.CellCount) : Unknown<int>();
+            var cells = r.CellCount is not null ? Known((int)r.CellCount.GetValueOrDefault()) : Unknown<int>();
             var quality = Unknown<RoomQuality>();
             var sk = RoomStat(r, "Space").TryGetValue(out var s);
             var bk = RoomStat(r, "Beauty").TryGetValue(out var b);
@@ -148,7 +148,7 @@ public static partial class ObservationPackage
             {
                 quality = Known(new RoomQuality(s, b, c, w, i));
             }
-            rows.Add(new UpkeepRoom { Id = r.Id, Role = role, Quality = quality, Cells = cells, Beds = EquatableArray.From(new List<string>(held)) });
+            rows.Add(new UpkeepRoom { Id = r.Id ?? "", Role = role, Quality = quality, Cells = cells, Beds = EquatableArray.From(new List<string>(held)) });
         }
         return Known(EquatableArray.From(rows));
     }

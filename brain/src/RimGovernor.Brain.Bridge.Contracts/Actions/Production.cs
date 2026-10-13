@@ -1,5 +1,5 @@
 using DomainCorpseOf = RimGovernor.Brain.Domain.CorpseOf;
-using Op = RimGovernor.Protocol.Operations;
+using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -11,7 +11,7 @@ public static partial class BridgeFunctions
     public const string BillSlotsFull = "bench_bill_slots_full";
 
     /// <summary>Go's <c>RefusedBillSlotsFull</c>: whether a refused action result names a full bill stack.</summary>
-    public static bool RefusedBillSlotsFull(Op.Refusal? refusal) => refusal is not null && refusal.Reason.Contains(BillSlotsFull, StringComparison.Ordinal);
+    public static bool RefusedBillSlotsFull(Op.Refusal? refusal) => refusal is not null && (refusal.Reason ?? "").Contains(BillSlotsFull, StringComparison.Ordinal);
 
     /// <summary>
     /// Go's <c>workSettingsAction</c>: the WorkSettingsIntent of one pawn's settings write, any of work priorities,
@@ -21,7 +21,7 @@ public static partial class BridgeFunctions
     private static Op.Action WorkSettingsAction(DomainAction action)
     {
         var w = action.WorkAssignment ?? throw Contract("not a work assignment action");
-        return new Op.Action { WorkSettings = WorkSettingsIntent(w) };
+        return new Op.Action { Intent = WorkSettingsIntent(w) };
     }
 
     private static Op.WorkSettingsIntent WorkSettingsIntent(WorkAssignment w)
@@ -29,22 +29,22 @@ public static partial class BridgeFunctions
         var intent = new Op.WorkSettingsIntent { PawnId = w.Pawn.Value };
         foreach (var setting in w.Settings)
         {
-            intent.Work.Add(new Op.WorkPriority { WorkTypeDef = setting.Definition, Priority = setting.Priority });
+            intent = intent with { Work = [.. intent.Work, new Op.WorkPriority { WorkTypeDef = setting.Definition, Priority = setting.Priority }] };
         }
         if (w.HasArea)
         {
-            intent.AllowedArea = w.AreaClear ? new Op.Assignment { Clear = new Op.Clear() } : new Op.Assignment { EntityId = w.Area };
+            intent = intent with { AllowedArea = w.AreaClear ? new Op.Assignment { Value = new Op.Clear() } : new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(w.Area) } };
         }
         if (w.HasSchedule)
         {
-            intent.Schedule = new Op.Schedule { AssignmentDefs = { w.Schedule } };
+            intent = intent with { Schedule = new Op.Schedule { AssignmentDefs = [.. w.Schedule] } };
         }
         return intent;
     }
 
     /// <summary>Go's <c>productionBillAction</c>: one production bill as a ProductionBillIntent; native checks the bench, recipe and a skilled worker when it applies.</summary>
     private static Op.Action ProductionBillAction(DomainAction action) =>
-        new() { ProductionBill = BillIntent(action.ProductionBill ?? throw Contract("not a production bill action")) };
+        new() { Intent = BillIntent(action.ProductionBill ?? throw Contract("not a production bill action")) };
 
     private static Op.ProductionBillIntent BillIntent(ProductionBill bill)
     {
@@ -52,49 +52,49 @@ public static partial class BridgeFunctions
         {
             Suspended = false,
             IngredientSearchRadius = 40,
-            Store = new Op.BillStore { Mode = Op.StoreMode.DropOnFloor },
+            Store = new Op.BillStore { Destination = new Op.BillStoreDestination.ModeCase(Op.StoreMode.DropOnFloor) },
         };
         if (bill.Mode == BillMode.BeerReserve)
         {
-            settings.BeerReserve = true;
+            settings = settings with { BeerReserve = true };
         }
         if (bill.Ingredients.Count > 0)
         {
             var selectors = new Op.SelectorList();
             foreach (var name in bill.Ingredients)
             {
-                selectors.Selectors.Add(new Op.FilterSelector { ThingDef = name });
+                selectors = selectors with { Selectors = [.. selectors.Selectors, new Op.FilterSelector { Definition = new Op.FilterSelectorDefinition.ThingDefCase(name) }] };
             }
-            settings.Ingredients = new Op.FilterPatch { Replace = selectors };
+            settings = settings with { Ingredients = new Op.FilterPatch { Replace = selectors } };
         }
         if (bill.Corpses is { } corpses && corpses != DomainCorpseOf.None)
         {
-            settings.CorpseClass = WireCorpseClass(corpses);
+            settings = settings with { CorpseClass = WireCorpseClass(corpses) };
         }
         if (!string.IsNullOrEmpty(bill.Worker))
         {
-            settings.Worker = new Op.Assignment { EntityId = bill.Worker };
+            settings = settings with { Worker = new Op.Assignment { Value = new Op.AssignmentValue.EntityIdCase(bill.Worker) } };
         }
         if (bill.Mode is BillMode.ButcherForever or BillMode.HumanButcherForever)
         {
-            settings.RepeatMode = Op.RepeatMode.Forever;
+            settings = settings with { RepeatMode = Op.RepeatMode.Forever };
         }
         else if (bill.Mode == BillMode.GearBatch)
         {
-            settings.RepeatMode = Op.RepeatMode.Count;
-            settings.RepeatCount = bill.Target;
+            settings = settings with { RepeatMode = Op.RepeatMode.Count };
+            settings = settings with { RepeatCount = bill.Target };
         }
         else
         {
-            settings.RepeatMode = Op.RepeatMode.Target;
-            settings.TargetCount = bill.Target;
-            settings.UnpauseThreshold = Math.Max(1, bill.Target / 2);
-            settings.PauseWhenSatisfied = true;
+            settings = settings with { RepeatMode = Op.RepeatMode.Target };
+            settings = settings with { TargetCount = bill.Target };
+            settings = settings with { UnpauseThreshold = Math.Max(1, bill.Target / 2) };
+            settings = settings with { PauseWhenSatisfied = true };
         }
         var intent = new Op.ProductionBillIntent { BenchId = bill.Bench, RecipeDef = bill.Recipe, Settings = settings };
         if (!string.IsNullOrEmpty(bill.Replaces))
         {
-            intent.ReplaceOwnedBill = NewRef(bill.Replaces);
+            intent = intent with { ReplaceOwnedBill = NewRef(bill.Replaces) };
         }
         return intent;
     }
@@ -108,7 +108,7 @@ public static partial class BridgeFunctions
         var removal = action.RemoveProductionBill ?? throw Contract("not a remove_production_bill action");
         return new Op.Action
         {
-            RemoveProductionBill = new Op.RemoveProductionBillIntent
+            Intent = new Op.RemoveProductionBillIntent
             {
                 BenchId = removal.Bench,
                 Bill = NewRef(removal.Bill),
@@ -133,12 +133,12 @@ public static partial class BridgeFunctions
         };
         if (v.Part != DomainConstants.NoSurgeryPart)
         {
-            intent.PartIndex = v.Part;
+            intent = intent with { PartIndex = v.Part };
         }
         if (v.Surgeon is { } surgeon)
         {
-            intent.Surgeon = NewRef(surgeon.Value);
+            intent = intent with { Surgeon = NewRef(surgeon.Value) };
         }
-        return new Op.Action { ProductionBill = intent };
+        return new Op.Action { Intent = intent };
     }
 }

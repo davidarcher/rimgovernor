@@ -192,7 +192,7 @@ internal static class ClockWindowWork
             text.Append(item).Append('\n');
         }
         text.Append(start.Speed).Append('|').Append(start.TestAcceleration).Append('|').Append(start.LeaseMs).Append('\n');
-        text.Append(start.Policy is null ? "" : Convert.ToHexString(Google.Protobuf.MessageExtensions.ToByteArray(start.Policy)));
+        text.Append(start.Policy is null ? "" : RimGovernor.Contracts.Wire.WireJson.Serialize(start.Policy));
         var sum = SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()));
         return "clock-window-" + Convert.ToHexStringLower(sum);
     }

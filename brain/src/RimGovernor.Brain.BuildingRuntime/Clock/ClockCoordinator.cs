@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Port of internal/buildingruntime/clock_coordinator.go (with clock_window.go and clock_cleanup.go in the sibling
@@ -180,17 +181,27 @@ public sealed partial class ClockCoordinator : IDisposable
 
     /// <summary>The epoch a running, stopping or stopped status carries, null otherwise (Go <c>clockCoordinatorEpoch</c>).</summary>
     internal static PbClock.Epoch? EpochOf(PbClock.Status? s) =>
-        s?.StateCase switch
+        s?.State switch
         {
-            PbClock.Status.StateOneofCase.Running => s.Running.Epoch,
-            PbClock.Status.StateOneofCase.Stopping => s.Stopping.Epoch,
-            PbClock.Status.StateOneofCase.Stopped => s.Stopped.Epoch,
+            PbClock.StatusState.RunningCase c => c.Value.Epoch,
+            PbClock.StatusState.StoppingCase c => c.Value.Epoch,
+            PbClock.StatusState.StoppedCase c => c.Value.Epoch,
             _ => null,
         };
 
+    /// <summary>
+    /// ValidateClockStatus throws for a null status, so the validated status is never null; this hands it back
+    /// non-null for the callers that dereference it.
+    /// </summary>
+    internal static PbClock.Status ValidatedStatus(PbClock.Status? status, PbCommon.Identity? identity)
+    {
+        BridgeApi.ValidateClockStatus(status, identity);
+        return status ?? throw new InvalidOperationException("clock status required");
+    }
+
     internal static bool SameEpoch(PbClock.Epoch? a, PbClock.Epoch? b) =>
         a is not null && b is not null && Equals(a.Owner, b.Owner) && Equals(a.Origin, b.Origin) && Equals(a.Policy, b.Policy)
-            && a.StartTick == b.StartTick && a.TickDeadline == b.TickDeadline;
+            && a.StartTick.GetValueOrDefault() == b.StartTick.GetValueOrDefault() && a.TickDeadline.GetValueOrDefault() == b.TickDeadline.GetValueOrDefault();
 
     private static OperationCanceledException? CancelledBy(CancellationToken ct) => ct.IsCancellationRequested ? new OperationCanceledException(ct) : null;
 
@@ -245,43 +256,43 @@ public sealed partial class ClockCoordinator : IDisposable
             }
         }
         var identity = Boundary.Identity(v.Intent.Snapshot);
-        var status = observed;
-        if (status is null)
+        var observedStatus = observed;
+        if (observedStatus is null)
         {
             var reply = await _native.ReadClockStatusAsync(identity, ctx).ConfigureAwait(false);
-            status = reply.Status;
+            observedStatus = reply.Outcome is PbClock.StatusReplyOutcome.StatusCase { Value: var read } ? read : null;
         }
-        BridgeApi.ValidateClockStatus(status, identity);
+        var status = ValidatedStatus(observedStatus, identity);
         ctx.ThrowIfCancellationRequested();
-        if (status.StateCase == PbClock.Status.StateOneofCase.Unavailable)
+        if (status.State is StatusState.UnavailableCase)
         {
             throw new HeldException();
         }
-        if (!status.Context.HasNativeGeneration || status.Context.NativeGeneration != v.Intent.Snapshot.Native.Value)
+        if (status.Context?.NativeGeneration is not { } nativeGeneration || nativeGeneration != v.Intent.Snapshot.Native.Value)
         {
             throw new HeldException();
         }
         if (command.Start is not null)
         {
-            if (status.StateCase is PbClock.Status.StateOneofCase.Running or PbClock.Status.StateOneofCase.Stopping)
+            if (status.State is PbClock.StatusState.RunningCase or PbClock.StatusState.StoppingCase)
             {
                 throw new HeldException();
             }
             if (v.Intent.Window is { } window
-                && (!status.HasActualPaused || !status.ActualPaused
-                    || !status.HasNativeTickBoundary || !status.NativeTickBoundary
-                    || !status.HasDurableEvents
-                    || (!status.DurableEvents && status.StateCase != PbClock.Status.StateOneofCase.NeverStarted)
-                    || status.Context.Tick != window.Tick.Value
-                    || !status.HasNewestCursor || status.NewestCursor != window.CapturedCursor))
+                && (status.ActualPaused is null || !status.ActualPaused.GetValueOrDefault()
+                    || status.NativeTickBoundary is null || !status.NativeTickBoundary.GetValueOrDefault()
+                    || status.DurableEvents is null
+                    || (!status.DurableEvents.GetValueOrDefault() && status.State is not StatusState.NeverStartedCase)
+                    || status.Context?.Tick.GetValueOrDefault() != window.Tick.Value
+                    || status.NewestCursor is null || status.NewestCursor.GetValueOrDefault() != window.CapturedCursor))
             {
                 throw new HeldException();
             }
             return;
         }
         var actual = EpochOf(status);
-        if (status.StateCase != PbClock.Status.StateOneofCase.Running || !SameEpoch(actual, original)
-            || actual!.RequestedSpeed != original!.RequestedSpeed || actual.LastTick < original.LastTick)
+        if (status.State is not StatusState.RunningCase || !SameEpoch(actual, original)
+            || actual!.RequestedSpeed.GetValueOrDefault() != original!.RequestedSpeed.GetValueOrDefault() || actual.LastTick.GetValueOrDefault() < original.LastTick.GetValueOrDefault())
         {
             throw new HeldException();
         }
@@ -400,15 +411,15 @@ public sealed partial class ClockCoordinator : IDisposable
                         };
                         if (s.BlindTickBudget != 0)
                         {
-                            request.BlindTickBudget = s.BlindTickBudget;
+                            request = request with { BlindTickBudget = s.BlindTickBudget };
                         }
                         if (s.MaxTicksPerSecond != 0)
                         {
-                            request.MaxTicksPerSecond = s.MaxTicksPerSecond;
+                            request = request with { MaxTicksPerSecond = s.MaxTicksPerSecond };
                         }
                         if (s.WirePacing is { } pacing)
                         {
-                            request.Pacing = pacing;
+                            request = request with { Pacing = pacing };
                         }
                         reply = await _writer.StartAsync(request, call).ConfigureAwait(false);
                     }
@@ -432,7 +443,7 @@ public sealed partial class ClockCoordinator : IDisposable
                         };
                         if (sp.MaxTicksPerSecond is { } ceiling)
                         {
-                            request.MaxTicksPerSecond = ceiling;
+                            request = request with { MaxTicksPerSecond = ceiling };
                         }
                         reply = await _writer.ChangeSpeedAsync(request, sp.Original, call).ConfigureAwait(false);
                     }
@@ -493,9 +504,9 @@ public sealed partial class ClockCoordinator : IDisposable
         {
             return await UncertainAsync(v, ErrorJoin.Of(e, CancelledBy(call), new HeldException())).ConfigureAwait(false);
         }
-        if (reply.OutcomeCase != PbClock.AttemptReply.OutcomeOneofCase.Receipt)
+        if (reply.Outcome is not AttemptReplyOutcome.ReceiptCase { Value: var receipt })
         {
-            if (reply.OutcomeCase == PbClock.AttemptReply.OutcomeOneofCase.Unknown && v.Intent.Command.Start is not null)
+            if (reply.Outcome is AttemptReplyOutcome.UnknownCase && v.Intent.Command.Start is not null)
             {
                 bool absent;
                 try
@@ -510,7 +521,7 @@ public sealed partial class ClockCoordinator : IDisposable
                 {
                     var refusal = new PbClock.ControlReply
                     {
-                        Failure = new PbCommon.Failure
+                        Outcome = new PbCommon.Failure
                         {
                             Code = PbCommon.FailureCode.NotFound,
                             Detail = "start never admitted: native ledger unknown and no newer clock epoch",
@@ -521,7 +532,7 @@ public sealed partial class ClockCoordinator : IDisposable
             }
             return await UncertainAsync(v, ErrorJoin.Of(CancelledBy(call), new HeldException())).ConfigureAwait(false);
         }
-        return await RecordAsync(v, new PbClock.ControlReply { Receipt = reply.Receipt }, CancelledBy(call)).ConfigureAwait(false);
+        return await RecordAsync(v, new PbClock.ControlReply { Outcome = new ControlReplyOutcome.ReceiptCase(receipt) }, CancelledBy(call)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -533,25 +544,24 @@ public sealed partial class ClockCoordinator : IDisposable
     private async Task<bool> StartAbsentAsync(ClockAttempt v, PbCommon.Identity identity, CancellationToken ctx)
     {
         var reply = await _native.ReadClockStatusAsync(identity, ctx).ConfigureAwait(false);
-        var status = reply.Status;
-        BridgeApi.ValidateClockStatus(status, identity);
-        if (status.StateCase == PbClock.Status.StateOneofCase.Unavailable || !Equals(status.Context.Identity, identity))
+        var status = ValidatedStatus(reply.Outcome is PbClock.StatusReplyOutcome.StatusCase { Value: var read } ? read : null, identity);
+        if (status.State is StatusState.UnavailableCase || !Equals(status.Context?.Identity, identity))
         {
             return false;
         }
         var actual = EpochOf(status);
         if (actual is null)
         {
-            return status.StateCase == PbClock.Status.StateOneofCase.NeverStarted;
+            return status.State is StatusState.NeverStartedCase;
         }
-        if (actual.Owner.ControllerSessionId != (v.NativeAttempt?.ControllerSessionId ?? string.Empty))
+        if ((actual.Owner?.ControllerSessionId ?? "") !=(v.NativeAttempt?.ControllerSessionId ?? string.Empty))
         {
             return true;
         }
         var epochs = await _journal.LoadClockEpochsAsync(4096, ctx).ConfigureAwait(false);
         foreach (var known in epochs)
         {
-            if (known.StartRequestId != v.Intent.RequestId && known.Epoch is not null && known.Epoch.Owner.Epoch >= actual.Owner.Epoch)
+            if (known.StartRequestId != v.Intent.RequestId && known.Epoch is not null && known.Epoch.Owner?.Epoch.GetValueOrDefault() >= actual.Owner?.Epoch.GetValueOrDefault())
             {
                 return true;
             }

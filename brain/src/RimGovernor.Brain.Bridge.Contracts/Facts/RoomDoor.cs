@@ -1,5 +1,5 @@
 using PolicyRoomDoor = RimGovernor.Brain.Policy.RoomDoor;
-using RoomDoorWire = RimGovernor.Protocol.Observations.RoomDoor;
+using RoomDoorWire = RimGovernor.Contracts.Wire.Observations.RoomDoor;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -10,14 +10,14 @@ public static partial class BridgeFunctions
     public static PolicyRoomDoor RoomDoorFacts(RoomDoorWire door) =>
         new()
         {
-            Id = door.Id,
+            Id = door.Id ?? "",
             Cell = ToDomainCell(door.Cell),
             Outside = ToDomainCell(door.Outside),
-            Outdoors = OptionalFact(door.HasOutdoors, door.Outdoors),
-            PlayerOwned = OptionalFact(door.HasPlayerOwned, door.PlayerOwned),
-            Open = OptionalFact(door.HasOpen, door.Open),
-            HoldOpen = OptionalFact(door.HasHoldOpen, door.HoldOpen),
-            BlockedOpen = OptionalFact(door.HasBlockedOpen, door.BlockedOpen),
-            Forbidden = OptionalFact(door.HasForbidden, door.Forbidden),
+            Outdoors = OptionalFact(door.Outdoors is not null, door.Outdoors.GetValueOrDefault()),
+            PlayerOwned = OptionalFact(door.PlayerOwned is not null, door.PlayerOwned.GetValueOrDefault()),
+            Open = OptionalFact(door.Open is not null, door.Open.GetValueOrDefault()),
+            HoldOpen = OptionalFact(door.HoldOpen is not null, door.HoldOpen.GetValueOrDefault()),
+            BlockedOpen = OptionalFact(door.BlockedOpen is not null, door.BlockedOpen.GetValueOrDefault()),
+            Forbidden = OptionalFact(door.Forbidden is not null, door.Forbidden.GetValueOrDefault()),
         };
 }

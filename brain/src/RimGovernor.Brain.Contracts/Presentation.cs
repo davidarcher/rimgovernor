@@ -133,9 +133,17 @@ public abstract record CameraReplyOutcome
 {
     private protected CameraReplyOutcome() { }
 
+    /// <summary>The <c>Camera</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CameraState? Camera => (this as CameraCase)?.Value;
+
     public sealed record CameraCase(CameraState Value) : CameraReplyOutcome;
 
     public static implicit operator CameraReplyOutcome(CameraState value) => new CameraCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : CameraReplyOutcome;
 
@@ -193,9 +201,17 @@ public abstract record SelectionReplyOutcome
 {
     private protected SelectionReplyOutcome() { }
 
+    /// <summary>The <c>Selection</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SelectionSnapshot? Selection => (this as SelectionCase)?.Value;
+
     public sealed record SelectionCase(SelectionSnapshot Value) : SelectionReplyOutcome;
 
     public static implicit operator SelectionReplyOutcome(SelectionSnapshot value) => new SelectionCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : SelectionReplyOutcome;
 
@@ -257,9 +273,17 @@ public abstract record ColonistRosterReplyOutcome
 {
     private protected ColonistRosterReplyOutcome() { }
 
+    /// <summary>The <c>Roster</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ColonistRoster? Roster => (this as RosterCase)?.Value;
+
     public sealed record RosterCase(ColonistRoster Value) : ColonistRosterReplyOutcome;
 
     public static implicit operator ColonistRosterReplyOutcome(ColonistRoster value) => new RosterCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ColonistRosterReplyOutcome;
 
@@ -478,9 +502,17 @@ public abstract record UiReplyOutcome
 {
     private protected UiReplyOutcome() { }
 
+    /// <summary>The <c>Ui</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public UiSnapshot? Ui => (this as UiCase)?.Value;
+
     public sealed record UiCase(UiSnapshot Value) : UiReplyOutcome;
 
     public static implicit operator UiReplyOutcome(UiSnapshot value) => new UiCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : UiReplyOutcome;
 
@@ -527,9 +559,17 @@ public abstract record ScreenTargetsReplyOutcome
 {
     private protected ScreenTargetsReplyOutcome() { }
 
+    /// <summary>The <c>Targets</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ScreenTargets? Targets => (this as TargetsCase)?.Value;
+
     public sealed record TargetsCase(ScreenTargets Value) : ScreenTargetsReplyOutcome;
 
     public static implicit operator ScreenTargetsReplyOutcome(ScreenTargets value) => new TargetsCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ScreenTargetsReplyOutcome;
 
@@ -603,9 +643,17 @@ public abstract record TabsReplyOutcome
 {
     private protected TabsReplyOutcome() { }
 
+    /// <summary>The <c>Tabs</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public TabsSnapshot? Tabs => (this as TabsCase)?.Value;
+
     public sealed record TabsCase(TabsSnapshot Value) : TabsReplyOutcome;
 
     public static implicit operator TabsReplyOutcome(TabsSnapshot value) => new TabsCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : TabsReplyOutcome;
 
@@ -677,9 +725,17 @@ public abstract record GizmosReplyOutcome
 {
     private protected GizmosReplyOutcome() { }
 
+    /// <summary>The <c>Gizmos</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public GizmosSnapshot? Gizmos => (this as GizmosCase)?.Value;
+
     public sealed record GizmosCase(GizmosSnapshot Value) : GizmosReplyOutcome;
 
     public static implicit operator GizmosReplyOutcome(GizmosSnapshot value) => new GizmosCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : GizmosReplyOutcome;
 
@@ -718,9 +774,17 @@ public abstract record DialogReplyOutcome
 {
     private protected DialogReplyOutcome() { }
 
+    /// <summary>The <c>Dialog</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DialogSnapshot? Dialog => (this as DialogCase)?.Value;
+
     public sealed record DialogCase(DialogSnapshot Value) : DialogReplyOutcome;
 
     public static implicit operator DialogReplyOutcome(DialogSnapshot value) => new DialogCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : DialogReplyOutcome;
 
@@ -907,9 +971,17 @@ public abstract record LetterSectionOutcome
 {
     private protected LetterSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Letters? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(Letters Value) : LetterSectionOutcome;
 
     public static implicit operator LetterSectionOutcome(Letters value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : LetterSectionOutcome;
 
@@ -929,9 +1001,17 @@ public abstract record MessageSectionOutcome
 {
     private protected MessageSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Messages? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(Messages Value) : MessageSectionOutcome;
 
     public static implicit operator MessageSectionOutcome(Messages value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : MessageSectionOutcome;
 
@@ -951,9 +1031,17 @@ public abstract record AlertSectionOutcome
 {
     private protected AlertSectionOutcome() { }
 
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Alerts? Observed => (this as ObservedCase)?.Value;
+
     public sealed record ObservedCase(Alerts Value) : AlertSectionOutcome;
 
     public static implicit operator AlertSectionOutcome(Alerts value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
     public sealed record UnavailableCase(Common.Unavailable Value) : AlertSectionOutcome;
 
@@ -1007,9 +1095,17 @@ public abstract record NotificationsReplyOutcome
 {
     private protected NotificationsReplyOutcome() { }
 
+    /// <summary>The <c>Notifications</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public NotificationsSnapshot? Notifications => (this as NotificationsCase)?.Value;
+
     public sealed record NotificationsCase(NotificationsSnapshot Value) : NotificationsReplyOutcome;
 
     public static implicit operator NotificationsReplyOutcome(NotificationsSnapshot value) => new NotificationsCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : NotificationsReplyOutcome;
 
@@ -1075,9 +1171,17 @@ public abstract record InputStateReplyOutcome
 {
     private protected InputStateReplyOutcome() { }
 
+    /// <summary>The <c>State</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public InputState? State => (this as StateCase)?.Value;
+
     public sealed record StateCase(InputState Value) : InputStateReplyOutcome;
 
     public static implicit operator InputStateReplyOutcome(InputState value) => new StateCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : InputStateReplyOutcome;
 
@@ -1137,7 +1241,15 @@ public abstract record ScrollAxisAdjustment
 {
     private protected ScrollAxisAdjustment() { }
 
+    /// <summary>The <c>Delta</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public double? Delta => (this as DeltaCase)?.Value;
+
     public sealed record DeltaCase(double Value) : ScrollAxisAdjustment;
+
+    /// <summary>The <c>Target</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public double? Target => (this as TargetCase)?.Value;
 
     public sealed record TargetCase(double Value) : ScrollAxisAdjustment;
 }
@@ -1208,9 +1320,17 @@ public abstract record DialogTextPreviewReplyOutcome
 {
     private protected DialogTextPreviewReplyOutcome() { }
 
+    /// <summary>The <c>Preview</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DialogTextChange? Preview => (this as PreviewCase)?.Value;
+
     public sealed record PreviewCase(DialogTextChange Value) : DialogTextPreviewReplyOutcome;
 
     public static implicit operator DialogTextPreviewReplyOutcome(DialogTextChange value) => new PreviewCase(value);
+
+    /// <summary>The <c>Refusal</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Refusal => (this as RefusalCase)?.Value;
 
     public sealed record RefusalCase(Common.Failure Value) : DialogTextPreviewReplyOutcome;
 
@@ -1263,29 +1383,81 @@ public abstract record PlayerCommandOperation
 {
     private protected PlayerCommandOperation() { }
 
+    /// <summary>The <c>MoveCamera</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public MoveCamera? MoveCamera => (this as MoveCameraCase)?.Value;
+
     public sealed record MoveCameraCase(MoveCamera Value) : PlayerCommandOperation;
+
+    /// <summary>The <c>SetCameraZoom</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SetCameraZoom? SetCameraZoom => (this as SetCameraZoomCase)?.Value;
 
     public sealed record SetCameraZoomCase(SetCameraZoom Value) : PlayerCommandOperation;
 
+    /// <summary>The <c>SelectPawn</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SelectPawn? SelectPawn => (this as SelectPawnCase)?.Value;
+
     public sealed record SelectPawnCase(SelectPawn Value) : PlayerCommandOperation;
+
+    /// <summary>The <c>ClearSelection</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ClearSelection? ClearSelection => (this as ClearSelectionCase)?.Value;
 
     public sealed record ClearSelectionCase(ClearSelection Value) : PlayerCommandOperation;
 
+    /// <summary>The <c>ClickScreenTarget</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CapturedTarget? ClickScreenTarget => (this as ClickScreenTargetCase)?.Value;
+
     public sealed record ClickScreenTargetCase(CapturedTarget Value) : PlayerCommandOperation;
+
+    /// <summary>The <c>ClickUiTarget</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CapturedTarget? ClickUiTarget => (this as ClickUiTargetCase)?.Value;
 
     public sealed record ClickUiTargetCase(CapturedTarget Value) : PlayerCommandOperation;
 
+    /// <summary>The <c>ScrollUiTarget</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ScrollTarget? ScrollUiTarget => (this as ScrollUiTargetCase)?.Value;
+
     public sealed record ScrollUiTargetCase(ScrollTarget Value) : PlayerCommandOperation;
+
+    /// <summary>The <c>OpenMainTab</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public MainTab? OpenMainTab => (this as OpenMainTabCase)?.Value;
 
     public sealed record OpenMainTabCase(MainTab Value) : PlayerCommandOperation;
 
+    /// <summary>The <c>CloseMainTab</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CloseMainTab? CloseMainTab => (this as CloseMainTabCase)?.Value;
+
     public sealed record CloseMainTabCase(CloseMainTab Value) : PlayerCommandOperation;
+
+    /// <summary>The <c>OpenLetter</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LetterTarget? OpenLetter => (this as OpenLetterCase)?.Value;
 
     public sealed record OpenLetterCase(LetterTarget Value) : PlayerCommandOperation;
 
+    /// <summary>The <c>DismissLetter</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LetterTarget? DismissLetter => (this as DismissLetterCase)?.Value;
+
     public sealed record DismissLetterCase(LetterTarget Value) : PlayerCommandOperation;
 
+    /// <summary>The <c>SetDialogText</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SetDialogText? SetDialogText => (this as SetDialogTextCase)?.Value;
+
     public sealed record SetDialogTextCase(SetDialogText Value) : PlayerCommandOperation;
+
+    /// <summary>The <c>ShowWorld</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ShowWorld? ShowWorld => (this as ShowWorldCase)?.Value;
 
     public sealed record ShowWorldCase(ShowWorld Value) : PlayerCommandOperation;
 }
@@ -1353,13 +1525,25 @@ public abstract record PlayerCommandReplyOutcome
 {
     private protected PlayerCommandReplyOutcome() { }
 
+    /// <summary>The <c>Applied</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PlayerApplied? Applied => (this as AppliedCase)?.Value;
+
     public sealed record AppliedCase(PlayerApplied Value) : PlayerCommandReplyOutcome;
 
     public static implicit operator PlayerCommandReplyOutcome(PlayerApplied value) => new AppliedCase(value);
 
+    /// <summary>The <c>Refusal</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Refusal => (this as RefusalCase)?.Value;
+
     public sealed record RefusalCase(Common.Failure Value) : PlayerCommandReplyOutcome;
 
     public static implicit operator PlayerCommandReplyOutcome(Common.Failure value) => new RefusalCase(value);
+
+    /// <summary>The <c>Uncertain</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PlayerCommandUncertain? Uncertain => (this as UncertainCase)?.Value;
 
     public sealed record UncertainCase(PlayerCommandUncertain Value) : PlayerCommandReplyOutcome;
 
@@ -1401,9 +1585,17 @@ public abstract record RenderReplyOutcome
 {
     private protected RenderReplyOutcome() { }
 
+    /// <summary>The <c>Status</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RenderStatus? Status => (this as StatusCase)?.Value;
+
     public sealed record StatusCase(RenderStatus Value) : RenderReplyOutcome;
 
     public static implicit operator RenderReplyOutcome(RenderStatus value) => new StatusCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : RenderReplyOutcome;
 
@@ -1467,9 +1659,17 @@ public abstract record ScreenshotReplyOutcome
 {
     private protected ScreenshotReplyOutcome() { }
 
+    /// <summary>The <c>Screenshot</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Screenshot? Screenshot => (this as ScreenshotCase)?.Value;
+
     public sealed record ScreenshotCase(Screenshot Value) : ScreenshotReplyOutcome;
 
     public static implicit operator ScreenshotReplyOutcome(Screenshot value) => new ScreenshotCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : ScreenshotReplyOutcome;
 
@@ -1595,9 +1795,17 @@ public abstract record OverlayReplyOutcome
 {
     private protected OverlayReplyOutcome() { }
 
+    /// <summary>The <c>Applied</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public OverlayApplied? Applied => (this as AppliedCase)?.Value;
+
     public sealed record AppliedCase(OverlayApplied Value) : OverlayReplyOutcome;
 
     public static implicit operator OverlayReplyOutcome(OverlayApplied value) => new AppliedCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : OverlayReplyOutcome;
 

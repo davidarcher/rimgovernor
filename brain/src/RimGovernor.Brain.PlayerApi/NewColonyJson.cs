@@ -1,9 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
-using Google.Protobuf.Reflection;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Lifecycle;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Lifecycle;
 
 namespace RimGovernor.Brain.PlayerApi;
 
@@ -70,47 +69,46 @@ internal static class NewColonyJson
             PlanetCoverage = d.Single("planetCoverage") ?? 0,
             SaveName = d.String("saveName") ?? "",
         };
-        spec.Biomes.AddRange(d.Strings("biomes"));
+        spec = spec with { Biomes = [.. spec.Biomes, .. d.Strings("biomes")] };
         if (d.Single("minTemperature") is { } min)
         {
-            spec.MinTemperature = min;
+            spec = spec with { MinTemperature = min };
         }
 
         if (d.Single("maxTemperature") is { } max)
         {
-            spec.MaxTemperature = max;
+            spec = spec with { MaxTemperature = max };
         }
 
         if (d.String("worldTemperature") is { Length: > 0 } world)
         {
-            spec.WorldTemperature = world;
+            spec = spec with { WorldTemperature = world };
         }
 
         if (d.Child("ideoligion") is { } ideoligion)
         {
             var i = Members.Of(ideoligion, IdeoligionKeys);
             var design = new IdeoligionDesign();
-            design.Memes.AddRange(i.Strings("memes"));
-            design.Precepts.AddRange(i.Strings("precepts"));
+            design = design with { Memes = [.. design.Memes, .. i.Strings("memes")] };
+            design = design with { Precepts = [.. design.Precepts, .. i.Strings("precepts")] };
             if (i.Bool("fluid") is { } fluid)
             {
-                design.Fluid = fluid;
+                design = design with { Fluid = fluid };
             }
 
-            spec.Ideoligion = design;
+            spec = spec with { Ideoligion = design };
         }
 
         if (d.Bool("governorIdeoligion") == true)
         {
-            spec.GovernorIdeoligion = true;
+            spec = spec with { GovernorIdeoligion = true };
         }
 
-        Parts(spec, d);
-        return spec;
+        return Parts(spec, d);
     }
 
     // Go applyNewColonyParts: a malformed enum name is an error; the rest is the bridge's validation.
-    private static void Parts(NewColonySpec spec, Members d)
+    private static NewColonySpec Parts(NewColonySpec spec, Members d)
     {
         foreach (var element in d.Objects("startingThings"))
         {
@@ -122,25 +120,25 @@ internal static class NewColonyJson
             };
             if (t.String("stuff") is { } stuff)
             {
-                thing.Stuff = stuff;
+                thing = thing with { Stuff = stuff };
             }
 
             if (t.UInt32("count") is { } count)
             {
-                thing.Count = count;
+                thing = thing with { Count = count };
             }
 
             if (t.String("quality") is { } quality)
             {
-                thing.Quality = quality;
+                thing = thing with { Quality = quality };
             }
 
             if (t.Bool("allowRoofed") is { } roofed)
             {
-                thing.AllowRoofed = roofed;
+                thing = thing with { AllowRoofed = roofed };
             }
 
-            spec.StartingThings.Add(thing);
+            spec = spec with { StartingThings = [.. spec.StartingThings, thing] };
         }
 
         foreach (var element in d.Objects("forcedTraits"))
@@ -149,15 +147,15 @@ internal static class NewColonyJson
             var trait = new ForcedTrait { Trait = t.String("trait") ?? "", Context = PawnContext(t) };
             if (t.Int32("degree") is { } degree)
             {
-                trait.Degree = degree;
+                trait = trait with { Degree = degree };
             }
 
             if (t.Single("chance") is { } chance)
             {
-                trait.Chance = chance;
+                trait = trait with { Chance = chance };
             }
 
-            spec.ForcedTraits.Add(trait);
+            spec = spec with { ForcedTraits = [.. spec.ForcedTraits, trait] };
         }
 
         foreach (var element in d.Objects("forcedHediffs"))
@@ -166,15 +164,15 @@ internal static class NewColonyJson
             var hediff = new ForcedHediff { Hediff = h.String("hediff") ?? "", Context = PawnContext(h) };
             if (h.Single("severity") is { } severity)
             {
-                hediff.Severity = severity;
+                hediff = hediff with { Severity = severity };
             }
 
             if (h.Single("chance") is { } chance)
             {
-                hediff.Chance = chance;
+                hediff = hediff with { Chance = chance };
             }
 
-            spec.ForcedHediffs.Add(hediff);
+            spec = spec with { ForcedHediffs = [.. spec.ForcedHediffs, hediff] };
         }
 
         foreach (var element in d.Objects("naked"))
@@ -183,10 +181,10 @@ internal static class NewColonyJson
             var naked = new NakedPart { Context = PawnContext(n) };
             if (n.Single("chance") is { } chance)
             {
-                naked.Chance = chance;
+                naked = naked with { Chance = chance };
             }
 
-            spec.Naked.Add(naked);
+            spec = spec with { Naked = [.. spec.Naked, naked] };
         }
 
         foreach (var element in d.Objects("setNeedLevels"))
@@ -195,29 +193,31 @@ internal static class NewColonyJson
             var need = new SetNeedLevel { Need = n.String("need") ?? "", Context = PawnContext(n) };
             if (n.Single("level") is { } level)
             {
-                need.Level = level;
+                need = need with { Level = level };
             }
 
             if (n.Single("chance") is { } chance)
             {
-                need.Chance = chance;
+                need = need with { Chance = chance };
             }
 
-            spec.SetNeedLevels.Add(need);
+            spec = spec with { SetNeedLevels = [.. spec.SetNeedLevels, need] };
         }
 
-        spec.PermaGameConditions.AddRange(d.Strings("permaGameConditions"));
-        spec.DisallowedBuildings.AddRange(d.Strings("disallowedBuildings"));
-        spec.DisabledIncidents.AddRange(d.Strings("disabledIncidents"));
+        spec = spec with { PermaGameConditions = [.. spec.PermaGameConditions, .. d.Strings("permaGameConditions")] };
+        spec = spec with { DisallowedBuildings = [.. spec.DisallowedBuildings, .. d.Strings("disallowedBuildings")] };
+        spec = spec with { DisabledIncidents = [.. spec.DisabledIncidents, .. d.Strings("disabledIncidents")] };
         if (d.String("playerFaction") is { Length: > 0 } faction)
         {
-            spec.PlayerFaction = EnumByName<ScenarioPlayerFaction>(faction, "SCENARIO_PLAYER_FACTION_", "playerFaction");
+            spec = spec with { PlayerFaction = EnumByName<ScenarioPlayerFaction>(faction, "SCENARIO_PLAYER_FACTION_", "playerFaction") };
         }
 
         if (d.String("arrivalMethod") is { Length: > 0 } arrival)
         {
-            spec.ArrivalMethod = EnumByName<ScenarioArrivalMethod>(arrival, "SCENARIO_ARRIVAL_METHOD_", "arrivalMethod");
+            spec = spec with { ArrivalMethod = EnumByName<ScenarioArrivalMethod>(arrival, "SCENARIO_ARRIVAL_METHOD_", "arrivalMethod") };
         }
+
+        return spec;
     }
 
     private static ScenarioPawnContext PawnContext(Members m) =>
@@ -227,14 +227,12 @@ internal static class NewColonyJson
     private static T EnumByName<T>(string name, string prefix, string part)
         where T : struct, Enum
     {
-        var descriptor = LifecycleReflection.Descriptor.EnumTypes.Single(e => e.ClrType == typeof(T));
-        var value = descriptor.FindValueByName(prefix + name.ToUpperInvariant());
-        if (value is null || value.Number == 0)
+        if (!Domain.Wire.TryParse<T>(prefix + name.ToUpperInvariant(), out var value) || EqualityComparer<T>.Default.Equals(value, default))
         {
             throw new ScenarioPartException($"{part}: unknown value \"{name}\"");
         }
 
-        return (T)Enum.ToObject(typeof(T), value.Number);
+        return value;
     }
 
     /// <summary>One JSON object whose members are checked against the names the DTO declares.</summary>
@@ -336,15 +334,17 @@ internal static class NewColonyJson
 /// </summary>
 public static class ScenarioParts
 {
-    /// <summary>Adds the Rhadamant parts to <paramref name="spec"/>.</summary>
-    public static void ApplyRhadamant(NewColonySpec spec)
+    /// <summary>Returns <paramref name="spec"/> with the Rhadamant parts added.</summary>
+    public static NewColonySpec ApplyRhadamant(NewColonySpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
         var d = PolicyFunctions.RhadamantThings;
+        var things = new List<StartingThing>(spec.StartingThings);
+        var traits = new List<ForcedTrait>(spec.ForcedTraits);
         void Thing(StartingThingPlacement placement, string def, uint count) =>
-            spec.StartingThings.Add(new StartingThing { Placement = placement, ThingDef = def, Count = count });
+            things.Add(new StartingThing { Placement = placement, ThingDef = def, Count = count });
         void Trait(string def, int degree) =>
-            spec.ForcedTraits.Add(new ForcedTrait { Trait = def, Degree = degree, Chance = 1, Context = ScenarioPawnContext.PlayerStarter });
+            traits.Add(new ForcedTrait { Trait = def, Degree = degree, Chance = 1, Context = ScenarioPawnContext.PlayerStarter });
 
         const StartingThingPlacement start = StartingThingPlacement.StartWith;
         const StartingThingPlacement scattered = StartingThingPlacement.Scattered;
@@ -361,6 +361,11 @@ public static class ScenarioParts
         Trait("NaturalMood", 2);
         Trait("Immunity", 1);
         Trait("SpeedOffset", 2);
-        spec.PermaGameConditions.Add("ColdSnap");
+        return spec with
+        {
+            StartingThings = [.. things],
+            ForcedTraits = [.. traits],
+            PermaGameConditions = [.. spec.PermaGameConditions, "ColdSnap"],
+        };
     }
 }

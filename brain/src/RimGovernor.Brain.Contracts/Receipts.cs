@@ -208,13 +208,25 @@ public abstract record ReceiptOutcome
 {
     private protected ReceiptOutcome() { }
 
+    /// <summary>The <c>NoChange</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public NoChange? NoChange => (this as NoChangeCase)?.Value;
+
     public sealed record NoChangeCase(NoChange Value) : ReceiptOutcome;
 
     public static implicit operator ReceiptOutcome(NoChange value) => new NoChangeCase(value);
 
+    /// <summary>The <c>Applied</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Applied? Applied => (this as AppliedCase)?.Value;
+
     public sealed record AppliedCase(Applied Value) : ReceiptOutcome;
 
     public static implicit operator ReceiptOutcome(Applied value) => new AppliedCase(value);
+
+    /// <summary>The <c>Uncertain</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Uncertain? Uncertain => (this as UncertainCase)?.Value;
 
     public sealed record UncertainCase(Uncertain Value) : ReceiptOutcome;
 
@@ -296,137 +308,273 @@ public abstract record EffectEvidenceEffect
 {
     private protected EffectEvidenceEffect() { }
 
+    /// <summary>The <c>Construction</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ConstructionEffect? Construction => (this as ConstructionCase)?.Value;
+
     public sealed record ConstructionCase(ConstructionEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ConstructionEffect value) => new ConstructionCase(value);
+
+    /// <summary>The <c>Installation</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public InstallationEffect? Installation => (this as InstallationCase)?.Value;
 
     public sealed record InstallationCase(InstallationEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(InstallationEffect value) => new InstallationCase(value);
 
+    /// <summary>The <c>Designation</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DesignationEffect? Designation => (this as DesignationCase)?.Value;
+
     public sealed record DesignationCase(DesignationEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(DesignationEffect value) => new DesignationCase(value);
+
+    /// <summary>The <c>Settings</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SettingsEffect? Settings => (this as SettingsCase)?.Value;
 
     public sealed record SettingsCase(SettingsEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(SettingsEffect value) => new SettingsCase(value);
 
+    /// <summary>The <c>Bill</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BillEffect? Bill => (this as BillCase)?.Value;
+
     public sealed record BillCase(BillEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(BillEffect value) => new BillCase(value);
+
+    /// <summary>The <c>Research</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ResearchEffect? Research => (this as ResearchCase)?.Value;
 
     public sealed record ResearchCase(ResearchEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ResearchEffect value) => new ResearchCase(value);
 
+    /// <summary>The <c>Zone</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ZoneEffect? Zone => (this as ZoneCase)?.Value;
+
     public sealed record ZoneCase(ZoneEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ZoneEffect value) => new ZoneCase(value);
+
+    /// <summary>The <c>Assign</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AssignEffect? Assign => (this as AssignCase)?.Value;
 
     public sealed record AssignCase(AssignEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(AssignEffect value) => new AssignCase(value);
 
+    /// <summary>The <c>Wall</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public WallEffect? Wall => (this as WallCase)?.Value;
+
     public sealed record WallCase(WallEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(WallEffect value) => new WallCase(value);
+
+    /// <summary>The <c>Job</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public JobEffect? Job => (this as JobCase)?.Value;
 
     public sealed record JobCase(JobEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(JobEffect value) => new JobCase(value);
 
+    /// <summary>The <c>Animal</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AnimalEffect? Animal => (this as AnimalCase)?.Value;
+
     public sealed record AnimalCase(AnimalEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(AnimalEffect value) => new AnimalCase(value);
+
+    /// <summary>The <c>Prisoner</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PrisonerEffect? Prisoner => (this as PrisonerCase)?.Value;
 
     public sealed record PrisonerCase(PrisonerEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(PrisonerEffect value) => new PrisonerCase(value);
 
+    /// <summary>The <c>Trade</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public TradeEffect? Trade => (this as TradeCase)?.Value;
+
     public sealed record TradeCase(TradeEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(TradeEffect value) => new TradeCase(value);
+
+    /// <summary>The <c>Caravan</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CaravanEffect? Caravan => (this as CaravanCase)?.Value;
 
     public sealed record CaravanCase(CaravanEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(CaravanEffect value) => new CaravanCase(value);
 
+    /// <summary>The <c>Quest</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public QuestEffect? Quest => (this as QuestCase)?.Value;
+
     public sealed record QuestCase(QuestEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(QuestEffect value) => new QuestCase(value);
+
+    /// <summary>The <c>Acquisition</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AcquisitionEffect? Acquisition => (this as AcquisitionCase)?.Value;
 
     public sealed record AcquisitionCase(AcquisitionEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(AcquisitionEffect value) => new AcquisitionCase(value);
 
+    /// <summary>The <c>Excavation</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public ExcavationEffect? Excavation => (this as ExcavationCase)?.Value;
+
     public sealed record ExcavationCase(ExcavationEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(ExcavationEffect value) => new ExcavationCase(value);
+
+    /// <summary>The <c>Dialog</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DialogEffect? Dialog => (this as DialogCase)?.Value;
 
     public sealed record DialogCase(DialogEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(DialogEffect value) => new DialogCase(value);
 
+    /// <summary>The <c>Deconstruct</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public DeconstructEffect? Deconstruct => (this as DeconstructCase)?.Value;
+
     public sealed record DeconstructCase(DeconstructEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(DeconstructEffect value) => new DeconstructCase(value);
+
+    /// <summary>The <c>CombatOrders</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CombatOrdersEffect? CombatOrders => (this as CombatOrdersCase)?.Value;
 
     public sealed record CombatOrdersCase(CombatOrdersEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(CombatOrdersEffect value) => new CombatOrdersCase(value);
 
+    /// <summary>The <c>SurgeryBill</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SurgeryEffect? SurgeryBill => (this as SurgeryBillCase)?.Value;
+
     public sealed record SurgeryBillCase(SurgeryEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(SurgeryEffect value) => new SurgeryBillCase(value);
+
+    /// <summary>The <c>AreaEdit</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AreaEffect? AreaEdit => (this as AreaEditCase)?.Value;
 
     public sealed record AreaEditCase(AreaEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(AreaEffect value) => new AreaEditCase(value);
 
+    /// <summary>The <c>PolicyPrune</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PolicyPruneEffect? PolicyPrune => (this as PolicyPruneCase)?.Value;
+
     public sealed record PolicyPruneCase(PolicyPruneEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(PolicyPruneEffect value) => new PolicyPruneCase(value);
+
+    /// <summary>The <c>RemoveRoof</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RemoveRoofEffect? RemoveRoof => (this as RemoveRoofCase)?.Value;
 
     public sealed record RemoveRoofCase(RemoveRoofEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(RemoveRoofEffect value) => new RemoveRoofCase(value);
 
+    /// <summary>The <c>AreaPlantCut</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AreaPlantCutEffect? AreaPlantCut => (this as AreaPlantCutCase)?.Value;
+
     public sealed record AreaPlantCutCase(AreaPlantCutEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(AreaPlantCutEffect value) => new AreaPlantCutCase(value);
+
+    /// <summary>The <c>Ritual</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public RitualEffect? Ritual => (this as RitualCase)?.Value;
 
     public sealed record RitualCase(RitualEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(RitualEffect value) => new RitualCase(value);
 
+    /// <summary>The <c>Ability</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AbilityEffect? Ability => (this as AbilityCase)?.Value;
+
     public sealed record AbilityCase(AbilityEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(AbilityEffect value) => new AbilityCase(value);
+
+    /// <summary>The <c>Ideoligion</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public IdeoligionEffect? Ideoligion => (this as IdeoligionCase)?.Value;
 
     public sealed record IdeoligionCase(IdeoligionEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(IdeoligionEffect value) => new IdeoligionCase(value);
 
+    /// <summary>The <c>QuestShuttle</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public QuestShuttleEffect? QuestShuttle => (this as QuestShuttleCase)?.Value;
+
     public sealed record QuestShuttleCase(QuestShuttleEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(QuestShuttleEffect value) => new QuestShuttleCase(value);
+
+    /// <summary>The <c>HackDesignation</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public HackDesignationEffect? HackDesignation => (this as HackDesignationCase)?.Value;
 
     public sealed record HackDesignationCase(HackDesignationEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(HackDesignationEffect value) => new HackDesignationCase(value);
 
+    /// <summary>The <c>GiveItem</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public GiveItemEffect? GiveItem => (this as GiveItemCase)?.Value;
+
     public sealed record GiveItemCase(GiveItemEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(GiveItemEffect value) => new GiveItemCase(value);
+
+    /// <summary>The <c>CommsTradeRequest</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CommsTradeRequestEffect? CommsTradeRequest => (this as CommsTradeRequestCase)?.Value;
 
     public sealed record CommsTradeRequestCase(CommsTradeRequestEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(CommsTradeRequestEffect value) => new CommsTradeRequestCase(value);
 
+    /// <summary>The <c>Gathering</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public GatheringEffect? Gathering => (this as GatheringCase)?.Value;
+
     public sealed record GatheringCase(GatheringEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(GatheringEffect value) => new GatheringCase(value);
+
+    /// <summary>The <c>BuildRoof</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public BuildRoofEffect? BuildRoof => (this as BuildRoofCase)?.Value;
 
     public sealed record BuildRoofCase(BuildRoofEffect Value) : EffectEvidenceEffect;
 
@@ -647,9 +795,21 @@ public abstract record FieldResultEntry
 {
     private protected FieldResultEntry() { }
 
+    /// <summary>The <c>WorkTypeDef</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? WorkTypeDef => (this as WorkTypeDefCase)?.Value;
+
     public sealed record WorkTypeDefCase(string Value) : FieldResultEntry;
 
+    /// <summary>The <c>TrainableDef</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? TrainableDef => (this as TrainableDefCase)?.Value;
+
     public sealed record TrainableDefCase(string Value) : FieldResultEntry;
+
+    /// <summary>The <c>ScheduleHour</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public int? ScheduleHour => (this as ScheduleHourCase)?.Value;
 
     public sealed record ScheduleHourCase(int Value) : FieldResultEntry;
 }
@@ -910,9 +1070,17 @@ public abstract record AbilityEffectOutcome
 {
     private protected AbilityEffectOutcome() { }
 
+    /// <summary>The <c>Permit</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PermitUseEffect? Permit => (this as PermitCase)?.Value;
+
     public sealed record PermitCase(PermitUseEffect Value) : AbilityEffectOutcome;
 
     public static implicit operator AbilityEffectOutcome(PermitUseEffect value) => new PermitCase(value);
+
+    /// <summary>The <c>Psycast</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PsycastUseEffect? Psycast => (this as PsycastCase)?.Value;
 
     public sealed record PsycastCase(PsycastUseEffect Value) : AbilityEffectOutcome;
 
@@ -977,7 +1145,15 @@ public abstract record JobTargetTarget
 {
     private protected JobTargetTarget() { }
 
+    /// <summary>The <c>ThingId</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public string? ThingId => (this as ThingIdCase)?.Value;
+
     public sealed record ThingIdCase(string Value) : JobTargetTarget;
+
+    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Cell? Cell => (this as CellCase)?.Value;
 
     public sealed record CellCase(Common.Cell Value) : JobTargetTarget;
 
@@ -1226,17 +1402,33 @@ public abstract record LookupReplyOutcome
 {
     private protected LookupReplyOutcome() { }
 
+    /// <summary>The <c>Receipt</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Receipt? Receipt => (this as ReceiptCase)?.Value;
+
     public sealed record ReceiptCase(Receipt Value) : LookupReplyOutcome;
 
     public static implicit operator LookupReplyOutcome(Receipt value) => new ReceiptCase(value);
+
+    /// <summary>The <c>InFlight</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public InFlight? InFlight => (this as InFlightCase)?.Value;
 
     public sealed record InFlightCase(InFlight Value) : LookupReplyOutcome;
 
     public static implicit operator LookupReplyOutcome(InFlight value) => new InFlightCase(value);
 
+    /// <summary>The <c>Unknown</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public UnknownAttempt? Unknown => (this as UnknownCase)?.Value;
+
     public sealed record UnknownCase(UnknownAttempt Value) : LookupReplyOutcome;
 
     public static implicit operator LookupReplyOutcome(UnknownAttempt value) => new UnknownCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : LookupReplyOutcome;
 
@@ -1297,21 +1489,41 @@ public abstract record ProgressEffect
 {
     private protected ProgressEffect() { }
 
+    /// <summary>The <c>Unknown</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public UnknownEffect? Unknown => (this as UnknownCase)?.Value;
+
     public sealed record UnknownCase(UnknownEffect Value) : ProgressEffect;
 
     public static implicit operator ProgressEffect(UnknownEffect value) => new UnknownCase(value);
+
+    /// <summary>The <c>Pending</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public PendingEffect? Pending => (this as PendingCase)?.Value;
 
     public sealed record PendingCase(PendingEffect Value) : ProgressEffect;
 
     public static implicit operator ProgressEffect(PendingEffect value) => new PendingCase(value);
 
+    /// <summary>The <c>Completed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public CompletedEffect? Completed => (this as CompletedCase)?.Value;
+
     public sealed record CompletedCase(CompletedEffect Value) : ProgressEffect;
 
     public static implicit operator ProgressEffect(CompletedEffect value) => new CompletedCase(value);
 
+    /// <summary>The <c>Absent</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public AbsentEffect? Absent => (this as AbsentCase)?.Value;
+
     public sealed record AbsentCase(AbsentEffect Value) : ProgressEffect;
 
     public static implicit operator ProgressEffect(AbsentEffect value) => new AbsentCase(value);
+
+    /// <summary>The <c>Unsuccessful</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public UnsuccessfulEffect? Unsuccessful => (this as UnsuccessfulCase)?.Value;
 
     public sealed record UnsuccessfulCase(UnsuccessfulEffect Value) : ProgressEffect;
 

@@ -64,11 +64,11 @@ public static partial class ObservationPackage
     /// <summary>The wear inputs of one gear row; null when the producer sent none.</summary>
     internal static GearWearer? WearerOf(O.GearLoadout p)
     {
-        if (!p.HasGender || !p.HasDevelopmentalStage)
+        if (p.Gender is null || p.DevelopmentalStage is null)
         {
             return null;
         }
-        return new GearWearer(p.Gender, p.DevelopmentalStage, new HashSet<string>(p.BodyPartGroups, StringComparer.Ordinal));
+        return new GearWearer(p.Gender.GetValueOrDefault(), p.DevelopmentalStage.GetValueOrDefault(), new HashSet<string>(p.BodyPartGroups, StringComparer.Ordinal));
     }
 
     /// <summary>

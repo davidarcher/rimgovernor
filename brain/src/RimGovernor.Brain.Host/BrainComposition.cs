@@ -58,7 +58,7 @@ public sealed class PlannerContext
     public required FactStore Sections { get; init; }
 
     /// <summary>Rebuilds the store once per loaded world; the scheduler runs it first on each step (Go <c>worldRebuild.workerGate</c>).</summary>
-    public required Func<RimGovernor.Protocol.Common.ObservationContext, CancellationToken, Task<bool>> WorldReady { get; init; }
+    public required Func<RimGovernor.Contracts.Wire.Common.ObservationContext, CancellationToken, Task<bool>> WorldReady { get; init; }
 
     /// <summary>Asks the scheduler loop to step now (the Worker's <c>Advanced</c>).</summary>
     public required Action Nudge { get; init; }

@@ -56,18 +56,18 @@ internal static class DraftNeeds
             {
                 continue;
             }
-            var id = new PawnId(row.Pawn.Id);
+            var id = new PawnId((row.Pawn.Id ?? ""));
             if (needed.Contains(id) || id.Value == "" || output.Contains(id))
             {
                 continue;
             }
-            if (Boundary.FactBool(row.HasColonist, row.Colonist) != Known(true) || Boundary.FactBool(row.HasDrafted, row.Drafted) != Known(true)
-                || Boundary.FactBool(row.HasDead, row.Dead) != Known(false) || Boundary.FactBool(row.HasDowned, row.Downed) != Known(false)
+            if (Boundary.FactBool(row.Colonist is not null, row.Colonist.GetValueOrDefault()) != Known(true) || Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()) != Known(true)
+                || Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()) != Known(false) || Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()) != Known(false)
                 || Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state") != Known(false))
             {
                 continue;
             }
-            if (row.Job is null || CustodyJobs.Contains(row.Job.DefName))
+            if (row.Job is null || CustodyJobs.Contains((row.Job.DefName ?? "")))
             {
                 continue;
             }
@@ -123,12 +123,12 @@ internal static class DraftNeeds
             var verdict = "applied";
             var level = TelemetryLevel.Info;
             var detail = "";
-            if (result.Refused is { } refused)
+            if (result.Outcome?.Refused is { } refused)
             {
                 verdict = "refused";
                 detail = refused.Reason;
             }
-            else if (result.Failed is { } failed)
+            else if (result.Outcome?.Failed is { } failed)
             {
                 verdict = "failed";
                 level = TelemetryLevel.Warn;

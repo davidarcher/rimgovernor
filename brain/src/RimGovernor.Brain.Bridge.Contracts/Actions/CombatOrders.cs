@@ -1,4 +1,4 @@
-using Op = RimGovernor.Protocol.Operations;
+using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -14,10 +14,10 @@ public static partial class BridgeFunctions
             throw Contract("combat order entity missing");
         }
         BuildingUnknown(value);
-        ValidId(value.EntityId);
-        if (value.HasExpectedSnapshotToken)
+        ValidId((value.EntityId ?? ""));
+        if (value.ExpectedSnapshotToken is not null)
         {
-            ValidId(value.ExpectedSnapshotToken);
+            ValidId((value.ExpectedSnapshotToken ?? ""));
         }
     }
 
@@ -38,8 +38,8 @@ public static partial class BridgeFunctions
         {
             var order = command.Orders[i] ?? throw Contract($"combat order {i} missing");
             BuildingUnknown(order);
-            var door = order.OrderCase == Op.CombatOrder.OrderOneofCase.Door;
-            var fire = order.OrderCase == Op.CombatOrder.OrderOneofCase.MortarFire;
+            var door = order.Order is Op.CombatOrderOrder.DoorCase;
+            var fire = order.Order is Op.CombatOrderOrder.MortarFireCase;
             if (door || fire)
             {
                 if (order.Pawn is not null)
@@ -52,90 +52,89 @@ public static partial class BridgeFunctions
                 Check(() => OptionalTokenEntity(order.Pawn), $"combat order {i} pawn");
             }
             var pawn = order.Pawn?.EntityId ?? "";
-            switch (order.OrderCase)
+            switch (order.Order)
             {
-                case Op.CombatOrder.OrderOneofCase.Move:
-                    Check(() => MovementCell(order.Move), $"combat order {i} move");
+                case Op.CombatOrderOrder.MoveCase { Value: var move }:
+                    Check(() => MovementCell(move), $"combat order {i} move");
                     break;
-                case Op.CombatOrder.OrderOneofCase.AttackGround:
-                    Check(() => MovementCell(order.AttackGround), $"combat order {i} attack_ground");
+                case Op.CombatOrderOrder.AttackGroundCase { Value: var ground }:
+                    Check(() => MovementCell(ground), $"combat order {i} attack_ground");
                     break;
-                case Op.CombatOrder.OrderOneofCase.Attack:
-                    Check(() => OptionalTokenEntity(order.Attack), $"combat order {i} target");
-                    if (order.Attack.EntityId == pawn)
+                case Op.CombatOrderOrder.AttackCase { Value: var attack }:
+                    Check(() => OptionalTokenEntity(attack), $"combat order {i} target");
+                    if ((attack.EntityId ?? "") == pawn)
                     {
                         throw Contract($"combat order {i} attacks its own pawn");
                     }
                     break;
-                case Op.CombatOrder.OrderOneofCase.FireMode:
-                    if (order.FireMode is not (Op.CombatFireMode.AtWill or Op.CombatFireMode.Hold))
+                case Op.CombatOrderOrder.FireModeCase { Value: var fireMode }:
+                    if (fireMode is not (Op.CombatFireMode.AtWill or Op.CombatFireMode.Hold))
                     {
                         throw Contract($"combat order {i} fire mode unsupported");
                     }
                     break;
-                case Op.CombatOrder.OrderOneofCase.Door:
-                    if (!Valid(() => MovementCell(order.Door.Cell)))
+                case Op.CombatOrderOrder.DoorCase { Value: var doorOrder }:
+                    if (!Valid(() => MovementCell(doorOrder.Cell)))
                     {
                         throw Contract($"combat order {i} door cell missing or invalid");
                     }
-                    if (order.Door.Mode is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Allow)
+                    if ((doorOrder.Mode ?? Op.CombatDoorMode.Unspecified) is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Allow)
                     {
                         throw Contract($"combat order {i} door mode unsupported");
                     }
                     break;
-                case Op.CombatOrder.OrderOneofCase.Rescue:
-                    Check(() => OptionalTokenEntity(order.Rescue.Downed), $"combat order {i} downed");
-                    if (order.Rescue.Downed.EntityId == pawn)
+                case Op.CombatOrderOrder.RescueCase { Value: var rescue }:
+                    Check(() => OptionalTokenEntity(rescue.Downed), $"combat order {i} downed");
+                    if ((rescue.Downed?.EntityId ?? "") == pawn)
                     {
                         throw Contract($"combat order {i} rescues its own pawn");
                     }
-                    if (order.Rescue.Dest is not null && !Valid(() => MovementCell(order.Rescue.Dest)))
+                    if (rescue.Dest is not null && !Valid(() => MovementCell(rescue.Dest)))
                     {
                         throw Contract($"combat order {i} rescue dest invalid");
                     }
                     break;
-                case Op.CombatOrder.OrderOneofCase.Repair:
-                    if (!Valid(() => MovementCell(order.Repair.Cell)))
+                case Op.CombatOrderOrder.RepairCase { Value: var repair }:
+                    if (!Valid(() => MovementCell(repair.Cell)))
                     {
                         throw Contract($"combat order {i} repair cell missing or invalid");
                     }
                     break;
-                case Op.CombatOrder.OrderOneofCase.ManMortar:
-                    Check(() => MovementCell(order.ManMortar), $"combat order {i} man_mortar");
+                case Op.CombatOrderOrder.ManMortarCase { Value: var manMortar }:
+                    Check(() => MovementCell(manMortar), $"combat order {i} man_mortar");
                     break;
-                case Op.CombatOrder.OrderOneofCase.MortarFire:
+                case Op.CombatOrderOrder.MortarFireCase { Value: var mortar }:
                     // No target clears the forced target, and names no shell.
-                    var mortar = order.MortarFire;
-                    if (!Valid(() => MovementCell(mortar.Mortar)) || (mortar.Target is not null && !Valid(() => MovementCell(mortar.Target))) || (mortar.Target is null && mortar.HasShell))
+                    if (!Valid(() => MovementCell(mortar.Mortar)) || (mortar.Target is not null && !Valid(() => MovementCell(mortar.Target))) || (mortar.Target is null && mortar.Shell is not null))
                     {
                         throw Contract($"combat order {i} mortar_fire mortar or target cell missing or invalid");
                     }
                     break;
-                case Op.CombatOrder.OrderOneofCase.Release:
-                    Check(() => OptionalTokenEntity(order.Release), $"combat order {i} release target");
-                    if (order.Release.EntityId == pawn)
+                case Op.CombatOrderOrder.ReleaseCase { Value: var release }:
+                    Check(() => OptionalTokenEntity(release), $"combat order {i} release target");
+                    if ((release.EntityId ?? "") == pawn)
                     {
                         throw Contract($"combat order {i} releases its animal on itself");
                     }
                     break;
-                case Op.CombatOrder.OrderOneofCase.AnimalArea:
-                    switch (order.AnimalArea.AreaCase)
+                case Op.CombatOrderOrder.AnimalAreaCase { Value: var animalArea }:
+                    switch (animalArea.Area)
                     {
-                        case Op.CombatAnimalArea.AreaOneofCase.Cell:
-                            Check(() => MovementCell(order.AnimalArea.Cell), $"combat order {i} animal_area");
+                        case Op.CombatAnimalAreaArea.CellCase { Value: var areaCell }:
+                            Check(() => MovementCell(areaCell), $"combat order {i} animal_area");
                             break;
-                        case Op.CombatAnimalArea.AreaOneofCase.Clear:
+                        case Op.CombatAnimalAreaArea.ClearCase:
                             break;
                         default:
                             throw Contract($"combat order {i} animal_area needs a cell or clear");
                     }
                     break;
-                case Op.CombatOrder.OrderOneofCase.HoldPosition:
-                case Op.CombatOrder.OrderOneofCase.Stop:
-                case Op.CombatOrder.OrderOneofCase.Draft:
+                case Op.CombatOrderOrder.HoldPositionCase:
+                case Op.CombatOrderOrder.StopCase:
+                case Op.CombatOrderOrder.DraftCase:
                     break;
-                case Op.CombatOrder.OrderOneofCase.CombatDrug:
-                    if (!IsValidId(order.CombatDrug))
+                case Op.CombatOrderOrder.CombatDrugCase { Value: var drug }:
+                    if (!IsValidId(drug ?? ""))
                     {
                         throw Contract($"combat order {i} combat_drug is not a def name");
                     }

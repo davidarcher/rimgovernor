@@ -138,13 +138,25 @@ public abstract record IdentityReplyOutcome
 {
     private protected IdentityReplyOutcome() { }
 
+    /// <summary>The <c>Loaded</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LoadedIdentity? Loaded => (this as LoadedCase)?.Value;
+
     public sealed record LoadedCase(LoadedIdentity Value) : IdentityReplyOutcome;
 
     public static implicit operator IdentityReplyOutcome(LoadedIdentity value) => new LoadedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : IdentityReplyOutcome;
 
     public static implicit operator IdentityReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : IdentityReplyOutcome;
 
@@ -201,13 +213,25 @@ public abstract record TickReplyOutcome
 {
     private protected TickReplyOutcome() { }
 
+    /// <summary>The <c>Loaded</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LoadedTick? Loaded => (this as LoadedCase)?.Value;
+
     public sealed record LoadedCase(LoadedTick Value) : TickReplyOutcome;
 
     public static implicit operator TickReplyOutcome(LoadedTick value) => new LoadedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : TickReplyOutcome;
 
     public static implicit operator TickReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : TickReplyOutcome;
 
@@ -275,13 +299,25 @@ public abstract record SaveReplyOutcome
 {
     private protected SaveReplyOutcome() { }
 
+    /// <summary>The <c>Completed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SaveCompleted? Completed => (this as CompletedCase)?.Value;
+
     public sealed record CompletedCase(SaveCompleted Value) : SaveReplyOutcome;
 
     public static implicit operator SaveReplyOutcome(SaveCompleted value) => new CompletedCase(value);
 
+    /// <summary>The <c>Uncertain</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SaveUncertain? Uncertain => (this as UncertainCase)?.Value;
+
     public sealed record UncertainCase(SaveUncertain Value) : SaveReplyOutcome;
 
     public static implicit operator SaveReplyOutcome(SaveUncertain value) => new UncertainCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : SaveReplyOutcome;
 
@@ -361,17 +397,33 @@ public abstract record LoadReplyOutcome
 {
     private protected LoadReplyOutcome() { }
 
+    /// <summary>The <c>Completed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LoadCompleted? Completed => (this as CompletedCase)?.Value;
+
     public sealed record CompletedCase(LoadCompleted Value) : LoadReplyOutcome;
 
     public static implicit operator LoadReplyOutcome(LoadCompleted value) => new CompletedCase(value);
+
+    /// <summary>The <c>Pending</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LoadPending? Pending => (this as PendingCase)?.Value;
 
     public sealed record PendingCase(LoadPending Value) : LoadReplyOutcome;
 
     public static implicit operator LoadReplyOutcome(LoadPending value) => new PendingCase(value);
 
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
+
     public sealed record FailureCase(Common.Failure Value) : LoadReplyOutcome;
 
     public static implicit operator LoadReplyOutcome(Common.Failure value) => new FailureCase(value);
+
+    /// <summary>The <c>Superseded</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public LoadSuperseded? Superseded => (this as SupersededCase)?.Value;
 
     public sealed record SupersededCase(LoadSuperseded Value) : LoadReplyOutcome;
 
@@ -606,17 +658,33 @@ public abstract record NewColonyReplyOutcome
 {
     private protected NewColonyReplyOutcome() { }
 
+    /// <summary>The <c>Completed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public NewColonyCompleted? Completed => (this as CompletedCase)?.Value;
+
     public sealed record CompletedCase(NewColonyCompleted Value) : NewColonyReplyOutcome;
 
     public static implicit operator NewColonyReplyOutcome(NewColonyCompleted value) => new CompletedCase(value);
+
+    /// <summary>The <c>Pending</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public NewColonyPending? Pending => (this as PendingCase)?.Value;
 
     public sealed record PendingCase(NewColonyPending Value) : NewColonyReplyOutcome;
 
     public static implicit operator NewColonyReplyOutcome(NewColonyPending value) => new PendingCase(value);
 
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
+
     public sealed record FailureCase(Common.Failure Value) : NewColonyReplyOutcome;
 
     public static implicit operator NewColonyReplyOutcome(Common.Failure value) => new FailureCase(value);
+
+    /// <summary>The <c>Superseded</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public NewColonySuperseded? Superseded => (this as SupersededCase)?.Value;
 
     public sealed record SupersededCase(NewColonySuperseded Value) : NewColonyReplyOutcome;
 
@@ -649,13 +717,25 @@ public abstract record GovernorStateReplyOutcome
 {
     private protected GovernorStateReplyOutcome() { }
 
+    /// <summary>The <c>Loaded</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public GovernorStateBlobs? Loaded => (this as LoadedCase)?.Value;
+
     public sealed record LoadedCase(GovernorStateBlobs Value) : GovernorStateReplyOutcome;
 
     public static implicit operator GovernorStateReplyOutcome(GovernorStateBlobs value) => new LoadedCase(value);
 
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
     public sealed record UnavailableCase(Common.Unavailable Value) : GovernorStateReplyOutcome;
 
     public static implicit operator GovernorStateReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : GovernorStateReplyOutcome;
 
@@ -707,13 +787,25 @@ public abstract record WaitSaveSignalReplyOutcome
 {
     private protected WaitSaveSignalReplyOutcome() { }
 
+    /// <summary>The <c>Signal</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SaveSignal? Signal => (this as SignalCase)?.Value;
+
     public sealed record SignalCase(SaveSignal Value) : WaitSaveSignalReplyOutcome;
 
     public static implicit operator WaitSaveSignalReplyOutcome(SaveSignal value) => new SignalCase(value);
 
+    /// <summary>The <c>Timeout</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SaveSignalTimeout? Timeout => (this as TimeoutCase)?.Value;
+
     public sealed record TimeoutCase(SaveSignalTimeout Value) : WaitSaveSignalReplyOutcome;
 
     public static implicit operator WaitSaveSignalReplyOutcome(SaveSignalTimeout value) => new TimeoutCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : WaitSaveSignalReplyOutcome;
 
@@ -740,9 +832,17 @@ public abstract record FlushDoneReplyOutcome
 {
     private protected FlushDoneReplyOutcome() { }
 
+    /// <summary>The <c>Acked</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public FlushDoneAcked? Acked => (this as AckedCase)?.Value;
+
     public sealed record AckedCase(FlushDoneAcked Value) : FlushDoneReplyOutcome;
 
     public static implicit operator FlushDoneReplyOutcome(FlushDoneAcked value) => new AckedCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
 
     public sealed record FailureCase(Common.Failure Value) : FlushDoneReplyOutcome;
 

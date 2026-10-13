@@ -35,17 +35,17 @@ public static partial class ObservationPackage
             var pawns = new List<PawnId>(room.Pawns.Count);
             foreach (var pawn in room.Pawns)
             {
-                pawns.Add(new PawnId(pawn.Id));
+                pawns.Add(new PawnId((pawn.Id ?? "")));
             }
             var beds = new List<string>(room.Beds.Count);
             foreach (var bed in room.Beds)
             {
-                beds.Add(bed.Id);
+                beds.Add((bed.Id ?? ""));
             }
             var contents = new List<Amount>(room.Contents.Count);
             foreach (var q in room.Contents)
             {
-                contents.Add(new Amount(new Resource(q.DefName), q.Units));
+                contents.Add(new Amount(new Resource((q.DefName ?? "")), q.Units.GetValueOrDefault()));
             }
             var doors = new List<Policy.RoomDoor>(room.Doors.Count);
             foreach (var door in room.Doors)
@@ -54,19 +54,19 @@ public static partial class ObservationPackage
             }
             output.Add(new Room
             {
-                Id = room.Id,
+                Id = room.Id ?? "",
                 Role = RoomRoleOf(room),
-                Temperature = Optional(room.HasTemperatureC, room.TemperatureC),
-                Enclosed = Known(room.ProperRoom && !room.Doorway && !room.Outdoors && !room.PsychologicallyOutdoors && !room.TouchesMapEdge && room.OpenRoofCount == 0),
-                Burning = Optional(room.HasBurning, room.Burning),
-                TemperatureControl = Optional(room.HasTemperatureControl, room.TemperatureControl),
-                PerishableContents = Optional(room.HasPerishableContents, room.PerishableContents),
+                Temperature = Optional(room.TemperatureC is not null, room.TemperatureC.GetValueOrDefault()),
+                Enclosed = Known(room.ProperRoom.GetValueOrDefault() && !room.Doorway.GetValueOrDefault() && !room.Outdoors.GetValueOrDefault() && !room.PsychologicallyOutdoors.GetValueOrDefault() && !room.TouchesMapEdge.GetValueOrDefault() && room.OpenRoofCount.GetValueOrDefault() == 0),
+                Burning = Optional(room.Burning is not null, room.Burning.GetValueOrDefault()),
+                TemperatureControl = Optional(room.TemperatureControl is not null, room.TemperatureControl.GetValueOrDefault()),
+                PerishableContents = Optional(room.PerishableContents is not null, room.PerishableContents.GetValueOrDefault()),
                 Pawns = EquatableArray.From(pawns),
                 Beds = EquatableArray.From(beds),
                 Contents = Known(EquatableArray.From(contents)),
                 Cleanliness = RoomStat(room, "Cleanliness"),
-                Cells = EquatableArray.From(cells.TryGetValue(room.Id, out var found) ? found : []),
-                Roofed = room.HasOpenRoofCount ? Known(room.OpenRoofCount == 0) : Unknown<bool>(),
+                Cells = EquatableArray.From(cells.TryGetValue((room.Id ?? ""), out var found) ? found : []),
+                Roofed = room.OpenRoofCount is not null ? Known(room.OpenRoofCount.GetValueOrDefault() == 0) : Unknown<bool>(),
                 Doors = EquatableArray.From(doors),
             });
         }
@@ -78,20 +78,20 @@ public static partial class ObservationPackage
     {
         foreach (var stat in room.Stats)
         {
-            if (stat.DefName != name)
+            if ((stat.DefName ?? "") != name)
             {
                 continue;
             }
-            if (stat.Unavailable is not null || !stat.HasValue)
+            if (stat.Unavailable is not null || stat.Value is null)
             {
                 return Unknown<double>();
             }
-            return Known(stat.Value);
+            return Known(stat.Value.GetValueOrDefault());
         }
         return Unknown<double>();
     }
 
     // The native census names Room.Role by RoomRoleDef defName; a missing role is an unknown fact, never a generic room.
     private static Fact<RoomRole> RoomRoleOf(O.RoomState room) =>
-        room.HasRole ? Known(WireParse<RoomRole>(room.Role)) : Unknown<RoomRole>();
+        room.Role is not null ? Known(WireParse<RoomRole>(room.Role)) : Unknown<RoomRole>();
 }

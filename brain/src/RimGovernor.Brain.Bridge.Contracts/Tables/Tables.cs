@@ -1,6 +1,6 @@
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Observations;
-using Thing = RimGovernor.Protocol.Observations.Thing;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Observations;
+using Thing = RimGovernor.Contracts.Wire.Observations.Thing;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -41,7 +41,7 @@ public readonly record struct Pawns(Table<PawnState> Table)
     /// <summary><paramref name="reference"/>'s canonical row, false when the table does not hold it.</summary>
     public bool TryRow(Ref reference, out PawnState row)
     {
-        var ok = Table.TryGetValue(reference.Id, out row!);
+        var ok = Table.TryGetValue((reference.Id ?? ""), out row!);
         return ok && row is not null;
     }
 
@@ -58,7 +58,7 @@ public readonly record struct Pawns(Table<PawnState> Table)
             {
                 return null;
             }
-            snapshot.Pawns.Add(row);
+            snapshot = snapshot with { Pawns = [.. snapshot.Pawns, row] };
         }
         return snapshot;
     }
@@ -102,7 +102,7 @@ public readonly record struct Buildings(Table<BuildingState> Table)
 
     /// <summary>The head of <paramref name="reference"/>'s row, null when the table does not hold it.</summary>
     public EntityRef? Entity(Ref? reference) =>
-        reference is null ? null : Table.TryGetValue(reference.Id, out var row) ? row?.Building : null;
+        reference is null ? null : Table.TryGetValue((reference.Id ?? ""), out var row) ? row?.Building : null;
 
     /// <summary>
     /// <paramref name="reference"/>'s canonical row, false when the table does not hold it or the row's service or
@@ -110,7 +110,7 @@ public readonly record struct Buildings(Table<BuildingState> Table)
     /// </summary>
     public bool TryRow(Ref reference, out BuildingState row)
     {
-        if (!Table.TryGetValue(reference.Id, out row!) || !ValidBuildingService(row.Service) || row.Settings is null)
+        if (!Table.TryGetValue((reference.Id ?? ""), out row!) || !ValidBuildingService(row.Service) || row.Settings is null)
         {
             row = null!;
             return false;
@@ -126,18 +126,18 @@ public readonly record struct Buildings(Table<BuildingState> Table)
         {
             return false;
         }
-        foreach (var value in new double?[] { s.HasFuel ? s.Fuel : null, s.HasTargetFuel ? s.TargetFuel : null })
+        foreach (var value in new double?[] { s.Fuel is not null ? s.Fuel.GetValueOrDefault() : null, s.TargetFuel is not null ? s.TargetFuel.GetValueOrDefault() : null })
         {
             if (value is { } v && (double.IsNaN(v) || double.IsInfinity(v) || v < 0 || v > 1e12))
             {
                 return false;
             }
         }
-        if (s.HasPowerOutputW && (double.IsNaN(s.PowerOutputW) || double.IsInfinity(s.PowerOutputW) || Math.Abs(s.PowerOutputW) > 1e12))
+        if (s.PowerOutputW is not null && (double.IsNaN(s.PowerOutputW.GetValueOrDefault()) || double.IsInfinity(s.PowerOutputW.GetValueOrDefault()) || Math.Abs(s.PowerOutputW.GetValueOrDefault()) > 1e12))
         {
             return false;
         }
-        if (s.HasPowerNetId && (!BridgeFunctions.IsValidId(s.PowerNetId) || (s.HasConnected && !s.Connected)))
+        if (s.PowerNetId is not null && (!BridgeFunctions.IsValidId((s.PowerNetId ?? "")) || (s.Connected is not null && !s.Connected.GetValueOrDefault())))
         {
             return false;
         }
@@ -147,10 +147,10 @@ public readonly record struct Buildings(Table<BuildingState> Table)
         }
         foreach (var issue in s.Issues)
         {
-            if (issue.Field != "fuel"
-                || issue.Unavailable?.Reason != UnavailableReason.NotApplicable
-                || s.HasFuel
-                || s.HasTargetFuel)
+            if ((issue.Field ?? "") != "fuel"
+                || (issue.Unavailable?.Reason).GetValueOrDefault() != UnavailableReason.NotApplicable
+                || s.Fuel is not null
+                || s.TargetFuel is not null)
             {
                 return false;
             }
@@ -174,7 +174,7 @@ public readonly record struct Things(Table<Thing> Table)
         var table = default(Table<Thing>);
         foreach (var row in rows)
         {
-            table = table.Set(row.Thing_?.Id ?? "", row);
+            table = table.Set(row.Entity?.Id ?? "", row);
         }
         return new Things(table);
     }
@@ -189,9 +189,9 @@ public readonly record struct Things(Table<Thing> Table)
     public bool TryGetValue(string id, out Thing row) => Table.TryGetValue(id, out row!);
 
     /// <summary><paramref name="reference"/>'s canonical row, false when the table does not hold it.</summary>
-    public bool TryRow(Ref reference, out Thing row)
+    public bool TryRow(Ref? reference, out Thing row)
     {
-        var ok = Table.TryGetValue(reference.Id, out row!);
+        var ok = Table.TryGetValue(reference?.Id ?? "", out row!);
         return ok && row is not null;
     }
 }
@@ -228,7 +228,7 @@ public sealed record Tables(Buildings Buildings, Pawns Pawns, Things Things, Fac
         }
         if (Things.TryRow(reference, out var thing))
         {
-            return thing.Thing_;
+            return thing.Entity;
         }
         return null;
     }

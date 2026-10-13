@@ -1,5 +1,5 @@
-using RimGovernor.Protocol.Common;
-using RimGovernor.Protocol.Observations;
+using RimGovernor.Contracts.Wire.Common;
+using RimGovernor.Contracts.Wire.Observations;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
@@ -142,28 +142,28 @@ public static partial class BridgeFunctions
     /// Go's <c>validateRaidTracks</c>: decodes the hostile lords of a threat census, one track per lord, ticks in
     /// order, cells on the map. Throws a contract error for an invalid track.
     /// </summary>
-    internal static IReadOnlyList<RaidTrack> ValidateRaidTracks(IEnumerable<RimGovernor.Protocol.Observations.RaidTrack> rows)
+    internal static IReadOnlyList<RaidTrack> ValidateRaidTracks(IEnumerable<RimGovernor.Contracts.Wire.Observations.RaidTrack> rows)
     {
         var lords = new HashSet<string>(StringComparer.Ordinal);
         var tracks = new List<RaidTrack>();
         foreach (var row in rows)
         {
             if (!TryProtoCell(row.Spawn, out var spawn)
-                || !row.HasLordId
-                || !IsValidId(row.LordId)
-                || lords.Contains(row.LordId)
-                || !row.HasFactionDef
-                || !IsValidId(row.FactionDef)
-                || !row.HasSpawnTick
-                || !row.HasLastTick
-                || !row.HasGround
-                || row.SpawnTick < 0
-                || row.LastTick < row.SpawnTick
+                || row.LordId is null
+                || !IsValidId((row.LordId ?? ""))
+                || lords.Contains((row.LordId ?? ""))
+                || row.FactionDef is null
+                || !IsValidId((row.FactionDef ?? ""))
+                || row.SpawnTick is null
+                || row.LastTick is null
+                || row.Ground is null
+                || row.SpawnTick.GetValueOrDefault() < 0
+                || row.LastTick.GetValueOrDefault() < row.SpawnTick.GetValueOrDefault()
                 || !CellOnDefenseMap(spawn))
             {
                 throw Contract("invalid raid track");
             }
-            lords.Add(row.LordId);
+            lords.Add((row.LordId ?? ""));
             var trail = new List<DomainCell>(row.Trail.Count);
             foreach (var at in row.Trail)
             {
@@ -176,12 +176,12 @@ public static partial class BridgeFunctions
             tracks.Add(
                 new RaidTrack
                 {
-                    LordId = row.LordId,
-                    FactionDef = row.FactionDef,
-                    SpawnTick = new Tick(row.SpawnTick),
-                    LastTick = new Tick(row.LastTick),
+                    LordId = (row.LordId ?? ""),
+                    FactionDef = row.FactionDef ?? "",
+                    SpawnTick = new Tick(row.SpawnTick.GetValueOrDefault()),
+                    LastTick = new Tick(row.LastTick.GetValueOrDefault()),
                     Spawn = spawn,
-                    Ground = row.Ground,
+                    Ground = row.Ground.GetValueOrDefault(),
                     Trail = trail,
                 }
             );

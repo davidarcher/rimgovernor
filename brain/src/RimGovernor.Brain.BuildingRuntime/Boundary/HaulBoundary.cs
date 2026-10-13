@@ -44,9 +44,9 @@ public sealed class HaulBoundary : IHaulBoundary
         }
         var haul = target.Action.Haul!;
         var reply = await _native.ReadPawnsAsync(Boundary.Identity(target.Snapshot), [haul.Pawn.Value], ct).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new HeldException();
+        var observed = reply.Outcome?.Observed ?? throw new HeldException();
         var current = Boundary.Context(observed.Context, target.Snapshot);
-        var result = new HaulInspection { StartedAt = started, Snapshot = current, Tick = new Tick(observed.Context.Tick), ObservedAt = _clock.Now() };
+        var result = new HaulInspection { StartedAt = started, Snapshot = current, Tick = new Tick((observed.Context?.Tick).GetValueOrDefault()), ObservedAt = _clock.Now() };
         ct.ThrowIfCancellationRequested();
         return result;
     }

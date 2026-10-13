@@ -7,7 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Facts/RimGovernor.Brain.Facts.csproj" />
@@ -33,7 +33,7 @@
     <Using Include="RimGovernor.Brain.Bridge.Contracts.Result" Alias="BridgeResult" />
     <Using Include="RimGovernor.Brain.Executor" />
     <Using Include="RimGovernor.Brain.Facts" />
-    <Using Include="RimGovernor.Protocol" />
+    <Using Include="RimGovernor.Contracts.Wire" />
     <!-- Go package-level functions with no owning type live on one static partial class per package. -->
     <Using Include="RimGovernor.Brain.BuildingRuntime.BuildingRuntimePackage" Static="true" />
     <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
@@ -45,14 +45,14 @@
     <Using Include="RimGovernor.Brain.Snapshot.SnapshotPackage" Alias="SnapshotApi" />
     <Using Include="RimGovernor.Brain.Store.Store" Alias="JournalStore" />
     <!-- Go's wire package aliases (a, c, k, n, o, r). -->
-    <Using Include="RimGovernor.Protocol.Authority" Alias="PbAuthority" />
-    <Using Include="RimGovernor.Protocol.Common" Alias="PbCommon" />
-    <Using Include="RimGovernor.Protocol.Clock" Alias="PbClock" />
-    <Using Include="RimGovernor.Protocol.Observations" Alias="PbObservations" />
-    <Using Include="RimGovernor.Protocol.Operations" Alias="PbOperations" />
-    <Using Include="RimGovernor.Protocol.Receipts" Alias="PbReceipts" />
-    <Using Include="RimGovernor.Protocol.Presentation" Alias="PbPresentation" />
-    <Using Include="RimGovernor.Protocol.Lifecycle" Alias="PbLifecycle" />
+    <Using Include="RimGovernor.Contracts.Wire.Authority" Alias="PbAuthority" />
+    <Using Include="RimGovernor.Contracts.Wire.Common" Alias="PbCommon" />
+    <Using Include="RimGovernor.Contracts.Wire.Clock" Alias="PbClock" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations" Alias="PbObservations" />
+    <Using Include="RimGovernor.Contracts.Wire.Operations" Alias="PbOperations" />
+    <Using Include="RimGovernor.Contracts.Wire.Receipts" Alias="PbReceipts" />
+    <Using Include="RimGovernor.Contracts.Wire.Presentation" Alias="PbPresentation" />
+    <Using Include="RimGovernor.Contracts.Wire.Lifecycle" Alias="PbLifecycle" />
     <!-- Names two imported namespaces both declare: Policy and Telemetry/Executor shapes win (issue #3111). -->
     <Using Include="RimGovernor.Brain.Policy.PawnId" Alias="PawnId" />
     <Using Include="RimGovernor.Brain.Policy.Amount" Alias="Amount" />
@@ -83,7 +83,7 @@
     <Using Include="RimGovernor.Brain.Facts.Scope" Alias="FactScope" />
     <Using Include="RimGovernor.Brain.Facts.Section" Alias="FactSection" />
     <Using Include="RimGovernor.Brain.Facts.Rect" Alias="FactRect" />
-    <Using Include="RimGovernor.Protocol.Operations" Alias="OP" />
+    <Using Include="RimGovernor.Contracts.Wire.Operations" Alias="OP" />
     <Using Include="RimGovernor.Brain.Store.Store" Alias="StoreJournal" />
     <Using Include="RimGovernor.Brain.Store.World" Alias="StoreWorld" />
     <Using Include="RimGovernor.Brain.Store.Rounds" Alias="RoundsReview" />

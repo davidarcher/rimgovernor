@@ -1,5 +1,5 @@
 using System.Globalization;
-using Google.Protobuf;
+using RimGovernor.Contracts.Wire;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
@@ -32,7 +32,7 @@ internal sealed class DefenseRecorder : IRoundsDefenseSource
         Emergency = v.Emergency;
         if (v.Frame?.Pawns is { } detail)
         {
-            Pawns = new O.ListPawnsReply { Observed = detail };
+            Pawns = new O.ListPawnsReply { Outcome = detail };
         }
         if (v.Frame?.CombatLinesOfFire is { } lines)
         {
@@ -73,7 +73,7 @@ public sealed partial class RoundsDefensePlanner
     {
         var p = _reviewer.Player;
         var current = p.Session.State().Snapshot;
-        var tick = new Tick(rec.Emergency!.Context!.Tick);
+        var tick = new Tick(rec.Emergency!.Context!.Tick.GetValueOrDefault());
         var d = new SnapshotDefense
         {
             Recorded = string.Create(CultureInfo.InvariantCulture, $"colony {current.Colony} load {current.Load} map {current.Map} tick {tick.Value}"),
@@ -82,16 +82,16 @@ public sealed partial class RoundsDefensePlanner
             Emergency = rec.Emergency.Facts,
             Reason = result.Verdict.ToString(),
             Plan = result.Plan,
-            EmergencyContext = JsonFormatter.Default.Format(rec.Emergency.Context),
+            EmergencyContext = WireJson.Serialize(rec.Emergency.Context),
         };
         if (rec.Pawns is not null)
         {
-            d.CombatPawns = JsonFormatter.Default.Format(rec.Pawns);
+            d.CombatPawns = WireJson.Serialize(rec.Pawns);
         }
         if (rec.Lines is not null)
         {
             d.Lines = rec.Lines.Lines;
-            d.LinesContext = JsonFormatter.Default.Format(rec.Lines.Context);
+            d.LinesContext = WireJson.Serialize(rec.Lines.Context);
         }
         var layout = p.Journal.LoadDefenseLayout(new StoreWorld { Colony = current.Colony, Load = current.Load, Map = current.Map }, ct);
         if (layout is not null)

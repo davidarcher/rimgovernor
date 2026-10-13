@@ -2,8 +2,8 @@ using System.Security.Cryptography;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store.Codec;
-using Pb = RimGovernor.Protocol.Clock;
-using PbCommon = RimGovernor.Protocol.Common;
+using Pb = RimGovernor.Contracts.Wire.Clock;
+using PbCommon = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Store;
 
@@ -94,7 +94,7 @@ public static partial class ClockJournal
     internal static ClockAttempt LoadAttemptUnchecked(StoreTransaction tx, string id, ControllerSessionId session)
     {
         var value = ScanAttempt(tx, id, session);
-        ActionAvailable(tx, value.NativeAttempt!.ActionId);
+        ActionAvailable(tx, (value.NativeAttempt!.ActionId ?? ""));
         CheckWindowProfile(tx, value.Intent.Window);
         _ = CheckEpoch(tx, value);
         return value;
@@ -143,7 +143,7 @@ public static partial class ClockJournal
         {
             throw new ConflictException();
         }
-        ActionAvailable(tx, native.ActionId);
+        ActionAvailable(tx, (native.ActionId ?? ""));
         if (tx.Scalar("SELECT count(*) FROM clock_attempts") >= AttemptLimit)
         {
             throw new CapacityException();
@@ -151,7 +151,7 @@ public static partial class ClockJournal
         (string Name, object? Value)[] parameters =
         [
             ("$id", intent.RequestId),
-            ("$action", native.ActionId),
+            ("$action", (native.ActionId ?? "")),
             ("$phase", Wire.Name(ClockPhase.Prepared)),
             .. IntentParameters(payload),
         ];
@@ -215,7 +215,7 @@ public static partial class ClockJournal
         {
             throw new DomainException("clock reply required");
         }
-        var recorded = reply.Clone();
+        var recorded = reply;
         return Update(
             tx,
             id,
@@ -232,7 +232,7 @@ public static partial class ClockJournal
                 }
                 // Admission evidence and attempt conflicts require receipt recovery;
                 // a different later refusal cannot establish that nothing happened.
-                if (v.Reply is not null && recorded.Receipt is null && !SameMessage(v.Reply, recorded))
+                if (v.Reply is not null && recorded.Outcome?.Receipt is null && !SameMessage(v.Reply, recorded))
                 {
                     throw new ConflictException();
                 }
@@ -281,13 +281,9 @@ public static partial class ClockJournal
             throw new ConflictException();
         }
         BridgeFunctions.ValidateContext(observed);
-        if (HasUnknownFields(observed) || HasUnknownFields(observed.Identity))
-        {
-            throw new ConflictException();
-        }
         var original = attempt.Intent.Snapshot;
-        var actual = observed.Identity;
-        if (string.Equals(actual.ColonyId, original.Colony.Value, StringComparison.Ordinal) && actual.MapId == original.Map.Value && string.Equals(actual.LoadToken, original.Load.Value, StringComparison.Ordinal))
+        var actual = observed.Identity ?? throw new ConflictException();
+        if (string.Equals(actual.ColonyId, original.Colony.Value, StringComparison.Ordinal) && actual.MapId.GetValueOrDefault() == original.Map.Value && string.Equals(actual.LoadToken, original.Load.Value, StringComparison.Ordinal))
         {
             throw new ConflictException();
         }
@@ -304,7 +300,6 @@ public static partial class ClockJournal
         {
             throw new ConflictException();
         }
-        observed = observed.Clone();
         var data = Binary(observed);
         var old = LoadAttempt(tx, id);
         ValidateScope(old, observed);

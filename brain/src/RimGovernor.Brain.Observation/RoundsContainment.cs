@@ -88,9 +88,9 @@ public static partial class ObservationPackage
             {
                 return Unknown<ContainmentDemand>();
             }
-            if (!entity || !row.HasDead || row.Dead)
+            if (!entity || row.Dead is null || row.Dead.GetValueOrDefault())
             {
-                if (!row.HasDead)
+                if (row.Dead is null)
                 {
                     return Unknown<ContainmentDemand>();
                 }
@@ -172,8 +172,8 @@ public static partial class ObservationPackage
             var e = new CapturableEntity
             {
                 Pawn = new RimGovernor.Brain.Domain.PawnId(row.Pawn?.Id ?? ""),
-                Dead = Optional(row.HasDead, row.Dead),
-                Downed = Optional(row.HasDowned, row.Downed),
+                Dead = Optional(row.Dead is not null, row.Dead.GetValueOrDefault()),
+                Downed = Optional(row.Downed is not null, row.Downed.GetValueOrDefault()),
                 CanBeCaptured = Unknown<bool>(),
                 Held = Unknown<bool>(),
                 Need = a.MinContainmentStrength,
@@ -235,7 +235,7 @@ public static partial class ObservationPackage
         var mechs = new List<MechInput>();
         foreach (var row in rows)
         {
-            if (row is null || row.Dead)
+            if (row is null || row.Dead.GetValueOrDefault())
             {
                 continue;
             }
@@ -245,16 +245,16 @@ public static partial class ObservationPackage
             }
             var id = new PawnId(row.Pawn?.Id ?? "");
             var cell = RowCell(row.Pawn?.Position);
-            if (bt.Mechanitor.TryGetValue(out var m) && m is not null && row.Colonist)
+            if (bt.Mechanitor.TryGetValue(out var m) && m is not null && row.Colonist.GetValueOrDefault())
             {
                 mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m, Cell = cell });
             }
-            if (bt.Mech.TryGetValue(out var mm) && mm is not null && row.Mechanoid)
+            if (bt.Mech.TryGetValue(out var mm) && mm is not null && row.Mechanoid.GetValueOrDefault())
             {
-                var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = mm, Cell = cell, Downed = row.Downed, Drafted = row.Drafted };
-                if (row.Job?.TargetA?.Entity is { } target)
+                var mech = new MechInput { Id = id, Kind = row.KindDefName ?? "", Mech = mm, Cell = cell, Downed = row.Downed.GetValueOrDefault(), Drafted = row.Drafted.GetValueOrDefault() };
+                if (row.Job?.TargetA?.Target?.Entity is { } target)
                 {
-                    mech = mech with { Target = new PawnId(target.Id) };
+                    mech = mech with { Target = new PawnId(target.Id ?? "") };
                 }
                 mechs.Add(mech);
             }
@@ -271,19 +271,19 @@ public static partial class ObservationPackage
     {
         var unknown = Unknown<EquatableArray<CarePawn>>();
         var parts = new DefinitionPartCatalog(catalog);
-        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || !colony.HasColonistCount || snapshot is null
-            || colony.ColonistCount != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
+        if (!emergency.ColonistsComplete.TryGetValue(out var complete) || !complete || colony is null || colony.ColonistCount is null || snapshot is null
+            || colony.ColonistCount.GetValueOrDefault() != emergency.Colonists.Count || snapshot.Pawns.Count != emergency.Colonists.Count)
         {
             return unknown;
         }
         var byId = new Dictionary<string, O.PawnState>(StringComparer.Ordinal);
         foreach (var row in snapshot.Pawns)
         {
-            if (row is null || row.Pawn is null || byId.ContainsKey(row.Pawn.Id))
+            if (row is null || row.Pawn is null || byId.ContainsKey((row.Pawn.Id ?? "")))
             {
                 return unknown;
             }
-            byId[row.Pawn.Id] = row;
+            byId[(row.Pawn.Id ?? "")] = row;
         }
         var rows = new List<CarePawn>(snapshot.Pawns.Count);
         foreach (var pawn in emergency.Colonists)
@@ -291,7 +291,7 @@ public static partial class ObservationPackage
             byId.TryGetValue(pawn.Id.Value, out var row);
             var dk = pawn.Dead.TryGetValue(out var dead);
             var nk = pawn.Downed.TryGetValue(out var downed);
-            if (row is null || !dk || !nk || !row.HasDead || !row.HasDowned || row.Dead != dead || row.Downed != downed || !row.HasColonist || !row.Colonist)
+            if (row is null || !dk || !nk || row.Dead is null || row.Downed is null || row.Dead.GetValueOrDefault() != dead || row.Downed.GetValueOrDefault() != downed || row.Colonist is null || !row.Colonist.GetValueOrDefault())
             {
                 return unknown;
             }
@@ -312,24 +312,24 @@ public static partial class ObservationPackage
                 {
                     Conditions = conditions,
                     LifeThreatening = lifeThreatening,
-                    NeedsRest = Optional(h.HasShouldSeekMedicalRest, h.ShouldSeekMedicalRest),
-                    NeedsTend = Optional(h.HasNeedsTend, h.NeedsTend),
+                    NeedsRest = Optional(h.ShouldSeekMedicalRest is not null, h.ShouldSeekMedicalRest.GetValueOrDefault()),
+                    NeedsTend = Optional(h.NeedsTend is not null, h.NeedsTend.GetValueOrDefault()),
                 };
                 var c = h.HediffCompleteness;
                 // A visible-only or incomplete list cannot prove that bad conditions have resolved. Other health
                 // details remain independent evidence.
-                if (c is not null && c.Filtered == 0 && h.HasHiddenHediffs && h.HiddenHediffs == 0 && !HasIssue(h.Issues, "hediffs"))
+                if (c is not null && c.Filtered.GetValueOrDefault() == 0 && h.HiddenHediffs is not null && h.HiddenHediffs.GetValueOrDefault() == 0 && !HasIssue(h.Issues, "hediffs"))
                 {
                     var bad = false;
                     var known = true;
                     foreach (var condition in h.Hediffs)
                     {
-                        if (condition is null || !condition.HasDefName)
+                        if (condition is null || condition.DefName is null)
                         {
                             known = false;
                             break;
                         }
-                        if (!catalog.HediffBad(condition.DefName).TryGetValue(out var isBad))
+                        if (!catalog.HediffBad((condition.DefName ?? "")).TryGetValue(out var isBad))
                         {
                             known = false;
                             break;

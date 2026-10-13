@@ -3,8 +3,8 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using RimGovernor.Protocol.Lifecycle;
-using RimGovernor.Protocol.Presentation;
+using RimGovernor.Contracts.Wire.Lifecycle;
+using RimGovernor.Contracts.Wire.Presentation;
 
 namespace RimGovernor.Brain.PlayerApi;
 

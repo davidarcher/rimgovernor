@@ -23,7 +23,7 @@ public static partial class ObservationPackage
             double? per;
             try
             {
-                per = RequireCatalog(catalog).RaceMeatNutrition(m.Race);
+                per = RequireCatalog(catalog).RaceMeatNutrition((m.Race ?? ""));
             }
             catch (DomainException)
             {
@@ -33,7 +33,7 @@ public static partial class ObservationPackage
             {
                 return Unknown<double>();
             }
-            total += m.MeatAmount * nutrition;
+            total += m.MeatAmount.GetValueOrDefault() * nutrition;
         }
         return Known(total);
     }
@@ -44,18 +44,18 @@ public static partial class ObservationPackage
         Fact<double> lo = default, loOptimal = default, hiOptimal = default, hi = default;
         foreach (var d in definitions)
         {
-            if (d.Name == farm.Crop)
+            if (d.Name == (farm.Crop ?? ""))
             {
                 (lo, loOptimal, hiOptimal, hi) = (d.MinGrowthTemperature, d.MinOptimalGrowthTemperature, d.MaxOptimalGrowthTemperature, d.MaxGrowthTemperature);
             }
         }
         return new CropGrowth
         {
-            Planted = CountFact(farm.HasPlantedCells, farm.PlantedCells),
-            FertilePlanted = CountFact(farm.HasFertilePlantedCells, farm.FertilePlantedCells),
-            GrowthMean = Optional(farm.HasGrowthMean, farm.GrowthMean),
-            FertilityMean = Optional(farm.HasFertilityFactorMean, farm.FertilityFactorMean),
-            Temperature = Optional(farm.HasTemperature, farm.Temperature),
+            Planted = CountFact(farm.PlantedCells is not null, farm.PlantedCells.GetValueOrDefault()),
+            FertilePlanted = CountFact(farm.FertilePlantedCells is not null, farm.FertilePlantedCells.GetValueOrDefault()),
+            GrowthMean = Optional(farm.GrowthMean is not null, farm.GrowthMean.GetValueOrDefault()),
+            FertilityMean = Optional(farm.FertilityFactorMean is not null, farm.FertilityFactorMean.GetValueOrDefault()),
+            Temperature = Optional(farm.Temperature is not null, farm.Temperature.GetValueOrDefault()),
             MinGrowth = lo,
             MinOptimal = loOptimal,
             MaxOptimal = hiOptimal,
@@ -84,11 +84,11 @@ public static partial class ObservationPackage
             {
                 return Unknown<EquatableArray<FoodField>>();
             }
-            var crop = new CropChoice { Name = farm.Crop, Edible = Optional(farm.HasEdibleCrop, farm.EdibleCrop) };
+            var crop = new CropChoice { Name = farm.Crop ?? "", Edible = Optional(farm.EdibleCrop is not null, farm.EdibleCrop.GetValueOrDefault()) };
             var work = Unknown<double>();
             foreach (var d in definitions)
             {
-                if (d.Name != farm.Crop)
+                if (d.Name != (farm.Crop ?? ""))
                 {
                     continue;
                 }
@@ -105,10 +105,10 @@ public static partial class ObservationPackage
                     work = Known(harvest * growing / days);
                 }
             }
-            zones.TryGetValue(farm.Zone.Id, out var roof);
+            zones.TryGetValue((farm.Zone.Id ?? ""), out var roof);
             rows.Add(new FoodField
             {
-                Id = farm.Zone.Id,
+                Id = (farm.Zone.Id ?? ""),
                 Plan = new FieldPlan { Crop = crop, Sites = new FarmSitePlan { Cells = (int)growing } },
                 RemainingGrowDays = HarvestLeadDays(growth, crop.GrowDays, calendar),
                 WorkPerDay = work,
@@ -116,8 +116,8 @@ public static partial class ObservationPackage
                 {
                     ZoneCells = roof.Cells,
                     UnroofedCells = roof.Unroofed,
-                    Planted = CountFact(farm.HasPlantedCells, farm.PlantedCells),
-                    Blighted = CountFact(farm.HasBlightedPlants, farm.BlightedPlants),
+                    Planted = CountFact(farm.PlantedCells is not null, farm.PlantedCells.GetValueOrDefault()),
+                    Blighted = CountFact(farm.BlightedPlants is not null, farm.BlightedPlants.GetValueOrDefault()),
                 },
             });
         }
@@ -177,14 +177,14 @@ public static partial class ObservationPackage
         var rows = new List<FieldCrop>(farms.Count);
         foreach (var farm in farms)
         {
-            var row = new FieldCrop { Edible = Optional(farm.HasEdibleCrop, farm.EdibleCrop), GrowingCells = FarmGrowth(farm, definitions).GrowingCells() };
+            var row = new FieldCrop { Edible = Optional(farm.EdibleCrop is not null, farm.EdibleCrop.GetValueOrDefault()), GrowingCells = FarmGrowth(farm, definitions).GrowingCells() };
             if (usable)
             {
-                row = row with { GrowingCells = CountFact(farm.HasUsableCells, farm.UsableCells) };
+                row = row with { GrowingCells = CountFact(farm.UsableCells is not null, farm.UsableCells.GetValueOrDefault()) };
             }
             foreach (var definition in definitions)
             {
-                if (farm.HasCrop && definition.Name == farm.Crop)
+                if (farm.Crop is not null && definition.Name == (farm.Crop ?? ""))
                 {
                     row = row with { GrowDays = definition.GrowDays, HarvestNutrition = definition.HarvestNutrition, Demand = definition.NutritionDemandPerDay };
                     break;
@@ -204,12 +204,12 @@ public static partial class ObservationPackage
         bool ready = false, known = true;
         foreach (var bench in v.Cooking)
         {
-            if (!bench.HasUsable)
+            if (bench.Usable is null)
             {
                 known = false;
                 continue;
             }
-            if (!bench.Usable)
+            if (!bench.Usable.GetValueOrDefault())
             {
                 continue;
             }
@@ -224,11 +224,11 @@ public static partial class ObservationPackage
                 {
                     continue;
                 }
-                if (!bill.HasSuspended)
+                if (bill.Suspended is null)
                 {
                     known = false;
                 }
-                else if (!bill.Suspended)
+                else if (!bill.Suspended.GetValueOrDefault())
                 {
                     ready = true;
                 }
@@ -245,13 +245,13 @@ public static partial class ObservationPackage
     /// </summary>
     private static ProductionProduct ProductionProductOf(O.FoodProduct product, DefinitionCatalog? catalog)
     {
-        var name = product.DefName;
+        var name = (product.DefName ?? "");
         var row = new ProductionProduct
         {
             Name = name,
-            Demand = Optional(product.HasNutritionDemandPerDay, product.NutritionDemandPerDay),
-            Edible = Optional(product.HasEdible, product.Edible),
-            Storable = Optional(product.HasStorable, product.Storable),
+            Demand = Optional(product.NutritionDemandPerDay is not null, product.NutritionDemandPerDay.GetValueOrDefault()),
+            Edible = Optional(product.Edible is not null, product.Edible.GetValueOrDefault()),
+            Storable = Optional(product.Storable is not null, product.Storable.GetValueOrDefault()),
         };
         if (catalog is null)
         {
@@ -282,7 +282,7 @@ public static partial class ObservationPackage
         {
             return Unknown<HeldPrecepts>();
         }
-        return Known(new HeldPrecepts { Ideo = p.IdeoId, Defs = [.. p.Precepts] });
+        return Known(new HeldPrecepts { Ideo = p.IdeoId ?? "", Defs = [.. p.Precepts] });
     }
 
     internal static Fact<EquatableArray<ProductionBench>> ColonyProductionBenches(O.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)
@@ -297,7 +297,7 @@ public static partial class ObservationPackage
             var row = new ProductionBench { Id = bench?.Id ?? "", Definition = buildings.Entity(bench)?.DefName ?? "", Usable = usable, Butcher = butcher, Room = OptionalRef(room) };
             if (snapshot is not null)
             {
-                row = row with { Token = Optional(snapshot.HasToken, snapshot.Token) };
+                row = row with { Token = Optional(snapshot.Token is not null, (snapshot.Token ?? "")) };
             }
             var recipeRows = new List<ProductionRecipe>();
             foreach (var r in recipes)
@@ -314,20 +314,20 @@ public static partial class ObservationPackage
                     IngredientClasses = meal.IngredientClasses,
                     CookSkillFloor = meal.CookSkillFloor,
                 };
-                if (r.HasAvailableNow && r.HasAvailableOnBench)
+                if (r.AvailableNow is not null && r.AvailableOnBench is not null)
                 {
-                    recipe = recipe with { Available = Known(r.AvailableNow && r.AvailableOnBench) };
+                    recipe = recipe with { Available = Known(r.AvailableNow.GetValueOrDefault() && r.AvailableOnBench.GetValueOrDefault()) };
                 }
                 var products = new List<ProductionProduct>();
                 foreach (var p in production)
                 {
-                    if (p.Recipe != name)
+                    if ((p.Recipe ?? "") != name)
                     {
                         continue;
                     }
-                    if (p.HasAvailable)
+                    if (p.Available is not null)
                     {
-                        recipe = recipe with { Available = Known(p.Available && r.AvailableNow && r.AvailableOnBench) };
+                        recipe = recipe with { Available = Known(p.Available.GetValueOrDefault() && r.AvailableNow.GetValueOrDefault() && r.AvailableOnBench.GetValueOrDefault()) };
                     }
                     foreach (var product in p.Products)
                     {
@@ -343,17 +343,17 @@ public static partial class ObservationPackage
                 billRows.Add(new ExistingProductionBill
                 {
                     Role = role,
-                    DefaultIngredients = Optional(b.HasDefaultIngredients, b.DefaultIngredients),
-                    UnrestrictedWorker = Optional(b.HasUnrestrictedWorker, b.UnrestrictedWorker),
+                    DefaultIngredients = Optional(b.DefaultIngredients is not null, b.DefaultIngredients.GetValueOrDefault()),
+                    UnrestrictedWorker = Optional(b.UnrestrictedWorker is not null, b.UnrestrictedWorker.GetValueOrDefault()),
                     Worker = Known(b.Worker?.Id ?? ""),
-                    RepeatMode = RepeatModeFact(b.HasRepeatMode, b.RepeatMode),
+                    RepeatMode = RepeatModeFact(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
                     Ingredients = BillIngredients(b, role),
-                    Id = b.Id,
-                    Managed = Optional(b.HasManagedUnchanged, b.ManagedUnchanged),
-                    Active = BillActive(b.HasSuspended, b.Suspended),
+                    Id = b.Id ?? "",
+                    Managed = Optional(b.ManagedUnchanged is not null, b.ManagedUnchanged.GetValueOrDefault()),
+                    Active = BillActive(b.Suspended is not null, b.Suspended.GetValueOrDefault()),
                     Recipe = b.Recipe?.DefName ?? "",
-                    TargetCount = Optional(b.HasTargetCount, b.TargetCount),
-                    Forever = BillForever(b.HasRepeatMode, b.RepeatMode),
+                    TargetCount = Optional(b.TargetCount is not null, b.TargetCount.GetValueOrDefault()),
+                    Forever = BillForever(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
                     Humanlike = butcher && (b.IngredientFilter?.AllowedDefNames.Count ?? 0) > 0,
                 });
             }
@@ -361,25 +361,25 @@ public static partial class ObservationPackage
         }
         foreach (var b in v.Cooking)
         {
-            rows.Add(Add(b.Bench, b.BenchSnapshot, Optional(b.HasUsable, b.Usable), b.Recipes, b.Bills, b.Production, false, b.Room));
+            rows.Add(Add(b.Bench, b.BenchSnapshot, Optional(b.Usable is not null, b.Usable.GetValueOrDefault()), b.Recipes, b.Bills, b.Production, false, b.Room));
         }
         foreach (var b in v.Butchering)
         {
-            var row = Add(b.Bench, b.BenchSnapshot, Optional(b.HasUsable, b.Usable), b.Recipes, b.Bills, [], true, b.Room);
+            var row = Add(b.Bench, b.BenchSnapshot, Optional(b.Usable is not null, b.Usable.GetValueOrDefault()), b.Recipes, b.Bills, [], true, b.Room);
             var butchers = new List<HumanButcherCandidate>();
             foreach (var candidate in b.HumanButchers)
             {
                 var traits = new List<PawnTrait>();
                 foreach (var t in candidate.PawnTraits)
                 {
-                    traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
+                    traits.Add(ResolveTrait(catalog, new PawnTrait { Name = t.DefName ?? "", Degree = (int)t.Degree.GetValueOrDefault() }));
                 }
                 butchers.Add(new HumanButcherCandidate
                 {
                     ID = new PawnId(candidate.PawnId),
                     Traits = Known(EquatableArray.From(traits)),
                     Held = HeldPreceptsOf(pawns, candidate.PawnId),
-                    CanWork = Optional(candidate.HasCanWork, candidate.CanWork),
+                    CanWork = Optional(candidate.CanWork is not null, candidate.CanWork.GetValueOrDefault()),
                 });
             }
             rows.Add(row with { HumanCorpseNutrition = HumanCorpseNutrition(b.HumanCorpseMeat, catalog), HumanButchers = butchers });
@@ -393,19 +393,19 @@ public static partial class ObservationPackage
     /// </summary>
     internal static Fact<Calendar> ColonyCalendar(O.FoodClimate climate)
     {
-        if (!climate.HasGrowingDays || !climate.HasGrowingDaysRemaining || !climate.HasGrowingDaysUntil || !climate.HasNonGrowingDays || !climate.HasSowingNow)
+        if (climate.GrowingDays is null || climate.GrowingDaysRemaining is null || climate.GrowingDaysUntil is null || climate.NonGrowingDays is null || climate.SowingNow is null)
         {
             return Unknown<Calendar>();
         }
         var c = new Calendar
         {
-            Season = climate.Season,
-            DayOfYear = climate.DayOfYear,
-            GrowingDays = climate.GrowingDays,
-            GrowingDaysRemaining = climate.GrowingDaysRemaining,
-            GrowingDaysUntil = climate.GrowingDaysUntil,
-            NonGrowingDays = climate.NonGrowingDays,
-            Sowing = climate.SowingNow,
+            Season = climate.Season ?? "",
+            DayOfYear = climate.DayOfYear.GetValueOrDefault(),
+            GrowingDays = climate.GrowingDays.GetValueOrDefault(),
+            GrowingDaysRemaining = climate.GrowingDaysRemaining.GetValueOrDefault(),
+            GrowingDaysUntil = climate.GrowingDaysUntil.GetValueOrDefault(),
+            NonGrowingDays = climate.NonGrowingDays.GetValueOrDefault(),
+            Sowing = climate.SowingNow.GetValueOrDefault(),
         };
         return c.Valid() ? Known(c) : Unknown<Calendar>();
     }
@@ -420,12 +420,12 @@ public static partial class ObservationPackage
         var known = true;
         foreach (var farm in farms)
         {
-            if (!farm.HasEdibleCrop)
+            if (farm.EdibleCrop is null)
             {
                 known = false;
                 continue;
             }
-            if (!farm.EdibleCrop)
+            if (!farm.EdibleCrop.GetValueOrDefault())
             {
                 continue;
             }

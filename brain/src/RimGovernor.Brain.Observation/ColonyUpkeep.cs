@@ -10,7 +10,7 @@ public static partial class ObservationPackage
     {
         var buildings = tables.Buildings;
         var r = new UpkeepObservation();
-        var u = v.Upkeep?.Observed;
+        var u = v.Upkeep?.Outcome?.Observed;
         if (u is null)
         {
             return r;
@@ -22,11 +22,11 @@ public static partial class ObservationPackage
             var medical = new Dictionary<string, bool>(StringComparer.Ordinal);
             foreach (var bed in u.Beds)
             {
-                medical[bed.Bed?.Id ?? ""] = bed.Medical;
+                medical[bed.Bed?.Id ?? ""] = bed.Medical.GetValueOrDefault();
             }
             foreach (var item in u.Structures)
             {
-                if (!buildings.TryGetRow(item.Building, out var b) || !item.HasHome || b is null || !b.HasHitPoints || !b.HasMaxHitPoints)
+                if (!buildings.TryGetRow(item.Building, out var b) || item.Home is null || b is null || b.HitPoints is null || b.MaxHitPoints is null)
                 {
                     known = false;
                     break;
@@ -49,9 +49,9 @@ public static partial class ObservationPackage
                     Id = item.Building?.Id ?? "",
                     Definition = b.Building?.DefName ?? "",
                     Cell = CellOf(b.Building?.Position),
-                    Home = item.Home,
-                    HitPoints = b.HitPoints,
-                    MaxHitPoints = b.MaxHitPoints,
+                    Home = item.Home.GetValueOrDefault(),
+                    HitPoints = b.HitPoints.GetValueOrDefault(),
+                    MaxHitPoints = b.MaxHitPoints.GetValueOrDefault(),
                     Priority = priority,
                 });
             }
@@ -66,12 +66,12 @@ public static partial class ObservationPackage
             var known = true;
             foreach (var item in u.Fires)
             {
-                if (!item.HasHome)
+                if (item.Home is null)
                 {
                     known = false;
                     break;
                 }
-                rows.Add(new UpkeepFire { Id = item.Fire?.Id ?? "", Home = item.Home, Size = Optional(item.HasSize, item.Size) });
+                rows.Add(new UpkeepFire { Id = item.Fire?.Id ?? "", Home = item.Home.GetValueOrDefault(), Size = Optional(item.Size is not null, item.Size.GetValueOrDefault()) });
             }
             if (known)
             {
@@ -84,7 +84,7 @@ public static partial class ObservationPackage
             var known = true;
             foreach (var item in u.Filth)
             {
-                if (!item.HasHome || !item.HasThickness)
+                if (item.Home is null || item.Thickness is null)
                 {
                     known = false;
                     break;
@@ -95,10 +95,10 @@ public static partial class ObservationPackage
                     Id = item.Filth?.Id ?? "",
                     Definition = head?.DefName ?? "",
                     Cell = CellOf(head?.Position),
-                    Home = item.Home,
-                    Room = item.RoomRole,
+                    Home = item.Home.GetValueOrDefault(),
+                    Room = item.RoomRole ?? "",
                     RoomId = OptionalRef(item.Room),
-                    Thickness = item.Thickness,
+                    Thickness = item.Thickness.GetValueOrDefault(),
                 });
             }
             if (known)
@@ -137,7 +137,7 @@ public static partial class ObservationPackage
     /// </summary>
     private static Fact<FlooringObservation> ColonyFlooring(O.FlooringSection? section, O.RoutesSection? routes, DefinitionCatalog? catalog)
     {
-        var f = section?.Observed;
+        var f = section?.Outcome?.Observed;
         if (f is null)
         {
             return default;
@@ -171,14 +171,14 @@ public static partial class ObservationPackage
         foreach (var room in f.Rooms)
         {
             var output = new FloorRoom { Id = room.Room?.Id ?? "" };
-            if (room.HasRole)
+            if (room.Role is not null)
             {
                 output = output with { Role = Known(WireParse<RoomRole>(room.Role)) };
             }
             var cells = new List<FloorCell>();
             foreach (var cell in room.Cells)
             {
-                if (!cell.HasTerrain)
+                if (cell.Terrain is null)
                 {
                     return default;
                 }
@@ -186,7 +186,7 @@ public static partial class ObservationPackage
                 {
                     throw new ObservationContractException($"flooring cell stands on terrain {cell.Terrain}, which the catalog has no row for");
                 }
-                cells.Add(new FloorCell { Cell = CellOf(cell.Cell), Terrain = cell.Terrain, Pending = cell.Pending });
+                cells.Add(new FloorCell { Cell = CellOf(cell.Cell), Terrain = cell.Terrain, Pending = cell.Pending ?? "" });
             }
             rooms.Add(output with { Cells = [.. cells] });
         }
@@ -199,57 +199,57 @@ public static partial class ObservationPackage
     /// </summary>
     private static Fact<RoutesObservation> ColonyRoutes(O.RoutesSection? section)
     {
-        var f = section?.Observed;
+        var f = section?.Outcome?.Observed;
         if (f is null)
         {
             return default;
         }
         var facilities = new List<RouteFacility>();
         var traffic = new List<TrafficCell>();
-        var r = new RoutesObservation { Pawns = [.. f.PawnIds], TrafficSamples = f.TrafficSamples };
-        if (f.HasTrafficSinceTick)
+        var r = new RoutesObservation { Pawns = [.. f.PawnIds], TrafficSamples = f.TrafficSamples.GetValueOrDefault() };
+        if (f.TrafficSinceTick is not null)
         {
             r = r with { TrafficSince = Known(new Tick((long)f.TrafficSinceTick)) };
         }
         foreach (var row in f.Facilities)
         {
-            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = RouteKindName(row.Kind), Cell = CellOf(row.Cell) };
+            var output = new RouteFacility { Id = row.Facility?.Id ?? "", Kind = RouteKindName(row.Kind.GetValueOrDefault()), Cell = CellOf(row.Cell) };
             if (row.Room is not null)
             {
-                output = output with { Room = Known(row.Room.Id) };
+                output = output with { Room = Known(row.Room.Id ?? "") };
             }
             var travels = new List<RouteTravel>();
             foreach (var t in row.Travel)
             {
-                if (!t.HasReachable)
+                if (t.Reachable is null)
                 {
                     return default;
                 }
-                var travel = new RouteTravel { Pawn = t.PawnId, Reachable = t.Reachable, Skipped = t.PathSkipped };
-                if (t.HasPathCost)
+                var travel = new RouteTravel { Pawn = t.PawnId ?? "", Reachable = t.Reachable.GetValueOrDefault(), Skipped = t.PathSkipped.GetValueOrDefault() };
+                if (t.PathCost is not null)
                 {
-                    travel = travel with { Cost = Known(t.PathCost) };
+                    travel = travel with { Cost = Known(t.PathCost.GetValueOrDefault()) };
                 }
-                if (t.HasPathCells)
+                if (t.PathCells is not null)
                 {
-                    travel = travel with { Cells = Known(t.PathCells) };
+                    travel = travel with { Cells = Known(t.PathCells.GetValueOrDefault()) };
                 }
                 travels.Add(travel);
             }
             var breaches = new List<RouteBreach>();
             foreach (var b in row.Breaches)
             {
-                breaches.Add(new RouteBreach { Cell = CellOf(b.Cell), Edifice = b.Edifice, Pending = b.Pending, Distance = b.Distance });
+                breaches.Add(new RouteBreach { Cell = CellOf(b.Cell), Edifice = b.Edifice ?? "", Pending = b.Pending ?? "", Distance = b.Distance.GetValueOrDefault() });
             }
             facilities.Add(output with { Travel = [.. travels], Breaches = [.. breaches] });
         }
         foreach (var t in f.Traffic)
         {
-            if (!t.HasSamples || !t.HasTerrain || !t.HasHome || !TrafficLayerOf(t.Layer, out var layer))
+            if (t.Samples is null || t.Terrain is null || t.Home is null || !TrafficLayerOf(t.Layer, out var layer))
             {
                 return default;
             }
-            traffic.Add(new TrafficCell { Cell = CellOf(t.Cell), Layer = layer, Samples = t.Samples, Terrain = t.Terrain, Home = t.Home, Pending = t.Pending });
+            traffic.Add(new TrafficCell { Cell = CellOf(t.Cell), Layer = layer, Samples = t.Samples.GetValueOrDefault(), Terrain = t.Terrain ?? "", Home = t.Home.GetValueOrDefault(), Pending = t.Pending ?? "" });
         }
         return Known(r with { Facilities = [.. facilities], Traffic = [.. traffic] });
     }
@@ -285,7 +285,7 @@ public static partial class ObservationPackage
     /// </summary>
     private static Fact<LightingObservation> ColonyLighting(O.LightingSection? section, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var l = section?.Observed;
+        var l = section?.Outcome?.Observed;
         if (l is null)
         {
             return default;
@@ -293,7 +293,7 @@ public static partial class ObservationPackage
         var cells = new List<WorkLightCell>();
         foreach (var row in l.WorkCells)
         {
-            if (!row.HasGlow || !row.HasRoofed || buildings.Entity(row.Bench) is not { } head)
+            if (row.Glow is null || row.Roofed is null || buildings.Entity(row.Bench) is not { } head)
             {
                 return default;
             }
@@ -305,10 +305,10 @@ public static partial class ObservationPackage
             cells.Add(new WorkLightCell
             {
                 Bench = row.Bench?.Id ?? "",
-                Definition = head.DefName,
+                Definition = head.DefName ?? "",
                 Cell = CellOf(row.Cell),
-                Glow = row.Glow,
-                Roofed = row.Roofed,
+                Glow = row.Glow.GetValueOrDefault(),
+                Roofed = row.Roofed.GetValueOrDefault(),
                 Room = OptionalRef(row.Room),
                 LightSensitive = sensitive,
             });
@@ -316,27 +316,27 @@ public static partial class ObservationPackage
         var lamps = new List<Lamp>();
         foreach (var row in l.Lamps)
         {
-            if (!buildings.TryGetRow(row.Building, out var b) || !row.HasLit || b is null)
+            if (!buildings.TryGetRow(row.Building, out var b) || row.Lit is null || b is null)
             {
                 return default;
             }
             var reference = b.Building;
             var radius = RequireCatalog(catalog).GlowRadius(reference?.DefName ?? "")
                 ?? throw new DomainException($"lamp {reference?.Id}: def {reference?.DefName} has no glower comp");
-            var s = b.Service;
+            var s = b.Service ?? new O.BuildingServiceState();
             lamps.Add(new Lamp
             {
                 Id = reference?.Id ?? "",
                 Definition = reference?.DefName ?? "",
                 Cell = CellOf(reference?.Position),
                 Radius = radius,
-                Lit = row.Lit,
+                Lit = row.Lit.GetValueOrDefault(),
                 Room = OptionalRef(row.Room),
-                Powered = Optional(s.HasPowerOn, s.PowerOn),
-                Connected = Optional(s.HasConnected, s.Connected),
-                SwitchedOn = Optional(s.HasSwitchedOn, s.SwitchedOn),
-                OutOfFuel = Optional(s.HasOutOfFuel, s.OutOfFuel),
-                BrokenDown = Optional(s.HasBrokenDown, s.BrokenDown),
+                Powered = Optional(s.PowerOn is not null, s.PowerOn.GetValueOrDefault()),
+                Connected = Optional(s.Connected is not null, s.Connected.GetValueOrDefault()),
+                SwitchedOn = Optional(s.SwitchedOn is not null, s.SwitchedOn.GetValueOrDefault()),
+                OutOfFuel = Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
+                BrokenDown = Optional(s.BrokenDown is not null, s.BrokenDown.GetValueOrDefault()),
                 FuelDefinitions = RequireCatalog(catalog).RefuelFuels(reference?.DefName ?? ""),
             });
         }

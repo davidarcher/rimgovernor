@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Lifecycle;
 namespace RimGovernor.Brain.Observation;
 
 public static partial class ObservationPackage
@@ -17,8 +18,8 @@ public static partial class ObservationPackage
             Colony = new ColonyId(context!.Identity?.ColonyId ?? ""),
             Map = new MapId(context.Identity?.MapId ?? 0),
             Load = new LoadId(context.Identity?.LoadToken ?? ""),
-            Tick = new Tick((long)context.Tick),
-            NativeGeneration = context.HasNativeGeneration ? Known(new NativeGeneration(context.NativeGeneration)) : default,
+            Tick = new Tick((long)context.Tick.GetValueOrDefault()),
+            NativeGeneration = context.NativeGeneration is not null ? Known(new NativeGeneration(context.NativeGeneration.GetValueOrDefault())) : default,
         };
         result.Validate();
         return result;
@@ -30,17 +31,17 @@ public static partial class ObservationPackage
         {
             throw new ObservationContractException("missing identity");
         }
-        switch (reply.OutcomeCase)
+        switch (reply.Outcome)
         {
-            case L.IdentityReply.OutcomeOneofCase.Loaded:
+            case IdentityReplyOutcome.LoadedCase:
             {
-                var loaded = reply.Loaded ?? throw new ObservationContractException("missing loaded identity");
+                var loaded = reply.Outcome?.Loaded ?? throw new ObservationContractException("missing loaded identity");
                 var result = ContextIdentity(loaded.Context);
-                return loaded.HasPaused ? result with { Paused = Known(loaded.Paused) } : result;
+                return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
             }
-            case L.IdentityReply.OutcomeOneofCase.Unavailable:
+            case IdentityReplyOutcome.UnavailableCase:
                 throw new BridgeUnavailableException();
-            case L.IdentityReply.OutcomeOneofCase.Failure:
+            case IdentityReplyOutcome.FailureCase:
                 throw new BridgeRefusedException();
             default:
                 throw new ObservationContractException("identity outcome");
@@ -54,17 +55,17 @@ public static partial class ObservationPackage
         {
             throw new ObservationContractException("missing tick");
         }
-        switch (reply.OutcomeCase)
+        switch (reply.Outcome)
         {
-            case L.TickReply.OutcomeOneofCase.Loaded:
+            case TickReplyOutcome.LoadedCase:
             {
-                var loaded = reply.Loaded ?? throw new ObservationContractException("missing loaded tick");
+                var loaded = reply.Outcome?.Loaded ?? throw new ObservationContractException("missing loaded tick");
                 var result = ContextIdentity(loaded.Context);
-                return loaded.HasPaused ? result with { Paused = Known(loaded.Paused) } : result;
+                return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
             }
-            case L.TickReply.OutcomeOneofCase.Unavailable:
+            case TickReplyOutcome.UnavailableCase:
                 throw new BridgeUnavailableException();
-            case L.TickReply.OutcomeOneofCase.Failure:
+            case TickReplyOutcome.FailureCase:
                 throw new BridgeRefusedException();
             default:
                 throw new ObservationContractException("tick outcome");

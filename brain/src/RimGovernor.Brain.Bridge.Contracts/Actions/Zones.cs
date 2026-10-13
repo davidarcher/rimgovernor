@@ -1,4 +1,4 @@
-using Op = RimGovernor.Protocol.Operations;
+using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -13,30 +13,30 @@ public static partial class BridgeFunctions
         var command = new Op.ZoneIntent
         {
             Label = zone.Label,
-            AddCells = new Op.Cells { ExplicitCells = new Op.CellList { Cells = { WireCells(zone.Cells) } } },
+            AddCells = new Op.Cells { Selection = new Op.CellList { Cells = [.. WireCells(zone.Cells)] } },
         };
         switch (zone.Kind)
         {
             case ZoneKind.Fishing:
-                command.Kind = Op.ZoneType.Fishing;
-                command.Fishing = new Op.FishingSettings { PopulationFloor = DomainConstants.FishingPopulationFloor };
+                command = command with { Kind = Op.ZoneType.Fishing };
+                command = command with { Fishing = new Op.FishingSettings { PopulationFloor = DomainConstants.FishingPopulationFloor } };
                 if (zone.ExtendId.Length != 0)
                 {
-                    command.Zone = NewRef(zone.ExtendId);
+                    command = command with { Zone = NewRef(zone.ExtendId) };
                 }
                 break;
             case ZoneKind.Stockpile:
                 // A cell-list stockpile keeps the explicit list built above.
                 if (zone.Rectangle is { Width: > 0 } rect)
                 {
-                    command.AddCells = new Op.Cells { Rectangle = new Op.Rectangle { Origin = WireCell(rect.Origin), Width = rect.Width, Height = rect.Height } };
+                    command = command with { AddCells = new Op.Cells { Selection = new Op.Rectangle { Origin = WireCell(rect.Origin), Width = rect.Width, Height = rect.Height } } };
                 }
-                command.Kind = Op.ZoneType.Stockpile;
-                command.Stockpile = StockpileSettings(zone.Filter ?? throw Contract("stockpile zone without a filter"), zone.Priority ?? throw Contract("stockpile zone without a priority"));
+                command = command with { Kind = Op.ZoneType.Stockpile };
+                command = command with { Stockpile = StockpileSettings(zone.Filter ?? throw Contract("stockpile zone without a filter"), zone.Priority ?? throw Contract("stockpile zone without a priority")) };
                 break;
             default:
-                command.Kind = Op.ZoneType.Growing;
-                command.Growing = new Op.GrowingSettings { PlantDef = zone.Crop, AllowSow = true, AllowCut = true };
+                command = command with { Kind = Op.ZoneType.Growing };
+                command = command with { Growing = new Op.GrowingSettings { PlantDef = zone.Crop, AllowSow = true, AllowCut = true } };
                 break;
         }
         return command;
@@ -71,25 +71,25 @@ public static partial class BridgeFunctions
                 _ => Op.FilterPreset.Unspecified,
             },
         };
-        var patch = new Op.FilterPatch { Allow = { FilterSelectors(filter.Allow) }, Disallow = { FilterSelectors(filter.Disallow) } };
+        var patch = new Op.FilterPatch { Allow = [.. FilterSelectors(filter.Allow)], Disallow = [.. FilterSelectors(filter.Disallow)] };
         if (filter.HitPoints is { } hitPoints)
         {
-            patch.HitPointsMin = hitPoints.Min;
-            patch.HitPointsMax = hitPoints.Max;
+            patch = patch with { HitPointsMin = hitPoints.Min };
+            patch = patch with { HitPointsMax = hitPoints.Max };
         }
         if (filter.QualityRange is { } quality)
         {
-            patch.QualityMin = Domain.Wire.Name(quality.Min);
-            patch.QualityMax = Domain.Wire.Name(quality.Max);
+            patch = patch with { QualityMin = Domain.Wire.Name(quality.Min) };
+            patch = patch with { QualityMax = Domain.Wire.Name(quality.Max) };
         }
-        if (patch.Allow.Count != 0 || patch.Disallow.Count != 0 || patch.HasHitPointsMin || patch.HasQualityMin)
+        if (patch.Allow.Count != 0 || patch.Disallow.Count != 0 || patch.HitPointsMin is not null || patch.QualityMin is not null)
         {
-            settings.Filter = patch;
+            settings = settings with { Filter = patch };
         }
         return settings;
     }
 
-    private static List<Op.FilterSelector> FilterSelectors(IEnumerable<FilterSelector> rows)
+    private static List<Op.FilterSelector> FilterSelectors(EquatableArray<FilterSelector> rows)
     {
         var output = new List<Op.FilterSelector>();
         foreach (var s in rows)
@@ -97,20 +97,20 @@ public static partial class BridgeFunctions
             switch (s.Kind)
             {
                 case SelectorKind.ThingDef:
-                    output.Add(new Op.FilterSelector { ThingDef = s.Name });
+                    output.Add(new Op.FilterSelector { Definition = new Op.FilterSelectorDefinition.ThingDefCase(s.Name) });
                     break;
                 case SelectorKind.CategoryDef:
-                    output.Add(new Op.FilterSelector { CategoryDef = s.Name });
+                    output.Add(new Op.FilterSelector { Definition = new Op.FilterSelectorDefinition.CategoryDefCase(s.Name) });
                     break;
                 case SelectorKind.SpecialFilter:
-                    output.Add(new Op.FilterSelector { SpecialFilterDef = s.Name });
+                    output.Add(new Op.FilterSelector { Definition = new Op.FilterSelectorDefinition.SpecialFilterDefCase(s.Name) });
                     break;
             }
         }
         return output;
     }
 
-    private static Op.Action ZoneAction(Op.ZoneIntent intent) => new() { Zone = intent };
+    private static Op.Action ZoneAction(Op.ZoneIntent intent) => new() { Intent = intent };
 
     /// <summary>Go's <c>zoneCreateAction</c>: the create shape of the zone arm for one zone_create, the configuration without a census token; native checks the ground live.</summary>
     private static Op.Action ZoneCreateAction(DomainAction action) =>
@@ -128,15 +128,15 @@ public static partial class BridgeFunctions
     private static Op.Action ZoneCellsAction(DomainAction action)
     {
         var e = action.ZoneCellEdit ?? throw Contract("not a zone cell edit action");
-        var selection = new Op.Cells { ExplicitCells = new Op.CellList { Cells = { WireCells(e.Cells) } } };
+        var selection = new Op.Cells { Selection = new Op.CellList { Cells = [.. WireCells(e.Cells)] } };
         var intent = new Op.ZoneIntent { Zone = NewRef(e.Zone) };
         if (e.Mode == CellEditMode.Remove)
         {
-            intent.RemoveCells = selection;
+            intent = intent with { RemoveCells = selection };
         }
         else
         {
-            intent.AddCells = selection;
+            intent = intent with { AddCells = selection };
         }
         return ZoneAction(intent);
     }
@@ -166,21 +166,21 @@ public static partial class BridgeFunctions
         var intent = new Op.AreaIntent { Operation = operation };
         if (v.PollutionClear)
         {
-            intent.PollutionClear = true;
+            intent = intent with { PollutionClear = true };
         }
         else if (v.Home)
         {
-            intent.Home = true;
+            intent = intent with { Home = true };
         }
         else
         {
-            intent.Key = v.Key;
+            intent = intent with { Key = v.Key };
         }
         foreach (var r in v.Rects)
         {
-            intent.Rects.Add(new Op.AreaRect { MinX = r.MinX, MinZ = r.MinZ, MaxX = r.MaxX, MaxZ = r.MaxZ });
+            intent = intent with { Rects = [.. intent.Rects, new Op.AreaRect { MinX = r.MinX, MinZ = r.MinZ, MaxX = r.MaxX, MaxZ = r.MaxZ }] };
         }
-        return new Op.Action { Area = intent };
+        return new Op.Action { Intent = intent };
     }
 
     /// <summary>Go's <c>policyPruneAction</c>: the PolicyPruneIntent of one database; native reassigns holders to their own per-pawn policy, then deletes (NativePolicyPrune.cs).</summary>
@@ -196,27 +196,27 @@ public static partial class BridgeFunctions
             PolicyDatabase.AllowedArea => Op.PolicyDatabase.AllowedArea,
             _ => Op.PolicyDatabase.Unspecified,
         };
-        return new Op.Action { PolicyPrune = new Op.PolicyPruneIntent { Database = database, DeleteIds = { v.Ids } } };
+        return new Op.Action { Intent = new Op.PolicyPruneIntent { Database = database, DeleteIds = [.. v.Ids] } };
     }
 
     /// <summary>Go's <c>buildRoofAction</c>: the BuildRoofIntent over canonical cells. Native designates vanilla BuildRoof live (NativeBuildRoof.cs).</summary>
     private static Op.Action BuildRoofAction(DomainAction action)
     {
         var v = action.BuildRoof ?? throw Contract("not a build roof action");
-        return new Op.Action { BuildRoof = new Op.BuildRoofIntent { Cells = { WireCells(v.Cells) } } };
+        return new Op.Action { Intent = new Op.BuildRoofIntent { Cells = [.. WireCells(v.Cells)] } };
     }
 
     /// <summary>Go's <c>removeRoofAction</c>: the RemoveRoofIntent over canonical cells. Native designates vanilla RemoveRoof live (NativeRemoveRoof.cs).</summary>
     private static Op.Action RemoveRoofAction(DomainAction action)
     {
         var v = action.RemoveRoof ?? throw Contract("not a remove roof action");
-        return new Op.Action { RemoveRoof = new Op.RemoveRoofIntent { Cells = { WireCells(v.Cells) } } };
+        return new Op.Action { Intent = new Op.RemoveRoofIntent { Cells = [.. WireCells(v.Cells)] } };
     }
 
     /// <summary>Go's <c>areaPlantCutAction</c>: the AreaPlantCutIntent over canonical cells. Native designates the cells' non-crop plants live (NativeAreaPlantCut.cs).</summary>
     private static Op.Action AreaPlantCutAction(DomainAction action)
     {
         var v = action.AreaPlantCut ?? throw Contract("not an area plant cut action");
-        return new Op.Action { AreaPlantCut = new Op.AreaPlantCutIntent { Cells = { WireCells(v.Cells) } } };
+        return new Op.Action { Intent = new Op.AreaPlantCutIntent { Cells = [.. WireCells(v.Cells)] } };
     }
 }

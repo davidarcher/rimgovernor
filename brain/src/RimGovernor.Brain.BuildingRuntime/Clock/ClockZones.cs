@@ -22,8 +22,8 @@ internal sealed class ZoneRefresher(IZonesNative native, FactStore store) : IZon
     {
         var ok = FactStore.Read<ZonesRead>(store, FactSection.Zones, out var held);
         ok = ok && store.Scope == Scope
-            && held.Value.Context?.Identity?.ColonyId == id.ColonyId
-            && held.Value.Context?.Identity?.MapId == id.MapId;
+            && (held.Value.Context?.Identity?.ColonyId ?? "") == (id.ColonyId ?? "")
+            && (held.Value.Context?.Identity?.MapId).GetValueOrDefault() == id.MapId.GetValueOrDefault();
         if (ok && (_refreshed || !Review))
         {
             return held;

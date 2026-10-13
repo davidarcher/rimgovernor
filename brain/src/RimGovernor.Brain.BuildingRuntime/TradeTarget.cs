@@ -7,14 +7,14 @@ internal static partial class BuildingRuntimePackage
     /// <summary>The closed participant a wire trade target names; an unset target reads as the empty map participant.</summary>
     internal static TradeParticipant TradeParticipantOf(C.TradeTarget? target)
     {
-        switch (target?.KindCase)
+        switch (target?.Kind)
         {
-            case C.TradeTarget.KindOneofCase.MapTrader:
-                return new TradeParticipant(TradeParticipantKind.Map, target.MapTrader.TraderId);
-            case C.TradeTarget.KindOneofCase.OrbitalShip:
-                return new TradeParticipant(TradeParticipantKind.Orbital, target.OrbitalShip.ShipId);
-            case C.TradeTarget.KindOneofCase.Settlement:
-                return new TradeParticipant(TradeParticipantKind.Settlement, target.Settlement.SettlementId, target.Settlement.CaravanId);
+            case C.TradeTargetKind.MapTraderCase { Value: var map }:
+                return new TradeParticipant(TradeParticipantKind.Map, map.TraderId ?? "");
+            case C.TradeTargetKind.OrbitalShipCase { Value: var ship }:
+                return new TradeParticipant(TradeParticipantKind.Orbital, ship.ShipId ?? "");
+            case C.TradeTargetKind.SettlementCase { Value: var settlement }:
+                return new TradeParticipant(TradeParticipantKind.Settlement, settlement.SettlementId ?? "", settlement.CaravanId ?? "");
             default:
                 return new TradeParticipant(TradeParticipantKind.Map, "");
         }

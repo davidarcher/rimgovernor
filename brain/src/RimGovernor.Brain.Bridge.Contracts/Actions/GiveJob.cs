@@ -1,4 +1,4 @@
-using Op = RimGovernor.Protocol.Operations;
+using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -57,11 +57,11 @@ public static partial class BridgeFunctions
         }
         return new Op.Action
         {
-            GiveJob = new Op.GiveJobIntent
+            Intent = new Op.GiveJobIntent
             {
                 Pawn = NewRef(pawn.Value),
                 Job = job,
-                Targets = { NewRefs(targets) },
+                Targets = [.. NewRefs(targets)],
             },
         };
     }
@@ -74,8 +74,7 @@ public static partial class BridgeFunctions
     public static Op.Action PrioritizedJob(PawnId pawn, string job, string target)
     {
         var output = GiveJob(pawn, job, target);
-        output.GiveJob.Options = new Op.GiveJobOptions { Prioritized = true };
-        return output;
+        return output with { Intent = (output.Intent?.GiveJob ?? new Op.GiveJobIntent()) with { Options = new Op.GiveJobOptions { Prioritized = true } } };
     }
 
     /// <summary>Go's <c>draftAction</c>: drafts one plan-owned pawn.</summary>
@@ -85,7 +84,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("not a draft action");
         }
-        return new Op.Action { Draft = new Op.DraftIntent { PawnId = v.Pawn.Value, Drafted = true } };
+        return new Op.Action { Intent = new Op.DraftIntent { PawnId = v.Pawn.Value, Drafted = true } };
     }
 
     private static Op.Action SubdueAction(DomainAction action)
@@ -196,7 +195,7 @@ public static partial class BridgeFunctions
         }
         return new Op.Action
         {
-            GiveJob = new Op.GiveJobIntent { Pawn = NewRef(v.Pawn.Value), Options = new Op.GiveJobOptions { RelieveNeed = need } },
+            Intent = new Op.GiveJobIntent { Pawn = NewRef(v.Pawn.Value), Options = new Op.GiveJobOptions { RelieveNeed = need } },
         };
     }
 

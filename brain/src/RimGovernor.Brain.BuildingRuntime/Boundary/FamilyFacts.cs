@@ -15,13 +15,13 @@ public static class CaptureFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            Prisoner = Boundary.FactBool(row.HasPrisoner, row.Prisoner),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Prisoner = Boundary.FactBool(row.Prisoner is not null, row.Prisoner.GetValueOrDefault()),
         };
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.HasDefName)
+        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
         {
-            facts = facts with { ExistingJobDef = Known(job.DefName) };
+            facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
         }
         return facts;
     }
@@ -36,21 +36,21 @@ public static class RescueFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
-            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
+            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
         };
         if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs") && !Boundary.IssueField(job.Issues, "def_name"))
         {
             facts = facts with
             {
-                PlayerForced = Boundary.FactBool(job.HasPlayerForced, job.PlayerForced),
-                QueuedJobs = Boundary.FactUint(job.HasQueuedJobs, job.QueuedJobs),
+                PlayerForced = Boundary.FactBool(job.PlayerForced is not null, job.PlayerForced.GetValueOrDefault()),
+                QueuedJobs = Boundary.FactUint(job.QueuedJobs is not null, job.QueuedJobs.GetValueOrDefault()),
             };
-            if (job.HasDefName)
+            if (job.DefName is not null)
             {
-                facts = facts with { ExistingJobDef = Known(job.DefName) };
+                facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
             }
         }
         return facts;
@@ -62,17 +62,17 @@ public static class RescueFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            InBed = Boundary.FactBool(row.HasInBed, row.InBed),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            InBed = Boundary.FactBool(row.InBed is not null, row.InBed.GetValueOrDefault()),
         };
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.HasDefName)
+        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
         {
-            facts = facts with { ExistingJobDef = Known(job.DefName) };
+            facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
         }
-        if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health") && health.HasBedId)
+        if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health") && health.BedId is not null)
         {
-            facts = facts with { BedID = Known(health.BedId) };
+            facts = facts with { BedID = Known((health.BedId ?? "")) };
         }
         return facts;
     }
@@ -85,14 +85,14 @@ public static class TendFacts
     {
         foreach (var s in skills)
         {
-            if (s is null || !s.HasDefName)
+            if (s is null || s.DefName is null)
             {
                 continue;
             }
-            if (s.DefName == "Medicine")
+            if ((s.DefName ?? "") == "Medicine")
             {
-                var disabled = s.HasDisabled ? Known(s.Disabled) : Unknown<bool>();
-                var level = s.HasLevel ? Known(s.Level) : Unknown<int>();
+                var disabled = s.Disabled is not null ? Known(s.Disabled.GetValueOrDefault()) : Unknown<bool>();
+                var level = s.Level is not null ? Known(s.Level.GetValueOrDefault()) : Unknown<int>();
                 return (level, disabled);
             }
         }
@@ -107,13 +107,13 @@ public static class TendFacts
             {
                 continue;
             }
-            if (w.DefName == "Doctor")
+            if ((w.DefName ?? "") == "Doctor")
             {
-                if (!w.HasDisabled || !w.HasPriority)
+                if (w.Disabled is null || w.Priority is null)
                 {
                     return (Unknown<bool>(), Unknown<bool>());
                 }
-                return (Known(!w.Disabled), Known(w.Priority == 0));
+                return (Known(!w.Disabled.GetValueOrDefault()), Known(w.Priority.GetValueOrDefault() == 0));
             }
         }
         return (Unknown<bool>(), Unknown<bool>());
@@ -125,21 +125,21 @@ public static class TendFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            Drafted = Boundary.FactBool(row.HasDrafted, row.Drafted),
-            MentalState = Boundary.FactPresence(row.HasMentalState, row.Issues, "mental_state"),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
+            MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
         };
         if (row.Job is { } job && !Boundary.IssueField(job.Issues, "player_forced") && !Boundary.IssueField(job.Issues, "queued_jobs") && !Boundary.IssueField(job.Issues, "def_name"))
         {
             facts = facts with
             {
-                PlayerForced = Boundary.FactBool(job.HasPlayerForced, job.PlayerForced),
-                QueuedJobs = Boundary.FactUint(job.HasQueuedJobs, job.QueuedJobs),
+                PlayerForced = Boundary.FactBool(job.PlayerForced is not null, job.PlayerForced.GetValueOrDefault()),
+                QueuedJobs = Boundary.FactUint(job.QueuedJobs is not null, job.QueuedJobs.GetValueOrDefault()),
             };
-            if (job.HasDefName)
+            if (job.DefName is not null)
             {
-                facts = facts with { ExistingJobDef = Known(job.DefName) };
+                facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
             }
         }
         if (row.Biography is { } biography && !Boundary.IssueField(biography.Issues, "skills"))
@@ -156,8 +156,8 @@ public static class TendFacts
         {
             facts = facts with
             {
-                ControlEligible = Boundary.FactBool(doctor.HasControlEligible, doctor.ControlEligible),
-                TendCapacities = Boundary.FactBool(doctor.HasCapacitiesOk, doctor.CapacitiesOk),
+                ControlEligible = Boundary.FactBool(doctor.ControlEligible is not null, doctor.ControlEligible.GetValueOrDefault()),
+                TendCapacities = Boundary.FactBool(doctor.CapacitiesOk is not null, doctor.CapacitiesOk.GetValueOrDefault()),
             };
         }
         return facts;
@@ -174,11 +174,11 @@ public static class TendFacts
         foreach (var row in rows)
         {
             var doctor = row.TendDoctor;
-            if (row.Pawn is null || doctor is null || doctor.ReachSkipped || Boundary.IssueField(doctor.Issues, "reachable_pawn_ids"))
+            if (row.Pawn is null || doctor is null || doctor.ReachSkipped.GetValueOrDefault() || Boundary.IssueField(doctor.Issues, "reachable_pawn_ids"))
             {
                 continue;
             }
-            reachable[new PawnId(row.Pawn.Id)] = [.. doctor.ReachablePawnIds.Select(id => new PawnId(id))];
+            reachable[new PawnId((row.Pawn.Id ?? ""))] = [.. doctor.ReachablePawnIds.Select(id => new PawnId(id))];
         }
         return TendReachability.Observe(reachable);
     }
@@ -189,30 +189,30 @@ public static class TendFacts
         {
             Pawn = pawn,
             SnapshotToken = token,
-            Dead = Boundary.FactBool(row.HasDead, row.Dead),
-            Downed = Boundary.FactBool(row.HasDowned, row.Downed),
-            InBed = Boundary.FactBool(row.HasInBed, row.InBed),
+            Dead = Boundary.FactBool(row.Dead is not null, row.Dead.GetValueOrDefault()),
+            Downed = Boundary.FactBool(row.Downed is not null, row.Downed.GetValueOrDefault()),
+            InBed = Boundary.FactBool(row.InBed is not null, row.InBed.GetValueOrDefault()),
         };
-        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.HasDefName)
+        if (row.Job is { } job && !Boundary.IssueField(job.Issues, "def_name") && job.DefName is not null)
         {
-            facts = facts with { ExistingJobDef = Known(job.DefName) };
+            facts = facts with { ExistingJobDef = Known((job.DefName ?? "")) };
         }
         if (row.Health is { } health && !Boundary.IssueField(health.Issues, "health"))
         {
             facts = facts with
             {
-                NeedsTend = Boundary.FactBool(health.HasNeedsTend, health.NeedsTend),
-                Bleeding = Boundary.FactBool(health.HasBleeding, health.Bleeding),
-                LifeThreatening = Boundary.FactBool(health.HasLifeThreatening, health.LifeThreatening),
+                NeedsTend = Boundary.FactBool(health.NeedsTend is not null, health.NeedsTend.GetValueOrDefault()),
+                Bleeding = Boundary.FactBool(health.Bleeding is not null, health.Bleeding.GetValueOrDefault()),
+                LifeThreatening = Boundary.FactBool(health.LifeThreatening is not null, health.LifeThreatening.GetValueOrDefault()),
             };
-            if (health.HasHoursUntilDeathFromBloodLoss)
+            if (health.HoursUntilDeathFromBloodLoss is not null)
             {
-                facts = facts with { HoursUntilDeathFromBloodLoss = Known(health.HoursUntilDeathFromBloodLoss) };
+                facts = facts with { HoursUntilDeathFromBloodLoss = Known(health.HoursUntilDeathFromBloodLoss.GetValueOrDefault()) };
             }
         }
-        if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "medical_care") && settings.HasMedicalCare)
+        if (row.Settings is { } settings && !Boundary.IssueField(settings.Issues, "medical_care") && settings.MedicalCare is not null)
         {
-            facts = facts with { NoCare = Known(settings.MedicalCare == PbOperations.MedicalCare.NoCare) };
+            facts = facts with { NoCare = Known(settings.MedicalCare.GetValueOrDefault() == PbOperations.MedicalCare.NoCare) };
         }
         return facts;
     }

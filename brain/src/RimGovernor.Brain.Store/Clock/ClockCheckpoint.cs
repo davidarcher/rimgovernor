@@ -118,15 +118,15 @@ public static partial class ClockJournal
         for (var i = 0; i < pages.Count; i++)
         {
             var page = pages[i].Page;
-            if (i >= pages.Count - 8 || page.NextCursor > replay.Head.Reviewed)
+            if (i >= pages.Count - 8 || page.NextCursor.GetValueOrDefault() > replay.Head.Reviewed)
             {
                 break;
             }
-            if (page.NextCursor > replay.Head.Acknowledged && (page.Gap || page.Events.Any(e => PageInterrupts(e, page))))
+            if (page.NextCursor.GetValueOrDefault() > replay.Head.Acknowledged && (page.Gap.GetValueOrDefault() || page.Events.Any(e => PageInterrupts(e, page))))
             {
                 break;
             }
-            checkpoint = checkpoint with { Pages = checkpoint.Pages + 1, Cursor = page.NextCursor, LostCount = checkpoint.LostCount + page.LostCount };
+            checkpoint = checkpoint with { Pages = checkpoint.Pages + 1, Cursor = page.NextCursor.GetValueOrDefault(), LostCount = checkpoint.LostCount + page.LostCount.GetValueOrDefault() };
             pagesDropped++;
             eventsDropped += page.Events.Count;
         }

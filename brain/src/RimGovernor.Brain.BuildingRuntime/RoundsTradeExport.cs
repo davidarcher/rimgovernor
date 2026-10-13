@@ -356,13 +356,13 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         var seen = new HashSet<string>();
         foreach (var row in facts.Requests)
         {
-            if (row.HasEligible && !row.Eligible)
+            if (row.Eligible is not null && !row.Eligible.GetValueOrDefault())
             {
                 continue;
             }
-            if (row.TraderKind != "")
+            if ((row.TraderKind ?? "") != "")
             {
-                seen.Add(row.TraderKind);
+                seen.Add((row.TraderKind ?? ""));
             }
         }
         WorldProgressionRead progress;

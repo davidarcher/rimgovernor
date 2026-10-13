@@ -19,12 +19,12 @@ public static partial class ObservationPackage
         {
             var condition = new DisasterCondition
             {
-                Id = row.Id,
-                Definition = row.DefName,
-                Permanent = row.Permanent,
-                DisablesPower = RequireCatalog(catalog).DisablesElectricity(row.DefName),
+                Id = row.Id ?? "",
+                Definition = row.DefName ?? "",
+                Permanent = row.Permanent.GetValueOrDefault(),
+                DisablesPower = RequireCatalog(catalog).DisablesElectricity((row.DefName ?? "")),
             };
-            if (row.HasTicksLeft && !condition.Permanent && row.TicksLeft >= 0)
+            if (row.TicksLeft is not null && !condition.Permanent && row.TicksLeft.GetValueOrDefault() >= 0)
             {
                 condition = condition with { TicksLeft = row.TicksLeft };
             }
@@ -40,7 +40,7 @@ public static partial class ObservationPackage
     /// </summary>
     internal static Fact<bool> ColonyOutdoorsDark(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
-        if (!v.HasBiome)
+        if (v.Biome is null)
         {
             throw new OutdoorsDarkUnknownException();
         }
@@ -48,7 +48,7 @@ public static partial class ObservationPackage
         {
             throw new OutdoorsDarkUnknownException();
         }
-        return Known(catalog.OutdoorsPermanentlyDark(v.Biome));
+        return Known(catalog.OutdoorsPermanentlyDark((v.Biome ?? "")));
     }
 
     internal static RoundsFacts ColonyDisaster(O.ColonyFactsSnapshot v, RoundsFacts facts, Buildings buildings, DefinitionCatalog? catalog, EquatableArray<DisasterCondition> conditions, bool conditionsKnown)
@@ -58,14 +58,14 @@ public static partial class ObservationPackage
             facts = facts with { DisasterConditions = Known(conditions) };
         }
         facts = facts with { DisasterTick = new Tick((long)(v.Context?.Tick ?? 0)) };
-        if (v.Recovery?.Observed is not { } recovery || !Resolved(buildings, recovery.Buildings, r => r))
+        if (v.Recovery?.Outcome?.Observed is not { } recovery || !Resolved(buildings, recovery.Buildings, r => r))
         {
             return facts;
         }
         var restrictions = new List<RecoveryRestriction>();
         foreach (var restriction in recovery.Restrictions)
         {
-            restrictions.Add(new RecoveryRestriction(new PawnId(restriction.Pawn?.Id ?? ""), Known(restriction.AreaId)));
+            restrictions.Add(new RecoveryRestriction(new PawnId(restriction.Pawn?.Id ?? ""), Known(restriction.AreaId ?? "")));
         }
         facts = facts with { RecoverySafety = Known(new RecoverySafety { Restrictions = EquatableArray.From(restrictions) }) };
         var rows = new List<RecoveryBuilding>(recovery.Buildings.Count);
@@ -80,26 +80,26 @@ public static partial class ObservationPackage
                 throw new DomainException($"recovery building {reference.Id}: no definition catalog was loaded");
             }
             var usesHitPoints = catalog.UsesHitPoints(row.Building?.DefName ?? "");
-            var s = row.Service;
+            var s = row.Service ?? new O.BuildingServiceState();
             var b = new RecoveryBuilding
             {
-                Id = reference.Id,
+                Id = reference.Id ?? "",
                 UsesHitPoints = Known(usesHitPoints),
-                Broken = Optional(s.HasBrokenDown, s.BrokenDown),
-                Forbidden = Optional(row.Settings.HasForbidden, row.Settings.Forbidden),
-                Burning = Optional(row.HasBurning, row.Burning),
-                Fuel = Optional(s.HasFuel, s.Fuel),
-                FuelTarget = Optional(s.HasTargetFuel, s.TargetFuel),
+                Broken = Optional(s.BrokenDown is not null, s.BrokenDown.GetValueOrDefault()),
+                Forbidden = Optional(row.Settings?.Forbidden is not null, row.Settings?.Forbidden.GetValueOrDefault() ?? false),
+                Burning = Optional(row.Burning is not null, row.Burning.GetValueOrDefault()),
+                Fuel = Optional(s.Fuel is not null, s.Fuel.GetValueOrDefault()),
+                FuelTarget = Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
             };
-            if (row.HasHitPoints)
+            if (row.HitPoints is not null)
             {
                 b = b with { HitPoints = Known((long)row.HitPoints) };
             }
-            if (row.HasMaxHitPoints)
+            if (row.MaxHitPoints is not null)
             {
                 b = b with { MaxHitPoints = Known((long)row.MaxHitPoints) };
             }
-            if (s.HasFuel || s.HasTargetFuel)
+            if (s.Fuel is not null || s.TargetFuel is not null)
             {
                 b = b with { Refuelable = Known(true) };
             }
@@ -145,7 +145,7 @@ public static partial class ObservationPackage
     /// </summary>
     internal static Fact<ComfortObservation> ColonyComfort(O.ColonyFactsSnapshot v, DefinitionCatalog? catalog)
     {
-        var value = v.Upkeep?.Observed?.Comfort?.Observed;
+        var value = v.Upkeep?.Outcome?.Observed?.Comfort?.Outcome?.Observed;
         if (value is null)
         {
             return Unknown<ComfortObservation>();
@@ -157,9 +157,9 @@ public static partial class ObservationPackage
             {
                 rows.Add(new ComfortFacility
                 {
-                    Id = f.Id,
+                    Id = f.Id ?? "",
                     RoomId = f.Room?.Id ?? "",
-                    Kind = f.Kind,
+                    Kind = f.Kind ?? "",
                     AccessibleTo = PawnIdArray(RefIds(f.AccessibleTo)),
                     Users = PawnIdArray(RefIds(f.Users)),
                 });
@@ -193,7 +193,7 @@ public static partial class ObservationPackage
             {
                 adjacent.Add(CellOf(c));
             }
-            surfaces.Add(new DiningSurface { Id = s.Id, RoomId = s.Room?.Id ?? "", Adjacent = EquatableArray.From(adjacent) });
+            surfaces.Add(new DiningSurface { Id = s.Id ?? "", RoomId = s.Room?.Id ?? "", Adjacent = EquatableArray.From(adjacent) });
         }
         return Known(r with { Surfaces = EquatableArray.From(surfaces) });
     }
@@ -235,7 +235,7 @@ public static partial class ObservationPackage
     /// </summary>
     internal static Fact<EquatableArray<WasteItem>> ColonyWaste(O.ColonyFactsSnapshot v, Tables tables)
     {
-        var snapshot = v.Waste?.Observed;
+        var snapshot = v.Waste?.Outcome?.Observed;
         if (snapshot is null || !Headed(tables, snapshot.Items, row => row.Thing))
         {
             return Unknown<EquatableArray<WasteItem>>();
@@ -249,21 +249,21 @@ public static partial class ObservationPackage
                 continue;
             }
             var position = tables.Entity(row.Thing)?.Position;
-            if (position is null || !position.HasX || !position.HasZ || position.X < 0 || position.Z < 0)
+            if (position is null || position.X is null || position.Z is null || position.X < 0 || position.Z < 0)
             {
                 continue;
             }
             items.Add(new WasteItem
             {
                 Id = id,
-                Kind = WasteKindName(row.Kind),
-                State = WasteLocation(row.State),
-                Eligible = row.Eligible,
-                Cell = new Cell(position.X, position.Z),
-                CorpseOf = CorpseOf(row.CorpseClass),
-                RotStage = RotOf(row.RotStage),
+                Kind = WasteKindName(row.Kind.GetValueOrDefault()),
+                State = WasteLocation(row.State.GetValueOrDefault()),
+                Eligible = row.Eligible.GetValueOrDefault(),
+                Cell = new Cell(position.X.GetValueOrDefault(), position.Z.GetValueOrDefault()),
+                CorpseOf = CorpseOf(row.CorpseClass.GetValueOrDefault()),
+                RotStage = RotOf(row.RotStage.GetValueOrDefault()),
                 Grave = row.Grave?.Id ?? "",
-                EverBuriedInSarcophagus = row.EverBuriedInSarcophagus,
+                EverBuriedInSarcophagus = row.EverBuriedInSarcophagus.GetValueOrDefault(),
             });
         }
         return Known(EquatableArray.From(items));
@@ -317,26 +317,26 @@ public static partial class ObservationPackage
     /// </summary>
     public static MedicalReserveObservation ColonyMedicalReserve(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
-        var r = new MedicalReserveObservation { Colonists = CountFact(v.HasColonistCount, v.ColonistCount) };
+        var r = new MedicalReserveObservation { Colonists = CountFact(v.ColonistCount is not null, v.ColonistCount.GetValueOrDefault()) };
         if (!HasIssue(v.Issues, "resources"))
         {
             var rows = new List<Amount>();
             var known = true;
             foreach (var q in v.Resources)
             {
-                if (!q.HasUnits)
+                if (q.Units is null)
                 {
                     known = false;
                     break;
                 }
-                rows.Add(new Amount(new Resource(q.DefName), q.Units));
+                rows.Add(new Amount(new Resource((q.DefName ?? "")), q.Units.GetValueOrDefault()));
             }
             if (known)
             {
                 r = r with { Resources = Known(EquatableArray.From(rows)) };
             }
         }
-        var u = v.Upkeep?.Observed;
+        var u = v.Upkeep?.Outcome?.Observed;
         if (u is null || HasIssue(u.Issues, "items") || !Headed(tables, u.Items, item => item.Item))
         {
             return r;
@@ -358,7 +358,7 @@ public static partial class ObservationPackage
             {
                 continue;
             }
-            if (!item.HasCount || !item.HasForbidden)
+            if (item.Count is null || item.Forbidden is null)
             {
                 return r;
             }
@@ -366,10 +366,10 @@ public static partial class ObservationPackage
             {
                 Id = item.Item?.Id ?? "",
                 Definition = new Resource(tables.Entity(item.Item)?.DefName ?? ""),
-                Count = item.Count,
-                Forbidden = item.Forbidden,
-                Perishable = Known(item.HasRotTicks),
-                RotTicks = Optional(item.HasRotTicks, item.RotTicks),
+                Count = item.Count.GetValueOrDefault(),
+                Forbidden = item.Forbidden.GetValueOrDefault(),
+                Perishable = Known(item.RotTicks is not null),
+                RotTicks = Optional(item.RotTicks is not null, item.RotTicks.GetValueOrDefault()),
             });
         }
         return r with { Items = Known(EquatableArray.From(stacks)) };

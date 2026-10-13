@@ -226,8 +226,7 @@ public sealed partial class ClockWindowDriver
     // Validates a step read's clock status section under the enabled snapshot (Go bundleClockStatus).
     private static PbClock.Status BundleClockStatus(PbObservations.BundleSnapshot loaded, GenerationSnapshot snapshot)
     {
-        var status = loaded.ClockStatus;
-        BridgeApi.ValidateClockStatus(status, loaded.Context.Identity);
+        var status = ClockCoordinator.ValidatedStatus(loaded.ClockStatus, loaded.Context?.Identity);
         Boundary.Context(status.Context, snapshot);
         return status;
     }
@@ -235,15 +234,15 @@ public sealed partial class ClockWindowDriver
     private static bool SameWorldContext(PbObservations.BundleSnapshot loaded, ControlState state, GenerationSnapshot world) =>
         state.ObservationKnown
         && Boundary.World(state.Snapshot, world)
-        && loaded.Context.HasNativeGeneration
-        && loaded.Context.NativeGeneration == (ulong)state.Snapshot.Native.Value;
+        && loaded.Context?.NativeGeneration is { } generation
+        && generation == (ulong)state.Snapshot.Native.Value;
 
     // Whether the status shows the player running the game under a stopped clock this process no longer owes: the
     // status is stopped and not actually paused, the tick moved on since the step's, no epoch is owed, and authority
     // stands so the re-take's review can admit. A player who paused and stays paused never trips it (Go playerDriven).
     private bool PlayerDriven(PbClock.Status status, IReadOnlyList<ClockEpochObligation> epochs, ControlState state)
     {
-        if (!ClockScheduler.PlayerRunning(status) || !_scheduler.LastTickKnown || (long)status.Context.Tick <= _scheduler.LastTick)
+        if (!ClockScheduler.PlayerRunning(status) || !_scheduler.LastTickKnown || (long)(status.Context?.Tick).GetValueOrDefault() <= _scheduler.LastTick)
         {
             return false;
         }
@@ -257,11 +256,12 @@ public sealed partial class ClockWindowDriver
         var epochs = await journal.LoadClockEpochsAsync(4096, call).ConfigureAwait(false);
         var started = _clock.Now();
         var loaded = await ReadBundleAsync(call).ConfigureAwait(false);
+        var loadedContext = loaded.Context ?? throw new BridgeContractException("step read carried no context");
 
         // The player runs the game by hand under a stopped clock: every fact read while it runs is stale before the
         // review commits, and no window can be admitted against a running game. Re-take the clock once the player has
         // let go of the speed keys: pause natively; the next step plans at the paused tick.
-        if (PlayerDriven(loaded.ClockStatus, epochs, _session.State()))
+        if (loaded.ClockStatus is { } bundledStatus && PlayerDriven(bundledStatus, epochs, _session.State()))
         {
             if (!_poll.PlayerQuiet().Quiet)
             {
@@ -285,18 +285,18 @@ public sealed partial class ClockWindowDriver
                 "authority",
                 "clock re-taken from the player",
                 ("change", "retaken"),
-                ("tick", repaused.Context.Tick),
-                ("paused", repaused.HasActualPaused && repaused.ActualPaused),
+                ("tick", (repaused.Context?.Tick).GetValueOrDefault()),
+                ("paused", repaused.ActualPaused is not null && repaused.ActualPaused.GetValueOrDefault()),
                 ("pace", _scheduler.Pace.PerSecond),
-                ("stop_reason", taken.Stopped?.Reason.ToString() ?? ""));
+                ("stop_reason", taken.State?.Stopped?.Reason.ToString() ?? ""));
             run.Retaken = true;
-            _scheduler.SetLastTick((long)repaused.Context.Tick);
+            _scheduler.SetLastTick((long)(repaused.Context?.Tick).GetValueOrDefault());
             return true;
         }
 
         var state = _session.State();
-        var id = loaded.Context.Identity;
-        var world = new GenerationSnapshot { Colony = new ColonyId(id.ColonyId), Load = new LoadId(id.LoadToken), Map = new MapId(id.MapId) };
+        var id = loadedContext.Identity ?? throw new BridgeContractException("step read carried no identity");
+        var world = new GenerationSnapshot { Colony = new ColonyId((id.ColonyId ?? "")), Load = new LoadId((id.LoadToken ?? "")), Map = new MapId(id.MapId.GetValueOrDefault()) };
         var obligations = epochs.Any(owned => !ClockCoordinator.Terminal(owned.Stage));
         foreach (var v in attempts)
         {
@@ -328,7 +328,7 @@ public sealed partial class ClockWindowDriver
                 ("known", state.ObservationKnown),
                 ("held", state.Snapshot.ToString()),
                 ("observed_world", world.ToString()),
-                ("observed_generation", loaded.Context.HasNativeGeneration ? loaded.Context.NativeGeneration : 0));
+                ("observed_generation", loadedContext.NativeGeneration.GetValueOrDefault()));
             run.Cleaned = true;
             await DisableAndCleanupAsync(call).ConfigureAwait(false);
             return true;
@@ -340,7 +340,7 @@ public sealed partial class ClockWindowDriver
                 ("known", state.ObservationKnown),
                 ("held", state.Snapshot.ToString()),
                 ("observed_world", world.ToString()),
-                ("observed_generation", loaded.Context.HasNativeGeneration ? loaded.Context.NativeGeneration : 0));
+                ("observed_generation", loadedContext.NativeGeneration.GetValueOrDefault()));
             throw Failed(new AuthorityException());
         }
         PbClock.Status status;
@@ -353,18 +353,20 @@ public sealed partial class ClockWindowDriver
             ClockEvents.AuthorityLost("bundle clock status failed", ("err", e.Message));
             throw Failed(e);
         }
-        if (status.HasActualPaused && status.ActualPaused)
+        if (status.ActualPaused is not null && status.ActualPaused.GetValueOrDefault())
         {
             run.ControllerPausedAt = _clock.Now();
         }
-        if (status.Context.Tick < loaded.Context.Tick)
+        var statusContext = status.Context ?? throw new BridgeContractException("clock status carried no context");
+        var statusTick = (long)statusContext.Tick.GetValueOrDefault();
+        if (statusContext.Tick.GetValueOrDefault() < loadedContext.Tick.GetValueOrDefault())
         {
-            ClockEvents.AuthorityLost("clock status is behind the scope tick", ("status_tick", status.Context.Tick), ("scope_tick", loaded.Context.Tick));
+            ClockEvents.AuthorityLost("clock status is behind the scope tick", ("status_tick", statusContext.Tick.GetValueOrDefault()), ("scope_tick", loadedContext.Tick.GetValueOrDefault()));
             throw Failed(new EvidenceException("clock status is behind the scope tick"));
         }
-        var tick = new Tick((long)status.Context.Tick);
+        var tick = new Tick(statusTick);
 
-        if (status.StateCase is PbClock.Status.StateOneofCase.Running or PbClock.Status.StateOneofCase.Stopping)
+        if (status.State is PbClock.StatusState.RunningCase or PbClock.StatusState.StoppingCase)
         {
             return await RunningWindowAsync(step, run, status, state, attempts, epochs, obligations, call).ConfigureAwait(false);
         }
@@ -383,7 +385,7 @@ public sealed partial class ClockWindowDriver
             throw new AuthorityException();
         }
         _player.Current(call, epoch);
-        if (status.StateCase == PbClock.Status.StateOneofCase.Stopped && _combatStops.Active)
+        if (status.State is PbClock.StatusState.StoppedCase && _combatStops.Active)
         {
             _scheduler.Queue.CombatStopped();
         }
@@ -396,7 +398,7 @@ public sealed partial class ClockWindowDriver
         {
             emergency = await _native.ReadEmergencyAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             Boundary.Context(emergency.Context, state.Snapshot);
-            emergencyFacts = EmergencySnapshot.New(state.Snapshot, new Tick((long)emergency.Context!.Tick), emergency.Facts);
+            emergencyFacts = EmergencySnapshot.New(state.Snapshot, new Tick((long)emergency.Context!.Tick.GetValueOrDefault()), emergency.Facts);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -405,9 +407,9 @@ public sealed partial class ClockWindowDriver
         var colonistsKnown = emergency.Facts.ColonistsComplete.TryGetValue(out var colonistsComplete);
         FactStore.Put(
             _scheduler.Facts.Store,
-            ClockScheduler.FactScope(loaded.Context),
+            ClockScheduler.FactScope(loadedContext),
             FactSection.Emergency,
-            new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick, Complete = colonistsKnown && colonistsComplete, Source = "rimgovernor/observations_read_status" });
+            new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick.GetValueOrDefault(), Complete = colonistsKnown && colonistsComplete, Source = "rimgovernor/observations_read_status" });
         var review = await journal.ReadClockReviewAsync(_config.Profile, call).ConfigureAwait(false);
         var plan = await journal.LoadPlanAsync(state.Snapshot.Plan, call).ConfigureAwait(false);
         var (work, fingerprint) = ClockWindowWork.Census(plan, state.Snapshot);
@@ -471,7 +473,7 @@ public sealed partial class ClockWindowDriver
             work = true;
             if (step.IdleLent)
             {
-                _scheduler.WarnIdleStall((long)status.Context.Tick);
+                _scheduler.WarnIdleStall(statusTick);
             }
             start = start with { MaxTicks = Math.Min(Math.Min(start.MaxTicks, nativeWorkTicks), _scheduler.NativeWorkBudget()) };
         }
@@ -481,10 +483,10 @@ public sealed partial class ClockWindowDriver
         {
             start = start with { MaxTicks = Math.Min(start.MaxTicks, trade.NativeWorkTicks) };
         }
-        var clockState = status.StateCase switch
+        var clockState = status.State switch
         {
-            PbClock.Status.StateOneofCase.NeverStarted => ClockWindowState.NeverStarted,
-            PbClock.Status.StateOneofCase.Stopped => ClockWindowState.Stopped,
+            PbClock.StatusState.NeverStartedCase => ClockWindowState.NeverStarted,
+            PbClock.StatusState.StoppedCase => ClockWindowState.Stopped,
             _ => ClockWindowState.None,
         };
         var facts = new ClockWindowFacts
@@ -507,10 +509,10 @@ public sealed partial class ClockWindowDriver
                 Snapshot = state.Snapshot,
                 Tick = tick,
                 State = clockState,
-                ActualPaused = Boundary.FactBool(status.HasActualPaused, status.ActualPaused),
-                NativeTickBoundary = Boundary.FactBool(status.HasNativeTickBoundary, status.NativeTickBoundary),
-                DurableEvents = Boundary.FactBool(status.HasDurableEvents, status.DurableEvents),
-                NewestCursor = status.HasNewestCursor ? Known((long)status.NewestCursor) : Unknown<long>(),
+                ActualPaused = Boundary.FactBool(status.ActualPaused is not null, status.ActualPaused.GetValueOrDefault()),
+                NativeTickBoundary = Boundary.FactBool(status.NativeTickBoundary is not null, status.NativeTickBoundary.GetValueOrDefault()),
+                DurableEvents = Boundary.FactBool(status.DurableEvents is not null, status.DurableEvents.GetValueOrDefault()),
+                NewestCursor = status.NewestCursor is not null ? Known((long)status.NewestCursor.GetValueOrDefault()) : Unknown<long>(),
             },
             Obligations = new ClockWindowObligations { Complete = Known(true), OwnedEpochPending = Known(false), UnknownStartPending = Known(false) },
             WorkRemaining = Known(work),
@@ -540,32 +542,30 @@ public sealed partial class ClockWindowDriver
                 }));
             throw new HeldException("clock window refused");
         }
-        var policy = start.Policy!.Clone();
-        start = start with { Policy = policy };
+        var policy = start.Policy!;
         // No window watches attempts: a completed order is not a reason to stop the clock, the event poll carries its
         // outcome to the Worker under the running window.
         _scheduler.Facts.Remember(fingerprint);
         // A colonist already known downed is acknowledged in either mode: the native watcher otherwise stops every
         // window at zero ticks on the same casualty and the rescue never gets the ticks it needs.
-        policy.AcknowledgedDownedColonistIds.Clear();
-        policy.AcknowledgedDownedColonistIds.AddRange(decision.Downed.Select(d => d.Value));
+        policy = policy with { AcknowledgedDownedColonistIds = [.. decision.Downed.Select(d => d.Value)] };
         if (decision.Mode == ClockWindowMode.Combat)
         {
             // The native watcher stops on any unacknowledged hostile within HostileWithin; a combat window
             // acknowledges exactly the live hostiles the policy admitted and runs under the combat budget.
             run.Combat = true;
-            policy.Mode = PbClock.WatchMode.Combat;
-            policy.AcknowledgedHostileIds.Clear();
-            policy.AcknowledgedHostileIds.AddRange(decision.Hostiles.Select(h => h.Value));
+            policy = policy with { Mode = PbClock.WatchMode.Combat };
+            policy = policy with { AcknowledgedHostileIds = [.. decision.Hostiles.Select(h => h.Value)] };
             start = start with { MaxTicks = decision.MaxTicks };
             // Native stops the window on the tick an armed event happens; the combat budget is the backstop when
             // none does. The list is armed only while an admitted fight plan owns the combat: its stop is then that
             // plan's next decision and is benign. A window with no owning fight is disarmed, so a combat stop never
             // lands without a plan to answer it.
-            policy.CombatStopEvents.Clear();
-            policy.CombatStopEvents.AddRange(ClockWindowWork.ArmedStops(fightOpen));
+            policy = policy with { CombatStopEvents = [.. ClockWindowWork.ArmedStops(fightOpen)] };
         }
-        _combatStops.Admitted(status.StateCase == PbClock.Status.StateOneofCase.Stopped ? status.Stopped : null, (long)status.Context.Tick, _clock.Now(), run.Combat);
+        // The policy is immutable: the window starts from the copy carrying the acknowledgements and mode above.
+        start = start with { Policy = policy };
+        _combatStops.Admitted(status.State is PbClock.StatusState.StoppedCase { Value: var stoppedState } ? stoppedState : null, statusTick, _clock.Now(), run.Combat);
         var admission = new ClockWindowAdmission(_config.Profile, state.Snapshot, tick, review.Revision, review.InboxCursor, start.MaxTicks);
         var key = ClockWindowWork.Key(admission, fingerprint, start);
         if (_scheduler.Backoff is { } backoff && start.PlayerAccelerated)
@@ -607,11 +607,11 @@ public sealed partial class ClockWindowDriver
         {
             throw new AuthorityException();
         }
-        if (_config.Autosave is { } autosave && status.HasActualPaused && status.ActualPaused)
+        if (_config.Autosave is { } autosave && status.ActualPaused is not null && status.ActualPaused.GetValueOrDefault())
         {
             try
             {
-                await autosave(loaded.Context.Identity, (long)status.Context.Tick, call).ConfigureAwait(false);
+                await autosave(id, statusTick, call).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -631,7 +631,7 @@ public sealed partial class ClockWindowDriver
             throw error;
         }
         _poll.Running = true;
-        _scheduler.SeedLiveDrift((long)status.Context.Tick);
+        _scheduler.SeedLiveDrift(statusTick);
         return true;
     }
 
@@ -647,8 +647,8 @@ public sealed partial class ClockWindowDriver
         bool obligations,
         CancellationToken call)
     {
-        var running = status.StateCase == PbClock.Status.StateOneofCase.Running;
-        var actual = running ? status.Running.Epoch : status.Stopping.Epoch;
+        var running = status.State is PbClock.StatusState.RunningCase;
+        var actual = running ? status.State?.Running?.Epoch : status.State?.Stopping?.Epoch;
         var ownedCurrent = false;
         foreach (var owned in epochs)
         {
@@ -661,7 +661,7 @@ public sealed partial class ClockWindowDriver
                 if (attempt.Intent.RequestId == owned.StartRequestId && attempt.Intent.Snapshot == state.Snapshot)
                 {
                     ownedCurrent = true;
-                    run.Combat = attempt.Intent.Command.Start?.Policy is { } policy && policy.Mode == PbClock.WatchMode.Combat;
+                    run.Combat = attempt.Intent.Command.Start?.Policy is { } policy && policy.Mode.GetValueOrDefault() == PbClock.WatchMode.Combat;
                 }
             }
         }
@@ -678,7 +678,7 @@ public sealed partial class ClockWindowDriver
         }
         if (running)
         {
-            var (live, coupled) = await ClockWindowWork.RunningAsync(_player.Journal, state.Snapshot, new Tick((long)status.Context.Tick), call).ConfigureAwait(false);
+            var (live, coupled) = await ClockWindowWork.RunningAsync(_player.Journal, state.Snapshot, new Tick((long)(status.Context?.Tick).GetValueOrDefault()), call).ConfigureAwait(false);
             run.Unwatched = live;
             if (coupled.Count > 0)
             {

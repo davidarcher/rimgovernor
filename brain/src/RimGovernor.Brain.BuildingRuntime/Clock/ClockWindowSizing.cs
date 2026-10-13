@@ -20,11 +20,11 @@ internal static class ClockWindowSizing
     /// </summary>
     public static TimeSpan StopSpan(PbClock.Status status, DateTimeOffset now)
     {
-        if (status.StateCase != PbClock.Status.StateOneofCase.Stopped || !status.Stopped.HasStoppedAtUnixMs)
+        if (status.State is not PbClock.StatusState.StoppedCase { Value.StoppedAtUnixMs: { } stoppedAt })
         {
             return TimeSpan.Zero;
         }
-        var span = now - DateTimeOffset.FromUnixTimeMilliseconds(status.Stopped.StoppedAtUnixMs);
+        var span = now - DateTimeOffset.FromUnixTimeMilliseconds(stoppedAt);
         return span <= TimeSpan.Zero || span > StopSpanLimit ? TimeSpan.Zero : span;
     }
 }

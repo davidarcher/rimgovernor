@@ -22,18 +22,18 @@ public sealed partial class RoundsDefensePlanner
         }
         foreach (var raider in downed)
         {
-            var ok = verdicts.TryGetValue(new Domain.PawnId(raider.Id), out var v);
+            var ok = verdicts.TryGetValue(new Domain.PawnId((raider.Id ?? "")), out var v);
             if (!ok || v!.Decision == EntityDecision.Capture)
             {
                 continue;
             }
             if (v.Decision == EntityDecision.Refuse)
             {
-                DefenseAction("routine-defense", TelemetryLevel.Warn, "refused", "entity_capture_refused", raider.Id, new Dictionary<string, object?> { ["plan"] = fightPlan.Value, ["outcome"] = "left_alive", ["detail"] = v.Reason }, call);
+                DefenseAction("routine-defense", TelemetryLevel.Warn, "refused", "entity_capture_refused", (raider.Id ?? ""), new Dictionary<string, object?> { ["plan"] = fightPlan.Value, ["outcome"] = "left_alive", ["detail"] = v.Reason }, call);
             }
             else if (v.Decision == EntityDecision.Kill)
             {
-                DefenseAction("routine-defense", TelemetryLevel.Info, "applied", "entity_kill", raider.Id, new Dictionary<string, object?> { ["plan"] = fightPlan.Value, ["outcome"] = "not_captured", ["detail"] = v.Reason }, call);
+                DefenseAction("routine-defense", TelemetryLevel.Info, "applied", "entity_kill", (raider.Id ?? ""), new Dictionary<string, object?> { ["plan"] = fightPlan.Value, ["outcome"] = "not_captured", ["detail"] = v.Reason }, call);
                 return (await FinishRaiderAsync(state, fightPlan, memory, combat, raider, arbiter, call, epoch).ConfigureAwait(false), true);
             }
         }
@@ -49,11 +49,11 @@ internal static partial class BuildingRuntimePackage
         var output = new List<M.CombatPawn>();
         foreach (var row in combat.Pawns)
         {
-            if (row.Side != M.CombatSide.Hostile || !row.Downed || row.Dead)
+            if (row.Side.GetValueOrDefault() != M.CombatSide.Hostile || !row.Downed.GetValueOrDefault() || row.Dead.GetValueOrDefault())
             {
                 continue;
             }
-            if (!combat.Detail.TryGetValue(row.Id, out var detail) || detail is null)
+            if (!combat.Detail.TryGetValue((row.Id ?? ""), out var detail) || detail is null)
             {
                 continue;
             }

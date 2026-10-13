@@ -17,14 +17,14 @@ internal static partial class BuildingRuntimePackage
         }
         catch (NativeFailureException refusal)
         {
-            var detail = refusal.Value.Detail;
+            var detail = (refusal.Value.Detail ?? "");
             if (detail.Length == 0)
             {
-                detail = refusal.Value.Code.ToString();
+                detail = refusal.Value.Code.GetValueOrDefault().ToString();
             }
             return (null, detail);
         }
-        if (reply.Evaluated is not { Accepted: true })
+        if (reply.Outcome?.Evaluated is not { Accepted: true })
         {
             return (null, "preview not accepted");
         }

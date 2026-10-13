@@ -23,8 +23,8 @@ internal readonly record struct GovernorWorld(ColonyId Colony, MapId Map, LoadId
 {
     public bool SameWorld(GovernorWorld other) => Colony == other.Colony && Map == other.Map && Load == other.Load;
 
-    public static GovernorWorld Of(RimGovernor.Protocol.Common.ObservationContext context) =>
-        new(new ColonyId(context.Identity.ColonyId), new MapId(context.Identity.MapId), new LoadId(context.Identity.LoadToken), new NativeGeneration(context.NativeGeneration));
+    public static GovernorWorld Of(RimGovernor.Contracts.Wire.Common.ObservationContext context) =>
+        new(new ColonyId((context.Identity?.ColonyId ?? "")), new MapId(context.Identity?.MapId ?? 0), new LoadId((context.Identity?.LoadToken ?? "")), new NativeGeneration(context.NativeGeneration.GetValueOrDefault()));
 }
 
 /// <summary>
@@ -114,7 +114,7 @@ internal sealed class WorldRebuild(StoreJournal database, FacadeGovernorState na
     /// The scheduler's <c>WorldReady</c> hook (Go <c>workerGate</c>): it ensures the step's world is rebuilt and
     /// reports whether any rebuild ran since the scheduler's last step, so the step reviews again from the reset cache.
     /// </summary>
-    public Func<RimGovernor.Protocol.Common.ObservationContext, CancellationToken, Task<bool>> SchedulerGate()
+    public Func<RimGovernor.Contracts.Wire.Common.ObservationContext, CancellationToken, Task<bool>> SchedulerGate()
     {
         ulong seen = 0;
         return async (observed, ct) =>

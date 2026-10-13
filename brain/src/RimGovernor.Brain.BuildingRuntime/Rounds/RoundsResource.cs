@@ -74,12 +74,12 @@ public sealed partial class RoundsResourcePlanner
         var rows = new List<Amount>();
         foreach (var q in v.Resources)
         {
-            if (!q.HasUnits)
+            if (q.Units is null)
             {
                 return Unknown<EquatableArray<Amount>>();
             }
 
-            rows.Add(new Amount(new Resource(q.DefName), (long)q.Units));
+            rows.Add(new Amount(new Resource((q.DefName ?? "")), (long)q.Units.GetValueOrDefault()));
         }
 
         return Known<EquatableArray<Amount>>([.. rows]);
@@ -159,7 +159,7 @@ public sealed partial class RoundsResourcePlanner
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = await native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
-        var observed = reply.Observed ?? throw new ControlException("step: observed == null");
+        var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == null");
         try
         {
             BridgeApi.ValidateColonyFacts(observed, identity);
@@ -178,7 +178,7 @@ public sealed partial class RoundsResourcePlanner
             throw new ControlException("step: colony facts context", e);
         }
 
-        if (observed.Context.Tick < review.Tick.Value)
+        if ((observed.Context?.Tick).GetValueOrDefault() < review.Tick.Value)
         {
             throw new ControlException("step: colony facts older than the review");
         }

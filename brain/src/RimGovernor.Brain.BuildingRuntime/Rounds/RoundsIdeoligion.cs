@@ -16,7 +16,7 @@ public sealed partial class Rounder
         var faction = "";
         foreach (var pawn in read.Frame.Pawns.Pawns)
         {
-            if (!pawn.FreeColonist || pawn.Dead)
+            if (!pawn.FreeColonist.GetValueOrDefault() || pawn.Dead.GetValueOrDefault())
             {
                 continue;
             }
