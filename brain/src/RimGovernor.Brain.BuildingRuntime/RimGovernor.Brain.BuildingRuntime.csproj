@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.BuildingRuntime</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.BuildingRuntime</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Go's domain.Known / domain.Unknown read the same in C#. -->
+    <Using Include="RimGovernor.Brain.Domain" />
+    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
+    <Using Include="RimGovernor.Brain.Policy" />
+    <!-- Packages the Go root package imports that are not ported yet; each is awaiting its own slice. -->
+    <Using Include="RimGovernor.Brain.Observation" />
+    <Using Include="RimGovernor.Brain.Store" />
+    <Using Include="RimGovernor.Brain.Bridge" />
+    <Using Include="RimGovernor.Brain.Telemetry" />
+    <Using Include="RimGovernor.Brain.Snapshot" />
+    <Using Include="RimGovernor.Brain.BuildingRuntime.Boundary" />
+    <Using Include="RimGovernor.Protocol" />
+    <!-- Go package-level functions with no owning type live on one static partial class per package. -->
+    <Using Include="RimGovernor.Brain.BuildingRuntime.BuildingRuntimePackage" Static="true" />
+    <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
+  </ItemGroup>
+</Project>
