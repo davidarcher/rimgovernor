@@ -28,6 +28,9 @@ internal sealed class PlannerReasonLog
 {
     private readonly Dictionary<ConcernId, PlannerStanding> _last = [];
 
+    /// <summary>The standing note per goal (Go <c>plannerReasons.last</c>).</summary>
+    public IReadOnlyDictionary<ConcernId, PlannerStanding> Standing => _last;
+
     /// <summary>
     /// Files the wave's notes at <paramref name="tick"/> and returns the goals whose cause changed, in goal
     /// order. A subject change under the same cause files silently, and a goal first seen clear is not a

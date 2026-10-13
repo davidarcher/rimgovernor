@@ -34,7 +34,11 @@ reported in `BrainHost.Status()`.
 
 - `IBrainComposition`: the native client over the facade (the ~40 Native/Source interfaces Go's `bridge.Client`
   implemented) and the planner composition (`startServiceClock`/`roundsCapabilities`). Nobody owns it yet.
-- `IClockWindowDriver`: the window side of the clock (#3108).
+- `IClockWindowDriver`: the window side of the clock. `BuildingRuntime.ClockWindowDriver` (#3108) implements it
+  (`ClockWindowHostDriver` hands it to the loop): after each planning step it admits and starts the window, settles
+  owed epochs, re-takes the clock from the player and polls the native journal. The composition builds it with
+  `ClockWindowDriver.CreateAsync` over a `ClockCapabilities` session and an `IClockDriverNative` (the journal page,
+  the step read and the emergency census), and returns it as `PlannerParts.Windows`.
 - `SessionParts.Orphans`: the trade orphan sweep.
 
 ## Open decisions

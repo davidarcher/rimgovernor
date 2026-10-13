@@ -133,7 +133,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
             ClockCoordinator? coordinator = null;
             if (config.Clock is { } clockCaps)
             {
-                coordinator = ClockCoordinator.Create(journal, clockCaps.Native, clockCaps.Writer, sink, clock, new ClockCoordinatorConfig { CallTimeout = config.Control.CallTimeout, JournalTimeout = config.Executor.JournalTimeout });
+                coordinator = ClockCoordinator.Create(journal, clockCaps.Native, clockCaps.Writer, clock, new ClockCoordinatorConfig { CallTimeout = config.Control.CallTimeout, JournalTimeout = config.Executor.JournalTimeout });
             }
             try
             {
@@ -175,6 +175,9 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
 
     public void Disable() => _control.Disable();
 
+    /// <summary>Disables authority only if the state still is the one the caller observed; a <see cref="ConflictException"/> otherwise (Go <c>control.disableObserved</c>).</summary>
+    internal void DisableObserved(ControlState observed) => _control.DisableObserved(observed);
+
     /// <summary>Attaches only read reconciliation to a durable plan. It cannot obtain a lease, even if native status reports an active owner for this namespace.</summary>
     public async Task ObserveTargetAsync(GenerationSnapshot requested, CancellationToken ct)
     {
@@ -203,6 +206,51 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     }
 
     public Task CloseAsync(CancellationToken ct) => _control.CloseAsync(ct);
+
+    /// <summary>Whether the session carries the owned clock boundary (a <see cref="ClockCapabilities"/> was configured).</summary>
+    public bool HasClock => _clock is not null;
+
+    /// <summary>
+    /// Registers what drives the session's clock windows, to be stopped before the clock coordinator on a stop
+    /// (Go <c>attachClockWorker</c>). Throws when the session has no clock, is closing, or already has one.
+    /// </summary>
+    public void AttachClockWorker(IClockWorkerStopper worker)
+    {
+        if (_clock is null)
+        {
+            throw new ControlException("attachClockWorker: s.clock == nil");
+        }
+        _clockWorkers.Attach(worker);
+    }
+
+    private ClockCoordinator Coordinator(string method) =>
+        _clock ?? throw new ControlException($"{method}: s.clock == nil");
+
+    /// <summary>
+    /// Runs one trusted clock command (Go <c>CommandClock</c>). Current shared authority and the original complete
+    /// snapshot remain mandatory at dispatch.
+    /// </summary>
+    public Task<(ClockAttempt? Attempt, Exception? Error)> CommandClock(ClockIntent intent, CancellationToken ct) =>
+        Coordinator("CommandClock").Command(intent, ct);
+
+    /// <summary>Go <c>CommandClockWindow</c>.</summary>
+    public Task<(ClockAttempt? Attempt, Exception? Error)> CommandClockWindow(ClockWindowRequest request, CancellationToken ct) =>
+        Coordinator("CommandClockWindow").CommandWindow(request, ct);
+
+    /// <summary>Go <c>ReconcileClock</c>.</summary>
+    public Task<(ClockAttempt? Attempt, Exception? Error)> ReconcileClock(string requestId, CancellationToken ct) =>
+        Coordinator("ReconcileClock").Reconcile(requestId, ct);
+
+    /// <summary>Go <c>CleanupClock</c>.</summary>
+    public Task CleanupClock(CancellationToken ct) => CleanupClockObserved(null, ct);
+
+    /// <summary><see cref="CleanupClock"/> given a clock status the caller just read (Go <c>CleanupClockObserved</c>).</summary>
+    public Task CleanupClockObserved(PbClock.Status? observed, CancellationToken ct) =>
+        _clock is null ? Task.CompletedTask : _clock.CleanupObserved(observed, ct);
+
+    /// <summary>Pauses a game the player runs under a stopped owned epoch before the next window is admitted (Go <c>RepauseClock</c>).</summary>
+    public Task<PbClock.Status> RepauseClock(PbClock.Status observed, CancellationToken ct) =>
+        Coordinator("RepauseClock").RepauseObserved(observed, ct);
 
     public bool RoundsMethodsEnabled() => _roundsMethods;
 }

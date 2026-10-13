@@ -179,7 +179,13 @@ public sealed class ClockSchedulerResult
 
     public uint NativeWorkTicks { get; set; }
 
+    /// <summary>Whether <see cref="NativeWorkTicks"/> is the idle lend rather than a planner's ask: the window driver warns of the idle stall when it spends it.</summary>
+    public bool IdleLent { get; set; }
+
     public StepReason Reason { get; set; } = new();
+
+    /// <summary>The pace the step's clock status reported.</summary>
+    public StepPacing Pacing { get; set; } = new();
 
     /// <summary>Copies every planner result <paramref name="other"/> holds into this one, leaving the ones it does not.</summary>
     internal void MergeFrom(ClockSchedulerResult other)

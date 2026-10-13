@@ -59,9 +59,10 @@ public sealed partial class ClockScheduler
     private long _lastTick;
     private bool _lastTickKnown;
     private DateTimeOffset _lastFull;
-    // Set by the window decision (Go clock_scheduler.go: s.noWork / s.idleRefusals after EvaluateClockWindow), which this step does not run yet.
-    private bool NoWork { get; set; }
-    private int IdleRefusals { get; set; }
+    // Set by the window decision (Go clock_scheduler.go: s.noWork / s.idleRefusals after EvaluateClockWindow), which the window driver runs.
+    internal bool NoWork { get; set; }
+
+    internal int IdleRefusals { get; set; }
     private ReadValidity? _validity;
 
     // The latest step's clock-status context: its identity and scope are what the planner wave's section refreshes read under.
@@ -226,7 +227,7 @@ public sealed partial class ClockScheduler
         {
             reason = reason with { Cause = StepCause.Full };
         }
-        return PlannerSelections.Of(reason, _facts.KindOf, _queue.Clone(), _lastTick);
+        return PlannerSelections.Of(reason, _facts.KindOf, _queue.Clone(), _lastTick + Drift());
     }
 
     // The step's selection over the due queue at tick: a wake's evidence was folded when the step began. The waits
@@ -261,11 +262,18 @@ public sealed partial class ClockScheduler
         var result = new ClockSchedulerResult();
         using var span = Tel.StartSpan("buildingruntime", "scheduler.step", ("rimgovernor.step_cause", Wire.Name(reason.Cause)));
         var entered = Stopwatch.GetTimestamp();
+        var stepBegan = _clock.Now();
+        // The poll records latched outcomes as it commits them; the reason repeats them for a step driven without it.
+        Latched.Remember(reason.Events);
         using var entry = await _player.EnterAsync("clock_step", false, ct).ConfigureAwait(false);
         var call = entry.Call;
         var epoch = entry.Epoch;
         var gateWait = Stopwatch.GetElapsedTime(entered);
         Exception? failure = null;
+        // The round trips that still cross the bridge (frame misses and writes) are tallied by tool so the cost of
+        // the composition is visible per step: as a clock_step row in the OTLP log ring, which `rimgovernor phases`
+        // reports as reads/step.
+        using var reads = BridgeApi.WithReadTally();
         try
         {
             // A wake's evidence lands on the due queue once, here, so it outlives a step that runs no planners.
@@ -273,12 +281,12 @@ public sealed partial class ClockScheduler
             {
                 _queue.Wake(reason, _facts.KindOf);
             }
-            using var reads = BridgeApi.WithReadTally();
             var reviews = StepReviews(reason);
             var zones = new ZoneRefresher(_native, _facts.Store);
             using var zoneScope = ObservationApi.WithZones(zones);
             var window = new PlanningWindow(_native, _facts.Store);
             using var windowScope = ObservationApi.WithPlanningWindow(window);
+            var started = _clock.Now();
             var loaded = await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true, Emergency = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
             BridgeApi.ValidateContext(loaded.Context);
@@ -321,8 +329,11 @@ public sealed partial class ClockScheduler
                 throw new EvidenceException("clock status is behind the scope tick");
             }
             _running = false;
+            StepStatus = status;
             reason = reason with { TickAdvanced = !_lastTickKnown || (long)status.Context.Tick != _lastTick };
             (_lastTick, _lastTickKnown) = ((long)status.Context.Tick, true);
+            LivePace(status, started);
+            result.Pacing = StepPacing.Of(status);
             // The step's scope and tick are fixed: every read and decision below, and the Worker's dispatches under
             // the window this step may admit, judge their facts against this validity.
             using var validity = ReadValidityScope.With(FixValidity(state.Snapshot, (long)status.Context.Tick));
@@ -391,7 +402,49 @@ public sealed partial class ClockScheduler
             {
                 row["error"] = failure.Message;
             }
-            Metrics.RecordStepMetrics(result.Reason.Cause == default ? reason.Cause : result.Reason.Cause, Stopwatch.GetElapsedTime(entered), result.CriticalWave, row);
+            // The step's budgets beside what it used: reads against the read budget, the planner waves against the
+            // wall budget, the native-work window against its bound.
+            if (Config.Budget.Reads > 0)
+            {
+                ((Dictionary<string, object?>)row["budget"]!)["reads"] = Config.Budget.Reads;
+                if (reads.Tally.Total > Config.Budget.Reads)
+                {
+                    row["reads_over_budget"] = true;
+                }
+            }
+            if (result.CriticalWave > TimeSpan.Zero)
+            {
+                row["critical_wave_ms"] = result.CriticalWave.TotalMilliseconds;
+            }
+            if (result.PlannerMs.Count > 0)
+            {
+                row["planner_ms"] = result.PlannerMs;
+            }
+            if (result.MissedCutoff.Count > 0)
+            {
+                row["missed_cutoff"] = result.MissedCutoff;
+            }
+            if (result.HeldBy.Count > 0)
+            {
+                row["held_by"] = result.HeldBy;
+            }
+            if (reason.Stopped)
+            {
+                row["stop"] = true;
+                if (reason.StopAt is { } stopAt)
+                {
+                    row["stop_latency_ms"] = (stepBegan - stopAt).TotalMilliseconds;
+                }
+            }
+            if (result.Window.Ticks != 0)
+            {
+                row["window_ticks"] = result.Window.Ticks;
+            }
+            result.Pacing.Publish(row);
+            var cause = result.Reason.Cause == default ? reason.Cause : result.Reason.Cause;
+            var elapsed = Stopwatch.GetElapsedTime(entered);
+            Metrics.RecordStepMetrics(cause, elapsed, result.CriticalWave, row);
+            reads.Tally.Publish(Tel.Emitter, StepDecision(result, failure, cause, elapsed, row));
         }
     }
 
@@ -421,6 +474,7 @@ public sealed partial class ClockScheduler
         if (ticks == 0 && Config.RoundsMethods && IdleRefusals >= IdleLendAfter && r.HeldBy.Count == 0)
         {
             ticks = Math.Min(IdleLendTicks, NativeWorkBudget());
+            r.IdleLent = true;
         }
         return ticks == 0 ? 0 : Math.Min(ticks, Math.Max(NativeWorkBudget(), ticks));
     }
@@ -476,6 +530,16 @@ public sealed partial class ClockScheduler
         var arbiter = new StepArbiter(_late);
         using var wave = new PlannerWave(call);
         var began = Stopwatch.GetTimestamp();
+        // Under player acceleration the critical wave is the evidence the backoff keeps inside the horizon, aged from
+        // the step's status read.
+        Func<TimeSpan, bool, Task> watched = static (_, _) => Task.CompletedTask;
+        var readAt = Pace.Known ? Pace.At : _clock.Now();
+        if (Backoff is { } backoff && StepStatus is { StateCase: PbClock.Status.StateOneofCase.Running } running
+            && running.Running.Epoch is { HasPacing: true, Pacing: PbClock.Pacing.PlayerAccelerated } paced)
+        {
+            backoff.Epoch = paced.Clone();
+            watched = backoff.Watch(readAt, call);
+        }
         try
         {
             if (!immediate)
@@ -501,11 +565,13 @@ public sealed partial class ClockScheduler
             catch
             {
                 output.CriticalWave += Stopwatch.GetElapsedTime(began);
+                await watched(TimeSpan.Zero, false).ConfigureAwait(false);
                 throw;
             }
             var wall = PlannerWave.After(Config.Budget.EffectiveWall);
             if (await wave.Group.WaitCriticalAsync(wall).ConfigureAwait(false) == CriticalWait.Cutoff)
             {
+                await watched(TimeSpan.Zero, false).ConfigureAwait(false);
                 var stuck = wave.Close();
                 arbiter.Close();
                 output.CriticalWave += Stopwatch.GetElapsedTime(began);
@@ -517,6 +583,7 @@ public sealed partial class ClockScheduler
             }
             var criticalWall = Stopwatch.GetElapsedTime(began);
             output.CriticalWave += criticalWall;
+            await watched(_clock.Now() - readAt, true).ConfigureAwait(false);
             var grace = OptionalWaveGrace(criticalWall, wave.Group.Pending());
             var left = Config.Budget.EffectiveWall - criticalWall;
             var cutoff = wall.IsCompleted ? wall : PlannerWave.After(grace < left ? grace : left);
