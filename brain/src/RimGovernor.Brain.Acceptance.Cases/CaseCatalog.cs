@@ -13,6 +13,7 @@ public static class CaseCatalog
         ArgumentNullException.ThrowIfNull(registry);
 
         // The case areas land with #3090 and #3093; each area adds one line below (sorted by area).
+        AnimalsCases.Register(registry);
         AuthorityCases.Register(registry);
         BedCases.Register(registry);
         BillsCases.Register(registry);
@@ -22,10 +23,13 @@ public static class CaseCatalog
         CombatLabCases.Register(registry);
         CustodyCases.Register(registry);
         DraftCases.Register(registry);
+        FarmCases.Register(registry);
+        HusbandryCases.Register(registry);
         LabCases.Register(registry);
         LetterCases.Register(registry);
         LifecycleCases.Register(registry);
         NeedsCases.Register(registry);
+        ProductionCases.Register(registry);
         QuestCases.Register(registry);
         RecoveryCases.Register(registry);
         ResearchCases.Register(registry);
