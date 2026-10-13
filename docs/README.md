@@ -28,6 +28,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Refresh the recorded definition catalog | [Recording the catalog](developers/testing/recording-the-catalog.md) |
 | Find native reads and proto fields that copy def data | [Static-data census](developers/static-data-census.md) |
 | Decide whether to port Go to C# with go2cs or by agent | [Port spike and fallback](developers/architecture/go-to-csharp-port-spike.md) |
+| Judge whether the in-process C# brain can reload in a running game | [Brain hot reload feasibility](developers/architecture/brain-hot-reload-feasibility.md) |
 | Port a Go package into the C# brain (layout, settings, idiom map, per-package checklist) | [Port conventions](developers/architecture/go-to-csharp-port-conventions.md) |
 | Weigh the cost of the def mirror (sizes, native fill, decode) | [Mirror measurements](developers/architecture/mirror-measurements.md) |
 | Measure performance | [Throughput](developers/testing/measure-throughput.md), [hazard bounds](developers/architecture/hazard-detection-bounds.md) |
