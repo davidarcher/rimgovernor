@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The catalog derivations (Go internal/bridge catalog*.go, #3056) over the game's own Def types.
+       Compiles against Assembly-CSharp, UnityStubs and Waylith from RimWorldDir (Directory.Build.props).
+       Where RimWorldDir has no Assembly-CSharp.dll the project is `unavailable`: it builds as an empty
+       assembly (only Properties/Unavailable.cs) and says so, the way the native build and defmirror do. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Bridge</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Bridge</AssemblyName>
+    <GameAssembly>$(RimWorldDir)/Assembly-CSharp.dll</GameAssembly>
+    <GameAvailable Condition="Exists('$(GameAssembly)')">true</GameAvailable>
+    <EnableDefaultCompileItems Condition="'$(GameAvailable)' != 'true'">false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
+    <Using Include="RimGovernor.Brain.Domain" />
+    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
+    <Using Include="RimGovernor.Brain.Policy.PolicyConstants" Static="true" />
+    <Using Include="RimGovernor.Brain.Policy.PolicyFunctions" Static="true" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(GameAvailable)' != 'true'">
+    <Compile Include="Properties/Unavailable.cs" />
+  </ItemGroup>
+  <Target Name="ReportBridgeUnavailable" BeforeTargets="CoreCompile" Condition="'$(GameAvailable)' != 'true'">
+    <Message Importance="high" Text="RimGovernor.Brain.Bridge: unavailable (missing $(GameAssembly)); built empty, set RimWorldDir to a game install." />
+  </Target>
+</Project>

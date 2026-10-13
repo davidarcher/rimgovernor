@@ -215,3 +215,26 @@ engine started:
 
 So derivations can read real `Def` objects built from the game's own types without a running
 engine, but stat values that depend on world state must still come through `IStatSource`.
+
+## The catalog bridge (`RimGovernor.Brain.Bridge`, #3056)
+
+`DefinitionCatalog` (Go `internal/bridge/catalog*.go`) is a `sealed partial class` over the game's own
+Def objects, one file per Go file under `Catalog/`. It references Domain and Policy and returns Policy
+types; it never mirrors a Def. Conventions that differ from the Go code:
+
+- Defs are read through `Assembly-CSharp` (`Rows<T>()`, `DefRow<T>`, `ThingRow`), not through a wire row
+  type. The `Wire/Defs.cs` mirror is not the Def surface, and the mirror decode, fingerprint reuse and
+  `catalog_disk.go` (a disk cache of wire data) have no counterpart. Products are `Lazy<T>` fields.
+- Stat values come from `IStatSource`, never from the Def. Private game members are read through the typed
+  `UnsafeAccessor` declarations in `GameMembers`, and private constants through `GameConstants`, so a rename
+  in the game fails at the first call rather than returning nothing.
+- Where Go distinguished "unset" from zero on the wire, the answer is the game's own value (an unset trader
+  `countRange` is the zero range and answers "no").
+- An unreadable or inconsistent def throws `CatalogException`; unknown-but-legal answers are `Fact<T>`.
+
+**Unavailable builds.** The project compiles against `Assembly-CSharp.dll`, `UnityStubs.dll` and
+`Waylith.dll` from `RimWorldDir`. Where that directory has no `Assembly-CSharp.dll` the project builds
+as an empty assembly (only `Properties/Unavailable.cs`) and prints
+`RimGovernor.Brain.Bridge: unavailable (missing ...)` from the `ReportBridgeUnavailable` target, so
+`task build` still succeeds on a machine without the game. Nothing may reference the Bridge types
+without the same guard.
