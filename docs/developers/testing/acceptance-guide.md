@@ -221,7 +221,9 @@ is smoke-only: recorded, but not a tactics signal.
 
 ## Simulator calibration gate
 
-`go run ./cmd/combatcalibrate [-record]` (from `go/`) decides whether
+`go run ./cmd/combatcalibrate [-record]` (from `go/`; the C# gate and report are
+`RimGovernor.cmd combatcalibrate`, which prints a recorded report with `-show` and
+gets its fixture measurements once the lab cases are ported, #3090/#3093) decides whether
 `combatsim` results may be trusted for the ranged slice (#2844). It plays each
 fixture in `combatlab.CalibrationFixtures` and `HeldOutFixtures` in the sim,
 under each `combatlab.Variants()` tuning, over the baseline's seeds, and

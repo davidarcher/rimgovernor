@@ -1,3 +1,5 @@
+The `tools` job publishes the trusted `tools/rg` host once as a self-contained win-x64 `rg.exe`; plan, shards and the verdict download it and call its `remoteaccept`, `remotebundle` and `acceptance` subcommands. The pinned tool lock holds only dotnet, age and 7z.
+
 # Remote Windows workflow
 
 [Evidence and import](remote-evidence.md) · [Bundle setup](../remote-bundles.md) ·

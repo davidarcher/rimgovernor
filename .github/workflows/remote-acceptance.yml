@@ -50,21 +50,14 @@ env:
   REMOTE_INVENTORY_ASSET: ${{ vars.REMOTE_INVENTORY_ASSET }}
   REMOTE_BUNDLE_SHA256: ${{ vars.REMOTE_BUNDLE_SHA256 }}
   REMOTE_ARTIFACT_MAX_BYTES: ${{ vars.REMOTE_ARTIFACT_MAX_BYTES || '0' }}
-  GOTOOLCHAIN: local
-  GOWORK: 'off'
-  CGO_ENABLED: '0'
 
 jobs:
   plan:
+    needs: [tools]
     if: github.repository == 'davidarcher/rimgovernor' && github.ref == 'refs/heads/main'
     runs-on: windows-2022
     timeout-minutes: 10
     environment: remote-acceptance
-    # Go build and module caches (restored below, saved only by pushes to
-    # main, one entry per role, go.sum and ISO week so they cannot pile up).
-    env:
-      GOCACHE: C:\rg\gocache
-      GOMODCACHE: C:\rg\gomod
     outputs:
       head: ${{ steps.gate.outputs.head }}
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -97,32 +90,14 @@ jobs:
           path: tested
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - name: Fetch the trusted tool host
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          go-version-file: trusted/go/.go-version
-          cache: false
-      - name: Name the Go cache
-        id: gokey
-        shell: bash
-        run: echo "key=go-plan-windows-${{ hashFiles('tested/go/go.sum') }}-$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: gocache
-        with:
-          path: |
-            C:\rg\gocache
-            C:\rg\gomod
-          key: ${{ steps.gokey.outputs.key }}
-          restore-keys: go-plan-windows-${{ hashFiles('tested/go/go.sum') }}-
+          name: tools-${{ github.run_id }}-${{ github.run_attempt }}
+          path: C:\rg
       - name: Plan complete selection from detached tested source
         id: plan
         run: ./trusted/scripts/remote_workflow.ps1 -Phase plan
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.gocache.outputs.cache-hit != 'true' }}
-        with:
-          path: |
-            C:\rg\gocache
-            C:\rg\gomod
-          key: ${{ steps.gokey.outputs.key }}
       - name: Upload immutable plan inputs
         if: always() && steps.gate.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -250,13 +225,15 @@ jobs:
         working-directory: go
         run: go test -count=1 -timeout 40m ./...
 
-  # The trusted remoteaccept tool, cross-compiled once on Linux beside
-  # plan instead of cold-compiled on every Windows shard and the verdict.
-  # Trusted (workflow) source only; no environment or secrets.
+  # The trusted tool host (tools/rg), published once on Linux as a
+  # self-contained win-x64 single file instead of built cold on every
+  # Windows shard and the verdict. Trusted (workflow) source only; no
+  # environment or secrets. It carries the remoteaccept, remotebundle and
+  # acceptance subcommands the scripts call.
   tools:
     if: github.repository == 'davidarcher/rimgovernor' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -265,20 +242,18 @@ jobs:
           ref: ${{ github.workflow_sha }}
           path: trusted
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          go-version-file: trusted/go/.go-version
-          cache: false
-      - name: Cross-compile trusted remoteaccept
-        working-directory: trusted/go
-        env:
-          GOOS: windows
-          GOARCH: amd64
-        run: go build -o ../../tools/remoteaccept.exe ./cmd/remoteaccept
+          dotnet-version: 10.0.x
+      - name: Publish trusted rg.exe for win-x64
+        shell: bash
+        run: >
+          dotnet publish trusted/tools/rg/rg.csproj -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: tools-${{ github.run_id }}-${{ github.run_attempt }}
-          path: tools/remoteaccept.exe
+          path: out/rg.exe
           if-no-files-found: error
           retention-days: 1
 
@@ -293,11 +268,6 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 360
     environment: remote-acceptance
-    # Go build and module caches (restored below, saved only by pushes to
-    # main, one entry per role, go.sum and ISO week so they cannot pile up).
-    env:
-      GOCACHE: C:\rg\gocache
-      GOMODCACHE: C:\rg\gomod
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -322,23 +292,7 @@ jobs:
           ref: ${{ needs.plan.outputs.head }}
           path: tested
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: trusted/go/.go-version
-          cache: false
-      - name: Name the Go cache
-        id: gokey
-        shell: bash
-        run: echo "key=go-shard-windows-${{ hashFiles('tested/go/go.sum') }}-$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: gocache
-        with:
-          path: |
-            C:\rg\gocache
-            C:\rg\gomod
-          key: ${{ steps.gokey.outputs.key }}
-          restore-keys: go-shard-windows-${{ hashFiles('tested/go/go.sum') }}-
-      - name: Fetch the trusted public-evidence exporter
+      - name: Fetch the trusted tool host
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: tools-${{ github.run_id }}-${{ github.run_attempt }}
@@ -353,13 +307,6 @@ jobs:
           REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
           SHARD: ${{ matrix.shard }}
         run: ./trusted/scripts/remote_workflow.ps1 -Phase execute -Shard $env:SHARD
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.gocache.outputs.cache-hit != 'true' && matrix.shard == 's1' && matrix.rep == 1 }}
-        with:
-          path: |
-            C:\rg\gocache
-            C:\rg\gomod
-          key: ${{ steps.gokey.outputs.key }}
       - name: Record why governed processes exited (#1358)
         if: always() && steps.gate.outcome == 'success'
         continue-on-error: true
@@ -383,7 +330,7 @@ jobs:
           $code = 1
           try {
             if (Test-Path C:\rg\export-jobs.json) {
-              & C:\rg\remoteaccept.exe export -root C:\rg\evidence -shard $env:SHARD -jobs C:\rg\export-jobs.json
+              & C:\rg\rg.exe remoteaccept export -root C:\rg\evidence -shard $env:SHARD -jobs C:\rg\export-jobs.json
               $code = $LASTEXITCODE
             }
           } finally {
@@ -410,8 +357,8 @@ jobs:
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
         run: |
           "Shard diagnostics: $env:ARTIFACT_URL" >> $env:GITHUB_STEP_SUMMARY
-          if (Test-Path C:\rg\remoteaccept.exe) {
-            $env:GH_TOKEN | & C:\rg\remoteaccept.exe progress -finish -artifact-url $env:ARTIFACT_URL
+          if (Test-Path C:\rg\rg.exe) {
+            $env:GH_TOKEN | & C:\rg\rg.exe remoteaccept progress -finish -artifact-url $env:ARTIFACT_URL
           }
 
   verdict:
@@ -445,15 +392,13 @@ jobs:
       - name: Close abandoned shard progress
         if: always()
         continue-on-error: true
-        working-directory: trusted/go
         env:
           GH_TOKEN: ${{ github.token }}
-        run: $env:GH_TOKEN | & C:\rg\remoteaccept.exe progress -sweep
+        run: $env:GH_TOKEN | & C:\rg\rg.exe remoteaccept progress -sweep
       - name: Compute complete native verdict
         id: aggregate
-        working-directory: trusted/go
         run: |
-          C:\rg\remoteaccept.exe aggregate -root C:\rg\evidence -shards shards.json
+          C:\rg\rg.exe remoteaccept aggregate -root C:\rg\evidence -shards shards.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         if: always() && needs.plan.outputs.repeat > 1
@@ -464,18 +409,16 @@ jobs:
       - name: Summarize soak pass rate per case
         if: always() && needs.plan.outputs.repeat > 1
         continue-on-error: true
-        working-directory: trusted/go
         env:
           REPEAT: ${{ needs.plan.outputs.repeat }}
         run: |
           "Soak: $env:REPEAT runs per case" >> $env:GITHUB_STEP_SUMMARY
-          C:\rg\remoteaccept.exe soak -root C:\rg\evidence -soak C:\rg\soak -repeat $env:REPEAT | ForEach-Object { "- $_" } >> $env:GITHUB_STEP_SUMMARY
+          C:\rg\rg.exe remoteaccept soak -root C:\rg\evidence -soak C:\rg\soak -repeat $env:REPEAT | ForEach-Object { "- $_" } >> $env:GITHUB_STEP_SUMMARY
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Index per-case evidence
         if: always()
         continue-on-error: true
-        working-directory: trusted/go
-        run: C:\rg\remoteaccept.exe index -root C:\rg\evidence
+        run: C:\rg\rg.exe remoteaccept index -root C:\rg\evidence
       - name: Upload complete verdict and diagnostics
         id: upload
         if: always()

@@ -1,54 +1,131 @@
 # Architecture rules
 
-Six rules are mechanical gates; three are review questions. The gates live in
-`go/internal/archgate`, run inside `go run ./cmd/test`
-(as an ordinary Go test) and compare against checked-in baselines in
-`go/internal/archgate/baseline/rule<n>.txt`. A baseline may only shrink: a new
-violation fails, and so does a baseline entry that no longer occurs (delete
-it). Never add a line to make a gate pass. Every gate failure starts
-`arch rule <n>`.
+Six rules are mechanical gates, one more gate (the world-state ban) bans game APIs from the
+brain, and three are review questions. The C# brain enforces them as Roslyn
+analyzers in `brain/analyzers/RimGovernor.Brain.Analyzers`, loaded into every
+`brain/src` project by `brain/Directory.Build.props`, so they run inside every
+`dotnet build` and `task build` (the tests projects are not gated). Each gate
+compares its findings with a checked-in baseline in
+`brain/analyzers/baseline/rule<n>.txt` (an `AdditionalFiles` input; `worldstate.txt` for the ban). A baseline
+may only shrink: a new violation is a build error, and so is a baseline entry
+that no longer occurs (delete it). Never add a line to make a gate pass. Every
+gate error reads `arch rule <n> ...` with the diagnostic id `RGARCH00<n>`.
+
+The Go gates in `go/internal/archgate` stay in place and keep running with the Go
+tests until the Go delete child (#3102) removes them.
+
+A baseline entry belongs to one project (its first path segment, for example
+`Policy/Foo.cs|...`), and a project only reports entries of its own. A project
+built `unavailable` (no game in `RimWorldDir`, see `brain/Game.props`) compiles
+as an empty assembly and is skipped, so on a machine without the game its
+baseline entries are neither checked nor reported stale. A baseline over 200
+entries (450 for rule 6) fails in `RimGovernor.Brain.Domain`: stop and review
+the rule.
 
 ## Gates
 
-1. **Layers.** `domain -> policy (pure) -> bridge -> facts -> observation ->
-   store -> snapshot -> executor -> buildingruntime -> httpapi -> cmd`. A
-   package may import only packages at or below its own layer (subpackages
-   belong to their parent). Bridge validates the wire, observation decodes,
-   policy decides, store persists, buildingruntime sequences. Role denials on
-   top of the order: bridge does not import policy, store does not import
-   bridge or gabp, executor does not import store, httpapi does not import
-   buildingruntime. Baseline: those edges as they exist today.
-2. **Policy is pure.** Non-test files in `internal/policy` import none of
-   `time`, `os`, `net*`. Search budgets count iterations, never wall time.
-   Concurrency is allowed only while the result stays deterministic: each
-   worker writes only its own slot and results merge in index order, so
-   neither scheduling nor worker count can change the output (`eachIndex`
-   in `layout_site_ground.go`). The gate cannot check that; it is a review
-   question. Baseline: `clock_window_types.go` (`time.Time` fields).
-3. **One owner per exported type.** An exported type name declared in two or
-   more of `domain`, `policy`, `bridge`, `observation` fails unless listed.
-   Baseline: today's duplicates.
-4. **No swallowed errors.** No `if err != nil` with an empty body anywhere in
-   `internal` or `cmd`. Baseline: `file|func` entries.
-5. **Numbers (narrow).** In `policy` and `buildingruntime`: no literal `10000`
-   compared with or clamping a count/target-named operand (use
-   a named constant or delete the cap), and no sentinel standing for
-   unknown (`1e12`, `1<<40`, `math.MaxFloat64`). A cap that triggers is a
-   visible refusal with a reason, never a silent drop. Baseline: `file|func|token`.
+1. **Layers (`RGARCH001`).** `Domain -> Contracts -> Policy -> Bridge
+   (Bridge.Contracts, Bridge) -> Facts -> Observation -> Store -> Snapshot ->
+   Executor -> BuildingRuntime -> PlayerApi -> Host`. The project references
+   already form this order and Roslyn cannot compile a cycle; the analyzer
+   reads the assembly references of each compilation and fails a reference that
+   climbs the order or is a role denial: store does not reference bridge,
+   `HttpChannel` or `NativeFacade`; executor does not reference store;
+   `PlayerApi` does not reference `BuildingRuntime`. `Telemetry`, `Simulation`,
+   `HttpChannel`, `NativeFacade` and `Acceptance*` sit outside the order.
+   Bridge validates the wire, observation decodes, policy decides, store
+   persists, buildingruntime sequences. The Go denial "bridge does not import
+   policy" is dropped: the C# bridge returns Policy types by design
+   ([conventions](go-to-csharp-port-conventions.md#the-catalog-bridge-rimgovernorbrainbridge-3056)).
+   Baseline `From->To`: the denied edges as they exist today.
+2. **Policy is pure (`RGARCH002`).** `RimGovernor.Brain.Policy` uses no
+   `System.IO` or `System.Net` file or device API, `DateTime`, `DateTimeOffset`,
+   `TimeProvider`, `TimeZoneInfo`, `Stopwatch`, `Process`, timer, `Thread.Sleep`,
+   `Task.Delay` or `Environment` member. The in-memory text types (`Stream`,
+   `StreamReader`, `StringReader`, `StringWriter`, `MemoryStream`, `Path`) stay
+   legal, because an embedded resource is read through them (Go `go:embed`), and
+   so does `Environment.ProcessorCount`. `TimeSpan` is a value and stays legal.
+   Search budgets count iterations, never wall time. Concurrency is allowed only
+   while the result stays deterministic: each worker writes only its own slot
+   and results merge in index order, so neither scheduling nor worker count can
+   change the output (`EachIndex` in `LayoutSiteGround.cs`). The gate cannot
+   check that; it is a review question. Baseline `file|ban Type`:
+   `ClockWindowTypes.cs` (`DateTimeOffset` fields).
+3. **One owner per exported type (`RGARCH003`).** A public type name declared in
+   two or more of `Domain`, `Policy`, `Bridge.Contracts`/`Bridge` and
+   `Observation` fails unless listed. These four form one reference chain, so
+   the higher project sees the collision and reports it. Baseline
+   `Higher|Name`: today's duplicates.
+4. **No swallowed errors (`RGARCH004`).** No `catch` block without a
+   statement in any `brain/src` project. A comment does not count as handling.
+   Baseline `file|Type.Member`. Many entries are the Go `if err != nil { continue }`
+   idiom ported as a skipped `DomainException`, or best-effort cleanup in the
+   acceptance harness; review them as you touch the file and delete the line
+   once the catch records or rethrows.
+5. **Numbers (narrow, `RGARCH005`).** In `Policy` and `BuildingRuntime`: no
+   literal `10000` compared with or clamping (`Math.Min`/`Max`/`Clamp`) a
+   count/target-named operand (use a named constant or delete the cap), and no
+   sentinel standing for unknown (`1e12`, `1L << 40`, `double.MaxValue`). A cap
+   that triggers is a visible refusal with a reason, never a silent drop.
+   Baseline `file|Type.Member|token`.
+6. **Game data is read, not retyped (`RGARCH006`).** In every `brain/src`
+   project except `Acceptance*`: no quoted thing or terrain def name (a static
+   field of the game's `ThingDefOf` or `TerrainDefOf`, listed in
+   `analyzers/RimGovernor.Brain.Analyzers/data/defof_names.txt`) and no literal
+   equal to a mirrored `GameConstants` value (an integer of at least 1000 that is
+   not a power of ten or two, `data/game_constants.txt`). Read the fact from the
+   catalog, or register a judgment table in `DefTables()` (a declaration or type
+   whose name `DefTables()` mentions is an allowed owner in `Policy`, as is
+   `Domain/GameTime.cs`). Attribute arguments (`[WireName("...")]`) are not
+   checked. Both lists are embedded in the analyzer. Brain code that references
+   the game assemblies can use the `*DefOf` statics and `GameConstants` directly,
+   which is the fix for a Bridge-side hit; `Policy` and `Domain` cannot reference
+   the game and keep their judgment tables. Baseline `file|Type.Member|"DefName"`
+   or `file|Type.Member|number`; this rule's cap is above 200 because it
+   baselines every literal that predates it. The def-name list is refreshed with
+   `defmirror --report` (see `contracts/schema-generation.md`), the constants list
+   with `RG_UPDATE_GOLDEN=1 go test ./internal/archgate -run
+   TestGameConstantsListIsFresh` until #3102; copy the regenerated file over the
+   one in the analyzer's `data/`.
 
-6. **Game data is read, not retyped.** In non-test Go outside
-   `internal/nativeaccept`: no quoted thing or terrain def name (a static field
-   of the game's `ThingDefOf` or `TerrainDefOf`, listed in the generated
-   `archgate/defof_names.txt`) and no literal equal to a mirrored `GameConstants`
-   value (an integer of at least 1000 that is not a power of ten or two,
-   generated into `archgate/game_constants.txt`). Read the fact from the catalog,
-   or register a judgment table in `policy.DefTables` (a package-level var of a
-   registered table is an allowed owner, as is `domain/game_time.go`). Baseline:
-   `file|func|"DefName"` or `file|func|number`; this rule's cap is above 200
-   because it baselines every literal that predates it. The def-name list is
-   refreshed with `defmirror --report` (see `contracts/schema-generation.md`);
-   the constants list with `RG_UPDATE_GOLDEN=1 go test ./internal/archgate -run
-   TestGameConstantsListIsFresh`.
+**World-state ban (`RGARCH007`)**: no world-state game API on the planner worker thread. The
+whole brain runs off the game thread, so a `brain/src` project that
+references the game assemblies may read immutable Def data and nothing that
+reads or holds live world state. Banned: static classes of the game
+(`Find`, `Current`, `Rand`, `GenTicks` members other than constants, `GenDate`,
+the `Gen*` helpers, `StatExtension`, `Scribe`...), live objects (`Thing` and
+every subclass such as `Pawn` and `Building`, `Map`, `Game`, `TickManager`,
+`World`/`WorldObject` and the rest of `RimWorld.Planet`, `Faction`, the
+`Pawn_*` trackers, `Verse.AI` classes such as `Job` and `Lord`, `Hediff`,
+`Need`, `Room`, `Precept`, `StatWorker`...), and the main-thread classes of
+Unity. Allowed (the Def-data allowlist): `Def` classes and their members,
+`DefDatabase<T>`, the `*DefOf` statics, constants and static fields of plain
+values (the game's tuning numbers), enums, structs, delegates, interfaces,
+attributes, `typeof(X)` and generic type arguments (class tokens that a Def's
+`thingClass` is compared with), non-live helper classes that are not on the
+banned lists (`GraphicData`, `StatModifier`, `CompProperties`), and the
+members in `WorldStateAnalyzer.PureMembers` (`GenCollection.Any`). World state
+reaches the brain only as facts decoded from the wire, and computed stats
+come from `IStatSource`. Baseline (`worldstate.txt`) `file|Type.Member|Namespace.Type[.Member]`;
+`worldstate.txt` starts empty. The game-thread side (the stat service, #3080, and the
+native mod) is not brain code and is not analyzed.
+
+Construction tiers (`RGARCH008`, no baseline): every call of
+`DomainAction.NewBuildingAction` states its tier as a `ConstructionTier`
+member or through a Policy `RoomTier`/`PlannerTier`/`AdoptedTier`/
+`DefenseBuildTier` call. The only pass-through caller is the store codec's
+`ReadBuilding` (a row without a tier does not load); see
+[construction tiers](../contracts/construction-tiers.md).
+
+## Refreshing
+
+A violation you fixed leaves a stale baseline line, and the build says which:
+delete it. To see all findings of a project while fixing, build it; the
+diagnostics list every finding with its baseline key, so a key can be copied into
+the right file only for a violation that predates the gate (the Go baselines were
+seeded that way), never for new code. Changing an analyzer changes how a key is
+spelled: regenerate by building with the descriptors temporarily at `Warning`
+severity and writing the reported keys, then review the diff.
 
 ## Review items
 
@@ -61,5 +138,5 @@ The landing report answers each in a line.
    planner-local between decision and placement; trade, workshop and acquisition
    can therefore sell or consume them in that interval. This remains an explicit
    exception; per-target construction finishing settings do not reserve ingredients.
-9. **Unknown is never a number.** Use `domain.Known`/unknown, not a sentinel,
+9. **Unknown is never a number.** Use `Fact<T>`/unknown, not a sentinel,
    a zero or a clamp.

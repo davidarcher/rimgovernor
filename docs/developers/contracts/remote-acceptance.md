@@ -98,7 +98,7 @@ Reject empty, unknown, duplicated or omitted cases before starting runners.
 From `go/` in a checkout of `run.tested_commit`, run:
 
 ```text
-go run ./internal/nativeaccept/cmd/acceptance plan -evidence <root> -run run.json
+RimGovernor.cmd acceptance plan -evidence <root> -run run.json
 ```
 
 Capture stdout as `selection.json` only when the command exits zero. Diagnostics

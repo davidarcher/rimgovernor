@@ -1,0 +1,14 @@
+# Rule 5 (numbers): file|Type.Member|token in Policy and BuildingRuntime. Delete a line when fixed; never add one.
+BuildingRuntime/Rounds/RoundsDefensePostFight.cs|BuildingRuntimePackage.Stripper|sentinel 1<<40
+BuildingRuntime/TradeMission.cs|TradeMissions.PrepareTradeMissionAsync|double.MaxValue
+BuildingRuntime/TradeMissionOptions.cs|Rounder.SettlementAcquisitionOptionsAsync|double.MaxValue
+Policy/Combat/CombatMortar.cs|PolicyFunctions.CounterBattery|double.MaxValue
+Policy/Combat/CombatPermit.cs|PolicyFunctions.AidCell|double.MaxValue
+Policy/CombatGrenade.cs|PolicyFunctions.BestGround|double.MaxValue
+Policy/CombatHunt.cs|PolicyFunctions.HuntFormation|double.MaxValue
+Policy/FoodStorageUpkeep.cs|PolicyFunctions.ReviewFoodStorage|double.MaxValue
+Policy/HerdPlan.cs|PolicyFunctions.HerdLevelingRace|double.MaxValue
+Policy/PowerMethod.cs|PolicyFunctions.SelectPowerMethod|sentinel 1e12
+Policy/ResourceCandidates.cs|PolicyFunctions.FiniteAcquisitionCost|sentinel 1e12
+Policy/SupplyPlan.cs|PolicyFunctions.NewSupplyCand|double.MaxValue
+Policy/SupplyPlan.cs|PolicyFunctions.NewSupplyCand|sentinel 1e12

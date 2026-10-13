@@ -1,0 +1,4 @@
+# Rule 1 (layers): From->To project edges that exist today and are forbidden. Delete a line when the edge goes; never add one.
+Executor->Store
+PlayerApi->BuildingRuntime
+Store->Bridge.Contracts

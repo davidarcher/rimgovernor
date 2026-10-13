@@ -9,7 +9,8 @@ param(
     [Parameter(Mandatory)][string]$ToolLock,
     [Parameter(Mandatory)][string]$Identity,
     [ValidateSet('fixture', 'production')][string]$Role = 'fixture',
-    [string]$Suite = ''
+    [string]$Suite = '',
+    [string]$RgTool = 'C:\rg\rg.exe'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -49,7 +50,7 @@ if ($taskDrive.AvailableFreeSpace -lt 8GB) { throw 'At least 8 GiB free disk is 
 $taskLock = Get-Content -LiteralPath $ToolLock -Raw | ConvertFrom-Json
 if ($taskLock.schema_version -ne 1) { throw 'Unsupported tool lock version' }
 $taskNames = @($taskLock.tools | ForEach-Object name | Sort-Object)
-if (($taskNames -join ',') -cne '7z,age,dotnet,go') { throw 'Tool lock must pin exactly go, dotnet, age and 7z' }
+if (($taskNames -join ',') -cne '7z,age,dotnet') { throw 'Tool lock must pin exactly dotnet, age and 7z' }
 $taskExecutables = @{}
 $taskToolsRoot = Join-Path $taskWork 'tools'
 New-Item -ItemType Directory -Path $taskToolsRoot | Out-Null
@@ -82,13 +83,6 @@ foreach ($taskTool in $taskLock.tools) {
 }
 $env:DOTNET_ROOT = Split-Path $taskExecutables['dotnet'] -Parent
 $env:DOTNET_MULTILEVEL_LOOKUP = '0'
-$env:GOROOT = Split-Path (Split-Path $taskExecutables['go'] -Parent) -Parent
-$env:GOTOOLCHAIN = 'local'
-$env:GOWORK = 'off'
-$env:CGO_ENABLED = '0'
-$taskGoVersion = (Get-Content -LiteralPath (Join-Path $Repo 'go/.go-version') -Raw).Trim()
-$taskActualGo = (& $taskExecutables['go'] version | Out-String).Trim()
-if ($taskActualGo -notmatch ('go' + [regex]::Escape($taskGoVersion) + ' ')) { throw 'Installed Go does not match go/.go-version' }
 $taskDotNetVersion = (& $taskExecutables['dotnet'] --version | Out-String).Trim()
 $taskPinnedDotNet = ($taskLock.tools | Where-Object name -eq 'dotnet').version
 if ($taskDotNetVersion -cne $taskPinnedDotNet) { throw '.NET SDK version mismatch' }
@@ -97,8 +91,9 @@ $taskJob = Join-Path $taskWork 'job'
 $taskReportPath = Join-Path $taskJob 'bootstrap.json'
 $taskOldLocation = Get-Location
 try {
-    Set-Location (Join-Path $Repo 'go')
-    & $taskExecutables['go'] run ./cmd/remotebundle bootstrap -repo $Repo -out $taskJob -cache $Cache `
+    Set-Location $Repo
+    # The trusted tool host published by the workflow's tools job (C:\rg\rg.exe); bootstrap re-invokes it for setup and doctor.
+    & $RgTool remotebundle bootstrap -repo $Repo -out $taskJob -cache $Cache `
         -manifest $Manifest -sha256 $ManifestSHA256 -trust $Trust -identity $Identity -role $Role `
         -7z $taskExecutables['7z'] -age $taskExecutables['age']
     if ($LASTEXITCODE) {
@@ -118,8 +113,8 @@ try {
     $taskReport | Add-Member -NotePropertyName tool_lock_sha256 -NotePropertyValue (Get-FileHash -LiteralPath $ToolLock -Algorithm SHA256).Hash.ToLowerInvariant()
     $taskReport | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $taskReportPath -Encoding utf8NoBOM
     if ($Suite) {
-        & $taskReport.acceptance suite -suite $Suite -workers 1 -timeout 45m -root $taskReport.root `
-            -output (Join-Path $taskJob 'out') -rimgovernor $taskReport.controller
+        & $taskReport.tool acceptance suite -suite $Suite -workers 1 -timeout 45m -root $taskReport.root `
+            -output (Join-Path $taskJob 'out')
         if ($LASTEXITCODE) { throw "Suite failed ($LASTEXITCODE); retain the job report/evidence" }
     }
 } finally {

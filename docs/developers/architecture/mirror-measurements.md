@@ -1,5 +1,10 @@
 # Def mirror measurement baseline
 
+> Historical. `mirrorstats` and `catalogaudit` measure and audit the Go def mirror
+> (recorded catalog size, `defs.proto` shape, XML coverage); the in-process C# brain
+> reads Def data directly, so neither is ported to the tool host (#3096). The Go
+> commands stay unchanged until #3102.
+
 What the def mirror costs, before and after the game constants were added to it
 (epic #2621: #2626, #2627, #2628). The #1720 acceptance asked for these numbers.
 Mechanism: [schema generation](../../../contracts/schema-generation.md#game-constants).

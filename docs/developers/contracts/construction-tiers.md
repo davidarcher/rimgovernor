@@ -63,13 +63,16 @@ through by orchestration:
 
 `domain.NewBuildingAction(id, building, tier)` takes the tier as a required
 argument, and a stored building action without one does not load, so an untiered
-build cannot be constructed. `archgate.BuildingActionTiers` (run as
+build cannot be constructed. In Go, `archgate.BuildingActionTiers` (run as
 `TestBuildingActionCallersStateTheirTier`, with a negative fixture) walks every
 non-test caller and fails one that omits the tier or passes anything other than
 a `domain.Tier*` constant or a `policy.RoomTier`/`PlannerTier`/`AdoptedTier`
 call. The only pass-through callers are `NewPlan` (canonicalizing an action that
-already has its tier) and the store's row reader. There is no baseline: add the
-tier, never an exemption.
+already has its tier) and the store's row reader. In the C# brain the same check
+is the Roslyn analyzer `RGARCH008` ([rules](../architecture/rules.md)): every
+call of `DomainAction.NewBuildingAction` states a `ConstructionTier` member or a
+Policy mapping call, and the only pass-through is the store codec's
+`ReadBuilding`. There is no baseline: add the tier, never an exemption.
 
 ## Place and set-tier
 

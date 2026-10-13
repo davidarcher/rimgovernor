@@ -63,17 +63,15 @@ jobs:
           path: tested
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          go-version-file: trusted/go/.go-version
-          cache: false
+          dotnet-version: 10.0.x
+      - name: Publish the trusted tool host (rg.exe)
+        run: >
+          dotnet publish trusted/tools/rg/rg.csproj -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o C:\rg
       - name: Plan the factory case
         run: ./trusted/scripts/remote_workflow.ps1 -Phase plan
-      - name: Compile trusted public-evidence exporter
-        working-directory: trusted/go
-        run: |
-          go build -o C:\rg\remoteaccept.exe ./cmd/remoteaccept
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Bootstrap and run sustained/colony
         env:
           GH_TOKEN: ${{ github.token }}
@@ -99,7 +97,7 @@ jobs:
           $code = 1
           try {
             if (Test-Path C:\rg\export-jobs.json) {
-              & C:\rg\remoteaccept.exe export -root C:\rg\evidence -shard s1 -jobs C:\rg\export-jobs.json
+              & C:\rg\rg.exe remoteaccept export -root C:\rg\evidence -shard s1 -jobs C:\rg\export-jobs.json
               $code = $LASTEXITCODE
             }
           } finally {

@@ -2,7 +2,7 @@
 
 [Manifest contract](../contracts/remote-acceptance.md) · [Choose checks](choose-tests.md)
 
-Run commands from `go/`. `cmd/remoteaccept` never publishes source, dispatches a
+Run commands with `RimGovernor.cmd`. `remoteaccept` never publishes source, dispatches a
 workflow, uploads artifacts or downloads the licensed game bundle. Workflow
 collection and upload use the [remote Windows workflow](remote-workflow.md).
 [The handoff](remote-handoff.md) covers publication, dispatch and diagnostics.
@@ -21,7 +21,7 @@ Record every planned job, including missing, cancelled and timed-out jobs;
 the presence of an uploaded file.
 
 ```text
-go run ./cmd/remoteaccept aggregate -root <evidence-root> -shards shards.json
+RimGovernor.cmd remoteaccept aggregate -root <evidence-root> -shards shards.json
 ```
 
 The command writes `aggregate.json` and the suite-shaped `result.json`. A failed
@@ -75,7 +75,7 @@ git config --local rimgovernor.acceptancerepository davidarcher/rimgovernor
 git config --local rimgovernor.acceptanceworkflow .github/workflows/<trusted-workflow>.yml
 git config --local rimgovernor.acceptanceworkflowCommit <40-hex-workflow-commit>
 git config --local rimgovernor.acceptancebundleSHA256 <64-hex-bundle-manifest-digest>
-go run ./cmd/remoteaccept import -repo .. -run <actions-run-id> -attempt 1 -artifact <artifact-id> -output <new-directory>
+RimGovernor.cmd remoteaccept import -repo . -run <actions-run-id> -attempt 1 -artifact <artifact-id> -output <new-directory>
 ```
 
 Use workflow path `.github/workflows/remote-acceptance.yml`; see [activation and diagnostics](remote-workflow.md). GitHub CLI must be

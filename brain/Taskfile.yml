@@ -13,6 +13,8 @@ tasks:
       - '**/*.props'
       - '**/*.editorconfig'
       - '**/packages.lock.json'
+      - 'analyzers/baseline/*.txt'
+      - 'analyzers/**/data/*.txt'
       - 'RimGovernor.Brain.sln'
       - exclude: '**/bin/**'
       - exclude: '**/obj/**'

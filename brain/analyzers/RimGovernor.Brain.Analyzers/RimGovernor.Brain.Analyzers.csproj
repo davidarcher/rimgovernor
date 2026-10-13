@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Roslyn analyzers for the brain solution (#3096): the architecture gates (RGARCH001-006, 008) ported from
+       go/internal/archgate and the world-state API ban (RGARCH007). Every src project loads this through
+       brain/Directory.Build.props (ProjectReference as Analyzer); baselines under brain/analyzers/baseline are
+       AdditionalFiles. Rules: docs/developers/architecture/rules.md. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>RimGovernor.Brain.Analyzers</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Analyzers</AssemblyName>
+    <IsRoslynComponent>true</IsRoslynComponent>
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>false</IsPackable>
+    <!-- tools/rg publishes win-x64 and restores the Host closure with that RID; declaring it keeps this lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- Roslyn analyzer-authoring rules: RS2008 wants release-tracking files (this analyzer ships inside the repository only); RS1012/RS1013 do not follow the start-context helper in GateAnalyzer. -->
+    <NoWarn>$(NoWarn);RS2008;RS1012;RS1013</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="data/defof_names.txt" LogicalName="defof_names.txt" />
+    <EmbeddedResource Include="data/game_constants.txt" LogicalName="game_constants.txt" />
+  </ItemGroup>
+</Project>

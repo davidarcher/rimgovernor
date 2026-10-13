@@ -96,8 +96,8 @@ placement is never a mood or need postcondition.
 ### Thought trigger table
 
 `go/internal/policy/thought_triggers.tsv` lists every vanilla ThoughtDef (all installed
-packs) with how the game grants it and the game state it reads. `go run ./cmd/thoughtaudit`
-(from `go/`) regenerates it from the installed game: it decompiles `Assembly-CSharp.dll`
+packs) with how the game grants it and the game state it reads. `RimGovernor.cmd thoughtaudit`
+(the tool host subcommand; the Go `cmd/thoughtaudit` stays until #3102) regenerates it from the installed game: it decompiles `Assembly-CSharp.dll`
 with the global `ilspycmd` tool (`dotnet tool install -g ilspycmd`; not pinned in the repo)
 and reads the defs under `Data/*/Defs`. Columns:
 
@@ -158,7 +158,7 @@ changes no relief or provisioning decision.
 The colony status route (`/api/player/colony`) carries the held fact as `moodLedger`
 (null until a review has filed): `sources` ranked by mood lost, the `unowned` subset
 (empty `owners`), each source's `unverified` count, `unknownPawns` and the `expectation`
-levels (empty while the level is unobserved). `cmd/colonyreview` copies it into each
+levels (empty while the level is unobserved). `RimGovernor.cmd colonyreview` copies it into each
 frame and the hourly panel renders the two tables, saying "Expectation level not
 observed" rather than assuming one. Unowned thoughts ranked by mood lost choose the next gap-fill.
 

@@ -19,7 +19,7 @@
 | [go/internal/supplysim](../../go/internal/supplysim) | Seeded offline stock-flow scenarios; real planner adapters live in buildingruntime tests |
 | [go/internal/snapshot](../../go/internal/snapshot) | Recorded-fact planner regression tests |
 | [go/internal/nativeaccept](../../go/internal/nativeaccept) | Case registry, fixtures, runner and gameplay evidence |
-| [go/internal/archgate](../../go/internal/archgate) | Architecture gates and shrink-only baselines |
+| [go/internal/archgate](../../go/internal/archgate), [brain/analyzers](../../brain/analyzers) | Architecture gates and shrink-only baselines (Go until #3102; Roslyn analyzers `RGARCH001`-`008` for the C# brain) |
 | [integrations/rimgovernor-native/src/Bridge](../../integrations/rimgovernor-native/src/Bridge) | Colony observations, operations, supervision and rendering |
 | [integrations/rimgovernor-host/src](../../integrations/rimgovernor-host/src) | GABP server, tool discovery, lifecycle tools and main-thread dispatch |
 | [brain](../../brain) | C# solution the Go packages are being ported into ([conventions](architecture/go-to-csharp-port-conventions.md)); `RimGovernor.Brain.Domain` ports `go/internal/domain` |

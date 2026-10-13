@@ -1,5 +1,8 @@
 using System.Text;
 using RimGovernor.Tools.Commands;
+using RimGovernor.Tools.Commands.ColonyReview;
+using RimGovernor.Tools.Commands.CombatCalibrate;
+using RimGovernor.Tools.Commands.ThoughtAudit;
 using RimGovernor.Tools.Common;
 
 namespace RimGovernor.Tools;
@@ -19,6 +22,11 @@ internal static class Program
           issue     print a GitHub issue and its comments as markdown
           affected  list the changed files and the checks they owe
           acceptance  the native acceptance harness (list, stop, ...)
+          remoteaccept  remote acceptance evidence: export, aggregate, import, index, soak, progress
+          remotebundle  encrypted remote-acceptance bundles: pack, publish, verify, extract, bootstrap
+          thoughtaudit  regenerate the thought-to-trigger table from the installed game
+          colonyreview  render a colony-week recording into an HTML report or a site index
+          combatcalibrate  run the combatsim sim-vs-real calibration gate
 
         <tool> -help shows a tool's flags.
         """;
@@ -58,6 +66,11 @@ internal static class Program
                 "issue" => await IssueCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "affected" => await Affected.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "acceptance" => await AcceptanceTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
+                "remoteaccept" => await RemoteAcceptTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
+                "remotebundle" => await RemoteBundleTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
+                "thoughtaudit" => await ThoughtAuditCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
+                "colonyreview" => await ColonyReviewCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
+                "combatcalibrate" => await CombatCalibrateCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 _ => throw new UsageException($"unknown tool \"{tool}\"\n\n{Usage}"),
             };
         }

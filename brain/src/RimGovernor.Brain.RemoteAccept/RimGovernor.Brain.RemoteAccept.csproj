@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The remote acceptance evidence graph (Go internal/remoteaccept and cmd/remoteaccept, #3096): run, selection and
+       attempts validation, the recomputed aggregate verdict, the public-artifact export boundary, import, index, soak
+       rates and live progress. Driven by the tool host: RimGovernor.cmd remoteaccept. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.RemoteAccept</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.RemoteAccept</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
+  </ItemGroup>
+</Project>

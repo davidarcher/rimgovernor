@@ -16,4 +16,10 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <RimWorldDir Condition="'$(RimWorldDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld</RimWorldDir>
   </PropertyGroup>
+  <!-- Architecture gates (RGARCH001-008, docs/developers/architecture/rules.md): every src project loads the analyzers and
+       gets the shrink-only baselines as AdditionalFiles. The analyzer project itself and the tests are not gated. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'RimGovernor.Brain.Analyzers' And !$(MSBuildProjectName.EndsWith('.Tests'))">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)analyzers/baseline/*.txt" />
+  </ItemGroup>
 </Project>

@@ -1,5 +1,10 @@
 # Recording the definition catalog
 
+> The C# tool host has no `recordcatalog` (#3096). The recording is the input of the Go
+> def mirror and its tests; the C# brain reads immutable Def data directly, with no
+> mirror and no recorded catalog to refresh. `go/cmd/recordcatalog` stays (unchanged)
+> until #3102 deletes the Go tests that read the recording.
+
 Go tests read a recording of the native `DefinitionCatalog` reply instead of a
 running game: `go/internal/observation/testdata/full_catalog.pb.gz` (the
 untrimmed catalog with every installed expansion) and the planning-view golden

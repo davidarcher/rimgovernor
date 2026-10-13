@@ -60,7 +60,7 @@ func TestWorkflowSuiteWorkingDirectory(t *testing.T) {
 	}
 	write(filepath.Join(workspace, "package", na.PackageManifestName), string(manifest))
 	wrapper := filepath.Join(workspace, "suite.ps1")
-	write(wrapper, `if ((Get-Location).Path -cne (Join-Path $env:RG_CWD_WORKSPACE 'tested' 'go')) { throw 'incorrect suite cwd' }
+	write(wrapper, `if ((Get-Location).Path -cne (Join-Path $env:RG_CWD_WORKSPACE 'tested')) { throw 'incorrect suite cwd' }
 if (@(Get-ChildItem Env: | Where-Object Name -Match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY').Count) { throw 'suite inherited a credential' }
 if ($env:RG_CWD_OUTCOME -eq '0') {
     & $env:RG_CWD_TEST_EXE '-test.run=^TestWorkflowCWDProbe$' '-test.v'
@@ -69,7 +69,7 @@ if ($env:RG_CWD_OUTCOME -eq '0') {
 if ($env:RG_CWD_OUTCOME -eq 'throw') { throw 'synthetic suite exception' }
 $global:LASTEXITCODE = [int]$env:RG_CWD_OUTCOME
 `)
-	boot, err := json.Marshal(map[string]string{"acceptance": wrapper, "root": workspace, "controller": "unused"})
+	boot, err := json.Marshal(map[string]string{"tool": wrapper, "root": workspace})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,6 +118,10 @@ func TestWorkflowCWDProbe(t *testing.T) {
 	workspace := os.Getenv("RG_CWD_WORKSPACE")
 	if workspace == "" {
 		t.Skip("subprocess probe only")
+	}
+	// The suite now starts in the tested checkout root; the Go probes need the Go module.
+	if err := os.Chdir(filepath.Join(workspace, "tested", "go")); err != nil {
+		t.Fatal(err)
 	}
 	t.Run("HelperBuild", func(t *testing.T) {
 		cmd := exec.Command("go", "build", "-o", filepath.Join(workspace, "helper.exe"), "github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cmd/buildingsmoke")

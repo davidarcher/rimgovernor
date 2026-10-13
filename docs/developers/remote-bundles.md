@@ -2,7 +2,7 @@
 
 [Developer guide](README.md) · [Remote contract](contracts/remote-acceptance.md)
 
-`go run ./cmd/remotebundle` (from `go/`) packages dependencies and bootstraps a
+`RimGovernor.cmd remotebundle` packages dependencies and bootstraps a
 Windows runner. Game bytes are age-encrypted release assets in the public source
 repository. The shared cache contains those same encrypted parts. The identity
 needed to decrypt them is a trusted-run secret; a private repository or separate
@@ -27,7 +27,7 @@ and record its numeric ID. Packaging itself does not contact or publish to GitHu
 Use exact installed dependency versions, not `latest`:
 
 ```powershell
-go run ./cmd/remotebundle pack -repo C:\rg\src `
+RimGovernor.cmd remotebundle pack -repo C:\rg\src `
   -game C:\inputs\RimWorld -game-version '1.7.4976 rev1043' `
   -harmony C:\inputs\Harmony\1.7\Assemblies\0Harmony.dll `
   -harmony-mod C:\inputs\Harmony -harmony-version <assembly-version> `
@@ -67,7 +67,7 @@ randomizes ciphertext, so each encryption produces a new bundle identity.
 Publication is an **explicit maintainer operation**, using authenticated `gh`:
 
 ```powershell
-go run ./cmd/remotebundle publish -manifest C:\rg\bundle\bundle.draft.json
+RimGovernor.cmd remotebundle publish -manifest C:\rg\bundle\bundle.draft.json
 ```
 
 The publisher verifies that the pinned origin is public, uploads encrypted parts

@@ -1,0 +1,1 @@
+# World-state ban (RGARCH007; game API that reads or holds live world state in brain code): file|Type.Member|Namespace.Type. Delete a line when fixed; never add one.

@@ -94,7 +94,7 @@ func TestWorkflowProgressOrderingAndFailureIsolation(t *testing.T) {
 	script := string(b)
 	start := strings.Index(script, "$observer = Start-Progress $Evidence $Shard")
 	scrub := strings.Index(script, "Get-ChildItem Env: | Where-Object Name -Match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY'")
-	suite := strings.Index(script, "& $boot.acceptance suite")
+	suite := strings.Index(script, "& $boot.tool acceptance suite")
 	if start < 0 || start >= scrub || scrub >= suite || !strings.Contains(script, "Stop-Progress $observer") || !strings.Contains(script, "WaitForExit(30000)") {
 		t.Fatal("observer/suite lifecycle ordering changed")
 	}
@@ -103,7 +103,7 @@ func TestWorkflowProgressOrderingAndFailureIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	workflow := string(b)
-	if strings.Count(workflow, "checks: write") != 2 || !strings.Contains(workflow, "$env:GH_TOKEN | & C:\\rg\\remoteaccept.exe progress -finish") || !strings.Contains(workflow, "$env:GH_TOKEN | & C:\\rg\\remoteaccept.exe progress -sweep") {
+	if strings.Count(workflow, "checks: write") != 2 || !strings.Contains(workflow, "$env:GH_TOKEN | & C:\\rg\\rg.exe remoteaccept progress -finish") || !strings.Contains(workflow, "$env:GH_TOKEN | & C:\\rg\\rg.exe remoteaccept progress -sweep") {
 		t.Fatal("progress permissions or stdin wiring missing")
 	}
 }

@@ -16,7 +16,7 @@ internal static partial class SelfBuild
     /// <summary>Reserved: no tool returns it as its own result.</summary>
     public const int StaleExitCode = 75;
 
-    private static readonly string[] SourceExtensions = [".cs", ".csproj", ".props", ".targets", ".editorconfig"];
+    private static readonly string[] SourceExtensions = [".cs", ".csproj", ".props", ".targets", ".editorconfig", ".js", ".css"];
 
     public static bool IsStale()
     {

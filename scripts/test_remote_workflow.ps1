@@ -106,14 +106,14 @@ if (-not $rejected) { throw 'Untrusted event was accepted' }
 
 # A real native stderr/exit pair survives plan upload and verdict collection.
 $planRoot = Join-Path $TestRoot 'rejected-plan'
-[IO.Directory]::CreateDirectory((Join-Path $planRoot 'go')) | Out-Null
+[IO.Directory]::CreateDirectory($planRoot) | Out-Null
 [IO.File]::WriteAllText((Join-Path $planRoot 'run.json'), '{}')
 $env:GITHUB_STEP_SUMMARY = Join-Path $planRoot 'summary.md'
-function global:go {
-    & pwsh -NoProfile -Command '[Console]::Error.WriteLine("case budget exceeds suite allowance"); exit 1'
-}
+# A stand-in tool host that refuses the plan the way the real planner does.
+$fakeRg = Join-Path $TestRoot 'fake-rg.cmd'
+[IO.File]::WriteAllText($fakeRg, "@echo off`r`necho case budget exceeds suite allowance 1>&2`r`nexit /b 1`r`n")
 $message = ''
-try { & "$PSScriptRoot/remote_workflow.ps1" -Phase plan -Evidence $planRoot -Repo $planRoot } catch { $message = $_.Exception.Message }
+try { & "$PSScriptRoot/remote_workflow.ps1" -Phase plan -Evidence $planRoot -Repo $planRoot -Rg $fakeRg } catch { $message = $_.Exception.Message }
 if ($message -notlike '*case budget exceeds suite allowance*') { throw "Planner refusal lost: $message" }
 if (Test-Path (Join-Path $planRoot 'selection.json')) { throw 'Rejected planner wrote a selection' }
 function global:gh { throw 'Collection must not query shards without a selection' }

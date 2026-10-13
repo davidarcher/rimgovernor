@@ -5,7 +5,8 @@ param(
     [string]$Repo = "$env:GITHUB_WORKSPACE\tested",
     [string]$Shard = '',
     [string]$Bundle = '',
-    [int]$Count = 50
+    [int]$Count = 50,
+    [string]$Rg = 'C:\rg\rg.exe'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -39,9 +40,9 @@ function Start-Progress($Evidence, $Shard) {
     # The observer is trusted, starts before the suite scrub, and receives its
     # token only on stdin. It inherits no credentials of its own via environment.
     try {
-        & C:\rg\remoteaccept.exe progress -prepare -root $Evidence -shard $Shard
+        & $Rg remoteaccept progress -prepare -root $Evidence -shard $Shard
         if (-not (Test-Path -LiteralPath C:\rg\progress.json)) { return $null }
-        return New-ProgressObserver 'C:\rg\remoteaccept.exe' 'progress -plan C:\rg\progress.json -watch -stop-file C:\rg\progress.stop' $env:GH_TOKEN
+        return New-ProgressObserver $Rg 'remoteaccept progress -plan C:\rg\progress.json -watch -stop-file C:\rg\progress.stop' $env:GH_TOKEN
     } catch {
         Write-Warning 'Live progress unavailable; native execution continues'
         return $null
@@ -160,9 +161,9 @@ switch ($Phase) {
     }
     'plan' {
         $run = Read-JSON (Join-Path $Evidence 'run.json')
-        Push-Location (Join-Path $Repo 'go')
+        Push-Location $Repo
         try {
-            $selection = & go run ./internal/nativeaccept/cmd/acceptance plan -evidence $Evidence -run run.json 2> (Join-Path $Evidence 'planner.log')
+            $selection = & $Rg acceptance plan -evidence $Evidence -run run.json 2> (Join-Path $Evidence 'planner.log')
             if ($LASTEXITCODE) {
                 $diagnostic = Get-Content -LiteralPath (Join-Path $Evidence 'planner.log') -Raw
                 throw "Planner rejected the complete selection: $diagnostic"
@@ -203,7 +204,7 @@ switch ($Phase) {
                 $work = "C:\rg\$role"
                 & "$PSScriptRoot/bootstrap_remote.ps1" -Repo $Repo -Work $work -Cache C:\rg\ciphertext `
                     -Manifest (Join-Path $Evidence 'bundle.json') -ManifestSHA256 $run.bundle.sha256 `
-                    -Trust $trust -ToolLock "$PSScriptRoot/remote-tools.windows.json" -Identity $identity -Role $role
+                    -Trust $trust -ToolLock "$PSScriptRoot/remote-tools.windows.json" -Identity $identity -RgTool $Rg -Role $role
                 $jobs += @{role=$role;output="$work\job\out";bootstrap="$work\job\bootstrap.json"}
             }
             # Bootstrap's authenticated origin access is over. No credential is inherited by a suite.
@@ -237,12 +238,12 @@ switch ($Phase) {
                 $names = @($rows | Where-Object mod_role -CEQ $job.role | ForEach-Object name) -join ','
                 # Colony snapshot streams ride the public diagnostics (remoteaccept.SnapshotDir).
                 $env:RIMGOVERNOR_SNAPSHOT_DIR = Join-Path $job.output 'snapshots'
-                Push-Location (Join-Path $Repo 'go')
+                Push-Location $Repo
                 try {
                     # The fixture factory keeps its checkpoint ring: without -resume the suite runs each case with checkpointing off.
                     $ring = @()
                     if ($env:FACTORY_CASES) { $ring = @('-resume') }
-                    & $boot.acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -rimgovernor $boot.controller -no-series @ring
+                    & $boot.tool acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -no-series @ring
                     if ($LASTEXITCODE) { $bad = $true }
                 } finally { Pop-Location }
             }
@@ -269,16 +270,16 @@ switch ($Phase) {
         try {
             & "$PSScriptRoot/bootstrap_remote.ps1" -Repo $Repo -Work $work -Cache C:\rg\ciphertext `
                 -Manifest (Join-Path $Evidence 'bundle.json') -ManifestSHA256 $run.bundle.sha256 `
-                -Trust $trust -ToolLock "$PSScriptRoot/remote-tools.windows.json" -Identity $identity -Role fixture
+                -Trust $trust -ToolLock "$PSScriptRoot/remote-tools.windows.json" -Identity $identity -RgTool $Rg -Role fixture
             Remove-Item -LiteralPath $identity
             Get-ChildItem Env: | Where-Object Name -Match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY' | ForEach-Object {
                 [Environment]::SetEnvironmentVariable($_.Name, $null, 'Process')
                 Remove-Item -LiteralPath ("Env:" + $_.Name) -ErrorAction SilentlyContinue
             }
             $boot = Read-JSON "$work\job\bootstrap.json"
-            Push-Location (Join-Path $Repo 'go')
+            Push-Location $Repo
             try {
-                $out = & $boot.acceptance profile-capture -root $boot.root -from $Bundle -n $Count -json -timeout 20m
+                $out = & $boot.tool acceptance profile-capture -root $boot.root -from $Bundle -n $Count -json -timeout 20m
                 if ($LASTEXITCODE) { throw "profile-capture failed: $out" }
             } finally { Pop-Location }
             [IO.File]::WriteAllText((Join-Path $Evidence 'profile.json'), ($out -join "`n") + "`n")

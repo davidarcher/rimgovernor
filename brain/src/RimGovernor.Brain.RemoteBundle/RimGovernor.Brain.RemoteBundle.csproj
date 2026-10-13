@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The private remote-acceptance bundle boundary (Go internal/remotebundle and cmd/remotebundle, #3096): manifest and
+       inventory validation, age-encrypted 7z pack and extract, release publish, cache restore and bootstrap.
+       Driven by the tool host: RimGovernor.cmd remotebundle. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.RemoteBundle</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.RemoteBundle</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- The final-path resolution is a source-generated LibraryImport (unsafe stubs). -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
+  </ItemGroup>
+</Project>

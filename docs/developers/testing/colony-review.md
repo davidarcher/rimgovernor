@@ -26,7 +26,9 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   (`HeadlessPatches` skips them only when the device is Null); that is why
   other cases keep `-Headless` (a one-day trial took 3m05s against 2m37s
   on 1.6).
-- **Report** `go run ./cmd/colonyreview report -in <case output> -out <run dir>`
+- **Report** `RimGovernor.cmd colonyreview report -in <case output> -out <run dir>`
+  (the C# tool host, `tools/rg/Commands/ColonyReview`; the Go `cmd/colonyreview` stays
+  until #3102 and the nightly workflow still builds it)
   reads `result.json`'s timeline and the screenshots and writes `index.html`
   and `run.json`; `site -runs <dir> -out <site>` indexes run dirs. The page is
   a player: one image with a slider over the recorded hours (play/pause,
@@ -53,7 +55,7 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   best, clamped) and a `weight`. A component the timeline cannot supply has
   a null `value` and `score` and is left out of the scalar (the weighted
   mean of the known scores, never a zero for a missing one); no known
-  component gives a null scalar. Components (`go/cmd/colonyreview/score.go`):
+  component gives a null scalar. Components (`tools/rg/Commands/ColonyReview/ColonyScoring.cs`):
 
   | component | value | score 1 at | weight |
   | --- | --- | --- | --- |

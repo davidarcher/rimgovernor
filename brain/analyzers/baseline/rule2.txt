@@ -1,0 +1,2 @@
+# Rule 2 (policy is pure): file|import X or file|ban X. Delete a line when fixed; never add one.
+Policy/ClockWindowTypes.cs|ban System.DateTimeOffset

@@ -1,5 +1,10 @@
 # Stat worker and part table
 
+> Retired (#3096). The C# brain reads `IStatSource` instead of the Go `stateval` port, so
+> there is no per-class owner table to keep: `stataudit` and `stat_classes.tsv` are deleted,
+> not ported. The Go files stay in place, unchanged, until #3102 removes them with
+> `stateval`. The rest of this page describes that Go-side mechanism.
+
 `go/cmd/stataudit/stat_classes.tsv` lists every concrete `StatWorker` subclass (26) and
 `StatPart` subclass (71) of the installed game. The root `StatWorker`, the default
 evaluator of a `StatDef` with no `workerClass`, and abstract classes are not rows.
