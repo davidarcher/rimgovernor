@@ -284,7 +284,19 @@ public sealed class CaseRunner
     // run's, which a timeout may already have cut.
     private static Digest Diagnose(string output, Report report, CancellationToken cancellationToken)
     {
-        var digest = Postmortems.Collect(output, report.Data, cancellationToken);
+        Digest digest;
+        try
+        {
+            digest = Postmortems.Collect(output, report.Data, cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // A collector bug must not hide the case's verdict: record what failed and carry on.
+            var failed = new DigestSection("postmortem");
+            failed.Note = "postmortem collection failed: " + e.GetType().Name + ": " + e.Message;
+            digest = new Digest(report.Data["case"].AsString(), report.Data["error"].AsString(), [failed]);
+        }
+
         report["diagnosis"] = digest.ToJson();
         try
         {

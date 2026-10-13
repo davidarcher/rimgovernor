@@ -241,12 +241,14 @@ public static partial class Postmortems
             "SELECT sequence, action_id, payload, '', '', '' FROM transitions ORDER BY sequence",
         ];
         SqliteDataReader? reader = null;
+        SqliteCommand? command = null;
         SqliteException? failure = null;
         foreach (var query in queries)
         {
             try
             {
-                using var command = db.CreateCommand();
+                // The command outlives this block: disposing it closes the reader it produced.
+                command = db.CreateCommand();
                 command.CommandText = query;
                 reader = command.ExecuteReader();
                 break;
@@ -254,6 +256,8 @@ public static partial class Postmortems
             catch (SqliteException e)
             {
                 failure = e;
+                command?.Dispose();
+                command = null;
             }
         }
 
@@ -263,6 +267,7 @@ public static partial class Postmortems
             return s;
         }
 
+        using (command)
         using (reader)
         {
             var total = 0;

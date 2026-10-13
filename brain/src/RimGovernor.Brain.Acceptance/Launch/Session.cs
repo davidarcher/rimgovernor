@@ -152,7 +152,11 @@ public static class GameSessions
         var stale = EndpointFile.PathIn(directory);
         try
         {
-            File.Delete(stale);
+            // A root fresh from setup has no config directory yet, so no stale file either.
+            if (Directory.Exists(directory))
+            {
+                File.Delete(stale);
+            }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

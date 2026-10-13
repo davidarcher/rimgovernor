@@ -346,6 +346,12 @@ public static partial class GoDuration
             s = s[1..];
         }
 
+        if (s == "0")
+        {
+            // Go's ParseDuration takes a bare zero without a unit.
+            return true;
+        }
+
         if (s.Length == 0 || !FullPattern().IsMatch(s))
         {
             return false;
