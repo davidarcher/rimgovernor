@@ -66,7 +66,7 @@ public sealed partial class Harness : IAsyncDisposable
                 throw new AcceptanceException($"{method}: invalid ProtoJSON reply: not an object");
             }
 
-            return (message, System.Text.Encoding.UTF8.GetByteCount(payload));
+            return (UnwrapOutcome(message), System.Text.Encoding.UTF8.GetByteCount(payload));
         }
         catch (JsonException e)
         {
@@ -77,6 +77,21 @@ public sealed partial class Harness : IAsyncDisposable
     /// <summary>Adapts <see cref="WireAsync"/> to the <see cref="WireFunc"/> the authority helpers and the scenario clock take.</summary>
     public WireFunc WireFunc() =>
         (label, method, request, cancellationToken) => WireAsync(label, method, request, cancellationToken);
+
+    /// <summary>
+    /// The in-process brain's Contracts records encode a reply's oneof as <c>{"outcome":{"type":"pending","value":{...}}}</c>;
+    /// the cases and <see cref="Outcome"/> read the single-field form <c>{"pending":{...}}</c>. A reply of the first shape
+    /// is rewritten to the second; any other reply passes through.
+    /// </summary>
+    internal static JsonObject UnwrapOutcome(JsonObject message)
+    {
+        if (message.Count != 1 || message["outcome"] is not JsonObject outcome || outcome["type"] is not JsonValue type || !type.TryGetValue<string>(out var name))
+        {
+            return message;
+        }
+
+        return new JsonObject { [name] = outcome["value"] is JsonNode value ? value.DeepClone() : new JsonObject() };
+    }
 
     /// <summary>
     /// Asserts the wire reply is exactly the single-field oneof named by one of <paramref name="cases"/> and returns
