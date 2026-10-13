@@ -61,7 +61,7 @@ foreach ($taskDirectory in @('src', 'About', 'Defs', 'Textures', 'Notices')) {
         Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
     }
 }
-# The vendored GABP host (fork of RimBridgeServer and Lib.GAB) builds from the same private copy.
+# The vendored host (fork of RimBridgeServer) builds from the same private copy.
 $taskCopyHost = Join-Path $taskCopyRoot 'integrations/rimgovernor-host'
 foreach ($taskFile in @(Get-ChildItem -LiteralPath (Join-Path $taskHostSource 'src') -Recurse -File | Where-Object {
         $_.FullName -notmatch '[\\/](obj|bin)[\\/]'

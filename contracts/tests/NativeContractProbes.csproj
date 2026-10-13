@@ -52,15 +52,11 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/RoofSupportGeometry.cs" Link="Production/RoofSupportGeometry.cs" />
   </ItemGroup>
 
-  <!-- The real host SDK and GABP server, compiled from the vendored source with no game inputs: the probes'
-       contexts implement the real IRimBridgeContext, and gab-dispatch runs the real GabpServer. A
+  <!-- The real host SDK, compiled from the vendored source with no game inputs: the probes'
+       contexts implement the real IRimBridgeContext. A
        ProjectReference would share this build's BaseIntermediateOutputPath (one project.assets.json). -->
   <ItemGroup>
-    <PackageReference Include="Gabp.Runtime" Version="1.0.0" />
     <Compile Include="$(HostSourceRoot)/Sdk/*.cs" Link="Host/Sdk/%(Filename)%(Extension)" />
-    <Compile Include="$(HostSourceRoot)/Gab/**/*.cs" Exclude="$(HostSourceRoot)/Gab/obj/**" Link="Host/Gab/%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="NativeContractProbes/gab-dispatch/Program.cs" />
-    <Compile Include="NativeContractProbes/mod-log/Program.cs" />
   </ItemGroup>
 
   <!-- ==== Shared fakes (Category 1/4: in-process, no real Assembly-CSharp.dll) ==== -->

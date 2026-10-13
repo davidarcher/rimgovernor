@@ -42,8 +42,6 @@ tasks:
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-acquisition-token'
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-ref-index'
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-rule-runtime'
-      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll gab-dispatch'
-      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll mod-log'
       # Binds against the host RimGovernor.Host.dll that native:build staged;
       # reports unavailable only when native:build never ran. A staged native build
       # without the host at HOST_ASSEMBLY_DIR is a wrong path and fails.

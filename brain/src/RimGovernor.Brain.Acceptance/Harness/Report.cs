@@ -69,7 +69,6 @@ public sealed partial class Report
     public int Finalize(string output)
     {
         FinalizeTiming(DateTimeOffset.UtcNow);
-        CollectAttentions(output);
         if (EvidenceBudget.Artifacts(output, this) is { } hashes)
         {
             var manifest = new JsonObject();

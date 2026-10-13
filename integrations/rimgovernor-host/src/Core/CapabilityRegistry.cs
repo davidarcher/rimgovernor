@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Contracts;
+using RimGovernor.Host.Core.Tools;
 using RimGovernor.Host.Extensions.Abstractions;
 
 namespace RimGovernor.Host.Core;
@@ -214,7 +215,7 @@ public sealed class CapabilityRegistry
         RegisterAlias(descriptor.Id, descriptor.Id);
         foreach (var alias in descriptor.Aliases.Where(alias => string.IsNullOrWhiteSpace(alias) == false))
         {
-            GabpToolNameValidator.EnsureCanonical(alias, nameof(descriptor.Aliases));
+            ToolNameValidator.EnsureCanonical(alias, nameof(descriptor.Aliases));
             RegisterAlias(alias, descriptor.Id);
         }
     }

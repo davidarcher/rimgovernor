@@ -14,7 +14,6 @@ Acceptance/GameHost/GameProcess.cs|GameProcess.KillTree
 Acceptance/GameHost/GameProcess.cs|GameProcess.RemoveEndpoint
 Acceptance/GameHost/GameProcess.cs|GameProcess.StartDetached
 Acceptance/GameHost/GameProcess.cs|GameProcess.TryDelete
-Acceptance/Harness/Attention.cs|Report.CollectAttentions
 Acceptance/Harness/Report.cs|Report.Write
 Acceptance/Launch/Reuse.cs|GameReuse.ObserveResetAsync
 Acceptance/Launch/RunAt.cs|RunAt.RunUntilAsync

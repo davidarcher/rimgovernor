@@ -7,8 +7,8 @@ namespace RimGovernor.Brain.HttpChannel;
 public sealed record NativeToolReply(string Payload, string? Timing);
 
 /// <summary>
-/// What <c>POST /native/&lt;tool&gt;</c> calls. The mod implements it over its own tools (the same ones GABP
-/// dispatches), so the HTTP route and the GABP route run one implementation with the same admission and
+/// What <c>POST /native/&lt;tool&gt;</c> calls. The mod implements it over its own tools (the same ones the registry
+/// dispatches), so every route runs one implementation with the same admission and
 /// main-thread rules. The channel itself knows no tool.
 /// </summary>
 public interface INativeToolInvoker
@@ -18,7 +18,7 @@ public interface INativeToolInvoker
 
     /// <summary>
     /// Runs one tool with a ProtoJSON request body. <paramref name="admissionClass"/> and <paramref name="trace"/>
-    /// are the optional class and trace arguments of the GABP call. A tool failure is thrown.
+    /// are the optional class and trace arguments of the call. A tool failure is thrown.
     /// </summary>
     Task<NativeToolReply> InvokeAsync(string tool, string requestJson, string? admissionClass, string? trace, CancellationToken cancellationToken);
 }

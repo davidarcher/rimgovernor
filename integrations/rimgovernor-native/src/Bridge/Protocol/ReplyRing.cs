@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     /// <summary>
     /// The reply ring: a caller that asked for encoding=proto-shm gets
     /// a reply of InlineBytes or more as raw proto in a slot of this named
-    /// shared-memory ring, and the GABP reply carries only
+    /// shared-memory ring, and the reply carries only
     /// {"slot":{"ring","slot","seq","length"}}; the controller
     /// (go/internal/bridge/replyslots.go) copies the slot and checks the seq.
     ///

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimGovernor.Host.Core;
+using RimGovernor.Host.Core.Tools;
 using RimGovernor.Host.Contracts;
 
 namespace RimGovernor.Host;
@@ -64,7 +65,7 @@ internal static class RimBridgeCapabilities
 
     /// <summary>
     /// The registry as the mod's HTTP control channel calls it: any tool by name with named arguments, run in Wait
-    /// mode as a GABP call is. This is what makes <c>test/*</c> fixture ops and the host's own tools
+    /// mode as a wire call is. This is what makes <c>test/*</c> fixture ops and the host's own tools
     /// (<c>rimgovernor/set_time_speed</c>) routable, not just the ProtoJSON tools.
     /// </summary>
     private sealed class RegistryToolInvoker(CapabilityRegistry registry) : RimGovernor.Host.Sdk.IRimBridgeToolInvoker
@@ -74,7 +75,7 @@ internal static class RimBridgeCapabilities
 
         public IReadOnlyCollection<string> ToolNames => registry.GetCapabilities()
             .SelectMany(descriptor => descriptor.Aliases)
-            .Where(GabpToolNameValidator.IsCanonical)
+            .Where(ToolNameValidator.IsCanonical)
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
@@ -88,7 +89,17 @@ internal static class RimBridgeCapabilities
             {
                 [TimeoutArgument] = (int)Math.Min(timeout.TotalMilliseconds, int.MaxValue),
             };
-            var envelope = await registry.InvokeAsync(tool, named, cancellationToken).ConfigureAwait(false);
+            // A tool call is activity: the idle-exit harness feature must not count a busy bridge as idle.
+            IdleExit.Begin();
+            OperationEnvelope envelope;
+            try
+            {
+                envelope = await registry.InvokeAsync(tool, named, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                IdleExit.End();
+            }
             if (!envelope.Success)
             {
                 var error = envelope.Error;

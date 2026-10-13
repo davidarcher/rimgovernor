@@ -322,9 +322,7 @@ namespace HomeBridge.BridgeTools
             TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0,
             BlindTickBudget = (uint)s.BlindTickBudget, MaxTicksPerSecond = (uint)s.MaxTicksPerSecond, RegulatedTicksPerSecond = (uint)s.RegulatedTicksPerSecond };
 
-        // The read never waits: journal advances are announced on the
-        // rimgovernor.clock channel (ClockEventPublisher) and the controller
-        // reads the page after each.
+        // The read never waits: the controller polls the page.
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
         {
             lock (Gate)

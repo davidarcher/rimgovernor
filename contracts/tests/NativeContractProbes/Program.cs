@@ -62,8 +62,6 @@ internal static class NativeContractProbesDispatcher
                 case "native-proto-rooms": return NativeProtoRoomsProbe.Invoke(rest);
                 case "native-proto-supplies": return NativeProtoSuppliesProbe.Invoke(rest);
 
-                case "gab-dispatch": GabDispatchProbe.Invoke(); return 0;
-                case "mod-log": ModLogProbe.Invoke(); return 0;
 
                 default:
                     Console.Error.WriteLine("Unknown probe: " + probe);
@@ -92,7 +90,6 @@ internal static class NativeContractProbesDispatcher
             "native-pawn-control-state", "native-pawn-observations", "native-proto-buildings",
             "native-proto-observations", "native-proto-placement", "native-proto-presentation",
             "native-proto-research", "native-population-outlook", "native-give-job", "native-remove-production-bill", "native-quest-shuttle", "native-quest-hack-gift", "native-proto-rooms", "native-proto-supplies",
-            "gab-dispatch", "mod-log",
         }) Console.Error.WriteLine("  " + name);
     }
 }

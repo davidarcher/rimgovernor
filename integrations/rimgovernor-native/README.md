@@ -1,10 +1,9 @@
 # RimGovernor native mod
 
 One RimWorld 1.7 package, `davidarcher.rimgovernor.native`, contains the runtime
-assembly, the GABP host (a vendored fork of RimBridgeServer and Lib.GAB, source in
+assembly, the host (a vendored fork of RimBridgeServer, source in
 `integrations/rimgovernor-host`) and the RimGovernor tools. Harmony loads first. The mod is
-incompatible with `brrainz.rimbridgeserver`: two hosts would double-patch Harmony and fight over
-`GABP_SERVER_PORT`.
+incompatible with `brrainz.rimbridgeserver`: two hosts would double-patch Harmony.
 Headless presentation suppression activates only with `-Headless` (Waylith's
 windowless, GPU-less, null-audio mode); `-batchmode` and `-nographics` do nothing there.
 The runtime, host and Bridge target net10.0. They compile against the install's
@@ -30,7 +29,7 @@ RimWorld instance is stopped, then enable RimGovernor after its dependencies.
 Fixtures change disposable scenario state; their manifest says `fixture`.
 The native entry assemblies are `Assemblies/RimGovernor.Runtime.dll` and
 `BridgeTools/RimGovernor/RimGovernor.Bridge.dll`; the host is `Assemblies/RimGovernor.Host.dll` with
-its Core/Contracts/Abstractions/Sdk/Gab assemblies, Newtonsoft.Json and Gabp.Runtime
+its Core/Contracts/Abstractions/Sdk assemblies and Newtonsoft.Json
 (notices under `Notices/host`). Source and retained notices are
 included under `Source` and `Notices`; game and Harmony DLLs are not
 bundled. The Bridge bundle ships the brain assemblies it shares with the in-process brain

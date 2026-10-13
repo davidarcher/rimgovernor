@@ -322,28 +322,9 @@ internal static class NativeClockProbe
         var predator = status.HazardGaps.FirstOrDefault(g => g.HazardClass == "predator_hunt");
         Check(downed != null && downed.BoundTicks == 1 && downed.MaxTickGap == 1 && downed.Hooked && predator != null && predator.BoundTicks == 30 && predator.MaxTickGap == 30 && !predator.Hooked, "status hazard gaps");
     }
-    // #2070: the journal's only writer announces its newest cursor on rimgovernor.clock; reads never wait.
-    private static void ClockChannelAnnouncements()
-    {
-        Reset();
-        var sent = new List<Dictionary<string, object>>(); var subscribed = false;
-        var publisher = new RimGovernor.Host.Sdk.ClockEventPublisher((channel, payload, at) =>
-        { Check(channel == RimGovernor.Host.Sdk.ClockEventPublisher.Channel, "announced on rimgovernor.clock"); sent.Add((Dictionary<string, object>)payload); return Task.FromResult(0); }, () => subscribed);
-        Start(Request());
-        var newest = Events().Page.NewestCursor;
-        Check(newest > 0 && publisher.PumpOnce() == 0 && sent.Count == 0, "nothing is announced while nobody is subscribed");
-        subscribed = true;
-        Check(publisher.PumpOnce() == 1 && (string)sent[0]["type"] == "advance" && (long)sent[0]["newest"] == newest, "the journal writer's newest cursor reaches a subscriber");
-        Check(publisher.PumpOnce() == 0, "an unchanged cursor is not announced twice");
-        Supervisor.FixtureEvent("long_event", new() { ["longEvent"] = true, ["graceMs"] = 15000, ["requestedSpeed"] = "Normal" });
-        Supervisor.FixtureEvent("force_pause_cleared", new() { ["waitedMs"] = 100L, ["forcePauseKind"] = "long_event", ["speedRestored"] = true });
-        Check(publisher.PumpOnce() == 1 && (long)sent[1]["newest"] == Events().Page.NewestCursor, "rows appended between pumps coalesce into one announcement of the newest");
-        publisher.Resubscribed();
-        Check(publisher.PumpOnce() == 1, "a new subscriber is told the current cursor");
-    }
     internal static void Invoke()
     {
-        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); ProbeAndDigestCadence(); ClockChannelAnnouncements();
+        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); ProbeAndDigestCadence();
         Console.WriteLine($"Native clock: {checks} checks; production typed runtime/adapter/ledger/journal, controlled native watcher and SDK seams.");
     }
 }

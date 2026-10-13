@@ -1316,7 +1316,7 @@ namespace HomeBridge.BridgeTools
         {
             if (_appending) throw new InvalidOperationException("Reentrant clock journal append");
             _appending = true;
-            try { journal.Append(row); _cursor = journal.Newest; ClockEventPublisher.Advanced(journal.Newest); }
+            try { journal.Append(row); _cursor = journal.Newest; }
             finally { _appending = false; }
             while (DeferredPublications.Count != 0)
             {

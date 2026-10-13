@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// Runs the local HTTP/JSON control channel inside the mod (#3083). <c>POST /native/&lt;tool&gt;</c> reaches the
-    /// same tool methods GABP dispatches, so the two routes share one implementation, admission class and
+    /// same tool methods the registry dispatches, so every route shares one implementation, admission class and
     /// main-thread rule. The channel itself (listener, guard, routes, endpoint file) is the game-free
     /// RimGovernor.Brain.HttpChannel; this file only adapts the mod's tools to it and starts it.
     /// </summary>
@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>
         /// Every <c>[Tool]</c> of the assembly whose only caller argument is <c>request</c>: the ProtoJSON tools.
-        /// Tools that take other arguments (the supervised-play and preview tools) stay GABP-only.
+        /// Tools that take other arguments (the supervised-play and preview tools) are not routed here.
         /// </summary>
         internal static NativeToolInvoker Discover(Assembly assembly)
         {
@@ -114,7 +114,7 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>
         /// A tool that takes named arguments rather than one ProtoJSON <c>request</c>: the body is a JSON object of its
-        /// arguments, the host registry runs it as a GABP call would, and the reply is its result as a JSON object (a
+        /// arguments, the host registry runs it as a wire call would, and the reply is its result as a JSON object (a
         /// non-object result is wrapped as <c>{"result": ...}</c>). The registry alias is the canonical name, which
         /// is the route name with the <c>rimgovernor/</c> prefix put back when the route had none of its own.
         /// </summary>

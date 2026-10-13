@@ -1,5 +1,5 @@
 <Project>
-  <!-- Vendored fork of pardeike/RimBridgeServer and pardeike/Lib.GAB (MIT); see integrations/rimgovernor-native/Notices/host. -->
+  <!-- Vendored fork of pardeike/RimBridgeServer (MIT); see integrations/rimgovernor-native/Notices/host. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>

@@ -1,4 +1,4 @@
-# Native mod (Bridge + Runtime + the vendored GABP host in integrations/rimgovernor-host)
+# Native mod (Bridge + Runtime + the vendored host in integrations/rimgovernor-host)
 # packaged by scripts/build_native_mod.ps1. Needs the game's managed assemblies and
 # Harmony; without them the build reports `unavailable` naming the missing path.
 version: '3'

@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Reflection;
-using RimGovernor.Host.Gab.Server;
 using UnityEngine;
 using Verse;
 
@@ -13,8 +12,6 @@ internal static class RimBridgeStartup
     private static bool _modConstructed;
     private static bool _runtimeReady;
     private static bool _started;
-    private static GabpServer _server;
-    private static RimBridgeAttentionPublisher _attentionPublisher;
 
     public static void OnModConstructed()
     {
@@ -50,35 +47,6 @@ internal static class RimBridgeStartup
         TryStart();
     }
 
-    public static void RegisterExtensionTools(GabpServer server)
-    {
-        if (server == null)
-            throw new ArgumentNullException(nameof(server));
-
-        foreach (var tool in RimBridgeCapabilities.ExtensionTools)
-        {
-            if (server.Tools.HasTool(tool.Alias))
-                continue;
-
-            // The handler runs to completion; GabpServer calls it off the reader.
-            server.Tools.RegisterTool(
-                tool.Alias,
-                parameters =>
-                {
-                    IdleExit.Begin();
-                    try
-                    {
-                        return TaskShim.FromResult<object>(LegacyToolExecution.InvokeAlias(tool.Alias, ReflectedCapabilityBinding.NormalizeInvocationArguments(parameters)));
-                    }
-                    finally
-                    {
-                        IdleExit.End();
-                    }
-                },
-                tool.ToolInfo);
-        }
-    }
-
     private static void TryStart()
     {
         lock (Sync)
@@ -95,6 +63,12 @@ internal static class RimBridgeStartup
             {
                 using (RimBridgeStartupTiming.Phase("capabilities.initialize"))
                     RimBridgeCapabilities.Initialize();
+                // Mod diagnostics reach Unity's log as warnings only: Log.Error pauses the game.
+                RimGovernor.Host.Sdk.ModLog.Sink = (level, component, tick, trace, message, suppressed) =>
+                {
+                    if (level >= RimGovernor.Host.Sdk.ModLogLevel.Warn)
+                        Log.Warning($"[{component}] {message}");
+                };
                 using (RimBridgeStartupTiming.Phase("logs.initialize"))
                     RimBridgeLogs.Initialize(RimBridgeCapabilities.LogJournal);
                 using (RimBridgeStartupTiming.Phase("application.run-in-background"))
@@ -108,66 +82,6 @@ internal static class RimBridgeStartup
                         .GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic)
                         ?.SetValue(null, true);
                 }
-
-                RimBridgeTools tools;
-                using (RimBridgeStartupTiming.Phase("tools.construct"))
-                    tools = new RimBridgeTools();
-
-                var version = typeof(RimGovernorHostMod).Assembly.GetName().Version?.ToString() ?? "0.1.0.0";
-                var builder = RimGovernor.Host.Gab.Gabp.CreateServer();
-                using (RimBridgeStartupTiming.Phase("gabp.builder.configure"))
-                {
-                    builder = builder
-                        .UseAppInfo("RimGovernor.Host", version)
-                        .UseGabsEnvironmentIfAvailable();
-                }
-
-                var usingGabsConfig = RimGovernor.Host.Gab.Gabp.IsRunningUnderGabs();
-
-                using (RimBridgeStartupTiming.Phase("gabp.server.build"))
-                {
-                    _server = builder
-                        .UsePortIfNotSet(usingGabsConfig ? 5174 : 0) // ephemeral outside GABS: two games on one machine must not collide (#3137)
-                        .EnableAttentionSupport()
-                        .Build();
-                }
-
-                using (RimBridgeStartupTiming.Phase("tools.register-core"))
-                    _server.Tools.RegisterToolsFromInstance(tools);
-                using (RimBridgeStartupTiming.Phase("tools.register-extensions"))
-                    RegisterExtensionTools(_server);
-                using (RimBridgeStartupTiming.Phase("event-relay.initialize"))
-                    RimBridgeEventRelay.Initialize(_server.Events, RimBridgeCapabilities.Journal, RimBridgeCapabilities.LogJournal);
-                using (RimBridgeStartupTiming.Phase("mod-log.initialize"))
-                    StartModLogChannel(_server.Events);
-                using (RimBridgeStartupTiming.Phase("clock-events.initialize"))
-                    StartClockEventChannel(_server.Events);
-                using (RimBridgeStartupTiming.Phase("attention.initialize"))
-                    _attentionPublisher = new RimBridgeAttentionPublisher(_server.Attention, RimBridgeCapabilities.Journal, RimBridgeCapabilities.LogJournal);
-
-                var serverStartElapsedMs = RimBridgeStartupTiming.ElapsedMilliseconds;
-                using (RimBridgeStartupTiming.Phase("gabp.server.start-submit"))
-                {
-                    _server.StartAsync().ContinueWith(task =>
-                    {
-                        RimBridgeStartupTiming.LogCompletedPhase("gabp.server.start-async", serverStartElapsedMs);
-                        if (task.IsFaulted)
-                        {
-                            Log.Error($"[RimBridge] Failed to start server: {task.Exception}");
-                            return;
-                        }
-
-                        if (usingGabsConfig)
-                        {
-                            Log.Message($"[RimBridge] GABP server connected to GABS on port {_server.Port}");
-                        }
-                        else
-                        {
-                            Log.Message($"[RimBridge] GABP server running standalone on port {_server.Port}");
-                            Log.Message($"[RimBridge] Bridge token: {_server.Token}");
-                        }
-                    });
-                }
             }
         }
         catch (Exception ex)
@@ -178,44 +92,7 @@ internal static class RimBridgeStartup
             }
 
             Log.Error($"[RimBridge] STARTUP_INIT_FAILURE: {ex}");
-            Log.Error($"[RimBridge] Failed to initialize server: {ex}");
-        }
-    }
-
-    // The mod's diagnostics channel: the ring lives in ModLog; the publisher thread owns the emit.
-    private static void StartModLogChannel(RimGovernor.Host.Gab.Events.IEventManager events)
-    {
-        events.RegisterChannel(RimGovernor.Host.Sdk.ModLogPublisher.Channel, RimGovernor.Host.Sdk.ModLogPublisher.Description);
-        events.ChannelSubscribed += channel =>
-        {
-            if (channel == RimGovernor.Host.Sdk.ModLogPublisher.Channel)
-                RimGovernor.Host.Sdk.ModLog.Poke();
-        };
-        new RimGovernor.Host.Sdk.ModLogPublisher(
-            events.EmitEventAsync,
-            () => events.GetSubscriberCount(RimGovernor.Host.Sdk.ModLogPublisher.Channel) > 0).Start();
-    }
-
-    // The clock journal's announcement channel: the journal writer calls ClockEventPublisher.Advanced.
-    private static void StartClockEventChannel(RimGovernor.Host.Gab.Events.IEventManager events)
-    {
-        events.RegisterChannel(RimGovernor.Host.Sdk.ClockEventPublisher.Channel, RimGovernor.Host.Sdk.ClockEventPublisher.Description);
-        var publisher = new RimGovernor.Host.Sdk.ClockEventPublisher(
-            events.EmitEventAsync,
-            () => events.GetSubscriberCount(RimGovernor.Host.Sdk.ClockEventPublisher.Channel) > 0);
-        events.ChannelSubscribed += channel =>
-        {
-            if (channel == RimGovernor.Host.Sdk.ClockEventPublisher.Channel)
-                publisher.Resubscribed();
-        };
-        publisher.Start();
-    }
-
-    private static class TaskShim
-    {
-        public static System.Threading.Tasks.Task<T> FromResult<T>(T value)
-        {
-            return System.Threading.Tasks.Task.FromResult(value);
+            Log.Error($"[RimBridge] Failed to initialize bridge services: {ex}");
         }
     }
 }

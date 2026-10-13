@@ -17,14 +17,6 @@
           "Microsoft.Build.Utilities.Core": "15.1.548"
         }
       },
-      "Gabp.Runtime": {
-        "type": "Transitive",
-        "resolved": "1.0.0",
-        "contentHash": "vmmpAempff+K0Iff13Rg1glAvtiayjOa+RXSHP+DIrLfIPDm0keG7e4s+ZJDT1WQbvYepmPCMVcmN1PkcSvsgA==",
-        "dependencies": {
-          "Newtonsoft.Json": "13.0.3"
-        }
-      },
       "Microsoft.Build.Framework": {
         "type": "Transitive",
         "resolved": "15.1.548",
@@ -52,13 +44,6 @@
         "type": "Project",
         "dependencies": {
           "RimGovernor.Host.Contracts": "[3.0.0, )"
-        }
-      },
-      "rimgovernor.host.gab": {
-        "type": "Project",
-        "dependencies": {
-          "Gabp.Runtime": "[1.0.0, )",
-          "Newtonsoft.Json": "[13.0.4, )"
         }
       },
       "rimgovernor.host.sdk": {

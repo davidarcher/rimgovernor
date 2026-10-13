@@ -1,9 +1,10 @@
 using System;
 using System.Text.RegularExpressions;
 
-namespace RimGovernor.Host.Core;
+namespace RimGovernor.Host.Core.Tools;
 
-public static class GabpToolNameValidator
+/// <summary>The tool name shape the registry accepts: slash-delimited lowercase segments such as <c>rimgovernor/ping</c>.</summary>
+public static class ToolNameValidator
 {
     public const string CanonicalPattern = "^[a-z][a-z0-9_-]*(/[a-z][a-z0-9_-]*)+$";
 
@@ -17,9 +18,9 @@ public static class GabpToolNameValidator
     public static void EnsureCanonical(string name, string valueName)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("GABP tool name cannot be null or empty.", valueName);
+            throw new ArgumentException("Tool name cannot be null or empty.", valueName);
 
         if (!IsCanonical(name))
-            throw new ArgumentException($"GABP tool name '{name}' must match {CanonicalPattern}. Use slash-delimited canonical names such as 'rimgovernor/ping'; dotted MCP adapter names are not valid here.", valueName);
+            throw new ArgumentException($"Tool name '{name}' must match {CanonicalPattern}. Use slash-delimited canonical names such as 'rimgovernor/ping'; dotted names are not valid here.", valueName);
     }
 }

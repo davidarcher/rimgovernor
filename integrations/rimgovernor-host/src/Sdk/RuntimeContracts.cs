@@ -49,7 +49,7 @@ public interface IRimBridgeToolInvoker
 
 /// <summary>
 /// Where the host publishes <see cref="IRimBridgeToolInvoker"/> (every registered tool by name, whatever arguments
-/// it takes, run as a GABP call runs it) for the mod's HTTP control channel. Null until the host's registry is built.
+/// it takes, run as a wire call runs it) for the mod's HTTP control channel. Null until the host's registry is built.
 /// </summary>
 public static class RimBridgeToolAccess
 {

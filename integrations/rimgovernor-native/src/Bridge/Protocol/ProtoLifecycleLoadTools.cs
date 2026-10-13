@@ -117,7 +117,7 @@ namespace HomeBridge.BridgeTools
                     // running -- LoadGame is not reentrant (Verse.FloodFiller
                     // throws "Nested FloodFill calls are not allowed" when a
                     // second load pass overlaps the first, and the engine can
-                    // wedge hard enough to sever the GABP connection).
+                    // wedge hard enough to sever the channel).
                     if (activeRequestId == (request.RequestId ?? ""))
                         return PendingReply(previous, mapReady: false, visualReady: false);
 

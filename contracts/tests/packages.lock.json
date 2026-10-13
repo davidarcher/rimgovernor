@@ -2,15 +2,6 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
-      "Gabp.Runtime": {
-        "type": "Direct",
-        "requested": "[1.0.0, )",
-        "resolved": "1.0.0",
-        "contentHash": "vmmpAempff+K0Iff13Rg1glAvtiayjOa+RXSHP+DIrLfIPDm0keG7e4s+ZJDT1WQbvYepmPCMVcmN1PkcSvsgA==",
-        "dependencies": {
-          "Newtonsoft.Json": "13.0.3"
-        }
-      },
       "Newtonsoft.Json": {
         "type": "Direct",
         "requested": "[13.0.4, )",

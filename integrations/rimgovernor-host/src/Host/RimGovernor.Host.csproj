@@ -7,12 +7,11 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="../Contracts/**;../Core/**;../Extensions.Abstractions/**;../Sdk/**;../Gab/**" />
+    <Compile Remove="../Contracts/**;../Core/**;../Extensions.Abstractions/**;../Sdk/**" />
     <ProjectReference Include="../Contracts/RimGovernor.Host.Contracts.csproj" />
     <ProjectReference Include="../Core/RimGovernor.Host.Core.csproj" />
     <ProjectReference Include="../Extensions.Abstractions/RimGovernor.Host.Extensions.Abstractions.csproj" />
     <ProjectReference Include="../Sdk/RimGovernor.Host.Sdk.csproj" />
-    <ProjectReference Include="../Gab/RimGovernor.Host.Gab.csproj" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
     <!-- The host reads private game members (the vendored source was written against a publicised Assembly-CSharp); the publicised copy is compile-time only and the engine skips runtime access checks. -->

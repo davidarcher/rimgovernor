@@ -1,16 +1,15 @@
-# GABP host notices (vendored fork)
+# Host notices (vendored fork)
 
-The GABP host is vendored as source in
+The host is vendored as source in
 [`integrations/rimgovernor-host`](../../../rimgovernor-host/src) and shipped in this mod's `Assemblies/`.
 It is a hard fork: no upstream tracking; changes from upstream are cherry-picked by hand and the SHA
-below updated. Both upstreams are MIT licensed; their notices are retained verbatim beside this file.
+below updated. The upstream is MIT licensed; its notice is retained verbatim beside this file. The Lib.GAB transport it once carried (and the Gabp.Runtime package) has been removed.
 
 | Upstream | Vendored commit | Commit date | Vendored into | Notice |
 | --- | --- | --- | --- | --- |
 | [pardeike/RimBridgeServer](https://github.com/pardeike/RimBridgeServer) (v2.1.1) | `ca5997c9e02f53609358223a673834e35a1d1ee1` | 2026-08-25 | `src/Host`, `src/Core`, `src/Contracts`, `src/Extensions.Abstractions`, `src/Sdk` | `rimbridgeserver/LICENSE` (Copyright (c) 2025 Andreas Pardeike) |
-| [pardeike/Lib.GAB](https://github.com/pardeike/Lib.GAB) (v1.0.5) | `6b3e5e82a10ea12f595ee1a22f9a8489b2f76510` | 2026-08-25 | `src/Gab` | `lib-gab/LICENSE` (Copyright (c) 2025 Andreas Pardeike) |
 
-Only each upstream's `Source/` (RimBridgeServer) or `Lib.GAB/` (Lib.GAB) tree was copied; tests, docs,
+Only the upstream's `Source/` tree was copied; tests, docs,
 skills, workflows and artwork were not.
 
 ## Renames
@@ -18,7 +17,6 @@ skills, workflows and artwork were not.
 | Upstream | Here |
 | --- | --- |
 | assembly/namespace `RimBridgeServer`, `RimBridgeServer.Core`, `.Contracts`, `.Extensions.Abstractions`, `.Sdk` | `RimGovernor.Host`, `RimGovernor.Host.Core`, `.Contracts`, `.Extensions.Abstractions`, `.Sdk` |
-| assembly/namespace `Lib.GAB` | `RimGovernor.Host.Gab` |
 | `RimBridgeServerMod` | `RimGovernorHostMod` |
 | Harmony ids `pardeike.rimbridgeserver.*` | `davidarcher.rimgovernor.host.*` |
 | mod package id `brrainz.rimbridgeserver` | folded into `davidarcher.rimgovernor.native`; `About.xml` declares `incompatibleWith` it |
@@ -43,4 +41,3 @@ Restored in locked mode from `packages.lock.json`; their runtime DLLs are staged
 | Package | Version | License | Notice |
 | --- | --- | --- | --- |
 | Newtonsoft.Json | 13.0.4 | MIT | `newtonsoft.json/13.0.4/LICENSE` (verbatim from the package) |
-| Gabp.Runtime | 1.0.0 | Apache-2.0 (package metadata) | `gabp.runtime/1.0.0/LICENSE`: the canonical Apache-2.0 text; the upstream repo ([pardeike/gabp-runtime](https://github.com/pardeike/gabp-runtime) at `ce258707e15bc45e4303e9785ce49bc1fe6506cf`) ships no LICENSE file |

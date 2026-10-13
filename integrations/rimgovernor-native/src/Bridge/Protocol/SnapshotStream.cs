@@ -360,7 +360,7 @@ namespace HomeBridge.BridgeTools
             internal void WriteHeader(long offset, long value) { view.Write(offset, value); Thread.MemoryBarrier(); }
 
             // On an encoder worker. A frame over the slot is dropped (logged
-            // once); the controller then reads that family over GABP.
+            // once); the controller then reads that family over the HTTP channel.
             internal void Publish(Obs.BundleSnapshot frame, long capturedAt, uint captureMicros)
             {
                 var encodeStarted = Stopwatch.GetTimestamp();

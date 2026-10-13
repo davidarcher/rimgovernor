@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using RimGovernor.Host.Gab.Tools;
+using RimGovernor.Host.Core.Tools;
 using RimGovernor.Host.Contracts;
 using RimGovernor.Host.Core;
 

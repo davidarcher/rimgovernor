@@ -11,5 +11,5 @@ saved identity, clock supervision and rendering. Current behavior belongs in the
 [developer docs](../../../../docs/README.md); changes and verification belong in commits.
 
 RimWorld and Harmony assemblies are referenced from installed dependencies; their
-binaries and game artwork are not bundled. The GABP host (a vendored fork of
-RimBridgeServer and Lib.GAB, with Newtonsoft.Json) is bundled; see `../host/PROVENANCE.md`.
+binaries and game artwork are not bundled. The host (a vendored fork of
+RimBridgeServer, with Newtonsoft.Json) is bundled; see `../host/PROVENANCE.md`.

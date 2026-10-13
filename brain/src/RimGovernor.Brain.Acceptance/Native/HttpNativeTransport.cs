@@ -119,38 +119,6 @@ public sealed class HttpNativeTransport : INativeTransport
     /// <summary>The tool name of a route name (the inverse of <see cref="RoutePath"/>).</summary>
     internal static string ToolName(string route) => route.Contains('/', StringComparison.Ordinal) ? route : ToolPrefix + route;
 
-    /// <summary>The attention read tool the mod's attention manager answers (the GABP <c>games_get_attention</c> hop).</summary>
-    internal const string GetAttentionTool = "games_get_attention";
-
-    /// <summary>The attention acknowledgement tool (the GABP <c>games_ack_attention</c> hop).</summary>
-    internal const string AckAttentionTool = "games_ack_attention";
-
-    /// <summary>The blocking attention the mod holds; null when the build routes no attention tool.</summary>
-    public async Task<NativeResult?> GetAttentionAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await CallAsync(GetAttentionTool, new JsonObject(), new NativeCallOptions(), cancellationToken).ConfigureAwait(false);
-        }
-        catch (NativeToolNotRoutedException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>Acknowledges one attention by id; null when the build routes no attention tool.</summary>
-    public async Task<NativeResult?> AckAttentionAsync(string attentionId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await CallAsync(AckAttentionTool, new JsonObject { ["attentionId"] = attentionId }, new NativeCallOptions(), cancellationToken).ConfigureAwait(false);
-        }
-        catch (NativeToolNotRoutedException)
-        {
-            return null;
-        }
-    }
-
     public ValueTask DisposeAsync()
     {
         if (_ownsClient)

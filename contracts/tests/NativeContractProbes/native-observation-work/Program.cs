@@ -84,9 +84,11 @@ internal static class NativeObservationWorkProbe
     {
         var hop = ObservationWork.Begin();
         ModLog.ResetForProbe();
+        var rows = new List<(ModLogLevel Level, string Message)>();
+        ModLog.Sink = (level, component, tick, trace, message, suppressed) => rows.Add((level, message));
         try { throw new InvalidOperationException("forced traders failure"); }
         catch (Exception ex) { ObservationWork.Failed("traders", ex); }
-        var rows = ModLog.Drain(true, out _, out _, out _, out _);
+        finally { ModLog.Sink = null; }
         Check(rows.Count == 1 && rows[0].Level == ModLogLevel.Error, "one error row");
         var line = rows[0].Message;
         ObservationWork.Captured("traders", Ticks(1), 0);

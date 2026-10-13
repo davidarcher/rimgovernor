@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using RimGovernor.Host.Gab.Tools;
+using RimGovernor.Host.Core.Tools;
 using RimGovernor.Host.Core;
 
 namespace RimGovernor.Host;

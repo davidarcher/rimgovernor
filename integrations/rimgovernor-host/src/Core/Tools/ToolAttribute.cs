@@ -1,9 +1,9 @@
 using System;
 
-namespace RimGovernor.Host.Gab.Tools
+namespace RimGovernor.Host.Core.Tools
 {
     /// <summary>
-    /// Attribute to mark methods as GABP tools
+    /// Attribute to mark methods as bridge tools
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     public class ToolAttribute : Attribute
@@ -42,7 +42,7 @@ namespace RimGovernor.Host.Gab.Tools
 
         public ToolAttribute(string name)
         {
-            ToolNameValidator.EnsureValid(name, nameof(name));
+            ToolNameValidator.EnsureCanonical(name, nameof(name));
             Name = name;
         }
     }

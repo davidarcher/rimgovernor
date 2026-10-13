@@ -176,33 +176,9 @@ public sealed partial class Harness : IAsyncDisposable
         var row = Evidence.Row(sequence, tool, arguments, sent, clock.Elapsed, result?.Envelope, callError, null);
         try
         {
-            if (callError is not null && BlockingAttention(callError))
-            {
-                var attention = await ReadAndAckAttentionAsync(
-                    (partial) =>
-                    {
-                        row["attention"] = partial.DeepClone();
-                        EvidenceBudget.WriteEvidence(path, row);
-                    },
-                    cancellationToken).ConfigureAwait(false);
-                row["attention"] = attention.Row;
-                if (attention.Error is not null)
-                {
-                    callError = new AggregateException(callError, attention.Error);
-                }
-                else if (retry)
-                {
-                    // The bridge explicitly refused execution, so one retry cannot duplicate a mutation.
-                    EvidenceBudget.WriteEvidence(path, row);
-                    var payload = await CallCoreAsync(label + "-retry", tool, arguments, retry: false, cancellationToken).ConfigureAwait(false);
-                    row["retried"] = true;
-                    return payload;
-                }
-            }
-
             if (callError is not null)
             {
-                callError = Refine(tool, callError, result, hadAttention: row["attention"] is not null);
+                callError = Refine(tool, callError, result);
                 row["error"] = callError.Message;
                 throw callError is NativeRefusedException or NativeTransportException ? callError : new AcceptanceException(callError.Message, callError);
             }
@@ -228,9 +204,9 @@ public sealed partial class Harness : IAsyncDisposable
         $"harness closed: {tool}: this harness session was released to a service; Reattach after the service stops, and take the Harness the case's Reattach returns{(cause is null ? "" : ": " + cause.Message)}");
 
     /// <summary>Adds the refusal's own cause to its message, as the Go harness does for a named native refusal.</summary>
-    private static Exception Refine(string tool, Exception error, NativeResult? result, bool hadAttention)
+    private static Exception Refine(string tool, Exception error, NativeResult? result)
     {
-        if (error is NativeRefusedException refused && !hadAttention && StepResult.Parse(result?.Envelope) is { } failure)
+        if (error is NativeRefusedException refused && StepResult.Parse(result?.Envelope) is { } failure)
         {
             var kind = failure.Kind == "native exception" && tool.StartsWith("test/", StringComparison.Ordinal) ? "fixture exception" : failure.Kind;
             return new NativeRefusedException(refused.Tool, refused.Cause, refused.Result, $"native call refused: {tool}: {failure.Summary} ({kind})");

@@ -107,10 +107,4 @@ public interface INativeTransport : IAsyncDisposable
 
     /// <summary>The tool names the game registers, or null when the transport cannot enumerate them (callers then assume a tool is present).</summary>
     Task<IReadOnlyList<string>?> ToolNamesAsync(CancellationToken cancellationToken);
-
-    /// <summary>The blocking attention the game is holding, as the receipt shows it; null when the transport has no attention channel.</summary>
-    Task<NativeResult?> GetAttentionAsync(CancellationToken cancellationToken) => Task.FromResult<NativeResult?>(null);
-
-    /// <summary>Acknowledges one attention by id; null when the transport has no attention channel.</summary>
-    Task<NativeResult?> AckAttentionAsync(string attentionId, CancellationToken cancellationToken) => Task.FromResult<NativeResult?>(null);
 }

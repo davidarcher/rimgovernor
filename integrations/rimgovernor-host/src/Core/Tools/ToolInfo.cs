@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
-using System.Threading.Tasks;
 
-namespace RimGovernor.Host.Gab.Tools
+namespace RimGovernor.Host.Core.Tools
 {
     /// <summary>
     /// Information about a registered tool
@@ -111,46 +109,5 @@ namespace RimGovernor.Host.Gab.Tools
         /// Default value if not provided
         /// </summary>
         public object DefaultValue { get; set; }
-    }
-
-    /// <summary>
-    /// Registry for managing GABP tools
-    /// </summary>
-    public interface IToolRegistry
-    {
-        /// <summary>
-        /// Register a tool method manually
-        /// </summary>
-        void RegisterTool(string name, Func<object, Task<object>> handler, ToolInfo info = null);
-
-        /// <summary>
-        /// Register all tools from an assembly by scanning for ToolAttribute
-        /// </summary>
-        void RegisterToolsFromAssembly(Assembly assembly);
-
-        /// <summary>
-        /// Register all tools from an object instance by scanning for ToolAttribute
-        /// </summary>
-        void RegisterToolsFromInstance(object instance);
-
-        /// <summary>
-        /// Unregister a tool
-        /// </summary>
-        bool UnregisterTool(string name);
-
-        /// <summary>
-        /// Get information about all registered tools
-        /// </summary>
-        IList<ToolInfo> GetTools();
-
-        /// <summary>
-        /// Check if a tool is registered
-        /// </summary>
-        bool HasTool(string name);
-
-        /// <summary>
-        /// Call a registered tool
-        /// </summary>
-        Task<object> CallToolAsync(string name, object parameters = null);
     }
 }
