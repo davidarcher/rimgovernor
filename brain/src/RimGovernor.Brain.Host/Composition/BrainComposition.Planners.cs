@@ -572,6 +572,7 @@ public sealed partial class BrainComposition
             Placement = reviewer.NotePlacement,
             OpenFrames = client.OpenFramesAsync,
             Windows = windows,
+            Rounds = new RoundsDiagnostics(context.Journal, true, context.Session.RoundsMethodsEnabled(), _options.Families.Active(), context.Sections),
         };
     }
 
@@ -607,8 +608,8 @@ public sealed partial class BrainComposition
             // serve --follow-player-speed opts back into the player's own speed; the dev tick boost wins.
             FollowPlayerSpeed = _options.FollowPlayerSpeed && !testAcceleration,
             PaceHorizonTicks = _options.ClockBlindTicks,
-            // Autosave stays null until the autosaver is ported (#3114).
-            Autosave = null,
+            // The host's autosaver (Go newGoAutosaver(...).AtStop): saves at a paused window start, flushing governor state first.
+            Autosave = context.Autosave,
             PageLimit = 128,
             PollInterval = TimeSpan.FromSeconds(1),
             RunningPollInterval = TimeSpan.Zero,

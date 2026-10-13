@@ -49,9 +49,18 @@ settles owed epochs, re-takes the clock from the player and polls the native jou
 `roundsCapabilities`) is `IBrainComposition`; its family flags are all on by default and
 `RIMGOVERNOR_ROUTINE_FAMILIES` narrows them, as in Go.
 
-Not in the client: the providers, Save/Load/NewColony and autosave (#3114), the mod-side hosting (#3115), and the
-catalog's Def-backed factory and facade label checks (#3116). The catalog reads need `CatalogFactory`, which supplies the
-game's Defs and stat source; until the mod host installs it they throw.
+The player providers (#3114) are the client's `IPresentationReader`, `IPresentationMediaWriter`, `INotificationReader`
+and `ILifecycleWriter` (Save/Load/NewColony, with `StartingIdeoligion` as the seam for the `governor_ideoligion` choice),
+plus `HostSnapshots` (the cached controller snapshot, polled every `RefreshInterval`), `HostColonyStatus` and
+`RoundsDiagnostics`. `BrainHost` registers `PlayerRoutes`, `ReadRoutes`, `PresentationRoutes` and `LifecycleRoutes`
+from `SessionParts.Player`. There is no Attention provider: Go's acknowledgement had no facade method to port. The
+host wraps the lifecycle in `FlushedLifecycle` (the governor state is flushed before every save) and builds the
+`Autosaver` (one in-game day, five rotating `Autosave-N` slots, baseline on the first stop or a rewound tick), which
+the composition passes to the clock windows as `ClockWindowConfig.Autosave`.
+
+Not in the client: the mod-side hosting (#3115), and the catalog's Def-backed factory, the `governor_ideoligion`
+resolver and facade label checks (#3116). The catalog reads need `CatalogFactory`, which supplies the game's Defs and
+stat source; until the mod host installs it they throw.
 
 ## Watchdog thresholds
 

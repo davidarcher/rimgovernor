@@ -2,6 +2,7 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.NativeFacade;
+using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry;
 
@@ -25,6 +26,9 @@ public sealed record SessionParts
     /// <summary>The clock capability (#3108); null composes a session that refuses to start while a clock command is owed.</summary>
     public ClockCapabilities? Clock { get; init; }
 
+    /// <summary>What the player routes call natively: presentation, notifications, the render lease, the lifecycle and the colony census. Null registers none of them.</summary>
+    public PlayerNatives? Player { get; init; }
+
     public HaulCapabilities? Haul { get; init; }
 
     public MovementCapabilities? Movement { get; init; }
@@ -36,6 +40,28 @@ public sealed record SessionParts
     /// trade session). Null sweeps nothing.
     /// </summary>
     public Action<IReadOnlyList<PlanState>, CancellationToken>? Orphans { get; init; }
+}
+
+/// <summary>
+/// The native capabilities the player routes (#3083) call, which Go's <c>httpapi.Config</c> took from the bridge client.
+/// The host registers a route family for each one given.
+/// </summary>
+public sealed record PlayerNatives
+{
+    /// <summary>The tick and status reads behind the cached controller snapshot (Go <c>readState</c>).</summary>
+    public RimGovernor.Brain.Observation.ISource? Source { get; init; }
+
+    public IPresentationReader? Presentation { get; init; }
+
+    public IPresentationMediaWriter? Media { get; init; }
+
+    public INotificationReader? Notifications { get; init; }
+
+    /// <summary>Save, load and new colony. The host wraps it so every save flushes the governor state first (Go <c>flushedSave</c>).</summary>
+    public ILifecycleWriter? Lifecycle { get; init; }
+
+    /// <summary>The colony census reads behind the colony route.</summary>
+    public IColonyStatusNative? Colony { get; init; }
 }
 
 /// <summary>What the planner side is built over: the session it plans for and the signals it shares with the host.</summary>
@@ -62,6 +88,12 @@ public sealed class PlannerContext
 
     /// <summary>Asks the scheduler loop to step now (the Worker's <c>Advanced</c>).</summary>
     public required Action Nudge { get; init; }
+
+    /// <summary>
+    /// The autosave a window start at a paused tick calls with the loaded world's identity and tick (Go
+    /// <c>goAutosaver.AtStop</c>); it flushes the governor state before it saves. Null saves nothing.
+    /// </summary>
+    public Func<RimGovernor.Contracts.Wire.Common.Identity, long, CancellationToken, Task>? Autosave { get; init; }
 }
 
 /// <summary>What the planner side hands back to the host.</summary>
@@ -96,6 +128,9 @@ public sealed class PlannerParts
     /// maintenance). Owned by #3108; null steps the planners without ever lending a window.
     /// </summary>
     public IClockWindowDriver? Windows { get; init; }
+
+    /// <summary>The routine diagnostics behind <c>/api/routines</c> (Go <c>serviceRoundsDiagnostics</c>); null registers no such route.</summary>
+    public IRoundsProvider? Rounds { get; init; }
 }
 
 /// <summary>The window side of the clock, which stays in the mod and is driven from the host after each step (#3108).</summary>

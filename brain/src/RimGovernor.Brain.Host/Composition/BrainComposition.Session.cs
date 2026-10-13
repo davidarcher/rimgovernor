@@ -14,8 +14,8 @@ namespace RimGovernor.Brain.Host;
 /// <c>startServiceClock</c>.
 /// </summary>
 /// <remarks>
-/// Not carried: the autosave at a window's paused start (Go <c>newGoAutosaver</c>, slice b #3114), which is left
-/// null in the window configuration.
+/// The autosave at a window's paused start (Go <c>newGoAutosaver</c>) is the host's: it arrives as
+/// <see cref="PlannerContext.Autosave"/> because it must flush the governor state the host owns before it saves.
 /// </remarks>
 public sealed partial class BrainComposition(BrainCompositionOptions options) : IBrainComposition
 {
@@ -38,6 +38,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
         ArgumentNullException.ThrowIfNull(facade);
         ArgumentNullException.ThrowIfNull(telemetry);
         var client = FacadeNativeClient.Create(facade, _options.CatalogFactory);
+        client.StartingIdeoligion = _options.StartingIdeoligion;
         // The writers go through the client's counting facade, so their native calls are tallied like its reads.
         var writer = new FacadeActionsWriter(client.Facade);
         _client = client;
@@ -52,6 +53,15 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
             Haul = families.FoodStorageUpkeep ? new HaulCapabilities(client, writer) : null,
             Movement = families.Defense ? new MovementCapabilities(writer) : null,
             Trade = families.Trade ? new TradeCapabilities { Native = client, Writer = writer, Requests = client } : null,
+            Player = new PlayerNatives
+            {
+                Source = client,
+                Presentation = client,
+                Media = client,
+                Notifications = client,
+                Lifecycle = client,
+                Colony = client,
+            },
             Orphans = (plans, ct) => SweepOrphans(client, writer, new HostLog(telemetry, "governor-state"), plans, ct),
         };
     }

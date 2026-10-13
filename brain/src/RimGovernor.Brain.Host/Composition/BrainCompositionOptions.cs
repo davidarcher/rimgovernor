@@ -39,6 +39,13 @@ public sealed record BrainCompositionOptions
     /// </summary>
     public Func<RimGovernor.Contracts.Wire.Observations.DefinitionCatalog, RimGovernor.Contracts.Wire.Common.Identity, DefinitionCatalog>? CatalogFactory { get; init; }
 
+    /// <summary>
+    /// Resolves the ideoligion the governor chooses for a new colony's scenario (Go <c>CreationCatalog</c> then
+    /// <c>StartingIdeoligion</c>), from the creation catalog over the game's Defs. Null refuses a new colony that asks for
+    /// <c>governor_ideoligion</c> as unavailable; the mod host installs it with <see cref="CatalogFactory"/> (#3116).
+    /// </summary>
+    public Func<string, CancellationToken, Task<RimGovernor.Contracts.Wire.Common.IdeoligionDesign>>? StartingIdeoligion { get; init; }
+
     internal void Validate()
     {
         if (string.IsNullOrWhiteSpace(Profile) || !Path.IsPathRooted(Profile))

@@ -52,7 +52,8 @@ public sealed class BrainHost : IAsyncDisposable
     private Worker? _worker;
     private PlannerParts? _plannerParts;
     private SchedulerLoop? _loop;
-    private IDisposable? _routes;
+    private readonly List<IDisposable> _routes = [];
+    private Task? _snapshotLoop;
     private WorldRebuild? _rebuild;
     private Task? _saveLoop;
     private Task? _resumer;
@@ -152,6 +153,18 @@ public sealed class BrainHost : IAsyncDisposable
         var rebuild = new WorldRebuild(journal, governorState, parts.Orphans, _log);
         _rebuild = rebuild;
         var wake = new WakeSignal();
+        var sections = new FactStore();
+        var flusher = new StateFlusher(governorState, worlds, journal, rebuild);
+        // Go flushedSave: every Go-made save (the player's and the autosave's) flushes the governor state first.
+        var lifecycle = parts.Player?.Lifecycle is { } rawLifecycle ? new FlushedLifecycle(rawLifecycle, flusher.FlushAsync) : null;
+        Func<RimGovernor.Contracts.Wire.Common.Identity, long, CancellationToken, Task>? autosave = null;
+        if (lifecycle is not null)
+        {
+            var autosaver = new Autosaver(lifecycle.SaveAsync, new HostLog(_emitter, "autosave"));
+            _routes.Add(autosaver);
+            autosave = autosaver.AtStopAsync;
+        }
+
         var planners = options.Composition.ComposePlanners(new PlannerContext
         {
             Player = player,
@@ -160,7 +173,8 @@ public sealed class BrainHost : IAsyncDisposable
             Facade = facade,
             Telemetry = _emitter,
             Wake = wake,
-            Sections = new FactStore(),
+            Sections = sections,
+            Autosave = autosave,
             WorldReady = rebuild.SchedulerGate(),
             // The Worker's advance steps the scheduler at once (Go ClockWorker.Nudge): a wake without evidence.
             Nudge = () => wake.Notify([], false),
@@ -196,20 +210,38 @@ public sealed class BrainHost : IAsyncDisposable
             session,
             _lifetime.Token);
 
-        var flusher = new StateFlusher(governorState, worlds, journal, rebuild);
+        HostSnapshots? snapshots = null;
         if (options.Routes is { } routes)
         {
-            _routes = PlayerRoutes.Register(
+            _routes.Add(PlayerRoutes.Register(
                 routes,
                 new HostPlayerControl(player, journal, _steps, _log),
                 new HostControlReader(journal),
-                new HostClockReview(journal, options.ProfileDirectory));
+                new HostClockReview(journal, options.ProfileDirectory)));
+            var natives = parts.Player;
+            if (natives?.Source is { } source)
+            {
+                var maxAge = timings.RefreshInterval + timings.RefreshInterval + timings.CallTimeout;
+                snapshots = new HostSnapshots(Guid.NewGuid().ToString("N"), source, SystemClock.Instance, maxAge, player, new HostLog(_emitter, "snapshots")) { Journal = journal };
+                _routes.Add(snapshots);
+                var colony = natives.Colony is { } colonyNative ? new HostColonyStatus(new ColonyStatus(player, colonyNative, sections)) : null;
+                _routes.Add(ReadRoutes.Register(routes, snapshots, snapshots, planners.Rounds, colony));
+                _routes.Add(PresentationRoutes.Register(routes, snapshots, natives.Presentation, natives.Media, natives.Notifications));
+                if (lifecycle is not null)
+                {
+                    _routes.Add(LifecycleRoutes.Register(routes, snapshots, lifecycle));
+                }
+            }
         }
 
         var loop = new SchedulerLoop(player, session, planners.Scheduler, planners.Windows, wake, timings, options.Watchdog, _planners, _steps, _log, _lifetime.Token);
         _loop = loop;
         loop.Start();
         _saveLoop = Task.Run(() => new SaveSignalLoop(facade, flusher, _log).RunAsync(_lifetime.Token), CancellationToken.None);
+        if (snapshots is not null)
+        {
+            _snapshotLoop = Task.Run(() => snapshots.PollAsync(timings.RefreshInterval, _lifetime.Token), CancellationToken.None);
+        }
         if (options.AutoResume)
         {
             var resumer = new AutoResumer(worlds, player, journal, _steps, _log);
@@ -267,7 +299,7 @@ public sealed class BrainHost : IAsyncDisposable
         {
             _log.Error("scheduler_not_joined", "the scheduler thread did not end; continuing with shutdown");
         }
-        foreach (var task in new[] { _saveLoop, _resumer })
+        foreach (var task in new[] { _saveLoop, _resumer, _snapshotLoop })
         {
             if (task is null)
             {
@@ -286,7 +318,10 @@ public sealed class BrainHost : IAsyncDisposable
         {
             await Attempt(errors, "window driver", ct => windows.StopAsync(ct)).ConfigureAwait(false);
         }
-        _routes?.Dispose();
+        foreach (var registration in _routes)
+        {
+            registration.Dispose();
+        }
 
         // A failed join retains the database: Close itself observes uncertain cleanup, and these retries never
         // repeat an execution command (Go drainBuilding).
