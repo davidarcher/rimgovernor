@@ -31,6 +31,7 @@ includes:
   probes: { taskfile: contracts/tests, dir: contracts/tests }
   brain: { taskfile: brain, dir: brain }
   rg: { taskfile: tools/rg, dir: tools/rg }
+  launcher: { taskfile: tools/launcher, dir: tools/launcher }
 
 tasks:
   build:
@@ -45,6 +46,7 @@ tasks:
       - task: probes:build
       - task: brain:build
       - task: rg:build
+      - task: launcher:build
 
   test:
     desc: Tests for every project, run concurrently; the Go suite last, alone
@@ -58,5 +60,6 @@ tasks:
       - probes:test
       - brain:test
       - rg:test
+      - launcher:test
     cmds:
       - task: go:test

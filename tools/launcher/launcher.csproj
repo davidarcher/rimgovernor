@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The RimGovernor launcher (#3098): the WinForms + WebView2 window behind RimGovernor.cmd. Its own WinExe outside the
+       brain solution; it references the acceptance harness for setup and case runs and reaches the game's in-process
+       brain over the local HTTP channel. RimGovernor.cmd publishes it as one file, RimGovernorLauncher.exe. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>RimGovernorLauncher</AssemblyName>
+    <RootNamespace>RimGovernor.Launcher</RootNamespace>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>9999</WarningLevel>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Published for win-x64; declaring it keeps the lock file stable across build and publish. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <DebugType>none</DebugType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- The single-file publish: framework-dependent like the tool host, native libraries (sqlite, the WebView2 loader) inside. -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
+    <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance.Cases\RimGovernor.Brain.Acceptance.Cases.csproj" />
+  </ItemGroup>
+</Project>

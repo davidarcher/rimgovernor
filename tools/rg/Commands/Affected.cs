@@ -19,7 +19,7 @@ internal static class Affected
     ];
 
     /// <summary>Roots of the C# solutions; their gate is <c>task build</c> and <c>task test</c>, not this tool.</summary>
-    private static readonly string[] CSharpRoots = ["brain/", "tools/rg/"];
+    private static readonly string[] CSharpRoots = ["brain/", "tools/rg/", "tools/launcher/"];
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {

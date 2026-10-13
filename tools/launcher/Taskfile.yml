@@ -1,0 +1,25 @@
+# Launcher (#3098): the WinForms + WebView2 window behind RimGovernor.cmd, built as its own WinExe.
+# Windows only: on any other OS the build reports `unavailable` and passes, the way the native build does.
+version: '3'
+
+tasks:
+  build:
+    desc: Launcher with nullable and warnings as errors, restored in locked mode (Windows only)
+    sources:
+      - '**/*.cs'
+      - '**/*.html'
+      - '*.csproj'
+      - '*.props'
+      - 'packages.lock.json'
+      - exclude: 'bin/**'
+      - exclude: 'obj/**'
+    cmds:
+      - cmd: dotnet build launcher.csproj --configuration Release --nologo -p:RestoreLockedMode=true -p:TreatWarningsAsErrors=true
+        platforms: [windows]
+      - cmd: echo "launcher build unavailable (Windows only)"
+        platforms: [linux, darwin]
+
+  test:
+    desc: No tests (production code only); the gate is the warnings-clean build
+    cmds:
+      - echo "launcher test none (production code only)"
