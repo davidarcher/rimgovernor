@@ -38,7 +38,7 @@ public sealed class HaulBoundary : IHaulBoundary
         {
             _ = BridgeApi.IntentAction("inspect", target.Action);
         }
-        catch (DomainException e)
+        catch (BridgeContractException e)
         {
             throw new EvidenceException(e);
         }
