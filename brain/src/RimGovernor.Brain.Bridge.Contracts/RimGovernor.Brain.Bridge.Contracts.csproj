@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Value types and validators of Go internal/bridge that observation, snapshot, store and facts consume.
+       Deliberately free of the game assemblies: the catalog derivations (#3056) live in RimGovernor.Brain.Bridge. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Bridge.Contracts</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Bridge.Contracts</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Go's domain.Known / domain.Unknown, and the package-level consts and functions with no owner type. -->
+    <Using Include="RimGovernor.Brain.Domain" />
+    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
+    <!-- The wire messages share these names with domain values; this project names the wire message. -->
+    <Using Include="RimGovernor.Protocol.Common.Identity" Alias="Identity" />
+    <Using Include="RimGovernor.Protocol.Common.Cell" Alias="Cell" />
+    <Using Include="RimGovernor.Protocol.Receipts.UnsuccessfulReason" Alias="UnsuccessfulReason" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeConstants" Static="true" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.BridgeFunctions" Static="true" />
+  </ItemGroup>
+</Project>
