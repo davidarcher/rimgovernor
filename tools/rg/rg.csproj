@@ -20,4 +20,10 @@
     <UseSystemResourceKeys>true</UseSystemResourceKeys>
     <TieredPGO>false</TieredPGO>
   </PropertyGroup>
+  <!-- The acceptance harness (#3087) and its cases; SelfBuild.IsStale follows these references so an edit under
+       brain/ marks the published host stale. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
+    <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance.Cases\RimGovernor.Brain.Acceptance.Cases.csproj" />
+  </ItemGroup>
 </Project>

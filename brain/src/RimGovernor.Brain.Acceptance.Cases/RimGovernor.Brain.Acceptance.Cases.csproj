@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The acceptance cases (#3090, #3093). A case registers itself through the public API of
+       RimGovernor.Brain.Acceptance and never reaches the harness internals. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Acceptance.Cases</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Acceptance.Cases</AssemblyName>
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
+  </ItemGroup>
+</Project>

@@ -34,11 +34,11 @@ and opens when run without arguments.
 
 ### Repo tools (`RimGovernor.cmd <tool>`)
 
-`RimGovernor.cmd land`, `test`, `issue` and `affected` run one C# tool host
+`RimGovernor.cmd land`, `test`, `issue`, `affected` and `acceptance` run one C# tool host
 (`tools/rg`, .NET SDK 10 only). The shim publishes it ReadyToRun into the
 gitignored `.rimgovernor/tools/<version>/` on first use (a few seconds), names
 the live version in `.rimgovernor/tools/current`, and afterwards starts it in
-well under 150 ms. A source change under `tools/rg` (a `.cs`, `.csproj` or
+well under 150 ms. A source change under `tools/rg` or the `brain/` projects it references (`acceptance` pulls in `Brain.Acceptance`, `Brain.Acceptance.Cases` and what they build on; a `.cs`, `.csproj` or
 `.props` newer than the last publish) makes the next run rebuild first; the
 rebuild takes a lock, so parallel invocations wait for one build and never
 share a half-written output. A failed build prints the compiler output and

@@ -18,6 +18,7 @@ internal static class Program
           test      run the checks the working tree's changes owe
           issue     print a GitHub issue and its comments as markdown
           affected  list the changed files and the checks they owe
+          acceptance  the native acceptance harness (list, stop, ...)
 
         <tool> -help shows a tool's flags.
         """;
@@ -56,6 +57,7 @@ internal static class Program
                 "test" => await TestCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "issue" => await IssueCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "affected" => await Affected.RunAsync(rest, cts.Token).ConfigureAwait(false),
+                "acceptance" => await AcceptanceTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 _ => throw new UsageException($"unknown tool \"{tool}\"\n\n{Usage}"),
             };
         }

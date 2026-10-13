@@ -2,9 +2,9 @@
 rem RimGovernor.cmd
 rem   no arguments:  double-click to play. Builds the launcher (seconds when nothing changed) and opens it.
 rem   with arguments: runs the repo tool host (tools\rg), e.g.  RimGovernor.cmd issue 3086
-rem                   tools: land, test, issue, affected   (RimGovernor.cmd -help)
+rem                   tools: land, test, issue, affected, acceptance   (RimGovernor.cmd -help)
 rem The tool host is published ReadyToRun into .rimgovernor\tools\<version>\ and .rimgovernor\tools\current names the
-rem live version. A binary older than tools\rg\*.cs|csproj reports itself stale (exit 75) before doing anything;
+rem live version. A binary older than tools\rg\*.cs|csproj or the brain\ projects rg references reports itself stale (exit 75) before doing anything;
 rem this shim then rebuilds under a lock (parallel invocations wait, never share a half-written output) and re-runs.
 rem Needs the .NET SDK 10 on PATH only to (re)build. Arguments containing % or ^ are mangled by cmd; use -F for those.
 if "%~1"=="" goto :launcher

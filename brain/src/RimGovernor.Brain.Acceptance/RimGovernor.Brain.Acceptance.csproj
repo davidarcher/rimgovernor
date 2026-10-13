@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The C# acceptance harness (#3087): drives the game over the local HTTP channel, hosts the case registry and
+       the setup, doctor and postmortem tools behind `RimGovernor.cmd acceptance`. Cases live in
+       RimGovernor.Brain.Acceptance.Cases and register through the public API of this project. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Acceptance</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Acceptance</AssemblyName>
+    <!-- GameHost's source-generated LibraryImport (detached CreateProcess) emits unsafe stubs. -->
+    <!-- tools/rg publishes win-x64 ReadyToRun and restores this project with that RID; declaring it keeps the lock file stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RimGovernor.Brain.HttpChannel\RimGovernor.Brain.HttpChannel.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RimGovernor.Brain.Telemetry\RimGovernor.Brain.Telemetry.csproj" />
+  </ItemGroup>
+</Project>
