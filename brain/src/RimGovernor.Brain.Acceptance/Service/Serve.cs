@@ -110,11 +110,11 @@ public sealed partial class ServiceProcess : ICheckpointService
     public static Task<ServiceProcess> ServeAsync(Config cfg, Harness? harness, JsonObject? identity, ServeSpec spec, Report? report, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(cfg);
-        return ServeCoreAsync(cfg.Output, harness, identity, spec, 1, report, cancellationToken, cfg.Configuration);
+        return ServeCoreAsync(cfg.Output, harness, identity, spec, 1, report, cancellationToken, cfg.Configuration, cfg.GameId);
     }
 
     // Serve with the launch number a harness-less restart carries; with a harness the output's own count wins.
-    private static async Task<ServiceProcess> ServeCoreAsync(string output, Harness? harness, JsonObject? identity, ServeSpec spec, int launch, Report? report, CancellationToken cancellationToken, string configDir = "")
+    private static async Task<ServiceProcess> ServeCoreAsync(string output, Harness? harness, JsonObject? identity, ServeSpec spec, int launch, Report? report, CancellationToken cancellationToken, string configDir = "", string gameId = "")
     {
         ArgumentException.ThrowIfNullOrEmpty(output);
         ArgumentNullException.ThrowIfNull(spec);
@@ -143,7 +143,7 @@ public sealed partial class ServiceProcess : ICheckpointService
             throw new AcceptanceException("serve: the loaded identity is required once the harness session is released");
         }
 
-        var p = await LaunchServeAsync(output, harness, spec, launch, report, cancellationToken, configDir).ConfigureAwait(false);
+        var p = await LaunchServeAsync(output, harness, spec, launch, report, cancellationToken, configDir, gameId).ConfigureAwait(false);
         p.Identity = identity.DeepClone().AsObject();
         try
         {
@@ -162,13 +162,16 @@ public sealed partial class ServiceProcess : ICheckpointService
     /// Finds the brain's player API for a harness that manages the attach and authority steps itself (the routine
     /// verticals); <see cref="ServeAsync"/> is the full lifecycle. The service is recorded under report["service"].
     /// </summary>
-    public static Task<ServiceProcess> LaunchServiceAsync(Config cfg, ServiceLaunch launch, Report? report, CancellationToken cancellationToken)
+    public static Task<ServiceProcess> LaunchServiceAsync(Config cfg, ServiceLaunch launch, Report? report, CancellationToken cancellationToken, Harness? harness = null)
     {
         ArgumentNullException.ThrowIfNull(cfg);
         ArgumentNullException.ThrowIfNull(launch);
         report = launch.Report ?? report;
         var spec = new ServeSpec { Families = launch.Families, Env = launch.Env, PlayerSpeed = launch.PlayerSpeed };
-        return LaunchServeAsync(launch.Output.Length > 0 ? launch.Output : cfg.Output, null, spec, 1, report, cancellationToken, cfg.Configuration);
+
+        // The harness names the directory the game's channel publishes its endpoint in (beside the game, not in the case's
+        // output); without it the endpoint is looked for under the output and never found (#3123).
+        return LaunchServeAsync(launch.Output.Length > 0 ? launch.Output : cfg.Output, harness, spec, 1, report, cancellationToken, cfg.Configuration, cfg.GameId);
     }
 
     /// <summary>
@@ -211,7 +214,7 @@ public sealed partial class ServiceProcess : ICheckpointService
 
     // Finds the player API under output/service (output/service-N for a restart), checks the brain answers as the
     // process the endpoint file names and records the launch on the report.
-    private static async Task<ServiceProcess> LaunchServeAsync(string output, Harness? harness, ServeSpec spec, int launch, Report? report, CancellationToken cancellationToken, string configDir = "")
+    private static async Task<ServiceProcess> LaunchServeAsync(string output, Harness? harness, ServeSpec spec, int launch, Report? report, CancellationToken cancellationToken, string configDir = "", string gameId = "")
     {
         var serviceDir = Path.Combine(output, "service");
         var key = "service";
@@ -223,7 +226,9 @@ public sealed partial class ServiceProcess : ICheckpointService
 
         Directory.CreateDirectory(serviceDir);
         var otlpDir = ServiceLogs.OtlpDir(output);
-        var endpointDir = harness?.Transport is HttpNativeTransport http ? http.EndpointDirectory : otlpDir;
+        var endpointDir = harness?.Transport is HttpNativeTransport http
+            ? http.EndpointDirectory
+            : configDir.Length > 0 && gameId.Length > 0 ? GameSessions.EndpointDirectory(configDir, gameId) : otlpDir;
         var entry = new JsonObject { ["state"] = "starting", ["launch"] = launch, ["endpoint"] = endpointDir };
         if (report is not null)
         {
