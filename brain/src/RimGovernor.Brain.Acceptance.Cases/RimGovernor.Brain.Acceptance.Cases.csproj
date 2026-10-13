@@ -8,6 +8,10 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The sustained colony variants (Go go:embed manifests/issue-1-matrix.json). -->
+    <EmbeddedResource Include="Sustained\manifests\issue-1-matrix.json" LogicalName="sustained.issue-1-matrix.json" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
   </ItemGroup>
 </Project>

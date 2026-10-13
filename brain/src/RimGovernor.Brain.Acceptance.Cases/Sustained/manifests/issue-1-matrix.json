@@ -1,0 +1,70 @@
+[
+    {
+        "save": "RimGovernor-matrix-baseline-crashlanded",
+        "scenario": "Crashlanded",
+        "count": 3,
+        "seed": "rimgovernor-matrix-baseline"
+    },
+    {
+        "save": "RimGovernor-matrix-crashlanded-seed-b",
+        "scenario": "Crashlanded",
+        "count": 3,
+        "seed": "rimgovernor-matrix-seed-b"
+    },
+    {
+        "save": "RimGovernor-matrix-crashlanded-seed-c",
+        "scenario": "Crashlanded",
+        "count": 3,
+        "seed": "rimgovernor-matrix-seed-c"
+    },
+    {
+        "save": "RimGovernor-matrix-rich-explorer-solo",
+        "scenario": "TheRichExplorer",
+        "count": 1,
+        "seed": "rimgovernor-matrix-solo-1"
+    },
+    {
+        "save": "RimGovernor-matrix-tribal5",
+        "scenario": "LostTribe",
+        "count": 5,
+        "seed": "rimgovernor-matrix-tribal5"
+    },
+    {
+        "save": "RimGovernor-matrix-tribal8",
+        "scenario": "LostTribe",
+        "count": 8,
+        "seed": "rimgovernor-matrix-tribal8"
+    },
+    {
+        "save": "RimGovernor-matrix-crashlanded-desert-scarce-wood",
+        "scenario": "Crashlanded",
+        "count": 3,
+        "seed": "rimgovernor-matrix-desert-1",
+        "biome": "Desert"
+    },
+    {
+        "save": "RimGovernor-matrix-crashlanded-tundra-cold",
+        "scenario": "Crashlanded",
+        "count": 3,
+        "seed": "rimgovernor-matrix-tundra-1",
+        "biome": "Tundra",
+        "minTemperature": -60,
+        "maxTemperature": 10
+    },
+    {
+        "save": "RimGovernor-matrix-crashlanded-extreme-desert-hot",
+        "scenario": "Crashlanded",
+        "count": 3,
+        "seed": "rimgovernor-matrix-extreme-desert-1",
+        "biome": "ExtremeDesert",
+        "minTemperature": 10,
+        "maxTemperature": 100
+    },
+    {
+        "save": "RimGovernor-matrix-crashlanded-hard-difficulty",
+        "scenario": "Crashlanded",
+        "count": 3,
+        "seed": "rimgovernor-matrix-hard-1",
+        "difficulty": "Hard"
+    }
+]

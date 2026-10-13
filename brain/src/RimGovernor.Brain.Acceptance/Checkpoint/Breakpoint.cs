@@ -333,7 +333,7 @@ public sealed partial class CheckpointRing
 }
 
 /// <summary>Go duration text (Go <c>time.Duration.String</c> / <c>ParseDuration</c>), for specs and labels.</summary>
-internal static partial class GoDuration
+public static partial class GoDuration
 {
     public static bool TryParse(string text, out TimeSpan value)
     {

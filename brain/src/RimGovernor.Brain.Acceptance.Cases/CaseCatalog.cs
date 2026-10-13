@@ -36,6 +36,7 @@ public static class CaseCatalog
         RoomsCases.Register(registry);
         SmokeCases.Register(registry);
         StorageCases.Register(registry);
+        SustainedCases.Register(registry);
         SuppliesCases.Register(registry);
         TickbudgetCases.Register(registry);
         TradeCases.Register(registry);
