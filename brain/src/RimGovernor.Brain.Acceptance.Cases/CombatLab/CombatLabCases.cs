@@ -39,6 +39,11 @@ public static class CombatLabCases
         registry.Register(CombatLabStrip.Case());
         registry.Register(CombatLabStun.Case());
         registry.Register(CombatLabWild.Case());
+        registry.Register(CombatLabResume.Case());
+        foreach (var metrics in CombatLabMetrics.Cases())
+        {
+            registry.Register(metrics);
+        }
     }
 
     /// <summary>An array of the strings.</summary>
