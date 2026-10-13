@@ -38,6 +38,7 @@ public static class CaseCatalog
         HusbandryCases.Register(registry);
         IdeologyCases.Register(registry);
         LabCases.Register(registry);
+        LayoutCases.Register(registry);
         LetterCases.Register(registry);
         LifecycleCases.Register(registry);
         LightCases.Register(registry);
@@ -57,6 +58,7 @@ public static class CaseCatalog
         ResearchCases.Register(registry);
         ReviewCases.Register(registry);
         RoomsCases.Register(registry);
+        ShelterCases.Register(registry);
         RouteCases.Register(registry);
         ScheduleCases.Register(registry);
         ServiceCases.Register(registry);
