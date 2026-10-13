@@ -1,0 +1,176 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "SQLitePCLRaw.core": {
+        "type": "Transitive",
+        "resolved": "2.1.11",
+        "contentHash": "PK0GLFkfhZzLQeR3PJf71FmhtHox+U3vcY6ZtswoMjrefkB9k6ErNJEnwXqc5KgXDSjige2XXrezqS39gkpQKA=="
+      },
+      "rimgovernor.brain.bridge": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.bridge.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.buildingruntime": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Executor": "[1.0.0, )",
+          "RimGovernor.Brain.Facts": "[1.0.0, )",
+          "RimGovernor.Brain.Observation": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Simulation": "[1.0.0, )",
+          "RimGovernor.Brain.Snapshot": "[1.0.0, )",
+          "RimGovernor.Brain.Store": "[1.0.0, )",
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.domain": {
+        "type": "Project"
+      },
+      "rimgovernor.brain.executor": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Store": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.facts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.httpchannel": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.nativefacade": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.observation": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Facts": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.playerapi": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.HttpChannel": "[1.0.0, )",
+          "RimGovernor.Brain.Store": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.policy": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.simulation": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.snapshot": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Facts": "[1.0.0, )",
+          "RimGovernor.Brain.Observation": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Store": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.store": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Data.Sqlite.Core": "[10.0.0, )",
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Wire": "[1.0.0, )",
+          "SQLitePCLRaw.provider.e_sqlite3": "[2.1.11, )",
+          "SourceGear.sqlite3": "[3.53.4, )"
+        }
+      },
+      "rimgovernor.brain.telemetry": {
+        "type": "Project"
+      },
+      "rimgovernor.brain.wire": {
+        "type": "Project",
+        "dependencies": {
+          "Google.Protobuf": "[3.31.1, )"
+        }
+      },
+      "Google.Protobuf": {
+        "type": "CentralTransitive",
+        "requested": "[3.31.1, )",
+        "resolved": "3.31.1",
+        "contentHash": "gSnJbUmGiOTdWddPhqzrEscHq9Ls6sqRDPB9WptckyjTUyx70JOOAaDLkFff8gManZNN3hllQ4aQInnQyq/Z/A=="
+      },
+      "Microsoft.Data.Sqlite.Core": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "wPKG/Ym6tSMCo06UOZXzVfeFGzawnOZrTba/R3PfK+RhNuNELZ9I7nFns4WGTtv2kKlrlmmErgJ+kgTXHaNdHg==",
+        "dependencies": {
+          "SQLitePCLRaw.core": "2.1.11"
+        }
+      },
+      "SourceGear.sqlite3": {
+        "type": "CentralTransitive",
+        "requested": "[3.53.4, )",
+        "resolved": "3.53.4",
+        "contentHash": "aXPX39R0Vgivhi95Z82TRenG56bSOs+Hnt8h1GV0nmfuRaANObd3LC44eoZwszmQqALjaV3ZnBQRej8m5E0L4Q=="
+      },
+      "SQLitePCLRaw.provider.e_sqlite3": {
+        "type": "CentralTransitive",
+        "requested": "[2.1.11, )",
+        "resolved": "2.1.11",
+        "contentHash": "Y/0ZkR+r0Cg3DQFuCl1RBnv/tmxpIZRU3HUvelPw6MVaKHwYYR8YNvgs0vuNuXCMvlyJ+Fh88U1D4tah1tt6qw==",
+        "dependencies": {
+          "SQLitePCLRaw.core": "2.1.11"
+        }
+      }
+    }
+  }
+}

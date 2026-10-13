@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The brain host (#3082): the lifecycle, scheduler thread, authority and fault isolation that run the whole
+       brain inside the mod behind -rimgovernor-inproc. It composes the other projects and adds the process-level
+       concerns they leave out; it references no game assembly. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.Brain.Host</RootNamespace>
+    <AssemblyName>RimGovernor.Brain.Host</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Wire/RimGovernor.Brain.Wire.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.BuildingRuntime/RimGovernor.Brain.BuildingRuntime.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.HttpChannel/RimGovernor.Brain.HttpChannel.csproj" />
+    <ProjectReference Include="../RimGovernor.Brain.PlayerApi/RimGovernor.Brain.PlayerApi.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Names two imported namespaces both declare, or a namespace that shares its class's name. -->
+    <Using Include="RimGovernor.Brain.Store.Store" Alias="StoreJournal" />
+    <Using Include="RimGovernor.Brain.Observation.IClock" Alias="ObservationClock" />
+    <Using Include="RimGovernor.Brain.Executor.IClock" Alias="ExecutorClock" />
+    <Using Include="RimGovernor.Protocol.Authority" Alias="PbAuthority" />
+    <Using Include="RimGovernor.Protocol.Common" Alias="PbCommon" />
+    <Using Include="RimGovernor.Protocol.Lifecycle" Alias="PbLifecycle" />
+    <Using Include="RimGovernor.Protocol.Operations" Alias="PbOperations" />
+  </ItemGroup>
+</Project>

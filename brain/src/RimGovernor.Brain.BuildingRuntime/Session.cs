@@ -9,6 +9,12 @@ public sealed class SessionConfig
     public HaulCapabilities? Haul { get; set; }
     public MovementCapabilities? Movement { get; set; }
     public TradeCapabilities? Trade { get; set; }
+
+    /// <summary>
+    /// The emitter the planners' static helpers write through (Go's process-wide telemetry sink). The host installs
+    /// the one over its OTLP writer; left null, rows keep going to whatever was installed before (the null sink).
+    /// </summary>
+    public TelemetryEmitter? Telemetry { get; set; }
 }
 
 /// <summary>
@@ -61,6 +67,10 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         {
             await BuildingRuntimePackage.RequireNoClockObligationsAsync(journal, ct).ConfigureAwait(false);
         }
+        if (config.Telemetry is { } telemetry)
+        {
+            Tel.Emitter = telemetry;
+        }
         var sink = new SessionSink { ClockWorkers = new ClockWorkerSlot() };
         var ns = await journal.IdentityAsync(ct).ConfigureAwait(false);
         var controlConfig = config.Control with
@@ -68,7 +78,9 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
             StopWrites = sink.Stop,
             CleanupWrites = sink.Cleanup,
             ResumeWrites = sink.Resume,
-            Worlds = config.Control.Worlds ?? (config.Clock is not null ? new ClockWorldSource(config.Clock.Native) : null),
+            // The world source is the host's (a facade ReadTick), never derived from the clock capability: the clock
+            // native client reads a clock status, not the loaded world's identity.
+            Worlds = config.Control.Worlds,
         };
         var control = await Control.CreateAsync(controlConfig, new StoreSessionIdentity(journal), authority, sink, ct).ConfigureAwait(false);
 
