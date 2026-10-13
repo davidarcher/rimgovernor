@@ -5,7 +5,7 @@ using System.Runtime.Versioning;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>One committed frame copied out of a snapshot ring (Go <c>snapshotshm.Frame</c>).</summary>
-internal sealed record SnapshotRingFrame(ulong Number, long Writes, byte[] Payload, uint CaptureMicros, uint EncodeMicros, uint WriteMicros);
+public sealed record SnapshotRingFrame(ulong Number, long Writes, byte[] Payload, uint CaptureMicros, uint EncodeMicros, uint WriteMicros);
 
 /// <summary>
 /// Reads the snapshot stream (Go <c>snapshotshm</c>): the ring of BundleSnapshot frames the native SnapshotStream
@@ -22,7 +22,7 @@ internal sealed record SnapshotRingFrame(ulong Number, long Writes, byte[] Paylo
 /// every 2 ms, which the frame cadence (one capture per write or per wall second) makes indistinguishable.
 /// </remarks>
 [SupportedOSPlatform("windows")]
-internal sealed class SnapshotRingReader : IDisposable
+public sealed class SnapshotRingReader : IDisposable
 {
     private const uint Magic = 0x53534752;
     private const uint Version = 2;
