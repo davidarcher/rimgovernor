@@ -5,7 +5,8 @@
 | Source | Owns |
 | --- | --- |
 | [go/cmd/rimgovernor](../../go/cmd/rimgovernor) | Controller entry, configuration and lifecycle |
-| [go/cmd/launcher](../../go/cmd/launcher) | Windows launcher, WebView2 UI, build/start/stop and API client |
+| [tools/launcher](../../tools/launcher) | Windows launcher (C#, WinForms and WebView2): setup, game start/stop, new colony, acceptance tab |
+| [go/cmd/launcher](../../go/cmd/launcher) | Previous Go launcher, removed in #3102 |
 | [go/internal/domain](../../go/internal/domain) | Shared identities, Concerns, Plans and actions |
 | [go/internal/policy](../../go/internal/policy) | Pure decisions, demand, forecasts, placement and tactics |
 | [go/internal/buildingruntime](../../go/internal/buildingruntime) | Rounds, planner catalog/queue and runtime composition |

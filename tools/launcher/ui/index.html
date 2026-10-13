@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RimGovernor</title>
+<style>
+  :root {
+    --bg: #0c0e0a; --panel: #161915; --raised: #1f231c; --line: #3c3d34;
+    --text: #e9e6d9; --muted: #a8a697; --accent: #ddb975; --ok: #8caa75;
+    --warn: #d19a3a; --bad: #e0776c; --play: #4f7a3a; --play-hi: #5f9146;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 'Segoe UI', system-ui, sans-serif; user-select: none; }
+  main { max-width: 820px; margin: 0 auto; padding: 22px 22px 28px; }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .brand { font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+  .brand span { color: var(--accent); }
+  button { font: inherit; color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--muted); }
+  button:disabled { opacity: .5; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .icon { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 8px; }
+  .icon[aria-expanded=true] { color: var(--accent); }
+
+  .hero { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  .headline { font-size: 22px; font-weight: 600; margin: 0; }
+  .sub { color: var(--muted); margin: 4px 0 18px; min-height: 1.45em; overflow-wrap: anywhere; }
+  .primary { width: 100%; font-size: 18px; font-weight: 600; padding: 14px; border: none; background: var(--play); color: #fff; border-radius: 8px; }
+  .primary:hover:not(:disabled) { background: var(--play-hi); }
+  .secondary { display: flex; gap: 8px; margin-top: 10px; }
+  .secondary button { flex: 1; }
+  .secondary[hidden] { display: none; }
+  .alert { margin-top: 12px; padding: 10px 12px; border-radius: 6px; background: #3a1f1b; border: 1px solid #6d3a33; color: #f3d2cc; overflow-wrap: anywhere; user-select: text; }
+  .alert[hidden] { display: none; }
+  .spin { display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  ul.status { list-style: none; margin: 16px 0 0; padding: 0; }
+  ul.status li { display: grid; grid-template-columns: 14px 130px 1fr; align-items: baseline; gap: 8px; padding: 5px 2px; border-top: 1px solid #23261f; }
+  ul.status li:first-child { border-top: none; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+  .ok .dot { background: var(--ok); } .pending .dot, .building .dot, .stale .dot { background: var(--warn); } .failed .dot, .missing .dot { background: var(--bad); }
+  .building .dot { animation: pulse 1s ease-in-out infinite alternate; }
+  @keyframes pulse { from { opacity: .35; } }
+  .name { color: var(--text); }
+  .detail { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .failed .detail { color: var(--bad); }
+
+  section.settings { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  section.settings[hidden] { display: none; }
+  section.settings h2 { font-size: 15px; margin: 0 0 10px; }
+  .note { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+  .field { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; }
+  .field label { color: var(--text); }
+  .check { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { padding: 5px 12px; cursor: pointer; color: var(--muted); }
+  .seg input:checked + label { background: #343d2d; color: var(--text); }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+  select, input[type=text], input[type=number] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 5px 8px; }
+  input[type=text] { width: 230px; }
+  input[type=number] { width: 90px; }
+  input[type=checkbox] { accent-color: var(--ok); width: 16px; height: 16px; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); padding: 4px 0; }
+  .err { color: var(--bad); font-size: 13px; min-height: 1.2em; margin-top: 6px; }
+  details.log { margin-top: 16px; }
+  pre { margin: 6px 0 0; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; height: 220px; overflow: auto; font: 12px/1.4 Consolas, monospace; color: var(--muted); white-space: pre-wrap; user-select: text; }
+
+  section.events { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  section.events[hidden] { display: none; }
+  .evbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .evbar h2 { font-size: 15px; margin: 0; }
+  .evlist { max-height: 420px; overflow: auto; }
+  .ev { border-top: 1px solid #23261f; padding: 6px 2px; }
+  .ev:first-child { border-top: none; }
+  .evhead { display: grid; grid-template-columns: 10px auto 1fr auto; align-items: baseline; gap: 8px; cursor: pointer; }
+  .evhead .msg { overflow-wrap: anywhere; }
+  .ev.open .evhead .msg { white-space: normal; overflow-wrap: anywhere; }
+  .badge { color: var(--muted); font-size: 12px; min-width: 2.5em; }
+  .ev .copy { padding: 2px 8px; font-size: 12px; }
+  .evmeta { color: var(--muted); font-size: 12px; margin: 2px 0 0 18px; }
+  .evdetail { display: none; height: auto; max-height: 220px; margin-left: 18px; }
+  .ev.open .evdetail { display: block; }
+  .ev.WARN .dot { background: var(--warn); } .ev.ERROR .dot { background: var(--bad); } .ev.INFO .dot { background: var(--ok); }
+  .evempty { color: var(--muted); padding: 8px 2px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tabs button { background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); }
+  .tabs button[aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); }
+  .view[hidden], #view-launch[hidden] { display: none; }
+  .pbbar { display: flex; gap: 6px; margin-bottom: 8px; }
+  .pbbar input { flex: 1; width: auto; min-width: 0; user-select: text; }
+  .pbstatus { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .ev .dot { background: var(--muted); }
+  .ev.open .evhead .msg { white-space: normal; }
+  a { color: var(--accent); }
+
+  section.colony { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+  section.colony h2 { font-size: 15px; margin: 0; display: inline; }
+  section.colony > details { margin: 0; }
+  section.colony > details > summary { color: var(--text); margin: 0; }
+  section.colony > details[open] > summary { margin-bottom: 10px; }
+  #ncSummary { margin-left: 10px; color: var(--muted); font-size: 13px; }
+  #ncBox[open] #ncSummary { display: none; }
+  section.colony fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
+  section.colony .field select, section.colony .field input[type=text], section.colony .field input[type=number] { width: 200px; }
+  section.colony .field input[type=number].short { width: 90px; }
+  .ncbiomes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; margin: 4px 0 8px; }
+  .ncbiomes .check { margin: 2px 0; }
+  .ncseed { display: flex; gap: 6px; }
+  section.colony details { margin: 6px 0; }
+  section.colony summary { cursor: pointer; color: var(--muted, inherit); margin-bottom: 6px; }
+  section.colony .ncseed input { width: 130px; }
+  .ncpart { margin: 8px 0; }
+  .ncpart > .row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 3px 0; }
+  .ncpart input[type=text] { width: 150px; }
+  .ncpart input[type=number] { width: 70px; }
+  .ncpart select { max-width: 150px; }
+  .ncpart .head { display: flex; justify-content: space-between; align-items: center; }
+  .ncband { display: flex; gap: 6px; align-items: center; }
+  .ncactions { display: flex; gap: 8px; margin-top: 12px; }
+  .ncactions button { flex: 1; }
+  .ncactions .primary { font-size: 15px; padding: 10px; }
+  .ncactions [hidden] { display: none; }
+  .ncprogress { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); user-select: text; overflow-wrap: anywhere; }
+  .ncprogress[hidden], .ncnotice[hidden] { display: none; }
+  .ncprogress.stale { border-color: var(--warn); }
+  .ncprogress.failed { border-color: #6d3a33; color: #f3d2cc; }
+  .ncprogress .row { display: flex; justify-content: space-between; gap: 8px; }
+  .ncnotice { color: var(--warn); font-size: 13px; margin: 0 0 8px; overflow-wrap: anywhere; }
+  .ncok { color: var(--ok); }
+  .pbbar .check { margin: 0; white-space: nowrap; }
+  .pbbar .check input { flex: none; width: 16px; }
+  .acrow { display: grid; grid-template-columns: minmax(140px, 220px) 1fr auto; align-items: baseline; gap: 10px; border-top: 1px solid #23261f; padding: 5px 2px; }
+  .acrow:first-child { border-top: none; }
+  .acrow .scope { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .acrow .scope:hover { white-space: normal; user-select: text; }
+  .acrow button { padding: 3px 12px; }
+  #acProgress.passed b { color: var(--ok); }
+  #acProgress.failed b { color: var(--bad); }
+  #acProgress pre { height: 180px; }
+  #acProgress .ncactions { margin-top: 8px; }
+  #acList { max-height: 460px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">Rim<span>Governor</span></div>
+    <button class="icon" id="gear" aria-expanded="false" aria-controls="settings" title="Settings">&#9881; Settings</button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button role="tab" id="tab-launch" data-tab="launch" aria-selected="true">Launch</button>
+    <button role="tab" id="tab-acceptance" data-tab="acceptance" aria-selected="false">Acceptance</button>
+  </nav>
+  <div class="view" id="view-acceptance" role="tabpanel" aria-labelledby="tab-acceptance" hidden>
+    <section class="events" aria-label="Acceptance cases">
+      <div class="evbar"><h2>Acceptance cases</h2><span class="pbstatus" id="acCount"></span></div>
+      <p class="note">Runs one native acceptance case in a visible game window, on this checkout's game copy, so you can watch it. Stop the controller and close the game first. The first run installs the test build of the mod; it is replaced by the normal one once the game closes. A case that failed last time resumes from its checkpoint unless From scratch is ticked.</p>
+      <div class="pbbar">
+        <input type="text" id="acFilter" placeholder="Filter by area, case or scope" spellcheck="false">
+        <span class="check"><input type="checkbox" id="acFresh"><label for="acFresh">From scratch</label></span>
+      </div>
+      <div class="ncprogress" id="acProgress" role="status" hidden>
+        <div class="row"><b id="acState"></b><span id="acTimer"></span></div>
+        <div id="acCase"></div>
+        <div class="detail" id="acDir"></div>
+        <pre id="acOutput"></pre>
+        <div class="ncactions"><button id="acStop" hidden>Stop</button></div>
+      </div>
+      <div class="err" id="acErr" role="alert"></div>
+      <div class="evlist" id="acList"></div>
+    </section>
+  </div>
+  <div id="view-launch" role="tabpanel" aria-labelledby="tab-launch">
+  <div class="hero">
+    <p class="headline" id="headline" aria-live="polite">Getting ready</p>
+    <p class="sub" id="sub"></p>
+    <div class="field"><label for="loadSave">Saved game</label>
+      <select id="loadSave"><option value="">Main menu (none)</option></select></div>
+    <button class="primary" id="primary" disabled>Play</button>
+    <div class="secondary" id="secondary" hidden>
+      <button id="restart">Restart</button>
+      <button id="stop">Stop</button>
+    </div>
+    <div class="secondary" id="gamebar" hidden>
+      <button id="closeGame">Close game</button>
+    </div>
+    <div class="alert" id="alert" role="alert" hidden></div>
+    <ul class="status" id="status" aria-label="Components"></ul>
+    <section class="obs" aria-label="Observability">
+      <h2>Observability <span class="pbstatus" id="obsState"></span></h2>
+      <p class="note" id="obsHint">What the bot is doing, why, its problems and its log are read in Grafana (needs Docker): press Start, and turn on "Send telemetry to local collector" in Settings before Play.</p>
+      <div class="secondary">
+        <button id="obsStart">Start</button>
+        <button id="obsStop">Stop</button>
+        <button id="obsOpen">Open Grafana</button>
+      </div>
+      <div class="secondary" id="obsLinks" hidden></div>
+      <div class="alert" id="obsProblem" role="alert" hidden></div>
+    </section>
+    <details class="log" id="logbox" open>
+      <summary>Details</summary>
+      <pre id="log"></pre>
+    </details>
+    <p class="note">Player guide: <a id="guideLink" href="https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md">https://github.com/davidarcher/rimgovernor/blob/main/docs/players/README.md</a> (or <code>docs/players/README.md</code> in this checkout)</p>
+  </div>
+
+  <section class="colony" id="newColony" aria-label="New colony">
+   <details id="ncBox">
+    <summary><h2>New colony</h2><span id="ncSummary"></span></summary>
+    <div class="ncnotice" id="ncUnavailable" role="status" hidden></div>
+    <fieldset id="ncForm">
+      <div class="field"><label for="ncPreset">Preset</label><select id="ncPreset"></select></div>
+      <div class="field"><label for="ncScenario">Scenario</label><select id="ncScenario"></select></div>
+      <div class="field"><label for="ncColonists">Colonists</label><input type="number" class="short" id="ncColonists"></div>
+      <div class="field"><label for="ncSeed">Seed</label>
+        <span class="ncseed"><input type="text" id="ncSeed" spellcheck="false" placeholder="random"><button type="button" id="ncRandom" title="Fill in a random seed">Random</button></span></div>
+      <div class="note" style="margin-bottom:2px">Biomes</div>
+      <div class="ncbiomes" id="ncBiomes"></div>
+      <div class="field"><label for="ncDifficulty">Difficulty</label><select id="ncDifficulty"></select></div>
+      <div class="field"><label for="ncStoryteller">Storyteller</label><select id="ncStoryteller"></select></div>
+      <div class="field"><label for="ncMapSize">Map size</label><select id="ncMapSize"></select></div>
+      <div class="check"><input type="checkbox" id="ncFlat"><label for="ncFlat">Flat tile</label></div>
+      <details id="ncAdvanced">
+        <summary>Advanced</summary>
+        <div class="field"><label for="ncMinTemp">Temperature band</label>
+          <span class="ncband"><input type="number" class="short" id="ncMinTemp" placeholder="min"><input type="number" class="short" id="ncMaxTemp" placeholder="max"></span></div>
+        <div class="field"><label for="ncWorldTemp">World temperature</label><select id="ncWorldTemp"></select></div>
+        <div class="field"><label for="ncCoverage">Planet coverage</label><select id="ncCoverage"></select></div>
+      </details>
+      <details id="ncParts">
+        <summary>Scenario parts</summary>
+        <div class="field"><label for="ncFaction">Player faction</label><select id="ncFaction"></select></div>
+        <div class="field"><label for="ncArrival">Arrival method</label><select id="ncArrival"></select></div>
+        <div class="note">Colonists above sets the pawn count.</div>
+        <div id="ncPartRows"></div>
+      </details>
+    </fieldset>
+    <div class="ncactions">
+      <button class="primary" id="ncGenerate">Generate</button>
+      <button id="ncCancel" hidden>Cancel</button>
+    </div>
+    <div class="ncprogress" id="ncProgress" role="status" hidden>
+      <div class="row"><b id="ncState"></b><span id="ncTimer"></span></div>
+      <div id="ncName" class="detail"></div>
+      <div id="ncPhase"></div>
+      <div class="detail" id="ncDetail"></div>
+      <div class="detail" id="ncReroll"></div>
+      <div class="detail" id="ncStale"></div>
+      <div id="ncResult"></div>
+    </div>
+    <div class="err" id="ncErr" role="alert"></div>
+   </details>
+  </section>
+
+  <section class="settings" id="settings" hidden aria-label="Settings">
+    <h2>Settings</h2>
+    <p class="note" id="applyNote">Saved automatically. Changes apply the next time you press Play.</p>
+
+    <div class="field"><span>Mode</span>
+      <span class="seg" role="radiogroup" aria-label="Mode">
+        <input type="radio" name="mode" id="modeAuto" value="auto"><label for="modeAuto">Autopilot</label>
+        <input type="radio" name="mode" id="modeObserve" value="observe"><label for="modeObserve">Observe only</label>
+      </span>
+    </div>
+    <div class="field"><span>Controller memory</span>
+      <span class="seg" role="radiogroup" aria-label="Controller memory">
+        <input type="radio" name="state" id="stateContinue" value="continue"><label for="stateContinue">Continue</label>
+        <input type="radio" name="state" id="stateFresh" value="fresh"><label for="stateFresh">Start fresh</label>
+      </span>
+    </div>
+
+    <details>
+      <summary>Colony policy</summary>
+      <div class="check"><input type="checkbox" id="layoutOverlay"><label for="layoutOverlay">Show the layout plan in game</label></div>
+    </details>
+
+    <div class="check"><input type="checkbox" id="telemetry"><label for="telemetry">Send telemetry to local collector</label></div>
+
+    <details>
+      <summary>Advanced</summary>
+      <div class="field"><label for="extraArgs">Extra serve arguments</label><input type="text" id="extraArgs" spellcheck="false"></div>
+    </details>
+    <div class="err" id="settingsErr" role="alert"></div>
+  </section>
+
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const bools = ['layoutOverlay', 'telemetry'];
+const texts = ['extraArgs', 'loadSave'];
+let view = null, loaded = false, busyAction = false;
+
+function fill(s) {
+  (s.observe ? $('modeObserve') : $('modeAuto')).checked = true;
+  (s.continueState ? $('stateContinue') : $('stateFresh')).checked = true;
+  bools.forEach(k => $(k).checked = !!s[k]);
+  texts.forEach(k => $(k).value = s[k] || '');
+  policyEnabled();
+}
+
+function read() {
+  const s = { observe: $('modeObserve').checked, continueState: $('stateContinue').checked };
+  bools.forEach(k => s[k] = $(k).checked);
+  texts.forEach(k => s[k] = $(k).value.trim());
+  return s;
+}
+
+// Observe only never writes to the game: play settings do not apply.
+function policyEnabled() {
+  const observe = $('modeObserve').checked;
+  ['layoutOverlay']
+    .forEach(k => $(k).disabled = observe);
+}
+
+async function save() {
+  policyEnabled();
+  try { await saveSettings(read()); $('settingsErr').textContent = ''; }
+  catch (e) { $('settingsErr').textContent = String(e.message || e); }
+}
+$('settings').addEventListener('change', save);
+$('loadSave').addEventListener('change', save);
+
+// The dropdown lists the saves on disk; a selected save that has gone stays
+// listed so the setting is not silently dropped.
+function fillSaves(saves, selected) {
+  const sel = $('loadSave');
+  if (document.activeElement === sel) return;
+  const names = selected && !saves.includes(selected) ? [selected, ...saves] : saves;
+  const key = names.join('\n') + '\n' + selected;
+  if (sel.dataset.key === key) return;
+  sel.dataset.key = key;
+  sel.innerHTML = '<option value="">Main menu (none)</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = selected || '';
+}
+
+document.querySelectorAll('.tabs [data-tab]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs [data-tab]').forEach(o => {
+    const on = o === b;
+    o.setAttribute('aria-selected', String(on));
+    $('view-' + o.dataset.tab).hidden = !on;
+  });
+});
+
+$('gear').onclick = () => {
+  const open = $('settings').hidden;
+  $('settings').hidden = !open;
+  $('gear').setAttribute('aria-expanded', String(open));
+};
+
+function summarize(v) {
+  const arts = v.artifacts;
+  const failed = arts.find(a => a.state === 'failed' || a.state === 'missing');
+  const building = arts.find(a => a.state === 'building');
+  const pending = arts.find(a => a.state === 'pending');
+  if (v.controller === 'running') return { head: 'Running', sub: 'The autopilot is running.', primary: 'Running', run: true };
+  if (v.controller === 'starting') return { head: 'Starting', sub: 'Launching the controller and RimWorld…', primary: 'Starting…', spin: true };
+  if (failed) return { head: 'Needs attention', sub: failed.name + ': ' + failed.detail, primary: 'Play' };
+  if (building) return { head: 'Getting ready', sub: building.name + ': ' + building.detail, primary: 'Preparing…', spin: true };
+  return { head: 'Ready to play', sub: pending ? 'A mod update will install once the game closes.' : 'Everything is up to date.', primary: 'Play', enabled: true };
+}
+
+async function refresh() {
+  let v;
+  try { v = await getState(); } catch (e) { return; }
+  view = v;
+  const s = summarize(v);
+  $('headline').textContent = s.head;
+  $('sub').textContent = s.sub;
+  const p = $('primary');
+  p.innerHTML = (s.spin ? '<span class="spin" aria-hidden="true"></span>' : '') + s.primary;
+  p.disabled = !s.enabled || busyAction;
+  $('secondary').hidden = !s.run;
+  $('gamebar').hidden = !v.gameUp;
+  $('alert').hidden = !v.message;
+  $('alert').textContent = v.message;
+  $('applyNote').textContent = s.run ? 'Saved automatically. Press Restart to apply changes.' : 'Saved automatically. Changes apply the next time you press Play.';
+  $('status').innerHTML = v.artifacts.map(a =>
+    `<li class="${a.state}"><span class="dot" aria-hidden="true"></span><span class="name">${esc(a.name)}</span><span class="detail">${esc(a.detail)}</span></li>`).join('');
+  const log = $('log'), atEnd = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+  const text = (v.log || []).join('\n');
+  if (log.textContent !== text) { log.textContent = text; if (atEnd) log.scrollTop = log.scrollHeight; }
+  fillSaves(v.saves || [], loaded ? read().loadSave : v.settings.loadSave);
+  if (!loaded) { fill(v.settings); loaded = true; }
+}
+
+async function refreshObs() {
+  let o;
+  try { o = await getObservability(); } catch (e) { return; }
+  $('obsState').textContent = o.state;
+  $('obsStart').disabled = o.state !== 'stopped';
+  $('obsStop').disabled = o.state === 'stopped';
+  $('obsOpen').disabled = o.state !== 'healthy';
+  // Observation lives in Grafana: the deep links show while it answers,
+  // the one-line hint while it does not.
+  const up = o.state === 'healthy';
+  $('obsHint').hidden = up;
+  $('obsLinks').hidden = !up;
+  if (up && !$('obsLinks').children.length) {
+    $('obsLinks').innerHTML = o.dashboards.map(d => `<button data-url="${esc(d.url)}">${esc(d.name)}</button>`).join('');
+  }
+  $('obsProblem').hidden = !o.problem;
+  $('obsProblem').textContent = o.problem;
+}
+$('obsLinks').onclick = e => {
+  const url = e.target.dataset && e.target.dataset.url;
+  if (url) openLink(url).catch(() => {});
+};
+$('obsStart').onclick = () => { startObservability(); setTimeout(refreshObs, 300); };
+$('obsStop').onclick = () => { stopObservability(); setTimeout(refreshObs, 300); };
+$('obsOpen').onclick = () => openLink('http://localhost:3000').catch(() => {});
+
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])); }
+
+async function act(fn) {
+  busyAction = true;
+  try { await fn(); } finally { setTimeout(() => { busyAction = false; refresh(); }, 400); }
+}
+
+$('primary').onclick = () => act(play);
+$('restart').onclick = () => act(restart);
+$('stop').onclick = () => act(stopController);
+$('guideLink').addEventListener('click', e => { e.preventDefault(); openLink(e.currentTarget.href).catch(() => {}); });
+$('closeGame').onclick = () => act(closeGame);
+
+// A tab polls its own Bind while it shows; a call still in flight skips the tick.
+function everyWhile(viewId, poll, ms) {
+  let busy = false;
+  const run = async () => {
+    if ($(viewId).hidden || busy) return;
+    busy = true;
+    try { await poll(); } catch (e) { /* the next tick retries */ } finally { busy = false; }
+  };
+  setInterval(run, ms);
+  document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', run));
+}
+
+// Acceptance tab: the case list loads once (the Go side reads the registry in
+// the background); the run view polls while the tab shows. Rows re-render only
+// when the filter, the list or whether a run blocks them changes.
+const ac = { cases: [], loaded: false, key: '', run: null };
+const acClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function acRenderList() {
+  const needle = $('acFilter').value.trim().toLowerCase();
+  const rows = ac.cases.filter(c => !needle || (c.name + ' ' + c.scope).toLowerCase().includes(needle));
+  const blocked = !!ac.run && ac.run.state === 'running';
+  const key = needle + '|' + ac.cases.length + '|' + blocked;
+  if (key === ac.key) return;
+  ac.key = key;
+  $('acCount').textContent = ac.loaded ? rows.length + ' of ' + ac.cases.length : '';
+  $('acList').innerHTML = rows.map(c =>
+    `<div class="acrow"><span class="name">${esc(c.name)}</span><span class="scope" title="${esc(c.scope)}">${esc(c.scope)}</span>` +
+    `<button data-run="${esc(c.name)}"${blocked ? ' disabled' : ''}>Run</button></div>`).join('');
+}
+async function pollAcceptCases() {
+  if (ac.loaded) return;
+  const v = await getAcceptCases();
+  if (v.loading) { $('acCount').textContent = 'loading the case list...'; return; }
+  $('acErr').textContent = v.error || '';
+  if (!v.error) { ac.cases = v.cases; ac.loaded = true; ac.key = ''; acRenderList(); }
+}
+async function pollAcceptRun() {
+  const r = await getAcceptRun();
+  ac.run = r;
+  const box = $('acProgress');
+  box.hidden = r.state === 'idle';
+  box.className = 'ncprogress ' + r.state;
+  $('acState').textContent = r.state;
+  $('acTimer').textContent = acClock(r.elapsedMs);
+  $('acCase').textContent = r.case;
+  $('acDir').textContent = r.dir ? 'Output: ' + r.dir : '';
+  const out = $('acOutput'), atEnd = out.scrollTop + out.clientHeight >= out.scrollHeight - 4;
+  const text = (r.output || []).concat(r.error ? ['', r.error] : []).join('\n');
+  if (out.textContent !== text) { out.textContent = text; if (atEnd) out.scrollTop = out.scrollHeight; }
+  $('acStop').hidden = r.state !== 'running';
+  acRenderList();
+}
+everyWhile('view-acceptance', pollAcceptCases, 1000);
+everyWhile('view-acceptance', pollAcceptRun, 1000);
+$('acFilter').addEventListener('input', acRenderList);
+$('acList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-run]');
+  if (!b) return;
+  $('acErr').textContent = '';
+  try { await runAcceptCase(b.dataset.run, $('acFresh').checked); }
+  catch (err) { $('acErr').textContent = String(err.message || err); }
+  pollAcceptRun();
+});
+$('acStop').onclick = async () => {
+  try { await stopAcceptCase(); } catch (err) { $('acErr').textContent = String(err.message || err); }
+  pollAcceptRun();
+};
+
+// New colony panel: renders getNewColony() verbatim; the Go view model
+// owns every label, order, default and range. The page polls only while the
+// Launch tab is showing, skips a tick while a call is in flight, and ticks the
+// timer from its own clock between polls (anchored on progress.elapsedMs).
+const nc = { ready: false, prev: null, view: null, anchor: null, shown: 0, rid: '', sending: false };
+const ncActive = st => st === 'restarting' || st === 'connecting' || st === 'generating';
+const ncOpt = o => `<option value="${esc(o.value)}">${esc(o.label)}${o.requires ? ' (needs ' + esc(o.requires) + ')' : ''}</option>`;
+function ncFill(v) {
+  const o = v.options, sp = v.spec, r = v.ranges;
+  $('ncScenario').innerHTML = o.scenarios.map(ncOpt).join('');
+  $('ncDifficulty').innerHTML = o.difficulties.map(ncOpt).join('');
+  $('ncStoryteller').innerHTML = o.storytellers.map(ncOpt).join('');
+  $('ncWorldTemp').innerHTML = o.worldTemperatures.map(ncOpt).join('');
+  $('ncMapSize').innerHTML = o.mapSizes.map(ncOpt).join('');
+  $('ncCoverage').innerHTML = o.planetCoverages.map(ncOpt).join('');
+  $('ncBiomes').innerHTML = o.biomes.map(b =>
+    `<div class="check"><input type="checkbox" data-biome="${esc(b.value)}" id="ncb-${esc(b.value)}"><label for="ncb-${esc(b.value)}">${esc(b.label)}${b.requires ? ' (needs ' + esc(b.requires) + ')' : ''}</label></div>`).join('');
+  $('ncColonists').min = r.colonistsMin; $('ncColonists').max = r.colonistsMax;
+  $('ncMinTemp').min = $('ncMaxTemp').min = -r.temperatureAbs;
+  $('ncMinTemp').max = $('ncMaxTemp').max = r.temperatureAbs;
+  $('ncPreset').innerHTML = '<option value="">Custom</option>' + v.presets.map(x => `<option value="${esc(x.name)}">${esc(x.label)}</option>`).join('');
+  ncApply(sp, v);
+}
+// ncApply sets every row of the form from a spec (the last generated one, or a preset's).
+function ncApply(sp, v) {
+  $('ncScenario').value = sp.scenario;
+  $('ncColonists').value = sp.colonistCount;
+  $('ncSeed').value = sp.seed || '';
+  document.querySelectorAll('#ncBiomes [data-biome]').forEach(c => c.checked = (sp.biomes || []).includes(c.dataset.biome));
+  $('ncDifficulty').value = sp.difficulty;
+  $('ncStoryteller').value = sp.storyteller;
+  $('ncMinTemp').value = sp.minTemperature ?? '';
+  $('ncMaxTemp').value = sp.maxTemperature ?? '';
+  $('ncWorldTemp').value = sp.worldTemperature;
+  $('ncMapSize').value = String(sp.mapSize);
+  $('ncCoverage').value = String(sp.planetCoverage);
+  $('ncFlat').checked = !!sp.flatTile;
+  ncFillParts(v);
+}
+$('ncPreset').onchange = () => {
+  const x = nc.view.presets.find(p => p.name === $('ncPreset').value);
+  ncApply(x ? x.spec : nc.view.defaults, nc.view);
+};
+// Scenario part rows. Each kind is a repeatable list; a row keeps the wire
+// fields the page does not edit (stuff, quality, allowRoofed) in row.orig.
+const ncKinds = {
+  startingThings: { title: 'Starting things', add: 'Add thing', list: 'things',
+    make: (p, d) => ({ placement: d.placement, thingDef: '', count: d.count }),
+    cols: [['placement', 'select', 'placements'], ['thingDef', 'text', 'things'], ['count', 'number']] },
+  forcedTraits: { title: 'Forced traits', add: 'Add trait',
+    make: (p, d) => ({ trait: p.traits[0].value, degree: p.traits[0].degree, chance: d.chance, context: d.context }),
+    cols: [['trait', 'trait'], ['chance', 'number'], ['context', 'select', 'contexts']] },
+  forcedHediffs: { title: 'Forced hediffs', add: 'Add hediff', list: 'hediffs',
+    make: (p, d) => ({ hediff: '', severity: d.severity, chance: d.chance, context: d.context }),
+    cols: [['hediff', 'text', 'hediffs'], ['severity', 'number'], ['chance', 'number'], ['context', 'select', 'contexts']] },
+  permaGameConditions: { title: 'Permanent game conditions', add: 'Add condition', list: 'conditions', str: true },
+  disallowedBuildings: { title: 'Disallowed buildings', add: 'Add building', str: true },
+  disabledIncidents: { title: 'Disabled incidents', add: 'Add incident', list: 'incidents', str: true },
+};
+const ncTip = { count: 'count', chance: 'chance 0-1', severity: 'severity', placement: 'placement', context: 'applies to' };
+function ncDatalists(p) {
+  return ['things', 'hediffs', 'conditions', 'incidents'].map(k =>
+    `<datalist id="ncdl-${k}">${p[k].map(o => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join('')}</datalist>`).join('');
+}
+function ncRow(kind, parent, value) {
+  const k = ncKinds[kind], p = nc.view.parts, row = document.createElement('div');
+  row.className = 'row'; row.dataset.kind = kind;
+  const rm = '<button type="button" class="ncrm" title="Remove">x</button>';
+  if (k.str) {
+    row.innerHTML = `<input type="text" list="ncdl-${k.list || ""}" spellcheck="false" placeholder="defName" value="${esc(value || '')}">` + rm;
+  } else {
+    row.orig = value;
+    row.innerHTML = k.cols.map(([f, type, list]) => {
+      const v = value[f];
+      if (type === 'trait') {
+        const opts = p.traits.map(t => ({ value: t.value + '|' + t.degree, label: t.label }));
+        const cur = value.trait + '|' + value.degree;
+        if (!opts.some(o => o.value === cur)) opts.push({ value: cur, label: value.trait + ' ' + value.degree });
+        return `<select data-f="trait">${opts.map(o => `<option value="${esc(o.value)}"${o.value === cur ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+      }
+      if (type === 'select') return `<select data-f="${f}" title="${ncTip[f]}">${p[list].map(o => `<option value="${esc(o.value)}"${o.value === v ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+      if (type === 'number') return `<input type="number" data-f="${f}" step="any" title="${ncTip[f]}" placeholder="${ncTip[f]}" value="${v ?? ''}">`;
+      return `<input type="text" data-f="${f}" list="ncdl-${list}" spellcheck="false" placeholder="defName" value="${esc(v || '')}">`;
+    }).join('') + rm;
+  }
+  row.querySelector('.ncrm').onclick = () => row.remove();
+  parent.appendChild(row);
+}
+function ncFillParts(v) {
+  const sp = v.spec, p = v.parts;
+  $('ncFaction').innerHTML = p.playerFactions.map(ncOpt).join('');
+  $('ncArrival').innerHTML = p.arrivalMethods.map(ncOpt).join('');
+  $('ncFaction').value = sp.playerFaction || '';
+  $('ncArrival').value = sp.arrivalMethod || '';
+  $('ncPartRows').innerHTML = ncDatalists(p) + Object.entries(ncKinds).map(([kind, k]) =>
+    `<div class="ncpart" data-kind="${kind}"><div class="head"><span>${k.title}</span><button type="button" class="ncadd">${k.add}</button></div><div class="rows"></div></div>`).join('');
+  document.querySelectorAll('#ncPartRows .ncpart').forEach(sec => {
+    const kind = sec.dataset.kind, k = ncKinds[kind], rows = sec.querySelector('.rows');
+    (sp[kind] || []).forEach(x => ncRow(kind, rows, x));
+    sec.querySelector('.ncadd').onclick = () => ncRow(kind, rows, k.str ? '' : k.make(p, nc.view.partDefaults));
+  });
+}
+function ncPartsSpec() {
+  const out = {}, num = x => x === '' ? undefined : Number(x);
+  if ($('ncFaction').value) out.playerFaction = $('ncFaction').value;
+  if ($('ncArrival').value) out.arrivalMethod = $('ncArrival').value;
+  document.querySelectorAll('#ncPartRows .ncpart').forEach(sec => {
+    const kind = sec.dataset.kind, k = ncKinds[kind], items = [];
+    sec.querySelectorAll('.row').forEach(row => {
+      if (k.str) {
+        const s = row.querySelector('input').value.trim();
+        if (s) items.push(s);
+        return;
+      }
+      const item = { ...row.orig };
+      row.querySelectorAll('[data-f]').forEach(el => {
+        const f = el.dataset.f;
+        if (f === 'trait') { const [t, d] = el.value.split('|'); item.trait = t; item.degree = Number(d); }
+        else if (el.type === 'number') item[f] = num(el.value);
+        else item[f] = el.value.trim();
+      });
+      if ((item.thingDef ?? item.hediff ?? item.trait) !== '') items.push(item);
+    });
+    if (items.length) out[kind] = items;
+  });
+  return out;
+}
+function ncSpec() {
+  const band = id => $(id).value.trim() === '' ? null : Number($(id).value);
+  const spec = {
+    scenario: $('ncScenario').value, colonistCount: Number($('ncColonists').value), seed: $('ncSeed').value.trim(),
+    biomes: [...document.querySelectorAll('#ncBiomes [data-biome]:checked')].map(c => c.dataset.biome),
+    flatTile: $('ncFlat').checked, difficulty: $('ncDifficulty').value, storyteller: $('ncStoryteller').value,
+    worldTemperature: $('ncWorldTemp').value, mapSize: Number($('ncMapSize').value),
+    planetCoverage: Number($('ncCoverage').value),
+  };
+  const lo = band('ncMinTemp'), hi = band('ncMaxTemp');
+  if (lo !== null) spec.minTemperature = lo;
+  if (hi !== null) spec.maxTemperature = hi;
+  return Object.assign(spec, ncPartsSpec());
+}
+const ncClock = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+function ncTimer() {
+  const p = nc.view && nc.view.progress;
+  if (!p || p.state === 'idle') return;
+  let ms = nc.anchor.ms;
+  if (ncActive(p.state)) ms += performance.now() - nc.anchor.at;
+  nc.shown = Math.max(nc.shown, ms);
+  $('ncTimer').textContent = ncClock(nc.shown);
+}
+function ncSelectSave(name) {
+  const sel = $('loadSave');
+  if (![...sel.options].some(o => o.value === name)) sel.add(new Option(name, name));
+  sel.value = name;
+  save();
+}
+function ncRender(v) {
+  nc.view = v;
+  if (!nc.ready) { ncFill(v); nc.ready = true; }
+  const p = v.progress, active = ncActive(p.state);
+  if (p.requestId !== nc.rid) { nc.rid = p.requestId; nc.shown = 0; }
+  nc.anchor = { ms: p.elapsedMs, at: performance.now() };
+  if (active && !ncActive(nc.prev)) $('ncBox').open = true;
+  $('ncSummary').textContent = p.state === 'idle' ? '' : [p.state, p.phase].filter(Boolean).join(' - ');
+  $('ncUnavailable').hidden = !v.unavailable;
+  $('ncUnavailable').textContent = v.unavailable || '';
+  $('ncForm').disabled = active;
+  $('ncGenerate').disabled = active || !!v.unavailable || nc.sending;
+  $('ncGenerate').hidden = active;
+  $('ncCancel').hidden = !active;
+  const box = $('ncProgress');
+  box.hidden = p.state === 'idle';
+  box.className = 'ncprogress ' + p.state + (p.stale ? ' stale' : '');
+  $('ncState').textContent = p.state;
+  $('ncName').textContent = p.saveName ? 'Save name: ' + p.saveName : '';
+  $('ncPhase').textContent = p.phase || '';
+  $('ncDetail').textContent = p.detail || '';
+  $('ncReroll').textContent = p.rerollCount ? 'rerolls: ' + p.rerollCount : '';
+  $('ncStale').textContent = p.stale ? 'Last update failed (showing the last good values): ' + (p.staleError || '') : '';
+  let result = '';
+  if (p.state === 'completed') result = `<span class="ncok">Saved as ${esc(p.saveName)}</span>${p.seed ? ' (seed ' + esc(p.seed) + ')' : ''}. It is selected in Saved game; press Play to load it.`;
+  else if (p.state === 'failed') result = esc(p.error || 'Generation failed.');
+  else if (p.state === 'cancelled') result = 'Cancelled. The game was closed.';
+  $('ncResult').innerHTML = result;
+  ncTimer();
+  // A run that finishes while this page watches selects its save once; a page
+  // opened after the fact leaves the player's own pick alone.
+  if (p.state === 'completed' && nc.prev && ncActive(nc.prev) && p.saveName) ncSelectSave(p.saveName);
+  nc.prev = p.state;
+}
+async function pollNewColony() {
+  try { ncRender(await getNewColony()); }
+  catch (e) {
+    if (nc.view && nc.view.progress.state !== 'idle') {
+      $('ncProgress').classList.add('stale');
+      $('ncStale').textContent = 'Last update failed (showing the last good values): ' + String(e.message || e);
+    }
+  }
+}
+function everyWhileLaunch(poll, ms) {
+  let busy = false;
+  const run = async () => {
+    if ($('view-launch').hidden || busy) return;
+    busy = true;
+    try { await poll(); } finally { busy = false; }
+  };
+  setInterval(run, ms);
+  document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', run));
+  run();
+}
+everyWhileLaunch(pollNewColony, 1000);
+setInterval(ncTimer, 250);
+$('ncRandom').onclick = () => {
+  const b = new Uint8Array(6); crypto.getRandomValues(b);
+  $('ncSeed').value = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+};
+$('ncGenerate').onclick = async () => {
+  $('ncErr').textContent = '';
+  nc.sending = true; $('ncGenerate').disabled = true;
+  try { await generateNewColony(ncSpec()); }
+  catch (e) { $('ncErr').textContent = String(e.message || e); }
+  finally { nc.sending = false; }
+  await pollNewColony();
+};
+$('ncCancel').onclick = async () => {
+  $('ncCancel').disabled = true;
+  try { await cancelNewColony(); } finally { $('ncCancel').disabled = false; pollNewColony(); }
+};
+window.addEventListener('focus', () => focused());
+setInterval(refresh, 600);
+setInterval(refreshObs, 2000);
+refreshObs();
+refresh().then(() => $('primary').focus());
+</script>
+</body>
+</html>

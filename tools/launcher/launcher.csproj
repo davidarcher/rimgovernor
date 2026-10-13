@@ -9,6 +9,9 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- The WebView2 package also references its WPF wrapper, whose WindowsBase 5.0 clashes with the framework's; unused here. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -33,5 +36,14 @@
     <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance\RimGovernor.Brain.Acceptance.csproj" />
     <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Acceptance.Cases\RimGovernor.Brain.Acceptance.Cases.csproj" />
     <ProjectReference Include="..\..\brain\src\RimGovernor.Brain.Bridge.Contracts\RimGovernor.Brain.Bridge.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- WebView2 (Evergreen runtime, assumed installed; MainForm names the install when it is not). Only the managed wrappers
+         and the loader ship with the exe. -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The page, copied unchanged from the Go launcher (go/cmd/launcher/ui/index.html). -->
+    <EmbeddedResource Include="ui\index.html" LogicalName="ui.index.html" />
   </ItemGroup>
 </Project>

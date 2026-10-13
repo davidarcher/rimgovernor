@@ -53,7 +53,7 @@ sources are Loki (decision and event rows, which `serve` exports as OTLP logs),
 Prometheus (native call and pace instruments) and the SQLite snapshot
 (`concern_transitions`, `ledger_rows`). They are empty until `serve` runs with the telemetry
 toggle on. The launcher's Observability section links to them by exact URL
-(`go/cmd/launcher/links.go`) and shows a one-line hint while the stack is down.
+(`tools/launcher/Links.cs`) and shows a one-line hint while the stack is down.
 
 Loki detail: only `service_name` and `service_instance_id` are index labels;
 the other OTLP attributes are structured metadata named with underscores

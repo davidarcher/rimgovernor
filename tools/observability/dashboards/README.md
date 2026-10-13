@@ -93,7 +93,7 @@ a `Run` variable (Loki label `service_instance_id`, one launch of `serve`) and a
 | Ledger | `ledger.json` | `rg-ledger` |
 
 The launcher's observability section links to these by exact URL
-(`go/cmd/launcher/links.go`; a test ties each uid to a dashboard file).
+(`tools/launcher/Links.cs`).
 
 ### Loki names (verified vs assumed)
 

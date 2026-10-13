@@ -27,8 +27,9 @@ scope and authority.
 
 ## Running
 
-For normal play, use `RimGovernor.cmd` at the repository root. To build the
-Windows launcher explicitly:
+For normal play, use `RimGovernor.cmd` at the repository root. It builds the
+C# launcher (`tools/launcher`); the Go launcher in `cmd/launcher` is kept only
+until #3102 removes it. To build the Go one explicitly:
 
 ```powershell
 go build -ldflags -H=windowsgui -o ../RimGovernorLauncher.exe ./cmd/launcher

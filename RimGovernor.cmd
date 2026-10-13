@@ -73,16 +73,15 @@ goto :eof
 :launcher
 rem Already open: a running exe cannot be rebuilt, and one window is enough.
 tasklist /fi "imagename eq RimGovernorLauncher.exe" | find /i "RimGovernorLauncher.exe" >nul && exit /b 0
-cd /d "%~dp0go" || goto :fail
-set GOTOOLCHAIN=go1.27.1
-set CGO_ENABLED=0
-go build -ldflags -H=windowsgui -o ..\RimGovernorLauncher.exe ./cmd/launcher || goto :fail
+rem Published single-file into a staging directory, then copied over the root exe (tools\launcher, #3098).
+dotnet publish "%~dp0tools\launcher\launcher.csproj" -c Release -r win-x64 --no-self-contained --nologo -v q -o "%~dp0.rimgovernor\launcher-build" || goto :fail
+copy /y "%~dp0.rimgovernor\launcher-build\RimGovernorLauncher.exe" "%~dp0RimGovernorLauncher.exe" >nul || goto :fail
 start "" "%~dp0RimGovernorLauncher.exe"
 exit /b 0
 
 :fail
 echo.
-echo Could not build the RimGovernor launcher. Go 1.27 or newer must be installed:
-echo https://go.dev/dl/
+echo Could not build the RimGovernor launcher. The .NET SDK 10 must be installed:
+echo https://dotnet.microsoft.com/download
 pause
 exit /b 1

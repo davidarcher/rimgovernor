@@ -4,8 +4,8 @@
 
 A clean checkout needs:
 
-- Go (`go/.go-version`) and the .NET SDK (for the native
-  mod and the shared Protobuf contracts), both on `PATH`.
+- The .NET SDK 10 on `PATH` (builds the launcher, the native mod and the
+  shared Protobuf contracts).
 - RimWorld 1.7 (Waylith) with Harmony from Steam (the launcher finds them through Steam's
   libraries). Do not also subscribe to RimBridgeServer: the RimGovernor mod
   carries its own GABP host and is marked incompatible with it.
@@ -16,7 +16,7 @@ There is no local-model requirement: the autopilot needs no model.
 ## Build the launcher once
 
 Double-click `RimGovernor.cmd` in the repository root. It builds the launcher
-(`RimGovernorLauncher.exe`, seconds when nothing changed) and opens it; the pinned Go must be
+(`RimGovernorLauncher.exe`, seconds when nothing changed) and opens it; the .NET SDK 10 must be
 installed.
 
 ## What the launcher prepares
@@ -30,6 +30,6 @@ showing its output in the Log panel:
 - **Native mod**: the production build of `integrations/rimgovernor-native`,
   rebuilt when its sources change. It is never replaced while the private game
   copy runs; close the game and press **Check again**.
-- **Go controller**: `.rimgovernor/go/rimgovernor.exe`, rebuilt every open.
+There is no separate controller: the brain runs inside the game.
 
 Continue with [launch](launch.md).
