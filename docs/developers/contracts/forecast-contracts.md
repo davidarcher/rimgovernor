@@ -10,7 +10,7 @@ supplied commitment deltas separately from these observed diagnostics.
 Its requested plan horizon does not change the existing maintenance window.
 Construction shortfalls are exact-resource units, not completion days.
 Timed inventory effects are conditional estimates, never observed stock
-or proof of native work completion.
+or proof of native work completion. The [construction forecast slice](../architecture/colony-forecast.md#construction-commitments-and-shared-capacity) retains native remaining work and exact outstanding materials, then evaluates declared construction commitments against shared pawn/material capacity. Its route, rate and availability estimates remain explicit inputs.
 
 | Projection | Observed inputs | Bound |
 | --- | --- | --- |

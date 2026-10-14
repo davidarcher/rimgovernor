@@ -5,9 +5,7 @@
 `PolicyFunctions.ForecastColony` is the pure owner of a baseline and a proposed
 commitment delta evaluated against the same observed facts. It returns
 `ColonyForecast`; it does not issue orders or certify native legality. The
-first component accounts for supplied timed inventory changes. Pawn dynamics,
-dependency scheduling and production selection are not integrated. A standalone
-activity coordination proof below exercises supplied dependencies and pawn capacity.
+inventory component accounts for supplied timed changes. The construction slice below generates delivery/finish dependencies from observed standing sites and shares pawn/material capacity across commitments. Pawn dynamics and production dispatch remain unintegrated.
 
 ## Input and accounting
 
@@ -105,11 +103,7 @@ selection. No compatibility or permanent shadow layer is required.
 
 `CompareActivityPlans` is the pure activity component being developed for
 #3127/#3128. It evaluates one supplied outcome DAG, not colony demand or a
-second production scheduler. It is not yet called by `ForecastColony`, live
-Method generation or dispatch; inventory effects remain conditional and the
-forecast's unsupported-domain flags remain accurate. Integration must feed
-selected activity completion/occupancy into that same baseline/delta forecast,
-retain `ResourceDemandOf` as the demand owner, and dispatch via Hands.
+second production scheduler. `ForecastColony` now calls it for the construction slice below. Live Method generation and dispatch remain unconnected; general pawn dynamics and activity dependencies remain unsupported outside that slice. `ResourceDemandOf` remains the demand owner, and eventual dispatch belongs to Hands.
 
 A `ForecastActivityProblem` supplies activities, prerequisite IDs, start/end
 locations, eligible pawn options, elapsed service durations, directed route
@@ -168,9 +162,81 @@ waiting costs, unknowns and bounded candidate generation. These are synthetic
 policy scenarios: route durations are supplied rather than native observations;
 carrying capacity and skill are encoded in supplied elapsed durations; opportunity
 costs and the alternative budget are assumptions. Just-in-time travel assumes
-predictable prerequisite completion and divisible baseline work. The proof does
-not model full material/equipment contention, coupled needs, interruptions,
-production invalidation or dispatch. It establishes combination generation and
+predictable prerequisite completion and divisible baseline work. The generic proof does not model material/equipment contention, coupled needs, interruptions or dispatch; the construction slice below adds scoped material accounting and reevaluates against current observations. It establishes combination generation and
 conditional valuation, not emergent expert play or production economic scheduling.
 Hauling, cleaning and eating helpers remain until their integrated #3128
 replacements establish the required native outcomes and deletion acceptance.
+
+
+## Construction commitments and shared capacity
+
+A `ForecastCommitment.Construction` references the geometry of a standing build
+owned by the caller's Method. Its stock changes must be empty: material effects
+come from that site's observed outstanding needs, so the caller cannot also
+charge the build's preview cost. Duplicate commitments for the same geometry
+are rejected. `ForecastConstructionContext` supplies the complete current census,
+observed worker capability, explicit pawn availability/rates, route/service
+estimates and live bill-job ingredient reservations. Nothing is persisted.
+
+The observation projection retains native `WorkLeft` and exact `MaterialsOwed`
+from blueprint/frame rows. Work units are divided by the supplied worker rate
+to obtain elapsed ticks. Missing work or an incomplete material read stays
+unknown; completed or absent sites release future work on the next evaluation.
+A known zero-work frame is distinct from unknown work. Existing delivered frame
+contents are not charged again. Neither this adapter nor forecast stock effects
+change `ResourceDemandOf` or raise another material target.
+
+For each baseline/delta scenario independently, policy generates a delivery
+activity followed by finishing, or finishing alone for a supplied frame. It
+uses `CompareActivityPlans` for self-service/delegation and preparatory travel.
+Finishing requires observed availability, construction capability, native skill
+prerequisite and the site's adopted quality floor. Unknown quality floors do
+not relax eligibility. Explicit delivery/finish eligibility estimates must
+include native legality and work prohibitions; a forecast is never a reservation.
+
+Commitments are considered by tier (untiered first), then ordinal commitment ID.
+This is a conservative bounded list schedule, not a search across commitment
+orders. The selected allocations advance each participating pawn's available
+start and location for later commitments. Different pawns can overlap; earlier
+gaps are not reused. One expansion budget is shared across the scenario.
+Truncation and exhaustion stay visible in comparisons/results. Unknown or
+infeasible commitments produce per-commitment results and leave independent
+known commitments eligible; this is not a colony-wide admission gate.
+
+Material feasibility reuses `MaterialBudget` with bill-job holds and explicit
+unknown checks. Standing construction deficits are not subtracted there: this
+slice allocates its own exact needs once, sequentially. Other supplied negative
+stock effects within the horizon are protected up front, and future positive
+effects do not finance delivery. Unknown reservations or unknown consumption
+prevent material-dependent scheduling; already supplied frames can still run.
+A higher-tier site conservatively waits while any lower-tier census site needs
+its material, even when that lower site is not in the requested bundle. Native
+per-pawn reachability exceptions to this gate are not yet projected, so this can
+reject work native would allow. Equal-tier construction outside the requested
+bundle is not reserved; this is a conditional comparison of declared commitments,
+not proof of exclusive access against every possible native consumer.
+
+A selected delivery removes outstanding material from free inventory at arrival
+at its explicit pickup location. Delivery never creates new colony stock, and
+finishing never creates a duplicate inventory benefit. `Construction` results
+expose completion day, the assignment comparison, material changes and refusal
+reason; original commitments remain reusable input. Unknown/refused outcomes
+have no certified completion and no scheduled material effect. Consumers must
+read these results as well as inventory findings. Baseline and proposed share
+observed stock but allocate independently, so cancellation in the delta releases
+its pawn/material use without rewriting the baseline.
+
+Routes, delivery duration (including carrying capacity, pickup/load and all trips),
+per-activity recovery cost, availability and work rates are still supplied
+estimates with caller assumptions. A delivery assumes one stated pickup location
+for that site's outstanding materials. No adapter currently measures these
+construction routes or derives a coupled needs schedule; missing estimates do
+not receive distance-based or zero-cost defaults. The observed `WorkPawn` and
+construction census are real boundary types, but live Method commitment assembly
+and production selection remain #3127/#3135 work. Native dispatch and helper
+replacement remain #3128. No native gameplay improvement is claimed.
+
+`ForecastConstructionTests` covers decoding existing native fields, inventory
+consumption once, baseline/delta cancellation, shared versus disjoint workers,
+scarce materials and bill holds, skill/tier protection, changed/removed sites,
+unknown routes, independent runnable work and the shared search budget.

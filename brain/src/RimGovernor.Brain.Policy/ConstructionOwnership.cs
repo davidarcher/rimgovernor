@@ -67,6 +67,12 @@ public sealed record ConstructionSite
 
     public Fact<bool> ResourcesComplete { get; init; }
 
+    /// <summary>Native remaining work units, not elapsed pawn ticks.</summary>
+    public Fact<double> WorkLeft { get; init; }
+
+    /// <summary>Exact outstanding material units; delivered frame contents are excluded.</summary>
+    public Fact<EquatableArray<Amount>> MaterialsOwed { get; init; }
+
     public Fact<bool> QualitySensitive { get; init; }
 
     public Fact<int> MinimumFinishingSkill { get; init; }

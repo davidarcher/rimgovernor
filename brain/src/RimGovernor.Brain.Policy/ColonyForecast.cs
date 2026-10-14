@@ -10,6 +10,9 @@ public sealed record ForecastStockChange(Resource Resource, Fact<double> Day, Fa
 public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockChange> StockChanges)
 {
     public EquatableArray<string> UnsupportedEffects { get; init; }
+    /// <summary>Observed standing construction owned by this Method; no second supplied stock effect.</summary>
+    public Building? Construction { get; init; }
+    public Fact<double> AlternativeLaborCost { get; init; }
 }
 
 /// <summary>Replace by removing an ID and adding its new version. Empty means continue.</summary>
@@ -27,6 +30,7 @@ public sealed record ColonyForecastRequest
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
     public ColonyForecastDelta Proposed { get; init; } = new();
     public EquatableArray<string> Assumptions { get; init; }
+    public ForecastConstructionContext Construction { get; init; } = new();
 }
 
 /// <summary>Negative balance denotes unmet units, not spendable inventory.</summary>
@@ -39,6 +43,7 @@ public sealed record ColonyForecastScenario
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
     public EquatableArray<ForecastStockTrajectory> Stocks { get; init; }
     public EquatableArray<ForecastFinding> Findings { get; init; }
+    public EquatableArray<ForecastConstructionResult> Construction { get; init; }
 }
 
 /// <summary>Baseline/delta consequences and observed diagnostics, not native feasibility or a utility score.</summary>
@@ -89,8 +94,8 @@ public static partial class PolicyFunctions
             HorizonDays = request.HorizonDays,
             Assumptions = request.Assumptions,
             Observed = DiagnoseColony(request.Facts),
-            Baseline = ForecastInventory(request.Facts.Stock, baseline, request.HorizonDays),
-            Proposed = ForecastInventory(request.Facts.Stock, proposed, request.HorizonDays),
+            Baseline = ForecastConstructionScenario(request, baseline),
+            Proposed = ForecastConstructionScenario(request, proposed),
         };
     }
 
@@ -99,6 +104,8 @@ public static partial class PolicyFunctions
         var result = new Dictionary<string, ForecastCommitment>(StringComparer.Ordinal);
         foreach (var commitment in commitments)
         {
+            if (commitment.Construction is not null && commitment.StockChanges.Count != 0)
+                throw new DomainException("construction stock effects come from observed outstanding materials");
             if (string.IsNullOrWhiteSpace(commitment.Id) || !result.TryAdd(commitment.Id, commitment))
             {
                 throw new DomainException("invalid or duplicate forecast commitment");

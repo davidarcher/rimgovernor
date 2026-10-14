@@ -308,6 +308,18 @@ public static partial class ObservationPackage
                     ResourcesComplete = Optional(state.ResourcesComplete is not null, state.ResourcesComplete.GetValueOrDefault()),
                     QualitySensitive = Optional(state.QualitySensitive is not null, state.QualitySensitive.GetValueOrDefault()),
                 };
+                if (state.WorkLeft is { } work)
+                {
+                    if (!double.IsFinite(work) || work < 0) throw new ObservationContractException("invalid construction work remaining");
+                    site = site with { WorkLeft = Known(work) };
+                }
+                var (needs, valid) = SiteNeeds(row);
+                // ResourcesComplete certifies that native finished the material read, including known empty.
+                if (valid && state.ResourcesComplete is { } resourcesComplete && resourcesComplete == (needs.Count == 0)
+                    && needs.Select(n => n.Resource).Distinct().Count() == needs.Count)
+                {
+                    site = site with { MaterialsOwed = Known(EquatableArray.From(needs.Select(n => new Amount(n.Resource, n.Count)))) };
+                }
                 if (state.MinimumFinishingSkill is not null)
                 {
                     site = site with { MinimumFinishingSkill = Known(state.MinimumFinishingSkill.GetValueOrDefault()) };
