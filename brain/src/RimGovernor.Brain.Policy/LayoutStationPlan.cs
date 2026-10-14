@@ -141,8 +141,7 @@ public sealed record StationFacts
         }
         if (Plan.Rooms.Any(r => r.Role == PolicyFunctions.PlannedShelter))
         {
-            // A shelter being built is the room the node asks for: siting another beside it would owe two.
-            if (RetireShelter || Plan.Rooms.Any(HeldUnbuiltShelter))
+            if (RetireShelter)
             {
                 return s;
             }
@@ -284,8 +283,27 @@ public sealed record StationFacts
         };
     }
 
-    /// <summary>Whether r is a shelter the colony holds (pinned, as a journal plan works on it) that does not stand yet: it stays where it is sited, and fills the shelter node, until it stands or the work ends.</summary>
-    internal bool HeldUnbuiltShelter(PlannedRoom r) => r.Role == PolicyFunctions.PlannedShelter && Pinned.Contains(r.Id) && !(Built?.Contains(r.Id) ?? false);
+    /// <summary>
+    /// The rooms that stand for the embedding: the built rooms and the rooms the colony holds that do not stand yet (a
+    /// journal plan is building them: pinned, no successor pair). A room under construction is as much the room its node
+    /// asks for as a finished one, and siting another beside it would owe two. Null while the construction census is unknown.
+    /// </summary>
+    public IReadOnlySet<int>? StandingIds()
+    {
+        if (Built is null)
+        {
+            return null;
+        }
+        var ids = new HashSet<int>(Built);
+        foreach (var r in Plan.Rooms)
+        {
+            if (Pinned.Contains(r.Id) && r.Replaces == 0 && !r.Attached())
+            {
+                ids.Add(r.Id);
+            }
+        }
+        return ids;
+    }
 
     /// <summary>
     /// The pinned standing rooms (StationFacts.Pinned) as the embedding holds them (EmbedInput.Standing): every built
@@ -294,12 +312,12 @@ public sealed record StationFacts
     /// </summary>
     internal List<BuiltRegion> StandingRooms()
     {
-        var built = Built ?? new HashSet<int>();
+        var built = StandingIds() ?? new HashSet<int>();
         var replaced = new HashSet<int>(Plan.Rooms.Where(r => built.Contains(r.Id) && r.Replaces != 0).Select(r => r.Replaces));
         var output = new List<BuiltRegion>();
         foreach (var r in Plan.Rooms)
         {
-            if ((built.Contains(r.Id) || HeldUnbuiltShelter(r)) && Pinned.Contains(r.Id) && !r.Attached() && !replaced.Contains(r.Id))
+            if (built.Contains(r.Id) && Pinned.Contains(r.Id) && !r.Attached() && !replaced.Contains(r.Id))
             {
                 output.Add(new BuiltRegion { Room = r.Id, Planned = r.Role, Region = r.Region, Pinned = true });
             }
@@ -513,7 +531,7 @@ public static partial class PolicyFunctions
         {
             throw err;
         }
-        var built = BuiltRegions(f.Plan, f.Built).Select(b => b with { Pinned = f.Pinned.Contains(b.Room) }).ToList();
+        var built = BuiltRegions(f.Plan, f.StandingIds()!).Select(b => b with { Pinned = f.Pinned.Contains(b.Room) }).ToList();
         var regrouped = Regroup(new RegroupInput
         {
             Cluster = new ClusterInput { Graph = graph, Catalog = f.Catalog, RoofDistance = f.RoofDistance },
