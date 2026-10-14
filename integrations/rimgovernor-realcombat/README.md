@@ -27,7 +27,8 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 `--drugs` gives each colonist go-juice (`--high` makes the raiders high on it, `--raiders N` adds raiders),
 `--trace` prints each decision and its results, `--open` fights on open ground with no layout, `--no-traps` leaves the
 planner's spike traps out of the compound so the raider reaches the firing line (otherwise it usually dies to the traps
-first; with them out the colonists fire and win in 1835 ticks).
+first; with them out the colonists fire and win in 1644 ticks). `--armor` puts both sides in a flak vest and
+helmet, `--melee` gives the raiders longswords, `--cover` lays sandbags in front of the colonists on open ground.
 
 ## The native seat
 
@@ -70,6 +71,7 @@ processes. About 8–12 ms a fight after a ~7 s startup.
 
 ## Known harness facts
 
+- Filth is skipped (`skips.txt`): which neighbouring cell a drop of blood lands on, and whether a new filth spawns, varied from process to process and moved the draw count by one, which turned a long armored fight into 2513, 2517, 2899 or 3000 ticks.
 - Standing things (a staged compound) take fixed thing ids: the game seeds some choices from a thing's id (a raider choosing to ignite a wall or attack it), and ids left to the map generator differ from process to process.
 - Pawns are generated with `mustBeCapableOfViolence`: without it about 16% of generated colonists carry a backstory
   that forbids violence, never fire, and make the colonist side look weak.
@@ -84,7 +86,7 @@ The defense round adds three reads to the combat view after the frame; `PolicyCo
 `CombatReads`. **Drugs**: the catalog's combat drugs in preference order, from the facade's definition catalog (a pawn's
 carried drugs come from the mirror; `RealPawn.Carried` puts a drug in an inventory and `Hediffs` gives a starting hediff).
 In the compound with `--drugs --high`, both colonists are ordered go-juice at the first stop with the raider in range and
-no other order, and the handler applies it (the fight ends in a colonist win, 2332 ticks). **Burn**: while a burn-out is active the step surveys its site with the
+no other order, and the handler applies it (one colonist is then overdosed and downed, the other rescues them to the bed and the fight stands off without a winner at 3000 ticks). **Burn**: while a burn-out is active the step surveys its site with the
 native defense-site read, served from the arena map; nothing in the harness starts a burn-out yet (it needs an
 infestation and a staged seal). **Royalty**: left unknown, which holds every permit and psycast call. Reading it needs
 the colony section's royalty facts and royal pawns (title, psylink, psycasts, permits), which the arena does not make.

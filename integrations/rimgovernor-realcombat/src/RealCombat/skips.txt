@@ -25,3 +25,5 @@ RimWorld.History::HistoryTick
 Verse.LetterStack::LetterStackTick
 RimWorld.Autosaver::AutosaverTick
 RimWorld.TransportShipManager::ShipObjectsTick
+# Filth (blood, dirt) never touches a fight, and where it spawns varies from process to process.
+RimWorld.FilthMaker::TryMakeFilth

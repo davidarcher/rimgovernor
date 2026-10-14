@@ -72,7 +72,7 @@ public sealed class PolicyController : IFightController
         {
             foreach (var p in map.mapPawns.AllPawnsSpawned)
             {
-                Log($"t={tick} {p.LabelShort} {(p.Faction?.IsPlayer == true ? "col" : "host")} pos={p.Position.x},{p.Position.z} hp={p.health.summaryHealth.SummaryHealthPercent:0.00} drafted={p.Drafted} downed={p.Downed} job={p.CurJobDef?.defName} target={p.CurJob?.targetA.Thing?.LabelShort} verb={p.TryGetAttackVerb(null)?.GetType().Name} aiming={p.stances.curStance.GetType().Name}");
+                Log($"t={tick} {p.LabelShort} {(p.Faction?.IsPlayer == true ? "col" : "host")} pos={p.Position.x},{p.Position.z} hp={p.health.summaryHealth.SummaryHealthPercent:0.00} drafted={p.Drafted} downed={p.Downed} job={p.CurJobDef?.defName} target={p.CurJob?.targetA.Thing?.LabelShort} verb={p.TryGetAttackVerb(null)?.GetType().Name} aiming={p.stances.curStance.GetType().Name} hediffs=[{string.Join(",", p.health.hediffSet.hediffs.Select(h => h.def.defName + ":" + h.Severity.ToString("0.00")))}]");
             }
         }
 

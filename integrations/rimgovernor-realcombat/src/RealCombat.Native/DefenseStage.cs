@@ -31,6 +31,9 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
     /// <summary>The planner's result.</summary>
     public DefenseLayout? Planned { get; private set; }
 
+    /// <summary>The cell the bed stands on, or null before it is placed.</summary>
+    public Cell? BedCell { get; private set; }
+
     /// <summary>The cell behind the killbox's back wall, where the defenders start.</summary>
     public Cell Home { get; private set; }
 
@@ -160,6 +163,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
             var bed = ThingMaker.MakeThing(def, DefDatabase<ThingDef>.GetNamed("WoodLog"));
             bed.SetFaction(Faction.OfPlayer);
             GenSpawn.Spawn(bed, c, map, Rot4.North);
+            BedCell = new Cell(c.x, c.z);
             return;
         }
 

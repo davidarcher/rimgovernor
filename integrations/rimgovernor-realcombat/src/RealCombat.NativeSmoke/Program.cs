@@ -64,6 +64,24 @@ if (args.Contains("--drugs"))
     };
 }
 
+// --armor: both sides in flak vest and helmet. --melee: the raiders carry swords, not rifles. --cover: sandbags in front of
+// the colonists on open ground (the compound's own come from the planner).
+if (args.Contains("--armor"))
+{
+    RealWear[] gear = [new("Apparel_FlakVest", ""), new("Apparel_AdvancedHelmet", "")];
+    request = request with { Pawns = [.. request.Pawns.Select(p => p with { Worn = gear })] };
+}
+
+if (args.Contains("--melee"))
+{
+    request = request with { Pawns = [.. request.Pawns.Select(p => p.Side == "hostile" ? p with { Weapon = "MeleeWeapon_LongSword", WeaponStuff = "Steel", Skills = new Dictionary<string, int> { ["Melee"] = 8 } } : p)] };
+}
+
+if (args.Contains("--cover"))
+{
+    request = request with { Things = [.. Enumerable.Range(28, 5).Select(z => new RealThing("Sandbags", "", 23, z))] };
+}
+
 GameHost.Boot(game);
 var controller = new SeatController();
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
@@ -77,7 +95,7 @@ var arena = new Arena(request, stage is null ? null : stage.Raise) { Controller 
 if (stage is not null)
 {
     live.Layout = stage.Layout;
-    Console.Error.WriteLine($"stage: layout {(stage.Layout.IsKnown ? "held" : "none")} refusal={(stage.Failure.Length == 0 ? "none" : stage.Failure)} firing={stage.Planned?.Firing.Count} tiers={stage.Planned?.Tiers.Count}");
+    Console.Error.WriteLine($"stage: layout {(stage.Layout.IsKnown ? "held" : "none")} refusal={(stage.Failure.Length == 0 ? "none" : stage.Failure)} home={stage.Home.X},{stage.Home.Z} bed={stage.BedCell?.X},{stage.BedCell?.Z} firing={string.Join(" ", stage.Planned?.Firing.Select(f => f.Cell.X + "," + f.Cell.Z) ?? [])} tiers={stage.Planned?.Tiers.Count}");
 }
 var result = arena.Fight(1);
 Console.Error.WriteLine($"winner={result.Winner} ticks={result.Ticks} {(bare ? "(bare)" : policy ? "policy " + live.Summary : controller.Summary)}");

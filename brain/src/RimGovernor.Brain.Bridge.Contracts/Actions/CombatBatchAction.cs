@@ -36,7 +36,7 @@ public static partial class BridgeFunctions
         "stop" => new Op.CombatOrderOrder.StopCase(new Op.Clear()),
         "hold_position" => new Op.CombatOrderOrder.HoldPositionCase(new Op.Clear()),
         "door" => new Op.CombatOrderOrder.DoorCase(new Op.CombatDoor { Cell = WireCell(c.Cell), Mode = DoorModeOf(c.Door) }),
-        "rescue" => new Op.CombatOrderOrder.RescueCase(new Op.CombatRescue { Downed = new Op.EntityPrecondition { EntityId = c.Target.Value }, Dest = WireCell(c.Cell) }),
+        "rescue" => new Op.CombatOrderOrder.RescueCase(new Op.CombatRescue { Downed = new Op.EntityPrecondition { EntityId = c.Target.Value } }),
         "repair" => new Op.CombatOrderOrder.RepairCase(new Op.CombatRepair { Cell = WireCell(c.Cell) }),
         "man_mortar" => new Op.CombatOrderOrder.ManMortarCase(WireCell(c.Cell)),
         "mortar_fire" => new Op.CombatOrderOrder.MortarFireCase(new Op.CombatMortarFire { Mortar = WireCell(c.Cell), Target = c.Clear ? null : WireCell(c.Aim), Shell = c.Clear || c.Shell.Length == 0 ? null : c.Shell }),
