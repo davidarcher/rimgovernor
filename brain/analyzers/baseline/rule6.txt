@@ -189,6 +189,7 @@ Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept|"WoodLog"
 PlayerApi/LifecycleRoutes.cs|LifecycleRoutes.MaxLoadTimeoutMs|120000
 Policy/Acquisition.cs|PolicyFunctions.SelectAcquisition|"WoodLog"
 Policy/Burn.cs|PolicyFunctions.AshDef|"Filth_Ash"
+Policy/Burn.cs|PolicyFunctions.BurnFuelStuff|"WoodLog"
 Policy/ChildRooms.cs|FurnitureRole.DeathrestCasket|"DeathrestCasket"
 Policy/ClearanceGround.cs|PolicyFunctions.StandInBed|"SleepingSpot"
 Policy/Climate.cs|PolicyFunctions._climateTable|"Human"
@@ -197,11 +198,6 @@ Policy/ClockWindow.cs|PolicyFunctions.EvaluateClockWindow|1800000
 Policy/Combat/CombatMortar.cs|HostileStructure.Hive|"Hive"
 Policy/Combat/CombatWait.cs|PolicyFunctions.RaidGiveUpTicks|38000
 Policy/Combat/CombatWait.cs|PolicyFunctions.WaitDoorStuff|"Plasteel"
-Policy/CombatBurnout.cs|PolicyFunctions.BurnDoorDef|"Door"
-Policy/CombatBurnout.cs|PolicyFunctions.BurnFireTicks|1200
-Policy/CombatBurnout.cs|PolicyFunctions.BurnFuelDef|"Stool"
-Policy/CombatBurnout.cs|PolicyFunctions.BurnFuelStuff|"WoodLog"
-Policy/CombatBurnout.cs|PolicyFunctions.BurnWallDef|"Wall"
 Policy/CombatCast.cs|PolicyFunctions._psycastFamilies|"Flashstorm"
 Policy/ConcernProgress.cs|PolicyFunctions.ProgressCooldownMax|180000
 Policy/ConstructionDemand.cs|PolicyFunctions.ConstructionWoodLog|"WoodLog"
@@ -346,8 +342,6 @@ Store/Codec/ActionPayloadConverters1.cs|CombatCommandConverter.Read|"Door"
 Store/Codec/ActionPayloadConverters1.cs|CombatCommandConverter.WriteFields|"Door"
 Store/Codec/CommonConverters.cs|GenerationSnapshotConverter.Read|"Map"
 Store/Codec/CommonConverters.cs|GenerationSnapshotConverter.WriteFields|"Map"
-Store/Codec/PolicyConverters.cs|CombatBurnConverter.Read|"Hive"
-Store/Codec/PolicyConverters.cs|CombatBurnConverter.WriteFields|"Hive"
 Store/Codec/PolicyConverters.cs|CombatOrderConverter.Read|"Door"
 Store/Codec/PolicyConverters.cs|CombatOrderConverter.WriteFields|"Door"
 Store/Codec/PolicyConverters.cs|DefenseTierRecordConverter.Read|"Bridge"

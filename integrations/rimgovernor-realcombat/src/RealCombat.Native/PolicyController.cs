@@ -186,16 +186,14 @@ public sealed class PolicyController : IFightController
         }
     }
 
-    // The reads the defense round adds to the view: the catalog's combat drugs and, while a burn-out is active, the
-    // census of its site; both come through the facade, the burn site from the arena map.
+    // The reads the defense round adds to the view: the catalog's combat drugs and the royalty facts.
     private CombatReads ReadsOf(int tick, Obs.BundleSnapshot frame)
     {
         var identity = _seat!.Identity;
         var catalog = _client!.DefinitionCatalogAsync(identity, CancellationToken.None).GetAwaiter().GetResult();
         var items = catalog.ItemFacts();
         var drugs = items.CombatDrugs().Select(d => d.Def.ToString()).ToList();
-        return new CombatReads(drugs, RoyaltyOf(frame, catalog), memory =>
-            BuildingRuntimePackage.CombatBurnSiteAsync(_client, identity, memory, tick, items, CancellationToken.None).GetAwaiter().GetResult());
+        return new CombatReads(drugs, RoyaltyOf(frame, catalog));
     }
 
     private void ApplyCalls(CombatStep step)
@@ -209,11 +207,9 @@ public sealed class PolicyController : IFightController
     }
 
     private static string BurnTrace(CombatStep step) =>
-        (step.View.Burn.TryGetValue(out var site) ? $"site(missing={site.Missing} roofed={site.Roofed} fuel={site.Fuel.Count})" : "none")
-        + (step.View.HiveTemperatureC.TryGetValue(out var c) ? $" hive={c:F0}C" : "")
+        (step.View.HiveTemperatureC.TryGetValue(out var c) ? $" hive={c:F0}C" : "")
         + (step.View.DoorStates.TryGetValue(out var doors) ? " doors=" + string.Join(";", doors.Items.Select(d => $"{d.Cell.X},{d.Cell.Z}:open={d.Open} hold={d.HoldOpen}")) : " doors=unknown")
-        + $" defenders=[{string.Join(" ", step.View.Defenders.Items.Select(d => d.Id + ":dead=" + d.Dead + ",down=" + d.Downed))}] orderable=[{string.Join(" ", step.View.Orderable.Items)}] roles=[{string.Join(" ", step.Memory.Roles.Items.Select(r => $"{r.Pawn}:cell={(r.Cell is { } rc ? rc.X + "," + rc.Z : "-")} retreat={r.Retreat} ground={r.Ground is not null} target={r.Target}"))}] structures={step.View.Structures.Count} tactic={step.Memory.Tactic} wait={step.Memory.Wait}"
-        + (step.Memory.Burn is { } b ? $" lit={b.Lit.Value} thrown={b.Thrown.Value} done={b.Done}" : "");
+        + $" defenders=[{string.Join(" ", step.View.Defenders.Items.Select(d => d.Id + ":dead=" + d.Dead + ",down=" + d.Downed))}] orderable=[{string.Join(" ", step.View.Orderable.Items)}] roles=[{string.Join(" ", step.Memory.Roles.Items.Select(r => $"{r.Pawn}:cell={(r.Cell is { } rc ? rc.X + "," + rc.Z : "-")} retreat={r.Retreat} ground={r.Ground is not null} target={r.Target}"))}] structures={step.View.Structures.Count} tactic={step.Memory.Tactic} wait={step.Memory.Wait}";
 
     private static string Casters(CombatView view) =>
         !view.Royalty.TryGetValue(out var royal) ? "" : string.Join(" ", royal.Psycasts.Select(c =>

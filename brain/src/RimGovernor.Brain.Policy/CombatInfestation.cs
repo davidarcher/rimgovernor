@@ -126,7 +126,7 @@ public static partial class PolicyFunctions
             var carrier = state.GetValueOrDefault(r.Pawn) ?? new CombatPawnState();
             if (carrier.WeaponFacts.Burner())
             {
-                // Molotovs belong to the burn-out alone: flame on an insect may send the hive to assault.
+                // Never a molotov at an insect: flame on one may send the hive to assault.
                 r.Ground = null;
                 continue;
             }
@@ -164,39 +164,6 @@ public static partial class PolicyFunctions
 
             best ??= GrenadeTarget(carrier, hostiles, colonists);
             r.Ground = best;
-        }
-    }
-
-    /// <summary>
-    /// Holds every melee fighter of an infestation fight in place while the hive reads above the heat-entry
-    /// ceiling, instead of sending it at an insect or the hive; a downed insect, the burn-out's finish, is
-    /// still fair game. An unknown temperature changes nothing.
-    /// </summary>
-    private static void HeatEntry(CombatView view, CombatMemory m)
-    {
-        var known = view.HiveTemperatureC.TryGetValue(out var temp);
-        if (m.Tactic != CombatTactic.Infestation || !known || temp <= HeatEntryMaxC)
-        {
-            return;
-        }
-
-        var state = new Dictionary<PawnId, CombatPawnState>();
-        foreach (var p in view.Pawns.Items)
-        {
-            state[p.Id] = p;
-        }
-
-        var down = DownPawns(view);
-        foreach (var r in m.Roles)
-        {
-            if (!r.Ranged && r.Cell is null && !r.Target.IsEmpty && !down.Contains(r.Target))
-            {
-                r.Target = default;
-                if (state.GetValueOrDefault(r.Pawn) is { } s && s.Cell.TryGetValue(out var c))
-                {
-                    r.Cell = c;
-                }
-            }
         }
     }
 

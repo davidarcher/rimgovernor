@@ -11,18 +11,16 @@ internal sealed record CombatStep(CombatView View, IReadOnlyList<CombatOrder> Or
 
 /// <summary>
 /// The reads the defense round adds to a combat view after the frame: the burn-out census of the active burn, the remembered
-/// royalty facts and the catalog's combat drugs. Unknown royalty and a burn that reads unknown are what the round holds
-/// without them.
+/// royalty facts and the catalog's combat drugs. Unknown royalty is what the round holds without them.
 /// </summary>
 /// <param name="Drugs">The catalog's combat drug definitions in preference order.</param>
 /// <param name="Royalty">The royalty read; unknown holds every permit and psycast call.</param>
-/// <param name="Burn">The burn site survey for the memory the step decides from; unknown while no burn is active.</param>
-internal sealed record CombatReads(IReadOnlyList<string> Drugs, Fact<RoyaltyFacts> Royalty, Func<CombatMemory, Fact<BurnSite>> Burn)
+internal sealed record CombatReads(IReadOnlyList<string> Drugs, Fact<RoyaltyFacts> Royalty)
 {
-    /// <summary>No reads: no drugs, unknown royalty, no burn.</summary>
-    internal static CombatReads None { get; } = new([], default, _ => default);
+    /// <summary>No reads: no drugs, unknown royalty.</summary>
+    internal static CombatReads None { get; } = new([], default);
 
-    internal CombatView Complete(CombatView view, CombatMemory memory) => view with { Burn = Burn(memory), Royalty = Royalty, Drugs = [.. Drugs] };
+    internal CombatView Complete(CombatView view, CombatMemory memory) => view with { Royalty = Royalty, Drugs = [.. Drugs] };
 }
 
 internal static partial class BuildingRuntimePackage

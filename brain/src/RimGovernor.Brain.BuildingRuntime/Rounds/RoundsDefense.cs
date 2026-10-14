@@ -4,9 +4,11 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native reads of the defense planner: the geometry question, the combat read and the burn fuel read.</summary>
-public interface IRoundsDefenseSource : IBurnFuelSource
+/// <summary>The native reads of the defense planner: the geometry question and the combat read.</summary>
+public interface IRoundsDefenseSource
 {
+    Task<(BridgeDefenseSite Site, BridgeResult Result)> ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct);
+
     (M.CombatGeometry Geometry, BridgeResult Result) CombatGeometry(M.CombatGeometryRequest request, CancellationToken ct);
 
     Task<BridgeCombat> ReadCombatAsync(C.Identity identity, CancellationToken ct);
@@ -206,11 +208,8 @@ public sealed partial class RoundsDefensePlanner
                 }
             }
         }
-        var items = await _reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
-        var burn = await CombatBurnSiteAsync(_native, identity, memory, combat.Context?.Tick ?? 0, items, call).ConfigureAwait(false);
         var drug = await _reviewer.CombatDrugsAsync(state.Snapshot, call).ConfigureAwait(false);
         var view = CombatView(combat, inp, orderable, held);
-        view = view with { Burn = burn };
         view = view with { Royalty = _reviewer.Census.Remembered() };
         view = view with { Drugs = [.. drug] };
         var tick = view.Tick;
@@ -273,8 +272,7 @@ public sealed partial class RoundsDefensePlanner
             withDrafts.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
             recorded.Orderable = [.. withDrafts.Select(o => (Domain.PawnId)o)];
             view = CombatView(combat, inp, withDrafts, held);
-            view = view with { Burn = burn };
-            view = view with { Royalty = _reviewer.Census.Remembered() };
+                view = view with { Royalty = _reviewer.Census.Remembered() };
             view = view with { Drugs = [.. drug] };
             var (o2, more, n2) = PolicyApi.DecideCombat(view, recorded.Reply ?? new GeometryReply(), stop, memory);
             orders = o2;

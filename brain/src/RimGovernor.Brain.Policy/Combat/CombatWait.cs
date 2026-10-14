@@ -120,9 +120,8 @@ public static partial class PolicyFunctions
         {
             return m;
         }
-        // An outmatched infestation evacuates, a lit burn-out waits out its fire; insects under the mountain
-        // do not feel the weather.
-        var wait = Outmatched(view) || (!insects && ExtremeWeather(view)) || BurnWaiting(m);
+        // An outmatched infestation evacuates; insects under the mountain do not feel the weather.
+        var wait = Outmatched(view) || (!insects && ExtremeWeather(view));
         if (wait && !m.Wait)
         {
             m = m with { WaitSince = view.Tick };

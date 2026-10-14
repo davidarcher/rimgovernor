@@ -104,6 +104,9 @@ public static partial class PolicyFunctions
     /// <summary>The filth a burned room leaves behind.</summary>
     public const string AshDef = "Filth_Ash";
 
+    /// <summary>The wood a heater burns.</summary>
+    public const string BurnFuelStuff = "WoodLog";
+
     /// <summary>The batch: interior cells holding things (two thirds of the 3x3 room) before the room is lit.</summary>
     public const int BurnStoredCells = 6;
 

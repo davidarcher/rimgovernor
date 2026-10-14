@@ -6,13 +6,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
 {
     internal const string DefenseWaitTier = "wait";
 
-    /// <summary>The fight-time work of the layout planner: fuel a burn, else harden the waiting rooms.</summary>
+    /// <summary>The fight-time work of the layout planner: harden the waiting rooms.</summary>
     internal async Task<RoundsDefenseLayoutResult> FightAsync(StandardState goal, ControlState state, CombatMemory m, CancellationToken call, CancellationToken epoch)
     {
-        if (m.Burn is not null && m.Burn.Fueling())
-        {
-            return await FuelAsync(goal, state, m.Burn, call, epoch).ConfigureAwait(false);
-        }
         return await HardenAsync(goal, state, m, call, epoch).ConfigureAwait(false);
     }
 
@@ -150,7 +146,7 @@ internal static partial class BuildingRuntimePackage
     {
         foreach (var (_, f) in journal.OpenCombatFights(ct))
         {
-            if (f.Open && f.World == world && ((f.Memory.Wait && f.Memory.WaitRooms.Count > 0) || (f.Memory.Burn is not null && f.Memory.Burn.Fueling())))
+            if (f.Open && f.World == world && ((f.Memory.Wait && f.Memory.WaitRooms.Count > 0)))
             {
                 return f.Memory;
             }

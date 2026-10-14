@@ -101,19 +101,19 @@ if (args.Contains("--cover"))
     request = request with { Things = [.. Enumerable.Range(28, 5).Select(z => new RealThing("Sandbags", "", 23, z))] };
 }
 
-// --burn (with --policy --open): an infestation. A hive at 44,30 under rock with the burn-out room the policy plans built around
-// it (BurnStage), three megascarabs in it (off the corridor axis, out of sight of the corridor; the hive spawns none of its own), and three colonists west of the corridor, the first carrying a molotov.
-BurnStage? burn = null;
-if (args.Contains("--burn"))
+// --hive (with --policy --open): an infestation. A hive at 44,30 under rock with a corridor of three doors west of it (HiveStage),
+// three megascarabs near it, and three colonists west of the corridor with rifles.
+HiveStage? hive = null;
+if (args.Contains("--hive"))
 {
-    burn = new BurnStage(new RimGovernor.Brain.Domain.Cell(44, 30), new RimGovernor.Brain.Domain.Cell(-1, 0));
+    hive = new HiveStage(44, 30);
     request = request with
     {
         HostileFaction = "Insect",
         MaxTicks = 20000,
         Pawns =
         [
-            new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = 35, Z = 29, Weapon = "Weapon_GrenadeMolotov", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = 35, Z = 29, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
             new RealPawn { Id = "col1", Side = "colonist", Kind = "Colonist", X = 35, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
             new RealPawn { Id = "col2", Side = "colonist", Kind = "Colonist", X = 35, Z = 31, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
             new RealPawn { Id = "bug0", Side = "hostile", Kind = "Megascarab", X = 41, Z = 28 },
@@ -133,7 +133,7 @@ if (policy && !open)
     stage = new DefenseStage(RimGovernor.Brain.Domain.Rotation.West, 2, range) { Traps = !args.Contains("--no-traps") };
 }
 
-var arena = new Arena(request, burn is not null ? burn.Raise : stage is null ? null : stage.Raise) { Controller = bare ? null : doorProbe is not null ? doorProbe : policy ? live : controller };
+var arena = new Arena(request, hive is not null ? hive.Raise : stage is null ? null : stage.Raise) { Controller = bare ? null : doorProbe is not null ? doorProbe : policy ? live : controller };
 if (stage is not null)
 {
     live.Layout = stage.Layout;
@@ -229,7 +229,7 @@ internal sealed class SeatController : IFightController
 }
 
 
-// --doortest (with --burn): the draft-and-cancel door trick. A colonist walks to the cell beside the outer corridor door, is
+// --doortest (with --hive): the draft-and-cancel door trick. A colonist walks to the cell beside the outer corridor door, is
 // ordered onto the door cell, and is stopped the moment the door starts to open; the door is then watched, a hold-open set and
 // cleared, and a manual close tried. Prints the door and pawn every few ticks.
 internal sealed class DoorProbe : IFightController

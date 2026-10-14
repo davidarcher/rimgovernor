@@ -88,17 +88,7 @@ The defense round adds three reads to the combat view after the frame; `PolicyCo
 `CombatReads`. **Drugs**: the catalog's combat drugs in preference order, from the facade's definition catalog (a pawn's
 carried drugs come from the mirror; `RealPawn.Carried` puts a drug in an inventory and `Hediffs` gives a starting hediff).
 In the compound with `--drugs --high`, both colonists are ordered go-juice at the first stop with the raider in range and
-no other order, and the handler applies it (one colonist is then overdosed and downed, the other rescues them to the bed and the fight stands off without a winner at 3000 ticks). **Burn**: while a burn-out is active the step surveys its site with the
-native defense-site read, served from the arena map; `--burn` starts one: `BurnStage` spawns a hive under thick rock roof at 44,30 and places the seal, corridor doors and stools
-that `PolicyFunctions.BurnBuilds` asks for over an empty census, `RealPawn` insects (non-humanlike kinds skip the gear/trait strip) join the hive's
-`LordJob_DefendAndExpandHive`, and the policy plays three colonists west of the corridor, one with a molotov. It reads the site
-(`missing=0 roofed fuel=4`), holds the corridor doors open and sends the carrier in (a held door opens only once something passes), holds its fire
-(fire-at-will would spend the molotov on the first insect in sight), and from a corridor door cell with the line open orders the throw at a stool
-two or more cells off (the engine refuses an adjacent target). The three staged megascarabs stand off the corridor axis against the room's west
-wall, out of line of sight of the corridor, and the hive's own pawn spawning is off (its insects spawn on the axis and see the carrier). The throw
-lands at t=1130 (a Fire at the stool); the carrier, unarmed and so out of the formation, keeps a retreat role, walks back past the last door, and only
-then do the doors close and lock (a forbidden door is unreachable to a pawn still inside). The colonists win in 1866 ticks, the same in every
-process, by shooting the insects, not by heat: the one fire raised the hive about 1 C in the ticks observed, but the doors stood open with insects in them, so whether 4 stools can reach 150 C in a sealed room is not yet established. The carrier now opens the innermost door with the pawn `Open` door order from the next door's cell, without stepping into the doorway.
+no other order, and the handler applies it (one colonist is then overdosed and downed, the other rescues them to the bed and the fight stands off without a winner at 3000 ticks). **Infestation**: `--hive` starts one: `HiveStage` spawns a hive under thick rock roof at 44,30 with three player stone doors in series west of it (the door probe's ground), with the hive's own pawn spawning off, three staged megascarabs near it, and three riflemen west of the corridor. The infestation tactic fights them directly with guns (the colonists win in 929 ticks). There is no burn-out tactic: it was dropped as too much micro; an outmatched infestation instead waits and evacuates (`Outmatched`).
 The harness had to change for the throw to land at all: a projectile launches from the caster's draw position, which only the render pass
 advances, so a pawn that had walked shot from the cell it spawned in; `Arena.Play` now resets each pawn's tweened position every tick
 (this moved the numbers above: `--no-traps` 2406, `--permit` 1372). **Royalty**: built as the rounds build it, from the frame's colony royalty section and pawn rows against the catalog

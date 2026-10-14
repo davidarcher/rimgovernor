@@ -182,9 +182,6 @@ public sealed partial record CombatView
     /// <summary>The hottest live hive's temperature in degrees Celsius from the frame: the heat-stroke hold and entry check.</summary>
     public Fact<double> HiveTemperatureC { get; init; }
 
-    /// <summary>A burn-out's census from the combat step while it is active: what it lacks, its roof and its fuel.</summary>
-    public Fact<BurnSite> Burn { get; init; }
-
     /// <summary>Marks a squad hunt: Threats are wild prey, not raiders.</summary>
     public bool Hunt { get; init; }
 
@@ -709,9 +706,6 @@ public sealed partial record CombatMemory
     /// <summary>The mechs seen stunned, each until its EMP adaptation ends, sorted by pawn.</summary>
     public List<EmpAdaptation> EmpAdapted { get; set; } = [];
 
-    /// <summary>An infestation's burn-out.</summary>
-    public CombatBurn? Burn { get; set; }
-
     /// <summary>Overrides the curated combat constants for this fight (a search trial); null is the default tuning. It is cloned with the memory.</summary>
     public CombatTuning? Tuning { get; set; }
 
@@ -813,7 +807,6 @@ public sealed partial record CombatMemory
         m.PotshotDoor = PotshotDoor is null ? null : PotshotDoor with { };
         m.ChokeDoor = ChokeDoor is null ? null : ChokeDoor with { };
         m.HeldDoors = [.. HeldDoors];
-        m.Burn = Burn is null ? null : Burn with { };
         m.Pods = Pods is null ? null : Pods with { };
         return m;
     }
@@ -1161,8 +1154,6 @@ public static partial class PolicyFunctions
         NoteEmpAdapted(view, next);
         Grenade(view, next);
         HiveGrenade(view, next);
-        BurnOut(view, next);
-        HeatEntry(view, next);
         DrillEvacuate(view, next, orderable);
         MechDisengage(view, next);
 
@@ -1242,7 +1233,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (InterruptsAim(rs) && want.Reason != CombatOrderReason.Retreat && want.Reason != CombatOrderReason.Rescue && !safetyTransition && !(next.Burn is { } burning && burning.Carrier == role.Pawn && want.Kind == CombatOrderKind.AttackGround))
+            if (InterruptsAim(rs) && want.Reason != CombatOrderReason.Retreat && want.Reason != CombatOrderReason.Rescue && !safetyTransition)
             {
                 continue;
             }
@@ -1263,8 +1254,7 @@ public static partial class PolicyFunctions
             orders,
             memory,
             OnlySpared(view, spared),
-            suppressNativeFire,
-            next.Burn
+            suppressNativeFire
         );
         if (!geometry.Answered)
         {

@@ -117,32 +117,6 @@ internal sealed class CombatAnimalRestorationConverter : ObjectCodec<CombatAnima
     }
 }
 
-internal sealed class CombatBurnConverter : ObjectCodec<CombatBurn>
-{
-    protected override CombatBurn Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Hive = e.Get<Cell>("Hive", o),
-            Exit = e.Get<Cell>("Exit", o),
-            Room = e.Get<Rectangle>("Room", o),
-            Carrier = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Carrier", o),
-            Lit = e.Get<Tick>("Lit", o),
-            Thrown = e.Get<Tick>("Thrown", o),
-            Done = e.Bool("Done"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, CombatBurn v, Codecs o)
-    {
-        w.Put("Hive", v.Hive, o);
-        w.Put("Exit", v.Exit, o);
-        w.Put("Room", v.Room, o);
-        w.Put("Carrier", v.Carrier, o);
-        w.Put("Lit", v.Lit, o);
-        w.Put("Thrown", v.Thrown, o);
-        w.WriteBoolean("Done", v.Done);
-    }
-}
-
 internal sealed class CombatDoorRestorationConverter : ObjectCodec<CombatDoorRestoration>
 {
     protected override CombatDoorRestoration Read(JsonElement e, Codecs o) =>
@@ -252,7 +226,6 @@ internal sealed class CombatMemoryConverter : ObjectCodec<CombatMemory>
             Permitted = e.Get<EquatableArray<string>>("Permitted", o),
             Casts = e.Get<List<CastMark>>("Casts", o),
             EmpAdapted = e.Get<List<EmpAdaptation>>("EmpAdapted", o),
-            Burn = e.GetOr<CombatBurn?>("Burn", null, o),
             Tuning = e.GetOr<CombatTuning?>("Tuning", null, o),
         };
 
@@ -319,10 +292,6 @@ internal sealed class CombatMemoryConverter : ObjectCodec<CombatMemory>
         w.Put("Permitted", v.Permitted, o);
         w.Put("Casts", v.Casts, o);
         w.Put("EmpAdapted", v.EmpAdapted, o);
-        if (v.Burn is { } vBurn)
-        {
-            w.Put("Burn", vBurn, o);
-        }
         if (v.Tuning is { } vTuning)
         {
             w.Put("Tuning", vTuning, o);

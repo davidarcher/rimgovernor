@@ -122,7 +122,7 @@ internal sealed partial class FacadeNativeClient
     Task<BridgeCombat> IRoundsDefenseSource.ReadCombatAsync(C.Identity identity, CancellationToken ct) =>
         ReadCombatAsync(identity, ct);
 
-    Task<(BridgeDefenseSite Site, BridgeResult Result)> IBurnFuelSource.ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
+    Task<(BridgeDefenseSite Site, BridgeResult Result)> IRoundsDefenseSource.ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
         ReadDefenseSiteAsync(identity, region, ct);
 
     Task<(BridgeDefenseSite Site, BridgeResult Result)> IRoundsDefenseLayoutSource.ReadDefenseSiteAsync(C.Identity identity, BridgeCellRect region, CancellationToken ct) =>
