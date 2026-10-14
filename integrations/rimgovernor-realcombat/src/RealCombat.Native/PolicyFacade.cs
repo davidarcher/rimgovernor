@@ -9,7 +9,7 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.RealCombat.Native;
 
 /// <summary>
-/// The slice of <see cref="INativeFacade"/> a combat read touches, served over the arena: the definition catalog, combat geometry, the
+/// The slice of <see cref="INativeFacade"/> a combat read touches, served over the arena: the definition catalog, combat geometry, the defense site census (the burn survey), the
 /// frame stream (frames are published by the controller, one per decision) and the stat service. The facade is 64
 /// calls wide; any other is not a combat read and throws by name, so a read that grows past this slice fails loudly.
 /// </summary>
@@ -38,6 +38,8 @@ public class PolicyFacade : DispatchProxy
                 return Task.FromResult(NativeDefinitionCatalogTool.HandleReadDefinitionCatalog((Obs.DefinitionCatalogRequest)args![0]!));
             case "ReadCombatGeometryAsync":
                 return Task.FromResult(NativeCombatGeometryTools.HandleRead((Mirror.CombatGeometryRequest)args![0]!));
+            case "ReadDefenseSiteAsync":
+                return Task.FromResult(NativeDefenseObservationTools.HandleReadDefenseSite((Obs.DefenseSiteRequest)args![0]!));
             case "OpenFramesAsync":
                 return Task.FromResult(new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamReplyOutcome.OpenedCase(new Obs.SnapshotStreamOpened { Name = "in-process" }) });
             default:

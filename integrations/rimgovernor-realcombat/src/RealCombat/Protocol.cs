@@ -65,6 +65,12 @@ public sealed record RealPawn
     public IReadOnlyDictionary<string, int> Skills { get; init; } = new Dictionary<string, int>();
 
     public IReadOnlyList<RealTrait> Traits { get; init; } = [];
+
+    /// <summary>ThingDef names carried in the pawn's inventory (a combat drug the policy may order taken).</summary>
+    public IReadOnlyList<string> Carried { get; init; } = [];
+
+    /// <summary>HediffDef names the pawn starts with (GoJuiceHigh).</summary>
+    public IReadOnlyList<string> Hediffs { get; init; } = [];
 }
 
 /// <param name="FirstShotTick">Ticks from the fight start to the pawn first shot; -1 when it never fired.</param>

@@ -8,15 +8,31 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <param name="Memory">The memory after the decision.</param>
 internal sealed record CombatStep(CombatView View, IReadOnlyList<CombatOrder> Orders, IReadOnlyList<PawnId> Drafts, PbOperations.CombatOrders? Batch, CombatMemory Memory);
 
+/// <summary>
+/// The reads the defense round adds to a combat view after the frame: the burn-out census of the active burn, the remembered
+/// royalty facts and the catalog's combat drugs. Unknown royalty and a burn that reads unknown are what the round holds
+/// without them.
+/// </summary>
+/// <param name="Drugs">The catalog's combat drug definitions in preference order.</param>
+/// <param name="Royalty">The royalty read; unknown holds every permit and psycast call.</param>
+/// <param name="Burn">The burn site survey for the memory the step decides from; unknown while no burn is active.</param>
+internal sealed record CombatReads(IReadOnlyList<string> Drugs, Fact<RoyaltyFacts> Royalty, Func<CombatMemory, Fact<BurnSite>> Burn)
+{
+    /// <summary>No reads: no drugs, unknown royalty, no burn.</summary>
+    internal static CombatReads None { get; } = new([], default, _ => default);
+
+    internal CombatView Complete(CombatView view, CombatMemory memory) => view with { Burn = Burn(memory), Royalty = Royalty, Drugs = [.. Drugs] };
+}
+
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>
     /// The combat step the defense round takes, without its plan store: the frame inputs, the view, the newest stop,
     /// <c>DecideCombat</c>, and the wire batch of its orders. The offline real-engine host drives a fight with it (#3142),
-    /// so a fight there is decided by the code that decides one live. A geometry ask is answered from the game through <paramref name="read"/>; the layout is the
+    /// so a fight there is decided by the code that decides one live. A geometry ask is answered from the game through <paramref name="read"/>; the layout and the reads are the
     /// caller's (unknown when it holds none). Null when there is no fight to decide.
     /// </summary>
-    internal static CombatStep? DecideCombatStep(BridgeCombat combat, IReadOnlyList<PawnId> orderable, CombatMemory memory, string key, PbCommon.Identity identity, Func<M.CombatGeometryRequest, M.CombatGeometry> read, Fact<CombatLayout> layout)
+    internal static CombatStep? DecideCombatStep(BridgeCombat combat, IReadOnlyList<PawnId> orderable, CombatMemory memory, string key, PbCommon.Identity identity, Func<M.CombatGeometryRequest, M.CombatGeometry> read, Fact<CombatLayout> layout, CombatReads reads)
     {
         var (inputs, _) = CombatFrameInputs(combat, []);
         if (inputs is null)
@@ -36,13 +52,13 @@ internal static partial class BuildingRuntimePackage
             var (o2, _, n2) = PolicyApi.DecideCombat(v, reply, stop, memory);
             return (o2, n2);
         }
-        var view = CombatView(combat, inputs, orderable, layout);
+        var view = reads.Complete(CombatView(combat, inputs, orderable, layout), memory);
         var (orders, next) = Decide(view);
         var drafts = UndraftedRoles(next, orderable, view);
         if (drafts.Count > 0)
         {
             var all = orderable.Concat(drafts).OrderBy(d => d.Value, StringComparer.Ordinal).ToList();
-            view = CombatView(combat, inputs, all, layout);
+            view = reads.Complete(CombatView(combat, inputs, all, layout), memory);
             (orders, next) = Decide(view);
         }
         var commands = CombatBatchCommands(drafts, orders);

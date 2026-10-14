@@ -52,6 +52,18 @@ if (policy)
     };
 }
 
+// --drugs: each colonist carries go-juice; --high makes the raiders high on it and --raiders N adds raiders, either of
+// which is a fight worth dosing for.
+if (args.Contains("--drugs"))
+{
+    var extra = args.Contains("--raiders") ? int.Parse(args[Array.IndexOf(args, "--raiders") + 1]) - 1 : 0;
+    var raiders = Enumerable.Range(0, extra).Select(i => request.Pawns.Last(p => p.Side == "hostile") with { Id = "host" + (i + 1), Z = 28 + (i * 2) });
+    request = request with
+    {
+        Pawns = [.. request.Pawns.Concat(raiders).Select(p => p.Side == "colonist" ? p with { Carried = ["GoJuice"] } : args.Contains("--high") ? p with { Hediffs = ["GoJuiceHigh"] } : p)],
+    };
+}
+
 GameHost.Boot(game);
 var controller = new SeatController();
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };

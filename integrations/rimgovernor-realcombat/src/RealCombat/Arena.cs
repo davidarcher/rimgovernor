@@ -353,6 +353,16 @@ public sealed class Arena
             pawn.apparel.Wear(apparel, false);
         }
 
+        foreach (var h in spec.Hediffs)
+        {
+            pawn.health.AddHediff(DefDatabase<HediffDef>.GetNamed(h));
+        }
+
+        foreach (var c in spec.Carried)
+        {
+            pawn.inventory.innerContainer.TryAdd(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(c)));
+        }
+
         pawn.equipment.DestroyAllEquipment();
         if (spec.Weapon.Length > 0)
         {

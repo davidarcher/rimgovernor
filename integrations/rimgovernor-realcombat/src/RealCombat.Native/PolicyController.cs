@@ -94,13 +94,14 @@ public sealed class PolicyController : IFightController
                 return;
             }
 
-            var step = BuildingRuntimePackage.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout);
+            var step = BuildingRuntimePackage.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout, ReadsOf(tick));
             if (step is null)
             {
                 Idle = "no fight: " + BuildingRuntimePackage.CombatFrameInputs(combat, []).Reason;
                 return;
             }
 
+            Log?.Invoke($"t={tick} reads drugs=[{string.Join(",", step.View.Drugs.Items)}] burn={step.View.Burn.IsKnown} royalty={step.View.Royalty.IsKnown} dosed={step.Memory.Dosed.Count}");
             _memory = step.Memory;
             _decided = tick;
             if (step.Batch is not { } batch)
@@ -150,6 +151,18 @@ public sealed class PolicyController : IFightController
         {
             Failure = e.GetType().Name + ": " + e.Message;
         }
+    }
+
+    // The reads the defense round adds to the view: the catalog's combat drugs and, while a burn-out is active, the
+    // census of its site; both come through the facade, the burn site from the arena map.
+    private CombatReads ReadsOf(int tick)
+    {
+        var identity = _seat!.Identity;
+        var catalog = _client!.DefinitionCatalogAsync(identity, CancellationToken.None).GetAwaiter().GetResult();
+        var items = catalog.ItemFacts();
+        var drugs = items.CombatDrugs().Select(d => d.Def.ToString()).ToList();
+        return new CombatReads(drugs, RimGovernor.Brain.Domain.Fact.Unknown<RoyaltyFacts>(), memory =>
+            BuildingRuntimePackage.CombatBurnSiteAsync(_client, identity, memory, tick, items, CancellationToken.None).GetAwaiter().GetResult());
     }
 
     private RimGovernor.Contracts.Wire.Mirror.CombatGeometry GeometryOf(RimGovernor.Contracts.Wire.Mirror.CombatGeometryRequest request) =>
