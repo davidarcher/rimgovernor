@@ -5,7 +5,20 @@
 `PolicyFunctions.ForecastColony` is the pure owner of a baseline and a proposed
 commitment delta evaluated against the same observed facts. It returns
 `ColonyForecast`; it does not issue orders or certify native legality. The
-inventory component accounts for supplied timed changes. The construction slice below generates delivery/finish dependencies from observed standing sites and shares pawn/material capacity across commitments. Pawn dynamics and production dispatch remain unintegrated.
+inventory component accounts for supplied timed changes. The construction slice
+below generates delivery/finish dependencies from observed standing sites and
+shares pawn/material capacity across commitments. A bounded food Method caller
+uses the shared outcome comparator and normal journal/Hands dispatch for harvest
+and delivery. Full production portfolio dispatch and coupled pawn dynamics remain
+unintegrated.
+
+Forecasting is part of choosing and advancing a Method in the
+[Concern/Method/action model](plans-and-hands.md#method-selection-and-binding).
+Family policy generates alternatives and binds the selected outcome; shared
+comparison evaluates them. Forecast results are derived evidence, not another
+admission authority, Method lifecycle or stock owner. The
+[live policy stage map](#live-activity-policy-stages) describes the current caller
+and its compiler-enforced boundaries.
 
 ## Input and accounting
 
@@ -859,17 +872,19 @@ crop census or native execution. The generator is callable policy, not yet wired
 to live Rounds dispatch. Batch sizes omitted by the bounded enumeration remain
 untested, and the comparison does not model staggered delivery between iterations.
 Multi-source/multi-ingredient planning, native worker yield/rate calibration,
-power/fuel transitions and Hands
-harvest/hauling/cooking integration remain #3127/#3128/#3135 work. The
+power/fuel transitions and dispatch of this full generated food portfolio remain
+#3127/#3128/#3135 work. The
 [activity execution contract](../contracts/pawn-activities.md) now includes an
 exact one-trip delivery adapter alongside harvest, plus a one-iteration cooking
 adapter for exact single-resource ingredient stacks and an existing selected bill.
 Their native cases check physical output and explicit revision after refusal,
 with fixture-selected assignments.
-It does not close the live forecast loop: observed output rebinding, carried-item
-recovery, mixed-ingredient cooking, calibrated live candidate inputs and normal Method
-admission/Hands dispatch still need integration. The automatic hauling/cleaning/
-eating helpers remain in place until that replacement is proven.
+Those fixture cases do not prove autonomous portfolio selection. The separate
+live harvest/delivery caller below supplies observed loose-food rebinding and
+normal Method admission/Hands dispatch for its narrow path. Carried-item recovery,
+mixed-ingredient cooking, calibrated portfolio inputs and dispatch of the full
+generated chain remain unintegrated. Automatic hauling/cleaning/eating helpers
+remain in place until their replacement is proven.
 
 The existing Method journal now checks activity payload attribution against its
 committed Method and rejects repeated pawn revisions across actions in one plan.
@@ -879,7 +894,7 @@ output rebinding or completed-work evidence.
 
 The first live activity caller is the normal EnsureFoodSupply acquisition planner:
 it takes the shared FoodPlan's selected plant sources, compares bounded same-pawn
-harvest/delivery trips with the activity allocator and journals exact harvest
+harvest/delivery Method alternatives with the shared outcome comparator and journals exact harvest
 through Hands. The worker binds observed loose food to a delivery continuation
 and handles changed stacks, destinations and bounded empty-handed retry. See the
 [owning contract](../contracts/pawn-activities.md#live-harvest-and-delivery) for

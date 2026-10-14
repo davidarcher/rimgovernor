@@ -3,8 +3,9 @@
 [Architecture](overview.md) · [Player API](../contracts/player-api.md)
 
 Player requests and routine automation share admission checks, resource accounting
-and completion tracking. The plan owns concerns; Hands deterministically executes
-accepted work. Advisers cannot commit game orders. Each concern is a Standard
+and completion tracking. A Concern owns the outcome being pursued; an admitted
+Method associates that attempt with its Plan of actions. Hands deterministically
+executes accepted work. Advisers cannot commit game orders. Each concern is a Standard
 or Incident, and Safeguards veto proposals at admission; see
 [concerns and their forms](control-loop.md#concerns-and-their-forms).
 
@@ -17,6 +18,35 @@ flowchart LR
     Receipt --> Observe[Observe postcondition]
     Observe --> Complete[Complete tracked work]
 ```
+
+## Method selection and binding
+
+The live food policy separates three responsibilities within the existing
+Concern/Method model:
+
+1. **Generate alternatives.** Family-specific policy supplies forecast activities,
+   dependencies, eligible options and concrete target bindings for candidate
+   Methods. These are temporary proposals, without admitted Method ownership.
+2. **Compare alternatives.** ColonyForecast's shared outcome comparator owns bounded
+   search, scheduling, valuation and postponement. Family code does not run a
+   parallel winner-selection loop. Unknown estimates and omitted alternatives
+   remain visible in the result.
+3. **Bind the selection.** Family-specific binding resolves the selected outcome
+   into exact actions. It cannot substitute its own winner. Runtime submits the
+   proposal through normal journal admission and Safeguards; Hands dispatches it.
+
+The forecast graph describes hypothetical work. The Plan describes proposed or
+admitted actions. Neither is a second Method lifecycle. The journal owns the
+admitted Method's identity, revisions and execution responsibility. Observations
+drive continuation, rebinding or release through that same owner; an accepted
+write alone does not complete the Concern.
+
+For food, the live comparison currently covers bounded same-pawn harvest/delivery
+alternatives. It does not yet compare the complete raw-versus-cooked portfolio
+against all colony work. The [live stage contract](colony-forecast.md#live-activity-policy-stages)
+owns class responsibilities, the local objective and search limits. `RGARCH009`
+enforces its dependency boundaries without a baseline; it is not universal
+enforcement for older planners or proof of exhaustive candidate generation.
 
 ## Keep intent and progress separate
 

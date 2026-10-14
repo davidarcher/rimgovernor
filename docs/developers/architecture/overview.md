@@ -28,7 +28,8 @@ flowchart LR
 | --- | --- | --- |
 | Policy | Findings, forecasts, method choices, tactics and demand | Transport, persistence or wall-clock scheduling |
 | Brain host | Planner scheduling, authority, lifecycle, watchdog and composition ([brain host](brain-host.md)) | RimWorld simulation |
-| Store and Hands | Admission, action identity, write journal and reconciliation | Whether a Concern's colony outcome is satisfied |
+| Store | Method admission, action identity, session journal and continuation ownership | Candidate valuation or game orders |
+| Hands | Dispatch of admitted actions and write reconciliation | Which Method best serves a Concern |
 | Native bridge | Typed observations, operation guards, clock supervision and leased rules (being removed in #3141) | Colony strategy |
 | Native facade | In-process calls into the mod (typed, no serialization) and main-thread dispatch; the loopback HTTP channel serves the launcher and tools | Colony policy |
 | RimWorld | Legality, pathing, pawn jobs and physical outcomes | Governor intent |
@@ -46,6 +47,38 @@ unification. New writers must also use Hands.
 3. Validate proposals against current authority, dependencies and claims.
 4. Journal admitted actions before dispatch; retain receipts or uncertainty.
 5. Observe native outcomes and update Concern progress.
+
+## From a Concern to work
+
+A Concern states the desired outcome. A Method is an admitted attempt to achieve
+it through a Plan of actions. Candidate generation, forecast comparison and
+binding are pure policy steps in choosing that Method, not additional domain
+actors or state owners.
+
+```mermaid
+flowchart LR
+    Concern[Concern and shared demand] --> Candidates[Candidate Method alternatives]
+    Candidates --> Forecast[ColonyForecast comparison]
+    Forecast --> Bind[Bind selected alternative to actions]
+    Bind --> Journal[Method journal admission]
+    Journal --> Hands[Hands dispatch]
+    Hands --> Outcome[Observed native outcome]
+    Outcome --> Continue[Continue, reconsider or release Method]
+    Continue --> Candidates
+    Continue --> Journal
+```
+
+The live food path follows this flow: food-specific policy generates alternatives
+and concrete target bindings; the shared forecast comparator selects or postpones;
+binding constructs exact actions. The existing Method journal owns progress and
+revisions, and Hands remains the order writer. A forecast result does not admit a
+Method, reserve every resource or prove completed pawn work.
+
+This is the structure for the migrated path, not a claim that every planner uses
+one complete colony portfolio. Cooking and the full food portfolio remain
+unintegrated. See [Method selection and binding](plans-and-hands.md#method-selection-and-binding)
+for the ownership boundaries and [live policy stages](colony-forecast.md#live-activity-policy-stages)
+for the implementation, enforced dependencies and current bounds.
 
 Routine planning can run while the supervised game window is advancing.
 Native hazard stops and expiring leases protect the game independently of

@@ -20,7 +20,7 @@
 | [brain/src/RimGovernor.Brain.Telemetry](../../brain/src/RimGovernor.Brain.Telemetry) | OTLP file telemetry: decisions, events, spans and metrics |
 | [brain/src/RimGovernor.Brain.Acceptance](../../brain/src/RimGovernor.Brain.Acceptance), [Acceptance.Cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases) | Acceptance harness (`RimGovernor.cmd acceptance`), case registry, fixtures and gameplay evidence |
 | [brain/src/RimGovernor.Brain.RemoteAccept](../../brain/src/RimGovernor.Brain.RemoteAccept), [RemoteBundle](../../brain/src/RimGovernor.Brain.RemoteBundle) | Remote acceptance evidence and encrypted bundles |
-| [brain/analyzers](../../brain/analyzers) | Architecture gates: Roslyn analyzers `RGARCH001`-`008` and their shrink-only baselines |
+| [brain/analyzers](../../brain/analyzers) | Architecture gates: Roslyn analyzers `RGARCH001`-`009`; baselined gates are shrink-only, construction tiers and live Method stages have no baseline |
 | [brain/tests](../../brain/tests) | Bug-driven xUnit tests |
 | [tools/rg](../../tools/rg) | Repository tool host behind `RimGovernor.cmd` (land, test, issue, affected, acceptance, remote tools, reports) |
 | [tools/launcher](../../tools/launcher) | Windows launcher (C#, WinForms and WebView2): setup, game start/stop, new colony, acceptance tab |
@@ -43,3 +43,8 @@ and registered executor handler. For a wire change, follow the record in
 Use [persistence ownership](contracts/persistence-contracts.md) to place state
 and [OTEL signals](contracts/otel-signals.md) to add diagnostics. Avoid creating a
 second owner merely because the code is in a different package.
+
+For live food Method selection, follow the [policy stage map](architecture/colony-forecast.md#live-activity-policy-stages):
+family generation and binding live under `Policy/Methods`, while comparison uses
+the existing ColonyForecast outcome evaluator. `BuildingRuntime` sequences the
+reads and journal transitions; `Store` and Hands retain admission and execution.

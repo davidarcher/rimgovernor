@@ -14,6 +14,9 @@
 | Department | The colony area a concern serves (Food, Shelter, Industry, Military, Medical, People, Storage, Sanitation, plus a hidden System for game plumbing), like a Civ advisor. A grouping tag only; it never ranks concerns or budgets labor. See [Concerns and their forms](architecture/control-loop.md#concerns-and-their-forms). |
 | Capability | A coarse function a planned room can host (sleep, craft, research, cook, store, heat), derived from the facility catalog (`policy.CapabilitiesOf`) and never persisted. The shelter hosts sleep, craft, research, cook and heat, and retires once each has a better home. See [room capabilities](architecture/facilities.md#room-capabilities). |
 | Method | A selected way to pursue a concern, retaining its attempts and step associations. |
+| Candidate Method alternative | A temporary policy proposal evaluated before journal admission; it has no independent lifecycle or persisted ownership. |
+| ColonyForecast | Pure forecast accounting and comparison used to evaluate proposed work. It supplies evidence for Method selection, not admission or execution ownership. See [scope](architecture/colony-forecast.md). |
+| Binding | Resolving a selected forecast alternative into exact action targets and quantities; it does not choose another winner or issue orders. |
 | Step / action | An accepted unit of work with a stable identity, specification and execution progress. Exact completion depends on its action contract. |
 | ColonyPlan | The shared persistent concern/action system used by player requests and routine control. |
 | Hands | The deterministic executor that validates and issues accepted native work and retains execution evidence. |
