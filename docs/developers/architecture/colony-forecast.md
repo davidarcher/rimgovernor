@@ -617,3 +617,49 @@ unchanged. Method reasons report priority totals and clothing cost estimates.
 Other producers still lack need classifications. This is live clothing selection,
 not calibrated colony economics or joint pawn/bench/time scheduling; garment shape
 and recipe selection remain upstream, and whole batches cannot split materials.
+
+## Competing outcomes and shared labor
+
+`CompareActivityOutcomes` extends the activity comparison with optional outcomes.
+Each outcome names one existing need, a completion task, a deadline, and an
+explicit estimate of avoided loss in baseline labor ticks. The caller owns the
+need and its estimate; activity names carry no priority. Alternatives for the
+same need are mutually exclusive. Distinct needs must represent independent
+losses, not duplicate descriptions of the same benefit.
+
+The comparison generates postponement, individual outcomes and combinations.
+It closes each selected completion over its prerequisites and schedules the
+union through `CompareActivityPlans`. Shared prerequisites execute once;
+participants share the same availability, routes and equipment. It scores
+completed, on-time outcomes by avoided loss minus displaced labor and injury
+recovery cost. An outcome receives no partial credit. Zero or negative net
+benefit retains postponement. Equal scores prefer lower labor cost, then earlier
+completion; remaining ties follow stable outcome and activity ordering.
+
+One deterministic expansion budget covers combination generation and all nested
+assignment searches. Truncation means best found, not globally optimal; early
+outcomes can consume the budget. Unknown benefit/deadline excludes that outcome
+with a finding. Unknown routes, capacity or work remain scheduler findings, never
+free work. At most sixteen supplied outcomes and the existing thirty-two-task
+limit bound the input. This is an in-memory forecast component, not saved intent
+or a second source of demand.
+
+`ForecastActivityOutcomesTests` uses two pawns to compare shelter completion and
+food harvesting. Protected builder time makes material delivery compete with
+harvesting. Larger exposure loss favors shelter; larger hunger loss favors food.
+Without that obligation, solo builder preparation leaves the helper harvesting
+and both finish. Already-delivered materials eliminate preparation. The same
+mechanism covers shared prerequisites, deadline failure, costly recovery,
+postponement, unknown estimates and deterministic truncation.
+
+These are supplied synthetic estimates, not calibrated exposure/hunger losses
+or a live shelter policy. Candidate graphs and their material feasibility are
+supplied; this comparison does not reserve stock, generate room designs, forecast
+weather or eating, or dispatch work. Partial shelter has no modeled benefit.
+Existing construction forecasting still evaluates declared commitments in its
+own order; it is not automatically composed with this optional-outcome call.
+Integration must use one coherent capacity/material frame and replace that
+separate allocation, not spend the same pawn time twice. Live adoption also needs
+construction/delivery adapters in planner-owned Hands activities, observed
+completion and replanning. The construction-labor admission gate and existing
+helpers remain until that replacement is demonstrated (#3127/#3128).
