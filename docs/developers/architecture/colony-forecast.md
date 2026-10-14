@@ -778,3 +778,61 @@ Scenario tests cover insufficient nutrition, wrong eaters, rot before the horizo
 shared-output allocation, missing heating/arrival, unknown temperature/material
 facts, shared fuel after commitments, and an actual harvest/cook/delivery DAG.
 They prove policy decisions from fixtures, not observed gameplay completion.
+
+## Food candidates from acquisition and recipe observations
+
+`GenerateFoodActivities` builds candidate graphs from existing acquisition,
+crop-catalog, production-bench and exact recipe-input observations. The shared
+forecast roster and the candidate frame must have the same tick. An available,
+unclaimed harvestable food plant creates one harvest task shared by its raw and
+cooked alternatives. Trees, hunts, immature plants and already claimed/designated
+sources are not harvested again. Source yield and the crop's native harvest work
+supply the quantity and work; neither comes from a plant-name heuristic.
+
+Raw delivery remains an alternative. For each usable observed bench and available
+ordinary-meal recipe, the generator checks every exact ingredient slot against
+the harvested resource. This slice supports recipes whose complete ingredient
+set can be supplied by that single resource and which have one ordinary product
+and no reusable unfinished item. It generates the maximum whole recipe batch
+that this harvest can fund; it does not mix harvests or enumerate smaller batches.
+The existing recipe catalog projection now includes native product counts and
+base recipe work. Cooking quantities are product count times batches, not an
+assumed one meal. Other ingredients and unsupported/unknown recipes are excluded
+rather than guessed.
+
+The generated chain is harvest, delivery to the bench, cooking, then delivery to
+the requested destination. Exact input/output quantities preserve material flow;
+the normal effect assessor checks joint stock and claims. Recipe variants and raw
+delivery reach the same existing bounded comparison before one is chosen. Native
+cook skill floors exclude unqualified workers; current worker availability is
+required for every operation. Cooking claims the exact bench as shared equipment.
+Task bindings retain source and bench/recipe identities for inspection; they are
+not executable Hands orders.
+
+The graph's service times derive from observed work and supplied worker rates.
+Initial travel routes, native worker eligibility, per-resource carrying limits,
+complete-trip costs, recovery estimates and bench availability windows remain
+explicit inputs. Carrying work scales by the ceiling of quantity divided by
+carrying capacity. A bench's current usable flag is not a guarantee of continued
+power/fuel: the supplied equipment window must cover operation, and this slice
+does not forecast those transitions. Destination eater/expiry evidence is still
+conditional. Unknown estimates cannot become zero-time operations.
+
+Generation has its own explicit inspection budget and respects the scheduler's
+32-task and 16-outcome limits. It reports truncation; omitted candidates are not
+proven inferior. Search retains its separate expansion budget. No graph is
+returned when no relief candidate is generated. Missing kitchen information can
+leave known raw alternatives available, while an unknown source census cannot
+be treated as an empty known harvest. Findings are retained on the generation
+result and must be considered alongside comparison findings.
+
+`ForecastFoodCandidatesTests` exercises observed-input fixtures through generation
+and selection: a small harvest requires cooking, a larger harvest favors cheaper
+raw delivery, native product counts affect output, and unavailable workers,
+missing transfer/bench evidence, carrying limits, immature/claimed sources,
+unsupported ingredient combinations and truncation are explicit. The catalog
+projection compiles against native definitions; these tests do not prove a live
+crop census or native execution. The generator is callable policy, not yet wired
+to live Rounds dispatch. Multi-source/multi-ingredient planning, variable batch
+sizes, native worker yield/rate calibration, power/fuel transitions and Hands
+harvest/hauling/cooking execution remain #3127/#3128/#3135 integration work.

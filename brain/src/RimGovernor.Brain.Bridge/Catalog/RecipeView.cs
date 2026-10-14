@@ -53,7 +53,11 @@ public sealed partial class DefinitionCatalog
         var result = new List<P.ProductionRecipeInput>();
         foreach (var recipe in Rows<RecipeDef>().Values.Where(r => r.products.Count > 0 && RecipeBenchesOf(r).Any(buildings.Contains)).OrderBy(r => r.defName, StringComparer.Ordinal))
         {
-            try { result.Add(new(recipe.defName, RecipeIngredients(recipe.defName), Known(recipe.unfinishedThingDef is not null))); }
+            try { result.Add(new(recipe.defName, RecipeIngredients(recipe.defName), Known(recipe.unfinishedThingDef is not null))
+                {
+                    Products = Known(EquatableArray.From(recipe.products.Select(p => new P.Amount(new P.Resource(p.thingDef.defName), p.count)))),
+                    WorkAmount = RecipeWorkAmount(recipe.defName),
+                }); }
             catch (DomainException) { result.Add(new(recipe.defName, default, default)); }
         }
         return EquatableArray.From(result);

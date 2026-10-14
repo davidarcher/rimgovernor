@@ -1,6 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record ProductionRecipeInput(string Recipe, Fact<EquatableArray<EquatableArray<Amount>>> Slots, Fact<bool> UsesUnfinishedItem);
+public sealed record ProductionRecipeInput(string Recipe, Fact<EquatableArray<EquatableArray<Amount>>> Slots, Fact<bool> UsesUnfinishedItem)
+{
+    public Fact<EquatableArray<Amount>> Products { get; init; }
+    public Fact<double> WorkAmount { get; init; }
+}
 public sealed record ProductionMaterialPromise(string Id, EquatableArray<ForecastMaterialClaim> Claims);
 
 /// <summary>Native/catalog inputs to the full review; no independently owned reservations.</summary>

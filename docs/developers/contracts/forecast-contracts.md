@@ -358,3 +358,10 @@ catalog nutrition, actual scheduled output time, eater shares and expiry;
 shelter requires occupant arrival and a sufficient conditional temperature range.
 The plan shares one stock/claim budget for all activity inputs. Thermal estimates
 and future output evidence remain supplied, not native predictions.
+
+[Observed food candidate generation](../architecture/colony-forecast.md#food-candidates-from-acquisition-and-recipe-observations)
+joins native acquisition/crop and bench/recipe facts into raw and cooked activity
+alternatives. The existing recipe-input catalog projection carries product counts
+and base work alongside ingredient slots. Worker rates, carrying/travel estimates,
+destination eligibility and continued bench availability remain explicit estimates.
+This is policy generation and comparison, not native dispatch.
