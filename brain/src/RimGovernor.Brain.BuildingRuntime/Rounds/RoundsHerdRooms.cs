@@ -94,7 +94,7 @@ internal static partial class BuildingRuntimePackage
         var barns = plan!.HerdRooms(PlannedRole.Barn).Count + plan.HerdRooms(PlannedRole.Pen).Count;
         if (animals!.Count == 0 || (barns == 0 && (ward == 0 || plan.HerdRooms(PlannedRole.Hospital).Count == 0)))
         {
-            return (default!, true);
+            return (new HerdStep(), true);
         }
 
         var (furniture, usable) = HerdFurnitureOf(facts);
