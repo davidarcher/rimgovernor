@@ -22,6 +22,13 @@ shared demand pipeline. Exact single-choice ingredients reconcile with native
 holds by bill ID; alternatives stay unknown. Indefinite production and atomic
 admission-time material reservation remain outside that integration.
 
+[Unfinished work](../architecture/colony-forecast.md#ingredients-inside-unfinished-work)
+is observed by exact bound item ID and embedded quantities. One initialized bound
+item funds one remaining iteration; its ingredients are never loose stock. Unknown
+binding gives no credit, unbound-item adoption is not predicted, and cancellation
+refunds count only when observed in stock. Remaining counts are mutable progress;
+the native managed-configuration check excludes them while CAS snapshots include them.
+
 | Projection | Observed inputs | Bound |
 | --- | --- | --- |
 | Food and animal feed | Fed food fall, nutrition per eligible eater, food policy, safe reachability, holder and rot deadline | Demand-weighted allocation at current temperature/access; no grazing, future hauling or harvest credit. Downed pawns need assistance, which is not presumed. |

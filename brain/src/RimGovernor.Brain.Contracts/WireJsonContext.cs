@@ -510,6 +510,7 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.StockpileFilter), TypeInfoPropertyName = "ObservationsStockpileFilter")]
 [JsonSerializable(typeof(EquatableArray<Observations.FilterSpecialRule>), TypeInfoPropertyName = "EquatableArrayObservationsFilterSpecialRule")]
 [JsonSerializable(typeof(Observations.BillState), TypeInfoPropertyName = "ObservationsBillState")]
+[JsonSerializable(typeof(Observations.BillUnfinishedWork), TypeInfoPropertyName = "ObservationsBillUnfinishedWork")]
 [JsonSerializable(typeof(EquatableArray<Observations.IngredientRequirement>), TypeInfoPropertyName = "EquatableArrayObservationsIngredientRequirement")]
 [JsonSerializable(typeof(EquatableArray<Observations.IngredientReservation>), TypeInfoPropertyName = "EquatableArrayObservationsIngredientReservation")]
 [JsonSerializable(typeof(Observations.IngredientReservation), TypeInfoPropertyName = "ObservationsIngredientReservation")]

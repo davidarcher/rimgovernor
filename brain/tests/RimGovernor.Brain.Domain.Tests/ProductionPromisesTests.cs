@@ -98,7 +98,7 @@ public sealed class ProductionPromisesTests
         };
         Assert.All(Promises(ambiguous).Value[0].MaterialClaims, c => Assert.False(c.Units.IsKnown));
         Assert.False(Promises(Batch with { Slots = default }).IsKnown);
-        Assert.False(Promises(Batch with { UsesUnfinishedItem = Known(true) }).Value[0].MaterialClaims[0].Units.IsKnown);
+        Assert.Equal(50, Promises(Batch with { UsesUnfinishedItem = Known(true) }).Value[0].MaterialClaims[0].Units.Value);
         Assert.False(Promises(Batch with { UsesUnfinishedItem = default }).Value[0].MaterialClaims[0].Units.IsKnown);
         Assert.False(ProductionPromisesOf(default, Census()).IsKnown);
         Assert.False(ResourceDemandOf(Facts(default), DefaultRoundsPolicy(), new()).MaterialAvailability.IsKnown);

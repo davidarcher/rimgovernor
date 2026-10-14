@@ -391,10 +391,8 @@ census. Its remaining repeat count replaces the original count. Only a slot with
 one allowed resource has an exact quantity; alternative resources stay individually
 unknown. Missing slots, an unread owner census, or an edited bill whose filter may
 have changed make the promise set unknown. No cheapest-ingredient demand estimate
-is promoted to a reservation. Recipes that can reuse unfinished items also keep
-their quantities unknown: the current census does not say which ingredients are
-already embedded. Other quantities use the catalog's per-iteration counts;
-no future production output is credited.
+is promoted to a reservation. Quantities use the catalog's per-iteration counts,
+with exact bound unfinished work handled below; no future production output is credited.
 
 Pending cancellation releases the promise. An applied bill remains a promise even
 if its journal action is cancelled: native completion, suspension or disappearance
@@ -416,10 +414,56 @@ The construction forecast request includes these same production commitments fro
 
 Publication occurs on the next review after commit, not atomically at admission.
 Pending proposals before commit, indefinite stock-target/forever bills, production
-surviving a new launch, unfinished-item ingredient accounting, portable equipment,
+surviving a new launch, selecting unbound unfinished work, portable equipment,
 and full timed selection/dispatch remain outside this slice. The ordinary cooking
 declarer emits stock-target bills, so a synthetic fixed cooking batch proves generic
 material arithmetic, not a live cooking cutover. `ProductionPromisesTests` covers
 the actual journal projection, shared construction/acquisition/trade values, partial
 native handoff, remaining-count reduction, cancellation, suspension, disappearance,
 unread facts, and alternative ingredients. No native gameplay result is established.
+
+### Ingredients inside unfinished work
+
+The native bill census includes `UnfinishedWork`: null means unread, an empty
+`Item` means observed absence, and a nonempty ID identifies one initialized
+unfinished item bound to that exact bill. Its ingredient quantities are embedded
+inputs, not spawned stock or live job reservations. Native reads the non-mutating
+`BoundUft` reference; it does not call `BoundWorker` or `BoundBill` getters that can
+change bindings. An uninitialized item or inconsistent recipe/ingredient read
+stays unknown. A destroyed item gives no credit.
+
+RimWorld gathers an iteration's ingredients before creating its initialized
+unfinished item. The shared promise therefore reserves fresh inputs for
+`remaining iterations - 1` when that exact bound item exists. It credits an
+iteration, not arbitrary embedded units: an item made with alternate stuff cannot
+discount the ingredients for later iterations. A sole remaining bound iteration
+needs no fresh inputs even when future ingredient choices would be ambiguous.
+Two active promises cannot credit the same unfinished identity.
+
+Before placement, or with observed absence of bound work, the promise reserves
+the full fresh-input requirement. This is a conservative plan: it does not predict
+which unbound item native may later adopt. Unread binding on an applied bill keeps
+affected quantities unknown. Embedded inputs never become free material or sale
+stock. Starting work removes raw inputs from the stock census while reducing the
+fresh promise by that iteration, so it does not charge twice. Ordinary interruption
+retains the binding; bill suspension releases future demand and resume restores
+it using the same item. Completion reduces the native remaining count and clears
+the bound item. Cancelling the item alone restores the remaining bill's fresh
+requirement; cancelling/removing the bill releases its future promise. Neither
+operation earns an assumed refund: only newly observed loose stock can do that.
+Native job holds remain protected independently.
+
+The existing native production tracker recognizes all tracked production bills,
+including non-meal fixed batches. Its immutable-configuration comparison excludes
+the mutable remaining repeat count; current readback supplies that count, including
+player changes. Ingredient-filter and other configuration edits still invalidate
+the original promise. Full bill-stack CAS fingerprints continue to include the
+remaining count. No new ownership store or game-order writer is introduced.
+
+`UnfinishedMaterialTests` covers the shared acquisition/construction/trade values,
+pause/resume, completion and cancellation, alternative embedded material,
+remaining native holds, duplicate identity and wire unknowns. The registered
+`bills/unfinished-materials` case probes native object bindings and lifecycle
+callbacks in a prepared lab, including the production ownership check. It does
+not demonstrate autonomous pawn crafting, recovery yield, route feasibility or
+full coordinated dispatch. Ordinary stock-target cooking remains outside this slice.

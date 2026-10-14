@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools {
   internal bool Retired;
   internal string Config="";internal int Index=-1;
   internal NativeProductionRecord(IBillGiver giver,Bill_Production bill){Giver=giver;Bill=bill;}
-  internal void Capture(){Config=NativeProductionBills.Configuration(Bill);Index=Giver.BillStack.IndexOf(Bill);}
+  internal void Capture(){Config=NativeProductionBills.Configuration(Bill,false);Index=Giver.BillStack.IndexOf(Bill);}
  }
  internal static class NativeProductionTracking {
   private const string Owner="rimgovernor.native.production";
@@ -30,7 +30,8 @@ namespace HomeBridge.BridgeTools {
    harmony.Patch(target,null,new HarmonyMethod(typeof(NativeProductionTracking),nameof(Products)));
   }catch(Exception e){ModLog.Error("production", "Production tracking unavailable: "+e);}}
   internal static bool Ready=>target!=null&&Harmony.GetPatchInfo(target)?.Postfixes.Any(h=>h.owner==Owner)==true;
-  internal static bool ManagedUnchanged(Bill bill)=>Current.Game!=null&&States.TryGetValue(Current.Game,out var state)&&state.Bills.TryGetValue(bill,out var r)&&!r.Retired&&OrdinaryMeal(bill.recipe)&&r.Giver.BillStack.Bills.Contains(bill)&&r.Index==r.Giver.BillStack.IndexOf(bill)&&r.Config==NativeProductionBills.Configuration(bill);
+  // Remaining repeat count is observed progress, not immutable configuration. CAS snapshots still include it.
+  internal static bool ManagedUnchanged(Bill bill)=>Current.Game!=null&&States.TryGetValue(Current.Game,out var state)&&state.Bills.TryGetValue(bill,out var r)&&!r.Retired&&r.Giver.BillStack.Bills.Contains(bill)&&r.Index==r.Giver.BillStack.IndexOf(bill)&&r.Config==NativeProductionBills.Configuration(bill,false);
   // Replacement adopts any ordinary meal bill on the map by id, whoever wrote it: a bill edited under Manual is
   // evidence of an old order, not authority over the tier Auto plans. A tracked one is retired when replaced.
   internal static bool OrdinaryMeal(RecipeDef recipe)=>recipe.products.Count==1&&recipe.products[0].thingDef.ingestible!=null&&recipe.products[0].thingDef.ingestible.preferability>=FoodPreferability.MealSimple&&recipe.products[0].thingDef.ingestible.preferability<=FoodPreferability.MealLavish;

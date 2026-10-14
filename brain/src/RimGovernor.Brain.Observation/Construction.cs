@@ -418,9 +418,24 @@ public static partial class ObservationPackage
                 bill.RepeatMode == RimGovernor.Contracts.Wire.Operations.RepeatMode.Count && bill.RepeatCount is >= 0
                     ? Known(bill.RepeatCount.Value) : default,
                 bill.Suspended is { } suspended ? Known(suspended) : default,
-                bill.Finished is { } finished ? Known(finished) : default));
+                bill.Finished is { } finished ? Known(finished) : default)
+            { UnfinishedWork = ProductionUnfinishedWorkOf(bill.UnfinishedWork) });
         }
         return Known(EquatableArray.From(rows));
+    }
+
+    private static Fact<ProductionUnfinishedWork> ProductionUnfinishedWorkOf(O.BillUnfinishedWork? work)
+    {
+        if (work?.Item is not { } id || id.Length != 0 && string.IsNullOrWhiteSpace(id)) return default;
+        if (id.Length == 0 && work.Ingredients.Count != 0) return default;
+        var items = new List<Amount>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var amount in work.Ingredients)
+        {
+            if (string.IsNullOrWhiteSpace(amount.DefName) || amount.Units is not > 0 || !seen.Add(amount.DefName)) return default;
+            items.Add(new(new Resource(amount.DefName), amount.Units.Value));
+        }
+        return Known(new ProductionUnfinishedWork(id, EquatableArray.From(items)));
     }
 
     /// <summary>Reads every bill row's live bill-job reservations. Unknown without the bill census or when any row is malformed.</summary>

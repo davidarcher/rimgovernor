@@ -10,7 +10,13 @@ public sealed record ProductionBatch(ProductionBill Order, ProgressView Progress
 
 /// <summary>Current native bill lifecycle; disappearance is evidence only in a complete census.</summary>
 public sealed record ProductionBatchState(string Id, Fact<bool> Unchanged, Fact<int> Remaining,
-    Fact<bool> Suspended, Fact<bool> Finished);
+    Fact<bool> Suspended, Fact<bool> Finished)
+{
+    public Fact<ProductionUnfinishedWork> UnfinishedWork { get; init; }
+}
+
+/// <summary>One initialized, bound iteration. Empty Item is observed absence; embedded inputs are never free stock.</summary>
+public sealed record ProductionUnfinishedWork(string Item, EquatableArray<Amount> Ingredients);
 
 public static partial class PolicyFunctions
 {
@@ -21,6 +27,7 @@ public static partial class PolicyFunctions
         if (!batches.TryGetValue(out var orders)) return default;
         var output = new List<ForecastCommitment>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var unfinishedItems = new HashSet<string>(StringComparer.Ordinal);
         foreach (var batch in orders.OrderBy(b => b.Progress.Action.Value, StringComparer.Ordinal))
         {
             var order = batch.Order;
@@ -30,6 +37,7 @@ public static partial class PolicyFunctions
                 || !progress.Unresolved && progress.Effect.TryGetValue(out var effect) && effect == Effect.Absent;
             if (progress.Stage == Stage.Unsuccessful || progress.Stage == Stage.Cancelled && unplaced) continue;
             var remaining = Known(order.Target);
+            var unfinishedWork = unplaced ? Known(new ProductionUnfinishedWork("", default)) : default;
             var link = unplaced ? Known("") : progress.Bill;
             if (!unplaced)
             {
@@ -49,7 +57,24 @@ public static partial class PolicyFunctions
                     if (!native.Unchanged.TryGetValue(out var managed) || !managed) return default;
                     if (native.Suspended.TryGetValue(out suspended) && !suspended)
                         remaining = native.Remaining;
+                    unfinishedWork = native.UnfinishedWork;
                 }
+            }
+            if (!batch.UsesUnfinishedItem.TryGetValue(out var usesUnfinished)) remaining = default;
+            else if (usesUnfinished)
+            {
+                if (!unfinishedWork.TryGetValue(out var work)) remaining = default;
+                else if (work.Item.Length != 0)
+                {
+                    if (!unfinishedItems.Add(work.Item)) throw new DomainException("unfinished item linked to multiple production promises");
+                    if (work.Ingredients.Any(a => !ValidResource(a.Resource) || a.Count <= 0)
+                        || work.Ingredients.Select(a => a.Resource).Distinct().Count() != work.Ingredients.Count)
+                        throw new DomainException("invalid embedded ingredients");
+                    // Native creates an initialized unfinished item only after collecting the whole iteration.
+                    // Credit the iteration, not its units: alternate stuff cannot discount later iterations.
+                    remaining = remaining.TryGetValue(out var count) && count > 0 ? Known(count - 1) : default;
+                }
+                else if (work.Ingredients.Count != 0) throw new DomainException("embedded ingredients without an unfinished item");
             }
             if (!batch.Slots.TryGetValue(out var slots)) return default;
             var amounts = new Dictionary<Resource, Fact<double>>();
@@ -62,8 +87,8 @@ public static partial class PolicyFunctions
                     if (!ValidResource(amount.Resource) || amount.Count <= 0 || remaining.TryGetValue(out var n) && n < 0)
                         throw new DomainException("invalid production ingredient amount");
                     var prior = amounts.GetValueOrDefault(amount.Resource, Known(0.0));
-                    amounts[amount.Resource] = alternatives.Length == 1 && remaining.IsKnown && prior.IsKnown
-                        && batch.UsesUnfinishedItem.TryGetValue(out var unfinished) && !unfinished
+                    amounts[amount.Resource] = remaining.TryGetValue(out var fresh) && fresh == 0 ? Known(0.0)
+                        : alternatives.Length == 1 && remaining.IsKnown && prior.IsKnown
                         ? Known(prior.Value + amount.Count * (double)remaining.Value) : default;
                 }
             }

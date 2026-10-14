@@ -41,6 +41,10 @@ derived by `ResourceDemandOf` for the shared acquisition, trade-retention and
 stone-wall funding slice ([scope and unknowns](../architecture/colony-forecast.md#live-fixed-batch-material-promises)).
 These promises are rebuilt each review and do not survive a fresh journal as
 independent reservations.
+Unfinished item bindings and embedded ingredients remain owned by RimWorld's save.
+The review derives their material credit from native readback; it does not persist
+an embedded-material ledger. The existing native production record's configuration
+fingerprint excludes mutable remaining count; no second tracker is added.
 
 ### Layout plan record
 

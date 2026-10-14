@@ -464,6 +464,7 @@ public static partial class BridgeFunctions
                         "paused",
                         "finished",
                         "reservations",
+                        "unfinished_work",
                         "worker",
                         "ingredient_filter"))
                 {

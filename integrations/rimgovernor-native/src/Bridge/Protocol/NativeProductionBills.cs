@@ -15,13 +15,13 @@ using Receipts=RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBills {
   internal static string Hash(Action<BinaryWriter> write){using(var bytes=new MemoryStream()){using(var writer=new BinaryWriter(bytes,Encoding.UTF8,true))write(writer);using(var hash=SHA256.Create())return "bill-"+BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-","").ToLowerInvariant();}}
-  internal static string Configuration(Bill bill)=>Hash(raw=>{
+  internal static string Configuration(Bill bill,bool includeRemainingCount=true)=>Hash(raw=>{
    var w=new NativeBillConfiguration(raw);
    w.Write("socialBeer",bill is SocialBeerBill);
    w.Write("billId",bill.GetUniqueLoadID());w.Write("recipe",bill.recipe.defName);w.Write("suspended",bill.suspended);w.Write("ingredientSearchRadius",bill.ingredientSearchRadius);w.Write("skill.min",bill.allowedSkillRange.min);w.Write("skill.max",bill.allowedSkillRange.max);
    w.Write("worker",bill.PawnRestriction?.GetUniqueLoadID()??"");w.Write("slavesOnly",bill.SlavesOnly);w.Write("mechsOnly",bill.MechsOnly);w.Write("nonMechsOnly",bill.NonMechsOnly);w.Write("storeMode",bill.GetStoreMode()?.defName??"");var group=bill.GetSlotGroup();
    w.Group("storeCells",g=>{g.Write(group!=null);if(group!=null){if(group.CellsList.Count>65536)throw new InvalidOperationException("Bill storage bound");g.Write(group.CellsList.Count);foreach(var c in group.CellsList.OrderBy(c=>c.x).ThenBy(c=>c.z)){g.Write(c.x);g.Write(c.z);}}});
-   if(bill is Bill_Production p){w.Write("repeatMode",p.repeatMode.defName);w.Write("repeatCount",p.repeatCount);w.Write("targetCount",p.targetCount);w.Write("unpauseWhenYouHave",p.unpauseWhenYouHave);w.Write("pauseWhenSatisfied",p.pauseWhenSatisfied);w.Write("hp.min",p.hpRange.min);w.Write("hp.max",p.hpRange.max);w.Write("quality.min",(int)p.qualityRange.min);w.Write("quality.max",(int)p.qualityRange.max);w.Write("limitToAllowedStuff",p.limitToAllowedStuff);w.Write("includeEquipped",p.includeEquipped);w.Write("includeTainted",p.includeTainted);}
+   if(bill is Bill_Production p){w.Write("repeatMode",p.repeatMode.defName);if(includeRemainingCount)w.Write("repeatCount",p.repeatCount);w.Write("targetCount",p.targetCount);w.Write("unpauseWhenYouHave",p.unpauseWhenYouHave);w.Write("pauseWhenSatisfied",p.pauseWhenSatisfied);w.Write("hp.min",p.hpRange.min);w.Write("hp.max",p.hpRange.max);w.Write("quality.min",(int)p.qualityRange.min);w.Write("quality.max",(int)p.qualityRange.max);w.Write("limitToAllowedStuff",p.limitToAllowedStuff);w.Write("includeEquipped",p.includeEquipped);w.Write("includeTainted",p.includeTainted);}
    raw.Write(FilterConfiguration(bill.ingredientFilter));
   });
   private static string FilterConfiguration(ThingFilter filter)=>Hash(raw=>{
@@ -82,9 +82,25 @@ namespace HomeBridge.BridgeTools {
    }
    else {row = row with { IngredientFilter = new Obs.StockpileFilter { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };}
    row=Reservations(bill,row);
+   row=row with { UnfinishedWork=UnfinishedWork(bill) };
    if(bill is Bill_Production p){row = row with { RepeatMode = NativeEnums.Repeat(p.repeatMode) };row = row with { RepeatCount = p.repeatCount };row = row with { TargetCount = p.targetCount };row = row with { UnpauseBelow = p.unpauseWhenYouHave };row = row with { PauseWhenSatisfied = p.pauseWhenSatisfied };row = row with { Paused = p.paused };row = row with { Finished = BillCommon.IsFinished(p) };}
    return row;
   }
+  private static Obs.BillUnfinishedWork? UnfinishedWork(Bill bill){
+   var item=(bill as Bill_ProductionWithUft)?.BoundUft;
+   if(item==null||item.Destroyed)return new Obs.BillUnfinishedWork{Item=""};
+   // Read BoundUft, not BoundWorker/BoundBill: those getters can mutate the binding.
+   if(!item.Initialized||item.Recipe!=bill.recipe||item.ingredients==null)return null;
+   var totals=new Dictionary<string,long>(StringComparer.Ordinal);
+   foreach(var ingredient in item.ingredients){
+    if(ingredient?.def==null||ingredient.Spawned||ingredient.stackCount<=0)return null;
+    totals.TryGetValue(ingredient.def.defName,out var count);
+    totals[ingredient.def.defName]=checked(count+ingredient.stackCount);
+   }
+   return new Obs.BillUnfinishedWork{Item=item.GetUniqueLoadID(),Ingredients=[..totals.OrderBy(p=>p.Key,StringComparer.Ordinal)
+    .Select(p=>new Obs.Quantity{DefName=p.Key,Units=p.Value})]};
+  }
+
   // Each spawned pawn whose current job works this bill: the spawned things
   // it has queued (targetQueueB/countQueue) or placed.
   private static Obs.BillState Reservations(Bill bill,Obs.BillState row){

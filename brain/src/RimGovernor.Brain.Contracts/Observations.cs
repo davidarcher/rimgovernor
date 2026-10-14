@@ -2545,6 +2545,18 @@ public sealed record BillState
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<IngredientReservation>))]
     public EquatableArray<IngredientReservation> Reservations { get; init; }
+
+    /// <summary>Exact bound unfinished work; absent means unread, an empty Item means no bound item.</summary>
+    public BillUnfinishedWork? UnfinishedWork { get; init; }
+}
+
+/// <summary>Ingredients embedded in one initialized unfinished iteration; these are not loose stock or job reservations.</summary>
+public sealed record BillUnfinishedWork
+{
+    public string? Item { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
+    public EquatableArray<Quantity> Ingredients { get; init; }
 }
 
 public sealed record IngredientReservation
