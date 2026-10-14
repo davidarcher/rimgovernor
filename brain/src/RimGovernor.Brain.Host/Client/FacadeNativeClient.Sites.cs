@@ -13,7 +13,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(ExcavationSite Site, BridgeResult Receipt)> ReadExcavationSiteAsync(PbCommon.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (cells.Count == 0 || !BridgeFunctions.ExcavationCellValid(access))
         {
             throw BridgeFunctions.Contract("invalid excavation site request");
@@ -150,7 +149,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(PbObservations.ClearanceTargetsReply Reply, BridgeResult Receipt)> ReadClearanceTargetsOnGroundAsync(PbCommon.Identity identity, bool includeSalvage, IReadOnlyList<PbObservations.Rectangle> planned, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         foreach (var rect in planned)
         {
             if (!PlacementReads.RectangleValid(rect, 4096))
@@ -193,7 +191,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadAncientShrines</c>: read-only and requires no authority. An unsupported native stub is unavailable, never a successful empty census.</summary>
     internal async Task<(PbObservations.AncientShrinesReply Reply, BridgeResult Receipt)> ReadAncientShrinesAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         var request = new PbObservations.AncientShrinesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var reply = await Facade.ReadAncientShrinesAsync(request, cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);

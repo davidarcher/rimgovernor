@@ -59,7 +59,6 @@ internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
         {
             case PbLifecycle.TickReplyOutcome.LoadedCase loaded:
                 var context = loaded.Value.Context;
-                BridgeFunctions.ValidateContext(context);
                 return context!;
             case PbLifecycle.TickReplyOutcome.UnavailableCase unavailable:
                 throw FacadeReplies.Unavailable("ReadTick", unavailable.Value);

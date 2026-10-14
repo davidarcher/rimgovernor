@@ -11,7 +11,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadZoneSection</c>: reads the whole zone census. A failure never silently replaces a held census.</summary>
     internal async Task<(ZonesRead Read, BridgeResult Receipt)> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         var reply = await Facade.ListZonesAsync(PlacementReads.ZoneSectionRequest(identity), cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);
         if (reply.Outcome?.Failure is { } failure)
@@ -31,7 +30,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(ZoneDeleteTarget Target, BridgeResult Receipt)> ReadZoneDeleteTargetAsync(PbCommon.Identity identity, string zone, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (!BridgeFunctions.IsValidId(zone))
         {
             throw BridgeFunctions.Contract("invalid zone delete target identity");
@@ -81,7 +79,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(PbObservations.ListBuildingsReply Reply, BridgeResult Receipt)> ReadConstructionBuildingsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (ids.Count > 256)
         {
             throw BridgeFunctions.Contract("building IDs exceed 256");
@@ -107,7 +104,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(StorageBuildingTarget Target, BridgeResult Receipt)> ReadStorageBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (!BridgeFunctions.IsValidId(thing))
         {
             throw BridgeFunctions.Contract("invalid storage building identity");
@@ -175,7 +171,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(ClaimBuildingTarget Target, BridgeResult Receipt)> ReadClaimBuildingTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (!BridgeFunctions.IsValidId(thing))
         {
             throw BridgeFunctions.Contract("invalid claim building target identity");
@@ -254,7 +249,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(ConstructionDeficitRead Read, BridgeResult Receipt)> ReadConstructionDeficitsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         var request = new PbObservations.ListBuildingsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
@@ -313,7 +307,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go's <c>ReadWallUpgradeSites</c>: lists current wall-upgrade candidate sites, optionally scoped to one original wall's identity.</summary>
     internal async Task<(WallUpgradeSites Sites, BridgeResult Receipt)> ReadWallUpgradeSitesAsync(PbCommon.Identity identity, string targetId, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (targetId.Length != 0 && !BridgeFunctions.IsValidId(targetId))
         {
             throw BridgeFunctions.Contract("invalid wall upgrade target identity");
@@ -346,7 +339,6 @@ internal sealed partial class FacadeNativeClient
     // stream's copy of the table is not consulted here; this is the same list the frames carry.
     private async Task<Buildings> PlacementFrameBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         var request = new PbObservations.ListBuildingsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },

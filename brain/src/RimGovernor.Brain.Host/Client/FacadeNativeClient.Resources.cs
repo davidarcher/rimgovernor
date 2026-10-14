@@ -70,7 +70,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(IReadOnlyList<Policy.ResourceSource> Rows, Policy.ResourceStorage Storage, BridgeResult Receipt)> ReadResourceSourcesAsync(PbCommon.Identity identity, string resource, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         if (!IsValidId(resource))
         {
             throw Contract("invalid resource source definition");

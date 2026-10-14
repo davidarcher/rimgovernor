@@ -85,7 +85,6 @@ internal sealed partial class FacadeNativeClient
         /// <summary>Go <c>validateDetailedPawnSnapshot</c>: the snapshot against the exact ids asked for.</summary>
         internal static void ValidateDetailedPawnSnapshot(PbObservations.PawnSnapshot? snapshot, PbCommon.Identity? identity, IReadOnlyList<string> ids, PawnDetailSelection want)
         {
-            ValidateIdentity(identity);
             if (ids.Count < 1 || ids.Count > 256)
             {
                 throw Contract("pawn IDs outside 1..256");
@@ -114,7 +113,6 @@ internal sealed partial class FacadeNativeClient
             {
                 throw Contract("pawn snapshot missing");
             }
-            ValidateContext(v.Context);
             var context = v.Context!;
             if (!SameIdentity(context.Identity, id))
             {
@@ -226,7 +224,6 @@ internal sealed partial class FacadeNativeClient
         /// <summary>Go <c>pawnsRef</c>: a CAS token that names <paramref name="id"/> and was read under, not after, <paramref name="context"/>.</summary>
         internal static void PawnsRef(PbObservations.SnapshotRef v, string id, PbCommon.ObservationContext context)
         {
-            ValidateContext(v.Context);
             if ((v.EntityId ?? "") != id || !SameIdentity(v.Context?.Identity, context.Identity) || (v.Context?.Tick).GetValueOrDefault() > context.Tick)
             {
                 throw Contract("pawn CAS context or entity mismatch");

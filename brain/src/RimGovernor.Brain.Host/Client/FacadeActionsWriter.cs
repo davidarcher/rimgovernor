@@ -116,7 +116,6 @@ internal sealed class FacadeActionsWriter(INativeFacade facade) : IActionsWriter
     {
         try
         {
-            BridgeFunctions.ValidateIdentity(identity);
             return true;
         }
         catch (BridgeContractException)

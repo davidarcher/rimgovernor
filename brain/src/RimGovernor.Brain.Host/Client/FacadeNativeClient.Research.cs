@@ -14,7 +14,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(ResearchRead Value, BridgeResult Receipt)> ReadResearchAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         var request = new PbObservations.ResearchRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, ProgressOnly = true };
         var reply = await Facade.ReadResearchAsync(request, cancellationToken).ConfigureAwait(false);

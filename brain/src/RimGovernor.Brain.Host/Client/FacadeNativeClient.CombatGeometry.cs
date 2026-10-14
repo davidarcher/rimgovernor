@@ -43,7 +43,6 @@ internal sealed partial class FacadeNativeClient
             {
                 throw Contract("combat geometry request required");
             }
-            ValidateIdentity(request.Identity);
             var min = 1;
             if (request.Propose is not null)
             {
@@ -165,7 +164,6 @@ internal sealed partial class FacadeNativeClient
             {
                 throw Contract("combat geometry missing");
             }
-            ValidateContext(g.Context);
             if (!SameIdentity(g.Context?.Identity, request.Identity))
             {
                 throw Contract("combat geometry world mismatch");
@@ -244,7 +242,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(IReadOnlyDictionary<string, long> Value, BridgeResult Receipt)> ReadPawnCargoAsync(PbCommon.Identity identity, IReadOnlyList<string> pawns, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var request = new PbObservations.ListSuppliesRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
@@ -264,7 +261,6 @@ internal sealed partial class FacadeNativeClient
         }
         try
         {
-            ValidateContext(snapshot.Context);
         }
         catch (BridgeContractException)
         {

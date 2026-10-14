@@ -30,7 +30,6 @@ internal static class FacadeWriteChecks
     /// <summary>Go <c>buildingContext(value, identity, generation, exact)</c> (write_contract.go).</summary>
     internal static void WriteContext(PbCommon.ObservationContext? value, PbCommon.Identity? identity, ulong generation, bool exact)
     {
-        BridgeFunctions.ValidateContext(value);
         if (!BridgeFunctions.SameIdentity(value!.Identity, identity)
             || (exact && (value.NativeGeneration is null || value.NativeGeneration.GetValueOrDefault() != generation)))
         {

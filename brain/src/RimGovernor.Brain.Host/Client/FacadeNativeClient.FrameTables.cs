@@ -24,7 +24,6 @@ internal sealed partial class FacadeNativeClient
     internal async Task<Tables> FrameTablesAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         RequireFrames("the keyed tables");
-        BridgeFunctions.ValidateIdentity(identity);
         var held = await FrameHeldAsync(FramePawnsMethod, identity, view => view.Snapshot.Pawns is not null, cancellationToken).ConfigureAwait(false);
         return new Tables(held.Buildings, held.Pawns, held.Things);
     }
@@ -32,7 +31,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>Client.FramePawns</c>: the pawn table of the newest frame.</summary>
     internal async Task<Pawns> FramePawnsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         RequireFrames("the pawn table");
         var held = await FrameHeldAsync(FramePawnsMethod, identity, view => view.Snapshot.Pawns is not null, cancellationToken).ConfigureAwait(false);
         return held.Pawns;
@@ -41,7 +39,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>Client.framePawnSnapshot</c>: the pawn table as a list snapshot in id order.</summary>
     internal async Task<PbObservations.PawnSnapshot> FramePawnSnapshotAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         RequireFrames("the pawn table");
         var held = await FrameHeldAsync(FramePawnsMethod, identity, view => view.Snapshot.Pawns is not null, cancellationToken).ConfigureAwait(false);
         return held.PawnList() ?? throw BridgeFunctions.Contract("pawn table outcome missing");
@@ -53,7 +50,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<Things> FrameThingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (!UseFrames)
         {
             return default;
@@ -68,7 +64,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<Buildings> FrameBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (UseFrames)
         {
             var held = await FrameHeldAsync(FrameBuildingsMethod, identity, view => view.Snapshot.Buildings is not null, cancellationToken).ConfigureAwait(false);
@@ -77,7 +72,6 @@ internal sealed partial class FacadeNativeClient
         var observed = await ListBuildingsLiveAsync(identity, cancellationToken).ConfigureAwait(false);
         try
         {
-            BridgeFunctions.ValidateContext(observed.Context);
         }
         catch (BridgeContractException)
         {
@@ -206,7 +200,6 @@ internal sealed partial class FacadeNativeClient
         {
             return default;
         }
-        BridgeFunctions.ValidateContext(snapshot.Context);
         if (!BridgeFunctions.SameIdentity(snapshot.Context!.Identity, identity))
         {
             throw BridgeFunctions.Contract("things table world mismatch");
@@ -314,7 +307,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>readEntities</c>' fold: the context checked against the identity, the rows keyed by their valid, unique ids.</summary>
     private static EntityRows<TRow> EntityRowsOf<TRow>(PbCommon.Identity identity, PbCommon.ObservationContext? context, IReadOnlyList<TRow> rows, List<string> ids)
     {
-        BridgeFunctions.ValidateContext(context);
         if (!BridgeFunctions.SameIdentity(context!.Identity, identity))
         {
             throw BridgeFunctions.Contract("entity list identity mismatch");

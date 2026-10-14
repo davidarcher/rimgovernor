@@ -128,7 +128,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("render demand viewer required");
         }
 
-        ValidateIdentity(request.Viewer.Identity);
         if (request.Viewer.ViewerId is not null && !IsValidId(request.Viewer.ViewerId))
         {
             throw Contract("invalid viewer id");
@@ -166,7 +165,6 @@ internal sealed partial class FacadeNativeClient
 
     private static void PresentationContext(PbCommon.ObservationContext? actual, PbCommon.Identity? expected)
     {
-        ValidateContext(actual);
         if (!SameIdentity(actual!.Identity, expected))
         {
             throw Contract("presentation context mismatch");
@@ -355,7 +353,6 @@ internal sealed partial class FacadeNativeClient
     internal async Task<PbPresentation.NotificationsReply> ReadNotificationsAsync(PbPresentation.NotificationsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ValidateIdentity(request.Identity);
         foreach (var limit in new[] { request.LetterLimit, request.MessageLimit, request.AlertLimit })
         {
             if (limit is < 1)
@@ -385,7 +382,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("notification snapshot required");
         }
 
-        ValidateContext(snapshot.Context);
         if (!SameIdentity(snapshot.Context!.Identity, request.Identity))
         {
             throw Contract("notification world mismatch");

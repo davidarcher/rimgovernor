@@ -16,7 +16,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(PbObservations.TradeAcquisition Value, BridgeResult Receipt)> ReadTradeAcquisitionAsync(PbCommon.Identity identity, PbOperations.FormCaravanIntent? pack, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var request = new PbObservations.TradeAcquisitionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Pack = pack };
         var reply = await Facade.ReadTradeAcquisitionAsync(request, cancellationToken).ConfigureAwait(false);
         BuildingUnknown(reply);
@@ -48,7 +47,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("trade acquisition missing");
         }
 
-        ValidateContext(v.Context);
         if (!SameIdentity(v.Context!.Identity, identity))
         {
             throw Contract("trade acquisition world mismatch");
@@ -179,7 +177,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>ValidateTradeTarget</c>: the closed participant variants against the observation identity.</summary>
     private static void TradeValidateTarget(PbCommon.TradeTarget? target, PbCommon.Identity identity)
     {
-        ValidateIdentity(identity);
         if (target is null)
         {
             throw Contract("trade target missing");
@@ -220,7 +217,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(TradeSessionRead Value, BridgeResult Receipt)> ReadTradeSessionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var request = new PbObservations.TradeSessionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var reply = await Facade.ReadTradeSessionAsync(request, cancellationToken).ConfigureAwait(false);
         BuildingUnknown(reply);
@@ -236,7 +232,6 @@ internal sealed partial class FacadeNativeClient
         }
 
         var session = outcome?.Observed ?? throw Contract("trade session outcome missing");
-        ValidateContext(session.Context);
         if (!SameIdentity(session.Context!.Identity, identity))
         {
             throw Contract("trade session world mismatch");
@@ -277,7 +272,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(TradeSheetRead Value, BridgeResult Receipt)> ReadTradeSheetAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var request = new PbObservations.TradeSheetRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
@@ -313,7 +307,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("trade sheet snapshot missing");
         }
 
-        ValidateContext(v.Snapshot.Context);
         if (!SameIdentity(v.Snapshot.Context!.Identity, identity) || !IsValidId(v.SessionId ?? ""))
         {
             throw Contract("trade sheet world or token mismatch");
@@ -454,7 +447,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(TradersRead Value, BridgeResult Receipt)> ListTradersAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var request = new PbObservations.TradersRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var reply = await Facade.ListTradersAsync(request, cancellationToken).ConfigureAwait(false);
         BuildingUnknown(reply);
@@ -483,7 +475,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("traders snapshot missing");
         }
 
-        ValidateContext(snapshot.Context);
         if (!SameIdentity(snapshot.Context!.Identity, identity))
         {
             throw Contract("traders world mismatch");

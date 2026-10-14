@@ -20,7 +20,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>Client.ReadDefenseSite</c>: reads one inclusive rectangle; the read never samples or truncates.</summary>
     internal async Task<(DefenseSite Value, BridgeResult Receipt)> ReadDefenseSiteAsync(PbCommon.Identity identity, CellRect region, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (!BridgeFunctions.IsValidDefenseRegion(region))
         {
             throw BridgeFunctions.Contract("invalid defense site region");
@@ -51,7 +50,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(LinesOfFire Value, BridgeResult Receipt)> ReadLinesOfFireAsync(PbCommon.Identity identity, IReadOnlyList<DomainCell> firing, IReadOnlyList<DomainCell> approach, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         DefenseValidateLineCells(firing);
         DefenseValidateLineCells(approach);
         var request = new PbObservations.LinesOfFireRequest
@@ -90,7 +88,6 @@ internal sealed partial class FacadeNativeClient
         CancellationToken cancellationToken
     )
     {
-        BridgeFunctions.ValidateIdentity(identity);
         foreach (var cells in new[] { blocked, targets })
         {
             var seenCell = new HashSet<DomainCell>();
@@ -140,7 +137,6 @@ internal sealed partial class FacadeNativeClient
     {
         try
         {
-            BridgeFunctions.ValidateContext(context);
         }
         catch (BridgeContractException)
         {

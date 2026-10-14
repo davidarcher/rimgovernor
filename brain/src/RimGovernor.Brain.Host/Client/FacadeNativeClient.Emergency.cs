@@ -30,7 +30,6 @@ internal sealed partial class FacadeNativeClient
         Func<PbCommon.Identity, CancellationToken, Task<Pawns>> framePawns,
         CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var reply = await Facade.ReadStatusAsync(EmergencyRequest(identity), cancellationToken).ConfigureAwait(false);
         if (reply.Outcome?.Unavailable is { } unavailable)
         {
@@ -65,7 +64,6 @@ internal sealed partial class FacadeNativeClient
         /// </summary>
         internal static Bridge.Contracts.EmergencyObservation DecodeEmergencyStatus(PbObservations.StatusSnapshot? v, Pawns pawns, PbCommon.Identity id)
         {
-            ValidateIdentity(id);
             if (v is null)
             {
                 throw Contract("emergency status missing");
@@ -179,7 +177,6 @@ internal sealed partial class FacadeNativeClient
         /// <summary>Go <c>emergencyStatus</c>.</summary>
         private static Bridge.Contracts.EmergencyObservation EmergencyStatus(PbObservations.StatusSnapshot v, Pawns pawns, PbCommon.Identity id)
         {
-            ValidateContext(v.Context);
             var context = v.Context!;
             if (!SameIdentity(context.Identity, id))
             {

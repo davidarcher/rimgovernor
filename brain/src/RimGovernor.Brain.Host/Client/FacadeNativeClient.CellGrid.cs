@@ -602,7 +602,6 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("missing cells snapshot");
         }
-        BridgeFunctions.ValidateContext(snapshot.Context);
         if (!BridgeFunctions.SameIdentity(snapshot.Context!.Identity, identity))
         {
             throw BridgeFunctions.Contract("cells identity mismatch");

@@ -15,7 +15,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(WorldRead Value, BridgeResult Receipt)> ReadWorldAsync(PbCommon.Identity identity, int tile, double settlementRadius, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         if (tile < 0 || settlementRadius < 0)
         {
             throw Contract("invalid world read request");
@@ -50,7 +49,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("world snapshot missing");
         }
 
-        ValidateContext(v.Context);
         if (!SameIdentity(v.Context!.Identity, identity))
         {
             throw Contract("world identity mismatch");
@@ -124,7 +122,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(WorldProgressionRead Value, BridgeResult Receipt)> ReadWorldProgressionAsync(PbCommon.Identity identity, bool includeStorage, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var request = new PbObservations.WorldProgressionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, IncludeStorage = includeStorage };
         var reply = await Facade.ReadWorldProgressionAsync(request, cancellationToken).ConfigureAwait(false);
         BuildingUnknown(reply);

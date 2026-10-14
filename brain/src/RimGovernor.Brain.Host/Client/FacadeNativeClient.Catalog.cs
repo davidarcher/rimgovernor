@@ -36,7 +36,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<BridgeCatalog> DefinitionCatalogAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var load = identity.LoadToken ?? "";
         lock (_catalogGate)
         {
@@ -65,7 +64,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbObservations.DefinitionCatalog> RecordDefinitionCatalogAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         var wire = await CatalogReadWireAsync(identity, cancellationToken).ConfigureAwait(false);
         CatalogCheckWire(wire, identity);
         return wire;
@@ -217,7 +215,6 @@ internal sealed partial class FacadeNativeClient
     {
         try
         {
-            ValidateContext(context);
             return true;
         }
         catch (BridgeContractException)

@@ -208,7 +208,6 @@ internal sealed partial class FacadeNativeClient
             {
                 throw BridgeFunctions.Contract("placement count");
             }
-            BridgeFunctions.ValidateIdentity(request.Identity);
             foreach (var v in request.Placements)
             {
                 if (v is null
@@ -238,7 +237,6 @@ internal sealed partial class FacadeNativeClient
             {
                 throw BridgeFunctions.Contract("placement batch missing");
             }
-            BridgeFunctions.ValidateContext(batch.Context);
             if (!BridgeFunctions.SameIdentity(batch.Context!.Identity, request.Identity))
             {
                 throw BridgeFunctions.Contract("placement context mismatch");

@@ -57,7 +57,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(SupplyRead Value, BridgeResult Receipt)> ReadFoodReserveSuppliesAsync(PbCommon.Identity identity, bool forbid, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         var request = new PbObservations.ListSuppliesRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
@@ -117,7 +116,6 @@ internal sealed partial class FacadeNativeClient
     {
         try
         {
-            BridgeFunctions.ValidateIdentity(identity);
             return true;
         }
         catch (BridgeContractException)
@@ -131,7 +129,6 @@ internal sealed partial class FacadeNativeClient
     {
         try
         {
-            BridgeFunctions.ValidateContext(context);
         }
         catch (BridgeContractException)
         {

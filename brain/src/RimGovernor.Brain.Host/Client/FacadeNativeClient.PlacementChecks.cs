@@ -33,7 +33,6 @@ internal sealed partial class FacadeNativeClient
         /// <summary>Go's <c>buildingContext</c>: a valid context for the same identity (and, when exact, the same native generation).</summary>
         internal static void BuildingContext(PbCommon.ObservationContext? value, PbCommon.Identity? identity, ulong generation, bool exact)
         {
-            BridgeFunctions.ValidateContext(value);
             if (!BridgeFunctions.SameIdentity(value!.Identity, identity) || (exact && (value.NativeGeneration is null || value.NativeGeneration.GetValueOrDefault() != generation)))
             {
                 throw BridgeFunctions.Contract("building context mismatch");
@@ -326,7 +325,6 @@ internal sealed partial class FacadeNativeClient
             {
                 throw BridgeFunctions.Contract("missing zone snapshot");
             }
-            BridgeFunctions.ValidateContext(value.Context);
             if (!BridgeFunctions.SameIdentity(value.Context!.Identity, identity))
             {
                 throw BridgeFunctions.Contract("zone identity mismatch");

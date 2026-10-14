@@ -45,7 +45,6 @@ internal sealed partial class FacadeNativeClient
             else
             {
                 var focused = reply.Outcome?.FocusedMap ?? throw BridgeFunctions.Contract("focus-map requires focused reply");
-                BridgeFunctions.ValidateContext(focused.Context);
                 var expected = request.ExpectedGeneration.GetValueOrDefault();
                 if (!BridgeFunctions.SameIdentity(request.Identity, request.Target))
                 {
@@ -122,7 +121,6 @@ internal sealed partial class FacadeNativeClient
                 }
                 if (uncertain.ObservedContext is not null)
                 {
-                    BridgeFunctions.ValidateContext(uncertain.ObservedContext);
                 }
                 throw new FacadeSaveUncertainException(uncertain, NoReceipt);
             case PbLifecycle.SaveReplyOutcome.FailureCase { Value: var failure }:
@@ -140,7 +138,6 @@ internal sealed partial class FacadeNativeClient
             throw BridgeFunctions.Contract("save request requires a player lifecycle context");
         }
         var player = request.Player;
-        BridgeFunctions.ValidateIdentity(player.Identity);
         if (player.RequestId is null || !BridgeFunctions.IsValidId(player.RequestId))
         {
             throw BridgeFunctions.Contract("save request requires a request id");
@@ -162,7 +159,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>validateSaveCompleted</c>.</summary>
     private static void LifecycleSaveValidateCompleted(PbLifecycle.SaveCompleted completed, PbLifecycle.SaveRequest request)
     {
-        BridgeFunctions.ValidateContext(completed.Context);
         if (!BridgeFunctions.SameIdentity(completed.Context!.Identity, request.Player!.Identity))
         {
             throw BridgeFunctions.Contract("completed save identity mismatch");
@@ -193,7 +189,6 @@ internal sealed partial class FacadeNativeClient
     {
         try
         {
-            BridgeFunctions.ValidateIdentity(identity);
             return true;
         }
         catch (BridgeContractException)

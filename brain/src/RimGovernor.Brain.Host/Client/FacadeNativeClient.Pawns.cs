@@ -50,7 +50,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>readPawnDetails</c>.</summary>
     internal async Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
         if (ids.Count < 1 || ids.Count > 256)
         {
             throw Contract("pawn IDs outside 1..256");
@@ -133,7 +132,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        ValidateIdentity(identity);
 
         // Native defaults every unset detail family to requested, and the home-colonist check refuses any family
         // beyond work and needs, so the rest are declined explicitly (the same shape PawnDetailsRequest sends).

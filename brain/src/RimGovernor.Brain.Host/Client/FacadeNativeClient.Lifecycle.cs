@@ -103,7 +103,6 @@ internal sealed partial class FacadeNativeClient
 
                 if (superseded.ObservedContext is not null)
                 {
-                    ValidateContext(superseded.ObservedContext);
                 }
 
                 break;
@@ -141,7 +140,6 @@ internal sealed partial class FacadeNativeClient
         {
             if (player.Identity is not null)
             {
-                ValidateIdentity(player.Identity);
             }
 
             if (player.RequestId is not null && !IsValidId(player.RequestId))
@@ -164,7 +162,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("missing completed load");
         }
 
-        ValidateContext(completed.Loaded.Context);
         if (completed.RequestId is null || (requestId is not null && completed.RequestId != requestId))
         {
             throw Contract("completed load request id mismatch");
@@ -226,7 +223,6 @@ internal sealed partial class FacadeNativeClient
     /// <summary>Go <c>validateNewColonyCompleted</c>.</summary>
     private static void LifecycleNewColonyValidateCompleted(PbLifecycle.NewColonyCompleted completed, string? requestId, string? saveName)
     {
-        ValidateContext(completed.Context);
         if (completed.RequestId is null || (requestId is not null && completed.RequestId != requestId))
         {
             throw Contract("completed new colony request id mismatch");

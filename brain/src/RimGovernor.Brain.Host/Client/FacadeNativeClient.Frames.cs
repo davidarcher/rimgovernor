@@ -171,7 +171,6 @@ internal sealed class FramePrepared
         }
         try
         {
-            BridgeFunctions.ValidateContext(v.Context);
         }
         catch (BridgeContractException problem)
         {

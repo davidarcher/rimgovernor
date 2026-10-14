@@ -56,7 +56,6 @@ internal sealed partial class FacadeNativeClient
         CancellationToken cancellationToken
     )
     {
-        BridgeFunctions.ValidateIdentity(identity);
         var request = new PbObservations.BillsRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var reply = await Facade.ReadBillsAsync(request, cancellationToken).ConfigureAwait(false);
         BridgeFunctions.BuildingUnknown(reply);
@@ -115,7 +114,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(IReadOnlyList<P.Stock> Value, BridgeResult Receipt)> ReadSupplyStockAsync(PbCommon.Identity identity, IReadOnlyList<string> defNames, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         if (defNames.Count == 0)
         {
             return ([], NoReceipt);
@@ -371,7 +369,6 @@ internal sealed partial class FacadeNativeClient
     {
         try
         {
-            BridgeFunctions.ValidateContext(context);
         }
         catch (BridgeContractException)
         {

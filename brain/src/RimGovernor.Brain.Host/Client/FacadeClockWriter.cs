@@ -19,7 +19,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeFunctions.Contract("clock authority required");
         }
-        BridgeFunctions.ValidateIdentity(pre.Identity);
         BridgeFunctions.BuildingAttempt(pre.Attempt);
         if (pre.ExpectedGeneration is null || pre.ExpectedGeneration.GetValueOrDefault() == 0)
         {
@@ -33,7 +32,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeFunctions.Contract("owned clock request required");
         }
-        BridgeFunctions.ValidateIdentity(request.Identity);
         BridgeFunctions.ClockOwner(request.Owner);
     }
 

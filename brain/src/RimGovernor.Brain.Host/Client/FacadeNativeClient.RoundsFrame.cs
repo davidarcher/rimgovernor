@@ -29,7 +29,6 @@ internal sealed partial class FacadeNativeClient
         {
             throw new BridgeUnavailableException("the routine census is served only by the snapshot stream");
         }
-        BridgeFunctions.ValidateIdentity(identity);
         var sections = RequireFrameSections();
         var catalog = await sections.DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         var view = await FrameSectionAsync(RoundsFrameMethod, identity, anyFrame: false, frame => frame, cancellationToken).ConfigureAwait(false);
@@ -312,7 +311,6 @@ internal sealed partial class FacadeNativeClient
     {
         try
         {
-            BridgeFunctions.ValidateContext(v.Context);
         }
         catch (BridgeContractException)
         {

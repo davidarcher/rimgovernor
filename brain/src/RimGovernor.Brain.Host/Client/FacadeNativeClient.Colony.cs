@@ -24,7 +24,6 @@ internal sealed partial class FacadeNativeClient
         var outcome = reply.Outcome;
         if (outcome?.Loaded is { } loaded)
         {
-            BridgeFunctions.ValidateContext(loaded.Context);
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var capability in loaded.Capabilities)
             {
@@ -61,7 +60,6 @@ internal sealed partial class FacadeNativeClient
         var outcome = reply.Outcome;
         if (outcome?.Loaded is { } loaded)
         {
-            BridgeFunctions.ValidateContext(loaded.Context);
         }
         else if (outcome?.Unavailable is { } unavailable)
         {
@@ -85,7 +83,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(PbObservations.StatusReply Reply, BridgeResult Receipt)> StatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         var request = new PbObservations.StatusRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
@@ -109,7 +106,6 @@ internal sealed partial class FacadeNativeClient
             Exception? problem = null;
             try
             {
-                BridgeFunctions.ValidateContext(status.Context);
                 if (!BridgeFunctions.SameIdentity(status.Context!.Identity, identity))
                 {
                     problem = BridgeFunctions.Contract("status identity mismatch");
@@ -166,7 +162,6 @@ internal sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<(PbObservations.ColonyFactsReply Reply, BridgeResult Receipt)> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
     {
-        BridgeFunctions.ValidateIdentity(identity);
         var request = ColonyFactsRequest(identity, planning);
         PbObservations.ColonyFactsReply? reply = null;
         if (UseFrames)
@@ -235,7 +230,6 @@ internal sealed partial class FacadeNativeClient
     {
         if (request.Identity is not null)
         {
-            BridgeFunctions.ValidateIdentity(request.Identity);
         }
         var (tick, _) = await TickAsync(cancellationToken).ConfigureAwait(false);
         var outcome = tick.Outcome;
