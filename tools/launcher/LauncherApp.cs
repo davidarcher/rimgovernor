@@ -689,6 +689,11 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         {
             Log("load: " + e.Message);
         }
+        catch (Exception e)
+        {
+            // Nothing awaits this task: an unlogged fault here is a save that silently never loads.
+            Log($"load: {save} failed: {e}");
+        }
     }
 
     /// <summary>Stop and Close game: ends RimWorld, and the brain with it. The in-process brain has no separate process to keep.</summary>

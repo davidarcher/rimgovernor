@@ -71,7 +71,7 @@ public sealed class SaveLoader : IDisposable
 
     private static async Task ReloadAsync(HttpClient client, string baseUrl, string save, CancellationToken ct)
     {
-        var requestId = "launcher-reload-" + Convert.ToString(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000, 36);
+        var requestId = "launcher-reload-" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString("x", System.Globalization.CultureInfo.InvariantCulture);
         var body = JsonSerializer.Serialize(new { requestId, saveName = save, readiness = "map", timeoutMs = 30000 });
         Exception last = new InvalidOperationException("no reply");
         var accepted = false;
