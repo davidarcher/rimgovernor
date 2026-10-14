@@ -18,12 +18,15 @@ internal static class FacadeReplies
                 : $"{call}: native read refused: {failure.Code.GetValueOrDefault()}");
 
     /// <summary>The unavailability a reply's unavailable arm is (Go <c>NativeUnavailable</c>).</summary>
-    public static BridgeUnavailableException Unavailable(string call, PbCommon.Unavailable? unavailable) =>
-        new(unavailable is null
+    public static BridgeUnavailableException Unavailable(string call, PbCommon.Unavailable? unavailable)
+    {
+        var message = unavailable is null
             ? $"{call}: native observation unavailable"
             : unavailable.Detail is not null && (unavailable.Detail ?? "").Length != 0
                 ? $"{call}: native read unavailable: {unavailable.Reason.GetValueOrDefault()}: {(unavailable.Detail ?? "")}"
-                : $"{call}: native read unavailable: {unavailable.Reason.GetValueOrDefault()}");
+                : $"{call}: native read unavailable: {unavailable.Reason.GetValueOrDefault()}";
+        return unavailable?.Reason == PbCommon.UnavailableReason.NotLoaded ? new NotLoadedException(message) : new BridgeUnavailableException(message);
+    }
 }
 
 /// <summary>

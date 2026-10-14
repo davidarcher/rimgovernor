@@ -444,6 +444,12 @@ public sealed partial class Worker
             {
                 throw Join(worldErr, e)!;
             }
+            // No colony map yet (the game is at its main menu or between loads) is an expected state: the step
+            // does nothing, and records nothing, until a map loads.
+            if (worldErr is NotLoadedException)
+            {
+                return;
+            }
         }
         _player.Current(call, epoch);
         var scope = _session.State();

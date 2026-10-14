@@ -99,5 +99,6 @@
     <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
     <!-- The headless real-engine host drives the live combat read and decision over its arena (#3142). -->
     <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />
+    <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
   </ItemGroup>
 </Project>

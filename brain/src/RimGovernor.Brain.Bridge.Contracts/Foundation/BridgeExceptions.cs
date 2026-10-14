@@ -25,6 +25,12 @@ public class BridgeUnavailableException(string message) : Exception(message)
         : this("native observation unavailable") { }
 }
 
+/// <summary>
+/// A typed unavailable reply whose reason is NotLoaded: no colony map exists yet (main menu, between loads). An
+/// expected state a caller may skip on, not a fault.
+/// </summary>
+public sealed class NotLoadedException(string message) : BridgeUnavailableException(message);
+
 /// <summary>Go's <c>NativeFailure</c>: an explicit typed pre-admission refusal, never a transport inference.</summary>
 public sealed class NativeFailureException(Failure value, Result receipt) : BridgeRefusedException(Describe(value))
 {
