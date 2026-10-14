@@ -40,6 +40,7 @@ namespace HomeBridge.BridgeTools
         private static bool installed;
         private static JobDef holdDef = null!;
         private static JobDef deliveryDef = null!;
+        private static JobDef cookingDef = null!;
         private static bool replacing;
         internal static bool IsHold(Job job) => job.def == holdDef;
         internal static bool Owned(Pawn pawn) => Entries.ContainsKey(pawn);
@@ -54,6 +55,8 @@ namespace HomeBridge.BridgeTools
             DefDatabase<JobDef>.Add(holdDef);
             deliveryDef = new JobDef { defName = "RimGovernorDeliver", driverClass = typeof(JobDriver_GovernorDeliver), reportString = "Delivering to the colony plan's destination.", casualInterruptible = false };
             DefDatabase<JobDef>.Add(deliveryDef);
+            cookingDef = new JobDef { defName = "RimGovernorCook", driverClass = typeof(JobDriver_GovernorCook), reportString = "Cooking the colony plan's selected recipe.", casualInterruptible = false };
+            DefDatabase<JobDef>.Add(cookingDef);
             var h = new Harmony("rimgovernor.activity-execution");
             void Patch(Type t, string name, string? before = null, string? after = null) => h.Patch(AccessTools.Method(t, name),
                 before == null ? null : new HarmonyMethod(typeof(NativePawnActivities), before),
@@ -105,6 +108,7 @@ namespace HomeBridge.BridgeTools
                     if (step.Kind == PawnActivityKind.Recreation && (target.def.defName != "HorseshoesPin" || pawn.needs.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) return Refuse("Selected recreation unavailable.");
                     if (step.Kind == PawnActivityKind.Sleep && !RestUtility.CanUseBedNow(target, pawn, true)) return Refuse("Selected bed unavailable.");
                     if (step.Kind == PawnActivityKind.Deliver && !DeliveryAllowed(pawn, target, step)) return Refuse("Selected delivery unavailable.");
+                    if (step.Kind == PawnActivityKind.Cook && !NativeActivityCooking.Resolve(pawn, target, step, out _, out _, out var cookingReason)) return Refuse(cookingReason);
                 }
             }
             return null;
@@ -226,6 +230,16 @@ namespace HomeBridge.BridgeTools
                 job = JobMaker.MakeJob(deliveryDef, target, new IntVec3(cell.X, 0, cell.Z));
                 job.count = step.Count;
                 job.haulOpportunisticDuplicates = false;
+            }
+            else if (step.Kind == PawnActivityKind.Cook)
+            {
+                if (!NativeActivityCooking.Resolve(p, target, step, out var bill, out var ingredients, out var cookingReason)) throw new InvalidOperationException(cookingReason);
+                job = JobMaker.MakeJob(cookingDef, target);
+                job.bill = bill;
+                job.targetQueueB = ingredients.Select(i => new LocalTargetInfo(i.Thing)).ToList();
+                job.countQueue = ingredients.Select(i => i.Count).ToList();
+                job.haulMode = HaulMode.ToCellNonStorage;
+                job.workGiverDef = DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver);
             }
             if (step.Kind == PawnActivityKind.Recreation)
             {

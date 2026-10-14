@@ -837,9 +837,11 @@ to live Rounds dispatch. Multi-source/multi-ingredient planning, variable batch
 sizes, native worker yield/rate calibration, power/fuel transitions and Hands
 harvest/hauling/cooking integration remain #3127/#3128/#3135 work. The
 [activity execution contract](../contracts/pawn-activities.md) now includes an
-exact one-trip delivery adapter alongside harvest. Its native case checks physical
-output and explicit revision after refusal, with fixture-selected assignments.
+exact one-trip delivery adapter alongside harvest, plus a one-iteration cooking
+adapter for exact single-resource ingredient stacks and an existing selected bill.
+Their native cases check physical output and explicit revision after refusal,
+with fixture-selected assignments.
 It does not close the live forecast loop: observed output rebinding, carried-item
-recovery, exact cooking, calibrated live candidate inputs and normal Method
+recovery, mixed-ingredient cooking, calibrated live candidate inputs and normal Method
 admission/Hands dispatch still need integration. The automatic hauling/cleaning/
 eating helpers remain in place until that replacement is proven.

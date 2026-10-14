@@ -12,10 +12,14 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 (PawnActivityKind)s.GetProperty("Kind").GetInt32(), s.Str("Target"), s.Str("WorkGiver"), s.Str("Job"),
                 s.GetProperty("Count").GetInt32(), s.GetProperty("Deadline").GetInt64(), s.Str("WaitForFilth"))
                 { Destination = s.GetProperty("Destination") is var d && d.ValueKind != JsonValueKind.Null
-                    ? new Cell(d.GetProperty("X").GetInt32(), d.GetProperty("Z").GetInt32()) : null }).ToArray())).ToArray();
+                    ? new Cell(d.GetProperty("X").GetInt32(), d.GetProperty("Z").GetInt32()) : null,
+                  Cooking = ReadCooking(s.GetProperty("Cooking")) }).ToArray())).ToArray();
         var value = new PawnActivities(e.GetProperty("AuthorityGeneration").GetUInt64(), orders);
         value.Validate(); return value;
     }
+    private static PawnActivityCooking? ReadCooking(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
+        : new(e.Str("Bill"), e.Str("Recipe"), EquatableArray.From(e.GetProperty("Ingredients").EnumerateArray()
+            .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32()))));
     protected override void WriteFields(Utf8JsonWriter w, PawnActivities v, Codecs o)
     {
         v.Validate(); w.WriteNumber("AuthorityGeneration", v.AuthorityGeneration);
@@ -32,6 +36,15 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 if (s.Destination is { } d)
                 { w.WriteStartObject("Destination"); w.WriteNumber("X", d.X); w.WriteNumber("Z", d.Z); w.WriteEndObject(); }
                 else w.WriteNull("Destination");
+                if (s.Cooking is { } cooking)
+                {
+                    w.WriteStartObject("Cooking"); w.WriteString("Bill", cooking.Bill); w.WriteString("Recipe", cooking.Recipe);
+                    w.WriteStartArray("Ingredients");
+                    foreach (var ingredient in cooking.Ingredients)
+                    { w.WriteStartObject(); w.WriteString("Thing", ingredient.Thing); w.WriteNumber("Count", ingredient.Count); w.WriteEndObject(); }
+                    w.WriteEndArray(); w.WriteEndObject();
+                }
+                else w.WriteNull("Cooking");
                 w.WriteEndObject();
             }
             w.WriteEndArray(); w.WriteEndObject();
