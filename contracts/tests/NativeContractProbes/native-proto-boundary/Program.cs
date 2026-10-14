@@ -18,6 +18,7 @@ internal static class NativeProtoBoundaryProbe {
         public string CapabilityId => "probe";
         public RimGovernor.Host.Sdk.IRimBridgeMainThread MainThread => throw new NotSupportedException();
     }
+    const string Full = "{\"colonyId\":\"c\",\"loadToken\":\"l\",\"mapId\":1}";
     static void Check(bool value, string name) { checks++; if (!value) throw new Exception(name); }
     static bool Parse(object request, out Common.Identity value, out Common.Failure failure) {
         return ProtoBoundary.TryParse(new Ctx(), "test", request, out value, out failure);
@@ -30,7 +31,7 @@ internal static class NativeProtoBoundaryProbe {
     }
     internal static void Invoke(string[] args) {
         CompactObservations();
-        Case("empty identity syntax", "{}", true);
+        Case("empty identity syntax", "{}", false);
         Case("unknown field", "{\"unknown\":1}", false);
         Case("trailing junk", "{}x", false);
         Case("trailing object", "{}{}", false);
@@ -43,21 +44,21 @@ internal static class NativeProtoBoundaryProbe {
         Case("map overflow", "{\"mapId\":2147483648}", false);
         Case("map fraction", "{\"mapId\":1.25}", false);
         Case("integer string", "{\"mapId\":\"12\"}", false); // wire JSON carries integers as numbers; ProtoJSON string-integers are no longer accepted
-        Case("negative map syntax", "{\"mapId\":-1}", true);
-        Case("null fact syntax", "{\"mapId\":null}", true);
+        Case("negative map syntax", "{\"colonyId\":\"c\",\"loadToken\":\"l\",\"mapId\":-1}", true);
+        Case("null fact syntax", "{\"mapId\":null}", false);
         Case("actual lone high surrogate", "{\"colonyId\":\""+'\ud800'+"\"}", false);
         Case("actual lone low surrogate", "{\"colonyId\":\""+'\udc00'+"\"}", false);
         Case("escaped lone high surrogate", "{\"colonyId\":\"\\ud800\"}", false);
         Case("escaped lone low surrogate", "{\"colonyId\":\"\\udc00\"}", false);
         Case("escaped reversed pair", "{\"colonyId\":\"\\udc00\\ud800\"}", false);
-        Case("valid pair", "{\"colonyId\":\"\\ud83d\\ude00\"}", true);
+        Case("valid pair", "{\"colonyId\":\"\\ud83d\\ude00\",\"loadToken\":\"l\",\"mapId\":0}", true);
         Common.Identity parsed; Common.Failure refusal;
         Raw=null;
         Check(!Parse("{}",out parsed,out refusal) && refusal.Code==Common.FailureCode.Unavailable,"missing journal");
         Raw=new Dictionary<string,object>{["request"]="{}",["other"]=true};
         Check(!Parse("{}",out parsed,out refusal),"unknown outer argument");
-        Raw=new Dictionary<string,object>{["request"]=new JValue("{}")};
-        Check(Parse("{}",out parsed,out refusal),"raw JValue exact string");
+        Raw=new Dictionary<string,object>{["request"]=new JValue(Full)};
+        Check(Parse(Full,out parsed,out refusal),"raw JValue exact string");
         Raw=new Dictionary<string,object>{["request"]="{}",["_rimBridgeTimeoutMs"]=10};
         Check(!Parse("{}",out parsed,out refusal),"host timeout key is not a caller argument");
         Check(!Parse(" {}",out parsed,out refusal),"raw/bound argument mismatch");
@@ -78,10 +79,10 @@ internal static class NativeProtoBoundaryProbe {
         using(var gz=new System.IO.Compression.GZipStream(new System.IO.MemoryStream(Convert.FromBase64String((string)binaryWire[ProtoBoundary.ProtoField])),System.IO.Compression.CompressionMode.Decompress))
             Check(reply.Equals(RimGovernor.Contracts.Wire.WireJson.Deserialize<Common.Identity>(new System.IO.StreamReader(gz, new UTF8Encoding(false, true)).ReadToEnd())),"binary gzip round trip");
         Check(ProtoBoundary.Encode(reply).ContainsKey("payload"),"binary form does not outlive its scope");
-        Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.BinaryEncoding};
-        Check(Parse("{}",out parsed,out refusal),"encoding argument accepted");
+        Raw=new Dictionary<string,object>{["request"]=Full,[ProtoBoundary.EncodingArgument]=ProtoBoundary.BinaryEncoding};
+        Check(Parse(Full,out parsed,out refusal),"encoding argument accepted");
         Check(ProtoBoundary.FormOf(new Ctx())==ProtoBoundary.ReplyForm.Gzip,"encoding argument read");
-        Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]="json"};
+        Raw=new Dictionary<string,object>{["request"]=Full,[ProtoBoundary.EncodingArgument]="json"};
         Check(ProtoBoundary.FormOf(new Ctx())==ProtoBoundary.ReplyForm.Payload,"other encoding stays ProtoJSON");
         Raw=null;
         Common.ObservationContext context; Common.Unavailable unavailable;
@@ -131,7 +132,7 @@ internal static class NativeProtoBoundaryProbe {
         var provider=Assembly.LoadFrom(serverPath).GetType("RimGovernor.Host.AnnotatedExtensionCapabilityProvider",true);
         var binder=provider.GetMethod("BindArguments",BindingFlags.NonPublic|BindingFlags.Static);
         var method=typeof(NativeProtoBoundaryProbe).GetMethod("RawTransport",BindingFlags.NonPublic|BindingFlags.Static);
-        foreach(var raw in new object[]{"{}",new JObject(),new JArray(),null,17,true}) {
+        foreach(var raw in new object[]{Full,new JObject(),new JArray(),null,17,true}) {
             var args=new Dictionary<string,object>{["request"]=raw};
             var bound=(object[])binder.Invoke(null,new object[]{method,args,null,CancellationToken.None});
             Check(ReferenceEquals(bound[0],raw),"actual SDK object parameter preserves raw value");

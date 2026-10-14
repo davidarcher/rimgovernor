@@ -237,7 +237,7 @@ public static partial class ClockJournal
                 GenerationFloor(v.Epoch!.Origin, observed);
                 if (v.Context is not null && SameMessage(v.Context.Identity, observed.Identity))
                 {
-                    var regressed = observed.Tick.GetValueOrDefault() < v.Context.Tick.GetValueOrDefault() || (v.Context.NativeGeneration is not null && (observed.NativeGeneration is null || observed.NativeGeneration.GetValueOrDefault() < v.Context.NativeGeneration.GetValueOrDefault()));
+                    var regressed = observed.Tick < v.Context.Tick || (v.Context.NativeGeneration is not null && (observed.NativeGeneration is null || observed.NativeGeneration.GetValueOrDefault() < v.Context.NativeGeneration.GetValueOrDefault()));
                     if (regressed)
                     {
                         throw new ConflictException();

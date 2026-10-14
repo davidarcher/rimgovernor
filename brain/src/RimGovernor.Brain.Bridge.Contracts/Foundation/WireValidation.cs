@@ -49,18 +49,18 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>ValidateIdentity</c>.</summary>
     public static void ValidateIdentity(Identity? value)
     {
-        if (value is null || value.ColonyId is null || value.LoadToken is null || value.MapId is null || value.MapId.GetValueOrDefault() < 0)
+        if (value is null || value.MapId < 0)
         {
             throw Contract("identity presence or map");
         }
-        ValidId((value.ColonyId ?? ""));
-        ValidId((value.LoadToken ?? ""));
+        ValidId(value.ColonyId);
+        ValidId(value.LoadToken);
     }
 
     /// <summary>Go's <c>ValidateContext</c>.</summary>
     public static void ValidateContext(ObservationContext? value)
     {
-        if (value is null || value.Tick is null || value.Tick.GetValueOrDefault() < 0 || (value.NativeGeneration is not null && value.NativeGeneration.GetValueOrDefault() == 0))
+        if (value is null || value.Tick < 0 || (value.NativeGeneration is not null && value.NativeGeneration.GetValueOrDefault() == 0))
         {
             throw Contract("context presence/tick/generation");
         }

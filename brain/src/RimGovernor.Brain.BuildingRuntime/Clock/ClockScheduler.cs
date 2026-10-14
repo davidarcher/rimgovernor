@@ -207,7 +207,7 @@ public sealed partial class ClockScheduler
 
     /// <summary>The store scope an observation context establishes: the load token, map and native generation.</summary>
     internal static FactScope FactScope(PbCommon.ObservationContext context) =>
-        new((context.Identity?.LoadToken ?? ""), context.Identity?.MapId.GetValueOrDefault() ?? 0, context.NativeGeneration.GetValueOrDefault());
+        new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration.GetValueOrDefault());
 
     /// <summary>The ticks to wait when any isolated planner failure of the step is a native refusal; zero otherwise.</summary>
     internal static uint PlannerRefusalWait(IEnumerable<Exception> failures) =>
@@ -301,11 +301,11 @@ public sealed partial class ClockScheduler
             }
             var scope = FactScope(loadedContext);
             window.Scope = scope;
-            (zones.Scope, zones.Tick) = (scope, (long)loadedContext.Tick.GetValueOrDefault());
+            (zones.Scope, zones.Tick) = (scope, (long)loadedContext.Tick);
             var id = loadedContext.Identity ?? throw new BridgeContractException("step read carried no identity");
-            var tick = new Tick((long)loadedContext.Tick.GetValueOrDefault());
+            var tick = new Tick((long)loadedContext.Tick);
             var state = _player.State();
-            var observed = new GenerationSnapshot { Colony = new ColonyId((id.ColonyId ?? "")), Load = new LoadId((id.LoadToken ?? "")), Map = new MapId(id.MapId.GetValueOrDefault()) };
+            var observed = new GenerationSnapshot { Colony = new ColonyId((id.ColonyId ?? "")), Load = new LoadId((id.LoadToken ?? "")), Map = new MapId(id.MapId) };
             if (!state.ObservationKnown || !Boundary.World(state.Snapshot, observed) || loadedContext.NativeGeneration.GetValueOrDefault() != (ulong)state.Snapshot.Native.Value)
             {
                 ClockEvents.AuthorityLost("observed scope does not match the held authority");
@@ -320,8 +320,8 @@ public sealed partial class ClockScheduler
             };
             _stepContext = loaded.ClockStatus?.Context;
             var status = ClockCoordinator.ValidatedStatus(loaded.ClockStatus, id);
-            var statusTick = (long)(status.Context ?? throw new BridgeContractException("clock status carried no context")).Tick.GetValueOrDefault();
-            if (statusTick < (long)loadedContext.Tick.GetValueOrDefault())
+            var statusTick = (long)(status.Context ?? throw new BridgeContractException("clock status carried no context")).Tick;
+            if (statusTick < (long)loadedContext.Tick)
             {
                 ClockEvents.AuthorityLost("clock status is behind the scope tick");
                 throw new EvidenceException("clock status is behind the scope tick");

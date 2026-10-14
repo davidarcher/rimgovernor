@@ -74,7 +74,7 @@ internal sealed partial class FacadeNativeClient
         {
             if (row is null || !IsValidId(row.Id ?? "") || seen.Contains(row.Id!) || row.Trader is null
                 || !Diagnostic(row.TraderKind is not null, row.TraderKind ?? "") || !Diagnostic(row.FactionId is not null, row.FactionId ?? "")
-                || (row.DepartureTick is { } departure && departure < (v.Context.Tick ?? 0)))
+                || (row.DepartureTick is { } departure && departure < v.Context.Tick))
             {
                 throw Contract("invalid passing ship");
             }

@@ -139,7 +139,7 @@ public sealed partial class ClockCoordinator
             var reply = await _native.ReadClockStatusAsync(current.Identity!, ctx).ConfigureAwait(false);
             var read = ValidatedStatus(reply.Outcome is PbClock.StatusReplyOutcome.StatusCase { Value: var s } ? s : null, current.Identity);
             var readContext = read.Context ?? throw new InvalidOperationException("clock status context required");
-            if (readContext.Tick.GetValueOrDefault() < current.Tick.GetValueOrDefault()
+            if (readContext.Tick < current.Tick
                 || (current.NativeGeneration is not null && (readContext.NativeGeneration is null || readContext.NativeGeneration.GetValueOrDefault() < current.NativeGeneration.GetValueOrDefault())))
             {
                 throw new BridgeContractException("clock status older than the observed identity");
@@ -232,7 +232,7 @@ public sealed partial class ClockCoordinator
             call.CancelAfter(_config.CallTimeout);
             var reply = await _writer.OwnedPauseAsync(new PbClock.OwnedRequest { Identity = identity, Owner = epoch.Owner }, call.Token).ConfigureAwait(false);
             var status = ValidatedStatus(reply.Outcome is PbClock.StatusReplyOutcome.StatusCase { Value: var s } ? s : null, identity);
-            if (status.State is not PbClock.StatusState.StoppedCase || status.Context?.Tick < observedTick.GetValueOrDefault())
+            if (status.State is not PbClock.StatusState.StoppedCase || status.Context?.Tick < observedTick)
             {
                 throw new EvidenceException();
             }

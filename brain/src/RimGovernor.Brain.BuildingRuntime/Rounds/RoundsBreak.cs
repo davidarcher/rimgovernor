@@ -99,7 +99,7 @@ public sealed partial class RoundsDefensePlanner
                     orders.Add(new CombatOrder { Pawn = draft.Pawn, Kind = CombatOrderKind.Stop });
                 }
             }
-            var batchLabel = $"{method.Plan}-subdue-stop-{combatContext.Tick.GetValueOrDefault().ToString(CultureInfo.InvariantCulture)}";
+            var batchLabel = $"{method.Plan}-subdue-stop-{combatContext.Tick.ToString(CultureInfo.InvariantCulture)}";
             var batch = CombatBatchPlan(method.Plan, batchLabel, [], orders);
             var (results, _) = await SendCombatBatchAsync(state, method.Plan, batchLabel, [], orders, call).ConfigureAwait(false);
             var confirmed = results is not null;
@@ -126,7 +126,7 @@ public sealed partial class RoundsDefensePlanner
                             v.Action,
                             v.Attempt,
                             scope,
-                            new Tick(freshContext.Tick.GetValueOrDefault()),
+                            new Tick(freshContext.Tick),
                             Effect.Completed,
                             ObservationCausality.AfterDispatch), scope, call);
                         p.Journal.RetireCombatBatch(batch.Id, call);
@@ -148,7 +148,7 @@ public sealed partial class RoundsDefensePlanner
             }
             if (entries.Count > 0)
             {
-                var record = new CombatStopRecord(batch.Id, new Tick(combatContext.Tick.GetValueOrDefault()), stop, [.. entries]);
+                var record = new CombatStopRecord(batch.Id, new Tick(combatContext.Tick), stop, [.. entries]);
                 p.Journal.RecordCombatStop(method.Plan, record, fight.Memory, call);
             }
             if (confirmed && !unresolved)

@@ -149,7 +149,7 @@ public static partial class BridgeFunctions
         {
             return ClockEpochState.Superseded;
         }
-        if (current.Tick.GetValueOrDefault() < original.LastTick.GetValueOrDefault())
+        if (current.Tick < original.LastTick.GetValueOrDefault())
         {
             throw Contract("clock cleanup observation regressed");
         }

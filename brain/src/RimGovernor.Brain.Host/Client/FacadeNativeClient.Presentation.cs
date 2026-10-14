@@ -336,7 +336,7 @@ internal sealed partial class FacadeNativeClient
                 throw Contract("oversized colonist name");
             }
 
-            if (item.MapId is { } map && (map < 0 || (request.CurrentMapOnly.GetValueOrDefault() && map != request.Identity!.MapId.GetValueOrDefault())))
+            if (item.MapId is { } map && (map < 0 || (request.CurrentMapOnly.GetValueOrDefault() && map != request.Identity!.MapId)))
             {
                 throw Contract("invalid roster map");
             }

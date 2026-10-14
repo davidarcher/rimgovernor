@@ -124,7 +124,7 @@ public static partial class BridgeFunctions
         ValidateContext(e.Origin);
         if (e.Origin?.NativeGeneration is null
             || e.StartTick is null
-            || e.StartTick.GetValueOrDefault() != e.Origin.Tick.GetValueOrDefault()
+            || e.StartTick.GetValueOrDefault() != e.Origin.Tick
             || e.TickDeadline is null
             || e.TickDeadline.GetValueOrDefault() <= e.StartTick.GetValueOrDefault()
             || e.TickDeadline.GetValueOrDefault() - e.StartTick.GetValueOrDefault() > 1800000
@@ -283,12 +283,12 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock receipt admission mismatch");
         }
-        var admittedTick = r.AdmittedContext.Tick.GetValueOrDefault();
+        var admittedTick = r.AdmittedContext.Tick;
         switch (r.Outcome)
         {
             case ControlReceiptOutcome.AppliedCase { Value: var applied }:
                 ClockStatus(applied.Status, identity);
-                if (applied.Status?.Context?.Tick.GetValueOrDefault() < admittedTick)
+                if ((applied.Status?.Context?.Tick ?? 0) < admittedTick)
                 {
                     throw Contract("clock status before admission");
                 }
@@ -296,7 +296,7 @@ public static partial class BridgeFunctions
                 if (epoch is null
                     || (epoch.Owner?.ControllerSessionId ?? "") != (attempt?.ControllerSessionId ?? "")
                     || !SameIdentity(epoch.Origin?.Identity, identity)
-                    || epoch.Origin?.Tick.GetValueOrDefault() > admittedTick)
+                    || (epoch.Origin?.Tick ?? 0) > admittedTick)
                 {
                     throw Contract("clock applied epoch admission mismatch");
                 }
@@ -309,7 +309,7 @@ public static partial class BridgeFunctions
                 if (uncertain.LastObserved is not null)
                 {
                     ClockStatus(uncertain.LastObserved, identity);
-                    if (uncertain.LastObserved.Context?.Tick.GetValueOrDefault() < admittedTick)
+                    if ((uncertain.LastObserved.Context?.Tick ?? 0) < admittedTick)
                     {
                         throw Contract("clock uncertain status before admission");
                     }

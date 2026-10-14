@@ -22,7 +22,7 @@ public sealed partial class Player
             return false;
         }
         var identity = loaded.Context.Identity;
-        if ((identity.ColonyId ?? "") != state.Snapshot.Colony.Value || (identity.LoadToken ?? "") != state.Snapshot.Load.Value || new MapId(identity.MapId.GetValueOrDefault()) == state.Snapshot.Map)
+        if ((identity.ColonyId ?? "") != state.Snapshot.Colony.Value || (identity.LoadToken ?? "") != state.Snapshot.Load.Value || new MapId(identity.MapId) == state.Snapshot.Map)
         {
             return false;
         }
@@ -33,7 +33,7 @@ public sealed partial class Player
         }
         var world = BridgeApi.DecodeWorldProgressionSnapshot(loaded.WorldProgression, identity);
         var plans = await Task.Run(() => _journal.PlanHistoryWithMethods(256, ["quest-expedition-*", "quest-site-*-return-*"], call), call).ConfigureAwait(false);
-        if (!ExpeditionHandoffTarget(state.Snapshot, world, plans).TryGetValue(out var target) || target.Map != new MapId(identity.MapId.GetValueOrDefault()))
+        if (!ExpeditionHandoffTarget(state.Snapshot, world, plans).TryGetValue(out var target) || target.Map != new MapId(identity.MapId))
         {
             return false;
         }

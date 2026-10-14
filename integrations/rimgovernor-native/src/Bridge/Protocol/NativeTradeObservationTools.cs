@@ -183,7 +183,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.TradeSession Session(Common.ObservationContext context)
         {
             var session = new Obs.TradeSession { Context = context };
-            if (NativeTradeOperations.LiveTarget(context.Identity ?? new Common.Identity(), out var target, out var negotiator, out var open) && target != null && negotiator != null)
+            if (NativeTradeOperations.LiveTarget(context.Identity, out var target, out var negotiator, out var open) && target != null && negotiator != null)
             { session = session with { Target = target }; session = session with { NegotiatorId = negotiator.GetUniqueLoadID() }; session = session with { Open = open }; }
             return session;
         }
@@ -191,7 +191,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Sheet(Common.ObservationContext context, string? sessionId, out Obs.TradeSheet sheet, out Common.Failure failure)
         {
             sheet = new Obs.TradeSheet();
-            if (!NativeTradeOperations.SessionSheet(context.Identity ?? new Common.Identity(), out var session, out failure)) return false;
+            if (!NativeTradeOperations.SessionSheet(context.Identity, out var session, out failure)) return false;
             if (!string.IsNullOrEmpty(sessionId) && sessionId != session.SessionId)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "The requested trade session is not the open one.");

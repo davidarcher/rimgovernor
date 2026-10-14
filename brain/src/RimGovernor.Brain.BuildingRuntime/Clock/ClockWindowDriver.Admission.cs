@@ -296,7 +296,7 @@ public sealed partial class ClockWindowDriver
 
         var state = _session.State();
         var id = loadedContext.Identity ?? throw new BridgeContractException("step read carried no identity");
-        var world = new GenerationSnapshot { Colony = new ColonyId((id.ColonyId ?? "")), Load = new LoadId((id.LoadToken ?? "")), Map = new MapId(id.MapId.GetValueOrDefault()) };
+        var world = new GenerationSnapshot { Colony = new ColonyId((id.ColonyId ?? "")), Load = new LoadId((id.LoadToken ?? "")), Map = new MapId(id.MapId) };
         var obligations = epochs.Any(owned => !ClockCoordinator.Terminal(owned.Stage));
         foreach (var v in attempts)
         {
@@ -358,10 +358,10 @@ public sealed partial class ClockWindowDriver
             run.ControllerPausedAt = _clock.Now();
         }
         var statusContext = status.Context ?? throw new BridgeContractException("clock status carried no context");
-        var statusTick = (long)statusContext.Tick.GetValueOrDefault();
-        if (statusContext.Tick.GetValueOrDefault() < loadedContext.Tick.GetValueOrDefault())
+        var statusTick = (long)statusContext.Tick;
+        if (statusContext.Tick < loadedContext.Tick)
         {
-            ClockEvents.AuthorityLost("clock status is behind the scope tick", ("status_tick", statusContext.Tick.GetValueOrDefault()), ("scope_tick", loadedContext.Tick.GetValueOrDefault()));
+            ClockEvents.AuthorityLost("clock status is behind the scope tick", ("status_tick", statusContext.Tick), ("scope_tick", loadedContext.Tick));
             throw Failed(new EvidenceException("clock status is behind the scope tick"));
         }
         var tick = new Tick(statusTick);
@@ -398,7 +398,7 @@ public sealed partial class ClockWindowDriver
         {
             emergency = await _native.ReadEmergencyAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             Boundary.Context(emergency.Context, state.Snapshot);
-            emergencyFacts = EmergencySnapshot.New(state.Snapshot, new Tick((long)emergency.Context!.Tick.GetValueOrDefault()), emergency.Facts);
+            emergencyFacts = EmergencySnapshot.New(state.Snapshot, new Tick((long)emergency.Context!.Tick), emergency.Facts);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -409,7 +409,7 @@ public sealed partial class ClockWindowDriver
             _scheduler.Facts.Store,
             ClockScheduler.FactScope(loadedContext),
             FactSection.Emergency,
-            new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick.GetValueOrDefault(), Complete = colonistsKnown && colonistsComplete, Source = "rimgovernor/observations_read_status" });
+            new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick, Complete = colonistsKnown && colonistsComplete, Source = "rimgovernor/observations_read_status" });
         var review = await journal.ReadClockReviewAsync(_config.Profile, call).ConfigureAwait(false);
         var plan = await journal.LoadPlanAsync(state.Snapshot.Plan, call).ConfigureAwait(false);
         var (work, fingerprint) = ClockWindowWork.Census(plan, state.Snapshot);

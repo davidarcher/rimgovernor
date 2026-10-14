@@ -165,7 +165,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }
-        if (combat.Context is null || combat.Emergency.Context is null || combat.Context.Tick.GetValueOrDefault() < review.Tick.Value)
+        if (combat.Context is null || combat.Emergency.Context is null || combat.Context.Tick < review.Tick.Value)
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }

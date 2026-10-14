@@ -227,7 +227,7 @@ internal sealed partial class FacadeNativeClient
         internal static void PawnsRef(PbObservations.SnapshotRef v, string id, PbCommon.ObservationContext context)
         {
             ValidateContext(v.Context);
-            if ((v.EntityId ?? "") != id || !SameIdentity(v.Context?.Identity, context.Identity) || (v.Context?.Tick).GetValueOrDefault() > context.Tick.GetValueOrDefault())
+            if ((v.EntityId ?? "") != id || !SameIdentity(v.Context?.Identity, context.Identity) || (v.Context?.Tick).GetValueOrDefault() > context.Tick)
             {
                 throw Contract("pawn CAS context or entity mismatch");
             }

@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
         {
             var quests = Find.QuestManager.QuestsListForReading.Where(q => !q.hidden && !q.hiddenInUI && !q.Historical && !q.dismissed).ToArray();
             var targets = quests.SelectMany(q => q.QuestLookTargets).Where(t => t.HasWorldObject).Select(t => t.WorldObject).Distinct().ToArray();
-            var origin = Find.Maps.FirstOrDefault(m => context.Identity?.MapId is not null && m.uniqueID == context.Identity.MapId.GetValueOrDefault());
+            var origin = Find.Maps.FirstOrDefault(m => context.Identity?.MapId is not null && m.uniqueID == context.Identity.MapId);
             foreach (var world in Find.WorldObjects.AllWorldObjects.OfType<Site>().Cast<WorldObject>().Concat(targets).Distinct().OrderBy(w => w.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 var mapParent = world as MapParent;

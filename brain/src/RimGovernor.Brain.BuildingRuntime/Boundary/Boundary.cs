@@ -124,7 +124,7 @@ public static class Boundary
         {
             Colony = new ColonyId((v.Identity.ColonyId ?? "")),
             Load = new LoadId((v.Identity.LoadToken ?? "")),
-            Map = new MapId(v.Identity.MapId.GetValueOrDefault()),
+            Map = new MapId(v.Identity.MapId),
             Native = new NativeGeneration(v.NativeGeneration.GetValueOrDefault()),
         };
         if (!World(output, expected))

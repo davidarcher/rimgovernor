@@ -32,7 +32,7 @@ public static partial class BridgeFunctions
     private static void PawnsRef(SnapshotRef snapshot, string id, ObservationContext context)
     {
         ValidateContext(snapshot.Context);
-        if ((snapshot.EntityId ?? "") != id || !SameIdentity(snapshot.Context?.Identity, context.Identity) || (snapshot.Context?.Tick).GetValueOrDefault() > context.Tick.GetValueOrDefault())
+        if ((snapshot.EntityId ?? "") != id || !SameIdentity(snapshot.Context?.Identity, context.Identity) || (snapshot.Context?.Tick).GetValueOrDefault() > context.Tick)
         {
             throw Contract("pawn CAS context or entity mismatch");
         }

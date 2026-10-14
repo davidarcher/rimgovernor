@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
                     writer.Write(id); writer.Write(target);
                 }
                 using (var hash = SHA256.Create())
@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
             if (!Eligible(thing)) return null;
             var comp = thing.TryGetComp<CompTempControl>();
             return new Obs.SnapshotRef { Context = context, EntityId = thing.GetUniqueLoadID(),
-                Token = Token(context.Identity ?? new Common.Identity(), thing.GetUniqueLoadID(), comp.targetTemperature) };
+                Token = Token(context.Identity, thing.GetUniqueLoadID(), comp.targetTemperature) };
         }
 
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Thing? thing)

@@ -366,7 +366,7 @@ internal sealed class ClockEventPoll(
                 DateTimeOffset? stoppedAt = null;
                 if (captured)
                 {
-                    Tel.ObserveTick(current.Tick.GetValueOrDefault());
+                    Tel.ObserveTick(current.Tick);
                     Publish(page);
                     if (ManualAfter(page, _history.Floor))
                     {

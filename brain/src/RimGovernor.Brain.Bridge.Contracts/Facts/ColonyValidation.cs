@@ -148,7 +148,7 @@ public static partial class BridgeFunctions
         ValidateAnomalyColony(v);
         ValidateOdysseyColony(v);
         ValidateFoodChannels(v);
-        ValidateJoinerLetters(v.JoinerLetters, v.Context.Tick.GetValueOrDefault());
+        ValidateJoinerLetters(v.JoinerLetters, v.Context.Tick);
         ValidateChoiceDialog(v.Dialog);
         ValidateColonyWaste(v.Waste);
         if (v.FoodClimate is { } climate)

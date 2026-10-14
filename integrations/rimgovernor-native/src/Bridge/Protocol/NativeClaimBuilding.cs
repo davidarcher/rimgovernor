@@ -32,13 +32,13 @@ namespace HomeBridge.BridgeTools
 
         internal static bool PlayerOwned(Building building) => building.Faction != null && building.Faction == Faction.OfPlayerSilentFail;
 
-        internal static string Token(Common.Identity? identity, Building building)
+        internal static string Token(Common.Identity identity, Building building)
         {
             using (var bytes = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write((identity?.ColonyId ?? "")); writer.Write((identity?.LoadToken ?? "")); writer.Write(identity?.MapId.GetValueOrDefault() ?? 0);
+                    writer.Write((identity?.ColonyId ?? "")); writer.Write((identity?.LoadToken ?? "")); writer.Write(identity?.MapId ?? 0);
                     writer.Write(building.GetUniqueLoadID()); writer.Write(building.Faction?.GetUniqueLoadID() ?? string.Empty);
                     writer.Write(building is Building_Casket casket && casket.HasAnyContents);
                 }

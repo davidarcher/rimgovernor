@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
 
             // A mismatch here is a race with the caller's own expectation, not a
             // malformed request: report it as uncertain and never save.
-            if (!player.Identity.Equals(context.Identity) || (request.ExpectedTick is not null && request.ExpectedTick.GetValueOrDefault() != context.Tick.GetValueOrDefault()))
+            if (!player.Identity.Equals(context.Identity) || (request.ExpectedTick is not null && request.ExpectedTick.GetValueOrDefault() != context.Tick))
                 return Record((player.RequestId ?? ""), new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveUncertain
                 {
                     RequestId = player.RequestId, SaveName = request.SaveName, ObservedContext = context,
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
                 } });
 
             bool pausedAfter = Find.TickManager != null && Find.TickManager.Paused;
-            if (!object.Equals(after.Identity, context.Identity) || after.Tick.GetValueOrDefault() != context.Tick.GetValueOrDefault() || !pausedAfter)
+            if (!object.Equals(after.Identity, context.Identity) || after.Tick != context.Tick || !pausedAfter)
                 return Record((player.RequestId ?? ""), new Lifecycle.SaveReply { Outcome = new Lifecycle.SaveUncertain
                 {
                     RequestId = player.RequestId, SaveName = (request.SaveName ?? ""), ObservedContext = after,
@@ -186,7 +186,7 @@ namespace HomeBridge.BridgeTools
         }
 
         private static bool ValidIdentity([NotNullWhen(true)] Common.Identity? identity) =>
-            identity != null && identity.ColonyId is not null && identity.LoadToken is not null && identity.MapId is not null
-            && ProtoBoundary.IsIdentifier(identity.ColonyId) && ProtoBoundary.IsIdentifier(identity.LoadToken) && identity.MapId.GetValueOrDefault() >= 0;
+            identity != null && identity.ColonyId is not null && identity.LoadToken is not null
+            && ProtoBoundary.IsIdentifier(identity.ColonyId) && ProtoBoundary.IsIdentifier(identity.LoadToken) && identity.MapId >= 0;
     }
 }

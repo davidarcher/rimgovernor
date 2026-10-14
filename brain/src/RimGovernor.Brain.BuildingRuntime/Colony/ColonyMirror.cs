@@ -105,7 +105,7 @@ public sealed partial class Rounder
         {
             return null;
         }
-        if (expected.Colony.Value != (identity.ColonyId ?? "") || expected.Load.Value != (identity.LoadToken ?? "") || expected.Map.Value != identity.MapId.GetValueOrDefault())
+        if (expected.Colony.Value != (identity.ColonyId ?? "") || expected.Load.Value != (identity.LoadToken ?? "") || expected.Map.Value != identity.MapId)
         {
             return null;
         }

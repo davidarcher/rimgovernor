@@ -26,15 +26,14 @@ namespace HomeBridge.BridgeTools
             && (thing.Faction == null || thing.Faction == Faction.OfPlayerSilentFail)
             && thing.TryGetComp<CompForbiddable>() != null;
 
-        internal static string Token(Common.Identity? identity, string id, string definition,
+        internal static string Token(Common.Identity identity, string id, string definition,
             int x, int z, int count, bool forbidden, string faction)
         {
-            identity ??= new Common.Identity();
             using (var bytes = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
                     writer.Write(id); writer.Write(definition); writer.Write(x); writer.Write(z);
                     writer.Write(count); writer.Write(forbidden); writer.Write(faction);
                 }

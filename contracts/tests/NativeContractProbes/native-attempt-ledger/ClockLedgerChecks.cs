@@ -96,7 +96,6 @@ internal static class ClockLedgerChecks
         foreach (var change in new Func<Clock.StartRequest, Clock.StartRequest>[] {
             r => r with { Authority = r.Authority with { Attempt = r.Authority.Attempt with { AttemptId = 0 } } },
             r => r with { Authority = r.Authority with { Attempt = r.Authority.Attempt with { ActionId = null } } },
-            r => r with { Authority = r.Authority with { Identity = r.Authority.Identity with { MapId = null } } },
             r => r with { Authority = r.Authority with { ExpectedGeneration = 0 } },
             r => r with { Authority = r.Authority with { Identity = r.Authority.Identity with { ColonyId = "\ud800" } } } })
         {

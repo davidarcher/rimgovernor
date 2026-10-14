@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
             // A hunt follows its animal: the token binds the animal,
             // its corpse and its designation, not the cell or health the
             // census read, which move every tick under a running clock.
-            Context = context, EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity ?? new Common.Identity(),
+            Context = context, EntityId = prey.GetUniqueLoadID(), Token = NativeAcquisitionToken.Token(context.Identity,
                 prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, 0, 0, 0, 1, Designated(prey)) };
         // A hunt row is a wild animal that bears a corpse and is a food source or a pest, whatever
         // policy then decides (policy.HuntGate): native states facts and keeps only physical validity.
@@ -80,7 +80,7 @@ namespace HomeBridge.BridgeTools
             {
                 var designated = Designated(animal);
                 var row = new Obs.AcquisitionFacts {
-                Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, result.Context ?? new Common.ObservationContext()),
+                Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, result.Context!),
                 Resource = animal.RaceProps.corpseDef.defName, Hunt = true,
                 Yield = 1, MeatAmount = MeatAmount(animal), Designated = designated,
                 Downed = animal.Downed, Sleeping = !animal.Awake(),

@@ -435,9 +435,9 @@ namespace HomeBridge.BridgeTools
         {
             var identity = value.Context?.Identity;
             if (value.Cursor is null || value.Cursor <= 0 || value.Context == null || identity == null
-                || identity.ColonyId is null || !ProtoBoundary.IsIdentifier(identity.ColonyId)
-                || identity.LoadToken is null || !ProtoBoundary.IsIdentifier(identity.LoadToken)
-                || identity.MapId is null || identity.MapId < 0 || value.Context.Tick is null || value.Context.Tick < 0
+                || !ProtoBoundary.IsIdentifier(identity.ColonyId)
+                || !ProtoBoundary.IsIdentifier(identity.LoadToken)
+                || identity.MapId < 0 || value.Context.Tick < 0
                 || value.Context.NativeGeneration is null || value.Context.NativeGeneration == 0
                 || value.ObservedAtUnixMs is null || value.ObservedAtUnixMs < 0
                 || value.Event is null) return false;

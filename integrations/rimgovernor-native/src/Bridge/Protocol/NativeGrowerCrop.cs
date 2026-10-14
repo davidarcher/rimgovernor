@@ -28,14 +28,13 @@ namespace HomeBridge.BridgeTools
             && PlantUtility.CanSowOnGrower(plant, grower)
             && (plant.plant.sowResearchPrerequisites == null || plant.plant.sowResearchPrerequisites.All(r => r.IsFinished));
 
-        internal static string Token(Common.Identity? identity, Building_PlantGrower grower)
+        internal static string Token(Common.Identity identity, Building_PlantGrower grower)
         {
-            identity ??= new Common.Identity();
             using (var bytes = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
                     writer.Write(grower.GetUniqueLoadID()); writer.Write(grower.GetPlantDefToGrow()?.defName ?? string.Empty);
                 }
                 using (var hash = SHA256.Create())

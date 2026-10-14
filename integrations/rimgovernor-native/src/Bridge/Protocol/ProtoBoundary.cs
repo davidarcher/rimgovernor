@@ -491,8 +491,8 @@ namespace HomeBridge.BridgeTools
             catch (EncoderFallbackException) { return false; }
         }
 
-        internal static bool Complete([NotNullWhen(true)] Common.Identity? expected) => expected != null && expected.ColonyId is not null && expected.LoadToken is not null
-            && expected.MapId is not null && IsIdentifier(expected.ColonyId) && IsIdentifier(expected.LoadToken) && expected.MapId.GetValueOrDefault() >= 0;
+        internal static bool Complete([NotNullWhen(true)] Common.Identity? expected) => expected != null
+            && IsIdentifier(expected.ColonyId) && IsIdentifier(expected.LoadToken) && expected.MapId >= 0;
 
         /// <summary>
         /// The loaded map the identity names, or null. Every typed read and
@@ -503,7 +503,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!Complete(expected) || Current.Game == null || Find.Maps == null) return null;
             foreach (var map in Find.Maps)
-                if (map != null && map.uniqueID == expected.MapId.GetValueOrDefault()) return map;
+                if (map != null && map.uniqueID == expected.MapId) return map;
             return null;
         }
 

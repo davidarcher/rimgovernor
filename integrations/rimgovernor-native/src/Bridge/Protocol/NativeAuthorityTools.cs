@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
             // and is how a controller sees REVOCATION_REASON_SHUTDOWN.
             if (Current.Game == null && ProtoBoundary.Complete(parsed.Identity)
                 && NativeControlAuthority.LastShutdown is NativeControlShutdown shutdown
-                && shutdown.Matches((parsed.Identity.ColonyId ?? ""), (parsed.Identity.LoadToken ?? ""), parsed.Identity.MapId.GetValueOrDefault()))
+                && shutdown.Matches(parsed.Identity.ColonyId, parsed.Identity.LoadToken, parsed.Identity.MapId))
                 return new Authority.StatusReply { Outcome = ProjectShutdown(shutdown, parsed.Identity) };
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
                 return new Authority.StatusReply { Outcome = invalid };

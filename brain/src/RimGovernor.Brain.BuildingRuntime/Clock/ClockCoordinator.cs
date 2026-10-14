@@ -283,7 +283,7 @@ public sealed partial class ClockCoordinator : IDisposable
                     || status.NativeTickBoundary is null || !status.NativeTickBoundary.GetValueOrDefault()
                     || status.DurableEvents is null
                     || (!status.DurableEvents.GetValueOrDefault() && status.State is not StatusState.NeverStartedCase)
-                    || status.Context?.Tick.GetValueOrDefault() != window.Tick.Value
+                    || (status.Context?.Tick ?? 0) != window.Tick.Value
                     || status.NewestCursor is null || status.NewestCursor.GetValueOrDefault() != window.CapturedCursor))
             {
                 throw new HeldException();

@@ -24,7 +24,7 @@ internal static class NativeAuthorityStatusProbe
         Check(status.Equals(RimGovernor.Contracts.Wire.WireJson.Deserialize<Wire.Status>(json)), "Official wire JSON roundtrip");
         Check(Context.NativeGeneration == 1, "Projection mutated caller observation context");
         Check(status.Context.NativeGeneration == snapshot.Generation, "Projection lost refreshed generation");
-        Check(status.Context.Tick == 0 && status.Context.Identity.MapId != null,
+        Check(status.Context.Tick == 0,
             "Projection lost known tick/map zero");
         return status;
     }

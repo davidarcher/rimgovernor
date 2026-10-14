@@ -230,7 +230,7 @@ internal static partial class BuildingRuntimePackage
         {
             return false;
         }
-        return (id.ColonyId ?? "") == world.Colony.Value && id.MapId.GetValueOrDefault() == world.Map.Value && (id.LoadToken ?? "") == world.Load.Value
+        return (id.ColonyId ?? "") == world.Colony.Value && id.MapId == world.Map.Value && (id.LoadToken ?? "") == world.Load.Value
             && new NativeGeneration(read.Context.NativeGeneration.GetValueOrDefault()) == world.Native;
     }
 

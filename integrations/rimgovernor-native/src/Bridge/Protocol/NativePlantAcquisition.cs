@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
         // Cutter has no distance reach: the measured cost (#2567) is the
         // all-plants eligibility scan, which the reach never bounded.
         internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
-            Context = context, EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity ?? new Common.Identity(), plant.GetUniqueLoadID(),
+            Context = context, EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
                 plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.HarvestableNow, ResourceAcquisitionTools.Designated(plant)) };
         internal static Obs.ColonyFactsSnapshot Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, Obs.ColonyFactsRequest request)
         {
@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
                 var food = humanFood(resource);
                 var designated = ResourceAcquisitionTools.Designated(plant);
                 var row = new Obs.AcquisitionFacts {
-                    Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, result.Context ?? new Common.ObservationContext()),
+                    Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, result.Context!),
                     Resource = resource.defName, Food = food, Yield = yield,
                     Growth = plant.Growth, Plantation = ResourceAcquisitionTools.Plantation(plant),
                     Designated = designated, Hunt = false, Taken = ResourceAcquisitionTools.Taken(plant) };

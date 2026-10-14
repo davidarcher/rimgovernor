@@ -183,7 +183,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("completed save direction mismatch");
         }
-        if (request.ExpectedTick is not null && completed.Context.Tick.GetValueOrDefault() != request.ExpectedTick.GetValueOrDefault())
+        if (request.ExpectedTick is not null && completed.Context.Tick != request.ExpectedTick.GetValueOrDefault())
         {
             throw BridgeFunctions.Contract("completed save tick moved");
         }

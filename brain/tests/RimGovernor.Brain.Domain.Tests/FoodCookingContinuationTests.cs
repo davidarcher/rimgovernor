@@ -19,7 +19,7 @@ public sealed class FoodCookingContinuationTests
         Destination = new(5, 6), Cooking = new(new("bench", "bill", "recipe", "cook-giver", new(5, 5), "Meal", 1, new(8, 9)),
             10, work, 5, Known(0.9), supplied)
     };
-    private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Known = true, Context = new() { Tick = 100 }, Options = EquatableArray.From(options) };
+    private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) };
     private static PawnActivities Harvest() => StartFoodActivity(Read(Raw("crop")), 1, "method", 500, out _)!;
     private static FoodActivityRead Done(PawnActivities batch, string state, params FoodActivityOption[] options) => Read(options) with
         { Execution = new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 100) };

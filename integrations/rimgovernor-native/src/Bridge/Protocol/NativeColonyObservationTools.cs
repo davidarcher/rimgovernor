@@ -338,7 +338,7 @@ namespace HomeBridge.BridgeTools
                 && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef)))).OrderBy(b => b.thingIDNumber).ToList();
             var haulers = NativeResourceSourcesTool.Haulers(map);
             foreach (var bench in benches) {
-                var row = new Obs.CookingFacts { Bench = NativeBuildingObservationTools.Ref(bench), BenchSnapshot = NativeProductionBills.Snapshot(bench,bench,result.Context ?? new Common.ObservationContext()),
+                var row = new Obs.CookingFacts { Bench = NativeBuildingObservationTools.Ref(bench), BenchSnapshot = NativeProductionBills.Snapshot(bench,bench,result.Context!),
                     Usable = !bench.IsBurning() && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
                         && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel) };
                 var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
@@ -360,7 +360,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(NativeRecipeRoles.ButcherFlesh)).OrderBy(t=>t.thingIDNumber)){
                 var giver=(IBillGiver)bench;
-                var row=new Obs.ButcheringFacts{Bench=NativeBuildingObservationTools.Ref(bench),BenchSnapshot=NativeProductionBills.Snapshot(bench,giver,result.Context ?? new Common.ObservationContext()),Usable=NativeProductionBills.Usable(bench)};
+                var row=new Obs.ButcheringFacts{Bench=NativeBuildingObservationTools.Ref(bench),BenchSnapshot=NativeProductionBills.Snapshot(bench,giver,result.Context!),Usable=NativeProductionBills.Usable(bench)};
                 row = HumanFoodFacts.Fill(row,bench);
                 foreach(var recipe in bench.def.AllRecipes.Where(NativeRecipeRoles.ButcherFlesh))row = row with { Recipes = [.. row.Recipes, NativeProductionBills.RecipeRow(bench,recipe)] };
                 for(var index=0;index<giver.BillStack.Count;index++)row = row with { Bills = [.. row.Bills, NativeProductionBills.BillRow(giver.BillStack.Bills[index],index)] };

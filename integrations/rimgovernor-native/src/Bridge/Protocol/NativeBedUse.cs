@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
             {
                 using (var writer = new BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
                     writer.Write(bed.GetUniqueLoadID()); writer.Write(bed.Medical); writer.Write(bed.ForPrisoners); writer.Write(bed.ForSlaves);
                     foreach (var owner in bed.OwnersForReading.Select(p => p.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal))
                         writer.Write(owner);

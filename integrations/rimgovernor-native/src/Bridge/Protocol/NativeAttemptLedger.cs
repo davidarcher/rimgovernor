@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
         private static void RequireClockEvidence(Clock.Status status, Entry entry)
         {
             if (status == null || status.State is null || !ValidContext(status.Context)
-                || !Equals(status.Context?.Identity, entry.Context.Identity) || status.Context?.Tick.GetValueOrDefault() < entry.Context.Tick.GetValueOrDefault())
+                || !Equals(status.Context?.Identity, entry.Context.Identity) || (status.Context?.Tick ?? 0) < entry.Context.Tick)
                 throw new ArgumentException("Clock evidence requires an explicit state and fresh admission-scoped context.", nameof(status));
         }
 
@@ -191,11 +191,11 @@ namespace HomeBridge.BridgeTools
         // Wire records compare by value and keep optional-scalar presence (null is unset)
         // and list order, which is exactly what admission identity requires.
         private static bool SameMessage(object left, object right) => Equals(left, right);
-        private bool SameLoad(Common.Identity? identity) => identity is not null && (identity.ColonyId ?? "") == colonyId && (identity.LoadToken ?? "") == loadToken;
-        private static bool ValidIdentity(Common.Identity? identity) => identity != null && identity.ColonyId is not null && identity.LoadToken is not null
-            && identity.MapId is not null && Identifier((identity.ColonyId ?? "")) && Identifier((identity.LoadToken ?? "")) && identity.MapId.GetValueOrDefault() >= 0;
+        private bool SameLoad(Common.Identity? identity) => identity is not null && identity.ColonyId == colonyId && identity.LoadToken == loadToken;
+        private static bool ValidIdentity(Common.Identity? identity) => identity != null
+            && Identifier(identity.ColonyId) && Identifier(identity.LoadToken) && identity.MapId >= 0;
         private static bool ValidContext(Common.ObservationContext? context) => context != null && ValidIdentity(context.Identity)
-            && context.Tick is not null && context.Tick.GetValueOrDefault() >= 0;
+            && context.Tick >= 0;
         private static bool ValidAttempt(Common.AttemptKey? attempt) => attempt != null && attempt.ControllerSessionId is not null
             && attempt.ActionId is not null && attempt.AttemptId is not null && Identifier((attempt.ControllerSessionId ?? ""))
             && Identifier((attempt.ActionId ?? "")) && attempt.AttemptId.GetValueOrDefault() > 0;

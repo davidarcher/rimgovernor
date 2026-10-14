@@ -48,7 +48,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("stepLance: emergency context", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < reviewTick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < reviewTick.Value)
         {
             throw new ControlException("stepLance: emergency context");
         }

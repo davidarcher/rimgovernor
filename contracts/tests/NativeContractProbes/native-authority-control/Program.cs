@@ -100,7 +100,7 @@ internal static class NativeAuthorityControlProbe
         foreach (Func<Wire.SetMode, Wire.SetMode> mutate in new Func<Wire.SetMode, Wire.SetMode>[] {
             s => s with { ExpectedGeneration = null }, s => s with { ExpectedGeneration = 0 },
             s => s with { Mode = null }, s => s with { Mode = Wire.Mode.Unspecified },
-            s => s with { Identity = null }, s => s with { Identity = s.Identity with { MapId = null } } })
+            s => s with { Identity = null } })
         {
             var request = WithSetMode(SetMode(Wire.Mode.Auto), mutate); Failure(Call(request), Common.FailureCode.InvalidRequest);
             Check(state.Status().Generation == generation && !state.Status().Active, "invalid set_mode mutated state");

@@ -153,7 +153,7 @@ internal sealed partial class FacadeNativeClient
                 cell = new Domain.Cell(position.X.Value, position.Z.Value);
                 token = snapshotToken;
                 if (row.Taken is null || row.Designated != (row.DesignatedTick is not null)
-                    || (row.DesignatedTick is { } designatedTick && (designatedTick < 0 || designatedTick > (snapshot.Context.Tick ?? 0))))
+                    || (row.DesignatedTick is { } designatedTick && (designatedTick < 0 || designatedTick > snapshot.Context.Tick)))
                 {
                     throw Contract("invalid mine source designation age or taken");
                 }

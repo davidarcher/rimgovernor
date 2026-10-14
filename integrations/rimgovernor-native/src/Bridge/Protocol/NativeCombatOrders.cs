@@ -74,7 +74,7 @@ namespace HomeBridge.BridgeTools
         {
             if (command == null) throw new InvalidOperationException("Combat orders are missing");
             var map = ProtoBoundary.LoadedMap(context);
-            var colony = context.Identity ?? new Common.Identity();
+            var colony = context.Identity;
             var identity = new NativeControlIdentity(Current.Game, map, (colony.ColonyId ?? ""), (colony.LoadToken ?? ""));
             var effect = new Receipts.CombatOrdersEffect();
             // Each pawn's token is checked once, before any order runs:

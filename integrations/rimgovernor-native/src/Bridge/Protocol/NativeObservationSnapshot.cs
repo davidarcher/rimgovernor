@@ -14,14 +14,13 @@ namespace HomeBridge.BridgeTools
     // its own. See contracts/native-state-ownership.md and native-static-state.md.
     internal static class NativeObservationSnapshot
     {
-        internal static string Hash(string prefix, Common.Identity? identity, Action<BinaryWriter> write)
+        internal static string Hash(string prefix, Common.Identity identity, Action<BinaryWriter> write)
         {
-            identity ??= new Common.Identity();
             using (var stream = new MemoryStream())
             {
                 using (var writer = new BinaryWriter(stream, Encoding.UTF8, true))
                 {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
                     write(writer);
                 }
                 using (var hash = SHA256.Create())

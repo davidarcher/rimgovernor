@@ -18,7 +18,7 @@ public static partial class ObservationPackage
             Colony = new ColonyId(context!.Identity?.ColonyId ?? ""),
             Map = new MapId(context.Identity?.MapId ?? 0),
             Load = new LoadId(context.Identity?.LoadToken ?? ""),
-            Tick = new Tick((long)context.Tick.GetValueOrDefault()),
+            Tick = new Tick((long)context.Tick),
             NativeGeneration = context.NativeGeneration is not null ? Known(new NativeGeneration(context.NativeGeneration.GetValueOrDefault())) : default,
         };
         result.Validate();

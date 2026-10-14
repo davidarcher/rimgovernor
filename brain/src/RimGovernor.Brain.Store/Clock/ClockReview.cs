@@ -96,7 +96,7 @@ public static partial class ClockJournal
         {
             return false;
         }
-        return !string.Equals(a.ColonyId, (b.ColonyId ?? ""), StringComparison.Ordinal) || !string.Equals(a.LoadToken, (b.LoadToken ?? ""), StringComparison.Ordinal) || a.MapId != b.MapId.GetValueOrDefault();
+        return !string.Equals(a.ColonyId, (b.ColonyId ?? ""), StringComparison.Ordinal) || !string.Equals(a.LoadToken, (b.LoadToken ?? ""), StringComparison.Ordinal) || a.MapId != b.MapId;
     }
 
     /// <summary>Go <c>clockReviewState</c>.</summary>

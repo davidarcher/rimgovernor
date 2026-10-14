@@ -39,7 +39,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             throw new ControlException("admitRefugeeTend: emergency context", e);
         }
 
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick.GetValueOrDefault() < review.Tick.Value)
+        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
         {
             throw new ControlException("admitRefugeeTend: emergency read older than the review");
         }

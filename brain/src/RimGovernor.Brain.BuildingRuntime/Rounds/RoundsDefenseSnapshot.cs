@@ -73,7 +73,7 @@ public sealed partial class RoundsDefensePlanner
     {
         var p = _reviewer.Player;
         var current = p.Session.State().Snapshot;
-        var tick = new Tick(rec.Emergency!.Context!.Tick.GetValueOrDefault());
+        var tick = new Tick(rec.Emergency!.Context!.Tick);
         var d = new SnapshotDefense
         {
             Recorded = string.Create(CultureInfo.InvariantCulture, $"colony {current.Colony} load {current.Load} map {current.Map} tick {tick.Value}"),

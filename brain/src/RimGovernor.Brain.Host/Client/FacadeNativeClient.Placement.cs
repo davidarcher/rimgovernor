@@ -80,7 +80,7 @@ internal sealed partial class FacadeNativeClient
                 {
                     throw Failure(rowFailure);
                 }
-                output.Add(PlacementReads.BuildingPreviewRow(actions[start + index], snapshot, new Tick(batch.Context.Tick.GetValueOrDefault()), row.Outcome?.Evaluated!));
+                output.Add(PlacementReads.BuildingPreviewRow(actions[start + index], snapshot, new Tick(batch.Context.Tick), row.Outcome?.Evaluated!));
             }
         }
         return (output, NoReceipt);

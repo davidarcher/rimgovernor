@@ -196,13 +196,14 @@ public sealed class WireCodecTests
 
         var info = WireJsonContext.Default.GetTypeInfo(type) ?? throw new InvalidOperationException($"{type} is not registered");
         var obj = new JsonObject();
-        if (depth > 6)
-        {
-            return obj;
-        }
-
         foreach (var property in info.Properties)
         {
+            if (depth > 6 && !property.IsRequired)
+            {
+                continue;
+            }
+
+
             if (WireJsonContext.Default.GetTypeInfo(property.PropertyType)?.PolymorphismOptions is { } options)
             {
                 var derived = options.DerivedTypes[variant % options.DerivedTypes.Count];

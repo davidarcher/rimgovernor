@@ -74,7 +74,7 @@ internal sealed class FacadeWorldSource(INativeFacade facade) : IWorldSource
     {
         var context = await ReadContextAsync(ct).ConfigureAwait(false);
         var id = context.Identity!;
-        var world = new World(new ColonyId((id.ColonyId ?? "")), new LoadId((id.LoadToken ?? "")), new MapId(id.MapId.GetValueOrDefault()));
+        var world = new World(new ColonyId((id.ColonyId ?? "")), new LoadId((id.LoadToken ?? "")), new MapId(id.MapId));
         world.Validate();
         ct.ThrowIfCancellationRequested();
         return world;

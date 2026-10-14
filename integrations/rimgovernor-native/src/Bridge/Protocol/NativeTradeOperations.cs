@@ -190,7 +190,7 @@ namespace HomeBridge.BridgeTools
         private static bool RequireSession(Common.Identity identity, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No native trade session is open for this identity.");
-            if (_sessionId == null || _sessionColonyId != (identity.ColonyId ?? "") || _sessionLoadToken != (identity.LoadToken ?? "") || _sessionMap?.uniqueID != identity.MapId.GetValueOrDefault()) return false;
+            if (_sessionId == null || _sessionColonyId != (identity.ColonyId ?? "") || _sessionLoadToken != (identity.LoadToken ?? "") || _sessionMap?.uniqueID != identity.MapId) return false;
             if (!TradeSession.Active || TradeSession.deal == null || !ReferenceEquals(TradeSession.deal, _sessionDeal)
                 || !ReferenceEquals(TradeSession.trader, _sessionTrader) || !ReferenceEquals(TradeSession.playerNegotiator, _sessionNegotiator)
                 || !ProtoBoundary.IsLoaded(_sessionMap))
@@ -223,7 +223,7 @@ namespace HomeBridge.BridgeTools
         private static void DropForeignSession(Common.Identity identity)
         {
             if (_sessionId == null) return;
-            var sameIdentity = _sessionColonyId == (identity.ColonyId ?? "") && _sessionLoadToken == (identity.LoadToken ?? "") && _sessionMap?.uniqueID == identity.MapId.GetValueOrDefault();
+            var sameIdentity = _sessionColonyId == (identity.ColonyId ?? "") && _sessionLoadToken == (identity.LoadToken ?? "") && _sessionMap?.uniqueID == identity.MapId;
             var ours = TradeSession.Active && ReferenceEquals(TradeSession.deal, _sessionDeal);
             if (sameIdentity && ours && ProtoBoundary.IsLoaded(_sessionMap) && SessionParticipantsLive()) return;
             if (ours) { CloseSession(false); return; }
@@ -561,9 +561,9 @@ namespace HomeBridge.BridgeTools
             switch (intent.Step)
             {
                 case Operations.TradeIntentStep.OpenCase open: return WithTarget(ApplyOpen(open.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context), intent.Target);
-                case Operations.TradeIntentStep.SetLinesCase setLines: return WithTarget(ApplyLines(setLines.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity ?? new Common.Identity()), intent.Target);
-                case Operations.TradeIntentStep.AcceptCase accept: return WithTarget(ApplyAccept(accept.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity ?? new Common.Identity()), intent.Target);
-                case Operations.TradeIntentStep.EndCase end: return WithTarget(ApplyEnd(end.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity ?? new Common.Identity()), intent.Target);
+                case Operations.TradeIntentStep.SetLinesCase setLines: return WithTarget(ApplyLines(setLines.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity), intent.Target);
+                case Operations.TradeIntentStep.AcceptCase accept: return WithTarget(ApplyAccept(accept.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity), intent.Target);
+                case Operations.TradeIntentStep.EndCase end: return WithTarget(ApplyEnd(end.Value, TargetKey(intent.Target), (intent.NegotiatorId ?? ""), context.Identity), intent.Target);
                 default: throw new InvalidOperationException("A trade intent names exactly one step.");
             }
         }
@@ -572,7 +572,7 @@ namespace HomeBridge.BridgeTools
         => evidence.Effect?.Trade is { } trade ? new Receipts.EffectEvidence { Effect = trade with { Target = target } } : evidence;
         private static Receipts.EffectEvidence ApplyOpen(Operations.OpenTrade command, string traderId, string negotiatorId, Common.ObservationContext context)
         {
-            var identity = context.Identity ?? new Common.Identity();
+            var identity = context.Identity;
             if (!PrepareOpen(command, traderId, negotiatorId, identity, out var trader, out var negotiator, out var reuse, out _) || trader == null || negotiator == null)
                 throw new InvalidOperationException("Open prerequisites changed after validation.");
             var giftMode = command.GiftMode is not null && command.GiftMode.GetValueOrDefault();

@@ -387,7 +387,7 @@ internal sealed partial class FacadeNativeClient
                 rows.Add(row);
             }
             rows.Sort((a, b) => string.CompareOrdinal(a.Id ?? "", b.Id ?? ""));
-            return new ZonesRead(value.Context, rows, value.Context!.Tick.GetValueOrDefault());
+            return new ZonesRead(value.Context, rows, value.Context!.Tick);
         }
 
         /// <summary>

@@ -167,7 +167,7 @@ namespace HomeBridge.BridgeTools
     internal sealed class TradeActionHandler : IActionHandler
     {
         public Common.Failure? Validate(Operations.Action action, Common.ObservationContext context) =>
-            NativeTradeOperations.Validate(action.Intent?.Trade ?? new Operations.TradeIntent(), context.Identity ?? new Common.Identity());
+            NativeTradeOperations.Validate(action.Intent?.Trade ?? new Operations.TradeIntent(), context.Identity);
         public Receipts.EffectEvidence Apply(Operations.Action action, Common.ObservationContext context) =>
             NativeTradeOperations.Apply(action.Intent?.Trade ?? new Operations.TradeIntent(), context);
     }

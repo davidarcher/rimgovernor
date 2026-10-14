@@ -86,7 +86,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         output = output with
         {
             Snapshot = Boundary.Context(facts.Context, target.Snapshot),
-            Tick = new Tick(facts.Context.Tick.GetValueOrDefault()),
+            Tick = new Tick(facts.Context.Tick),
         };
         var kind = request.Kind == TradeRequestKind.Orbital ? CommonPb.TradeRequestKind.Orbital : CommonPb.TradeRequestKind.Caravan;
         foreach (var row in facts.Requests)
@@ -129,7 +129,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         {
             throw new EvidenceException();
         }
-        output = output with { Tick = new Tick(sellers.Context!.Tick.GetValueOrDefault()) };
+        output = output with { Tick = new Tick(sellers.Context!.Tick) };
         foreach (var seller in sellers.Traders)
         {
             if (seller.Faction == request.Faction && seller.Kind == request.TraderKind)

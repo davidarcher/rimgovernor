@@ -283,7 +283,7 @@ public static partial class ClockJournal
         BridgeFunctions.ValidateContext(observed);
         var original = attempt.Intent.Snapshot;
         var actual = observed.Identity ?? throw new ConflictException();
-        if (string.Equals(actual.ColonyId, original.Colony.Value, StringComparison.Ordinal) && actual.MapId.GetValueOrDefault() == original.Map.Value && string.Equals(actual.LoadToken, original.Load.Value, StringComparison.Ordinal))
+        if (string.Equals(actual.ColonyId, original.Colony.Value, StringComparison.Ordinal) && actual.MapId == original.Map.Value && string.Equals(actual.LoadToken, original.Load.Value, StringComparison.Ordinal))
         {
             throw new ConflictException();
         }

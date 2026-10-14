@@ -20,7 +20,7 @@ public sealed partial class RoundsArmoryPlanner
         {
             throw new ControlException("weaponDemand: observed == nil");
         }
-        if (!ContextMatches(observed.Context, snapshot) || observed.Context.Tick.GetValueOrDefault() < minTick)
+        if (!ContextMatches(observed.Context, snapshot) || observed.Context.Tick < minTick)
         {
             throw new ControlException("weaponDemand: err != nil || observed.Context.GetTick() < minTick");
         }

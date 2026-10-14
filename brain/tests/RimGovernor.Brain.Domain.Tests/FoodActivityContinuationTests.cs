@@ -17,7 +17,7 @@ public sealed class FoodActivityContinuationTests
     private static FoodActivityOption Option(string target = "crop", int count = 8, double travel = 20) =>
         new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, travel, 30) { NutritionPerUnit = Known(1.0) };
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new()
-    { Known = true, Context = new() { Tick = 110 }, Options = EquatableArray.From(options) };
+    { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 }, Options = EquatableArray.From(options) };
     private static PawnActivities Harvest() => StartFoodActivity(Read(Option()), 1, "method", 500, out _)!;
     private static FoodActivityRead Terminal(PawnActivities batch, string state, params FoodActivityOption[] options) => Read(options) with
     { Execution = new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 110) };
@@ -64,7 +64,7 @@ public sealed class FoodActivityContinuationTests
         Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { State = "running" } }, out _));
         Assert.True(ContinueFoodActivity(batch, Known(false), read, out _)!.Orders[0].Release);
         Assert.True(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { State = "failed" } }, out _)!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(batch, Known(true), read with { Context = new() { Tick = 500 } }, out _)!.Orders[0].Release);
+        Assert.True(ContinueFoodActivity(batch, Known(true), read with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 500 } }, out _)!.Orders[0].Release);
     }
 
     [Fact]

@@ -325,16 +325,15 @@ namespace HomeBridge.BridgeTools
         }
         // Self-computed, self-checked CAS token for one thing; the hash input
         // is a wire contract (observation rows and combat orders compare it).
-        internal static string Token(Common.Identity? identity, Thing thing)
+        internal static string Token(Common.Identity identity, Thing thing)
         {
-            identity ??= new Common.Identity();
             var rot = thing.TryGetComp<CompRottable>();
             var corpse = thing as Corpse;
             using (var bytes = new System.IO.MemoryStream())
             {
                 using (var writer = new System.IO.BinaryWriter(bytes, Encoding.UTF8, true))
                 {
-                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId.GetValueOrDefault());
+                    writer.Write((identity.ColonyId ?? "")); writer.Write((identity.LoadToken ?? "")); writer.Write(identity.MapId);
                     writer.Write(thing.GetUniqueLoadID()); writer.Write(thing.def.defName);
                     writer.Write(thing.Position.x); writer.Write(thing.Position.z); writer.Write(thing.stackCount);
                     writer.Write(thing.IsForbidden(Faction.OfPlayer)); writer.Write(rot?.Stage.ToString() ?? "");

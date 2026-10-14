@@ -244,9 +244,9 @@ public static partial class ObservationPackage
         {
             p = p with { Facts = p.Facts with { QuestDeparturePawns = ProjectDepartureStrength(p.Facts.QuestDeparturePawns, RoundsDefenders(colony, emergency, pawns)) } };
         }
-        if (frame.Quests?.Context is { Tick: not null } questContext)
+        if (frame.Quests?.Context is { } questContext)
         {
-            p = p with { Facts = p.Facts with { QuestObservedTick = Known(new Tick(questContext.Tick.GetValueOrDefault())) } };
+            p = p with { Facts = p.Facts with { QuestObservedTick = Known(new Tick(questContext.Tick)) } };
         }
         p = p with
         {

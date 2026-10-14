@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ValidAttempt(parsed.Attempt)) return new Clock.AttemptReply { Outcome = Invalid("A complete positive attempt key is required.") };
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var failure)) return new Clock.AttemptReply { Outcome = failure };
-            return NativeOperationState.TryGet(context.Identity ?? new Common.Identity(), out var state) ? state.Ledger.LookupClock(parsed.Attempt, context)
+            return NativeOperationState.TryGet(context.Identity, out var state) ? state.Ledger.LookupClock(parsed.Attempt, context)
                 : new Clock.AttemptReply { Outcome = new Clock.AttemptUnknown() };
         }
 
@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools
             if (pre == null || pre.ExpectedGeneration is null || pre.ExpectedGeneration.GetValueOrDefault() == 0
                 || !ValidAttempt(pre.Attempt)) return Refused(Invalid("A complete current authority and attempt precondition is required."));
             if (!ProtoBoundary.ValidateIdentity(pre.Identity, out var context, out var failure)) return Refused(failure);
-            var state = NativeOperationState.ForAdmission(context.Identity ?? new Common.Identity());
+            var state = NativeOperationState.ForAdmission(context.Identity);
             var fullMethod = "rimgovernor.clock.v1.Clock/" + method;
             var prior = state.Ledger.InspectClock(fullMethod, request);
             if (prior.Kind != NativeAttemptLedger.DecisionKind.New) return prior.DecidedReply;
