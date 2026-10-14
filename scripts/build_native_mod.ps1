@@ -44,7 +44,8 @@ if ([version]$taskSdkVersion.Split('-')[0] -lt [version]'10.0') { throw "The nat
 # Copies a directory tree with robocopy (many small files: Copy-Item per file is several times slower), keeping
 # timestamps, skipping build output directories and, when given, copying only the matching file patterns.
 function Copy-TaskTree([string]$From, [string]$To, [string[]]$Patterns = @(), [string[]]$ExcludeDirs = @('obj', 'bin'), [string[]]$ExcludeFiles = @()) {
-    $taskCopyArgs = @($From, $To) + $Patterns + @('/S', '/NFL', '/NDL', '/NJH', '/NJS', '/NP', '/MT:16', '/XD') + $ExcludeDirs
+    $taskCopyArgs = @($From, $To) + $Patterns + @('/S', '/NFL', '/NDL', '/NJH', '/NJS', '/NP', '/MT:16')
+    if ($ExcludeDirs.Count) { $taskCopyArgs += '/XD'; $taskCopyArgs += $ExcludeDirs }
     if ($ExcludeFiles.Count) { $taskCopyArgs += '/XF'; $taskCopyArgs += $ExcludeFiles }
     & robocopy @taskCopyArgs | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE): $From" }
@@ -117,16 +118,23 @@ $taskSourceHasher = [System.Security.Cryptography.SHA256]::Create()
 $taskSourceTree = [BitConverter]::ToString($taskSourceHasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes(-join $taskSourceLines))).Replace('-', '').ToLowerInvariant()
 $taskSourceHasher.Dispose()
 # Compile in a work directory that persists between builds, so a rebuild recompiles only what changed (a fresh copy
-# every time made every build a cold compile of the whole brain). One work directory per fixture set: the fixture
-# flags are compile-time properties that MSBuild's up-to-date check does not see. The copy above stays pristine, so
-# the sourceTree hash and the source snapshot never see build output; the work copy is synced from it, and a file
-# the sync rewrote is touched so its timestamp is newer than the outputs built from the previous one.
+# every time made every build a cold compile of the whole brain). It is shared by every worktree of this repository
+# (under the main checkout's .rimgovernor): MSBuild's incremental state holds absolute paths, so only the same
+# directory lets a new worktree start from the cache an earlier build left, and recompile just what differs. One work
+# directory per fixture set: the fixture flags are compile-time properties that MSBuild's up-to-date check does not
+# see. The copy above stays pristine, so the sourceTree hash and the source snapshot never see build output; the work
+# copy is synced from it, and a file the sync rewrote is touched so its timestamp is newer than the outputs built
+# from the previous one.
+$taskCommonGit = (& git -C $taskRepo rev-parse --path-format=absolute --git-common-dir | Out-String).Trim()
+$taskMainRepo = if ($LASTEXITCODE -eq 0 -and $taskCommonGit) { Split-Path ([IO.Path]::GetFullPath($taskCommonGit)) -Parent } else { $taskRepo }
+$global:LASTEXITCODE = 0
 $taskFixtureKey = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes(($taskFixtures -join ',')))).Substring(0, 8).ToLowerInvariant()
-$taskWork = Join-Path $taskRepo (".rimgovernor/native-builds/_work/$taskRole-$taskFixtureKey")
+$taskWork = Join-Path $taskMainRepo (".rimgovernor/native-builds/_work/$taskRole-$taskFixtureKey")
 # The compiled output goes to a stable path in the work directory too: OutputPath feeds the compiler's up-to-date
 # inputs, so a per-build path would recompile every project each time.
-$taskCompiled = Join-Path $taskWork '_out/compiled'
-$taskHostCompiled = Join-Path $taskWork '_out/host-compiled'
+$taskWorkCompiled = Join-Path $taskWork '_out/compiled'
+$taskWorkHostCompiled = Join-Path $taskWork '_out/host-compiled'
+$taskHostCompiled = Join-Path $taskBuild 'host-compiled'
 $taskLockName = 'Global\rimgovernor-native-build-' + [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($taskWork.ToLowerInvariant()))).Substring(0, 24)
 $taskLock = [System.Threading.Mutex]::new($false, $taskLockName)
 try {
@@ -147,16 +155,19 @@ try {
         }
     }
     $taskHostArgs = @('build', (Join-Path $taskWork 'integrations/rimgovernor-host/src/Host/RimGovernor.Host.csproj'),
-        '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskHostCompiled/",
+        '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskWorkHostCompiled/",
         "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
     & $taskCompiler @taskHostArgs *> (Join-Path $taskBuild 'host-build.log')
     if ($LASTEXITCODE) { throw "Host build failed; inspect $taskBuild/host-build.log" }
     $taskArgs = @('build', (Join-Path $taskWork 'integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj'),
-        '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskCompiled/",
+        '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskWorkCompiled/",
         "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
     foreach ($taskFlag in $taskFixtures) { $taskArgs += "-p:${taskFlag}=true" }
     & $taskCompiler @taskArgs *> (Join-Path $taskBuild 'build.log')
     if ($LASTEXITCODE) { throw "Native build failed; inspect $taskBuild/build.log" }
+    # Another worktree's build may reuse this directory the moment the lock is released: take this build's output first.
+    Copy-TaskTree $taskWorkCompiled $taskCompiled -ExcludeDirs @()
+    Copy-TaskTree $taskWorkHostCompiled $taskHostCompiled -ExcludeDirs @()
     # Work directories of fixture sets nobody has built for a while would otherwise pile up.
     foreach ($taskStale in Get-ChildItem -LiteralPath (Split-Path $taskWork -Parent) -Directory | Where-Object { $_.FullName -ne $taskWork -and $_.LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-7) }) {
         Remove-Item -LiteralPath $taskStale.FullName -Recurse -Force -ErrorAction Continue
