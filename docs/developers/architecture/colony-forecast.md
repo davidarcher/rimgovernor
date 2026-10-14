@@ -986,8 +986,8 @@ rooms gain an activity graph and a need, the alternatives are generated in the M
 family never runs its own winner loop. Nothing in Rounds builds them yet.
 
 Limits: a shared wall is attributed to the lowest room id under every alternative; the vent def is priced by the
-same stuff and goes unpriced where it cannot be made from it. Barns, pens and yards are rooms of the plan with
-ids (`PlanHerdSites`, `PlanPenSites` and `PlanYardSites` place them), so the baseline and these alternatives
+same stuff and goes unpriced where it cannot be made from it. Pens and yards are rooms of the plan with
+ids (the tiler places both as room nodes), so the baseline and these alternatives
 cover them like any other room; their furniture is not in the plan's stored pieces, so only the ring, doors and
 floors are priced.
 

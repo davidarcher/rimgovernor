@@ -1,59 +1,12 @@
 namespace RimGovernor.Brain.Policy;
 
-// Herd sites. The barn is a room sized by the herd plan, grouped in units: the misc unit holds every
-// animal that is no herd's, and each herd (HerdPlan.Herds) gets a unit of its own, sized from its policy
-// ceiling. A unit is a barn (roofed, an animal sleeping spot per animal, the bedroom of every animal of the
-// unit, bonded ones included). The hospital, not a room of the herd's, treats a sick animal (herd_ward). A
-// placed barn never changes or moves: a herd its unit cannot hold gets another barn beside the same unit.
-//
-// A unit is matched to its herd by key: every room of a herd's unit, a top-up included, carries
-// PlannedRoom.Herd, the herd's race; the misc unit's carry none. A plan without keys is not matched: its
-// units all join the misc unit.
-
-/// <summary>One herd's unit size: the race (the key its rooms carry, PlannedRoom.Herd) and its policy ceiling.</summary>
-public sealed record HerdCeiling(string Race, int Animals);
-
-/// <summary>One unit's barns, in plan order.</summary>
-internal sealed class HerdUnit
-{
-    public List<PlannedRoom> Barns { get; } = [];
-
-    /// <summary>The race the unit's rooms are keyed to; empty for the misc unit and for a plan saved before keys.</summary>
-    public string Herd { get; init; } = string.Empty;
-
-    /// <summary>The middle of the unit's first barn, the core when it has none.</summary>
-    public (int X, int Z) Centre(UtilityGrid u) =>
-        Barns.Count > 0 ? Middle(Barns[0].Outline()) : (u.Cx, u.Cz);
-
-    internal static (int X, int Z) Middle(Rectangle r) => (r.X + (r.Width / 2), r.Z + (r.Height / 2));
-}
-
-public static partial class PolicyConstants
-{
-    /// <summary>The smallest herd the misc unit is sized for, before the plan has a target.</summary>
-    internal const int PenAnimalsFloor = (int)HerdPairSize;
-}
+// Herd rooms. The pen is the herd's one room: a room node of the station graph (HerdRoomNodes) the tiler sites with the
+// others, an outdoor ring of fence and gate round grazing ground with one PenMarker inside. The herds sleep in it, on
+// the open ground: no animal asks for a roof, so there is no barn. A pen is matched to its herd by key: every pen of a
+// herd, a top-up included, carries PlannedRoom.Herd, the herd's race; the misc unit's carry none.
 
 public static partial class PolicyFunctions
 {
-    /// <summary>The misc unit's herd: the plan's ceiling summed over the races that are no herd of their own, at least PenAnimalsFloor.</summary>
-    public static int PenAnimals(this HerdPlan p)
-    {
-        long n = 0;
-        foreach (var (race, ceiling) in p.Policy.PopulationMax)
-        {
-            if (!p.Herds.Contains(race))
-            {
-                n += ceiling;
-            }
-        }
-        return Math.Max((int)n, PenAnimalsFloor);
-    }
-
-    /// <summary>The herds' units, one per herd race in name order: each gets a barn of its own, sized from its ceiling.</summary>
-    public static IReadOnlyList<HerdCeiling> HerdUnits(this HerdPlan p) =>
-        p.Herds.OrderBy(r => r.Value, StringComparer.Ordinal).Select(race => new HerdCeiling(race.Value, (int)p.Policy.PopulationMax.GetValueOrDefault(race))).ToList();
-
     /// <summary>The plan's races with a ceiling above zero, in name order: the herd by race the station graph's pen nodes are sized from (#2996).</summary>
     public static IReadOnlyList<StationHerd> StationHerds(this HerdPlan p)
     {
@@ -69,56 +22,23 @@ public static partial class PolicyFunctions
         return output;
     }
 
-    /// <summary>The outline of a room whose interior is w by h.</summary>
-    internal static (int W, int H) WalledSide(int w, int h) => (w + 2, h + 2);
-
     /// <summary>
-    /// Tops plan up with the herd units: the misc unit for animals animals and one unit per herds ceiling, each
-    /// with the barn beds the unit's existing rooms cannot hold. Nothing placed moves; sites that do not fit are
-    /// left out. Zero animals plans no misc unit. plan holds its core zones.
-    /// </summary>
-    public static LayoutPlan PlanHerdSites(LayoutPlan plan, int animals, params IReadOnlyList<HerdCeiling> herds)
-    {
-        if ((animals <= 0 && herds.Count == 0) || plan.Rooms.Count == 0)
-        {
-            return plan;
-        }
-        PlanHerdSitesIn(new UtilityGrid(plan), ref plan, animals, herds);
-        return plan;
-    }
-
-    /// <summary>The plan's barns grouped into units by their herd key, in order of first appearance.</summary>
-    internal static List<HerdUnit> HerdUnitsOf(this LayoutPlan p)
-    {
-        var units = new List<HerdUnit>();
-        var at = new Dictionary<string, int>();
-        foreach (var r in p.RoomsOf(PlannedBarn))
-        {
-            if (!at.TryGetValue(r.Herd, out var k))
-            {
-                k = units.Count;
-                at[r.Herd] = k;
-                units.Add(new HerdUnit { Herd = r.Herd });
-            }
-            units[k].Barns.Add(r);
-        }
-        return units;
-    }
-
-    /// <summary>
-    /// A plan saved with its barns, pens and yards as reservations: each outline becomes the room it was derived
-    /// as, in plan order, under the next ids. kind is the reservation's wire name ("barn", "pen" or "yard"), herd
-    /// its unit key.
+    /// A plan saved with its pens and yards as reservations: each outline becomes the room it was derived
+    /// as, in plan order, under the next ids. kind is the reservation's wire name ("pen" or "yard"; a saved "barn" is
+    /// dropped, for animals sleep in their pen), herd its unit key.
     /// </summary>
     public static LayoutPlan WithLegacySites(this LayoutPlan plan, IEnumerable<(string Kind, Region Area, string Herd)> legacy)
     {
         foreach (var (kind, area, herd) in legacy)
         {
+            if (kind == "barn")
+            {
+                continue;
+            }
             var outline = area.Bounds();
             var room = kind switch
             {
-                "barn" => plan.HerdRoom(outline, PlannedBarn, herd),
-                "pen" => plan.HerdRoom(outline, PlannedPen, herd),
+                "pen" => LayoutPlan.HerdRoom(outline, PlannedPen, herd),
                 _ => LayoutPlan.YardRoom(outline),
             };
             var id = Math.Max(Math.Max(plan.NextRoomId, 1), plan.Rooms.Select(r => r.Id + 1).DefaultIfEmpty(1).Max());
@@ -127,107 +47,38 @@ public static partial class PolicyFunctions
         return plan;
     }
 
-    /// <summary>
-    /// The plan's herd units matched to the primary units (the misc unit, then one per herd): a unit goes to the
-    /// herd its reservations are keyed to, so an unkeyed one, or one of a herd no longer planned, joins the misc
-    /// unit.
-    /// </summary>
-    internal static List<HerdUnit> HousedUnits(this LayoutPlan p, IReadOnlyList<HerdCeiling> herds)
-    {
-        var output = new List<HerdUnit> { new() };
-        foreach (var h in herds)
-        {
-            output.Add(new HerdUnit { Herd = h.Race });
-        }
-        foreach (var g in p.HerdUnitsOf())
-        {
-            var k = herds.ToList().FindIndex(h => h.Race == g.Herd);
-            if (g.Herd == string.Empty)
-            {
-                k = -1;
-            }
-            output[k + 1].Barns.AddRange(g.Barns); // -1, misc or a gone herd's unit
-        }
-        return output;
-    }
-
-    private static void PlanHerdSitesIn(UtilityGrid u, ref LayoutPlan plan, int misc, IReadOnlyList<HerdCeiling> herds)
-    {
-        var units = plan.HousedUnits(herds);
-        for (var i = 0; i < units.Count; i++)
-        {
-            var (race, animals) = (string.Empty, misc);
-            if (i > 0)
-            {
-                (race, animals) = (herds[i - 1].Race, herds[i - 1].Animals);
-            }
-            if (animals <= 0)
-            {
-                continue;
-            }
-            // A herd's unit prefers a site near the misc unit's.
-            var (cx, cz) = (u.Cx, u.Cz);
-            if (i > 0)
-            {
-                (cx, cz) = units[0].Centre(u);
-            }
-            PlanUnit(u, ref plan, units[i], race, animals, cx, cz, i == 0);
-        }
-    }
+    /// <summary>Why the graph holds a pen: the herd's grazing outgrows its pens, or the plan already holds the pen.</summary>
+    public const string ReasonHerdRoom = "herd_room_owed";
 
     /// <summary>
-    /// Tops one unit up for animals: a barn holding a sleeping spot per animal. A herd the unit's barns outgrow
-    /// gets another barn beside the unit, else on free ground near it; none moves. Only a unit with nothing
-    /// placed yet takes a site near cx, cz. Every room it adds carries herd, the key of the unit's race
-    /// (empty for misc). The shortfall is then met, so a repeat top-up is a no-op.
+    /// The pens the plan holds and the herds still lack, as graph nodes. A standing pen is a node of the floor it has,
+    /// keyed to its herd (RoomNode.Herd), so the tiler pins it; a herd short of the cells its pen wants (pens) gets one
+    /// more pen node holding the shortfall. The ground it stands on is not constrained: a pen may stand on rock, at the
+    /// price of the hay its herd is then hauled (PenNode.HandFed), a choice the forecast is to make among placements,
+    /// not the embedder's.
     /// </summary>
-    private static void PlanUnit(UtilityGrid u, ref LayoutPlan plan, HerdUnit unit, string herd, int animals, int cx, int cz, bool misc)
+    public static IReadOnlyList<RoomNode> HerdRoomNodes(LayoutPlan plan, IReadOnlyList<PenWant> pens)
     {
-        if (unit.Barns.Count > 0)
+        var nodes = new List<RoomNode>();
+        var herds = plan.RoomsOf(PlannedPen).Select(r => r.Herd).Concat(pens.Select(p => p.Race)).Distinct().Order(StringComparer.Ordinal);
+        foreach (var herd in herds)
         {
-            (cx, cz) = HerdUnit.Middle(unit.Barns[0].Outline());
-        }
-        var shortfall = animals - LayoutPlan.Capacity(unit.Barns);
-        if (shortfall <= 0)
-        {
-            return;
-        }
-        var beds = shortfall;
-        if (misc && unit.Barns.Count == 0)
-        {
-            beds = Math.Max(beds, HerdBarnMinBeds);
-        }
-        var (hw, hh) = HerdSide(beds);
-        var (w, h) = WalledSide(hw, hh);
-        var site = default(Rectangle);
-        var ok = false;
-        foreach (var anchor in unit.Barns)
-        {
-            (site, ok) = u.BesideRoom(plan, anchor.Outline(), PlannedBarn, herd, w, h, null);
-            if (ok)
+            var n = 0;
+            string Id() => $"{Wire.Name(PlannedPen)}/{herd}/{++n}";
+            foreach (var pen in plan.HerdRooms(PlannedPen, herd))
             {
-                break;
+                var b = pen.Region.Bounds();
+                nodes.Add(new RoomNode { Id = Id(), Role = PlannedPen, Herd = herd, Area = b.Width * b.Height, Reason = ReasonHerdRoom });
+            }
+            var want = pens.FirstOrDefault(p => p.Race == herd);
+            var owed = want is null ? 0 : want.Cells - plan.PenCells(herd);
+            if (owed > 0)
+            {
+                var (w, h) = PenSide(owed);
+                nodes.Add(new RoomNode { Id = Id(), Role = PlannedPen, Herd = herd, Area = w * h, Reason = ReasonHerdRoom });
             }
         }
-        if (!ok)
-        {
-            (site, ok) = u.Site(w, h, cx, cz) is { } found ? (found, true) : (default, false);
-        }
-        if (ok)
-        {
-            plan = u.Place(plan, plan.HerdRoom(site, PlannedBarn, herd), site);
-        }
-    }
-
-    /// <summary>The cell of the wall two reservations' outlines share where a door joins them: the middle of the run between the corners both walls stand on. False unless the outlines overlap in exactly one wall line.</summary>
-    internal static (Cell Cell, bool Ok) SharedWallLink(Rectangle a, Rectangle b)
-    {
-        var run = SharedWallRun(a, b);
-        if (run.Count == 0)
-        {
-            return (default, false);
-        }
-        return (run[(run.Count - 1) / 2], true);
+        return nodes;
     }
 
     /// <summary>The cells of the wall two outlines share between the corners both walls stand on, in order; empty unless they overlap in exactly one wall line.</summary>
@@ -262,119 +113,5 @@ public static partial class PolicyFunctions
             return Run(a.X, a.X + a.Width, b.X, b.X + b.Width, x => new Cell(x, z));
         }
         return [];
-    }
-
-    /// <summary>
-    /// Reports that adding the herd room at outline to the plan puts no two of the herd rooms' doors, links and
-    /// pens' animal flaps on one cell.
-    /// </summary>
-    internal static bool DoorsHold(this LayoutPlan p, Rectangle outline, PlannedRole role, string herd)
-    {
-        var id = Math.Max(p.NextRoomId, p.Rooms.Select(r => r.Id + 1).DefaultIfEmpty(1).Max());
-        var next = p with { Rooms = [.. p.Rooms, p.HerdRoom(outline, role, herd) with { Id = id }], NextRoomId = id + 1 };
-        var seen = new HashSet<Cell>();
-        foreach (var room in next.Rooms.Where(r => r.Role is PlannedRole.Barn or PlannedRole.Pen))
-        {
-            foreach (var c in next.DoorsOf(room))
-            {
-                if (!seen.Add(c))
-                {
-                    return false;
-                }
-            }
-        }
-        foreach (var c in next.Flaps())
-        {
-            if (!seen.Add(c))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-}
-
-internal sealed partial class UtilityGrid
-{
-    /// <summary>
-    /// The nearest w x h outline of a role room of herd sharing one wall with anchor (no wall material is wasted on a second
-    /// parallel wall): every other cell must be free, no room's door moves or lands on the shared link (the link
-    /// takes a door, or a pen's animal flap), and accept, when set, takes the outline.
-    /// </summary>
-    public (Rectangle Site, bool Ok) BesideRoom(LayoutPlan plan, Rectangle anchor, PlannedRole role, string herd, int w, int h, Func<Rectangle, bool>? accept)
-    {
-        int cx = anchor.X + (anchor.Width / 2), cz = anchor.Z + (anchor.Height / 2);
-        var best = default(Rectangle);
-        var bestCost = 0.0;
-        var found = false;
-        foreach (var (sdx, sdz) in new (int, int)[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
-        {
-            int x0 = anchor.X, z0 = anchor.Z;
-            if (sdx > 0)
-            {
-                x0 = anchor.X + anchor.Width - 1;
-            }
-            else if (sdx < 0)
-            {
-                x0 = anchor.X - w + 1;
-            }
-            else if (sdz > 0)
-            {
-                z0 = anchor.Z + anchor.Height - 1;
-            }
-            else
-            {
-                z0 = anchor.Z - h + 1;
-            }
-            for (var off = -h - anchor.Height; off <= h + anchor.Height + w + anchor.Width; off++)
-            {
-                var r = new Rectangle(x0, z0 + off, w, h);
-                if (sdz != 0)
-                {
-                    r = new Rectangle(x0 + off, z0, w, h);
-                }
-                double dx = r.X + (w / 2) - cx, dz = r.Z + (h / 2) - cz;
-                var cost = Math.Sqrt((dx * dx) + (dz * dz));
-                if (found && cost >= bestCost)
-                {
-                    continue;
-                }
-                if (!PolicyFunctions.SharedWallLink(r, anchor).Ok
-                    || (accept is not null && !accept(r))
-                    || !Inset(r)
-                    || !FreeBesideWall(r, anchor)
-                    || !plan.DoorsHold(r, role, herd))
-                {
-                    continue;
-                }
-                (best, bestCost, found) = (r, cost, true);
-            }
-        }
-        return (best, found);
-    }
-
-    /// <summary>Reports every cell of r free, bar the cells of anchor's own outline: the shared wall.</summary>
-    public bool FreeBesideWall(Rectangle r, Rectangle anchor)
-    {
-        for (var z = r.Z; z < r.Z + r.Height; z++)
-        {
-            for (var x = r.X; x < r.X + r.Width; x++)
-            {
-                if (x >= anchor.X && x < anchor.X + anchor.Width && z >= anchor.Z && z < anchor.Z + anchor.Height)
-                {
-                    // Only the anchor's wall may be shared, never its interior.
-                    if (x > anchor.X && x < anchor.X + anchor.Width - 1 && z > anchor.Z && z < anchor.Z + anchor.Height - 1)
-                    {
-                        return false;
-                    }
-                    continue;
-                }
-                if (!Free(new Rectangle(x, z, 1, 1), false))
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 }

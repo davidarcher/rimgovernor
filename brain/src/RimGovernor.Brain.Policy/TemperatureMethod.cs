@@ -105,7 +105,7 @@ public sealed record TemperatureCooling
     /// <summary>The colonists and slaves whose owned beds and comfortable ranges band each sleeping room.</summary>
     public IReadOnlyList<SleepingPerson> Sleepers { get; init; } = [];
 
-    /// <summary>The catalog's heater definition (RoomFurniture.Heater), the climate piece of the barn; empty when the catalog has none.</summary>
+    /// <summary>The catalog's heater definition (RoomFurniture.Heater); empty when the catalog has none.</summary>
     public string Heater { get; init; } = "";
 
     /// <summary>The Heater planning definition's availability.</summary>
@@ -125,7 +125,7 @@ public sealed record TemperatureCooling
 
     /// <summary>
     /// Whether room holds a working climate piece: a powered heater of the catalog's heater definition standing
-    /// on its floor, or a wall cooler beside it. The barn's heater is the first; a room that holds one needs no
+    /// on its floor, or a wall cooler beside it. A room that holds one needs no
     /// second.
     /// </summary>
     public bool Conditioned(Room room) => WallCoolerBeside(room) || HeaterIn(room);

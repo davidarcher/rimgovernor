@@ -338,9 +338,6 @@ public static partial class PolicyFunctions
             // A tomb is its own planned room: MaintainBurial shells it and places a sarcophagus while a dead
             // colonist has none waiting.
             new() { Role = RoomRole.Tomb, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
-            // A barn is a planned room beside the pen: the animal planner shells it and places an animal
-            // sleeping spot per kept animal.
-            new() { Role = RoomRole.Barn, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
             // A throne room is its own planned room: MaintainHousing shells it sized to the next title's area,
             // places a throne and furnishes it to the title's impressiveness; assigning the throne awaits an
             // action kind.

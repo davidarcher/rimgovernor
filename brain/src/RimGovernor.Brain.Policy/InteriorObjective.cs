@@ -243,7 +243,7 @@ public static partial class PolicyFunctions
     };
 
     internal static bool Sleeps(this StationPurpose p) =>
-        p is StationPurpose.Sleep or StationPurpose.SleepMed or StationPurpose.SleepPrison or StationPurpose.SleepBaby or StationPurpose.SleepAnimal;
+        p is StationPurpose.Sleep or StationPurpose.SleepMed or StationPurpose.SleepPrison or StationPurpose.SleepBaby;
 
     private static string Show(Cell c) => $"{{{c.X} {c.Z}}}";
 

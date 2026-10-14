@@ -31,25 +31,25 @@ public sealed class HerdRoomsArePlanRoomsTests
     }
 
     [Fact]
-    public void HerdSitesAreRoomsOfThePlanWithIdsDoorsAndTheirHerd()
+    public void APenIsANodeOfTheGraphPerHerdShortOfCells()
     {
-        var plan = PlanHerdSites(Core(Shelter(1, 38, 38)), 12, new HerdCeiling("Muffalo", 6));
-        var barns = plan.RoomsOf(PlannedRole.Barn);
-        Assert.Equal(["", "Muffalo"], barns.Select(r => r.Herd));
-        Assert.All(barns, r =>
+        var plan = Core(Shelter(1, 38, 38));
+        var nodes = HerdRoomNodes(plan, [new PenWant("Muffalo", 30), new PenWant("", 12)]);
+        Assert.Equal(["", "Muffalo"], nodes.Select(n => n.Herd));
+        Assert.All(nodes, n =>
         {
-            Assert.True(r.Id >= 2);
-            Assert.NotNull(r.DoorRot);
+            Assert.Equal(PlannedRole.Pen, n.Role);
+            Assert.True(n.Area >= 12);
         });
-        Assert.Equal(barns.Count, barns.Select(r => r.Id).Distinct().Count());
-        Assert.True(plan.NextRoomId > barns.Max(r => r.Id));
-        Assert.Empty(plan.Reservations);
-        // A repeat top-up finds nothing owed.
-        Assert.Equal(plan.Rooms.Count, PlanHerdSites(plan, 12, new HerdCeiling("Muffalo", 6)).Rooms.Count);
+        Assert.Equal(nodes.Count, nodes.Select(n => n.Id).Distinct().Count());
+        // A standing pen is a node of its own floor and keeps its herd's key; a herd it holds asks for no more.
+        var pen = new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Outdoor = true, Region = RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorRot = Rotation.South };
+        var held = HerdRoomNodes(plan with { Rooms = [.. plan.Rooms, pen] }, [new PenWant("Muffalo", 30)]);
+        Assert.Equal([("Muffalo", 30)], held.Select(n => (n.Herd, n.Area)));
     }
 
     [Fact]
-    public void APlanSavedWithReservationsLoadsTheBarnAndPenAsRooms()
+    public void APlanSavedWithReservationsLoadsThePenAsARoomAndDropsTheBarn()
     {
         var plan = Core(Shelter(1, 38, 38));
         var area = Json(RectRegion(new Rectangle { X = 10, Z = 10, Width = 8, Height = 8 }));
@@ -59,11 +59,21 @@ public sealed class HerdRoomsArePlanRoomsTests
         using var doc = JsonDocument.Parse(json);
         var back = Codecs.Default.Read<LayoutPlan>(doc.RootElement);
         Assert.Empty(back.Reservations);
-        Assert.Equal([PlannedRole.Barn, PlannedRole.Pen], back.Rooms.Skip(1).Select(r => r.Role));
-        Assert.Equal([2, 3], back.Rooms.Skip(1).Select(r => r.Id));
-        Assert.All(back.Rooms.Skip(1), r => Assert.Equal("Muffalo", r.Herd));
-        Assert.True(back.NextRoomId > 3);
-        // The pen is joined to its barn by the wall they share.
-        Assert.Single(back.FlapCells(back.Rooms[1]));
+        Assert.Equal([PlannedRole.Pen], back.Rooms.Skip(1).Select(r => r.Role));
+        var room = Assert.Single(back.Rooms.Skip(1));
+        Assert.Equal("Muffalo", room.Herd);
+        Assert.True(room.Id > 1);
+    }
+
+    [Fact]
+    public void APlanSavedWithABarnRoomLoadsWithoutIt()
+    {
+        var plan = Core(Shelter(1, 38, 38), new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Region = RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorRot = Rotation.South });
+        var json = Json(plan with { Links = [new RoomLink { A = 1, B = 2, Cell = new Cell(12, 9) }] }).Replace("\"Role\":\"pen\"", "\"Role\":\"barn\"", StringComparison.Ordinal);
+        Assert.Contains("\"barn\"", json, StringComparison.Ordinal);
+        using var doc = JsonDocument.Parse(json);
+        var back = Codecs.Default.Read<LayoutPlan>(doc.RootElement);
+        Assert.Equal([PlannedShelter], back.Rooms.Select(r => r.Role));
+        Assert.Empty(back.Links);
     }
 }

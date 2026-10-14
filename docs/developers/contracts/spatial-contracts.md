@@ -256,7 +256,7 @@ Hot and NextRoomID.
   than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
   **Live furnishing (#2956).** The runtime reads a room's furniture slots from
   `PlanRoomInterior` (`InteriorRegion.cs`). A role in `regionRoles` (workshop, laboratory,
-  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining, rec room, shelter and barn: every role) states what its floor should hold as
+  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining, rec room and shelter: every role) states what its floor should hold as
   `RegionWant`s (`InteriorRegionRoles.cs`: the capacity its template had along the entrance
   wall or aisle, the pieces named as the reconcilers and consumers read them) and the placer
   seats them on `InteriorRoom.Floor()`, the planned room's region, so an L or notched room is
@@ -272,8 +272,7 @@ Hot and NextRoomID.
   to the want's minimum fall back to any free cell. `Open` seats a want where the most of its
   `Beside` pieces still fit, nearest the doors (a table with room for its chairs); `Clear` keeps a
   lane open in front of a piece (the pin's throw lane; a hard constraint). A role with no
-  `regionRoles` entry has no interior. A barn's beds carry a
-  synthetic front interaction (tended from the cell before them) and its heater is placed first.
+  `regionRoles` entry has no interior.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
   `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`LayoutRoof.cs`) puts every
   room's floor into `LayoutPlan.Roofed`, except the outdoor
@@ -527,12 +526,11 @@ and `LayoutSiteGround.cs` (the siting seeds), that `Embed` uses with `FieldGain`
 
 **Entry points and what a replan does.** `DeriveLayoutPlan` (`LayoutDerive.cs`) sets
 `StationFacts.Derive` and runs `TileStations`, then merges the field zones and plans the
-herd and yard sites and the perimeter (`PlanHerdSites`, `PlanYardSites`,
-`PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the rooms growth holds
+perimeter (`PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the rooms growth holds
 (`TilePinned`, `ReplanTileFacts`) and runs `TileStations` again, so the next plan is the
 tiled plan wholesale. It then puts back the held rooms the tiler left out (`keepHeld`),
 retires the ground of a standing room that has no node (`retiredGround`), carries the
-barns, pens and yards that still clear (`carriedSites`) and traces the perimeter around
+and traces the perimeter around
 what the defense record holds (`LayPerimeter`). What moves among built rooms is decided
 inside the embedder by the switching price (`switchThreshold`, `LayoutBuilt.cs`:
 `ReplanGain` plus `BuiltSwitch` and `BuiltSwitchCell` per cell of the room's area). A failed replan

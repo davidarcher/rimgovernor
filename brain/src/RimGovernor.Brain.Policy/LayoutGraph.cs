@@ -31,9 +31,6 @@ public enum StationPurpose
     [WireName("sleep_baby")]
     SleepBaby,
 
-    [WireName("sleep_animal")]
-    SleepAnimal,
-
     [WireName("work")]
     Work,
 
@@ -66,7 +63,6 @@ public static partial class PolicyConstants
     public const string ReasonBedsPatients = "beds_injured";
     public const string ReasonBedsPrisoners = "beds_prisoners";
     public const string ReasonBedsBabies = "beds_babies";
-    public const string ReasonBedsAnimals = "beds_animals";
     public const string ReasonWorkNutrition = "work_nutrition_and_orders";
     public const string ReasonStoreStock = "store_stock_demand";
     public const string ReasonDineSeats = "dine_seats_of_table";
@@ -100,9 +96,8 @@ public static partial class PolicyConstants
 
 /// <summary>
 /// Who needs a place. Colonists are the free people who sleep in a regular bed and eat at a table; Injured are
-/// the colonists who need a medical bed now. Prisoners, Babies and Animals sleep in their own kind of bed.
-/// Herds are the pen herd by race (the planned ceilings the barns and pens are sized for, #2996); Animals is
-/// the misc unit's bed count.
+/// the colonists who need a medical bed now. Prisoners and Babies sleep in their own kind of bed.
+/// Herds are the pen herd by race (the planned ceilings the pens are sized for, #2996).
 /// </summary>
 public sealed record StationPopulation
 {
@@ -113,8 +108,6 @@ public sealed record StationPopulation
     public int Prisoners { get; init; }
 
     public int Babies { get; init; }
-
-    public int Animals { get; init; }
 
     public IReadOnlyList<StationHerd> Herds { get; init; } = [];
 }
@@ -324,6 +317,9 @@ public sealed record RoomNode
     /// <summary>The room node this one must stand beside (a required link).</summary>
     public string Beside { get; init; } = string.Empty;
 
+    /// <summary>The race of the herd whose pen this is (PlannedRoom.Herd); empty for the misc unit and for every other room.</summary>
+    public string Herd { get; init; } = string.Empty;
+
     /// <summary>
     /// The trips a day between the room and station nodes, priced in the embedding as any link is (the walk the
     /// trips cost). A room with none is not priced by distance: a flow that is not known is not guessed.
@@ -486,7 +482,6 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             (StationPurpose.SleepMed, p.Injured, PolicyFunctions.First(hospital), PolicyConstants.ReasonBedsPatients),
             (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed(), PolicyConstants.ReasonBedsPrisoners),
             (StationPurpose.SleepBaby, p.Babies, PolicyFunctions.First(nurseries), PolicyConstants.ReasonBedsBabies),
-            (StationPurpose.SleepAnimal, p.Animals, PolicyFunctions.FirstNonEmpty(f.AnimalBed, f.AnimalSpot), PolicyConstants.ReasonBedsAnimals),
         ];
         foreach (var k in kinds)
         {

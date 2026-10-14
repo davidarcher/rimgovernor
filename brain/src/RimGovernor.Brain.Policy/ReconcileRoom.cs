@@ -29,7 +29,6 @@ public sealed partial record LayoutPlan
             Doors = g.Doors,
             Fences = g.Fences,
             Gates = g.Gates,
-            Flaps = g.Flaps,
             Stuff = g.Stuff,
             Vents = g.Vents,
             Rock = [],

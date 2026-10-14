@@ -148,7 +148,6 @@ public static partial class PolicyFunctions
         new IndustryOwner(),
         new IncinerationOwner(),
         new BurialOwner(),
-        new AnimalOwner(),
         new FoodOwner(),
         new MedicalOwner(),
     ];

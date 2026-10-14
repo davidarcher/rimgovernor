@@ -236,7 +236,6 @@ public static partial class PolicyFunctions
         [PlannedRole.Armory] = RoomRole.Storeroom,
         [PlannedRole.Wardrobe] = RoomRole.Storeroom,
         [PlannedRole.Prison] = RoomRole.PrisonCell,
-        [PlannedRole.Barn] = RoomRole.Barn,
     };
 
     /// <summary>Reads a layout room as a plan input.</summary>

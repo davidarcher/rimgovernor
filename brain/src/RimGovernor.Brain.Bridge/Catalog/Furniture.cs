@@ -38,7 +38,6 @@ public sealed partial class DefinitionCatalog
         {
             Beds = Domain.EquatableArray.From(beds.Sleeping.Select(b => new P.FurnitureBed { Def = b.Def, Slots = b.Slots, Free = b.Free })),
             Heater = CheapestHeater(),
-            AnimalFlap = AnimalFlap(),
             Sarcophagus = CheapestOfClass<Building_Sarcophagus>(),
         };
         var (spot, bed) = AnimalBeds(beds);
@@ -195,23 +194,13 @@ public sealed partial class DefinitionCatalog
 
         if (spots.Count == 0 || beds.Count == 0)
         {
-            throw new CatalogException($"catalog has {spots.Count} free and {beds.Count} costed animal beds, the barn needs one of each");
+            throw new CatalogException($"catalog has {spots.Count} free and {beds.Count} costed animal beds, the ward and the companion beds need one of each");
         }
 
         spots.Sort((a, b) => string.CompareOrdinal(a.Def, b.Def));
         beds.Sort(CompareBeds);
         return (spots[0].Def, beds[0].Def);
     }
-
-    // The buildable door roaming animals can open (a Building_Door whose building properties say roamerCanOpen), by name
-    // when several. A catalog with none is an error: nothing stands in for the flap between a pen and its barn.
-    private string AnimalFlap() =>
-        _thingDefs.Values
-            .Where(row => Buildable(row) && row.building.roamerCanOpen && typeof(Building_Door).IsAssignableFrom(row.thingClass))
-            .Select(row => row.defName)
-            .Order(StringComparer.Ordinal)
-            .FirstOrDefault()
-        ?? throw new CatalogException("catalog has no buildable animal flap (a Building_Door that roamers can open)");
 
     // The cheapest buildable def of the class (or a subclass), by name when equal.
     private string CheapestOfClass<T>() =>

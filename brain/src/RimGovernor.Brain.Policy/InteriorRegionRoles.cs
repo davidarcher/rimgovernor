@@ -349,46 +349,6 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The animal beds, as many as the barn's bed grid held (an aisle from the door and a bed row between free
-    /// rows, HerdGridBeds sizes a barn by it), each tended from a free cell beside it, and the climate heater.
-    /// A bed is tended from the cell in front of it (an interaction cell, which the placer keeps open floor and
-    /// which beds may share), so every animal can be reached whatever the placer does with the rest of the floor.
-    /// </summary>
-    internal static (IReadOnlyList<RegionWant> Wants, bool Ok) BarnWants(InteriorRoom room, InteriorPieceDef piece, RegionFrame f)
-    {
-        var size = piece.Size;
-        if (piece.Def == string.Empty || size.X < 1 || size.Z < 1)
-        {
-            return (NoWants, false);
-        }
-        var rows = 0;
-        for (var v = size.Z; v + size.Z <= f.Depth; v += 2 * size.Z)
-        {
-            rows++;
-        }
-        var n = rows * ((f.Entrance / size.X) + ((f.Width - f.Entrance - 1) / size.X));
-        if (n == 0)
-        {
-            return (NoWants, false);
-        }
-        var beds = ShapeWant("bed", piece, n, 1, Numbered("bed", 1));
-        if (beds.Interaction is null)
-        {
-            beds = beds with { Interaction = new Cell(0, -1) };
-        }
-        // The heater places first: the beds' tended cells use every cell the beds leave, so the heater would
-        // find none after them.
-        var wants = new List<RegionWant>();
-        var (heater, ok) = room.Shapes.Get(room.Shapes.Furniture.Heater);
-        if (ok && heater!.Size == new Cell(1, 1))
-        {
-            wants.Add(NamedPiece(HerdHeaterSlot, heater, 0));
-        }
-        wants.Add(beds);
-        return (wants, true);
-    }
-
-    /// <summary>
     /// The throw pin with its clear lane, then tables each ringed by six chairs that face them, then a lamp.
     /// The counts are the template's: a table unit is end chair, 1x2 table, end chair along a line with a side
     /// chair each side of the table, one cell between units, row 0 left for the entrance. A dining room drops

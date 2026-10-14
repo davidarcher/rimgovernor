@@ -266,7 +266,7 @@ public sealed record RoundsFacts
     /// <summary>A mechanitor can afford the next mech, a gestator is idle and no waste is uncleared (MechGestationOwed); it holds MaintainMechs open. Unknown unless the method is composed.</summary>
     public Fact<bool> MechGestationOwed { get; init; }
 
-    /// <summary>A barn or vet room step is due (NextHerdStep); it holds MaintainAnimalContainment open after the pen stands.</summary>
+    /// <summary>A pen or vet room step is due (NextHerdStep); it holds MaintainAnimalContainment open after the pen stands.</summary>
     public Fact<bool> HerdRoomsOwed { get; init; }
 
     /// <summary>A willing colonist has no psylink and a psylink neuroformer is held (PsylinkOwed); it holds MaintainPsylink open. Unknown unless the method is composed.</summary>

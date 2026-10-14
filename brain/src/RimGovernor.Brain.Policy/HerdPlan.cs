@@ -139,14 +139,8 @@ public static class RoundsFactsHerdPlanExtensions
     /// <summary>The population band of the herd plan of f.</summary>
     public static HerdPolicy HerdPolicy(this RoundsFacts f) => PolicyFunctions.PlanHerd(f.HerdPlanInput()).Policy;
 
-    /// <summary>The herd the layout's pens and barn are sized for.</summary>
-    public static int PenAnimals(this RoundsFacts f) => PolicyFunctions.PlanHerd(f.HerdPlanInput()).PenAnimals();
-
     /// <summary>The herds by race the station graph's pens are sized for.</summary>
     public static IReadOnlyList<StationHerd> PenHerds(this RoundsFacts f) => PolicyFunctions.PlanHerd(f.HerdPlanInput()).StationHerds();
-
-    /// <summary>The herds the layout gives units of their own.</summary>
-    public static IReadOnlyList<HerdCeiling> HerdUnits(this RoundsFacts f) => PolicyFunctions.PlanHerd(f.HerdPlanInput()).HerdUnits();
 }
 
 /// <summary>Herd policy behaviour owned by the herd surplus rules.</summary>

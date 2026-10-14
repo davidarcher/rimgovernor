@@ -42,8 +42,7 @@ public sealed record FacilityLink
 /// medical by default, by sleeping slots, then the ones that cost something by Comfort per unit of cost at
 /// the best stuff, then the free ones by Comfort; Sarcophagus is the Building_Sarcophagus, the cheapest when
 /// several; Heater is the cheapest buildable def that heats from a power draw; AnimalSpot is the free bed of
-/// the kind animals use and AnimalBed the costed one with the most Comfort per cost; AnimalFlap is the
-/// buildable Building_Door roaming animals can open; Bench is, per room role, the cheapest buildable work
+/// the kind animals use and AnimalBed the costed one with the most Comfort per cost; Bench is, per room role, the cheapest buildable work
 /// table of that role worked from the floor in front of it; EndTable and Dresser are the Comfort facilities a
 /// bed links; Cabinet is the work speed facility a workshop bench links and Monitor the tend quality facility
 /// a medical bed links; AdvancedLab is the laboratory bench, besides the default one, that links a research
@@ -60,9 +59,6 @@ public sealed partial record RoomFurniture
     public string AnimalSpot { get; init; } = "";
 
     public string AnimalBed { get; init; } = "";
-
-    /// <summary>The door of a pen and barn's shared wall.</summary>
-    public string AnimalFlap { get; init; } = "";
 
     public IReadOnlyDictionary<RoomRole, string> Bench { get; init; } = new Dictionary<RoomRole, string>();
 
@@ -155,7 +151,7 @@ public sealed partial record RoomFurniture
     public IReadOnlyList<string> Definitions()
     {
         var output = BedDefs(Beds);
-        output.AddRange([Sarcophagus, Heater, AnimalSpot, AnimalBed, AnimalFlap]);
+        output.AddRange([Sarcophagus, Heater, AnimalSpot, AnimalBed]);
         output.AddRange(Bench.Values);
         foreach (var link in Facilities())
         {
@@ -183,7 +179,7 @@ public sealed partial record RoomFurniture
         }
         (string Role, string Def)[] singles =
         [
-            ("sarcophagus", Sarcophagus), ("heater", Heater), ("animal sleeping spot", AnimalSpot), ("animal bed", AnimalBed), ("animal flap", AnimalFlap),
+            ("sarcophagus", Sarcophagus), ("heater", Heater), ("animal sleeping spot", AnimalSpot), ("animal bed", AnimalBed),
         ];
         foreach (var (role, def) in singles)
         {

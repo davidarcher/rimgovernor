@@ -67,7 +67,7 @@ internal static partial class BuildingRuntimePackage
     /// it; a cell whose storage-empty flag is false holds things) and the colony's stockpile claims, their
     /// settings superseded by the latest patch of each; the registered roles judge on the projection and benches.
     /// </summary>
-    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, Fact<IReadOnlyDictionary<string, bool>> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells, Pol.AnimalFeedStore? feed)
+    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, Fact<IReadOnlyDictionary<string, bool>> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
     {
         var request = new Pol.StockpileRequest { Tick = projection.Identity.Tick, Cells = projection.Cells, Bounds = projection.Bounds, Protected = protectedCells };
         var rooms = new List<Pol.PlannedRole>();
@@ -90,7 +90,6 @@ internal static partial class BuildingRuntimePackage
         storage = storage with { Burial = BurialCensus(projection) };
         var (stands, rings) = RoundsTrainingPlanner.TrainingDemand(projection);
         storage = storage with { TrainingStands = stands, TrainingRings = rings };
-        storage = storage with { AnimalFeed = feed };
         var declared = Pol.PolicyFunctions.DeclareStores(storage);
         request = request with { Stores = declared.Stores };
         request = request with { RoomDemand = declared.Apply(new Pol.RoomDemand()) };
@@ -194,7 +193,7 @@ public sealed partial class Rounder
         }
         var gear = await GearStoreAsync(snapshot, projection, ct).ConfigureAwait(false);
         var protectedCells = ReservedGround(snapshot, projection, ct);
-        var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells, AnimalFeedStore(projection));
+        var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells);
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && ShelfAvailable(projection) };
         var shelfSpent = new Dictionary<string, bool>();
@@ -328,39 +327,6 @@ public sealed partial class Rounder
         }
         var (rows, _) = await BenchSource(native, expected, false).ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         return rows;
-    }
-
-    /// <summary>
-    /// The herds' feed and the barn's sleeping spot shape the People animal store declares the barn feed
-    /// stockpiles from; null while the animal census, the race catalog or the spot's size is unread.
-    /// </summary>
-    internal static Pol.AnimalFeedStore? AnimalFeedStore(Observation.ColonyProjection projection)
-    {
-        var upkeep = projection.Facts.AnimalUpkeep;
-        if (!upkeep.Animals.TryGetValue(out var animals))
-        {
-            return null;
-        }
-        HerdFurniture furniture;
-        bool usable;
-        try
-        {
-            (furniture, usable) = HerdFurnitureOf(projection);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return null;
-        }
-        if (!usable)
-        {
-            return null;
-        }
-        var feed = Pol.PolicyFunctions.AnimalFeedFilterOf(animals, upkeep.AnimalRaces);
-        if (feed.Count == 0)
-        {
-            return null;
-        }
-        return new Pol.AnimalFeedStore { Feed = feed, Spot = furniture.Spot };
     }
 }
 

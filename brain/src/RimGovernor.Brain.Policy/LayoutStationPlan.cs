@@ -38,9 +38,6 @@ public sealed record StationFacts
     /// <summary>The held prisoners.</summary>
     public Fact<int> Prisoners { get; init; }
 
-    /// <summary>The pen herd.</summary>
-    public int Animals { get; init; }
-
     /// <summary>The pen herd by race, Races the animal race rows and Pasture the worst-quadrum growth per terrain: the pen nodes' products and hunger (#2996). Herds empty asks for no pen.</summary>
     public IReadOnlyList<StationHerd> Herds { get; init; } = [];
 
@@ -113,6 +110,8 @@ public sealed record StationFacts
     /// <summary>The departments' room demand (the training range's stands and the ring's markers, #3003); its default asks for none.</summary>
     public RoomDemand Demand { get; init; } = new();
 
+    /// <summary>The pens the herd asks for (HerdPlan.PenWants): each unit short of its cells gets a pen node. Empty while the animal census or the pasture table is unread, which asks for none.</summary>
+    public IReadOnlyList<PenWant> Pens { get; init; } = [];
     /// <summary>The shapes of the child rooms the colony owes (ChildRoomShapes); the playroom, classroom and deathrest chamber among them are room nodes.</summary>
     public IReadOnlyList<ChildRoomShape> Child { get; init; } = [];
 
@@ -182,6 +181,10 @@ public sealed record StationFacts
     /// <summary>What the regrouping prices conflicts with: a colonist's work from the food census and crops, the mood model and the expected mood.</summary>
     public RegroupPrice RegroupPriceOf() => new() { Work = PolicyFunctions.StationWorkPrice(this), Mood = Catalog.Mood, Expected = ExpectedMood };
 
+    /// <summary>The room nodes the facts ask beyond the station chain's: the gear and child rooms, the yards, and the pens.</summary>
+    internal IReadOnlyList<RoomNode> RoomNodes() =>
+        [.. PolicyFunctions.GearRoomNodes(Plan, Demand), .. PolicyFunctions.ChildRoomNodes(Plan, Child), .. PolicyFunctions.YardRoomNodes(Plan, Demand), .. PolicyFunctions.HerdRoomNodes(Plan, Pens)];
+
     /// <summary>Assembles the graph's input, or throws a StationFactsException naming the unknown fact.</summary>
     public StationGraphInput GraphInput()
     {
@@ -225,7 +228,7 @@ public sealed record StationFacts
             TrainingStands = stands,
             TrainingMarkers = markers,
             Graveyards = Math.Max(Demand.Graveyards, Plan.RoomsOf(PolicyFunctions.PlannedGraveyard).Count),
-            Rooms = [.. PolicyFunctions.GearRoomNodes(Plan, Demand), .. PolicyFunctions.ChildRoomNodes(Plan, Child)],
+            Rooms = RoomNodes(),
             Races = Races,
             Pasture = Pasture,
         };
@@ -239,7 +242,7 @@ public sealed record StationFacts
     /// </summary>
     public string InputsKey()
     {
-        var key = KeyText.Of(Dining, RoofDistance, Built, Pinned, OutdoorCurve, ExpectedMood, Mismatches, Derive, ThroneArea, RetireShelter, Demand, Child, Plan);
+        var key = KeyText.Of(Dining, RoofDistance, Built, Pinned, OutdoorCurve, ExpectedMood, Mismatches, Derive, ThroneArea, RetireShelter, Demand, Pens, Child, Plan);
         try
         {
             var input = GraphInput();
@@ -370,8 +373,11 @@ public sealed record BuiltRegion
     public Region Region { get; init; } = new();
     public bool Pinned { get; init; }
 
+    /// <summary>The herd key of a pen.</summary>
+    public string Herd { get; init; } = string.Empty;
+
     /// <summary>The key a room is matched to groups under.</summary>
-    internal string MatchKey() => Planned != PlannedRole.None ? Wire.Name(Planned) : Role.ToString();
+    internal string MatchKey() => Planned != PlannedRole.None ? PolicyFunctions.MatchKeyOf(Planned, Herd) : Role.ToString();
 }
 
 /// <summary>The built rooms matched to one group: Rooms are the matched room ids, ascending; Capacity their summed floor.</summary>
@@ -417,7 +423,7 @@ public static partial class PolicyFunctions
             throw UnknownStationFact("pawn stages");
         }
         var babies = BabyCount(pawns);
-        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Injured = ill.Count, Prisoners = prisoners, Babies = babies, Animals = f.Animals, Herds = f.Herds };
+        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Injured = ill.Count, Prisoners = prisoners, Babies = babies, Herds = f.Herds };
     }
 
     /// <summary>The pawns still in a crib: the newborn and baby stages ChildRoomNeeds gives a nursery bed. A pawn whose stage is unknown owes nothing, as there.</summary>
@@ -524,7 +530,7 @@ public static partial class PolicyFunctions
             {
                 throw UnknownStationFact("roof support distance");
             }
-            graph = SeedGraph(new StationGraphInput { Catalog = f.Catalog, Seed = seed });
+            graph = SeedGraph(new StationGraphInput { Catalog = f.Catalog, Seed = seed, Rooms = f.RoomNodes() });
             graph.Fields = [.. f.SeedFields()];
         }
         else
@@ -589,6 +595,8 @@ public static partial class PolicyFunctions
     {
         var nodes = new List<RoomNode>(OutskirtsRoomNodes());
         nodes.AddRange(TrainingRoomNodes(1, 1));
+        nodes.AddRange(YardRoomNodes(new LayoutPlan(), new RoomDemand()));
+        nodes.Add(new RoomNode { Role = PlannedRole.Pen });
         nodes.AddRange(SeedRoomNodes(new SeedRooms { Shelter = true, Colonists = 1, ThroneArea = 1 }));
         nodes.Add(new RoomNode { Role = PlannedRole.Circulation });
         var output = new HashSet<PlannedRole>(nodes.Select(n => n.Role));
@@ -607,13 +615,16 @@ public static partial class PolicyFunctions
     /// </summary>
     internal static HashSet<PlannedRole> RoomNodeRoles => RoomNodeRolesSet.Value;
 
+    /// <summary>The key a planned role is matched under: a pen's carries its herd, so a unit's pens are matched to the unit's nodes.</summary>
+    internal static string MatchKeyOf(PlannedRole planned, string herd) => planned == PlannedRole.Pen ? $"{Wire.Name(planned)}/{herd}" : Wire.Name(planned);
+
     /// <summary>The key a group is matched to rooms under.</summary>
     internal static string MatchKeyOfGroup(RoomGroup g)
     {
         var (p, ok) = PlannedRoleOfGroup(g);
         if (ok && (MatchedPlanned.ContainsKey(p) || RoomNodeRoles.Contains(p)))
         {
-            return Wire.Name(p);
+            return MatchKeyOf(p, g.Herd);
         }
         return g.Role.ToString();
     }
@@ -652,7 +663,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            output.Add(new BuiltRegion { Room = r.Id, Role = role, Planned = planned, Region = r.Region });
+            output.Add(new BuiltRegion { Room = r.Id, Role = role, Planned = planned, Region = r.Region, Herd = r.Herd });
         }
         return [.. output.OrderBy(b => b.Room)];
     }

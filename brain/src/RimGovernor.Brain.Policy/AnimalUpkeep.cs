@@ -148,7 +148,7 @@ public enum AnimalContainmentReason
     [WireName("waiting_for_native_pen_delivery")]
     WaitingNativePen,
 
-    /// <summary>No pen stands yet (none is planned, or its fence, flap or marker is still owed): the barn and pen builder works on it.</summary>
+    /// <summary>No pen stands yet (none is planned, or its fence, gate or marker is still owed): the pen builder works on it.</summary>
     [WireName("no_standing_pen")]
     NoPen,
 

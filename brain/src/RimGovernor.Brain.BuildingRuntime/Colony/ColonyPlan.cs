@@ -178,19 +178,17 @@ public sealed partial class Rounder
                 };
                 projection.PowerPlanning.TryGetValue(out var knownTopology);
                 var topology = knownTopology ?? new PowerTopology();
-                // The barn follows the herd plan's target herd.
-                var animals = projection.Facts.PenAnimals();
                 var colonists = (int)pawns;
                 if (!haveLayout)
                 {
-                    await DeriveLayoutPlanAsync(snapshot, tick, projection, survey, catalog, topology.Geysers, animals, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
+                    await DeriveLayoutPlanAsync(snapshot, tick, projection, survey, catalog, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
                     PlanGrownFor = grown;
                     PlanPawns = colonists;
                     PlanInputs = LayoutInputs.Empty;
                 }
                 else
                 {
-                    var (inputs, growth) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, catalog, grown, colonists, topology.Geysers, animals, ct).ConfigureAwait(false);
+                    var (inputs, growth) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, catalog, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
                     if (!inputs.Same(PlanInputs))
                     {
                         var reason = LayoutPlanning.LayoutReasons(new Dictionary<string, bool>
@@ -199,7 +197,7 @@ public sealed partial class Rounder
                             ["pawns"] = colonists != PlanPawns,
                             ["research"] = research,
                         });
-                        replanned = await ReplanLayoutAsync(snapshot, tick, layout.Plan, survey, growth, animals, colonists, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
+                        replanned = await ReplanLayoutAsync(snapshot, tick, layout.Plan, survey, growth, colonists, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
                         if (replanned)
                         {
                             PlanGrownFor = grown;
@@ -213,7 +211,7 @@ public sealed partial class Rounder
                 {
                     // The recorded replan is the plan the same inputs plan next: its inputs, the plan being among
                     // them, are read again over it.
-                    (PlanInputs, _) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, catalog, PlanGrownFor, PlanPawns, topology.Geysers, animals, ct).ConfigureAwait(false);
+                    (PlanInputs, _) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, catalog, PlanGrownFor, PlanPawns, topology.Geysers, ct).ConfigureAwait(false);
                 }
             }
         }
@@ -230,12 +228,12 @@ public sealed partial class Rounder
     /// it was read under: the chain's facts and the growth, whose fixed rooms every new building moves. The facts
     /// hold the plan itself, so a replan that records a plan changes them.
     /// </summary>
-    internal async Task<(LayoutInputs Inputs, RoomGrowth Growth)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, MapSurvey survey, DefinitionCatalog catalog, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, int animals, CancellationToken ct)
+    internal async Task<(LayoutInputs Inputs, RoomGrowth Growth)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, MapSurvey survey, DefinitionCatalog catalog, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, CancellationToken ct)
     {
         var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, survey, Stockpiles.LayoutDemand(StockpileWorld(snapshot)), ct).ConfigureAwait(false);
         var keyed = growth with { Grazing = null };
         StationAdviceFor(snapshot, projection, layout.Plan, PolicyFunctions.TilePinned(layout.Plan, growth), growth, growth.Demand, survey, catalog);
-        var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {keyed} {animals} {StationInputs.Key}");
+        var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {keyed} {StationInputs.Key}");
         return (new LayoutInputs(layout.Tick, key, survey.Bounds, [.. survey.Cells]), growth);
     }
 
@@ -248,7 +246,7 @@ public sealed partial class Rounder
     /// </summary>
     internal async Task<RoomGrowth> RoomGrowthAsync(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, MapSurvey survey, RoomDemand demand, CancellationToken ct)
     {
-        var growth = new RoomGrowth { HerdUnits = projection.Facts.HerdUnits(), Pens = projection.Facts.PenWants(), Demand = demand };
+        var growth = new RoomGrowth { Pens = projection.Facts.PenWants(), Demand = demand };
         var (need, owed) = BuildingRuntimePackage.ThroneNeed(projection);
         growth = growth with { ThroneArea = PolicyFunctions.ThroneAreaOwed(plan, need, owed) };
         if (projection.Facts.Pasture.TryGetValue(out var pasture))
@@ -365,7 +363,7 @@ public sealed partial class Rounder
     /// fact the colony has not read leaves the plan at the seed rooms (the layout_stations row says which); a
     /// chain that fails records nothing and the next hourly review derives again.
     /// </summary>
-    internal async Task DeriveLayoutPlanAsync(GenerationSnapshot snapshot, Tick tick, ColonyProjection projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, int animals, PerimeterWall wall, CancellationToken ct)
+    internal async Task DeriveLayoutPlanAsync(GenerationSnapshot snapshot, Tick tick, ColonyProjection projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
     {
         projection.Facts.Colonists.TryGetValue(out var pawns);
         var colonists = (int)pawns;
@@ -378,7 +376,7 @@ public sealed partial class Rounder
         try
         {
             f = StationFactsBuilder.StationFacts(catalog, f);
-            (fact, advice) = PolicyFunctions.DeriveLayoutPlan(survey, f, geysers, animals);
+            (fact, advice) = PolicyFunctions.DeriveLayoutPlan(survey, f, geysers);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -414,7 +412,7 @@ public sealed partial class Rounder
     /// the colony has: the layout_replan_tiled row says why, and the replan is reported undone (false) so the
     /// next trigger tries again. Reports whether the plan was replanned, changed or not.
     /// </summary>
-    internal async Task<bool> ReplanLayoutAsync(GenerationSnapshot snapshot, Tick tick, LayoutPlan plan, MapSurvey survey, RoomGrowth growth, int animals, int pawns, string reason, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
+    internal async Task<bool> ReplanLayoutAsync(GenerationSnapshot snapshot, Tick tick, LayoutPlan plan, MapSurvey survey, RoomGrowth growth, int pawns, string reason, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
     {
         var decision = new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan" };
         if (!StationHeld)
@@ -430,7 +428,7 @@ public sealed partial class Rounder
         StationAdvice advice;
         try
         {
-            (next, advice) = PolicyFunctions.ReplanLayout(plan, stationFacts, survey, geysers, growth, animals);
+            (next, advice) = PolicyFunctions.ReplanLayout(plan, stationFacts, survey, geysers, growth);
         }
         catch (StationFactsException e)
         {

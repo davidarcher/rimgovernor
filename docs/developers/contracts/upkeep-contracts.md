@@ -380,24 +380,18 @@ work); with none, one pen marker claims the yard inside the defensive wall once 
 the supply-room enclosure checks. Fences or a marker do not complete the concern: the animal
 must be observed in a suitable pen. No breeding, bonding, master or removal setting changes.
 
-Herd layout (`HerdPlan.PenAnimals`, summed population ceilings, at least six):
-a roofed barn with a sleeping spot per animal (at
-least eight; placed sites never move), all inside the outer ring; a herd the barn cannot
-hold gets an extra reservation, never a resized one. There is no vet room: the hospital holds
+Herd layout: a pen per herd holding roamers (husbandry-contracts, Pens); there is no barn, for
+animals sleep in the open. There is no vet room: the hospital holds
 `AnimalBed` stations sized from the injured animals (`policy.WardBeds`), and an animal enters
 it when carried or via the bot-owned `Hospital` allowed area (`HospitalAreaKey`).
-Each unit that holds roamers also gets a barn-attached pen (husbandry-contracts, Pens).
 
-- Containment reconciles each barn and the hospital's animal ward (the plan's barn and pen rooms, `policy.HospitalCells`)
+- Containment reconciles each pen and the hospital's animal ward (the plan's pen rooms, `policy.HospitalCells`)
   through the shared build side (`policy.NextHerdStep` returns `HerdReconcile` with the
-  template: the `AnimalSleepingSpot`s or `AnimalBed`s and the barn's heater;
-  `RoundsHerdRooms.cs` calls `reconcileRoom`), so a lost wall is rebuilt
-  like a first shell and the beds are installed from packed stock first; the concern stays
+  template: a pen's `PenMarker`, the ward's `AnimalBed`s;
+  `RoundsHerdRooms.cs` calls `reconcileRoom`), so a lost fence is rebuilt
+  like a first ring and the beds are installed from packed stock first; the concern stays
   open while a step is due
   (`HerdRoomsOwed`). A definition the live catalog lacks fails the review.
-- The barn owes one optional powered heater (`RoomFurniture.Heater`, placed by the region placer
-  on the floor furthest from the door, wanted beside the beds); `TemperatureCooling.Conditioned`
-  counts a room with one as heated. No barn cooler is planned.
 - Each standing ward bed is flagged medical by a `BedUse` patch. Each bonded animal's master
   (`policy.CompanionMaster`) with a solo bedroom gets one `AnimalSleepingSpot` per animal
   (`policy.NextCompanionBed`, one per review). Pasture rotation is not built.
@@ -428,9 +422,8 @@ stays the present herd's. An unread pregnancy, event tick, stage, litter or stag
 leaves the projection unknown; a new conception stays reactive and the litter is an
 estimate the census corrects once born.
 
-Each planned barn declares one small Important feed stockpile (`FeedStoreWidth` x
-`FeedStoreHeight`, filtered to the races' feed items and hay) in its free floor beside the
-sleeping spots (`animalOwner`); animals with no barn use the warehouse or freezer. The
+Animal feed is held by the warehouse or the freezer; no room of the herd holds a stockpile of its own.
+The
 `reachable_stored_feed`, `reachable_benches`, `reachable_storage` and `storage_candidates`
 census fields are removed.
 
@@ -534,7 +527,7 @@ service state).
 `MaintainFlooring` reasons from the terrain under each room cell and its native stats
 (`UpkeepFacts.flooring`).
 
-- A clean workspace (an enclosed kitchen, hospital, laboratory or cooking-bench room, never a butchery or barn) is deficient while any cell's cleanliness is
+- A clean workspace (an enclosed kitchen, hospital, laboratory or cooking-bench room, never a butchery) is deficient while any cell's cleanliness is
   negative; a living room (bedroom, barracks, dining, recreation) while any cell is natural
   ground. Other roles carry no requirement. No hysteresis; an ordered floor still counts as
   deficient but is never ordered twice; an unknown census preserves the latch. Clean

@@ -27,7 +27,7 @@ is distinct from tier 0.
 |---|---|
 | 0 Survive | Initial shelter shell (it hosts sleep, craft, research, cook and, on a cold map, heat as capabilities), sleeping spots and bunks, kitchen and cook station, essential sanitation, research bench |
 | 1 Sustain | Private bedrooms, hospital, butchery, food stores (storage rooms and shelves), lab (owed only when no standing room can host research; a solo colony keeps its bench in the shelter or a bedroom), cooler/freezer and its power, stonecutter |
-| 2 Comfort | Dining and rec rooms, throne/worship rooms, suites, animal shelter and barn |
+| 2 Comfort | Dining and rec rooms, throne/worship rooms, suites, animal shelter |
 | 3 Produce | Other workshops and their bench input stores |
 | 4 Expand | Graveyard, waste yard, outskirts, anything unlisted |
 | 5 Secure | Defense ring, turrets and conduits, killbox, gates, mortars, IEDs, bait, wall support, armory and wardrobe (#2527) |

@@ -1,11 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
 // The pen. A unit with roaming animals (RequiresPen: the races the game walks off the map unless they are fully
-// enclosed) gets a pen room beside its barn, sharing one wall with it. The animal flap in that shared wall
-// joins the two, so the barn and the pen are one enclosure; the pen's own fence has a gate for colonists. The pen
-// is sited on ground that grows grazing and sized by the game's pen food sum (PenCells over the herd's PenDemand),
-// and one PenMarker inside it claims the enclosure for the game's pen logic. Pen membership comes from the native
-// enclosed-pen lookup, so a marker standing is not an animal contained.
+// enclosed) gets a pen room: a fence and a gate round grazing ground, sized by the game's pen food sum (PenCells over
+// the herd's PenDemand), and one PenMarker inside it claims the enclosure for the game's pen logic. The animals sleep
+// in it, on the open ground. Pen membership comes from the native enclosed-pen lookup, so a marker standing is not an
+// animal contained.
 
 /// <summary>
 /// The pen a unit asks for: Race is the unit's key (the herd's race, empty for the misc unit;
@@ -81,54 +80,6 @@ public sealed partial record LayoutPlan
 {
     /// <summary>The interior cells of the pens of the unit keyed herd.</summary>
     internal int PenCells(string herd) => HerdRooms(PolicyFunctions.PlannedPen, herd).Sum(r => r.Region.Bounds().Width * r.Region.Bounds().Height);
-
-    /// <summary>
-    /// The cell of the wall pen shares with its unit's barn, where the animal flap joins them: the barn's wall
-    /// cell, never a corner. Not ok when the pen shares no wall with a barn of its unit.
-    /// </summary>
-    internal (Cell Cell, bool Ok) PenLink(PlannedRoom pen)
-    {
-        foreach (var barn in HerdRooms(PolicyFunctions.PlannedBarn, pen.Herd))
-        {
-            var (c, ok) = PolicyFunctions.SharedWallLink(pen.Outline(), barn.Outline());
-            if (ok)
-            {
-                return (c, true);
-            }
-        }
-        return (default, false);
-    }
-
-    /// <summary>The animal flap cells, one per pen, in plan order.</summary>
-    internal IReadOnlyList<Cell> Flaps()
-    {
-        var @out = new List<Cell>();
-        foreach (var pen in RoomsOf(PolicyFunctions.PlannedPen))
-        {
-            var (c, ok) = PenLink(pen);
-            if (ok)
-            {
-                @out.Add(c);
-            }
-        }
-        return @out;
-    }
-
-    /// <summary>
-    /// The cells of r's ring that take an animal flap: the link of a pen in the wall of its barn, none for any
-    /// other room (a pen's own ring holds the barn's wall there).
-    /// </summary>
-    public IReadOnlyList<Cell> FlapCells(PlannedRoom r) => RingCells(r, Flaps());
-
-    private static List<Cell> RingCells(PlannedRoom r, IReadOnlyList<Cell> cells)
-    {
-        if (r.Outdoor)
-        {
-            return [];
-        }
-        var ring = r.WallRing();
-        return cells.Where(c => ring.Contains(c)).ToList();
-    }
 }
 
 public static partial class PolicyFunctions
@@ -182,40 +133,6 @@ public static partial class PolicyFunctions
         return n;
     }
 
-    /// <summary>
-    /// Tops plan up with the pens wants ask for: each unit's shortfall in cells becomes a pen sharing one wall
-    /// with the unit's first barn that has ground for it, wholly on grazing ground. Nothing placed moves; a pen
-    /// that fits nowhere is left out, and a unit without a barn gets none. plan holds its core zones.
-    /// </summary>
-    public static LayoutPlan PlanPenSites(LayoutPlan plan, IReadOnlySet<Cell> grazing, params IReadOnlyList<PenWant> wants)
-    {
-        if (wants.Count == 0 || grazing.Count == 0 || plan.Rooms.Count == 0)
-        {
-            return plan;
-        }
-        var u = NewUtilityGrid(plan);
-        foreach (var want in wants)
-        {
-            var @short = want.Cells - plan.PenCells(want.Race);
-            if (@short <= 0)
-            {
-                continue;
-            }
-            var (iw, ih) = PenSide(@short);
-            var (w, h) = WalledSide(iw, ih);
-            foreach (var barn in plan.HerdRooms(PlannedBarn, want.Race))
-            {
-                var (site, ok) = u.BesideRoom(plan, barn.Outline(), PlannedPen, want.Race, w, h, r => RectCells(Pad(r, -1)).All(grazing.Contains));
-                if (ok)
-                {
-                    plan = u.Place(plan, plan.HerdRoom(site, PlannedPen, want.Race), site);
-                    break;
-                }
-            }
-        }
-        return plan;
-    }
-
     /// <summary>Reports a PenMarker standing in room.</summary>
     public static bool PenMarkerStanding(PlannedRoom room, IReadOnlyList<CurrentBuilding> built)
     {
@@ -231,7 +148,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Reports the plan holding at least one pen and every pen enclosed with its marker standing: the fence and
-    /// gate as planned, the barn's wall and flap beside it, one PenMarker inside.
+    /// gate as planned, one PenMarker inside.
     /// </summary>
     public static bool PensStand(LayoutPlan plan, GroundCensus ground, IReadOnlyList<CurrentBuilding> built)
     {

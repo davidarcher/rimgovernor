@@ -13,9 +13,6 @@ public sealed class GroundCensus
     /// <summary>The ring of an outdoor room (PlannedRoom.Outdoor): gates.</summary>
     public HashSet<Cell> Gates { get; set; } = [];
 
-    /// <summary>The animal flaps standing, kept apart from doors: a barn's wall takes one where a room's ring takes a door.</summary>
-    public HashSet<Cell> Flaps { get; set; } = [];
-
     /// <summary>The stuff of each standing wall, where the census names one.</summary>
     public Dictionary<Cell, string> Stuff { get; set; } = [];
 
@@ -29,10 +26,7 @@ public sealed class GroundCensus
 public static partial class PolicyFunctions
 {
     /// <summary>Reads the walls and doors out of the colony's built buildings.</summary>
-    public static GroundCensus GroundOf(IReadOnlyList<CurrentBuilding> buildings) => GroundOfWithFlap(buildings, string.Empty);
-
-    /// <summary>GroundOf with the animal flap's def (the catalog's, RoomFurniture.AnimalFlap) read as a flap, never as a door; "" reads none.</summary>
-    public static GroundCensus GroundOfWithFlap(IReadOnlyList<CurrentBuilding> buildings, string flap)
+    public static GroundCensus GroundOf(IReadOnlyList<CurrentBuilding> buildings)
     {
         var g = new GroundCensus();
         foreach (var b in buildings)
@@ -44,10 +38,6 @@ public static partial class PolicyFunctions
                 {
                     g.Vents.Add(c);
                     g.Walls.Add(c);
-                }
-                else if (flap != string.Empty && def == flap)
-                {
-                    g.Flaps.Add(c);
                 }
                 else if (def == PenFenceDefinition)
                 {
@@ -79,9 +69,8 @@ public static partial class PolicyFunctions
     internal static HashSet<Cell> WithCells(IEnumerable<Cell> set) => [.. set];
 
     /// <summary>
-    /// The standing walls and doors r's ring is matched against: an outdoor room's fences and gates, the wall
-    /// (or animal flap) of the barn it shares a side with standing as fence; a barn's flap cells count as a
-    /// door where a flap stands.
+    /// The standing walls and doors r's ring is matched against: an outdoor room's fences and gates, with the walls
+    /// of the rooms beside it standing as fence.
     /// </summary>
     internal static (IReadOnlySet<Cell> Walls, IReadOnlySet<Cell> Doors) Ring(this LayoutPlan p, PlannedRoom r, GroundCensus g)
     {
@@ -89,28 +78,9 @@ public static partial class PolicyFunctions
         {
             var fenced = WithCells(g.Fences);
             fenced.UnionWith(g.Walls);
-            fenced.UnionWith(g.Flaps);
             return (fenced, g.Gates);
         }
-        IReadOnlySet<Cell> doors = g.Doors;
-        var flaps = p.FlapCells(r);
-        if (flaps.Count > 0)
-        {
-            var withFlaps = WithCells(doors);
-            foreach (var c in flaps)
-            {
-                if (g.Flaps.Contains(c))
-                {
-                    withFlaps.Add(c);
-                }
-                else
-                {
-                    withFlaps.Remove(c);
-                }
-            }
-            doors = withFlaps;
-        }
-        return (g.Walls, doors);
+        return (g.Walls, g.Doors);
     }
 
     /// <summary>
@@ -229,8 +199,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The cells of r's ring that take a door rather than a wall: its own doors, its Link, and any other room's
-    /// Link that lies in r's ring (the kitchen's side of the freezer door; the barn's side of the vet room's,
-    /// which is no AllRooms room).
+    /// Link that lies in r's ring (the kitchen's side of the freezer door).
     /// </summary>
     public static IReadOnlyList<Cell> ShellDoors(this LayoutPlan p, PlannedRoom r)
     {
@@ -243,7 +212,6 @@ public static partial class PolicyFunctions
         {
             doors.Add(a.Door);
         }
-        doors.AddRange(p.FlapCells(r));
         var ring = r.Region.Walls();
         foreach (var o in p.Rooms)
         {

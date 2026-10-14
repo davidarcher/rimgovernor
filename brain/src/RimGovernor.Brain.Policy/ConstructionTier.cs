@@ -27,7 +27,6 @@ public static partial class PolicyFunctions
         [PlannedRole.Throne] = ConstructionTier.Comfort,
         [PlannedRole.Worship] = ConstructionTier.Comfort,
         [PlannedRole.Suite] = ConstructionTier.Comfort,
-        [PlannedRole.Barn] = ConstructionTier.Comfort,
         [PlannedRole.Pen] = ConstructionTier.Comfort,
 
         [PlannedRole.Workshop] = ConstructionTier.Produce,

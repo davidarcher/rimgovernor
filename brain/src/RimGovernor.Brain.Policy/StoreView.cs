@@ -71,9 +71,6 @@ public sealed partial record StoreView
 
     /// <summary>The planned incinerator room once its walls and door stand; null before. The Sanitation store declares its zone.</summary>
     public PlannedRoom? Incinerator { get; init; }
-
-    /// <summary>The herds' feed and the barn's sleeping spot shape; null while either is unread. The People animal store declares the barn feed stockpiles from it.</summary>
-    public AnimalFeedStore? AnimalFeed { get; init; }
 }
 
 /// <summary>

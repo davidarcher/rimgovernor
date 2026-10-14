@@ -137,7 +137,7 @@ internal static partial class BuildingRuntimePackage
             return (default!, false);
         }
 
-        return (PolicyFunctions.GroundOfWithFlap(construction.Buildings, facts.Shapes.Furniture.AnimalFlap), true);
+        return (PolicyFunctions.GroundOf(construction.Buildings), true);
     }
 
     internal static IReadOnlyList<Cell>? PlannedRoomCells(ColonyProjection facts, PlannedRole module)

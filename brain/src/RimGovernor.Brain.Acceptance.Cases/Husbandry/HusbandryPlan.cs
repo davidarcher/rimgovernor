@@ -39,7 +39,7 @@ internal static class HusbandryPlan
     /// <summary>The game time a sterilize bill gets once the service has stopped (the harness runs the game for it).</summary>
     private const ulong SurgeryTicks = 3UL * Wait.TicksPerDay;
 
-    /// <summary>The WoodLog dropped beside the hospital ward: the barn, pen fences and beds are built from it.</summary>
+    /// <summary>The WoodLog dropped beside the hospital ward: the pen fences and beds are built from it.</summary>
     private const int StageWood = 400;
 
     /// <summary>The old race's age in years: adult, so each adds capacity. The old race is two males and two females, so one male can be sterilized while a breeding pair stays.</summary>

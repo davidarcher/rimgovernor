@@ -110,7 +110,6 @@ public static partial class PolicyFunctions
             [PlannedTrainingRange] = St(PlanBrown, "training range"),
             [PlannedSparringRing] = St(PlanBrown, "sparring ring"),
             [PlannedYard] = St(PlanTan, "materials yard"),
-            [PlannedRole.Barn] = St(PlanBrown, "barn"),
             [PlannedRole.Pen] = St(PlanGreen, "pen"),
             [PlannedThrone] = St(PlanAmber, "throne room"),
             [PlannedRole.Nursery] = St(PlanGreen, "nursery"),

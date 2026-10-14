@@ -342,6 +342,7 @@ internal sealed partial class Tiler(TileInput input)
                 Crossing = CrossingOf(g),
                 Outdoor = role.IsOutdoor(),
                 Markers = g.Markers,
+                Herd = g.Herd,
                 WorkChairs = WorkChairsOf(g, In.Comfort),
             };
             if (role == PlannedTrainingRange && AwayReference(In.Groups, placed) is { } reference)

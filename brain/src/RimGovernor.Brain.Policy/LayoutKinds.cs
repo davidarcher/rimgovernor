@@ -108,9 +108,6 @@ public enum PlannedRole
     [WireName("worship")]
     Worship,
 
-    [WireName("barn")]
-    Barn,
-
     [WireName("pen")]
     Pen,
 

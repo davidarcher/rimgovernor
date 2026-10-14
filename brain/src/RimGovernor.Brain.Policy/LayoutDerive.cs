@@ -32,12 +32,9 @@ public sealed record RoomGrowth
     /// <summary>The planned rooms an open journal plan works on, which a retirement leaves in the plan.</summary>
     public HashSet<int> InFlight { get; init; } = [];
 
-    /// <summary>The herds' units (HerdPlan.HerdUnits): each gets a barn of its own beside the misc unit's.</summary>
-    public IReadOnlyList<HerdCeiling> HerdUnits { get; init; } = [];
-
     /// <summary>
-    /// The pens the herd asks for (HerdPlan.PenWants): each unit short of its cells gets a pen beside its barn
-    /// (PlanPenSites). Empty while the animal census or the pasture table is unread, which asks for none.
+    /// The pens the herd asks for (HerdPlan.PenWants): each unit short of its cells gets a pen node
+    /// (HerdRoomNodes). Empty while the animal census or the pasture table is unread, which asks for none.
     /// </summary>
     public IReadOnlyList<PenWant> Pens { get; init; } = [];
 
@@ -59,16 +56,15 @@ public static partial class PolicyFunctions
     /// <summary>
     /// Lays a fresh plan over the survey from the station chain: the facts (a first plan's, StationFacts.Derive)
     /// go through the graph, the clustering and the embedding, and the tiler (TileEmbedding) turns the embedding
-    /// into the rooms, doors, links, roofs and lamps. What the tiler does not plan is laid over its rooms: a
-    /// barn for a herd of animals (HerdPlan.PenAnimals), the yards, the perimeter and its mountain pockets. The
-    /// pens are sited by the replan, once the pasture is read. A geothermal enclosure is reserved on each
+    /// into the rooms, doors, links, roofs and lamps. What the tiler does not plan is laid over its rooms: the
+    /// perimeter and its mountain pockets. The pens are sited by the replan, once the pasture is read. A geothermal enclosure is reserved on each
     /// reported steam geyser and rooms stay off it; the turbines and solar plots the planned demand needs
     /// (derivePowerSites) are placed beside the rooms by the site embedding and stored with their wind lanes,
     /// and the tiler routes the conduit net to them; the outskirts are rooms of the chain itself. The advice is
     /// returned beside the plan for the caller to journal. Unknown when the survey holds no room for a core; the
     /// failure is the chain's (StationFactsException for a fact the colony has not read and the chain needs).
     /// </summary>
-    public static (Fact<LayoutPlan> Plan, StationAdvice Advice) DeriveLayoutPlan(MapSurvey s, StationFacts f, IReadOnlyList<PowerGeyser> geysers, int animals)
+    public static (Fact<LayoutPlan> Plan, StationAdvice Advice) DeriveLayoutPlan(MapSurvey s, StationFacts f, IReadOnlyList<PowerGeyser> geysers)
     {
         var zones = Zone(s);
         var footprints = GeyserFootprints(geysers);
@@ -93,8 +89,6 @@ public static partial class PolicyFunctions
         }
         // The survey's zones less its field patches, then the fields the tiler placed.
         plan = plan with { Zones = [.. WithFieldZones(zones, null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
-        plan = PlanHerdSites(plan, animals);
-        plan = PlanYardSites(plan, YardRoomsWanted(new RoomDemand()));
         plan = PlanMountainPockets(PlanPerimeter(plan, s), s);
         return (Known(WithoutCore(plan).WithRoomIDs()), advice);
     }
@@ -135,18 +129,15 @@ public static partial class PolicyFunctions
     /// the tiler keeps every standing room it has a node for, pins the rooms growth holds (TilePinned) and sites
     /// the rest again. A standing room with no node in the new embedding leaves the plan and its ground is
     /// retired (RetiredGround) for clearance; the embedder's switching price (#2877) decides what moves. The
-    /// rooms the tiler does not plan are laid over its plan as DeriveLayoutPlan lays them: the barns, pens and
-    /// yards of prev that clear the new rooms stay and the herd's and the yard's shortfall is sited, then the
+    /// rooms the tiler does not plan are laid over its plan as DeriveLayoutPlan lays them: the
     /// perimeter is traced around what the defense record holds of it (LayPerimeter). The failure is the
     /// chain's or the tiler's (StationFactsException for a fact the colony has not read, TileException for a
     /// plan it cannot tile, ReplanEmptyException); the caller keeps the plan it has and journals the failure.
     /// </summary>
-    public static (LayoutPlan Plan, StationAdvice Advice) ReplanLayout(LayoutPlan prev, StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers, RoomGrowth growth, int animals)
+    public static (LayoutPlan Plan, StationAdvice Advice) ReplanLayout(LayoutPlan prev, StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers, RoomGrowth growth)
     {
         prev = prev.WithRoomIDs();
-        var sited = prev.Rooms.Where(SitedOutsideTiler).ToList();
-        prev = prev with { Rooms = [.. prev.Rooms.Where(r => !SitedOutsideTiler(r))] };
-        f = f with { Plan = prev, Pinned = TilePinned(prev, growth) };
+        f = f with { Plan = prev, Pinned = TilePinned(prev, growth), Pens = growth.Pens };
         f = ReplanTileFacts(f, s, geysers);
         var advice = TileStations(f);
         var plan = advice.Tiled!.Plan;
@@ -162,10 +153,6 @@ public static partial class PolicyFunctions
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);
         plan = plan with { RetiredGround = RetiredGround(prev, plan, f!.Built!) };
-        plan = plan with { Rooms = [.. plan.Rooms, .. CarriedSites(sited, plan)] };
-        plan = PlanHerdSites(plan, animals, growth.HerdUnits);
-        plan = PlanPenSites(plan, growth!.Grazing!, growth.Pens);
-        plan = PlanYardSites(plan, YardRoomsWanted(growth.Demand));
         return (LayPerimeter(prev, plan, s, growth.Perimeter).WithRoomIDs(), advice);
     }
 
@@ -274,28 +261,6 @@ public static partial class PolicyFunctions
         }
         return output;
     }
-
-    /// <summary>
-    /// The barns, pens and yards of prev that stand clear of the rooms and the reserved ground of next: the
-    /// tiler does not plan them, so a new room may land on one, which then goes and is sited again. A site that
-    /// clears stays where it is, so a replan does not move a barn or a yard that was built.
-    /// </summary>
-    private static List<PlannedRoom> CarriedSites(IEnumerable<PlannedRoom> sited, LayoutPlan next)
-    {
-        var taken = new List<Rectangle>();
-        foreach (var r in next.Rooms)
-        {
-            taken.Add(RoomGround(r.Region.Bounds()));
-        }
-        foreach (var r in next.Reserved())
-        {
-            taken.Add(r.Area.Bounds());
-        }
-        return [.. sited.Where(r => !taken.Any(t => RectsOverlap(t, r.Outline())))];
-    }
-
-    /// <summary>The rooms the herd and the yard site themselves, outside the tiler: barns, pens and yards.</summary>
-    internal static bool SitedOutsideTiler(PlannedRoom r) => r.Role is PlannedRole.Barn or PlannedRole.Pen or PlannedRole.Yard;
 
     /// <summary>Reports whether a and b are the same plan as it is saved.</summary>
     public static bool SamePlan(LayoutPlan a, LayoutPlan b)

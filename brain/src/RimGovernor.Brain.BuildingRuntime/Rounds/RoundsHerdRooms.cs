@@ -11,12 +11,12 @@ internal static partial class BuildingRuntimePackage
         PolicyFunctions.PenMarkerDefinition,
     ];
 
-    /// <summary>The animal furniture the herd rooms are built from; unusable when a definition is unavailable or unsized, and a control fault when native never read it.</summary>
+    /// <summary>The animal furniture the herd rooms are built from (the ward's bed, the pen's marker); unusable when a definition is unavailable or unsized, and a control fault when native never read it.</summary>
     internal static (HerdFurniture Furniture, bool Usable) HerdFurnitureOf(ColonyProjection facts)
     {
         var output = new HerdFurniture();
         var usable = true;
-        foreach (var name in new[] { facts.Shapes.Furniture.AnimalSpot, facts.Shapes.Furniture.AnimalBed })
+        foreach (var name in new[] { facts.Shapes.Furniture.AnimalBed })
         {
             var d = AnimalContainmentDefinition(facts.Definitions, name);
             if (d is null)
@@ -37,31 +37,7 @@ internal static partial class BuildingRuntimePackage
                 continue;
             }
 
-            var def = new InteriorPieceDef { Def = name, Size = new Cell(size.Width, size.Height) };
-            if (name == facts.Shapes.Furniture.AnimalSpot)
-            {
-                output = output with { Spot = def };
-            }
-            else
-            {
-                output = output with { Bed = def };
-            }
-        }
-
-        var heater = facts.Shapes.Furniture.Heater;
-        if (heater.Length != 0)
-        {
-            var d = AnimalContainmentDefinition(facts.Definitions, heater);
-            if (d is null)
-            {
-                throw new ControlException($"herdFurniture: {heater} was not read from the native catalog");
-            }
-
-            var sizeKnown = d.Size.TryGetValue(out var size);
-            if (d.Available.TryGetValue(out var available) && available && sizeKnown && size.Width == 1 && size.Height == 1)
-            {
-                output = output with { Heater = new InteriorPieceDef { Def = heater, Size = new Cell(1, 1) } };
-            }
+            output = output with { Bed = new InteriorPieceDef { Def = name, Size = new Cell(size.Width, size.Height) } };
         }
 
         var marker = AnimalContainmentDefinition(facts.Definitions, PolicyFunctions.PenMarkerDefinition);
@@ -91,8 +67,8 @@ internal static partial class BuildingRuntimePackage
         }
 
         var ward = PolicyFunctions.WardBeds(animals!, facts.Facts.HerdPolicy());
-        var barns = plan!.RoomsOf(PlannedRole.Barn).Count + plan.RoomsOf(PlannedRole.Pen).Count;
-        if (animals!.Count == 0 || (barns == 0 && (ward == 0 || plan.RoomsOf(PlannedRole.Hospital).Count == 0)))
+        var pens = plan!.RoomsOf(PlannedRole.Pen).Count;
+        if (animals!.Count == 0 || (pens == 0 && (ward == 0 || plan.RoomsOf(PlannedRole.Hospital).Count == 0)))
         {
             return (new HerdStep(), true);
         }
@@ -109,7 +85,7 @@ internal static partial class BuildingRuntimePackage
             return (default!, false);
         }
 
-        return (PolicyFunctions.NextHerdStep(plan, rooms!, plan.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, sleeping!.Beds, animals.Count, ward, furniture), true);
+        return (PolicyFunctions.NextHerdStep(plan, rooms!, plan.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, sleeping!.Beds, ward, furniture), true);
     }
 
     internal static Fact<bool> WardReadyOf(ColonyProjection facts)

@@ -67,7 +67,6 @@ public static partial class PolicyFunctions
             [RoomRole.Suite] = BedroomWants,
             [RoomRole.ThroneRoom] = ThroneWants,
             [RoomRole.Shelter] = ShelterWants,
-            [RoomRole.Barn] = BarnWants,
             [RoomRole.DiningRoom] = DiningWants(false),
             [RoomRole.RecRoom] = DiningWants(true),
             [RoomRole.Nursery] = child,

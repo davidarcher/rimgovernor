@@ -47,7 +47,7 @@ public sealed partial record PlannedRoom
     /// <summary>Maps the definition of a worked bench of the room to the work chair the comfort pricing chose for it (ChooseComfort, #2978); the furnisher stands one on each such bench's interaction cell. Absent: no chair is chosen or priced.</summary>
     public IReadOnlyDictionary<string, string> WorkChairs { get; init; } = new Dictionary<string, string>();
 
-    /// <summary>The herd a barn or pen belongs to: the race of its unit, empty for the misc unit and for every other room. A pen joins the barn of its own herd.</summary>
+    /// <summary>The herd a pen belongs to: the race of its unit, empty for the misc unit and for every other room.</summary>
     public string Herd { get; init; } = "";
 
     /// <summary>The ground an attached child occupies beyond its parent's ring: the airlock's vestibule, walls and outer door, or the porch strip.</summary>

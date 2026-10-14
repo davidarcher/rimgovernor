@@ -25,7 +25,7 @@ public static partial class PolicyFunctions
         OpKind.FloorOut,
     ];
 
-    /// <summary>The plan's open-ground rooms, barns and vet rooms included, whose ring or doors differ from the plan.</summary>
+    /// <summary>The plan's open-ground rooms, vet rooms included, whose ring or doors differ from the plan.</summary>
     internal static List<PlannedRoom> GroundRooms(this LayoutPlan p, GroundCensus g) =>
         [.. p.Rooms.Where(r => !r.Dug && !p.GroundMatches(r, g))];
 
@@ -67,13 +67,13 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The rows without the animal beds and the heater standing in a barn or hospital interior. The herd owner
+    /// The rows without the animal beds and the heater standing in a hospital interior. The herd owner
     /// builds those beside the ring (its template is not the clear side's), so while the ring differs from the
     /// plan the clear side would deconstruct each one as it is finished and the owner would place it again.
     /// </summary>
     private static IReadOnlyList<ClearanceTarget> HerdOwnFurnitureLeft(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows, RoomFurniture f)
     {
-        if (room.Role != PlannedRole.Barn && room.Role != PlannedRole.Hospital)
+        if (room.Role != PlannedRole.Hospital)
         {
             return rows;
         }

@@ -21,27 +21,18 @@ public static partial class PolicyFunctions
     /// <summary>How many yards the plan should hold: one from the start, more when demand asks for them.</summary>
     public static int YardRoomsWanted(RoomDemand demand) => Math.Max(demand.Yard, 1);
 
-    /// <summary>The yards demand asks for that plan lacks.</summary>
-    public static int YardRoomsOwed(LayoutPlan plan, RoomDemand demand) => Math.Max(YardRoomsWanted(demand) - plan.RoomsOf(PlannedYard).Count, 0);
+    /// <summary>Why the graph holds a yard: one from the start, more when the demand asks, or the plan already holds them.</summary>
+    public const string ReasonYardRoom = "yard_room_owed";
 
-    /// <summary>Tops plan up to want yards, each on the free core-side ground nearest the core. Nothing placed moves; a yard that fits nowhere is left out.</summary>
-    public static LayoutPlan PlanYardSites(LayoutPlan plan, int want)
+    /// <summary>The yards the plan holds or the demand asks for as graph nodes, each of the one size; the tiler sites them in the base.</summary>
+    public static IReadOnlyList<RoomNode> YardRoomNodes(LayoutPlan plan, RoomDemand demand)
     {
-        var have = plan.RoomsOf(PlannedYard).Count;
-        if (have >= want || plan.Rooms.Count == 0)
+        var wanted = Math.Max(YardRoomsWanted(demand), plan.RoomsOf(PlannedYard).Count);
+        var nodes = new List<RoomNode>();
+        for (var n = 1; n <= wanted; n++)
         {
-            return plan;
+            nodes.Add(new RoomNode { Id = n == 1 ? Wire.Name(PlannedYard) : $"{Wire.Name(PlannedYard)}-{n}", Role = PlannedYard, Area = YardW * YardH, Width = YardH, Reason = ReasonYardRoom });
         }
-        var u = NewUtilityGrid(plan);
-        var (w, h) = WalledSide(YardW, YardH);
-        for (; have < want; have++)
-        {
-            if (u.Site(w, h, u.Cx, u.Cz) is not { } site)
-            {
-                break;
-            }
-            plan = u.Place(plan, LayoutPlan.YardRoom(site), site);
-        }
-        return plan;
+        return nodes;
     }
 }

@@ -344,7 +344,6 @@ internal static class StationFactsBuilder
             Patients = projection.Facts.MedicalPawns,
             Surgical = PolicyFunctions.SurgeryBedShortPatients(projection.Facts.MedicalPawns),
             Prisoners = Unknown<int>(),
-            Animals = projection.Facts.PenAnimals(),
             Herds = projection.Facts.PenHerds(),
             Races = projection.Facts.AnimalUpkeep.AnimalRaces,
             Pasture = projection.Facts.Pasture,

@@ -1050,7 +1050,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
 {
     protected override LayoutPlan Read(JsonElement e, Codecs o)
     {
-        // A plan saved before barns, pens and yards were rooms holds them as reservations: they come in as rooms.
+        // A plan saved before pens and yards were rooms holds them (and the barns, which are dropped) as reservations: pens and yards come in as rooms.
         var reservations = new List<LayoutReservation>();
         var legacy = new List<(string Kind, Region Area, string Herd)>();
         if (e.TryGetProperty("Reservations", out var held) && held.ValueKind == JsonValueKind.Array)
@@ -1068,15 +1068,30 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
                 }
             }
         }
+        // A plan saved while barns were rooms holds them as rooms: they leave, with the links that joined them.
+        var rooms = new List<PlannedRoom>();
+        var dropped = new HashSet<int>();
+        if (e.TryGetProperty("Rooms", out var held2) && held2.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in held2.EnumerateArray())
+            {
+                if (item.Str("Role") == "barn")
+                {
+                    dropped.Add(item.I32("Id"));
+                    continue;
+                }
+                rooms.Add(o.Read<PlannedRoom>(item));
+            }
+        }
         return new LayoutPlan
         {
             Entrances = e.Get<IReadOnlyList<Cell>>("Entrances", o),
-            Links = e.Get<IReadOnlyList<RoomLink>>("Links", o),
+            Links = [.. e.Get<IReadOnlyList<RoomLink>>("Links", o).Where(l => !dropped.Contains(l.A) && !dropped.Contains(l.B))],
             Conduits = e.Get<IReadOnlyList<ConduitLink>>("Conduits", o),
             Owed = e.Get<IReadOnlyList<PlannedRole>>("Owed", o),
             Trips = e.Get<IReadOnlyList<RoomTrip>>("Trips", o),
             OutsideTrips = e.Get<IReadOnlyList<OutsideTrip>>("OutsideTrips", o),
-            Rooms = e.Get<IReadOnlyList<PlannedRoom>>("Rooms", o),
+            Rooms = rooms,
             Zones = e.Get<IReadOnlyList<LayoutZone>>("Zones", o),
             Reservations = reservations,
             Sites = e.Get<IReadOnlyList<PlannedSite>>("Sites", o),

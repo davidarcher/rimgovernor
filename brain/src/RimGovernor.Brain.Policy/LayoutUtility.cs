@@ -27,11 +27,7 @@ internal sealed partial class UtilityGrid
     private int h;
     private bool[] ok = [];
     private bool[] rock = [];
-    private bool[] field = [];
     private bool[] used = [];
-
-    public int Cx { get; private set; }
-    public int Cz { get; private set; }
 
     public UtilityGrid(LayoutPlan plan)
     {
@@ -44,7 +40,7 @@ internal sealed partial class UtilityGrid
             }
         }
         var n = u.w * u.h;
-        (u.ok, u.rock, u.used, u.field) = (new bool[n], new bool[n], new bool[n], new bool[n]);
+        (u.ok, u.rock, u.used) = (new bool[n], new bool[n], new bool[n]);
         foreach (var z in plan.Zones)
         {
             bool[] set;
@@ -55,10 +51,6 @@ internal sealed partial class UtilityGrid
             else if (z.Kind == PolicyFunctions.ZoneMining)
             {
                 set = u.rock;
-            }
-            else if (z.Kind == PolicyFunctions.ZoneField)
-            {
-                set = u.field;
             }
             else
             {
@@ -83,10 +75,6 @@ internal sealed partial class UtilityGrid
         foreach (var r in plan.Reserved())
         {
             u.MarkRegion(r.Area);
-        }
-        if (plan.Core() is { } c)
-        {
-            (u.Cx, u.Cz) = (c.X, c.Z);
         }
     }
 
@@ -117,14 +105,6 @@ internal sealed partial class UtilityGrid
         }
     }
 
-    /// <summary>Adds room to the plan under the next id and takes outline, the room with its walls and margin, off the free ground.</summary>
-    public LayoutPlan Place(LayoutPlan plan, PlannedRoom room, Rectangle outline)
-    {
-        MarkRegion(PolicyFunctions.RectRegion(outline));
-        var id = Math.Max(Math.Max(plan.NextRoomId, 1), plan.Rooms.Select(r => r.Id + 1).DefaultIfEmpty(1).Max());
-        return plan with { Rooms = [.. plan.Rooms, room with { Id = id }], NextRoomId = id + 1 };
-    }
-
     /// <summary>Every cell of r on unplanned core candidates; rockOK lets it cross natural rock.</summary>
     public bool Free(Rectangle r, bool rockOK)
     {
@@ -146,56 +126,6 @@ internal sealed partial class UtilityGrid
         return true;
     }
 
-    /// <summary>How many of r's cells are planned as farmland.</summary>
-    private int FieldCells(Rectangle r)
-    {
-        var n = 0;
-        for (var z = Math.Max(r.Z, 0); z < Math.Min(r.Z + r.Height, h); z++)
-        {
-            for (var x = Math.Max(r.X, 0); x < Math.Min(r.X + r.Width, w); x++)
-            {
-                if (field[(z * w) + x])
-                {
-                    n++;
-                }
-            }
-        }
-        return n;
-    }
-
-    /// <summary>The free w x h rectangle nearest (cx, cz), a site wholly on planned farmland counting SiteFieldReach cells farther.</summary>
-    public Rectangle? Site(int sw, int sh, int cx, int cz)
-    {
-        Rectangle? best = null;
-        var bestCost = 0.0;
-        for (var z = 0; z + sh <= h; z++)
-        {
-            for (var x = 0; x + sw <= w; x++)
-            {
-                double dx = x + (sw / 2) - cx, dz = z + (sh / 2) - cz;
-                var cost = Math.Sqrt((dx * dx) + (dz * dz));
-                if (best is not null && cost >= bestCost)
-                {
-                    continue;
-                }
-                var r = new Rectangle { X = x, Z = z, Width = sw, Height = sh };
-                cost += PolicyFunctions.SiteFieldReach * FieldCells(r) / (sw * sh);
-                if (best is not null && cost >= bestCost)
-                {
-                    continue;
-                }
-                if (Free(r, false) && Inset(r))
-                {
-                    (best, bestCost) = (r, cost);
-                }
-            }
-        }
-        return best;
-    }
-
-    /// <summary>r clear of SiteInset around the map edge.</summary>
-    private bool Inset(Rectangle r) =>
-        r.X >= PolicyFunctions.SiteInset && r.Z >= PolicyFunctions.SiteInset && r.X + r.Width <= w - PolicyFunctions.SiteInset && r.Z + r.Height <= h - PolicyFunctions.SiteInset;
 }
 
 /// <summary>
@@ -417,12 +347,6 @@ public static partial class PolicyFunctions
     }
 
     internal static UtilityGrid NewUtilityGrid(LayoutPlan plan) => new UtilityGrid(plan);
-
-    /// <summary>How far from the map edge a core-side site starts: the ring walls a site in from the edge margin inward, so one nearer the edge would stand on the ring itself.</summary>
-    internal const int SiteInset = LayoutEdgeMargin + PerimeterThick + 1;
-
-    /// <summary>How many cells farther a site lying wholly on planned farmland is worth moving to avoid it: generators and plots are pushed off rich soil only within the field reach, never across the map.</summary>
-    internal static double SiteFieldReach => PerimeterFieldReach;
 
     /// <summary>The cells the turbine standing on area must keep clear: its own wind path, not the pair's whole lane area. Empty for a site that is not a turbine (a solar plot).</summary>
     public static List<Cell> TurbineCatchZone(LayoutPlan plan, Rectangle area)

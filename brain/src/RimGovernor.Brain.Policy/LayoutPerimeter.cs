@@ -136,7 +136,7 @@ public static partial class PolicyFunctions
     /// <summary>The yard between the core and the wall; it holds the killbox and two cells behind its back wall.</summary>
     public const int PerimeterGap = KillboxDepth + 2;
 
-    /// <summary>How far from the core a field patch counts as near it when scoring sites (SiteFieldReach).</summary>
+    /// <summary>How far from the core a field patch counts as near it when scoring sites.</summary>
     public const int PerimeterFieldReach = 15;
 
     public const int PerimeterGatePitch = 20;

@@ -727,20 +727,8 @@ public sealed partial class RoundsBuildingPlanner
                 switch (kind)
                 {
                     case Pol.OpKind.DoorIn:
-                        var flaps = plan.FlapCells(rr.Room);
                         foreach (var c in op.Cells)
                         {
-                            if (flaps.Contains(c))
-                            {
-                                // The shared wall of a pen and its barn takes the animal flap.
-                                var flap = facts.Shapes.Furniture.AnimalFlap;
-                                if (flap == "")
-                                {
-                                    throw new ControlException("commitBuilds: the catalog names no animal flap");
-                                }
-                                builds.Add(new RoomBuild { Def = flap, Stuff = facts.BuildStuff(flap), Cell = c, Rot = Rotation.North, Ring = true });
-                                continue;
-                            }
                             builds.Add(new RoomBuild { Def = doorDef, Stuff = doorStuff, Cell = c, Rot = Rotation.North, Ring = true });
                         }
                         break;
