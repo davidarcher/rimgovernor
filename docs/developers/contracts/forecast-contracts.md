@@ -361,7 +361,10 @@ and future output evidence remain supplied, not native predictions.
 
 [Observed food candidate generation](../architecture/colony-forecast.md#food-candidates-from-acquisition-and-recipe-observations)
 joins native acquisition/crop and bench/recipe facts into raw and cooked activity
-alternatives. The existing recipe-input catalog projection carries product counts
+alternatives, including bounded ascending whole-batch sizes rather than only the
+largest possible batch. Every size spends generation budget; truncation means
+omitted sizes have not been compared. Bindings expose recipe iteration counts,
+which are not repeating native Cook authorization. The existing recipe-input catalog projection carries product counts
 and base work alongside ingredient slots. Worker rates, carrying/travel estimates,
 destination eligibility and continued bench availability remain explicit estimates.
 This is policy generation and comparison, not native dispatch.

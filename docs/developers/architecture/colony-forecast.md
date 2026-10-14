@@ -793,8 +793,10 @@ Raw delivery remains an alternative. For each usable observed bench and availabl
 ordinary-meal recipe, the generator checks every exact ingredient slot against
 the harvested resource. This slice supports recipes whose complete ingredient
 set can be supplied by that single resource and which have one ordinary product
-and no reusable unfinished item. It generates the maximum whole recipe batch
-that this harvest can fund; it does not mix harvests or enumerate smaller batches.
+and no reusable unfinished item. It enumerates whole recipe iterations from one
+up to what this harvest can fund, spending generation budget on each size in
+ascending order. Small batches can satisfy the need sooner and displace less
+work; a longer food horizon can require a larger batch. It does not mix harvests.
 The existing recipe catalog projection now includes native product counts and
 base recipe work. Cooking quantities are product count times batches, not an
 assumed one meal. Other ingredients and unsupported/unknown recipes are excluded
@@ -806,8 +808,10 @@ the normal effect assessor checks joint stock and claims. Recipe variants and ra
 delivery reach the same existing bounded comparison before one is chosen. Native
 cook skill floors exclude unqualified workers; current worker availability is
 required for every operation. Cooking claims the exact bench as shared equipment.
-Task bindings retain source and bench/recipe identities for inspection; they are
-not executable Hands orders.
+Task bindings retain source and bench/recipe identities and the valued number of
+recipe iterations for inspection; they are not executable Hands orders. A
+multi-iteration forecast must not be dispatched as one native Cook activity:
+that adapter performs one iteration and requires exact observed ingredient stacks.
 
 The graph's service times derive from observed work and supplied worker rates.
 Initial travel routes, native worker eligibility, per-resource carrying limits,
@@ -818,7 +822,8 @@ power/fuel: the supplied equipment window must cover operation, and this slice
 does not forecast those transitions. Destination eater/expiry evidence is still
 conditional. Unknown estimates cannot become zero-time operations.
 
-Generation has its own explicit inspection budget and respects the scheduler's
+Generation has its own explicit budget for source/recipe inspection and batch
+alternatives, and respects the scheduler's
 32-task and 16-outcome limits. It reports truncation; omitted candidates are not
 proven inferior. Search retains its separate expansion budget. No graph is
 returned when no relief candidate is generated. Missing kitchen information can
@@ -828,13 +833,16 @@ result and must be considered alongside comparison findings.
 
 `ForecastFoodCandidatesTests` exercises observed-input fixtures through generation
 and selection: a small harvest requires cooking, a larger harvest favors cheaper
-raw delivery, native product counts affect output, and unavailable workers,
+raw delivery, small batches beat a maximum batch that misses the deadline, longer
+horizons require more meals, native product counts affect output, and unavailable workers,
 missing transfer/bench evidence, carrying limits, immature/claimed sources,
 unsupported ingredient combinations and truncation are explicit. The catalog
 projection compiles against native definitions; these tests do not prove a live
 crop census or native execution. The generator is callable policy, not yet wired
-to live Rounds dispatch. Multi-source/multi-ingredient planning, variable batch
-sizes, native worker yield/rate calibration, power/fuel transitions and Hands
+to live Rounds dispatch. Batch sizes omitted by the bounded enumeration remain
+untested, and the comparison does not model staggered delivery between iterations.
+Multi-source/multi-ingredient planning, native worker yield/rate calibration,
+power/fuel transitions and Hands
 harvest/hauling/cooking integration remain #3127/#3128/#3135 work. The
 [activity execution contract](../contracts/pawn-activities.md) now includes an
 exact one-trip delivery adapter alongside harvest, plus a one-iteration cooking

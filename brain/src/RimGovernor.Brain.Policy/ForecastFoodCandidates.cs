@@ -19,7 +19,11 @@ public sealed record ForecastFoodCandidateInputs
     public string Destination { get; init; } = "";
     public int GenerationBudget { get; init; } = 16;
 }
-public sealed record ForecastFoodTaskBinding(string Activity, string Source, string Bench, string Recipe);
+public sealed record ForecastFoodTaskBinding(string Activity, string Source, string Bench, string Recipe)
+{
+    /// <summary>Recipe iterations valued by this activity; not authorization for a repeating native job.</summary>
+    public int Iterations { get; init; }
+}
 public sealed record ForecastFoodCandidates(ForecastActivityProblem? Problem, ForecastActivityRelief[] Relief,
     ForecastFoodTaskBinding[] Bindings, string[] Findings, int Generated, bool GenerationTruncated);
 
@@ -119,7 +123,7 @@ public static partial class PolicyFunctions
             foreach (var bench in input.Benches.ValueOrDefault.OrderBy(b => b.Id, StringComparer.Ordinal))
             foreach (var recipe in bench.Recipes.OrderBy(r => r.Name, StringComparer.Ordinal))
             {
-                if (!Spend()) break;
+                if (truncated || !Spend()) break;
                 if (!bench.Usable.TryGetValue(out var usable))
                 { findings.Add("unknown_food_bench:" + bench.Id); continue; }
                 if (!usable || recipe.Role != RecipeRole.OrdinaryMeal) continue;
@@ -135,29 +139,35 @@ public static partial class PolicyFunctions
                 var amounts = slots.Select(s => s.SingleOrDefault(a => a.Resource == raw)).ToArray();
                 if (slots.Count == 0 || amounts.Any(a => a is null || a.Count <= 0)) continue;
                 var perBatch = amounts.Sum(a => (double)a!.Count);
-                var batches = Math.Floor(source.Yield / perBatch);
-                if (batches < 1) continue;
-                if (activities.Count + 3 > 32) { truncated = true; findings.Add("food_generation_truncated"); break; }
-                var id = harvest + "-recipe-" + generated;
-                Transfer(id + "-supply", harvest, source.Id, bench.Id, raw, perBatch * batches);
-                var cook = id + "-cook";
-                activities.Add(new(cook, bench.Id, bench.Id, [id + "-supply"])
+                var maximumBatches = Math.Floor(source.Yield / perBatch);
+                // Small batches can cover the need before a full harvest's worth of cooking would finish.
+                // Each alternative spends the same bounded generation budget; omitted sizes stay explicit.
+                for (var batches = 1; batches <= maximumBatches; batches++)
                 {
-                    Inputs = EquatableArray.From(new[] { new ForecastActivityYield(raw, Known(perBatch * batches)) }),
-                    Outputs = EquatableArray.From(new[] { new ForecastActivityYield(products[0].Resource, Known(products[0].Count * batches)) }),
-                });
-                bindings.Add(new(cook, source.Id, bench.Id, recipe.Name));
-                foreach (var worker in workers)
-                {
-                    var pawn = roster.Single(p => p.Id.Value == worker.Pawn);
-                    if (!pawn.Available.TryGetValue(out var available) || !available || !pawn.Skills.TryGetValue(out var skills)
-                        || !skills.Any(s => s.Name == "Cooking" && !s.Disabled && s.Level >= floor)) continue;
-                    options.Add(new(cook, worker.Pawn, Duration(Known(exact.WorkAmount.Value * batches), worker.CookWorkPerTick), worker.RecoveryLaborTicks)
-                        { Equipment = EquatableArray.From(new[] { bench.Id }) });
+                    if (!Spend()) break;
+                    if (activities.Count + 3 > 32) { truncated = true; findings.Add("food_generation_truncated"); break; }
+                    var id = harvest + "-recipe-" + generated;
+                    Transfer(id + "-supply", harvest, source.Id, bench.Id, raw, perBatch * batches);
+                    var cook = id + "-cook";
+                    activities.Add(new(cook, bench.Id, bench.Id, [id + "-supply"])
+                    {
+                        Inputs = EquatableArray.From(new[] { new ForecastActivityYield(raw, Known(perBatch * batches)) }),
+                        Outputs = EquatableArray.From(new[] { new ForecastActivityYield(products[0].Resource, Known((double)products[0].Count * batches)) }),
+                    });
+                    bindings.Add(new(cook, source.Id, bench.Id, recipe.Name) { Iterations = batches });
+                    foreach (var worker in workers)
+                    {
+                        var pawn = roster.Single(p => p.Id.Value == worker.Pawn);
+                        if (!pawn.Available.TryGetValue(out var available) || !available || !pawn.Skills.TryGetValue(out var skills)
+                            || !skills.Any(s => s.Name == "Cooking" && !s.Disabled && s.Level >= floor)) continue;
+                        options.Add(new(cook, worker.Pawn, Duration(Known(exact.WorkAmount.Value * batches), worker.CookWorkPerTick), worker.RecoveryLaborTicks)
+                            { Equipment = EquatableArray.From(new[] { bench.Id }) });
+                    }
+                    var delivery = id + "-delivery";
+                    Transfer(delivery, cook, bench.Id, input.Destination, products[0].Resource, (double)products[0].Count * batches);
+                    Relief(delivery, products[0].Resource);
+                    if (truncated) break;
                 }
-                var delivery = id + "-delivery";
-                Transfer(delivery, cook, bench.Id, input.Destination, products[0].Resource, products[0].Count * batches);
-                Relief(delivery, products[0].Resource);
             }
             if (truncated) break;
         }

@@ -58,22 +58,26 @@ public sealed class ForecastFoodCandidatesTests
     public void ObservedHarvestAndRecipeGenerateUsefulCookingInsteadOfLocallyPinningRawFood()
     {
         var generated = GenerateFoodActivities(Frame(), Capacity(), Inputs());
-        Assert.Equal(2, generated.Relief.Length);
+        Assert.Equal(3, generated.Relief.Length);
         var result = CompareSurvivalActivities(Frame(), generated.Problem!, generated.Relief);
         Assert.Single(result.Selected);
-        var binding = Assert.Single(generated.Bindings, b => b.Recipe == "TestRecipe");
+        var binding = Assert.Single(generated.Bindings, b => b.Recipe == "TestRecipe" && b.Iterations == 1);
         Assert.Contains(result.Plan!.Allocations, a => a.Activity == binding.Activity);
         Assert.Equal(4, result.Plan.Allocations.Length); // harvest, supply, cook, final delivery
         var cook = generated.Problem!.Activities.Single(a => a.Id == binding.Activity);
-        Assert.Equal(4, Assert.Single(cook.Inputs).Units.Value);
-        Assert.Equal(2, Assert.Single(cook.Outputs).Units.Value);
+        Assert.Equal(2, Assert.Single(cook.Inputs).Units.Value);
+        Assert.Equal(1, Assert.Single(cook.Outputs).Units.Value);
     }
 
     [Fact]
-    public void MoreObservedYieldMakesRawDeliveryPreferableAndNoCookSkillPreventsCooking()
+    public void RawDeliveryWinsWhenCarryingCapacityAvoidsExtraTripsAndNoCookSkillPreventsCooking()
     {
         var input = Inputs();
         input = input with { Sources = Known(EquatableArray.From(input.Sources.Value.Select(s => s with { Yield = 10 }))) };
+        // A small cooked batch is cheaper than three raw-food trips; carrying all raw food reverses that.
+        Assert.Equal(4, Compare(Frame(), input).Plan!.Allocations.Length);
+        input = input with { Transfers = input.Transfers.Select(t => t.Resource == Raw
+            ? t with { UnitsPerTrip = Known(10.0) } : t).ToArray() };
         var raw = Compare(Frame(), input);
         Assert.Equal(2, raw.Plan!.Allocations.Length);
         Assert.Empty(Compare(Frame(0), Inputs()).Selected);
@@ -86,8 +90,53 @@ public sealed class ForecastFoodCandidatesTests
         input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with
             { Products = Known(EquatableArray.From(new[] { new Amount(Meal, 3) })) }))) };
         var generated = GenerateFoodActivities(Frame(), Capacity(), input);
-        var cook = generated.Problem!.Activities.Single(a => generated.Bindings.Any(b => b.Activity == a.Id && b.Recipe != ""));
+        var cook = generated.Problem!.Activities.Single(a => generated.Bindings.Any(b => b.Activity == a.Id && b.Iterations == 2));
         Assert.Equal(6, Assert.Single(cook.Outputs).Units.Value);
+    }
+
+    [Fact]
+    public void SmallBatchMeetsDeadlineWhenCookingTheWholeHarvestWouldBeTooLate()
+    {
+        var input = Inputs();
+        input = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with { WorkAmount = Known(6000.0) }))) };
+        var generated = GenerateFoodActivities(Frame(), Capacity(), input);
+        var result = CompareSurvivalActivities(Frame(), generated.Problem!, generated.Relief);
+        var selected = Assert.Single(generated.Bindings, b => b.Recipe != "" && result.Plan!.Allocations.Any(a => a.Activity == b.Activity));
+        Assert.Equal(1, selected.Iterations);
+        Assert.True(result.Plan!.CompletedAt < 1000);
+        // Reproduce the old maximum-only candidate set: no alternative covers the need in time.
+        var large = generated.Bindings.Single(b => b.Iterations == 2);
+        var maximumOnly = generated.Relief.Where(r => r.Completion == large.Activity.Replace("-cook", "-delivery") || r.Completion.EndsWith("-raw")).ToArray();
+        Assert.Empty(CompareSurvivalActivities(Frame(), generated.Problem!, maximumOnly).Selected);
+    }
+
+    [Fact]
+    public void LongerFoodHorizonRequiresMoreThanTheCheapestBatch()
+    {
+        var frame = Frame() with { HorizonDays = 9000.0 / GameTime.TicksPerDay };
+        var generated = GenerateFoodActivities(frame, Capacity() with { Deadline = Known(9000.0) }, Inputs());
+        var result = CompareSurvivalActivities(frame, generated.Problem!, generated.Relief);
+        var selected = Assert.Single(generated.Bindings, b => b.Recipe != "" && result.Plan!.Allocations.Any(a => a.Activity == b.Activity));
+        Assert.Equal(2, selected.Iterations);
+        var small = generated.Bindings.Single(b => b.Iterations == 1);
+        Assert.Empty(CompareSurvivalActivities(frame, generated.Problem!, generated.Relief.Where(r =>
+            r.Completion == small.Activity.Replace("-cook", "-delivery")).ToArray()).Selected);
+    }
+
+    [Fact]
+    public void BatchEnumerationSpendsBudgetAndDoesNotPretendOmittedSizesWereCompared()
+    {
+        var input = Inputs() with { GenerationBudget = 3 };
+        var generated = GenerateFoodActivities(Frame(), Capacity(), input);
+        Assert.True(generated.GenerationTruncated);
+        Assert.Equal(3, generated.Generated); // source, recipe inspection, one batch alternative
+        Assert.Single(generated.Bindings, b => b.Iterations == 1);
+        Assert.DoesNotContain(generated.Bindings, b => b.Iterations > 1);
+        Assert.Contains("food_generation_truncated", generated.Findings);
+        var again = GenerateFoodActivities(Frame(), Capacity(), input);
+        Assert.Equal(generated.Bindings, again.Bindings);
+        Assert.Equal(generated.Relief, again.Relief);
+        Assert.Equal(generated.Generated, again.Generated);
     }
 
     [Fact]
