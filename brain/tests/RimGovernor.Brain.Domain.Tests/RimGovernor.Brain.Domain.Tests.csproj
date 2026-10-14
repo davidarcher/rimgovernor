@@ -15,5 +15,6 @@
     <ProjectReference Include="../../src/RimGovernor.Brain.Acceptance/RimGovernor.Brain.Acceptance.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
+    <ProjectReference Include="../../src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
 </Project>

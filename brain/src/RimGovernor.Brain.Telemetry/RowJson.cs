@@ -232,7 +232,7 @@ internal static class RowValues
 {
     /// <summary>
     /// Scalars as themselves (integers as long, floats as double), durations in milliseconds, exceptions and
-    /// every other object as their text, sequences as arrays and string-keyed maps as kvlists.
+    /// every other object as their text, sequences as arrays and maps of any key and value types (keys as text) as kvlists.
     /// </summary>
     internal static object? Normalize(object? v)
     {
@@ -258,8 +258,8 @@ internal static class RowValues
                 return Map(map.Select(p => new KeyValuePair<string, object?>(p.Key, p.Value)));
             case IReadOnlyDictionary<string, object?> map:
                 return Map(map);
-            case IDictionary map when StringKeyed(map):
-                return Map(map.Cast<DictionaryEntry>().Select(p => new KeyValuePair<string, object?>((string)p.Key, p.Value)));
+            case IEnumerable seq when Entries(seq) is { } entries:
+                return Map(entries);
             case IEnumerable items:
                 return items.Cast<object?>().Select(Normalize).ToList();
             default:
@@ -277,15 +277,35 @@ internal static class RowValues
         return sorted;
     }
 
-    private static bool StringKeyed(IDictionary map)
+    /// <summary>
+    /// The entries of any map: a generic dictionary or read-only dictionary of any key and value types (found by its
+    /// <see cref="KeyValuePair{TKey, TValue}"/> elements) or a non-generic <see cref="IDictionary"/>. Keys are written
+    /// as their invariant text. Null for a sequence that is not a map.
+    /// </summary>
+    private static List<KeyValuePair<string, object?>>? Entries(IEnumerable seq)
     {
-        foreach (var key in map.Keys)
+        var result = new List<KeyValuePair<string, object?>>();
+        if (seq is IDictionary legacy)
         {
-            if (key is not string)
+            var e = legacy.GetEnumerator();
+            while (e.MoveNext())
             {
-                return false;
+                result.Add(new(KeyText(e.Key), e.Value));
             }
+            return result;
         }
-        return true;
+        var type = seq.GetType();
+        if (!type.GetInterfaces().Append(type).Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>)))
+        {
+            return null;
+        }
+        foreach (var pair in seq)
+        {
+            var pt = pair!.GetType();
+            result.Add(new(KeyText(pt.GetProperty("Key")!.GetValue(pair)), pt.GetProperty("Value")!.GetValue(pair)));
+        }
+        return result;
     }
+
+    private static string KeyText(object? key) => Convert.ToString(key, CultureInfo.InvariantCulture) ?? "";
 }
