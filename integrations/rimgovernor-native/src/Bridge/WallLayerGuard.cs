@@ -21,7 +21,14 @@ namespace HomeBridge.BridgeTools
         // Standable original. A new-ring wall keeps the Standable Frame.
         private static readonly Dictionary<ThingDef, ThingDef> ReplacementFrames = new Dictionary<ThingDef, ThingDef>();
         private static readonly HashSet<ThingDef> ReplacementFrameDefs = new HashSet<ThingDef>();
+        // Two NativeOperationTools instances are built concurrently (the host's tool discovery and the
+        // HTTP channel's Task.Run), so the check-and-set must be atomic or each adds every clone.
+        private static readonly object InstallLock = new object();
         internal static void Install()
+        {
+            lock (InstallLock) InstallOnce();
+        }
+        private static void InstallOnce()
         {
             if (patched) return;
             foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading.ToArray())
