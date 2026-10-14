@@ -71,6 +71,21 @@ public sealed partial class Store
         {
             throw new MethodBoundException($"{owner.OwnerLabel} already binds method {method.Value} to plan {bound.Value}");
         }
+        // Native execution reports the payload's Method. It must identify the journal owner that
+        // authorized it, and a plan must not race multiple revisions of one pawn through Hands.
+        var activityPawns = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var action in plan.Actions)
+        {
+            if (action.PawnActivities is not { } batch) continue;
+            batch.Validate();
+            foreach (var order in batch.Orders)
+            {
+                if (order.Method != method.Value)
+                    throw new ConflictException("activity order method does not match its journal method");
+                if (!activityPawns.Add(order.Pawn))
+                    throw new ConflictException("method repeats a pawn across activity actions");
+            }
+        }
         AdmitOwnerMethod(tx, owner, plan);
         owner.BindMethod(tx, method, plan.Id, reason);
         _ = tx.Execute("UPDATE plans SET method_id=$method WHERE id=$id", ("$method", method), ("$id", plan.Id));

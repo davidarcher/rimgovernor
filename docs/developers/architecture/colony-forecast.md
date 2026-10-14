@@ -853,3 +853,9 @@ It does not close the live forecast loop: observed output rebinding, carried-ite
 recovery, mixed-ingredient cooking, calibrated live candidate inputs and normal Method
 admission/Hands dispatch still need integration. The automatic hauling/cleaning/
 eating helpers remain in place until that replacement is proven.
+
+The existing Method journal now checks activity payload attribution against its
+committed Method and rejects repeated pawn revisions across actions in one plan.
+Journal-to-Hands intent tests cover that boundary, including atomic refusal.
+This guard does not supply live forecast selection, cross-owner pawn claims,
+output rebinding or completed-work evidence.

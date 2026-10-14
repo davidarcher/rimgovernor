@@ -13,6 +13,14 @@ Apply identity and existing authority generation scope the batch. Native validat
 all orders before replacing any entry. A repeated identical installed revision
 is a no-op; a conflicting/stale revision is refused. Release uses the same path.
 
+Normal Method admission checks that every activity order, including release,
+names the Method being committed. Across that Method's plan, a pawn may appear
+in only one activity action: a sequence of revisions requires observation and a
+later decision, not separate competing actions in the same plan. Multiple pawns
+may share one atomic batch. These checks run in the existing owner transaction,
+before plan creation or Method binding; refusal leaves both unchanged. They do
+not reserve pawns across different owners or prove current native availability.
+
 The initial step families are exact thing-target work (Clean, Repair, Harvest and BeatFire through a named native WorkGiver), selected food/count,
 selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, and Hold. Unsupported families are refused, not sent to a
 native economic selector. Other recreation and construction adapters remain outside this
@@ -120,6 +128,12 @@ batches. Existing `clean/bench` and `clean/care` cases remain: their helpers are
 still used outside explicit ownership. #3128 deletes/replaces those policies and
 cases with their economic replacements. The activity observation case remains
 independent native lifecycle/output coverage.
+
+`PawnActivityMethodTests` commits coordinated assignments through a real SQLite
+Method journal and builds the Hands intent from the reloaded action. It checks
+pending progress, the existing open-Method guard, wrong-Method refusal (including
+release), repeated-pawn refusal across actions and transaction rollback. This is
+admission/payload evidence, not a live forecast caller or native dispatch test.
 
 `control/pawn-activity-delivery` starts from a prepared ripe crop and checks edible
 harvest output, refusal when the selected delivery cell becomes occupied after

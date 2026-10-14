@@ -62,4 +62,4 @@ proposals; Git and result artifacts retain implementation history and run eviden
 
 - [Pawn activity observations and reports](developers/architecture/pawn-activity.md)
 
-- [Planner-owned pawn activities](developers/contracts/pawn-activities.md): exact cooking ingredients and delivery destinations, needs execution, bounded holds and ownership.
+- [Planner-owned pawn activities](developers/contracts/pawn-activities.md): Method admission, exact cooking ingredients and delivery destinations, needs execution, bounded holds and ownership.
