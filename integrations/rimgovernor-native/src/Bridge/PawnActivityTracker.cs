@@ -63,12 +63,14 @@ namespace HomeBridge.BridgeTools
 
         private static bool Ready()
         {
-            if (ledger == null || failed) return false;
-            var now = Find.TickManager?.TicksGame ?? -1;
-            if (!ReferenceEquals(game, Current.Game) || now < lastTick)
+            // The brain attaches at the main menu, where there is no game: Find.TickManager dereferences Current.Game and throws.
+            var current = Current.Game;
+            if (ledger == null || failed || current == null) return false;
+            var now = current.tickManager?.TicksGame ?? -1;
+            if (!ReferenceEquals(game, current) || now < lastTick)
             {
                 ledger.Reset();
-                game = Current.Game;
+                game = current;
             }
             lastTick = now;
             return game != null && now >= 0;
