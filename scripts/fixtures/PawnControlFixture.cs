@@ -12,7 +12,7 @@ using RimGovernor.Brain.Domain;
 using Common = RimGovernor.Contracts.Wire.Common;
 namespace HomeBridge.BridgeTools
 {
-    public sealed class PawnControlFixture
+    public sealed partial class PawnControlFixture
     {
         private static Pawn? worker, helper;
         private static Thing? crop, filth, food, bed;

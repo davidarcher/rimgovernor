@@ -835,4 +835,11 @@ projection compiles against native definitions; these tests do not prove a live
 crop census or native execution. The generator is callable policy, not yet wired
 to live Rounds dispatch. Multi-source/multi-ingredient planning, variable batch
 sizes, native worker yield/rate calibration, power/fuel transitions and Hands
-harvest/hauling/cooking execution remain #3127/#3128/#3135 integration work.
+harvest/hauling/cooking integration remain #3127/#3128/#3135 work. The
+[activity execution contract](../contracts/pawn-activities.md) now includes an
+exact one-trip delivery adapter alongside harvest. Its native case checks physical
+output and explicit revision after refusal, with fixture-selected assignments.
+It does not close the live forecast loop: observed output rebinding, carried-item
+recovery, exact cooking, calibrated live candidate inputs and normal Method
+admission/Hands dispatch still need integration. The automatic hauling/cleaning/
+eating helpers remain in place until that replacement is proven.

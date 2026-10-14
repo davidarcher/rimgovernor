@@ -7,7 +7,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class PawnActivitiesTests
 {
     private static PawnActivities Batch() => new(1, [new("pawn", "assignment", "method", 0, 1, false,
-        [new(PawnActivityKind.Hold, "", "", "", 0, 1234, "filth"), new(PawnActivityKind.Eat, "meal", "", "", 1, 2345)])]);
+        [new(PawnActivityKind.Hold, "", "", "", 0, 1234, "filth"), new(PawnActivityKind.Eat, "meal", "", "", 1, 2345),
+         new(PawnActivityKind.Deliver, "harvest", "", "", 3, 3456) { Destination = new Cell(12, 34) }])]);
     [Fact]
     public void HandsIntentAndJournalRetainExactTargetsAndDeadlines()
     {
@@ -22,6 +23,21 @@ public sealed class PawnActivitiesTests
         Assert.Equal("meal", wire.Intent!.PawnActivities!.Batch!.Orders[0].Steps[1].Target);
         Assert.Equal(1234, wire.Intent.PawnActivities.Batch.Orders[0].Steps[0].Deadline);
         Assert.Equal("method", wire.Intent.PawnActivities.Batch.Orders[0].Method);
+        Assert.Equal(Batch().Orders[0].Steps[2], wire.Intent.PawnActivities.Batch.Orders[0].Steps[2]);
+    }
+    [Fact]
+    public void DeliveryRequiresAnExactCellAndPositiveCountWithoutWorkSelection()
+    {
+        var b = Batch();
+        var delivery = b.Orders[0].Steps[2];
+        void Refused(PawnActivityStep step) => Assert.Throws<DomainException>(() =>
+            (b with { Orders = [b.Orders[0] with { Steps = [step] }] }).Validate());
+        Refused(delivery with { Destination = null });
+        Refused(delivery with { Destination = new Cell(-1, 0) });
+        Refused(delivery with { Count = 0 });
+        Refused(delivery with { Target = "" });
+        Refused(delivery with { WorkGiver = "choose-storage" });
+        Refused(delivery with { Kind = PawnActivityKind.Hold });
     }
     [Fact]
     public void DuplicatePawnsAndNonAdvancingRevisionsAreRejected()

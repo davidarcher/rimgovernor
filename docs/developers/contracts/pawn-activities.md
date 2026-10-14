@@ -14,12 +14,30 @@ all orders before replacing any entry. A repeated identical installed revision
 is a no-op; a conflicting/stale revision is refused. Release uses the same path.
 
 The initial step families are exact thing-target work (Clean, Repair, Harvest and BeatFire through a named native WorkGiver), selected food/count,
-selected bed/rest, selected horseshoes recreation, and Hold. Unsupported families are refused, not sent to a
-native economic selector. Other recreation and cell-target adapters remain outside this
+selected bed/rest, selected horseshoes recreation, exact delivery, and Hold. Unsupported families are refused, not sent to a
+native economic selector. Other recreation and construction adapters remain outside this
 initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
 the normal internal mechanics of their chosen job; this does not model every toil
 as a separate economic decision.
+
+`Deliver` names a currently spawned item, a positive count and an exact destination
+cell. The custom delivery driver uses native pathing, reservations, stack splitting
+and carrying, but does not ask the hauling WorkGiver to select storage. It never
+collects nearby duplicates or substitutes a nearby drop location. Admission and
+execution require a capable hauler, sufficient source quantity and carrying capacity,
+an empty carry tracker, and a reachable, unreserved destination without loose items.
+This initial adapter deliberately refuses stack merging and multi-trip deliveries.
+The planner must split larger transfers into bounded attempts and observe each result.
+
+Destination availability is rechecked during execution. A changed destination,
+lost source, capacity shortfall or deadline fails the assignment visibly. Completion
+requires the selected count dropped directly at the selected cell. An interruption
+after pickup may leave food carried by the pawn: failure is not evidence that it is
+still at the source, and a new planner decision must inspect that state. Resuming a
+carried stack is not yet supported by this adapter. Newly harvested/cooked items
+require fresh observed identities and a revised assignment; future output IDs are
+not guessed. Cooking remains an unsupported activity family.
 
 For owned pawns the normal and constant think-tree selection paths are intercepted.
 Override probes cannot consume/restart assignments. Opportunistic prefixes and
@@ -73,3 +91,11 @@ batches. Existing `clean/bench` and `clean/care` cases remain: their helpers are
 still used outside explicit ownership. #3128 deletes/replaces those policies and
 cases with their economic replacements. The activity observation case remains
 independent native lifecycle/output coverage.
+
+`control/pawn-activity-delivery` starts from a prepared ripe crop and checks edible
+harvest output, refusal when the selected delivery cell becomes occupied after
+installation, and an explicit new revision delivering one unit to another exact
+cell while conserving the source quantity. The fixture drives those revisions
+through native activity installation; it does not prove forecast selection, normal
+Rounds/Hands dispatch or autonomous recovery. Domain tests separately round-trip
+the exact delivery payload through the journal codec and Hands intent builder.

@@ -15,6 +15,7 @@ public static class CaseCatalog
         registry.Register(PawnActivityCase.Case());
         registry.Register(PawnControlCase.Case());
         registry.Register(PawnControlCase.LifecycleCase());
+        registry.Register(PawnDeliveryCase.Case());
 
         // The case areas land with #3090 and #3093; each area adds one line below (sorted by area).
         ApplyCases.Register(registry);

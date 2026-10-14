@@ -39,6 +39,7 @@ namespace HomeBridge.BridgeTools
         }
         private static bool installed;
         private static JobDef holdDef = null!;
+        private static JobDef deliveryDef = null!;
         private static bool replacing;
         internal static bool IsHold(Job job) => job.def == holdDef;
         internal static bool Owned(Pawn pawn) => Entries.ContainsKey(pawn);
@@ -51,6 +52,8 @@ namespace HomeBridge.BridgeTools
             if (installed) return;
             holdDef = new JobDef { defName = "RimGovernorWait", driverClass = typeof(JobDriver_GovernorWait), reportString = "Waiting for the colony plan.", casualInterruptible = false };
             DefDatabase<JobDef>.Add(holdDef);
+            deliveryDef = new JobDef { defName = "RimGovernorDeliver", driverClass = typeof(JobDriver_GovernorDeliver), reportString = "Delivering to the colony plan's destination.", casualInterruptible = false };
+            DefDatabase<JobDef>.Add(deliveryDef);
             var h = new Harmony("rimgovernor.activity-execution");
             void Patch(Type t, string name, string? before = null, string? after = null) => h.Patch(AccessTools.Method(t, name),
                 before == null ? null : new HarmonyMethod(typeof(NativePawnActivities), before),
@@ -101,6 +104,7 @@ namespace HomeBridge.BridgeTools
                     if (step.Kind == PawnActivityKind.Eat && (!target.IngestibleNow || !pawn.RaceProps.CanEverEat(target) || step.Count > target.stackCount)) return Refuse("Selected food/count unavailable.");
                     if (step.Kind == PawnActivityKind.Recreation && (target.def.defName != "HorseshoesPin" || pawn.needs.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) return Refuse("Selected recreation unavailable.");
                     if (step.Kind == PawnActivityKind.Sleep && !RestUtility.CanUseBedNow(target, pawn, true)) return Refuse("Selected bed unavailable.");
+                    if (step.Kind == PawnActivityKind.Deliver && !DeliveryAllowed(pawn, target, step)) return Refuse("Selected delivery unavailable.");
                 }
             }
             return null;
@@ -113,6 +117,17 @@ namespace HomeBridge.BridgeTools
             && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision && a.Release == b.Release && a.Steps.SequenceEqual(b.Steps);
         private static Common.Failure Refuse(string text) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, text);
         private static Thing? Thing(string id) => Find.CurrentMap.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
+
+        private static bool DeliveryAllowed(Pawn pawn, Thing target, PawnActivityStep step)
+        {
+            if (step.Destination is not { } destination || target.def.category != ThingCategory.Item || !target.def.EverHaulable
+                || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
+                || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || pawn.carryTracker.CarriedThing != null
+                || target.stackCount < step.Count || pawn.carryTracker.MaxStackSpaceEver(target.def) < step.Count) return false;
+            var cell = new IntVec3(destination.X, 0, destination.Z);
+            return JobDriver_GovernorDeliver.DestinationAvailable(pawn, cell)
+                && pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.Some);
+        }
 
         internal static Receipts.EffectEvidence Apply(PawnActivities batch, Common.ObservationContext context)
         {
@@ -203,6 +218,14 @@ namespace HomeBridge.BridgeTools
             {
                 if (!RestUtility.CanUseBedNow(target, p, true)) throw new InvalidOperationException("bed_unavailable");
                 job = JobMaker.MakeJob(JobDefOf.LayDown, target);
+            }
+            else if (step.Kind == PawnActivityKind.Deliver)
+            {
+                if (!DeliveryAllowed(p, target, step)) throw new InvalidOperationException("delivery_unavailable");
+                var cell = step.Destination!.Value;
+                job = JobMaker.MakeJob(deliveryDef, target, new IntVec3(cell.X, 0, cell.Z));
+                job.count = step.Count;
+                job.haulOpportunisticDuplicates = false;
             }
             if (step.Kind == PawnActivityKind.Recreation)
             {
@@ -323,6 +346,37 @@ namespace HomeBridge.BridgeTools
             toil.defaultCompleteMode = ToilCompleteMode.Never;
             toil.tickAction = () => NativePawnActivities.WaitTick(pawn);
             yield return toil;
+        }
+    }
+    /// <summary>Native walking/reservation/carrying mechanics, with no storage search or nearby-drop fallback.</summary>
+    public sealed class JobDriver_GovernorDeliver : JobDriver
+    {
+        internal static bool DestinationAvailable(Pawn pawn, IntVec3 cell) => cell.InBounds(pawn.Map)
+            && cell.Standable(pawn.Map) && !cell.Fogged(pawn.Map) && !cell.IsForbidden(pawn)
+            && !cell.GetThingList(pawn.Map).Any(t => t.def.category == ThingCategory.Item);
+
+        public override bool TryMakePreToilReservations(bool errorOnFailed) =>
+            pawn.Reserve(job.targetA, job, 1, job.count, null, errorOnFailed)
+            && pawn.Reserve(job.targetB, job, 1, -1, null, errorOnFailed);
+
+        protected override IEnumerable<Toil> MakeNewToils()
+        {
+            this.FailOnDestroyedOrNull(TargetIndex.A);
+            this.FailOnForbidden(TargetIndex.A);
+            this.FailOnBurningImmobile(TargetIndex.B);
+            this.FailOn(() => !DestinationAvailable(pawn, job.targetB.Cell));
+            yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch)
+                .FailOnSomeonePhysicallyInteracting(TargetIndex.A);
+            yield return Toils_Haul.StartCarryThing(TargetIndex.A, failIfStackCountLessThanJobCount: true);
+            yield return Toils_Goto.GotoCell(TargetIndex.B, PathEndMode.OnCell);
+            yield return Toils_General.DoAtomic(() =>
+            {
+                if (pawn.carryTracker.CarriedThing?.stackCount != job.count
+                    || !DestinationAvailable(pawn, job.targetB.Cell)
+                    || !pawn.carryTracker.TryDropCarriedThing(job.targetB.Cell, ThingPlaceMode.Direct, out var delivered)
+                    || delivered == null || delivered.Position != job.targetB.Cell || delivered.stackCount != job.count)
+                    EndJobWith(JobCondition.Incompletable);
+            });
         }
     }
     internal sealed class PawnActivitiesActionHandler : IActionHandler

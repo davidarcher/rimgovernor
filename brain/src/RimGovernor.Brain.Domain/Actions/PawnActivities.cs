@@ -1,10 +1,13 @@
 namespace RimGovernor.Brain.Domain;
 
-public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation }
+public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver }
 
 /// <summary>An authorized step, not a native-priority request. Deadlines are absolute game ticks.</summary>
 public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, string WorkGiver,
-    string Job, int Count, long Deadline, string WaitForFilth = "");
+    string Job, int Count, long Deadline, string WaitForFilth = "")
+{
+    public Cell? Destination { get; init; }
+}
 
 public sealed record PawnActivityOrder(string Pawn, string Assignment, string Method, long ExpectedRevision,
     long Revision, bool Release, PawnActivityStep[] Steps);
@@ -26,7 +29,10 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 DomainException.Require(step != null && Enum.IsDefined(step.Kind) && step.Deadline > 0
                     && (step.Kind == PawnActivityKind.Hold || Identity.IsValidText(step.Target))
                     && (step.Kind != PawnActivityKind.Work || Identity.IsValidText(step.WorkGiver) && Identity.IsValidText(step.Job))
-                    && (step.Kind != PawnActivityKind.Eat || step.Count > 0), "invalid activity step");
+                    && (step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Deliver) || step.Count > 0)
+                    && (step.Kind == PawnActivityKind.Deliver
+                        ? step.Destination is { X: >= 0, Z: >= 0 } && step.WorkGiver.Length == 0 && step.Job.Length == 0
+                        : step.Destination is null), "invalid activity step");
         }
     }
 }
