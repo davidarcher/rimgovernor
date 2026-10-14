@@ -142,6 +142,14 @@ public readonly record struct BlockedReason(string Value)
 /// </summary>
 public readonly record struct PlannerNote(Cause Cause, string Subject)
 {
+    /// <summary>What the note concerns; "" for the zero note (a default struct has no string to hold).</summary>
+    public string Subject { get => field ?? ""; init; } = Subject;
+
+    /// <summary>Compares through <see cref="Subject"/> so the default struct equals the zero note built with "".</summary>
+    public bool Equals(PlannerNote other) => Cause == other.Cause && Subject == other.Subject;
+
+    public override int GetHashCode() => HashCode.Combine(Cause, Subject);
+
     /// <summary>The reason a record with no method reads the note as: nothing to do while cleared, else the note's cause.</summary>
     public BlockedReason Blocked() => Cause == Cause.None ? BlockedReason.NoMethod : BlockedReason.FromCause(Cause);
 }

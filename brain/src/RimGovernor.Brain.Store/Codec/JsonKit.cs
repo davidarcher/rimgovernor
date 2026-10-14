@@ -162,13 +162,13 @@ public abstract class StringCodec<T>(Func<string, T> make, Func<T, string> text)
 {
     public T Decode(JsonElement e, Codecs codecs)
     {
-        if (e.ValueKind != JsonValueKind.String)
+        if (e.ValueKind is not (JsonValueKind.String or JsonValueKind.Null))
         {
             throw new StoreCorruptException(typeof(T).Name + " is not a string");
         }
         try
         {
-            return make(e.GetString()!);
+            return make(e.GetString() ?? "");
         }
         catch (DomainException error)
         {
@@ -176,7 +176,7 @@ public abstract class StringCodec<T>(Func<string, T> make, Func<T, string> text)
         }
     }
 
-    public void Encode(Utf8JsonWriter w, T value, Codecs codecs) => w.WriteStringValue(text(value));
+    public void Encode(Utf8JsonWriter w, T value, Codecs codecs) => w.WriteStringValue(text(value) ?? "");
 }
 
 /// <summary>A single scalar written as a JSON number.</summary>
@@ -217,8 +217,14 @@ public static class JsonFields
     public static T GetOr<T>(this JsonElement e, string name, T fallback, Codecs o) =>
         e.TryGetProperty(name, out var field) && field.ValueKind != JsonValueKind.Null ? o.Read<T>(field) : fallback;
 
+    /// <summary>
+    /// A required string field. A JSON null reads as "": a default-constructed record or struct (<c>new PlannerNote()</c>)
+    /// carries null in its non-nullable string members, and <c>WriteString</c> persists that as null.
+    /// </summary>
     public static string Str(this JsonElement e, string name) =>
-        e.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.String ? field.GetString()! : throw new StoreCorruptException($"missing string {name}");
+        e.TryGetProperty(name, out var field) && field.ValueKind is JsonValueKind.String or JsonValueKind.Null
+            ? field.GetString() ?? ""
+            : throw new StoreCorruptException($"missing string {name}");
 
     public static string StrOr(this JsonElement e, string name) =>
         e.TryGetProperty(name, out var field) && field.ValueKind == JsonValueKind.String ? field.GetString()! : "";
