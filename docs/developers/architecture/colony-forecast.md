@@ -5,7 +5,20 @@
 `PolicyFunctions.ForecastColony` is the pure owner of a baseline and a proposed
 commitment delta evaluated against the same observed facts. It returns
 `ColonyForecast`; it does not issue orders or certify native legality. The
-inventory component accounts for supplied timed changes. The construction slice below generates delivery/finish dependencies from observed standing sites and shares pawn/material capacity across commitments. Pawn dynamics and production dispatch remain unintegrated.
+inventory component accounts for supplied timed changes. The construction slice
+below generates delivery/finish dependencies from observed standing sites and
+shares pawn/material capacity across commitments. A bounded food Method caller
+uses the shared outcome comparator and normal journal/Hands dispatch for harvest
+and delivery. Full production portfolio dispatch and coupled pawn dynamics remain
+unintegrated.
+
+Forecasting is part of choosing and advancing a Method in the
+[Concern/Method/action model](plans-and-hands.md#method-selection-and-binding).
+Family policy generates alternatives and binds the selected outcome; shared
+comparison evaluates them. Forecast results are derived evidence, not another
+admission authority, Method lifecycle or stock owner. The
+[live policy stage map](#live-activity-policy-stages) describes the current caller
+and its compiler-enforced boundaries.
 
 ## Input and accounting
 
@@ -243,6 +256,23 @@ consumption once, baseline/delta cancellation, shared versus disjoint workers,
 scarce materials and bill holds, skill/tier protection, changed/removed sites,
 unknown routes, independent runnable work and the shared search budget.
 
+
+## Planned rooms
+
+`ForecastWorkInputs.PlannedRooms` carries one commitment per room of the layout plan, `planned/room{id}`,
+built by `PlannedRoomCommitments` from `RoundsFacts.PlannedConstruction`: the material the plan still owes that
+room. It is the reconciler's own diff, not a second one: `Rounder.PlannedConstructionOf` builds each room's
+`ReconcileInput` from the plan (the stored `Pieces` as the template, the colony's standing buildings and floors as
+the census) and `PlannedOwedCost` prices the `WallIn`, `DoorIn`, `VentIn`, `FloorIn` and `Build` operations that
+`Reconcile` says are owed, from the def catalog. The price and the build therefore read the same diff. A wall two
+rooms share is claimed by the lowest room id. The commitment is exact `MaterialClaims` (no reservation bill, no
+stock effect, no site), so `ForecastMaterialBudgetOf` holds that material back from other alternatives. It is
+the same plan the shared construction demand reads, so the two cannot disagree.
+
+Not modelled: nothing is placed yet, so there is no work amount, route or finish time to schedule and labor is
+declared in `UnsupportedEffects` (`planned_construction_labor`). Scheduling planned rooms against pawn capacity
+needs a planned-site notion with a work estimate (the catalog's work to build) and a legality read; that is
+forecast work, not done here. A wall, door, vent or piece with a blueprint or frame already placed is left out of the planned claim: the standing site owes its outstanding material through the construction census, so nothing is claimed twice.
 
 ## Review inputs and pawn windows
 
@@ -842,17 +872,19 @@ crop census or native execution. The generator is callable policy, not yet wired
 to live Rounds dispatch. Batch sizes omitted by the bounded enumeration remain
 untested, and the comparison does not model staggered delivery between iterations.
 Multi-source/multi-ingredient planning, native worker yield/rate calibration,
-power/fuel transitions and Hands
-harvest/hauling/cooking integration remain #3127/#3128/#3135 work. The
+power/fuel transitions and dispatch of this full generated food portfolio remain
+#3127/#3128/#3135 work. The
 [activity execution contract](../contracts/pawn-activities.md) now includes an
 exact one-trip delivery adapter alongside harvest, plus a one-iteration cooking
 adapter for exact single-resource ingredient stacks and an existing selected bill.
 Their native cases check physical output and explicit revision after refusal,
 with fixture-selected assignments.
-It does not close the live forecast loop: observed output rebinding, carried-item
-recovery, mixed-ingredient cooking, calibrated live candidate inputs and normal Method
-admission/Hands dispatch still need integration. The automatic hauling/cleaning/
-eating helpers remain in place until that replacement is proven.
+Those fixture cases do not prove autonomous portfolio selection. The separate
+live harvest/delivery caller below supplies observed loose-food rebinding and
+normal Method admission/Hands dispatch for its narrow path. Carried-item recovery,
+mixed-ingredient cooking, calibrated portfolio inputs and dispatch of the full
+generated chain remain unintegrated. Automatic hauling/cleaning/eating helpers
+remain in place until their replacement is proven.
 
 The existing Method journal now checks activity payload attribution against its
 committed Method and rejects repeated pawn revisions across actions in one plan.
@@ -862,10 +894,64 @@ output rebinding or completed-work evidence.
 
 The first live activity caller is the normal EnsureFoodSupply acquisition planner:
 it takes the shared FoodPlan's selected plant sources, compares bounded same-pawn
-harvest/delivery trips with the activity allocator and journals exact harvest
+harvest/delivery Method alternatives with the shared outcome comparator and journals exact harvest
 through Hands. The worker binds observed loose food to a delivery continuation
 and handles changed stacks, destinations and bounded empty-handed retry. See the
 [owning contract](../contracts/pawn-activities.md#live-harvest-and-delivery) for
 assumptions and limits. This is not yet the full ForecastFoodCandidates portfolio
 caller: cooking, helper delegation, coupled needs, material claims and carried-item
 recovery remain unintegrated. Predicted yield is never credited as actual stock.
+
+### Live activity policy stages
+
+These are steps in proposing and advancing a Method, not new domain actors:
+
+`Concern -> candidate Method alternatives -> ColonyForecast comparison -> Plan/actions -> Method journal -> Hands`
+
+The existing worker observes outcomes and advances or releases the same Method.
+Only journal admission creates an owned Method; generated alternatives are
+transient forecast inputs and concrete target bindings, not persistent Methods.
+
+| Owner | Responsibility |
+| --- | --- |
+| `RoundsAcquisitionPlanner` | Read shared food demand and native options; admit the proposed Method through the existing journal |
+| `FoodMethodCandidates` in `Methods.Generation` | Generate one graph, mutually exclusive outcomes for the current Method decision, and an outcome-ID-to-native-option binding map |
+| `PolicyFunctions.CompareActivityOutcomes` | Shared ColonyForecast alternative search, scheduling, deadlines, labor ceiling, postponement and selection |
+| `FoodActivityBinding` in `Methods.Binding` | Resolve the selected outcome ID into exact activity actions; no independent ranking |
+| `StartFoodActivity` / `ContinueFoodActivity` | Pure ownership/lifecycle checks and sequencing of generation, comparison and binding |
+| Existing Method journal and Hands | Admission, progress/revision ownership, dispatch and release |
+
+There is no separate generic activity-candidate or selection engine. Binding
+consumes the existing `ForecastActivityOutcomeComparison`. The public lifecycle
+functions also return that comparison for inspection, including findings and
+search truncation. The planner includes bounded selection in its existing Method
+reason; this does not introduce telemetry or persistence ownership.
+
+The local bridge uses the shared comparator's explicit `LowestLaborPerUnit`
+objective. It accepts alternatives for only one need, requires known positive
+comparable progress units and a known labor ceiling, and leaves `NetBenefit`
+unknown: an efficiency ratio is not an estimate of avoided hunger damage.
+The existing acquisition horizon supplies the ceiling; equal unit labor rates
+and zero recovery cost on native Danger.None routes remain local assumptions.
+Full survival portfolio selection uses the existing outcome/effect mechanisms,
+not this ratio across unrelated needs.
+
+The live adapter enumerates at most sixteen eligible alternatives, matching the
+shared outcome comparator, with one 512-expansion budget. Both omitted native
+options and policy generation limits produce `generation_truncated`; omitted
+choices may be better. This is narrower than the former 128 independent trip
+comparisons. Equal objective values use the shared comparator's lower-total-labor,
+then earlier-completion tie break, followed by stable outcome ordering.
+
+`RGARCH009` has no baseline. Generation and binding cannot call each other or
+policy comparison helpers. Lifecycle entry points can call the shared outcome
+comparator but cannot add arithmetic, use the lower-level allocator directly, or
+construct orders. These stages cannot construct or clone a forecast selection.
+Checks resolve aliases, method groups and target-typed construction. All Method
+implementation types remain internal. This is a dependency fence, not proof of
+complete candidate generation or correct arbitrary scoring; gate changes still
+require review. Older planners are not all migrated into this structure.
+
+The full `ForecastFoodCandidates` raw-versus-cooked generator is not yet connected
+to this live adapter. Cooking, coupled needs, helper delegation and shared claims
+remain integration work. Existing helpers stay until their replacement is proven.

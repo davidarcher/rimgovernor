@@ -75,6 +75,21 @@ Vanilla work priorities schedule queued pawn jobs. Concerns do not reserve
 exclusive development slots. Method ownership, open work, Safeguards,
 dependencies and per-planner bounds prevent duplicate or unsafe admission.
 
+Explicit pawn activity Methods select exact work through policy and Hands rather
+than delegating those choices to vanilla priorities. The live food planner
+sequences native reads, pure Method proposal and journal admission. Candidate
+generation and binding remain family-specific; ColonyForecast's shared outcome
+comparison selects among their alternatives. This does not replace the scheduler
+or establish a global labor allocation for every Concern. See
+[Method selection and binding](plans-and-hands.md#method-selection-and-binding).
+
+The worker revisits installed activity Methods independently of eligibility to
+start new work. Terminal execution and fresh observations permit a productive
+continuation while the Concern remains unmet; known recovery permits cleanup.
+Missing observations do not prove completion. The existing journal retains
+responsibility through replacement or release, as defined by
+[Method continuation](../contracts/method-continuation.md#pawn-activity-methods).
+
 Planners claim pawns and entities through a step-scoped first-come claim set
 (`StepArbiter.TryClaim`); start order within a wave follows the planner catalog.
 These claims are not a complete colony-wide labor forecast. Supply planning accounts for its own labor and lead

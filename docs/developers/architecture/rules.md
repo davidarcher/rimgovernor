@@ -112,6 +112,14 @@ member or through a Policy `RoomTier`/`PlannerTier`/`AdoptedTier`/
 
 ## Refreshing
 
+Live Method stages (`RGARCH009`, no baseline): internal generation and binding
+dependencies follow the [ColonyForecast stage contract](colony-forecast.md#live-activity-policy-stages).
+Generation cannot construct activity orders; binding cannot generate or compare.
+Lifecycle entry points use `CompareActivityOutcomes`; independent ranking,
+direct order construction and fabricated forecast selections are rejected.
+This gate covers the explicit live Method stages,
+not every existing planner or every possible form of decision math.
+
 A violation you fixed leaves a stale baseline line, and the build says which:
 delete it. To see all findings of a project while fixing, build it; the
 diagnostics list every finding with its baseline key, so a key can be copied into

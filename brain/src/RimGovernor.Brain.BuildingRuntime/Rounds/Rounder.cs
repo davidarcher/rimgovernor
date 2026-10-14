@@ -882,19 +882,19 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>
-    /// The whole plan's unbuilt walls and doors priced from the def catalog with the stuff the shell chooser
-    /// takes (ShellSharedStuff); unknown while the plan or the construction census is.
+    /// What the whole plan still owes, per room id: the reconciler's owed operations over the plan (PlannedOwedCost), priced from the def catalog with
+    /// the stuff the shell chooser takes (ShellSharedStuff) for the ring and the bulk chooser's for pieces; unknown while the plan or the construction census is.
     /// </summary>
-    internal static Fact<IReadOnlyDictionary<Resource, long>> PlannedConstructionOf(ColonyProjection colony, FlooringPolicy flooring)
+    internal static Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstructionOf(ColonyProjection colony, FlooringPolicy flooring)
     {
         if (!colony.LayoutPlan.TryGetValue(out var plan))
         {
-            return Unknown<IReadOnlyDictionary<Resource, long>>();
+            return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
         }
-        var (ground, groundKnown) = ColonyGround(colony);
+        var (_, groundKnown) = ColonyGround(colony);
         if (!groundKnown)
         {
-            return Unknown<IReadOnlyDictionary<Resource, long>>();
+            return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
         }
         var wall = AnimalContainmentDefinition(colony.Definitions, PolicyApi.ShellWallDefinition);
         var door = AnimalContainmentDefinition(colony.Definitions, PolicyApi.ShellDoorDefinition);
@@ -920,22 +920,6 @@ internal static partial class BuildingRuntimePackage
             }
             return null;
         }
-        var demand = PolicyApi.PlannedShellDemand(plan, plan.GroundWithRock(ground, NaturalRock(colony)), Price);
-        foreach (var (resource, n) in PolicyApi.PlannedFloorDemand(plan, FlooringFactsOf(colony), flooring))
-        {
-            demand[resource] = demand.GetValueOrDefault(resource) + n;
-        }
-        var standing = new HashSet<(string, Cell)>();
-        if (colony.Facts.CurrentConstruction.TryGetValue(out var census))
-        {
-            foreach (var b in census.Buildings)
-            {
-                foreach (var c in b.Cells)
-                {
-                    _ = standing.Add((b.Building?.Definition ?? "", c));
-                }
-            }
-        }
         IReadOnlyList<Amount>? PiecePrice(string name)
         {
             if (AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
@@ -949,11 +933,62 @@ internal static partial class BuildingRuntimePackage
             var stuff = colony.BulkBuildStuff(name, 1);
             return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff)?.Costs;
         }
-        foreach (var (resource, n) in PolicyApi.PlannedPieceDemand(plan, standing, PiecePrice))
+        var flooringFacts = FlooringFactsOf(colony) with { Stock = Unknown<IReadOnlyDictionary<Resource, long>>() };
+        IReadOnlyList<Amount>? FloorPrice(string name) =>
+            flooringFacts.Definitions.TryGetValue(name, out var floor) && floor.Costs.TryGetValue(out var costs) ? costs : null;
+        // The colony's standing buildings and floors stand in for the clearance census: the reconcile matches the
+        // template against them, so a piece or floor that stands is not owed. Nothing is packed, so every other
+        // template piece is a build.
+        var rows = new List<ClearanceTarget>();
+        var placed = new HashSet<(string, Cell)>();
+        if (colony.Facts.CurrentConstruction.TryGetValue(out var census))
         {
-            demand[resource] = demand.GetValueOrDefault(resource) + n;
+            foreach (var site in census.Sites.Where(s => s.Building is not null))
+            {
+                _ = placed.Add((site.Building!.Definition, site.Building.Cell));
+            }
+            foreach (var b in census.Buildings.Where(b => b.Cells.Count > 0))
+            {
+                rows.Add(new ClearanceTarget
+                {
+                    EntityId = b.Id,
+                    DefName = b.Building?.Definition ?? "",
+                    Minimum = new Cell(b.Cells.Min(c => c.X), b.Cells.Min(c => c.Z)),
+                    Maximum = new Cell(b.Cells.Max(c => c.X), b.Cells.Max(c => c.Z)),
+                    Player = true,
+                });
+            }
         }
-        return Known<IReadOnlyDictionary<Resource, long>>(demand);
+        var floors = new List<ClearanceFloor>();
+        if (flooringFacts.Observation.TryGetValue(out var observed))
+        {
+            foreach (var cell in observed.Rooms.SelectMany(r => r.Cells))
+            {
+                floors.Add(new ClearanceFloor { Cell = cell.Cell, DefName = cell.Pending.Length > 0 ? cell.Pending : cell.Terrain });
+            }
+        }
+        var owed = new List<(PlannedRoom, IReadOnlyList<Operation>)>();
+        foreach (var room in PolicyApi.PlannedBuiltRooms(plan))
+        {
+            var (input, known) = RoomRingInput(colony, plan, room);
+            if (!known)
+            {
+                return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
+            }
+            input = input with
+            {
+                Cells = null,
+                Unroofed = null,
+                Rows = rows,
+                Floors = floors,
+                Furniture = plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Select(p => p.Wanted())] : [],
+                WantedFloor = PolicyApi.WantedFloors(room, [], flooringFacts, flooring),
+            };
+            owed.Add((room, PolicyApi.Reconcile(input).Owed));
+        }
+        return Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
+            PolicyApi.PlannedOwedCost(owed, Price, PiecePrice, FloorPrice, ClimateDefs().VentDef, placed)
+                .ToDictionary(e => e.Key, e => (IReadOnlyDictionary<Resource, long>)e.Value));
     }
 
     /// <summary>The recorded plan's retired ground with its kept rooms' walls; empty while the plan is unknown.</summary>

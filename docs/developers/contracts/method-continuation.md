@@ -44,6 +44,13 @@ its installed predecessor's cleanup obligation; unknown receipts remain unknown.
 Cooking output, carried ingredients and coupled food-chain selection remain
 outside this caller.
 
+Productive alternatives for this caller are transient Method proposals: family
+generation supplies forecast outcomes and exact target bindings, ColonyForecast's
+shared outcome comparator chooses among them, and binding constructs the proposed
+revision. No separate selection engine or Method lifecycle is created. The
+[stage contract](../architecture/colony-forecast.md#live-activity-policy-stages)
+defines the enforced boundary and current local valuation limits.
+
 Native release retains the last release in the existing transient assignment row
 for idempotent receipt retry, but reports no ownership and intercepts no jobs.
 Fresh acquisition starts from expected revision zero. A stale release cannot

@@ -260,13 +260,13 @@ public sealed class RoundsAcquisitionPlanner
             _ = Boundary.Context(observed.Context, state.Snapshot);
             var activityMethod = new MethodId($"food-activity-{id}");
             var activity = PolicyFunctions.StartFoodActivity(observed, state.Snapshot.Native.Value, activityMethod.Value,
-                checked(observedTick + _reviewer.Policy.AcquisitionProgress().Deadline.Value));
+                checked(observedTick + _reviewer.Policy.AcquisitionProgress().Deadline.Value), out var comparison);
             if (activity is null) return new RoundsAcquisitionResult { Verdict = BuildingReasonExistingWork };
             var activityPlan = new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]);
             p.Current(call, epoch);
             if (p.Session.State() != state) throw new ControlException("food activity scope changed");
             p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, activityMethod,
-                observed.Truncated || selected.Count > candidates.Length ? "harvest and deliver observed food (bounded candidates truncated)" : "harvest and deliver observed food", activityPlan, call);
+                observed.Truncated || selected.Count > candidates.Length || comparison is { SearchTruncated: true } || comparison?.Findings.Contains("generation_truncated") == true ? "harvest and deliver observed food (bounded candidates truncated)" : "harvest and deliver observed food", activityPlan, call);
             return new RoundsAcquisitionResult { Verdict = BuildingReasonAdmitted, Plan = id };
         }
         var actions = new List<DomainAction>();

@@ -28,6 +28,26 @@ public sealed class ForecastActivityOutcomesTests
             new("food", "hunger", "harvest", Known(100.0), Known(food))];
 
     [Fact]
+    public void PerUnitObjectiveUsesSharedSchedulingAndCannotCompareUnrelatedNeeds()
+    {
+        var problem = Work(true) with { AlternativeLaborCost = Known(100.0) };
+        ForecastActivityOutcome[] outcomes = [
+            new("small", "one-demand", "build", Known(100.0), default) { ProgressUnits = Known(1.0) },
+            new("large", "one-demand", "harvest", Known(100.0), default) { ProgressUnits = Known(8.0) }];
+        var result = CompareActivityOutcomes(problem, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit);
+        Assert.Equal(["large"], result.Selected);
+        Assert.False(result.NetBenefit.IsKnown);
+        var dangerous = problem with { Options = problem.Options.Select(o => o.Activity == "harvest"
+            ? o with { RecoveryLaborTicks = Known(50.0) } : o).ToArray() };
+        Assert.Equal(["small"], CompareActivityOutcomes(dangerous, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit).Selected);
+        var unknown = CompareActivityOutcomes(problem, [outcomes[0] with { ProgressUnits = default }], ForecastOutcomeObjective.LowestLaborPerUnit);
+        Assert.Empty(unknown.Selected);
+        Assert.Contains("unknown_outcome_estimate:small", unknown.Findings);
+        Assert.Empty(CompareActivityOutcomes(problem with { AlternativeLaborCost = default }, outcomes, ForecastOutcomeObjective.LowestLaborPerUnit).Selected);
+        Assert.Throws<DomainException>(() => CompareActivityOutcomes(problem, [outcomes[0], outcomes[1] with { Need = "other-demand" }], ForecastOutcomeObjective.LowestLaborPerUnit));
+    }
+
+    [Fact]
     public void ExposureAndHungerReverseTheChoiceUnderTheSamePawnBudget()
     {
         // A solo builder can complete delivery + building while the helper harvests.

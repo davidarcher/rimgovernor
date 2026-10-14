@@ -1,6 +1,6 @@
 # Construction projects: one record per planned room (design proposal)
 
-Status: built so far: the planned source for walls, doors and floors (`PlannedShellDemand`, `PlannedFloorDemand`, merged into `ConstructionDemand` as `Planned`) room-id method names, and the tiler's per-room stations (`LayoutPlan.Pieces`, persisted, carried across replans for held rooms, priced by `PlannedPieceDemand`). Colony-driven contents are not priced (the plan stores no furniture: only lamps, which are not priced yet, and each owner derives its template when it furnishes) and the `RoomProject` record is still proposal. Decisions below were made with the maintainer. Written after tracing why wood demand needed a hard-coded
+Status: built so far: the planned source for walls, doors and floors (`PlannedOwedCost`, the reconciler's owed operations over the plan, priced; merged into `ConstructionDemand` as `Planned`) room-id method names, and the tiler's per-room stations (`LayoutPlan.Pieces`, persisted, carried across replans for held rooms, priced by the same reconcile diff). The per-room requirements are also the forecast's planned-room commitments (`colony-forecast.md`, Planned rooms). Colony-driven contents are not priced (the plan stores no furniture: only lamps, which are not priced yet, and each owner derives its template when it furnishes) and the `RoomProject` record is still proposal. Decisions below were made with the maintainer. Written after tracing why wood demand needed a hard-coded
 floor (the wood latch, since removed) and why a replan could site a second shelter.
 
 ## What exists today
@@ -106,6 +106,19 @@ weakest means a suite, not a table) becomes the benefit estimate, not a filter.
 
 Open: how a proposal's benefit is judged. No common unit: the forecast (`ColonyForecast` Baseline against Proposed) judges outcomes, and mood and infrastructure effects are still unsupported domains there. Slot
 identity stable across a re-tile (the overlay is keyed by room id and slot).
+
+#### Judging a proposal: the forecast's interface, not a mood model
+
+Mood and needs are the forecast's job (`colony-forecast.md`: pawn time, mood and needs are #3132, calibration
+#3125; need relief is valued from one shared needs map with relief capped per need). This design does not model
+mood. A content proposal is a **candidate activity** for the forecast: build the piece (its catalog cost and the
+labor the construction slice already costs), with an outcome that relieves a need. The benefit is whatever the
+forecast's needs model says; until #3132 supplies it the candidate carries an unknown benefit and is not
+ranked against other actions on a guess.
+
+Consequences: no break-day currency, no stat-to-stage tables here, and no second scenario type. Until the
+forecast can value the outcome, `NextRoomUpgrade` keeps its current ordering; replacing it waits on #3132.
+Open: slot identity stable across a re-tile.
 
 ## Proposal
 
