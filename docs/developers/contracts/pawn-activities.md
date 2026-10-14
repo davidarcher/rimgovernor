@@ -162,6 +162,11 @@ normal authority and current facts must authorize new control after load.
 
 ## Observation and tests
 
+Live food policy separates candidate generation, generic comparison and exact
+binding under the [enforced stage contract](../architecture/colony-forecast.md#live-activity-policy-stages).
+The binder requires an evaluator-created selection. Lifecycle ownership checks,
+the Method journal and Hands retain their existing responsibilities.
+
 Pawn observations expose `ActivityExecution` (assignment, Method, revision, step,
 state, reason, current native job ID and tick). `pawn_activity_execution` records
 execution changes in the existing OTLP ring. `pawn_activity_interval` includes

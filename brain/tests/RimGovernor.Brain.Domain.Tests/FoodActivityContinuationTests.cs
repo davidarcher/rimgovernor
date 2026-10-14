@@ -79,6 +79,17 @@ public sealed class FoodActivityContinuationTests
         Assert.Null(StartFoodActivity(Read(slow), 1, "m", 120));
     }
 
+    [Fact]
+    public void ComparisonRetainsQuantityValuationStableTiesAndPostponement()
+    {
+        var small = Option("a-small", count: 1, travel: 10);
+        var large = Option("b-large", count: 8, travel: 30);
+        Assert.Equal("b-large", StartFoodActivity(Read(small, large), 1, "m", 500)!.Orders[0].Steps[0].Target);
+        Assert.Equal("a-small", StartFoodActivity(Read(large with { Count = 1 }, small), 1, "m", 500)!.Orders[0].Steps[0].Target);
+        Assert.Equal("a-small", StartFoodActivity(Read(small with { Target = "z-tie" }, small), 1, "m", 500)!.Orders[0].Steps[0].Target);
+        Assert.Null(StartFoodActivity(Read(large with { WorkTicks = 500 }), 1, "m", 500));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

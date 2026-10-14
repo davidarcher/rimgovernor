@@ -1,0 +1,60 @@
+using System.Collections.Immutable;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Diagnostics;
+using RimGovernor.Brain.Analyzers;
+using Xunit;
+
+namespace RimGovernor.Brain.Domain.Tests;
+
+public sealed class ActivityStagesTests
+{
+    [Theory]
+    [InlineData("Generation", "P.CompareActivityPlans();", true)]
+    [InlineData("Binding", "P.CompareActivityPlans();", true)]
+    [InlineData("Binding", "System.Action a = P.CompareActivityPlans;", true)]
+    [InlineData("Evaluation", "P.CompareActivityPlans();", false)]
+    [InlineData("Generation", "RimGovernor.Brain.Domain.PawnActivities a = new();", true)]
+    [InlineData("Binding", "RimGovernor.Brain.Domain.PawnActivities a = new();", false)]
+    [InlineData("Generation", "Helper.Choose();", true)]
+    [InlineData("Binding", "RimGovernor.Brain.Policy.Activities.Evaluation.Selection.Compare();", true)]
+    public async Task StageDependenciesAreCheckedSemantically(string stage, string body, bool rejected)
+    {
+        var source = $$"""
+            using P = RimGovernor.Brain.Policy.PolicyFunctions;
+            using RimGovernor.Brain.Policy;
+            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions { public static void CompareActivityPlans() {} }
+                public static class Helper { public static void Choose() {} } }
+            namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
+            namespace RimGovernor.Brain.Policy.Activities.Evaluation { internal class Selection { internal static void Compare() {} } }
+            namespace RimGovernor.Brain.Policy.Activities.{{stage}} { internal class Stage { void Run() { {{body}} } } }
+            """;
+        await Check(source, rejected);
+    }
+
+    [Theory]
+    [InlineData("CompareActivityPlans();")]
+    [InlineData("int Rank() => 4 / 2; Rank();")]
+    [InlineData("RimGovernor.Brain.Domain.PawnActivities a = new();")]
+    public async Task LifecycleCannotReintroduceLocalRankingOrDirectOrders(string body)
+    {
+        await Check($$"""
+            namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
+            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions {
+                public static void CompareActivityPlans() {}
+                public static void StartFoodActivity() { {{body}} }
+            } }
+            """, true);
+    }
+
+    private static async Task Check(string source, bool rejected)
+    {
+        var compilation = CSharpCompilation.Create("StageProbe", [CSharpSyntaxTree.ParseText(source)],
+            [MetadataReference.CreateFromFile(typeof(object).Assembly.Location)],
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        Assert.DoesNotContain(compilation.GetDiagnostics(), d => d.Severity == DiagnosticSeverity.Error);
+        var diagnostics = await compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new ActivityStagesAnalyzer()))
+            .GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(rejected, diagnostics.Any(d => d.Id == "RGARCH009"));
+    }
+}

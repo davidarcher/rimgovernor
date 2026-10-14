@@ -7,11 +7,13 @@
     <AssemblyName>RimGovernor.Brain.Domain.Tests</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../../analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Acceptance/RimGovernor.Brain.Acceptance.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Domain/RimGovernor.Brain.Domain.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />

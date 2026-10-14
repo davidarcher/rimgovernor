@@ -112,6 +112,14 @@ member or through a Policy `RoomTier`/`PlannerTier`/`AdoptedTier`/
 
 ## Refreshing
 
+Live activity stages (`RGARCH009`, no baseline): internal generation, evaluation
+and binding dependencies follow the [ColonyForecast stage contract](colony-forecast.md#live-activity-policy-stages).
+Generation cannot call evaluation or construct activity orders; binding cannot
+generate or compare; evaluation cannot depend on native food option contracts.
+Calls back into unpartitioned Policy helpers are rejected (except the evaluator's
+`CompareActivityPlans` call). This gate covers the explicit live activity stages,
+not every existing planner or every possible form of decision math.
+
 A violation you fixed leaves a stale baseline line, and the build says which:
 delete it. To see all findings of a project while fixing, build it; the
 diagnostics list every finding with its baseline key, so a key can be copied into

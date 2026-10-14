@@ -886,3 +886,34 @@ and handles changed stacks, destinations and bounded empty-handed retry. See the
 assumptions and limits. This is not yet the full ForecastFoodCandidates portfolio
 caller: cooking, helper delegation, coupled needs, material claims and carried-item
 recovery remain unintegrated. Predicted yield is never credited as actual stock.
+
+### Live activity policy stages
+
+The live food bridge has three internal stages in Policy, behind the existing
+`StartFoodActivity` / `ContinueFoodActivity` lifecycle entry points:
+
+| Stage | Responsibility | Forbidden dependency |
+| --- | --- | --- |
+| `Activities.Generation` | Enumerate eligible observed options and map them to existing `ForecastActivityProblem` inputs | Evaluation, binding, action construction |
+| `Activities.Evaluation` | Compare the generated problems through ColonyForecast's allocator; rank feasible trips by labor per unit | Native food contracts and family-specific binding |
+| `Activities.Binding` | Turn the selected observed option into an exact activity revision, or release | Generation and comparison |
+
+`ActivitySelection<T>` has a private constructor and read-only binding. Only its
+comparison method can mint it; the binder accepts that selection, not a raw
+candidate. All stage types are internal, so runtime callers use the lifecycle
+entry points. `RGARCH009` checks semantic references, including aliases, method
+groups and target-typed construction, and rejects forbidden stage dependencies
+without a baseline. Future live cooking generation and binding belong in these
+same stages; recipe and ingredient alternatives must reach evaluation before binding.
+The lifecycle entry points also reject direct activity construction, comparison
+calls and arithmetic, including arithmetic inside local functions. Ownership and
+terminal-state checks stay there; valuation must pass through evaluation.
+
+This is a dependency fence, not a proof that arbitrary scoring math is correct or
+that a generator enumerates every useful combination. The gate does not police
+all older Policy code or all arithmetic in orchestration. Behavior tests and
+review remain necessary, including review of changes to the gate itself.
+The local trip objective, bounded enumeration, unknown handling and horizon
+assumptions are unchanged. The full `ForecastFoodCandidates` portfolio generator
+is still separate from this live adapter; no new planning engine or state owner
+is introduced.
