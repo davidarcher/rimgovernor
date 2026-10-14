@@ -53,10 +53,6 @@ public sealed record ConcernProgress
     public string BlockedSubject() =>
         Planner != Cause.None && Blocked == BlockedReason.FromCause(Planner) ? PlannerSubject : "";
 
-    /// <summary>Reports a resource the record's filed planner note holds as having no source (CauseHeldNoSource names the resources, comma-joined).</summary>
-    public bool SourcelessResource(Resource resource) =>
-        Planner == Cause.HeldNoSource && PlannerSubject.Split(',').Contains(resource.Value);
-
     /// <summary>Reports whether the situation key is under a cooldown at <paramref name="now"/>. A changed condition is a different key and lifts the cooldown by itself.</summary>
     public bool Cooled(string key, Tick now) => Cooldowns.Any(cd => cd.Key == key && cd.Until > now);
 }

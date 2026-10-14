@@ -692,7 +692,7 @@ public sealed partial class BrainComposition
         }
         if (sc.ResourceTargetsConfigured && !methods.Contains(MaintainResource))
         {
-            // Acquisition already declares it (the wood floor).
+            // Acquisition already declares it (the construction demand).
             methods.Add(MaintainResource);
         }
         Add(sc.Medical, MaintainMedicalReserves, MaintainSurgery);

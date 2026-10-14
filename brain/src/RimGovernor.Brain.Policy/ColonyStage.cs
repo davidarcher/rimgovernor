@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Policy;
 ///
 ///   Foothold     roofed sleeping for every colonist, a cooking bill, a food stockpile, food >=
 ///                FootholdFoodDays, two armed fighters
-///   Reserves     food >= FoodTargetDays, the growing field sown, the wood floor met, a research bench built
+///   Reserves     food >= FoodTargetDays, the growing field sown, a research bench built
 ///   Stable       power online, the season's climate answered (refrigeration in spring and summer, sleeping
 ///                warmth in fall and winter), production unblocked for StableTicks
 ///   Development  Stable held for DevelopmentTicks with the reserve doubled
@@ -60,9 +60,6 @@ public enum StageBlocker
 
     [WireName("field")]
     Field,
-
-    [WireName("wood")]
-    Wood,
 
     [WireName("research_bench")]
     ResearchBench,
@@ -140,9 +137,6 @@ public sealed record ColonyStageFacts
 
     /// <summary>A built research bench.</summary>
     public Fact<bool> ResearchBench { get; init; }
-
-    /// <summary>The wood latch.</summary>
-    public bool WoodShort { get; init; }
 
     /// <summary>Stable's exit: the power gate.</summary>
     public Fact<bool> Power { get; init; }
@@ -372,11 +366,9 @@ public static partial class PolicyFunctions
                         new StageCheck(f.Armed, StageBlocker.Defense, "basic defense")
                     );
                 case ColonyStage.Reserves:
-                    var wood = Known(!f.WoodShort);
                     var (b, reason) = FirstUnmet(
                         FoodAtLeast(p.ReserveEnterDays, StageBlocker.Food),
                         new StageCheck(f.FieldSown, StageBlocker.Field, "growing field"),
-                        new StageCheck(wood, StageBlocker.Wood, "wood floor"),
                         new StageCheck(f.ResearchBench, StageBlocker.ResearchBench, "research bench")
                     );
                     if (b != StageBlocker.None)
@@ -504,7 +496,6 @@ public static partial class PolicyFunctions
             Armed = FootholdArmed(f),
             FoodDays = f.FoodDays,
             FieldSown = AllFacts(FootholdProduction(f), Measured(f.FieldCoverage, v => v >= 1 - 1e-9)),
-            WoodShort = needs.Latches.Wood && !Sourceless(progress, WoodLatchDefs),
             ResearchBench = ResearchBenchBuilt(f.CurrentConstruction),
             Power = FootholdPower(f),
             Climate = SeasonalClimate(f.Calendar, FootholdTemperature(f, p), needs.Latches.Refrigeration),
@@ -512,14 +503,6 @@ public static partial class PolicyFunctions
         var (concern, reason) = ProductionBlockedConcern(progress);
         return facts with { ProductionBlocked = concern, Blocked = reason };
     }
-
-    /// <summary>
-    /// That the resource floor's planner holds every one of the resources as having no source
-    /// (held:no_source): the floor can never be reached, so the stage works from stock instead of waiting on
-    /// it.
-    /// </summary>
-    private static bool Sourceless(IReadOnlyList<ConcernProgress> progress, IEnumerable<string> resources) =>
-        progress.Any(p => p.Concern == MaintainResource && resources.All(r => p.SourcelessResource(new Resource(r))));
 
     /// <summary>A built research bench of the colony's own.</summary>
     public static Fact<bool> ResearchBenchBuilt(Fact<CurrentConstruction> observed)

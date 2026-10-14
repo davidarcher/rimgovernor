@@ -411,11 +411,6 @@ public static partial class PolicyFunctions
             }
         }
         var priority = 4;
-        if (l.Wood)
-        {
-            // Low wood keeps the old wood goal's standing.
-            priority = 3;
-        }
         if (!Positive(resourceRecovered))
         {
             var g = c.Raise(MaintainResource, priority);

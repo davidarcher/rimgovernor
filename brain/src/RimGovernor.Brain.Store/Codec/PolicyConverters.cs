@@ -2269,7 +2269,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
             Food = e.Bool("Food"),
             Cold = e.Bool("Cold"),
             Hot = e.Bool("Hot"),
-            Wood = e.Bool("Wood"),
             Upkeep = e.Get<UpkeepHistory>("Upkeep", o),
             Dash = e.Get<DashWindow>("Dash", o),
             Soldiers = e.Bool("Soldiers"),
@@ -2295,7 +2294,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         w.WriteBoolean("Food", v.Food);
         w.WriteBoolean("Cold", v.Cold);
         w.WriteBoolean("Hot", v.Hot);
-        w.WriteBoolean("Wood", v.Wood);
         w.Put("Upkeep", v.Upkeep, o);
         w.Put("Dash", v.Dash, o);
         w.WriteBoolean("Soldiers", v.Soldiers);

@@ -5,32 +5,22 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// campaign/recovery: after half a day of settled play the harness takes every wood log on the map (the wood-floor
-/// breach) and resumes; the colony must acknowledge the breach (MaintainResource binds) and restock to the policy floor
-/// on its own. A staged raid follows (test/defense_setup, an edge walk-in at the storyteller's floor points, the
+/// campaign/recovery: after half a day of settled play a raid is staged (test/defense_setup, an edge walk-in at the storyteller's floor points, the
 /// sapper-capable group maker); after a day of play the colony must have no live hostile standing, every initial
 /// colonist alive, shelter and food intact, and goal progress still advancing. Each fixture op is an injection, not
 /// assistance: the harness never touches the colony's own work (Go <c>campaign/recovery.go</c>).
 /// </summary>
 internal static class CampaignRecoveryCase
 {
-    // Policy wood thresholds the breach is judged against: MaintainResource binds (the wood latch's floor) once stock
-    // falls under WoodMin and its deficit is (WoodTarget-stock)/WoodTarget, so a stock back at WoodMin reads as
-    // WoodRecoveredDeficit.
-    private const long WoodMin = 120;
-    private const long WoodTarget = 350;
-    private const double WoodRecoveredDeficit = (double)(WoodTarget - WoodMin) / WoodTarget;
-
     internal static AcceptanceCase Case()
     {
         var window = CampaignRun.FootholdWindow();
         var settle = window / 6;
-        var breachWindow = window * 2 / 3;
         var raidWindow = window / 3;
         return CampaignRun.CampaignCase(
             "campaign/recovery",
-            "Unassisted campaign: an induced wood-floor breach and then a raid, each recovered on the player control path.",
-            "half a day of settling, up to two days restocking wood and a day around the raid at Ultrafast with three reloads",
+            "Unassisted campaign: a raid recovered on the player control path.",
+            "half a day of settling and a day around the raid at Ultrafast with three reloads",
             TimeSpan.FromMinutes(60),
             async (s, cancellationToken) =>
             {
@@ -59,75 +49,6 @@ internal static class CampaignRecoveryCase
 
                 c.Milestone("settled", settled.LastTick());
 
-                // The wood-floor breach: every log on the map is gone.
-                var taken = await c.FixtureAsync("take-wood", "test/hut_shell_fixture", new JsonObject { ["action"] = "take" }, cancellationToken).ConfigureAwait(false);
-                c.Inject("wood_breach", new JsonObject { ["taken"] = taken["taken"]?.DeepClone(), ["stacks"] = taken["stacks"]?.DeepClone(), ["tick"] = settled.LastTick() });
-
-                ulong breachTick = 0;
-                ulong restockTick = 0;
-                var breached = false;
-                var restocked = await c.PlayAsync(
-                    "restock",
-                    new WatchConfig
-                    {
-                        Watch = TimeSpan.FromMinutes(25),
-                        Window = breachWindow,
-                        PollTicks = 2500,
-                        Concern = PolicyFunctions.MaintainResource.Value,
-                        Extra = CampaignRun.CampaignConcerns,
-                        FailFast = new FailFast { Disabled = true },
-                        Until = sample =>
-                        {
-                            var tick = sample["tick"].AsUInt64() ?? 0;
-                            var bound = sample["concern_bound"].AsBool() == true;
-                            var (deficit, known) = WoodDeficit(sample);
-                            if (!breached)
-                            {
-                                if (bound)
-                                {
-                                    breached = true;
-                                    breachTick = tick;
-                                }
-
-                                return false;
-                            }
-
-                            if (!bound || (known && deficit <= WoodRecoveredDeficit))
-                            {
-                                restockTick = tick;
-                                return true;
-                            }
-
-                            return false;
-                        },
-                    },
-                    cancellationToken).ConfigureAwait(false);
-                if (restocked.Err is not null)
-                {
-                    throw restocked.Err;
-                }
-
-                if (!breached)
-                {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"restock: MaintainResource never bound after the breach ({restocked.Timeline.Count} samples)"));
-                }
-
-                c.Milestone("wood_breach_acknowledged", breachTick);
-                if (restockTick == 0)
-                {
-                    throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"restock: wood not back to the policy floor within {breachWindow} ticks of the breach"));
-                }
-
-                c.Milestone("wood_restocked", restockTick);
-                var facts = await CampaignColonyFacts.ReadAsync(h, s, "wood-after-restock", cancellationToken).ConfigureAwait(false);
-                c.Report["wood_after_restock"] = new JsonObject { ["wood"] = facts.Wood, ["known"] = facts.WoodKnown };
-                if (!facts.WoodKnown || facts.Wood < WoodMin)
-                {
-                    throw new AcceptanceException(string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"restock: native wood stock {facts.Wood} (known {(facts.WoodKnown ? "true" : "false")}) under the policy floor {WoodMin}"));
-                }
-
                 // The raid: staged on the paused game, then played through.
                 var raid = await c.FixtureAsync(
                     "raid",
@@ -142,9 +63,9 @@ internal static class CampaignRecoveryCase
                         ["added"] = raid["added"]?.DeepClone(),
                         ["group_maker_seed"] = raid["groupMakerSeed"]?.DeepClone(),
                         ["applied"] = raid["applied"]?.DeepClone(),
-                        ["tick"] = restockTick,
+                        ["tick"] = settled.LastTick(),
                     });
-                c.Milestone("raid_staged", restockTick);
+                c.Milestone("raid_staged", settled.LastTick());
                 var fought = await c.PlayAsync(
                     "raid",
                     new WatchConfig
@@ -178,18 +99,6 @@ internal static class CampaignRecoveryCase
                     throw error;
                 }
             });
-    }
-
-    /// <summary>Reads the MaintainResource ranking row's deficit off a sample.</summary>
-    private static (double Deficit, bool Known) WoodDeficit(JsonObject sample)
-    {
-        if (sample["development"] is not JsonObject development || development["deficit"] is not JsonValue deficit)
-        {
-            return (0, false);
-        }
-
-        var value = deficit.AsNumber();
-        return value >= 0 ? (value, true) : (0, false);
     }
 
     /// <summary>Lists the hostiles an inspect reply shows neither dead nor downed.</summary>

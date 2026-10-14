@@ -138,9 +138,6 @@ internal static class FarmCalendar
         {
             ["food_min_days"] = seasonal.FoodMinDays,
             ["food_target_days"] = seasonal.FoodTargetDays,
-            ["wood_min"] = seasonal.WoodMin,
-            ["wood_target"] = seasonal.WoodTarget,
-            ["wood_max"] = seasonal.WoodMax,
         };
         try
         {

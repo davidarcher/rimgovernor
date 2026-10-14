@@ -79,8 +79,8 @@ open; the planners do not rank:
   the lines the plan opened ([trade offers](supply-model.md#trade-offers)). The
   plan is the only ranker.
 - Construction demand (`policy.ConstructionDemand`): a blueprint's owed material,
-  the open costs of an admitted shelter or bench short of a resource, and the
-  wood latch (`WoodMin`, `WoodTarget`, seasonal scaling) each raise a floor
+  and the open costs of an admitted shelter or bench short of a resource each
+  raise a floor
   measured by one stock reader (`policy.StockReader`). The review computes the
   demand and the Rounder keeps it in memory (empty until the first review after
   a restart).

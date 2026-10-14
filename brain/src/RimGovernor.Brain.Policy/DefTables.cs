@@ -36,9 +36,6 @@ public static partial class PolicyFunctions
         return [t.Silver, t.Meal, t.Wood, t.Steel, t.Component, t.Medicine, t.Rifle, t.ShipChunk];
     }
 
-    /// <summary>The stock defs the wood latch (WoodMin, WoodTarget) floors: the colony stage waives the latch while every one has no source.</summary>
-    public static readonly IReadOnlyList<string> WoodLatchDefs = ["WoodLog"];
-
     /// <summary>The one shell def BuildingProperties.IsMortar tests a loadable turret gun's fixed storage filter against (ThingDefOf.Shell_HighExplosive).</summary>
     public static readonly IReadOnlyList<string> MortarProbeShells = ["Shell_HighExplosive"];
 
@@ -87,7 +84,6 @@ public static partial class PolicyFunctions
         DefTable.Of("roomSizeTable", "Verse.ThingDef", RoomSizes.Holds),
         DefTable.Of("ShelterHeatDef", "Verse.ThingDef", [ShelterHeatDef]),
         DefTable.Of("ShelterCoolDef", "Verse.ThingDef", [ShelterCoolDef]),
-        DefTable.Of("WoodLatchDefs", "Verse.ThingDef", WoodLatchDefs),
         DefTable.Of("ScenarioThingChoices", "Verse.ThingDef", ScenarioThingChoices),
         DefTable.Of("RhadamantThings", "Verse.ThingDef", RhadamantThingDefs()),
         DefTable.Of("climateTable", "Verse.ThingDef", [ClimateDefs().VentDef, ClimateDefs().DoorDef, ClimateDefs().WallDef, ClimateDefs().RaceDef]),

@@ -34,7 +34,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>
     /// Derives the review's resource demand from its facts, in one merge: the evidence needs other goals
-    /// recorded (f.ResourceNeeds), then construction (with the wood latch's floor), open bills, clothing,
+    /// recorded (f.ResourceNeeds), then construction , open bills, clothing,
     /// fuel, animal feed and the runways' targets, each raising a level and never lowering one. A new demand
     /// source is one entry here.
     /// </summary>

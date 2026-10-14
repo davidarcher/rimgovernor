@@ -73,7 +73,7 @@ research. Exit criteria via `StageColonyFacts`:
 | Stage | Exits when |
 | --- | --- |
 | Foothold | Roofed sleeping for every colonist, an active meal bill, an owned food stockpile (a standing meals, raw food, perishables or ingredients zone the store claimed; a player-flagged food zone does not count, and unread claims are unknown, not missing), runway at `FootholdFoodDays`, two armed fighters. |
-| Reserves | Runway at `FoodTargetDays`, growing field sown, wood latch clear, research bench built, no production concern blocked. |
+| Reserves | Runway at `FoodTargetDays`, growing field sown, research bench built, no production concern blocked. |
 | Stable | Power online, season's climate answered, production concerns unblocked for `StableTicks` (two days), Stable held `DevelopmentTicks` (three days), runway at twice target. |
 
 Exits are laxer than entries (`ColonyStagePolicy`: stages above Foothold drop only under
@@ -354,11 +354,10 @@ harvest lead is computed in policy from native growth, temperature and calendar 
 The maintained food concern budgets each crop's capacity from native daily demand and
 yield, covering consumption during its growth allowance plus the persisted reserve
 (including colony animals permitted to eat the crop; future grazing is not credited).
-The wood latch (`WoodMin`, `WoodTarget`) is a MaintainResource floor: it enters the Round's
-[resource supply plan](../architecture/space-and-resources.md#resource-demand-and-acquisition-scoring)
-as the wood deficit beside every other floor and is served by whichever chop, harvest or bill
-the plan opens, never by a wood-only path.
-Reserve, food-latch thresholds and wood thresholds are seasonal: the colony read carries
+Wood has no floor of its own: it is demanded only through construction, bills and the other
+derived sources, and the [resource supply plan](../architecture/space-and-resources.md#resource-demand-and-acquisition-scoring)
+serves it by whichever chop, harvest or bill it opens, never by a wood-only path.
+Reserve and food-latch thresholds are seasonal: the colony read carries
 the growing calendar (`policy.Calendar`) and each review widens the policy by its
 harvest gap (`RoundsPolicy.Seasonal`): the wait until growth resumes plus one rice cycle
 while nothing grows, or the coming non-growing stretch plus that cycle (phased in over the

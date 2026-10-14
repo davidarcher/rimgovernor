@@ -28,12 +28,6 @@ public sealed record RoundsPolicy
 
     public double HotEnter { get; init; }
 
-    public long WoodMin { get; init; }
-
-    public long WoodTarget { get; init; }
-
-    public long WoodMax { get; init; }
-
     /// <summary>The growth fraction a plantation tree must reach before chop selection offers it; 0 offers every harvestable one. Wild trees ignore it.</summary>
     public double ChopMinGrowth { get; init; }
 
@@ -121,8 +115,7 @@ public sealed record RoundsPolicy
             }
         }
         if (FoodReserveDays < 0 || FoodReserveDays > 60 || FoodMinDays <= 0 || FoodTargetDays <= FoodMinDays || FootholdFoodDays <= 0
-            || ColdEnter >= ColdExit || ColdExit >= HotExit || HotExit >= HotEnter
-            || WoodMin < 0 || WoodTarget <= WoodMin || WoodMax < WoodTarget)
+            || ColdEnter >= ColdExit || ColdExit >= HotExit || HotExit >= HotEnter)
         {
             throw new DomainException("unordered routine thresholds");
         }
@@ -699,8 +692,6 @@ public sealed record RoundsLatches
 
     public bool Hot { get; set; }
 
-    public bool Wood { get; set; }
-
     public UpkeepHistory Upkeep { get; set; } = new();
 
     /// <summary>The planned outdoor dash window (#2765), held until its bound; zero when none is open.</summary>
@@ -840,9 +831,6 @@ public static partial class PolicyFunctions
         ColdExit = 16,
         HotExit = 28,
         HotEnter = 32,
-        WoodMin = 120,
-        WoodTarget = 350,
-        WoodMax = 500,
         HuntStallTicks = GameTime.TicksPerDay / 2,
         AcquisitionStallTicks = GameTime.TicksPerDay,
         ConcernStallTicks = GameTime.TicksPerDay,
@@ -1062,11 +1050,6 @@ public static partial class PolicyFunctions
                 throw new DomainException("negative food fact");
             }
         }
-        var wood = Unknown<double>();
-        if (f.Wood.TryGetValue(out var woodCount))
-        {
-            wood = Known((double)woodCount);
-        }
         c.SleepingActive = previous.Sleeping;
         if (f.SleepingRecovered.TryGetValue(out var recovered))
         {
@@ -1099,7 +1082,6 @@ public static partial class PolicyFunctions
             Food = LatchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
             Cold = LatchValue(previous.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
             Hot = LatchValue(previous.Hot, Fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
-            Wood = LatchValue(previous.Wood, wood, p.WoodMin, p.WoodTarget, false),
             Soldiers = previous.Soldiers || GearSoldierPresent(f.Gear),
             FoodFirst = previous.FoodFirst || FoodFirstOwed(f),
         };

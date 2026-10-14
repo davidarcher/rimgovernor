@@ -76,9 +76,6 @@ public sealed record ConstructionDemandInput
 
     /// <summary>The open costs of admitted-but-unplaced methods.</summary>
     public EquatableArray<AdmittedCost> Admitted { get; init; }
-
-    /// <summary>The wood latch's WoodLog floor, 0 while the latch is off.</summary>
-    public long WoodFloor { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -87,8 +84,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The stock MaintainResource must reach for construction, per resource: a blueprint's owed material, the
-    /// open costs of admitted methods (each action once) and the wood latch's floor, each counted where the
-    /// stock falls short of it (the latch whenever it is on), merged by maximum. It is an absolute stock level;
+    /// open costs of admitted methods (each action once), each counted where the stock falls short of it, merged by maximum. It is an absolute stock level;
     /// the supply plan measures its shortfall against the stock of the moment.
     /// </summary>
     public static Dictionary<Resource, long> ConstructionDemand(ConstructionDemandInput input)
@@ -120,7 +116,6 @@ public static partial class PolicyFunctions
                 Raise(resource, need);
             }
         }
-        Raise(ConstructionWoodLog, input.WoodFloor);
         return result;
     }
 
@@ -156,9 +151,5 @@ public static partial class PolicyFunctions
             Stock = new StockReader(f.Resources, f.Wood),
             Owed = f.ConstructionDeficit,
             Admitted = f.Admitted,
-            WoodFloor = WoodLatchFloor(l.Wood, p),
         });
-
-    /// <summary>The WoodLog floor the wood latch asks for: WoodTarget while latched, 0 otherwise.</summary>
-    internal static long WoodLatchFloor(bool latched, RoundsPolicy p) => latched ? p.WoodTarget : 0;
 }

@@ -181,9 +181,8 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Returns the policy with its stored-food and wood thresholds widened by the harvest gap the calendar
-    /// reports: FoodMinDays and FoodTargetDays both grow by the gap, and WoodMin, WoodTarget and WoodMax by
-    /// the target's factor, so a colony fills its fields, larder and woodpile against the coming winter
+    /// Returns the policy with its stored-food thresholds widened by the harvest gap the calendar
+    /// reports: FoodMinDays and FoodTargetDays both grow by the gap, so a colony fills its fields and larder against the coming winter
     /// instead of holding the flat summer thresholds into the first frost. FootholdFoodDays and every other
     /// field are unchanged, an unknown calendar with no observed growth pause leaves the policy as
     /// configured, and the result still satisfies Validate.
@@ -201,13 +200,8 @@ public static partial class PolicyFunctions
             return p;
         }
 
-        long Scale(long n) => Math.Max(n, (long)Math.Ceiling(n * target / p.FoodTargetDays));
-
         return p with
         {
-            WoodMin = Scale(p.WoodMin),
-            WoodTarget = Scale(p.WoodTarget),
-            WoodMax = Scale(p.WoodMax),
             FoodMinDays = Math.Min(p.FoodMinDays + gap, target - (p.FoodTargetDays - p.FoodMinDays)),
             FoodTargetDays = target,
         };
