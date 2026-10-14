@@ -35,7 +35,7 @@ internal sealed class StorageOwner : IStoreOwner
                 Further = PlannedRole.Storage,
             });
         }
-        foreach (var room in v.Layout.YardRooms())
+        foreach (var room in v.Layout.RoomsOf(PlannedRole.Yard))
         {
             output.Add(new Store
             {

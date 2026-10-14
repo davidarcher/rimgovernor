@@ -240,15 +240,6 @@ public enum ReservationKind
     [WireName("geothermal")]
     Geothermal,
 
-    [WireName("barn")]
-    Barn,
-
-    [WireName("pen")]
-    Pen,
-
-    [WireName("yard")]
-    Yard,
-
     [WireName("cooler_exhaust")]
     Exhaust,
 
@@ -324,10 +315,6 @@ public enum ReservationKind
 
 public static partial class PolicyFunctions
 {
-    public static ReservationKind ReserveBarn => ReservationKind.Barn;
-
-    public static ReservationKind ReservePen => ReservationKind.Pen;
-
     /// <summary>Go's <c>ReservationKind(s.Kind)</c>: the reservation kind that holds a site node's ground.</summary>
     internal static ReservationKind ReservationKindOf(NodeKind kind) =>
         Wire.TryParse<ReservationKind>(Wire.Name(kind), out var reserved) ? reserved : throw new DomainException($"node kind {Wire.Name(kind)} has no reservation kind");

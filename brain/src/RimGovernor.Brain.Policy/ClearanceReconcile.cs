@@ -27,7 +27,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The plan's open-ground rooms, barns and vet rooms included, whose ring or doors differ from the plan.</summary>
     internal static List<PlannedRoom> GroundRooms(this LayoutPlan p, GroundCensus g) =>
-        [.. p.RoomsWithHerd().Where(r => !r.Dug && !p.GroundMatches(r, g))];
+        [.. p.Rooms.Where(r => !r.Dug && !p.GroundMatches(r, g))];
 
     /// <summary>
     /// Reconciles every ground room against the flooring review's wanted floors: a floor is owed removal only

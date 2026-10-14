@@ -1048,8 +1048,27 @@ internal sealed class IssuedOrderConverter : ObjectCodec<IssuedOrder>
 
 internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
 {
-    protected override LayoutPlan Read(JsonElement e, Codecs o) =>
-        new()
+    protected override LayoutPlan Read(JsonElement e, Codecs o)
+    {
+        // A plan saved before barns, pens and yards were rooms holds them as reservations: they come in as rooms.
+        var reservations = new List<LayoutReservation>();
+        var legacy = new List<(string Kind, Region Area, string Herd)>();
+        if (e.TryGetProperty("Reservations", out var held) && held.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in held.EnumerateArray())
+            {
+                var kind = item.Str("Kind");
+                if (kind is "barn" or "pen" or "yard")
+                {
+                    legacy.Add((kind, item.Get<Region>("Area", o), item.Str("Herd")));
+                }
+                else
+                {
+                    reservations.Add(o.Read<LayoutReservation>(item));
+                }
+            }
+        }
+        return new LayoutPlan
         {
             Entrances = e.Get<IReadOnlyList<Cell>>("Entrances", o),
             Links = e.Get<IReadOnlyList<RoomLink>>("Links", o),
@@ -1059,7 +1078,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
             OutsideTrips = e.Get<IReadOnlyList<OutsideTrip>>("OutsideTrips", o),
             Rooms = e.Get<IReadOnlyList<PlannedRoom>>("Rooms", o),
             Zones = e.Get<IReadOnlyList<LayoutZone>>("Zones", o),
-            Reservations = e.Get<IReadOnlyList<LayoutReservation>>("Reservations", o),
+            Reservations = reservations,
             Sites = e.Get<IReadOnlyList<PlannedSite>>("Sites", o),
             RetiredGround = e.Get<IReadOnlyList<Region>>("RetiredGround", o),
             Roofed = e.Get<Region>("Roofed", o),
@@ -1068,7 +1087,8 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
             Cold = e.Bool("Cold"),
             Hot = e.Bool("Hot"),
             NextRoomId = e.I32("NextRoomId"),
-        };
+        }.WithLegacySites(legacy);
+    }
 
     protected override void WriteFields(Utf8JsonWriter w, LayoutPlan v, Codecs o)
     {
@@ -1100,7 +1120,6 @@ internal sealed class LayoutReservationConverter : ObjectCodec<LayoutReservation
             Kind = e.Get<ReservationKind>("Kind", o),
             Area = e.Get<Region>("Area", o),
             Facing = e.GetOr<Rotation?>("Facing", null, o),
-            Herd = e.Str("Herd"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, LayoutReservation v, Codecs o)
@@ -1111,7 +1130,6 @@ internal sealed class LayoutReservationConverter : ObjectCodec<LayoutReservation
         {
             w.Put("Facing", vFacing, o);
         }
-        w.WriteString("Herd", v.Herd);
     }
 }
 
@@ -1660,6 +1678,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
             Facing = e.GetOr<Rotation?>("Facing", null, o),
             Markers = e.I32("Markers"),
             Parent = e.I32("Parent"),
+            Herd = e.Str("Herd"),
             WorkChairs = e.Get<IReadOnlyDictionary<string, string>>("WorkChairs", o),
         };
 
@@ -1687,6 +1706,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
         }
         w.WriteNumber("Markers", v.Markers);
         w.WriteNumber("Parent", v.Parent);
+        w.WriteString("Herd", v.Herd);
         w.Put("WorkChairs", v.WorkChairs, o);
     }
 }

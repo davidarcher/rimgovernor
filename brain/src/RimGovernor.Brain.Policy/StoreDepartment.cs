@@ -270,7 +270,7 @@ public static partial class PolicyFunctions
         }
         if (yards > 0 && !waiting && fullYards == yards)
         {
-            demand = demand with { Yard = view.Layout!.YardRooms().Count + 1 };
+            demand = demand with { Yard = view.Layout!.RoomsOf(PlannedRole.Yard).Count + 1 };
         }
         return demand;
     }

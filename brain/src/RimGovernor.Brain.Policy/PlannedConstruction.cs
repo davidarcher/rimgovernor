@@ -4,7 +4,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>The rooms a plan builds a ring and contents for: the herd rooms too, not the plan's unfenced or attached rooms or its root.</summary>
     public static IReadOnlyList<PlannedRoom> PlannedBuiltRooms(LayoutPlan plan) =>
-        [.. plan.RoomsWithHerd().Where(r => r.Id != 0 && !r.Unfenced() && !r.Attached())];
+        [.. plan.Rooms.Where(r => r.Id != 0 && !r.Unfenced() && !r.Attached())];
 
     /// <summary>
     /// What the layout plan still owes, per room and resource: the operations the reconciler says each room owes

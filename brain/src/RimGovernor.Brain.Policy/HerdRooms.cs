@@ -1,11 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
-// The barn as a real room. Each ReserveBarn reservation is a walled room: its interior is the reservation without
-// the ring, its door faces the colony core; a pen beside it joins it through an animal flap in the wall they share
-// (HerdPen). The room is derived from the reservation, never stored (HerdRooms). The animal-bed planner
+// The barn as a real room. A barn is a walled PlannedRoom of the plan: its door faces the colony core, chosen once
+// when it is sited; a pen beside it joins it through an animal flap in the wall they share
+// (HerdPen). A barn and its pen carry the herd's key (PlannedRoom.Herd). The animal-bed planner
 // (NextHerdStep) reconciles each room: its ring and door, then animal sleeping spots in the barn, up to one per
 // kept animal, nearest the door first, through the build-side reconciler (ReconcileRoom); then each pen's fence,
-// gate and marker. A herd the rooms cannot hold gets another reservation (PlanHerdSites); a placed room never
+// gate and marker. A herd the rooms cannot hold gets another barn (PlanHerdSites); a placed room never
 // moves or shrinks. The barn is the bedroom of every animal, bonded ones included; a sick animal is treated in the
 // hospital's animal beds (HerdWard).
 
@@ -66,26 +66,15 @@ internal readonly record struct HerdDoor(Cell Cell, Rotation Rot, int Sx, int Sz
 
 public sealed partial record LayoutPlan
 {
-    /// <summary>The plan's rooms of role (PlannedBarn, PlannedPen), one per reservation in plan order.</summary>
-    public IReadOnlyList<PlannedRoom> HerdRooms(PlannedRole role)
-    {
-        var @out = new List<PlannedRoom>();
-        foreach (var r in Reservations)
-        {
-            var (want, ok) = PolicyFunctions.HerdRole(r.Kind);
-            if (ok && want == role)
-            {
-                @out.Add(HerdRoom(r.Area.Bounds(), role));
-            }
-        }
-        return @out;
-    }
+    /// <summary>The barns and pens of the unit keyed herd, in plan order.</summary>
+    internal IReadOnlyList<PlannedRoom> HerdRooms(PlannedRole role, string herd) => [.. RoomsOf(role).Where(r => r.Herd == herd)];
 
-    /// <summary>AllRooms and the barns the reservations hold: the rooms whose doors and links a ring is matched against.</summary>
-    internal IReadOnlyList<PlannedRoom> RoomsWithHerd() => [.. Rooms, .. HerdRooms(PolicyFunctions.PlannedBarn)];
-
-    /// <summary>The room a barn reservation holds: the door in the middle of the wall facing the colony core (the barn's centre when the plan has no core).</summary>
-    internal PlannedRoom HerdRoom(Rectangle area, PlannedRole role)
+    /// <summary>
+    /// The room a barn or pen outline holds, sited once: the door in the middle of the wall facing the colony core
+    /// (the outline's centre when the plan has no core). The door faces its target unless another claim's walls
+    /// stand right outside it; then it takes the best side that opens on free ground. Id is the caller's.
+    /// </summary>
+    internal PlannedRoom HerdRoom(Rectangle area, PlannedRole role, string herd)
     {
         var inner = new Rectangle { X = area.X + 1, Z = area.Z + 1, Width = area.Width - 2, Height = area.Height - 2 };
         var room = new PlannedRoom
@@ -93,6 +82,7 @@ public sealed partial record LayoutPlan
             Role = role,
             Region = PolicyFunctions.RectRegion(inner),
             Outdoor = role.IsOutdoor(),
+            Herd = herd,
         };
         var cx = inner.X + inner.Width / 2.0;
         var cz = inner.Z + inner.Height / 2.0;
@@ -125,9 +115,8 @@ public sealed partial record LayoutPlan
         {
             first = south;
         }
-        // The door faces its target unless another reservation's walls stand right outside it; then the best side that opens on free ground.
         room = room with { Door = first.Cell, DoorRot = first.Rot };
-        if (!DoorBlocked(first, area))
+        if (!DoorBlocked(first))
         {
             return room;
         }
@@ -135,7 +124,7 @@ public sealed partial record LayoutPlan
         var found = false;
         foreach (var d in new[] { east, west, north, south })
         {
-            if (d.Rot == first.Rot || DoorBlocked(d, area) || (found && d.Score <= best.Score))
+            if (d.Rot == first.Rot || DoorBlocked(d) || (found && d.Score <= best.Score))
             {
                 continue;
             }
@@ -149,18 +138,20 @@ public sealed partial record LayoutPlan
         return room;
     }
 
-    /// <summary>Reports the cell outside d inside another reservation's area (its walls), where the door would open on a wall nobody can walk through.</summary>
-    private bool DoorBlocked(HerdDoor d, Rectangle own)
+    /// <summary>Reports the cell outside d inside another claim (a reservation or a room's walls), where the door would open on a wall nobody can walk through.</summary>
+    private bool DoorBlocked(HerdDoor d)
     {
         var outside = new Cell(d.Cell.X + d.Sx, d.Cell.Z + d.Sz);
         foreach (var r in Reserved())
         {
-            var a = r.Area;
-            if (a.Equal(PolicyFunctions.RectRegion(own)))
+            if (r.Area.Contains(outside))
             {
-                continue;
+                return true;
             }
-            if (a.Contains(outside))
+        }
+        foreach (var r in Rooms)
+        {
+            if (PolicyFunctions.RectRegion(PolicyFunctions.RoomWalls(r)).Contains(outside))
             {
                 return true;
             }
@@ -180,15 +171,11 @@ public sealed partial record LayoutPlan
     }
 
     /// <summary>The beds the plan's rooms of role hold, counting 1x1 beds: the sizes of the real definitions are read natively when a room is furnished.</summary>
-    internal int HerdCapacity(PlannedRole role)
-    {
-        var n = 0;
-        foreach (var room in HerdRooms(role))
-        {
-            n += PolicyFunctions.HerdRoomBeds(room, new PieceShapes(), new InteriorPieceDef { Def = "bed", Size = new Cell(1, 1) });
-        }
-        return n;
-    }
+    internal int HerdCapacity(PlannedRole role) => Capacity(RoomsOf(role));
+
+    /// <summary>The 1x1 beds the rooms hold.</summary>
+    internal static int Capacity(IEnumerable<PlannedRoom> rooms) =>
+        rooms.Sum(room => PolicyFunctions.HerdRoomBeds(room, new PieceShapes(), new InteriorPieceDef { Def = "bed", Size = new Cell(1, 1) }));
 }
 
 public static partial class PolicyFunctions
@@ -242,20 +229,6 @@ public static partial class PolicyFunctions
             return (HerdSizeSide, HerdSizeSide);
         }
         return (w, h);
-    }
-
-    /// <summary>The plan role of a herd reservation kind.</summary>
-    internal static (PlannedRole Role, bool Ok) HerdRole(ReservationKind kind)
-    {
-        if (kind == ReserveBarn)
-        {
-            return (PlannedBarn, true);
-        }
-        if (kind == ReservePen)
-        {
-            return (PlannedPen, true);
-        }
-        return (PlannedRole.None, false);
     }
 
     /// <summary>The beds def's template holds in room.</summary>
@@ -316,7 +289,7 @@ public static partial class PolicyFunctions
             }
         }
         var want = animals;
-        foreach (var room in plan.HerdRooms(PlannedBarn))
+        foreach (var room in plan.RoomsOf(PlannedBarn))
         {
             if (want <= 0)
             {
@@ -347,7 +320,7 @@ public static partial class PolicyFunctions
                 };
             }
         }
-        foreach (var room in plan.HerdRooms(PlannedPen))
+        foreach (var room in plan.RoomsOf(PlannedPen))
         {
             var (piece, marked) = PenMarkerPiece(room, f.Marker, built, taken);
             IReadOnlyList<WantedPiece> template = marked ? [piece] : [];

@@ -388,7 +388,7 @@ hold gets an extra reservation, never a resized one. There is no vet room: the h
 it when carried or via the bot-owned `Hospital` allowed area (`HospitalAreaKey`).
 Each unit that holds roamers also gets a barn-attached pen (husbandry-contracts, Pens).
 
-- Containment reconciles each barn and the hospital's animal ward (`policy.HerdRooms`, `policy.HospitalCells`)
+- Containment reconciles each barn and the hospital's animal ward (the plan's barn and pen rooms, `policy.HospitalCells`)
   through the shared build side (`policy.NextHerdStep` returns `HerdReconcile` with the
   template: the `AnimalSleepingSpot`s or `AnimalBed`s and the barn's heater;
   `RoundsHerdRooms.cs` calls `reconcileRoom`), so a lost wall is rebuilt

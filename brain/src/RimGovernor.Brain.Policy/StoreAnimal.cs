@@ -36,7 +36,7 @@ internal sealed class AnimalOwner : IStoreOwner
             return [];
         }
         var output = new List<Store>();
-        foreach (var barn in v.Layout.HerdRooms(PlannedRole.Barn))
+        foreach (var barn in v.Layout.RoomsOf(PlannedRole.Barn))
         {
             var avoid = new List<Cell>();
             var (room, ok) = PolicyFunctions.InteriorRoomFromLayout(barn, v.Shapes);

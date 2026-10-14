@@ -91,8 +91,8 @@ internal static partial class BuildingRuntimePackage
         }
 
         var ward = PolicyFunctions.WardBeds(animals!, facts.Facts.HerdPolicy());
-        var barns = plan!.HerdRooms(PlannedRole.Barn).Count + plan.HerdRooms(PlannedRole.Pen).Count;
-        if (animals!.Count == 0 || (barns == 0 && (ward == 0 || plan.HerdRooms(PlannedRole.Hospital).Count == 0)))
+        var barns = plan!.RoomsOf(PlannedRole.Barn).Count + plan.RoomsOf(PlannedRole.Pen).Count;
+        if (animals!.Count == 0 || (barns == 0 && (ward == 0 || plan.RoomsOf(PlannedRole.Hospital).Count == 0)))
         {
             return (new HerdStep(), true);
         }

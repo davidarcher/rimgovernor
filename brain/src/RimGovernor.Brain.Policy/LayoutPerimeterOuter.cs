@@ -36,9 +36,6 @@ public static partial class PolicyFunctions
     /// <summary>The reservation kinds the outer ring walls in whole: the geothermal enclosures.</summary>
     private static bool OuterEnclosed(ReservationKind k) => k == ReserveGeothermal;
 
-    /// <summary>The reservations the core ring walls in with the rooms: the materials yard, the barns and their pens stand beside the core, inside its wall, not out in the fields. The turbines with their wind lanes are taken in the same way (CoreBaseFootprint).</summary>
-    private static bool InnerEnclosed(ReservationKind k) => k == ReserveYard || k == ReservationKind.Barn || k == ReservationKind.Pen;
-
     /// <summary>
     /// Walls side sd's open cells into walls, run by run between the positions skip reports (an opening, bare terrain,
     /// soft ground), and returns each run's gates on the PerimeterGatePitch: a run shorter than the pitch (a step of a
@@ -173,13 +170,6 @@ public static partial class PolicyFunctions
         foreach (var r in plan.Rooms)
         {
             MarkRect(fp, w, h, Pad(r.Region.Bounds(), 1));
-        }
-        foreach (var r in plan.Reservations)
-        {
-            if (InnerEnclosed(r.Kind))
-            {
-                MarkRegion(fp, w, h, r.Area.Grow(1));
-            }
         }
         foreach (var s in plan.LiveSites(NodeTurbine))
         {

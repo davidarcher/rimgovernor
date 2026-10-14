@@ -140,7 +140,7 @@ public static partial class PolicyFunctions
     public static RetiredGround RetiredGroundOf(LayoutPlan plan)
     {
         var kept = new List<Region>();
-        foreach (var r in plan.RoomsWithHerd())
+        foreach (var r in plan.Rooms)
         {
             // Only the ring: an old wall that now stands inside a reshaped room is not its wall.
             kept.Add(r.WallRing());

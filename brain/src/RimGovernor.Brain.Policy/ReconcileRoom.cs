@@ -16,7 +16,7 @@ public sealed partial record LayoutPlan
     public GroundCensus GroundWithRock(GroundCensus g, IReadOnlyList<Cell> rock)
     {
         var doors = new HashSet<Cell>();
-        foreach (var r in RoomsWithHerd())
+        foreach (var r in Rooms)
         {
             foreach (var d in this.ShellDoors(r))
             {

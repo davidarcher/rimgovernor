@@ -144,6 +144,8 @@ public static partial class PolicyFunctions
     public static (LayoutPlan Plan, StationAdvice Advice) ReplanLayout(LayoutPlan prev, StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers, RoomGrowth growth, int animals)
     {
         prev = prev.WithRoomIDs();
+        var sited = prev.Rooms.Where(SitedOutsideTiler).ToList();
+        prev = prev with { Rooms = [.. prev.Rooms.Where(r => !SitedOutsideTiler(r))] };
         f = f with { Plan = prev, Pinned = TilePinned(prev, growth) };
         f = ReplanTileFacts(f, s, geysers);
         var advice = TileStations(f);
@@ -160,7 +162,7 @@ public static partial class PolicyFunctions
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);
         plan = plan with { RetiredGround = RetiredGround(prev, plan, f!.Built!) };
-        plan = plan with { Reservations = [.. plan.Reservations, .. CarriedSites(prev, plan)] };
+        plan = plan with { Rooms = [.. plan.Rooms, .. CarriedSites(sited, plan)] };
         plan = PlanHerdSites(plan, animals, growth.HerdUnits);
         plan = PlanPenSites(plan, growth!.Grazing!, growth.Pens);
         plan = PlanYardSites(plan, YardRoomsWanted(growth.Demand));
@@ -275,10 +277,10 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The barns, pens and yards of prev that stand clear of the rooms and the reserved ground of next: the
-    /// tiler does not see them, so a new room may land on one, which then goes and is sited again. A site that
+    /// tiler does not plan them, so a new room may land on one, which then goes and is sited again. A site that
     /// clears stays where it is, so a replan does not move a barn or a yard that was built.
     /// </summary>
-    private static List<LayoutReservation> CarriedSites(LayoutPlan prev, LayoutPlan next)
+    private static List<PlannedRoom> CarriedSites(IEnumerable<PlannedRoom> sited, LayoutPlan next)
     {
         var taken = new List<Rectangle>();
         foreach (var r in next.Rooms)
@@ -289,20 +291,11 @@ public static partial class PolicyFunctions
         {
             taken.Add(r.Area.Bounds());
         }
-        var output = new List<LayoutReservation>();
-        foreach (var r in prev.Reservations)
-        {
-            if (r.Kind != ReservationKind.Barn && r.Kind != ReservationKind.Pen && r.Kind != ReservationKind.Yard)
-            {
-                continue;
-            }
-            if (!taken.Any(t => RectsOverlap(t, r.Area.Bounds())))
-            {
-                output.Add(r);
-            }
-        }
-        return output;
+        return [.. sited.Where(r => !taken.Any(t => RectsOverlap(t, r.Outline())))];
     }
+
+    /// <summary>The rooms the herd and the yard site themselves, outside the tiler: barns, pens and yards.</summary>
+    internal static bool SitedOutsideTiler(PlannedRoom r) => r.Role is PlannedRole.Barn or PlannedRole.Pen or PlannedRole.Yard;
 
     /// <summary>Reports whether a and b are the same plan as it is saved.</summary>
     public static bool SamePlan(LayoutPlan a, LayoutPlan b)

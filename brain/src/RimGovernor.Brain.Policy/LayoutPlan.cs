@@ -47,6 +47,9 @@ public sealed partial record PlannedRoom
     /// <summary>Maps the definition of a worked bench of the room to the work chair the comfort pricing chose for it (ChooseComfort, #2978); the furnisher stands one on each such bench's interaction cell. Absent: no chair is chosen or priced.</summary>
     public IReadOnlyDictionary<string, string> WorkChairs { get; init; } = new Dictionary<string, string>();
 
+    /// <summary>The herd a barn or pen belongs to: the race of its unit, empty for the misc unit and for every other room. A pen joins the barn of its own herd.</summary>
+    public string Herd { get; init; } = "";
+
     /// <summary>The ground an attached child occupies beyond its parent's ring: the airlock's vestibule, walls and outer door, or the porch strip.</summary>
     internal Rectangle AttachedGround() => Role == PlannedRole.Airlock ? this.AirlockGround() : PorchGround();
 
@@ -67,7 +70,8 @@ public sealed partial record PlannedRoom
         && Outdoor == o.Outdoor
         && Facing == o.Facing
         && Markers == o.Markers
-        && Parent == o.Parent;
+        && Parent == o.Parent
+        && Herd == o.Herd;
 }
 
 /// <summary>The cells X..X+Length-1 on row Z.</summary>
@@ -92,11 +96,8 @@ public sealed record LayoutReservation
     /// <summary>The side a walled reservation's door faces (the incinerator).</summary>
     public Rotation? Facing { get; init; }
 
-    /// <summary>The race of the herd whose unit a pen, barn or vet room belongs to; empty for the misc unit and for plans saved before it.</summary>
-    public string Herd { get; init; } = "";
-
     /// <summary>Whether both reservations are the same site.</summary>
-    public bool SameSite(LayoutReservation o) => Kind == o.Kind && Facing == o.Facing && Herd == o.Herd && Area.Equal(o.Area);
+    public bool SameSite(LayoutReservation o) => Kind == o.Kind && Facing == o.Facing && Area.Equal(o.Area);
 }
 
 /// <summary>The v2 colony layout: concrete rooms, whole-map zones and reserved infrastructure sites.</summary>
@@ -416,7 +417,7 @@ public sealed partial record LayoutPlan
     /// <summary>The cells of the doors the door graph gives room id.</summary>
     public List<Cell> LinkCells(int id) => [.. Links.Where(l => l.A == id || l.B == id).Select(l => l.Cell)];
 
-    /// <summary>The cells of the link doors room r holds in walls it shares with a neighbour: the door graph's links. Herd rooms (barn, pen) are reservations without room ids and own no link, so they give none.</summary>
+    /// <summary>The cells of the link doors room r holds in walls it shares with a neighbour: the door graph's links.</summary>
     public List<Cell> LinksOf(PlannedRoom r) => r.Id == 0 ? [] : LinkCells(r.Id);
 
     /// <summary>The cells of every door of room r: Door, then its links, each cell once.</summary>

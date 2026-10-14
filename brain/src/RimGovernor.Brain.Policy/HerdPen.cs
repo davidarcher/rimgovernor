@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // The pen. A unit with roaming animals (RequiresPen: the races the game walks off the map unless they are fully
-// enclosed) gets a pen reservation beside its barn, sharing one wall with it. The animal flap in that shared wall
+// enclosed) gets a pen room beside its barn, sharing one wall with it. The animal flap in that shared wall
 // joins the two, so the barn and the pen are one enclosure; the pen's own fence has a gate for colonists. The pen
 // is sited on ground that grows grazing and sized by the game's pen food sum (PenCells over the herd's PenDemand),
 // and one PenMarker inside it claims the enclosure for the game's pen logic. Pen membership comes from the native
@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The pen a unit asks for: Race is the unit's key (the herd's race, empty for the misc unit;
-/// <see cref="LayoutReservation.Herd"/>) and Cells the interior its animals' grazing needs.
+/// <see cref="PlannedRoom.Herd"/>) and Cells the interior its animals' grazing needs.
 /// </summary>
 public sealed record PenWant(string Race, int Cells);
 
@@ -80,33 +80,17 @@ public sealed partial record HerdPlan
 public sealed partial record LayoutPlan
 {
     /// <summary>The interior cells of the pens of the unit keyed herd.</summary>
-    internal int PenCells(string herd)
-    {
-        var n = 0;
-        foreach (var r in Reservations)
-        {
-            if (r.Kind == PolicyFunctions.ReservePen && r.Herd == herd)
-            {
-                var inner = PolicyFunctions.Pad(r.Area.Bounds(), -1);
-                n += inner.Width * inner.Height;
-            }
-        }
-        return n;
-    }
+    internal int PenCells(string herd) => HerdRooms(PolicyFunctions.PlannedPen, herd).Sum(r => r.Region.Bounds().Width * r.Region.Bounds().Height);
 
     /// <summary>
     /// The cell of the wall pen shares with its unit's barn, where the animal flap joins them: the barn's wall
     /// cell, never a corner. Not ok when the pen shares no wall with a barn of its unit.
     /// </summary>
-    internal (Cell Cell, bool Ok) PenLink(LayoutReservation pen)
+    internal (Cell Cell, bool Ok) PenLink(PlannedRoom pen)
     {
-        foreach (var r in Reservations)
+        foreach (var barn in HerdRooms(PolicyFunctions.PlannedBarn, pen.Herd))
         {
-            if (r.Kind != PolicyFunctions.ReserveBarn || r.Herd != pen.Herd)
-            {
-                continue;
-            }
-            var (c, ok) = PolicyFunctions.SharedWallLink(pen.Area.Bounds(), r.Area.Bounds());
+            var (c, ok) = PolicyFunctions.SharedWallLink(pen.Outline(), barn.Outline());
             if (ok)
             {
                 return (c, true);
@@ -119,13 +103,9 @@ public sealed partial record LayoutPlan
     internal IReadOnlyList<Cell> Flaps()
     {
         var @out = new List<Cell>();
-        foreach (var r in Reservations)
+        foreach (var pen in RoomsOf(PolicyFunctions.PlannedPen))
         {
-            if (r.Kind != PolicyFunctions.ReservePen)
-            {
-                continue;
-            }
-            var (c, ok) = PenLink(r);
+            var (c, ok) = PenLink(pen);
             if (ok)
             {
                 @out.Add(c);
@@ -223,13 +203,12 @@ public static partial class PolicyFunctions
             }
             var (iw, ih) = PenSide(@short);
             var (w, h) = WalledSide(iw, ih);
-            var barns = plan.Reservations.Where(r => r.Kind == ReserveBarn && r.Herd == want.Race).Select(r => r.Area.Bounds()).ToList();
-            foreach (var barn in barns)
+            foreach (var barn in plan.HerdRooms(PlannedBarn, want.Race))
             {
-                var (site, ok) = u.BesideReservation(plan, barn, ReservePen, w, h, r => RectCells(Pad(r, -1)).All(grazing.Contains));
+                var (site, ok) = u.BesideRoom(plan, barn.Outline(), PlannedPen, want.Race, w, h, r => RectCells(Pad(r, -1)).All(grazing.Contains));
                 if (ok)
                 {
-                    plan = u.Reserve(plan, new LayoutReservation { Kind = ReservePen, Area = RectRegion(site), Herd = want.Race });
+                    plan = u.Place(plan, plan.HerdRoom(site, PlannedPen, want.Race), site);
                     break;
                 }
             }
@@ -256,7 +235,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static bool PensStand(LayoutPlan plan, GroundCensus ground, IReadOnlyList<CurrentBuilding> built)
     {
-        var pens = plan.HerdRooms(PlannedPen);
+        var pens = plan.RoomsOf(PlannedPen);
         foreach (var room in pens)
         {
             if (!plan.GroundMatches(room, ground) || !PenMarkerStanding(room, built))

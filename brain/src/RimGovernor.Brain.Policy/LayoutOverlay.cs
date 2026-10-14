@@ -110,6 +110,8 @@ public static partial class PolicyFunctions
             [PlannedTrainingRange] = St(PlanBrown, "training range"),
             [PlannedSparringRing] = St(PlanBrown, "sparring ring"),
             [PlannedYard] = St(PlanTan, "materials yard"),
+            [PlannedRole.Barn] = St(PlanBrown, "barn"),
+            [PlannedRole.Pen] = St(PlanGreen, "pen"),
             [PlannedThrone] = St(PlanAmber, "throne room"),
             [PlannedRole.Nursery] = St(PlanGreen, "nursery"),
             [PlannedRole.Playroom] = St(PlanYellow, "playroom"),
@@ -124,9 +126,6 @@ public static partial class PolicyFunctions
         {
             [ReserveBatteryRoom] = St(PlanCyan, "battery room"),
             [ReserveGeothermal] = St(PlanCyan, "geothermal"),
-            [ReserveYard] = St(PlanTan, "materials yard"),
-            [ReservationKind.Barn] = St(PlanBrown, "barn"),
-            [ReservationKind.Pen] = St(PlanGreen, "pen"),
         };
 
         public static readonly Dictionary<NodeKind, OverlayStyleOf> Site = new()

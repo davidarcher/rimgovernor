@@ -1,29 +1,31 @@
 namespace RimGovernor.Brain.Policy;
 
-// Herd sites. The barn is a reservation sized by the herd plan, grouped in units: the misc unit holds every
+// Herd sites. The barn is a room sized by the herd plan, grouped in units: the misc unit holds every
 // animal that is no herd's, and each herd (HerdPlan.Herds) gets a unit of its own, sized from its policy
 // ceiling. A unit is a barn (roofed, an animal sleeping spot per animal, the bedroom of every animal of the
 // unit, bonded ones included). The hospital, not a room of the herd's, treats a sick animal (herd_ward). A
-// reservation never changes or moves: a herd its unit cannot hold gets another barn beside the same unit.
+// placed barn never changes or moves: a herd its unit cannot hold gets another barn beside the same unit.
 //
-// A unit is matched to its herd by key: every reservation of a herd's unit, a top-up included, carries
-// LayoutReservation.Herd, the herd's race; the misc unit's carry none. A plan without keys is not matched: its
+// A unit is matched to its herd by key: every room of a herd's unit, a top-up included, carries
+// PlannedRoom.Herd, the herd's race; the misc unit's carry none. A plan without keys is not matched: its
 // units all join the misc unit.
 
-/// <summary>One herd's unit size: the race (the key its reservations carry, LayoutReservation.Herd) and its policy ceiling.</summary>
+/// <summary>One herd's unit size: the race (the key its rooms carry, PlannedRoom.Herd) and its policy ceiling.</summary>
 public sealed record HerdCeiling(string Race, int Animals);
 
-/// <summary>One unit's reservations: its barns, in plan order.</summary>
+/// <summary>One unit's barns, in plan order.</summary>
 internal sealed class HerdUnit
 {
-    public List<Rectangle> Barns { get; } = [];
+    public List<PlannedRoom> Barns { get; } = [];
 
-    /// <summary>The race the unit's reservations are keyed to; empty for the misc unit and for a plan saved before keys.</summary>
+    /// <summary>The race the unit's rooms are keyed to; empty for the misc unit and for a plan saved before keys.</summary>
     public string Herd { get; init; } = string.Empty;
 
     /// <summary>The middle of the unit's first barn, the core when it has none.</summary>
     public (int X, int Z) Centre(UtilityGrid u) =>
-        Barns.Count > 0 ? (Barns[0].X + (Barns[0].Width / 2), Barns[0].Z + (Barns[0].Height / 2)) : (u.Cx, u.Cz);
+        Barns.Count > 0 ? Middle(Barns[0].Outline()) : (u.Cx, u.Cz);
+
+    internal static (int X, int Z) Middle(Rectangle r) => (r.X + (r.Width / 2), r.Z + (r.Height / 2));
 }
 
 public static partial class PolicyConstants
@@ -81,43 +83,48 @@ public static partial class PolicyFunctions
         {
             return plan;
         }
-        var reservations = plan.Reservations.ToList();
-        plan = plan with { Reservations = reservations };
         PlanHerdSitesIn(new UtilityGrid(plan), ref plan, animals, herds);
         return plan;
     }
 
-    /// <summary>The plan's barn reservations grouped into units by their herd key, in order of first appearance.</summary>
+    /// <summary>The plan's barns grouped into units by their herd key, in order of first appearance.</summary>
     internal static List<HerdUnit> HerdUnitsOf(this LayoutPlan p)
     {
         var units = new List<HerdUnit>();
         var at = new Dictionary<string, int>();
-        foreach (var r in p.Reservations)
+        foreach (var r in p.RoomsOf(PlannedBarn))
         {
-            if (r.Kind != ReservationKind.Barn)
-            {
-                continue;
-            }
             if (!at.TryGetValue(r.Herd, out var k))
             {
                 k = units.Count;
                 at[r.Herd] = k;
                 units.Add(new HerdUnit { Herd = r.Herd });
             }
-            units[k].Barns.Add(r.Area.Bounds());
+            units[k].Barns.Add(r);
         }
         return units;
     }
 
-    /// <summary>The 1x1 beds the rooms of role hold on the areas.</summary>
-    internal static int Capacity(this LayoutPlan p, IEnumerable<Rectangle> areas, PlannedRole role)
+    /// <summary>
+    /// A plan saved with its barns, pens and yards as reservations: each outline becomes the room it was derived
+    /// as, in plan order, under the next ids. kind is the reservation's wire name ("barn", "pen" or "yard"), herd
+    /// its unit key.
+    /// </summary>
+    public static LayoutPlan WithLegacySites(this LayoutPlan plan, IEnumerable<(string Kind, Region Area, string Herd)> legacy)
     {
-        var n = 0;
-        foreach (var a in areas)
+        foreach (var (kind, area, herd) in legacy)
         {
-            n += HerdRoomBeds(p.HerdRoom(a, role), new PieceShapes(), new InteriorPieceDef { Def = "bed", Size = new Cell(1, 1) });
+            var outline = area.Bounds();
+            var room = kind switch
+            {
+                "barn" => plan.HerdRoom(outline, PlannedBarn, herd),
+                "pen" => plan.HerdRoom(outline, PlannedPen, herd),
+                _ => LayoutPlan.YardRoom(outline),
+            };
+            var id = Math.Max(Math.Max(plan.NextRoomId, 1), plan.Rooms.Select(r => r.Id + 1).DefaultIfEmpty(1).Max());
+            plan = plan with { Rooms = [.. plan.Rooms, room with { Id = id }], NextRoomId = id + 1 };
         }
-        return n;
+        return plan;
     }
 
     /// <summary>
@@ -171,17 +178,16 @@ public static partial class PolicyFunctions
     /// <summary>
     /// Tops one unit up for animals: a barn holding a sleeping spot per animal. A herd the unit's barns outgrow
     /// gets another barn beside the unit, else on free ground near it; none moves. Only a unit with nothing
-    /// placed yet takes a site near cx, cz. Every reservation it adds carries herd, the key of the unit's race
+    /// placed yet takes a site near cx, cz. Every room it adds carries herd, the key of the unit's race
     /// (empty for misc). The shortfall is then met, so a repeat top-up is a no-op.
     /// </summary>
     private static void PlanUnit(UtilityGrid u, ref LayoutPlan plan, HerdUnit unit, string herd, int animals, int cx, int cz, bool misc)
     {
         if (unit.Barns.Count > 0)
         {
-            cx = unit.Barns[0].X + (unit.Barns[0].Width / 2);
-            cz = unit.Barns[0].Z + (unit.Barns[0].Height / 2);
+            (cx, cz) = HerdUnit.Middle(unit.Barns[0].Outline());
         }
-        var shortfall = animals - plan.Capacity(unit.Barns, PlannedRole.Barn);
+        var shortfall = animals - LayoutPlan.Capacity(unit.Barns);
         if (shortfall <= 0)
         {
             return;
@@ -197,7 +203,7 @@ public static partial class PolicyFunctions
         var ok = false;
         foreach (var anchor in unit.Barns)
         {
-            (site, ok) = u.BesideReservation(plan, anchor, ReservationKind.Barn, w, h, null);
+            (site, ok) = u.BesideRoom(plan, anchor.Outline(), PlannedBarn, herd, w, h, null);
             if (ok)
             {
                 break;
@@ -209,7 +215,7 @@ public static partial class PolicyFunctions
         }
         if (ok)
         {
-            plan = u.Reserve(plan, new LayoutReservation { Kind = ReservationKind.Barn, Area = RectRegion(site), Herd = herd });
+            plan = u.Place(plan, plan.HerdRoom(site, PlannedBarn, herd), site);
         }
     }
 
@@ -259,25 +265,16 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Reports that adding cand to the plan leaves every herd room's door where it was and no two of the rooms'
-    /// doors, links and pens' animal flaps on one cell.
+    /// Reports that adding the herd room at outline to the plan puts no two of the herd rooms' doors, links and
+    /// pens' animal flaps on one cell.
     /// </summary>
-    internal static bool DoorsHold(this LayoutPlan p, LayoutReservation cand)
+    internal static bool DoorsHold(this LayoutPlan p, Rectangle outline, PlannedRole role, string herd)
     {
-        var next = p with { Reservations = [.. p.Reservations, cand] };
+        var id = Math.Max(p.NextRoomId, p.Rooms.Select(r => r.Id + 1).DefaultIfEmpty(1).Max());
+        var next = p with { Rooms = [.. p.Rooms, p.HerdRoom(outline, role, herd) with { Id = id }], NextRoomId = id + 1 };
         var seen = new HashSet<Cell>();
-        foreach (var r in next.Reservations)
+        foreach (var room in next.Rooms.Where(r => r.Role is PlannedRole.Barn or PlannedRole.Pen))
         {
-            var (role, ok) = HerdRole(r.Kind);
-            if (!ok)
-            {
-                continue;
-            }
-            var room = next.HerdRoom(r.Area.Bounds(), role);
-            if (!r.Equals(cand) && p.HerdRoom(r.Area.Bounds(), role).Door != room.Door)
-            {
-                return false;
-            }
             foreach (var c in next.DoorsOf(room))
             {
                 if (!seen.Add(c))
@@ -300,11 +297,11 @@ public static partial class PolicyFunctions
 internal sealed partial class UtilityGrid
 {
     /// <summary>
-    /// The nearest w x h outline of kind sharing one wall with anchor (no wall material is wasted on a second
+    /// The nearest w x h outline of a role room of herd sharing one wall with anchor (no wall material is wasted on a second
     /// parallel wall): every other cell must be free, no room's door moves or lands on the shared link (the link
     /// takes a door, or a pen's animal flap), and accept, when set, takes the outline.
     /// </summary>
-    public (Rectangle Site, bool Ok) BesideReservation(LayoutPlan plan, Rectangle anchor, ReservationKind kind, int w, int h, Func<Rectangle, bool>? accept)
+    public (Rectangle Site, bool Ok) BesideRoom(LayoutPlan plan, Rectangle anchor, PlannedRole role, string herd, int w, int h, Func<Rectangle, bool>? accept)
     {
         int cx = anchor.X + (anchor.Width / 2), cz = anchor.Z + (anchor.Height / 2);
         var best = default(Rectangle);
@@ -346,7 +343,7 @@ internal sealed partial class UtilityGrid
                     || (accept is not null && !accept(r))
                     || !Inset(r)
                     || !FreeBesideWall(r, anchor)
-                    || !plan.DoorsHold(new LayoutReservation { Kind = kind, Area = RectRegion(r) }))
+                    || !plan.DoorsHold(r, role, herd))
                 {
                     continue;
                 }

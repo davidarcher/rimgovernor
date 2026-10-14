@@ -31,13 +31,7 @@ public sealed partial record LayoutPlan
     /// <summary>The plan's first open-ground room of role with no ring standing yet: the kitchen, freezer or jail its owning goal shells before furnishing. A dug room is mined out first. Null when none.</summary>
     public PlannedRoom? NextPlannedRoom(PlannedRole role, GroundCensus ground)
     {
-        IReadOnlyList<PlannedRoom> rooms = Rooms;
-        if (role == PolicyFunctions.PlannedYard)
-        {
-            // Yards are reservations viewed as rooms, not plan rooms.
-            rooms = YardRooms();
-        }
-        foreach (var r in rooms)
+        foreach (var r in Rooms)
         {
             if (r.Role != role)
             {
@@ -54,7 +48,7 @@ public sealed partial record LayoutPlan
     /// <summary>The rooms attached to room id (an airlock, a porch), in plan order; empty for a room with none.</summary>
     public List<PlannedRoom> ChildrenOf(int id) => [.. Rooms.Where(r => id != 0 && r.Parent == id)];
 
-    internal List<PlannedRoom> RoomsOf(PlannedRole role) => [.. Rooms.Where(r => r.Role == role)];
+    public List<PlannedRoom> RoomsOf(PlannedRole role) => [.. Rooms.Where(r => r.Role == role)];
 }
 
 /// <summary>Ports <c>layout_rooms.go</c> and <c>layout_plan_rooms.go</c>: room construction to plan shapes and room queries over a LayoutPlan.</summary>

@@ -117,10 +117,12 @@ internal sealed partial class UtilityGrid
         }
     }
 
-    public LayoutPlan Reserve(LayoutPlan plan, LayoutReservation r)
+    /// <summary>Adds room to the plan under the next id and takes outline, the room with its walls and margin, off the free ground.</summary>
+    public LayoutPlan Place(LayoutPlan plan, PlannedRoom room, Rectangle outline)
     {
-        MarkRegion(r.Area);
-        return plan with { Reservations = [.. plan.Reservations, r] };
+        MarkRegion(PolicyFunctions.RectRegion(outline));
+        var id = Math.Max(Math.Max(plan.NextRoomId, 1), plan.Rooms.Select(r => r.Id + 1).DefaultIfEmpty(1).Max());
+        return plan with { Rooms = [.. plan.Rooms, room with { Id = id }], NextRoomId = id + 1 };
     }
 
     /// <summary>Every cell of r on unplanned core candidates; rockOK lets it cross natural rock.</summary>
@@ -397,6 +399,9 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>The cells a room's walls and interior take. A ring is its block, a range its range block; any other unfenced room blocks its interior.</summary>
+    /// <summary>A barn's or pen's outline: its interior with the ring.</summary>
+    internal static Rectangle Outline(this PlannedRoom r) => Pad(r.Region.Bounds(), 1);
+
     internal static Rectangle RoomWalls(PlannedRoom r)
     {
         if (r.Role == PlannedSparringRing)

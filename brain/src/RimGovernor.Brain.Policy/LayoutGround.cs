@@ -245,7 +245,7 @@ public static partial class PolicyFunctions
         }
         doors.AddRange(p.FlapCells(r));
         var ring = r.Region.Walls();
-        foreach (var o in p.RoomsWithHerd())
+        foreach (var o in p.Rooms)
         {
             if (o.Region.Runs.SequenceEqual(r.Region.Runs))
             {
