@@ -48,8 +48,8 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    [storage](storage.md). Once ComplexFurniture is researched and no zone edit
    stands, `RoundsStockpilePlanner` upgrades the warehouse (the general store)
    with a Shelf inside it, up to a third of its footprint, one at a time. The
-   upgrade runs under the stockpiles planner, so the initial-shelter gate holds
-   it. `MaintainStockpiles` patches each built shelf with its zone's filter and
+   upgrade runs under the stockpiles planner, so while the initial shelter is owed
+   admission refuses it for the builders (`awaiting_plan:construction_labor`). `MaintainStockpiles` patches each built shelf with its zone's filter and
    priority (role `shelf:<buildingID>`). Native storage
    capacity counts a shelf cell's free slots (three stacks per cell).
 6. **Bill**: `RoundsResourcePlanner` dispatches the bill and native readback

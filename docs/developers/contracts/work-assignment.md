@@ -483,8 +483,7 @@ purposes file under subject keys of their own (`cookingBills`, `preservationBill
 `butcherBills`, `cookAheadBills`), because their concerns carry the building,
 acquisition and storage planners' notes: a bill verdict filed on the concern would
 compete with them for its one winning cause and relabel its strip with another
-purpose's reason. A priority gate that holds the ledger holds every purpose key
-with the same verdict.
+purpose's reason.
 
 `MaintainResource` (#2601) is migrated too: `RoundsResourcePlanner` declares
 `policy.DeclareResourceOrders` (a stock-target order, with `Product` and

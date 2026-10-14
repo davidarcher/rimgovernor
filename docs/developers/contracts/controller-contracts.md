@@ -89,16 +89,18 @@ held) lives on `Rounds.Stage` and sets the next review's budgets
 (`policy.StageRoundsPolicy`): the research ladder walks 2/5/8/all rungs at
 Foothold/Reserves/Stable/Development; food reserve and wood targets scale 1.5x at
 Stable and 2x at Development. A Foothold colony with shelter unmet promotes shelter
-planning into the critical planner wave, and while the initial shelter is owed (the housing
-latch at `shelter`) one priority gate (`priorityGates`, applied where the planners are queued)
-holds every planner outside its allowlist with `awaiting_plan:initial_shelter`. The allowlist
-is what builds the shelter or answers an event: `undraft`, `work`, `supplies`, `sleeping`,
-`sleepingUpkeep`, `hospital`, `tend`, `rescue`, `recovery`, `populationCustody`, `fireSafety`,
-`dialog`, `stockpiles` and the defense planner (the stockpiles planner zones the start kit's
-storage but raises no storage shell or shelf while the shelter is owed); a planner whose concern the review calls an emergency
-(priority 0 or 1) also runs. A later goal joins the rule as one more `priorityGates` row, with
-no per-planner hold. A held planner is queued with a trivial run, so its dirty marks and
-cadence are those of a planner that ran and refused. The defense layout's killbox digs (#2818)
+planning into the critical planner wave. Every planner runs; none is held by name. While the
+initial shelter is owed (the housing latch at `shelter`) the shelter owns the Construction
+labor, and method admission (`AdmitConstructionLabor`, over `PolicyFunctions.ConstructionLaborHeld`)
+refuses a plan holding an action that draws on it (`DrawsConstructionLabor`: building, roofing,
+deconstruction and floor, foundation and wall removal, moving or uninstalling a building, cover
+clearance) with `awaiting_plan:construction_labor`. The housing goal, a concern the review calls an
+emergency and work of priority 0 or 1 are exempt, and so is a plan of other kinds: gathering,
+growing, zoning, bills and settings never wait, so the supply the shelter's own demand asks for
+(`ConstructionDemand`, the `DependencyRecord`) is not held behind it (#3147). The stockpiles
+planner zones the start kit's storage but raises no storage shell or shelf while the shelter is
+owed. A later goal that needs the builders joins the rule through the same admission, not through
+a per-planner hold. The defense layout's killbox digs (#2818)
 also wait on a raid: no `ActiveCombat` incident in the journal files `awaiting_plan:raid`, and
 the first raid releases them. An item on a ring cell is never an obstruction (the
 builder hauls it aside when the wall goes over it), so a ring cell waits on no haul. The

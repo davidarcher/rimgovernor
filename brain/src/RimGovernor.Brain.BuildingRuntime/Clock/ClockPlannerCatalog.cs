@@ -37,9 +37,6 @@ internal sealed record PlannerEntry
     /// <summary>Reports whether the composition wired this planner.</summary>
     public required Func<ClockSchedulerConfig, bool> Configured { get; init; }
 
-    /// <summary>When set, stores on the result what a priority gate's hold files besides the planner's own verdict (the keys it reports on).</summary>
-    public Action<ClockScheduler, Verdict, ClockSchedulerResult>? Held { get; init; }
-
     /// <summary>Steps the planner and stores its result on the given result; its error is wrapped with the planner's name.</summary>
     public required Func<ClockScheduler, CancellationToken, CancellationToken, ClockSchedulerResult, StepArbiter, Task<Verdict>> Run { get; init; }
 
@@ -106,22 +103,9 @@ internal sealed record PlannerEntry
         });
     }
 
-    /// <summary>The run of a planner a priority gate holds.</summary>
-    public Func<ClockScheduler, CancellationToken, CancellationToken, ClockSchedulerResult, StepArbiter, Task<Verdict>> Awaiting(Verdict v)
-    {
-        var held = Held;
-        return async (s, _, _, output, _) =>
-        {
-            held?.Invoke(s, v, output);
-            return await Task.FromResult(v).ConfigureAwait(false);
-        };
-    }
 }
 
-/// <summary>One rule that lets a higher-priority goal outrank the planner tiers: while <see cref="Owed"/> holds for the review, a planner outside <see cref="Allow"/> is not run, it files <see cref="Pending"/>. A concern the review calls an emergency is exempt.</summary>
-internal sealed record PriorityGate(string Goal, Func<RoundsResult, bool> Owed, IReadOnlySet<string> Allow, Verdict Pending);
-
-/// <summary>The routine planners in queue order and the rules that select and hold them.</summary>
+/// <summary>The routine planners in queue order and the rules that select them.</summary>
 internal static class ClockPlannerCatalog
 {
     // Review cadences, in game ticks (2500 an hour): how long a planner's last evaluation stands before the due
@@ -173,8 +157,7 @@ internal static class ClockPlannerCatalog
         ConcernId concern = default,
         bool startup = false,
         FactFamily[]? families = null,
-        Tick every = default,
-        Action<ClockScheduler, Verdict, ClockSchedulerResult>? held = null)
+        Tick every = default)
         where T : IPlannerMethod => new()
         {
             Name = name,
@@ -187,7 +170,6 @@ internal static class ClockPlannerCatalog
             Families = families ?? [],
             Every = every,
             Configured = configured,
-            Held = held,
             Run = async (s, ct, epoch, output, arbiter) =>
             {
                 var method = await step(s, ct, epoch, arbiter).ConfigureAwait(false);
@@ -283,11 +265,8 @@ internal static class ClockPlannerCatalog
             c => c.MechCharger is not null, (s, ct, e, a) => s.Config.MechCharger!.StepAsync(a, ct, e), (o, m) => o.MechCharger = m, EnsureMechCharger),
         E("genebank", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsBuilding,
             c => c.GeneBank is not null, (s, ct, e, a) => s.Config.GeneBank!.StepAsync(a, ct, e), (o, m) => o.GeneBank = m, MaintainGeneBank),
-        // workLedger also files the verdicts of the bill purposes (RoundsLedgerResult.Reports): when a priority
-        // gate holds it, it holds them with it.
         E("workLedger", O, PlannerPriority.Maintenance, [ActionKind.ProductionBill, ActionKind.RemoveProductionBill], SectionsBills,
-            c => c.Ledger is not null, (s, ct, e, a) => s.Config.Ledger!.StepAsync(a, ct, e), (o, m) => o.Ledger = m, MaintainWorkLedger,
-            held: (s, v, o) => o.Ledger = new RoundsLedgerResult { Verdict = v, Reports = s.Config.Ledger!.Reviewer.HeldReports(v) }),
+            c => c.Ledger is not null, (s, ct, e, a) => s.Config.Ledger!.StepAsync(a, ct, e), (o, m) => o.Ledger = m, MaintainWorkLedger),
         E("blight", O, PlannerPriority.Maintenance, [ActionKind.CutPlant], SectionsColony,
             c => c.Blight is not null, (s, ct, e, a) => s.Config.Blight!.StepAsync(a, ct, e), (o, m) => o.Blight = m, RemoveBlight),
         E("armory", O, PlannerPriority.Maintenance, [ActionKind.Building], SectionsArmory,
@@ -356,20 +335,6 @@ internal static class ClockPlannerCatalog
             c => c.DefenseLayout is not null, (s, ct, e, a) => s.Config.DefenseLayout!.StepAsync(a, ct, e), (o, m) => o.DefenseLayout = m, EnsureDefensiveLayout),
     ];
 
-    /// <summary>
-    /// Names the planners that run while the initial shelter is owed: what builds it (work priorities, the start
-    /// kit's allow/forbid, the shelter and its bunk assignment), the stockpile zones the kit is stored in and what
-    /// answers an event (a raid, a patient, a fire, a dialog, a disaster, custody). A hostile-temperature start
-    /// owes the colonists no other action until the shelter stands; the rest are held with
-    /// <see cref="BuildingReasonShelterPending"/>.
-    /// </summary>
-    public static readonly IReadOnlySet<string> RunsBeforeShelter = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "undraft", "work", "supplies", "sleeping", "sleepingUpkeep",
-        "hospital", "tend", "rescue", "recovery", "populationCustody",
-        "fireSafety", "dialog", DefensePlanner, "stockpiles",
-    };
-
     /// <summary>Reports whether the review binds an active MaintainHousing goal still in deficit on its starter-shelter phase.</summary>
     public static bool ShelterOwed(RoundsResult review)
     {
@@ -393,34 +358,6 @@ internal static class ClockPlannerCatalog
         }
         return false;
     }
-
-    /// <summary>The gates in force, in precedence order: the first row that holds a planner decides its verdict.</summary>
-    public static readonly IReadOnlyList<PriorityGate> PriorityGates =
-    [
-        new PriorityGate("initial_shelter", ShelterOwed, RunsBeforeShelter, BuildingReasonShelterPending),
-    ];
-
-    /// <summary>Reports the verdict <paramref name="entry"/> files when a gate of <see cref="PriorityGates"/> holds it under <paramref name="review"/>.</summary>
-    public static Verdict? HeldByPriority(PlannerEntry entry, RoundsResult? review)
-    {
-        if (review is null)
-        {
-            return null;
-        }
-        foreach (var gate in PriorityGates)
-        {
-            if (gate.Allow.Contains(entry.Name) || !gate.Owed(review))
-            {
-                continue;
-            }
-            if (!string.IsNullOrEmpty(entry.Concern.Value) && review.Emergency.Contains(entry.Concern))
-            {
-                continue;
-            }
-            return gate.Pending;
-        }
-        return null;
-    }
 }
 
 public sealed partial class ClockScheduler
@@ -428,11 +365,9 @@ public sealed partial class ClockScheduler
     /// <summary>
     /// Queues the configured planners <paramref name="pick"/> selects (all when null) onto the wave, returning the
     /// names queued in catalog order. With <paramref name="startup"/> set, a startup planner is queued into the
-    /// critical cycle rather than the optional wave. While a priority gate holds under <paramref name="review"/>
-    /// every planner outside its allowlist is queued as a hold, so its cadence and filing stay those of a planner
-    /// that ran and refused.
+    /// critical cycle rather than the optional wave.
     /// </summary>
-    internal List<string> QueuePlanners(PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool startup, RoundsResult? review, CancellationToken ct, CancellationToken epoch)
+    internal List<string> QueuePlanners(PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool startup, CancellationToken ct, CancellationToken epoch)
     {
         var queued = new List<string>();
         foreach (var catalogEntry in _catalog)
@@ -441,10 +376,6 @@ public sealed partial class ClockScheduler
             if (!entry.Configured(Config) || pick is not null && !pick(entry))
             {
                 continue;
-            }
-            if (ClockPlannerCatalog.HeldByPriority(entry, review) is { } pending)
-            {
-                entry = entry with { Run = entry.Awaiting(pending) };
             }
             if (startup && entry.Startup || ReviewScope.Immediate && ImmediatePlanner(entry))
             {

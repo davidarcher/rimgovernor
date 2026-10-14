@@ -678,7 +678,6 @@ public sealed partial class ClockScheduler
     private async Task<List<string>> StepPlannersAsync(ClockSchedulerResult output, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool immediate, CancellationToken call, CancellationToken epoch)
     {
         var startup = false;
-        RoundsResult? held = null;
         if (Config.Rounds is { } rounds)
         {
             RoundsResult review;
@@ -699,7 +698,6 @@ public sealed partial class ClockScheduler
                 throw new AuthorityException("routine: authority lapsed");
             }
             output.Rounds = review;
-            held = review;
             if (!immediate)
             {
                 await EstablishExtentAsync(review.Review.Tick, call).ConfigureAwait(false);
@@ -711,6 +709,6 @@ public sealed partial class ClockScheduler
                 startup = true;
             }
         }
-        return QueuePlanners(wave, arbiter, pick, startup, held, call, epoch);
+        return QueuePlanners(wave, arbiter, pick, startup, call, epoch);
     }
 }
