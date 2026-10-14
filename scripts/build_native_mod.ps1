@@ -41,6 +41,28 @@ $taskCompiler = (Get-Command $DotNet -ErrorAction Stop).Source
 $taskSdkVersion = (& $taskCompiler --version | Out-String).Trim()
 if ($LASTEXITCODE) { throw 'Could not read .NET SDK version' }
 if ([version]$taskSdkVersion.Split('-')[0] -lt [version]'10.0') { throw "The native build needs .NET SDK 10 (net10.0); found $taskSdkVersion" }
+# Copies a directory tree with robocopy (many small files: Copy-Item per file is several times slower), keeping
+# timestamps, skipping build output directories and, when given, copying only the matching file patterns.
+function Copy-TaskTree([string]$From, [string]$To, [string[]]$Patterns = @(), [string[]]$ExcludeDirs = @('obj', 'bin'), [string[]]$ExcludeFiles = @()) {
+    $taskCopyArgs = @($From, $To) + $Patterns + @('/S', '/NFL', '/NDL', '/NJH', '/NJS', '/NP', '/MT:16', '/XD') + $ExcludeDirs
+    if ($ExcludeFiles.Count) { $taskCopyArgs += '/XF'; $taskCopyArgs += $ExcludeFiles }
+    & robocopy @taskCopyArgs | Out-Null
+    if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE): $From" }
+    $global:LASTEXITCODE = 0
+}
+# SHA-256 of each file as lowercase hex, hashed on several threads; returns @{ path = hash }.
+function Get-TaskHashes([string[]]$Paths) {
+    $taskHashes = @{}
+    if ($Paths.Count -eq 0) { return $taskHashes }
+    $taskChunkSize = [Math]::Max(1, [int][Math]::Ceiling($Paths.Count / 8.0))
+    $taskChunks = for ($taskAt = 0; $taskAt -lt $Paths.Count; $taskAt += $taskChunkSize) { , @($Paths[$taskAt..([Math]::Min($taskAt + $taskChunkSize, $Paths.Count) - 1)]) }
+    $taskHashOne = { param($taskChunk) foreach ($taskPath in $taskChunk) { [pscustomobject]@{ Path = $taskPath; Hash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.IO.File]::ReadAllBytes($taskPath))).ToLowerInvariant() } } }
+    $taskRows = if ($PSVersionTable.PSVersion.Major -ge 7) {
+        $taskChunks | ForEach-Object -Parallel { foreach ($taskPath in $_) { [pscustomobject]@{ Path = $taskPath; Hash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.IO.File]::ReadAllBytes($taskPath))).ToLowerInvariant() } } } -ThrottleLimit 8
+    } else { foreach ($taskChunk in $taskChunks) { & $taskHashOne $taskChunk } }
+    foreach ($taskRow in $taskRows) { $taskHashes[$taskRow.Path] = $taskRow.Hash }
+    return $taskHashes
+}
 $taskBuild = Join-Path $taskOutput 'build'
 $taskPackage = Join-Path $taskOutput 'RimGovernor'
 $taskCompiled = Join-Path $taskBuild 'compiled'
@@ -51,25 +73,13 @@ $taskCopyRoot = Join-Path $taskBuild 'source'
 $taskCopyNative = Join-Path $taskCopyRoot 'integrations/rimgovernor-native'
 New-Item -ItemType Directory -Path $taskCopyNative -Force | Out-Null
 foreach ($taskDirectory in @('src', 'About', 'Defs', 'Textures', 'Notices')) {
-    $taskFrom = Join-Path $taskSource $taskDirectory
-    foreach ($taskFile in Get-ChildItem -LiteralPath $taskFrom -Recurse -File | Where-Object {
-        $_.FullName -notmatch '[\\/](obj|bin|Assemblies|BridgeTools)[\\/]'
-    }) {
-        $taskRelative = $taskFile.FullName.Substring($taskSource.Length + 1)
-        $taskTo = Join-Path $taskCopyNative $taskRelative
-        New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
-        Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
-    }
+    Copy-TaskTree (Join-Path $taskSource $taskDirectory) (Join-Path $taskCopyNative $taskDirectory) -ExcludeDirs @('obj', 'bin', 'Assemblies', 'BridgeTools')
 }
 # The vendored host (fork of RimBridgeServer) builds from the same private copy.
 $taskCopyHost = Join-Path $taskCopyRoot 'integrations/rimgovernor-host'
-foreach ($taskFile in @(Get-ChildItem -LiteralPath (Join-Path $taskHostSource 'src') -Recurse -File | Where-Object {
-        $_.FullName -notmatch '[\\/](obj|bin)[\\/]'
-    }) + @(Get-Item -LiteralPath (Join-Path $taskHostSource 'Directory.Build.props'))) {
-    $taskTo = Join-Path $taskCopyHost $taskFile.FullName.Substring($taskHostSource.Length + 1)
-    New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
-    Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
-}
+Copy-TaskTree (Join-Path $taskHostSource 'src') (Join-Path $taskCopyHost 'src')
+New-Item -ItemType Directory -Path $taskCopyHost -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $taskHostSource 'Directory.Build.props') -Destination $taskCopyHost
 # The brain assemblies the mod shares with the in-process brain (#3080): Domain, Policy, Contracts (the wire records, #3100), Bridge (the definition catalog over the game's Defs, #3116) with Bridge.Contracts,
 # NativeFacade and HttpChannel (the local control channel, #3083) with the Telemetry
 # it reports access rows through, and the host (#3115) with its graph: Snapshot, Observation, Store (native SQLite),
@@ -77,26 +87,17 @@ foreach ($taskFile in @(Get-ChildItem -LiteralPath (Join-Path $taskHostSource 's
 # thought trigger table (brain/src/RimGovernor.Brain.Policy/thought_triggers.tsv).
 foreach ($taskBrainItem in @('brain/Directory.Build.props', 'brain/Directory.Packages.props', 'brain/Game.props', 'brain/src/RimGovernor.Brain.Domain', 'brain/src/RimGovernor.Brain.Policy', 'brain/src/RimGovernor.Brain.Contracts', 'brain/src/RimGovernor.Brain.Bridge', 'brain/src/RimGovernor.Brain.Bridge.Contracts', 'brain/src/RimGovernor.Brain.NativeFacade', 'brain/src/RimGovernor.Brain.HttpChannel', 'brain/src/RimGovernor.Brain.Telemetry', 'brain/src/RimGovernor.Brain.Host', 'brain/src/RimGovernor.Brain.Snapshot', 'brain/src/RimGovernor.Brain.Observation', 'brain/src/RimGovernor.Brain.Store', 'brain/src/RimGovernor.Brain.Executor', 'brain/src/RimGovernor.Brain.BuildingRuntime', 'brain/src/RimGovernor.Brain.PlayerApi', 'brain/src/RimGovernor.Brain.Facts', 'brain/src/RimGovernor.Brain.Simulation')) {
     $taskBrainFrom = Get-Item -LiteralPath (Join-Path $taskRepo $taskBrainItem)
-    $taskBrainFiles = if ($taskBrainFrom.PSIsContainer) {
-        @(Get-ChildItem -LiteralPath $taskBrainFrom.FullName -Recurse -File | Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' })
-    } else { @($taskBrainFrom) }
-    foreach ($taskFile in $taskBrainFiles) {
-        $taskTo = Join-Path $taskCopyRoot $taskFile.FullName.Substring($taskRepo.Length + 1)
-        New-Item -ItemType Directory -Path (Split-Path $taskTo -Parent) -Force | Out-Null
-        Copy-Item -LiteralPath $taskFile.FullName -Destination $taskTo
+    $taskBrainTo = Join-Path $taskCopyRoot $taskBrainItem
+    if ($taskBrainFrom.PSIsContainer) { Copy-TaskTree $taskBrainFrom.FullName $taskBrainTo }
+    else {
+        New-Item -ItemType Directory -Path (Split-Path $taskBrainTo -Parent) -Force | Out-Null
+        Copy-Item -LiteralPath $taskBrainFrom.FullName -Destination $taskBrainTo
     }
 }
 $taskScripts = Join-Path $taskCopyRoot 'scripts'
 New-Item -ItemType Directory -Path $taskScripts -Force | Out-Null
 Copy-Item -LiteralPath $PSCommandPath -Destination $taskScripts
-$taskFixtureSource = Join-Path $taskRepo 'scripts/fixtures'
-foreach ($taskFile in Get-ChildItem -LiteralPath $taskFixtureSource -Recurse -File | Where-Object {
-    $_.Extension -in @('.cs', '.csproj') -and $_.FullName -notmatch '[\\/](obj|bin)[\\/]'
-}) {
-    $taskDestination = Join-Path $taskScripts ('fixtures/' + $taskFile.FullName.Substring($taskFixtureSource.Length + 1))
-    New-Item -ItemType Directory -Path (Split-Path $taskDestination -Parent) -Force | Out-Null
-    Copy-Item -LiteralPath $taskFile.FullName -Destination $taskDestination
-}
+Copy-TaskTree (Join-Path $taskRepo 'scripts/fixtures') (Join-Path $taskScripts 'fixtures') -Patterns @('*.cs', '*.csproj')
 Copy-Item -LiteralPath (Join-Path $taskRepo 'THIRD_PARTY.md') -Destination $taskCopyRoot
 Copy-Item -LiteralPath (Join-Path $taskSource 'README.md') -Destination $taskCopyNative
 # sourceTree hashes the copied inputs (before the build writes obj/bin into
@@ -105,26 +106,65 @@ Copy-Item -LiteralPath (Join-Path $taskSource 'README.md') -Destination $taskCop
 # list from the copy rules above): sorted ordinal by copy-relative path with
 # forward slashes, one "<path>`t<sha256>`n" line each, SHA-256 of the lines.
 $taskSourceLines = [System.Collections.Generic.List[string]]::new()
-foreach ($taskFile in Get-ChildItem -LiteralPath $taskCopyRoot -Recurse -File) {
+$taskCopied = @(Get-ChildItem -LiteralPath $taskCopyRoot -Recurse -File)
+$taskCopiedHashes = Get-TaskHashes @($taskCopied.FullName)
+foreach ($taskFile in $taskCopied) {
     $taskRelative = $taskFile.FullName.Substring($taskCopyRoot.Length + 1).Replace('\', '/')
-    $taskSourceLines.Add($taskRelative + "`t" + (Get-FileHash -LiteralPath $taskFile.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + "`n")
+    $taskSourceLines.Add($taskRelative + "`t" + $taskCopiedHashes[$taskFile.FullName] + "`n")
 }
 $taskSourceLines.Sort([System.StringComparer]::Ordinal)
 $taskSourceHasher = [System.Security.Cryptography.SHA256]::Create()
 $taskSourceTree = [BitConverter]::ToString($taskSourceHasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes(-join $taskSourceLines))).Replace('-', '').ToLowerInvariant()
 $taskSourceHasher.Dispose()
-$taskHostCompiled = Join-Path $taskBuild 'host-compiled'
-$taskHostArgs = @('build', (Join-Path $taskCopyHost 'src/Host/RimGovernor.Host.csproj'),
-    '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskHostCompiled/",
-    "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
-& $taskCompiler @taskHostArgs *> (Join-Path $taskBuild 'host-build.log')
-if ($LASTEXITCODE) { throw "Host build failed; inspect $taskBuild/host-build.log" }
-$taskArgs = @('build', (Join-Path $taskCopyNative 'src/Bridge/RimGovernor.Bridge.csproj'),
-    '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskCompiled/",
-    "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
-foreach ($taskFlag in $taskFixtures) { $taskArgs += "-p:${taskFlag}=true" }
-& $taskCompiler @taskArgs *> (Join-Path $taskBuild 'build.log')
-if ($LASTEXITCODE) { throw "Native build failed; inspect $taskBuild/build.log" }
+# Compile in a work directory that persists between builds, so a rebuild recompiles only what changed (a fresh copy
+# every time made every build a cold compile of the whole brain). One work directory per fixture set: the fixture
+# flags are compile-time properties that MSBuild's up-to-date check does not see. The copy above stays pristine, so
+# the sourceTree hash and the source snapshot never see build output; the work copy is synced from it, and a file
+# the sync rewrote is touched so its timestamp is newer than the outputs built from the previous one.
+$taskFixtureKey = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes(($taskFixtures -join ',')))).Substring(0, 8).ToLowerInvariant()
+$taskWork = Join-Path $taskRepo (".rimgovernor/native-builds/_work/$taskRole-$taskFixtureKey")
+# The compiled output goes to a stable path in the work directory too: OutputPath feeds the compiler's up-to-date
+# inputs, so a per-build path would recompile every project each time.
+$taskCompiled = Join-Path $taskWork '_out/compiled'
+$taskHostCompiled = Join-Path $taskWork '_out/host-compiled'
+$taskLockName = 'Global\rimgovernor-native-build-' + [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($taskWork.ToLowerInvariant()))).Substring(0, 24)
+$taskLock = [System.Threading.Mutex]::new($false, $taskLockName)
+try {
+    try { $null = $taskLock.WaitOne() } catch [System.Threading.AbandonedMutexException] { }
+    New-Item -ItemType Directory -Path $taskWork -Force | Out-Null
+    (Get-Item -LiteralPath $taskWork).LastWriteTimeUtc = [DateTime]::UtcNow
+    $taskSynced = & robocopy $taskCopyRoot $taskWork /MIR /FP /NDL /NJH /NJS /NP /NS /MT:16 /XD obj bin _out
+    if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE): sync to $taskWork" }
+    $global:LASTEXITCODE = 0
+    $taskNow = [DateTime]::UtcNow
+    foreach ($taskLine in $taskSynced) {
+        # Only a copied file is listed with one of these classes; unchanged files are listed as 'same'.
+        if ($taskLine -notmatch '^\s*(New File|Newer|Older|Changed|Modified)') { continue }
+        $taskTouched = $taskLine.Substring($taskLine.LastIndexOf("`t") + 1).Trim()
+        if ($taskTouched.StartsWith($taskCopyRoot, [StringComparison]::OrdinalIgnoreCase)) { $taskTouched = $taskWork + $taskTouched.Substring($taskCopyRoot.Length) }
+        if ($taskTouched.StartsWith($taskWork, [StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $taskTouched -PathType Leaf)) {
+            [System.IO.File]::SetLastWriteTimeUtc($taskTouched, $taskNow)
+        }
+    }
+    $taskHostArgs = @('build', (Join-Path $taskWork 'integrations/rimgovernor-host/src/Host/RimGovernor.Host.csproj'),
+        '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskHostCompiled/",
+        "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
+    & $taskCompiler @taskHostArgs *> (Join-Path $taskBuild 'host-build.log')
+    if ($LASTEXITCODE) { throw "Host build failed; inspect $taskBuild/host-build.log" }
+    $taskArgs = @('build', (Join-Path $taskWork 'integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj'),
+        '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskCompiled/",
+        "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
+    foreach ($taskFlag in $taskFixtures) { $taskArgs += "-p:${taskFlag}=true" }
+    & $taskCompiler @taskArgs *> (Join-Path $taskBuild 'build.log')
+    if ($LASTEXITCODE) { throw "Native build failed; inspect $taskBuild/build.log" }
+    # Work directories of fixture sets nobody has built for a while would otherwise pile up.
+    foreach ($taskStale in Get-ChildItem -LiteralPath (Split-Path $taskWork -Parent) -Directory | Where-Object { $_.FullName -ne $taskWork -and $_.LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-7) }) {
+        Remove-Item -LiteralPath $taskStale.FullName -Recurse -Force -ErrorAction Continue
+    }
+} finally {
+    $taskLock.ReleaseMutex()
+    $taskLock.Dispose()
+}
 foreach ($taskItem in @(
     @{ Name = 'RimGovernor.Runtime.dll'; Directory = 'Assemblies' },
     @{ Name = 'RimGovernor.Bridge.dll'; Directory = 'BridgeTools/RimGovernor' }
@@ -179,17 +219,13 @@ foreach ($taskBrain in @('RimGovernor.Brain.Domain.dll', 'RimGovernor.Brain.Poli
 }Copy-Item -LiteralPath (Join-Path $taskCopyNative 'About'), (Join-Path $taskCopyNative 'Defs'), (Join-Path $taskCopyNative 'Textures'), (Join-Path $taskCopyNative 'Notices') -Destination $taskPackage -Recurse
 Copy-Item -LiteralPath (Join-Path $taskCopyNative 'README.md') -Destination $taskPackage
 $taskSnapshot = Join-Path $taskPackage 'Source'
-New-Item -ItemType Directory -Path $taskSnapshot -Force | Out-Null
-foreach ($taskFile in Get-ChildItem -LiteralPath $taskCopyRoot -Recurse -File | Where-Object {
-    $_.FullName -notmatch '[\\/](obj|bin)[\\/]' -and $_.Extension -notin @('.dll', '.pdb', '.exe') -and
-    $_.FullName -notmatch '[\\/]csharp[\\/]Defs\.cs$'
-}) {
-    $taskRelative = $taskFile.FullName.Substring($taskCopyRoot.Length + 1)
-    $taskDestination = Join-Path $taskSnapshot $taskRelative
-    New-Item -ItemType Directory -Path (Split-Path $taskDestination -Parent) -Force | Out-Null
-    Copy-Item -LiteralPath $taskFile.FullName -Destination $taskDestination
+Copy-TaskTree $taskCopyRoot $taskSnapshot -ExcludeFiles @('*.dll', '*.pdb', '*.exe')
+foreach ($taskFile in Get-ChildItem -LiteralPath $taskSnapshot -Recurse -File -Filter 'Defs.cs' | Where-Object { $_.FullName -match '[\\/]csharp[\\/]Defs\.cs$' }) {
+    Remove-Item -LiteralPath $taskFile.FullName
 }
 $taskInputs = @($HarmonyAssembly) + @('Assembly-CSharp.dll', 'UnityStubs.dll', 'Waylith.dll' | ForEach-Object { Join-Path $RimWorldDir $_ })
+$taskPackageFiles = @(Get-ChildItem -LiteralPath $taskPackage -Recurse -File | Sort-Object FullName)
+$taskPackageHashes = Get-TaskHashes @($taskPackageFiles.FullName)
 $taskManifest = [ordered]@{
     formatVersion = 1
     packageId = 'davidarcher.rimgovernor.native'
@@ -204,8 +240,8 @@ $taskManifest = [ordered]@{
     inputs = @($taskInputs | Sort-Object -Unique | ForEach-Object {
         [ordered]@{ path = $_; sha256 = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() }
     })
-    files = @(Get-ChildItem -LiteralPath $taskPackage -Recurse -File | Sort-Object FullName | ForEach-Object {
-        [ordered]@{ path = $_.FullName.Substring($taskPackage.Length + 1).Replace('\', '/'); sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+    files = @($taskPackageFiles | ForEach-Object {
+        [ordered]@{ path = $_.FullName.Substring($taskPackage.Length + 1).Replace('\', '/'); sha256 = $taskPackageHashes[$_.FullName] }
     })
 }
 $taskManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $taskPackage 'native-manifest.json') -Encoding UTF8
