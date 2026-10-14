@@ -132,7 +132,7 @@ public sealed partial class Rounder
     /// (<c>ReplanLayout</c>): the chain keeps the rooms that stand, the rooms a journal plan works on or a pawn
     /// sleeps in and the rooms it has a node for, and sites the rest again.
     /// </summary>
-    internal async Task ReviewLayoutPlanAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal async Task<ColonyProjection> ReviewLayoutPlanAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
         var (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
@@ -222,6 +222,7 @@ public sealed partial class Rounder
             projection = projection with { LayoutPlan = Known(layout.Plan) };
         }
         await DrawLayoutOverlayAsync(snapshot, projection, layout, haveLayout, ct).ConfigureAwait(false);
+        return projection;
     }
 
     /// <summary>

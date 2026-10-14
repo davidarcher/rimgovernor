@@ -425,7 +425,7 @@ public sealed partial class Rounder
         }
         reading = ReviewChildRooms(reading);
         reading = reading.WithProjection(ReviewStrangers(state.Snapshot, reading.Projection, ct));
-        await ReviewLayoutPlanAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
+        reading = reading.WithProjection(await ReviewLayoutPlanAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false));
         reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
         if (reading.Projection.LayoutPlan.TryGetValue(out var layoutPlan))
         {
@@ -691,7 +691,8 @@ public sealed partial class Rounder
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { RoomObstructions = PolicyApi.RoomObstructionIDs(others, ground) } });
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Chunks = Known(census.Chunks) } });
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Ground = Known<EquatableArray<string>>([.. PlannedGroundWork(reading.Projection, player, census.Floors, ClearFloors(reading.Projection))]) } });
-                DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct);
+                reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
+                reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
             }
         }
         if (MethodEnabled(PolicyApi.ClearAncientShrine))
@@ -940,20 +941,20 @@ public sealed partial class Rounder
     /// <summary>
     /// Records the plan without the retired ground the census found clear; the projection carries the recorded plan.
     /// </summary>
-    internal void DropClearedRetiredGround(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, CancellationToken ct)
+    internal ColonyProjection DropClearedRetiredGround(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, CancellationToken ct)
     {
         if (!projection.LayoutPlan.TryGetValue(out var plan) || plan.RetiredGround.Count == 0)
         {
-            return;
+            return projection;
         }
         var done = PolicyApi.RetiredGroundDone(plan, player, floors);
         if (done.Count == 0)
         {
-            return;
+            return projection;
         }
         var next = plan.WithoutRetiredGround(done);
         Player.Journal.RecordLayoutPlan(snapshot, projection.Identity.Tick, next, ct);
-        projection = projection with { LayoutPlan = Known(next) };
+        return projection with { LayoutPlan = Known(next) };
     }
 }
 
