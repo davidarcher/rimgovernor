@@ -309,6 +309,9 @@ public sealed record WorkRosterReport
 
 public sealed record WorkDecision
 {
+    /// <summary>Shared observed occupancy; native job reads do not estimate remaining duration.</summary>
+    public IReadOnlyList<ForecastCurrentWork> CurrentWork { get; init; } = [];
+
     public IReadOnlyList<PawnWorkAssignment> Assignments { get; init; } = [];
 
     public Fact<bool> Capacity { get; init; }
@@ -676,6 +679,18 @@ public static partial class PolicyFunctions
             }
             return n;
         }
+        var currentWork = workers.ToDictionary(w => w.Pawn.Id, w => ForecastCurrentWorkOf(w.Pawn));
+        // Protect only ordinary work that remains demanded and eligible. Needs/forced jobs are not productive
+        // owner roles; medical holds and changed requirements still win. This reserves a primary role, not a day.
+        var ongoing = new Dictionary<PawnId, WorkType>();
+        foreach (var w in workers)
+        {
+            var current = currentWork[w.Pawn.Id];
+            if (current.Occupied.TryGetValue(out var occupied) && occupied && current.Work.TryGetValue(out var work)
+                && types.Contains(work) && DemandOf(work) > 0 && Able(w, work)
+                && w.Work[work].Priority > 0)
+                ongoing.Add(w.Pawn.Id, work);
+        }
         var capacity = true;
         var coverageRows = new List<WorkCoverage>();
         var decaying = new List<DecayingSkill>();
@@ -715,6 +730,9 @@ public static partial class PolicyFunctions
                 {
                     return a.Level > b.Level;
                 }
+                var aContinuing = ongoing.GetValueOrDefault(a.Worker.Pawn.Id) == work;
+                var bContinuing = ongoing.GetValueOrDefault(b.Worker.Pawn.Id) == work;
+                if (aContinuing != bContinuing) return aContinuing;
                 if (work == WorkType.Hunting)
                 {
                     var ac = a.Worker.Owned(WorkType.Growing) == 1 || a.Worker.Owned(WorkType.Cooking) == 1;
@@ -737,9 +755,11 @@ public static partial class PolicyFunctions
             candidates.Sort((a, b) => Less(a, b) ? -1 : Less(b, a) ? 1 : 0);
             var workOwners = new List<WorkWorker>();
             owners[work] = workOwners;
-            for (var i = 0; i < candidates.Count && i < want; i++)
+            for (var i = 0; i < candidates.Count && workOwners.Count < want; i++)
             {
                 var c = candidates[i];
+                if (ongoing.TryGetValue(c.Worker.Pawn.Id, out var protectedWork) && protectedWork != work
+                    && rowOrder[work] <= rowOrder[protectedWork]) continue;
                 c.Worker.Owns[work] = 1;
                 c.Worker.Load++;
                 workOwners.Add(c.Worker);
@@ -761,6 +781,7 @@ public static partial class PolicyFunctions
                     weakest = l;
                 }
             }
+            var backupChosen = false;
             for (var i = 0; i < candidates.Count; i++)
             {
                 var c = candidates[i];
@@ -769,9 +790,10 @@ public static partial class PolicyFunctions
                     continue;
                 }
                 var passion = SkillOf(work).Length != 0 && c.Worker.Profile.Skill(SkillOf(work)).Passion.Length != 0;
-                if ((want > 0 && i == workOwners.Count) || (passion && weakest >= 0 && c.Level >= weakest - 5))
+                if ((want > 0 && !backupChosen) || (passion && weakest >= 0 && c.Level >= weakest - 5))
                 {
                     c.Worker.Owns[work] = 2;
+                    backupChosen = true;
                 }
             }
             coverageRows.Add(coverage);
@@ -908,6 +930,7 @@ public static partial class PolicyFunctions
         }
         return new WorkDecision
         {
+            CurrentWork = currentWork.Values.ToArray(),
             Capacity = Known(capacity),
             Matches = Known(matches),
             Assignments = assignments,

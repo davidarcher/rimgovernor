@@ -104,6 +104,36 @@ role (Doctor, Cooking, Construction, Growing) found no owner. `Matches`
 compares the proposal to the readback with checkbox semantics when manual
 priorities are off (enabled or not, never the rank).
 
+## Ongoing work and shared occupancy
+
+The roster and ColonyForecast use `ForecastCurrentWorkOf` to interpret the current
+job. A known idle job has zero remaining productive work; an unread job has unknown
+occupancy. An observed non-idle job is occupied, with unknown remaining ticks unless
+the forecast caller supplies an estimate. `WorkDecision.CurrentWork` exposes these
+facts; an unknown duration never becomes a free workday.
+
+An enabled, eligible, demanded ordinary job protects its pawn from becoming the
+primary owner of another work type with equal or lower native natural priority.
+Other capable pawns can take that role. Within a type, ongoing work ranks before
+fitness; Construction still ranks raw skill first. Higher native natural-priority
+work can take an owner, and medical rest still overrides ordinary work. Changed
+requirements, disabled work, job completion or cancellation remove protection on
+the next read. No separate hold is saved.
+
+Capabilities and assignments remain separate: a protected cook may be capable of
+Construction but contribute no primary Construction owner. A backup remains enabled
+at priority 2, including when every candidate is occupied. This avoids disabling
+work merely because its preferred worker is currently busy. Both live review and
+dispatch call the same `PlanWork`, so readback comparison uses this rule too.
+
+This is current-role protection, not timed scheduling. Idle pawns can still own
+multiple roles; higher-priority work can interrupt, and native job selection owns
+execution. `Capacity` reports primary-role coverage, not proof of completing all
+work within a horizon. Shared timed windows and the bounded activity comparison
+remain the [ColonyForecast](../architecture/colony-forecast.md#review-inputs-and-pawn-windows)
+components for that proof; live route/duration/needs producers and timed dispatch
+remain unfinished. There is no new demand calculation or order writer.
+
 ## Ready work
 
 `ProjectReadyWork` (`ReadyWork.cs`) projects plans and proposals into diagnostic

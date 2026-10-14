@@ -34,15 +34,15 @@ public static partial class PolicyFunctions
         var pawn = input.Pawn;
         if ((pawn.Available.TryGetValue(out var available) && !available) || (pawn.Applies.TryGetValue(out var applies) && !applies))
             return Result(Known(default(EquatableArray<ForecastTimeWindow>)), Known(0.0), "pawn_unavailable");
-        if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !pawn.Job.TryGetValue(out var job) || !pawn.WorkHoursPerDay().IsKnown
+        var current = ForecastCurrentWorkOf(pawn, input.CurrentJobRemainingTicks);
+        if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || !pawn.WorkHoursPerDay().IsKnown
             || !input.LocalHour.TryGetValue(out var hour) || !input.Occupancy.TryGetValue(out var occupancy))
             return Result(default, default, "unknown_capacity_inputs");
         if (!double.IsFinite(hour) || hour < 0 || hour >= 24) throw new DomainException("invalid local hour");
         var blocked = new List<ForecastTimeWindow>();
-        if (job.Def.Length != 0)
+        if (occupied)
         {
-            if (!input.CurrentJobRemainingTicks.TryGetValue(out var remaining)) return Result(default, default, "unknown_current_job_remaining");
-            if (!double.IsFinite(remaining) || remaining < 0) throw new DomainException("invalid current job remaining time");
+            if (!current.RemainingTicks.TryGetValue(out var remaining)) return Result(default, default, "unknown_current_job_remaining");
             if (remaining > 0) blocked.Add(new(0, Math.Min(remaining, input.HorizonTicks)));
         }
         foreach (var group in occupancy.GroupBy(o => (o.Pawn, o.Id)))

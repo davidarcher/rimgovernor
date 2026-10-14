@@ -263,9 +263,21 @@ its 24-hour timetable, local time, remaining useful current-job time and declare
 needs/protected occupancy. Its horizon is bounded to seven game days. Non-work
 slots are protected; this consumes timetable constraints as observations and does
 not install a timetable or make native priorities the new activity selector.
-Needs transition estimates remain #3132's responsibility. An observed current job
-with no remaining-time estimate makes capacity unknown rather than freeing the
-pawn. The input is remaining work only, not sunk effort.
+Needs transition estimates remain #3132's responsibility. `ForecastCurrentWorkOf`
+is shared with the live work-priority planner: an observed non-idle job with no
+remaining-time estimate makes capacity unknown rather than freeing the pawn. The
+existing idle-job classification contributes zero productive work, while an unread
+job remains unknown. A declared protected obligation can still occupy an idle pawn;
+the occupancy census must be known even when the current job is idle. The input is
+remaining work only, not sunk effort.
+
+The live roster uses this shared current-job interpretation to protect eligible
+ongoing work from competing primary roles of equal or lower native natural priority.
+See [work assignment](../contracts/work-assignment.md#ongoing-work-and-shared-occupancy).
+This connects observed occupancy to live priority decisions, but does not supply
+route/rate/needs estimates, invoke timed joint selection from production, or turn
+primary-role coverage into a completion forecast. Construction's raw skill ordering,
+medical rest and higher-priority work retain their overrides.
 
 Overlapping active obligations are unioned. Repeated identical IDs count once;
 conflicting IDs fail. Completed/cancelled rows release their occupancy. Unavailable
