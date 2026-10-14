@@ -9,6 +9,8 @@ public sealed record ForecastStockChange(Resource Resource, Fact<double> Day, Fa
 /// <summary>Supplied Method effects, not a promise of native completion.</summary>
 public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockChange> StockChanges)
 {
+    public EquatableArray<ForecastMaterialClaim> MaterialClaims { get; init; }
+    public EquatableArray<ForecastEquipmentClaim> EquipmentClaims { get; init; }
     public EquatableArray<string> UnsupportedEffects { get; init; }
     /// <summary>Observed standing construction owned by this Method; no second supplied stock effect.</summary>
     public Building? Construction { get; init; }
@@ -41,6 +43,9 @@ public sealed record ForecastFinding(string Reason, string Commitment, Resource 
 
 public sealed record ColonyForecastScenario
 {
+    /// <summary>Free for new declared claims, not an inventory trajectory or native reservation.</summary>
+    public Fact<IReadOnlyDictionary<Resource, Fact<double>>> MaterialAvailability { get; init; }
+    public EquatableArray<ForecastEquipmentCapacity> EquipmentAvailability { get; init; }
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
     public EquatableArray<ForecastStockTrajectory> Stocks { get; init; }
     public EquatableArray<ForecastFinding> Findings { get; init; }

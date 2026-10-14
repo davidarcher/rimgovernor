@@ -173,6 +173,56 @@ public sealed class ForecastConstructionTests
     }
 
     [Fact]
+    public void SelectedIngredientPromisesBlockCompetingConstructionUntilCancelled()
+    {
+        var request = Request(Site());
+        var promise = new ForecastCommitment("cooking", default)
+        { MaterialClaims = [new(Material, Known(6.0), Known(""))] };
+        request = request with { Commitments = [.. request.Commitments, promise], Proposed = new() { Remove = [promise.Id] } };
+        var forecast = ForecastColony(request);
+        Assert.Equal("insufficient_uncommitted_materials", Assert.Single(forecast.Baseline.Construction).Reason);
+        Assert.Equal("scheduled", Assert.Single(forecast.Proposed.Construction).Reason);
+        Assert.Equal(9, forecast.Baseline.MaterialAvailability.Value[Material].Value);
+        Assert.Equal(5, forecast.Proposed.MaterialAvailability.Value[Material].Value);
+    }
+
+    [Fact]
+    public void UnknownConsumptionBlocksOnlyConstructionUsingThatMaterial()
+    {
+        var request = Request(Site());
+        var unrelated = new ForecastCommitment("other", [new(new Resource("TestOther"), Known(0.0), Unknown<double>())]);
+        var result = ForecastColony(request with { Commitments = [.. request.Commitments, unrelated] });
+        Assert.Equal("scheduled", Assert.Single(result.Proposed.Construction).Reason);
+        var related = unrelated with { StockChanges = [new(Material, Known(0.0), Unknown<double>())] };
+        result = ForecastColony(request with { Commitments = [.. request.Commitments, related] });
+        Assert.Equal("unknown_available_materials", Assert.Single(result.Proposed.Construction).Reason);
+    }
+
+    [Fact]
+    public void ConstructionUsesSharedEquipmentWindowsAndCancellationReleasesThem()
+    {
+        var request = Request(Site(owed: 0));
+        request = request with
+        {
+            Commitments = [.. request.Commitments, new("protected", default)
+                { EquipmentClaims = [new("tool", Known(0.0), Known(450.0))] }],
+            Proposed = new() { Remove = ["protected"] },
+            Construction = request.Construction with
+            {
+                Equipment = [new("tool", "site", Known<EquatableArray<ForecastTimeWindow>>([new(0, 1000)]))],
+                Estimates = [request.Construction.Estimates[0] with { FinishEquipment = ["tool"] }],
+            },
+        };
+        var forecast = ForecastColony(request);
+        Assert.Null(Assert.Single(forecast.Baseline.Construction).Comparison!.Selected);
+        var selected = Assert.Single(forecast.Proposed.Construction).Comparison!.Selected!;
+        Assert.Equal(150, selected.CompletedAt);
+        Assert.Equal(50, Assert.Single(selected.EquipmentClaims).Start.Value);
+        Assert.Equal(150, forecast.Proposed.EquipmentAvailability[0].Windows.Value[1].Start);
+        Assert.Equal(450, forecast.Baseline.EquipmentAvailability[0].Windows.Value[0].Start);
+    }
+
+    [Fact]
     public void NativeConstructionProjectionRetainsRemainingWorkAndMissingMaterialUnknowns()
     {
         var row = new O.BuildingState

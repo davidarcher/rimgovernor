@@ -12,6 +12,12 @@ Construction shortfalls are exact-resource units, not completion days.
 Timed inventory effects are conditional estimates, never observed stock
 or proof of native work completion. The [construction forecast slice](../architecture/colony-forecast.md#construction-commitments-and-shared-capacity) retains native remaining work and exact outstanding materials, then evaluates declared construction commitments against shared pawn/material capacity. Its route, rate and availability estimates remain explicit inputs.
 
+[Declared material promises and exclusive equipment](../architecture/colony-forecast.md#material-promises-and-exclusive-equipment)
+share that forecast. Native ingredient observations retain bill IDs for reconciling
+a declared promise with the same bill's hold. Equipment availability remains a
+supplied estimate; forecast claims do not acquire native reservations or resolve
+the production planners' ingredient handoff automatically.
+
 | Projection | Observed inputs | Bound |
 | --- | --- | --- |
 | Food and animal feed | Fed food fall, nutrition per eligible eater, food policy, safe reachability, holder and rot deadline | Demand-weighted allocation at current temperature/access; no grazing, future hauling or harvest credit. Downed pawns need assistance, which is not presumed. |

@@ -434,7 +434,11 @@ public static partial class ObservationPackage
                         }
                         items.Add(new Amount(new Resource((item.DefName ?? "")), item.Units.GetValueOrDefault()));
                     }
-                    output.Add(new IngredientReservation { Pawn = new PawnId((r.PawnId ?? "")), Items = items });
+                    output.Add(new IngredientReservation
+                    {
+                        Pawn = new PawnId((r.PawnId ?? "")), Items = items,
+                        Bill = string.IsNullOrWhiteSpace(bill.Id) ? Unknown<string>() : Known(bill.Id),
+                    });
                 }
             }
         }

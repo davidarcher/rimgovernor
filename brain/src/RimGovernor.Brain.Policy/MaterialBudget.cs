@@ -3,6 +3,8 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>What one pawn's live bill job has promised: the spawned ingredients it has queued or placed.</summary>
 public sealed record IngredientReservation
 {
+    /// <summary>Native bill identity for reconciling this hold with a forecast promise.</summary>
+    public Fact<string> Bill { get; init; }
     public PawnId Pawn { get; init; }
     public IReadOnlyList<Amount> Items { get; init; } = [];
 }

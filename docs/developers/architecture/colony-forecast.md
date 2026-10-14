@@ -161,7 +161,10 @@ waiting costs, unknowns and bounded candidate generation. These are synthetic
 policy scenarios: route durations are supplied rather than native observations;
 carrying capacity and skill are encoded in supplied elapsed durations; opportunity
 costs and the alternative budget are assumptions. Just-in-time travel assumes
-predictable prerequisite completion and divisible baseline work. The generic proof does not model material/equipment contention, coupled needs, interruptions or dispatch; the construction slice below adds scoped material accounting and reevaluates against current observations. It establishes combination generation and
+predictable prerequisite completion and divisible baseline work. The generic search
+accounts for declared exclusive equipment below; construction adds scoped material
+accounting and reevaluates current observations. Portable-tool transport, coupled
+needs, interruptions and dispatch remain unmodelled. It establishes combination generation and
 conditional valuation, not emergent expert play or production economic scheduling.
 Hauling, cleaning and eating helpers remain until their integrated #3128
 replacements establish the required native outcomes and deletion acceptance.
@@ -205,8 +208,10 @@ Material feasibility reuses `MaterialBudget` with bill-job holds and explicit
 unknown checks. Standing construction deficits are not subtracted there: this
 slice allocates its own exact needs once, sequentially. Other supplied negative
 stock effects within the horizon are protected up front, and future positive
-effects do not finance delivery. Unknown reservations or unknown consumption
-prevent material-dependent scheduling; already supplied frames can still run.
+effects do not finance delivery. An unknown native reservation census prevents
+material-dependent scheduling. An unknown declared consumption affects only its
+resource; unrelated materials and already supplied frames can still run. Exact
+ingredient promises and equipment occupancy are accounted below.
 A higher-tier site conservatively waits while any lower-tier census site needs
 its material, even when that lower site is not in the requested bundle. Native
 per-pawn reachability exceptions to this gate are not yet projected, so this can
@@ -255,8 +260,9 @@ unobserved pawns, and replaces copied worker facts with the current observations
 It does not invent labor budgets, routes or free time. The returned request and
 forecast retain the same demand object used by supply consumers. This connects
 input assembly; it does not call the comparison or dispatch from live assignment
-selection. General work-family integration and material/equipment claims remain
-#3127 work; native assignment cutover remains #3128/#3135.
+selection. General work-family integration and live production of the declared
+material/equipment claims below remain #3127 work; native assignment cutover
+remains #3128/#3135.
 
 `ForecastPawnCapacityOf` derives one timeline per pawn from observed availability,
 its 24-hour timetable, local time, remaining useful current-job time and declared
@@ -303,3 +309,69 @@ multiple outputs with support, review claim deduplication and the shared demand
 reference. Construction's existing skill/tier tests remain in force. These tests
 do not establish general live work-family eligibility, native equipment claims
 or resolution of every planner-local ingredient promise.
+
+## Material promises and exclusive equipment
+
+`ForecastCommitment.MaterialClaims` holds exact selected ingredient quantities
+owned by that Method. These are promises against current stock, not target floors,
+native reservations or inventory consumption. They protect stock throughout the
+declared scenario. A commitment cannot carry both a material claim and a stock
+effect for the same resource; replace the promise with its timed consumption when
+that effect is known. Standing construction continues to derive its claim from
+observed outstanding needs, so it cannot also carry supplied material claims.
+
+`ForecastMaterialBudgetOf` extends the existing `MaterialBudget`: native bill holds
+are deducted once, then declared promises and in-horizon negative stock effects.
+Future outputs cannot finance these promises. `MaterialAvailability` exposes free
+units separately from inventory trajectories; negative availability means the
+declared promises exceed stock. Unknown quantities or consumption timing affect
+only that resource. A missing whole reservation census leaves the budget unknown.
+
+The observation projection retains each native reservation's bill identity.
+`ReservationBill` is known empty for a promise not handed to a bill, the exact bill
+ID when it covers that bill's current promise, or unknown when the association is
+unverified. Claimed units include native-held units: a promise of 50 with 20 already
+held by the same bill protects 50 in total. Another bill's 20 remains additional.
+Only one commitment may link a given bill/resource; duplicate links fail. Missing
+native bill identity prevents reconciliation for the affected resource rather than
+granting credit. The caller must supply the current outstanding promise, not a
+historical full bill quantity or a demand target.
+
+Baseline and delta rebuild independently. Removing a promise releases its forecast
+claim, but an observed native hold remains until a fresh read shows it released.
+This resolves double accounting at this declared forecast boundary. Production
+planners do not yet publish all selected ingredients into these commitments, and
+trade/acquisition still have the planner-local ingredient exception in architecture
+rule 8. These derived claims do not change #2742's Method admission locks, acquire
+native reservations, or introduce another demand store.
+
+`ForecastActivityOption.Equipment` names exclusive equipment required throughout
+service, with one `ForecastEquipmentCapacity` per physical identity. Its known
+availability windows exclude external/native use. The equipment must be at the
+activity's service location: this slice models stationary equipment or a tool
+already supplied there, not portable-tool transport, pickup, wear or replacement.
+Missing capacity or location mismatch refuses that option; options using other
+equipment can continue. An empty requirement list means the declared activity
+requires none, not that native requirements have been discovered automatically.
+
+The same bounded activity search generates starts at equipment window openings
+and prior users' release times, including early approach/wait and just-in-time
+approach. Each departure attempt consumes the existing expansion budget. Service
+intervals are half-open, so the next pawn may start when the prior user ends; the
+whole service must fit a free window. Pawn occupancy still covers approach,
+waiting and work. Selected plans expose equipment claims once per use.
+
+Construction options use this mechanism directly. A selected plan removes its
+equipment intervals before evaluating the next commitment. Declared external
+`EquipmentClaims` protect ongoing obligations; overlapping intervals are unioned,
+and an unknown endpoint makes only that equipment's availability unknown. Removing
+a commitment releases its forecast intervals in the proposed scenario. Equipment
+availability is an explicit supplied estimate, not a new native observation claim.
+
+`ForecastClaimsTests` and the construction scenarios cover ingredient handoff,
+cancellation with native holds still active, scarce material, resource-local
+unknowns, one tool versus two, waiting and release candidates, deterministic
+truncation, location refusal, overlapping equipment obligations and native bill-ID
+projection. This proves conditional accounting and combination generation. Live
+claim generation, native equipment reservation/dispatch and full production
+coordination remain unfinished; no gameplay improvement is established here.

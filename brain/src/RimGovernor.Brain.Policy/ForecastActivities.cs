@@ -16,7 +16,11 @@ public sealed record ForecastActivity(string Id, string Location, string EndLoca
     /// <summary>One physical output per resource at completion; support activities normally have none.</summary>
     public EquatableArray<ForecastActivityYield> Outputs { get; init; }
 }
-public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks);
+public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks)
+{
+    /// <summary>Exclusive equipment needed throughout service; travel does not transport this equipment.</summary>
+    public EquatableArray<string> Equipment { get; init; }
+}
 /// <summary>Route duration supplied by observation/estimation, never inferred from straight-line distance.</summary>
 public sealed record ForecastActivityRoute(string Pawn, string From, string To, Fact<double> Ticks);
 
@@ -27,6 +31,7 @@ public sealed record ForecastActivityProblem
     public ForecastPawnCapacity[] Pawns { get; init; } = [];
     public ForecastActivityOption[] Options { get; init; } = [];
     public ForecastActivityRoute[] Routes { get; init; } = [];
+    public ForecastEquipmentCapacity[] Equipment { get; init; } = [];
     public Fact<double> Deadline { get; init; }
     public Fact<double> AlternativeLaborCost { get; init; }
     public int ExpansionBudget { get; init; } = 512;
@@ -40,6 +45,7 @@ public sealed record ForecastActivityAllocation(string Activity, string Pawn, do
 }
 public sealed record ForecastActivityPlan(ForecastActivityAllocation[] Allocations, double CompletedAt, double LaborCost)
 {
+    public EquatableArray<ForecastEquipmentClaim> EquipmentClaims { get; init; }
     public EquatableArray<ForecastStockChange> StockChanges { get; init; }
 }
 public sealed record ForecastActivityComparison(ForecastActivityPlan? Selected, ForecastActivityPlan[] Alternatives,
@@ -54,6 +60,8 @@ public static partial class PolicyFunctions
         var tasks = problem.Activities.OrderBy(t => t.Id, StringComparer.Ordinal).ToArray();
         var pawns = problem.Pawns.ToDictionary(p => p.Pawn, StringComparer.Ordinal);
         var routes = problem.Routes.ToDictionary(r => (r.Pawn, r.From, r.To));
+        var equipment = problem.Equipment.ToDictionary(e => e.Id, StringComparer.Ordinal);
+        var options = problem.Options.ToDictionary(o => (o.Activity, o.Pawn));
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var plans = new Dictionary<string, ForecastActivityPlan>(StringComparer.Ordinal);
         var expansions = 0;
@@ -78,7 +86,12 @@ public static partial class PolicyFunctions
                 if (!double.IsFinite(total)) throw new DomainException("activity plan cost overflow");
                 var effects = rows.SelectMany(a => tasks.First(t => t.Id == a.Activity).Outputs
                     .Select(o => new ForecastStockChange(o.Resource, Known(a.End / GameTime.TicksPerDay), o.Units)));
-                plans.TryAdd(key, new(rows, rows.Max(a => a.End), total) { StockChanges = EquatableArray.From(effects) });
+                plans.TryAdd(key, new(rows, rows.Max(a => a.End), total)
+                {
+                    StockChanges = EquatableArray.From(effects),
+                    EquipmentClaims = EquatableArray.From(rows.SelectMany(a => options[(a.Activity, a.Pawn)].Equipment.Order(StringComparer.Ordinal)
+                        .Select(e => new ForecastEquipmentClaim(e, Known(a.Start), Known(a.End))))),
+                });
                 return;
             }
             var done = assigned.ToDictionary(a => a.Activity, StringComparer.Ordinal);
@@ -94,6 +107,13 @@ public static partial class PolicyFunctions
                         || !pawn.OpportunityCostPerTick.TryGetValue(out var rate) || !option.WorkTicks.TryGetValue(out var work)
                         || !option.RecoveryLaborTicks.TryGetValue(out var recovery))
                     { findings.Add("unknown_capacity_or_cost:" + task.Id + ":" + pawn.Pawn); continue; }
+                    if (option.Equipment.Any(id => !equipment.TryGetValue(id, out var e) || !e.Windows.IsKnown))
+                    { findings.Add("unknown_equipment:" + task.Id + ":" + pawn.Pawn); continue; }
+                    if (option.Equipment.Any(id => equipment[id].Location != task.Location))
+                    { findings.Add("equipment_location_mismatch:" + task.Id + ":" + pawn.Pawn); continue; }
+                    var shared = assigned.Where(a => options[(a.Activity, a.Pawn)].Equipment.Intersect(option.Equipment).Any()).ToArray();
+                    var serviceTimes = option.Equipment.SelectMany(id => equipment[id].Windows.Value.Select(w => w.Start))
+                        .Concat(shared.Select(a => a.End)).Append(ready).Select(t => Math.Max(t, ready)).Distinct().Order().ToArray();
                     var previous = assigned.LastOrDefault(a => a.Pawn == pawn.Pawn);
                     var released = previous?.End ?? 0;
                     // Earliest departure and just-in-time departure are generic alternatives. Delayed travel
@@ -110,16 +130,20 @@ public static partial class PolicyFunctions
                         if (!route.TryGetValue(out var travel))
                         { if (!SpendExpansion()) return; findings.Add("unknown_route:" + pawn.Pawn + ":" + origin + ":" + task.Location); continue; }
                         var free = Math.Max(released, window.Start);
-                        foreach (var depart in new[] { free, Math.Max(free, ready - travel) }.Distinct())
+                        foreach (var serviceReady in serviceTimes)
+                        foreach (var depart in new[] { free, Math.Max(free, serviceReady - travel) }.Distinct())
                         {
                             if (!SpendExpansion()) return;
                             var arrive = depart + travel;
-                            var start = Math.Max(arrive, ready);
+                            var start = Math.Max(arrive, serviceReady);
                             var end = start + work;
                             var cost = (end - depart) * rate + recovery;
                             if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
                             if (end > window.End || end > deadline)
                             { findings.Add("capacity_or_deadline:" + task.Id + ":" + pawn.Pawn); continue; }
+                            if (option.Equipment.Any(id => !equipment[id].Windows.Value.Any(w => start >= w.Start && end <= w.End))
+                                || shared.Any(a => start < a.End && a.Start < end && end > start && a.End > a.Start))
+                            { findings.Add("equipment_occupied:" + task.Id + ":" + pawn.Pawn); continue; }
                             assigned.Add(new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
                                 (end - depart) * rate, recovery));
                             Search(assigned);
@@ -154,6 +178,20 @@ public static partial class PolicyFunctions
             || p.Pawns.Any(a => !Id(a.Pawn) || !Id(a.Location)) || p.Pawns.Select(a => a.Pawn).Distinct().Count() != p.Pawns.Length)
             throw new DomainException("invalid activity graph or search budget");
         var tasks = p.Activities.ToDictionary(t => t.Id);
+        if (p.Equipment.Select(e => e.Id).Distinct().Count() != p.Equipment.Length)
+            throw new DomainException("duplicate equipment capacity");
+        foreach (var equipment in p.Equipment)
+        {
+            if (!Id(equipment.Id) || !Id(equipment.Location)) throw new DomainException("invalid equipment identity or location");
+            if (!equipment.Windows.TryGetValue(out var windows)) continue;
+            double end = 0;
+            foreach (var window in windows)
+            {
+                if (!double.IsFinite(window.Start) || !double.IsFinite(window.End) || window.Start < end || window.End < window.Start)
+                    throw new DomainException("invalid equipment availability");
+                end = window.End;
+            }
+        }
         var pawns = p.Pawns.Select(a => a.Pawn).ToHashSet();
         foreach (var task in p.Activities)
         {
@@ -194,6 +232,8 @@ public static partial class PolicyFunctions
             throw new DomainException("duplicate activity option or route");
         foreach (var option in p.Options)
         {
+            if (option.Equipment.Any(e => !Id(e)) || option.Equipment.Distinct().Count() != option.Equipment.Count)
+                throw new DomainException("invalid equipment requirement");
             if (!tasks.ContainsKey(option.Activity) || !pawns.Contains(option.Pawn)) throw new DomainException("unknown activity option identity");
             Number(option.WorkTicks); Number(option.RecoveryLaborTicks);
         }

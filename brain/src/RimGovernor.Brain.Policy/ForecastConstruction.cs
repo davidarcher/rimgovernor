@@ -5,7 +5,11 @@ public sealed record ForecastConstructionWorker(WorkPawn Observed, ForecastPawnC
 
 /// <summary>One explicit route/service estimate. Delivery includes all pickup/load/trips to the site.</summary>
 public sealed record ForecastConstructionEstimate(string Site, string Pawn, string PickupLocation,
-    Fact<bool> DeliveryAllowed, Fact<bool> FinishAllowed, Fact<double> DeliveryTicks, Fact<double> RecoveryLaborTicks);
+    Fact<bool> DeliveryAllowed, Fact<bool> FinishAllowed, Fact<double> DeliveryTicks, Fact<double> RecoveryLaborTicks)
+{
+    public EquatableArray<string> DeliveryEquipment { get; init; }
+    public EquatableArray<string> FinishEquipment { get; init; }
+}
 
 public sealed record ForecastConstructionContext
 {
@@ -13,6 +17,7 @@ public sealed record ForecastConstructionContext
     public ForecastConstructionWorker[] Workers { get; init; } = [];
     public ForecastConstructionEstimate[] Estimates { get; init; } = [];
     public ForecastActivityRoute[] Routes { get; init; } = [];
+    public ForecastEquipmentCapacity[] Equipment { get; init; } = [];
     public Fact<EquatableArray<IngredientReservation>> IngredientReservations { get; init; }
     public int ExpansionBudget { get; init; } = 512;
 }
@@ -31,7 +36,12 @@ public static partial class PolicyFunctions
     {
         var context = request.Construction;
         var rows = commitments.Values.Where(c => c.Construction is not null).ToArray();
-        if (rows.Length == 0) return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays);
+        var material = ForecastMaterialBudgetOf(request.Facts.Stock, context.IngredientReservations, commitments.Values, request.HorizonDays);
+        var materialKnown = material.TryGetValue(out var free);
+        var stock = materialKnown ? new Dictionary<Resource, Fact<double>>(free!) : [];
+        var equipment = ForecastEquipmentAvailabilityOf(context.Equipment, commitments.Values.SelectMany(c => c.EquipmentClaims));
+        if (rows.Length == 0) return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+        { MaterialAvailability = material, EquipmentAvailability = EquatableArray.From(equipment) };
         if (context.ExpansionBudget is < 1 or > 4096
             || context.Workers.Select(w => w.Capacity.Pawn).Distinct().Count() != context.Workers.Length
             || context.Workers.Any(w => w.Capacity.Pawn != w.Observed.Id.Value)
@@ -45,20 +55,6 @@ public static partial class PolicyFunctions
         var complete = context.Census.TryGetValue(out var census) && census.Colony;
         census ??= new CurrentConstruction();
         var sites = census.Sites.Where(s => s.Building is not null).ToDictionary(s => s.Building!);
-        // Reuse the material owner, but guard unknown reservations rather than its legacy unknown-as-empty behavior.
-        var material = context.IngredientReservations.IsKnown
-            ? MaterialBudget(request.Facts.Stock, Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()), context.IngredientReservations, default)
-            : Unknown<IReadOnlyDictionary<Resource, long>>();
-        var materialKnown = material.TryGetValue(out var free);
-        var stock = materialKnown ? new Dictionary<Resource, double>(free!.Select(p => new KeyValuePair<Resource, double>(p.Key, p.Value))) : [];
-        // Supplied non-construction consumption is protected for the whole horizon; future deliveries are not spendable yet.
-        foreach (var change in commitments.Values.Where(c => c.Construction is null).SelectMany(c => c.StockChanges))
-        {
-            if (!change.Units.TryGetValue(out var units)) { materialKnown = false; continue; }
-            if (units >= 0) continue;
-            if (!change.Day.TryGetValue(out var day)) { materialKnown = false; continue; }
-            if (day <= request.HorizonDays) stock[change.Resource] = stock.GetValueOrDefault(change.Resource) + units;
-        }
         foreach (var commitment in rows.OrderBy(c => sites.TryGetValue(c.Construction!, out var s) && s.Tier.TryGetValue(out var tier) ? (int)tier : -1)
             .ThenBy(c => c.Id, StringComparer.Ordinal))
         {
@@ -76,7 +72,8 @@ public static partial class PolicyFunctions
             var needs = owed.Where(a => a.Count > 0).ToArray();
             if (needs.Length != 0)
             {
-                if (!materialKnown) { Result("unknown_available_materials"); continue; }
+                if (!materialKnown || needs.Any(n => !stock.GetValueOrDefault(n.Resource, Known(0.0)).IsKnown))
+                { Result("unknown_available_materials"); continue; }
                 // Conservatively preserve the native tier rule. Per-pawn reachability exceptions await a native estimate.
                 if (site.Tier.TryGetValue(out var tier))
                 {
@@ -86,7 +83,7 @@ public static partial class PolicyFunctions
                     if (lowerSites.Any(other => other.MaterialsOwed.Value.Any(n => n.Count > 0 && needs.Any(a => a.Resource == n.Resource))))
                     { Result("lower_tier_material_need"); continue; }
                 }
-                if (needs.Any(n => stock.GetValueOrDefault(n.Resource) < n.Count)) { Result("insufficient_uncommitted_materials"); continue; }
+                if (needs.Any(n => stock.GetValueOrDefault(n.Resource, Known(0.0)).Value < n.Count)) { Result("insufficient_uncommitted_materials"); continue; }
             }
             if (expansions == context.ExpansionBudget) { Result("search_budget_exhausted"); continue; }
             var estimates = context.Estimates.Where(e => e.Site == site.Id).ToArray();
@@ -105,7 +102,8 @@ public static partial class PolicyFunctions
                 if (needs.Length != 0)
                 {
                     if (!estimate.DeliveryAllowed.TryGetValue(out var delivery)) eligibilityUnknown = true;
-                    else if (delivery) options.Add(new("deliver", pawn.Id.Value, estimate.DeliveryTicks, estimate.RecoveryLaborTicks));
+                    else if (delivery) options.Add(new("deliver", pawn.Id.Value, estimate.DeliveryTicks, estimate.RecoveryLaborTicks)
+                        { Equipment = estimate.DeliveryEquipment });
                 }
                 if (!estimate.FinishAllowed.TryGetValue(out var finish) || !pawn.ConstructionAble.TryGetValue(out var able)
                     || !pawn.Skills.TryGetValue(out var skills) || !site.NativeFinishingSkill.TryGetValue(out var native)
@@ -120,19 +118,21 @@ public static partial class PolicyFunctions
                     if (rate == 0) continue;
                     duration = Known(work / rate);
                 }
-                options.Add(new("finish", pawn.Id.Value, duration, estimate.RecoveryLaborTicks));
+                options.Add(new("finish", pawn.Id.Value, duration, estimate.RecoveryLaborTicks) { Equipment = estimate.FinishEquipment });
             }
             var comparison = CompareActivityPlans(new ForecastActivityProblem
             {
                 Activities = needs.Length == 0 ? [new("finish", site.Id, site.Id, [])]
                     : [new("deliver", pickups[0], site.Id, []), new("finish", site.Id, site.Id, ["deliver"])],
                 Pawns = capacity.Values.ToArray(), Options = options.ToArray(), Routes = context.Routes,
+                Equipment = equipment,
                 Deadline = Known(request.HorizonDays * GameTime.TicksPerDay), AlternativeLaborCost = commitment.AlternativeLaborCost,
                 ExpansionBudget = context.ExpansionBudget - expansions,
             });
             expansions += comparison.Expansions;
             if (eligibilityUnknown) comparison = comparison with { Findings = [.. comparison.Findings, "unknown_construction_eligibility"] };
             if (comparison.Selected is not { } plan) { Result(comparison.Decision, comparison); continue; }
+            equipment = ForecastEquipmentAvailabilityOf(equipment, plan.EquipmentClaims);
             foreach (var group in plan.Allocations.GroupBy(a => a.Pawn))
             {
                 var last = group.MaxBy(a => a.End)!;
@@ -144,7 +144,7 @@ public static partial class PolicyFunctions
                 };
             }
             var deliveryRow = plan.Allocations.SingleOrDefault(a => a.Activity == "deliver");
-            foreach (var need in needs) stock[need.Resource] -= need.Count;
+            foreach (var need in needs) stock[need.Resource] = Known(stock.GetValueOrDefault(need.Resource, Known(0.0)).Value - need.Count);
             var effects = needs.Select(n => new ForecastStockChange(n.Resource,
                 Known(deliveryRow!.Arrive / GameTime.TicksPerDay), Known(-(double)n.Count))).ToArray();
             resolved[commitment.Id] = commitment with { StockChanges = EquatableArray.From(effects) };
@@ -156,6 +156,8 @@ public static partial class PolicyFunctions
         {
             Commitments = EquatableArray.From(commitments.Values.OrderBy(c => c.Id, StringComparer.Ordinal)),
             Construction = EquatableArray.From(results),
+            MaterialAvailability = materialKnown ? Known<IReadOnlyDictionary<Resource, Fact<double>>>(stock) : default,
+            EquipmentAvailability = EquatableArray.From(equipment),
         };
     }
 }
