@@ -309,10 +309,10 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
 
         var code = failure?.Code ?? "";
         var code4xx = (int)status is >= 400 and < 500;
-        if (status == HttpStatusCode.NotFound && code == "not_found")
+        if (status == HttpStatusCode.NotFound && code == "not_found" && !posted)
         {
-            Fail("This game does not serve new colonies.");
-            return false;
+            // The channel answers from mod load, but the brain registers /api/lifecycle only after the Defs load.
+            throw new HttpRequestException("the game is still starting");
         }
 
         var terminal = status == HttpStatusCode.Conflict || code4xx

@@ -92,6 +92,11 @@ public sealed class SaveLoader : IDisposable
                     accepted = true;
                     last = new InvalidOperationException("load still in progress");
                 }
+                else if (status == HttpStatusCode.NotFound && !accepted)
+                {
+                    // The channel answers from mod load, but the brain registers /api/lifecycle only after the Defs load.
+                    last = new InvalidOperationException("the brain has not registered the lifecycle routes yet");
+                }
                 else if ((int)status < 500)
                 {
                     throw new LauncherException($"the game refused the load (HTTP {(int)status})");
