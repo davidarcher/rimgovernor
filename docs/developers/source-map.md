@@ -27,7 +27,7 @@
 | [tools/observability](../../tools/observability) | Optional Grafana/OTLP stack and dashboards |
 | [integrations/rimgovernor-native/src/Bridge](../../integrations/rimgovernor-native/src/Bridge) | Colony observations, operations, supervision and rendering |
 | [integrations/rimgovernor-host/src](../../integrations/rimgovernor-host/src) | Vendored RimBridgeServer fork: tool registration, lifecycle tools and main-thread dispatch (may fold into the mod, #3141) |
-| [integrations/rimgovernor-realcombat](../../integrations/rimgovernor-realcombat) | RimWorld's own combat run headless in a bare process (#3142), and the parity tool that compares it with the hand-ported sim |
+| [integrations/rimgovernor-realcombat](../../integrations/rimgovernor-realcombat) | RimWorld's own combat run headless in a bare process, with the mod's combat mirror and order handler hosted over it (#3142), and the parity tool that compares it with the hand-ported sim |
 | [contracts](../../contracts) | Wire contract semantics and native contract probes |
 | [scripts/fixtures](../../scripts/fixtures) | Native test fixture implementations |
 

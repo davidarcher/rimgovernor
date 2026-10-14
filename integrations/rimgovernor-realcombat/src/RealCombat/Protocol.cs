@@ -97,3 +97,13 @@ public sealed record RealFightResult
     /// <summary>The wall time of the game's startup and the arena.</summary>
     public double StartupMilliseconds { get; init; }
 }
+
+/// <summary>Drives a fight's colonists instead of the built-in nearest-target retargeting (the policy in the loop).</summary>
+public interface IFightController
+{
+    /// <summary>Called once with the map after the pawns are spawned and drafted.</summary>
+    void Begin(Verse.Map map);
+
+    /// <summary>Called before every tick.</summary>
+    void Decide(Verse.Map map, int tick);
+}

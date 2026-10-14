@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The native mod's own combat observation (CombatMirror) and order application (NativeCombatOrders) hosted in the
+       headless real-engine process (#3142), so the policy sees and commands a simulated fight through the very code
+       it uses against the live game. Bridge exposes its internals to this assembly (InternalsVisibleTo). -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.RealCombat.Native</RootNamespace>
+    <AssemblyName>RimGovernor.RealCombat.Native</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <Import Project="../../GameRuntime.targets" />
+  <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Compile Include="*.cs" />
+    <ProjectReference Include="../RealCombat/RealCombat.csproj" />
+    <!-- Bridge builds to its own gitignored deploy folder (BridgeTools/RimGovernor); redirecting its OutputPath would build its whole project graph twice. -->
+    <ProjectReference Include="../../../rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj" />
+  </ItemGroup>
+</Project>

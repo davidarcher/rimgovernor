@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Throwaway: one fight whose colonist is observed and commanded through the native seat; see Program.cs. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>RimGovernor.RealCombat.NativeSmoke</RootNamespace>
+    <AssemblyName>RimGovernor.RealCombat.NativeSmoke</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <Import Project="../../GameRuntime.targets" />
+  <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Compile Include="Program.cs" />
+    <ProjectReference Include="../RealCombat.Native/RealCombat.Native.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(GameAvailable)' != 'true'">
+    <Compile Include="Properties/Unavailable.cs" />
+  </ItemGroup>
+</Project>

@@ -10,6 +10,8 @@ no live-game integration.
 |---|---|
 | `src/RealCombat` | Library. `GameHost.Boot` loads every def, the language and a seeded world; `Arena` builds a map, sweeps it and fights it once per seed. `Protocol.cs` is the request/response shape. `skips.txt` lists the UI, audio and non-combat tickers Harmony skips so the tick runs without a window. |
 | `src/RealCombat.Host` | The process: `RimGovernor.RealCombat.Host --game <dir> --request <json> --out <json>`. |
+| `src/RealCombat.Native` | Library. `NativeSeat` hosts the native mod's own `CombatMirror` (observation) and `NativeCombatOrders` (orders) over an arena map, so a controller sees and commands a simulated fight through the code it uses against the live game. Bridge exposes its internals to it (`InternalsVisibleTo`). `Arena.Controller` is the hook that plays the colonists instead of the built-in retargeting. |
+| `src/RealCombat.NativeSmoke` | Throwaway: one duel observed and commanded through the seat. |
 | `src/RealCombat.Parity` | Throwaway: plays one `Spec` through this host and through the hand-ported sim and compares win rates and tick quantiles. Deleted with the port. |
 
 ## Build and run
@@ -24,6 +26,16 @@ integrations/rimgovernor-realcombat/src/RealCombat.Parity/bin/Release/RimGoverno
 
 `--case` is one of `duel15 duel25 squad2v2 squad3v3`, one per process (each builds its own map). Exit 1 when a gated
 metric (colonist win rate, median and mean ticks) leaves its tolerance.
+
+## The native seat
+
+`NativeSeat.Open(map)` is everything the mod's combat code expects of a game and a headless arena lacks: a `ColonyIdentity`
+component, `NativePawnControlState.Initialize` (the draft-ownership and order hooks its readiness audit checks), the
+mirror's Harmony hooks, and control authority granted in `Auto` mode. `Find.CurrentMap` stays null: with a current map the
+game turns on view-gated effects (motes, flecks, sounds) that need a camera, and shooting silently stops. The authority
+reads its map through `NativeControlAuthority.Capture`, which the seat redirects to the arena map. Orders need the pawn
+drafted by an order (`Draft`) first: the handler refuses `not_drafted` for a pawn the seat did not draft. Building this
+project builds the Bridge project, which writes its gitignored `BridgeTools/RimGovernor` deploy folder.
 
 ## Determinism
 

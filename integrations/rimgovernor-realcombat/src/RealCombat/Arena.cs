@@ -171,15 +171,28 @@ public sealed class Arena
     }
 
     // Every pawn attacks the nearest opponent still standing and keeps at it until the side is done.
+    /// <summary>Decides in place of the built-in nearest-target retargeting; null keeps the built-in.</summary>
+    public IFightController? Controller { get; set; }
+
     private int Play(List<(RealPawn Spec, Pawn Pawn)> fighters)
     {
         var ticks = 0;
-        Retarget(fighters);
+        var controller = Controller;
+        controller?.Begin(_map);
+        if (controller is null)
+        {
+            Retarget(fighters);
+        }
+
         while (ticks < _req.MaxTicks && Standing(fighters, "colonist") && Standing(fighters, "hostile"))
         {
+            controller?.Decide(_map, ticks);
             Find.TickManager.DoSingleTick();
             ticks++;
-            Retarget(fighters);
+            if (controller is null)
+            {
+                Retarget(fighters);
+            }
         }
 
         return ticks;
