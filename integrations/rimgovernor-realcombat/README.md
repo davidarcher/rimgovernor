@@ -27,7 +27,7 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 `--drugs` gives each colonist go-juice (`--high` makes the raiders high on it, `--raiders N` adds raiders),
 `--trace` prints each decision and its results, `--open` fights on open ground with no layout, `--no-traps` leaves the
 planner's spike traps out of the compound so the raider reaches the firing line (otherwise it usually dies to the traps
-first; with them out the colonists fire and win in 1154 ticks).
+first; with them out the colonists fire and win in 1835 ticks).
 
 ## The native seat
 
@@ -84,7 +84,9 @@ The defense round adds three reads to the combat view after the frame; `PolicyCo
 `CombatReads`. **Drugs**: the catalog's combat drugs in preference order, from the facade's definition catalog (a pawn's
 carried drugs come from the mirror; `RealPawn.Carried` puts a drug in an inventory and `Hediffs` gives a starting hediff).
 In the compound with `--drugs --high`, both colonists are ordered go-juice at the first stop with the raider in range and
-no other order, and the handler applies it. **Burn**: while a burn-out is active the step surveys its site with the
+no other order, and the handler applies it (the fight ends in a colonist win, 2332 ticks). **Burn**: while a burn-out is active the step surveys its site with the
 native defense-site read, served from the arena map; nothing in the harness starts a burn-out yet (it needs an
 infestation and a staged seal). **Royalty**: left unknown, which holds every permit and psycast call. Reading it needs
 the colony section's royalty facts and royal pawns (title, psylink, psycasts, permits), which the arena does not make.
+
+The compound has a bed behind the back wall (`DefenseStage`): the rescue order carries a downed colonist to one and is refused `no_bed` without.

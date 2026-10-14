@@ -123,6 +123,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
             }
         }
 
+        Bed(map);
         var layout = new CombatLayout
         {
             Firing = [.. Planned.Firing.Select(f => f.Cell)],
@@ -135,6 +136,34 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
         }
 
         Layout = Fact.Known(layout);
+    }
+
+    // The colony's bed, behind the back wall: a rescue carries a downed colonist to one, and the order refuses without.
+    // The nearest free spot to the defenders' start, three or more cells off so it stays out of their way.
+    private void Bed(Map map)
+    {
+        var def = DefDatabase<ThingDef>.GetNamed("Bed");
+        var at = new IntVec3(Home.X, 0, Home.Z);
+        foreach (var c in GenRadial.RadialCellsAround(at, 12f, false))
+        {
+            if (c.DistanceTo(at) < 3f || !c.InBounds(map))
+            {
+                continue;
+            }
+
+            var rect = GenAdj.OccupiedRect(c, Rot4.North, def.size);
+            if (!rect.Cells.All(r => r.InBounds(map) && r.Standable(map) && r.GetEdifice(map) == null && r.GetFirstItem(map) == null && r.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)))
+            {
+                continue;
+            }
+
+            var bed = ThingMaker.MakeThing(def, DefDatabase<ThingDef>.GetNamed("WoodLog"));
+            bed.SetFaction(Faction.OfPlayer);
+            GenSpawn.Spawn(bed, c, map, Rot4.North);
+            return;
+        }
+
+        Failure = "no room for a bed behind the back wall";
     }
 
     // The census row the live game's cell mirror reads for a cell.
