@@ -30,6 +30,10 @@ alternatives, bounded comparison chooses an affordable combination, and only the
 are filters pinned. The live objective is funded batch count, with explicit
 postponement, unknowns and truncation; quality and colony utility are not calibrated.
 The existing journal transaction remains the final shared-material admission owner.
+The [need-based valuation proof](../architecture/colony-forecast.md#need-based-production-valuation-proof)
+accepts explicit whole-batch relief, material and labor utility costs in the same
+selector, caps shared need relief and retains postponement. Live declarers do not
+yet supply these estimates; unknown valuation inputs never fall back to batch count.
 
 [Unfinished work](../architecture/colony-forecast.md#ingredients-inside-unfinished-work)
 is observed by exact bound item ID and embedded quantities. One initialized bound

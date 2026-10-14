@@ -9,7 +9,8 @@ public static partial class PolicyFunctions
 {
     /// <summary>Generate ingredient variants before comparing batches jointly; never broaden a declarer's allowed filter.</summary>
     public static LedgerMaterialSelection SelectLedgerMaterials(IReadOnlyList<LedgerPlacement> placements,
-        ProductionMaterialView view, int generationBudget = 1024, int searchBudget = 4096)
+        ProductionMaterialView view, int generationBudget = 1024, int searchBudget = 4096,
+        ForecastProductionValuation? valuation = null)
     {
         if (generationBudget < 1) throw new DomainException("positive material generation budget required");
         var recipes = view.Recipes.TryGetValue(out var catalog) ? catalog.ToDictionary(r => r.Recipe, StringComparer.Ordinal) : [];
@@ -54,11 +55,12 @@ public static partial class PolicyFunctions
                 var cost = EquatableArray.From(claims.SelectMany(c => c.MaterialClaims).Select(c => new Amount(c.Resource, checked((long)c.Units.Value))));
                 variants.Add(id, placement with { Spec = narrowed });
                 // This live slice maximizes funded declared batches. It does not invent material prices or colony utility.
-                options.Add(new(demand, id, Known(1.0), cost));
+                options.Add(new(demand, id, valuation is null ? Known(1.0) : default, cost)
+                    { Estimate = valuation?.ByOrderKey.GetValueOrDefault(narrowed.Key()) });
             }
             Generate(0, new(StringComparer.Ordinal));
         }
-        var comparison = CompareMaterialPlans(options, view.Availability, searchBudget);
+        var comparison = CompareMaterialPlans(options, view.Availability, searchBudget, valuation?.Values);
         comparison = comparison with { Findings = EquatableArray.From(comparison.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)) };
         var selected = comparison.Selected.Select(o => variants[o.Id]).Concat(placements.Where(p => p.Spec.Mode != BillMode.GearBatch));
         var chosen = comparison.Selected.Select(o => o.Demand).ToHashSet(StringComparer.Ordinal);

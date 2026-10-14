@@ -553,3 +553,53 @@ readback avoids duplicate bills, and selected filters become exact shared journa
 claims. These are policy and journal tests. Native crafting completion, calibrated
 utility, joint pawn/time/bench/material scheduling, pending construction and sales
 admission, and integrated needs forecasts remain unproved #3127/#3128 work.
+
+### Need-based production valuation proof
+
+The existing material generator and bounded comparison also accept explicit
+`ForecastProductionValuation` inputs. This is an opt-in policy proof: the live
+ledger still uses funded batch count because its declarers do not yet supply
+comparable benefit and labor estimates. Supplying a valuation switches the whole
+comparison to it; an unknown estimate never falls back to batch count.
+
+Each exact narrowed order key supplies the **whole batch's** need relief and labor
+ticks. One shared needs map supplies remaining unmet units and utility per unit.
+One shared valuation supplies utility cost per material unit and per labor tick.
+All utility rates must use the same caller-defined scale. These are assumptions,
+not game observations or calibrated prices. Different material variants may
+supply different relief and work estimates; the generator still respects the
+recipe and declaration filters.
+
+For every candidate combination the comparison computes:
+
+`net = sum(min(remaining need, combined relief) * need utility) - material opportunity cost - labor opportunity cost`
+
+Relief is aggregated and capped by need identity across all selected jobs. Two
+jobs serving the same remaining need cannot each claim its full benefit. Material
+costs value consumed resources, while the existing shared stock budget separately
+enforces physical affordability. Labor cost represents displaced work at the
+supplied rate; it does not establish worker availability or a completion time.
+The empty/postpone plan has value zero and wins a zero tie. Results expose the
+selected combination's benefit, material cost and work cost separately.
+
+Missing required effects, needs, rates or work estimates exclude the affected
+options with explicit findings. Known zero rates must be supplied deliberately;
+zero consumption/work needs no rate. Negative or nonfinite used estimates and
+overflow are rejected. The same generation/search bounds and truncation flags
+apply. Search findings describe encountered evidence; truncation can leave other
+options unexamined. No journal store, second demand target or order writer is
+introduced: all valuation inputs and results are caller-owned derived data.
+
+`MaterialValueTests` demonstrates an urgent machine beating two optional jobs,
+a satisfied need changing the winner, capped overlapping relief, better materials
+winning only when their extra benefit pays for material/work costs, postponement
+when net value is nonpositive, explicit unknowns, bounded search and hard stock
+limits. An end-to-end pure selector scenario generates the exact material filters:
+a sculpture uses better material alone but switches to wood alongside the urgent
+machine. These tests prove choices under supplied assumptions, not observed
+quality, calibrated colony utility, live valuation adoption or native completion.
+
+The next integration must derive comparable estimates from owning need forecasts,
+net existing commitments out of remaining needs once, and populate exact variant
+estimates at a coherent review. Urgency, deadlines, uncertain outcomes, interactions
+between different needs and joint worker/time capacity are not inferred here.

@@ -1,15 +1,22 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Mutually exclusive ways to serve one demand. Value is supplied utility, not a calibrated game score.</summary>
-public sealed record ForecastMaterialOption(string Demand, string Id, Fact<double> Value, EquatableArray<Amount> Cost);
+public sealed record ForecastMaterialOption(string Demand, string Id, Fact<double> Value, EquatableArray<Amount> Cost)
+{
+    public ForecastProductionEstimate? Estimate { get; init; }
+}
 public sealed record ForecastMaterialComparison(EquatableArray<ForecastMaterialOption> Selected, double Value,
-    int Expansions, bool SearchTruncated, EquatableArray<string> Findings);
+    int Expansions, bool SearchTruncated, EquatableArray<string> Findings)
+{
+    public ForecastMaterialValue? Valuation { get; init; }
+}
 
 public static partial class PolicyFunctions
 {
     /// <summary>Joint material deltas against the forecast's shared free budget; every demand can be postponed.</summary>
     public static ForecastMaterialComparison CompareMaterialPlans(IEnumerable<ForecastMaterialOption> options,
-        Fact<IReadOnlyDictionary<Resource, Fact<double>>> availability, int expansionBudget = 4096)
+        Fact<IReadOnlyDictionary<Resource, Fact<double>>> availability, int expansionBudget = 4096,
+        ForecastMaterialValuation? valuation = null)
     {
         if (expansionBudget < 1) throw new DomainException("positive material search budget required");
         var rows = options.OrderBy(o => o.Demand, StringComparer.Ordinal).ThenBy(o => o.Id, StringComparer.Ordinal).ToArray();
@@ -23,18 +30,20 @@ public static partial class PolicyFunctions
         var selected = new List<ForecastMaterialOption>();
         ForecastMaterialOption[] best = [];
         double bestValue = 0;
+        ForecastMaterialValue? bestValuation = valuation is null ? null : new(0, 0, 0);
         var expansions = 0;
         var truncated = false;
-        void Search(int index, double value, Dictionary<Resource, long> used)
+        void Search(int index, double value, Dictionary<Resource, long> used, ForecastMaterialValue? priced)
         {
             // Any partial selection is a complete alternative with all remaining demands postponed.
-            if (value > bestValue) { bestValue = value; best = selected.ToArray(); }
+            if (value > bestValue) { bestValue = value; best = selected.ToArray(); bestValuation = priced; }
             if (index == groups.Length) return;
             foreach (var option in groups[index])
             {
                 if (expansions == expansionBudget) { truncated = true; return; }
                 expansions++;
-                if (!option.Value.TryGetValue(out var benefit)) { findings.Add("unknown_value:" + option.Id); continue; }
+                double benefit = 0;
+                if (valuation is null && !option.Value.TryGetValue(out benefit)) { findings.Add("unknown_value:" + option.Id); continue; }
                 var next = new Dictionary<Resource, long>(used);
                 foreach (var cost in option.Cost) next[cost.Resource] = checked(next.GetValueOrDefault(cost.Resource) + cost.Count);
                 if (next.Any(c => !budget.GetValueOrDefault(c.Key, Known(0.0)).IsKnown))
@@ -42,14 +51,16 @@ public static partial class PolicyFunctions
                 if (!MaterialBudgetCovers(budget, next.Select(c => new Amount(c.Key, c.Value)), 1)) continue;
                 if (!double.IsFinite(value + benefit)) throw new DomainException("material value overflow");
                 selected.Add(option);
-                Search(index + 1, value + benefit, next);
+                var evaluated = valuation is null ? null : ValueMaterialPlan(selected, valuation, findings);
+                if (valuation is null || evaluated is not null)
+                    Search(index + 1, evaluated?.Net ?? value + benefit, next, evaluated);
                 selected.RemoveAt(selected.Count - 1);
             }
             if (expansions == expansionBudget) { truncated = true; return; }
             expansions++;
-            Search(index + 1, value, used);
+            Search(index + 1, value, used, priced);
         }
-        Search(0, 0, []);
-        return new(EquatableArray.From(best), bestValue, expansions, truncated, EquatableArray.From(findings));
+        Search(0, 0, [], bestValuation);
+        return new(EquatableArray.From(best), bestValue, expansions, truncated, EquatableArray.From(findings)) { Valuation = bestValuation };
     }
 }
