@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using DomainRecoveryMethod = RimGovernor.Brain.Domain.RecoveryMethod;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -65,7 +64,7 @@ public static partial class PolicyFunctions
                 {
                     return result with { Reason = "inspector_unavailable" };
                 }
-                var service = new RecoveryService((Domain.PawnId)engine.EligiblePawns.Min(), engine.Id, DomainRecoveryMethod.InspectGravEngine);
+                var service = new RecoveryService((Domain.PawnId)engine.EligiblePawns.Min(), engine.Id, RecoveryMethod.InspectGravEngine);
                 return result with { Service = service, Waiting = false };
             }
         }

@@ -91,7 +91,7 @@ public sealed class RoundsSurgeryPlanner
             {
                 if (progress.Action.Surgery is { } s && Standard.WorkOpen([progress]))
                 {
-                    inFlight[new PawnId(s.Pawn.Value)] = true;
+                    inFlight[s.Pawn] = true;
                 }
             }
         }
@@ -136,7 +136,7 @@ public sealed class RoundsSurgeryPlanner
             var facts = read.Projection.Facts;
             harvest = SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, _reviewer.Policy.Prisoners(), selection.Wants, facts.Recipes, inFlight);
         }
-        var harvesting = harvest is not null && arbiter.TryClaim([new PawnId(harvest.Prisoner.Value)]);
+        var harvesting = harvest is not null && arbiter.TryClaim([harvest.Prisoner]);
         result.Harvest = harvesting;
         if (queue.Count == 0 && !harvesting)
         {
@@ -179,7 +179,7 @@ public sealed class RoundsSurgeryPlanner
         for (var i = 0; i < queue.Count; i++)
         {
             var choice = queue[i];
-            var s = new Surgery(new Domain.PawnId(choice.Pawn.Value), choice.Recipe, choice.Part, false);
+            var s = new Surgery(choice.Pawn, choice.Recipe, choice.Part, false);
             actions.Add(DomainAction.NewSurgeryAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), s));
         }
         if (harvest is not null && harvesting)

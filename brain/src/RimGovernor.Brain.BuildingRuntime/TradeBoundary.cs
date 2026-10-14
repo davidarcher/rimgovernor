@@ -140,9 +140,3 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
         return output with { ObservedAt = Clock.Now() };
     }
 }
-
-/// <summary>Presents the rounds reviewer's observation clock as the executor's clock; both read the same instant source.</summary>
-internal sealed class ExecutorClockOf(Observation.IClock inner) : IClock
-{
-    public DateTimeOffset Now() => inner.Now();
-}

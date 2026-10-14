@@ -47,7 +47,7 @@ public sealed partial class RoundsDefensePlanner
                     {
                         foreach (var pawn in combat.Emergency.Facts.Colonists)
                         {
-                            active = active || (new Domain.PawnId(pawn.Id.Value) == subdue.Target && PolicyApi.AggressiveBreak(pawn));
+                            active = active || (pawn.Id == subdue.Target && PolicyApi.AggressiveBreak(pawn));
                         }
                     }
                 }
@@ -96,7 +96,7 @@ public sealed partial class RoundsDefensePlanner
             {
                 if (action.OwnedDraft is { } draft && fight.Roster.Contains(draft.Pawn))
                 {
-                    orders.Add(new CombatOrder { Pawn = new PawnId(draft.Pawn.Value), Kind = CombatOrderKind.Stop });
+                    orders.Add(new CombatOrder { Pawn = draft.Pawn, Kind = CombatOrderKind.Stop });
                 }
             }
             var batchLabel = $"{method.Plan}-subdue-stop-{combatContext.Tick.GetValueOrDefault().ToString(CultureInfo.InvariantCulture)}";
@@ -198,7 +198,7 @@ public sealed partial class RoundsDefensePlanner
             {
                 if (progress.Action.Subdue is { } subdue && (progress.View.Stage == Stage.Cancelled || progress.View.Stage == Stage.Unsuccessful))
                 {
-                    interrupted.Add(new PawnId(subdue.Target.Value));
+                    interrupted.Add(subdue.Target);
                 }
             }
         }
@@ -222,7 +222,7 @@ public sealed partial class RoundsDefensePlanner
         {
             var row = rows[p0.Id.Value];
             var ranged = RangedWeaponEquipped(row.Equipment, arms);
-            var d = SquadDefenderFacts(row, needed.Select(n => new Domain.PawnId(n.Value)).ToHashSet(), ranged);
+            var d = SquadDefenderFacts(row, needed.Select(n => n).ToHashSet(), ranged);
             d = d with { MeleeEquipped = BreakMelee(row, arms) };
             responders.Add(new BreakResponder { SquadDefenderFacts = d, Cell = BreakDispatch.BreakCell(row) });
         }
@@ -256,8 +256,8 @@ public sealed partial class RoundsDefensePlanner
         {
             var pawn = chosen[i];
             var draftId = new ActionId($"{id}-d{i}");
-            var da = DomainAction.NewOwnedDraftAction(draftId, new OwnedDraft(new Domain.PawnId(pawn.Value)));
-            var ma = DomainAction.NewSubdueAction(new ActionId($"{id}-s{i}"), new Subdue(new Domain.PawnId(pawn.Value), new Domain.PawnId(victim.Value), draftId));
+            var da = DomainAction.NewOwnedDraftAction(draftId, new OwnedDraft(pawn));
+            var ma = DomainAction.NewSubdueAction(new ActionId($"{id}-s{i}"), new Subdue(pawn, victim, draftId));
             actions.Add(da);
             actions.Add(ma);
         }
@@ -269,7 +269,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("planBreak: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        pl.Journal.CommitCombatFight(incident.Incident.Id, methodId, spec, NewFightMemory(tick), Player.PlayerWorld(state.Snapshot), [.. chosen.Select(c => new Domain.PawnId(c.Value))], call);
+        pl.Journal.CommitCombatFight(incident.Incident.Id, methodId, spec, NewFightMemory(tick), Player.PlayerWorld(state.Snapshot), [.. chosen.Select(c => c)], call);
         return new RoundsDefenseResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }

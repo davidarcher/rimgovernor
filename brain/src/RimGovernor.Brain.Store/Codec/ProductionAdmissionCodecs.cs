@@ -88,7 +88,7 @@ internal sealed class ForecastMaterialClaimConverter : ObjectCodec<ForecastMater
 internal sealed class IngredientReservationConverter : ObjectCodec<IngredientReservation>
 {
     protected override IngredientReservation Read(JsonElement e, Codecs o) => new()
-    { Bill = e.Get<Fact<string>>("Bill", o), Pawn = e.Get<RimGovernor.Brain.Policy.PawnId>("Pawn", o), Items = e.Get<IReadOnlyList<Amount>>("Items", o) };
+    { Bill = e.Get<Fact<string>>("Bill", o), Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o), Items = e.Get<IReadOnlyList<Amount>>("Items", o) };
     protected override void WriteFields(Utf8JsonWriter w, IngredientReservation v, Codecs o)
     { w.Put("Bill", v.Bill, o); w.Put("Pawn", v.Pawn, o); w.Put("Items", v.Items, o); }
 }

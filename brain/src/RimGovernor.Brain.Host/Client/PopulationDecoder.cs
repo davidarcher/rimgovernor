@@ -29,7 +29,7 @@ internal static class PopulationDecoder
             {
                 throw BridgeFunctions.Contract("invalid or duplicate owned name");
             }
-            names.Add(new P.OwnedName(new P.PawnId(n.PawnId ?? ""), n.ShortName, n.ThingId.GetValueOrDefault()));
+            names.Add(new P.OwnedName(new Domain.PawnId(n.PawnId ?? ""), n.ShortName, n.ThingId.GetValueOrDefault()));
         }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var resolved = new PbObservations.PawnState[observed.Persons.Count];
@@ -48,7 +48,7 @@ internal static class PopulationDecoder
         }
 
         var bestSkill = new Dictionary<string, int>(StringComparer.Ordinal);
-        var medicine = new Dictionary<P.PawnId, int>();
+        var medicine = new Dictionary<Domain.PawnId, int>();
         var colonists = 0;
         var rows = new List<P.PrisonerFacts>(observed.Persons.Count);
         var guests = new List<P.CarePatient>();
@@ -58,7 +58,7 @@ internal static class PopulationDecoder
             var person = observed.Persons[i];
             var id = person.Pawn!.Id ?? "";
             var pawn = resolved[i];
-            var custodyRow = new P.CustodyFacts { Pawn = new P.PawnId(id) };
+            var custodyRow = new P.CustodyFacts { Pawn = new Domain.PawnId(id) };
             if (person.WillJoinIfRescued is { } willJoin)
             {
                 custodyRow = custodyRow with { WillJoinIfRescued = Known(willJoin) };
@@ -105,7 +105,7 @@ internal static class PopulationDecoder
             if (person.Guest.GetValueOrDefault() && !pawn.Prisoner.GetValueOrDefault() && !pawn.Dead.GetValueOrDefault() && person.MedicalCare is not null)
             {
                 var (conditions, life) = BridgeFunctions.CareConditions(person.Conditions);
-                guests.Add(new P.CarePatient { Id = new P.PawnId(id), Care = Known(BridgeFunctions.MedicalCareName(person.MedicalCare.GetValueOrDefault())), Conditions = conditions, LifeThreatening = life });
+                guests.Add(new P.CarePatient { Id = new Domain.PawnId(id), Care = Known(BridgeFunctions.MedicalCareName(person.MedicalCare.GetValueOrDefault())), Conditions = conditions, LifeThreatening = life });
             }
             if (person.Admitted.GetValueOrDefault() && !pawn.Dead.GetValueOrDefault())
             {
@@ -120,7 +120,7 @@ internal static class PopulationDecoder
                     }
                     if (name == "Medicine" && !s.Disabled.GetValueOrDefault())
                     {
-                        medicine[new P.PawnId(id)] = level;
+                        medicine[new Domain.PawnId(id)] = level;
                     }
                 }
             }
@@ -155,7 +155,7 @@ internal static class PopulationDecoder
     /// <summary>One colony prisoner's census row (the body of Go's prisoner loop after the colony prisoner check).</summary>
     private static P.PrisonerFacts PrisonerRow(PbObservations.PopulationPerson person, PbObservations.PawnState pawn, string id, Fact<P.PrisonerProspect> prospect, BridgeCatalog? catalog)
     {
-        var f = new P.PrisonerFacts { Pawn = new P.PawnId(id), Prisoner = Known(true) };
+        var f = new P.PrisonerFacts { Pawn = new Domain.PawnId(id), Prisoner = Known(true) };
         if (pawn.Dead is { } dead)
         {
             f = f with { Dead = Known(dead) };

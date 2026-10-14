@@ -40,8 +40,8 @@ public sealed partial class RoundsMoodReliefPlanner
         }
 
         var source = AbilitySource.PsycastSource(choice.Ability);
-        var aim = AbilityTarget.AbilityPawnTarget(new Domain.PawnId(choice.Target.Value));
-        var ability0 = new Ability(new Domain.PawnId(choice.Caster.Value), source, aim);
+        var aim = AbilityTarget.AbilityPawnTarget(choice.Target);
+        var ability0 = new Ability(choice.Caster, source, aim);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewAbilityAction(new ActionId($"{id}-0"), ability0);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);

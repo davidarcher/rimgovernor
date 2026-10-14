@@ -14,7 +14,7 @@ public sealed class ClothingChoiceTests
         ID = id, Definition = Shirt, Stuff = stuff, Slot = GearSlot.SkinTorso, Layers = ["OnSkin"], Groups = ["Torso"],
         Source = source, Quality = 2, Condition = 1, Cold = cold, Cost = 20, Sharp = 0.2 };
     private static GearPawn Pawn(string id, double ambient = 20, GearOption? worn = null) => new() {
-        Pawn = new RimGovernor.Brain.Policy.PawnId(id), Loadout = "load-" + id, Candidates = Known(default(EquatableArray<GearCandidate>)),
+        Pawn = new RimGovernor.Brain.Domain.PawnId(id), Loadout = "load-" + id, Candidates = Known(default(EquatableArray<GearCandidate>)),
         Apparel = Known(default(EquatableArray<GearApparel>)),
         LoadoutModel = Known(new GearLoadoutInput { Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30,
             Worn = worn is null ? [] : [worn], Options = [Garment("cloth", Cloth, 5), Garment("wool", Wool, 15)] }) };

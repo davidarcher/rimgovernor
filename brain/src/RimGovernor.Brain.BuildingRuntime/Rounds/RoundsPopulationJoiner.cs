@@ -178,7 +178,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return new RoundsPopulationJoinerResult { Verdict = verdict };
         }
 
-        var accept = new QuestAccept(choice.Quest, new Domain.PawnId(choice.Accepter.Value), choice.RewardChoice);
+        var accept = new QuestAccept(choice.Quest, choice.Accepter, choice.RewardChoice);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewQuestAcceptAction(new ActionId($"{id}-0"), accept);
         return CommitSingle(state, started, goal, method, id, action, call, epoch);
@@ -209,7 +209,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return new RoundsPopulationJoinerResult { Verdict = verdict };
         }
 
-        var ritual = new Ritual(new Domain.PawnId(ceremony.Pawn.Value), RitualKind.Bestowing, RitualVerb.Start);
+        var ritual = new Ritual(ceremony.Pawn, RitualKind.Bestowing, RitualVerb.Start);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewRitualAction(new ActionId($"{id}-0"), ritual);
         return CommitSingle(state, started, goal, method, id, action, call, epoch);

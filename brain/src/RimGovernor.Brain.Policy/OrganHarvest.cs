@@ -280,7 +280,7 @@ public static partial class PolicyFunctions
         foreach (var row in rows)
         {
             if (!row.QueuedSurgeries.TryGetValue(out var queued) || queued > 0
-                || (inFlight?.GetValueOrDefault(new PawnId(row.Pawn.Value)) ?? false))
+                || (inFlight?.GetValueOrDefault(row.Pawn) ?? false))
             {
                 row.Dead.TryGetValue(out var dead);
                 if (!dead)

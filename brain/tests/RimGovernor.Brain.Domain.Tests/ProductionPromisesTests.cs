@@ -26,7 +26,7 @@ public sealed class ProductionPromisesTests
     private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatch batch, Fact<EquatableArray<ProductionBatchState>> census = default) =>
         ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch]), census);
     private static Fact<EquatableArray<IngredientReservation>> Reserved(string bill) => Known<EquatableArray<IngredientReservation>>([
-        new() { Pawn = new RimGovernor.Brain.Policy.PawnId("cook"), Bill = Known(bill), Items = [new(Material, 10)] }]);
+        new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = Known(bill), Items = [new(Material, 10)] }]);
     private static RoundsFacts Facts(Fact<EquatableArray<ForecastCommitment>> promises) => new()
     {
         ProductionPromises = promises, BillReservations = EmptyReservations,

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ForecastFoodCandidatesTests
 {
-    private static readonly RimGovernor.Brain.Policy.PawnId Pawn = new("worker");
+    private static readonly RimGovernor.Brain.Domain.PawnId Pawn = new("worker");
     private static readonly Resource Raw = new("TestRaw");
     private static readonly Resource Meal = new("TestMeal");
     private static ColonyForecastRequest Frame(int skill = 5) => new()
@@ -21,7 +21,7 @@ public sealed class ForecastFoodCandidatesTests
         Facts = new ColonyForecastFacts { Stock = Known(default(EquatableArray<Amount>)),
             Items = new ItemFacts { Nutrition = new Dictionary<Resource, double> { [Raw] = 0.01, [Meal] = 0.1 } },
             Food = new FoodSupply { Complete = Known(true), Consumers = [new() { Id = Pawn, NutritionPerDay = Known(1.0) }],
-                Stocks = [new() { Id = "existing", Holder = Known(default(RimGovernor.Brain.Policy.PawnId)), Nutrition = Known(1000.0 / GameTime.TicksPerDay),
+                Stocks = [new() { Id = "existing", Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Nutrition = Known(1000.0 / GameTime.TicksPerDay),
                     Perishable = Known(false), Eaters = [Pawn] }] } },
     };
     private static ForecastActivityProblem Capacity() => new()
@@ -44,8 +44,8 @@ public sealed class ForecastFoodCandidatesTests
         Workers = [new("worker", Known(true), Known(true), Known(10.0), Known(10.0), Known(0.0))],
         Transfers = [new("plant", "home", "worker", Raw, Known(4.0), Known(10.0)),
             new("plant", "bench", "worker", Raw, Known(4.0), Known(10.0)), new("bench", "home", "worker", Meal, Known(2.0), Known(10.0))],
-        EdibleAtDestination = new Dictionary<Resource, FoodStock> { [Raw] = new() { Holder = Known(default(RimGovernor.Brain.Policy.PawnId)), Perishable = Known(false), Eaters = [Pawn] },
-            [Meal] = new() { Holder = Known(default(RimGovernor.Brain.Policy.PawnId)), Perishable = Known(false), Eaters = [Pawn] } },
+        EdibleAtDestination = new Dictionary<Resource, FoodStock> { [Raw] = new() { Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Perishable = Known(false), Eaters = [Pawn] },
+            [Meal] = new() { Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Perishable = Known(false), Eaters = [Pawn] } },
     };
     private static ForecastActivityOutcomeComparison Compare(ColonyForecastRequest frame, ForecastFoodCandidateInputs input, ForecastActivityProblem? capacity = null)
     {

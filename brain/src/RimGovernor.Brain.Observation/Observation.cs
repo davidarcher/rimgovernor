@@ -124,11 +124,6 @@ public interface ISource
     Task<(L.TickReply Reply, Result Receipt)> TickAsync(CancellationToken cancellationToken);
 }
 
-public interface IClock
-{
-    DateTimeOffset Now();
-}
-
 public sealed record Reading
 {
     public Snapshot Snapshot { get; init; } = new();

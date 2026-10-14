@@ -2,7 +2,6 @@ using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using PolicyPawnId = RimGovernor.Brain.Policy.PawnId;
 
 namespace RimGovernor.Brain.Store;
 
@@ -115,7 +114,7 @@ public sealed class RoundsShrineStepConverter : ObjectCodec<RoundsShrineStep>
 public sealed class RoundsRecoveryRestrictionConverter : ObjectCodec<RoundsRecoveryRestriction>
 {
     protected override RoundsRecoveryRestriction Read(JsonElement e, Codecs o) =>
-        new(new PolicyPawnId(e.Str("Pawn")), e.Has("Area") ? e.Str("Area") : null);
+        new(new PawnId(e.Str("Pawn")), e.Has("Area") ? e.Str("Area") : null);
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsRecoveryRestriction v, Codecs o)
     {
@@ -144,7 +143,7 @@ public sealed class RoundsRecoveryWorkerConverter : ObjectCodec<RoundsRecoveryWo
     protected override RoundsRecoveryWorker Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawn = new PolicyPawnId(e.Str("Pawn")),
+            Pawn = new PawnId(e.Str("Pawn")),
             Dead = e.GetNullable<bool>("Dead", o),
             Downed = e.GetNullable<bool>("Downed", o),
             Drafted = e.GetNullable<bool>("Drafted", o),
@@ -236,7 +235,7 @@ public sealed class RoundsMoodPawnConverter : ObjectCodec<RoundsMoodPawn>
         new()
         {
             Break = e.GetNullableRef<MentalState>("Break", o),
-            Id = new PolicyPawnId(e.Str("ID")),
+            Id = new PawnId(e.Str("ID")),
             Mood = e.GetNullable<double>("Mood", o),
             Threshold = e.GetNullable<double>("Threshold", o),
             Target = e.GetNullable<double>("Target", o),
@@ -315,7 +314,7 @@ public sealed class RoundsMoodMethodConverter : ObjectCodec<RoundsMoodMethod>
     protected override RoundsMoodMethod Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawn = new PolicyPawnId(e.Str("Pawn")),
+            Pawn = new PawnId(e.Str("Pawn")),
             Need = e.Get<MoodNeed>("Need", o),
             Reason = e.Get<MoodMethodReason>("Reason", o),
             Concern = e.GetOr("Concern", default(ConcernId), o),

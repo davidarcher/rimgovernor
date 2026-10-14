@@ -17,7 +17,7 @@ public sealed class ForecastClaimsTests
     private static ForecastCommitment Promise(string id, Resource resource, double units, string bill = "") => new(id, default)
     { MaterialClaims = [new(resource, Known(units), Known(bill))] };
     private static Fact<EquatableArray<IngredientReservation>> Native(string bill = "bill") => Known<EquatableArray<IngredientReservation>>([
-        new() { Pawn = new RimGovernor.Brain.Policy.PawnId("cook"), Bill = Known(bill), Items = [new(Material, 20)] }]);
+        new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = Known(bill), Items = [new(Material, 20)] }]);
 
     [Fact]
     public void NativeHandoffCountsSameBillOnceAndOtherBillsStillCompete()

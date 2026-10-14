@@ -1,6 +1,6 @@
 # Real combat host
 
-RimWorld's own combat code, run headless. The hand-ported combat sim (`go/internal/combatsim`,
+RimWorld's own combat code, run headless. The hand-ported combat sim (`go/internal/combatsim` (deleted),
 `brain/src/RimGovernor.Brain.Simulation/Combat`) re-implements game logic that can drift from every game update;
 this host runs the game's logic itself, in a bare `net10.0` process (Waylith has no Unity), so there is nothing to
 port. Tracking issue: #3142. Nothing tunes policy at runtime, so the engine is offline only: one game per process,

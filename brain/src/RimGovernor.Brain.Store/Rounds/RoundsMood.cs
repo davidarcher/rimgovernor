@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using PolicyMoodHistory = RimGovernor.Brain.Policy.MoodHistory;
-using PolicyPawnId = RimGovernor.Brain.Policy.PawnId;
 using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Store;
@@ -38,7 +37,7 @@ public sealed record RoundsMoodPawn
 {
     public MentalState? Break { get; init; }
 
-    public PolicyPawnId Id { get; init; }
+    public PawnId Id { get; init; }
 
     public double? Mood { get; init; }
 
@@ -149,7 +148,7 @@ public sealed record RoundsMood
 /// <summary>One pawn's mood method proposal as the review filed it (Go <c>RoundsMoodMethod</c>).</summary>
 public sealed record RoundsMoodMethod
 {
-    public PolicyPawnId Pawn { get; init; }
+    public PawnId Pawn { get; init; }
 
     public MoodNeed Need { get; init; }
 

@@ -32,7 +32,7 @@ internal static partial class BuildingRuntimePackage
             AllowedAreaChange candidate;
             if (action.WorkAssignment is { HasArea: true } work)
             {
-                candidate = new AllowedAreaChange { Pawn = new PawnId(work.Pawn.Value), Area = work.Area };
+                candidate = new AllowedAreaChange { Pawn = work.Pawn, Area = work.Area };
                 var current = workers.Any(worker => worker.Id == candidate.Pawn);
                 if (!current)
                 {
@@ -41,7 +41,7 @@ internal static partial class BuildingRuntimePackage
             }
             else if (action.Husbandry is { Method: HusbandryMethod.AllowedArea } husbandry)
             {
-                candidate = new AllowedAreaChange { Pawn = new PawnId(husbandry.Animal.Value), Animal = true, Area = husbandry.Argument };
+                candidate = new AllowedAreaChange { Pawn = husbandry.Animal, Animal = true, Area = husbandry.Argument };
             }
             else
             {
@@ -69,7 +69,7 @@ public sealed partial class RoundsRecoveryPlanner
         DomainAction action;
         if (change.Animal)
         {
-            action = DomainAction.NewHusbandryAction(actionId, new Husbandry(new Domain.PawnId(change.Pawn.Value), HusbandryMethod.AllowedArea, change.Area));
+            action = DomainAction.NewHusbandryAction(actionId, new Husbandry(change.Pawn, HusbandryMethod.AllowedArea, change.Area));
         }
         else
         {
@@ -77,7 +77,7 @@ public sealed partial class RoundsRecoveryPlanner
             {
                 return new RoundsRecoveryResult { Verdict = NoWorker("area_pawn") };
             }
-            action = DomainAction.NewWorkAssignmentAction(actionId, WorkAssignment.NewAreaAssignment(new Domain.PawnId(change.Pawn.Value), change.Area == "", change.Area));
+            action = DomainAction.NewWorkAssignmentAction(actionId, WorkAssignment.NewAreaAssignment(change.Pawn, change.Area == "", change.Area));
         }
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         var p = reviewer.Player;

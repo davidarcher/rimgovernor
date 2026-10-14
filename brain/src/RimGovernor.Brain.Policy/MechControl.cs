@@ -1,4 +1,3 @@
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -98,7 +97,7 @@ public sealed record MechHostile
 /// <summary>The combat writes for the guard mechs: the drafts, then the attack orders, in the existing combat batch's shapes.</summary>
 public sealed record MechGuardPlan
 {
-    public IReadOnlyList<DomainPawnId> Drafts { get; init; } = [];
+    public IReadOnlyList<PawnId> Drafts { get; init; } = [];
     public IReadOnlyList<CombatOrder> Orders { get; init; } = [];
 }
 
@@ -231,14 +230,14 @@ public static partial class PolicyFunctions
                     {
                         continue;
                     }
-                    moves.Add(PawnSettings.NewMechControlGroupSetting(new DomainPawnId(mech.Id.Value), planned.Index));
+                    moves.Add(PawnSettings.NewMechControlGroupSetting(mech.Id, planned.Index));
                 }
                 var g = planned with { Mode = MechRechargeMode(catalog, planned, mechs, chargerReady) };
                 if (g.HoldsMode(mechs))
                 {
                     continue;
                 }
-                modes.Add(PawnSettings.NewMechWorkModeSetting(new DomainPawnId(g.Mechs[0].Id.Value), g.Mode));
+                modes.Add(PawnSettings.NewMechWorkModeSetting(new PawnId(g.Mechs[0].Id.Value), g.Mode));
             }
         }
         return [.. moves, .. modes];
@@ -335,7 +334,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static MechGuardPlan PlanMechGuards(MechCatalog catalog, IReadOnlyList<MechanitorInput> mechanitors, IReadOnlyList<MechInput> mechs, IReadOnlyList<MechHostile> hostiles)
     {
-        var drafts = new List<DomainPawnId>();
+        var drafts = new List<PawnId>();
         var orders = new List<CombatOrder>();
         var overseers = new Dictionary<string, Cell>(StringComparer.Ordinal);
         foreach (var m in mechanitors)
@@ -377,9 +376,9 @@ public static partial class PolicyFunctions
             }
             if (!mech.Drafted)
             {
-                drafts.Add(new DomainPawnId(mech.Id.Value));
+                drafts.Add(mech.Id);
             }
-            orders.Add(new CombatOrder { Pawn = new PawnId(mech.Id.Value), Kind = CombatOrderKind.Attack, Target = new PawnId(best.Id.Value), Reason = CombatOrderReason.Formation });
+            orders.Add(new CombatOrder { Pawn = mech.Id, Kind = CombatOrderKind.Attack, Target = best.Id, Reason = CombatOrderReason.Formation });
         }
         return new MechGuardPlan { Drafts = drafts, Orders = orders };
     }

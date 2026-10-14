@@ -1,4 +1,3 @@
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -35,9 +34,9 @@ public sealed record ShrineOccupant
 /// </summary>
 public sealed record ShrineLock
 {
-    public IReadOnlyDictionary<string, DomainPawnId> Lockers { get; init; } = new Dictionary<string, DomainPawnId>();
+    public IReadOnlyDictionary<string, PawnId> Lockers { get; init; } = new Dictionary<string, PawnId>();
 
-    public DomainPawnId Opener { get; init; }
+    public PawnId Opener { get; init; }
 
     public string Casket { get; init; } = "";
 
@@ -165,7 +164,7 @@ public static partial class PolicyFunctions
             .ThenBy(d => d.Id)
             .ToList();
         var sorted = caskets.OrderBy(c => c.EntityId, StringComparer.Ordinal).ToList();
-        var lockers = new Dictionary<string, DomainPawnId>(StringComparer.Ordinal);
+        var lockers = new Dictionary<string, PawnId>(StringComparer.Ordinal);
         for (var i = 0; i < sorted.Count; i++)
         {
             lockers[sorted[i].EntityId] = (Domain.PawnId)pool[i].Id;
@@ -200,7 +199,7 @@ public static partial class PolicyFunctions
         {
             return lck.Reason;
         }
-        var lockers = new HashSet<DomainPawnId>(lck.Lockers.Values);
+        var lockers = new HashSet<PawnId>(lck.Lockers.Values);
         var backup = false;
         foreach (var d in r.Squad)
         {

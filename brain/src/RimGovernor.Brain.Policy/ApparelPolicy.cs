@@ -62,7 +62,7 @@ public static partial class PolicyFunctions
     public static bool RoleApparelPolicy(PawnId pawn, GearRole role, ApparelPolicyState state, out ApparelPolicy? policy)
     {
         var s = new ApparelPolicySpec(
-            new Domain.PawnId(pawn.Value),
+            pawn,
             state.Token,
             state.PawnName,
             EquatableArray.From(RoleApparelDefinitions(role, state)),

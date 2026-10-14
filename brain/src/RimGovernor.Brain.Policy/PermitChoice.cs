@@ -85,7 +85,7 @@ public sealed record PermitIntent
     public string Permit { get; init; } = "";
 
     /// <summary>The write that carries the intent: the colonist chooses the permit with the faction. Throws when the intent is invalid.</summary>
-    public PawnSettings Setting() => PawnSettings.NewChoosePermitSetting(new Domain.PawnId(Holder.Value), Faction, Permit);
+    public PawnSettings Setting() => PawnSettings.NewChoosePermitSetting(Holder, Faction, Permit);
 }
 
 public static partial class PolicyFunctions

@@ -391,7 +391,7 @@ internal sealed class CombatInputs
         foreach (var pawn in colonists)
         {
             var work = ObservationApi.WorkPawnRow(Rows[pawn.Id.Value], arms.Catalog, arms.Things);
-            Profiles[new PawnId(pawn.Id.Value)] = PolicyApi.BuildProfile(work);
+            Profiles[pawn.Id] = PolicyApi.BuildProfile(work);
         }
     }
 }
@@ -505,7 +505,7 @@ internal static partial class BuildingRuntimePackage
             }
             defenders.Add(d);
             // Go assigns the warden capability to its local copy after the append, so it never reaches the defender row; ported as is.
-            var profile = inp.Profiles[new PawnId(pawn.Id.Value)];
+            var profile = inp.Profiles[pawn.Id];
             profiles.Add(profile);
         }
         var (front, _) = PolicyApi.FrontLine(profiles);
@@ -540,7 +540,7 @@ internal static partial class BuildingRuntimePackage
         {
             if (!(b.Dead.TryGetValue(out var dead) && dead) && b.Cells.Count > 0)
             {
-                structures.Add(new HostileStructure { Id = new PawnId(b.Id.Value), Def = b.Definition, Cell = b.Cells[0], Mortar = b.Mortar });
+                structures.Add(new HostileStructure { Id = b.Id, Def = b.Definition, Cell = b.Cells[0], Mortar = b.Mortar });
             }
         }
         var damaged = new List<Cell>();

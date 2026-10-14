@@ -64,7 +64,7 @@ public sealed partial class RoundsDefensePlanner
             throw new ControlException("admitFight: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
         var world = new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map };
-        p.Journal.CommitCombatFight(incident.Incident.Id, method, spec, memory, world, [.. drafts.Select(d => new Domain.PawnId(d.Value))], call);
+        p.Journal.CommitCombatFight(incident.Incident.Id, method, spec, memory, world, [.. drafts.Select(d => d)], call);
         var admitted = new RoundsDefenseResult { Verdict = BuildingReasonAdmitted, Plan = id };
         var view = CombatView(a.Combat, a.In, drafts, a.Held);
         view = view with { Drugs = [.. await _reviewer.CombatDrugsAsync(state.Snapshot, call).ConfigureAwait(false)] };
@@ -585,15 +585,15 @@ internal static partial class BuildingRuntimePackage
         var commands = new List<CombatCommand>();
         foreach (var p in drafts)
         {
-            commands.Add(new CombatCommand { Kind = "draft", Pawn = new Domain.PawnId(p.Value) });
+            commands.Add(new CombatCommand { Kind = "draft", Pawn = p });
         }
         foreach (var o in orders)
         {
             commands.Add(new CombatCommand
             {
                 Kind = Wire.Name(o.Kind),
-                Pawn = new Domain.PawnId(o.Pawn.Value),
-                Target = new Domain.PawnId(o.Target.Value),
+                Pawn = o.Pawn,
+                Target = o.Target,
                 Cell = o.Cell,
                 Aim = o.Aim,
                 Door = Wire.Name(o.Door),

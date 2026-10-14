@@ -1,4 +1,3 @@
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -155,9 +154,9 @@ public static partial class PolicyFunctions
     /// deconstruct job, otherwise all but the last (the least useful, a melee pawn when any shooter stands).
     /// Readiness guarantees at least two, so one always stands.
     /// </summary>
-    public static List<DomainPawnId> ShrineBreachDrafts(IReadOnlyList<DomainPawnId> squad, int colonists)
+    public static List<PawnId> ShrineBreachDrafts(IReadOnlyList<PawnId> squad, int colonists)
     {
-        var output = new List<DomainPawnId>(squad);
+        var output = new List<PawnId>(squad);
         if (colonists <= output.Count && output.Count > 1)
         {
             output.RemoveAt(output.Count - 1);
@@ -171,8 +170,8 @@ public static partial class PolicyFunctions
     /// nearest the ideal point ShrineStandDistance out first. A defender with no cell left stands where it is
     /// (drafted, not moved).
     /// </summary>
-    public static Dictionary<DomainPawnId, Cell> ShrineBreachPositions(
-        ShrineBreachWall wall, IReadOnlyList<DomainPawnId> squad, IReadOnlyList<Cell> standing, IReadOnlyList<Cell> traps)
+    public static Dictionary<PawnId, Cell> ShrineBreachPositions(
+        ShrineBreachWall wall, IReadOnlyList<PawnId> squad, IReadOnlyList<Cell> standing, IReadOnlyList<Cell> traps)
     {
         int dx = Sign(wall.Outside.X - wall.Cell.X), dz = Sign(wall.Outside.Z - wall.Cell.Z);
         if ((dx == 0 && dz == 0) || (dx != 0 && dz != 0))
@@ -202,7 +201,7 @@ public static partial class PolicyFunctions
             .ThenBy(c => c.X)
             .ThenBy(c => c.Z)
             .ToList();
-        var output = new Dictionary<DomainPawnId, Cell>();
+        var output = new Dictionary<PawnId, Cell>();
         for (var i = 0; i < squad.Count; i++)
         {
             if (i >= sorted.Count)

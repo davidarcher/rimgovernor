@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using RimGovernor.Brain.Domain;
-using DomainRecoveryMethod = RimGovernor.Brain.Domain.RecoveryMethod;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -292,9 +291,9 @@ public static partial class PolicyFunctions
             }
             var name = service.Method switch
             {
-                DomainRecoveryMethod.Repair => "Repair",
-                DomainRecoveryMethod.Breakdown => "FixBrokenDownBuilding",
-                DomainRecoveryMethod.Refuel => "Refuel",
+                RecoveryMethod.Repair => "Repair",
+                RecoveryMethod.Breakdown => "FixBrokenDownBuilding",
+                RecoveryMethod.Refuel => "Refuel",
                 _ => "",
             };
             if (job.Def != name)

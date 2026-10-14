@@ -11,7 +11,7 @@ public sealed partial class Rounder
     internal Fact<EquatableArray<ConcernId>> Methods;
     internal Player Player;
     internal IRoundsSource Native;
-    internal RimGovernor.Brain.Observation.IClock Clock;
+    internal IClock Clock;
     internal RoundsPolicy Policy;
 
     /// <summary>
@@ -223,7 +223,7 @@ public sealed partial class Rounder
     /// <summary>
     /// Constructs a reviewer. Throws <see cref="ControlException"/> when the arguments cannot review.
     /// </summary>
-    public Rounder(Player player, IRoundsSource native, RimGovernor.Brain.Observation.IClock clock, RoundsPolicy thresholds, TimeSpan maxAge, params RoundsCapabilities[] capabilities)
+    public Rounder(Player player, IRoundsSource native, IClock clock, RoundsPolicy thresholds, TimeSpan maxAge, params RoundsCapabilities[] capabilities)
     {
         if (player is null || native is null || clock is null || maxAge <= TimeSpan.Zero || maxAge > TimeSpan.FromMinutes(1))
         {

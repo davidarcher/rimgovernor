@@ -10,7 +10,7 @@ public sealed class WorkOccupancyTests
 {
     private static WorkPawn Pawn(string id, int cooking = 10, int building = 10) => new()
     {
-        Id = new RimGovernor.Brain.Policy.PawnId(id), Available = Known(true), Applies = Known(true),
+        Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true),
         Manual = Known(true), Ranged = Known(false), Job = Known(new PawnJob()),
         Schedule = Known(EquatableArray.From(Enumerable.Repeat(PolicyConstants.ScheduleAnything, 24))),
         Skills = Known<EquatableArray<WorkSkill>>([

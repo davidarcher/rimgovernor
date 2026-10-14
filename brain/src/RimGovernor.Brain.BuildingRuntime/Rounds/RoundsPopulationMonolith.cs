@@ -76,7 +76,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
                 var inMental = pawn.MentalState.IsKnown;
                 if (dk && !dead && wk && !downed && !inMental)
                 {
-                    able.Add(new PawnId(pawn.Id.Value));
+                    able.Add(pawn.Id);
                 }
             }
 
@@ -101,7 +101,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return (new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "pawn_claim") }, true);
         }
 
-        var service = new RecoveryService(new Domain.PawnId(pawnId.Value), target, method);
+        var service = new RecoveryService(pawnId, target, method);
         var planId = PlanIds.MintPlanId();
         var action = DomainAction.NewRecoveryServiceAction(new ActionId($"{planId}-0"), service);
         return (Commit(p, state, started, goal, attemptMethod, planId, action, call, epoch), true);

@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Bridge.Contracts.BridgeFunctions;
-using PolicyPawnId = RimGovernor.Brain.Policy.PawnId;
 using PolicyMechInput = RimGovernor.Brain.Policy.MechInput;
 
 namespace RimGovernor.Brain.Host;
@@ -224,7 +223,7 @@ internal sealed partial class FacadeNativeClient
             }
             result.Add(new PolicyMechInput
             {
-                Id = new PolicyPawnId(id),
+                Id = new PawnId(id),
                 Kind = row.KindDefName,
                 Mech = mech,
                 Downed = row.Downed.GetValueOrDefault(),

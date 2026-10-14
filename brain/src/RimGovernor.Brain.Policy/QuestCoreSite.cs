@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using DomainRecoveryMethod = RimGovernor.Brain.Domain.RecoveryMethod;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -143,7 +142,7 @@ public static partial class PolicyFunctions
                         }
                         try
                         {
-                            return result with { Kind = "help", Help = new RecoveryService((Domain.PawnId)actor, id.ToString(), DomainRecoveryMethod.OfferHelp) };
+                            return result with { Kind = "help", Help = new RecoveryService((Domain.PawnId)actor, id.ToString(), RecoveryMethod.OfferHelp) };
                         }
                         catch (DomainException)
                         {

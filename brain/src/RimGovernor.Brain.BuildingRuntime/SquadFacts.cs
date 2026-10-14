@@ -177,7 +177,7 @@ internal static partial class BuildingRuntimePackage
             Drafted = Boundary.FactBool(row.Drafted is not null, row.Drafted.GetValueOrDefault()),
             MentalState = Boundary.FactPresence(row.MentalState is not null, row.Issues, "mental_state"),
         };
-        facts = facts with { DraftOwned = Fact.Known(needed.Contains(new Domain.PawnId(facts.Id.Value))) };
+        facts = facts with { DraftOwned = Fact.Known(needed.Contains(facts.Id)) };
         if (BridgeApi.PawnBiotech(row.Biotech).TryGetValue(out var bt))
         {
             facts = facts with { Deathresting = bt.IsDeathresting() };

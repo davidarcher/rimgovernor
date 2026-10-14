@@ -278,7 +278,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "throne_assignment") };
         }
         var previous = step.PreviousThrone != "" ? PreviousAssignment.KnownPrevious(step.PreviousThrone) : PreviousAssignment.ClearPrevious();
-        var assign = new Domain.Assign(new Domain.PawnId(step.Need.Holder.Value), step.Throne, previous);
+        var assign = new Domain.Assign(step.Need.Holder, step.Throne, previous);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewAssignAction(new ActionId($"{id}-0"), assign);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);

@@ -127,7 +127,7 @@ public sealed class RoundsTendPlanner
             // reporting no work.
             return new RoundsTendResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "medical_pair"), NativeWorkTicks = checked((uint)MedicalWaitTicks) };
         }
-        var tend = new Domain.Tend(new Domain.PawnId(doctor.Value), new Domain.PawnId(patient.Value));
+        var tend = new Domain.Tend(doctor, patient);
         // Keyed by patient and attempt count, not doctor: a fresh attempt after an interrupted or failed try
         // picks whichever doctor is currently best, which is how doctor replacement happens across cycles.
         var prefix = $"tend-{patient.Value}-";

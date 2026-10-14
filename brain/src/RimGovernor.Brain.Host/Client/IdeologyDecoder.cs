@@ -90,14 +90,14 @@ internal static class IdeologyDecoder
                 throw BridgeFunctions.Contract($"ideology role \"{row.DefName}\" is not in the catalog or lacks its state");
             }
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            var held = new List<P.PawnId>();
+            var held = new List<Domain.PawnId>();
             foreach (var pawn in row.Pawns)
             {
                 if (!BridgeFunctions.ValidRef(pawn) || !seen.Add(pawn.Id ?? ""))
                 {
                     throw BridgeFunctions.Contract("invalid or duplicate ideology role pawn");
                 }
-                held.Add(new P.PawnId(pawn.Id ?? ""));
+                held.Add(new Domain.PawnId(pawn.Id ?? ""));
             }
             roles.Add(new P.HeldRole(row.Id ?? "", row.DefName ?? "", row.Active.GetValueOrDefault(), held));
         }

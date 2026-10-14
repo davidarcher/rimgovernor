@@ -85,7 +85,7 @@ public sealed class UnfinishedMaterialTests
     public void NativeLooseHoldsOverlapFreshPromiseOnly()
     {
         var facts = Facts(State(3)) with { BillReservations = Known<EquatableArray<IngredientReservation>>([
-            new() { Bill = Known("bill"), Pawn = new RimGovernor.Brain.Policy.PawnId("worker"), Items = [new(Material, 10)] }]) };
+            new() { Bill = Known("bill"), Pawn = new RimGovernor.Brain.Domain.PawnId("worker"), Items = [new(Material, 10)] }]) };
         Assert.Equal(30, ResourceDemandOf(facts, DefaultRoundsPolicy(), new()).MaterialAvailability.Value[Material].Value);
         var last = facts with { ProductionPromises = Promises(State(1)) };
         Assert.Equal(40, ResourceDemandOf(last, DefaultRoundsPolicy(), new()).MaterialAvailability.Value[Material].Value);

@@ -1,5 +1,4 @@
 using RimGovernor.Contracts.Wire.Observations;
-using PolicyPawnId = RimGovernor.Brain.Policy.PawnId;
 using PolicyPermitCooldown = RimGovernor.Brain.Policy.PermitCooldown;
 using PolicyPsycast = RimGovernor.Brain.Policy.Psycast;
 using PolicyPsycasterState = RimGovernor.Brain.Policy.PsycasterState;
@@ -25,9 +24,9 @@ public static partial class BridgeFunctions
         {
             throw Contract("no pawn rows for the royalty facts");
         }
-        var holders = new Dictionary<PolicyPawnId, EquatableArray<PolicyRoyalHolding>>();
-        var psycasts = new Dictionary<PolicyPawnId, EquatableArray<PolicyPsycast>>();
-        var casters = new Dictionary<PolicyPawnId, PolicyPsycasterState>();
+        var holders = new Dictionary<PawnId, EquatableArray<PolicyRoyalHolding>>();
+        var psycasts = new Dictionary<PawnId, EquatableArray<PolicyPsycast>>();
+        var casters = new Dictionary<PawnId, PolicyPsycasterState>();
         foreach (var pawn in pawns.Pawns)
         {
             var id = pawn.Pawn?.Id ?? "";
@@ -84,7 +83,7 @@ public static partial class BridgeFunctions
                         Cooldowns = cooldowns,
                     });
             }
-            var key = new PolicyPawnId(id);
+            var key = new PawnId(id);
             holders[key] = EquatableArray.From(holdings);
             var casts = new List<PolicyPsycast>(row.Psycasts.Count);
             var known = new HashSet<string>(StringComparer.Ordinal);

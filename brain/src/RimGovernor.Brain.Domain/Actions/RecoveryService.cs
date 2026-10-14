@@ -2,8 +2,7 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// Names the native service jobs an already-selected pawn can be sent to run on an already-selected building:
-/// ordinary repair, breakdown restoration, refuel and the void monolith's two orders. It mirrors
-/// policy.RecoveryMethod's wire names; domain cannot import policy, so they are converted at the boundary.
+/// ordinary repair, breakdown restoration, refuel and the void monolith's two orders. The planner and the action share this one enum.
 /// </summary>
 public enum RecoveryMethod
 {

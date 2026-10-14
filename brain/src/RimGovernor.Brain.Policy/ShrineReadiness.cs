@@ -1,4 +1,3 @@
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -48,7 +47,7 @@ public sealed record ShrineReadiness
     public ShrineBreachWall Wall { get; init; } = new();
 
     /// <summary>Every eligible defender, ranged first.</summary>
-    public EquatableArray<DomainPawnId> Squad { get; init; }
+    public EquatableArray<PawnId> Squad { get; init; }
 
     /// <summary>Counts the built traps within ShrineTrapRadius of the wall's outside cell.</summary>
     public int Traps { get; init; }
@@ -115,8 +114,8 @@ public static partial class PolicyFunctions
         }
         r.Peaceful.TryGetValue(out var peaceful);
         var ranged = 0;
-        var shooters = new List<DomainPawnId>();
-        var others = new List<DomainPawnId>();
+        var shooters = new List<PawnId>();
+        var others = new List<PawnId>();
         foreach (var d in r.Squad)
         {
             if (!ShrineDefenderEligible(d))

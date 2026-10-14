@@ -273,7 +273,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "bed_assignment") };
         }
         var previous = choice.PreviousBed != "" ? PreviousAssignment.KnownPrevious(choice.PreviousBed) : PreviousAssignment.ClearPrevious();
-        var assign = new Domain.Assign(new Domain.PawnId(choice.Pawn.Value), choice.Bed, previous);
+        var assign = new Domain.Assign(choice.Pawn, choice.Bed, previous);
         if (swapping)
         {
             assign = assign.AsSwap();
@@ -452,13 +452,13 @@ internal static partial class BuildingRuntimePackage
         if (facts.Facts.Sleeping.TryGetValue(out var obs))
         {
             facts.TechTier.TryGetValue(out var tier);
-            request = request with { RoomTargets = RoomQualityTargets(obs, request.Traits ?? new Dictionary<Pol.PawnId, Pol.TraitEffects>(), tier, facts.Impressiveness) };
+            request = request with { RoomTargets = RoomQualityTargets(obs, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Impressiveness) };
         }
         return request;
     }
 
     /// <summary>Each colonist's trait effects from the work census, null while it is unknown.</summary>
-    internal static Dictionary<Pol.PawnId, Pol.TraitEffects>? SleepingTraits(Observation.ColonyProjection facts)
+    internal static Dictionary<PawnId, Pol.TraitEffects>? SleepingTraits(Observation.ColonyProjection facts)
     {
         if (!facts.WorkPawns.TryGetValue(out var pawns))
         {

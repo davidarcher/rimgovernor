@@ -15,7 +15,7 @@ internal static partial class BuildingRuntimePackage
         {
             return previous;
         }
-        journal.SaveSoldierSquad(new Store.SoldierSquadRecord { World = world, Members = [.. squad.Members.Select(p => new Domain.PawnId(p.Value))] }, ct);
+        journal.SaveSoldierSquad(new Store.SoldierSquadRecord { World = world, Members = [.. squad.Members.Select(p => p)] }, ct);
         return squad;
     }
 }

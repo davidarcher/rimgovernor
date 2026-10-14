@@ -61,7 +61,7 @@ internal static partial class BuildingRuntimePackage
             return null;
         }
         var targets = BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>();
-        var claims = SuiteClaims(plan, rooms!, sleeping!, targets, traits, SuitePressure(facts) ?? new Dictionary<Pol.PawnId, double>());
+        var claims = SuiteClaims(plan, rooms!, sleeping!, targets, traits, SuitePressure(facts) ?? new Dictionary<PawnId, double>());
         return SuiteWishes(plan, rooms!, sleeping!, targets, claims);
     }
 
@@ -76,7 +76,7 @@ internal static partial class BuildingRuntimePackage
         {
             return targets ?? new Dictionary<string, Pol.RoomTarget>();
         }
-        var claims = SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>(), traits, SuitePressure(facts) ?? new Dictionary<Pol.PawnId, double>());
+        var claims = SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>(), traits, SuitePressure(facts) ?? new Dictionary<PawnId, double>());
         return UpgradeTargets(targets ?? new Dictionary<string, Pol.RoomTarget>(), sleeping!, claims);
     }
 
@@ -137,7 +137,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Orders the suite queue by the pawns' current bedroom, space and jealousy thoughts; null (pawn-id order) while the mood census is unknown.</summary>
-    internal static Dictionary<Pol.PawnId, double>? SuitePressure(Observation.ColonyProjection facts) =>
+    internal static Dictionary<PawnId, double>? SuitePressure(Observation.ColonyProjection facts) =>
         facts.Facts.MoodPawns.TryGetValue(out var pawns) ? PolicyFunctions.SuitePressure(pawns) : null;
 }
 

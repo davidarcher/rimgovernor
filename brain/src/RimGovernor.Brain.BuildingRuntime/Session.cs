@@ -47,7 +47,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         IBoundaryNative native,
         INativeAuthority authority,
         IActionsWriter writer,
-        Executor.IClock clock,
+        IClock clock,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(journal);

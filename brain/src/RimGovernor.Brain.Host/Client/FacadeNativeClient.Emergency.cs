@@ -6,7 +6,6 @@ using DomainCell = RimGovernor.Brain.Domain.Cell;
 using PolicyEmergencyFacts = RimGovernor.Brain.Policy.EmergencyFacts;
 using PolicyEmergencyPawn = RimGovernor.Brain.Policy.EmergencyPawn;
 using PolicyEmergencyThreat = RimGovernor.Brain.Policy.EmergencyThreat;
-using PolicyPawnId = RimGovernor.Brain.Policy.PawnId;
 using PolicyMentalState = RimGovernor.Brain.Policy.MentalState;
 using PolicyThreatKind = RimGovernor.Brain.Policy.ThreatKind;
 
@@ -136,7 +135,7 @@ internal sealed partial class FacadeNativeClient
             }
             if (!pawns.TryRow(reference, out var row))
             {
-                return (new PolicyEmergencyPawn { Id = new PolicyPawnId(reference.Id ?? "") }, null);
+                return (new PolicyEmergencyPawn { Id = new PawnId(reference.Id ?? "") }, null);
             }
             return (EmergencyFacts(row), row);
         }
@@ -154,7 +153,7 @@ internal sealed partial class FacadeNativeClient
             });
             var result = new PolicyEmergencyPawn
             {
-                Id = new PolicyPawnId(row.Pawn?.Id ?? ""),
+                Id = new PawnId(row.Pawn?.Id ?? ""),
                 Dead = EmergencyBool(row.Dead),
                 Downed = EmergencyBool(row.Downed),
                 InBed = EmergencyBool(row.InBed),
@@ -203,7 +202,7 @@ internal sealed partial class FacadeNativeClient
             }
             var colonists = new List<PolicyEmergencyPawn>();
             var threats = new List<PolicyEmergencyThreat>();
-            var statuses = new Dictionary<PolicyPawnId, PolicyEmergencyPawn>();
+            var statuses = new Dictionary<PawnId, PolicyEmergencyPawn>();
 
             PolicyEmergencyPawn Observe(PolicyEmergencyPawn pawn)
             {
@@ -229,7 +228,7 @@ internal sealed partial class FacadeNativeClient
                 return pawn;
             }
 
-            var seen = new HashSet<PolicyPawnId>();
+            var seen = new HashSet<PawnId>();
             foreach (var reference in v.Colonists)
             {
                 var (pawn, _) = EmergencyPawn(reference, pawns);
@@ -344,7 +343,7 @@ internal sealed partial class FacadeNativeClient
             }
             var result = new PolicyEmergencyThreat
             {
-                Id = new PolicyPawnId(row.Building.Id ?? ""),
+                Id = new PawnId(row.Building.Id ?? ""),
                 Kind = PolicyThreatKind.HostileBuilding,
                 Dead = Known(false),
                 Downed = Known(false),

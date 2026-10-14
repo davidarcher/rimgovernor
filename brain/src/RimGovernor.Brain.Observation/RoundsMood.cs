@@ -403,7 +403,7 @@ public static partial class ObservationPackage
             {
                 return unknown;
             }
-            var d = new SquadDefenderFacts { Id = new PawnId(pawn.Id.Value), Dead = pawn.Dead, Downed = pawn.Downed };
+            var d = new SquadDefenderFacts { Id = pawn.Id, Dead = pawn.Dead, Downed = pawn.Downed };
             if (PawnBiotech(row.Biotech).TryGetValue(out var bt))
             {
                 d = d with { Deathresting = bt.IsDeathresting() };

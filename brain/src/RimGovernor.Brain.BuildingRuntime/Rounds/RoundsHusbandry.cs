@@ -156,7 +156,7 @@ public sealed partial class RoundsHusbandryPlanner
             argument = choice.Argument;
         }
 
-        var husbandry = new Husbandry(new Domain.PawnId(choice.Animal.Value), choiceMethod, argument);
+        var husbandry = new Husbandry(choice.Animal, choiceMethod, argument);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewHusbandryAction(new ActionId($"{id}-0"), husbandry);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);

@@ -48,10 +48,10 @@ internal sealed class AnimalOrderConverter : ObjectCodec<AnimalOrder>
     protected override AnimalOrder Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawn = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             Kind = e.Get<CombatOrderKind>("Kind", o),
             Cell = e.Get<Cell>("Cell", o),
-            Target = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Target", o),
+            Target = e.Get<RimGovernor.Brain.Domain.PawnId>("Target", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, AnimalOrder v, Codecs o)
@@ -82,7 +82,7 @@ internal sealed class CastMarkConverter : ObjectCodec<CastMark>
 {
     protected override CastMark Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             e.Str("Def"),
             e.Get<Tick>("Tick", o),
             e.Dbl("Psyfocus"),
@@ -139,10 +139,10 @@ internal sealed class CombatFlankConverter : ObjectCodec<CombatFlank>
     protected override CombatFlank Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawns = e.Get<List<global::RimGovernor.Brain.Policy.PawnId>>("Pawns", o),
+            Pawns = e.Get<List<RimGovernor.Brain.Domain.PawnId>>("Pawns", o),
             Cells = e.Get<List<Cell>>("Cells", o),
             Open = e.Bool("Open"),
-            Held = e.Get<List<global::RimGovernor.Brain.Policy.PawnId>>("Held", o),
+            Held = e.Get<List<RimGovernor.Brain.Domain.PawnId>>("Held", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, CombatFlank v, Codecs o)
@@ -159,8 +159,8 @@ internal sealed class CombatGroupConverter : ObjectCodec<CombatGroup>
     protected override CombatGroup Read(JsonElement e, Codecs o) =>
         new()
         {
-            Hostiles = e.Get<List<global::RimGovernor.Brain.Policy.PawnId>>("Hostiles", o),
-            Pawns = e.Get<List<global::RimGovernor.Brain.Policy.PawnId>>("Pawns", o),
+            Hostiles = e.Get<List<RimGovernor.Brain.Domain.PawnId>>("Hostiles", o),
+            Pawns = e.Get<List<RimGovernor.Brain.Domain.PawnId>>("Pawns", o),
             Cells = e.Get<List<Cell>>("Cells", o),
             Fallback = e.Get<List<Cell>>("Fallback", o),
             FellBack = e.Bool("FellBack"),
@@ -187,7 +187,7 @@ internal sealed class CombatMemoryConverter : ObjectCodec<CombatMemory>
             Roles = e.Get<EquatableArray<CombatRole>>("Roles", o),
             Refusal = e.Str("Refusal"),
             Formed = e.Get<Tick>("Formed", o),
-            Relieved = e.Get<List<global::RimGovernor.Brain.Policy.PawnId>>("Relieved", o),
+            Relieved = e.Get<List<RimGovernor.Brain.Domain.PawnId>>("Relieved", o),
             Issued = e.Get<List<IssuedOrder>>("Issued", o),
             Tick = e.Get<Tick>("Tick", o),
             Rescue = e.GetOr<CombatRescue?>("Rescue", null, o),
@@ -198,9 +198,9 @@ internal sealed class CombatMemoryConverter : ObjectCodec<CombatMemory>
             PotshotDoor = e.GetOr<PodDoor?>("PotshotDoor", null, o),
             ChokeDoor = e.GetOr<PodDoor?>("ChokeDoor", null, o),
             HeldDoors = e.Get<List<Cell>>("HeldDoors", o),
-            Kiter = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Kiter", o),
+            Kiter = e.Get<RimGovernor.Brain.Domain.PawnId>("Kiter", o),
             Leading = e.Bool("Leading"),
-            Driller = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Driller", o),
+            Driller = e.Get<RimGovernor.Brain.Domain.PawnId>("Driller", o),
             Wait = e.Bool("Wait"),
             WaitSince = e.Get<Tick>("WaitSince", o),
             WaitDoors = e.Get<EquatableArray<PodDoor>>("WaitDoors", o),
@@ -219,10 +219,10 @@ internal sealed class CombatMemoryConverter : ObjectCodec<CombatMemory>
             Unreachable = e.Get<List<Cell>>("Unreachable", o),
             Flank = e.GetOr<CombatFlank?>("Flank", null, o),
             Animals = e.Get<List<AnimalOrder>>("Animals", o),
-            Untrained = e.Get<List<global::RimGovernor.Brain.Policy.PawnId>>("Untrained", o),
+            Untrained = e.Get<List<RimGovernor.Brain.Domain.PawnId>>("Untrained", o),
             Groups = e.Get<List<CombatGroup>>("Groups", o),
             NoShells = e.Get<List<string>>("NoShells", o),
-            Dosed = e.Get<List<global::RimGovernor.Brain.Policy.PawnId>>("Dosed", o),
+            Dosed = e.Get<List<RimGovernor.Brain.Domain.PawnId>>("Dosed", o),
             Permitted = e.Get<EquatableArray<string>>("Permitted", o),
             Casts = e.Get<List<CastMark>>("Casts", o),
             EmpAdapted = e.Get<List<EmpAdaptation>>("EmpAdapted", o),
@@ -304,10 +304,10 @@ internal sealed class CombatOrderConverter : ObjectCodec<CombatOrder>
     protected override CombatOrder Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawn = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             Kind = e.Get<CombatOrderKind>("Kind", o),
             Cell = e.Get<Cell>("Cell", o),
-            Target = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Target", o),
+            Target = e.Get<RimGovernor.Brain.Domain.PawnId>("Target", o),
             FireMode = e.Str("FireMode"),
             Reason = e.Get<CombatOrderReason>("Reason", o),
             Door = e.Get<DoorMode>("Door", o),
@@ -363,8 +363,8 @@ internal sealed class CombatRescueConverter : ObjectCodec<CombatRescue>
     protected override CombatRescue Read(JsonElement e, Codecs o) =>
         new()
         {
-            Patient = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Patient", o),
-            Rescuer = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Rescuer", o),
+            Patient = e.Get<RimGovernor.Brain.Domain.PawnId>("Patient", o),
+            Rescuer = e.Get<RimGovernor.Brain.Domain.PawnId>("Rescuer", o),
             Ordered = e.Get<Tick>("Ordered", o),
             Doors = e.Get<EquatableArray<Cell>>("Doors", o),
         };
@@ -402,9 +402,9 @@ internal sealed class CombatRoleConverter : ObjectCodec<CombatRole>
     protected override CombatRole Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawn = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             Cell = e.GetOr<Cell?>("Cell", null, o),
-            Target = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Target", o),
+            Target = e.Get<RimGovernor.Brain.Domain.PawnId>("Target", o),
             Ranged = e.Bool("Ranged"),
             Duty = e.Get<CombatDuty>("Duty", o),
             Retreat = e.Bool("Retreat"),
@@ -613,8 +613,8 @@ internal sealed class ConstructionHelpRecordConverter : ObjectCodec<Construction
         new()
         {
             Tick = e.Get<Tick>("Tick", o),
-            Idle = e.Get<EquatableArray<global::RimGovernor.Brain.Policy.PawnId>>("Idle", o),
-            Helpers = e.Get<EquatableArray<global::RimGovernor.Brain.Policy.PawnId>>("Helpers", o),
+            Idle = e.Get<EquatableArray<RimGovernor.Brain.Domain.PawnId>>("Idle", o),
+            Helpers = e.Get<EquatableArray<RimGovernor.Brain.Domain.PawnId>>("Helpers", o),
             DemandTick = e.Get<Tick>("DemandTick", o),
             Ready = e.I32("Ready"),
             Unmet = e.I32("Unmet"),
@@ -673,7 +673,7 @@ internal sealed class DashWindowConverter : ObjectCodec<DashWindow>
     protected override DashWindow Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawn = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             Until = e.Get<Tick>("Until", o),
             Trips = e.Get<EquatableArray<DashTrip>>("Trips", o),
         };
@@ -690,7 +690,7 @@ internal sealed class DecayingSkillConverter : ObjectCodec<DecayingSkill>
 {
     protected override DecayingSkill Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             e.Str("Skill"),
             e.I32("Level")
         );
@@ -885,7 +885,7 @@ internal sealed class DiseaseRestConverter : ObjectCodec<DiseaseRest>
 {
     protected override DiseaseRest Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             e.Get<EquatableArray<string>>("Conditions", o)
         );
 
@@ -900,7 +900,7 @@ internal sealed class EmpAdaptationConverter : ObjectCodec<EmpAdaptation>
 {
     protected override EmpAdaptation Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             e.Get<Tick>("Until", o)
         );
 
@@ -1018,8 +1018,8 @@ internal sealed class HitRefusalConverter : ObjectCodec<HitRefusal>
 {
     protected override HitRefusal Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
-            e.Get<global::RimGovernor.Brain.Policy.PawnId>("Target", o),
+            e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
+            e.Get<RimGovernor.Brain.Domain.PawnId>("Target", o),
             e.Get<Cell>("From", o)
         );
 
@@ -1193,8 +1193,8 @@ internal sealed class MedicalCareHistoryConverter : ObjectCodec<MedicalCareHisto
         {
             Resting = e.Get<IReadOnlyList<DiseaseRest>>("Resting", o),
             CensusKnown = e.Bool("CensusKnown"),
-            Patients = e.Get<IReadOnlyList<global::RimGovernor.Brain.Policy.PawnId>>("Patients", o),
-            Unknown = e.Get<IReadOnlyList<global::RimGovernor.Brain.Policy.PawnId>>("Unknown", o),
+            Patients = e.Get<IReadOnlyList<RimGovernor.Brain.Domain.PawnId>>("Patients", o),
+            Unknown = e.Get<IReadOnlyList<RimGovernor.Brain.Domain.PawnId>>("Unknown", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, MedicalCareHistory v, Codecs o)
@@ -1261,7 +1261,7 @@ internal sealed class MoodPawnConverter : ObjectCodec<MoodPawn>
         {
             Break = e.Get<Fact<MentalState>>("Break", o),
             HighExpectations = e.Get<Fact<bool>>("HighExpectations", o),
-            Id = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Id", o),
+            Id = e.Get<RimGovernor.Brain.Domain.PawnId>("Id", o),
             Mood = e.Get<Fact<double>>("Mood", o),
             Threshold = e.Get<Fact<double>>("Threshold", o),
             Target = e.Get<Fact<double>>("Target", o),
@@ -1516,7 +1516,6 @@ internal sealed class PawnGeneConverter : ObjectCodec<PawnGene>
     }
 }
 
-internal sealed class PolicyPawnIdConverter() : StringCodec<global::RimGovernor.Brain.Policy.PawnId>(s => new(s), v => v.Value);
 internal sealed class PawnMechConverter : ObjectCodec<PawnMech>
 {
     protected override PawnMech Read(JsonElement e, Codecs o) =>
@@ -1568,7 +1567,7 @@ internal sealed class PawnProfileConverter : ObjectCodec<PawnProfile>
     protected override PawnProfile Read(JsonElement e, Codecs o) =>
         new()
         {
-            Id = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Id", o),
+            Id = e.Get<RimGovernor.Brain.Domain.PawnId>("Id", o),
             Skills = e.Get<IReadOnlyDictionary<string, ProfileSkill>>("Skills", o),
             Traits = e.Get<IReadOnlyList<PawnTrait>>("Traits", o),
             Effects = e.Get<TraitEffects>("Effects", o),
@@ -1795,8 +1794,8 @@ internal sealed class PodDoorConverter : ObjectCodec<PodDoor>
             Cell = e.Get<Cell>("Cell", o),
             Mode = e.Get<DoorMode>("Mode", o),
             Sent = e.Bool("Sent"),
-            Repairer = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Repairer", o),
-            Opener = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Opener", o),
+            Repairer = e.Get<RimGovernor.Brain.Domain.PawnId>("Repairer", o),
+            Opener = e.Get<RimGovernor.Brain.Domain.PawnId>("Opener", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PodDoor v, Codecs o)
@@ -2018,7 +2017,7 @@ internal sealed class RecoveryWorkConverter : ObjectCodec<RecoveryWork>
     protected override RecoveryWork Read(JsonElement e, Codecs o) =>
         new(
             e.Str("Building"),
-            e.Get<global::RimGovernor.Brain.Policy.RecoveryMethod>("Method", o)
+            e.Get<RimGovernor.Brain.Domain.RecoveryMethod>("Method", o)
         );
 
     protected override void WriteFields(Utf8JsonWriter w, RecoveryWork v, Codecs o)
@@ -2416,7 +2415,7 @@ internal sealed class SleepingUseConverter : ObjectCodec<SleepingUse>
 {
     protected override SleepingUse Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
+            e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             e.Str("Bed"),
             e.Get<Tick>("Tick", o)
         );
@@ -2486,8 +2485,8 @@ internal sealed class StopEventConverter : ObjectCodec<StopEvent>
         new()
         {
             Kind = e.Get<CombatStopKind>("Kind", o),
-            Pawn = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Pawn", o),
-            Target = e.Get<global::RimGovernor.Brain.Policy.PawnId>("Target", o),
+            Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
+            Target = e.Get<RimGovernor.Brain.Domain.PawnId>("Target", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, StopEvent v, Codecs o)

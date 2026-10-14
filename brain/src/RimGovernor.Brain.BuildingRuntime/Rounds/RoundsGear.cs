@@ -303,7 +303,7 @@ public sealed partial class RoundsGearPlanner
             {
                 var candidates = pawn.Candidates.TryGetValue(out var known0) ? known0 : default;
                 var available = candidates.Where(c => !claimed.Contains(c.Target)).ToList();
-                return pawn with { Blocked = pawn.Blocked || busy.Contains(new Domain.PawnId(pawn.Pawn.Value)), Candidates = Known(EquatableArray.From(available)) };
+                return pawn with { Blocked = pawn.Blocked || busy.Contains(pawn.Pawn), Candidates = Known(EquatableArray.From(available)) };
             }).ToList(),
         };
         RoundsGearResult policies = default;
@@ -319,7 +319,7 @@ public sealed partial class RoundsGearPlanner
                 continue;
             }
 
-            if (SeenMethod(goal, PolicyMethod(goal, "apparel-policy", ApparelPolicyEncoded(value))) || !arbiter.TryClaim([new PawnId(value.Pawn.Value)]))
+            if (SeenMethod(goal, PolicyMethod(goal, "apparel-policy", ApparelPolicyEncoded(value))) || !arbiter.TryClaim([value.Pawn]))
             {
                 continue;
             }
@@ -363,7 +363,7 @@ public sealed partial class RoundsGearPlanner
                     return new RoundsGearResult { Verdict = ClaimHeld("colonist") };
                 }
 
-                var replace = new GearReplace(new Domain.PawnId(choice.Pawn.Value), choice.Target, definition);
+                var replace = new GearReplace(choice.Pawn, choice.Target, definition);
                 action2 = DomainAction.NewGearReplaceAction(new ActionId($"{planId}-0"), replace);
                 break;
             default:

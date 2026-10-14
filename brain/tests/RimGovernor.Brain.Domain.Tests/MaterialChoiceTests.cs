@@ -51,7 +51,7 @@ public sealed class MaterialChoiceTests
                 AcceptedStuff = new Dictionary<Resource, IReadOnlyList<string>> { [new("Sculpture")] = ["Stuff"] } } };
         var bench = new ProductionBench { Id = "bench-a", Usable = Known(true), Token = Known("token"),
             Recipes = [new() { Name = "FlexibleRecipe", Role = RecipeRole.Sculpture, Available = Known(true) }] };
-        var bill = Assert.Single(SelectArtBills(Known<EquatableArray<ProductionBench>>([bench]), Known(1L), [new RimGovernor.Brain.Policy.PawnId("artist")], demand));
+        var bill = Assert.Single(SelectArtBills(Known<EquatableArray<ProductionBench>>([bench]), Known(1L), [new RimGovernor.Brain.Domain.PawnId("artist")], demand));
         Assert.Equal(new[] { Metal.Value, Timber.Value }, bill.Ingredients);
         var declared = Flexible with { Spec = Flexible.Spec with { Ingredients = EquatableArray.From(bill.Ingredients), Worker = bill.Worker } };
         var selected = SelectLedgerMaterials([declared, Machine], View());

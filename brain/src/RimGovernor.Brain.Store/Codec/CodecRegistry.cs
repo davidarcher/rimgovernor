@@ -178,7 +178,6 @@ internal static class CodecRegistry
         codecs.Register(new PlannedSiteConverter());
         codecs.Register(new PodArrivalConverter());
         codecs.Register(new PodDoorConverter());
-        codecs.Register(new PolicyPawnIdConverter());
         codecs.Register(new PolicyPruneConverter());
         codecs.Register(new PreviousAssignmentConverter());
         codecs.Register(new PrisonerInteractionConverter());

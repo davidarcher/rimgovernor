@@ -746,7 +746,7 @@ internal static class DefensePerimeter
     private static async Task<bool> WaitRaidResolvedAsync(JournalStore s, PlanId first, Wait w, JsonObject output, CancellationToken cancellationToken)
     {
         var holdPlans = new HashSet<PlanId> { first };
-        var onLine = new HashSet<RimGovernor.Brain.Policy.PawnId>();
+        var onLine = new HashSet<RimGovernor.Brain.Domain.PawnId>();
         try
         {
             await w.WaitProgressAsync(async ct =>

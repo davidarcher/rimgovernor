@@ -163,7 +163,7 @@ internal static class ClockWindowWork
             // its live prey.
             if (fights.TryGetValue(method.Plan, out var fight))
             {
-                return (true, fight.Open, fight.Open ? new EquatableArray<PawnId>(ImmutableArray.CreateRange(incident.Incident.HuntPrey.Select(p => new PawnId(p.Value)))) : default);
+                return (true, fight.Open, fight.Open ? new EquatableArray<PawnId>(ImmutableArray.CreateRange(incident.Incident.HuntPrey.Select(p => p))) : default);
             }
             var plan = await journal.LoadPlanAsync(method.Plan, ct).ConfigureAwait(false);
             if (Standard.WorkOpen(plan.Progress))

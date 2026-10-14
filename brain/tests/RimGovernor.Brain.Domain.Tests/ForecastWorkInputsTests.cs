@@ -10,7 +10,7 @@ public sealed class ForecastWorkInputsTests
 {
     private static WorkPawn Pawn(string id = "cook-builder") => new()
     {
-        Id = new RimGovernor.Brain.Policy.PawnId(id), Available = Known(true), Applies = Known(true),
+        Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true),
         Job = Known(new PawnJob()),
         Schedule = Known(EquatableArray.From(Enumerable.Repeat(PolicyConstants.ScheduleAnything, 24))),
     };

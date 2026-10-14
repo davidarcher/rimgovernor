@@ -58,7 +58,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return (default, false);
         }
 
-        var ids = emergency.Facts.Colonists.Where(pawn => new PawnId(pawn.Id.Value) != target).Select(pawn => pawn.Id.Value).ToList();
+        var ids = emergency.Facts.Colonists.Where(pawn => pawn.Id != target).Select(pawn => pawn.Id.Value).ToList();
         if (ids.Count == 0)
         {
             return (default, false);
@@ -96,7 +96,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return (default, false);
         }
 
-        var use = new UseItem(new Domain.PawnId(choice.User.Value), choice.Item, new Domain.PawnId(choice.Target.Value));
+        var use = new UseItem(choice.User, choice.Item, choice.Target);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewUseItemAction(new ActionId($"{id}-0"), use);
         return (Commit(p, state, started, goal, method, id, action, call, epoch), true);

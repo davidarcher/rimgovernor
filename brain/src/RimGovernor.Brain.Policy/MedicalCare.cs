@@ -1,4 +1,3 @@
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -100,7 +99,7 @@ public sealed record SurgeryOperation
     public Fact<bool> CareLimited { get; init; }
 
     /// <summary>Each eligible doctor's SuccessChance by pawn; null when unread.</summary>
-    public IReadOnlyDictionary<DomainPawnId, double>? DoctorChances { get; init; }
+    public IReadOnlyDictionary<PawnId, double>? DoctorChances { get; init; }
 }
 
 /// <summary>Native disease evidence without estimating missing values. Rates are instantaneous per game day, and may be negative during recovery.</summary>

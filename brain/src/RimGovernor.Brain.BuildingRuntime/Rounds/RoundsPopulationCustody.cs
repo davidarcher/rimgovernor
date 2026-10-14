@@ -125,7 +125,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var ids = new List<string>(emergency.Facts.Colonists.Count + 1);
         foreach (var pawn in emergency.Facts.Colonists)
         {
-            if (new PawnId(pawn.Id.Value) == choice.Pawn)
+            if (pawn.Id == choice.Pawn)
             {
                 continue; // the custody target is never its own performer
             }
@@ -150,7 +150,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("step: pawn count differs from the requested ids");
         }
 
-        var needed = (await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false)).Select(id => new Domain.PawnId(id.Value)).ToHashSet();
+        var needed = (await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false)).Select(id => id).ToHashSet();
         var arms = await BuildingRuntimePackage.ReadArmamentAsync(native, identityCtx, call).ConfigureAwait(false);
         var catalog = arms.Catalog;
         var squad = new List<ShrineDefenderFacts>();
@@ -205,7 +205,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
                     return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "rescue_claim") };
                 }
 
-                var value = new Domain.Rescue(new Domain.PawnId(performer.Value), new Domain.PawnId(target.Value));
+                var value = new Domain.Rescue(performer, target);
                 var prefix = $"population-rescue-{target}-";
                 var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
                 if (!admitted)
@@ -229,7 +229,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
                 var (performer, target) = pair;
 
-                var value = new Domain.Capture(new Domain.PawnId(performer.Value), new Domain.PawnId(target.Value));
+                var value = new Domain.Capture(performer, target);
                 var prefix = $"population-capture-{target}-";
                 var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
                 if (!admitted)

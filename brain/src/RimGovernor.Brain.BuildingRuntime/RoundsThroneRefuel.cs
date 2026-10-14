@@ -58,7 +58,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "throne_refuel_claim") };
         }
         var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"{ThroneRefuelPrefix(step.Lamp)}{tick.Value}"));
-        var service = new RecoveryService(new Domain.PawnId(step.Pawn.Value), step.Lamp, Domain.RecoveryMethod.Refuel);
+        var service = new RecoveryService(step.Pawn, step.Lamp, Domain.RecoveryMethod.Refuel);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewRecoveryServiceAction(new ActionId($"{id}-0"), service);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);

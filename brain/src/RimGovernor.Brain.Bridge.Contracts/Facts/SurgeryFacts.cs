@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 using PolicyMissingPart = RimGovernor.Brain.Policy.MissingPart;
 using PolicyInstalledPart = RimGovernor.Brain.Policy.InstalledPart;
 using PolicySurgeryKind = RimGovernor.Brain.Policy.SurgeryKind;
@@ -113,10 +112,10 @@ public static partial class BridgeFunctions
         }
         if (op.DoctorChances.Count > 0)
         {
-            var chances = new Dictionary<DomainPawnId, double>(op.DoctorChances.Count);
+            var chances = new Dictionary<PawnId, double>(op.DoctorChances.Count);
             foreach (var (doctor, chance) in op.DoctorChances)
             {
-                chances[new DomainPawnId(doctor)] = chance;
+                chances[new PawnId(doctor)] = chance;
             }
             row = row with { DoctorChances = chances };
         }

@@ -34,9 +34,9 @@ public sealed partial class RoundsBuildingPlanner
                     {
                         var ak = pawn.Available.TryGetValue(out var available);
                         var jk = pawn.Job.TryGetValue(out var job);
-                        if (ak && available && jk && job!.Work != WorkType.Doctor && job.Work != WorkType.Firefighter && job.Def != "Rescue" && job.Def != "LayDown" && change.Occupants.Contains(new PawnId(pawn.Id.Value)))
+                        if (ak && available && jk && job!.Work != WorkType.Doctor && job.Work != WorkType.Firefighter && job.Def != "Rescue" && job.Def != "LayDown" && change.Occupants.Contains(pawn.Id))
                         {
-                            opener = new PawnId(pawn.Id.Value);
+                            opener = pawn.Id;
                             break;
                         }
                     }

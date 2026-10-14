@@ -410,7 +410,7 @@ public sealed partial class Store
 
     /// <summary>The squad for the world's colony and map, empty when none or when it belongs to another colony or map. A reload of the same colony keeps the squad.</summary>
     public SoldierSquad LoadSoldierSquad(World w, CancellationToken cancellationToken) =>
-        Run(tx => LoadSoldierSquadIn(tx) is { } r && r.World.Colony == w.Colony && r.World.Map == w.Map ? new SoldierSquad { Members = [.. r.Members.Select(p => new Policy.PawnId(p.Value))] } : new SoldierSquad(), cancellationToken);
+        Run(tx => LoadSoldierSquadIn(tx) is { } r && r.World.Colony == w.Colony && r.World.Map == w.Map ? new SoldierSquad { Members = [.. r.Members.Select(p => p)] } : new SoldierSquad(), cancellationToken);
 
     public Task<SoldierSquad> LoadSoldierSquadAsync(World w, CancellationToken cancellationToken) => Task.Run(() => LoadSoldierSquad(w, cancellationToken), cancellationToken);
 

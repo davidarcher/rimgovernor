@@ -35,11 +35,11 @@ internal static class BreakDispatch
         {
             if (PolicyFunctions.AggressiveBreak(p))
             {
-                aggressive.Add(new PawnId(p.Id.Value));
+                aggressive.Add(p.Id);
             }
             if (p.MentalState.IsKnown)
             {
-                broken.Add(new PawnId(p.Id.Value));
+                broken.Add(p.Id);
             }
         }
         var colonistsKnown = f.ColonistsComplete.TryGetValue(out var complete);
@@ -105,11 +105,11 @@ public sealed partial class Worker
             ids.Add(p.Id.Value);
             if (p.MentalState.IsKnown)
             {
-                broken.Add(new PawnId(p.Id.Value));
+                broken.Add(p.Id);
             }
             if (PolicyFunctions.AggressiveBreak(p))
             {
-                aggressive.Add(new PawnId(p.Id.Value));
+                aggressive.Add(p.Id);
             }
         }
         if (broken.Count == 0)

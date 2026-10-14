@@ -137,7 +137,7 @@ public sealed partial class RoundsIncinerationPlanner
             return (new RoundsIncinerationResult { Verdict = WaitFor(Cause.MethodUsed, "clean_target") }, true);
         }
 
-        var clean = new Clean(new Domain.PawnId(pawn.Value), target.Id, target.Cell);
+        var clean = new Clean(pawn, target.Id, target.Cell);
         var prefix = $"burn-ash-{target.Id}-";
         var (verdict, admitted) = AdmitSubject(Reviewer.Player.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
         if (!admitted)
@@ -165,7 +165,7 @@ public sealed partial class RoundsIncinerationPlanner
 
             var pawn = new PawnId((row.Pawn.Id ?? ""));
             var arm = RoundsEquipPlanner.EquipCandidatePawnFacts(row, catalog, things);
-            candidates.Add(new BurnCandidate { Arm = arm, Fire = FireSafetyPawnFactsOf(new Domain.PawnId(pawn.Value), row), Holds = PrimaryDef(row, things) == PolicyFunctions.MolotovDef });
+            candidates.Add(new BurnCandidate { Arm = arm, Fire = FireSafetyPawnFactsOf(pawn, row), Holds = PrimaryDef(row, things) == PolicyFunctions.MolotovDef });
         }
 
         var request = new BurnRequest { Interior = room.Region.Bounds(), Stored = stored, Pawns = [.. candidates] };
@@ -211,7 +211,7 @@ public sealed partial class RoundsIncinerationPlanner
             claims.Add("equip-weapon:" + order.Molotov.Thing);
         }
 
-        if (!arbiter.TryClaim([new PawnId(order.Burner.Value)], [.. claims]))
+        if (!arbiter.TryClaim([order.Burner], [.. claims]))
         {
             return (new RoundsIncinerationResult { Verdict = WaitFor(Cause.MethodUsed, "burn_claim") }, true);
         }

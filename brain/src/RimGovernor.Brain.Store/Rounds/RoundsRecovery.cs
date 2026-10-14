@@ -1,12 +1,11 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using PolicyPawnId = RimGovernor.Brain.Policy.PawnId;
 
 namespace RimGovernor.Brain.Store;
 
 /// <summary>A persisted pawn's area restriction; an unknown area persists as null (Go <c>RoundsRecoveryRestriction</c>).</summary>
-public sealed record RoundsRecoveryRestriction(PolicyPawnId Pawn, string? Area);
+public sealed record RoundsRecoveryRestriction(PawnId Pawn, string? Area);
 
 /// <summary>The persisted recovery safety evidence (Go <c>RoundsRecoverySafety</c>).</summary>
 public sealed record RoundsRecoverySafety
@@ -17,7 +16,7 @@ public sealed record RoundsRecoverySafety
 /// <summary>A persisted worker's observed state; every observation is unknown (null) or a value (Go <c>RoundsRecoveryWorker</c>).</summary>
 public sealed record RoundsRecoveryWorker
 {
-    public PolicyPawnId Pawn { get; init; }
+    public PawnId Pawn { get; init; }
 
     public bool? Dead { get; init; }
 

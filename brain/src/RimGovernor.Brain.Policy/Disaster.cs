@@ -61,16 +61,6 @@ public sealed record DisasterCondition
 
 public sealed record DisasterEvidence(DisasterService Service, Finding Finding);
 
-public enum RecoveryMethod
-{
-    [WireName("refuel")]
-    Refuel,
-    [WireName("breakdown")]
-    Breakdown,
-    [WireName("repair")]
-    Repair,
-}
-
 public sealed record RecoveryWork(string Building, RecoveryMethod Method);
 
 public sealed record RecoveryBuilding

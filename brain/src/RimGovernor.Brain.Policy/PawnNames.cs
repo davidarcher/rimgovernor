@@ -34,7 +34,7 @@ public static partial class PolicyFunctions
             }
             try
             {
-                result.Add(PawnSettings.NewNicknameSetting(new Domain.PawnId(row.Pawn.Value), row.Short));
+                result.Add(PawnSettings.NewNicknameSetting(row.Pawn, row.Short));
             }
             catch (DomainException)
             {

@@ -148,7 +148,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "entity_tend_doctor") };
         }
 
-        var value = new Domain.Tend(new Domain.PawnId(doctor.Value), new Domain.PawnId(target.Value));
+        var value = new Domain.Tend(doctor, target);
         var tendPrefix = $"population-tend-{target}-";
         var (tendMethod, tendVerdict, tendOk) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, tendPrefix, state.Snapshot, call);
         if (!tendOk)

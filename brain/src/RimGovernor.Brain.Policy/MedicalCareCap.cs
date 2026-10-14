@@ -1,4 +1,3 @@
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -183,7 +182,7 @@ public static partial class PolicyFunctions
             }
             try
             {
-                output.Add(PawnSettings.NewMedicalCareSetting(new DomainPawnId(id.Value), want));
+                output.Add(PawnSettings.NewMedicalCareSetting(id, want));
             }
             catch (DomainException)
             {
@@ -224,7 +223,7 @@ public static partial class PolicyFunctions
             }
             var (baseCare, raise) = PrisonerCareBase(row);
             var (want, ok) = Capped(baseCare, raise, row.Conditions, row.LifeThreatening);
-            Add(new PawnId(row.Pawn.Value), row.MedicalCare, want, ok);
+            Add(row.Pawn, row.MedicalCare, want, ok);
         }
         f.Guests.TryGetValue(out var guests);
         foreach (var g in guests)

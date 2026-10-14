@@ -118,7 +118,7 @@ internal sealed class FacadeGovernorState(INativeFacade facade)
 }
 
 /// <summary>The wall clock the executor and the observation layer read.</summary>
-internal sealed class SystemClock : ExecutorClock, ObservationClock
+internal sealed class SystemClock : IClock
 {
     public static readonly SystemClock Instance = new();
 

@@ -17,14 +17,6 @@ public sealed partial class RoundsRecoveryPlanner
         return new RoundsRecoveryPlanner(reviewer);
     }
 
-    internal static Domain.RecoveryMethod? RecoveryServiceMethodOf(RecoveryMethod method) => method switch
-    {
-        RecoveryMethod.Repair => Domain.RecoveryMethod.Repair,
-        RecoveryMethod.Breakdown => Domain.RecoveryMethod.Breakdown,
-        RecoveryMethod.Refuel => Domain.RecoveryMethod.Refuel,
-        _ => null,
-    };
-
     internal async Task<RoundsRecoveryResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
@@ -159,8 +151,7 @@ public sealed partial class RoundsRecoveryPlanner
         }
 
         var id = PlanIds.MintPlanId();
-        var serviceMethod = RecoveryServiceMethodOf(chosen.Method) ?? throw new ControlException("step: unknown recovery method");
-        var recovery = new RecoveryService((Domain.PawnId)chosen.Pawn, chosen.Building, serviceMethod);
+        var recovery = new RecoveryService((Domain.PawnId)chosen.Pawn, chosen.Building, chosen.Method);
         var action = DomainAction.NewRecoveryServiceAction(new ActionId($"{id}-0"), recovery);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);

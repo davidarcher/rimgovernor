@@ -31,7 +31,7 @@ public static partial class TradeMissions
     /// installed. Throws <see cref="DomainException"/> with the Go failure reason when the mission cannot be
     /// prepared.
     /// </summary>
-    public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(ITradeMissionPackSource source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<Pol.PawnId>? claimed, CancellationToken ct)
+    public static async Task<(TradeMission Mission, Pol.TradeAcquisitionOption Option)> PrepareTradeMissionAsync(ITradeMissionPackSource source, GenerationSnapshot world, int homeTile, SettlementFact settlement, Pol.RoundsFacts facts, Pol.RoundsPolicy thresholds, long silverBudget, IReadOnlyList<CargoItem> demand, IReadOnlyList<PawnId>? claimed, CancellationToken ct)
     {
         if (!world.IsValid || homeTile < 0 || settlement.Tile == homeTile || settlement.Player || settlement.TraderKind.Length == 0)
         {
@@ -52,7 +52,7 @@ public static partial class TradeMissions
         {
             throw new DomainException(crewSkip.Value);
         }
-        var domainCrew = crew.Select(p => new Domain.PawnId(p.Value)).ToList();
+        var domainCrew = crew.Select(p => p).ToList();
         var (capacity, capacityKnown) = Pol.PolicyFunctions.TradeMissionCarryCapacity(facts, crew);
         if (!capacityKnown)
         {
@@ -299,7 +299,7 @@ public sealed partial class Rounder
         {
             throw new ControlException("AdmitTradeMissionDeparture: crew not at home");
         }
-        if (!arbiter.TryClaim([.. m.Crew.Select(id => new Pol.PawnId(id.Value))], "trade-mission:" + m.Settlement))
+        if (!arbiter.TryClaim([.. m.Crew.Select(id => id)], "trade-mission:" + m.Settlement))
         {
             throw new InvalidOperationException("trade mission crew claimed");
         }

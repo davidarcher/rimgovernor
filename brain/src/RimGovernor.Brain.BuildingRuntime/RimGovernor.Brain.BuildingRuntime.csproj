@@ -54,13 +54,12 @@
     <Using Include="RimGovernor.Contracts.Wire.Presentation" Alias="PbPresentation" />
     <Using Include="RimGovernor.Contracts.Wire.Lifecycle" Alias="PbLifecycle" />
     <!-- Names two imported namespaces both declare: Policy and Telemetry/Executor shapes win (issue #3111). -->
-    <Using Include="RimGovernor.Brain.Policy.PawnId" Alias="PawnId" />
+    <Using Include="RimGovernor.Brain.Domain.PawnId" Alias="PawnId" />
     <Using Include="RimGovernor.Brain.Policy.Amount" Alias="Amount" />
     <Using Include="RimGovernor.Brain.Telemetry.Decision" Alias="Decision" />
-    <Using Include="RimGovernor.Brain.Executor.IClock" Alias="IClock" />
     <Using Include="RimGovernor.Brain.Domain.ControllerSessionId" Alias="ControllerSessionId" />
     <Using Include="RimGovernor.Brain.Observation.Identity" Alias="Identity" />
-    <Using Include="RimGovernor.Brain.Policy.RecoveryMethod" Alias="RecoveryMethod" />
+    <Using Include="RimGovernor.Brain.Domain.RecoveryMethod" Alias="RecoveryMethod" />
     <!-- Go's bridge.X where the policy or domain package declares the same name. -->
     <Using Include="RimGovernor.Brain.Bridge.Contracts.CellRect" Alias="BridgeCellRect" />
     <Using Include="RimGovernor.Brain.Observation.Combat" Alias="BridgeCombat" />

@@ -155,8 +155,8 @@ public sealed class RoundsWorkPlanner
                 continue;
             }
             work.Add(schedule is null || schedule.Count == 0
-                ? WorkAssignment.NewWorkAssignment(new Domain.PawnId(assignment.Pawn.Value), changed)
-                : WorkAssignment.NewScheduleAssignment(new Domain.PawnId(assignment.Pawn.Value), changed, schedule));
+                ? WorkAssignment.NewWorkAssignment(assignment.Pawn, changed)
+                : WorkAssignment.NewScheduleAssignment(assignment.Pawn, changed, schedule));
         }
         var settings = new List<PawnSettings>(PolicyApi.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
         settings.AddRange(PolicyApi.SelfTendChanges(SelfTendRows(pawns)));

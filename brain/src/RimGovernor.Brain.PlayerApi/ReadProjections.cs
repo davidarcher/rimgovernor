@@ -285,7 +285,7 @@ internal static class ReadProjections
         return new MoodLedgerDto(Project(l.Sources), Project(l.Unowned), l.UnknownPawns, [.. l.Expectation.Select(e => new MoodExpectationDto(e.Level, e.Pawns))]);
     }
 
-    private static FoodPlanDto FoodPlanRow(FoodPlan p, IReadOnlyDictionary<RimGovernor.Brain.Policy.PawnId, string> labels)
+    private static FoodPlanDto FoodPlanRow(FoodPlan p, IReadOnlyDictionary<RimGovernor.Brain.Domain.PawnId, string> labels)
     {
         List<FoodPlanEntryDto> Project(IReadOnlyList<FoodPlanEntry> rows) =>
             [.. rows.Select(row =>

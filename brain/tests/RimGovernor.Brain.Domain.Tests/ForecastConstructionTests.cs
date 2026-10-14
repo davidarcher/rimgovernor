@@ -21,7 +21,7 @@ public sealed class ForecastConstructionTests
         QualitySensitive = Known(true), Tier = Known(ConstructionTier.Sustain),
     };
     private static ForecastConstructionWorker Worker(string id = "worker", int skill = 8) => new(
-        new WorkPawn { Id = new RimGovernor.Brain.Policy.PawnId(id), Available = Known(true), Applies = Known(true), ConstructionAble = Known(true),
+        new WorkPawn { Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true), ConstructionAble = Known(true),
             Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Construction", Level = skill } })) },
         new(id, "stock", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 1000) })), Known(1.0)), Known(1.0));
     private static ForecastCommitment Commitment(ConstructionSite site) => new(site.Id, default)
@@ -136,7 +136,7 @@ public sealed class ForecastConstructionTests
     {
         var request = Request(Site());
         request = request with { Construction = request.Construction with { IngredientReservations = Known(EquatableArray.From(new[]
-        { new IngredientReservation { Pawn = new RimGovernor.Brain.Policy.PawnId("cook"), Items = [new Amount(Material, 6)] } })) } };
+        { new IngredientReservation { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Items = [new Amount(Material, 6)] } })) } };
         Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ForecastColony(request).Proposed.Construction).Reason);
         request = Request(Site());
         request = request with { Commitments = EquatableArray.From(request.Commitments.Append(new ForecastCommitment("other", EquatableArray.From(new[]

@@ -59,12 +59,6 @@ public sealed class StoppedException : DomainException
         : base("building executor stopped") { }
 }
 
-/// <summary>The executor's source of time (Go <c>Clock</c>).</summary>
-public interface IClock
-{
-    DateTimeOffset Now();
-}
-
 /// <summary>Decides whether a non-root plan may dispatch under the root plan's authority (Go <c>RoundsScope</c>).</summary>
 public interface IRoundsScope
 {

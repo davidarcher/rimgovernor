@@ -1,4 +1,3 @@
-using DomainPawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -116,7 +115,7 @@ public static partial class PolicyFunctions
             }
             try
             {
-                changes.Add(PawnSettings.NewMedicineCarrySetting(new DomainPawnId(p.Id.Value), want.GetValueOrDefault(p.Id)));
+                changes.Add(PawnSettings.NewMedicineCarrySetting(p.Id, want.GetValueOrDefault(p.Id)));
             }
             catch (DomainException)
             {

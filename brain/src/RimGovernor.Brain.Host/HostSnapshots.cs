@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Host;
 /// <c>buildingSnapshots</c>): the last good observation, refreshed serially on a cadence, with the player's control
 /// state laid over it. Reading it never triggers inference or a native refresh; it owns no native mutation capability.
 /// </summary>
-internal sealed class HostSnapshots(string sessionId, ISource source, ObservationClock clock, TimeSpan maxAge, Player player, HostLog log) : ISnapshotProvider, IPlanReader, IDisposable
+internal sealed class HostSnapshots(string sessionId, ISource source, IClock clock, TimeSpan maxAge, Player player, HostLog log) : ISnapshotProvider, IPlanReader, IDisposable
 {
     private readonly SemaphoreSlim _refresh = new(1, 1);
     private readonly object _mu = new();

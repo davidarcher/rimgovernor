@@ -84,12 +84,12 @@ public sealed partial class RoundsIdeoRolesPlanner
                 continue;
             }
 
-            if (!arbiter.TryClaim([new PawnId(choice.Pawn.Value)]))
+            if (!arbiter.TryClaim([choice.Pawn]))
             {
                 return new RoundsIdeoRolesResult { Verdict = WaitFor(Cause.MethodUsed, "pawn_claim") };
             }
 
-            var assign = new Assign(new Domain.PawnId(choice.Pawn.Value), choice.Role, PreviousAssignment.ClearPrevious());
+            var assign = new Assign(choice.Pawn, choice.Role, PreviousAssignment.ClearPrevious());
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewAssignAction(new ActionId($"{id}-0"), assign);
             var plan = new PlanSpec(id, new PlanRevision(1), [action]);

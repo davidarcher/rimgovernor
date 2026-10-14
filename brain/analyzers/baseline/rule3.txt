@@ -5,7 +5,5 @@ Bridge.Contracts|Refusal
 Bridge|Amount
 Observation|Identity
 Observation|Wastepack
-Policy|PawnId
-Policy|RecoveryMethod
 Policy|RoomDoor
 Policy|ZoneKind

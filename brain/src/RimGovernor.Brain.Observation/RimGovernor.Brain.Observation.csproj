@@ -34,8 +34,7 @@
     <Using Include="RimGovernor.Contracts.Wire.Operations" Alias="Ops" />
     <!-- The wire message shares this name with the domain value; this project names the domain value. -->
     <Using Include="RimGovernor.Brain.Domain.Cell" Alias="Cell" />
-    <!-- Domain and Policy each declare a PawnId (Go domain.PawnID and policy.PawnID); the policy one is the common case. -->
-    <Using Include="RimGovernor.Brain.Policy.PawnId" Alias="PawnId" />
+    <Using Include="RimGovernor.Brain.Domain.PawnId" Alias="PawnId" />
     <!-- Go's observation-local type names for policy values. -->
     <Using Include="RimGovernor.Brain.Policy.Room" Alias="ObservedRoom" />
     <Using Include="RimGovernor.Brain.Policy.RoleScore" Alias="RoleContribution" />

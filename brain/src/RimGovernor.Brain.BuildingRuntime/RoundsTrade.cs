@@ -275,14 +275,14 @@ public sealed partial class RoundsTradePlanner
         {
             return eligible[0];
         }
-        var ids = eligible.Select(row => new Pol.PawnId(row.Id)).ToList();
+        var ids = eligible.Select(row => new PawnId(row.Id)).ToList();
         if (Pol.PolicyFunctions.TraderFor(Pol.PolicyFunctions.Among(Pol.PolicyFunctions.Profiles(pawns), ids)) is not { } chosen)
         {
             return eligible[0];
         }
         foreach (var row in eligible)
         {
-            if (new Pol.PawnId(row.Id) == chosen)
+            if (new PawnId(row.Id) == chosen)
             {
                 return row;
             }
@@ -550,7 +550,7 @@ public sealed partial class RoundsTradePlanner
     /// Reads the prisoner census through the routine reading (the one the negotiator choice uses) and returns the
     /// surplus prisoners a favor session sells.
     /// </summary>
-    private async Task<IReadOnlySet<Pol.PawnId>> FavorPrisonersAsync(ControlState state, Sto.Rounds review, CancellationToken call)
+    private async Task<IReadOnlySet<PawnId>> FavorPrisonersAsync(ControlState state, Sto.Rounds review, CancellationToken call)
     {
         var expected = await StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
