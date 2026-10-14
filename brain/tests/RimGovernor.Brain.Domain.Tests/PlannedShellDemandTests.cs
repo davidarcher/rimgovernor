@@ -84,4 +84,18 @@ public sealed class PlannedShellDemandTests
         var demand = PlannedFloorDemand(plan, Flooring(), DefaultFlooringPolicy());
         Assert.Equal(9 * 2, demand[Wood]);
     }
+
+    [Fact]
+    public void StoredStationsAreDemandedUntilTheyStand()
+    {
+        var bench = new InteriorPiece { Slot = "bench", Def = "TableButcher", Size = new Cell(1, 1), Rect = new Rectangle { X = 1, Z = 1, Width = 1, Height = 1 } };
+        var plan = new LayoutPlan
+        {
+            Rooms = [new PlannedRoom { Id = 1, Role = PlannedKitchen, Region = RectRegion(Rect(0, 0)) }],
+            Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [bench, bench with { Slot = "bench2", Rect = new Rectangle { X = 2, Z = 1, Width = 1, Height = 1 } }] },
+        };
+        IReadOnlyList<Amount>? price(string def) => [new Amount(Wood, 20)];
+        Assert.Equal(40, PlannedPieceDemand(plan, new HashSet<(string, Cell)>(), price)[Wood]);
+        Assert.Equal(20, PlannedPieceDemand(plan, new HashSet<(string, Cell)> { ("TableButcher", bench.Anchor()) }, price)[Wood]);
+    }
 }

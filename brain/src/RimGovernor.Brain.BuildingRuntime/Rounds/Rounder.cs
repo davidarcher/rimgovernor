@@ -982,6 +982,34 @@ internal static partial class BuildingRuntimePackage
         {
             demand[resource] = demand.GetValueOrDefault(resource) + n;
         }
+        var standing = new HashSet<(string, Cell)>();
+        if (colony.Facts.CurrentConstruction.TryGetValue(out var census))
+        {
+            foreach (var b in census.Buildings)
+            {
+                foreach (var c in b.Cells)
+                {
+                    _ = standing.Add((b.Building?.Definition ?? "", c));
+                }
+            }
+        }
+        IReadOnlyList<Amount>? PiecePrice(string name)
+        {
+            if (AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
+            {
+                return null;
+            }
+            if (def.StuffOptions.Count == 0)
+            {
+                return def.Costs.TryGetValue(out var costs) ? costs : null;
+            }
+            var stuff = colony.BulkBuildStuff(name, 1);
+            return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff)?.Costs;
+        }
+        foreach (var (resource, n) in PolicyApi.PlannedPieceDemand(plan, standing, PiecePrice))
+        {
+            demand[resource] = demand.GetValueOrDefault(resource) + n;
+        }
         return Known<IReadOnlyDictionary<Resource, long>>(demand);
     }
 

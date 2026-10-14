@@ -1,6 +1,6 @@
 # Construction projects: one record per planned room (design proposal)
 
-Status: built so far: the planned source for walls, doors and floors (`PlannedShellDemand`, `PlannedFloorDemand`, merged into `ConstructionDemand` as `Planned`) and room-id method names. Furniture is not priced (the plan stores no furniture: only lamps, which are not priced yet, and each owner derives its template when it furnishes) and the `RoomProject` record is still proposal. Decisions below were made with the maintainer. Written after tracing why wood demand needed a hard-coded
+Status: built so far: the planned source for walls, doors and floors (`PlannedShellDemand`, `PlannedFloorDemand`, merged into `ConstructionDemand` as `Planned`) room-id method names, and the tiler's per-room stations (`LayoutPlan.Pieces`, persisted, carried across replans for held rooms, priced by `PlannedPieceDemand`). Colony-driven contents are not priced (the plan stores no furniture: only lamps, which are not priced yet, and each owner derives its template when it furnishes) and the `RoomProject` record is still proposal. Decisions below were made with the maintainer. Written after tracing why wood demand needed a hard-coded
 floor (the wood latch, since removed) and why a replan could site a second shelter.
 
 ## What exists today
@@ -42,6 +42,70 @@ contributes no demand at all.
   rooms in `1fc827a36`).
 - Admitted and Owed overlap once a blueprint is placed; the per-resource maximum is what prevents double
   counting, not a shared key.
+
+## Where a room's contents are decided today (trace)
+
+The plan prices walls, doors and floors because they are functions of the room's geometry. Furniture is
+not, and the reason is structural: the contents of a room are decided in four places that do not agree.
+
+1. **The tiler places the stations, then drops them.** `Tiler.Furnish` (`LayoutTile.cs`) runs
+   `PlaceAndSearch` for every room over the station group's wants (`Wants(i)`: def, count, interaction cell)
+   and the interior search. The result is `Out.Pieces[room.Id]`, a full `InteriorPiece` list (def, cell,
+   rotation). Its only readers are the conduit and lamp routing (`LayoutConduit.cs:379`, `LayoutLight.cs:504`)
+   inside the same tile pass. Nothing persists it: `LayoutPlan` keeps the rooms, links, conduits and
+   lamps.
+2. **Role owners re-derive a template.** Bedroom, couple bedroom, shelter, throne, jail, tomb, hospital
+   and the child rooms each call `InteriorRoomFromLayout` (role to `RoomRole`, door side, capabilities)
+   and plan their own pieces (`BedroomTemplate`, the shelter bunks, `ThroneTemplate`...). They do not
+   read the tiler's pieces for the same room.
+3. **Benches are demand-driven and placed natively.** `RoundsWorkshop` follows the facility ladder
+   (`facilities.md`): a bench kind is staged when throughput is short, one `workshop-<def>-<n>` method at a time,
+   capped by `BenchCap`, and placed by the native placer with `PlacementEnvironment.Indoors`. The tiler's cell
+   for that bench is not an input.
+4. **Quality levers add pieces later** (`RoomQualityUpgrade`, `RoomQualityTitle`) from the standing room.
+
+Consequences: the plan cannot say what a room will cost to furnish, the tiler's placement work is
+discarded, and the benches the plan sized the room for and the benches the ladder eventually builds are
+independent decisions that can differ.
+
+### What this implies for the design
+
+The plan should own "what goes in this room" for the pieces it already decides, and the owners should
+consume it:
+
+- **Persist the tiler's station pieces per room** (`LayoutPlan.Pieces: roomId -> [InteriorPiece]`, like
+  `Lamps`). Free to produce: `Out.Pieces` already exists. It needs a persistence-table row and a codec.
+- **Role owners read their room's pieces where the tiler placed them** instead of re-deriving, or keep their
+  derivation but the plan stores its result. The sleeping-spot count, the bunk count and the title pieces depend
+  on live colony facts (colonists, titles), so those stay owner-derived and are priced when they are
+  derived. The plan's piece list is the stations; the colony-dependent pieces are an addition on top.
+- **Pricing** sums the room's pieces by `CostListAdjusted` with the stuff the bulk chooser takes, the same
+  catalog route as walls and floors. A piece already standing is subtracted.
+- **Benches**: the ladder keeps deciding when a bench is built (it is demand-driven on purpose), but it
+  should place at the plan's cell for that bench and count the plan's bench as the demand-side estimate.
+  This is the largest behaviour change and should be its own step.
+
+Open: the pieces depend on the door the tiler chose and on `Built`, so a held or re-sited room must carry
+or re-derive its list; a replan re-tiles unbuilt rooms, so their lists are replaced with them.
+
+### Contents changes as costed proposals (overlay)
+
+A change to a room's contents is a **proposal**: `{ RoomId, Slot, Def, Cell, Rot, Cost, Benefit }`, an overlay on
+the room's stored station pieces, never an edit of them. Proposals come from the owners that know why
+(more sleepers, a quality gap, a title, a better bench becoming available) and are derived each review, so
+they need no storage and cannot go stale.
+
+Each proposal carries a cost (catalog pricing, the same route as walls and floors) and a benefit in the
+terms the ranker already weighs (`PlanSupply`: value per labor and distance, scaled by `Priority`). The
+colony then spends its budget on the best of all of them: a bench, a bed, a dresser, a wall.
+
+Today this is the opposite. `NextRoomUpgrade` (`RoomQualityUpgrade.cs`) takes the first room by id, in a fixed
+slot order (end table, dresser, lamp), only below the room's target, one piece at a time, with no cost or benefit
+in sight. That is a hard-coded build order. The proposal form replaces it: the weakest-stat reasoning (space
+weakest means a suite, not a table) becomes the benefit estimate, not a filter.
+
+Open: how a proposal's benefit is judged. No common unit: the forecast (`ColonyForecast` Baseline against Proposed) judges outcomes, and mood and infrastructure effects are still unsupported domains there. Slot
+identity stable across a re-tile (the overlay is keyed by room id and slot).
 
 ## Proposal
 

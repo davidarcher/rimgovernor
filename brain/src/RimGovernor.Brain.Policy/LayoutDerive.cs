@@ -184,6 +184,8 @@ public static partial class PolicyFunctions
             before[r.Id] = r;
         }
         var rooms = new List<PlannedRoom>(next.Rooms);
+        var lamps = next.Lamps.ToDictionary(e => e.Key, e => e.Value);
+        var pieces = next.Pieces.ToDictionary(e => e.Key, e => e.Value);
         for (var i = 0; i < rooms.Count; i++)
         {
             var r = rooms[i];
@@ -196,11 +198,24 @@ public static partial class PolicyFunctions
         {
             if (held.Contains(r.Id) && !have.Contains(r.Id) && !r.Attached())
             {
-                rooms.Add(r);
-                rooms.AddRange(prev.ChildrenOf(r.Id));
+                var kept = new List<PlannedRoom> { r };
+                kept.AddRange(prev.ChildrenOf(r.Id));
+                rooms.AddRange(kept);
+                // What the plan expects in a room travels with it: the lamps and stations the colony is building to.
+                foreach (var k in kept)
+                {
+                    if (prev.Lamps.TryGetValue(k.Id, out var l))
+                    {
+                        lamps[k.Id] = l;
+                    }
+                    if (prev.Pieces.TryGetValue(k.Id, out var p))
+                    {
+                        pieces[k.Id] = p;
+                    }
+                }
             }
         }
-        return next with { Rooms = rooms };
+        return next with { Rooms = rooms, Lamps = lamps, Pieces = pieces };
     }
 
     /// <summary>

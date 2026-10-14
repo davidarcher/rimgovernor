@@ -63,8 +63,8 @@ one row per world (colony, map) and tick, and `LayoutPlan` reads the newest row 
 the tick. A row that does not decode or is not `Valid()` reads as none (the record comes back
 `Invalid`), so the review derives a fresh plan (`DeriveLayoutPlan`) rather than adopting it. The
 stored JSON is the `LayoutPlan` fields (Rooms, Links, Entrances, Owed, Trips, OutsideTrips, Zones,
-Reservations, Sites, RetiredGround, Roofed, Lamps, Conduits, Cold, Hot, NextRoomID) and decoding
-rejects an unknown field, so a plan written with a field since removed reads as none. In
+Reservations, Sites, RetiredGround, Roofed, Lamps, Pieces, Conduits, Cold, Hot, NextRoomID) and decoding
+rejects an unknown field (Pieces is optional on read, so a plan saved before it still decodes and gains it at the next replan), so a plan written with a field since removed reads as none. In
 the save it is the blob `family/layout_plan` (`GovernorState.cs`,
 `GovernorLayoutPlanKey`), which follows the save's timeline. The runtime records a plan only
 when it derives one or a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`); a failed

@@ -1121,6 +1121,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
             RetiredGround = e.Get<IReadOnlyList<Region>>("RetiredGround", o),
             Roofed = e.Get<Region>("Roofed", o),
             Lamps = e.Get<IReadOnlyDictionary<int, IReadOnlyList<PlannedLamp>>>("Lamps", o),
+            Pieces = e.GetOr<IReadOnlyDictionary<int, IReadOnlyList<InteriorPiece>>>("Pieces", new Dictionary<int, IReadOnlyList<InteriorPiece>>(), o),
             Cold = e.Bool("Cold"),
             Hot = e.Bool("Hot"),
             NextRoomId = e.I32("NextRoomId"),
@@ -1141,6 +1142,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
         w.Put("RetiredGround", v.RetiredGround, o);
         w.Put("Roofed", v.Roofed, o);
         w.Put("Lamps", v.Lamps, o);
+        w.Put("Pieces", v.Pieces, o);
         w.WriteBoolean("Cold", v.Cold);
         w.WriteBoolean("Hot", v.Hot);
         w.WriteNumber("NextRoomId", v.NextRoomId);
@@ -1646,6 +1648,39 @@ internal sealed class PawnTraitConverter : ObjectCodec<PawnTrait>
 }
 
 internal sealed class PhaseConverter() : StringCodec<Phase>(s => new(s), v => v.Value);
+internal sealed class InteriorPieceConverter : ObjectCodec<InteriorPiece>
+{
+    protected override InteriorPiece Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Slot = e.Str("Slot"),
+            Def = e.Str("Def"),
+            Size = e.Get<Cell>("Size", o),
+            Rot = e.Get<Rotation>("Rot", o),
+            Rect = e.Get<Rectangle>("Rect", o),
+            InteractionOffset = e.GetOr<Cell?>("InteractionOffset", null, o),
+            Row = e.Str("Row"),
+            Beside = e.Str("Beside"),
+            Clear = e.I32("Clear"),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, InteriorPiece v, Codecs o)
+    {
+        w.WriteString("Slot", v.Slot);
+        w.WriteString("Def", v.Def);
+        w.Put("Size", v.Size, o);
+        w.Put("Rot", v.Rot, o);
+        w.Put("Rect", v.Rect, o);
+        if (v.InteractionOffset is { } offset)
+        {
+            w.Put("InteractionOffset", offset, o);
+        }
+        w.WriteString("Row", v.Row);
+        w.WriteString("Beside", v.Beside);
+        w.WriteNumber("Clear", v.Clear);
+    }
+}
+
 internal sealed class PlannedLampConverter : ObjectCodec<PlannedLamp>
 {
     protected override PlannedLamp Read(JsonElement e, Codecs o) =>

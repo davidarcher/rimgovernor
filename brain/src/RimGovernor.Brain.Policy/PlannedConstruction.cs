@@ -106,4 +106,37 @@ public static partial class PolicyFunctions
         }
         return result;
     }
+
+    /// <summary>
+    /// The material the whole plan still owes the stations its tiler placed (LayoutPlan.Pieces), per resource: each
+    /// piece with no building of its def standing on its anchor, priced by price (null where the def is
+    /// unavailable). The colony-driven additions to a room (more sleepers, an upgrade) are not here: they are
+    /// proposals the owners derive each review.
+    /// </summary>
+    public static Dictionary<Resource, long> PlannedPieceDemand(LayoutPlan plan, IReadOnlySet<(string Def, Cell Cell)> standing, Func<string, IReadOnlyList<Amount>?> price)
+    {
+        var result = new Dictionary<Resource, long>();
+        foreach (var room in plan.Rooms)
+        {
+            if (!plan.Pieces.TryGetValue(room.Id, out var pieces))
+            {
+                continue;
+            }
+            foreach (var piece in pieces)
+            {
+                if (standing.Contains((piece.Def, piece.Anchor())) || price(piece.Def) is not { } costs)
+                {
+                    continue;
+                }
+                foreach (var cost in costs)
+                {
+                    if (cost.Count > 0)
+                    {
+                        result[cost.Resource] = result.GetValueOrDefault(cost.Resource) + cost.Count;
+                    }
+                }
+            }
+        }
+        return result;
+    }
 }

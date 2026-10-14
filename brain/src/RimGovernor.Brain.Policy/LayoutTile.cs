@@ -431,7 +431,11 @@ internal sealed partial class Tiler(TileInput input)
             Out.RoofDecisions = roof.Decisions;
         }
         this.PlaceLamps();
-        Out.Plan = Out.Plan with { Lamps = Out.Lamps.ToDictionary(e => e.Key, e => (IReadOnlyList<PlannedLamp>)e.Value) };
+        Out.Plan = Out.Plan with
+        {
+            Lamps = Out.Lamps.ToDictionary(e => e.Key, e => (IReadOnlyList<PlannedLamp>)e.Value),
+            Pieces = Out.Pieces.ToDictionary(e => e.Key, e => e.Value),
+        };
         this.RouteTileConduits();
         if (!Out.Plan.Valid())
         {
