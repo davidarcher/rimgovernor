@@ -406,6 +406,23 @@ public static partial class ObservationPackage
         return (construction, deficit);
     }
 
+    /// <summary>Bill lifecycle from the same census as ingredient reservations.</summary>
+    public static Fact<EquatableArray<ProductionBatchState>> ProductionBatchStates(O.BillsSnapshot? snapshot)
+    {
+        if (snapshot is null) return default;
+        var rows = new List<ProductionBatchState>();
+        foreach (var bill in snapshot.Benches.SelectMany(b => b.Bills))
+        {
+            if (string.IsNullOrWhiteSpace(bill.Id)) return default;
+            rows.Add(new(bill.Id, bill.ManagedUnchanged is { } unchanged ? Known(unchanged) : default,
+                bill.RepeatMode == RimGovernor.Contracts.Wire.Operations.RepeatMode.Count && bill.RepeatCount is >= 0
+                    ? Known(bill.RepeatCount.Value) : default,
+                bill.Suspended is { } suspended ? Known(suspended) : default,
+                bill.Finished is { } finished ? Known(finished) : default));
+        }
+        return Known(EquatableArray.From(rows));
+    }
+
     /// <summary>Reads every bill row's live bill-job reservations. Unknown without the bill census or when any row is malformed.</summary>
     public static Fact<EquatableArray<IngredientReservation>> BillReservations(O.BillsSnapshot? v)
     {

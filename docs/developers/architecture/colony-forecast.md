@@ -339,11 +339,11 @@ historical full bill quantity or a demand target.
 
 Baseline and delta rebuild independently. Removing a promise releases its forecast
 claim, but an observed native hold remains until a fresh read shows it released.
-This resolves double accounting at this declared forecast boundary. Production
-planners do not yet publish all selected ingredients into these commitments, and
-trade/acquisition still have the planner-local ingredient exception in architecture
-rule 8. These derived claims do not change #2742's Method admission locks, acquire
-native reservations, or introduce another demand store.
+This resolves double accounting at this declared forecast boundary. Committed
+fixed batches also enter the live review as described below. Other production
+still has the planner-local ingredient exception in architecture rule 8. These
+derived claims do not change #2742's Method admission locks, acquire native
+reservations, or introduce another demand store.
 
 `ForecastActivityOption.Equipment` names exclusive equipment required throughout
 service, with one `ForecastEquipmentCapacity` per physical identity. Its known
@@ -373,5 +373,53 @@ cancellation with native holds still active, scarce material, resource-local
 unknowns, one tool versus two, waiting and release candidates, deterministic
 truncation, location refusal, overlapping equipment obligations and native bill-ID
 projection. This proves conditional accounting and combination generation. Live
-claim generation, native equipment reservation/dispatch and full production
+claim generation beyond fixed batches, native equipment reservation/dispatch and full production
 coordination remain unfinished; no gameplay improvement is established here.
+
+### Live fixed-batch material promises
+
+Each Round projects committed `GearBatch` actions from the existing Method journal
+into `ProductionBatch` inputs. This mode means a fixed number of recipe iterations;
+it is not restricted to a recipe name. The bounded read covers at most 256 matching
+plans and 256 batch actions in the current colony/load/map. Overflow is unknown,
+not a truncated inventory reported as complete. Historical actions count toward
+that bound; this is a small session-scoped integration, not an unbounded history scan.
+
+Before dispatch, the action's count and ingredient filter constrain catalog recipe
+slots. After placement, the receipt's exact native bill ID joins the current bill
+census. Its remaining repeat count replaces the original count. Only a slot with
+one allowed resource has an exact quantity; alternative resources stay individually
+unknown. Missing slots, an unread owner census, or an edited bill whose filter may
+have changed make the promise set unknown. No cheapest-ingredient demand estimate
+is promoted to a reservation. Recipes that can reuse unfinished items also keep
+their quantities unknown: the current census does not say which ingredients are
+already embedded. Other quantities use the catalog's per-iteration counts;
+no future production output is credited.
+
+Pending cancellation releases the promise. An applied bill remains a promise even
+if its journal action is cancelled: native completion, suspension or disappearance
+must release it. An unread native census cannot prove disappearance. Native job
+holds remain independently protected, including after a future promise is released;
+the exact bill/resource link reconciles their overlap once.
+
+`ResourceDemandOf` owns the result. Acquisition targets add known production holds
+to construction obligations, even when each obligation separately fits current
+stock. Existing alternative-ingredient demand floors still merge by maximum.
+Unknown quantities are not invented as acquisition targets. Trade's shared retained
+stock becomes unknown when any production hold is unknown, preventing the
+wealth-surplus path from treating it as saleable. This does not change every other
+trade/export policy. `DerivedDemand.MaterialAvailability` subtracts construction
+and the same reconciled holds; stone-wall upgrade proposals consume this budget
+and refuse required unknown materials. Other construction planners are not cut over.
+The construction forecast request includes these same production commitments from
+`DerivedDemand.Work`, rather than asking callers to recreate them.
+
+Publication occurs on the next review after commit, not atomically at admission.
+Pending proposals before commit, indefinite stock-target/forever bills, production
+surviving a new launch, unfinished-item ingredient accounting, portable equipment,
+and full timed selection/dispatch remain outside this slice. The ordinary cooking
+declarer emits stock-target bills, so a synthetic fixed cooking batch proves generic
+material arithmetic, not a live cooking cutover. `ProductionPromisesTests` covers
+the actual journal projection, shared construction/acquisition/trade values, partial
+native handoff, remaining-count reduction, cancellation, suspension, disappearance,
+unread facts, and alternative ingredients. No native gameplay result is established.

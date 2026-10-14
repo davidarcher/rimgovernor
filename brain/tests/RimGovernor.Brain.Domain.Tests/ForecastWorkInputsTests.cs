@@ -134,6 +134,7 @@ public sealed class ForecastWorkInputsTests
             ConstructionClaims = Known(EquatableArray.From(new[] { claim, claim })),
             ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(new[] { Pawn() })) },
             BillReservations = Known(default(EquatableArray<IngredientReservation>)),
+            ProductionPromises = Known(default(EquatableArray<ForecastCommitment>)),
             Resources = Known(default(EquatableArray<Amount>)),
         };
     }
@@ -165,5 +166,21 @@ public sealed class ForecastWorkInputsTests
         Assert.Empty(ForecastWorkInputsOf(gone).ConstructionCommitments.Value);
         var unknown = facts with { ConstructionClaims = default };
         Assert.False(ConstructionForecastRequestOf(new("world/load", 100), 1, unknown, policy, ResourceDemandOf(unknown, policy, new()), new()).IsKnown);
+    }
+
+    [Fact]
+    public void ConstructionRequestIncludesTheSharedProductionPromisesAndRefusesUnreadOnes()
+    {
+        var resource = new Resource("TestMaterial");
+        var promise = new ForecastCommitment("production/batch", default)
+        { MaterialClaims = [new(resource, Known(10.0), Known(""))] };
+        var facts = Facts() with { ProductionPromises = Known<EquatableArray<ForecastCommitment>>([promise]) };
+        var policy = DefaultRoundsPolicy();
+        var demand = ResourceDemandOf(facts, policy, new());
+        var request = ConstructionForecastRequestOf(new("world", 100), 1, facts, policy, demand, new()).Value;
+        Assert.Contains(promise, request.Commitments);
+        Assert.Equal(-10, ForecastColony(request).Baseline.MaterialAvailability.Value[resource].Value);
+        facts = facts with { ProductionPromises = default };
+        Assert.False(ConstructionForecastRequestOf(new("world", 100), 1, facts, policy, ResourceDemandOf(facts, policy, new()), new()).IsKnown);
     }
 }

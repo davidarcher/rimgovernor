@@ -8,6 +8,9 @@ public sealed record DerivedDemand
 {
     /// <summary>Activity inputs from the same review, consumed alongside these resource targets.</summary>
     public ForecastWorkInputs Work { get; init; } = new();
+
+    /// <summary>Free material after construction and reconciled production/native promises; absent keys mean zero.</summary>
+    public Fact<IReadOnlyDictionary<Resource, Fact<double>>> MaterialAvailability { get; init; }
     /// <summary>Every stock level some source asks for, per resource: the targets MaintainResource and the trade stock against.</summary>
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
 
@@ -39,6 +42,21 @@ public static partial class PolicyFunctions
     {
         var clothing = f.ClothingRunway();
         var works = ConstructionDemandOf(f, p, l);
+        var holds = ProductionMaterialHoldsOf(f.ProductionPromises, f.BillReservations);
+        var material = SharedMaterialBudgetOf(f.Resources, f.ConstructionDeficit, holds);
+        if (holds.TryGetValue(out var held))
+        {
+            works = new Dictionary<Resource, long>(works);
+            var admitted = AdmittedNeeds(f.Admitted);
+            foreach (var (resource, amount) in held)
+                if (amount.TryGetValue(out var units))
+                {
+                    // ConstructionDemand drops already funded lines; two individually funded promises can still compete.
+                    var construction = f.ConstructionDeficit.TryGetValue(out var owed) ? owed.GetValueOrDefault(resource) : 0;
+                    var floor = Math.Max(works.GetValueOrDefault(resource), Math.Max(construction, admitted.GetValueOrDefault(resource)));
+                    works[resource] = checked(floor + (long)Math.Ceiling(units));
+                }
+        }
         IReadOnlyDictionary<Resource, long>[] sources =
         [
             OpenBillDemand(f.OpenBills, new StockReader { Resources = f.Resources, Wood = f.Wood }),
@@ -54,10 +72,12 @@ public static partial class PolicyFunctions
         return new DerivedDemand
         {
             Work = ForecastWorkInputsOf(f),
+            MaterialAvailability = material,
             Needs = needs,
             Works = works,
             Serves = clothing.Serves,
-            Retained = TradeRetained(f.ResourceConsumption, f.ResourceRunways, works),
+            Retained = holds.TryGetValue(out var knownHolds) && knownHolds.Values.All(a => a.IsKnown)
+                ? TradeRetained(f.ResourceConsumption, f.ResourceRunways, works) : default,
         };
     }
 

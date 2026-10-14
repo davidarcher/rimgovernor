@@ -140,19 +140,6 @@ public sealed class RoundsStoneShellPlanner
         return new RoundsStoneShellResult { Verdict = NoSpace("stone_wall_upgrade_site") };
     }
 
-    /// <summary>Whether budget covers walls walls of material.</summary>
-    internal static bool StoneShellFunded(IReadOnlyDictionary<Pol.Resource, long> budget, Bridge.WallMaterial material, long walls)
-    {
-        foreach (var c in material.Costs)
-        {
-            if (budget.GetValueOrDefault(new Pol.Resource(c.Resource)) < c.Units * walls)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
     /// <summary>
     /// Builds and admits one candidate wall's bundle. ok is false only for a structural reason to move on to
     /// the next candidate (no site, no material, unsupported backup geometry); any other outcome, admitted or
@@ -202,16 +189,14 @@ public sealed class RoundsStoneShellPlanner
         {
             return none;
         }
-        // The backups and the permanent wall are funded from free stock, after construction and live bill jobs:
-        // the first stone the budget covers. Without a stock census the first stone is proposed.
+        // Use the review's shared budget, including committed production before a pawn reserves its ingredients.
         var material = materials[0];
-        var funded = true;
-        if (MaterialBudget(projection.Facts.Resources, projection.Facts.ConstructionDeficit, projection.Facts.BillReservations, default(PawnId)).TryGetValue(out var budget))
+        var funded = false;
+        if (_reviewer.Demand.Get(state.Snapshot).MaterialAvailability.TryGetValue(out var available))
         {
-            funded = false;
             foreach (var option in materials)
             {
-                if (StoneShellFunded(budget, option, backupCount + 1))
+                if (MaterialBudgetCovers(available, option.Costs.Select(c => new Pol.Amount(new Pol.Resource(c.Resource), c.Units)), backupCount + 1))
                 {
                     material = option;
                     funded = true;

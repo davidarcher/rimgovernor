@@ -8,6 +8,7 @@ public sealed record ForecastWorkInputs
     public Fact<CurrentConstruction> Construction { get; init; }
     public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
     public Fact<EquatableArray<IngredientReservation>> IngredientReservations { get; init; }
+    public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -19,6 +20,7 @@ public static partial class PolicyFunctions
         {
             Tick = facts.Tick, Construction = facts.CurrentConstruction, Pawns = facts.ForecastObserved.WorkPawns,
             IngredientReservations = facts.BillReservations,
+            ProductionPromises = facts.ProductionPromises,
         };
         if (!facts.ConstructionClaims.TryGetValue(out var claims) || !facts.CurrentConstruction.TryGetValue(out var census) || !census.Colony)
             return input;
@@ -42,14 +44,15 @@ public static partial class PolicyFunctions
         var work = demand.Work;
         if (work.Tick != facts.Tick || origin.ObservedTick != facts.Tick.Value)
             throw new DomainException("forecast demand and facts must come from the same tick");
-        if (!work.ConstructionCommitments.TryGetValue(out var commitments) || !work.Pawns.TryGetValue(out var pawns)) return default;
+        if (!work.ConstructionCommitments.TryGetValue(out var commitments) || !work.Pawns.TryGetValue(out var pawns)
+            || !work.ProductionPromises.TryGetValue(out var production)) return default;
         var observed = pawns.ToDictionary(p => p.Id.Value, StringComparer.Ordinal);
         if (estimates.Workers.Any(w => !observed.ContainsKey(w.Capacity.Pawn)))
             throw new DomainException("forecast estimate names an unobserved pawn");
         return Known(new ColonyForecastRequest
         {
             Origin = origin, HorizonDays = horizonDays, Facts = ColonyForecastFactsOf(facts, policy), Demand = demand,
-            Commitments = commitments,
+            Commitments = EquatableArray.From(commitments.Concat(production)),
             Construction = estimates with
             {
                 Census = work.Construction, IngredientReservations = work.IngredientReservations,

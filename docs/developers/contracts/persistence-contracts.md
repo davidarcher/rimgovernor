@@ -34,6 +34,14 @@ copy of a fact is a bug, not a cache.
 | Native memory, pawn activity execution | Exact authorized assignment/revision, current step, native job ownership and dependency references. Hands journals installation; typed pawn readback exposes execution. No second saved plan. | Invalidated on authority/world change, despawn or explicit release; regenerated from Method intent |
 | Native memory, pawn activity open intervals | At most 512 open colonist intervals; no completed history or second save. Completed intervals enter the existing OTLP ring; reports are derived from retained rows | Reset on game/load change or tick rewind; unobserved time stays unknown |
 
+Fixed production batch promises add no store: each review projects existing
+session-journal Method actions, receipt bill IDs and current native remaining
+counts into `DerivedDemand.Work`. Reconciled material holds and free stock are
+derived by `ResourceDemandOf` for the shared acquisition, trade-retention and
+stone-wall funding slice ([scope and unknowns](../architecture/colony-forecast.md#live-fixed-batch-material-promises)).
+These promises are rebuilt each review and do not survive a fresh journal as
+independent reservations.
+
 ### Layout plan record
 
 The layout plan (`policy.LayoutPlan`, see [spatial contracts](spatial-contracts.md#layout-planner))

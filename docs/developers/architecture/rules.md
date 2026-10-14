@@ -127,9 +127,11 @@ The landing report answers each in a line.
 7. **Orchestrators sequence, they do not compute.** Math on domain quantities
    is a policy function tested without a runtime.
 8. **Resource demand is one pipeline.** Detectors and planners read the same
-   value from the shared demand calculation. Produce-bill ingredients remain
-   planner-local between decision and placement; trade, workshop and acquisition
-   can therefore sell or consume them in that interval. This remains an explicit
-   exception; per-target construction finishing settings do not reserve ingredients.
+   value from the shared demand calculation. Committed fixed production batches
+   publish exact single-choice ingredients on the next review; shared acquisition,
+   trade retention and stone-wall funding consume them ([scope](colony-forecast.md#live-fixed-batch-material-promises)).
+   Ingredients before that review, indefinite production, other construction and
+   trade/export paths retain the planner-local exception. Per-target construction
+   finishing settings do not reserve ingredients.
 9. **Unknown is never a number.** Use `Fact<T>`/unknown, not a sentinel,
    a zero or a clamp.

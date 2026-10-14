@@ -235,6 +235,9 @@ public sealed record RoundsFacts
     /// <summary>Live bill jobs' promised ingredients, per working pawn (MaterialBudget).</summary>
     public Fact<EquatableArray<IngredientReservation>> BillReservations { get; init; }
 
+    /// <summary>Committed fixed batches reconciled with current native remaining counts.</summary>
+    public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
+
     public Fact<SleepingObservation> Sleeping { get; init; }
 
     public Fact<bool> SleepingRecovered { get; init; }

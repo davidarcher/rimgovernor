@@ -15,8 +15,12 @@ or proof of native work completion. The [construction forecast slice](../archite
 [Declared material promises and exclusive equipment](../architecture/colony-forecast.md#material-promises-and-exclusive-equipment)
 share that forecast. Native ingredient observations retain bill IDs for reconciling
 a declared promise with the same bill's hold. Equipment availability remains a
-supplied estimate; forecast claims do not acquire native reservations or resolve
-the production planners' ingredient handoff automatically.
+supplied estimate; forecast claims do not acquire native reservations.
+[Live fixed batches](../architecture/colony-forecast.md#live-fixed-batch-material-promises)
+project committed Method actions and current native remaining counts into the
+shared demand pipeline. Exact single-choice ingredients reconcile with native
+holds by bill ID; alternatives stay unknown. Indefinite production and atomic
+admission-time material reservation remain outside that integration.
 
 | Projection | Observed inputs | Bound |
 | --- | --- | --- |

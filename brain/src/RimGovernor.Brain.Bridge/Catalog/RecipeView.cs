@@ -46,6 +46,9 @@ public sealed partial class DefinitionCatalog
     /// <summary>The distinct defs the recipe makes, in the recipe's order.</summary>
     public IReadOnlyList<P.Resource> RecipeProducts(string name) => RecipeProductDefs(Recipe(name));
 
+    /// <summary>Whether the recipe can reuse ingredients embedded in an unfinished item.</summary>
+    public bool RecipeUsesUnfinishedItem(string name) => Recipe(name).unfinishedThingDef is not null;
+
     private static List<P.Resource> RecipeProductDefs(RecipeDef row)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
