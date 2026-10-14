@@ -22,6 +22,9 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
     /// <summary>The layout the policy holds, or unknown when the planner refused the site.</summary>
     public Fact<CombatLayout> Layout { get; private set; }
 
+    /// <summary>False leaves the planner's spike traps unplaced, so the fight reaches the firing line.</summary>
+    public bool Traps { get; init; } = true;
+
     /// <summary>The planner's refusal, or empty.</summary>
     public string Failure { get; private set; } = "";
 
@@ -111,6 +114,11 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
         {
             foreach (var b in tier.Buildings)
             {
+                if (!Traps && b.Definition == names.Trap)
+                {
+                    continue;
+                }
+
                 Place(map, b);
             }
         }

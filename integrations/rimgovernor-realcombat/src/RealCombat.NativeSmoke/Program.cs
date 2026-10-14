@@ -58,7 +58,7 @@ var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error
 if (policy && !open)
 {
     var range = Verse.DefDatabase<Verse.ThingDef>.GetNamed("Gun_BoltActionRifle").Verbs[0].range;
-    stage = new DefenseStage(RimGovernor.Brain.Domain.Rotation.West, 2, range);
+    stage = new DefenseStage(RimGovernor.Brain.Domain.Rotation.West, 2, range) { Traps = !args.Contains("--no-traps") };
 }
 
 var arena = new Arena(request, stage is null ? null : stage.Raise) { Controller = bare ? null : policy ? live : controller };

@@ -24,7 +24,9 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 ```
 
 `--bare` plays both sides with the built-in retargeting, `--policy` plays the colonists with the live combat policy,
-`--trace` prints each decision and its results, `--open` fights on open ground with no layout.
+`--trace` prints each decision and its results, `--open` fights on open ground with no layout, `--no-traps` leaves the
+planner's spike traps out of the compound so the raider reaches the firing line (otherwise it usually dies to the traps
+first; with them out the colonists fire and win in 1154 ticks).
 
 ## The native seat
 
