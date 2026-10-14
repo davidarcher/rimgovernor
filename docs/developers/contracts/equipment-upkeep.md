@@ -66,7 +66,7 @@ native bill admission refuses a bench nobody works.
 Production needs are the definitions the loadout model wants a bill to supply:
 replacements for damaged apparel, and definition/stuff options that improve an
 observed thermal deficit (`cold`, `heat`). A core body-part group (Torso, Legs)
-the pawn wears nothing over is a deficit in any weather, found by Go from the
+the pawn wears nothing over is a deficit in any weather, found by the brain from the
 worn garments' groups. The native producer sends no deficit flag and no
 replacement list (`GearLoadout.deficit` and `replacement_needs` are reserved);
 every gap is the model's. A definition-level
@@ -115,18 +115,18 @@ worn garment, the eligible loose or stored candidates and the producible
 definitions whose recipe research is finished (one stuff each, the most
 stocked), every unworn option uncapped, each an id, def, stuff, quality,
 condition and flags (tainted, locked, smoke-pop). Everything def-static is
-the catalog's: Go takes each option's layers and body-part groups,
+the catalog's: The brain takes each option's layers and body-part groups,
 shield, psychic and move-speed offsets from the ThingDef row, and armor,
 insulation and market value from the stat table for its def and stuff (a
 stat the game does not show for the def is a stat the garment lacks); the
 frame's finished research (`ResearchSnapshot.finished`) gates the bill
 options. The pawn row carries the wear inputs the rows cannot say: gender,
 developmental stage and the body-part groups the pawn still has a part in.
-Go applies the wear filter (gender, stage, a present part in one of the
+The brain applies the wear filter (gender, stage, a present part in one of the
 garment's groups) to the apparel rows to list the definitions the pawn can
 wear; armor is the Soldier outfit
 tag without Worker, and a def covers the body with a Torso or Legs group.
-Go derives each option's slot from its layers and groups,
+The brain derives each option's slot from its layers and groups,
 takes the role from the apparel-policy read and narrows unworn options to
 the definitions that role's apparel policy permits. A census row the
 model cannot be built for (no model, comfortable temperatures, gender or outdoor
@@ -136,7 +136,7 @@ example two worn garments on one slot) is not judged by a weaker rule: the pawn'
 planning the colony fails with an error naming the pawn and the cause. A pawn with no
 apparel policy (it cannot wear apparel) is unknown with no cause and is skipped when
 blocked, an error otherwise. A frame without the definition catalog, finished research
-or outdoor temperature leaves the whole census unknown. This pure Go model neither discovers
+or outdoor temperature leaves the whole census unknown. This pure the brain model neither discovers
 products nor issues orders. Catalog providers resolve native material stats,
 outfit/body/stage eligibility and available production resources before planning.
 Stats are Normal-quality values for the specific material; armor multipliers are
@@ -249,16 +249,14 @@ not trigger unlimited replacement bills under the same loadout prerequisite.
 
 ## Acceptance
 
-The gear planner's decisions replay from recorded colony snapshots in
-`go/internal/policy/gear_snapshot_test.go`: the season lookahead
+The gear planner's decisions replay from recorded colony snapshots: the season lookahead
 asks every colonist for a cloth parka or jacket plus a tuque before the
 first winter twelfth; tainted apparel moves everyone to the worker
 policy and never orders the tainted parka; a stripped twelve-pawn roster
 is dressed from stored spares, each pawn and each item once, with
 no bill while an offer stands. The soldier loadout is covered
 by [weapon planner](weapon-planner.md#acceptance). The single
-shirt-from-leather path is a colony snapshot test
-(`buildingruntime/rounds_ladder_snapshot_test.go`): with no tailoring bench the
+shirt-from-leather path replays from a colony snapshot: with no tailoring bench the
 workshop step builds a HandTailoringBench, and once it stands the gear step
 produces the shirt on it from plain leather.
 

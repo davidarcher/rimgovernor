@@ -1,5 +1,4 @@
 *.sh text eol=lf
 *.rws text eol=lf -diff
 *.jsonl text eol=lf
-contracts/fixtures/** text eol=lf
 *.cmd text eol=crlf

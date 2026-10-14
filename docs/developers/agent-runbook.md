@@ -11,19 +11,17 @@ own worktree, game copy and bridge root.
 Everything a checkout needs is regenerated; nothing lives only on the
 maintainer's machine except unpushed branches and uncommitted worktree edits.
 
-Prerequisites: Go (the version in `go/go.mod`), the .NET SDK, `task` (needed
-for `task build` and `task test`), and Steam with RimWorld 1.7 and the Harmony
-workshop item (2009463077) installed. Without the game, only
-Go checks run ([remote agents](#remote-agents)).
+Prerequisites: the .NET SDK 10, `task` (needed for `task build` and `task test`),
+and Steam with RimWorld 1.7 and the Harmony workshop item (2009463077) installed.
+Without the game, only the game-free checks run ([remote agents](#remote-agents)).
 
 ```powershell
 git clone https://github.com/davidarcher/rimgovernor.git D:\rimgovernor
-cd D:\rimgovernor\go
-go run ./internal/nativeaccept/cmd/acceptance setup
+cd D:\rimgovernor
+.\RimGovernor.cmd acceptance setup
 ```
 
-Setup creates `.rimgovernor/` (game copy, bridge root, staged mod build,
-`bin/acceptance.exe` and `bin/rimgovernor.exe`); see
+Setup creates `.rimgovernor/` (game copy, bridge root and staged mod build); see
 [private to the worktree](#private-to-the-worktree) for the layout and
 overrides. It prints the command for a first case, for example
 `acceptance run smoke/identity`. Then run `RimGovernor.cmd test` as in the
@@ -43,16 +41,16 @@ well under 150 ms. A source change under `tools/rg` or the `brain/` projects it 
 rebuild takes a lock, so parallel invocations wait for one build and never
 share a half-written output. A failed build prints the compiler output and
 leaves the previous version in place. `RimGovernor.cmd -help` lists the
-tools and `RimGovernor.cmd <tool> -help` their flags; flags are Go-style
+tools and `RimGovernor.cmd <tool> -help` their flags; flags are single-dash
 (`-m msg`, `-last 3`, `-flag=value`) and come before positional arguments.
 `cmd.exe` mangles `%` and `^` in arguments: pass such commit messages with
-`land -F file`. `task build` compiles the tool with warnings as errors. The
-Go tools under `go/cmd` still work until #3102. C# projects and probes build on their own: the wire is plain
-records in `brain/src/RimGovernor.Brain.Contracts`, so nothing is generated before a build.
+`land -F file`. `task build` compiles the tool with warnings as errors. C# projects and probes build on
+their own: the wire is plain records in `brain/src/RimGovernor.Brain.Contracts`, so nothing
+is generated before a build.
 
 ### Dev Drive (recommended)
 
-Repositories, worktrees and the Go cache are small-file heavy, which a Windows
+Repositories, worktrees and the cache are small-file heavy, which a Windows
 Dev Drive (ReFS, Defender performance mode) handles faster than NTFS. Windows
 11 23H2 or later is required.
 
@@ -62,11 +60,7 @@ Dev Drive (ReFS, Defender performance mode) handles faster than NTFS. Windows
    `-VhdPath` override the defaults.
 2. Clone to `D:\rimgovernor` as above and keep worktrees on `D:`. Keep the path
    short: setup refuses game-copy paths RimWorld cannot open.
-3. Set the user environment variable `GOCACHE` to `D:\gocache` once. It is the
-   single shared cache every session uses, not a private one, so it does not
-   conflict with the rule below. Sessions started before the change keep the
-   old value; the first build afterward is cold.
-4. Verify with `fsutil devdrv query D:`.
+3. Verify with `fsutil devdrv query D:`.
 
 Moving an existing checkout: clone fresh, then `git remote add old <old path>`
 and fetch only branches that are not ancestors of `main` into `old/*`. Do not
@@ -79,16 +73,15 @@ else references the checkout path; new sessions simply open the new one.
 | --- | --- |
 | Steam installation and shared `.rimgovernor/isolated-rimworld` | Never replace their DLLs. |
 | Running games | Stop only your root's game or a PID verified against your private path. Never kill by image name. |
-| Go build cache | Keep the default `GOCACHE`; never clear it or create a private cache. A missing cached `<hash>-d` file permits retrying the failed build. |
 | Main checkout | Only the landing lane integrates there; the player launcher builds from it. |
 | `.git/rimgovernor-land.lock` | Let the lane wait. Remove a stale lock only after confirming its recorded PID is gone. |
 
 ## Private to the worktree
 
-From `go/`, prepare the private layout:
+From the worktree root, prepare the private layout:
 
 ```powershell
-go run ./internal/nativeaccept/cmd/acceptance setup
+.\RimGovernor.cmd acceptance setup
 ```
 
 Setup discovers Steam and Harmony. Override with `-rimworld`, `-harmony`,
@@ -100,7 +93,6 @@ short: setup refuses game-copy paths RimWorld cannot open.
 | `.rimgovernor/native-rimworld/` | Private copy of the flat 1.7 install (`RimWorld.exe`, Waylith, `Assembly-CSharp.dll`) and the mod; the `Data` tree is a junction to Steam. |
 | `.rimgovernor/bridge/` | Config, endpoint record, private profile and saves; overridden by `-root`. |
 | `.rimgovernor/native-builds/` | Staged native builds. |
-| `.rimgovernor/bin/` | Controller and acceptance executables. |
 
 RimGovernor supports RimWorld 1.7 (Waylith) only. The install is flat:
 `RimWorld.exe`, `Waylith.dll`, `UnityStubs.dll` and `Assembly-CSharp.dll` sit in
@@ -114,7 +106,7 @@ the mod's startup and patches share); `-batchmode` and `-nographics` do nothing.
 A graphics case omits `-Headless` and opens a window. 1.7 ignores `-logFile` and
 writes one `Player.log` at a fixed `LocalLow` path shared by every instance, so
 acceptance launches pass `-NoFileLog` and `-DisableLogStackTraces`. Each
-instance's log is the stdout the gamehost captures to
+instance's log is the stdout the harness captures to
 `<config>/<game>/game.log`; message and error lines stay, stack traces do not (a
 headless run of a minute or two writes about 5 KB, against about 15 MB a minute with stacks).
 
@@ -130,27 +122,27 @@ private copy: it stops that copy's game, rebuilds and records the repair under
 
 ## Running a case
 
-Use absolute paths for `-root`, `-output` and `-rimgovernor`.
+Use absolute paths for `-root` and `-output`.
 
 ```text
-acceptance doctor -root <root> -rimgovernor <exe>
+acceptance doctor -root <root>
 acceptance run <area>/<case> -root <root> -output <fresh directory>
 acceptance why <output>/<area>/<case>
 acceptance stop -root <root>
 ```
 
-`doctor` checks paths, build freshness, expansions, endpoints, binaries and
+`doctor` checks paths, build freshness, expansions, endpoints and
 orphaned processes. `run` and `suite` include preflight automatically.
 Before removing a worktree, stop its root to avoid orphaning its game.
 
-For long runs, build the acceptance executable and launch it with
+For long runs, launch `RimGovernor.cmd acceptance ...` with
 `Start-Process -WindowStyle Hidden -PassThru`, redirecting stdout/stderr under
 `.rimgovernor/`. Retain the PID and wait through the execution tool's completion
 mechanism; do not use sleep/poll shell loops. Large suites must run detached.
 
 Read `diagnosis.txt` or `result.json` first. `acceptance why` summarizes failed
 stages, native refusals, Concern blockers and authority changes, with artifact
-and row references. Controller stderr is only startup/fatal output.
+and row references. The brain's log is the OTLP ring under the run's `otlp/` directory.
 
 The runner keeps its game by default. Stop it before changing expansions or
 using a fixture-less production build. `acceptance warm -root <root>` boots
@@ -164,10 +156,10 @@ Resume, staging, breakpoints and fixture iteration are in the
 
 ## Remote agents
 
-A Linux checkout without licensed game files runs Go checks but no acceptance.
+A Linux checkout without licensed game files runs no build or acceptance (below).
 Record `Unverified: no acceptance run (remote agent)` in the commit body.
 
-Cloud sessions no longer compile C#: the native mod, host and probes build
+Cloud sessions do not compile C#: the native mod, brain and probes build
 only against a RimWorld 1.7 install (Windows).
 
 Use GitHub MCP for GitHub operations in cloud sessions where `gh` and GraphQL

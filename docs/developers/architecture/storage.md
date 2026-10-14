@@ -44,7 +44,7 @@ separate rectangle drags and excluded from growth.
 | Store | Role | Where | Priority | Holds |
 | --- | --- | --- | --- | --- |
 | Warehouse | `general` | One zone over the whole interior of each planned storage room (15x7): from plan time on open ground, once the interior is open for a dug or partly rocky room | Low | The `indoor_only` preset plus Buildings, less the burnable special |
-| Materials yard | `yard` | One zone over the whole interior of each planned yard, an Outdoor room (13x9 interior, unfenced: no ring, gate or floor) beside the core inside its ring (`ReserveYard`, planned from the start) | Low | The `outdoor_safe` preset: items that neither spoil nor deteriorate outdoors, derived from the native item catalog, never a list in Go |
+| Materials yard | `yard` | One zone over the whole interior of each planned yard, an Outdoor room (13x9 interior, unfenced: no ring, gate or floor) beside the core inside its ring (`ReserveYard`, planned from the start) | Low | The `outdoor_safe` preset: items that neither spoil nor deteriorate outdoors, derived from the native item catalog, never a list in the brain |
 | Workstation stockpiles | `ingredients:*` | A free roofed 2x2 patch in the bench's room nearest the bench, one per bench with an active bill (the kitchen and butcher excepted) | Important | That bench's recipe ingredients (`policy.DeriveBenchInputs`); a stonecutter's is its stone chunks |
 | Meal store | `meals:*` | The planned meal closet whole, a 2x2 in the freezer at its dining door, or one cell beside the dining table off the chairs (the one store sited from a built fact, the table); each from plan time | Critical | Prepared meals |
 | Freezer shelves | `rawmeat:*`, `rawveg:*`, `corpses:*`, `perishables:*` | Three 2x2 shelves in the planned freezer (raw meat and raw vegetables nearest the kitchen door, carcasses by the butchery door) and the perishables cover over the rest, all declared by the Food department from plan time on open ground (a rock or unseen interior defers the create; no room census) | Critical, perishables Preferred | Raw meat, raw vegetables, the corpse larder, the perishables catch-all |
@@ -114,7 +114,7 @@ job (a postfix on `HaulAIUtility.HaulToStorageJob`, `StorageRefillHysteresis`)
 until the destination group has room for one stack of the item, summed over its
 good cells. A haul that carries the whole source stack is kept, so a small loose
 pile still goes to storage. No measurement phase. The native reads of
-`StoreUtility.TryFindBestBetterStoreCellFor` are untouched, so Go-side storage
+`StoreUtility.TryFindBestBetterStoreCellFor` are untouched, so brain-side storage
 headroom (`policy.LootItem.StorageHeadroom`) is unchanged. Container hauls,
 opportunistic hauling and bill-product storing are not covered. Case:
 `storage/refill-hysteresis`.

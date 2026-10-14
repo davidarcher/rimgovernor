@@ -13,7 +13,7 @@ dotnet Host/bin/Release/net10.0/BrainReloadSpike.dll
 Exit code 0 when every expectation holds. `BRAINSPIKE_TIMEOUT_MS` (default 1500) is how long the
 harness polls GC before calling an unload blocked.
 
-- `Contracts/` is shared and stays in the default context (interfaces plus protobuf types).
+- `Contracts/` is shared and stays in the default context (interfaces plus Google.Protobuf message types, used only to exercise a type-sharing seam).
 - `Brain/` is the reloadable assembly; one small brain per hazard, `-leak` variants omit cleanup
   on purpose as negative controls.
 - `Host/` is the loader and harness. Add a scenario by adding a case in `Brain/Brain.cs` and a row

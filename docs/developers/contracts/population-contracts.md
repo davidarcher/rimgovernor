@@ -92,7 +92,7 @@ A creepjoiner is accepted, then held back from arms: its downside is hidden at a
 shows the colonist is a risk and holds no weapon. The downside has shown when the tracker's
 `downside_triggered` is true, or the colonist carries a trait or visible hediff that some downside def
 in the definition catalog adds (`policy.CreepJoinerDownsides`, built from the catalog's downside rows;
-no def name is written in Go, and the colonist's own downside def is never read). Unread facts leave
+no def name is written in the brain, and the colonist's own downside def is never read). Unread facts leave
 the answer unknown, and unknown holds the colonist back; a colonist with no Anomaly block is no
 creepjoiner.
 
@@ -111,7 +111,7 @@ creepjoiner.
   (60000 ticks) and a small surgical cut.
   - A creepjoiner whose downside is unrevealed and who has no entry in the colony's record is queued
     the inspection by the same concern through the medical `ProductionBillIntent` (patient, recipe,
-    `part_index`). The recipe is the def mirror's `RecipeDef` whose `workerClass` is
+    `part_index`). The recipe is the catalog's `RecipeDef` whose `workerClass` is
     `Recipe_SurgicalInspection`, on the operation the pawn's native surgery read offers (lowest part
     index), with an eligible doctor and its ingredients on the map. A creepjoiner that cannot be
     ordered one stays unordered and the reason is logged.
@@ -137,7 +137,7 @@ creepjoiner.
   condition, or `forceAlwaysRemovable`; neither def does); `Recipe_InstallArtificialBodyPart` installs
   over it with no violation on a pawn of the doer's faction or of none, and the added part makes the
   part removable; removing it leaves the part missing.
-  - Sites come from the def mirror: the race's melee tools other than the
+  - Sites come from the definition catalog: the race's melee tools other than the
     `ensureLinkedBodyPartsGroupAlwaysUsable` one (the head) each link a body part group, and the site is
     the lowest part holding every part of that group in `BodyDef` pre-order index
     (`bridge.CreepJoinerDisarm`, `policy.CreepJoinerDisarm`).

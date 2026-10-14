@@ -91,7 +91,7 @@ Do not infer a universal atomic reservation of every future construction cost.
 Native grants bounded tick windows under a renewable wall-clock lease.
 A routine window permits up to 60,000 ticks; combat uses a 300-tick backstop.
 Native allowances, hazards and player input may stop either earlier. Lease
-expiry stops control when the controller becomes unresponsive.
+expiry stops control when the brain becomes unresponsive.
 
 Routine reads and orders can run during a window. Only admitting the next window
 requires the stop boundary. A coherent frame binds planner facts to its tick;
@@ -101,7 +101,7 @@ dispatch revalidates current context and the action's native contract.
 sequenceDiagram
     participant N as Native clock
     participant P as Event reader
-    participant S as Go scheduler
+    participant S as Brain scheduler
     participant H as Hands
     N->>P: Announce journal advance
     P->>N: Read after cursor
@@ -115,10 +115,9 @@ sequenceDiagram
 
 ### Event delivery
 
-The native journal is authoritative. Each append announces its cursor on the
-`rimgovernor.clock` GABP channel; Go reads after its own cursor through an
-unheld `clock_read_events`. A bounded poll catches missed announcements.
-Subscription/reconnection triggers a tail read, and page loss remains explicit.
+The native journal is authoritative. Each append announces its cursor to the in-process brain; the brain reads after its own
+cursor through an unheld `clock_read_events`. A bounded poll catches missed announcements.
+A load triggers a tail read, and page loss remains explicit.
 
 Events wake scheduler and worker. Named action outcomes reconcile first.
 A stop may warm admission observations, reusable only when tick, identity,
@@ -140,7 +139,7 @@ tick. Coupled orders wake when their prerequisite outcome arrives.
 `clock_step` records why a step ran and its admitted window.
 `stop_latency_ms` measures native-stop-to-step time, not hazard onset to
 protective effect. Precise clock guards live in the
-[clock contract](../contracts/go-clock-recovery.md) and
+[clock contract](../contracts/clock-recovery.md) and
 [hazard bounds](hazard-detection-bounds.md).
 
 ## Manual control

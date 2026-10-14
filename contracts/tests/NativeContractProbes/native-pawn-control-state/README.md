@@ -27,5 +27,5 @@ snapshot or permission to issue arbitrary orders.
 
 Drafts are plan-owned: native keeps no draft claim or release ticket.
 The draft setter hook (`DraftOwnership`) only advances the per-pawn draft
-revision the snapshot token covers; the controller's undraft sweep undrafts
+revision the snapshot token covers; the brain's undraft sweep undrafts
 pawns no live plan needs.

@@ -101,7 +101,7 @@ Copy-Item -LiteralPath (Join-Path $taskRepo 'THIRD_PARTY.md') -Destination $task
 Copy-Item -LiteralPath (Join-Path $taskSource 'README.md') -Destination $taskCopyNative
 # sourceTree hashes the copied inputs (before the build writes obj/bin into
 # them) so an acceptance harness can tell, without git, whether the installed
-# package matches its worktree (nativeaccept.SourceTreeHash reproduces this
+# package matches its worktree (the acceptance harness's SourceTreeHash reproduces this
 # list from the copy rules above): sorted ordinal by copy-relative path with
 # forward slashes, one "<path>`t<sha256>`n" line each, SHA-256 of the lines.
 $taskSourceLines = [System.Collections.Generic.List[string]]::new()

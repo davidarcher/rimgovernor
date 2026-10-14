@@ -7,7 +7,6 @@ RimGovernor uses the following names across its deployment boundary.
 | Surface | Identifier |
 | --- | --- |
 | Product and launcher | `RimGovernor` |
-| Controller binary and CLI | `rimgovernor` |
 | Default runtime data directory | `.rimgovernor/` |
 | Environment variable prefix | `RIMGOVERNOR_` |
 | Mutating HTTP request header | `X-RimGovernor: 1` |
@@ -15,15 +14,15 @@ RimGovernor uses the following names across its deployment boundary.
 | Colony companion package | `davidarcher.rimgovernor.native` |
 | Companion assemblies | `RimGovernor.Runtime.dll`, `RimGovernor.Bridge.dll` |
 | Private native mod directories | `RimGovernor` |
-| Generated baseline save | `RimGovernor-tribal8-baseline` (`na.BaselineName`) |
+| Generated baseline save | `RimGovernor-tribal8-baseline` |
 
 Deployment names are an exact contract, with no alternate product-name aliases.
-Build the controller binary, launcher, companion DLLs and container images
+Build the brain, launcher, companion DLLs and container images
 from the same checkout. Prepared profiles must enable the matching companion
 package and use the baseline filename above. Keep upstream package IDs and namespaces
 as supplied by their authors.
 
-Save keys, controller checkpoint metadata and browser storage keys also use the
+Save keys, brain checkpoint metadata and browser storage keys also use the
 RimGovernor identity. Profiles and checkpoints created with different product
 identifiers are not directly compatible. Use a fresh prepared profile and runtime
 directory; retain existing saves and checkpoints separately rather than overwriting

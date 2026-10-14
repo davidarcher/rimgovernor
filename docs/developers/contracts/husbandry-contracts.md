@@ -9,7 +9,7 @@ ColonyPlan. It sizes each race itself; there are no operator flags.
 trainability and trainables, wildness, body size, combat power, market value,
 minimum handling skill, life expectancy, the manhunter chances and products
 with item and interval) are derived from the definition catalog's race rows
-(`DefinitionCatalog.AnimalRaces`, built once per load token and held in Go
+(`DefinitionCatalog.AnimalRaces`, built once per load token and held in the brain
 memory as `policy.AnimalRaceCatalog`); there is no separate native read. It
 covers every animal race the game knows, wild or tame, and an unread fact is
 unknown, never zero. It is derived state: no save, journal or per-animal copy
@@ -17,9 +17,9 @@ unknown, never zero. It is derived state: no save, journal or per-animal copy
 fails the reading loudly like any other required native read.
 
 The race flags (animal, mechanoid, insect), trainables, meat def and amount,
-and the adult and first reproductive, milkable and shearable stage ages are Go's,
+and the adult and first reproductive, milkable and shearable stage ages are the brain's,
 derived from the RaceProperties, FleshTypeDef, LifeStageDef and TrainableDef
-rows and the stat table (`bridge/race_rules.go`); a race is a Pawn-category
+rows and the stat table (`RaceRules.cs`); a race is a Pawn-category
 ThingDef (a corpse def shares its pawn's properties). The race row also carries
 the game-computed husbandry facts of #2238 that no row states (`RaceFacts`): the
 edible foods, the tameness decay flag and period, the wildness tame-chance
@@ -52,7 +52,7 @@ before. Raw facts only; policy decides.
   unread headroom plans no new war animal; kept ones stay and the budget
   ceiling cuts their race. Taming follows the target's floor; training and
   masters follow the war job, and the animals fight through the existing
-  animal combat orders (`combat_animals.go`).
+  animal combat orders (`CombatAnimals.cs`).
 - **Floor.** The target race's floor is its head count: the larger of a
   breeding pair, the capacity the other holders give today (adult yield, or
   trained carrying capacity or combat power) and the food plan's
@@ -125,7 +125,7 @@ before. Raw facts only; policy decides.
   `UpkeepAnimal.SafeToSlaughter` allows it (policy over native's raw `AnimalState` flags `downed`,
   `in_mental_state`, `pregnant`, `colonist_bonded`, `slaughter_designatable`, plus `master_id` and the
   release designation: not bonded, no master, not pregnant, not downed, not designated) and the player ideoligion's precepts do not bar it; otherwise by `release` when `UpkeepAnimal.ReleaseAllowed`
-  allows it (the same exclusions, applied in Go over native's raw flags; native's `safe_to_release` is only
+  allows it (the same exclusions, applied in the brain over native's raw flags; native's `safe_to_release` is only
   `Designator_ReleaseAnimalToWild`'s own acceptance). The bar is `policy.ActionStance` ([ideology contracts](ideology-contracts.md#precept-rule))
   applied once per frame (`ApplyHerdPrecepts`) to the history events slaughter raises:
   `SlaughteredAnimal`, plus `SlaughteredVeneratedAnimal` for a race `AnimalState.venerated` names.
@@ -269,7 +269,7 @@ earlier restriction.
 Selection order each cycle is the herd-removal reconcile, then train, then tame, then
 surplus removal, then master assignment, then sterilize; one write
 per cycle. The recovery planner also produces `allowed_area` changes from fresh
-Auto safety facts: Go assigns a roofed refuge during roof hazards (native does not veto an unroofed area), otherwise unrestricted
+Auto safety facts: The brain assigns a roofed refuge during roof hazards (native does not veto an unroofed area), otherwise unrestricted
 food/work access. It skips pen-managed animals and unknown area/safety facts.
 Other settings methods remain available through the same husbandry action.
 Pen containment is not a husbandry method: pens are built by
@@ -287,18 +287,18 @@ Surplus and shortfall counts subtract animals already designated for
 slaughter or release and add wild animals already designated for taming, so a
 pending write is never duplicated. Native eligibility is checked again at
 apply: native applies only the game's own designators. Bonded, mastered, pregnant,
-downed and already-designated animals are excluded from removal by Go policy
+downed and already-designated animals are excluded from removal by policy
 (`SafeToSlaughter`, `ReleaseAllowed`) over native's raw flags. The slaughter
 order itself keeps only physical validity (alive, ours, `Designator_Slaughter` acceptance); a tame candidate must pass
 `TameUtility.CanTame` and carry no tame or hunt designation. Masters, allowed
 areas, following, sterilization and breeding separation are ordinary game
-settings: while native authority reads Auto the controller may change any of
+settings: while native authority reads Auto the brain may change any of
 them, including ones the player just set. Masters,
 areas, following and sterilization are written through the methods above.
 
 Births are never counted as pending: a shortfall with no tameable wild animal
 of the race on the map simply reports no candidate until one appears. Renewing
-a target cancels its uncompleted controller steps; cancellation leaves
+a target cancels its uncompleted brain steps; cancellation leaves
 previously issued game orders in place, following the shared concern cancellation
 contract.
 
@@ -336,7 +336,7 @@ containment. Each pen is a barn-attached `PlannedPen` (below), claimed by one `P
 
 **Pens.** A herd unit's roamers (`requires_pen`) are held in a pen beside the unit's barn, not in the defensive wall's yard (the paddock yard, the wall-closed `PenMarker` staging, the `Barn`/`Companion`/`Wild` allowed areas and the exposure and threat shelter writes were deleted with #2883; a barn is the animals' bedroom, nothing moves an animal into it by area). Pen capacity is the native pen food calculation. `policy.PenCells` reimplements that formula for sizing a pen: demand is the herd's `AdultFeedPerDay` summed by `PenDemand`, supply is the per-cell worst-quadrum pasture nutrition of the pen's terrain, read natively as `FoodChannelsFacts.pasture_terrain` (`MapPastureNutritionCalculator.CalculateAverageNutritionPerDay`, the minimum over the four quadrums, for every terrain with fertility above zero; surfaced as `RoundsFacts.Pasture`). The result is clamped to `penCellsFloor`/`penCellsCap`.
 
-`HerdPlan.PenWants` asks one pen per unit holding roamers, sized by `PenCells` over the weakest grazing terrain of the pasture table for the larger of the race's `PopulationMax` and the animals kept; nothing is asked while the animal census or the pasture table is unread. `PlanPenSites` (a replan, with the survey's `GrazingGround`: walkable open soil that grows pasture, no rock, tree, ore, ruin, prop, building or hazard) reserves a `ReservePen` rectangle sharing one wall with the unit's first barn that has room, wholly on grazing ground (`LayoutReservation.Herd` keys it to its unit). A pen already placed never moves or shrinks: a unit that outgrows its pens gets another beside the barn (`PensOwed`, the replan trigger in `colony_plan.go`), and a pen that fits nowhere is left out. A pen is an Outdoor `PlannedPen` room: a `Fence` ring with a `FenceGate`, raised by the same room reconcile as the barn (`NextHerdStep`), and one `PenMarker` on its free interior cell nearest the centre. The pen shares its barn's wall; the cell in the middle of that wall run is the animal flap (`penLink`, `LayoutPlan.FlapCells`) between barn and pen, the catalog's buildable `Building_Door` that roamers can open (`RoomFurniture.AnimalFlap`; a catalog without one is an error), so animals pass between the two while colonists use the barn's `Door`. The pen's ring counts the barn's walls and flap as standing. `policy.PensStand` (every pen enclosed with its marker; at least one pen planned) feeds `SelectAnimalContainmentMethod`: with no standing pen the goal waits `no_standing_pen`, with pens standing it waits for the native handlers to rope the animals in (`marker_placed_awaiting_native_pen`).
+`HerdPlan.PenWants` asks one pen per unit holding roamers, sized by `PenCells` over the weakest grazing terrain of the pasture table for the larger of the race's `PopulationMax` and the animals kept; nothing is asked while the animal census or the pasture table is unread. `PlanPenSites` (a replan, with the survey's `GrazingGround`: walkable open soil that grows pasture, no rock, tree, ore, ruin, prop, building or hazard) reserves a `ReservePen` rectangle sharing one wall with the unit's first barn that has room, wholly on grazing ground (`LayoutReservation.Herd` keys it to its unit). A pen already placed never moves or shrinks: a unit that outgrows its pens gets another beside the barn (`PensOwed`, the replan trigger in `ColonyPlan.cs`), and a pen that fits nowhere is left out. A pen is an Outdoor `PlannedPen` room: a `Fence` ring with a `FenceGate`, raised by the same room reconcile as the barn (`NextHerdStep`), and one `PenMarker` on its free interior cell nearest the centre. The pen shares its barn's wall; the cell in the middle of that wall run is the animal flap (`penLink`, `LayoutPlan.FlapCells`) between barn and pen, the catalog's buildable `Building_Door` that roamers can open (`RoomFurniture.AnimalFlap`; a catalog without one is an error), so animals pass between the two while colonists use the barn's `Door`. The pen's ring counts the barn's walls and flap as standing. `policy.PensStand` (every pen enclosed with its marker; at least one pen planned) feeds `SelectAnimalContainmentMethod`: with no standing pen the goal waits `no_standing_pen`, with pens standing it waits for the native handlers to rope the animals in (`marker_placed_awaiting_native_pen`).
 
 **Herd units.** Barns are sited as units. The misc unit (the first barn) holds every animal that is no herd's, sized from the ceilings of the other races. A race is a herd at a fertile breeding pair or `herdMinAnimals` (5) animals, provided it has a policy ceiling (a founder or companion has none and stays misc); it gets a unit of its own, sized from that ceiling and not its headcount, near the misc unit when a site fits. Units are matched to herds by key: every reservation of a herd's unit, a top-up included, carries the herd's race in `LayoutReservation.Herd` (saved with the layout plan); the misc unit's carry none. A plan saved before the key is matched once by order (misc first, then races by name) and keyed on its next top-up (deletion candidate: that fallback). Reservations never move or shrink: an outgrown unit gets another barn beside its existing ones, so a repeat top-up is a no-op and a new herd never takes it. There is no vet room: the barn is the animal bedroom for every animal, and a sick or to-be-sterilized animal is treated in the hospital, which holds `AnimalBed` stations (`policy.WardBeds` sizes them from the animals needing tending, at least one while a sterilize is wanted; `policy.WardSlots` places them on the free floor outside the hospital's human template). A barn with a pen carries the animal flap in its wall shared with the pen (see Pens), besides its regular `Door` for colonists. Assigning animals to units is not planned here.
 
@@ -356,10 +356,10 @@ does not establish indefinite herd sustainability.
 `husbandry/dispatch` proves each method's native write on a fixture colony.
 `husbandry/plan` proves the herd plan end to end on the lab: the race
 catalog read (cows with a milk product, wild and tame races, minimum handling
-skill); a lone cow founder kept beside an old milk race; the controller-built
+skill); a lone cow founder kept beside an old milk race; the brain-built
 hospital ward (its planned ring is staged finished from `LayoutPlan.HospitalCells`;
 beds, the medical flag, the `Hospital` area and the sterilize writes are the
-controller's) and an old male read back sterilized; a wild bull tamed as the
+brain's) and an old male read back sterilized; a wild bull tamed as the
 cow's mate, after which the old race retires one animal per review. Snapshot
 tests own the planner decisions; the case owns native bed and room use,
 surgery and the tame and designation ops. Its scope lists the native

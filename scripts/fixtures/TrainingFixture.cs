@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
         public static bool HasTrainedWith(Pawn p) =>
             p.needs?.mood?.thoughts?.memories?.GetFirstMemoryOfDef(DefDatabase<ThoughtDef>.GetNamed(TrainingCompany.ThoughtName)) != null;
 
-        private const int RangeDistance = 8; // go/internal/policy.RangeDistance
+        private const int RangeDistance = 8; // Brain.Policy RangeDistance
 
         [Tool("test/training_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Build one open-air training range column at the cell and stage a low-skill colonist whose only work is training. Test builds only.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z,

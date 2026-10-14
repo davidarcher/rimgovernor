@@ -1,31 +1,26 @@
-# Measure controller throughput
+# Measure brain throughput
 
 [All docs](../../README.md) · [Developer guide](../README.md) · [Choose tests](choose-tests.md)
 
-Record what the controller spends its time on against a live game, read the
+Record what the brain spends its time on against a live game, read the
 numbers back, and prove a change to the clock loop or the step cache did what
-it claims. The tools are read-only over the recording: they never touch the
+it claims. The readers are read-only over the recording: they never touch the
 game or its authority. Field-level definitions live in the code
-(`bridge.PhaseSummary`, `bridge.SummarizePhases`); this page holds only the
+(`PhaseSummary` in `brain/src/RimGovernor.Brain.Acceptance/CaseKit/PhaseSummary.cs`); this page holds only the
 rules for reading them.
 
 ## Record
 
-`serve` writes one OTLP log record per native call, marker and internal
-sample to `<profile>/otlp/logs.jsonl` by default (each row's `run` is its
-launch's `service.instance.id`), or to `--otlp-dir <absolute dir>` (the
-acceptance runner's per-case path).
-Segments rotate beside the file (16 x 32 MiB, 512 MiB, pruned by count); the reader picks them all up.
-
-```bash
-go run ./cmd/rimgovernor serve --otlp-dir C:\path\to\run\otlp ...
-```
+The in-process brain writes one OTLP log record per native call, marker and internal
+sample to `otlp/logs.jsonl` under `RIMGOVERNOR_OTLP_DIR` (default
+`<save-data>/RimGovernor/otlp`; each row's `run` is its launch's `service.instance.id`).
+The acceptance runner sets the directory per case. Segments rotate beside the file; the reader picks them all up.
 
 Row kinds a phase report reads:
 
 - native call rows carry `timing`: gate wait (`class` is `control`,
-  `observation` or `mirror`), bridge round trip, receipt and reply decode, and,
-  when the companion carries it, its main-thread queue and execute time plus
+  `observation` or `mirror`), round trip, receipt and reply decode, and,
+  when present, main-thread queue and execute time plus
   `native_observation` (capture/format account) and `native_frames` (update
   intervals). Absent blocks read unknown, never zero.
 - `native_frame` with `outcome` `hit`: a read the snapshot frame stream served without a round trip.
@@ -35,73 +30,38 @@ Row kinds a phase report reads:
 - `clock_read_events` replies: the ticks and paused status behind wall TPS and
   the paused fraction.
 
-There is no text log or debug flag: stderr carries the startup banner,
-fatals and panics, and everything else is a log record in `otlp/logs.jsonl`
-(`rimgovernor log` reads it).
+There is no text log or debug flag: everything is a log record in `otlp/logs.jsonl`.
 
 ## Service events
 
-Every service event is a structured record (`go/internal/telemetry`) that
-becomes a row of its `kind` (`phases` ignores them); a record with no
-kind writes nothing, and a test fails any `slog` call that names none.
+Every service event is a structured record that
+becomes a row of its `kind`; a record with no kind writes nothing.
 Kinds: `planner_step` (one per planner run; target `worker_step` is the clock worker's step, one per change of outcome), `clock_step`, `admission`,
 `clock_stop`, `authority`, `alert`, `dispatch`, `rounds_review`. Grep the
 emitting code for each one's
 attributes.
 
 ## Traces
-## Traces
 
 The spans are in `otlp/traces.jsonl` ([span tree](../contracts/otel-core.md#spans))
 and the rows logged inside them are `otlp/logs.jsonl` records carrying the same
-`trace_id` and a `span_id`. A scheduler step is a trace root (bundle, census,
+`trace_id` and a `span_id`. A scheduler step is a trace root (census,
 planner reads, admission, its `clock_step` and `planner_step` rows); the Worker's
 step and each dispatch are child spans, so `dispatch` rows and a dispatch's
-native calls join the trace of the step that admitted their window. Typed
-bridge calls send `trace` (a W3C `traceparent`); the companion echoes it so
-`queueMs`/`executeMs` belong to the same trace.
-
-```bash
-go run ./cmd/rimgovernor trace [--json] --profile C:\path\to\profile
-go run ./cmd/rimgovernor trace [--json] (--profile C:\path\to\profile | C:\path\to\otlp\logs.jsonl) <trace_id>
-```
-
-Without an id it lists traces (find the step that took 4 s); with one it
-prints the span tree: offset, duration, status (`ERROR: <cause>`) and attributes
-per span (a `native.call` carries `tool`, `gate_wait_ms`, `call_ms`,
-`decode_ms`, `native_queue_ms`, `native_execute_ms`), with the decision and
-event rows under the span they were logged in. Spans export when they end, so a
+native calls join the trace of the step that admitted their window. Spans export when they end, so a
 native call that never returned has no span: its `native_request` marker (written
-once a call is 2 s outstanding) prints as `native <tool>  (no reply recorded)`.
-`--json` is jq-friendly: the index is an array of traces; one trace is
-`{trace_id, tick, spans[], rows[]}`, a marker nothing answered flagged
-`"no_reply": true`.
+once a call is 2 s outstanding) is the only trace of it.
 
 ## Reading the rows
 
-```bash
-go run ./cmd/rimgovernor log --profile C:\path\to\profile --level WARN --since-run
-go run ./cmd/rimgovernor log [--kind K] [--component C] [--tick a..b] [--trace ID] [--follow] [--json] C:\path\to\otlp\logs.jsonl
-```
-
-`rimgovernor log` prints the diagnostic stream: the OTLP log ring (`--profile`
-resolves `<profile>/otlp/logs.jsonl`; rotated segments are read oldest
-first). `--level` is a minimum, `--since-run` keeps the newest launch (the
-newest `service.instance.id`). Decision rows (`verdict`, `reason`, `target`)
-that repeat collapse into one line, `x N, first/last tick a/b`, keyed on (kind,
-component, verdict, reason, target); other rows print one line each. `--follow`
-streams new rows uncollapsed and keeps reading across ring rotation. `--json`
-is one entry object per line (pipe to `jq`). The reader library is
-`internal/logview`; [OTEL signals](../contracts/otel-signals.md) is the contract.
+The files are JSON lines; read them with `jq` ([OTEL signals](../contracts/otel-signals.md) is the contract).
+Rotated segments sit beside `logs.jsonl`, oldest first.
 
 ## Report
 
-```bash
-go run ./cmd/rimgovernor phases [--json] (--profile C:\path\to\profile | C:\path\to\otlp\logs.jsonl)
-```
-
+The speed-matrix cases summarize a run's log ring with `PhaseSummary.Summarize` and write the result into `result.json`.
 Sections: header, `clock`, `steps`, `stops`, `observation`, `frames`,
-reads/step by tool, per-native-tool table. `--json` is `bridge.PhaseSummary`.
+reads/step by tool, per-native-tool table.
 
 Traps in the numbers:
 
@@ -115,7 +75,7 @@ Traps in the numbers:
   means the poll loop is not seeing events. `timer` runs only planners due on
   the queue, `wake` is committed journal evidence, `settled` and `full` re-plan
   everything, `live` plans under a running window.
-- `stops.*latency` is the stall a paused colony waits on the controller; it
+- `stops.*latency` is the stall a paused colony waits on the brain; it
   should sit well under one `StepInterval`. Rows without a native stamp count
   but are not sampled.
 - `journal_ms` growing over a long save means a catalog read stopped using its
@@ -140,9 +100,9 @@ Traps in the numbers:
   main thread.
 - Slow steps, high reads/step: a planner is re-reading; check `parent_hits`
   and the by-tool split.
-- Low wall TPS with a high paused fraction: the game waits on the controller;
+- Low wall TPS with a high paused fraction: the game waits on the brain;
   check `stops` latency and whether `reasons` is `timer`-heavy. With a low
-  paused fraction the game itself is slow; the controller is not the bottleneck.
+  paused fraction the game itself is slow; the brain is not the bottleneck.
 - Slow bundle: compare `capture` with `format`. High `capture` p95 with a
   dominant `sections` row is that read; high `format` p95 with `format_passes`
   above `hops` is encoding paid twice by a size check. A detached bundle
@@ -155,55 +115,28 @@ Traps in the numbers:
   names the request; an interval with little observation work is the game or
   the renderer.
 
-## Profile
-
-`serve --pprof` (off by default) serves `net/http/pprof` under `/debug/pprof/`
-on the controller's own local-only listener. `DELETE /debug/pprof/profile`
-stops a capture in flight and the pending `GET` returns the profile so far.
-
-```bash
-go tool pprof -http=: C:\path\to\run\<area>\<case>\service\cpu.pprof
-```
-
-The acceptance runner captures `cpu.pprof` and `heap.pprof` for every service
-it launches (see [choose-tests](choose-tests.md#adding-a-case));
-`RIMGOVERNOR_ACCEPT_PPROF=0` opts out.
-
 ## Across clock speeds
 
-The controller must make the same decisions per game tick and react to a stop
+The brain must make the same decisions per game tick and react to a stop
 within one step interval at every speed.
-
-**Unit (seconds, no game)** - run first after any scheduler, `WakeSignal` or
-worker change:
-
-```bash
-go test ./internal/buildingruntime -run TestClockSpeedMatrix
-```
-
-It drives the scheduler and worker against a wall-clock fake native at tick
-multipliers 1, 3, 6, 15 and 150 and asserts an identical window-decision
-sequence per game tick, every budget stop waking a step within `StepInterval`,
-and `paused_fraction_native` agreeing with the fake's stop/start times within
-one step interval.
 
 **Native (about 2 minutes per speed):**
 
 ```bash
-go run ./internal/nativeaccept/cmd/acceptance run speedmatrix/plain -root <abs root> -rimgovernor <abs path to rimgovernor.exe>
+RimGovernor.cmd acceptance run speedmatrix/plain -root <abs root>
 ```
 
 Needs a `ThroughputFixture` build. One staged colony is reloaded per row and
-served with the `haul` and `work` families for a 6000-tick budget, or until the
+run with the `haul` and `work` families for a 6000-tick budget, or until the
 stage runs out of work. Rows are `DefaultSpeedMatrix`
 (`Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off`);
 `RIMGOVERNOR_SPEED_MATRIX=uncapped,governor-off` narrows a run.
 `governor-off` plays the same save natively at the uncapped speed with no
-controller attached (the simulation ceiling): it reports only `ticks_advanced`,
+brain attached (the simulation ceiling): it reports only `ticks_advanced`,
 `wall_seconds`, `wall_tps` and is outside the outcome comparison.
 
 `result.json` carries per row `speed_metrics` (the keys are defined in
-`go/internal/nativeaccept/speedmatrix.go`). Key rules:
+`brain/src/RimGovernor.Brain.Acceptance/Scenario/SpeedMatrix.cs`). Key rules:
 
 - `paused_fraction_native` (with `paused_ms`/`running_ms`, reset on reload) is
   the paused number; `paused_fraction` is the sampling diagnostic.
@@ -231,7 +164,7 @@ observation-cost numbers are read against; it reuses the speed matrix's staging
 and reporting:
 
 ```bash
-go run ./internal/nativeaccept/cmd/acceptance run speedmatrix/observations -root <abs root> -rimgovernor <abs path to rimgovernor.exe>
+RimGovernor.cmd acceptance run speedmatrix/observations -root <abs root>
 ```
 
 It loads the generated `RimGovernor-tribal8-baseline` colony with
@@ -260,11 +193,6 @@ Rules:
   fails as `observation report incomplete`, never reads as zero cost.
 - Thresholds come from a baseline run of this case on a declared runner, never
   from the candidate being judged; a unit test does not fail on a busy CI.
-- Stale-action safety is dependency-scoped: a proposal carries the section
-  versions it planned from, and a changed relevant section refuses it once with
-  the section named. A cell change outside the held planning window moves
-  neither its value nor its version (`TestApplyRectangle`). Cell-level
-  preconditions are revalidated natively on apply.
 - To isolate emergency-only work from a full bundle, narrow the rows with
   `RIMGOVERNOR_SPEED_MATRIX` and read the `sections` split; there is no
   diagnostic bypass.
@@ -278,6 +206,5 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-obser
 ```
 
 Rerun the native check when the clock scheduler, step cache or
-Ultrafast/acceleration path changes; the unit check on every scheduler change;
-the observation baseline when the capture, encoding or main-thread admission
+Ultrafast/acceleration path changes; the observation baseline when the capture, encoding or main-thread admission
 path changes.

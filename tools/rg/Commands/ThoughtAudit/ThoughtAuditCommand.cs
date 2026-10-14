@@ -12,7 +12,7 @@ namespace RimGovernor.Tools.Commands.ThoughtAudit;
 /// Needs ilspycmd, a global dotnet tool nothing in the repository pins (<c>dotnet tool install -g ilspycmd</c>). It
 /// decompiles Assembly-CSharp.dll (into -decompiled, default a temporary directory; an existing non-empty -decompiled is
 /// reused), reads every ThoughtDef under Data/*/Defs and writes -out (default
-/// <c>go/internal/policy/thought_triggers.tsv</c>, the file the policy assembly embeds). Situational thoughts (a
+/// <c>brain/src/RimGovernor.Brain.Policy/thought_triggers.tsv</c>, the file the policy assembly embeds). Situational thoughts (a
 /// workerClass) record what the worker reads; memory thoughts record the code and XML sites that grant them. The owner
 /// column is hand-maintained: regeneration keeps the owner of every def that remains and leaves new defs unowned. There is
 /// no check mode; a stale row simply shows up as unowned.

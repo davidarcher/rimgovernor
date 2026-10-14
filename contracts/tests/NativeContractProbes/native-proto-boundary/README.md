@@ -1,9 +1,9 @@
-# Native ProtoJSON boundary probe
+# Native wire JSON boundary probe
 
 This probe is now part of the consolidated `NativeContractProbes.csproj`; it no
 longer has its own `.csproj`. This net10.0 executable compiles the production
 `ProtoBoundary` and `NativeControlAuthority` with explicit journal/game access
-seams. It verifies malformed official ProtoJSON, Unicode and byte limits, exact
+seams. It verifies malformed wire JSON, Unicode and byte limits, exact
 raw/bound argument agreement, payload dictionary serialization, and nonallocating
 identity reads. It additionally invokes `BindArguments` from the supplied actual
 RimGovernor.Host assembly to check that raw object parameters preserve strings
@@ -18,7 +18,7 @@ No game is launched and no installed assemblies are copied or changed. The game
 and raw-journal seams are deliberately small and do not prove real operation
 journal capture, game-thread scheduling, or native SDK response dispatch. Those
 remain in fresh native package acceptance. Parser acceptance is syntax only;
-negative map IDs/null facts are intentionally accepted by the official parser
+negative map IDs/null facts are intentionally accepted by the JSON parser
 and must be refused by each method's semantic validator.
 
 The identity check leaves native generation absent when no authority owner

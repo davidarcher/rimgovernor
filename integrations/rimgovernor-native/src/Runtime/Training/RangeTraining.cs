@@ -6,7 +6,7 @@ using Verse;
 
 namespace RimGovernor.Runtime
 {
-    // The range buildings (Defs/ThingDefs/TrainingRange.xml); mirrors go/internal/policy RangeDefNames.
+    // The range buildings (Defs/ThingDefs/TrainingRange.xml); mirrors the brain's RangeDefNames.
     public static class TrainingRangeDefs
     {
         public const string Stand = "RimGovernor_TrainingBowStand";
@@ -64,7 +64,7 @@ namespace RimGovernor.Runtime
         }
 
         // The gate research is a name so an Odyssey project resolves without a
-        // reference; a project the game lacks never unlocks (as Go's census).
+        // reference; a project the game lacks never unlocks (as the brain's census).
         private static bool Unlocked(TrainingTier tier)
         {
             if (string.IsNullOrEmpty(tier.gateResearch)) return true;
@@ -73,7 +73,7 @@ namespace RimGovernor.Runtime
         }
 
         // The best tier whose gate research is finished (UnlockedTrainingTier in
-        // go/internal/policy/training_tier.go): the weapon, XP and ceiling.
+        // Brain.Policy/TrainingTier.cs): the weapon, XP and ceiling.
         public static ThingDef UnlockedWeapon()
         {
             ThingDef best = null;
@@ -122,7 +122,7 @@ namespace RimGovernor.Runtime
             return skill != SkillDefOf.Shooting || !(pawn.story?.traits?.HasTrait(TraitDefOf.Brawler) ?? false);
         }
 
-        // The skill a pawn trains (TrainingSkill in go/internal/policy/training.go):
+        // The skill a pawn trains (TrainingSkill in Brain.Policy):
         // the higher usable level, then the stronger passion, then Shooting.
         public static bool TryChoose(Pawn pawn, out SkillDef skill)
         {

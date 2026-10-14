@@ -6,8 +6,7 @@ The Windows launcher is the C# project [tools/launcher](../../../tools/launcher)
 a WinForms window hosting WebView2, published as one file,
 `RimGovernorLauncher.exe`, by `RimGovernor.cmd`. It is its own project outside
 the brain solution and references the acceptance harness
-(`brain/src/RimGovernor.Brain.Acceptance`) for setup and case runs. The Go
-launcher in `go/cmd/launcher` stays until #3102 removes it.
+(`brain/src/RimGovernor.Brain.Acceptance`) for setup and case runs. 
 
 It embeds one WebView2 page (`ui/index.html`, an embedded resource) without a
 web server or frontend build. C# owns the view models and the game's HTTP calls;
@@ -54,7 +53,7 @@ While the stack is stopped it shows a one-line hint instead.
 Play starts RimWorld from the private game copy with `-rimgovernor-inproc` and
 the settings' extra arguments, then waits (up to five minutes) for the endpoint
 file and a healthy channel. When the settings name a save to load, it is loaded
-once the channel answers. There is no controller process: the brain runs inside
+once the channel answers. There is no separate brain process: the brain runs inside
 the game, so Stop and Close game both end RimWorld.
 
 Settings are saved in `.rimgovernor/launcher.json`. Extra arguments and the save

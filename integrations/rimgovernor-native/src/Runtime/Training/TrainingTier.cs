@@ -4,8 +4,8 @@ using Verse;
 namespace RimGovernor.Runtime
 {
     // One rung of the shooting practice ladder (#2681), read from the
-    // practice weapon's def (Defs/ThingDefs/TrainingRange.xml). Go mirrors the
-    // table in go/internal/policy/training_tier.go and a Go test pins every value.
+    // practice weapon's def (Defs/ThingDefs/TrainingRange.xml). The brain mirrors the
+    // table in Brain.Policy/TrainingTier.cs.
     public sealed class TrainingTier : DefModExtension
     {
         // Rung number, 0 (practice bow) to 3.

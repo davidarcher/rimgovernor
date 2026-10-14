@@ -1,7 +1,7 @@
 # Supply model
 
 One type,
-`policy.SupplyCandidate` (`go/internal/policy/candidate.go`), describes every
+`policy.SupplyCandidate` (`Candidate.cs`), describes every
 way the colony obtains a good: a food channel, a loot, salvage or mining
 source, a bench bill or a trader. The shared flow ranker consumes these candidates.
 
@@ -55,7 +55,7 @@ food and rot covering the round trip, and safe away labor. Live settlement
 purchases remain away inventory; only observed home delivery changes home
 stock. See [controllable trade](../contracts/controllable-trade.md).
 
-`policy.PlanSupply(SupplyPlanRequest)` (`supply_plan.go`) is one pure function
+`policy.PlanSupply(SupplyPlanRequest)` (`SupplyPlan.cs`) is one pure function
 over a **demand vector** and the candidates. It budgets projected rates and
 unit deficits, never stored goods or completed work. Food runs on it: `reviewFoodPlan`
 builds the channel rows and `policy.SupplyFoodPlan` plans them through
@@ -126,7 +126,7 @@ precedence over the aggregate worker fact, including a known empty pawn list.
 
 Flow demands rank before stock demands. Among flow candidates **lead is the
 primary key**, then fishing distance (nearest first), then labor per unit
-delivered, then kind and id. The matrix and `food_plan_test.go` require this for
+delivered, then kind and id. The simulation scenarios require this for
 Nutrition: a channel that arrives before the runway expires beats a cheaper
 later one, so efficiency orders only candidates of equal lead. Among stock
 candidates the key is the score `Value / (1 + labor + distance*(1 + 2*trips) +
@@ -163,7 +163,7 @@ so failed existing work does not regain its estimated yield. A closed channel
 is never credited. Under an emergency (runway
 below `EmergencyDays`) every candidate that is not delivering is uncredited.
 
-`policy.DeliveryCredit` (`delivery_credit.go`, Go memory only, never persisted)
+`policy.DeliveryCredit` (`DeliveryCredit.cs`, memory only, never persisted)
 credits a counter group by its factor: the nutrition the ledger counted over a
 trailing window divided by the risk-adjusted nutrition the group's committed
 channels expected over it, clamped to [0,1], starting at 1. `credited rate =
@@ -193,7 +193,7 @@ expected rate x factor`.
 ### Hunting
 
 Hunting is hunter throughput over a finite, live stock of wildlife
-(`policy/hunt_credit.go`, `hunt_squad.go`):
+(`HuntCredit.cs`, `HuntSquad.cs`):
 
 - **Stock**: each hunt channel (one per animal or squad group) carries
   `StockCap`, the nutrition of its animals in reach from the wildlife census,
@@ -253,7 +253,7 @@ still needs priced like a planted field, the sowing (`FieldSowTicksPerCell`
 per cell) as upfront labor, the full grow days across the calendar as lead
 (`NewFieldLeadDays`: growth that outlasts the growing days left waits out the
 frost) and the rot stock cap. None is offered while crops cannot be sown
-outdoors. The field executor (`rounds_field.go`) places a new field only when
+outdoors. The field executor (`RoundsField.cs`) places a new field only when
 the plan opened a `new:` candidate; pending zone creates and add-cells count as
 designated nutrition against the gap (`foodPlanFieldRoom`). Site choice stays
 with the executor.
@@ -261,7 +261,7 @@ with the executor.
 ### Crop risk and pause
 
 Crop channels carry weights in [0, 1] equal to the expected fraction of delivery
-lost (`policy/crop_risk.go`); each is derived from observed facts and left out
+lost (`CropRisk.cs`); each is derived from observed facts and left out
 (never priced as zero or as a loss) while a fact is unknown:
 
 | Risk | Weight |
@@ -280,7 +280,7 @@ capped at a year. The same `ToxicFallout` read feeds the indoor-site
 A caravan's prices exist only in an open trade session's sheet, so the plan
 cannot see them when it is built. The negotiator's session is the look a player
 takes at the goods: each time `RoundsTradePlanner` reads the sheet of its open
-session it records a `policy.TradeOffers` in `Rounder.tradeOffers` (Go memory
+session it records a `policy.TradeOffers` in `Rounder.tradeOffers` (memory
 only, derived state, per trader id): the trader, negotiator, observed tick, the
 colony's silver, the trader's goods-stack count and one `TradeOffer` (def,
 units held, silver price) per priced row. The book is read through

@@ -1,7 +1,7 @@
 # Native facade, frame handoff and game-thread stat service (#3080)
 
-The in-process brain reaches the native mod without GABP or JSON. This page is the contract for
-that path; the history of the wire it replaces is `contracts/native-protobuf-cutover.md`.
+The in-process brain reaches the native mod without a transport or JSON. This page is the contract
+for that path.
 
 ## Assemblies
 
@@ -17,7 +17,7 @@ source-generated `System.Text.Json` context; nothing is generated at build time.
 
 `scripts/build_native_mod.ps1` copies `brain/Directory.Build.props`, `brain/Directory.Packages.props` and the
 three project directories into its private build copy and ships `RimGovernor.Brain.*.dll` beside the Bridge in
-`BridgeTools/RimGovernor/`. `go/internal/nativeaccept/inputs/sources.go` lists the same inputs, so the
+`BridgeTools/RimGovernor/`. `brain/src/RimGovernor.Brain.Acceptance/CaseKit/NativeSourceInputs.cs` lists the same inputs, so the
 staleness hash (`sourceTree`) still reproduces the script's. Edit the two together.
 
 The mod publishes its facade through a module initializer (`NativeFacadeBootstrap`), because the host loads the

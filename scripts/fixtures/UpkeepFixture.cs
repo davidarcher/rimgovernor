@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
         // row of seven cells from cell ("x,z") eastward (item, wall, wall
         // blueprint, wall frame, plant, filth, corpse) and replies the row as
         // a keyframe grid (base64 mirror.CellGrid), for the case to decode on
-        // the Go side and compare with what was spawned. Also replies the
+        // the brain side and compare with what was spawned. Also replies the
         // timed capture of the whole map (ms).
         [Tool("test/grid_things", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2261): spawn one of each thing category on seven cells east of cell (\"x,z\") and reply that row as a base64 mirror.CellGrid keyframe plus the whole-map read and encode cost. Test builds only.")]
         public async Task<object> GridThings(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)

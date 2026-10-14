@@ -35,7 +35,7 @@ is distinct from tier 0.
 Power for something other than the cooler/freezer takes the tier of what it
 serves; unlisted power is Expand.
 
-Tier is chosen in pure policy (`policy/construction_tier.go`) and only passed
+Tier is chosen in pure policy (`ConstructionTier.cs`) and only passed
 through by orchestration:
 
 - Planned rooms: `policy.RoomTier(role)` over a table with one row per
@@ -61,15 +61,9 @@ through by orchestration:
 
 ## Required tier
 
-`domain.NewBuildingAction(id, building, tier)` takes the tier as a required
+`DomainAction.NewBuildingAction(id, building, tier)` takes the tier as a required
 argument, and a stored building action without one does not load, so an untiered
-build cannot be constructed. In Go, `archgate.BuildingActionTiers` (run as
-`TestBuildingActionCallersStateTheirTier`, with a negative fixture) walks every
-non-test caller and fails one that omits the tier or passes anything other than
-a `domain.Tier*` constant or a `policy.RoomTier`/`PlannerTier`/`AdoptedTier`
-call. The only pass-through callers are `NewPlan` (canonicalizing an action that
-already has its tier) and the store's row reader. In the C# brain the same check
-is the Roslyn analyzer `RGARCH008` ([rules](../architecture/rules.md)): every
+build cannot be constructed. The Roslyn analyzer `RGARCH008` ([rules](../architecture/rules.md)): every
 call of `DomainAction.NewBuildingAction` states a `ConstructionTier` member or a
 Policy mapping call, and the only pass-through is the store codec's
 `ReadBuilding`. There is no baseline: add the tier, never an exemption.
@@ -158,4 +152,4 @@ across every room of a wing) are admitted in one round whatever the stock, and
 a ring is never held for an open wave. A blueprint holds no materials until
 delivered, so over-admission is harmless and this gate orders the delivery.
 Logical prerequisites (kitchen before stove, dig before ring, stage gates)
-stay in Go.
+stay in the brain.

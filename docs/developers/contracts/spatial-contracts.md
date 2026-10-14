@@ -27,7 +27,7 @@ reads require walkable, passable, unfogged approaches immediately inside and out
 the doorway. Hands refreshes these checks for every unissued shell placement,
 preserving existing receipts on refusal. These reads do not predict future blueprint
 obstruction or prove a route to colonists, and native input is not atomic with
-controller validation.
+brain validation.
 
 ## Bounded connectivity
 
@@ -55,7 +55,7 @@ eligibility and exact-target reachability remain separate checks. A pawn standin
 proposed footprint needs a currently native-reachable exit; the read does not move it.
 The one cap is 262144 map cells (over it the read is unavailable). Blocked cells,
 targets and colonists are unbounded; the audit runs under the request's `budget_ms`
-(Go: `bridge.SpatialAccessBudgetMS`, 2.5 s at about 70-80 ms per colonist), and a
+(the brain: `bridge.SpatialAccessBudgetMS`, 2.5 s at about 70-80 ms per colonist), and a
 colonist reached after it is spent comes back `PawnAccess.skipped` with position only.
 The defense layout treats any skipped colonist as `field_unavailable spatial_access_skipped`,
 never accepted and never refused for space.
@@ -94,7 +94,7 @@ component or an escape from the completing footprint. Completed-work frames
 whose completion is refused are skipped until access is safe; delivery is never
 ordered by wall depth. Normal pawn jobs supply the work and vanilla owns pawn
 displacement at completion. `wall/layers` covers the native ring, completion veto
-and pawn-on-frame outcome; Go tests cover section geometry.
+and pawn-on-frame outcome; tests cover section geometry.
 
 In-place wall replacement (#2529) swaps a built wall's stuff, or its def for
 another sharing the `Wall` replace tag, with the cell impassable at every tick.
@@ -139,7 +139,7 @@ from every ring cell, so the pillar a hole leaves extends the span). The footpri
 constructor (`NewRoomFootprint`, reached through `PlannedRoom.Footprint`) does not
 enforce it. The roof limit is enforced where the groups are sized: clustering caps a
 group's area with `RoofSupported` within the bounds of 3844 interior cells and 255 ring
-cells (`layout_cluster.go`). A roof that fails the check is not buildable without
+cells (`LayoutCluster.cs`). A roof that fails the check is not buildable without
 columns, which the planner does not place.
 
 ### Where a shell stands
@@ -147,14 +147,14 @@ columns, which the planner does not place.
 No routine searches for a site. Every shell is a room of the layout plan, placed by the
 tiler (see Layout planner below), and a routine raises the planned room of its role. The
 shelter is the plan's `PlannedShelter` room: a station-less `RoomNode` sized by
-`ShelterInteriorArea` (`layout_seed_rooms.go`), so the first plan, which is derived
+`ShelterInteriorArea` (`LayoutShelter.cs`), so the first plan, which is derived
 before any station is built, already holds it. A shell is buildable when the native
 preview accepts its cells; a planned room whose interior holds rock is dug first (see
 Digging planned rooms). There are no starter templates or per-routine search tiers.
 
 ### Initial shelter rungs
 
-`stepShelterRoom` (`rounds_shelter_bunks.go`) raises the shelter room. On a fresh site
+`stepShelterRoom` (`RoundsShelterBunks.cs`) raises the shelter room. On a fresh site
 the initial shelter runs three rungs under one Episode:
 
 1. Sleeping spots at the first review, one per colonist owed, on the room's bunk slots
@@ -203,7 +203,7 @@ from the plan.
 
 ### Layout planner
 
-The plan is made by the station chain (`go/internal/policy/layout_*.go`; design in
+The plan is made by the station chain (`brain/src/RimGovernor.Brain.Policy/Layout*.cs`; design in
 [facilities](../architecture/facilities.md)): `StationCatalog` (the defs) and
 `StationFacts` (the colony) give `StationGraph` (`BuildStationGraph`, or `SeedGraph` while
 a fact is unread on a derive); `ClusterStations` groups it into rooms; `Embed` places the
@@ -217,7 +217,7 @@ conduit routes (`routeTileConduits`). The plan holds Rooms, Links, Entrances, Ow
 OutsideTrips, Zones, Reservations, Sites, RetiredGround, Roofed, Lamps, Conduits, Cold
 Hot and NextRoomID.
 
-- **Tiling.** `policy.TileEmbedding` (`layout_tile.go`) turns the station embedding into
+- **Tiling.** `policy.TileEmbedding` (`LayoutTile.cs`) turns the station embedding into
   a plan; `TileStations` calls it after `AdviseStations`, and both
   `DeriveLayoutPlan` and `ReplanLayout` take its plan as the plan. Doors between rooms
   in a shared wall are the plan's typed
@@ -255,9 +255,9 @@ Hot and NextRoomID.
   improved), journalled as `layout_interior` (`logInterior`, on a derive and on a replan). The result is never worse
   than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
   **Live furnishing (#2956).** The runtime reads a room's furniture slots from
-  `PlanRoomInterior` (`interior_region.go`). A role in `regionRoles` (workshop, laboratory,
+  `PlanRoomInterior` (`InteriorRegion.cs`). A role in `regionRoles` (workshop, laboratory,
   kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining, rec room, shelter and barn: every role) states what its floor should hold as
-  `RegionWant`s (`interior_region_roles.go`: the capacity its template had along the entrance
+  `RegionWant`s (`InteriorRegionRoles.cs`: the capacity its template had along the entrance
   wall or aisle, the pieces named as the reconcilers and consumers read them) and the placer
   seats them on `InteriorRoom.Floor()`, the planned room's region, so an L or notched room is
   furnished on its own cells rather than its bounding rectangle. `SearchInterior` then
@@ -275,7 +275,7 @@ Hot and NextRoomID.
   `regionRoles` entry has no interior. A barn's beds carry a
   synthetic front interaction (tended from the cell before them) and its heater is placed first.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
-  `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`layout_roof.go`) puts every
+  `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`LayoutRoof.cs`) puts every
   room's floor into `LayoutPlan.Roofed`, except the outdoor
   roles (`Valid` rejects a roofed cell on one); a temperate map's set is empty. There is
   no outer climate wall: the envelope is the roofed rooms. Cells farther than `RoofMaxSupportDistance`
@@ -312,7 +312,7 @@ Hot and NextRoomID.
   It is a lower bound: no tolerance, weather, or building-backed givers (they wait on a
   rec room with stations in the graph, whose indoor sessions are `RecreationNode.Indoor`).
   Mined, chopped and hunted goods are hauls from the outside node to the store that
-  holds them (`StationCatalog.Haul`, `layout_haul_nodes.go`, #2998): an owner works
+  holds them (`StationCatalog.Haul`, `LayoutHaulNodes.cs`, #2998): an owner works
   `CookTicksPerDay` of the day; a mineable tile costs `ceil(hit points / 80)` pick hits of
   100 ticks and gives `mineableYield` x `mineableDropChance` (x `MiningYield` when
   wasteable), a tree `harvestWork` ticks for `harvestYield` (`haulGame` reads the four
@@ -362,7 +362,7 @@ idle.
   **Lamps (#2945).** A roofed cell has no sky light, so a colonist working or walking on
   it loses speed (`StatPart_Glow`: x0.80 at glow 0 up to x1.00 at `LitGlow` 0.3, on
   `WorkSpeedGlobal` and `MoveSpeed`; `LightSpeed`). The tiler weighs that against lamps in
-  sustained watts (`layout_light.go`), per roofed room, and places lamps where lighting
+  sustained watts (`LayoutLight.cs`), per roofed room, and places lamps where lighting
   costs less than the dark; never a veto. A colonist's work-day is priced at their own
   food upkeep a day (the food census over the colonists, in site-type units against the
   best crop's `cropRate`, turned into watts by `SiteTypeWeights.Power` as `BuildW` does):
@@ -407,11 +407,11 @@ idle.
   success, partial glow beyond the reach, and the lamps' power wiring (they are in
   `TileResult.Lamps`, not pieces, so the conduit net does not route to them yet).
   `MaintainLighting` is the runtime reconciler: its round builds the plan's `Lamps`
-  (`policy/lighting.go`, `rounds_lighting.go`; see [upkeep](upkeep-contracts.md)).
+  (`Lighting.cs`, `RoundsLighting.cs`; see [upkeep](upkeep-contracts.md)).
   **Comfort and beauty (#2975).** Furniture buys mood through two seeker needs the game
   keeps as one shape (`Need_Seeker`: every 150 ticks the level moves toward an instant level
   at `seekerRisePerHour` x 0.06 up or `seekerFallPerHour` x 0.06 down, frozen while asleep
-  if `freezeWhileSleeping`). `SeekerNeed` (`layout_comfort.go`) is that shape with the
+  if `freezeWhileSleeping`). `SeekerNeed` (`LayoutComfort.cs`) is that shape with the
   `NeedDef` curve (comfort 0.60 up, 0.04 down; beauty 0.32 up, 0.08 down, base 0.4, frozen
   asleep) and the thought's category thresholds (`SeekerGame`, in `DefTables`: comfort's are
   `level <` edge at 0.1/0.6/0.7/0.8/0.9, stages -3/+4/+6/+8/+10; beauty's `level >` edge at
@@ -445,7 +445,7 @@ idle.
   and waste yard of #2882 reuse the kind). Circulation is the corridor that joins rooms
   nobody may walk through: when the private rooms (`RoomCrossing.Mechanisms() > 0`, not
   cold) outnumber the public ones, some hub would carry two bedroom doors, so clustering
-  adds `PlannedCirculation` strips (`addCirculation`, `layout_circulation.go`), required
+  adds `PlannedCirculation` strips (`addCirculation`, `LayoutCirculation.cs`), required
   beside every private room and the hubs they have flows to, sized from the short sides
   of the rooms joined plus a wall each over its two sides, and at most the longest strip
   the shell allows. Width is `CirculationWidth` = 1: in peacetime pawns neither block
@@ -456,7 +456,7 @@ idle.
   private rooms do not outnumber the public ones get no corridor.
   **Outskirts rooms (#2882).** The tomb, morgue, graveyard, waste yard and incinerator
   are station-less room nodes of the same graph (`OutskirtsRoomNodes`,
-  `layout_outskirts_nodes.go`): each asks the floor its slot gives and keeps its role's
+  `LayoutOutskirts.cs`): each asks the floor its slot gives and keeps its role's
   interior template, and clustering makes a `Planned` group of it. No distance band sits on
   the nodes (#2987): no minimum clear ground (once walls stand, line of sight to a corpse
   pile is blocked, so no corpse-sight radius is a standing rule) and no maximum reach. The
@@ -467,7 +467,7 @@ idle.
   near or far and never guessed. An unpriced room (`embedder.unpriced`: no link of
   positive weight, so the incinerator beside the waste yard counts) is placed by the cell
   terms (soil, edge, centre) plus the marginal Wall and Footprint of the plan score
-  (`enclosureCost`, `layout_embed_enclosure.go`, `planWeights`, no new constant): the base
+  (`enclosureCost`, `LayoutEmbedEnclosure.cs`, `planWeights`, no new constant): the base
   pays a wall ring for its size, so a room standing apart pays a ring of its own and one
   beside the rest shares theirs. The ring is read off rectangles (blocks grown by the
   killbox yard and `perimeterThick`, only on ground a wall can stand on) and ignores
@@ -477,7 +477,7 @@ idle.
   yard. Wind is not a constraint: it has no game effect here. The tiler gives the
   unfenced graveyard and waste yard no wall, door or entrance. The siting reasons and the perimeter overlap checks are #2886.
   **Training rooms (#2887).** The range and the sparring ring are station-less nodes too
-  (`TrainingRoomNodes`, `layout_training_nodes.go`; `StationGraphInput.TrainingStands`
+  (`TrainingRoomNodes`, `LayoutTrainingNodes.cs`; `StationGraphInput.TrainingStands`
   and `TrainingMarkers` ask for them, zero asks for none). Each asks its exact floor
   (stands by `RangeDistance+1`; `RingSide` squared) and clustering adds no door threshold
   to it (`exactFloor`); `rangeBlock` and `ringBlock` keep their rectangle shells. Both
@@ -490,9 +490,9 @@ idle.
   `Markers` onto the room. Both are rooms of the tiled plan.
   **Power sites (#2919).** `AdviseStations` asks `EmbedSites` for a site node per
   planned turbine, solar plot and geothermal enclosure (`PowerSiteNodes`,
-  `layout_power_nodes.go`); the sites land in the tiled plan and `PlannedPowerSites`,
+  `LayoutPowerNodes.cs`); the sites land in the tiled plan and `PlannedPowerSites`,
   `TurbinePlacement` and `TurbineCatchZone` are the read API the power rounds use
-  (`rounds_power.go`). A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
+  (`RoundsPower.cs`). A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
   node is anchored on its enclosure; the battery room stays a planned room. The lane is
   priced only as the game prices it (`windGround`; constants in the `windPath` DefTables
   entry, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
@@ -520,12 +520,12 @@ idle.
   infestation cell by weighted random over every candidate, so a dark room does not steer
   it (#2944).
 
-**Room sizes and ground.** The room sizes are `roomSizeTable` (`layout_room_sizes.go`, a
+**Room sizes and ground.** The room sizes are `roomSizeTable` (a
 `DefTables` entry). The ground the embedder reads is `buildGround`
-(`layout_build_ground.go`: the core and rock cells, the soil costs and the obstacle levels)
-and `layout_site_ground.go` (the siting seeds), that `Embed` uses with `FieldGain`.
+(`LayoutBuildGround.cs`: the core and rock cells, the soil costs and the obstacle levels)
+and `LayoutSiteGround.cs` (the siting seeds), that `Embed` uses with `FieldGain`.
 
-**Entry points and what a replan does.** `DeriveLayoutPlan` (`layout_derive.go`) sets
+**Entry points and what a replan does.** `DeriveLayoutPlan` (`LayoutDerive.cs`) sets
 `StationFacts.Derive` and runs `TileStations`, then merges the field zones and plans the
 herd and yard sites and the perimeter (`PlanHerdSites`, `PlanYardSites`,
 `PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the rooms growth holds
@@ -534,11 +534,11 @@ tiled plan wholesale. It then puts back the held rooms the tiler left out (`keep
 retires the ground of a standing room that has no node (`retiredGround`), carries the
 barns, pens and yards that still clear (`carriedSites`) and traces the perimeter around
 what the defense record holds (`LayPerimeter`). What moves among built rooms is decided
-inside the embedder by the switching price (`switchThreshold`, `layout_switch.go`:
+inside the embedder by the switching price (`switchThreshold`, `LayoutBuilt.cs`:
 `ReplanGain` plus `BuiltSwitch` and `BuiltSwitchCell` per cell of the room's area). A failed replan
-(`ErrReplanEmpty`, `ErrStationFacts`) keeps the saved plan. The runtime derives when no
+(`ReplanEmptyException`, `StationFactsException`) keeps the saved plan. The runtime derives when no
 plan is saved and re-checks every `layoutReplanEvery` (2500 ticks) when the inputs key
-changes (`reviewLayoutPlan`, `colony_plan.go`), journaling `layout_stations`,
+changes (`reviewLayoutPlan`, `ColonyPlan.cs`), journaling `layout_stations`,
 `layout_plan` and `layout_replan_tiled` rows. [Facilities](../architecture/facilities.md)
 holds the station-chain design.
 
@@ -625,7 +625,7 @@ orders.
 
 A planned room whose footprint holds natural rock is dug before it is walled.
 `plan.RoomRock(room, cells).Dig` lists the rock cells of the interior and door
-(`layout_mining.go`), and `digPlannedRoom` (`rounds_plan_dig.go`) admits them through the
+(`LayoutMining.cs`), and `digPlannedRoom` (`RoundsPlanDig.cs`) admits them through the
 shared `admitRockStep` as the method `plan-dig-room-<role>-<x>-<z>`, reached from
 outside the room's door. A building that needs open sky also has its roof removed
 (`digPlannedSky`). Each wave designates only the cells with an open walkable cardinal
@@ -638,8 +638,8 @@ not hold the shell planner (`isRoomDigMethod`).
 ### Staged excavation (ore corridors)
 
 The staged machinery is now corridor-only. `policy.CorridorExcavationSites`
-(`tunnel_site.go`) proposes a one-wide corridor from a known walkable access cell into a
-visible rock face toward an ore cell, and `rounds_resource_tunnel.go` drives it; the
+(`TunnelSite.cs`) proposes a one-wide corridor from a known walkable access cell into a
+visible rock face toward an ore cell, and `RoundsResourceTunnel.cs` drives it; the
 code states that dug rooms are the layout plan's and this only reaches ore. The
 shelter is not a staged excavation. The rules that still hold:
 
@@ -683,7 +683,7 @@ settings.
 deconstructible non-player buildings whose occupied rectangle touches Home. Each row
 records the complete occupied rectangle, nullable faction, classification, whether
 every occupied cell is in Home, sealed ancient-danger membership, and the current
-deconstruct designation with controller ownership.
+deconstruct designation with brain ownership.
 
 Haulable rock chunks and slag are items, never targets. The same read lists them as
 `chunks` (every chunk-category stack on a Home cell, bounded to 256).
@@ -700,7 +700,7 @@ unknown map-edge geometry or a pending collapse blocks removal. The pure geometr
 probe runs under `task probes:test`.
 
 The scan walks the Home cells rather than the map's building list, with no row cap.
-An unreadable scan is unavailable, never sampled; Go treats an explicit unavailable
+An unreadable scan is unavailable, never sampled; the brain treats an explicit unavailable
 native stub as an unknown fact, distinct from a complete empty census. Required
 safety booleans cannot be omitted. The observation context must match the expected
 load, map, generation and fresh tick. The read admits nothing itself;
@@ -734,7 +734,7 @@ cells) are omitted on ambiguous geometry or fog; unknown never means heat-ready.
 ## Defense tier counts
 
 The turret, mortar and approach-IED tiers have no fixed ceiling. Each count is
-the smallest of four Go gates, and the gate that stops a tier short is named:
+the smallest of four the brain gates, and the gate that stops a tier short is named:
 
 | Tier | Threat demand (raid points) | Power | Stock | Geometry |
 |---|---|---|---|---|
@@ -749,7 +749,7 @@ mirror). Turret candidates are every slot with a line of sight to the lane, boun
 geometry. Native still reports its own placement refusals, handled as ordinary
 refusals (`placement_preview_refused`).
 
-The defense census is built in Go from the cell mirror and the definition catalog
+The defense census is built in the brain from the cell mirror and the definition catalog
 (`bridge.DefenseSiteFromCells`), not read from the game: the layout round makes no
 `observations_read_defense_site` call. Per cell it takes the edifice (a frame is its own
 `Frame_<def>`, a blueprint is no edifice), cover as the game's `CoverGrid` keeps it (the
@@ -766,7 +766,7 @@ asserted (read unknown). The edifice
 stuff is not in the mirror, so the waiting fight's plasteel-door hardening still reads
 the native census.
 
-Line of sight is computed in Go over the defense census (`policy/defense_sight.go`);
+Line of sight is computed in the brain over the defense census (`DefenseSight.cs`);
 the defense layout round makes no `observations_read_lines_of_fire` call. It is
 `GenSight.LineOfSight(start, end, map, skipFirstCell: true)`: the game's integer
 walk, which skips the shooter's cell and stops short of the target's, blocked by any
@@ -781,8 +781,7 @@ A gate that cuts a tier journals `defense_action` / `refused` with the gate as
 `turret_stock`, `turret_no_conduit_route`, `mortar_unavailable`,
 `mortar_threat_budget`, `mortar_stock`, `ied_threat_budget`, `ied_stock`) and the
 tier as `target`. `policy.DefenseTier.Gated` carries it; `DefenseLayout.Gated`
-also names an IED or turret tier a gate emptied. Count scaling and each gate are
-proven by Go snapshot tests (`defense_budget_test.go`, `defense_gates_test.go`).
+also names an IED or turret tier a gate emptied.
 
 ## Defense approach demand
 
@@ -817,7 +816,7 @@ it (`cover_thing_id`, `cover_def_name`, `cover_kind` plant/chunk/mineable/buildi
 state. `RaidArrivalState`, a map component, samples every hostile lord every 60 ticks:
 its first pawn position is the spawn (ground when within 14 cells of the map edge) and
 the pawn nearest the home area adds one trail cell per sample; a live lord's trail is
-never truncated, and a track not sampled for 60000 ticks (one game day) is evicted. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the controller
+never truncated, and a track not sampled for 60000 ticks (one game day) is evicted. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the brain
 takes the first trail cell inside its census region as the crossing, and the policy
 snaps it to the nearest sector edge cell within eight cells. Drop pods and tunnellers
 are not ground arrivals.
@@ -836,9 +835,9 @@ eight clearances per method once every tier stands; native refusals of the cover
 
 ## Perimeter routing cut (#2973)
 
-`policy.PlanPerimeterCut` (`perimeter_cut.go`) advises the perimeter as a routing cut
+`policy.PlanPerimeterCut` (`PerimeterCut.cs`) advises the perimeter as a routing cut
 beside the ring `PlanPerimeter` traces. The review only logs it (`logPerimeterCut`,
-`colony_plan_cut.go`); nothing reads it, and the plan's ring is still `PlanPerimeter` on a
+`ColonyPlanCut.cs`); nothing reads it, and the plan's ring is still `PlanPerimeter` on a
 derive and `LayPerimeter` on a replan. The wall is about routing: the cheapest set of wall cells such
 that every walk from a map edge, or from the opening's lane, to the core enclosure
 crosses a wall or passes the killbox opening. Only walls are barriers (not sandbags, not
@@ -872,7 +871,7 @@ random. The decisions are `layout_plan` rows with target `perimeter_cut` (see
 
 ## Defense tier nodes (#2973)
 
-`policy.PlanDefenseTiers(plan, census, pins)` (`defense_tiers.go`) cuts the plan's killbox
+`policy.PlanDefenseTiers(plan, census, pins)` (`DefenseTiers.cs`) cuts the plan's killbox
 node into the tiers that stand in it, as `PlannedSite` nodes whose `Tier` facts name the
 killbox node they stand under, the defense-record tier they belong to and the placements
 they hold: corridor and trap lane (the raiders' snake, in order), funnel walls, fence
@@ -899,7 +898,7 @@ a tier whose gates open later joins the record through the same siting.
 ### A blocked tier
 
 When a tree, a rock chunk or a new building stands on a cell a pinned tier needs
-(`DefenseCell.Cover`), `policy.PriceTierBlocks` (`defense_block.go`) prices both ways out
+(`DefenseCell.Cover`), `policy.PriceTierBlocks` (`DefenseBlock.cs`) prices both ways out
 in the layout's units and takes the cheaper; neither is a veto, and a tie keeps the tier.
 Clear is the work from the game's defs (a plant's `harvestWork`, a building's
 `WorkToBuild` clamped to `JobDriver_Deconstruct`'s limits; `DefinitionCatalog.ClearRow`)

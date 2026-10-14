@@ -43,7 +43,7 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
   </ItemGroup>
   <ItemGroup>
-    <!-- The page, copied unchanged from the Go launcher (go/cmd/launcher/ui/index.html). -->
+    <!-- The launcher page (WebView2). -->
     <EmbeddedResource Include="ui\index.html" LogicalName="ui.index.html" />
   </ItemGroup>
 </Project>

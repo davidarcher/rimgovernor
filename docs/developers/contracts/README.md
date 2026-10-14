@@ -12,20 +12,20 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Apparel policy operation](apparel-policy.md)
 - [Weapon planner](weapon-planner.md)
 - [Native forecast contracts](forecast-contracts.md)
-- [Native rules](native-rules.md): declarative trigger, predicates and a whitelisted action Go attaches under a lease
+- [Native rules](native-rules.md): declarative trigger, predicates and a whitelisted action the brain attaches under a lease
 - [Animal husbandry contracts](husbandry-contracts.md): race catalog, herd plan, hospital animal ward, acceptance
 - [Ideology contracts](ideology-contracts.md): ideoligion defs, pawn certainty, colony section
 - [Interface contracts](interface-contracts.md)
-- [Go player API](go-player-api.md)
-- [Go clock recovery evidence](go-clock-recovery.md)
+- [Player API](player-api.md)
+- [Clock recovery evidence](clock-recovery.md)
 - [Medical care contracts](medical-care.md)
 - [Material extraction contracts](mining-contracts.md)
 - [Mood relief contracts](mood-control.md)
-- [Stat worker and part table](stat-classes.md): per-class category and Go owner, `--check` drift gate
+- [Stat evaluation](stat-classes.md): the `IStatSource` seam the brain reads game-computed stats through
 - [Construction tiers](construction-tiers.md): per-target tier on place, native store, set-tier, readback
 - [Persistence contracts](persistence-contracts.md)
 - [OTEL signals](otel-signals.md)
-- [OTEL core: providers, OTLP/JSON file sink, collector exporter](otel-core.md)
+- [OTEL core: OTLP/JSON file sink](otel-core.md)
 - [OTEL metrics: native call phases, scheduler, outcomes](otel-metrics.md)
 - [Durable policy and Auto control](durable-policy.md)
 - [Population commitments](population-contracts.md)

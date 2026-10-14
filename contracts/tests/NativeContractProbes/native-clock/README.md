@@ -6,7 +6,7 @@ longer has its own `.csproj`.
 
 The checks compile the production clock adapters, typed epoch runtime, event
 projection, immutable journal, authority state, shared attempt ledger and
-Protobuf boundary. Native watcher/game operations, registry access, authority
+wire JSON boundary. Native watcher/game operations, registry access, authority
 failure formatting and SDK transport use controlled seams. No game, HTTP server
 or network listener starts. Journal fixtures remain under `.rimgovernor/`.
 

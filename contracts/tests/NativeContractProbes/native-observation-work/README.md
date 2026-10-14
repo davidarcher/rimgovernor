@@ -26,5 +26,5 @@ It does not prove the game calls the patched `TickManagerUpdate` boundary
 once per update, that
 `ProtoBoundary` opens a scope around the real main-thread hop, or that a bundle
 reply carries the block: those are native acceptance
-(`speedmatrix/plain`, `observations/baseline`) and the phase report's own Go
+(`speedmatrix/plain`, `observations/baseline`) and the phase report's own the brain
 tests.

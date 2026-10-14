@@ -26,7 +26,7 @@ through the shared refusal budget (action-contracts): a permanent refusal gives 
 patient up under native's reason, a transient one waits for the world to change, and the
 clock still advances under the standing deficit.
 
-## Go planning
+## the brain planning
 
 `CriticalMedicine` is a priority-1 emergency only
 while a critical patient is bleeding or downed with a tend outstanding, or that
@@ -55,7 +55,7 @@ chronic conditions from urgent tending.
 - Tracked patient identities persist through Manual and restart. Missing or dead
   patients and incomplete condition lists never certify recovery. World replacement
   and tick rewind clear the history.
-- Per-condition Go Facts carry severity, immunity, tended state, tend quality, and
+- Per-condition the brain Facts carry severity, immunity, tended state, tend quality, and
   instantaneous severity/day and immunity/day (60000 game ticks). Severity/day
   includes native immunizable and tending modifiers; immunity/day uses the native
   immunity record. Missing fields stay unknown, including rates for conditions
@@ -107,7 +107,7 @@ the recipe's own `SurgeryOutcomeEffectDef` comps for the best eligible doctor,
 substituting the best colony medical bed when the patient is not in bed and the best
 permitted medicine on the map. It also reports the eligible doctor count, whether
 ingredients and medicine are on the map, vanilla `IsViolationOnPawn`, and `lethal`
-(`WouldDieAfterAddingHediff`, or an execution). Go maps them into `policy.CarePawn`
+(`WouldDieAfterAddingHediff`, or an execution). The brain maps them into `policy.CarePawn`
 and does no surgery math.
 
 A medical `ProductionBillIntent` (`patient` set) on Actions/Apply queues one
@@ -185,7 +185,7 @@ items some usable bench fabricates, appended after the served parts, so the exis
 fabricates yields no demand there. `ElectiveSurgeryOwed` holds MaintainSurgery open
 for a chosen elective only while it is fabricable. Demand clears when the part is
 stocked, installed, queued or no longer affordable. The trade side
-(`rounds_trade.go`) sees served parts only.
+(`RoundsTrade.cs`) sees served parts only.
 
 **Elective part purchase.** When no item of the chosen elective can be fabricated and
 no served part purchase is pending, `policy.SurgeryPurchaseParts` adds its part to the
@@ -240,7 +240,7 @@ tracking, and stalled operations expose a bounded no-progress failure.
 Stable downed patients may share survival priority while ordinary caregivers work.
 Native `stableRestEligible` requires a living, undrafted colonist in bed, above half
 health, without bleeding, a current tending need, a mental state, anesthesia or a
-life-threatening condition. The controller requests monitoring only from current
+life-threatening condition. The brain requests monitoring only from current
 health observations and an active medical-care concern. Native `medicalRestIds` windows
 are limited to 600 ticks and recheck each patient; changed eligibility stops the
 window for another review. This permits feeding and rest without certifying recovery

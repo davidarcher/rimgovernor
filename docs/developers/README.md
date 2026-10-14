@@ -12,14 +12,14 @@ verify and land the change.
 | Task | Reference |
 | --- | --- |
 | Local machine and private game setup | [Runbook](agent-runbook.md) |
-| Go build and execution | [Module guide](../../go/README.md) |
+| Build, test and run the brain | [Workflow](development-process.md), [Runbook](agent-runbook.md) |
 | Test selection | [Choose tests](testing/choose-tests.md) |
 | Native case authoring and iteration | [Acceptance guide](testing/acceptance-guide.md) |
 | Planner replay | [Colony snapshots](testing/colony-snapshots.md) |
-| Recorded definition catalog | [Recording the catalog](testing/recording-the-catalog.md) |
+
 | Performance diagnosis | [Measure throughput](testing/measure-throughput.md) |
 | Optional Grafana/OTLP backend | [Observability stack](observability.md) |
-| Schema changes | [Wire contracts](../../contracts/README.md) and [generation](../../contracts/schema-generation.md) |
+| Wire changes | [Wire contracts](../../contracts/README.md) |
 | Deployment names | [Project identity](project-identity.md) |
 | Architectural constraints | [Rules](architecture/rules.md) |
 | Terms | [Glossary](glossary.md) |
@@ -35,9 +35,9 @@ verify and land the change.
 | [Supply model](architecture/supply-model.md) | Demand, acquisition and forecasts |
 | [Facilities](architecture/facilities.md) | Room functions and construction prerequisites |
 | [Storage](architecture/storage.md) | Department-owned stockpiles |
-| [Combat](architecture/combat-game-ai.md) | Native combat behavior and Go tactics |
+| [Combat](architecture/combat-game-ai.md) | Native combat behavior and the brain tactics |
 | [Hazard bounds](architecture/hazard-detection-bounds.md) | Detection cadence and clock stops |
-| [Launcher](architecture/launcher.md) | UI, session controls and serve client |
+| [Launcher](architecture/launcher.md) | UI, session controls and in-process host client |
 | [World progression](architecture/world-progression.md) | Caravans, quests and world outcomes |
 
 The [expert-play roadmap](architecture/expert-play-assessment.md) defines proposed

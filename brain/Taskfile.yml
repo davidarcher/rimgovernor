@@ -1,5 +1,4 @@
-# C# brain solution (epic #3043): Go packages ported by hand into in-process libraries.
-# Conventions: docs/developers/architecture/go-to-csharp-port-conventions.md.
+# C# brain solution: the in-process brain libraries and the acceptance harness.
 # Needs only the .NET SDK 10; the projects reference game assemblies through RimWorldDir
 # once a port needs them, and then report `unavailable` the way the native build does.
 version: '3'

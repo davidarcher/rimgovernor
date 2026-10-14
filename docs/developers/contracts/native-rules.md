@@ -1,10 +1,10 @@
 # Native rules
 
-[Contracts](README.md) · [wire contract](../../../contracts/proto/operations.proto) (`Rules`, `Rule`)
+[Contracts](README.md) · [wire contract](../../../contracts/wire/operations.md) (`Rules`, `Rule`)
 
-A native rule is "on trigger X, if predicates P, do whitelisted action A": Go
-authors it, native executes it in process, so a reaction needs no Go round trip.
-Go keeps the policy. Native never decides what to do beyond the rule it was given.
+A native rule is "on trigger X, if predicates P, do whitelisted action A": the brain
+authors it, native executes it in process, so a reaction needs no the brain round trip.
+The brain keeps the policy. Native never decides what to do beyond the rule it was given.
 
 ## v1 rule
 
@@ -12,8 +12,8 @@ Go keeps the policy. Native never decides what to do beyond the rule it was give
 |---|---|
 | Trigger | `PREY_KILLED`: a player pawn killed a wild animal. Fired from the kill hook the [delivery ledger](forecast-contracts.md#delivery-ledger) shares (`Pawn.Kill`); no ring is read. The actor is the killer. |
 | Predicates | `ACTOR_UNDRAFTED`, `ACTOR_HUNTING_WORK_ACTIVE`, `TARGET_AVAILABLE` (the selector's own search: no target, no firing). |
-| Action | `GIVE_JOB` `Hunt` on `NEAREST_DESIGNATED_PREY` within `radius` cells (Go-authored, positive; native adds no bound and checks every candidate in distance order): a hunt-designated wild animal the actor can reach by a route clear of predators by `predator_margin_cells` (Go-authored, finite, above 0; `INVALID_PREDATOR_MARGIN` otherwise) and that a work giver the actor may do builds the job on. Built and taken by the path `GiveJobIntent`'s prioritized arm uses (`NativePrioritizedJob.TryTake`), as a player-forced order. |
-| Not in v1 | Draft and undraft (drafts stay plan-owned, `buildingruntime/draft_needs.go`), any other job, any other trigger. A rule outside the whitelist is refused with a reason. |
+| Action | `GIVE_JOB` `Hunt` on `NEAREST_DESIGNATED_PREY` within `radius` cells (brain-authored, positive; native adds no bound and checks every candidate in distance order): a hunt-designated wild animal the actor can reach by a route clear of predators by `predator_margin_cells` (brain-authored, finite, above 0; `INVALID_PREDATOR_MARGIN` otherwise) and that a work giver the actor may do builds the job on. Built and taken by the path `GiveJobIntent`'s prioritized arm uses (`NativePrioritizedJob.TryTake`), as a player-forced order. |
+| Not in v1 | Draft and undraft (drafts stay plan-owned, `DraftNeeds.cs`), any other job, any other trigger. A rule outside the whitelist is refused with a reason. |
 
 The firing runs at the end of the tick of the kill, never inside the kill, so the hunter's own
 job is not replaced mid-shot. Its effect is the hunter moving on to the next prey instead of
@@ -29,8 +29,8 @@ hauling its own kill; the corpse is left for the ordinary haul.
 - `rules_read_status`: active rules with their firing count and last firing, the lease tick and the
   ticks remaining, and `lease_expired` from the expiry until the next attach or clear.
 
-Go re-attaches on the rules planner cadence with a lease (2500 ticks); rules live in native memory only and a load
-starts with none. The controller attaches through the `rules_attach` action (`RulesAttachIntent` on
+The brain re-attaches on the rules planner cadence with a lease (2500 ticks); rules live in native memory only and a load
+starts with none. The brain attaches through the `rules_attach` action (`RulesAttachIntent` on
 Actions/Apply, [action contracts](action-contracts.md)), which carries the rules and a lease relative to
 the apply tick and sits in the session journal before native is written. `RoundsRulesPlanner`
 (family `rules`, every half lease) derives the set from the hunt plan with `policy.HuntChainRules` (a Hunting-capable ranged colonist and at least one designated prey, including prey held from new acquisition) and
@@ -55,17 +55,17 @@ Admission holds for new hunt designations do not clear existing orders; native c
 - Inert unless native holds Auto authority (`authority_read_status`): a firing runs in an owned
   authority scope, so a revoked authority fires nothing and the write is not read as a player order.
 - No rule-count, radius or per-actor firing limit in native: a firing already happens only at the end of
-  a kill tick, and Go owns how many rules and how far they reach.
+  a kill tick, and the brain owns how many rules and how far they reach.
 - Every other fixed value on this path is listed in [kept constants](kept-constants.md).
-- Lease: when the game tick reaches `expires_at_tick`, native deactivates every rule without Go and
+- Lease: when the game tick reaches `expires_at_tick`, native deactivates every rule without the brain and
   emits one `rule_lease_expired` event.
 - Journal before write: native appends `rule_fired` (rule id, job, radius, actor, target, tick) to the
-  [clock event ring](../../../contracts/proto/clock-lifecycle.md) and writes the game only once the row is
-  in the journal. Both rule events are epoch-less, so they carry no owner; Go ingests them through the
+  [clock event ring](../../../contracts/wire/clock-lifecycle.md) and writes the game only once the row is
+  in the journal. Both rule events are epoch-less, so they carry no owner; the brain ingests them through the
   clock inbox, writes a [`rule` row](otel-signals.md) for each and they never hold a review.
 
 Source: `NativeRuleBook.cs` (validation, lease; no game types, probed by
 `contracts/tests/NativeContractProbes` `native-rule-runtime`), `NativeRuleRuntime.cs` (trigger, target
-search, journal, write), `NativeRuleTools.cs` (ops). Acceptance: `food/hunt-chain-rule` records two completed controller attachment
+search, journal, write), `NativeRuleTools.cs` (ops). Acceptance: `food/hunt-chain-rule` records two completed brain attachment
 ticks, requires renewal before the first lease expires, and checks native firing,
 clear and expiry behavior.

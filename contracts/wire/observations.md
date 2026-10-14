@@ -1,10 +1,8 @@
 # Observation contracts
 
-`observations.proto` defines simulation reads and reusable settings snapshots.
-It contains no command selector, mutation branch, arbitrary JSON field, `Any`, or
-`Struct`. RPC descriptors identify fixed request/reply pairs at the shared MCP
-ProtoJSON boundary; they do not require another server. Each RPC has its
-individually named Request and Reply.
+The Observations records (`Observations.cs`) define simulation reads and reusable settings snapshots.
+They contain no command selector, mutation branch or untyped JSON member. Each read tool has its
+individually named Request and Reply record.
 
 ## Food source channels
 
@@ -33,7 +31,7 @@ has one row for its visible passable water cells, body-wide population/capacity,
 whether any such cell belongs to a fishing zone, and reachability from the colony
 anchor. The section also reports Fishing research. Every collection is
 complete; no per-cell fishing payload is emitted.
-`tools/foodchannels` checks lab berry-bush forage and a cow's milk fullness.
+The food-channels acceptance cases check lab berry-bush forage and a cow's milk fullness.
 
 ## Delivery ledger
 
@@ -53,7 +51,7 @@ completed hour after it, sparse (`current_hour` is still filling and never liste
 shell subtracts. Reasons: recurring `bill_ingredient`, `medicine_tend`, `food_eaten`,
 `drug_dose`, `animal_feed`, `nutrient_paste`, `fuel_loaded`, `shell_loaded`, `apparel_wear`;
 project `construction`; loss `rot`, `deterioration`, `fire`, `sold`, `stolen`,
-`destroyed_other`. Go (`policy.ConsumptionLedger`) keeps the hours in memory, keyed by the
+`destroyed_other`. The brain (`policy.ConsumptionLedger`) keeps the hours in memory, keyed by the
 load, and asks for the whole window once after a load or restart. Only recurring reasons
 feed a resource runway. A hook native misses under-counts; nothing gates on it.
 
@@ -68,20 +66,20 @@ Failed reads return section-unavailable, never partial known-empty facts.
 
 Drill rows (`DeepDrillState`) cover every spawned colonist deep drill: powered
 state, the native next deposit under the drill (`resource`, `remaining`, absent
-when `depleted`) and a standing Deconstruct designation. Go requires depletion,
+when `depleted`) and a standing Deconstruct designation. The brain requires depletion,
 designation and power to be stated, a positive exact deposit on an undepleted
 drill and none on a depleted one; the removal guard dispatches only a depleted,
-still-present drill (every colonist drill is the controller's; no ownership
+still-present drill (every colonist drill is the brain's; no ownership
 ledger).
 
 Ground and long-range scanner rows carry built, powered and recent-working state;
 long-range rows also expose the selected output mineral when readable. Remaining
 ticks estimate work to the guaranteed-find threshold at the last user's speed,
 excluding idle time and the native discovery-check interval of up to 59 ticks.
-Random discovery may occur sooner. Missing timing stays unknown. Go preserves an
+Random discovery may occur sooner. Missing timing stays unknown. The brain preserves an
 absent/unavailable section as `ColonyProjection.DeepResources` unknown, while an
 observed empty section establishes no discovered lumps or built scanners.
-`tools/deepresources` checks seeded aggregation, both scanner kinds and a
+The deep-resources acceptance case checks seeded aggregation, both scanner kinds and a
 yielding drill beside a depleted one; a colony snapshot test selects
 a depleted drill for removal from the deep drill step's recorded read.
 
@@ -92,10 +90,10 @@ a depleted drill for removal from the deep drill step's recorded read.
   expected identity only; advancing ticks or revoked authority never blocks
   reconciliation reads. Identity mismatch is stale, never silently rebound.
 - Optional facts distinguish unavailable from observed zero/false. An omitted
-  requested fact or repeated section requires a `ReadIssue` naming its proto field
+  requested fact or repeated section requires a `ReadIssue` naming its record member
   path. Omitted unrequested detail is not an empty observed section. Known-empty
   collections have explicit complete metadata and zero counts. The helper section
-  oneofs preserve whole-section failure independently of sibling facts.
+  choices preserve whole-section failure independently of sibling facts.
 - Common unavailable reasons distinguish NOT_REQUESTED, NOT_APPLICABLE, HIDDEN,
   and NATIVE_COMPONENT_MISSING from failed/stale/limited observations.
 - There is no paging. Every list, nested collection and geometry is returned
@@ -179,9 +177,9 @@ a depleted drill for removal from the deep drill step's recorded read.
   and `operations` (every available medical recipe per target part with its
   kind, vanilla `success_chance` for the best eligible doctor, best colony
   medical bed and best permitted medicine on the map, eligible doctor count,
-  `ingredients_on_map`, `violation` and `lethal`). Go never recomputes them.
+  `ingredients_on_map`, `violation` and `lethal`). The brain never recomputes them.
   `ReadMedicalCatalog` is retired.
-- Gear loadouts carry the loadout model's inputs and an optional blocker; Go
+- Gear loadouts carry the loadout model's inputs and an optional blocker; the brain
   derives every deficit and replacement need from the model (the native deficit
   and replacement-need fields are reserved). Blocked pawns can still have
   equipment needs. The complete candidate list belongs to that exact loadout
@@ -214,98 +212,38 @@ a depleted drill for removal from the deep drill step's recorded read.
   text, lock/refusal reasons, hidden/read failures, thermal sides and ingredients)
   remain typed facts or bounded diagnostic strings.
 
-## Generated def rows and constants
+## Catalog rows and constants
 
-`DefinitionCatalog.thing_defs` and `terrain_defs` carry
-every `ThingDef` and every `TerrainDef` as the generated messages of
-[`defs.proto`](defs.proto) (all fields, comps and verbs included), sorted by
-`defName`, beside the planning rows, which are unchanged until a later change makes
-them views over these. Unlike the planning rows they are unfiltered: no
-buildable or sowable test. A def whose name is not a valid identifier is
-left out, as in the planning rows.
+The definition catalog reply (`DefinitionCatalog` in `Observations.cs`) no longer carries def rows or game
+constants. The brain's `DefinitionCatalog` (`Bridge/Catalog`) is built in the mod over the game's own `Def` objects
+(`NativeCatalogFactory.Create`, installed as `BrainCompositionOptions.CatalogFactory`; see
+[brain-host](../../docs/developers/architecture/brain-host.md)), and the wire catalog supplies only what the game
+computes in code: `derived` (`CatalogDerived`), `stat_env` (`StatEnv`), `class_chains`, `thing_facts`, the
+Biotech block and the `fingerprint`. A catalog read sends `held_fingerprint`; a reply with the same
+fingerprint carries only the per-load fields.
 
-Native fills them with `DefMirrorFill`, a generic protobuf-reflection walker
-over the generated descriptors, with no per-class code: a message mirrors the
-CLR class its `clr_type` option names, a field is read by its name, a def
-reference is its `defName`, a `System.Type` its full name, an enum its number,
-a `Nullable<T>` an optional field, a `Dictionary` repeated `entry` messages
-a nested collection a `list` message, and a class element of a list an
-`Opt_` message whose `value` is unset for a null element (the game reads null
-entries positionally, `ThoughtDef.stages`: Go checks `entry.GetValue()` for
-nil and keeps the index). A null dictionary value is the entry's unset `value`.
-A class with subclasses is a `<Class>Any` oneof whose arm is chosen by the value's exact type. A value the
-messages cannot hold fails the whole read naming `Class.field`, with no skip
-and no fallback: a missing CLR field, a null string, def or `Type` element (or a null
-dictionary key or scalar value), or a type with no arm. A mod subclass of a mirrored polymorphic class (a mod's
-`CompProperties`) is such a type, so the catalog read fails on a modded game;
-the supported configuration is vanilla plus the DLCs the generator saw.
-
-The game numbers Go must not type in are the typed `GameConstants` member of
-the catalog (`game_constants`, read with `DefinitionCatalog.GameConstants()`): the
-calendar (`GenDate`), `SkillRecord.MaxLevel`, `RoofCollapseUtility.RoofMaxSupportDistance`
-(roof support), `JobDriver_InteractAnimal` and `TrainableUtility.MinTrainInterval`
-(the animal interaction job). `DefinitionCatalog.derived` (`CatalogDerived`) holds
-the three facts no const carries. `currency_def` is `ThingDefOf.Silver`: the
-def `Tradeable.IsCurrency` tests, which Go reads as `ItemFacts.Currency` (the
+`DefinitionCatalog.derived` holds the facts no const carries. `currency_def` is `ThingDefOf.Silver`: the
+def `Tradeable.IsCurrency` tests, which the brain reads as `ItemFacts.Currency` (the
 census coin; an empty value or a def with no row is refused). `wort_def` is
 `ThingDefOf.Wort`. `full_rot_rate_c` is the temperature at which
 `GenTemperature.RotRateAtTemperature` first reaches its full rate of 1: its
 curve is literals inside the game function, so native bisects the function
-itself and throws naming it when the rate never reaches 1 or is not finite; Go
+itself and throws naming it when the rate never reaches 1 or is not finite; the brain
 reads it as `FoodStorageObservation.ChilledMaxC`, the limit for refrigerated
 food. Drugs, chemicals
 and the preventive drug are not constants: `ItemFacts` derives them from the
 `CompProperties_Drug`, `ChemicalDef` and `HediffDef` rows. There is no plant-glow constant: each
 def carries `growMinGlow`.
 
-`bridge.DecodeDefinitionCatalog` keys the rows by def name in the per-load-token
-cache (`DefinitionCatalog.ThingDef`, `TerrainDef`; a thing and a terrain may
-share a name) and refuses a missing or repeated name, absent def rows, sets, derived facts or
-game constants, a calendar that differs from Go's (domain.TicksPerDay and kin), and a non-positive or nonfinite constant Go reads. The reply must stay under
-the 48 MiB gunzipped reply guard (`maxReplyProtoBytes`, a decompression guard,
-not a row cap).
-
-### Every other def class
-
-`DefinitionCatalog.defs` (`DefSets`) carries the defs of every other
-concrete `Verse.Def` class (251 in the game and its DLCs, so the catalog holds
-every def the game loads): one repeated field per class, named by the class
-(`stat_defs`, `recipe_defs`, ...) and numbered in ordinal order of the class's
-full name. `ThingDef` and `TerrainDef` keep `thing_defs` (8) and `terrain_defs`
-(9). One generated message with a field per class costs the least generated
-code: a field per class on the catalog would mean hand-written proto that the
-generator could not keep in step, and a oneof row wrapper adds a message per
-class and a second encoding layer.
-
-Native fills each field from the game's def database for that exact class
-(a def of a subclass is in its own field), sorted by `defName`, by the same
-walker. The class list is the `DefSets` descriptor itself, so a new class needs
-no native code. A concrete def class the game has and `DefSets` lacks (a mod's)
-fails the read naming it, as a mod subclass of a mirrored class does.
-`QuestGen.SlateRef<T>` fields are mirrored as the field's XML text, a literal
-or a `$variable` held in the struct's one private string.
-
-`bridge.DecodeDefinitionCatalog` reads the `DefSets` fields by protobuf
-reflection into `DefinitionCatalog.Defs` (message full name, then `defName`);
-`bridge.DefRow[*defspb.StatDef](catalog, name)` is the typed lookup. A set
-that is absent or empty, an invalid `defName` and a repeated `defName` within
-a class are contract violations.
-
-Rows mirror private fields too, and a def class whose fields nest its own
-kind (quest nodes, think nodes, thing set makers) mirrors them as recursive
-messages, so a quest script carries its whole node tree. Every row's
-`modPackageId` is the id of the mod that defined it
-(`Def.modContentPack.PackageId`; unset when the def has no mod). The runtime-state
-exclusions are listed in the `defs.proto` header; see
-[schema generation](../schema-generation.md#def-mirror).
+The catalog read validates the context, a present `derived`, and the thing-facts rows (a missing or repeated def
+name is a contract error); the brain refuses a non-positive or nonfinite constant it reads. Catalogs are cached
+per load token.
 
 `DefinitionCatalog.class_chains` (`ClassChain`) carries the base classes
-of every class the fill touched, def classes and every `System.Type` value in a
-row alike, sorted by name. `bridge.DefinitionCatalog.ClassIsA(class, base)` and
-`RowIsA(row, base)` match a family against it; a class with no chain is an
-error. `ActiveCondition.condition_class` is the concrete `GetType().FullName`,
-the key the chains use. A family is matched by base class, never by a
-name list: `bridge.DefinitionCatalog.OutdoorsPermanentlyDark(biome)` is
+of every class the def rows name: each def's own class and every `System.Type` value in a
+row, sorted by name. A family is matched by base class, never by a
+name list. `ActiveCondition.condition_class` is the concrete `GetType().FullName`,
+the key the chains use. `DefinitionCatalog.OutdoorsPermanentlyDark(biome)` is
 true when a `BiomeDef.biomeMapConditions` condition's `conditionClass` is or
 derives from `RimWorld.GameCondition_NoSunlight`; the colony projection carries
 it as `RoundsFacts.OutdoorsDark` and `CropClimate.OutdoorsDark`, unknown
@@ -316,39 +254,33 @@ condition class cannot be read.
 
 ### Stat values and adjusted costs
 
-Go computes them: `bridge/stateval` ports the game's StatWorker and StatPart
-code over the catalog's def rows, so no stat value, allowed stuff or adjusted
-cost list travels in the catalog. `DefinitionCatalog.stat_env` (`StatEnv`)
-carries the only game state that evaluation reads beyond the rows, once per
+Stat reads go through `IStatSource`: in the mod, `GameThreadStatService` asks the game's own StatWorker/StatPart
+code on the game thread, so no stat value, allowed stuff or adjusted cost list travels in the catalog.
+`DefinitionCatalog.stat_env` (`StatEnv`) carries the game state a stat read needs beyond the rows, once per
 load: the active mod package ids (lower case), classic mode, the scenario's
 stat factors (`Scenario.GetStatFactor` of every StatDef whose factor is not 1)
 and the storyteller difficulty (butcher and fishing yield factors and the
 public bool fields, which `CostListForDifficulty.difficultyVar` names). It
 rides in the catalog read, so a difficulty changed mid-load is read at the next
-load. A catalog without `stat_env` evaluates no stat: `StatEvaluator()` is a
-contract error, never a guessed environment.
+load.
 
 `DefinitionCatalog.StatValue(def, stuff, stat)`, `ShownStatValue`,
 `AdjustedCosts(def, stuff)` (`ThingDef.CostListAdjusted`: stuff volume and
 difficulty applied), `AllowedStuffs(def)` (`GenStuff.AllowedStuffsFor`, sorted by
-defName), `TerrainStatValue`, `TerrainWorkToBuild` and `TerrainAdjustedCosts`
+defName), `TerrainWorkToBuild` and `TerrainAdjustedCosts`
 evaluate on demand for any (def, stuff) pair, including a stuff the game would
 not offer for the def (a scenario's jade knife). An unknown def or stuff, a
-stat the game hides for the def, a non-finite value and a stat class Go does
-not mirror are errors, never a default. `DeteriorationRate`, which a planner
+stat the game hides for the def and a non-finite value are errors, never a
+default. `DeteriorationRate`, which a planner
 reads of every `ThingDef` and the game hides for a def that does not set it,
-is read whether shown or not. `FloorTerrain(name)` joins a terrain's
-cleanliness, beauty and flammability with the def row's `pathCost` and
-`natural`; `FloorTerrains()` prices every terrain once per load. The
-`EvaluateStat` rpc stays as the parity oracle: the `stats/evaluate-stat` and
-`stats/evaluator-parity` acceptance cases compare the Go evaluator with the
-game's own answer.
-
+is read whether shown or not. The `EvaluateStat` read stays as the parity oracle: the
+`stats/evaluate-stat` and `stats/evaluator-parity` acceptance cases compare the catalog's answer with the
+game's own.
 ### Game-computed ThingDef flags
 
 `DefinitionCatalog.thing_facts` (`ThingDefFacts`) is one row for every
 ThingDef: what the game's own code says about the def, computed natively once
-per load and read by Go, never ported. `food_kind` is set for a food a policy
+per load and read by the brain, never ported. `food_kind` is set for a food a policy
 can allow (a nutrition-giving ingestible that is no drug and no corpse): meal
 tier by `FoodPreferability`, then kibble, hay, meat by
 `FoodUtility.GetMeatSourceCategory`, `IsFungus`, `IsAnimalProduct`, a
@@ -377,7 +309,7 @@ cost the stat table cannot value are contract errors.
 There is no royalty read. The title
 ladder (seniority, favor needed, throne and bedroom requirements) and the permit
 catalog (minimum title, permit points, worker class, whether the permit acts and
-the favor a call spends) are static defs read from the def mirror
+the favor a call spends) are static defs read from the game's Def objects
 (`RoyalTitleDef`, `RoyalTitlePermitDef`; `DefinitionCatalog.WithTitleDefs`).
 Each colonist's holdings and psycasts are its `PawnState.royalty`, decoded by `bridge.PawnRoyaltyFacts` into `policy.RoyaltyFacts`, where an
 absent scalar is unknown. The neuroformer stock, bestowing ceremonies and
@@ -406,14 +338,14 @@ the game's own race code can say rides the race's `ThingDefFacts.race`
 (`RaceFacts`): `animal` (`RaceProperties.Animal`), `mechanoid`
 (`IsMechanoid`), `insect` (`Insect`), the `trainables` the race can ever learn
 (`Pawn_TrainingTracker.CanAssignToTrain`'s race rules) and the `edible_defs`
-(`RaceProperties.CanEverEat`, over the foods the facts mark). The Go catalog
+(`RaceProperties.CanEverEat`, over the foods the facts mark). the brain catalog
 derives `policy.AnimalRaceCatalog` from those rows once per load
 (`DefinitionCatalog.AnimalRaces`): body size, life expectancy, the predator
 flag and the manhunter chances are row fields, a pest is an animal whose
 `foodType` includes `Tree` (the alphabeaver), periodic products come from the
 milk, wool, egg and spawner comps, and the feed a bench can make is the
 `RecipeDef` products the race can eat. An absent stat is unknown, never zero.
-It is derived state held in Go memory (persistence-contracts.md); it adds no
+It is derived state held in memory (persistence-contracts.md); it adds no
 store and no per-animal race copy: `AnimalState` and `PawnState` carry no race
 scalar, `FoodEater` and `FoodRestriction` no food list.
 
@@ -423,9 +355,9 @@ Biotech facts follow the shared wire pattern: static defs ride the
 definition catalog and per-pawn facts ride the canonical pawn row. There is no
 separate read tool. Both are absent without Biotech (`ModsConfig.BiotechActive`).
 
-`DefinitionCatalog.biotech` carries only what the def mirror cannot give. The
-life stage, race, gene, xenotype, mech kind and work mode defs are the mirror's
-own rows (`LifeStageDef`, `RaceProperties.lifeStageAges` and
+`DefinitionCatalog.biotech` carries only what the game's Def objects cannot give. The
+life stage, race, gene, xenotype, mech kind and work mode defs are read from the Defs
+themselves (`LifeStageDef`, `RaceProperties.lifeStageAges` and
 `lifeStageWorkSettings`, `GeneDef`, `XenotypeDef`, `PawnKindDef`,
 `MechWorkModeDef`). `mech_work_modes` (`MechWorkModeRoles`) names the
 `MechWorkModeDef` the game picks as `MechWorkModeDefOf.Work`, `.Escort` and
@@ -433,7 +365,7 @@ own rows (`LifeStageDef`, `RaceProperties.lifeStageAges` and
 `GeneTuning` constants: the biostat (metabolism) range, base max complexity, the
 complexity to assembler hours curve, the extractor regrow days range, and the
 extractor's private `TicksToExtract` and power-cut eject limit (absent when
-reflection cannot read them). Go builds `bridge.BiotechCatalog` as a facade
+reflection cannot read them). The brain builds `bridge.BiotechCatalog` as a facade
 over the catalog's rows once per load token: genes by name, the humanlike
 races' work minimum ages, the controllable mech kinds (a `PawnKindDef` of a
 mechanoid race with an overseer-subject comp; its bandwidth cost is the race's
@@ -455,13 +387,13 @@ held by a gene extractor, and `extractable` the game's own
 `Building_GeneExtractor.CanAcceptPawn` verdict (true when any owned extractor of
 the pawn's map accepts) with `extractable_reason`, the first refusal text (ASCII,
 absent when the game gave none). `extractable` is absent for an unspawned or
-non-humanlike pawn and on a map with no extractor, so Go never reimplements the
-passOnDirectly, archite or coma rules. Go lifts the block into
+non-humanlike pawn and on a map with no extractor, so the brain never reimplements the
+passOnDirectly, archite or coma rules. The brain lifts the block into
 `policy.PawnBiotech` on the work pawn (`WorkPawn.Biotech`) and the pawn
 profile. `PawnProfile.Child` follows the developmental stage (Newborn, Baby,
 Child) the Biotech block names; a colony without Biotech has no block and no
 child pawns, and a Biotech block without the stage fails the lift. Both are derived state held
-in Go memory (persistence-contracts.md); they add no store.
+in memory (persistence-contracts.md); they add no store.
 
 ## Odyssey defs and facts
 
@@ -470,24 +402,18 @@ defs ride the definition catalog and per-thing facts ride the canonical
 building row. There is no separate read tool and no Odyssey intent. All of it
 is absent without Odyssey (`ModsConfig.OdysseyActive`).
 
-`DefinitionCatalog.odyssey` holds only what the def mirror
-(`defs.proto`) cannot give, read from the game defs: each `BiomeDef`'s wild
-animal kinds with a nonzero commonality in the inland, pollution and coastal
-tables (the game joins `BiomeDef.wildAnimals` with each race's `wildBiomes`;
-the races are the catalog's race rows, so a new animal needs no row of its
-own), and the stockpile type enum with whether the world generator places each
-value. Biomes, `TileMutatorDef`s, `CompProperties_Hackable` thing defs,
-`MapPortalProperties` thing defs and biome diseases are the mirror's own rows.
-`bridge.DecodeOdysseyCatalog` indexes the rows by name and refuses duplicates
-and nonfinite or nonpositive commonalities.
+The Odyssey static defs (biomes, `TileMutatorDef`s, `CompProperties_Hackable` thing defs,
+`MapPortalProperties` thing defs, biome diseases, each `BiomeDef`'s wild animal kinds and the
+stockpile types) are read from the game's Def objects by the brain's catalog; the wire catalog
+carries no Odyssey block.
 `BuildingState.odyssey` carries a building's hack progress, defence, hacked,
 locked-out and autohack state (`CompHackable`) and a portal's pocket map
 existence and id, plus an ancient hatch's stockpile type and layout. An absent
 scalar is unknown; a failed sub-read leaves its block absent and adds a
 `ReadIssue` named `hackable` or `portal`. `ColonyFactsSnapshot.tile_mutators`
-lists the colony map tile's mutators next to `biome`. Go lifts the blocks into
+lists the colony map tile's mutators next to `biome`. The brain lifts the blocks into
 `policy.Hack` and `policy.Portal` (`bridge.BuildingHack`, `BuildingPortal`);
-all of it is derived state held in Go memory (persistence-contracts.md) and
+all of it is derived state held in memory (persistence-contracts.md) and
 adds no store.
 
 `ColonyFactsSnapshot.odyssey` (`OdysseySection`) is the colony-wide
@@ -503,11 +429,11 @@ flags make them hurt or contaminate, with the cells each covers),
 layout, colonists present and every `CompHackable` thing on the pocket map with
 its progress, defence, hacked, locked-out and autohack state; positions are
 pocket-map cells). Selection is by the game's own types and flags, never def-name
-lists; an absent scalar is unknown, never zero. Go validates the rows
+lists; an absent scalar is unknown, never zero. The brain validates the rows
 (`bridge.validateOdysseyColony`: unique ids per table, lava cells on the map,
 nonnegative ticks, progress a fraction, no `ticks_left` on a permanent
 condition) and projects them into `observation.OdysseyColony`
-(`ColonyProjection.Odyssey`). Derived state held in Go memory
+(`ColonyProjection.Odyssey`). Derived state held in memory
 (persistence-contracts.md); it adds no store.
 
 ## Anomaly defs and facts
@@ -517,26 +443,11 @@ definition catalog and per-pawn and per-building facts ride the canonical rows.
 There is no separate read tool and no Anomaly intent. All of it is absent
 without Anomaly (`ModsConfig.AnomalyActive`).
 
-`DefinitionCatalog.anomaly` holds, each sorted by name and read from the
-game defs (never Go name lists): `EntityCategoryDef` and `KnowledgeCategoryDef`
-rows; `EntityCodexEntryDef` rows (category, how and when the entry is
-discovered, the linked thing defs, provocation incidents and discovering
-research projects); `AnomalyThingRow`, one per ThingDef that is an entity
-(`RaceProperties.IsAnomalyEntity`), has a codex entry, is studiable, can be
-held on a platform or holds an entity (the race's study yield, the def's
-`MinimumContainmentStrength` base value and the `CompProperties_Studiable`,
-`CompProperties_HoldingPlatformTarget` and `CompProperties_EntityHolder`
-values); and `AnomalyIncidentRow`, one per `IncidentDef.IsAnomalyIncident`
-(category, whether it is a `ThreatSmall` or `ThreatBig` threat, worker class,
-chance and threat-point gates, the codex entry it discovers).
-`bridge.DecodeAnomalyCatalog` indexes them by name and refuses duplicates,
-unknown references (categories, codex entries), nonfinite or negative numbers
-and an unnamed enum value. Creepjoiner form, benefit and downside rows (weights, combat-point
-gates, requires/excludes, granted traits, skills, hediffs and abilities, a
-downside's timing and worker) are included; monolith level defs are not, their
-child adds them. The thing rows duplicate what the generated
-ThingDef rows will carry (comps, stat bases); they become Go views
-over those rows when it lands. Def numbers in the anomaly catalog and `min_containment_strength` are the def values verbatim and are only checked for being finite: vanilla defs carry -1 (Alligator `studyAmountToComplete`, a holding target escape interval), whose meaning the consuming goal sources before it reads the field.
+The Anomaly static defs (EntityCategoryDef, KnowledgeCategoryDef, EntityCodexEntryDef, the entity thing
+rows and the anomaly IncidentDef rows, Creepjoiner form, benefit and downside rows) are read from the game's
+Def objects by the brain's catalog, never from brain name lists; the wire catalog carries no Anomaly block. Def numbers
+are the def values verbatim and are only checked for being finite: vanilla defs carry -1 (Alligator
+`studyAmountToComplete`, a holding target escape interval), whose meaning the consuming goal sources before it reads the field.
 
 `PawnState.anomaly` carries `Pawn.IsEntity`, `IsMutant` and `IsShambler`, an
 entity's `MinimumContainmentStrength`, its `CompHoldingPlatformTarget` state
@@ -576,9 +487,9 @@ spawned, and never by option index or label.
 pawn it holds) and a studiable building's `CompStudiable` state. An absent
 scalar is unknown;
 a failed sub-read leaves its block absent and adds a `ReadIssue` named
-`entity`, `held`, `holder`, `study` or a threat fact's name. Go lifts the blocks into
+`entity`, `held`, `holder`, `study` or a threat fact's name. The brain lifts the blocks into
 `policy.PawnAnomaly` and `policy.BuildingAnomaly` (`bridge.PawnAnomaly`,
-`BuildingAnomaly`); all of it is derived state held in Go memory
+`BuildingAnomaly`); all of it is derived state held in memory
 (persistence-contracts.md) and adds no store. Thing rows (items, corpses) carry
 no study state.
 
@@ -610,14 +521,14 @@ the pocket map once the Gleaming monolith is used) with its id and the free
 colonists spawned there; and the void awakening stage, derived from the
 `stageStructure.N` quest tags of the spawned structures and absent while the
 `EndGame_VoidAwakening` quest is not running). Level effects and requirements
-come from the game defs through the native read, not Go tables. A held entity's strength and need stay on its rows
+come from the game defs through the native read, not the brain tables. A held entity's strength and need stay on its rows
 (`HeldState`, `EntityHolderState`, `PawnAnomaly.min_containment_strength`).
 Selection is by the game's own types, never name lists; an absent scalar is
-unknown, never zero. Go validates the rows (`bridge.validateAnomalyColony`:
+unknown, never zero. The brain validates the rows (`bridge.validateAnomalyColony`:
 unique names and ids, discovered at most entries, nonnegative finite knowledge
 and threat fraction, nonnegative levels) and projects them into
 `observation.AnomalyColony` (`ColonyProjection.Anomaly`). Derived state held in
-Go memory (persistence-contracts.md); it adds no store. Active game conditions
+memory (persistence-contracts.md); it adds no store. Active game conditions
 (for example the gray pall) are not here: the shared condition read lives in
 the Odyssey section today.
 
@@ -626,10 +537,10 @@ the Odyssey section today.
 `ThingDefFacts.room_roles` lists the roles the game's code
 names a building definition for, sorted: `Toy`, `Decoration`, `Board` and `Desk`
 (its `ThingDefOf` toy box, baby decoration, blackboard and school desk, the rows
-its baby and school jobs name). Go derives the other two from the def rows:
+its baby and school jobs name). The brain derives the other two from the def rows:
 `BabyBed` (`building.bed_crib`) and `DeathrestCasket` or `DeathrestAccelerator`
 (a building carrying `CompProperties_DeathrestBindable`, a casket when its class
-is a bed). Go refuses an unknown, duplicate or unsorted role and plans child
+is a bed). The brain refuses an unknown, duplicate or unsorted role and plans child
 rooms and the deathrest chamber from the catalog rows carrying a role
 (`policy.FurnitureRole`, `bridge.DefinitionCatalog.RoomRoleRows`). The
 reference assembly carries no method bodies, so the game's room role workers'
@@ -653,10 +564,10 @@ player Newborn or Baby with `ChildcareUtility`'s suckle and play verdicts, its
 bed and its autofeeders; `breastfeeders` lists the pawns
 `ChildcareUtility.CanBreastfeedPlayerPawns` names. Verdicts come from the game
 (comps, buildings, `ChildcareUtility`), never def-name lists; an absent scalar
-is unknown, never zero. Go validates the rows (`bridge.validateBiotechColony`:
+is unknown, never zero. The brain validates the rows (`bridge.validateBiotechColony`:
 unique ids per table, cells on the map, nonnegative counts) and projects them
 into `observation.BiotechColony` (`ColonyProjection.Biotech`). Derived state
-held in Go memory (persistence-contracts.md); it adds no store.
+held in memory (persistence-contracts.md); it adds no store.
 
 Gene-building rows sit in the same section:
 `gene_banks` (any building with `CompGenepackContainer`: powered, capacity,
@@ -670,11 +581,11 @@ cumulative power-cut ticks), `genepacks` (each pack held by a bank, with
 points, `Genepack.Deteriorating`, auto-load) and `xenogerms` (spawned items
 with genes and the pending implant target). Complexity, metabolism and archite
 totals on packs and xenogerms are the game's own `GeneSet` values, never
-summed in Go. Each xenogerm also carries `implant_metabolism`: the
+summed in the brain. Each xenogerm also carries `implant_metabolism`: the
 game's `GeneUtility.MetabolismAfterImplanting` for every colonist, slave or
 colony prisoner on its map (one row per pawn id; the implant is refused below
 the biostat range minimum). Run facts are absent while idle, a banked pack has no cell, and
-the xenogerm name is not on the wire (user text). Go validates unique ids per
+the xenogerm name is not on the wire (user text). The brain validates unique ids per
 table, nonnegative counts, distinct gene ids and that a pack is in exactly
 one place, a bank listed in `gene_banks` or a cell
 (`bridge.validateGeneBuilding`), and projects into
@@ -706,11 +617,11 @@ a def-name list.
 `QuestLookTargets` entry on a map; both are absent when native has none (a
 quest anchored only to a world object has no `map_id`). `QuestReward.favor` is
 the royal favor a `Reward_RoyalFavor` grants; summed per `choice_index`, it is
-what the Empire quest planner maximises. The Go read carries
+what the Empire quest planner maximises. the brain read carries
 `FactionState` id and hostile beside the quests, and a quest with no
 `map_id` or one off the identity map is off-map. A `QuestPart_GiveRoyalFavor`
 outside every choice's part list emits a reward with absent `choice_index`:
-its favor applies independently of reward selection. Go represents this with
+its favor applies independently of reward selection. The brain represents this with
 choice -1 and does not count it as an option.
 
 `QuestReward.items` contains exact native item def names and stack counts.
@@ -757,7 +668,7 @@ definition, label, map, position). A write's CAS token is a `SnapshotRef`
 sibling of the reference (`pawn_snapshot`, `source_snapshot`, ...), required,
 context-scoped and bound to the exact ID; a reference without one cannot supply
 an EntityPrecondition. Missing producer support yields unavailable; tokens are
-never fabricated from a label, position, tick alone, or public protobuf bytes.
+never fabricated from a label, position, tick alone, or public wire bytes.
 Tokens cover the relevant native facts and domain-specific settings, not authority.
 
 | Operations precondition | Read path |
@@ -780,7 +691,7 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 PlaceBuilding uses its placement preview and write authority precondition; it has
 no separate EntityPrecondition.
 
-Draft claims expose exact claim_id, original Owner (controller session, player
+Draft claims expose exact claim_id, original Owner (brain session, player
 direction) and pawn scope. Boolean drafted does not prove ownership; unowned and
 unavailable are distinct. Cleanup compares the unchanged claim even after
 authority is revoked. Trade line IDs are opaque and sheet-scoped, catalog group
@@ -792,4 +703,4 @@ Shrines: `GetAncientShrines` reads each ancient-danger room as one unit: sealed 
 
 Trade session and sheet headers carry one `common.TradeTarget`, whose settlement arm names the player caravan. `ReadTradeAcquisition` exposes native request prerequisites, all passing ships, queued arrivals/comms work and optional exact-crew packing estimates. Presence remains significant; [controllable trade](../../docs/developers/contracts/controllable-trade.md) defines eligibility and reconciliation.
 
-`EvaluateStat(stat, subject)` is the game's own evaluation of one stat for a definition (with optional stuff and quality), a thing id or a pawn id: the final value, the per-part explanation lines and `ShouldShowFor`. A definition subject without quality equals the definition catalog stat table value. An unknown stat or subject is a `NOT_FOUND` failure. It is scaffolding and the oracle for the Go stat evaluator (epic #2621); it is read-only.
+`EvaluateStat(stat, subject)` is the game's own evaluation of one stat for a definition (with optional stuff and quality), a thing id or a pawn id: the final value, the per-part explanation lines and `ShouldShowFor`. A definition subject without quality equals the definition catalog stat table value. An unknown stat or subject is a `NOT_FOUND` failure. It is scaffolding and the oracle for the stat evaluator (epic #2621); it is read-only.

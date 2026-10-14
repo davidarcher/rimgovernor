@@ -1,6 +1,6 @@
 # Colony extent contract
 
-The colony extent is the controller's one shared territory model: where the colony *is*, recorded with why each cell
+The colony extent is the brain's one shared territory model: where the colony *is*, recorded with why each cell
 belongs, kept per world (colony, map), and read by layout and resource policies
 through one bounded query. It is distinct from native Home coverage (what
 the game maintains and cleans) and from resource-operation reach (where
@@ -12,12 +12,12 @@ implies that a cell or route is safe today.
 | Concept | Owner | Code |
 | --- | --- | --- |
 | Current extent | Pure policy derivation from held colony facts; no writer | `policy.DeriveColonyExtent` |
-| Established history | Controller durable store, append-only session cache per world | `store.EstablishColonyExtent`, `EstablishedColonyExtent` |
+| Established history | Brain durable store, append-only session cache per world | `store.EstablishColonyExtent`, `EstablishedColonyExtent` |
 | Eligibility | Pure overlay of current evidence on history; read-only diagnostics | `policy.ExtentEligibility` |
 | Bounded consumer query | Pure geometry over extent plus areas | `policy.ExtentWindow` |
 | Native Home mask | The game, through `AreaIntent` home cell edits only | [Maintained jobs](upkeep-contracts.md#maintained-jobs) |
 
-Nothing in this contract writes native state. The extent is Go-side
+Nothing in this contract writes native state. The extent is the brain-side
 knowledge about the colony; the game holds no copy of it.
 
 ## Derivation

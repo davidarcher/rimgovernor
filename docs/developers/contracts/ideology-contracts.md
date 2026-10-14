@@ -2,7 +2,7 @@
 
 [Contracts](README.md)
 
-How the ideoligion reaches Go. It follows the wire pattern: each
+How the ideoligion reaches the brain. It follows the wire pattern: each
 concept is modelled once, and there is no Ideology read tool.
 
 ## Creation and reform
@@ -11,7 +11,7 @@ concept is modelled once, and there is no Ideology read tool.
 fluid/fixed mode. Roles, rituals and building instances are initialized or
 preserved by the game's foundation. Creation carries the design in
 `NewColonySpec.ideoligion`, before starting colonists receive their ideoligion.
-`governor_ideoligion` requests Go selection; an explicit player design takes
+`governor_ideoligion` requests selection; an explicit player design takes
 precedence. Missing required facts fail explicitly, without a random fallback.
 The existing definition-catalog request's `creation` mode reads static generated
 rows at a fresh main menu, without inventing a map identity.
@@ -53,19 +53,18 @@ uses its existing save Record; there is no second current-design store.
 
 Native coverage: `lifecycle/ideoligion-design` and `ideology/legal-reform`.
 These prove game creation and write/progression contracts; policy decisions
-remain Go tests, including the recorded full catalog fixture.
+remain tests, including the recorded full catalog fixture.
 
-| Fact | Where it rides | Go |
+| Fact | Where it rides | Brain |
 | --- | --- | --- |
-| Static defs: memes, precepts with their comps, role precepts, ritual patterns and behaviors | Rows of the catalog's generated def mirror (`DefinitionCatalog.defs`: `MemeDef`, `PreceptDef`, `RitualPatternDef`, `RitualBehaviorDef`, `RitualObligationTargetFilterDef`, `ThoughtDef`), read once per load token | `bridge.DefinitionCatalog.IdeologyDefs()` (`policy.IdeologyDefs`) |
+| Static defs: memes, precepts with their comps, role precepts, ritual patterns and behaviors | Rows of the definition catalog (`DefinitionCatalog.defs`: `MemeDef`, `PreceptDef`, `RitualPatternDef`, `RitualBehaviorDef`, `RitualObligationTargetFilterDef`, `ThoughtDef`), read once per load token | `bridge.DefinitionCatalog.IdeologyDefs()` (`policy.IdeologyDefs`) |
 | Per-pawn: ideoligion id, held role, certainty | Pawn row's `policy_inputs` (`ideo_id`, `ideo_role`, `ideo_certainty`) | `policy.PawnPolicyInputs` |
 | Colony: precepts and roles in force, ritual state, building precepts | `BundleSnapshot.ideology`, an omittable section with watermark `ideology` | `bridge.RoundsFrame.Ideology`, `policy.Facts.Ideology`, `facts.Ideology` |
 
 Native names are from the game's reference assemblies (`PreceptDef`,
 `PreceptComp`, `MemeDef`, `RitualPatternDef`, `Ideo`, `Precept_Role`,
 `Precept_Ritual`, `Precept_Building`, `Pawn_IdeoTracker.Certainty`); the
-section writer is `NativeIdeologyObservation.cs`, the defs are filled by the
-def mirror's protobuf reflection ([schema generation](../../../contracts/schema-generation.md#def-mirror)).
+section writer is `NativeIdeologyObservation.cs`, the defs are read from the catalog.
 
 ## Static defs
 
@@ -74,7 +73,7 @@ included, `modPackageId` says whose), so a fact the planners do not read yet
 is already in the rows: burial and apparel requirements and per-race meat
 comps (`PreceptComp_*`, `buildingRoomRequirements`, `roleApparelRequirements`),
 role trait and gender requirements (`roleRequirements`), ritual outcome and
-spectator filters (`RitualBehaviorDef`, `RitualOutcomeEffectDef`). No Go code
+spectator filters (`RitualBehaviorDef`, `RitualOutcomeEffectDef`). No code
 lists a def name; `policy.IdeologyDefs` is a view over the rows, built once
 per load, and a row a def names that the catalog lacks is an error.
 
@@ -108,13 +107,13 @@ per load, and a row a def names that the catalog lacks is an error.
 rituals and building precepts held apart), each role's holders as pawn row
 refs, each ritual's raw `lastFinishedTick`, active obligation count, repeat
 penalty flag and whether a lord job of it runs (`running`), and each
-building precept's ThingDef. The section is absent, with no watermark, without Ideology or a primary ideoligion; Go then holds
+building precept's ThingDef. The section is absent, with no watermark, without Ideology or a primary ideoligion; the brain then holds
 `Facts.Ideology` unknown.
 
 `bridge.DecodeIdeology` resolves every def name against the catalog rows and
 fails the frame on a name the catalog lacks, a repeated precept id, a missing field
 or a section whose load has no Ideology defs. `lastFinishedTick` is passed
-through as read: Go interprets no never-performed sentinel.
+through as read: The brain interprets no never-performed sentinel.
 
 `policy.Ideoligion` pairs the defs with the held facts and answers
 `EffectsInForce` (the typed effects of every precept in force) and
@@ -175,7 +174,7 @@ per pawn and role ([action contracts](action-contracts.md)). Composed by the `id
 `MaintainRituals` (`policy.PlanRituals`) begins each due ritual precept
 through the Ritual `begin` verb ([action contracts](action-contracts.md)).
 Every value is read from the game; no ritual, building or role name is listed
-in Go.
+in the brain.
 
 - **Due** (`HeldRitual` against its `RitualDef`): not running
   (`IdeoRitual.running`: a `LordJob_Ritual` of the precept exists). An active

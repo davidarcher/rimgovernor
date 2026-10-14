@@ -1,10 +1,10 @@
-# Controller and colony contracts
+# Brain and colony contracts
 
 [Documentation](../../README.md)
 
 Current routine-control rules and completion gates. For the reasoning, read
 [the control loop](../architecture/control-loop.md). Policy code lives in
-`go/internal/policy`; planners in `go/internal/buildingruntime`.
+`brain/src/RimGovernor.Brain.Policy`; planners in `brain/src/RimGovernor.Brain.BuildingRuntime`.
 
 ## Observation
 
@@ -52,7 +52,7 @@ development queue. The planner catalog and due queue control review scheduling;
 see the [control loop](../architecture/control-loop.md).
 
 `GET /api/routines` exposes the last review, roster, progress, stage and remote
-loot holds. The [player API contract](go-player-api.md) owns its response shape.
+loot holds. The [player API contract](player-api.md) owns its response shape.
 **Concern progress** (`policy.ConcernProgress`): each active concern carries the method in play,
 the observable it should move, the tick native evidence last moved it, the blocker
 inspection tick and the blocker. Progress is native outcome, never dispatch. Blocker
@@ -137,8 +137,8 @@ catalog are def-mirror rows; per-colonist holdings and known psycasts are
 `PawnState.royalty`; neuroformer stock, bestowing ceremonies and thrones are the colony
 section (see observations.md). Absent scalars are unknown, never zero.
 
-Throne-room requirements are not a wire field: the client builds a Go view from each
-`RoyalTitleDef.throneRoomRequirements` in the def mirror (`DefinitionCatalog.ThroneRequirements`,
+Throne-room requirements are not a wire field: the client builds a view from each
+`RoyalTitleDef.throneRoomRequirements` in the definition catalog (`DefinitionCatalog.ThroneRequirements`,
 `WithThroneRequirements`) into `RoyalRung.Throne` before projection. A missing
 `RoyalTitleDef` row or an unset or malformed requirement is an error wrapping
 `bridge.ErrThroneRequirements` naming the title and requirement; the review logs it and
@@ -212,7 +212,7 @@ not an executor.
 - Toxic fallout: `RecoverDisasterServices` can move a colonist restricted outside every
   roof into an existing wholly roofed, reachable allowed area via an allowed-area
   `WorkSettingsIntent`, re-derived each 600-tick window (no native lease). Areas restrict
-  work destinations; they do not make paths safe. Go never assigns an unroofed area or
+  work destinations; they do not make paths safe. The brain never assigns an unroofed area or
   clears a restriction while fallout lasts; native reports no hazard veto. No refuge produces a blocker.
   Outdoor hazards (extreme cold at or below -20 C, extreme heat at or above 45 C, toxic fallout) are a typed
   fact (`OutdoorHazardsOf`); any known hazard, including an unrecognised kind, holds remote loot, salvage and
@@ -242,7 +242,7 @@ templates rank nearby legal shelter sites, then use bounded native previews.
 **Farm sites.** Starter farms and expansion share one site score: each square patch (4x4
 down to 2x2) is rewarded by the crop's fertility-adjusted nutrition rate and charged
 (as fractions of a normal cell's daily output) for walking from the anchor, hauling to
-storage and fragmentation. A patch adjoining a controller-created zone of the same crop
+storage and fragmentation. A patch adjoining a brain-created zone of the same crop
 earns a credit instead; player zones and occupied, roofed, protected, unreachable or
 undescribed cells never become free land; 1x1 cells only when no larger patch meets the
 fertility floor. Each patch keeps its terms (`FarmSitePlan.Explain`). Each batch previews
@@ -271,7 +271,7 @@ field batch waits for the first to resolve.
 
 **Site types** (`policy.PlanSiteType`, over the planning window `ColonyProjection.Cells`
 and `ColonyProjection.Environment` / `policy.ControlledEnvironment`, observed only and
-unknown when withheld; see [go-clock-recovery](go-clock-recovery.md)):
+unknown when withheld; see [clock-recovery](clock-recovery.md)):
 
 | Site type | Meaning |
 | --- | --- |
@@ -287,7 +287,7 @@ night/calm-night headroom (basins, heaters), plus a heater per room or outdoors 
 6C (`policy.DefaultSiteTypeWeights`). A kind lacking power, heater, infrastructure or
 crop compatibility stays in the candidate list with its reason; an unknown environment
 leaves only outdoor. Controlled kinds ignore the outdoor season (native does not refuse a zone for
-season, fertility or roof; those decide usefulness and stay Go crop and cell choice). Candidates are enacted in score order, at most
+season, fertility or roof; those decide usefulness and stay the brain crop and cell choice). Candidates are enacted in score order, at most
 three per step: zones preview growing zones, construction kinds preview the lamp or
 basins (lit soil is planted by a later batch once the game reports it). A refused or
 unreservable candidate falls through. Open farm-infrastructure work blocks the next
@@ -392,7 +392,7 @@ Write receipts:
 | Situation | Receipt and outcome |
 | --- | --- |
 | Transport proves the write never issued (`domain.ErrWriteUnsent`) | `ReceiptUnsent`: no-effect proof the same authority may retry; no ledger reconciliation. |
-| Issued but never answered (controller-side timeout) | `ReceiptUnknown`, reconciled via `receipts_lookup`. The native ledger admits an attempt on the main thread before any effect and serves lookups there, so a lookup under the attempt's own load finding no entry proves it was dropped: no-effect evidence, action returns to `Pending`. |
+| Issued but never answered (brain-side timeout) | `ReceiptUnknown`, reconciled via `receipts_lookup`. The native ledger admits an attempt on the main thread before any effect and serves lookups there, so a lookup under the attempt's own load finding no entry proves it was dropped: no-effect evidence, action returns to `Pending`. |
 | Admitted entry still in flight | Holds until its receipt is recorded. |
 
 Other rules: need-recovery previews retain native refusals on the mood incident and may
@@ -428,8 +428,8 @@ the primary weapon (ranged, verb range, projectile kind bullet / arrow / other, 
 radius, damage def and worker, warmup), the game's own `HasHuntingWeapon` and
 `HasShieldAndRangedWeapon` answers, the butcher benches reachable, and one `HuntRoute` per
 unfogged hunt row for each colonist with Hunting active who is neither downed nor in a mental
-state: `safe` true or false (a Danger.None path avoiding predators by the request's `hunt_predator_margin_cells` (Go sends `policy.HuntPredatorMarginCells`, 25) and an ordinary
-death action, `RouteSafe`), or `skipped` once the frame's `hunt_route_budget_ms` (Go sets
+state: `safe` true or false (a Danger.None path avoiding predators by the request's `hunt_predator_margin_cells` (the brain sends `policy.HuntPredatorMarginCells`, 25) and an ordinary
+death action, `RouteSafe`), or `skipped` once the frame's `hunt_route_budget_ms` (the brain sets
 `bridge.HuntRouteBudgetMS`, 50; absent evaluates every pair) is spent. Native applies no reach:
 pairs are evaluated pests first then nearest first, so the pairs a spent budget skips are the
 far ones policy refuses as `too_far` before it reads a route (cost:
@@ -453,8 +453,8 @@ enabled who can reach it. Selection designates as many prey as the nutrition gap
 active hunt loses its route.
 
 Acquisition reports revenge chance, same-race herd size within the request's `herd_radius`
-(Go sets `bridge.HerdRadius`, 25; the prey included; absent radius leaves `herd_size` unset,
-unknown, never 0, and the bridge refuses a hunt row without it), melee eligibility and downed state; Go derives the longest weapon range among the
+(the brain sets `bridge.HerdRadius`, 25; the prey included; absent radius leaves `herd_size` unset,
+unknown, never 0, and the bridge refuses a hunt row without it), melee eligibility and downed state; the brain derives the longest weapon range among the
 eligible hunters from the census, and the animal's leather and butcher products from its
 race row. Food selection keeps forage priority, then downed animals, then lower revenge
 chance times herd size.
@@ -542,7 +542,7 @@ storyteller inputs, not a raid prediction.
 ## Combat response
 
 `policy.DecideCombat` selects formation and reaction orders from the current
-combat view and retained fight memory. Go owns tactics; native owns job legality,
+combat view and retained fight memory. The brain owns tactics; native owns job legality,
 pathing and weapon execution. See [combat responsibilities](../architecture/combat-game-ai.md)
 and [hazard bounds](../architecture/hazard-detection-bounds.md).
 
@@ -732,7 +732,7 @@ drug in its observed carried inventory, with catalog preference breaking ties.
 The combat pawn row carries a complete drug definition set; absent inventory
 facts hold dosing and a present empty set orders no dose. Native checks only that the def is a
 drug and is carried (`not_a_drug`, `no_drug`); age, an active high, addiction and
-tolerance are Go policy (carry planning excludes children and risky chemicals)
+tolerance are policy (carry planning excludes children and risky chemicals)
 and vanilla's own refusal of the Ingest job surfaces as `native_refused`. The fight's `Dosed` memory
 limits each pawn to one attempted dose, including refused attempts; it does not
 assert ingestion. Unavailable inventory produces neither an order nor an attempt
@@ -751,7 +751,7 @@ with the live prey as the window's acknowledged ids (`ClockWindowFacts.HuntPrey`
 so the combat budget backstop wakes its next decision; no hostile exists to make
 the window a combat one otherwise.
 
-**Royal permits** (`combat_permit.go`). An outmatched fight calls the permits its
+**Royal permits** (`CombatPermit.cs`). An outmatched fight calls the permits its
 colonists hold. With the royalty read known (`CombatView.Royalty`, the review's
 `RoundsFacts.Royalty`), a held acting aid or strike permit that is off cooldown and
 affordable (favor at least its cost) yields a `permit_call` order, once per holder
@@ -762,7 +762,7 @@ call. The order is no `combat.orders` entry: the defense planner commits it as a
 `ability` action (permit source, cell target) on its own incident method, and the
 fight's stops wait while it is open. The admission stop makes no call.
 
-**Psycasts** (`combat_cast.go`). With the royalty read known and a live hostile,
+**Psycasts** (`CombatCast.cs`). With the royalty read known and a live hostile,
 each standing colonist yields at most one `psycast_cast` order per stop: the ready
 psycast of the highest family (heal, then stun, burst, defensive).
 

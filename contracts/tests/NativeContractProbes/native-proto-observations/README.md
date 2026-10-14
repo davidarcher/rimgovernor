@@ -12,7 +12,7 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto
 
 The suite loads actual compiled adapters and uses the actual SDK binder. It checks
 presence, bounded unique geometry, overflow-safe rectangles, unsupported fields,
-finite radius, and the Go singleton map-dimension request with all fields false.
+finite radius, and the singleton map-dimension request with all fields false.
 It does not create game state or claim native pawn/threat/cell outcomes.
 
 This slice supports status summary and optional need/hediff detail. Unrequested

@@ -60,7 +60,7 @@ cancelled work, unknown pawn health and a different equipped item cannot clear t
 
 ## Acceptance
 
-The weapon fit replays in `go/internal/policy/gear_snapshot_test.go` over a recorded `AssignEquip`
+The weapon fit replays over a recorded `AssignEquip`
 input: with a bolt-action rifle and a pump shotgun loose, the Shooting 12 soldier gets the rifle and
 the Shooting 8 one the shotgun. The armor ladder half has no recording yet (the recorded census
 carried no loadout model). See [equipment upkeep](equipment-upkeep.md#acceptance).

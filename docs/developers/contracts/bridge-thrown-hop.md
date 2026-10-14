@@ -26,12 +26,12 @@ in a hop body on the running game (the call after it answered normally).
    | `TimeoutException` | TimedOut | `capability.timed_out` |
    | `MissingMethodException`/`TypeLoadException` naming `RimGovernor.Host.Sdk` | | `capability.sdk_mismatch` |
 
-4. `LegacyToolExecution.InvokeAlias` (the registered GABP handler) never throws
+4. `LegacyToolExecution.InvokeAlias` (the registered tool handler) never throws
    for a failed envelope; it composes the reply below.
 
 ## The reply
 
-A normal GABP tool result (`isError` false on the wire):
+A normal tool result (`isError` false on the wire):
 
 ```
 {"success": false,
@@ -60,10 +60,10 @@ in the structured receipt.
   A rethrow loses the typed reply and the stack trace rides in every such reply,
   so never rethrow for expected game states.
 - A frame section that throws fails the frame. The snapshot stream is not a tool
-  hop, so a rethrow would only skip the frame and leave Go on a stale one. Native
+  hop, so a rethrow would only skip the frame and leave the brain on a stale one. Native
   publishes a frame carrying only `BundleSnapshot.failure` (`NATIVE_FAILURE`, detail
   `snapshot section <name>: <ExceptionType>: <message>`) for `colonyFacts`,
-  `population`, `research` and `pawns`; `bridge/frames.go` turns it into a
+  `population`, `research` and `pawns`; `Frames.cs` turns it into a
   `*Refusal` (tool `snapshot_frame`) naming the section.
 - A catch stays only where the game itself throws on legitimate input; give it a
   one-line reason.

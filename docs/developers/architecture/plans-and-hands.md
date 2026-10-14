@@ -1,6 +1,6 @@
 # Plans and Hands
 
-[Architecture](overview.md) · [Go player API](../contracts/go-player-api.md)
+[Architecture](overview.md) · [Player API](../contracts/player-api.md)
 
 Player requests and routine automation share admission checks, resource accounting
 and completion tracking. The plan owns concerns; Hands deterministically executes
@@ -33,15 +33,15 @@ Acknowledging a request establishes acceptance; completion requires the
 
 ## Native rules
 
-Go may hand native a standing, declarative reaction: "on trigger X, if predicates P, do
-whitelisted action A" ([native rules](../contracts/native-rules.md)). It is still a Go-authored
+The brain may hand native a standing, declarative reaction: "on trigger X, if predicates P, do
+whitelisted action A" ([native rules](../contracts/native-rules.md)). It is still a brain-authored
 order, deterministic and journaled: a pure policy function derives the rule set from the plan
 (`policy.HuntChainRules` from the hunt plan), the `rules_attach` action
 ([action contracts](../contracts/action-contracts.md)) reaches the session journal before the
 native write like every other intent, and native only executes the rules it was given. The set
 is attached with a lease each Round (`family rules`, one method per Round under
-`EnsureFoodSupply`); when Go stops renewing it native deactivates every rule by itself. Each
-firing is journaled on the clock ring before its write, and Go ingests it as a `rule` row.
+`EnsureFoodSupply`); when the brain stops renewing it native deactivates every rule by itself. Each
+firing is journaled on the clock ring before its write, and the brain ingests it as a `rule` row.
 Rules never draft: drafts stay plan-owned.
 
 ## Recover and cancel precisely
@@ -71,6 +71,6 @@ write outstanding: when the native generation moves under it (a cancelled
 dispatch, a re-acquired lease) it is prepared again under the current authority
 rather than left stranded.
 
-Implementation: [go/internal/domain](../../../go/internal/domain) (plans/concerns),
-[go/internal/store](../../../go/internal/store) and
-[go/internal/executor](../../../go/internal/executor).
+Implementation: [Brain.Domain](../../../brain/src/RimGovernor.Brain.Domain) (plans/concerns),
+[Brain.Store](../../../brain/src/RimGovernor.Brain.Store) and
+[Brain.Executor](../../../brain/src/RimGovernor.Brain.Executor).

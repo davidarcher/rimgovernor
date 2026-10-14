@@ -8,7 +8,7 @@ Review and burn down open issues in davidarcher/rimgovernor. Focus: $ARGUMENTS (
 ## Ask me, don't guess
 Stop and ask me with AskUserQuestion (options and a recommendation, not an open question) whenever:
 - an issue's intent or acceptance is unclear;
-- a fix needs a large design decision, or it's a one-way door: save or wire formats, the GABP contract, public action kinds, deleting a subsystem, or anything expensive to change later;
+- a fix needs a large design decision, or it's a one-way door: save or wire formats, the native tool contract, public action kinds, deleting a subsystem, or anything expensive to change later;
 - two issues conflict, or closing one as won't-fix/duplicate is a judgement call.
 Subagents can't reach me, so they stop and report the question to you instead. Relay it to me, then hand the answer back to a fresh agent. Keep working on everything that isn't blocked while you wait.
 

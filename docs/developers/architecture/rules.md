@@ -11,9 +11,6 @@ may only shrink: a new violation is a build error, and so is a baseline entry
 that no longer occurs (delete it). Never add a line to make a gate pass. Every
 gate error reads `arch rule <n> ...` with the diagnostic id `RGARCH00<n>`.
 
-The Go gates in `go/internal/archgate` stay in place and keep running with the Go
-tests until the Go delete child (#3102) removes them.
-
 A baseline entry belongs to one project (its first path segment, for example
 `Policy/Foo.cs|...`), and a project only reports entries of its own. A project
 built `unavailable` (no game in `RimWorldDir`, see `brain/Game.props`) compiles
@@ -34,16 +31,15 @@ the rule.
    `PlayerApi` does not reference `BuildingRuntime`. `Telemetry`, `Simulation`,
    `HttpChannel`, `NativeFacade` and `Acceptance*` sit outside the order.
    Bridge validates the wire, observation decodes, policy decides, store
-   persists, buildingruntime sequences. The Go denial "bridge does not import
-   policy" is dropped: the C# bridge returns Policy types by design
-   ([conventions](go-to-csharp-port-conventions.md#the-catalog-bridge-rimgovernorbrainbridge-3056)).
+   persists, buildingruntime sequences. Bridge returns Policy types by design, so
+   no "bridge does not import policy" edge is denied.
    Baseline `From->To`: the denied edges as they exist today.
 2. **Policy is pure (`RGARCH002`).** `RimGovernor.Brain.Policy` uses no
    `System.IO` or `System.Net` file or device API, `DateTime`, `DateTimeOffset`,
    `TimeProvider`, `TimeZoneInfo`, `Stopwatch`, `Process`, timer, `Thread.Sleep`,
    `Task.Delay` or `Environment` member. The in-memory text types (`Stream`,
    `StreamReader`, `StringReader`, `StringWriter`, `MemoryStream`, `Path`) stay
-   legal, because an embedded resource is read through them (Go `go:embed`), and
+   legal, because an embedded resource is read through them (an embedded resource), and
    so does `Environment.ProcessorCount`. `TimeSpan` is a value and stays legal.
    Search budgets count iterations, never wall time. Concurrency is allowed only
    while the result stays deterministic: each worker writes only its own slot
@@ -58,8 +54,7 @@ the rule.
    `Higher|Name`: today's duplicates.
 4. **No swallowed errors (`RGARCH004`).** No `catch` block without a
    statement in any `brain/src` project. A comment does not count as handling.
-   Baseline `file|Type.Member`. Many entries are the Go `if err != nil { continue }`
-   idiom ported as a skipped `DomainException`, or best-effort cleanup in the
+   Baseline `file|Type.Member`. Many entries are a skipped `DomainException` or best-effort cleanup in the
    acceptance harness; review them as you touch the file and delete the line
    once the catch records or rethrows.
 5. **Numbers (narrow, `RGARCH005`).** In `Policy` and `BuildingRuntime`: no
@@ -82,11 +77,9 @@ the rule.
    which is the fix for a Bridge-side hit; `Policy` and `Domain` cannot reference
    the game and keep their judgment tables. Baseline `file|Type.Member|"DefName"`
    or `file|Type.Member|number`; this rule's cap is above 200 because it
-   baselines every literal that predates it. The def-name list is refreshed with
-   `defmirror --report` (see `contracts/schema-generation.md`), the constants list
-   with `RG_UPDATE_GOLDEN=1 go test ./internal/archgate -run
-   TestGameConstantsListIsFresh` until #3102; copy the regenerated file over the
-   one in the analyzer's `data/`.
+   baselines every literal that predates it. The def-name and constants lists are
+   edited by hand in the analyzer's `data/` (`defof_names.txt`, `game_constants.txt`) when the game's
+   defs change; no generator exists since the def mirror was removed.
 
 **World-state ban (`RGARCH007`)**: no world-state game API on the planner worker thread. The
 whole brain runs off the game thread, so a `brain/src` project that
@@ -122,7 +115,7 @@ member or through a Policy `RoomTier`/`PlannerTier`/`AdoptedTier`/
 A violation you fixed leaves a stale baseline line, and the build says which:
 delete it. To see all findings of a project while fixing, build it; the
 diagnostics list every finding with its baseline key, so a key can be copied into
-the right file only for a violation that predates the gate (the Go baselines were
+the right file only for a violation that predates the gate (the baselines were
 seeded that way), never for new code. Changing an analyzer changes how a key is
 spelled: regenerate by building with the descriptors temporarily at `Warning`
 severity and writing the reported keys, then review the diff.

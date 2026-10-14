@@ -86,7 +86,7 @@ blueprints remain work in progress, and the intact native sketch determines
 completion and maintenance during the keep period. Native adds no refusal for a completed
 monument: moving, uninstalling, deconstructing or building over it gets the game's own
 answer, and vanilla's keep-time failure (`ticksSinceDisallowedBuilding`, observed) ends the
-quest. Go avoids pending monument cells itself.
+quest. The brain avoids pending monument cells itself.
 
 Pod-refugee objectives name the native crashed pawns. Existing custody rescues
 neutral refugees and secures hostile ones; housed patients use the ordinary tend

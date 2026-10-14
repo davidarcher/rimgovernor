@@ -24,10 +24,9 @@ From the worktree root:
 .\RimGovernor.cmd test > test.out 2>&1
 ```
 
-Wait for the final `test: PASS` or `test: FAIL`. The command formats changed Go
-files, runs analysis and short tests, and identifies relevant native checks.
-Affected-input selection determines which checks run. Do not follow it with another full
-Go suite. Use [choose-tests](testing/choose-tests.md) for skipped tests, C#/wire
+Wait for the final `test: PASS` or `test: FAIL`. The command builds the native contract
+probes when their inputs changed and runs `task build` and `task test` when any C#
+project changed. Do not follow it with another full build or test. [choose-tests](testing/choose-tests.md) covers skipped tests, wire
 changes, concurrency and native evidence.
 
 Keep checks and their limitations in the milestone commit. A passing result
@@ -53,9 +52,8 @@ It does not push. It closes the issue named by an `issue-<n>-...` branch or
 - Run the lane once per ready milestone. `land -test` is an alternative to
   `test`, not an additional check.
 - On a rejected push, fetch, re-land and push without retesting.
-- Resolve a reported merge conflict in the task branch. Run `go build ./...`;
-  also vet touched packages if Go files conflicted. For generated protobuf
-  conflicts, resolve the schema and regenerate both languages.
+- Resolve a reported merge conflict in the task branch, then build the touched
+  projects (`task build`).
 - Do not edit the main checkout, manually squash there, open a PR, force-push,
   push a task branch, or push a branch SHA directly to main.
 - The launcher builds from main. Restart it after landing when testing the
@@ -66,10 +64,10 @@ Do not turn unverified coverage into a new issue; state it in the commit.
 
 ## Project-wide build
 
-C# and shared protobuf changes require `task build` and `task test` at the
-repository root. The [Taskfile](../../Taskfile.yml) pins the Go toolchain and
+C# changes require `task build` and `task test` at the
+repository root (`RimGovernor.cmd test` runs them). The [Taskfile](../../Taskfile.yml) pins the toolchain and
 composes each project's build and test gates. Outputs live under
-`.rimgovernor/task/`; unchanged native and protobuf inputs are checksum-skipped.
+`.rimgovernor/task/`; unchanged native inputs are checksum-skipped.
 
 Missing machine-local inputs report `unavailable`. The native build accepts
 `RIMWORLD_MANAGED_DIR` and `HARMONY_ASSEMBLY`; game-free remote compilation is

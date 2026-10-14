@@ -11,7 +11,7 @@ published tested revision.
 
 ## Prepare the request
 
-Commit the ready milestone and run `go run ./cmd/test` from `go/`. Record the
+Commit the ready milestone and run `RimGovernor.cmd test`. Record the
 full tested commit, the reviewed workflow
 commit, bundle manifest SHA-256, tier (smoke, nightly or cases) and shard count. Do not manually
 trim the planner's case list.
@@ -61,7 +61,7 @@ within seven days. A manual download is diagnostic material; only authenticated
 import establishes trusted evidence. Record artifact ID, digest and size, then
 follow [the import command and trust pins](remote-evidence.md#import-an-authenticated-actions-artifact)
 in the matching clean task checkout. Keep `actions-artifact.zip` beside its
-`evidence/` directory. `cmd/land` does not read it; the import is for diagnosis.
+`evidence/` directory. `RimGovernor.cmd land` does not read it; the import is for diagnosis.
 
 Read `selection.json`, `aggregate.json`, each shard's `attempts.json`, and the
 referenced native reports. A green bootstrap or accepted order is not a native

@@ -1,6 +1,6 @@
 # Facilities
 
-Room functions are the game's own `Room.Role`; the controller never assigns a
+Room functions are the game's own `Room.Role`; the brain never assigns a
 role, it only reads which one the game scored. `policy.FacilityCatalog` is the
 per-role matrix over every installed RoomRoleDef, and every planner that
 pursues a role walks the same ladder. This page is the ladder and the matrix;
@@ -23,8 +23,7 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    4 (`ColonistsPerExtraBench`, `MaxBenchesPerKind`); a further bench that
    cannot be staged leaves the existing bench in use. Each further bench is
    its own `workshop-<def>-<n>` method. The case needs a colony whose demand
-   outruns one bench, so it is proven by the nightly tier and the unit tests in
-   `workshop_further_test.go`, not by a dedicated `production/ladder` fixture.
+   outruns one bench, so it is proven by the nightly tier, not by a dedicated `production/ladder` fixture.
 2. **Research**: when the first bench that could produce a `MaintainResource`
    deficit is gated only by unfinished research, the workshop planner records
    the projects on the `production_ladder` journal record and steps aside. The
@@ -99,7 +98,7 @@ and the throne's indoor rule are code, not data, and are not stated.
 
 ### Station graph
 
-`policy.BuildStationGraph` (`layout_graph.go`) turns the catalog and the
+`policy.BuildStationGraph` (`LayoutGraph.cs`) turns the catalog and the
 existing demand models into the planner's input: nodes are station classes with
 a count, edges are affinity. Counts: beds are the colonists plus
 `HousingSparePlaces` (the spare place `MaintainHousing`'s expansion phase
@@ -134,7 +133,7 @@ x0.8 workbench penalty). Roles without a native consumer are ignored.
 
 ### Room groups
 
-`policy.ClusterStations` (`layout_cluster.go`) clusters the station graph into
+`policy.ClusterStations` (`LayoutCluster.cs`) clusters the station graph into
 room groups, the planner's seed; it replaces the role-keyed `affinityClusters`.
 Each node is a pool of stations. A pool splits by halves until `PredictRole`
 keeps every effect its stations are for (what a station is for is the role the
@@ -193,9 +192,9 @@ stove's own meat flow, the kitchen.
 
 ### Topology embedding
 
-`policy.Embed` (`layout_embed.go`) places the room groups on the site as
+`policy.Embed` (`LayoutEmbed.cs`) places the room groups on the site as
 area-sized rectangular blocks, coarsely (tiling to regions is a later stage). It
-reads the build ground (`buildGround`, `layout_build_ground.go`): its obstacle levels (the level with the fewest
+reads the build ground (`buildGround`, `LayoutBuildGround.cs`): its obstacle levels (the level with the fewest
 failures wins; a looser one displaces a stricter one only by `FieldGain`) and candidate seeds, the PlanScore soil, rock,
 edge and centre terms per cell (prefix sums, so pricing a block is O(1)),
 `planWeights` for every weight and the seeded `searchRand`. The walking term is
@@ -215,7 +214,7 @@ position fits is reported unplaceable (`embed_no_ground`,
 
 `EmbedInput.Built` (`BuiltRegions`, with `Pinned` from `StationFacts.Pinned`)
 makes each standing room the fixed block of the group `MatchGroupRooms` gives it
-(`layout_built.go`); unbuilt rooms stay free and are searched around it. The
+(`LayoutBuilt.cs`); unbuilt rooms stay free and are searched around it. The
 local search never moves a built room. One pass after it, `embedder.relocate`,
 may move a single room, priced as the old relocation is (`switchThreshold`:
 `ReplanGain` + `BuiltSwitch` + `BuiltSwitchCell` per cell, which already counts
@@ -233,7 +232,7 @@ regrouping's, below.
 
 ### Regrouping
 
-`policy.Regroup` (`layout_regroup.go`, #2878) is the outer search over the room
+`policy.Regroup` (`LayoutRegroup.cs`, #2878) is the outer search over the room
 groups that `AdviseStations` runs: `ClusterStations` is the conservative seed and
 the embedding moves blocks of a fixed group set, so a move is proposed, the
 stations are clustered again under a per-pair rule (`ClusterInput.Pairs`:
@@ -301,7 +300,7 @@ was, is a `layout_regroup` decision.
 
 ### Station plan and successor rooms
 
-`policy.AdviseStations` (`layout_station_plan.go`) runs graph, clustering and
+`policy.AdviseStations` (`LayoutStationPlan.cs`) runs graph, clustering and
 embedding over the live colony and returns the `StationAdvice`; `TileStations` hands that
 to `TileEmbedding`, and `DeriveLayoutPlan` and `ReplanLayout` take the tiled plan as the
 plan. The advice itself is held in memory by the Rounder and is not persisted. At each layout review
@@ -323,7 +322,7 @@ The replan is the tiled plan of the chain (`policy.ReplanLayout`, #3005, J4 of #
 #### Derive-time facts and the seed rooms (#2958)
 
 The day-1 shelter and the throne room are kept as special rooms: station-less
-room nodes (`SeedRoomNodes`, `layout_seed_rooms.go`) that the graph holds beside
+room nodes (`SeedRoomNodes`) that the graph holds beside
 the outskirts and training rooms. The node asks the floor the old siting sized
 (`ShelterInteriorArea`; the throne's requested area), the shelter has no distance
 band (#2987): it carries the meal flow of the colonists sleeping in it to the dining node
@@ -341,12 +340,12 @@ graph at `SeedGraph` (the seed rooms and the outskirts) instead of failing the
 advice; `StationAdvice.SeedOnly` names the fact and the rest grows on replan.
 Nothing is guessed for an unread fact: an unread colony size or roof distance
 still fails with `ErrStationFacts`. The runtime sets `Derive` and `ThroneArea` for a first
-plan (`FirstPlanFacts`, `colony_station_advice.go`).
+plan (`FirstPlanFacts`, `ColonyStationAdvice.cs`).
 
 #### Climate model
 
 Beside the cooling station each `EnvCold` group carries `GroupAdvice.Climate`
-(`policy.groupClimate`, `climate.go`, #2940): the sustained heater or cooler
+(`policy.groupClimate`, `Climate.cs`, #2940): the sustained heater or cooler
 watts that hold the room under the full-rot temperature (`FullRotRateC`, 10 C;
 that slows rot, it does not stop it) through each opening to the outdoors, as
 `ClimateOptions` lists them: vent, door held open, door held closed, airlock.
@@ -355,7 +354,7 @@ The facts are `StationFacts.OutdoorCurve` (the twelve seasonal means) and
 value, the group has no answer. Nothing is a veto: an opening the caller leaves
 out (an unresearched vent) is absent.
 
-Every heat number is the game's. `ClimateModel` (`bridge/catalog_climate.go`)
+Every heat number is the game's. `ClimateModel` (`Climate.cs` in `Brain.Bridge/Catalog`)
 reads the vent's interval and rate (`GenTicks.TickRareInterval`,
 `TemperatureTuning.Vent_TempEqualizeRate`, the `14f` in `Building_Vent.TickRare`),
 the Door def's `doorTempEqualizeIntervalOpen`/`Closed` and `doorTempEqualizeRate`
@@ -374,7 +373,7 @@ heat. Heat given off inside is in the model (#2915): a station's
 `CompProperties_HeatPusher` (`Station.Heat`: heat per second, with the min and
 max temperatures between which it pushes) enters the room's balance, modelled by
 pieces with a hover at a limit when the pusher cycles; the climate reads each
-station's heat from the defs (`bridge/catalog_stations.go`). A room with its own
+station's heat from the defs (the station catalog in `Brain.Bridge/Catalog`). A room with its own
 band (`ClimateModel.Living`, the human's comfortable range) is held in it, and
 a neighbour room is held at the heater's default target (`HeldC`). The room has
 no thermal inertia, and wall and roof leakage, weather offsets and drift inside
@@ -387,7 +386,7 @@ one unit. The `layout_stations` row carries `climate` with each option's mean,
 peak, heating, cooling, build and total watts. Envelope entrances (#2916) and
 vent placement read this model.
 
-Vents in the tiler (#2915, `layout_tile_vent.go`): after keepRoutes the tiler
+Vents in the tiler (#2915, `LayoutTileVent.cs`): after keepRoutes the tiler
 chooses `NodeVent` sites, 1x1 `PlannedSite`s in room wall cells (corners
 excluded, never a door, link or entrance cell) whose outside cell is open
 ground, ordered by `cellLess`. Per room, coordinate descent over vent counts
@@ -416,13 +415,13 @@ The freezer and the butchery are matched to the group that became them
 (`matchedPlanned`: a cold storeroom group, a filth closet the game reads as a
 kitchen), not to the storage and kitchen groups.
 
-Successor rooms (`layout_succession.go`; #2863, #2864, #3005). A built room the
+Successor rooms (#2863, #2864, #3005). A built room the
 embedder moves or outgrows is not resized in place: the tiled plan holds a room
 that `Replaces` it (`EmbeddedBlock.Replaces`), the old room stays pinned
 (`successorPinned`) and in use until the successor stands, and then the old room
 is one the new embedding has no node for (`BuiltRegions` leaves out a room whose
 successor stands), so the replan drops it and clearance takes its ground. The
-embedder prices the move (`layout_built.go`, `switchThreshold`, #2877) and starts
+embedder prices the move (`LayoutBuilt.cs`, `switchThreshold`, #2877) and starts
 one rebuild at a time. A predecessor in a rebuild in flight is held by
 `ReplanLayout` (`keepHeld`) even when its successor stands, so a slept or used
 room is never demolished. A bedroom the successor replaces stays while a pawn
@@ -455,7 +454,7 @@ moves.
 
 ### The tiled plan
 
-`policy.TileEmbedding` (`layout_tile.go`) turns the embedding into the `LayoutPlan`: the
+`policy.TileEmbedding` (`LayoutTile.cs`) turns the embedding into the `LayoutPlan`: the
 embedded blocks become `PlannedRoom`s, doors between rooms in a shared wall become
 `LayoutPlan.Links`, and the outside cell beside each exterior door becomes an entrance.
 The contract for the tiler's doors, crossing model, climate envelope, lamps and
@@ -463,26 +462,26 @@ airlocks is [spatial contracts](../contracts/spatial-contracts.md#layout-planner
 the rest of the plan carries:
 
 - **Trips.** The graph's group flows become `LayoutPlan.Trips` (room-id pairs with a daily
-  weight, `layout_trips.go`) and `OutsideTrips` (the day cycle, walked to the nearest
+  weight, `LayoutTrips.cs`) and `OutsideTrips` (the day cycle, walked to the nearest
   entrance). Scoring walks them (`tripWalk`); a plan without trips falls back to the
-  `routeTrips` role table (`layout_route.go`).
-- **Fields.** A crop's field is an outdoor node of the graph (`layout_field_nodes.go`) that
-  `Embed` places on soil beside the rooms (`layout_field_place.go`); the tiler writes it
-  as a field zone (`fieldZones`). `fieldCrops` (`colony_station_advice.go`) names the
+  `routeTrips` role table (`LayoutRoute.cs`).
+- **Fields.** A crop's field is an outdoor node of the graph (`LayoutFieldNodes.cs`) that
+  `Embed` places on soil beside the rooms (`LayoutFieldPlace.cs`); the tiler writes it
+  as a field zone (`fieldZones`). `fieldCrops` (`ColonyStationAdvice.cs`) names the
   the crops being grown, and while none is sown `DefaultFieldCrop`
-  (`layout_field_replan.go`) takes the first of rice, potato and corn that the catalog
+  (`LayoutFieldReplan.cs`) takes the first of rice, potato and corn that the catalog
   offers as available and edible.
 - **Power.** `Embed` places the power sites (`EmbedSites`, `PowerSiteNodes`) and the tiler
   lays one conduit net: the first site is the root and every later site and consuming
   room routes to the nearest cell of the net (`routeTileConduits`, `ConduitLink`,
-  `layout_conduit.go`). The power round reads the plan's net (`PlannedNetOf`,
-  `rounds_power.go`).
+  `LayoutConduit.cs`). The power round reads the plan's net (`PlannedNetOf`,
+  `RoundsPower.cs`).
 - **Climate envelope.** `PlanRoofed` sets `LayoutPlan.Roofed` on a bad-climate map and
   `chooseVents` places vents; `MaintainClimateEnvelope` (`RoundsEnvelopePlanner`) builds
   both.
 - **Lamps.** `LayoutPlan.Lamps` is what the lighting round builds.
 - **Perimeter.** `DeriveLayoutPlan` and `ReplanLayout` lay the ring and defense sites
-  around the tiled plan (`PlanPerimeter`, `LayPerimeter`, `layout_perimeter.go`); the tier
+  around the tiled plan (`PlanPerimeter`, `LayPerimeter`, `LayoutPerimeter.cs`); the tier
   nodes in them are re-sited from each census (`PlanDefenseTiers`). The routing cut is
   advice that is logged only ([spatial contracts](../contracts/spatial-contracts.md#perimeter-routing-cut-2973)).
 - **Persistence.** The plan is stored whole; the advice is not
@@ -543,7 +542,7 @@ one decoration, one blackboard and a desk per child.
 Furniture is never a def-name list: the native definition catalog gives each
 `PlanningDefinition` view its `RoomRoles` (`BabyBed`, `Toy`, `Decoration`, `Board`,
 `Desk`, `DeathrestCasket`, `DeathrestAccelerator`; see
-[observations.md](../../../contracts/proto/observations.md#room-role-furniture))
+[observations.md](../../../contracts/wire/observations.md#room-role-furniture))
 and a room's pieces are the catalog definitions carrying the role, the first
 available by name placed. The same machinery owes a **deathrest chamber**
 while a deathrester lives: a casket per deathrester and, as an optional piece
@@ -613,7 +612,7 @@ and `policy.WorshipRoomNeed` turns them into a child room need
 (`ChildRoomNeed`, one of each), so the room is grown and reconciled to its
 template exactly like the child rooms above. The names are the
 ideoligion's and the footprints the definition catalog's: no def is listed
-in Go. The review names the required buildings for the catalog and
+in the brain. The review names the required buildings for the catalog and
 remembers them for the planners' reads. Without Ideology or a primary
 ideoligion, or while any required building is unavailable or has no known
 size, no room is owed. The ideology read carries no room-quality
@@ -627,7 +626,7 @@ its own planned room holding one holding platform, reconciled exactly like the
 worship room (`policy.ContainmentCellNeed` returns the `ChildRoomNeed`). The
 platform is the catalog's: the `ThingDef` with a
 `CompProperties_EntityHolderPlatform` comp and the greatest
-`containmentFactor`; no def name is listed in Go. Capture itself is the
+`containmentFactor`; no def name is listed in the brain. Capture itself is the
 capture rule's (below).
 
 A cell is owed only when its predicted strength reaches the demand (the
@@ -656,14 +655,14 @@ stuff), the factor, the holder's `ContainmentStrength` base (else the stat
 def's default), the terrain stat of plain floor (the stat's default) and the
 facility offsets with `maxSimultaneous` and `maxDistance`. The worker's own
 code constants (10 per glow, 5 for doors, 0.9, -30 open roof, the wall curve
-(0,0) (1000,100) (10000,150)) sit in `policy/containment_strength.go`. The
+(0,0) (1000,100) (10000,150)) sit in `ContainmentStrength.cs`. The
 planner has no light plan and builds a roofed room, so it predicts with zero
 glow (the least a room has) and no roof penalty. Facilities are not planned
 (an unpowered facility's offset is not sourced); a design that falls short
 owes nothing and the review logs why. A standing platform's native strength
 (`BuildingState.anomaly`) is the check once built: an available platform
 that reaches the demand owes no cell. One catalog file,
-`bridge/catalog_containment.go`, holds every def lookup. Unread demand, an
+`Containment.cs` in `Brain.Bridge/Catalog`, holds every def lookup. Unread demand, an
 unreadable catalog input or an unbuildable platform leaves the cell unowed
 with a plain reason.
 
@@ -686,7 +685,7 @@ and the native strength read once built is the check.
 
 **Upkeep and breach response.** MaintainPopulation's custody step,
 once no capture or custody is owed, keeps a held entity contained
-(`rounds_population_containment.go`, facts in `policy/entity_upkeep.go`).
+(`RoundsPopulationContainment.cs`, facts in `EntityUpkeep.cs`).
 Doors: the native holder row carries the room's `Building_Door`s
 (`EntityHolderState.doors`: open, hold_open, containment_breached,
 blocked_open). A holder with a held pawn whose door is held open owes one
@@ -767,7 +766,7 @@ plan order (a Retiring wing is never carried); bedrooms are not batched by
 wing, and the native tier gate orders delivery across them (see
 [construction tiers](../contracts/construction-tiers.md)). Suites keep their own ring-stock
 gate. Move, clear and the bed replacement, sculpture and upgrade levers
-are unchanged. The starter shelter's bunk rungs (`rounds_shelter_bunks.go`)
+are unchanged. The starter shelter's bunk rungs (`RoundsShelterBunks.cs`)
 and the stand-in `SleepingSpot` keep their own guard (`standInBed`): the
 reconciler leaves a spot alone and the bunks are sited before a ring exists.
 
@@ -776,7 +775,7 @@ reconciler leaves a spot alone and the bunks are sited before a ring exists.
 A colonist who holds an Empire title, or has the favor to claim the next
 one, is owed the throne room of the first title above its own whose
 requirement names a throne and a minimum area (`RoyalRung.Throne`, read from
-the def mirror's `RoyalTitleDef.throneRoomRequirements`, see the royalty read
+the catalog's `RoyalTitleDef.throneRoomRequirements`, see the royalty read
 in controller-contracts; the largest room any colonist is owed wins).
 `policy.ThroneNeed` carries the whole requirement (floor tags, braziers,
 columns, instrument, glowing and forbidden buildings); every requirement
@@ -843,12 +842,7 @@ planner raises it under MaintainHousing, like the tomb:
    `ThroneRefuel`: one `recovery_service` refuel order for the best hauler
    per light per game hour, so the braziers stay lit.
 
-Tests: `go/internal/policy/throne*_test.go` cover each step in the planner;
-`go/internal/buildingruntime/rounds_throne_requirements_test.go` drives the
-recorded Knight title through the review's own path and asserts a missing
-brazier, column or instrument, an unfloored room, a forbidden building (packed,
-not blocking) and an unlit brazier each plan their fix; `reconcile*_test.go`
-cover the diff, the floor-kept rule and the roof read from the census room. There is no acceptance case.
+There is no acceptance case, and the throne planner steps, the recorded Knight title through the review's own path, the reconcile diff, the floor-kept rule and the roof read from the census room have no tests today; a regression here earns a bug-driven test in `brain/tests`.
 
 The royalty read reaches the projection through the optional
 `RoyaltyNative` source (like `MapSurveyNative`); without it, or without
@@ -857,13 +851,13 @@ Royalty, no throne room is owed.
 ### Tomb, jail and morgue
 
 The tomb and the morgue are planned from the start in the outskirts cluster
-(`layout_outskirts_nodes.go`, #2185): the tomb, morgue, graveyard, waste yard
+(#2185): the tomb, morgue, graveyard, waste yard
 and incinerator are room nodes of the station graph, so the first corpse has a store.
 The morgue is shelled when any human corpse waits (`MorgueWaiting`), cooling
 never gates a shell, and `WarmCoolingRooms` owes a cooler to every standing
 tomb, morgue and meal closet that measures above `TombMaxC`, empty or not.
 
-The graveyard (`layout_graveyard.go`, #2186) is the cluster's first-slot Outdoor
+The graveyard (`LayoutGraveyard.cs`, #2186) is the cluster's first-slot Outdoor
 room: `PlannedGraveyard`, unfenced (`PlannedRoom.Unfenced`: no ring, gate, roof or floor
 owed; graves need diggable soil). `GraveyardSlots` is its template: 12
 plain graves (`GraveDefinition`, 1x2) in two bands of six on an 11x7 interior,
@@ -946,8 +940,7 @@ action. No draft avoidance beyond combat's own rules is applied (a raid
 outranks a ceremony).
 
 Content-gated rows are pursued only when their definitions exist in the
-planning census. The table is the catalog's own rows; `go test ./internal/policy`
-keeps it complete against the installed RoomRoleDefs.
+planning census. The table is the catalog's own rows.
 
 ### Training range (RimGovernor mod)
 
@@ -959,7 +952,7 @@ guarding. The mod's buildings (`Defs/ThingDefs/TrainingRange.xml`) are
 `RimGovernor_TrainingBowStand` (the firing mark) and `RimGovernor_TrainingDummy`,
 both `madeFromStuff` (wood, stone or metal; hit points and flammability come
 from the vanilla stuff factors) and reusing vanilla textures. The mod defines no
-`RoomRoleDef`: nothing scores the range, and the controller reads no role for
+`RoomRoleDef`: nothing scores the range, and the brain reads no role for
 it. Melee practice is a separate facility (the sparring ring,
 `Defs/ThingDefs/SparringRing.xml`), not part of the range.
 
@@ -973,7 +966,7 @@ the direction from the stands to the dummies. The stand count is
 the skill ceiling, so it does not fall as colonists train). The mod's def names
 are `policy.RangeDefNames` and a test keeps them equal to the XML.
 
-The range is a planned room (`PlannedTrainingRange`, `layout_range.go`),
+The range is a planned room (`PlannedTrainingRange`, `LayoutRange.cs`),
 `TierExpand`, `Outdoor` and unfenced (`PlannedRoom.Unfenced`): it owes no fence,
 gate, door, roof or floor, so `GroundMatches` is always true, `ShellDoors` is
 empty, `RoomGround` is the interior alone and `Reconcile` diffs only the
@@ -1022,9 +1015,8 @@ ceiling at which the weapon stops teaching. The best unlocked tier applies.
 (Multipliers 1, 1.5, 2.5 and 4 against tier 0.) The table is owned by the
 `TrainingTier` `DefModExtension` on each weapon def in `TrainingRange.xml`, read
 natively by [`TrainingTier.cs`](../../../integrations/rimgovernor-native/src/Runtime/Training/TrainingTier.cs)
-and mirrored in Go as
-[`policy.TrainingTiers`](../../../go/internal/policy/training_tier.go); a Go test
-parses the XML and pins every field. `UnlockedTrainingTier` (Go, from the
+and mirrored in the brain as
+[`policy.TrainingTiers`](../../../brain/src/RimGovernor.Brain.Policy/TrainingTier.cs); the XML is the owner. `UnlockedTrainingTier` (the brain, from the
 research census) and `RangeTraining.UnlockedWeapon` (native, from
 `ResearchProjectDef.IsFinished`) apply the same rule. The practice weapons have
 no recipe, category or trade tag and are never owned: the drill issues and
@@ -1079,10 +1071,10 @@ points are at or below twice the projectile's damage (the next hit plus one hit
 of margin) the shooter stops, mends to full and resumes; it also mends to full at
 the end of a session. An interrupted session mends nothing. Vanilla repair still
 covers other damage and the room reconciler still rebuilds a destroyed dummy. No
-Go state is involved: the range is never held out of the home area.
+The brain state is involved: the range is never held out of the home area.
 
 **Lab cases.** `lab/training-shooting` and the open-air cases in
-`nativeaccept/cases/lab/training_range.go` (nightly bulk tier) check what only
+`TrainingRange.cs` (nightly bulk tier) check what only
 the native job shows: `lab/training-midlane` (a colonist standing between stand
 and dummy takes no hit and does not stall the shooter), `lab/training-chat`
 (adjacent drillers can chat), `lab/training-tiers` (finishing Gunsmithing then
@@ -1090,7 +1082,7 @@ ChargedShot moves the weapon and lifts the ceiling), `lab/training-raid` (a draf
 mid-drill restores the real weapon) and `lab/training-fire` (a burning dummy
 likewise leaks no practice weapon).
 
-**Sparring ring (#2705, `layout_ring.go`).** A second unfenced Outdoor planned
+**Sparring ring (#2705, `LayoutRing.cs`).** A second unfenced Outdoor planned
 room (`PlannedSparringRing`, `Unfenced()`), sited by the tiler as a required-beside
 node of the range when there is one (`TrainingRoomNodes`). Its shape is fixed: a side-9 interior
 (`RingSide`), blocked with a one-cell margin, no facing. Marker slots
@@ -1139,7 +1131,7 @@ registry (`SparringBouts.LiveFighting`) only: no saved state, action or wire fie
 **Melee tiers and practice gear (#2703, #2704, `Runtime/Training/SparringTier.cs`).**
 The ring climbs a four-rung research-gated ladder with the same ceilings as the
 range. The best tier whose gate research is finished applies (`UnlockedSparringTier`
-in Go, `SparringRules.UnlockedWeapon` natively; an unknown census holds at tier 0).
+in the brain, `SparringRules.UnlockedWeapon` natively; an unknown census holds at tier 0).
 
 | Tier | Weapon | Damage | Ceiling | Gate | Practice apparel |
 |---|---|---|---|---|---|
@@ -1151,8 +1143,8 @@ in Go, `SparringRules.UnlockedWeapon` natively; an unknown census holds at tier 
 Damage is flat per damage type and every Cut weapon shares one power, so a tier buys
 a higher ceiling and nothing else; vanilla pays the XP. The table is owned by the
 `SparringTier` `DefModExtension` on each weapon def in `SparringRing.xml` and
-mirrored in Go as [`policy.SparringTiers`](../../../go/internal/policy/sparring_tier.go);
-a test parses the XML and pins every field. A pawn spars only while its Melee is
+mirrored in the brain as [`policy.SparringTiers`](../../../brain/src/RimGovernor.Brain.Policy/SparringTier.cs);
+the XML is the owner. A pawn spars only while its Melee is
 under the unlocked tier's ceiling (`SparringRules.Ceiling`), and only if Melee is
 the skill it trains (see `MaintainTraining`). The weapons and the
 `Apparel_Practice*` pieces have no recipe, category or trade tag and are never
@@ -1224,7 +1216,7 @@ planner sells the products from stock. No depot or room is sited for them; see
 
 ## Acceptance
 
-The `production/ladder` case (`acceptance run production/ladder`, `go/internal/nativeaccept/cases/production`) opens the
+The `production/ladder` case (`acceptance run production/ladder`, `brain/src/RimGovernor.Brain.Acceptance.Cases/Production`) opens the
 Core tribal baseline; `test/production_ladder_prepare` stages a roofed
 starter hut with a sleeping spot per colonist (the room the workshop rung
 furnishes, `scripts/fixtures/FixtureHut.cs`), a simple research bench inside

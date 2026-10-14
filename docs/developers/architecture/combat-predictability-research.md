@@ -23,7 +23,7 @@ breach guesses with observed intent where available, and selectively coordinate
 fire when the expected benefit exceeds the cost of interrupting native combat.
 These changes should extend the existing pure policy and Hands execution path.
 A bounded forecast supplies the first observations and validation cases for a
-second research track: a fast, mechanics-faithful Go combat simulator. Thousands
+second research track: a fast, mechanics-faithful the brain combat simulator. Thousands
 of simulated trials per second would enable tactical search and policy tuning
 that live-game experimentation cannot practically supply at that scale. This is
 a throughput objective to benchmark, not a measured capability. RimWorld remains
@@ -32,7 +32,7 @@ problem to measure and improve, not a reason to reject the approach.
 
 ## 1. Method and scope
 
-The assessment combines production Go/C# inspection, direct decompilation of
+The assessment combines production the brain/C# inspection, direct decompilation of
 the installed game assembly, existing acceptance-case definitions and issue
 history. Labels used below distinguish **verified code behavior**, **inference**
 and **hypothesis requiring gameplay evidence**. No native match was run for this
@@ -132,7 +132,7 @@ effectiveness, travel time and a reachable exit.
 
 **Inference:** the best cover cell against an idle short-range enemy may be
 worse than a modestly covered cell outside an imminent high-damage shot.
-Treat native geometry and estimates as facts; keep tactical comparisons in Go.
+Treat native geometry and estimates as facts; keep tactical comparisons in the brain.
 Do not relocate live pawns temporarily to query hypothetical shots or run a
 stateful target picker as if it were a read-only oracle.
 
@@ -157,21 +157,21 @@ breach, drop-pod or overlapping threats.
 
 ## 3. RimGovernor's current ability
 
-The production centerpiece is [DecideCombat](../../../go/internal/policy/combat_decide.go).
+The production centerpiece is [DecideCombat](../../../brain/src/RimGovernor.Brain.Policy/CombatDecide.cs).
 It separates formation from reactions, retains roles, emits changed orders,
 and normally avoids interrupting warmup/cooldown except for retreat, rescue
 and explicit safety transitions. This is a sound base for forecasting.
 
 | Capability | Verified implementation | Research opportunity or limit |
 | --- | --- | --- |
-| Native hold and retarget | [stationaryRangedHold](../../../go/internal/policy/combat_native_hold.go) delegates eligible ordinary firing-line holders to `Wait_Combat`; `DecideCombat` clears their policy target | Explicit focus-fire policy is not universally controlling ordinary holders. Preserve autonomous fire as the comparison baseline |
-| Focus and priorities | [rankThreats/focusFire](../../../go/internal/policy/combat_threat.go) rank threat tiers and preserve a prior live in-range target | No per-volley damage allocation here; stable focus can overcommit or retain a target after a more urgent threat appears |
-| Cover and friendly fire | [CoverScore](../../../go/internal/policy/combat_cover.go) compares mean own/enemy cover; [clearLines/holdFire](../../../go/internal/policy/combat_fire.go) handle blocked lines and friendly melee | Cover averages do not express time-varying threat, armor or exposure during travel |
-| Kiting and flanking | [kite](../../../go/internal/policy/combat_kite.go), [flank](../../../go/internal/policy/combat_flank.go) and group roles exist | Kiting eligibility uses speed/range thresholds; path, door delay and attack-cycle timing offer a more specific feasibility test |
-| Breach defense | [predictBreach](../../../go/internal/policy/combat_sapper.go) uses sapper centroid, nearest room center and nearest wall | It is a geometric guess, not observation of the game's chosen breach path; multiple groups can make their centroid misleading |
+| Native hold and retarget | [stationaryRangedHold](../../../brain/src/RimGovernor.Brain.Policy/Combat/CombatNativeHold.cs) delegates eligible ordinary firing-line holders to `Wait_Combat`; `DecideCombat` clears their policy target | Explicit focus-fire policy is not universally controlling ordinary holders. Preserve autonomous fire as the comparison baseline |
+| Focus and priorities | [rankThreats/focusFire](../../../brain/src/RimGovernor.Brain.Policy/Combat/CombatThreat.cs) rank threat tiers and preserve a prior live in-range target | No per-volley damage allocation here; stable focus can overcommit or retain a target after a more urgent threat appears |
+| Cover and friendly fire | [CoverScore](../../../brain/src/RimGovernor.Brain.Policy/CombatCover.cs) compares mean own/enemy cover; [clearLines/holdFire](../../../brain/src/RimGovernor.Brain.Policy/CombatFire.cs) handle blocked lines and friendly melee | Cover averages do not express time-varying threat, armor or exposure during travel |
+| Kiting and flanking | [kite](../../../brain/src/RimGovernor.Brain.Policy/CombatKite.cs), [flank](../../../brain/src/RimGovernor.Brain.Policy/CombatFlank.cs) and group roles exist | Kiting eligibility uses speed/range thresholds; path, door delay and attack-cycle timing offer a more specific feasibility test |
+| Breach defense | [predictBreach](../../../brain/src/RimGovernor.Brain.Policy/Combat/CombatSapper.cs) uses sapper centroid, nearest room center and nearest wall | It is a geometric guess, not observation of the game's chosen breach path; multiple groups can make their centroid misleading |
 | Specialized responses | Siege, pods, manhunters, infestations, explosives, shielded melee, rescue, drugs and permits are branches of `DecideCombat` | Presence of a branch does not establish tactical quality or successful composition with another branch |
-| EMP and abilities | [EMP policy](../../../go/internal/policy/combat_mech_emp.go) tracks inferred adaptation and disengagement; [castCalls](../../../go/internal/policy/combat_cast.go) recognizes five psycast families | These are existing capabilities, not blank slates. Adaptation inference and narrow effect categories should not become universal native facts |
-| Write ownership | [sendCombatBatch](../../../go/internal/buildingruntime/rounds_combat.go) commits a combat batch and calls `hands.RunBatch`; uncertain receipts are explicit | The older bypass description is stale for this revision. [#2502](https://github.com/davidarcher/rimgovernor/issues/2502) is closed; do not propose rebuilding this completed work |
+| EMP and abilities | [EMP policy](../../../brain/src/RimGovernor.Brain.Policy/CombatMechEmp.cs) tracks inferred adaptation and disengagement; [castCalls](../../../brain/src/RimGovernor.Brain.Policy/CombatCast.cs) recognizes five psycast families | These are existing capabilities, not blank slates. Adaptation inference and narrow effect categories should not become universal native facts |
+| Write ownership | [sendCombatBatch](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsCombat.cs) commits a combat batch and calls `hands.RunBatch`; uncertain receipts are explicit | The older bypass description is stale for this revision. [#2502](https://github.com/davidarcher/rimgovernor/issues/2502) is closed; do not propose rebuilding this completed work |
 
 Two observation details deserve priority over new tactics:
 
@@ -245,7 +245,7 @@ an earliest/latest tick or explicit unknown, the supporting observation tick,
 and invalidating facts. A job target, aim target and last-shot target need
 separate meanings; absence is not proof that a pawn will not attack.
 
-Native reads expose state or pure engine-derived measurements. Go owns
+Native reads expose state or pure engine-derived measurements. The brain owns
 choice, risk comparison and forecast calibration. Inspect native helper
 side effects before reuse: N2's random picker consumes randomness and uses
 shared temporary collections, so merely calling it to “predict” can alter
@@ -304,7 +304,7 @@ explicit uncertainty. Never reconstruct a guaranteed safe future from absent
 facts. Read definition values from the shared native catalog; version algorithm
 ports against the inspected game assembly and document each approximation.
 
-Build a pure Go `Reset`/`Step` core and adapters for `CombatView` and
+Build a pure the brain `Reset`/`Step` core and adapters for `CombatView` and
 `GeometryReply`, so the simulator exercises production decisions rather than a
 second tactics implementation. Geometry must evolve with the simulated world:
 initial native hit/cover/path answers cannot remain authoritative after a pawn
@@ -400,7 +400,7 @@ evidence of the named capability, not a promise to implement every hypothesis.
 | E2: Breach intent and interception | Prefer valid observed breach intent over the centroid guess, separate hostile groups and invalidate on changed intent. Prepared asymmetric native cases show actual wall and formation timing; snapshot tests cover unknown/refused facts | May start after the relevant E1 target contract. Extend completed #913/#915. Delete the centroid guess where native intent supersedes it, retaining explicit uncertainty before intent exists |
 | E3: Selective fire coordination | Compare retain/native hold with bounded target reassignment, accounting for committed shots and interruptions. Paired experiments demonstrate benefit on urgent mixed threats without hiding survival regressions | E1 timing/intent and native hit semantics. Extend completed #863/#2491; replace competing target decisions rather than stacking a new postprocessor |
 | E4: Tactical qualification matrix | Extend existing combatlab reports with prediction accuracy, conservative-timing failures and objective outcomes; produce current baseline, repeated paired comparisons, ablations and held-out scenarios | Starts with E1. Extend #855/#869 rather than build a new benchmark runner; stop presenting historical baseline values as present playing strength |
-| E5: Fast combat simulation and search | Build a pure Go mechanics model driving production policy, benchmark the thousands-of-trials/s objective on declared workloads, qualify tactical rankings and outcome errors against held-out native sweeps, and confirm search-selected improvements in the game. Gate online short-horizon search separately | Existing #2830; reuse E1 facts and E4/native sweeps. Start ranged, then qualify melee and specialists. Replace superseded forecast approximations and duplicate parameter owners when the shared model is adopted |
+| E5: Fast combat simulation and search | Build a pure the brain mechanics model driving production policy, benchmark the thousands-of-trials/s objective on declared workloads, qualify tactical rankings and outcome errors against held-out native sweeps, and confirm search-selected improvements in the game. Gate online short-horizon search separately | Existing #2830; reuse E1 facts and E4/native sweeps. Start ranged, then qualify melee and specialists. Replace superseded forecast approximations and duplicate parameter owners when the shared model is adopted |
 
 The highest-value first slice is E1: timing is already captured, source-level
 semantics are concrete, and the experiment can falsify the premise cheaply.
@@ -413,14 +413,14 @@ must wait for evidence that tactical rankings transfer to the game.
 
 ## 7. Experimental design
 
-Use two distinct kinds of proof. Go snapshots establish deterministic choices,
+Use two distinct kinds of proof. The brain snapshots establish deterministic choices,
 known-zero versus unknown behavior, stable orders, permutations and invalidation.
 Prepared native cases establish target changes, actual movement, attacks,
 damage and raid transitions. A snapshot cannot prove that a pawn escaped a
 shot or that a predicted breach happened.
 
-Reuse [combatlab metrics](../../../go/internal/nativeaccept/cases/combatlab/metrics_case.go)
-and [native-hold](../../../go/internal/nativeaccept/cases/combatlab/native_hold.go).
+Reuse [combatlab metrics](../../../brain/src/RimGovernor.Brain.Acceptance.Cases/CombatLab/MetricsCase.cs)
+and [native-hold](../../../brain/src/RimGovernor.Brain.Acceptance.Cases/CombatLab/NativeHold.cs).
 The current fixture setup creates assault Lords with `canTimeoutOrFlee: false`,
 `canKidnap: false` and `canSteal: false`
 ([fixture source](../../../scripts/fixtures/DebugStartFixture.cs)). Those fixtures
@@ -459,7 +459,7 @@ gameplay results establish that its native claim passed.
 
 Threats to validity include fixture-specific layouts, disabled raid exits,
 stale or semantically wrong targets, unobserved projectile state, path changes,
-mod patches, severe-injury tails and controller-induced RNG divergence. Human
+mod patches, severe-injury tails and brain-induced RNG divergence. Human
 expert review of selected decisions is useful, but “expert-level combat” needs
 a declared expert reference and matched outcomes, not merely improvement over
 an earlier governor.

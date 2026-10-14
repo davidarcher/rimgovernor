@@ -96,8 +96,8 @@ namespace HomeBridge.BridgeTools
             if(d.Biography.GetValueOrDefault()) row = row with { Biography = Biography(pawn) }; else row = row with { Issues = [.. row.Issues, Skipped("biography")] };
             if(d.Settings.GetValueOrDefault() || d.Work.GetValueOrDefault() || d.Schedule.GetValueOrDefault()) {
                 var settings = new Obs.PawnSettings();
-                // The bridge contract (go/internal/bridge/work_pawns.go's
-                // validateSettings) enforces that a PawnSettings reply carries
+                // The bridge contract (the brain's settings
+                // validation) enforces that a PawnSettings reply carries
                 // ONLY the fields the request actually asked for: care policy
                 // (medical_care, self_tend, hostility_response) under
                 // d.Settings, work priorities
@@ -507,7 +507,7 @@ namespace HomeBridge.BridgeTools
 
         // Populates ONLY the care-policy fields (medical_care, self_tend and
         // hostility_response, which PawnSettingsIntent writes) that
-        // go/internal/bridge/work_pawns.go's validateSettings allows through
+        // the brain's settings validation allows through
         // when a caller asks for `care`. The follow flags,
         // master_id and the 24-hour schedule are the wider Assign-tab row --
         // deliberately never requested via this protobuf

@@ -8,9 +8,9 @@ control is paused. Observation refreshes do not grant authority.
 
 ## Save, load and restart
 
-Ordinary RimWorld saves carry Go intent in opaque `GovernorState` blobs.
-Before a save, native's `pre_save` handshake lets Go flush the blobs in one
-batch. A save made while Go is disconnected retains the last flushed intent.
+Ordinary RimWorld saves carry the brain intent in opaque `GovernorState` blobs.
+Before a save, native's `pre_save` handshake lets the brain flush the blobs in one
+batch. A save made while the brain is disconnected retains the last flushed intent.
 The SQLite journal is not a paired player save.
 
 ```mermaid
@@ -25,29 +25,25 @@ stateDiagram-v2
     Disconnected --> Observing: Reconnect and reconcile
 ```
 
-A load creates a new token. Go rebuilds views from the save before reviewing,
+A load creates a new token. The brain rebuilds views from the save before reviewing,
 invalidates old bindings and cancels undispatched work; uncertain dispatched work
 retains its recovery requirement. Methods are planned against the loaded world.
 
-`serve --resume` enables Auto at startup and after loads; the launcher passes
-it. Bare serve waits for Resume. A profile lock permits only one controller
-author. Restart can revoke stale native authority and grant a fresh lease.
+`AutoResumer` offers each fresh world one resume through the same control intent the resume
+route submits, unless the launcher started the game with Observe. The player's Resume or Pause
+stands afterwards. Restart can revoke stale native authority and grant a fresh lease.
 
 ## Game process and connection
 
-The controller launches the configured game through `internal/gamehost`, passing
-the GABP port/token/game ID and recording PID plus process start time in
-`<config>/<id>/endpoint.json`. The detached game can outlive the controller;
-a replacement controller can reattach to the endpoint.
+The launcher (or the acceptance harness) starts the game with `-rimgovernor-inproc`; the brain
+runs inside that process ([brain host](brain-host.md)), so there is no separate process to
+reconnect and no transport to lose. The launcher finds the game through the
+`http-endpoint.json` file the mod writes. Main-thread game operations remain scheduled by
+native code; clock-journal reads are unheld and follow advance announcements.
 
-GABP correlates concurrent requests by ID. Tool calls do not block the host's
-reader thread; main-thread game operations remain scheduled by native code.
-Clock-journal reads are unheld and follow advance announcements.
-
-On transport loss, calls fail as disconnected while the supervisor reconnects
-with bounded backoff. Native revokes authority when its lease lapses.
-`--resume` can reacquire after a disconnect only while the recorded control
-intent still requests running in that world; a player's Pause stands.
+If the brain faults or stalls, the host suspends authority and the game keeps running; native
+revokes authority when its lease lapses. Only the player's Resume clears a suspension, and a
+player's Pause stands.
 
 ## Uncertain writes and read retries
 
@@ -62,7 +58,7 @@ it has no outstanding native write.
 
 ## Cleanup
 
-Each worker owns its controller, private root and game process. Stop by root or
+Each worker owns its brain, private root and game process. Stop by root or
 verified PID. Stop games using a private copy before replacing its DLLs; never
 modify Steam or a peer's copy. See the [runbook](../agent-runbook.md).
 

@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
-The work planner (`policy.PlanWork`, `go/internal/policy/work_assignment.go`)
+The work planner (`policy.PlanWork`, `WorkAssignment.cs`)
 turns the routine read's pawns into one priority matrix per review: every work
 type native reports, every available colonist whose work applies. It is a
 proposal compared against the readback (`Matches`), never permission to change
@@ -13,7 +13,7 @@ priority: no player edit is exempt, and a differing readback is replaced.
 ## Pawn profile
 
 `policy.BuildProfile` reads a `PawnProfile` from the same `WorkPawn` the review
-already carries (`observation/rounds_work.go`): skills with the effective
+already carries (`RoundsWork.cs`): skills with the effective
 level, the stored level beneath aptitude, passion and disabled flag; traits with
 degree; the backstory-incapable work types; biological age (`Child` from the Biotech developmental stage).
 Unknown traits, incapable rows or age leave those parts empty and the planner
@@ -37,7 +37,7 @@ The thought- and stat-derived flags (`NightShift`, `MeleeOnly`, `FrontLine`,
 `ChemicalInterest`, `Greedy`, `Jealous`) read the thoughts a trait nullifies or
 is required by, and `Gourmand` a hunger-rate factor above 1. The one effect no
 row states, `Sociable` (Kind +1, Abrasive -1), is the registered
-`sociableTraits` table in `trait_worth.go`. A trait the catalog does not carry
+`sociableTraits` table in `TraitWorth.cs`. A trait the catalog does not carry
 fails the read. The gear
 ([equipment upkeep](equipment-upkeep.md)), drug and room concerns read their flags
 from `PawnProfile.Effects`; mood control keeps its native thresholds.
@@ -47,7 +47,7 @@ A prisoner prospect's trait is good or bad by the sign of its worth
 offsets and factors (distance from 1), hunger rate, disabled work types,
 sociability and mood (always-active thought offsets, and the worst negative stage
 of each situational thought the trait requires). The weights are the one table
-in `trait_worth.go`.
+in `TraitWorth.cs`.
 
 `ProfileSkill.LearnFactor` is the passion multiplier (none 0.35, minor 1.0,
 major 1.5) scaled by `1 + LearnRate`.
@@ -106,7 +106,7 @@ priorities are off (enabled or not, never the rank).
 
 ## Ready work
 
-`ProjectReadyWork` (`ready_work.go`) projects plans and proposals into diagnostic
+`ProjectReadyWork` (`ReadyWork.cs`) projects plans and proposals into diagnostic
 candidates (`Rounds.ReadyWork`); admission does not read it. Parallelism is the
 observed count of eligible workers or claims, with no constant cap. An action
 kind without a stage adapter (everything but Building, Haul, CutPlant,
@@ -119,7 +119,7 @@ and holds still read `blocked`.
 ## Construction helpers
 
 Owners stay the skilled constructors; `WorkDemand.Help`
-(`construction_helpers.go`) adds bounded help below the floor. Demand
+(`ConstructionHelpers.cs`) adds bounded help below the floor. Demand
 is `ConstructionHelpDemand` over ready work, the open plans' building
 definitions (with their observed `ConstructionSkill`) and the current native
 construction census. There is no definition-name list: every building
@@ -155,7 +155,7 @@ A work-type priority enables every native construction job, not one wall.
 Native still refuses a frame above the pawn's `constructionSkillPrerequisite`.
 Unknown or other-world ready work with no census authorizes nothing
 (`construction_demand_unknown`). A frame placed between two reviews follows
-vanilla rules until Go adopts it.
+vanilla rules until the brain adopts it.
 
 ## Quality construction
 
@@ -195,7 +195,7 @@ name why spare capacity went unused.
 
 ## Situational roles
 
-`go/internal/policy/pawn_roles.go` answers the questions other concerns ask of the
+`PawnRoles.cs` answers the questions other concerns ask of the
 roster from the same profiles, each a pure function returning the pawn and
 whether one qualifies: `WardenFor(execution)`
 (Social, Kind preferred, Abrasive never; Psychopath or Bloodlust for an
@@ -217,7 +217,7 @@ hunter on a known roster.
 
 ## Schedules
 
-`policy.PlanSchedules` (`pawn_schedule.go`) gives each available pawn a
+`policy.PlanSchedules` (`PawnSchedule.cs`) gives each available pawn a
 role-based timetable from the same profile: the native day sleeps 22h-5h; a NightOwl sleeps 10h-17h and is free overnight; a QuickSleeper's
 Sleep block shrinks to six hours. Joy is the hour right before sleep and
 every other hour is Anything. The planner never writes Work: Work blocks
@@ -243,7 +243,7 @@ differs from the readback.
 
 ## Mech control
 
-`policy.PlanMechControl` (`mech_control.go`) puts each mechanitor's
+`policy.PlanMechControl` (`MechControl.cs`) puts each mechanitor's
 mechs in role groups and sets each group's mode through the `mech_control_group`
 and `mech_work_mode` arms of `PawnSettingsAction`: every move first, then each
 group's mode (the mode is per group). A work mech (the race's `IsWorkMech`) is a
@@ -251,7 +251,7 @@ worker, any other kind a guard. With two or more control groups (vanilla default
 2) workers go to the group already holding most of them, guards to the busiest
 other group; workers run `Work`, guards `Escort` (the wiki's "do available work
 tasks" and "follow the mechanitor and fight enemies"; `MechWorkModeDefOf` also has
-`SelfShutdown`, unused here). The modes are never named in Go: the catalog's
+`SelfShutdown`, unused here). The modes are never named in the brain: the catalog's
 `MechWorkModeRoles` names the `MechWorkModeDef` the game picks as
 `MechWorkModeDefOf.Work`, `.Escort` and `.Recharge` (native reflection); the
 catalog fails to decode if one is not a def of the mirror. The plan fails without those modes or any mech's kind. A mech with no overseer among the
@@ -266,7 +266,7 @@ nothing with no free bandwidth. With a single control group threat beats work:
 `Escort` while a hostile is on the map or the group holds only guards, `Work`
 otherwise.
 
-Recharging (`mech_recharge.go`) rides the same group mode. Each mech row
+Recharging (`MechRecharge.cs`) rides the same group mode. Each mech row
 carries `PawnMech.energy` (`Need_MechEnergy`, 0-1) and its control group's own
 recharge band (`recharge_below`/`recharge_above`, the private
 `MechanitorControlGroup.mechRechargeThresholds` the game recharges within), so
@@ -288,7 +288,7 @@ not add a mech first. The charger definitions are the catalog rows with
 `PlanningDefinition.MechCharger` (a `Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
 
-`EnsureMechCharger` (`mech_charger_concern.go`, `rounds_mech_charger.go`) is the concern
+`EnsureMechCharger` (`MechChargerConcern.cs`, `RoundsMechCharger.cs`) is the concern
 for that need: a Standard in the Upkeep domain, assessed only where the Biotech
 colony read and the mechs are known (`RoundsFacts.MechChargerOwed`), in deficit
 while a charger is owed. Its one method builds the first catalog-flagged,
@@ -302,7 +302,7 @@ open plan holds it. Powering the charger is the power concern's; emptying its wa
 `ManagePollution`'s. Biotech concerns are bound only when assessed, so the store
 counts `policy.BiotechConcerns` apart from the concerns every colony has.
 
-`MaintainGeneBank` (`gene_bank_concern.go`, `rounds_gene_bank.go`) keeps every genepack in a
+`MaintainGeneBank` (`GeneBankConcern.cs`, `RoundsGeneBank.cs`) keeps every genepack in a
 gene bank: a Genepack deteriorates unless it
 sits in a powered bank (4 packs each). A Standard in the
 Upkeep domain over the Colony fact family, assessed from the keyed Biotech
@@ -319,8 +319,8 @@ frame or open plan holds it. Powering it is the power concern's (a bank is a 40 
 consumer wired like any other); harvesting, assembly and implanting are other
 concerns.
 
-`MaintainWorkLedger` (`work_ledger.go`, `work_ledger_concern.go`,
-`rounds_ledger.go`) is the bot's production-bill ledger (epic #2590). A Standard in
+`MaintainWorkLedger` (`WorkLedger.cs`,
+`RoundsLedger.cs`) is the bot's production-bill ledger (epic #2590). A Standard in
 the Industry department over the Colony fact family. The ledger is memory only
 (`Rounder.ledger`): a planner that has migrated implements
 `buildingruntime.OrderDeclarer` (`DeclareOrders(ctx, snapshot, projection, benches)` returns a
@@ -346,7 +346,7 @@ plan as one attempt-numbered owner method of `production_bill` and
 each removed bill id), at most once per review and never while an earlier plan of the
 owner is open (an unknown receipt blocks until its resend resolves).
 
-The bench dispatcher (`work_dispatch.go`, `work_dispatch_memory.go`; pure policy,
+The bench dispatcher (`WorkDispatch.cs`, `WorkDispatchMemory.cs`; pure policy,
 memory in `Rounder.ledger.dispatch`) sizes and places the orders. A declared order
 carries `OrderSpec.Product` and `Class` beside the spec (not in `Key`); with them a
 stock target is a rate-model order. Its deficit is target minus the projection's
@@ -377,7 +377,7 @@ The Grafana `rg-ledger` dashboard shows the ledger's read-only view. Each review
 memory above; after the review `store.ReplaceLedgerRows` replaces the `ledger_rows` table with it
 (a derived copy for the snapshot, one row per table row, never read back; see
 [persistence contracts](persistence-contracts.md#ledger_rows)).
-It lists the declaring planners (named by Go type, each abstain naming its concern
+It lists the declaring planners (named by the brain type, each abstain naming its concern
 and the `Cause` it lacked, worded by `policy.Wording`), every wanted order with its owning concerns, spec, state (`placed` on which benches,
 `placing`, or `unplaced` with `no_bench` or `bench_slots_full`), dispatch sizing,
 calibration window (predicted against observed stock gain) and shortfall, the
@@ -426,7 +426,7 @@ beside it), both waiting for orphan removal of these kinds.
 The food bills (#2602) are the second migration: `EnsureCooking`, `MaintainFoodStorage`,
 `EnsureFoodSupply` and `MaintainRefrigeration` declare to the ledger. The cooking,
 reserve (preserve), butcher and cook-ahead `RoundsBillPlanner`s and the food-storage
-upkeep planner declare through `policy.DeclareFoodOrders` (`food_orders.go`): the
+upkeep planner declare through `policy.DeclareFoodOrders` (`FoodOrders.cs`): the
 same selectors that once chose the next bill now run over the bench census read
 without its bills, so the declaration is what should stand. A stock-target bill that
 already covers the wanted target is declared as it stands (`adequateOrder`); a
@@ -520,7 +520,7 @@ bill class.
 among those within `MechCommandRange` (25 tiles, Mechanitor wiki; native
 `MechanitorUtility.InMechanitorCommandRange` stays authoritative) of its
 overseer: the existing combat batch's draft (when undrafted) and `attack` order.
-Both are pure over recorded facts (`mech_control_test.go`) and fed from the pawn
+Both are pure over recorded facts and fed from the pawn
 table, which already holds every spawned pawn with its `PawnBiotech` block
 (`observation.MechFleet`: living colonist mechanitors, living mechs). The routine
 read carries the fleet as `Projection.Mechs`; `RoundsWorkPlanner` appends
@@ -532,7 +532,7 @@ the drafts join the fight roster and are undrafted when it closes.
 
 ## Mech gestation
 
-`MaintainMechs` (`policy/mech_gestation.go`, planner flag `mechs`) queues
+`MaintainMechs` (`MechGestation.cs`, planner flag `mechs`) queues
 one gestation bill at a time: a `Bill_Mech` as a single-count `GearBatch`
 production bill on a gestator (the `mech` branch of the production bill write).
 `MechGestationOwed` raises the concern while a gestator is idle, no waste is
@@ -552,18 +552,15 @@ and `NextMech` finds a kind a mechanitor can afford. The rules:
   (`BulkRecipe`) wins among recipes of one kind.
 - A mech kind a gestation recipe makes that the catalog lacks is an error.
 
-Acceptance is table-driven in `mech_gestation_test.go`: every bandwidth
-combination stays inside free bandwidth, waste cases hold, one gestation at a
-time.
+Every bandwidth combination stays inside free bandwidth, waste cases hold, one
+gestation at a time.
 
 ## Acceptance
 
-Planner behaviour is table-driven in `work_assignment_test.go`,
-`pawn_profile_test.go` and `pawn_schedule_test.go` (trait flags, floors,
-growth secondaries, forbidden roles, decay, twelve-pawn coverage, three-review
-stability, timetable templates) and `construction_helpers_test.go` (helper
-restrictions, withheld and unknown work, hold and restoration). `internal/snapshot/workers_test.go` replays the three debug-start
-colonists' pawn reads recorded from native runs, with seeded sheet and written readback: a major passion owns a tied
+Planner behaviour covers trait flags, floors, growth secondaries, forbidden roles,
+decay, twelve-pawn coverage, three-review stability, timetable templates and
+construction helpers (helper restrictions, withheld and unknown work, hold and
+restoration). The three debug-start colonists' pawn reads are replayed recorded from native runs, with seeded sheet and written readback: a major passion owns a tied
 kitchen with the other cook backing it at 2; Pyromaniac/Brawler/Abrasive
 never fight fires, hunt or warden while Industrious wins a tied Construction
 sheet; every core role is owned once and the written matrix replans

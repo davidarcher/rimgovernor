@@ -452,7 +452,7 @@ namespace HomeBridge.BridgeTools
                         if (salvageStock < 0) return Refuse("Too few free stockpile cells to cover Steel demand.");
                     }
                     // scenario=probe: a wild bush beside the ruin, for
-                    // the foreign cut by the Go-built id.
+                    // the foreign cut by the brain-built id.
                     salvagePlant = null;
                     if (scenario == "probe") {
                         var bushDef = DefDatabase<ThingDef>.GetNamed("Plant_Bush");

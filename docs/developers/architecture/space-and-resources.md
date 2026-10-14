@@ -102,7 +102,7 @@ Surface mining uses the same safety holds and one-rock demand batches
 [explicit holds](../contracts/controller-contracts.md#remote-work-holds-and-resume)
 and revalidate safety at dispatch.
 
-The resource matrix (`buildingruntime/supplysim_resource_test.go`) is the guard
+The resource scenarios in `RimGovernor.Brain.Simulation` are the guard
 for this ranker: wood, stone, steel, components and plasteel run over source
 mixes (chop, mine, bill, deep drill, trade, loot, salvage) and the supplysim
 shocks through the real demand functions, catalog candidates and
@@ -159,7 +159,7 @@ including an irregular shelter, and furnish it while preserving connected access
 Repairs use normal construction before the room can count as habitable.
 
 Room functions are the game's own `Room.Role`, read from the typed room census; the
-controller never assigns a role. Each planner pursues a role through the facility
+brain never assigns a role. Each planner pursues a role through the facility
 ladder (reuse, furnish a hosting room, stage a starter shell and furnish it once
 roofed); the ladder and the per-role matrix (`policy.FacilityCatalog`) are in
 [facilities](facilities.md).
@@ -257,7 +257,7 @@ of being counted a second time.
 Building admission never checks stock: RimWorld places blueprints regardless
 and the frames hold natively for materials, which the upkeep concerns then read as
 a deficit. Admission guards geometry, safety and freshness only. The native
-production path checks actual recipe ingredients and consumption. A controller-side
+production path checks actual recipe ingredients and consumption. A brain-side
 stock estimate alone could not protect a reserve once an ordinary bill begins consuming
 a different permitted ingredient.
 
@@ -317,8 +317,8 @@ stock need native readback; a bill on an ordinary item recipe completes only whe
 native placement observation counts the produced items. This is why production acceptance tests wait for pawn work
 rather than declaring success when a bill is accepted.
 
-The relevant source is [go/internal/policy](../../../go/internal/policy) and
-[go/internal/store](../../../go/internal/store). Use [spatial
+The relevant source is [Brain.Policy](../../../brain/src/RimGovernor.Brain.Policy) and
+[Brain.Store](../../../brain/src/RimGovernor.Brain.Store). Use [spatial
 contracts](../contracts/spatial-contracts.md) for exact geometry bounds and the [durable policy
 contract](../contracts/durable-policy.md) for the autopilot-owned production
 policy.

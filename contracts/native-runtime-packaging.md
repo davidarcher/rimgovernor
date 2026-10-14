@@ -11,7 +11,7 @@ Use new disposable state; saved-game compatibility is not required.
 | Early native runtime | `src/Runtime/RimGovernor.Runtime.csproj`; persistence and batch-gated headless startup; `Assemblies/RimGovernor.Runtime.dll`. |
 | SDK tool adapter | `src/Bridge/RimGovernor.Bridge.csproj`; references Runtime; `BridgeTools/RimGovernor/RimGovernor.Bridge.dll`. |
 | Package builder | `scripts/build_native_mod.ps1`; one About manifest, private build inputs, fresh staging, notices/source and artifact manifest. |
-| Native consumers | the launcher (`tools/launcher`) and the Go native acceptance runner (`go/internal/nativeaccept/cmd/acceptance`) use the unified package in batch and graphical modes. |
+| Native consumers | the launcher (`tools/launcher`) and the native acceptance runner (`RimGovernor.cmd acceptance`) use the unified package in batch and graphical modes. |
 
 Both assemblies target net10.0 with warnings as errors. Runtime is loaded early
 for Verse component discovery and startup hooks; the SDK loads tools separately.
@@ -38,7 +38,7 @@ game and external SDK/Harmony binaries out of the package.
 
 Build against the installed game/SDK references. Package acceptance (new-game
 production discovery, loader/component boundary checks, paused preview
-verification and batch/graphical startup mode checks) is Go native acceptance
+verification and batch/graphical startup mode checks) is the brain native acceptance
 tracked in [issue #38](https://github.com/davidarcher/rimgovernor/issues/38).
 Safety and gameplay changes need their own native outcomes.
 

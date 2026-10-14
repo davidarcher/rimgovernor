@@ -44,11 +44,10 @@ Plasteel quantity stays unknown.
   bench, staged through the workshop prerequisites. Each additional component budgets twelve usable
   steel while keeping the steel reserve plus five days of consumption. Prospective ore never funds a
   bill.
-- Snapshot tests (`buildingruntime/rounds_ladder_snapshot_test.go`) cover the decisions from recorded
-  step reads: the deep drill step sites the seeded steel lump, and the resource step funds a component
+- Recorded step reads cover the decisions: the deep drill step sites the seeded steel lump, and the resource step funds a component
   bill on a standing fabrication bench. Native stock growth from either is not certified.
 
-## Go deep-drill planning
+## the brain deep-drill planning
 
 A measured Steel or Plasteel runway deficit adds `DeepDrilling`, then `GroundPenetratingScanner`, to
 the derived research needs.
@@ -63,7 +62,7 @@ the derived research needs.
   placement.
 - The deep resource census reports every colonist drill with its exact next deposit (resource,
   remaining units) and the native depletion verdict. Under autonomous play every colonist drill is the
-  controller's, so there is no ownership ledger.
+  brain's, so there is no ownership ledger.
 - While a metal runway is in deficit, a drill the census reads as depleted is removed even when no
   scanned lumps remain, through the shared Hands deconstruction path (a drill `Deconstruction`,
   retried through the shared refusal budget per drill). The dispatch guard re-reads the census and designates only while the
@@ -143,7 +142,7 @@ drill readiness and visible deep deposits when the native scanner overlay is ava
   flick the switch before the released grid capacity can admit a replacement. Receipts cannot
   certify this release, and a cancelled switch request cannot silently repeat.
 - Ownership and recovered output persist with the native save. Stock targets are re-admitted from the
-  paired controller state before supervised simulation, not restored as native authority. Cancelled
+  paired brain state before supervised simulation, not restored as native authority. Cancelled
   concerns suspend owned drilling during supervision. Drill progress refreshes the shared watchdog
   without crediting stock.
 - Surface and deep acceptance must verify pawn outcomes separately from receipts and compilation.

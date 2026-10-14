@@ -1,5 +1,7 @@
 # In-process brain: hot reload feasibility
 
+> History (#3106): a decision record written during the port. Go, protobuf and the GABP transport it mentions are deleted; the wire is now plain C# records (#3100). The hot-reload analysis itself is unchanged and not maintained.
+
 Question: once the Go brain is ported to C# and runs inside the game process
 (epic #3043), can the bulk of it be reloaded in the running game without
 restarting?

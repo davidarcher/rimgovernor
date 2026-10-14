@@ -4,8 +4,8 @@
        textures. Like Bow_Training: issued by the spar job, never owned; no recipe, category,
        weapon tag or trade tag; one limb tool, no verbs. Damage is flat per damage type (the
        Cut weapons share one power) and vanilla pays melee XP; a tier buys a higher ceiling
-       and nothing else. The tier table is the SparringTier extension; Go mirrors it in
-       sparring_tier.go. -->
+       and nothing else. The tier table is the SparringTier extension; the brain mirrors it in
+       SparringTier.cs. -->
 
   <ThingDef ParentName="BaseMeleeWeapon">
     <defName>MeleeWeapon_PracticeClub</defName>

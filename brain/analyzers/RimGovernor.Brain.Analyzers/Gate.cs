@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace RimGovernor.Brain.Analyzers;
 
-/// <summary>Names and helpers every gate shares (ported from go/internal/archgate/archgate.go).</summary>
+/// <summary>Names and helpers every gate shares.</summary>
 internal static class Arch
 {
     internal const string AssemblyPrefix = "RimGovernor.Brain.";

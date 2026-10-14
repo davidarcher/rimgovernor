@@ -36,7 +36,7 @@ RimGovernor.cmd remotebundle pack -repo C:\rg\src `
   -7z C:\tools\7zr.exe -age C:\tools\age.exe -out C:\rg\bundle
 ```
 
-The destination must be new. `GamePaths` in `internal/remotebundle/pack.go`
+The destination must be new. `BundlePack.GamePaths` in `brain/src/RimGovernor.Brain.RemoteBundle/BundlePack.cs`
 is the game inclusion list for the flat RimWorld 1.7 (Waylith) install: every
 regular file in the install root (`RimWorld.exe`, the .NET runtime and
 assemblies, `Waylith*.dll`, `Assets.zip`, notices; debug symbols excepted), the
@@ -51,7 +51,7 @@ driver cache directories, other mods, profiles and player saves are not
 selected. The unpacked game is about 1 GB. Harmony is a separate inventoried
 component: the Workshop item (`About`, `LoadFolders.xml`, and `1.7/Assemblies`
 holding the net10 `0Harmony.dll` and `HarmonyMod.dll`) and `-harmony` must be
-the DLL inside `-harmony-mod`'s `1.7/Assemblies`. The GABP host ships inside the
+the DLL inside `-harmony-mod`'s `1.7/Assemblies`. The brain ships inside the
 RimGovernor package. Source junctions are materialized into regular
 files. Packaging never writes to the source install or copies branch-built
 RimGovernor binaries.
@@ -98,12 +98,6 @@ the first remote run of a published 1.7 bundle answers it. The check is the
 shows in the shard's `game.log` before the harness connects. Record the result
 on epic #3023.
 
-Shard `s1` also runs the def-mirror drift check against the unpacked bundle
-(`dotnet run --project tools/defmirror -- --game-dir <unpacked game> --check
---output contracts/proto/defs.proto`), the only CI place with the game files.
-Drift, or a mirror that cannot read the game, fails the shard. The Ubuntu race job builds protobuf with the .NET
-10 SDK.
-
 ## Fixtures and generated starts
 
 No saves are committed; the tribal8 baseline generates on first use and is never
@@ -136,7 +130,7 @@ and tool lock from the **trusted workflow revision**, before running selected
 source. Authorization is a JSON object with `repository`, `tested_commit`,
 `workflow_commit` (full 40-hex revisions) and `event` (`workflow_dispatch`, `schedule` or
 `push`). Manual dispatch means the maintainer reviewed the exact tested commit;
-push and schedule require protected `refs/heads/main`. The script and Go bootstrap verify
+push and schedule require protected `refs/heads/main`. The script and the brain bootstrap verify
 these against the checkout and GitHub environment before cache access. This
 check is a guard, not a substitute for trusted workflow placement or review.
 
@@ -146,12 +140,12 @@ directory, authenticates origin metadata and verifies sizes/digests before
 decryption.
 
 The checked-in [Windows tool lock](../../scripts/remote-tools.windows.json)
-pins verified release bytes. Its schema version is 1 with exactly four `tools` entries:
-`go`, `dotnet`, `age`, `7z`. Each entry requires `name`, exact `version`, HTTPS
+pins verified release bytes. Its schema version is 1 with exactly three `tools` entries:
+`dotnet`, `age`, `7z`. Each entry requires `name`, exact `version`, HTTPS
 `url`, lowercase archive `sha256`, `format` (`zip` or single-file `exe`) and
 relative `executable` path. Use official release downloads and reviewed hashes.
-Go must match `go/.go-version`; .NET SDK must match the lock. Examples of
-executable paths are `go/bin/go.exe`, `dotnet.exe`, `age/age.exe`, `7zr.exe`.
+The .NET SDK must match the lock. Examples of
+executable paths are `dotnet.exe`, `age/age.exe`, `7zr.exe`.
 The script installs these portable tools privately, with no system-wide changes
 or unpinned package-manager upgrades. PowerShell 7, Git and `gh` are prerequisites
 of the trusted Windows runner image. The workflow pins its image/actions.
@@ -193,7 +187,7 @@ neither bootstrap's dependencies/tools nor profiles are public artifacts.
 
 ## Verification
 
-`go run ./cmd/test` runs manifest, inventory, path, cache, trust and setup tests.
+`RimGovernor.cmd test` runs manifest, inventory, path, cache, trust and setup tests.
 Set `RIMGOVERNOR_TEST_AGE` and `RIMGOVERNOR_TEST_7Z` to absolute executables to
 include the synthetic encrypted multipart round trip. The Windows junction
 test proves source materialization without copying links.

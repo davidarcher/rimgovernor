@@ -33,16 +33,21 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
 
 ## Architecture constraints
 
+- One C# toolchain (.NET SDK 10). The brain is a library (`brain/`) hosted inside the
+  game process by the mod (`-rimgovernor-inproc`, the default launch): no controller
+  process, no transport. The launcher (`tools/launcher`), the tool host
+  (`RimGovernor.cmd <tool>`, `tools/rg`) and the acceptance harness
+  (`RimGovernor.cmd acceptance`, `brain/src/RimGovernor.Brain.Acceptance*`) are C# too.
+  See [brain host](docs/developers/architecture/brain-host.md).
+
 - RimWorld owns simulation and legality. Discover native schemas; editor and
   cheat operations stay outside model execution. Models use local LM Studio
   only, with no paid-provider fallback.
 - Extend the shared Concern/Method/action system. Hands owns game-order writes;
   advisers neither write orders nor own colony invariants. Do not copy the
   existing combat bypass into new work.
-- The only policy exception is [native rules](docs/developers/contracts/native-rules.md):
-  Go authors pure policy, journals `rules_attach` before writing, and renews a
-  lease each Round. Native executes only the closed whitelist and journals each
-  firing before its write. No draft actions.
+- The one policy exception is [native rules](docs/developers/contracts/native-rules.md)
+  (`rules_attach`; being removed in #3141).
 - Keep policy pure and orchestration free of decision math. Use typed boundary
   contracts, explicit ownership and explicit unknowns. The five mechanical
   [architecture gates](docs/developers/architecture/rules.md) have shrink-only
@@ -64,10 +69,10 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
 
 ## Evidence and diagnostics
 
-- Test planner decisions with snapshot tests; native cases prove native reads,
-  operations or simulation. An accepted order is not completed pawn work.
+- Prove planner decisions with a bug-driven xUnit test in `brain/tests` where one is
+  needed; native cases prove native reads, operations or simulation. An accepted order is not completed pawn work.
 - New native cases start from a prepared fixture, normally `cases.LabStart()`;
-  state why a snapshot test cannot prove the claim. Use a small quiet world,
+  state why a unit test cannot prove the claim. Use a small quiet world,
   bounded progress waits and minute-scale budgets. Do not play for twenty
   minutes to create a precondition. See [case authoring](docs/developers/testing/acceptance-guide.md).
 - Whole-module race/stress runs belong to the nightly. Concurrency fixes use
@@ -79,7 +84,7 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
   the sim. Run a full 20-seed sweep, a baseline re-record or a variant set only
   when the user asks or the nightly does; never as a default step of a fix, and
   never fixture after fixture in a row.
-- The OTLP log ring (`otlp/logs.jsonl`) is the runtime log. Decisions use `telemetry.Decide` with
+- The OTLP log ring (`otlp/logs.jsonl`) is the runtime log. Decisions use `TelemetryEmitter.Decide` with
   `verdict`, stable `reason`, `target`, `dur_ms` and `attrs`. A new emission needs
   a registered [kind and reader](docs/developers/contracts/otel-signals.md).
   Log events and decisions, not per-step narration or unkinded `slog` text.

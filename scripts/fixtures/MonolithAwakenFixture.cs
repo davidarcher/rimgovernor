@@ -12,7 +12,7 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only: the colony
     // awakens the void monolith and disrupts it at the void node.
     // test/monolith_awaken_prepare stages the precondition the controller's
-    // awaken gate (policy/monolith.go) asks for: a void monolith spawned on the
+    // awaken gate (Policy/Monolith.cs) asks for: a void monolith spawned on the
     // paused lab map at the Waking level (MonolithLevelDefOf.Waking), the
     // codex entries the VoidAwakened level def requires already discovered
     // (its own category and count, read from the def), and every colonist who

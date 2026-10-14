@@ -1,14 +1,14 @@
 # Contracts
 
-Typed wire contracts between the Go controller and the native mod, plus the
+Typed wire contracts between the brain and the native mod, plus the
 native ownership references that explain what those contracts cover.
 
-## Generated contracts
+## Wire contracts
 
-[Wire contracts](schema-generation.md) describes the plain C# records and their JSON shape (#3100), plus the
-`proto/` inputs and `generated/` outputs that remain for the Go side until #3102 (`task protobuf:build` and
-`task protobuf:test` still regenerate and cross-check them; hand-editing generated code is never correct).
-[Native Protobuf cutover](native-protobuf-cutover.md) is the short history of the move off Protobuf.
+[Wire contracts](wire/README.md) describes the plain C# `sealed record`s in
+`brain/src/RimGovernor.Brain.Contracts` (namespace `RimGovernor.Contracts.Wire`) and their
+System.Text.Json shape. Wire edits are made by editing the records; there is no code generation.
+The per-family documents beside it give the presence, bounds and outcome semantics.
 
 ## Native ownership references
 
@@ -25,10 +25,7 @@ describe current behavior and constraints, not gameplay acceptance.
   package boundaries plus provenance.
 - [Placement previews](placement-previews.md): preview semantics for placement.
 
-## Fixtures and probes
+## Probes
 
-`fixtures/` holds small sanitized native reply samples (`colony-core.json`,
-`food-supply.json` and the things table rows its stocks reference,
-`food-things.json`) that the Go observation, bridge and routine unit tests
-decode. They establish parsing, not native outcomes. `tests/NativeContractProbes`
-compiles the generated C# against the native project as a contract check.
+`tests/NativeContractProbes` compiles the wire records against the native project as a contract
+check.

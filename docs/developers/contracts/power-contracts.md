@@ -1,6 +1,6 @@
 # Power contracts
 
-`EnsureBasicPower` (`go/internal/policy/power_method.go`, `power_budget.go`) keeps every enabled
+`EnsureBasicPower` (`PowerMethod.cs`, `PowerBudget.cs`) keeps every enabled
 consumer powered by reading the native power census and sizing each network against a day of energy,
 never by counting generators. Native placement previews and shared admission gate every build; output
 plus `PowerOn` on the consumer, not a receipt, establishes recovery.
@@ -35,7 +35,7 @@ whose known stored reserve is under the coming night's deficit (a solar-only net
   wiki's measured clear-weather average (snow 2622 W and blizzard 3409 W are higher, so clear is the
   conservative figure). The earlier 1200 W figure was about half the catalog's.
 - **Storage:** the summed battery capacity. The wiki figures behind the profiles and the battery
-  (600 Wd, 50 % charge efficiency, 5 Wd/day self-discharge) are constants in `power_budget.go`.
+  (600 Wd, 50 % charge efficiency, 5 Wd/day self-discharge) are constants in `PowerBudget.cs`.
 
 Two independent shortfalls:
 
@@ -90,7 +90,7 @@ check on the model: a consumer that actually loses power is a deficit whatever t
 - **`store`:** one `Battery` on a roofed cell within six cells of the draining consumer (an unroofed
   battery short-circuits in rain or snow). On a cold map, while the plan has no battery room,
   `PlannedPowerSites(Battery)` lists the shelter porch's slots first: an open lean-to strip on the
-  exterior face of the wall opposite the shelter door (a `PlannedPorch` child of the shelter, `layout_porch.go`; two 1x2
+  exterior face of the wall opposite the shelter door (a `PlannedPorch` child of the shelter, `LayoutPorch.cs`; two 1x2
   slots, no walls). The porch is not enclosed, so the plan that places a battery on it also carries a
   `build_roof` action over the whole strip (vanilla's Build Roof area, see
   [action contracts](action-contracts.md)), and `previewPlannedPower`'s roofed-cell gate accepts porch
@@ -106,8 +106,8 @@ Hands correlate completed work against `PowerFamilyDefinitions()`.
 
 ## Planned conduit net
 
-A tiled layout plan (`layout_tile.go`) owns its conduit paths: `LayoutPlan.Conduits` is a list of
-`ConduitLink{From, To, Cells}` derived with the plan by `RouteConduits` (`layout_conduit.go`). It is the
+A tiled layout plan (`LayoutTile.cs`) owns its conduit paths: `LayoutPlan.Conduits` is a list of
+`ConduitLink{From, To, Cells}` derived with the plan by `RouteConduits` (`LayoutConduit.cs`). It is the
 net the planner would lay; `EnsureBasicPower` still decides which sites connect, by which method and at
 what budget, and the `connect` contract above is unchanged. No action kind carries it.
 
@@ -132,7 +132,7 @@ what budget, and the `connect` contract above is unchanged. No action kind carri
   cuts live power: nothing removes a built conduit (planned-ground clearance takes down walls, doors and
   furniture, not the `Conduits` layer), so an old path stays until the new one is built and `connect`
   builds only the cells of the planned path that are missing.
-- **Router.** `routeCells` (`conduit_router.go`) is the one deterministic 4-neighbour breadth-first router,
+- **Router.** `routeCells` (`ConduitRouter.cs`) is the one deterministic 4-neighbour breadth-first router,
   shared with `connect` and the turret wiring (`powerRoute`), bounded by `powerRouteBound`. Cells come from
   `ConduitCells`: conduits ignore buildings, walls and doors (the `Conduits` layer; only another power
   transmitter conflicts), but need terrain with light footing, so deep water, other terrain without
@@ -143,8 +143,8 @@ what budget, and the `connect` contract above is unchanged. No action kind carri
 
 ## Acceptance
 
-`power/fuel` (`go/internal/nativeaccept/cases/power`) covers the refuel hold natively on the blank lab.
+`power/fuel` (`brain/src/RimGovernor.Brain.Acceptance.Cases/Power`) covers the refuel hold natively on the blank lab.
 The generation shortfall on a draining reserve, storage for a solar-only network (one `Battery` sited
 indoors), a wind turbine on a clear catch zone and a geothermal generator on a free geyser ahead of
-every other generator are snapshot tests of the power planner over recorded reviews
-(`go/internal/buildingruntime`).
+every other generator are decided by the power planner over recorded reviews
+(`brain/src/RimGovernor.Brain.BuildingRuntime`).

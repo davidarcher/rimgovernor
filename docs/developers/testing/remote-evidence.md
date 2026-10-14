@@ -88,14 +88,14 @@ The immutable archive is retained as `actions-artifact.zip`; original manifests
 and diagnostics remain in `evidence/`, beside the imported `result.json`.
 Failed imports retain downloaded evidence for diagnosis and exit nonzero.
 
-Imported evidence is for diagnosis: `cmd/land` does not read it, so landing
+Imported evidence is for diagnosis: `RimGovernor.cmd land` does not read it, so landing
 needs no import. Keep the archive and `evidence/` together and import before
 artifact expiry; offline or expired metadata does not establish trust. Remote v1
 evidence is fresh and restaged.
 
 ## Fast validation
 
-`go run ./cmd/test` covers synthetic complete imports, retry-history retention,
+`RimGovernor.cmd test` covers synthetic complete imports, retry-history retention,
 case-failure injection, missing/duplicate/cancelled evidence, unsafe archives,
 wrong provenance/source, local tampering and clean main-merge reuse. Import
 rejects fixtures marked `fixture_only`. These checks prove tooling behavior,

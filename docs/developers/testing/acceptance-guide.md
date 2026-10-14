@@ -2,23 +2,19 @@
 
 [Choose tests](choose-tests.md) · [Machine setup](../agent-runbook.md)
 
-The runner is `go/internal/nativeaccept/cmd/acceptance`; cases live in
-`go/internal/nativeaccept/cases/<area>`. Run commands from `go/`, or build
-the runner and use `acceptance` below. `acceptance <subcommand> -h` lists flags.
-
-The C# port of the harness (#3087) is `RimGovernor.cmd acceptance <subcommand>`: the harness core, registry, setup,
-doctor, postmortem, run, suite and the other subcommands live in `brain/src/RimGovernor.Brain.Acceptance`, and cases
-register from `brain/src/RimGovernor.Brain.Acceptance.Cases`. Since the cutover (#3085) it is the harness the nightly
-and the remote workflows run, against the in-process C# brain. The C# harness drives the game over the mod's
-local HTTP channel; there is no `serve` child and no `games_stop`, a stop kills the recorded process tree.
+The runner is `RimGovernor.cmd acceptance <subcommand>` (`acceptance <subcommand> -h` lists flags). The harness core,
+registry, setup, doctor, postmortem, run, suite and the other subcommands live in
+`brain/src/RimGovernor.Brain.Acceptance`; cases live in `brain/src/RimGovernor.Brain.Acceptance.Cases/<Area>` and
+register through `CaseCatalog.Register`. It is the harness the nightly and the remote workflows run, against the
+in-process C# brain. The harness drives the game over the mod's local HTTP channel; there is no child process and no
+`games_stop`, a stop kills the recorded process tree.
 Every game it launches (headless, rendered, warm) carries `-rimgovernor-inproc` and `RIMGOVERNOR_OBSERVE=1`: the mod
-hosts the brain, and a case starts the bot through the player API instead of the host's auto-resume. There is no
-opt-out; the Go `serve` is no longer driven by any launcher or workflow (it is deleted by #3102). The launcher's Play
-passes the same flag.
+hosts the brain, and a case starts the brain through the player API instead of the host's auto-resume. There is no
+opt-out. The launcher's Play passes the same flag.
 
-## Cutover checklist: the nightly-tier subset against the in-process bot (#3085)
+## The nightly-tier subset
 
-Nothing blocks landing on a local acceptance run; the nightly supplies the evidence. To run the subset by hand on a
+To run the subset by hand on a
 prepared root (`RimGovernor.cmd acceptance setup` once, then one game at a time):
 
 ```text
@@ -30,7 +26,7 @@ RimGovernor.cmd acceptance why <output>/<area>/<case>
 ```
 
 The remote workflow's `nightly` tier is the same set (`Tiers.CasesOf("nightly")`, minus rendered cases). Run the smoke
-tier first (`smoke/identity` proves the in-proc launch and fixtures, `light/dark` the first serve-driven case), then
+tier first (`smoke/identity` proves the in-proc launch and fixtures, `light/dark` the first service-driven case), then
 the nightly tier. The nightly-tier subset is `Tiers.EndToEnd` in `brain/src/RimGovernor.Brain.Acceptance/Cost/Tiers.cs`:
 
 - combatlab/native-hold
@@ -46,33 +42,10 @@ the nightly tier. The nightly-tier subset is `Tiers.EndToEnd` in `brain/src/RimG
 Filing failures: one GitHub issue per distinct failure (check for an existing match first), labelled `area:tooling`
 for harness/mod-host faults or the owning area label and `priority:P1`/`P2`, titled with the case name. Include the
 case name, the commit, the `result.json` verdict, the `acceptance why` digest, the game-log slice and whether it
-reproduces alone (`-repeat N`). Say whether the failure is the bot (brain), the in-process host (bootstrap, channel,
+reproduces alone (`-repeat N`). Say whether the failure is the brain, the in-process host (bootstrap, channel,
 `RIMGOVERNOR_*` environment), or the harness; a case that fails to start or a missing route belongs to the host.
-Epic #3043's remaining failures are fixed forward. A load-sensitive failure that passes alone is recorded, not rerun
+A load-sensitive failure that passes alone is recorded, not rerun
 as a suite.
-
-### Deliberate differences from #3117 to confirm
-
-Compile-checked only; each is confirmed by a passing nightly run of the named case, or filed:
-
-- Cases adapted in-process (item 11): ideology/first-ritual, odyssey/lava-field, service/restart, presentation/roster,
-  tools/baselinegen, tools/deepresources, review/colony-week, authority/disconnect (transport-drop phase trimmed),
-  the mood/headroom sample shape, surgery history polling.
-- Reduced assertions (item 18): lifecycle/ideoligion-design (no exact-equality or determinism check until a
-  creation-catalog decoder exists), lifecycle/reuse (no binary, state DB or session token), lifecycle/headless-soak
-  (no schema dump or reconnect probe), lowercase shelter report keys and the describeNear ordering, the upkeep
-  impressiveness constant 50.0, combatlab metrics without baseline summaries. `SimSpec`, `CalibrationInputs`,
-  `SimSweep`, `importFight`, `CalibrationEnv` and `stagedTargets` are not ported (only `combatcalibrate` used
-  them); `combatcalibrate` stays `-show` only until the combat lab fixtures run.
-- A3 adaptations: the catalog readers and their Async entry points take the Harness (the read-only
-  `rimgovernor/acceptance_read_*` tool call needs it); the first layout plan is derived as Go startersite did (no
-  ledger, no stock, no StationFacts catalog rows) and can differ from a running service's plan; the map survey is
-  packed cell arrays (about 2 MB) returned only when asked, with Cold/Hot set (Go left them unset); the pack-reinstall
-  phase adapters were not needed (`IPhaseSession`/`IPhaseService`/`IPhaseStore`/`StagePhase` have no consumer, a
-  deletion candidate).
-- Also unconfirmed from the A2/A3 wiring: `PawnKinds` vanilla defName table against real defs (item 17), defense and
-  upkeep journal readers assuming `<output>/service.sqlite`, perimeter audits counting zero sections, and the
-  harness's `RIMGOVERNOR_OBSERVE=1` default (a case that needs auto-resume sets it off through `ServeSpec.Env`).
 
 ## Run and diagnose
 
@@ -99,30 +72,29 @@ and rejects a seed override.
 
 ## Adding a case
 
-Register a `cases.Case` with `cases.Register`. A new area must also be imported
-by `cmd/acceptance/main.go`.
+Register an `AcceptanceCase` (`brain/src/RimGovernor.Brain.Acceptance/Cases/AcceptanceCase.cs`) with
+`registry.Register`; a new area adds its `<Area>Cases.Register` to `CaseCatalog.Register`.
 
 | Field | Contract |
 | --- | --- |
 | `Name` | Stable `<area>/<case>` identifier. |
-| `Scope` | Exact claim, including why a Go snapshot cannot prove it. |
-| `Budget` | Minute-scale runtime; exceeding `cases.MaxBudget` needs a `Reason`. |
+| `Scope` | Exact claim, including why a snapshot cannot prove it. |
+| `Budget` | Minute-scale runtime; exceeding `AcceptanceCase.MaxBudget` needs a `Reason`. |
 | `Start` | Prepared save, fixture, lab, scenario, or `Owned` lifecycle. |
 | `RequiredOps` | Fixture operations called by the body or service hooks. |
 | `Run` | Exercise the behavior and watch progress. |
 | `Postmortem` | Read and assert native outcomes after services stop. |
 
-For serve-driven cases, declare `Serve: &cases.ServeSpec{...}`, then
-`s.Serve(ctx, s.Spec())`. Use `s.Reattach(ctx)` for harness reads afterward.
-Store assertion inputs with `na.SetCheckpointState`, `Session.Resumed` or
+For service-driven cases, declare `Serve = new ServeSpec { ... }` (the harness-side session: save, families,
+environment entries). Store assertion inputs with the checkpoint state, `Session.Resumed` or
 `Session.Prior` so postmortem can run independently.
 
 ### Stage the precondition, do not play into it
 
 Start with the state the assertion needs. Native op/read cases normally use
-`cases.LabStart()` or `cases.Lab{Colonists: n}`: a pinned blank 100×100 map.
+`LabStart` with a colonist count: a pinned blank 100×100 map.
 Spawn at known offsets from its center. Terrain-dependent cases need an explicit
-exception to `TestFixtureCasesStartPinned`.
+`Reason`.
 
 Use one `test/*_prepare` operation to spawn, assign, damage and settle the
 fixture. Use production operations for the behavior under test. A prepared save
@@ -143,21 +115,21 @@ JSON-looking values decode as JSON; other values are strings.
 
 - Prefer Core-only unless the claim requires DLC. The runner's default activates
   installed expansions; a save start activates its saved `modIds`. Narrow
-  explicitly with `Config.Expansions` or `RIMGOVERNOR_ACCEPT_EXPANSIONS`.
+  explicitly with `AcceptanceCase.Expansions` or `RIMGOVERNOR_ACCEPT_EXPANSIONS`.
 - Use a quiet storyteller. Needs are frozen except the case's `Keep` list;
   preserve the needs being tested. Use `QuietWorld` only when wild-map
   simulation is irrelevant, not for farm, hunting or husbandry claims.
-- Use `na.WaitProgress` with a progress signature and `Terminal: service.Exited`
-  for serve-driven waits. Existing `WaitReview`, `WaitPlan` and `WaitRounds`
+- Use `WaitProgress` with a progress signature that ends on service exit
+  for service-driven waits. Existing `WaitReview`, `WaitPlan` and `WaitRounds`
   helpers cover common cases. No sleep loops.
-- Advance gameplay by ticks with `na.RunUntil`/`na.Wait{Ticks: ...}`.
+- Advance gameplay by ticks with `RunUntil`/tick waits.
   Wall time is a hang guard. Fail immediately on terminal refusals or service exit.
 - Declare budgets in minutes. The default timeout is 20 minutes and cannot be
   less than budget plus five; it is separate from the case budget.
-- `cases.Case.Lint` checks the case before execution and in runner tests.
+- `AcceptanceCase.Lint` checks the case before execution.
   Departures requiring `Reason` must explain the tested constraint.
 
-The baseline is generated from `na.BaselineStart` on first use and stamped
+The baseline is generated from `BaselineStart` on first use and stamped
 beside its save; a changed spec regenerates it. A retained seed/save/fixture hash
 identifies the input actually exercised.
 
@@ -180,9 +152,9 @@ Keep the report's `resumed_from` with the result.
 
 A resumable body must recognize `s.Resumed()`, restore recorded fixture state
 and avoid repeating writes already represented by the bundle. Use
-`s.RequestID(base)` for request IDs; resumed attempts get a distinct suffix.
+`RequestID(base)` for request IDs; resumed attempts get a distinct suffix.
 Declare `NoCheckpoint` if the body cannot safely resume, or
-`na.CapCheckpoints(reason)` after its last resumable point.
+a checkpoint cap with a reason after its last resumable point.
 
 ### Postmortem-only and dev iteration
 
@@ -191,8 +163,8 @@ bundle and runs only `Postmortem`. It requires a fresh output directory and
 cannot combine with fresh/repeat/seed options or a suite.
 
 `acceptance dev <case> -root <root> [-from <label|directory>] [-watch]` rebuilds
-the controller, reloads the bundle and runs `Run` plus `Postmortem`.
-It waits for Enter, or a Go-file change with `-watch`, between iterations.
+the brain, reloads the bundle and runs `Run` plus `Postmortem`.
+It waits for Enter, or a brain-file change with `-watch`, between iterations.
 Outputs are separate; the checkpoint ring and metrics series are unchanged.
 
 ### Breakpoints
@@ -211,8 +183,7 @@ Declare ordered `Stages` and wrap setup blocks in `s.Stage(ctx, name, fn)`.
 Each block must stop its services before returning. The runner stores a bundle
 and reuses the newest matching native package, start, expansions and stage key.
 
-The stage key covers the area's Go files and stage names, not shared helpers or
-the controller binary. Use `-restage` when those affect the precondition.
+The stage key covers the area's brain files and stage names, not shared helpers. Use `-restage` when those affect the precondition.
 `-fresh` retains stages; `-restage` discards them. A pending resume takes
 precedence. `RIMGOVERNOR_ACCEPT_STAGES=0` disables caching.
 
@@ -226,17 +197,16 @@ dice. `combatlab/reseed` checks the action itself.
 
 ## Combat lab sweeps
 
-`acceptance sweep <fixture>... -root <dir> -output <fresh dir> -rimgovernor <bin>
+`acceptance sweep <fixture>... -root <dir> -output <fresh dir>
 [-n 20 | -seeds 1,2,5] [-workers 1|2] [-against <sweep.json|dir>] [-restage]`
 runs `combatlab/metrics-<fixture>` once per seed, 1..N by default. The fixture
 is staged once (a cached stage bundle is reused), every worker root gets its
 own copy of that bundle, and seed `s` runs `-run-seed s` from it. Seeds are
-dispatched with `combatdispatch.Dispatch` on 1 or 2 private clones of `-root`
+dispatched with `CombatDispatcher.Dispatch` on 1 or 2 private clones of `-root`
 (more is refused); the result records the workers and a RimWorld process count
 taken before dispatch, so a timing-dependent metric can be read against box load.
 
-`<output>/<fixture>/sweep.json` is the `combatmetrics.Sweep` file (version
-field `SweepVersion`): one row per seed (metrics, staging digest, reseed draws)
+`<output>/<fixture>/sweep.json` is the sweep file (versioned): one row per seed (metrics, staging digest, reseed draws)
 plus a summary. The printed report leads with the seeds that saw a colonist
 death or down and the means of colonist deaths and downs with 95% t intervals,
 then damage, enemy outcomes and contact-to-resolution. A second sweep with the
@@ -250,49 +220,45 @@ Every metrics run also records the shot tap (`LabShotLedger` in
 and impact, job starts, stances, draft changes and each pawn's first think
 ticks, read with `test/lab_stage` action `shots` into `combat_shots.jsonl` in the
 bundle. `acceptance sweep <fixture> -variant <name>` sweeps a tactic variant of
-`combatlab.Variants()` in the real game: it sets the test-only
+the combat-lab variants in the real game: it sets the test-only
 `RIMGOVERNOR_COMBAT_TUNING` environment variable on the child service, and with
 `-record` writes `combatlab/calibration/variants/<fixture>/<variant>.json`
 instead of the baseline (the `default` variant is the baseline and is refused).
-The variable is a JSON `policy.CombatTuning` (fields over `DefaultCombatTuning`,
-unknown fields and out-of-range values refused at service start, unset means
-inert); serve reads it, the defense planner seeds every new fight's
+The variable is a JSON `CombatTuning` (fields over `PolicyFunctions.DefaultCombatTuning`,
+unknown fields and out-of-range values refused at start, unset means
+inert); the brain host reads it, the defense planner seeds every new fight's
 `CombatMemory.Tuning` with it (the ordinary admission and the sapper break), and
-`policy` itself never reads the environment. A variant moves a fight only where
+the policy layer itself never reads the environment. A variant moves a fight only where
 its knob is read: `ScatterCells` and `GroupGap` act under a layout (a hold that
 collapses, a raid split into groups), so a layout-less fixture measures the same
 play under every variant.
 `acceptance sweep <fixture> -shots <file>` concatenates the seeds' rows,
 stamped with the seed and with the damage each impact dealt. The committed
-`combatlab/calibration/shots/lab-ranged.jsonl` and its README (fields, how it
-was recorded) are the real timing data for `combatsim` calibration.
+`CombatLab/calibration/shots/lab-ranged.jsonl` and its README (fields, how it
+was recorded) are the real timing data for combat simulator calibration.
 
-The combat baselines are sweep outputs: `combatlab/baselines/<fixture>.json` is
-the `combatmetrics.Sweep` of seeds 1..20 recorded from main with the routine
-defense planner serving, and `combatlab.Baseline(name)` returns it (rows and
-summary). A tactic is first compared on one seed (three at most) and widened in the sim;
+The combat baselines are sweep outputs: `CombatLab/baselines/<fixture>.json` is
+the sweep of seeds 1..20 recorded from main with the routine
+defense planner running. A tactic is first compared on one seed (three at most) and widened in the sim;
 a full sweep of the same seeds runs only when asked or by the nightly, with `-against
-go/internal/nativeaccept/cases/combatlab/baselines` and gets paired deltas row
-by row. Re-record one from `go/` with `acceptance sweep <fixture> -record`
+brain/src/RimGovernor.Brain.Acceptance.Cases/CombatLab/baselines` and gets paired deltas row
+by row. Re-record one with `acceptance sweep <fixture> -record`
 (seeds 1..20 only; a failed seed, a seed with no contact or no orders, or a
 summary that is not derived from the rows is refused). Re-record only when asked or by the nightly (not as a
 default step of a fix), after a schema bump or an intended change to the
-fixture, planner or simulator; the
-unit test `TestBaselinesCommitted` checks version, seeds and summary. lab-open
+fixture, planner or simulator. lab-open
 is smoke-only: recorded, but not a tactics signal.
 
 ## Simulator calibration gate
 
-`go run ./cmd/combatcalibrate [-record]` (from `go/`; the C# gate and report are
-`RimGovernor.cmd combatcalibrate`, which prints a recorded report with `-show` and
-gets its fixture measurements once the lab cases are ported, #3090/#3093) decides whether
-`combatsim` results may be trusted for the ranged slice (#2844). It plays each
-fixture in `combatlab.CalibrationFixtures` and `HeldOutFixtures` in the sim,
-under each `combatlab.Variants()` tuning, over the baseline's seeds, and
+`RimGovernor.cmd combatcalibrate [-record | -show report.json]` decides whether
+combat simulator results may be trusted for the ranged slice (#2844). It plays each
+fixture in the calibration and held-out fixture lists in the sim,
+under each combat-lab variant tuning, over the baseline's seeds, and
 compares the result with the real-game sweeps: the baselines for the default
-tuning, and `combatlab/calibration/variants/<fixture>/<variant>.json` (a
-`combatmetrics.Sweep` from `acceptance sweep`, seeds 1..20) for the others.
-The thresholds are constants in `combatsim/calibrate`: pooled pairwise rank
+tuning, and `CombatLab/calibration/variants/<fixture>/<variant>.json` (a
+sweep file from `acceptance sweep`, seeds 1..20) for the others.
+The thresholds are constants in the calibration gate: pooled pairwise rank
 agreement >= 0.80 on held-out fixtures, zero survival-critical misrankings (the
 sim prefers a variant whose real sweep has more colonist deaths), and colonist
 deaths and downs within +/-25% of the real mean or +/-1 pawn. Variants are
@@ -305,18 +271,17 @@ failures. The report also carries native regret (the real outcome lost by
 following the sim's pick) and false-safe variants (the sim sees no colonist
 death, the real sweep does). `calibration/report.json` and `report.txt` are the
 recorded output, stamped with the pinned assembly hash,
-`combatsim.RulesVersion`, the thresholds version and the sweep schema;
-`TestCommittedCalibrationReportIsCurrent` fails when the stamp or the output is
-stale. Bump `RulesVersion` with any port or approximation change that can move
+`RulesVersion`, the thresholds version and the sweep schema; a stale stamp or
+output is a stale report. Bump `RulesVersion` with any port or approximation change that can move
 an outcome, then re-record. A failing report is a valid record; the sim is
-trusted only where `calibrate.Trusted` accepts a passing report of this build.
+trusted only where a passing report of this build accepts it.
 `lab-split-ranged` is the held-out fixture built so both variant knobs act: four
 riflemen with a hand-written layout (firing line behind four stone chunks)
 against eight rifle gunners in two clusters (four cells apart inside a cluster,
 sixteen between the clusters). The line is outmatched, so `ScatterCells` applies
 once it falls below half; the clusters are two raid groups at `GroupGap` 8,
 singletons (below the group minimum) at 3 and one group at 20. Its
-`combatlab/calibration/variants/lab-split-ranged/` files are the four
+`CombatLab/calibration/variants/lab-split-ranged/` files are the four
 non-default sweeps.
 
 A held-out fixture joins the gate by becoming importable and gaining real

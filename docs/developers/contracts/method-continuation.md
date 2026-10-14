@@ -57,10 +57,10 @@ no pending work. Existing log readers consume these rows.
 
 ## Evidence
 
-`continuation_test.go` applies the stable/reconstruction, unknown, deadline and
-observed-outcome requirements to both owners. Shelter tests cover refused/wall
-destinations, available defenders and exposed arrival; recovery tests cover job
-progress, interruption and observed repair. These prove decisions from native
+The stable/reconstruction, unknown, deadline and
+observed-outcome requirements apply to both owners: shelter (refused/wall
+destinations, available defenders, exposed arrival) and recovery (job
+progress, interruption, observed repair) decide from native
 facts. Movement, path legality and completed repair remain native nightly
 evidence. Extend a shared implementation to development only when it removes
 duplicated decisions rather than renaming family branches.

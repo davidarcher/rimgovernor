@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     // Cooler research and forces a hot room so refrigerationaccept can
     // exercise MaintainRefrigeration  deterministically:
     // the room's measured temperature and the meat's rot runway are what the
-    // Go review latches on, one stack starts part-way to rotting so the case
+    // brain review latches on, one stack starts part-way to rotting so the case
     // can watch native cooling stop its rot progress (test/refrigeration_rot),
     // and every wall cell of the ring has a vented outdoor neighbour for the
     // cooler placement search. Optionally spawns an existing outward-facing

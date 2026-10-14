@@ -4,11 +4,10 @@
 
 A clean checkout needs:
 
-- The .NET SDK 10 on `PATH` (builds the launcher, the native mod and the
-  shared Protobuf contracts).
+- The .NET SDK 10 on `PATH` (builds the launcher, the native mod and the brain).
 - RimWorld 1.7 (Waylith) with Harmony from Steam (the launcher finds them through Steam's
   libraries). Do not also subscribe to RimBridgeServer: the RimGovernor mod
-  carries its own GABP host and is marked incompatible with it.
+  is not designed to run beside it.
 - The Microsoft Edge WebView2 Runtime (preinstalled on Windows 11).
 
 There is no local-model requirement: the autopilot needs no model.
@@ -30,6 +29,6 @@ showing its output in the Log panel:
 - **Native mod**: the production build of `integrations/rimgovernor-native`,
   rebuilt when its sources change. It is never replaced while the private game
   copy runs; close the game and press **Check again**.
-There is no separate controller: the brain runs inside the game.
+There is no separate brain: the brain runs inside the game.
 
 Continue with [launch](launch.md).

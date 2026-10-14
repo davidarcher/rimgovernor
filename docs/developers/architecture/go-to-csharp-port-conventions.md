@@ -1,5 +1,7 @@
 # Go-to-C# port conventions
 
+> History (#3106): the Go-to-C# port is complete and Go is deleted (epic #3043). The layout, compiler settings and rationale below still describe `brain/`; the Go idiom map, per-package checklist and every Go, protobuf or GABP reference are historical and not maintained.
+
 Rules every port child of epic #3043 follows when it moves a Go package into the
 `brain/` C# solution. Procedure and rationale for porting by hand rather than with
 go2cs: [port spike](go-to-csharp-port-spike.md). This page fixes the layout, the
@@ -27,7 +29,7 @@ brain/
   `RimGovernor.Brain.<PascalPackage>`: `internal/domain` is `RimGovernor.Brain.Domain`.
   Namespace equals assembly name. Project references follow Go import edges and
   must stay acyclic, as Go requires.
-- File per Go file where that file is a unit (`haul.go` becomes `Actions/Haul.cs`);
+- File per Go file where that file is a unit (`Haul.cs` becomes `Actions/Haul.cs`);
   subfolders group families. A file holds the types Go declared in the file.
 - Test projects are xUnit v3 and stay **empty** until a bug needs a regression test.
   Go tests are not ported (epic decision); the gate is the warnings-clean build,

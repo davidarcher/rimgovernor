@@ -5,7 +5,7 @@
 
 Implementation contract for #377–#383. Bundle/bootstrap tooling is in
 [remote-bundles](../remote-bundles.md); hosted workflow activation is separate. Local
-`acceptance list`, `acceptance suite` and `cmd/land` are the execution and landing
+`acceptance list`, `acceptance suite` and `RimGovernor.cmd land` are the execution and landing
 interfaces. The JSON [examples](remote-acceptance/) are synthetic fixtures, never
 acceptance evidence or game files.
 
@@ -95,7 +95,7 @@ Reject empty, unknown, duplicated or omitted cases before starting runners.
 
 ## Planning command
 
-From `go/` in a checkout of `run.tested_commit`, run:
+In a checkout of `run.tested_commit`, run:
 
 ```text
 RimGovernor.cmd acceptance plan -evidence <root> -run run.json
@@ -190,7 +190,7 @@ These are conservative project limits, not purchased capacity:
 
 | `limits` field | Initial maximum / behavior |
 | --- | --- |
-| `runner_label` | `windows-2022`; #378 records actual image and hardware, verifies headless game, .NET/Go/build tools and free disk before execution. |
+| `runner_label` | `windows-2022`; #378 records actual image and hardware, verifies headless game, .NET/the brain/build tools and free disk before execution. |
 | `shards`, `max_parallel`, `workers_per_shard` | 32 shards, up to 20 active shard jobs per run, 1 game worker per job. Independent workflow runs may overlap; GitHub enforces the account-wide runner capacity. |
 | `job_timeout_minutes`, `suite_timeout_minutes` | 360 per shard job (the GitHub-hosted six-hour limit), 345 for its suite including retries; reserve 15 minutes for bootstrap, cleanup and upload. Planner and aggregation each capped at 10 minutes. Reject plans whose known case budgets cannot fit rather than dropping cases. |
 | `max_attempts` | 2 per case; retries consume the same time allowance. |
@@ -264,7 +264,7 @@ aggregates have an explanatory error and nonzero aggregator exit status.
 digests, exact case/shard coverage and native reports, and emits the existing
 suite-shaped `result.json` beside the untouched remote manifests. Use the
 [aggregation and import commands](../testing/remote-evidence.md).
-The evidence is for diagnosis; `cmd/land` does not read it.
+The evidence is for diagnosis; `RimGovernor.cmd land` does not read it.
 
 Remote v1 runs are fresh/restaged; resumed evidence must not be presented as a fresh remote pass. Do not merely rename
 `aggregate.json` to `result.json` or trust its top-level boolean.

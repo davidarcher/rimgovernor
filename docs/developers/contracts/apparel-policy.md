@@ -51,6 +51,5 @@ the standing [clothing material demand](equipment-upkeep.md#clothing-material-de
 `production/apparel-policy` is a short native smoke case (create/update/assign,
 reapply, manual-policy override, clearing forced/locked apparel);
 `production/per-pawn-outfits` is the end-to-end signal that every lab colonist ends
-on its own outfit and the rest are pruned. The filters are unit tests in
-`go/internal/policy/apparel_policy_test.go`; the tainted-apparel decision replays
+on its own outfit and the rest are pruned. The tainted-apparel decision replays
 from colony snapshots (see [equipment upkeep](equipment-upkeep.md#acceptance)).

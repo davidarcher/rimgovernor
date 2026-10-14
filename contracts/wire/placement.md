@@ -41,7 +41,7 @@ of a preceding preview.
 
 Available material is net stock: eligible spawned stacks minus forbidden stock
 and the complete native census of remaining blueprint/frame material deficits,
-clamped to zero. It is not gross inventory. Go additionally reserves unissued or
+clamped to zero. It is not gross inventory. The brain additionally reserves unissued or
 unverifiable shared work. A complete correlated pending-construction inspection
 lets stock from a later tick replace that action's historical material hold;
 its footprint remains reserved until outcome reconciliation permits release.

@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Contracts](README.md)
 
-Epic #2533 removed the caps and refusals that pre-vetoed what RimWorld or Go
+Epic #2533 removed the caps and refusals that pre-vetoed what RimWorld or the brain
 should decide. What remains is listed here once, each with the reason it stays
 or the follow-up issue that owns it. A code comment at each constant points
 back to this page. A cap that survives and can cut data tells the reader (see
@@ -13,16 +13,16 @@ not a silent exemption.
 
 | Constant | Where | Value | Why it stays |
 | --- | --- | --- | --- |
-| `ScheduleHours` | `go/internal/domain/work_assignment.go`, `NativeWorkSettings.cs` | 24 | A game day is 24 hours; the timetable has one `TimeAssignmentDef` per hour. See [work assignment](work-assignment.md). |
-| `domain.MaxPriority` | `go/internal/domain/work_assignment.go` | 4 | The one range constant for priorities 0-4: RimWorld's manual work priorities are 1 (first) to 4 (last) with 0 disabled, and Standard/Incident priorities share the scale so a plan ranks against the work matrix. Domain validation, the work and apparel-policy readers and the gear loadout use it; the Concern-specific values (`artPriority`, `burialPriority`, `babyFeedingPriority`) are choices inside the range, not bounds. |
-| `raidGiveUpTicks` | `go/internal/policy/combat_wait.go` | 38000 | Humanoid raiders give up 26k-38k ticks after arriving (sappers 33k-38k); a raid still present past the window's end is not leaving and the fight re-forms. The vanilla window, not a tuning knob. |
-| `StrangerTombStackCap` | `go/internal/policy/tomb.go` | 4 | `KnowBuriedInSarcophagus` is a four-deep stacking memory (4, 2, 1, 0.5); feeding strangers past four live stacks changes nothing. |
-| `ReplyRing.Slots` | `ReplyRing.cs`; read by `go/internal/bridge/replyslots.go` | 8 | Fixed shared-memory reply ring, sized above the native encoder workers so an overwritten entry is a contract error rather than a retry. See [bridge hop](bridge-thrown-hop.md). |
+| `ScheduleHours` | `WorkAssignment.cs`, `NativeWorkSettings.cs` | 24 | A game day is 24 hours; the timetable has one `TimeAssignmentDef` per hour. See [work assignment](work-assignment.md). |
+| `domain.MaxPriority` | `WorkAssignment.cs` | 4 | The one range constant for priorities 0-4: RimWorld's manual work priorities are 1 (first) to 4 (last) with 0 disabled, and Standard/Incident priorities share the scale so a plan ranks against the work matrix. Domain validation, the work and apparel-policy readers and the gear loadout use it; the Concern-specific values (`artPriority`, `burialPriority`, `babyFeedingPriority`) are choices inside the range, not bounds. |
+| `raidGiveUpTicks` | `CombatWait.cs` | 38000 | Humanoid raiders give up 26k-38k ticks after arriving (sappers 33k-38k); a raid still present past the window's end is not leaving and the fight re-forms. The vanilla window, not a tuning knob. |
+| `StrangerTombStackCap` | `Tomb.cs` | 4 | `KnowBuriedInSarcophagus` is a four-deep stacking memory (4, 2, 1, 0.5); feeding strangers past four live stacks changes nothing. |
+| `ReplyRing.Slots` | `ReplyRing.cs` | 8 | Fixed shared-memory reply ring, sized above the native encoder workers so an overwritten entry is a contract error rather than a retry (shm ring being removed in #3141). See [bridge hop](bridge-thrown-hop.md). |
 | `CombatMirror.RingSize` | `CombatMirror.cs` | 1024 | The combat event ring; every frame carries it whole, and a reader works from the watermark. See [hazard detection bounds](../architecture/hazard-detection-bounds.md#combat-event-ring). |
 | `CombatMirror.MaxDetailChars` | `CombatMirror.cs` | 256 | An event row's free-text `Detail`; a cut value ends in `...[truncated]` ([below](#visible-truncation)). |
 | `UnackedRowsKept` | `SupervisedPlayRegulator.cs` | 256 | A backlog of unacknowledged rows this long is already held at Normal speed, so the tail need not be kept. |
 | `InvalidationEntitiesMax` | `NativeClockRuntime.cs` | 64 | The narrowing of an observation invalidation: a larger entity list is an invalid scope, and the family-wide form is the way to name more. A message bound, not a game rule. |
-| `clockInboxCapacity` / `clockInboxBytes`, `ReviewCapacity` | `go/internal/store/clock` | 4096 / 16 MiB, 4096 | Persistence rings of the clock inbox and review log; their wrap and refusal behaviour is in [Go clock recovery](go-clock-recovery.md). |
+| `clockInboxCapacity` / `clockInboxBytes`, `ReviewCapacity` | `ClockReview.cs` (`ReviewCapacity`) | 4096 / 16 MiB, 4096 | Persistence rings of the clock inbox and review log; their wrap and refusal behaviour is in [Clock recovery](clock-recovery.md). |
 | Event read limit | `NativeClockTools.cs`, `ClockEventJournal.cs` | 1..128 | A page size for `clock_read_events`; the cursor makes the next page explicit. |
 | Overlay bounds `MaxCells`, `MaxLabels`, `MaxLayerId` | `ProtoOverlayTools.cs` | 250000, 4096, 64 | Input bounds on an output-only draw request. |
 | Placement candidates | `PlacementProtocol.cs` | 1..64 | Input bound on one placement preview/apply request, a main-thread budget. |

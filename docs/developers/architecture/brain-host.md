@@ -1,14 +1,13 @@
 # Brain host
 
 The brain host (`brain/src/RimGovernor.Brain.Host`, `BrainHost`) runs the C# brain inside the mod's process behind the
-launch flag `-rimgovernor-inproc` (`InProcLaunch.Flag`). It is the controller that `cmd/rimgovernor serve` was, minus
-the lease, blind-tick and reconnect machinery: the brain and the game share a process, so a link cannot drop under it.
+launch flag `-rimgovernor-inproc` (`InProcLaunch.Flag`). There is no separate process, transport, lease or reconnect machinery: the brain and the game
+share a process, so a link cannot drop under it.
 
 ## Lifecycle
 
 `BrainHost.StartAsync(options, ct)` in order: validate options; start the OTLP file writer (a failure is reported and
-the rows go nowhere, it never stops the brain); register the intent kinds (`BridgeFunctions.RegisterIntentKinds`, the
-Go `init()`); open the state database (an incompatible one is moved aside); compose the session, the player and the
+the rows go nowhere, it never stops the brain); register the intent kinds (`BridgeFunctions.RegisterIntentKinds`); open the state database (an incompatible one is moved aside); compose the session, the player and the
 planners; create the Worker; register the player routes; start the save-signal loop, the auto-resumer and the
 scheduler thread. A failure unwinds what was built and throws. `StopAsync` is idempotent and ends the loops, drains
 the Worker (closing player and session, bounded retries), closes the database and flushes telemetry; errors are
@@ -16,7 +15,7 @@ collected and thrown together after everything else ran.
 
 ## Scheduler thread and authority
 
-One dedicated thread (`rimgovernor-brain-scheduler`) steps the `ClockScheduler` with the Go `ClockWorker.stepLoop`
+One dedicated thread (`rimgovernor-brain-scheduler`) steps the `ClockScheduler` with the `ClockWorker.stepLoop`
 cadence: first step Full, delay doubling to the maximum on an unchanged step key, evidence resets it, a settled step
 after a window. It idles unless the player is enabled with a known observation. Authority is the loaded world's:
 `FacadeAuthority` implements `INativeAuthority` over the facade, and `AutoResumer` offers each fresh world one resume
@@ -32,28 +31,27 @@ reported in `BrainHost.Status()`.
 
 ## Native client and composition (#3113)
 
-`FacadeNativeClient` (`Client/`) is what Go's `bridge.Client` was to the planners, minus the transport (GABP, the ring,
-leases, reconnect, blind ticks): one class over `INativeFacade` that implements the ~70 Native/Source interfaces the
-planners are written against. Each Go `Client.ReadX` is one `ReadXAsync` core method (request, facade call, outcome
-unwrap, the Go reply validators); the interfaces are bound to them in `FacadeNativeClient.Interfaces*.cs`, with
+`FacadeNativeClient` (`Client/`) is the planners' native client, with no transport: one class over `INativeFacade` that implements the ~70 Native/Source interfaces the
+planners are written against. Each `Client.ReadX` is one `ReadXAsync` core method (request, facade call, outcome
+unwrap, the reply validators); the interfaces are bound to them in `FacadeNativeClient.Interfaces*.cs`, with
 explicit implementations where the interface shape differs from the core method's. A failure or unavailable arm throws
 `NativeFailureException` / `NativeUnavailableException`; a malformed reply throws the contract exception. Writes go
 through `FacadeActionsWriter` (`IActionsWriter`) and `FacadeClockWriter` (`IClockWriter`). `CountingNativeFacade` wraps
 the facade so every native round trip is counted into the attached `ReadTally` (`BridgeFunctions.CountNativeRead`, under
-Go's `rimgovernor/*` tool names), which is how a scheduler step reports its reads.
+the brain's `rimgovernor/*` tool names), which is how a scheduler step reports its reads.
 
 `ClockWindowDriver` (#3108) is the window side of the clock: after each planning step it admits and starts the window,
 settles owed epochs, re-takes the clock from the player and polls the native journal. The composition builds it with
 `ClockWindowDriver.CreateAsync` over a `ClockCapabilities` session and an `IClockDriverNative`, wraps it in
 `ClockWindowHostDriver` and returns it as `PlannerParts.Windows`. The composition (`startServiceClock` and
 `roundsCapabilities`) is `IBrainComposition`; its family flags are all on by default and
-`RIMGOVERNOR_ROUTINE_FAMILIES` narrows them, as in Go.
+`RIMGOVERNOR_ROUTINE_FAMILIES` narrows them.
 
 The player providers (#3114) are the client's `IPresentationReader`, `IPresentationMediaWriter`, `INotificationReader`
 and `ILifecycleWriter` (Save/Load/NewColony, with `StartingIdeoligion` as the seam for the `governor_ideoligion` choice),
-plus `HostSnapshots` (the cached controller snapshot, polled every `RefreshInterval`), `HostColonyStatus` and
+plus `HostSnapshots` (the cached brain snapshot, polled every `RefreshInterval`), `HostColonyStatus` and
 `RoundsDiagnostics`. `BrainHost` registers `PlayerRoutes`, `ReadRoutes`, `PresentationRoutes` and `LifecycleRoutes`
-from `SessionParts.Player`. There is no Attention provider: Go's acknowledgement had no facade method to port. The
+from `SessionParts.Player`. There is no Attention provider: the brain's acknowledgement had no facade method to port. The
 host wraps the lifecycle in `FlushedLifecycle` (the governor state is flushed before every save) and builds the
 `Autosaver` (one in-game day, five rotating `Autosave-N` slots, baseline on the first stop or a rewound tick), which
 the composition passes to the clock windows as `ClockWindowConfig.Autosave`.
@@ -68,8 +66,7 @@ from the sources.
 
 ## Watchdog thresholds
 
-Go had no watchdog (a stuck step held `ClockWorker` until its step timeout), so `BrainWatchdog.Standard()` is a chosen
-starting point, not a port:
+`BrainWatchdog.Standard()` is a chosen starting point (a stuck step otherwise holds `ClockWorker` until its step timeout):
 
 | Threshold | Value | Why |
 | --- | --- | --- |
@@ -102,19 +99,19 @@ Decided (user, 2026-10-13):
 
   | Variable | Meaning | Default |
   | --- | --- | --- |
-  | `RIMGOVERNOR_STATE` | state database (Go `--state`) | `<save-data>/RimGovernor/brain-state.db`; a stamped `brain-state-yyyyMMdd-HHmmss.db` when continue is off |
-  | `RIMGOVERNOR_PROFILE` | shared game profile directory (Go `--profile`) | the game's save-data folder |
+  | `RIMGOVERNOR_STATE` | state database | `<save-data>/RimGovernor/brain-state.db`; a stamped `brain-state-yyyyMMdd-HHmmss.db` when continue is off |
+  | `RIMGOVERNOR_PROFILE` | shared game profile directory | the game's save-data folder |
   | `RIMGOVERNOR_OTLP_DIR`, `RIMGOVERNOR_RUN_ID` | the Bridge's existing variables | `<save-data>/RimGovernor/otlp`, a fresh GUID |
   | `RIMGOVERNOR_OBSERVE` | launcher Observe: no auto-resume, no layout overlay | off |
   | `RIMGOVERNOR_CONTINUE_STATE` | launcher Continue: reuse the default database | on |
-  | `RIMGOVERNOR_LAYOUT_OVERLAY` | launcher Layout overlay (`--layout-overlay`) | on |
+  | `RIMGOVERNOR_LAYOUT_OVERLAY` | launcher Layout overlay | on |
 
   The launcher sets the last three from its saved settings. The default database is shared by every save, so an
   incompatible-schema reset affects them all. Launcher Telemetry is intentionally unmapped (not a bug, #3117): the
   host writes OTLP files and has no endpoint to send to, so the saved setting has nothing to drive, and
   `RIMGOVERNOR_PROFILE` stays unset by the harness. `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
-- **Acceptance harness.** The out-of-process harness launches every game with `-rimgovernor-inproc` and
-  `RIMGOVERNOR_OBSERVE=1` (a case starts the bot through the player API; a `ServeSpec.Env` entry can override), and sets `RIMGOVERNOR_STATE=<Output>/service.sqlite` (plus a case's
+- **Acceptance harness.** The acceptance harness launches every game with `-rimgovernor-inproc` and
+  `RIMGOVERNOR_OBSERVE=1` (a case starts the brain through the player API; a `ServeSpec.Env` entry can override), and sets `RIMGOVERNOR_STATE=<Output>/service.sqlite` (plus a case's
   serve flags named like environment variables, `ServeSpec.Env`) in the launched game's environment and records the
   launch environment in the save-data folder (`RimGovernorLaunchedEnv.json`). The game reads its environment once, so a
   kept game launched without a case's flags is relaunched (reason `env`); the state path never forces a relaunch, and a
@@ -125,7 +122,7 @@ Decided (user, 2026-10-13):
   `AcceptanceReadTools`) through the generic native route. The tools run `AcceptanceReads` in the Host project: the
   observation layer's colony read with a standalone planning window and the load's definition catalog over the published
   facade, returning JSON in `payload`; they record nothing and need no running brain. The first layout plan is derived
-  as the Go starter site did (no ledger, no stock) and returned in the store codec, so it can differ from the plan a
+  as the starter site did (no ledger, no stock) and returned in the store codec, so it can differ from the plan a
   running service records.
 - **Catalog.** `BrainCompositionOptions.CatalogFactory` is `NativeCatalogFactory.Create` and `StartingIdeoligion` is
   `NativeCatalogFactory.StartingIdeoligion`; both run on the brain's threads, never the game thread.

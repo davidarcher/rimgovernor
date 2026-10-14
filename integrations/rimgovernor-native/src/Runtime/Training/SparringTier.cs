@@ -8,8 +8,7 @@ namespace RimGovernor.Runtime
     // One rung of the melee practice ladder (#2703), read from the practice
     // weapon's def (Defs/ThingDefs/SparringRing.xml). Damage is flat per damage
     // type and vanilla pays the melee XP, so a tier buys only a higher ceiling.
-    // Go mirrors the table in go/internal/policy/sparring_tier.go and a Go test
-    // pins every value.
+    // The brain mirrors the table in Brain.Policy/SparringTier.cs.
     public sealed class SparringTier : DefModExtension
     {
         // Rung number, 0 (padded club) to 3.
@@ -17,7 +16,7 @@ namespace RimGovernor.Runtime
         // Skill level at which this weapon stops teaching.
         public int skillCeiling;
         // Research project that unlocks the tier; empty means none. A name, not a
-        // reference, so a project the game lacks never unlocks (as Go's census).
+        // reference, so a project the game lacks never unlocks (as the brain's census).
         public string gateResearch = "";
         // Practice apparel (#2706) the spar job issues with the weapon, by def
         // name: the set JobDriver_Spar's swap puts on, with the weapon.
@@ -25,7 +24,7 @@ namespace RimGovernor.Runtime
     }
 
     // Melee mirror of RangeTraining's tier selection (UnlockedSparringTier in
-    // go/internal/policy/sparring_tier.go).
+    // Brain.Policy/SparringTier.cs).
     public static class SparringRules
     {
         private static List<ThingDef> tierWeapons;

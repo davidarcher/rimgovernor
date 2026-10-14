@@ -1,8 +1,8 @@
-# Go player API
+# Player API
 
 [Subsystem contracts](README.md)
 
-This page describes the Go service. The C# port serves the session, control and clock routes without the
+This page describes the service. The C# port serves the session, control and clock routes without the
 process token (host and origin checks only) from `RimGovernor.Brain.PlayerApi`; see the
 [HTTP channel](../architecture/http-channel.md).
 
@@ -15,7 +15,7 @@ output.
 
 ## Routes
 
-`rimgovernor serve --profile PATH` (autonomous play) includes the explicit player service. The
+The in-process host (autonomous play, [brain host](../architecture/brain-host.md)) includes the explicit player service. The
 read-only service exposes none of these player routes.
 
 | Method | Route | Result |
@@ -81,7 +81,7 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
 - Record phases: `pending`, `running` (resume, non-zero native generation), `paused`, `refused`,
   `uncertain`. Historical results never confer current permission; `state.generation.plan` is the live
   root plan.
-- Go surface: `httpapi.PlayerControl` is `Resume`, `Pause`, `State`; its reader
+- the brain surface: `httpapi.PlayerControl` is `Resume`, `Pause`, `State`; its reader
   (`httpapi.ControlReader`) is `CurrentControl`. Configuration routes have their own narrow
   interfaces. Production composition supplies the same Player and store the worker uses.
 
@@ -123,14 +123,14 @@ routes. Work preferences attach to the live root plan.
 - `kind: "owned_draft"` (routine-produced) with `draft: {"pawnId": "…"}` and no `building` payload;
 - any other routine kind with neither payload.
 
-The public projection omits leases, native tokens and controller-session ownership data. An
+The public projection omits leases, native tokens and brain-session ownership data. An
 `owned_draft` action is plan-owned: the undraft sweep undrafts its pawn once no live plan needs it, so
 drafts carry no cleanup progress and are not a persistent toggle.
 
 ## Control API and launcher
 
 The Resume API enables control for the observed world and Pause stops it.
-The [launcher](../architecture/launcher.md) starts with `--resume`; it exposes
+The [launcher](../architecture/launcher.md) starts the game with `RIMGOVERNOR_OBSERVE` off, which auto-resumes; it exposes
 no Resume/Pause buttons. An unresolved Resume (pending or uncertain) blocks another
 Resume until a later journaled Pause supersedes it; Pause is always available. Background refresh
 preserves request IDs and last-good data. Session/world changes exclude stale permission and responses
@@ -167,5 +167,5 @@ scenario parts on `spec`: `startingThings` (`placement` `start_with` | `start_ne
 `disallowedBuildings` and `disabledIncidents` defName lists and the overrides `playerFaction`
 (`new_arrivals` | `new_tribe`) and `arrivalMethod` (`standing` | `drop_pods`). The starting pawn
 count stays `colonistCount` (1-10). Ranges are in
-[validation](../../../contracts/proto/validation.md#new-colony-scenario-parts); an out-of-range
+[validation](../../../contracts/wire/validation.md#new-colony-scenario-parts); an out-of-range
 or unknown-enum part is a 400 before native is called.

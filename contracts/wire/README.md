@@ -1,9 +1,17 @@
 # Shared native protocol
 
-This package defines the Go/native boundary with Protocol Buffers. Official
-`protoc` and language plugins generate the bindings. There is no repository-owned
-schema compiler. Game definitions remain open native identifiers, not generated
-enums of the current installed content.
+This package defines the brain/native boundary as plain C# `sealed record`s in
+`brain/src/RimGovernor.Brain.Contracts` (namespace `RimGovernor.Contracts.Wire`; one file per
+family: `Authority.cs`, `Clock.cs`, `Common.cs`, `Defs.cs`, `Lifecycle.cs`, `Mirror.cs`,
+`Observations.cs`, `Operations.cs`, `Placement.cs`, `Presentation.cs`, `Receipts.cs`). The brain is an
+in-process library that calls the mod through `INativeFacade` without serialization; the records are
+serialized to JSON only on the loopback HTTP channel (`/native/<tool>`, see
+[http-channel](../../docs/developers/architecture/http-channel.md)) and in tests. Wire edits are made by
+editing the records: there is no code generation, no field numbering and no compatibility ledger. Game
+definitions remain open native identifiers, not enums of the current installed content.
+
+Field names below are written in snake_case for readability; the records use PascalCase properties
+and the JSON uses camelCase (`tend_reach_budget_ms` is `TendReachBudgetMs` / `tendReachBudgetMs`).
 
 `PawnDetails.work` requests only the work portion of `PawnSettings`, independently
 of full settings. `work_applies` distinguishes inapplicable pawns from unreadable
@@ -17,33 +25,28 @@ native tend order enforces -- pawn-control eligibility, WorkGiver_Tend's require
 capacities, the Doctor work type -- plus `reachable_pawn_ids`, this pawn's
 `CanReach(ClosestTouch, Deadly)` over the other rows of the same reply. Reachability
 is pairwise, so it runs under the request's `PawnDetails.tend_reach_budget_ms`
-(Go: `bridge.TendReachBudgetMS`); a doctor reached after it is spent carries
+(the brain sends `FacadeNativeClient.PawnsTendReachBudgetMs`); a doctor reached after it is spent carries
 `reach_skipped` and an empty list, which is unknown, not "reaches nobody". A producer that omits the block leaves the
-gates unknown and the controller proposes no doctor, rather than failing the read.
+gates unknown and the brain proposes no doctor, rather than failing the read.
 
-- [Fixed MCP tools](mcp-tools.md): descriptor methods, exact wrappers and capabilities.
 - [Validation](validation.md): shared presence, bounds and outcome requirements.
 - [Observations](observations.md), [operations/receipts](operations.md),
   [clock/lifecycle](clock-lifecycle.md), [placement](placement.md)
   and [presentation](presentation.md): per-family contract semantics.
 
-A compiled schema is not evidence of native behavior.
+A compiling record is not evidence of native behavior.
 
 ## Wire and validation
 
-Use the official ProtoJSON parser and formatter at the MCP boundary. The outer
-SDK request contains one `request` string; the response contains one `payload`
-string plus SDK operation metadata. The strings contain the generated message's
-ProtoJSON. SDK reflection must not serialize generated message properties itself.
-Each advertised capability has one fixed request and reply type. Read capabilities
-never include a mutation branch. Service descriptors identify typed operations;
-they do not require a gRPC transport or a second game server.
+`WireJson` (`Json/WireJson.cs`) is the one JSON entry point: source-generated System.Text.Json
+(`WireJsonContext`), camelCase names, enums as their wire-name strings (`WireEnumConverter`), unknown
+members disallowed, choices as type-discriminated objects (the `...Case` records under each
+`...Outcome`), and 64-bit counters as plain JSON numbers. Each native tool has one fixed request and
+reply type. Read tools never include a mutation branch.
 
-Default unknown-field rejection remains enabled for ProtoJSON. A request validator
-checks required presence, supported enum values, collection limits and application
-invariants after parsing. It does not reproduce another parser's numeric spelling,
-whitespace classification or historical serialization quirks. Generated `oneof`
-cases must be selected where the contract requires a result or operation.
+Unknown-member rejection is on. A request validator checks required presence, supported enum values,
+collection limits and application invariants after parsing. A choice must be selected where the
+contract requires a result or operation.
 
 - A missing optional observation means unknown, never false or zero. Required
   context and request fields must be present even when their value is zero.
@@ -52,11 +55,10 @@ cases must be selected where the contract requires a result or operation.
 - Identifiers preserve exact case and contents. Opaque IDs must be nonblank UTF-8,
   contain no NUL and occupy at most 256 bytes. Definitions are resolved against
   current native definitions; labels do not establish identity.
-- Generations, directions and attempts use `uint64`. Official ProtoJSON renders
-  these as decimal strings without changing their generated numeric type.
+- Generations, directions and attempts are 64-bit unsigned counters, serialized as JSON numbers.
   Attempt zero and an authority-acquiring direction zero are invalid.
 - Native map IDs are nonnegative `int32`; zero is valid. Ticks are `int64` to match
-  controller arithmetic, while observations retain the actual native tick value.
+  brain arithmetic, while observations retain the actual native tick value.
 - Diagnostic text is bounded to 4096 Unicode scalar values. Truncating diagnostics
   must preserve valid text; truncating facts must never claim completeness.
 
@@ -104,7 +106,7 @@ generation.
 
 New commands validate identity, generation, lease and ownership atomically on the
 game thread. The attempt key is `(controller_session_id, action_id, attempt_id)`;
-the controller namespace survives controller process restarts. Record an attempt
+the brain namespace survives brain process restarts. Record an attempt
 before effects. An identical admitted command replays its receipt, while conflicting
 reuse is refused. Revocation does not erase receipts. A bounded ledger refuses new
 admissions when full rather than evicting attempts that could still be retried.
@@ -117,9 +119,9 @@ neither completed pawn work nor a durable outcome after a changed native identit
 ## Limits
 
 Shared [boundary validation](validation.md) and each family contract document
-define required presence and semantic constraints beyond official parsing.
+define required presence and semantic constraints beyond JSON parsing.
 Control/observation replies carry no envelope size cap. Dedicated media replies permit
-up to32MiB of image bytes within a48MiB ProtoJSON envelope, as specified by the
+up to 32 MiB of image bytes within a 48 MiB JSON envelope, as specified by the
 presentation contract; this exception never applies to arbitrary data payloads.
 
 Shared trade target arms and acquisition/packing facts: [controllable trade](../../docs/developers/contracts/controllable-trade.md).

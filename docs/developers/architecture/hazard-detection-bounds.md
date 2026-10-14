@@ -36,7 +36,7 @@ The bound is the most game ticks a hazard of that class can exist before a
 probe evaluates it, at every production speed (Normal, Fast, Superfast,
 Ultrafast) and under test acceleration. `detect_ticks` on a stop
 (`detected_tick` less `occurrence_tick`) is the measured gap; the
-`hazard/*` acceptance cases (`go/internal/nativeaccept/cases/hazard`,
+`hazard/*` acceptance cases (`brain/src/RimGovernor.Brain.Acceptance.Cases/Hazard`,
 injecting through `scripts/fixtures/HazardFixture.cs` and the letter
 fixture) run a window at Ultrafast, inject the class mid-window and assert
 both `detect_ticks` and the injection-to-detection gap within the bound;
@@ -51,24 +51,24 @@ reports every class unhooked and the polled interval bound still holds.
 | `colonist_downed` | a colonist downed or dead | `Pawn_HealthTracker.MakeDowned` and `Pawn.Kill` hooks request the next-tick probe | 1 | the tick the hook fired; a corpse's `timeOfDeath` | `hazard/downed` |
 | `predator_hunt` | a predator hunting within 40 cells of a colonist | polled | 30 | the predator's `PredatorHunt` job `startTick` | `hazard/predator` |
 | `hunting_route_unsafe` | a colonist hunting prey along an unsafe route | polled | 30 | the hunter's `Hunt` job `startTick` | (hunting/* areas) |
-| `colonist_injury` | a new wound past the severity floor (colony mode): a life-threatening hediff stage, or blood loss killing the pawn within the policy's `injury_severity_floor_ticks` (Go sends 5000) | polled | 30 | the newest wound's age (`ageTicks`) | (a lighter wound is demoted; `hazard/injury` proves the demotion) |
+| `colonist_injury` | a new wound past the severity floor (colony mode): a life-threatening hediff stage, or blood loss killing the pawn within the policy's `injury_severity_floor_ticks` (the brain sends 5000) | polled | 30 | the newest wound's age (`ageTicks`) | (a lighter wound is demoted; `hazard/injury` proves the demotion) |
 | `colonist_health` | a combat health threshold crossed | polled | 30 | the newest wound's age | (defense/* areas) |
 
 Non-stopping observations (`alert_new`, `hostiles_cleared`,
 `injury_observed`) ride the same probe and carry the same 30-tick bound.
 
-## Go-authored thresholds
+## Brain-authored thresholds
 
 Native holds no literal for a hazard threshold. `WatchPolicy` carries each one
-(values from `policy/hazard_thresholds.go`, attached by
-`bridge.WithHazardThresholds`); `NativeClockRuntime.ValidPolicy` and the Go
-`clockPolicy()` both refuse a policy missing any or holding one that is not
+(values from `HazardThresholds.cs`, attached by
+`BridgeFunctions.WithHazardThresholds`); `NativeClockRuntime.ValidPolicy` and the brain's
+clock policy both refuse a policy missing any or holding one that is not
 finite and positive (`injury_severity_floor_ticks` is 1 to int32 max). Only
-`hostile_within` (1 to 250) and the cooldown (0 to 1800000 ms) keep proto
+`hostile_within` (1 to 250) and the cooldown (0 to 1800000 ms) keep wire
 bounds, as real limits. The probe, digest and wake intervals above stay
 constants.
 
-| Field | Go sends | Used for |
+| Field | Brain sends | Used for |
 | --- | --- | --- |
 | `serious_single_hit_damage` | 20 | one blow at least this heavy is a serious injury (combat mode) |
 | `serious_summary_health_floor` | 0.5 | summary health crossing under it is a serious injury; the same value is the floor a resting patient must stay over (`MedicalRestSafety.Eligible`) |
@@ -83,7 +83,7 @@ constants.
 hunt withdrawal), `ColonyFactsRequest` / `SnapshotStreamRequest`
 `hunt_predator_margin_cells` (the hunt census; absent, every pair reports
 `skipped`), and `Rule.predator_margin_cells` (native rules). Damage and
-explosive classification read the last epoch's policy, so before Go has
+explosive classification read the last epoch's policy, so before the brain has
 started an epoch the combat log records those rows unclassified.
 
 A wound under the severity floor, and a resting patient who lost their
@@ -117,7 +117,7 @@ Stockpile fill has its own pass, `RunStockpileFillIfDue`, every
 `StockpileFillIntervalTicks` = 60 ticks: it counts each stockpile's used
 cells and, when one moved, journals an `observation_invalidated` colony row
 narrowed to those zone ids (`stockpile fill: ...`). It reports the change
-only; the grow and shrink thresholds stay in the controller's policy, which
+only; the grow and shrink thresholds stay in the brain's policy, which
 re-reads fresh fill on the wake.
 
 The digest pass runs from the frame path after the probe gate, never from
@@ -151,7 +151,7 @@ records the event and `TickBody` stops right after the watch checks
 | Mental break | `MentalStateHandler.TryStartMentalState` postfix |
 
 A combat window with no armed event stops on its tick budget, the
-controller's `combatBackstopTicks` (300). The acceptance case
+brain's `combatBackstopTicks` (300). The acceptance case
 `combatlab/stops` proves the exact tick on `lab-open`.
 
 ## Combat event ring

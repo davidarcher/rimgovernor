@@ -92,7 +92,7 @@ The former C# `ProjectForward` and `ForwardInputsOf` had no C# call sites at
 the audit; their types/functions are replaced rather than kept as wrappers.
 The observation collector's additional facts now use `ForecastObserved`.
 Independent maintenance functions remain because production supply consumes
-them. The retiring Go projector belongs to #3102 and is not a second C# owner.
+them. No second projector exists.
 
 #3127 and #3132 provide activity and pawn state, #3133 composes the first
 feedback loop, #3134 compares Method bundles and #3135 connects the result to

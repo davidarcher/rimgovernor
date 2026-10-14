@@ -62,7 +62,7 @@ facilities and eligible researchers. Unknown or ambiguous definitions stay unkno
   to a newly preferred one. Obsolete
   requests leave the queue without clearing already-issued native research.
 
-**Ownership.** The current project is player-owned unless this load's controller recorded its verified
+**Ownership.** The current project is player-owned unless this load's brain recorded its verified
 selection. A cleared project, another project, changed player direction or changed load prevents
 taking ownership. Autonomous selection uses `expectedCurrent` (empty string = empty ordinary slot); the
 native main-thread write checks that value and the exact paused colony/load/map again. The runtime
@@ -112,7 +112,7 @@ unresolved capability cannot certify the requested unlock.
 ## Acceptance
 
 `production/ladder` proves a derived need (Smithing finished natively and the gated bench built) on the
-Core tribal baseline. A colony snapshot test (`buildingruntime/rounds_ladder_snapshot_test.go`) covers
+Core tribal baseline. A colony snapshot replay covers
 the default ladder and its bench: with Stonecutting at 97% and no bench the research step selects
 Stonecutting and owes a bench, the bench step admits an indoor research bench, and with Stonecutting
 finished Electricity is next. Advanced facility installation, all research projects and sustained

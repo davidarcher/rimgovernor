@@ -17,7 +17,7 @@ method proposals and suspends shared work while retaining mood history; world
 replacement and tick rewind reset that history. Departed pawns with unresolved risk
 remain unknown; departed recovered occurrences close.
 
-The controller ranks measured food, rest and recreation deficits by distance from a
+The brain ranks measured food, rest and recreation deficits by distance from a
 0.5 recovery target. Entry is below 0.3. Each correction uses one pawn and existing
 native resources; future mood benefit and labor duration remain unknown. Food,
 shelter and temperature provisioning use the shared colony concerns.
@@ -95,9 +95,9 @@ placement is never a mood or need postcondition.
 
 ### Thought trigger table
 
-`go/internal/policy/thought_triggers.tsv` lists every vanilla ThoughtDef (all installed
+`brain/src/RimGovernor.Brain.Policy/thought_triggers.tsv` lists every vanilla ThoughtDef (all installed
 packs) with how the game grants it and the game state it reads. `RimGovernor.cmd thoughtaudit`
-(the tool host subcommand; the Go `cmd/thoughtaudit` stays until #3102) regenerates it from the installed game: it decompiles `Assembly-CSharp.dll`
+(`tools/rg/Commands/ThoughtAudit`) regenerates it from the installed game: it decompiles `Assembly-CSharp.dll`
 with the global `ilspycmd` tool (`dotnet tool install -g ilspycmd`; not pinned in the repo)
 and reads the defs under `Data/*/Defs`. Columns:
 
@@ -143,7 +143,7 @@ expectations reach the review only through the pawn's `HighExpectations` flag.
 An unknown attribute or a def without facts never drops or zeroes a loss: the observed
 row counts and the source's `Unverified` count rises.
 
-Every Round builds the ledger in `observation/rounds_mood_ledger.go` and publishes it as
+Every Round builds the ledger in `RoundsMood.cs` and publishes it as
 `RoundsFacts.MoodLedger` (unknown whenever the mood census is). Inputs: the census thought
 rows, `AllThoughtFacts()` from the load's catalog (none without a catalog, so every source
 is unverified), each pawn's biography traits and the ideology precepts from its policy
@@ -170,7 +170,7 @@ living, undowned, undrafted colonist outside a mental break, then takes the job 
 reservations the installed native job giver returns; the game's refusal, not a native
 pre-veto on medical rest, interruptibility, need level, timetable, priority, cargo,
 fire, forbidden targets or reach danger, is the answer when no job comes. It never
-changes schedules, policies, traits, ideology or needs. Go decides whether relief is
+changes schedules, policies, traits, ideology or needs. The brain decides whether relief is
 worth asking for from the observed facts.
 Recreation excludes ingestible joy; food relief requires an ordinary ingestion job
 and leaves acquisition to its own concern. Preview checks admission only: it does not
@@ -198,14 +198,14 @@ SocialFighting continues ordinary clock windows despite its native aggression fl
 it neither activates ActiveCombat nor selects a subdue response. Independent hostile
 threats and urgent medical needs keep their emergency classification.
 
-Other standing aggressive colonists activate defense. The controller drafts one or two
+Other standing aggressive colonists activate defense. The brain drafts one or two
 nearest healthy armed-melee colonists and applies an AttackMelee `GiveJobIntent`; the
 undraft sweep releases them afterward. Other dispatch stays outside an eight-cell
 radius of the target; uncertain attempts remain reconcilable. Downing the target ends
 containment and lets the ordinary RESCUE planner carry the pawn to a colonist bed
 using native bed selection. There is no Capture or prisoner custody; Arrest remains a
-non-aggressive custody operation. `go/internal/policy/mood_snapshot_test.go` replays
-`SelectBreakSquad` and `SelectRescue` over inputs recorded from a tribal8 run: of
+non-aggressive custody operation. `SelectBreakSquad` and `SelectRescue` replay
+over inputs recorded from a tribal8 run: of
 eight colonists, only the two wooden-club responders beside the berserk target are
 chosen to SUBDUE, and once it is down RESCUE pairs a rescuer with it. Native bed
 delivery itself is not re-proved there.
@@ -220,7 +220,7 @@ cannot satisfy the native bed outcome.
 ### Native subdual
 
 The AttackMelee `GiveJobIntent` accepts exact colonist snapshots and a spawned target
-pawn; which target is worth subduing (an aggressive, standing colonist) is Go policy. It drafts an undrafted responder (the plan's draft keeps it
+pawn; which target is worth subduing (an aggressive, standing colonist) is policy. It drafts an undrafted responder (the plan's draft keeps it
 drafted) and issues an ordinary AttackMelee job; an existing draft is retained.
 Any violence-capable responder is legal whatever it wields. The job prefers a
 legal blunt verb, including fists, without changing native damage. It ends when the
@@ -248,7 +248,7 @@ the drug covers the weaning doses, otherwise maintained at the drug's addiction
 interval and allowed for the need; luciferium is always maintained. Each colony
 prisoner holds its own policy too (inputs on its population row): no recreation, only
 that maintenance. Recreation relief itself excludes ingestible joy; RimWorld chooses
-ordinary drug use. `policy/drug_policy_test.go` proves the entries.
+ordinary drug use.
 
 ## Gatherings
 
@@ -319,7 +319,7 @@ too.
 colony as a whole is losing mood the party would repay. It is a mood source with a cost
 (colonist time), never a repair, and it never places the spot: with no built `PartySpot`
 (a blueprint or frame does not count) it waits for `EnsureComfort`. No number in
-`policy/gathering.go` is a tuning choice; each is read from the game:
+`Gathering.cs` is a tuning choice; each is read from the game:
 
 | Gate | Source |
 | --- | --- |
@@ -339,7 +339,7 @@ rest. `RoundsFacts.GatheringPlan` / `GatheringOwed` hold the concern open; the p
 commits one `gathering` action per Episode attempt. Recovery: the memory, the veto or the
 trigger lapsing. Weddings, concerts and schedule writes are out of scope.
 
-The `gathering` family is in the default serve composition (every family is on unless
+The `gathering` family is in the default composition (every family is on unless
 `RIMGOVERNOR_ROUTINE_FAMILIES` narrows it), so `HoldGatherings` is eligible beside
 the `mood` family and `EnsureComfort` in a normal run. Ideology does not change this: it
 neither removes nor gates the Core `Party` `GatheringDef` (ilspycmd on `GatheringDef`,
@@ -347,7 +347,7 @@ neither removes nor gates the Core `Party` `GatheringDef` (ilspycmd on `Gatherin
 shows no Ideology check, and the Ideology defs add no `GatheringDef`), so a party starts
 the same with or without precepts. Ideology rituals (`ritual begin`, `MaintainRituals`)
 are a separate additive system; a running ritual lord job blocks a new gathering through
-`AllowStartNewGatherings`, which native refuses and Go replans.
+`AllowStartNewGatherings`, which native refuses and the brain replans.
 
 `GatheringEffect` records `gathering_def`, `organizer_id` and the `spot` the game
 chose. `NativeGathering` is an immediate write with no native job: it refuses an
@@ -358,8 +358,8 @@ job of the def is already running on any map; the effect then reports that job's
 organizer and spot. Applied means the lord was created, not that guests attended. A refusal is
 final for the attempt; the owning routine replans from live state.
 
-Go dispatches `gathering` as a plain intent (`executor.plainIntents`, bridge
-encoder `bridge/gathering.go`), persists it as an `actions` row (`pawn` =
+The brain dispatches `gathering` as a plain intent (`executor.plainIntents`, bridge
+encoder `Gathering.cs`), persists it as an `actions` row (`pawn` =
 organizer, `definition` = gathering def) and admits it in routine execution
 (`roundsExecutableKind`, `roundsActionsSupported`, the clock window kind switch);
 tests fail if one registration is missing. The native handler is #2546.
@@ -374,8 +374,8 @@ memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/part
 
 - `mood/headroom` reads the journal's `EnsureMood` incident: it opens at 0.07 above the
   threshold and, after a native lift to 0.22 and a service restart, closes (needs frozen, so the
-  margin alone decides). The 0.10 to 0.15 stay-open band needs history a restart drops and stays
-  in `policy/mood_margin_test.go`.
+  margin alone decides). The 0.10 to 0.15 stay-open band needs history a restart drops and is not
+  covered by this case.
 - `mood/ledger` reads `moodLedger` from `GET /api/player/colony`: an owned thought carries its
   owner, an unowned one is alone in `unowned`. Native only confirms the memories exist.
 - `mood/gathering` reads the journal for exactly one completed `gathering` action and native
@@ -388,7 +388,7 @@ memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/part
 **Active mental state.** The colonist status and pawn list reads carry the native
 `mental_state` defName, `mental_state_is_aggro` (`MentalStateDef.IsAggro`) and
 `mental_state_ticks` (`MentalState.Age`, 30-tick granularity). They describe the
-active state, not a prediction from mood, and are absent when no state is active. Go
+active state, not a prediction from mood, and are absent when no state is active. the brain
 projects them as `EmergencyPawn.MentalState`, a `Fact[policy.MentalState]`; missing
 fields leave it unknown. Worker eligibility uses mental-state presence.
 `pawn/mental-state` uses the test-only `test/mental_state_berserk` fixture and
@@ -396,7 +396,7 @@ verifies both reads.
 
 **Inspiration.** Pawn rows carry `inspiration`, the current `InspirationDef`
 defName. An empty string is a known "no inspiration"; the field is absent when the
-pawn has no inspiration handler, and Go keeps that unknown. It reaches
+pawn has no inspiration handler, and the brain keeps that unknown. It reaches
 `policy.PawnProfile.Inspiration` through `WorkPawn.Inspiration`; nothing acts on it.
 `pawn/inspiration` uses the test-only `test/inspire_creativity` fixture and reads
 `Inspired_Creativity` back through the profile.

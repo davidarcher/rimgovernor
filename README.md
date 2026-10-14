@@ -7,7 +7,7 @@ no language model.
 ## Play
 
 Double-click `RimGovernor.cmd`, then press **Play**. The launcher builds the
-controller and native mod and starts automatic control. Pause in RimWorld to take
+native mod and starts the game with the in-process brain in automatic control. Pause in RimWorld to take
 manual control.
 
 A licensed RimWorld 1.7 (Waylith) installation is required; 1.6 is not supported. Start with
@@ -16,8 +16,9 @@ for launch options, controls and saving.
 
 ## Develop
 
-The controller and launcher are Go; the game host and native bridge are C#.
-Start with the [architecture](docs/developers/architecture/overview.md) and
+Everything is C#: the brain library (`brain/`), the native mod
+(`integrations/rimgovernor-native`), the launcher and the repository tools. The brain runs
+inside the game process. Start with the [architecture](docs/developers/architecture/overview.md) and
 [source map](docs/developers/source-map.md).
 
 From the repository root, the development check needs no game installation:

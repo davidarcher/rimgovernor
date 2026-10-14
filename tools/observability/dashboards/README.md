@@ -4,9 +4,7 @@ Provisioned read-only into the `RimGovernor` folder by `../dashboards.yaml`
 (restart the `lgtm` service to pick up edits). Source instruments are defined in
 [OTEL metrics](../../../docs/developers/contracts/otel-metrics.md). The first
 three dashboards query Prometheus; the observation dashboards (last sections)
-also use Loki and SQLite. No panel uses Tempo. Colony quality is deliberately not charted. The JSON files are checked by
-`go/internal/telemetry/dashboards_test.go` (valid JSON, unique ids, known metric
-names, every panel listed here).
+also use Loki and SQLite. No panel uses Tempo. Colony quality is deliberately not charted.
 
 ## Prometheus names (verified vs assumed)
 
@@ -79,9 +77,9 @@ they are bucket-resolution values.
 
 Grafana is the read-only observation surface; the launcher only controls. These
 five dashboards answer what the launcher's Now, Explain, Problems, Log and Ledger tabs
-answered. They need the launcher's telemetry toggle on (serve then sends OTLP
-logs to Loki and writes the 5 s `--observe-snapshot` copy). Every dashboard has
-a `Run` variable (Loki label `service_instance_id`, one launch of `serve`) and a
+answered. They need a sender exporting OTLP logs to Loki and a writer of the 5 s
+SQLite copy; the in-process brain does neither today (it writes local OTLP files only). Every dashboard has
+a `Run` variable (Loki label `service_instance_id`, one launch of the brain) and a
 `RimGovernor dashboards` link menu.
 
 | Launcher tab | Dashboard | uid |
@@ -132,9 +130,8 @@ The launcher's observability section links to these by exact URL
 
 Queries the `RimGovernor state` SQLite data source (`../datasources.yaml`,
 plugin `frser-sqlite-datasource`). It reads `<profile>/observe/current.sqlite`,
-the derived read-only copy of the session store that `serve --observe-snapshot`
-rewrites every 5 s. It is empty until a controller has run with the flag, and
-the plugin installs a short while after Grafana reports up. Variable `concern`
+the derived read-only copy of the session store. Nothing writes it today, so
+it is empty, and the plugin installs a short while after Grafana reports up. Variable `concern`
 filters the timeline. Times are UTC (the plugin container has no local zone).
 
 | Panel | Source |

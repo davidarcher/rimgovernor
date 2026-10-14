@@ -6,16 +6,14 @@
 ## Testing budget and evidence reuse
 
 Run `RimGovernor.cmd test > test.out 2>&1` from the worktree root once per milestone.
-It formats changed Go files, runs vet/staticcheck and `go test -short ./...`,
-and builds affected probes. The Go cache reuses unchanged package results.
-Wait for the final PASS/FAIL; do not pipe it or follow it with a full Go suite.
+It builds the native contract probes when their inputs changed and runs `task build`
+and `task test` when any C# project changed (`RimGovernor.cmd affected` lists what a
+change owes). Wait for the final PASS/FAIL; do not pipe it or follow it with `task build`/`task test`.
 
-Use `-full` at an epic's end or when changed code is covered by a skipped test.
-`-full` always checks the whole Go module, even when the tree matches the
-base. Use `-full -base <revision>` to also check formatting across an epic;
-formatter file arguments are batched below the Windows command-line limit.
+Use `-full` at an epic's end or when changed code is covered by a skipped test; it runs
+the gate even when the tree matches the base.
 A clean merge of main does not invalidate a passing result. After resolving
-conflicts, build and vet the touched Go packages instead of rerunning tests.
+conflicts, build the touched projects instead of rerunning tests.
 
 Native acceptance is not a landing gate. The nightly validates gameplay on
 main; run a targeted case earlier when it is needed to establish a native claim.
@@ -25,14 +23,14 @@ Before a slow check, name that claim and why a cheaper check cannot prove it.
 
 | Changed behavior | Cheapest useful evidence |
 | --- | --- |
-| Planner choice, ranking, admission or recovery decision | Go unit test or [recorded colony snapshot](colony-snapshots.md). |
-| Supply behavior across days, shocks and colony sizes | `internal/supplysim` and buildingruntime's food/resource matrices; use full tests when changing a slow scenario. Baselines only shrink. |
+| Planner choice, ranking, admission or recovery decision | A bug-driven xUnit test in `brain/tests`, or a [recorded colony snapshot](colony-snapshots.md) replayed through `RimGovernor.Brain.Snapshot`. |
+| Supply behavior across days, shocks and colony sizes | `RimGovernor.Brain.Simulation` (seeded offline stock-flow scenarios). |
 | Boundary decoding, journal or uncertain-write handling | Real decoder/storage tests and fault injection through typed fakes. |
-| Concurrency | Focused `go test -race -run <tests>`; repeat only to reproduce the relevant flake. Whole-module race/stress belongs to the nightly. |
-| C# or shared protobuf | Root `task build` and `task test`; regenerate both languages for schema changes. |
+| Concurrency | A focused test that reproduces the race; repeat only to reproduce the relevant flake. Whole-module race/stress belongs to the nightly. |
+| C# or wire records | Root `task build` and `task test` (`RimGovernor.cmd test` runs them); the wire records are the only schema, so nothing is regenerated. |
 | Native operation, read contract or vanilla simulation | Registered `acceptance run <area>/<case>` with an observed native postcondition. |
 | Colony autonomy over time | Nightly campaign with native end-state and Concern progress, and no post-setup harness interventions. |
-| Documentation | Check commands, links and source claims; `cmd/test` selects checks by affected paths. |
+| Documentation | Check commands, links and source claims; `RimGovernor.cmd test` selects checks by affected paths. |
 
 `acceptance list` is authoritative for registered cases. Follow the
 [runbook](../agent-runbook.md) for private game setup and the
@@ -67,8 +65,7 @@ inputs and environment have not changed; record skipped coverage in the commit.
 
 Wall-clock deadlines guard hangs. Use game ticks for simulated progress and
 synchronized events or virtual time for ordering. A test timeout under machine
-load is not a latency measurement. Use the accepted shared guard (bridge
-`testBudget`, fixture `CallTimeout`, or the 60-second `checktesttimes` guard)
+load is not a latency measurement. Use the accepted shared guard (fixture `CallTimeout` or the case's budget)
 rather than tightening per-test deadlines or trimming behavior to fit.
 
 A load-sensitive failure that passes alone does not justify another suite.
@@ -89,5 +86,5 @@ do not infer omitted coverage. What a cloud session can and cannot run is in the
 ## Adding a case
 
 Use the [acceptance authoring guide](acceptance-guide.md#adding-a-case).
-A planner-decision failure belongs in a snapshot test; replace and deregister
+A planner-decision failure belongs in a unit or snapshot test; replace and deregister
 a native case whose only claim is a planner choice.

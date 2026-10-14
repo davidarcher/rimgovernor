@@ -1,5 +1,7 @@
 # Static-data census: native reads and observation fields
 
+> History (#3106): a census of native reads against the protobuf wire and the def mirror, both deleted. It records the classification decisions of epic #2621; paths, messages and Go references are historical and not maintained.
+
 Census for #2641 under epic #2621. Every `Native*.cs` and helper file under
 `integrations/rimgovernor-native/src/Bridge/Protocol/` (203 files) and every top-level message and enum in
 `contracts/proto/observations.proto` (499 messages, 31 enums) is classified. Nothing is deleted here;
@@ -81,7 +83,7 @@ Deleted, second pass (Go reads the mirror rows): `RoyalTitleFacts`, `BedroomThin
 Kept, reason recorded (second pass):
 - `ApparelRequirementFact` / `PawnPolicyInputs.role_apparel`: the requirements live on the pawn's `Precept_Role` instance, generated per ideoligion, not on a `PreceptDef` row.
 - `NativeSiteSecurity.ClosedPart/LoadedGroundPart`: the closed or loaded decision is `SitePartWorker` code run against the live site, game-method output, not a def flag.
-- `NativeTeamPolicy.cs` trait degrees: good/bad is already derived in `policy/trait_worth.go`; the live pawn's degree is instance state.
+- `NativeTeamPolicy.cs` trait degrees: good/bad is already derived in `TraitWorth.cs`; the live pawn's degree is instance state.
 - Prisoner interaction `Supported()` and the `PrisonerInteraction` def name: the apply-time gate is the game's `PrisonerInteractionModeDef` worker for the live pawn, and the Go side keeps only the chosen name.
 - `NativeTeamPolicy`/policy numbers stay in Go by the settled decision.
 
@@ -89,7 +91,7 @@ Out of scope and unchanged: files classed state or code, and the excluded Biotec
 
 ### #2655 disposition
 
-Converted to rules over the mirrored rows, native copy and proto field deleted, with a parity test against the old native value over the recorded vanilla defs: the hunter's weapon verbs and projectile (`HuntVerbFacts`, `HuntWeaponFacts`, `HunterFacts.weapon` became `weapon_def`, read off the ThingDef rows); the `AcquisitionFacts` food, tree, revenge-chance, predator, melee-only and meat-price fields (Go prices the meat off the race and meat rows, `NativeHuntAcquisition.cs`); `ButcheringFacts` human corpse meat (`observation/colony_production.go`); `FoodCorpse`; `FoodSlaughterAnimal` (race meat and leather rows); `FarmFacts` and `GrowLight`/`PlantGrower` power watts, fertility and sow tag (`bridge/plant_rules.go`, the farm temperature fields); `AnimalFeed.diet`; `LampState.glow_radius`; `WorkLightCell.light_sensitive`; `ThingDefFacts.food_kind`/`MealIngredients` and the whole native food census (`bridge/food_rules.go`: `Foods()`, `FoodKindOf`, `IsFood`); `MineralScannerState.target_resource` (native now reports the aimed mineable, `target_mineable`, and Go maps it through `building.mineableThing`); `ResourceSource.method` (native reports `def_name`; `ResourceSourceMethodOf` reads the class and plant rows) and `StorageCapacity.stack_limit` (`ThingDef.stackLimit`); `NativeReadingPolicy.Books()` (apply sets the allowed books after `SetDisallowAll`; the Go side lists books from `catalog.Books()`). Also deleted: `ColonyFactsSnapshot.policy_resources` (never written or read), `ButcheringFacts.human_corpse_def` (no Go reader) and the literal 60-day year in colony validation (now `domain.DaysPerYear`).
+Converted to rules over the mirrored rows, native copy and proto field deleted, with a parity test against the old native value over the recorded vanilla defs: the hunter's weapon verbs and projectile (`HuntVerbFacts`, `HuntWeaponFacts`, `HunterFacts.weapon` became `weapon_def`, read off the ThingDef rows); the `AcquisitionFacts` food, tree, revenge-chance, predator, melee-only and meat-price fields (Go prices the meat off the race and meat rows, `NativeHuntAcquisition.cs`); `ButcheringFacts` human corpse meat (`ColonyProduction.cs`); `FoodCorpse`; `FoodSlaughterAnimal` (race meat and leather rows); `FarmFacts` and `GrowLight`/`PlantGrower` power watts, fertility and sow tag (`bridge/plant_rules.go`, the farm temperature fields); `AnimalFeed.diet`; `LampState.glow_radius`; `WorkLightCell.light_sensitive`; `ThingDefFacts.food_kind`/`MealIngredients` and the whole native food census (`FoodRules.cs`: `Foods()`, `FoodKindOf`, `IsFood`); `MineralScannerState.target_resource` (native now reports the aimed mineable, `target_mineable`, and Go maps it through `building.mineableThing`); `ResourceSource.method` (native reports `def_name`; `ResourceSourceMethodOf` reads the class and plant rows) and `StorageCapacity.stack_limit` (`ThingDef.stackLimit`); `NativeReadingPolicy.Books()` (apply sets the allowed books after `SetDisallowAll`; the Go side lists books from `catalog.Books()`). Also deleted: `ColonyFactsSnapshot.policy_resources` (never written or read), `ButcheringFacts.human_corpse_def` (no Go reader) and the literal 60-day year in colony validation (now `domain.DaysPerYear`).
 
 Kept, each with its reason:
 

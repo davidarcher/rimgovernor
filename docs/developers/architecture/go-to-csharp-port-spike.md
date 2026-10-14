@@ -1,5 +1,7 @@
 # Go-to-C# port: go2cs spike and fallback (#3048)
 
+> History (#3106): the port to C# is complete and Go, the def mirror and protobuf are deleted (epic #3043). This page records the decision to port by hand rather than with go2cs; it describes the Go-era layout and is not maintained.
+
 Spike for epic #3043. Question: is a deterministic transpiler (go2cs) worth
 using for the port, or is agent-driven per-package porting cheaper?
 
@@ -33,7 +35,7 @@ procedure at the end.**
 | `internal/combatdispatch` (generics + goroutines) | 97 + tests | 2 | 2/2 | 2/2 | 4 tests agree, but see flake below |
 | `internal/policy` quest slice | 3,878 prod, 28 files | 28 | converted with the package (568 files, 33 s) | not measured | not measured |
 
-- Unaided compile failures in domain prod: `incident.go` (Go 1.27
+- Unaided compile failures in domain prod: `Incident.cs` (Go 1.27
   `json.RawMessage` is `jsontext.Value`, absent from the 1.24 corpus), and
   `<` / `slices.Sort` on defined string types (`PawnID`, `ActionID`) in three
   files. Test files: `== "x"` against an indexed defined-string element emitted

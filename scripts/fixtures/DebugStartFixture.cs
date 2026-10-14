@@ -296,7 +296,7 @@ namespace HomeBridge.BridgeTools
     }
 
     // Stages a whole combat lab fixture on a wiped lab in one call:
-    // the spec (built in Go, internal/nativeaccept/cases/combatlab) lists
+    // the spec (built by the CombatLab acceptance cases) lists
     // structures, the lab colonists' cells and gear, and hostiles with fixed
     // weapons, skills and no apparel, spawned under a fixed seed and given an
     // assault lord. The reply reads every staged pawn back from the live map,

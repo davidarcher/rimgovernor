@@ -3,20 +3,20 @@
 [Developer guide](../README.md) · [Source map](../source-map.md) ·
 [Rules](rules.md)
 
-RimGovernor is a deterministic control loop around RimWorld. Go chooses work,
-native code validates and issues game operations, and RimWorld simulates their
+RimGovernor is a deterministic control loop around RimWorld. The brain, a C# library hosted
+inside the game process by the mod, chooses work, native code validates and issues game operations, and RimWorld simulates their
 effects. Routine play requires no model calls.
 
 ```mermaid
 flowchart LR
-    Player[Player control] --> Runtime[Go runtime]
+    Player[Player control] --> Runtime[In-process brain host]
     Game[RimWorld simulation] --> Native[Native observations and guards]
     Native --> Facts[Typed facts]
     Facts --> Policy[Pure policy]
     Policy --> Plan[Concerns, Methods and actions]
     Plan --> Hands[Hands executor]
-    Hands --> Host[GABP host]
-    Host --> Native
+    Hands --> Facade[Native facade]
+    Facade --> Native
     Native --> Game
     Runtime --> Policy
     Native -. clock events .-> Runtime
@@ -27,10 +27,10 @@ flowchart LR
 | Component | Owns | Does not decide |
 | --- | --- | --- |
 | Policy | Findings, forecasts, method choices, tactics and demand | Transport, persistence or wall-clock scheduling |
-| Runtime | Planner scheduling, authority, lifecycle and composition | RimWorld simulation |
+| Brain host | Planner scheduling, authority, lifecycle, watchdog and composition ([brain host](brain-host.md)) | RimWorld simulation |
 | Store and Hands | Admission, action identity, write journal and reconciliation | Whether a Concern's colony outcome is satisfied |
-| Native bridge | Typed observations, operation guards, clock supervision and leased rules | Colony strategy |
-| GABP host | Tool discovery, request transport and main-thread dispatch | Colony policy |
+| Native bridge | Typed observations, operation guards, clock supervision and leased rules (being removed in #3141) | Colony strategy |
+| Native facade | In-process calls into the mod (typed, no serialization) and main-thread dispatch; the loopback HTTP channel serves the launcher and tools | Colony policy |
 | RimWorld | Legality, pathing, pawn jobs and physical outcomes | Governor intent |
 | Launcher | Starts/stops sessions and presents observed state | Planner execution |
 
@@ -56,7 +56,7 @@ protective effect are distinct measurements.
 
 ```mermaid
 flowchart TD
-    Save[RimWorld save: GovernorState intent] --> Views[Rebuilt Go views]
+    Save[RimWorld save: GovernorState intent] --> Views[Rebuilt brain views]
     World[Live native facts] --> Views
     Views --> Review[Rounds and planners]
     Review --> Journal[SQLite session actions and receipts]

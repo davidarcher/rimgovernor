@@ -3,27 +3,24 @@
 [Documentation](../README.md)
 
 Double-click `RimGovernor.cmd` (see [setup](setup.md)). When every
-status row is OK, press **Play**: the launcher starts the Go controller, which
-starts RimWorld, and shows **Running** once the controller answers.
+status row is OK, press **Play**: the launcher starts RimWorld with the brain
+hosted inside the mod, and shows **Running** once the brain answers.
 Enable Run in background in RimWorld.
 
-Pick a **Saved game** above Play to load it automatically once the controller is
+Pick a **Saved game** above Play to load it automatically once the brain is
 up (newest first; "Main menu" loads nothing). With none selected the game boots
 to its main menu; load a save there.
 
-- **Stop** stops the controller only; the game keeps running.
-- **Restart** stops and starts the controller with the current settings.
-- **Close game** closes the RimWorld started from `.rimgovernor/native-rimworld`.
+- **Stop** and **Close game** close the RimWorld started from `.rimgovernor/native-rimworld`; the brain runs inside it, so it ends too.
+- **Restart** restarts with the current settings.
 
-Play stops an earlier controller from this checkout first. The controller
-starts at port 8787 and moves up past ports another checkout is using.
-Controller output goes to `.rimgovernor/go/controller-<stamp>.{out,err}.log`; the **Log** tab shows the controller's log events and the build output.
+The brain has no process of its own. If the game exits while starting, the launcher names its `game.log`; the **Log** tab shows the launcher's own events and the build output.
 
 ## New colony
 
 API clients can request governor ideology selection with
 `governorIdeoligion: true` in the new-colony spec. With Ideology installed,
-the controller chooses a fluid design that avoids known work restrictions and
+the brain chooses a fluid design that avoids known work restrictions and
 mood costs. An explicit `ideoligion` design takes precedence. Unread or
 unsupported required facts stop creation with an explanation.
 Auto's `ideoligion-reform` family considers a safe, game-authorized reform when
@@ -60,10 +57,10 @@ components, 30 medicine, a rifle) and 720 steel, 7 survival meals and 3 ship
 chunks scattered. The seed is pinned but editable; edit any row afterwards, or
 pick **Custom** to return to the defaults.
 
-Generation closes the running game and controller, restarts them, builds the
+Generation closes the running game and brain, restarts them, builds the
 world and saves the colony, so it needs Autopilot (Observe only shows a notice
 instead). The panel shows the state, the current phase, a timer, the reroll
-count and, if the controller stops answering, the last values marked as stale.
+count and, if the brain stops answering, the last values marked as stale.
 **Cancel** closes the game and reports cancelled. When it completes, the save is
 selected in **Saved game**; press **Play** to load it. See [save and
 resume](save-and-resume.md#new-colony-saves).
@@ -73,20 +70,19 @@ resume](save-and-resume.md#new-colony-saves).
 Settings persist to `.rimgovernor/launcher.json`.
 
 - **Main**: Autopilot or Observe only (no writes); continue the last state
-  database or start fresh. In Autopilot the bot starts on every load and always
+  database or start fresh. In Autopilot the brain starts on every load and always
   runs at Ultrafast (adaptive: paces ticks to your frame rate).
 - **Colony policy**: allow slaughter or release of surplus animals, the layout
   overlay, and food reserve days.
-- **Send telemetry to local collector**: Play passes `--otlp-endpoint` to the
-  controller. The launcher page's **Observability** section starts and stops the
+- **Send telemetry to local collector**: saved, but the in-process brain has no
+  collector endpoint yet and writes only its local OTLP files. The launcher page's **Observability** section starts and stops the
   optional Docker stack ([developer guide](../developers/observability.md)),
   shows stopped/starting/healthy, and opens Grafana and its Now, Concern
   transitions, Problems, Log and Ledger dashboards (the launcher no longer has those
   tabs). While the stack is stopped the section shows a one-line hint. It needs
   Docker; without it the section says so and Play is unaffected. See
   [controls](controls.md#watch-the-governor-in-grafana).
-- **Advanced**: extra `rimgovernor serve` arguments
-  (`rimgovernor serve -h` lists them).
+- **Advanced**: extra arguments appended to the game's command line.
 
 ## Related reading
 

@@ -5,7 +5,7 @@
 RimGovernor runs a colony under normal RimWorld rules. Let Auto handle routine
 needs, or pause in RimWorld to take manual control.
 
-1. [Set up the game and controller](setup.md).
+1. [Set up the game and brain](setup.md).
 2. [Load a save or generate a colony](launch.md).
 3. [Use the launcher](controls.md).
 4. [Save and resume](save-and-resume.md).

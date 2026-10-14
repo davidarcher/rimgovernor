@@ -1,9 +1,9 @@
-# Go clock recovery evidence
+# Clock recovery evidence
 
-[Subsystem contracts](README.md) · [Canonical clock schema](../../../contracts/proto/clock.proto)
+[Subsystem contracts](README.md) · [Clock wire contract](../../../contracts/wire/clock-lifecycle.md)
 
-The Go bridge and store validate clock commands and recovered evidence against the
-canonical native producer. Autonomous play (`serve --profile`) composes the scheduler and workers;
+the brain bridge and store validate clock commands and recovered evidence against the
+canonical native producer. Autonomous play (the in-process host, see [brain host](../architecture/brain-host.md)) composes the scheduler and workers;
 validation never restores permission after restart.
 
 ## Immediate protection and ordinary review
@@ -27,11 +27,11 @@ the immediate scope or revoke valid authority merely to interrupt development.
 
 `clock_step.critical_wave_ms` includes review. `controller_pause_ms` measures
 each scheduler interval from observing a paused native clock through returning
-control, using Go's monotonic clock; unobserved pause intervals stay unknown.
-These are controller wall time,
+control, using the brain's monotonic clock; unobserved pause intervals stay unknown.
+These are brain wall time,
 distinct from the game ticks used for onset, observation, dispatch and native
 outcomes. Combatlab metrics record a `response` report with runner, fixture,
-speed, phase ticks, controller pauses and first observed damage to a hostile.
+speed, phase ticks, brain pauses and first observed damage to a hostile.
 Hazard reports separately identify native-supervisor detection. Missing phases
 remain null; an accepted order does not fill the native-effect field. These
 records supply evidence for later calibration, without numeric latency gates.
@@ -152,7 +152,7 @@ obligation. Same-world authority changes cannot retire that scope.
 ## Process event cursors
 
 The native clock journal is an in-memory buffer of the game process (the durable
-copy is Go's clock inbox). Its cursors start past the process's start time in Unix
+copy is the brain's clock inbox). Its cursors start past the process's start time in Unix
 milliseconds, so a relaunched game's cursors exceed every cursor an older store
 holds. A page's observation context matches the requested current world; each event
 retains its original world and epoch. A load or map change does not reset the cursor
@@ -171,12 +171,8 @@ within the scanned window. An empty journal can report `oldest_cursor = 0` and
 requires a nonempty journal, and zero is invalid for a nonempty one.
 
 Reads are never held: `EventsRequest` has no wait field.
-The mod announces journal advances on the `rimgovernor.clock` GABP channel
-(`{type: advance, newest}`, coalesced; the current cursor is announced to each new
-subscriber) and the poll loop reads the page after its cursor when the announcement
-version moves (`ClockWorkerConfig.SignalWait`, at most 5 s, bounds a lost
-announcement). Gap and loss evidence is the page's, as above. Without the channel
-the loop polls unheld at `PollInterval`. Defaults: `serve` waits 4 s, polls at 1 s.
+The poll loop reads the page after its cursor unheld at `ClockWindowConfig.PollInterval`
+(`RunningPollInterval` while a window runs). Gap and loss evidence is the page's, as above.
 
 `Event.owner` is required for every event except an `AuthorityChanged` observed
 outside an epoch (`epoch = 0`, no owner). `OperationOutcome` rows carry an attempt
@@ -184,7 +180,7 @@ key, the latching tick and exactly one receipts effect; one immediately precedes
 `STOP_REASON_WATCH_LATCHED` stop on the same tick, and that stop's `WatchLatched`
 evidence repeats the outcome with the window's tick deadline.
 `ObservationInvalidated` rows name one to eight distinct `FactFamily` values (never
-unspecified) that changed under a running epoch without a controller write or a
+unspecified) that changed under a running epoch without a brain write or a
 stop. A row may narrow the discard: `entity_ids` (at most 64 distinct) name the
 changed rows, and `cells` is one rectangle of inclusive, ordered, nonnegative cell
 bounds; past the id bound the family alone is named, and a native that cannot
@@ -193,7 +189,7 @@ not holds.
 
 Valid loss evidence must be retained as a hold. Reading or storing an event does
 not acknowledge an interruption, prove it was processed, or permit time to resume.
-The controller must persist evidence before advancing its ingestion cursor.
+The brain must persist evidence before advancing its ingestion cursor.
 
 `BindClockInbox` binds one canonical existing profile directory to the database.
 `AppendClockEvents` atomically stores the request, page, surviving immutable events
@@ -364,7 +360,7 @@ the step journals one `admission` decision, verdict `admitted`, reason
 once per action until it leaves the queue.
 
 **Wall-clock regulators.** These are kept sim-health tuning, not policy limits, and
-are deliberately not Go-configurable:
+are deliberately not configurable:
 
 | Regulator | Why it is kept |
 |---|---|
@@ -397,18 +393,18 @@ whole-view invalidation and on a scope change, never on a refresh at cadence. A
 ### Fact sources
 
 Every state read a step issues is served from the newest snapshot frame
-(`bridge/frames.go`) past the client's last write; only parameterized reads no frame
-carries and the tick read cross GABP. The frame stream is the only cross-step memo
+(`FacadeNativeClient.Frames.cs`) past the client's last write; only parameterized reads no frame
+carries and the tick read cross the native channel. The frame stream is the only cross-step memo
 of wire replies. The sections of one frame share its tick, so readers apply no tick
 check between rows: a routine read's boundary (`observation.sameColonyContext`)
 compares load, map and native generation only.
 
-The scheduler keeps one decoded `facts.Store` (`go/internal/facts`): state per
-section (see `facts.Section`), each with the tick its reply described (`AsOf`),
+The scheduler keeps one decoded `facts.Store` (`Facts/Store.cs`): state per
+section (see `Section`), each with the tick its reply described (`AsOf`),
 whether it covers the whole section and the producing method. The store's scope is
 the load, map and native generation (a new one empties it). It drops sections on a
 write, a scope change, `AuthorityChanged`, `EpochStarted`, a stop and the families
-an `OperationOutcome` or `ObservationInvalidated` names (`facts.Store.Apply`); a
+an `OperationOutcome` or `ObservationInvalidated` names (`Store.Apply`); a
 narrowed rectangle that misses the held planning window leaves it held.
 `/api/routines` lists the held sections.
 
@@ -456,9 +452,8 @@ cached, failed cleanup is retryable. Poll and renew intervals and call budgets a
 bounded below a quarter of the native lease duration so a late renew can never let
 the epoch lapse. The step budget is independent of the lease: a step holds the
 Player gate, never `renewGate`, so a slow planner census cannot delay renewal
-(`serve` budgets 7 s for poll/renew and 30 s for the step; the scheduler's `MaxAge`
-bounds the admission reads). Autonomous play attaches the worker; `--observe` does
-not.
+(the scheduler's `MaxAge` bounds the admission reads). Autonomous play attaches the worker; observe-only
+(`RIMGOVERNOR_OBSERVE`) does not.
 
 ### Wake, backoff and deferral
 
@@ -523,13 +518,13 @@ any typed-event invalidation (`roundsCensusStore` generation).
 
 ### Routine verdicts
 
-Every routine result embeds one `Verdict` (`buildingruntime/outcome.go`): an
+Every routine result embeds one `Verdict` (`Outcome.cs`): an
 `Outcome` (`admitted`, `nothing_to_do`, `disabled`, `no_current_review`, `expired`,
 `combat_orders`, `hold_fallback`, `waiting`, `refused`) and, when refused or waiting,
 a `Refusal` with a closed `Kind`, a subject and optional detail. A refusal or wait
 without a kind panics at construction; there is no catch-all kind, and routines
 branch on outcome or kind, never text. The kind lists are the constants in
-`outcome.go`.
+`Outcome.cs`.
 
 `Verdict.String` is the machine token (`kind[:subject[:detail]]`, no spaces) for the
 rows' `reason` and snapshot names. Persisted progress and the wire carry the

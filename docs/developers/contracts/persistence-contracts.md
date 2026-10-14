@@ -12,43 +12,40 @@ there is no adoption path.
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
 keeps the same ownership rules in its own file format: `PRAGMA user_version` 2 and the same `application_id`.
 Domain payloads (actions, admissions, transitions, Standards, Incidents, Rounds and the family records) are
-JSON text written by hand-written codecs under `Codec/` with fixed Go-style field names and no reflection
-serializer; the clock records stay protobuf blobs. The per-kind column checks Go kept in SQL `CHECK`
+JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
+serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`
 constraints live in the C# domain constructors a payload is rebuilt through. The journal is disposable on
 upgrade: a file of another version is moved aside to `<path>.v<old>.bak` by `Store.OpenOrReplace` and a new one
-is created, so there are no migrations. Go's custom `database/sql` driver has no counterpart; the online backup
-behind the observe snapshot is `SqliteConnection.BackupDatabase`.
+is created, so there are no migrations.
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
 copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Go intent the world cannot show: Standards (`standard/<id>`; each carries the Concern it serves as `Kind`; a Standard's own intent in its `Record`, e.g. ManageCreepJoiners' inspection record), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each herd reservation, pen and barn, with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`) and original temporary combat settings (`family/combat_restoration`); written by Go at save time, opaque to native | Follows the save's timeline; Go rebuilds its in-memory views from the blobs |
-| Native save, other components | Colony identity, per-target construction settings, per-pawn eat-trigger overrides (`EatTriggerState`, #2794; set through `PawnSettingsIntent.eat_trigger`, 0.30 or more stores nothing), the finishing-skill floor (Go chooses once; native transfers blueprint to frame and enforces every finishing order) and the mutable [construction tier](construction-tiers.md), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; home coverage) | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
-| SQLite, one database per launch (`--state`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
-| Go memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (rows read once per game fingerprint and shared by later loads; context and stat environment read per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`); the `standards`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
-| `<profile>/observe/current.sqlite` (`serve --observe-snapshot`, off by default) | A derived read-only copy of the whole session database, rewritten every 5 s through a temporary file and an atomic rename, for the optional Grafana SQLite panels ([observability](../observability.md)). Not a second store: never read by the controller, never authoritative, safe to delete | Rewritten from the live database; stale after the controller exits |
-| User cache directory, `rimgovernor/defcatalog/<fingerprint>-<schema>.pb.gz` | The static part of the definition catalog (def rows, class chains, game constants, derived and race facts) for one game fingerprint, shared by every process of the user; newest 4 kept. Best effort: written after a full read, never required | A fresh Client sends the newest file's fingerprint; a match reads only the per-load part, a mismatch or an undecodable file (deleted) reads the game |
+| Native save, `GovernorState` blobs | Brain intent the world cannot show: Standards (`standard/<id>`; each carries the Concern it serves as `Kind`; a Standard's own intent in its `Record`, e.g. ManageCreepJoiners' inspection record), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each herd reservation, pen and barn, with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`) and original temporary combat settings (`family/combat_restoration`); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
+| Native save, other components | Colony identity, per-target construction settings, per-pawn eat-trigger overrides (`EatTriggerState`, #2794; set through `PawnSettingsIntent.eat_trigger`, 0.30 or more stores nothing), the finishing-skill floor (the brain chooses once; native transfers blueprint to frame and enforces every finishing order) and the mutable [construction tier](construction-tiers.md), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; home coverage) | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
+| SQLite, one database per launch (`RIMGOVERNOR_STATE`) | The session journal: actions, transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
+| memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (rows read once per game fingerprint and shared by later loads; context and stat environment read per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`); the `standards`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
 | Refusal budget ledger (`policy.RefusalBudget.Entries`) | A planner's refusals by subject and reason, each with its class and the `GenerationSnapshot` it was met in. A pure value: the store that owns the subject persists it. Every planner that retries a refused write (medical, repair, clean, equip, mood, drill, clearance, husbandry, population, quest, ideology, ritual, shrine, permit, defense, firebreak, mine, sleeping, trade and psylink) derives its ledger from the refusals journaled on its plans each step and keeps nothing of its own | With its owner: Standards' records follow the save, a session-scoped planner's ledger is derived and rebuilt |
-| OTLP files `otlp/traces.jsonl`, `logs.jsonl`, `metrics.jsonl` | All controller telemetry, one log record per thing that happened ([OTEL signals](otel-signals.md)), the only log: always on for `serve`, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
-| SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a telemetry row | Not restored; read by the Grafana dashboards (snapshot copy) and the nightly `explain/every-concern` case |
-| SQLite table `ledger_rows` (session journal) | A derived, replaceable copy of the latest work-ledger review (`policy.LedgerView`), one row per row of each Ledger table, the whole set replaced in one transaction after every review ([below](#ledger_rows)). Not a second store: the controller never reads it back as truth and may delete it any time | Not restored; the next review rewrites it; read by the Grafana `rg-ledger` dashboard (snapshot copy) |
+| OTLP files `otlp/traces.jsonl`, `logs.jsonl`, `metrics.jsonl` | All brain telemetry, one log record per thing that happened ([OTEL signals](otel-signals.md)), the only log: always on in the host, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
+| SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a telemetry row | Not restored; read by the nightly `explain/every-concern` case |
+| SQLite table `ledger_rows` (session journal) | A derived, replaceable copy of the latest work-ledger review (`policy.LedgerView`), one row per row of each Ledger table, the whole set replaced in one transaction after every review ([below](#ledger_rows)). Not a second store: the brain never reads it back as truth and may delete it any time | Not restored; the next review rewrites it |
 
 ### Layout plan record
 
 The layout plan (`policy.LayoutPlan`, see [spatial contracts](spatial-contracts.md#layout-planner))
 has two homes. In the session database it is the table `colony_layout_plans`
-(`store/layout_plan.go`): `RecordLayoutPlan` refuses a plan that is not `Valid()` and writes
+(`LayoutPlan.cs`): `RecordLayoutPlan` refuses a plan that is not `Valid()` and writes
 one row per world (colony, map) and tick, and `LayoutPlan` reads the newest row at or before
 the tick. A row that does not decode or is not `Valid()` reads as none (the record comes back
 `Invalid`), so the review derives a fresh plan (`DeriveLayoutPlan`) rather than adopting it. The
 stored JSON is the `LayoutPlan` fields (Rooms, Links, Entrances, Owed, Trips, OutsideTrips, Zones,
 Reservations, Sites, RetiredGround, Roofed, Lamps, Conduits, Cold, Hot, NextRoomID) and decoding
 rejects an unknown field, so a plan written with a field since removed reads as none. In
-the save it is the blob `family/layout_plan` (`store/governor_state.go`,
+the save it is the blob `family/layout_plan` (`GovernorState.cs`,
 `GovernorLayoutPlanKey`), which follows the save's timeline. The runtime records a plan only
-when it derives one or a replan succeeds (`reviewLayoutPlan`, `colony_plan.go`); a failed
+when it derives one or a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`); a failed
 replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups, embedding,
 comfort and matched rooms) is not persisted: the Rounder holds it in memory and recomputes it
 at each layout review.
@@ -57,10 +54,10 @@ at each layout review.
 
 The player-facing explanation history lives in the session SQLite store, not in
 telemetry (epic #2778, #2788). `recordPlannerReasons`
-(`buildingruntime/planner_reasons.go`) appends one row per change of a
+(`PlannerReasons.cs`) appends one row per change of a
 concern's winning typed cause, in the same step that files the goal's planner
 note; `store.RecordConcernTransitions` writes them and `store.ConcernTransitions` reads them. The
-Grafana dashboards read the `--observe-snapshot` copy; the launcher's read-only
+The launcher's read-only
 reader was removed in #2803. The table is `concern_transitions` (schema version 216;
 a database of another version is moved aside, never migrated):
 
@@ -84,9 +81,7 @@ also `NULL` when the game clock went backwards (a save load). No free text.
 Retention is a ring by count: each insert deletes rows more than
 `store.ConcernTransitionRetention` (8192) sequences behind the newest, in the same
 transaction. The history lasts as long as the `state-*.sqlite` file; a launch that
-continues a state keeps it, a fresh state starts empty. Readers: the Grafana
-Now and Concern transitions dashboards (SQLite data source over the
-`--observe-snapshot` copy, read-only) and the nightly case
+continues a state keeps it, a fresh state starts empty. Reader: the nightly case
 `explain/every-concern` (#2702, through the case's own store handle). The
 Problems and Log dashboards read Loki rows and Prometheus metrics, which carry
 no explanation rows.
@@ -108,12 +103,12 @@ queue and seller facts reconcile it; the saved record never resends an order.
 Goodwill and cooldown remain native facts; action attempts remain the session journal.
 
 The blobs reach the save only when it is made: every vanilla save, whether the player's,
-vanilla's or Go's own, parks in native's `pre_save` handshake while Go flushes all blobs in one batched
-put, and every Go-made save (the lifecycle save route, Go autosave) flushes first through the same path.
-There is no continuous mirror. A save made while no Go is connected keeps the last flush, so it can lack
-intent written since. Go's own autosave (`Autosave-1..5`, game-time interval) needs Go holding the clock,
-so manual mode gets none; only a save the player makes there flushes. A Go crash loses intent back to the
-last save. On a world change (load token, not a native generation bump) Go reads the save's blobs once
+vanilla's or the brain's own, parks in native's `pre_save` handshake while the brain flushes all blobs in one batched
+put, and every brain-made save (the lifecycle save route, the brain autosave) flushes first through the same path.
+There is no continuous mirror. A save made while no the brain is connected keeps the last flush, so it can lack
+intent written since. the brain's own autosave (`Autosave-1..5`, game-time interval) needs the brain holding the clock,
+so manual mode gets none; only a save the player makes there flushes. A brain crash loses intent back to the
+last save. On a world change (load token, not a native generation bump) the brain reads the save's blobs once
 and rebuilds its views before the first review: the clock worker's step gate, the read poll and the
 flusher all call the same once-per-world rebuild.
 
@@ -130,17 +125,17 @@ Method. These are intent, not an inventory baseline or purchase receipt. They
 follow the ordinary Standard blob and `pre_save` flush. A reload with commitment
 returns conservatively and never buys again to recover a missing receipt.
 
-Native saves no Go bookkeeping (receipts, lineage, purpose tags), and Go keeps no durable copy of what
+Native saves no the brain bookkeeping (receipts, lineage, purpose tags), and the brain keeps no durable copy of what
 the save holds. The rest of this page details the session journal.
 
 ### ledger_rows
 
 The Ledger view is built live each Round from the Rounder's ledger memory
 (`reviewLedger`, `Rounder.WorkLedger`) and, since #2805, copied into the session
-store for Grafana (the launcher's Ledger tab and `/api/ledger` were removed).
+store (the launcher's Ledger tab and `/api/ledger` were removed).
 The copy is derived and replaceable: after each review `store.ReplaceLedgerRows`
 deletes every row and inserts the review's rows in one transaction, so the table
-always holds exactly the latest review of the current controller. Nothing reads
+always holds exactly the latest review of the current brain. Nothing reads
 it back into policy; the in-memory ledger stays the only input. Columns (schema
 version 216; a database of another version is moved aside, never migrated):
 
@@ -161,7 +156,7 @@ version 216; a database of another version is moved aside, never migrated):
   Repeating an ID returns the recorded outcome; a changed body under the same ID is a conflict.
   Native stockpile placement uses the immutable action ID as its replay key.
   The existing in-memory action replay retains those creation receipts for the
-  load, including every created zone ID and actual footprint. Go journals the
+  load, including every created zone ID and actual footprint. The brain journals the
   receipt and derives ownership from it; no ownership metadata is saved natively.
 - **The Rounds cursor and policy inputs.** Latches, recovery histories, observed Concern progress and the current Standard
   bindings let the next Rounds continue where the last stopped; population and resource policies and
@@ -231,7 +226,7 @@ mere dispatch return does not retire uncertain work. Fight closure requires
 restoration to finish first. Retired combat batch methods stay readable by plan
 identity, outside the active Incident method list.
 
-Before a temporary door or animal restriction changes, Go records its original
+Before a temporary door or animal restriction changes, the brain records its original
 hold-open/forbidden settings or allowed-area identity. Unknown originals cannot
 authorize a temporary change. These restoration obligations alone follow the
 save. A reload creates fresh Hands cleanup from those settings; it never restores

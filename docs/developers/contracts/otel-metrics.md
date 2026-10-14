@@ -5,12 +5,10 @@
 Counters, histograms and one gauge recorded directly from the measurement at
 its call site (epic #2778). They go through the OTEL `MeterProvider` of
 [OTEL core](otel-core.md): the local file sink writes them to `metrics.jsonl`
-every 10 s, and a configured collector receives them too. Nothing here is
+every 10 s. Nothing here is
 derived by parsing logs or rows.
 
-Code: `go/internal/telemetry/metrics.go` (instruments and vocabularies),
-`go/internal/bridge/call_metrics.go`, `go/internal/buildingruntime/metrics.go`
-(recording sites). With no provider installed the calls are no-ops.
+Code: `Metrics.cs` (instruments and vocabularies and recording sites). With no provider installed the calls are no-ops.
 
 ## Instruments
 
@@ -22,7 +20,7 @@ All names are prefixed `rimgovernor.`; durations are milliseconds.
 | `native.calls` | counter, `{call}` | `native_tool`, `outcome` (`ok`, `refused`, `error`) | each native call |
 | `scheduler.step.duration` | histogram, `ms` (scheduler buckets) | `step_cause` (`timer`, `wake`, `settled`, `full`, `live`) | end of every `ClockScheduler.StepWithReason` |
 | `scheduler.stop_latency` | histogram, `ms` | none | a step woken by a native clock stop: stop stamp to step start |
-| `scheduler.controller_pause` | histogram, `ms` | none | wall time the controller held the game paused in a step |
+| `scheduler.controller_pause` | histogram, `ms` | none | wall time the brain held the game paused in a step |
 | `scheduler.stop_pause` | histogram, `ms` | none | window stop to the admission that resumed the game |
 | `scheduler.critical_wave.duration` | histogram, `ms` | none | critical planner wave wall time |
 | `game.ticks_per_second` | gauge, `{tick}/s` | none | the clock status's effective ticks per wall second, set by each step that read one |
@@ -30,7 +28,7 @@ All names are prefixed `rimgovernor.`; durations are milliseconds.
 | `admission.decisions` | counter, `{decision}` | `verdict` (`admitted`, `refused`), `reason` | each building-method admission; one count per refusal reason |
 | `telemetry.dropped` | counter, `{item}` | `signal`, `sink`, `reason` | the export drop count, defined by OTEL core |
 
-`scheduler.critical_wave.duration` is the controller's leg of "observed hazard to
+`scheduler.critical_wave.duration` is the brain's leg of "observed hazard to
 protective effect": from the start of the critical wave to its protective plans
 being ready. The remainder (dispatch and the game carrying the order out) is not
 measured as one interval; the `class=critical` spans and `action.outcomes` cover it
@@ -71,7 +69,7 @@ values stay inside these sets, with the documented units and bucket boundaries.
 Every acceptance `result.json` carries a flat `metrics` block, and `acceptance run`
 and `acceptance suite` append one row per case to the append-only series
 (`metrics.jsonl` beside the output directory, `-series`/`-baseline`; not the OTLP
-ring of the same name). `go/internal/nativeaccept/metrics.go` and `metrics_otel.go`.
+ring of the same name). `Metrics.cs` and `MetricsOtel.cs`.
 The block's native and pause readings come from the run's exported metric rings
 (`otlp/metrics.jsonl` of the first launch and of each restart's `service-N/otlp`).
 Instruments are cumulative, so each process's last export is its total (rows are
@@ -91,19 +89,16 @@ The remaining keys come from the report and output directory, not telemetry:
 Row format, flake rate (failures in a case's last 10 runs) and drift (value past a
 per-key ratio and floor against the trailing median of the last 10 passing runs) are
 unchanged. Differences from the earlier log-derived block: `paused_fraction` is now the
-controller-held pause share of wall time (it was the share of sampled clock statuses
+brain-held pause share of wall time (it was the share of sampled clock statuses
 that were paused); `native_bytes`, `cache_hit_ratio` and `reads_per_step_mean` are
 gone because no instrument measures them, and they no longer drift-flag. A series
 recorded before this change keeps its old rows; `paused_fraction` medians mix the two
 meanings until ten new passing runs replace them. A run with no metric ring reads zero
-for the OTEL-derived keys.## What remains of the hand-rolled aggregation
+for the OTEL-derived keys.
 
-Nothing is deleted by this change, because readers still consume it (they move in
-#2790 and #2791; final deletion is #2793):
+## What remains of the hand-rolled aggregation
 
-- `bridge.SummarizePhases` and `ToolPhases` build `rimgovernor phases` and the
-  acceptance harness's speed-matrix and serve checks from `native_call` and
+Readers still consume the row-based aggregation:
+
+- The acceptance harness's phase summary (`PhaseSummary.cs`) builds the speed-matrix checks from `native_call` and
   `clock_step` rows.
-- `pollrollup` folds quiet polls and frame-cache hits into the `native_call` rows
-  those readers sum. The metrics above count every call individually and need no
-  rollup.

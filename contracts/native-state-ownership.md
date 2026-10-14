@@ -2,7 +2,7 @@
 
 Source baseline: `3fea7d5c`. This source audit contributes to
 [N01](https://github.com/davidarcher/rimgovernor/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3AN01%22); it does not approve
-state removal or establish save compatibility. Go coverage is tracked in
+state removal or establish save compatibility. The brain coverage is tracked in
 [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). N01.06 owns
 the proposed migrations below.
 
@@ -33,7 +33,7 @@ which branched snapshot a save represents; adding ticks does not solve that.
 
 Disconnect: the native save remains independently playable; reattachment enters
 Manual. Migration target: retain `ColonyId`, extend a minimal versioned snapshot
-association agreed with G01.04/G01.08, and keep controller history solely in SQL.
+association agreed with G01.04/G01.08, and keep brain history solely in SQL.
 Do not treat a rotated load token as proof that newer database history belongs to
 this snapshot. Required acceptance: same colony/tick in two branches, ordinary
 save/autosave, old save against newer SQL, missing database and missing identity;
@@ -41,7 +41,7 @@ ambiguous association must hold and preserve newer history separately.
 
 ## Construction lineage
 
-No native lineage records. Go matches each applied building intent to the
+No native lineage records. The brain matches each applied building intent to the
 blueprint, frame or building standing with its definition, stuff, anchor and
 rotation (`policy.WorkOpen`); a match placed by anyone is the same end state.
 `ConstructionLineageState` is an empty stand-in that drops any records on load.
@@ -73,9 +73,9 @@ Sources: [equipment operations](../integrations/rimgovernor-native/src/Bridge/Ge
 No native saved state. The former `GearOwnership` component
 (`rimgovernorUpkeepWeapons`, pawn unique-load-ID -> weapon unique-load-ID) was
 write-only: upkeep replacement never gated on a recorded claim, and any pawn's
-weapon, controller-equipped or player-equipped, is eligible for replacement
+weapon, brain-equipped or player-equipped, is eligible for replacement
 once it fails the quality/wear checks in `GearUpkeepTool.WeaponEligible`. The
-controller's dispatch receipt is the only record of who ordered an equip; the
+brain's dispatch receipt is the only record of who ordered an equip; the
 equipped item itself is observable. Native equip work can finish while
 disconnected.
 

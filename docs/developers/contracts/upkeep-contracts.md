@@ -20,7 +20,7 @@ non-damageable markers such as sleeping spots are never repair targets.
 | Storage | Slot cells, roof, occupancy and item-specific filtered capacity. Cell count alone is not usable capacity; native hauling decides worker access and delivery. |
 | Sleeping | Bed definition, slots, owners, current users, pawn-specific access, roof, temperature. Capacity does not establish use or suitable worn protection. |
 | Home and structures | Occupied/protected cells with home coverage; building condition, material, roof, native construction lineage. `Observations.ReadRoofSupport` checks roof connectivity with one wall excluded; it does not prove enclosure, escape routes or replacement admission. |
-| Fire, cleaning, repair | `GiveJobIntent` Repair/Clean use the installed WorkGivers and their normal eligibility, and need home coverage and enabled work; the reach check uses the forced-order danger (`NativeOrderDanger`, Deadly, as vanilla's float menu), and a pawn needing tending is not refused. Firefighting is not directly orderable: enabled workers respond normally while the controller watches at most three home fires of size at most one. |
+| Fire, cleaning, repair | `GiveJobIntent` Repair/Clean use the installed WorkGivers and their normal eligibility, and need home coverage and enabled work; the reach check uses the forced-order danger (`NativeOrderDanger`, Deadly, as vanilla's float menu), and a pawn needing tending is not refused. Firefighting is not directly orderable: enabled workers respond normally while the brain watches at most three home fires of size at most one. |
 | Pawns, animals, medicine | `observations_list_pawns` supplies medical, work, settings and schedule reads. Animal feed counts only reachable stored feed under native eating eligibility and allowed-area access (no pasture or future harvest); pets have no pen-containment predicate. Medicine is identified by native item definitions; no future production or season is credited as stock. |
 
 ## Maintained jobs
@@ -133,10 +133,10 @@ wall is admitted.
   player-forced. `DeconstructEffect.replacement_id` names the wall blueprint.
 - The intent adopts a standing designation rather than placing a second. Applied means
   designated, not demolished. Ownership is scoped to the loaded game; loaded designations stay
-  untouched until adopted; revoking authority releases exactly the controller-owned pending
+  untouched until adopted; revoking authority releases exactly the brain-owned pending
   designations and player replacements survive.
 - `wall_upgrade` completion comes from the native deconstruction job, not a wall disappearing;
-  the guard rechecks supporting identities, enclosure and roofs. Go's material budget is the only stock check; native neither caps open guards nor vetoes on builder availability.
+  the guard rechecks supporting identities, enclosure and roofs. the brain's material budget is the only stock check; native neither caps open guards nor vetoes on builder availability.
   Jobs need active supervised simulation. Native UI input, a load/map change or changed safety
   invalidates pending demolition; Manual suspends it. Cleanup requires the completed permanent
   wall; missing or uncertain outcomes stay blocked. Native evidence must confirm retirement,
@@ -246,7 +246,7 @@ Home at a time, nearest the colony center first.
   review; stable IDs break ties. Medicine and rot deadlines rank hauling; native medical
   beds, temperature controls and generators lead repairs, then roof holders, beds and
   worktables; relative damage ranks within a category before cosmetic repairs.
-- Opportunistic bench cleaning is native and needs no Go data (`BenchCleaningGuard`, #2515):
+- Opportunistic bench cleaning is native and needs no the brain data (`BenchCleaningGuard`, #2515):
   under `Supervisor.IsActive`, a Harmony postfix on `WorkGiver_DoBill.JobOnThing` replaces an
   unforced bill job with one `Clean` job when home-area filth the clean WorkGiver accepts and
   the pawn can reach lies within 6 cells of the bench, so a pawn cleans before starting a bill.
@@ -297,7 +297,7 @@ Home at a time, nearest the colony center first.
   protection to the whole mixture. Held or partial delivery does not satisfy delivery;
   destruction before protection and quantity changes outside verified transfers are explicit
   failures. Completion is recorded at the first tick every tracked piece is in covered valid
-  storage and survives later consumption; the controller also requires the exact receipt ID,
+  storage and survives later consumption; the brain also requires the exact receipt ID,
   source, worker, original quantity and load/direction. Unresolved issued work keeps the concern
   open when the source ID leaves the loose-item census. Records use saved string identities
   (never coordinates), at most 512 orders and 128 pieces per order; missing identities and
@@ -391,7 +391,7 @@ Each unit that holds roamers also gets a barn-attached pen (husbandry-contracts,
 - Containment reconciles each barn and the hospital's animal ward (`policy.HerdRooms`, `policy.HospitalCells`)
   through the shared build side (`policy.NextHerdStep` returns `HerdReconcile` with the
   template: the `AnimalSleepingSpot`s or `AnimalBed`s and the barn's heater;
-  `buildingruntime/rounds_herd_rooms.go` calls `reconcileRoom`), so a lost wall is rebuilt
+  `RoundsHerdRooms.cs` calls `reconcileRoom`), so a lost wall is rebuilt
   like a first shell and the beds are installed from packed stock first; the concern stays
   open while a step is due
   (`HerdRoomsOwed`). A definition the live catalog lacks fails the review.
@@ -559,7 +559,7 @@ must reach (player beds, work benches at their interaction cell, storage buildin
 surfaces, turrets, stockpile zones as `zone-<id>`) with one travel row per mobile colonist
 carrying the game's `CanReach` answer and, for every reachable pair, path cost and node
 count. Path costing is the one bounded part: the snapshot stream request carries
-`route_path_budget_ms` (Go sets `bridge.RoutePathBudgetMS`, 100; absent measures every
+`route_path_budget_ms` (the brain sets `bridge.RoutePathBudgetMS`, 100; absent measures every
 pair), and a reachable pair native did not path once the budget is spent reports
 `path_skipped` with no numbers (cost: [capped reads](#measured-cost-of-capped-reads-2567)).
 It also reports every breach cell of an unreachable facility (one-cell player walls on its
@@ -630,7 +630,7 @@ one running game between them).
 
 Each native read that bounds its own work, timed with its bound removed so a cap is
 deleted or kept on evidence (epic #2533). Rule: delete the cap unless one main-thread hop
-exceeds about 5 ms at stress size; such a read gets a Go-supplied budget request field and
+exceeds about 5 ms at stress size; such a read gets a brain-supplied budget request field and
 an explicit skipped flag instead. Nothing here is a behaviour change; the downstream
 children act on the verdicts.
 
@@ -647,11 +647,11 @@ compiling at the time; steady iterations agreed within about 15%.
 | Route path cost, `FindPathNow` per reachable facility x colonist pair (256) | 256 pairs 100 ms; 840 uncapped 340-365 ms | 256 pairs 96-115 ms; 10,000 uncapped 3.3-4.0 s | about 0.4 ms per pair | Budget and skipped flag (landed #2568: `route_path_budget_ms` + `path_skipped`; the traffic 128 and breach 16 x 2 caps were memory-only and are deleted) |
 | Hunt `RouteSafe` per hunter x prey (reach 100) | 202 checks 33 ms; 320 uncapped 114-128 ms | 4,069 checks 0.8-1.0 s; 8,500 uncapped 3.0-4.0 s | 0.2-0.45 ms per check | Budget and skipped flag (landed #2569: `hunt_route_budget_ms` + `HuntRoute.skipped`, reach deleted) |
 | Plant cutter reach (50) | 12-14 ms | 21-41 ms capped, 21-31 ms uncapped | the cap bounds nothing measurable | Deleted (#2569); the cost is the all-plants eligibility scan, not the reach |
-| Pair reachability, tend page (64 rows) | 14 rows 0.06-0.14 ms | 40 colonist rows 0.43-0.48 ms; 297-row whole table 23-44 ms | quadratic, about 0.27 us per pair | Budget and skipped flag (landed #2570: `PawnDetails.tend_reach_budget_ms`, Go 50 ms, + `PawnTendDoctor.reach_skipped`; the 64-row cap and its `LimitExceeded` issue are deleted; tend covers animals and prisoners, so no colonist-only filter); a skipped doctor has no reachability fact and is not proposed |
-| Spatial access audit (32 colonists, 16,384 blocked, 128 targets) | 14 colonists 1.1-1.7 s | 40 colonists 2.9-3.3 s, 5.0 s with 16,384 blocked | about 70-80 ms per colonist, independent of blocked cells; 8 colonists 0.5-0.7 s; the 32 cap alone is about 2.5 s | Budget and skipped flag, per colonist (landed #2570: `SpatialAccessRequest.budget_ms`, Go 2500 ms, + `PawnAccess.skipped`; the 16,384 / 128 / 32 caps are deleted, the 262,144-cell map cap stays with an explicit unavailable) |
-| Cold-site scan, `FoodLarderFacts` (`Take(16)`) | 11-13 ms | 7-14 ms with or without `Take(16)` | the take stops early only once 16 sites exist; sparse maps scan every cell (0.12-0.2 us per cell) | Deleted (#2570): nothing in Go read `FoodLarderFacts.cold_sites`, so the scan and field are gone rather than budgeted |
-| Lines of fire (64 x 64 cells) | 10-15 ms | 128 x 128 34 ms; 256 x 256 145-185 ms | 2.5-3.6 us per trace | Budget and skipped flag (landed #2570: `LinesOfFireRequest.budget_ms` and `SnapshotStreamRequest.lines_of_fire_budget_ms`, Go 15 ms, + `LinesOfFireSnapshot.skipped`; the 64 + 64 cell caps are deleted; pairs are read firing-major and a skipped snapshot holds a prefix, an absent pair being unknown) |
-| Salvage census and refresher | not measured | not measured | already explicit time budgets (1.5, 5 and 250 ms) | Keep (landed #2574): the budgets and the four-hour cache age are Go-supplied `ClearanceTargetsRequest` fields (`salvage_*`, defaults `bridge.Salvage*`); `SalvageEvidence.age_ticks` reports row staleness and `ClearanceTarget.salvage_skipped` marks rows past the budget |
+| Pair reachability, tend page (64 rows) | 14 rows 0.06-0.14 ms | 40 colonist rows 0.43-0.48 ms; 297-row whole table 23-44 ms | quadratic, about 0.27 us per pair | Budget and skipped flag (landed #2570: `PawnDetails.tend_reach_budget_ms`, the brain 50 ms, + `PawnTendDoctor.reach_skipped`; the 64-row cap and its `LimitExceeded` issue are deleted; tend covers animals and prisoners, so no colonist-only filter); a skipped doctor has no reachability fact and is not proposed |
+| Spatial access audit (32 colonists, 16,384 blocked, 128 targets) | 14 colonists 1.1-1.7 s | 40 colonists 2.9-3.3 s, 5.0 s with 16,384 blocked | about 70-80 ms per colonist, independent of blocked cells; 8 colonists 0.5-0.7 s; the 32 cap alone is about 2.5 s | Budget and skipped flag, per colonist (landed #2570: `SpatialAccessRequest.budget_ms`, the brain 2500 ms, + `PawnAccess.skipped`; the 16,384 / 128 / 32 caps are deleted, the 262,144-cell map cap stays with an explicit unavailable) |
+| Cold-site scan, `FoodLarderFacts` (`Take(16)`) | 11-13 ms | 7-14 ms with or without `Take(16)` | the take stops early only once 16 sites exist; sparse maps scan every cell (0.12-0.2 us per cell) | Deleted (#2570): nothing in the brain read `FoodLarderFacts.cold_sites`, so the scan and field are gone rather than budgeted |
+| Lines of fire (64 x 64 cells) | 10-15 ms | 128 x 128 34 ms; 256 x 256 145-185 ms | 2.5-3.6 us per trace | Budget and skipped flag (landed #2570: `LinesOfFireRequest.budget_ms` and `SnapshotStreamRequest.lines_of_fire_budget_ms`, the brain 15 ms, + `LinesOfFireSnapshot.skipped`; the 64 + 64 cell caps are deleted; pairs are read firing-major and a skipped snapshot holds a prefix, an absent pair being unknown) |
+| Salvage census and refresher | not measured | not measured | already explicit time budgets (1.5, 5 and 250 ms) | Keep (landed #2574): the budgets and the four-hour cache age are brain-supplied `ClearanceTargetsRequest` fields (`salvage_*`, defaults `bridge.Salvage*`); `SalvageEvidence.age_ticks` reports row staleness and `ClearanceTarget.salvage_skipped` marks rows past the budget |
 
 For scale, a whole `SnapshotFrames.Capture` hop costs 100-175 ms on the 8-colonist
 baseline, about 300 ms at realistic size and 1.7-2.1 s at stress with the caps in place
@@ -701,7 +701,7 @@ gear and bionics. Nothing is persisted; it is recomputed from the wealth fact ea
 ### Held shares and the accessor
 
 Every routine reading computes per-colonist shares into the held
-`observation.ColonyProjection.Facts.PersonalShares` (`observation/colony_personal.go`; the
+`observation.ColonyProjection.Facts.PersonalShares` (`ColonyPersonal.cs`; the
 one holder, so detection's elective surgery gate reads the same map) from data it already
 holds; nothing calls native. Gates read one accessor:
 
@@ -722,7 +722,7 @@ unknown for everyone while the sleeping census is, and for a colonist whose gear
 weapon or installed parts (`CarePawn.InstalledParts`) was not read.
 
 The same shares are the read-only `share`, `spent` and `remaining` per roster row of
-`/api/player/colony` (`go-player-api.md`), taken from the held projection only while it is
+`/api/player/colony` (`player-api.md`), taken from the held projection only while it is
 the current native generation.
 
 ### Acceptance

@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)
 
-Go rounds track environmental disruption inside the shared concern journal.
+The brain rounds track environmental disruption inside the shared concern journal.
 Native condition identities start an episode. `ColonyFactsSnapshot.environment`
 is the game-condition census: every condition affecting the map with its
 definition, implementation class, label, whether it is permanent and, for a

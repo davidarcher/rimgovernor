@@ -4,7 +4,7 @@ A nightly review run, not a gate: the governor plays a pinned-seed map for
 an in-game season (a quadrum, 15 days) and the run publishes an hour-by-hour
 report to GitHub Pages for a person (or a model) to skim for bugs.
 
-- **Case** `review/colony-week` (`go/internal/nativeaccept/cases/review`):
+- **Case** `review/colony-week` (`brain/src/RimGovernor.Brain.Acceptance.Cases/Review`):
   Crashlanded, three colonists, a 250 map, storyteller on. The seed is
   `review.PinnedSeed` (`review-pinned-1`) every night, one run per seed, so
   nights compare; it picks the biome. To add a seed, add it to that
@@ -27,8 +27,7 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   other cases keep `-Headless` (a one-day trial took 3m05s against 2m37s
   on 1.6).
 - **Report** `RimGovernor.cmd colonyreview report -in <case output> -out <run dir>`
-  (the C# tool host, `tools/rg/Commands/ColonyReview`; the Go `cmd/colonyreview` stays
-  until #3102 and the nightly workflow still builds it)
+  (the C# tool host, `tools/rg/Commands/ColonyReview`)
   reads `result.json`'s timeline and the screenshots and writes `index.html`
   and `run.json`; `site -runs <dir> -out <site>` indexes run dirs. The page is
   a player: one image with a slider over the recorded hours (play/pause,

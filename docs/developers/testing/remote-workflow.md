@@ -9,13 +9,9 @@ The `tools` job publishes the trusted `tools/rg` host once as a self-contained w
 pushes do not trigger CI. Keep the workflow branch selector on protected `main`.
 Manual dispatch accepts `tested_ref` (any same-repository branch or tag, default `main`)
 or an overriding `tested_commit` SHA, tier and shard count.
-The gate resolves the source once to a full SHA shared by native, race and protobuf jobs.
+The gate resolves the source once to a full SHA shared by every job.
 The nightly
-07:23 UTC schedule selects nightly against its immutable main commit. Both scheduled
-and manually dispatched nightly tiers also run the Go race, protobuf generation drift
-and protobuf proof checks. Shard `s1` additionally checks `defs.proto` against the
-unpacked bundle's game (def mirror drift fails the shard, see
-[remote bundles](../remote-bundles.md#hosted-runner-checks)).
+07:23 UTC schedule selects nightly against its immutable main commit.
 The `cases` tier runs only the `cases` input: comma-separated registry names or bare
 areas (`power` selects every `power/*` case). A name matching nothing refuses the plan. Agents use
 it to offload targeted runs, for example
@@ -30,8 +26,7 @@ writes `index.json` into the verdict artifact and appends a table to the run sum
 cases first: each case's status, attempt count, shard, the `gh run download -n` artifact name
 (`acceptance-<run>-<attempt>-shard-<id>`), up to eight postmortem lines from its report's
 `diagnosis`, and its paths inside that artifact: `<shard>/fixture/<case>/result.json` (native
-report), `<shard>/fixture/<case>/otlp/logs.jsonl`, `<shard>/fixture/<case>.log` and
-`<shard>/fixture/snapshots/<case>/routine-stream-*.jsonl`. A path is listed only when exported.
+report), `<shard>/fixture/<case>/otlp/logs.jsonl` and `<shard>/fixture/<case>.log`. A path is listed only when exported.
 Reruns need
 **Re-run all jobs**: an attempt cannot borrow a previous attempt's plan/artifacts.
 
@@ -135,16 +130,8 @@ fetch-fixture -root <dir>` to print the newest downloaded bundle directory for s
 tests; both `gh run download` the newest completed (success or failure) run once into
 `<root>/ci-fixtures/<run id>`.
 
-Every remote run records [colony snapshot streams](colony-snapshots.md):
-`remote_workflow.ps1` sets `RIMGOVERNOR_SNAPSHOT_DIR=<job output>\snapshots`,
-so each shard's public diagnostics carry
-`<shard>/<role>/snapshots/<area>/<case>/routine-stream-*.jsonl` (under a
-`REMOTE_ARTIFACT_MAX_BYTES` cap a stream that does not fit is left out
-rather than failing the shard), and the factory artifact carries
-`snapshots/sustained/colony/` beside its ring. `fetch-fixture` names the
-downloaded streams on stderr; a snapshot test loads one review with
-`snapshot.LoadReview(<stream>, <tick>, 0)`, or trims it into `testdata/` as
-[Recording](colony-snapshots.md#recording) describes.
+`remote_workflow.ps1` sets `RIMGOVERNOR_SNAPSHOT_DIR=<job output>\snapshots`, but no
+[colony snapshot](colony-snapshots.md) sink is installed, so no stream is written.
 
 `.github/workflows/snapshot-perf.yml` runs nightly: it fetches that bundle,
 bootstraps a fixture-role layout (`remote_workflow.ps1 -Phase profile`) and
@@ -158,7 +145,7 @@ Tune `-threshold`/`-min-ms` in the workflow for runner noise.
 
 ## Validation and activation evidence
 
-`go run ./cmd/test` covers authorization refusals, portable multi-shard export,
+`RimGovernor.cmd test` covers authorization refusals, portable multi-shard export,
 an injected red native assertion, missing/corrupt diagnostics, content rejection,
 limits, aggregation/import and schedule provenance. These are synthetic tooling
 checks; no game is launched. Validate workflow syntax with actionlint v1.7.12.

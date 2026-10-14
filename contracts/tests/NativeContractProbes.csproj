@@ -12,7 +12,7 @@
     <HostSourceRoot Condition="'$(HostSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-host/src</HostSourceRoot>
   </PropertyGroup>
   <!-- Windows infers RuntimeIdentifier win7-x86 for a net472 Exe; pin it on every OS so the
-       locked restore graph is identical everywhere (same as tools/protobuf). -->
+       locked restore graph is identical everywhere. -->
   <PropertyGroup>
     <UseRidGraph>true</UseRidGraph>
     <RuntimeIdentifiers>win7-x86</RuntimeIdentifiers>

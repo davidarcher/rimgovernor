@@ -1,5 +1,5 @@
 <Project>
-  <!-- Shared settings for the C# brain solution (epic #3043); conventions: docs/developers/architecture/go-to-csharp-port-conventions.md. -->
+  <!-- Shared settings for the C# brain solution (epic #3043). -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>

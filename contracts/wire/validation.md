@@ -1,18 +1,15 @@
 # Boundary validation rules
 
-Official Protobuf parsing is the first step. Generated objects remain transport
-values until the owning adapter applies these rules and its family contract
-document. These requirements are shared by both implementations; compiler
-roundtrip fixtures intentionally include shapes that are invalid game requests.
+System.Text.Json parsing (`WireJson`) is the first step. Deserialized records remain
+transport values until the owning adapter applies these rules and its family contract
+document. These requirements are shared by the brain and the native mod; round-trip
+tests intentionally include shapes that are invalid game requests.
 
 ## Shared rules
 
-Reject unknown ProtoJSON fields, invalid Unicode, unsupported numeric enum values,
-missing required oneofs and nonfinite numeric game values. Standard ProtoJSON null
-leaves a field absent; it cannot satisfy required presence. Standard numeric
-spellings accepted by the official parser need no additional lexical parser.
-Binary is a test/possible future transport; admitting binary requests additionally
-requires recursive unknown-field rejection. Current MCP uses ProtoJSON.
+Reject unknown JSON members, invalid Unicode, unsupported enum values (enums are wire-name
+strings), missing required choices and nonfinite numeric game values. JSON null
+leaves a member absent; it cannot satisfy required presence.
 
 | Value | Required presence and bounds |
 | --- | --- |
@@ -27,8 +24,8 @@ requires recursive unknown-field rejection. Current MCP uses ProtoJSON.
 | Diagnostic | <=4096 Unicode scalar values; only diagnostic text may be truncated at scalar boundaries. |
 | Collection | explicit known-complete versus partial/unavailable evidence; no silent truncation. Family limits and queries define completeness. |
 
-`oneof` makes alternatives mutually exclusive but does not require one to be
-selected. Every request operation selector and reply outcome selector must be
+A choice record makes alternatives mutually exclusive but a deserialized request may
+still carry none. Every request operation selector and reply outcome selector must be
 selected. Nested result/availability alternatives must be selected whenever their
 parent section is included. In observation rows, missing optional scalars remain
 unknown; do not reject truthful incomplete observations as though all facts were
@@ -52,17 +49,17 @@ Patch and optional-read defaults must be implemented deliberately: absent boolea
 patches do not mean false, absent available counts do not mean zero, omitted
 policy replacements do not mean clear, and a missing selection does not mean an
 empty selected set. A reply with inconsistent completeness, mismatched command
-evidence, impossible oneof/context correlation or unsupported enum is invalid
+evidence, impossible choice/context correlation or unsupported enum is invalid
 evidence; retain prior known data and reconcile instead of acting on it.
 
 Native validators additionally resolve definitions, eligibility, settings,
 resources, reachability, reservations, current player changes and other ordinary
-game rules on the game thread. Those stateful checks cannot be established by a
-schema or by a successful serialization test.
+game rules on the game thread. Those stateful checks cannot be established by the
+record types or by a successful serialization test.
 
 ## New colony scenario parts
 
-`ValidateNewColonySpec` (shared by the HTTP route and the bridge) bounds the parts on
+`ValidateNewColonySpec` (`brain/src/RimGovernor.Brain.Bridge.Contracts/Foundation/NewColonyValidation.cs`) bounds the parts on
 `NewColonySpec`: at most 64 entries per kind; `colonist_count` 1-10; starting-thing
 placement set, `count` 1-100000, `allow_roofed` only on scattered things; forced-trait
 `degree` -10..10; forced-hediff `severity` 0-1; `chance` and need `level` 0-1 and finite;

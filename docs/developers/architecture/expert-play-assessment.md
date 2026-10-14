@@ -26,13 +26,13 @@ actually ran. Risks below are hypotheses for the named scenarios to test.
 
 | Existing mechanism | Evidence | Architectural value |
 | --- | --- | --- |
-| Pure deterministic decisions | [Policy gates](../../../go/internal/archgate), `DecideCombat`, `PlanSupply` | Replay decisions without a game or model call. |
-| Selective planning | [Planner catalog](../../../go/internal/buildingruntime/clock_planner_catalog.go), [due queue](../../../go/internal/buildingruntime/clock_planner_queue.go), [read audit](../../../go/internal/buildingruntime/clock_planner_reads_test.go) | Declared sections, families, action outcomes and tick cadences already select work; tested undeclared reads fail the package. |
-| Shared proposal arbitration | [Proposal and claim coordinator](../../../go/internal/buildingruntime/proposal.go) | Migrated planners compete deterministically by priority, urgency and stable ID, with named claim conflicts. |
-| Supply forecasting | [Food view](../../../go/internal/policy/food_plan.go), [resource supply](../../../go/internal/policy/resource_supply.go), [ranker](../../../go/internal/policy/supply_plan.go) | Lead, risk, labor, multiple yields and demand horizons already inform acquisition. |
-| Journaled ordinary execution | [Executor batch path](../../../go/internal/executor/intent.go) | Prepare and dispatch are journaled before the native write; batches avoid one call per order. |
+| Pure deterministic decisions | Policy gates, `DecideCombat`, `PlanSupply` | Replay decisions without a game or model call. |
+| Selective planning | [Planner catalog](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Clock/ClockPlannerCatalog.cs), [due queue](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Clock/ClockPlannerQueue.cs), read audit | Declared sections, families, action outcomes and tick cadences already select work; tested undeclared reads fail the package. |
+| Shared proposal arbitration | [Proposal and claim coordinator](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Proposal.cs) | Migrated planners compete deterministically by priority, urgency and stable ID, with named claim conflicts. |
+| Supply forecasting | [Food view](../../../brain/src/RimGovernor.Brain.Policy/FoodPlan.cs), [resource supply](../../../brain/src/RimGovernor.Brain.Policy/ResourceSupply.cs), [ranker](../../../brain/src/RimGovernor.Brain.Policy/SupplyPlan.cs) | Lead, risk, labor, multiple yields and demand horizons already inform acquisition. |
+| Journaled ordinary execution | [Executor batch path](../../../brain/src/RimGovernor.Brain.Executor/Intent.cs) | Prepare and dispatch are journaled before the native write; batches avoid one call per order. |
 | Native supervision | [Hazard constants](../../../integrations/rimgovernor-native/src/Bridge/SupervisedPlayHazards.cs), [detection contract](hazard-detection-bounds.md) | Tick-paced hazard detection, direct hooks and expiring authority protect the simulation independently of planner speed. |
-| Multiple evidence levels | [Supply simulator](../../../go/internal/supplysim), [snapshots](../../../go/internal/snapshot), [combat lab](../../../go/internal/nativeaccept/cases/combatlab), [campaigns](../../../go/internal/nativeaccept/cases/campaign) | Decision quality, boundary behavior and actual gameplay can be evaluated separately. |
+| Multiple evidence levels | [Supply simulator](../../../brain/src/RimGovernor.Brain.Simulation), [snapshots](../../../brain/src/RimGovernor.Brain.Snapshot), [combat lab](../../../brain/src/RimGovernor.Brain.Acceptance.Cases/CombatLab), [campaigns](../../../brain/src/RimGovernor.Brain.Acceptance.Cases/Campaign) | Decision quality, boundary behavior and actual gameplay can be evaluated separately. |
 
 The shared plan is more than a collection of unrelated work, but it is not a
 single colony-wide forecast of feasible completion. Material claims, supply
@@ -49,17 +49,17 @@ numbers or admission guards.
    evaluates tick-paced probes separately from fact-change digests. The declared
    general probe interval is 30 ticks; condition digest fallback is 600 ticks.
    These are different contracts, not one universal reaction deadline.
-2. [ReviewDisaster](../../../go/internal/policy/disaster.go) derives service
+2. [ReviewDisaster](../../../brain/src/RimGovernor.Brain.Policy/Disaster.cs) derives service
    deficits and a phase from observed conditions and infrastructure. Expiring
    forecast time alone does not prove restoration. `DisasterHistory.Promote`
    raises affected Concerns' priority.
-3. [RoundsRecoveryPlanner.step](../../../go/internal/buildingruntime/rounds_recovery.go)
+3. RoundsRecoveryPlanner.step
    re-reads owned facts, derives `PlanSheltering`, cancels obsolete area actions,
    and waits on still-open work. Area changes precede repair/refuel selection.
-   [SelectRecoveryMethods](../../../go/internal/policy/recovery_method.go)
+   [SelectRecoveryMethods](../../../brain/src/RimGovernor.Brain.Policy/RecoveryMethod.cs)
    checks known worker/safety facts; the planner claims the selected pawn and
    commits an Incident Method.
-4. `RecoveryServiceAction` uses the [ordinary intent executor](../../../go/internal/executor/intent.go).
+4. `RecoveryServiceAction` uses the [ordinary intent executor](../../../brain/src/RimGovernor.Brain.Executor/Intent.cs).
    Its applied receipt completes the service-order intent. Restoration remains
    a later observed service/infrastructure result in `ReviewDisaster`.
 
@@ -69,32 +69,32 @@ path can act while unrelated development is expensive, and how recovery work
 competes with already committed routine work. Neither is proved by the hazard
 probe's bound.
 
-Existing evidence includes [disaster policy tests](../../../go/internal/policy/disaster_test.go)
-for temporary survival and false recovery, [recovery selection tests](../../../go/internal/policy/recovery_method_test.go),
-and [campaign/recovery](../../../go/internal/nativeaccept/cases/campaign/recovery.go).
+Existing evidence includes disaster policy tests
+for temporary survival and false recovery, recovery selection tests,
+and [campaign/recovery](../../../brain/src/RimGovernor.Brain.Acceptance.Cases/Campaign/Recovery.cs).
 The latter stages a wood shortage followed by a raid and checks native colony
 outcomes; it is not evidence for every environmental disaster or simultaneous
 resource/labor conflict.
 
 ### Development under food and material pressure
 
-1. [Rounder.reviewStep](../../../go/internal/buildingruntime/rounds.go) derives
+1. Rounder.reviewStep derives
    food, layout, resource demand and work requirements from observed facts and
-   current commitments. [Layout review](../../../go/internal/buildingruntime/colony_plan.go)
+   current commitments. [Layout review](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Colony/ColonyPlan.cs)
    preserves built/in-flight rooms and throttles growth/survey work.
-2. [planFood](../../../go/internal/buildingruntime/rounds_food_plan.go) calls
+2. [planFood](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsFoodPlan.cs) calls
    `SupplyFoodPlan`, which calls `PlanSupply`. Then
-   [buildResourceSupply](../../../go/internal/buildingruntime/rounds_resource_supply.go)
+   [buildResourceSupply](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsResourceSupply.cs)
    plans resource candidates with the labor food leaves. This is one ranker
    reused in sequential plans, not one joint optimization over all colony work.
-3. [Work requirements](../../../go/internal/buildingruntime/rounds_work_projects.go)
+3. [Work requirements](../../../brain/src/RimGovernor.Brain.BuildingRuntime/RoundsWorkProjects.cs)
    connect open buildings/bills to required work types and skill floors.
    These establish eligibility, not remaining work duration or completion time.
 4. Shared proposal claims and family admission commit Methods. In
-   [AdmitBuildingMethod](../../../go/internal/store/standard_admission.go),
+   AdmitBuildingMethod,
    building intents are not priced/sited by the generic candidate admission;
    native application checks them. Family funding matters: for example the
-   [defense pipeline](../../../go/internal/buildingruntime/rounds_defense_pipeline.go)
+   [defense pipeline](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDefensePipeline.cs)
    tracks open tier costs and cells. The broad statement that every building
    goes through the same resource-preview admission would be inaccurate.
 5. Hands places orders in batches. An applied blueprint is an intent outcome;
@@ -104,7 +104,7 @@ resource/labor conflict.
 guarantee is that all competing commitments fit the same meaningful capacity
 estimate. `policy.ResidualSupplyLabor` subtracts food commitments from `workers * 20000`;
 it does not deduct all construction, medical and recovery commitments.
-`stepBudget` in [ClockScheduler](../../../go/internal/buildingruntime/clock_scheduler.go)
+`stepBudget` in [ClockScheduler](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Clock/ClockScheduler.cs)
 supplies resource stock to proposal arbitration, not a work-type/time model.
 This creates a risk of overcommitment; this assessment does not claim a measured
 starvation or development regression from it.
@@ -118,8 +118,8 @@ Produce-bill ingredients remain planner-local between decision and placement,
 so trade and other acquisition consumers can use those ingredients in that
 interval. This explicit exception belongs in the broader capacity work below.
 
-The [food matrix](../../../go/internal/buildingruntime/supplysim_food_test.go)
-and [resource matrix](../../../go/internal/buildingruntime/supplysim_resource_test.go)
+The food matrix
+and resource matrix
 already exercise real planning adapters with shrinking failure baselines.
 Their simplified flow worlds support policy comparisons, not claims about
 native pathing, actual pawn throughput or expert play.
@@ -128,16 +128,16 @@ native pathing, actual pawn throughput or expert play.
 
 1. Native combat events stop an armed window at its event boundary; the
    [combat-stop contract](hazard-detection-bounds.md#armed-combat-stops) also
-   defines a 300-tick controller backstop. Detection/stop time is not the
+   defines a 300-tick brain backstop. Detection/stop time is not the
    time at which a defender has reached safety.
-2. [RoundsDefensePlanner](../../../go/internal/buildingruntime/rounds_defense.go)
+2. [RoundsDefensePlanner](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDefense.cs)
    builds a combat view and supplies native geometry to
-   [DecideCombat](../../../go/internal/policy/combat_decide.go). Policy retains
+   [DecideCombat](../../../brain/src/RimGovernor.Brain.Policy/CombatDecide.cs). Policy retains
    roles and memory, emits changes, and generally avoids interrupting aim except
    for protective actions. Formation and reaction are already distinct phases.
-3. [admitFight and sendCombatBatch](../../../go/internal/buildingruntime/rounds_combat.go)
+3. [admitFight and sendCombatBatch](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsCombat.cs)
    commit fight ownership, then send draft/orders through
-   [bridge.CombatOrders](../../../go/internal/bridge/combat_orders.go), which
+   [bridge.CombatOrders](../../../brain/src/RimGovernor.Brain.Bridge.Contracts/Actions/CombatOrders.cs), which
    creates an ActionsWriter and applies directly. Subsequent stops call
    `issueCombatOrders` before `RecordCombatStop`. Exact batch execution therefore
    bypasses the ordinary executor's prepare/dispatch journal lifecycle.
@@ -160,9 +160,9 @@ tracks shelter geometry/refusal handling. Its historical examples are issue
 evidence, not measurements rerun for this assessment; the current code already
 contains some later defended-side clamping.
 
-[Decision tests](../../../go/internal/policy/combat_decide_test.go) cover
+Decision tests cover
 determinism, changed orders, warmup protection and formation. The
-[combat metrics cases](../../../go/internal/nativeaccept/cases/combatlab/metrics_case.go)
+[combat metrics cases](../../../brain/src/RimGovernor.Brain.Acceptance.Cases/CombatLab/MetricsCase.cs)
 record casualties, damage and resolution/latency evidence and explicitly call
 themselves evidence rather than a quality gate. Having them registered does not
 prove expert tactical results.
@@ -205,8 +205,7 @@ flowchart TD
 The three decision horizons are responsibilities inside the existing policy and
 scheduler, not three new services. Native supervision retains its separate
 clock/authority responsibility. Existing leased native rules remain the
-documented exception: Go authors and journals attachment, native executes only
-the whitelist and journals each firing.
+documented exception (being removed in #3141).
 
 ### Contracts to make uniform
 
@@ -302,7 +301,7 @@ shared interfaces are understood; milestone 5 depends on shared inputs. Each
 slice changes one existing owner, lands independently, and removes the old
 path when its replacement is complete. Implementation scope and completion criteria are in the linked issues.
 
-For each implementation milestone, run the required `cmd/test` once and follow
+For each implementation milestone, run the required `RimGovernor.cmd test` once and follow
 [choose-tests](../testing/choose-tests.md). Native acceptance remains nightly
 evidence rather than a new pre-landing gate; run a focused case earlier only
 when it answers an identified native question. A green short suite certifies

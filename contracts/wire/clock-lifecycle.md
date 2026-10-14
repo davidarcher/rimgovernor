@@ -3,14 +3,14 @@
 | Contract | Required behavior |
 | --- | --- |
 | `Start`, `Pause`, `Renew`, `ChangeSpeed` | Exact epoch ownership, bounded native tick budget, no lease stealing or automatic reacquisition. |
-| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` is an ordinary wire speed; the native tick boost behind it (`StartRequest.test_acceleration`) is admitted only by a game launched with `-rimgovernor-test-acceleration`, which `nativeaccept` adds to its acceptance profiles alone (headless and rendered) (`Status.test_acceleration_available`), and an accelerated epoch pauses rather than changing speed. |
+| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` is an ordinary wire speed; the native tick boost behind it (`StartRequest.test_acceleration`) is admitted only by a game launched with `-rimgovernor-test-acceleration`, which the acceptance harness (`RimGovernor.cmd acceptance`) adds to its acceptance profiles alone (headless and rendered) (`Status.test_acceleration_available`), and an accelerated epoch pauses rather than changing speed. |
 | `clock.Event`, `EventsPage` | Immutable typed events, explicit gaps, journal failure holds play. |
 | `clock.ControlReceipt`, `ReadAttempt` | Shared attempt namespace and retained clock outcome; no retry inferred from missing receipt. |
 | `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick, explicit capability availability. Initialization belongs load hooks, not identity reads. |
 | `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
 | `lifecycle.Lifecycle.NewColony` | `NewColonySpec` is a required base `scenario` plus typed scenario parts (`starting_things`, `forced_traits`, `forced_hediffs`, `naked`, `set_need_levels`, `perma_game_conditions`, `disallowed_buildings`, `disabled_incidents`) and mandatory-part overrides (`player_faction`, `arrival_method`; the pawn count is `colonist_count`). Native builds game ScenParts from them (`NativeNewColonyScenarioParts`) and puts them on the copy of the scenario before the colonists are generated. Parts replace by kind: a non-empty list removes the base scenario's parts of that kind (all three `starting_things` placements are one kind) and a list left empty keeps the base's, so Crashlanded plus a full list yields exactly that list. It refuses, naming the field, an unknown defName, a trait degree the trait lacks, a hediff that is not `scenarioCanAdd` or above its editor cap, a non-major need, a part that cannot coexist with another, or a stuff/quality the thing does not take. `perma_game_conditions` accepts any condition def, not only `canBePermanent` ones (ColdSnap works); 1.6 has no map-scoped permanent part. |
 | `lifecycle.Lifecycle.Load` | Distinguish pending/map/visual readiness, reread fresh native context. |
-| Go controller gamehost process adapter | gamehost owns process lifetime. No second native process manager. Stop only owned instance; detach attached sessions. |
+| the brain gamehost process adapter | the harness owns process lifetime. No second native process manager. Stop only owned instance; detach attached sessions. |
 
 ## Clock validation
 
@@ -44,7 +44,7 @@ Consumers needing pause require fresh actual-paused and pause-verified facts for
 the same identity. A tick-budget/pause race is reconciled by exact epoch and stop
 reason plus a fresh clock observation. An uncertain transport response requires
 inspection, never blind start/speed replay. Clearing a modal does not authorize a
-new epoch. Acknowledgement belongs controller inspected-event handling; there is
+new epoch. Acknowledgement belongs brain inspected-event handling; there is
 no native acknowledge/delete/resume alias.
 
 Typed journal payloads cover started/speed, notification/alert, injury/health,
@@ -57,7 +57,7 @@ the owner-less `RuleFired` (journaled before the native rule's write) and
 [native rule runtime](../../docs/developers/contracts/native-rules.md) and
 `STOP_REASON_DIALOG_PAUSE` with its `DialogPause` (window id/type/title) when a
 game-opened `Verse.Dialog_NodeTree` force-pauses a running epoch. Like a
-letter pause it is a non-benign stop the player acknowledges; the controller
+letter pause it is a non-benign stop the player acknowledges; the brain
 answers the dialog through a `DialogIntent` on Actions/Apply and starts a new epoch, and
 a start attempted while such a window is open is refused as unavailable rather
 than reported as a running epoch's pause. Source numeric pawn IDs must resolve to exact
@@ -89,7 +89,7 @@ filename characters. The owned profile resolves the path. Saves require explicit
 current player direction, Manual, verified pause and exact
 expected tick. `SaveCompleted` requires a nonempty complete native file and the
 same observed identity/direction/tick afterward. It does not publish a paired
-controller checkpoint; the controller verifies and durably publishes its own
+brain checkpoint; the brain verifies and durably publishes its own
 snapshot. A potentially started failed save is `uncertain`, not pre-admission
 failure, and needs file/context inspection before retry.
 

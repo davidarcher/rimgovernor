@@ -57,8 +57,7 @@ production rate. Allocation prioritizes a short herd, then survival-meal or raw
 trade surplus, then eligible diners' reserved demand. Feed and eligible shared
 meal bills use explicit ingredients; shared meals require all diners to accept
 human meat. Human survival-meal output is forbidden sale stock, excluded from
-ordinary reserve release. `policy.TestHumanButcheryFixtureDecisions` checks
-the selection and routing decisions.
+ordinary reserve release.
 
 Cooking recipes expose their product's base taste mood offset, nutrition output
 per nutrition input and native work per output nutrition (batch counts included).
@@ -75,7 +74,7 @@ observations remain available for project planning; bill counts are not labor ho
 
 Strategic mood signals use each pawn's observed native minor-break threshold.
 A ten-point recovery margin prevents repeated signals near that threshold; it is
-controller hysteresis, not a forecast. Missing thresholds retain established risk.
+brain hysteresis, not a forecast. Missing thresholds retain established risk.
 Power reserve risk likewise persists across unavailable reads and serialization;
 recovery requires readable current networks.
 
@@ -84,7 +83,7 @@ Forecast validation and pawn outcomes are different evidence levels.
 ## Food reserve components
 
 Native reports forbidden stacks (the thing row's `forbidden`) with their
-eligible eaters; Go decides the reserve (`policy.ReserveFoodDefinition`:
+eligible eaters; the brain decides the reserve (`policy.ReserveFoodDefinition`:
 forbidden shared pemmican or packaged survival meals). Native eligibility
 describes who could eat the stack after release; `ForecastFood` validates it
 but excludes it from runway and usable nutrition. Other forbidden food is
@@ -155,9 +154,9 @@ the chosen recipe that is suspended or repeats to a smaller target than the
 colony needs. A bill of the chosen recipe that is active and repeats forever or
 to at least that target ends the review. Native admits the replacement for any
 ordinary meal bill it finds by id (`CookMeal*` short of the survival pack in
-Go; `MealSimple`..`MealLavish` preferability natively), deletes it and adds the
+the brain; `MealSimple`..`MealLavish` preferability natively), deletes it and adds the
 successor; reserve and butcher bills never go through this path. The replacement
-ID survives controller restart; a tracked old action receives a superseded
+ID survives a restart; a tracked old action receives a superseded
 outcome.
 
 High native expectations plus a measured mood deficit raise EnsureCooking through
@@ -210,7 +209,7 @@ animal product), source (growing zone or basin id, water body root cell `x,z`, p
 def, animal race) and delivered def, with units, human-edible nutrition and the
 last delivery tick. Keys are unbounded; the set is bounded by the game's defs, zones
 and water bodies. The `epoch` changes on load or restart, so a reader diffs
-within an epoch and re-baselines on a change. Go maps source to channel from its own
+within an epoch and re-baselines on a change. The brain maps source to channel from its own
 census: the channel builders name their counter group (`Source`: `crop:<zone>`,
 `fish:<x,z>` as `water-<x>-<z>`, `forage:<plant def>`, `animal_product:<race>`). `observation.ColonyProjection.DeliveryLedger` is Unknown for a missing,
 unavailable or malformed ledger, never zero, and lives in memory only.
@@ -221,7 +220,7 @@ that leaves a corpse; the animal's `pawn_id`, race, body size, potential nutriti
 nutrition, tick) and a `ButcherRecord` where `GenRecipe.MakeRecipeProducts` makes a
 butcher recipe's products (any bill, any butcher; meat def, units and nutrition,
 leather units, tick). Each window holds every record of the epoch in tick order.
-Go links a kill to its butcher by corpse id; hauling a corpse never counts. `CorpseHandling.in_storage` tells a
+The brain links a kill to its butcher by corpse id; hauling a corpse never counts. `CorpseHandling.in_storage` tells a
 corpse in a stockpile from one in the field; rot is read from the existing
 corpse census. The plan credits the `hunt` group from these records: a kill at its
 corpse's potential yield times its rot clock, replaced by the butchered meat; a kill
@@ -265,9 +264,7 @@ quantity.
 Native trade sheets provide validated definition nutrition and ingredient
 classification; drugs, corpses, kibble and human meat are excluded. Typed native
 acceptance independently requires a raw protein purchase and positive retained
-floor for crop exports. Recorded colony snapshots (`internal/snapshot`,
-`TestReplayOneDayOfFoodBuysABridge` and
-`TestReplayCropSurplusBuysMissingProteinAboveTheFloor`) replay the review's
+floor for crop exports. Recorded colony snapshots (`RimGovernor.Brain.Snapshot`) replay the review's
 food bridge and the above-target crop exchange with its missing protein.
 
 ## Fishing policy
@@ -287,13 +284,13 @@ over a lake below its floor delivers nothing, so its factor falls.
 On Core, Odyssey water and its fishing channels are absent.
 
 Native reports raw fishing facts and never chooses (`FishableWater` in
-`observations.proto`): per water body its root, fishable cells with a per-cell
+[observations](../../../contracts/wire/observations.md)): per water body its root, fishable cells with a per-cell
 reachability flag and distance to the colony centre, population, nutrition per
 fish, batch yield and work, the population yield-curve value, frozen state and
 the touching zones (allowed, repeat mode, population floor, fishable cells);
 globally the fishers' yield and speed, the batch duration, and the Fishing
 project's cost, progress, cost factor, researcher speeds and points per tick.
-`policy/fishing_facts.go` decides from them when the colony projection is
+`FishingFacts.cs` decides from them when the colony projection is
 built: the footprint, the reachability verdict, delivery (the observed zone
 state), per-body fisher capacity and the research lead.
 
@@ -315,6 +312,6 @@ verification checks actual cells and settings, separately from catch outcomes.
 
 `food/fishing` starts a two-pawn no-soil coast with Odyssey declared in the case
 profile (including `knownExpansions`). It checks the live Open portfolio rate,
-the controller-created zone's body, cells and population floor, then native
+the brain-created zone's body, cells and population floor, then native
 feeding over 15 days. It does not require population to end at 90% of its start.
 The nightly tier runs this case.

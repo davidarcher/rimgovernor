@@ -2,14 +2,14 @@
 
 [Documentation](../../README.md) · [Architecture](overview.md) · [Weapon planner](../contracts/weapon-planner.md) · [Native rules](../contracts/native-rules.md) · [Predictive combat research](combat-predictability-research.md)
 
-RimWorld owns targeting, pathing, weapon execution and raid state. Go owns squad
+RimWorld owns targeting, pathing, weapon execution and raid state. The brain owns squad
 composition, positions and tactical transitions. The game constants below are
 from the shipped 1.6 assembly; verify them against the installed version before
 changing policy. This page describes behavior, not a performance benchmark.
 
 ```mermaid
 flowchart LR
-    View[Combat facts and geometry] --> Policy[Go: formation and reaction]
+    View[Combat facts and geometry] --> Policy[the brain: formation and reaction]
     Policy --> Order[Guarded native orders]
     Order --> Job[RimWorld pawn jobs]
     Job --> Outcome[Shots, movement, injury and downing]
@@ -66,17 +66,17 @@ flee mechanism. Read fixture resolution times with that distinction in mind.
 
 ## What the planner should take from this
 
-`combatlab/native-hold` tests the bounded split of Go tactics and native
-execution: Go assigns one exact firing cell, holds fire for 600 ticks, then
+`combatlab/native-hold` tests the bounded split of the brain tactics and native
+execution: the brain assigns one exact firing cell, holds fire for 600 ticks, then
 assigns `HoldPosition` (`Wait_Combat`) and fire-at-will. Subsequent simulation
-receives no Go attack, retarget, movement or renewed hold orders. Native shot
+receives no brain attack, retarget, movement or renewed hold orders. Native shot
 events must identify an acquired hostile and a later different live hostile
 after reads establish the first target is downed, dead or absent through normal
 combat. Every position sample (60 ticks apart) must retain the assigned cell.
 The hold-fire phase keeps a live hostile within weapon range and requires no
 defender shots. This is a registered nightly gameplay proof, not evidence of a
 passed run: its result artifact establishes the outcome. It does not establish
-local movement, squad coordination, tactical quality or controller throughput.
+local movement, squad coordination, tactical quality or brain throughput.
 
 An aggressive mental break's subdue response is an owned combat fight. Its
 actions retain native's guarded blunt melee and never finish a downed colonist.
@@ -88,7 +88,7 @@ fight owns the response; the health pause thresholds are unchanged.
 
 - Cover and spacing are scored with the hit formula above; `combat.geometry` already asks the game for cover
   and line of fire rather than reimplementing it. More such reads (hit chance per candidate cell, best
-  target per pawn, path cost to the nearest colonist) are the way to borrow more, not a Go port.
+  target per pawn, path cost to the nearest colonist) are the way to borrow more, not a port.
 - The +40 recent-target preference can concentrate target probability, but it
   does not guarantee continued targeting. Test repositioning against observed
   stance timing and target changes, not an assumed eight-second commitment.
@@ -109,11 +109,11 @@ The game gives every non-drafted colonist a configurable hostility response, `Ig
 think tree and yields to player-forced jobs. Attack engages only nearby enemies (8 cells in melee, 0.66 ×
 weapon range up to 20 otherwise) with a static attack; Flee runs to a safe cell and cowers.
 
-Go already owns that setting for every colonist (`policy.DefaultHostility`): Attack for anyone able to fight,
+The brain already owns that setting for every colonist (`policy.DefaultHostility`): Attack for anyone able to fight,
 Flee for children, the violence-incapable and the badly hurt, Ignore during stealth work.
 
 Stationary ranged defense uses the existing drafted `HoldPosition` operation
-(`Wait_Combat`). Go owns the firing cell and tactical transitions; RimWorld
+(`Wait_Combat`). The brain owns the firing cell and tactical transitions; RimWorld
 acquires and switches targets. Eligible roles are ordinary firing-line holders
 with known plain ranged weapons. Retreats, tactical detachments, melee duties,
 repair, mortars and specialist weapons retain their existing orders. Spared

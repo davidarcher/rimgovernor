@@ -43,7 +43,7 @@ The private build and bundled source include the brain projects the mod compiles
 script and your installed game/Harmony dependencies. Native restore is locked.
 Installed game loading and round trips require the fresh native acceptance run.
 
-The implemented [fixed methods](../../contracts/native-protobuf-cutover.md)
+The implemented [fixed methods](../../contracts/native-operation-variants.md)
 cover identity, authority, clock control, bounded observations, placement previews
 and guarded construction/draft/melee operations with receipt lookup and
 progress. The method map states each implemented subset. Each accepts one `request`
@@ -84,7 +84,7 @@ Allow uses the ordinary Unforbid designator under the shared authority and attem
 ledger. Separate progress reads require the exact item still allowed; disappearance
 remains unknown and re-forbidding reports an unsuccessful outcome. This boundary
 does not identify the original supply cohort or authorize automatic startup work;
-Go method/store/worker composition remains gated in G01.05.
+The brain's method/store/worker composition remains gated in G01.05.
 
 Status does not issue entity mutation snapshots. Cell reads support terrain,
 roof, visibility and traversal, with explicit Unsupported issues for other
@@ -111,7 +111,7 @@ supply section once plus animal, crop and patient rows. Upkeep, development and
 other unported sections remain explicitly unavailable.
 Oversized collections/replies return unavailable.
 
-Go acceptance harnesses cover the wire, service handoff and guarded construction
+The acceptance harnesses (`RimGovernor.cmd acceptance`) cover the wire, service handoff and guarded construction
 paths against a real game ([#38](https://github.com/davidarcher/rimgovernor/issues/38)
 tracks gaps).
 
