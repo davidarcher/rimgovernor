@@ -55,7 +55,7 @@ set "PREV=%CUR%"
 set "VER=v%RANDOM%%RANDOM%"
 if exist "%TOOLS%\%VER%" goto :pick
 echo RimGovernor.cmd: building the tool host (tools\rg) ... 1>&3
-dotnet publish "%ROOT%tools\rg\rg.csproj" -c Release -r win-x64 --self-contained false -p:PublishReadyToRun=true -p:UseSharedCompilation=false -p:NodeReuse=false --disable-build-servers --nologo -v q -o "%TOOLS%\%VER%" >"%TOOLS%\build.log" 2>&1
+dotnet publish "%ROOT%tools\rg\rg.csproj" -c Release -r win-x64 --self-contained false -p:PublishReadyToRun=true -p:NodeReuse=false --nologo -v q -o "%TOOLS%\%VER%" >"%TOOLS%\build.log" 2>&1
 if errorlevel 1 (
     type "%TOOLS%\build.log" 1>&3
     echo RimGovernor.cmd: building the tool host failed. 1>&3

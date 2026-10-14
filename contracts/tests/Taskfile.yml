@@ -13,6 +13,19 @@ vars:
 tasks:
   build:
     desc: NativeContractProbes (ungated set) with warnings as errors and a locked restore
+    sources:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - '**/*.props'
+      - '**/packages.lock.json'
+      - '{{.REPO}}/brain/src/RimGovernor.Brain.Contracts/**/*.cs'
+      - '{{.REPO}}/brain/src/RimGovernor.Brain.Contracts/*.csproj'
+      - '{{.REPO}}/brain/*.props'
+      - '{{.HARMONY_ASSEMBLY}}'
+      - exclude: '**/bin/**'
+      - exclude: '**/obj/**'
+    generates:
+      - '{{.EVIDENCE}}/bin/NativeContractProbes.dll'
     cmds:
       # The wire records the probes compile against (#3100); the csproj references the built assemblies.
       - dotnet build {{.REPO}}/brain/src/RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true
