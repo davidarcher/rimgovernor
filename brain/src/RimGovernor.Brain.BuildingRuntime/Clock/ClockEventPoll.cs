@@ -133,7 +133,6 @@ internal sealed class ClockEventPoll(
         }
         var snapshot = await native.ReadStepAsync(new BridgeApi.StepRequest(), ct).ConfigureAwait(false)
             ?? throw new HeldException("events identity read returned nothing");
-        BridgeApi.ValidateContext(snapshot.Context);
         return snapshot.Context?.Identity ?? throw new BridgeContractException("events identity read carried no identity");
     }
 
@@ -269,7 +268,6 @@ internal sealed class ClockEventPoll(
                     return await FailAsync(readError).ConfigureAwait(false);
                 }
                 var page = reply?.Outcome?.Page ?? throw new BridgeContractException("events reply carried no page");
-                BridgeApi.ValidateContext(page.Context);
                 var current = page.Context ?? throw new BridgeContractException("events page carried no context");
                 _identity = current.Identity;
                 var state = session.State();

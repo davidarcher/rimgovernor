@@ -140,8 +140,7 @@ public static class PresentationRoutes
         ObservationContext? observed,
         CancellationToken ct)
     {
-        BridgeFunctions.ValidateContext(observed);
-        if (!wire.Equals(observed!.Identity) || observed.Tick < identity.Tick.Value)
+                if (observed is null || !wire.Equals(observed.Identity) || observed.Tick < identity.Tick.Value)
         {
             throw new InvalidOperationException("presentation context changed");
         }

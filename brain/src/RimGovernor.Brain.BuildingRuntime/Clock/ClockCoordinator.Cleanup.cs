@@ -98,7 +98,6 @@ public sealed partial class ClockCoordinator
             throw new HeldException();
         }
         var current = loaded.Context;
-        BridgeApi.ValidateContext(current);
         return current ?? throw new InvalidOperationException("observation context required");
     }
 

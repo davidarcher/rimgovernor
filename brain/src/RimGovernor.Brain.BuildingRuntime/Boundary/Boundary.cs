@@ -115,7 +115,6 @@ public static class Boundary
     /// </summary>
     public static GenerationSnapshot Context(PbCommon.ObservationContext? v, GenerationSnapshot expected)
     {
-        BridgeApi.ValidateContext(v);
         if (v is null || v.Identity is null || v.NativeGeneration is null || v.NativeGeneration.GetValueOrDefault() != expected.Native.Value)
         {
             throw new AuthorityException();

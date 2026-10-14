@@ -214,7 +214,6 @@ public sealed partial class ClockWindowDriver
         {
             loaded = await _native.ReadStepAsync(new BridgeApi.StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
-            BridgeApi.ValidateContext(loaded.Context);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
