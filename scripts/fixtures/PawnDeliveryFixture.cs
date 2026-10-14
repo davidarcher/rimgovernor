@@ -47,6 +47,11 @@ namespace HomeBridge.BridgeTools
                 && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).Take(2).ToArray();
             if (destinations.Length != 2) throw new InvalidOperationException("No separate delivery destinations.");
             deliveryCell = destinations[0]; revisedDeliveryCell = destinations[1]; deliverySource = null;
+            var storage = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+            map.zoneManager.RegisterZone(storage);
+            storage.GetStoreSettings().filter.SetDisallowAll();
+            storage.GetStoreSettings().filter.SetAllow(harvestProduct, true);
+            storage.AddCell(deliveryCell); storage.AddCell(revisedDeliveryCell);
             worker.skills.GetSkill(SkillDefOf.Plants).Level = 20;
             worker.needs.food.CurLevelPercentage = 1; worker.needs.rest.CurLevelPercentage = 1;
             deadline = Find.TickManager.TicksGame + 6000;
@@ -58,6 +63,9 @@ namespace HomeBridge.BridgeTools
         public async Task<object> HarvestDelivery(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d => d.Worker is WorkGiver_GrowerHarvest).defName;
+            var reading = NativeFoodActivity.Read(new(Context().Identity!, EquatableArray.From(new[] { crop!.GetUniqueLoadID() })));
+            if (!reading.Known || !reading.Options.Any(o => o.Pawn == worker!.GetUniqueLoadID() && o.Target == crop.GetUniqueLoadID()))
+                throw new InvalidOperationException("No native eligible harvest-to-storage observation.");
             NativePawnActivities.Apply(new PawnActivities(Context().NativeGeneration!.Value,
                 new[] { new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", 0, 1, false,
                     new[] { new PawnActivityStep(PawnActivityKind.Work, crop!.GetUniqueLoadID(), giver, "Harvest", 0, deadline) }) }), Context());
@@ -75,11 +83,26 @@ namespace HomeBridge.BridgeTools
             if (product == null || !product.Spawned) throw new InvalidOperationException("No unambiguous observed harvest output.");
             if (!product.IngestibleNow || product.stackCount < 2) throw new InvalidOperationException("No edible split-stack harvest.");
             if (!revised) { harvestedCount = product.stackCount; deliverySource = product; deliverySourceCell = product.Position; }
+            if (revised)
+            {
+                // Replacing the physical stack invalidates the first delivery's identity without changing stock.
+                var count = product.stackCount;
+                product.Destroy();
+                product = GenSpawn.Spawn(harvestProduct!, deliverySourceCell, worker!.Map);
+                product.stackCount = count;
+                deliverySource = product;
+            }
             var cell = revised ? revisedDeliveryCell : deliveryCell;
             var order = new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", revised ? 2 : 1, revised ? 3 : 2, false,
                 new[] { new PawnActivityStep(PawnActivityKind.Deliver, product.GetUniqueLoadID(), "", "", 1, deadline)
                     { Destination = new Cell(cell.x, cell.z) } });
             var batch = new PawnActivities(Context().NativeGeneration!.Value, new[] { order });
+            var preceding = order with { Revision = revised ? 2 : 1, ExpectedRevision = revised ? 1 : 0,
+                OutputDelivery = new(harvestProduct!.defName, new(deliverySourceCell.x, deliverySourceCell.z), new(cell.x, cell.z), 1, deadline, 3) };
+            var observed = NativeFoodActivity.Read(new(Context().Identity!, [], preceding));
+            if (!observed.Known || !observed.Options.Any(o => o.Pawn == worker.GetUniqueLoadID()
+                && o.Target == product.GetUniqueLoadID() && o.Destination == new Cell(cell.x, cell.z)))
+                throw new InvalidOperationException("Fresh native food binding did not find the current stack/destination.");
             NativePawnActivities.Apply(batch, Context());
             NativePawnActivities.Apply(batch, Context());
             if (!revised) GenSpawn.Spawn(ThingDefOf.Steel, cell, worker.Map);

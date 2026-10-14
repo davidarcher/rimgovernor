@@ -14,6 +14,8 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Operations.ActionIntent.PawnActivitiesCase), TypeInfoPropertyName = "OperationsPawnActivitiesCase")]
 [JsonSerializable(typeof(Receipts.EffectEvidenceEffect.PawnActivitiesCase), TypeInfoPropertyName = "ReceiptsPawnActivitiesCase")]
 [JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(Observations.FoodActivityRequest))]
+[JsonSerializable(typeof(Observations.FoodActivityRead))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(uint))]
 [JsonSerializable(typeof(long))]

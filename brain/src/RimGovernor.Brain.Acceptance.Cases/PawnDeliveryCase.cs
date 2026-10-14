@@ -5,7 +5,7 @@ internal static class PawnDeliveryCase
     internal static AcceptanceCase Case() => new()
     {
         Name = "control/pawn-activity-delivery",
-        Scope = "Prepared harvest produces edible food; exact delivery refuses a newly blocked destination and a new explicit revision delivers only the selected quantity. Unit tests cannot prove native carrying, splitting, or destination behavior. Fixture revisions are not autonomous forecast replanning.",
+        Scope = "Prepared harvest produces edible food; native route/storage observations bind current stacks, including a replacement stack after interrupted delivery. Exact delivery refuses a newly blocked destination and a new explicit revision delivers only the selected quantity. Unit tests cannot prove native carrying, splitting, or destination behavior. Fixture revisions are not autonomous forecast replanning.",
         Start = new FixtureStart { Op = "test/pawn_delivery_prepare", On = new LabStart() },
         RequiredOps = ["test/pawn_delivery_prepare", "test/pawn_delivery_harvest", "test/pawn_delivery_select", "test/pawn_delivery_read"],
         QuietWorld = true, Crew = new Crew { Size = 3 }, Budget = TimeSpan.FromMinutes(3),

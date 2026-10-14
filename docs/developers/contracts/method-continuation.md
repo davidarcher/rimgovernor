@@ -36,11 +36,13 @@ limited to plans with a recorded predecessor; it does not admit unrelated work.
 Review cancellation preserves these cleanup plans until Hands resolves them.
 
 Callers must bind productive steps to fresh observed targets/ingredients before
-submission. This API does not generate food candidates, locate harvest output,
-verify output quantities, recover carried ingredients or choose replacement
-destinations. The worker's failure response currently releases for reconsideration;
-it does not replay a failed job. Full food-chain selection and output rebinding
-remain required before the proposed live food loop can be enabled.
+submission. The [harvest/delivery caller](pawn-activities.md#live-harvest-and-delivery)
+binds observed loose food and retries interrupted, empty-handed delivery within
+the original deadline/attempt budget. It releases carried-food attempts instead
+of assuming the source still exists. A positively refused replacement retains
+its installed predecessor's cleanup obligation; unknown receipts remain unknown.
+Cooking output, carried ingredients and coupled food-chain selection remain
+outside this caller.
 
 Native release retains the last release in the existing transient assignment row
 for idempotent receipt retry, but reports no ownership and intercepts no jobs.

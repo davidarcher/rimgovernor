@@ -13,8 +13,13 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
     public PawnActivityCooking? Cooking { get; init; }
 }
 
+public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline, int AttemptsLeft);
 public sealed record PawnActivityOrder(string Pawn, string Assignment, string Method, long ExpectedRevision,
-    long Revision, bool Release, PawnActivityStep[] Steps);
+    long Revision, bool Release, PawnActivityStep[] Steps)
+{
+    /// <summary>A bounded obligation, never inventory credit or a predicted output identity.</summary>
+    public ActivityOutputDelivery? OutputDelivery { get; init; }
+}
 
 /// <summary>One atomic execution-table edit under the existing world/authority.</summary>
 public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder[] Orders) : IActionPayload
@@ -50,6 +55,10 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 }
                 else DomainException.Require(step.Cooking == null, "cooking arguments on another activity family");
             }
+            if (order.OutputDelivery is { } output)
+                DomainException.Require(Identity.IsValidText(output.Resource) && output.Count > 0 && output.Deadline > 0
+                    && output.AttemptsLeft is >= 0 and <= 3 && output.Origin is { X: >= 0, Z: >= 0 }
+                    && output.Destination is { X: >= 0, Z: >= 0 }, "invalid output delivery obligation");
         }
     }
 }

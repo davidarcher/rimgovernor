@@ -92,6 +92,7 @@ namespace HomeBridge.BridgeTools
                 if ((old == null || old.Order.Release ? 0 : old.Order.Revision) != order.ExpectedRevision) return Refuse("Stale activity revision.");
                 if (old != null && !old.Order.Release && (old.Order.Assignment != order.Assignment || old.Order.Method != order.Method)) return Refuse("Activity ownership changed.");
                 if ((old == null || old.Order.Release) && (pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) return Refuse("Player/queued work must be explicitly resolved before control.");
+                if ((old == null || old.Order.Release) && order.OutputDelivery != null && !NativeFoodActivity.Available(pawn)) return Refuse("Food activity pawn is no longer idle.");
                 foreach (var step in order.Steps)
                 {
                     if (step.Deadline <= Find.TickManager.TicksGame) return Refuse("Activity deadline already passed.");
@@ -119,7 +120,8 @@ namespace HomeBridge.BridgeTools
             || (job == "Harvest" && giver.Worker is WorkGiver_GrowerHarvest)
             || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
         private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => a.Pawn == b.Pawn && a.Assignment == b.Assignment
-            && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision && a.Release == b.Release && a.Steps.SequenceEqual(b.Steps);
+            && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision && a.Release == b.Release
+            && a.OutputDelivery == b.OutputDelivery && a.Steps.SequenceEqual(b.Steps);
         private static Common.Failure Refuse(string text) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, text);
         private static Thing? Thing(string id) => Find.CurrentMap.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
 

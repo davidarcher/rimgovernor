@@ -20,14 +20,16 @@ public sealed partial class Store
         {
             var plan = LoadIn(tx, id);
             if (plan.Retired || plan.Progress.Count != 1) continue;
-            var progress = plan.Progress[0];
+            var installed = InstalledActivityPlan(tx, plan);
+            if (installed is null) continue;
+            var progress = installed.Progress[0];
             if (progress.Action.PawnActivities is not { } batch || batch.Orders.All(o => o.Release)
                 || !InstalledActivity(progress.View)
                 || !progress.View.Snapshot.SameWorld(current) || progress.View.Snapshot.Native != current.Native) continue;
             var ownerId = tx.ScalarText("SELECT owner_id FROM plan_methods WHERE plan_id=$plan", ("$plan", id));
             var owner = LoadStandard(tx, new StandardId(ownerId!));
             result.Add(new(id, plan.Method, progress.View.Snapshot,
-                owner.Standard.Finding == Finding.Unclear ? default : Fact.Known(owner.Deficit), batch));
+                installed.Spec.Id != id ? Fact.Known(false) : owner.Standard.Finding == Finding.Unclear ? default : Fact.Known(owner.Deficit), batch));
         }
         return (IReadOnlyList<ActivityMethod>)result;
     }, ct);
@@ -39,10 +41,11 @@ public sealed partial class Store
     {
         next.Validate();
         var prior = LoadIn(tx, previous);
+        var installed = InstalledActivityPlan(tx, prior);
         if (prior.Retired || !prior.SupersededBy.IsEmpty || prior.Progress.Count != 1 || next.Actions.Count != 1
-            || prior.Progress[0].Action.PawnActivities is not { } old || next.Actions[0].PawnActivities is not { } batch)
+            || installed?.Progress[0].Action.PawnActivities is not { } old || next.Actions[0].PawnActivities is not { } batch)
             throw new ConflictException("continuation requires the current single-batch activity Method");
-        var progress = prior.Progress[0].View;
+        var progress = installed.Progress[0].View;
         if (!InstalledActivity(progress) || !progress.Snapshot.SameWorld(current)
             || progress.Snapshot.Native != current.Native || batch.AuthorityGeneration != current.Native.Value)
             throw new ConflictException("activity installation or authority is unresolved/stale");
@@ -74,6 +77,7 @@ public sealed partial class Store
         var release = batch.Orders.All(o => o.Release);
         if (!release)
         {
+            if (installed.Spec.Id != prior.Spec.Id) throw new ConflictException("refused continuation permits cleanup only");
             if (!owner.Deficit) throw new ConflictException("recovered Concern permits release only");
             AdmitRoundsSafeguards(tx, owner);
             AdmitRoundsReview(tx, SummarizeOwner(owner));
@@ -91,9 +95,10 @@ public sealed partial class Store
         IReadOnlyList<ActivityOwnership> observed, CancellationToken ct) => Run(tx =>
     {
         var prior = LoadIn(tx, previous);
-        if (prior.Retired || prior.Progress.Count != 1 || prior.Progress[0].Action.PawnActivities is not { } batch
-            || !InstalledActivity(prior.Progress[0].View) || !prior.Progress[0].View.Snapshot.SameWorld(current)
-            || prior.Progress[0].View.Snapshot.Native != current.Native || observedTick < prior.Progress[0].View.Tick
+        var installed = InstalledActivityPlan(tx, prior);
+        if (prior.Retired || installed?.Progress[0].Action.PawnActivities is not { } batch
+            || !installed.Progress[0].View.Snapshot.SameWorld(current)
+            || installed.Progress[0].View.Snapshot.Native != current.Native || observedTick < installed.Progress[0].View.Tick
             || !ReviewActivityOwnership(batch, Fact.Known(false), observedTick.Value, observed).OwnershipEnded)
             throw new ConflictException("activity ownership is not known ended");
         tx.Floors.Guard(current, observedTick);
@@ -104,6 +109,26 @@ public sealed partial class Store
         && progress.Stage is Stage.Completed or Stage.Cancelled
         && progress.Receipt.TryGetValue(out var receipt) && receipt == Receipt.Accepted;
 
+    // A refused replacement did not erase the previous native assignment. Retain its cleanup obligation
+    // through predecessor history; uncertain receipts must not take this path.
+    private static PlanState? InstalledActivityPlan(StoreTransaction tx, PlanState plan)
+    {
+        for (var depth = 0; depth < 8; depth++)
+        {
+            if (plan.Progress.Count != 1) return null;
+            var progress = plan.Progress[0].View;
+            if (InstalledActivity(progress)) return plan;
+            var noEffect = progress.Receipt.TryGetValue(out var receipt)
+                ? receipt == Receipt.Refused || (progress.Stage == Stage.Cancelled && receipt == Receipt.Unsent)
+                : progress.Stage == Stage.Cancelled;
+            if (progress.Unresolved || !noEffect) return null;
+            var predecessor = tx.ScalarText("SELECT id FROM plans WHERE superseded_by=$id AND retired=1", ("$id", plan.Spec.Id));
+            if (predecessor is null) return null;
+            plan = LoadIn(tx, new PlanId(predecessor));
+        }
+        return null;
+    }
+
     // Only a release with a verified predecessor can outlive Concern admission. A free-standing release
     // action cannot use this exception. Native still checks exact assignment revisions before changing ownership.
     internal static bool ActivityReleaseContinuation(StoreTransaction tx, PlanId id, GenerationSnapshot current)
@@ -113,8 +138,8 @@ public sealed partial class Store
             || !batch.Orders.All(o => o.Release) || batch.AuthorityGeneration != current.Native.Value) return false;
         var previous = tx.ScalarText("SELECT id FROM plans WHERE superseded_by=$next AND retired=1", ("$next", id));
         if (previous is null) return false;
-        var prior = LoadIn(tx, new PlanId(previous));
-        return prior.Progress.Count == 1 && prior.Progress[0].View.Snapshot.SameWorld(current)
+        var prior = InstalledActivityPlan(tx, LoadIn(tx, new PlanId(previous)));
+        return prior is not null && prior.Progress[0].View.Snapshot.SameWorld(current)
             && prior.Progress[0].View.Snapshot.Native == current.Native;
     }
 }

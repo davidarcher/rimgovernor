@@ -13,13 +13,18 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 s.GetProperty("Count").GetInt32(), s.GetProperty("Deadline").GetInt64(), s.Str("WaitForFilth"))
                 { Destination = s.GetProperty("Destination") is var d && d.ValueKind != JsonValueKind.Null
                     ? new Cell(d.GetProperty("X").GetInt32(), d.GetProperty("Z").GetInt32()) : null,
-                  Cooking = ReadCooking(s.GetProperty("Cooking")) }).ToArray())).ToArray();
+                  Cooking = ReadCooking(s.GetProperty("Cooking")) }).ToArray())
+            { OutputDelivery = ReadOutput(r.GetProperty("OutputDelivery")) }).ToArray();
         var value = new PawnActivities(e.GetProperty("AuthorityGeneration").GetUInt64(), orders);
         value.Validate(); return value;
     }
     private static PawnActivityCooking? ReadCooking(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Bill"), e.Str("Recipe"), EquatableArray.From(e.GetProperty("Ingredients").EnumerateArray()
             .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32()))));
+    private static ActivityOutputDelivery? ReadOutput(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
+        : new(e.Str("Resource"), new(e.GetProperty("Origin").GetProperty("X").GetInt32(), e.GetProperty("Origin").GetProperty("Z").GetInt32()),
+            new(e.GetProperty("Destination").GetProperty("X").GetInt32(), e.GetProperty("Destination").GetProperty("Z").GetInt32()),
+            e.GetProperty("Count").GetInt32(), e.GetProperty("Deadline").GetInt64(), e.GetProperty("AttemptsLeft").GetInt32());
     protected override void WriteFields(Utf8JsonWriter w, PawnActivities v, Codecs o)
     {
         v.Validate(); w.WriteNumber("AuthorityGeneration", v.AuthorityGeneration);
@@ -28,6 +33,15 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         {
             w.WriteStartObject(); w.WriteString("Pawn", r.Pawn); w.WriteString("Assignment", r.Assignment); w.WriteString("Method", r.Method);
             w.WriteNumber("ExpectedRevision", r.ExpectedRevision); w.WriteNumber("Revision", r.Revision); w.WriteBoolean("Release", r.Release);
+            if (r.OutputDelivery is { } output)
+            {
+                w.WriteStartObject("OutputDelivery"); w.WriteString("Resource", output.Resource); w.WriteNumber("Count", output.Count);
+                w.WriteNumber("Deadline", output.Deadline); w.WriteNumber("AttemptsLeft", output.AttemptsLeft);
+                w.WriteStartObject("Origin"); w.WriteNumber("X", output.Origin.X); w.WriteNumber("Z", output.Origin.Z); w.WriteEndObject();
+                w.WriteStartObject("Destination"); w.WriteNumber("X", output.Destination.X); w.WriteNumber("Z", output.Destination.Z); w.WriteEndObject();
+                w.WriteEndObject();
+            }
+            else w.WriteNull("OutputDelivery");
             w.WriteStartArray("Steps");
             foreach (var s in r.Steps)
             {

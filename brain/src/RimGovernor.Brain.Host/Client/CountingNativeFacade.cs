@@ -55,6 +55,7 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
     public Task<Obs.ListBuildingsReply> ListBuildingsAsync(Obs.ListBuildingsRequest request, CancellationToken cancellationToken) => Count("observations_list_buildings", () => inner.ListBuildingsAsync(request, cancellationToken));
 
     public Task<Obs.ListPawnsReply> ListPawnsAsync(Obs.ListPawnsRequest request, CancellationToken cancellationToken) => Count("observations_list_pawns", () => inner.ListPawnsAsync(request, cancellationToken));
+    public Task<Obs.FoodActivityRead> ReadFoodActivityAsync(Obs.FoodActivityRequest request, CancellationToken cancellationToken) => Count("food_activity", () => inner.ReadFoodActivityAsync(request, cancellationToken));
 
     public Task<Obs.ListSuppliesReply> ListSuppliesAsync(Obs.ListSuppliesRequest request, CancellationToken cancellationToken) => Count("observations_list_supplies", () => inner.ListSuppliesAsync(request, cancellationToken));
 

@@ -1,9 +1,53 @@
 # Planner-owned pawn activities
 
 `PawnActivities` is a Hands intent for installing/revising/releasing an atomic set
-of exact per-pawn assignments. It is an execution capability; no production
-selector automatically takes over colonists yet. #3127/#3128/#3132/#3135 provide
-selection, needs forecasting and the normal-operation cutover.
+of exact per-pawn assignments. EnsureFoodSupply now admits a bounded, same-pawn
+harvest-to-delivery attempt for selected plant acquisition demand. This is the
+first production caller, not the full #3127/#3128/#3132/#3135 cutover.
+
+## Live harvest and delivery
+
+The normal acquisition planner keeps the shared FoodPlan's selected plant demand.
+For those sources, the typed `food_activity` read enumerates idle, capable pawns,
+native routes and empty allowed storage cells. ColonyForecast's bounded allocator
+checks each same-pawn trip against the existing acquisition horizon; policy ranks
+feasible trips by labor per item. It assumes equal unit labor rates and zero injury
+recovery on Danger.None routes, not calibrated opportunity costs or proof of safety.
+Non-idle jobs are protected, including a fresh check at native admission.
+
+The admitted Method journals one exact harvest through Hands. Its OutputDelivery
+payload records only resource, source area, destination, quantity cap, original
+deadline and remaining attempts. It is an obligation, not predicted inventory.
+On completed harvest, the worker reads native ownership and fresh loose food
+within two cells of the original source, then journals an exact delivery revision.
+Equivalent food is fungible: the read does not claim individual-stack provenance
+or credit the harvest's predicted yield. Split/merged/replaced stacks are rebound
+by current identity and quantity; empty storage destinations are reconsidered.
+
+Running work is retained. Missing observations or unknown demand cannot authorize
+replacement. Known recovery releases; a completed delivery ends this one trip.
+A failed delivery with an empty carry tracker can use fresh source/destination
+observations, at most three delivery attempts under the original deadline. A
+failed harvest, no feasible food, exhausted attempts, expiry or carried food
+releases instead. Carried-food resumption remains unsupported. A refused Apply
+retains the previous installed assignment through journal predecessor history
+and permits cleanup only; an uncertain receipt never authorizes replacement.
+
+Reads bound plants/pawns/stacks to 16, destinations per source to eight and route
+probes to 128. Truncation is explicit in the read and initial Method reason; an
+omitted alternative is not proven worse. The allocator uses 16 expansions per
+trip. There is no joint helper assignment, needs forecast, mixed production
+selection or cross-owner material reservation in this slice. Other acquisition
+families and existing hauling/cleaning/eating helpers remain.
+
+Pure tests cover changed stacks, shrinking counts, interrupted delivery, carried
+food, lost ownership, unknowns and deadlines. Real-journal tests retain the
+obligation and exact targets through Hands intent construction, including cleanup
+after native refusal. The prepared delivery case checks native candidate reads,
+replacement-stack binding and physical delivery; its explicit fixture revisions
+do not establish autonomous end-to-end colony behavior.
+
+## Execution contract
 
 The existing executor journals the domain action and dispatches its typed intent
 through Actions/Apply. Installation acknowledges authorization, not started or

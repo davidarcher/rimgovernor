@@ -15,6 +15,24 @@ public sealed partial class Worker
             : new ActivityOwnership(pair.Key, "", "", 0, "unowned")).ToArray();
         foreach (var method in methods)
         {
+            if (method.Batch.Orders.Length == 1 && method.Batch.Orders[0].OutputDelivery is not null
+                && _config.Pawns is IFoodActivitySource foodSource)
+            {
+                var food = await foodSource.ReadFoodActivityAsync(new(Boundary.Identity(current), [], method.Batch.Orders[0]), ct).ConfigureAwait(false);
+                if (!food.Known || food.Context?.Tick is not { } foodTick) continue;
+                _ = Boundary.Context(food.Context, current);
+                var next = PolicyFunctions.ContinueFoodActivity(method.Batch, method.Needed, food);
+                if (next is not null && food.Execution is { } execution)
+                {
+                    var id = PlanIds.MintPlanId();
+                    var order = method.Batch.Orders[0];
+                    _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(foodTick),
+                        [new(order.Pawn, execution.Assignment, execution.Method, execution.Revision, execution.State)],
+                        new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), next)]), ct);
+                    _advanced = true;
+                    continue;
+                }
+            }
             var decision = PolicyFunctions.ReviewActivityOwnership(method.Batch, method.Needed, tick, ownership);
             if (decision.OwnershipEnded)
             {

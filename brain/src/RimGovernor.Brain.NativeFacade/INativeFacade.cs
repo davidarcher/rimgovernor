@@ -81,6 +81,8 @@ public interface INativeFacade
 
     Task<Obs.ListPawnsReply> ListPawnsAsync(Obs.ListPawnsRequest request, CancellationToken cancellationToken);
 
+    Task<Obs.FoodActivityRead> ReadFoodActivityAsync(Obs.FoodActivityRequest request, CancellationToken cancellationToken);
+
     Task<Obs.ListSuppliesReply> ListSuppliesAsync(Obs.ListSuppliesRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ListRoomsReply> ListRoomsAsync(Obs.ListRoomsRequest request, CancellationToken cancellationToken);

@@ -37,6 +37,9 @@ namespace HomeBridge.BridgeTools
 
         public ChannelReader<NativeFrame> Frames => SnapshotStream.Handoff.Reader;
 
+        public Task<Obs.FoodActivityRead> ReadFoodActivityAsync(Obs.FoodActivityRequest request, CancellationToken cancellationToken)
+            => Read("food_activity", request, () => NativeFoodActivity.Read(request), cancellationToken);
+
         // A hop for a read (observation class) or a write (control class, which runs ahead of queued reads).
         private static Task<T> Read<T>(string operation, object request, Func<T> core, CancellationToken cancellationToken) where T : class
         {

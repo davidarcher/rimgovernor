@@ -273,3 +273,10 @@ Protective area-setting methods on RecoverDisasterServices may coexist with open
 RecoveryService actions on that same Incident. Their normal typed payload,
 Safeguards and action journal remain authoritative; any other open action still
 blocks a second method, and service work is neither canceled nor replayed.
+
+Harvest/delivery activity obligations live in their existing journaled
+`PawnActivityOrder.OutputDelivery` payload, including resource/source area,
+quantity cap, destination, original deadline and attempt budget. Native holds
+only the installed execution copy; fresh observations are ephemeral. Predecessor
+plans retain cleanup responsibility after a positively refused replacement.
+This adds no independent stock ledger or saved production workflow.

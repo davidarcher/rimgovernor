@@ -859,3 +859,13 @@ committed Method and rejects repeated pawn revisions across actions in one plan.
 Journal-to-Hands intent tests cover that boundary, including atomic refusal.
 This guard does not supply live forecast selection, cross-owner pawn claims,
 output rebinding or completed-work evidence.
+
+The first live activity caller is the normal EnsureFoodSupply acquisition planner:
+it takes the shared FoodPlan's selected plant sources, compares bounded same-pawn
+harvest/delivery trips with the activity allocator and journals exact harvest
+through Hands. The worker binds observed loose food to a delivery continuation
+and handles changed stacks, destinations and bounded empty-handed retry. See the
+[owning contract](../contracts/pawn-activities.md#live-harvest-and-delivery) for
+assumptions and limits. This is not yet the full ForecastFoodCandidates portfolio
+caller: cooking, helper delegation, coupled needs, material claims and carried-item
+recovery remain unintegrated. Predicted yield is never credited as actual stock.
