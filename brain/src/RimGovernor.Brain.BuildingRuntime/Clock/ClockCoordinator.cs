@@ -201,7 +201,7 @@ public sealed partial class ClockCoordinator : IDisposable
 
     internal static bool SameEpoch(PbClock.Epoch? a, PbClock.Epoch? b) =>
         a is not null && b is not null && Equals(a.Owner, b.Owner) && Equals(a.Origin, b.Origin) && Equals(a.Policy, b.Policy)
-            && a.StartTick.GetValueOrDefault() == b.StartTick.GetValueOrDefault() && a.TickDeadline.GetValueOrDefault() == b.TickDeadline.GetValueOrDefault();
+            && a.StartTick == b.StartTick && a.TickDeadline == b.TickDeadline;
 
     private static OperationCanceledException? CancelledBy(CancellationToken ct) => ct.IsCancellationRequested ? new OperationCanceledException(ct) : null;
 
@@ -292,7 +292,7 @@ public sealed partial class ClockCoordinator : IDisposable
         }
         var actual = EpochOf(status);
         if (status.State is not StatusState.RunningCase || !SameEpoch(actual, original)
-            || actual!.RequestedSpeed.GetValueOrDefault() != original!.RequestedSpeed.GetValueOrDefault() || actual.LastTick.GetValueOrDefault() < original.LastTick.GetValueOrDefault())
+            || actual!.RequestedSpeed != original!.RequestedSpeed || actual.LastTick < original.LastTick)
         {
             throw new HeldException();
         }
@@ -550,7 +550,7 @@ public sealed partial class ClockCoordinator : IDisposable
         var epochs = await _journal.LoadClockEpochsAsync(4096, ctx).ConfigureAwait(false);
         foreach (var known in epochs)
         {
-            if (known.StartRequestId != v.Intent.RequestId && known.Epoch is not null && known.Epoch.Owner?.Epoch.GetValueOrDefault() >= actual.Owner?.Epoch.GetValueOrDefault())
+            if (known.StartRequestId != v.Intent.RequestId && known.Epoch is not null && (known.Epoch.Owner?.Epoch ?? 0) >= (actual.Owner?.Epoch ?? 0))
             {
                 return true;
             }

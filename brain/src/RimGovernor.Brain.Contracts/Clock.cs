@@ -355,9 +355,9 @@ public sealed record WatchPolicy
 /// </summary>
 public sealed record EpochOwner
 {
-    public string? ControllerSessionId { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required string ControllerSessionId { get; init; }
 
-    public long? Epoch { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required long Epoch { get; init; }
 }
 
 public sealed record StartRequest
@@ -434,19 +434,19 @@ public sealed record StatusRequest
 
 public sealed record Epoch
 {
-    public EpochOwner? Owner { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required EpochOwner Owner { get; init; }
 
-    public Common.ObservationContext? Origin { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required Common.ObservationContext Origin { get; init; }
 
-    public Speed? RequestedSpeed { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required Speed RequestedSpeed { get; init; }
 
-    public WatchPolicy? Policy { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required WatchPolicy Policy { get; init; }
 
-    public long? StartTick { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required long StartTick { get; init; }
 
-    public long? TickDeadline { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required long TickDeadline { get; init; }
 
-    public long? LastTick { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required long LastTick { get; init; }
 
     public bool? TestAcceleration { get; init; }
 

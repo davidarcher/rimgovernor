@@ -81,8 +81,8 @@ public static partial class BridgeFunctions
         {
             if (actual is null
                 || !Equals(actual.Origin, r.AdmittedContext)
-                || actual.TickDeadline.GetValueOrDefault() - actual.StartTick.GetValueOrDefault() != start.MaxTicks
-                || actual.RequestedSpeed.GetValueOrDefault() != start.Speed
+                || actual.TickDeadline - actual.StartTick != start.MaxTicks
+                || actual.RequestedSpeed != start.Speed
                 || actual.TestAcceleration.GetValueOrDefault() != start.TestAcceleration
                 || !Equals(actual.Policy, start.Policy)
                 || actual.BlindTickBudget.GetValueOrDefault() != start.BlindTickBudget
@@ -149,7 +149,7 @@ public static partial class BridgeFunctions
         {
             return ClockEpochState.Superseded;
         }
-        if (current.Tick < original.LastTick.GetValueOrDefault())
+        if (current.Tick < original.LastTick)
         {
             throw Contract("clock cleanup observation regressed");
         }
@@ -168,9 +168,9 @@ public static partial class BridgeFunctions
         }
         if (!Equals(actual.Origin, original.Origin)
             || !Equals(actual.Policy, original.Policy)
-            || actual.StartTick.GetValueOrDefault() != original.StartTick.GetValueOrDefault()
-            || actual.TickDeadline.GetValueOrDefault() != original.TickDeadline.GetValueOrDefault()
-            || actual.LastTick.GetValueOrDefault() < original.LastTick.GetValueOrDefault())
+            || actual.StartTick != original.StartTick
+            || actual.TickDeadline != original.TickDeadline
+            || actual.LastTick < original.LastTick)
         {
             throw Contract("clock cleanup original epoch mismatch");
         }

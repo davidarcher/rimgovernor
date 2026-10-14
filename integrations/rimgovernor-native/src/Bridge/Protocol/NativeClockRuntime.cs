@@ -112,7 +112,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (pendingTyped != null) throw new InvalidOperationException("Reentrant clock start");
                 var policy = request.Policy ?? throw new InvalidOperationException("Missing policy");
-                pendingTyped = new TypedEpoch(new Clock.EpochOwner { ControllerSessionId = (request.Authority?.Attempt ?? throw new InvalidOperationException("Missing attempt")).ControllerSessionId },
+                pendingTyped = new TypedEpoch(new Clock.EpochOwner { ControllerSessionId = (request.Authority?.Attempt ?? throw new InvalidOperationException("Missing attempt")).ControllerSessionId ?? "", Epoch = 0 },
                     context, request.Authority ?? throw new InvalidOperationException("Missing authority"), policy);
                 var metadata = pendingTyped;
                 try
@@ -135,8 +135,8 @@ namespace HomeBridge.BridgeTools
         {
             lock (Gate)
             {
-                if (request?.Owner == null || request.Owner.ControllerSessionId is null || !ProtoBoundary.IsIdentifier(request.Owner.ControllerSessionId)
-                    || request.Owner.Epoch is null || request.Owner.Epoch.GetValueOrDefault() <= 0)
+                if (request?.Owner == null || !ProtoBoundary.IsIdentifier(request.Owner.ControllerSessionId)
+                    || request.Owner.Epoch <= 0)
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An exact controller and positive epoch are required.");
                 var s = _state;
                 if (s?.Typed == null || !Equals(request.Identity, s.Typed.Origin.Identity) || !request.Owner.Equals(s.Typed.Owner)
@@ -175,7 +175,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
                 if (ActiveState.TestAcceleration && request.Speed.GetValueOrDefault() != Clock.Speed.Ultrafast) throw new InvalidOperationException("An accelerated epoch cannot change speed; pause it instead.");
-                Speed(((request.Epoch?.Owner ?? throw new InvalidOperationException("Missing epoch")).ControllerSessionId ?? ""), request.Epoch.Owner.Epoch.GetValueOrDefault(), NativeSpeed(request.Speed.GetValueOrDefault()), request.MaxTicksPerSecond is not null ? (int?)request.MaxTicksPerSecond.GetValueOrDefault() : null);
+                Speed(((request.Epoch?.Owner ?? throw new InvalidOperationException("Missing epoch")).ControllerSessionId ?? ""), request.Epoch.Owner.Epoch, NativeSpeed(request.Speed.GetValueOrDefault()), request.MaxTicksPerSecond is not null ? (int?)request.MaxTicksPerSecond.GetValueOrDefault() : null);
                 if (ActiveState.RequestedSpeed != NativeSpeed(request.Speed.GetValueOrDefault()) || Find.TickManager.CurTimeSpeed != NativeSpeed(request.Speed.GetValueOrDefault()))
                     throw new InvalidOperationException("Native speed did not match admitted change");
                 return TypedStatus(context);
@@ -443,7 +443,7 @@ namespace HomeBridge.BridgeTools
                 || value.Event is null) return false;
             var body = value.Event;
             if (value.Owner == null ? body.AuthorityChanged == null
-                : value.Owner.ControllerSessionId is null || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId) || value.Owner.Epoch is null || value.Owner.Epoch <= 0) return false;
+                : value.Owner.ControllerSessionId is null || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId) || value.Owner.Epoch <= 0) return false;
             if (body.AuthorityChanged != null) return body.AuthorityChanged.Generation is > 0
                 && (body.AuthorityChanged.PreviousGeneration is null || body.AuthorityChanged.PreviousGeneration < body.AuthorityChanged.Generation);
             if (body.OperationOutcome != null) return ValidStoredOutcome(body.OperationOutcome);

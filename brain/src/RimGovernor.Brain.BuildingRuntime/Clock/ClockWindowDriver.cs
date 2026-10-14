@@ -130,7 +130,7 @@ public sealed partial class ClockWindowDriver : IClockWorkerStopper, IDisposable
             throw new AuthorityException();
         }
         var sequence = await _player.Journal.ReadClockSequenceAsync(ct).ConfigureAwait(false);
-        var intent = new ClockIntent(sequence.NextRequestId(), "", state.Snapshot, new ClockCommand(Speed: new ClockSpeed(original, original.RequestedSpeed.GetValueOrDefault(), ceiling)));
+        var intent = new ClockIntent(sequence.NextRequestId(), "", state.Snapshot, new ClockCommand(Speed: new ClockSpeed(original, original.RequestedSpeed, ceiling)));
         var (attempt, error) = await _session.CommandClock(intent, ct).ConfigureAwait(false);
         if (error is not null)
         {

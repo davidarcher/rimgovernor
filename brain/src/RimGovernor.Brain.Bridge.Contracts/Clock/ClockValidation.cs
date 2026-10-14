@@ -15,11 +15,11 @@ public static partial class BridgeFunctions
             || !Equals(actual.Owner, original.Owner)
             || !Equals(actual.Origin, original.Origin)
             || !Equals(actual.Policy, original.Policy)
-            || actual.StartTick.GetValueOrDefault() != original.StartTick.GetValueOrDefault()
-            || actual.TickDeadline.GetValueOrDefault() != original.TickDeadline.GetValueOrDefault()
-            || actual.RequestedSpeed.GetValueOrDefault() != speed
+            || actual.StartTick != original.StartTick
+            || actual.TickDeadline != original.TickDeadline
+            || actual.RequestedSpeed != speed
             || actual.TestAcceleration.GetValueOrDefault() != original.TestAcceleration.GetValueOrDefault()
-            || actual.LastTick.GetValueOrDefault() < original.LastTick.GetValueOrDefault())
+            || actual.LastTick < original.LastTick)
         {
             throw Contract("clock immutable epoch mismatch");
         }
@@ -103,11 +103,11 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>clockOwner</c>.</summary>
     internal static void ClockOwner(EpochOwner? owner)
     {
-        if (owner is null || owner.ControllerSessionId is null || owner.Epoch is null || owner.Epoch.GetValueOrDefault() <= 0)
+        if (owner is null || owner.Epoch <= 0)
         {
             throw Contract("clock epoch owner required");
         }
-        ValidId((owner.ControllerSessionId ?? ""));
+        ValidId(owner.ControllerSessionId);
     }
 
     /// <summary>Go's <c>ValidateClockEpoch</c>.</summary>
@@ -123,24 +123,20 @@ public static partial class BridgeFunctions
         ClockOwner(e.Owner);
         ValidateContext(e.Origin);
         if (e.Origin?.NativeGeneration is null
-            || e.StartTick is null
-            || e.StartTick.GetValueOrDefault() != e.Origin.Tick
-            || e.TickDeadline is null
-            || e.TickDeadline.GetValueOrDefault() <= e.StartTick.GetValueOrDefault()
-            || e.TickDeadline.GetValueOrDefault() - e.StartTick.GetValueOrDefault() > 1800000
-            || e.LastTick is null
-            || e.LastTick.GetValueOrDefault() < e.StartTick.GetValueOrDefault()
-            || e.RequestedSpeed is null
-            || (int)e.RequestedSpeed.GetValueOrDefault() < 1
-            || (int)e.RequestedSpeed.GetValueOrDefault() > 4)
+            || e.StartTick != e.Origin.Tick
+            || e.TickDeadline <= e.StartTick
+            || e.TickDeadline - e.StartTick > 1800000
+            || e.LastTick < e.StartTick
+            || (int)e.RequestedSpeed < 1
+            || (int)e.RequestedSpeed > 4)
         {
             throw Contract("clock epoch bounds or presence");
         }
-        if (e.TestAcceleration.GetValueOrDefault() && e.RequestedSpeed.GetValueOrDefault() != Speed.Ultrafast)
+        if (e.TestAcceleration.GetValueOrDefault() && e.RequestedSpeed != Speed.Ultrafast)
         {
             throw Contract("clock accelerated epoch speed");
         }
-        ClockPolicy(e.Policy, e.TickDeadline.GetValueOrDefault() - e.StartTick.GetValueOrDefault());
+        ClockPolicy(e.Policy, e.TickDeadline - e.StartTick);
     }
 
     /// <summary>Go's <c>clockStatusEpoch</c>: the epoch a running, stopping or stopped status carries, null otherwise.</summary>
