@@ -209,6 +209,14 @@ public sealed class Arena
         while (ticks < _req.MaxTicks && Standing(fighters, "colonist") && Standing(fighters, "hostile"))
         {
             controller?.Decide(_map, ticks);
+
+            // Projectiles launch from the caster's draw position, which only the render pass advances: headless, a pawn
+            // that has walked would still shoot from the cell it spawned in.
+            foreach (var pawn in _map.mapPawns.AllPawnsSpawned)
+            {
+                pawn.Drawer.tweener.ResetTweenedPosToRoot();
+            }
+
             Find.TickManager.DoSingleTick();
             ticks++;
             if (controller is null)
@@ -227,9 +235,9 @@ public sealed class Arena
         var raiders = fighters.Where(f => f.Spec.Side == "hostile").Select(f => f.Pawn).ToList();
         if (raiders.Count > 0 && raiders[0].Faction == Faction.OfInsects && _map.listerThings.ThingsOfDef(ThingDefOf.Hive).FirstOrDefault() is Hive hive)
         {
-            // Insects guard their hive as an infestation's do.
+            // Insects guard their hive as an infestation's do: not aggressive, they defend until provoked.
             var spawner = hive.PawnSpawner;
-            var lord = spawner.Lord ?? CompSpawnerPawn.CreateNewLord(hive, true, 20f, typeof(LordJob_DefendAndExpandHive));
+            var lord = spawner.Lord ?? CompSpawnerPawn.CreateNewLord(hive, false, 20f, typeof(LordJob_DefendAndExpandHive));
             foreach (var insect in raiders)
             {
                 lord.AddPawn(insect);

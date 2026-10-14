@@ -68,11 +68,19 @@ public sealed class PolicyController : IFightController
             return;
         }
 
+        if (Log is not null)
+        {
+            foreach (var t in map.listerThings.AllThings.Where(t => t.def.projectile is not null || t.def.defName is "Fire" || t.def.defName.StartsWith("Filth_Fuel") || t.def.defName.Contains("Burn")))
+            {
+                Log($"t={tick} thing {t.def.defName} at {t.Position.x},{t.Position.z} exact={(t as Verse.Projectile)?.ExactPosition} spawned={t.Spawned}");
+            }
+        }
+
         if (Log is not null && tick % 30 == 0)
         {
             foreach (var p in map.mapPawns.AllPawnsSpawned)
             {
-                Log($"t={tick} {p.LabelShort} {(p.Faction?.IsPlayer == true ? "col" : "host:" + p.Faction?.def.defName)} pos={p.Position.x},{p.Position.z} hp={p.health.summaryHealth.SummaryHealthPercent:0.00} drafted={p.Drafted} downed={p.Downed} job={p.CurJobDef?.defName} target={p.CurJob?.targetA.Thing?.LabelShort} verb={p.TryGetAttackVerb(null)?.GetType().Name} aiming={p.stances.curStance.GetType().Name} hediffs=[{string.Join(",", p.health.hediffSet.hediffs.Select(h => h.def.defName + ":" + h.Severity.ToString("0.00")))}]");
+                Log($"t={tick} {p.LabelShort} {(p.Faction?.IsPlayer == true ? "col" : "host:" + p.Faction?.def.defName)} pos={p.Position.x},{p.Position.z} hp={p.health.summaryHealth.SummaryHealthPercent:0.00} drafted={p.Drafted} downed={p.Downed} job={p.CurJobDef?.defName} target={p.CurJob?.targetA.Thing?.LabelShort} verb={p.TryGetAttackVerb(null)?.GetType().Name} aiming={p.stances.curStance.GetType().Name} vt={p.equipment?.PrimaryEq?.PrimaryVerb?.CurrentTarget} burning={p.GetAttachment(RimWorld.ThingDefOf.Fire) != null} hediffs=[{string.Join(",", p.health.hediffSet.hediffs.Select(h => h.def.defName + ":" + h.Severity.ToString("0.00")))}]");
             }
         }
 
@@ -81,7 +89,7 @@ public sealed class PolicyController : IFightController
             var room = hive.Position.GetRoom(map);
             var fires = map.listerThings.ThingsOfDef(RimWorld.ThingDefOf.Fire).Count;
             var hottest = GenRadial.RadialCellsAround(hive.Position, 4f, true).Max(c => c.GetTemperature(map));
-            Log($"t={tick} heat hive={hive.Position.GetTemperature(map):F0}C hottest={hottest:F0}C fires={fires} stools={map.listerThings.ThingsOfDef(DefDatabase<ThingDef>.GetNamed("Stool")).Count} room={room?.CellCount} openRoof={room?.OpenRoofCount} outdoors={room?.PsychologicallyOutdoors}");
+            Log($"t={tick} heat hive={hive.Position.GetTemperature(map):F0}C hottest={hottest:F0}C fires={fires} stools={map.listerThings.ThingsOfDef(DefDatabase<ThingDef>.GetNamed("Stool")).Count} room={room?.CellCount} openRoof={room?.OpenRoofCount} outdoors={room?.PsychologicallyOutdoors} doors={string.Join(" ", new[] { 38, 39, 40 }.Select(x => new IntVec3(x, 0, 30).GetEdifice(map) is RimWorld.Building_Door d ? $"{x}:open={d.Open} hold={d.HoldOpen} forbidden={RimWorld.ForbidUtility.IsForbidden(d, RimWorld.Faction.OfPlayer)}" : $"{x}:none"))}");
         }
 
         if (Log is not null && tick % 300 == 10)
@@ -203,6 +211,8 @@ public sealed class PolicyController : IFightController
     private static string BurnTrace(CombatStep step) =>
         (step.View.Burn.TryGetValue(out var site) ? $"site(missing={site.Missing} roofed={site.Roofed} fuel={site.Fuel.Count})" : "none")
         + (step.View.HiveTemperatureC.TryGetValue(out var c) ? $" hive={c:F0}C" : "")
+        + (step.View.DoorStates.TryGetValue(out var doors) ? " doors=" + string.Join(";", doors.Items.Select(d => $"{d.Cell.X},{d.Cell.Z}:open={d.Open} hold={d.HoldOpen}")) : " doors=unknown")
+        + $" roles=[{string.Join(" ", step.Memory.Roles.Items.Select(r => $"{r.Pawn}:cell={(r.Cell is { } rc ? rc.X + "," + rc.Z : "-")} retreat={r.Retreat} ground={r.Ground is not null} target={r.Target}"))}] structures={step.View.Structures.Count} tactic={step.Memory.Tactic} wait={step.Memory.Wait}"
         + (step.Memory.Burn is { } b ? $" lit={b.Lit.Value} thrown={b.Thrown.Value} done={b.Done}" : "");
 
     private static string Casters(CombatView view) =>

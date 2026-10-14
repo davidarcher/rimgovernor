@@ -1242,7 +1242,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (InterruptsAim(rs) && want.Reason != CombatOrderReason.Retreat && want.Reason != CombatOrderReason.Rescue && !safetyTransition)
+            if (InterruptsAim(rs) && want.Reason != CombatOrderReason.Retreat && want.Reason != CombatOrderReason.Rescue && !safetyTransition && !(next.Burn is { } burning && burning.Carrier == role.Pawn && want.Kind == CombatOrderKind.AttackGround))
             {
                 continue;
             }
@@ -1263,7 +1263,8 @@ public static partial class PolicyFunctions
             orders,
             memory,
             OnlySpared(view, spared),
-            suppressNativeFire
+            suppressNativeFire,
+            next.Burn
         );
         if (!geometry.Answered)
         {

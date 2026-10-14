@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Policy;
 // corridor of BurnCorridorDoors stone doors in series runs toward the colony, walled on both flanks. Wood
 // stools stand inside the seal, spread out and away from the hive, as fuel. Once the census
 // (CombatView.Burn) shows the room roofed and every seal wall, corridor door and stool standing, one molotov
-// lights a stool clear of the insects (a player's flame on an insect may send the hive to assault) and every
+// lights a stool (thrown from inside the corridor, doors held open, fire held until then; a player's flame on an insect may send the hive to assault) and every
 // colonist waits past the last door. While the hive reads under BurnTopUpC another molotov tops the fire up;
 // none is thrown at or above BurnMaxC, below the 210 C air burn whose memo also turns the hive. Every insect
 // breathes the same air, so heat stroke downs them together (about HeatStrokeTicks at 150 C); the retreat
@@ -51,6 +51,15 @@ public sealed record CombatBurn
 
     /// <summary>The cell k steps from the hive along the exit, side steps across it.</summary>
     internal Cell Step(int k, int side) => new(Hive.X + (Exit.X * k) + (Exit.Z * side), Hive.Z + (Exit.Z * k) + (Exit.X * side));
+
+    /// <summary>The stool a molotov lights: on the corridor's axis, just inside the seal's gap, so it is in line with the doors.</summary>
+    public Cell Lighter() => Step(PolicyFunctions.BurnFuelRadius, 0);
+
+    /// <summary>
+    /// Where the carrier stands to throw: in the corridor's last door, three cells from the lighter (a throw at an adjacent
+    /// cell is refused), with the doors between them held open.
+    /// </summary>
+    public Cell ThrowCell() => Step(PolicyFunctions.BurnSealRadius + PolicyFunctions.BurnCorridorDoors - 1, 0);
 
     /// <summary>The corridor's door cells, from the seal's gap out.</summary>
     public List<Cell> CorridorDoors()
@@ -107,9 +116,6 @@ public static partial class PolicyFunctions
     private const int BurnRetreatWidth = 3;
 
     private const int BurnFuelStools = 4;
-
-    /// <summary>The least distance from a molotov's target stool to any insect.</summary>
-    private const double BurnInsectClear = 2.5;
 
     /// <summary>How long the carrier keeps a throw before it retreats.</summary>
     private const long BurnThrowTicks = 300;
@@ -278,7 +284,7 @@ public static partial class PolicyFunctions
     public static List<Building> BurnBuilds(CombatBurn b, IReadOnlyDictionary<Cell, WaitDoorCell> census, string stone, ItemFacts items)
     {
         var seal = BurnSeal(b, census, stone, items);
-        seal.AddRange(BurnFuel(b.Hive, census));
+        seal.AddRange(BurnFuel(b.Hive, census, b.Lighter()));
         return seal;
     }
 
@@ -288,9 +294,17 @@ public static partial class PolicyFunctions
     /// free cell farthest from every stool standing or chosen (the first, with none, the farthest from the
     /// hive), then the farther from the hive, then the lower x, z.
     /// </summary>
-    public static List<Building> BurnFuel(Cell hive, IReadOnlyDictionary<Cell, WaitDoorCell> census)
+    public static List<Building> BurnFuel(Cell hive, IReadOnlyDictionary<Cell, WaitDoorCell> census, Cell lighter)
     {
         var placed = BurnFuelStanding(hive, census);
+        var output = new List<Building>();
+        if (!placed.Contains(lighter) && census.TryGetValue(lighter, out var spot) && spot.Edifice.Length == 0 && spot.Walkable)
+        {
+            // The one stool a molotov can reach: on the corridor's axis, in line with the doors.
+            placed.Add(lighter);
+            output.Add(new Building(BurnFuelDef, lighter, Rotation.North, BurnFuelStuff));
+        }
+
         var free = new List<Cell>();
         foreach (var (c, at) in census)
         {
@@ -300,8 +314,8 @@ public static partial class PolicyFunctions
             }
         }
 
+        free.Remove(lighter);
         free.Sort(CellOrder);
-        var output = new List<Building>();
         while (placed.Count < BurnFuelStools && free.Count > 0)
         {
             (long Near, long Hive) Score(Cell c)
@@ -337,48 +351,6 @@ public static partial class PolicyFunctions
         }
 
         return output;
-    }
-
-    /// <summary>
-    /// The standing stool a molotov lights: the one farthest from the nearest insect, at least
-    /// BurnInsectClear from every insect (then the lower x, z); none when no stool is clear.
-    /// </summary>
-    private static Cell? BurnTarget(IReadOnlyList<Cell> fuel, IReadOnlyList<Cell> insects)
-    {
-        Cell best = default;
-        var bestNear = 0.0;
-        var found = false;
-        foreach (var c in fuel)
-        {
-            var near = -1.0;
-            foreach (var i in insects)
-            {
-                var d = Dist(c, i);
-                if (near < 0 || d < near)
-                {
-                    near = d;
-                }
-            }
-
-            if (near >= 0 && near < BurnInsectClear)
-            {
-                continue;
-            }
-
-            if (near < 0)
-            {
-                near = 1e9;
-            }
-
-            if (!found || near > bestNear)
-            {
-                best = c;
-                bestNear = near;
-                found = true;
-            }
-        }
-
-        return found ? best : null;
     }
 
     /// <summary>The infestation's live hostile pawns: their cells, and whether every one reads downed.</summary>
@@ -418,7 +390,7 @@ public static partial class PolicyFunctions
     /// Runs the burn-out on an infestation fight with a live hive. It plans the burn once a molotov carrier
     /// has the hive in reach, its corridor leading out of the seal toward the carrier. While the census is
     /// unread, or any seal wall, corridor door or stool is missing, no molotov is thrown; a room that reads
-    /// unroofed ends the burn. With all of it standing the carrier lights a stool clear of the insects,
+    /// unroofed ends the burn. With all of it standing the carrier walks in with the doors held open and, holding fire, throws at a stool two or more cells off from a corridor door cell,
     /// everyone else takes the retreat past the last door, behind the corridor's closed, forbidden doors
     /// (while waiting), and the carrier follows after BurnThrowTicks. While the hive reads under BurnTopUpC,
     /// at most one molotov per BurnFireTicks tops the fire up. The retreat holds until every insect reads
@@ -484,9 +456,9 @@ public static partial class PolicyFunctions
             return;
         }
 
-        var (insects, down) = BurnInsects(view);
+        var (_, down) = BurnInsects(view);
         var hot = view.HiveTemperatureC.TryGetValue(out var temp);
-        bool doThrow;
+        bool wantThrow;
         if (b.Lit.Value == 0)
         {
             if (!sited || site!.Missing > 0 || !m.Roles.Any(r => r.Pawn == b.Carrier))
@@ -494,8 +466,8 @@ public static partial class PolicyFunctions
                 return;
             }
 
-            doThrow = !hot || temp < BurnTopUpC;
-            if (!doThrow)
+            wantThrow = !hot || temp < BurnTopUpC;
+            if (!wantThrow)
             {
                 return;
             }
@@ -515,20 +487,46 @@ public static partial class PolicyFunctions
                 return;
             }
 
-            doThrow = sited && hot && temp < BurnTopUpC && view.Tick.Value - b.Thrown.Value >= BurnFireTicks;
+            wantThrow = sited && hot && temp < BurnTopUpC && view.Tick.Value - b.Thrown.Value >= BurnFireTicks;
         }
 
+        // The molotov reaches the lighter stool only down the corridor's axis through its doors, which a closed door
+        // blocks: the carrier takes the throw cell with the doors held open, throws, and only then do the doors close
+        // and lock behind everyone.
         Cell aim = default;
-        if (doThrow)
+        var doThrow = false;
+        var approach = false;
+        if (wantThrow)
         {
-            var target = BurnTarget(site!.Fuel.Items, insects);
-            doThrow = target is not null;
+            var lighter = b.Lighter();
+            Cell? target = site!.Fuel.Items.Contains(lighter) ? lighter : null;
             if (target is { } t)
             {
                 aim = t;
-            }
+                var carried = StateOf(b.Carrier).Cell.TryGetValue(out var carrierAt);
+                // From any corridor door cell with the first door open: the throw needs the line, not a particular cell.
+                doThrow = carried && b.CorridorDoors().Contains(carrierAt) && InnerDoorOpen(view, b);
+                if (doThrow)
+                {
+                    // The engine refuses a throw at an adjacent cell: the lighter, else the nearest stool two or more away.
+                    var far = site.Fuel.Items.Where(f => Dist(carrierAt, f) >= 2).OrderBy(f => Dist(carrierAt, f)).Select(f => (Cell?)f).FirstOrDefault();
+                    if (Dist(carrierAt, t) >= 2)
+                    {
+                        aim = t;
+                    }
+                    else if (far is { } f)
+                    {
+                        aim = f;
+                    }
+                    else
+                    {
+                        doThrow = false;
+                    }
+                }
 
-            if (!doThrow && b.Lit.Value == 0)
+                approach = !doThrow;
+            }
+            else if (b.Lit.Value == 0)
             {
                 return;
             }
@@ -551,18 +549,25 @@ public static partial class PolicyFunctions
 
         var had = new List<PodDoor>(m.WaitDoors);
         Shelter(view, m);
+        var corridor = b.CorridorDoors();
+        var shut = b.Lit.Value > 0 && !approach && !doThrow && view.Tick.Value - b.Thrown.Value >= BurnThrowTicks;
         var want = new List<PodDoor>();
-        foreach (var d in b.CorridorDoors())
+        foreach (var d in corridor)
         {
-            if (!m.WaitDoors.Any(p => p.Cell == d))
+            if (shut)
             {
                 want.Add(new PodDoor { Cell = d, Mode = DoorMode.Close });
                 want.Add(new PodDoor { Cell = d, Mode = DoorMode.Forbid });
             }
+            else
+            {
+                want.Add(new PodDoor { Cell = d, Mode = DoorMode.HoldOpen });
+            }
         }
 
-        m.WaitDoors = EquatableArray.From(m.WaitDoors.Concat(KeepSent(had, want)));
+        m.WaitDoors = EquatableArray.From(m.WaitDoors.Where(p => !corridor.Contains(p.Cell)).Concat(KeepSent(had, want)));
         var cells = RectCells(b.Room);
+        cells.Remove(b.ThrowCell());
         foreach (var r in m.Roles)
         {
             r.Target = default;
@@ -572,6 +577,15 @@ public static partial class PolicyFunctions
             r.Ground = null;
             r.Mortar = null;
             r.Aim = null;
+            if (r.Pawn == b.Carrier && approach)
+            {
+                // A held door only stays open once something has opened it: the carrier walks in through the corridor
+                // to the first door, then back out to the throw cell.
+                r.Cell = InnerDoorOpen(view, b) ? b.ThrowCell() : b.CorridorDoors()[0];
+                r.Retreat = true; // a move a shooter in the middle of an aim does not drop
+                continue;
+            }
+
             if (r.Pawn == b.Carrier && view.Tick.Value - b.Thrown.Value < BurnThrowTicks)
             {
                 if (doThrow)
@@ -594,6 +608,37 @@ public static partial class PolicyFunctions
             r.Cell = c;
             r.Retreat = true;
         }
+    }
+
+    /// <summary>The corridor's first door, the one the frame reads, stands open: the carrier has walked through.</summary>
+    private static bool InnerDoorOpen(CombatView view, CombatBurn b)
+    {
+        var first = b.CorridorDoors()[0];
+        return view.DoorStates.TryGetValue(out var states) && states.Items.Any(r => r.Cell == first && r.Open.TryGetValue(out var open) && open);
+    }
+
+    /// <summary>
+    /// Every corridor door has had its hold-open order sent, and any door the frame reads shows it held. The frame
+    /// reads only some doors' states, so the sent order stands for the rest.
+    /// </summary>
+    private static bool DoorsHeld(CombatView view, CombatMemory m, CombatBurn b)
+    {
+        var seen = view.DoorStates.TryGetValue(out var states) ? states.Items : [];
+        foreach (var d in b.CorridorDoors())
+        {
+            if (!m.WaitDoors.Any(p => p.Cell == d && p.Mode == DoorMode.HoldOpen && p.Sent))
+            {
+                return false;
+            }
+
+            var row = seen.FirstOrDefault(r => r.Cell == d);
+            if (row is not null && !(row.HoldOpen.TryGetValue(out var held) && held))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Sends every fighter at the nearest insect a finished burn left downed but alive, before heat stroke kills it.</summary>

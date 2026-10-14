@@ -413,7 +413,8 @@ public static partial class PolicyFunctions
         IReadOnlyList<CombatOrder> inputOrders,
         CombatMemory m,
         bool quiet,
-        HashSet<PawnId> suppressNativeFire
+        HashSet<PawnId> suppressNativeFire,
+        CombatBurn? burn = null
     )
     {
         var orders = new List<CombatOrder>(inputOrders);
@@ -442,6 +443,18 @@ public static partial class PolicyFunctions
 
             var held = s.FireMode == HoldFire || (s.FireMode.Length == 0 && lastHold.GetValueOrDefault(r.Pawn));
             var pawn = r.Pawn;
+
+            // The molotov carrier throws at the lighter stool and at nothing else: fire-at-will would spend it on the
+            // first insect in sight. Its other orders (the approach, the ground throw, the retreat) stand.
+            if (burn is { Done: false } && burn.Carrier == r.Pawn)
+            {
+                if (!held)
+                {
+                    orders.Add(new CombatOrder { Pawn = r.Pawn, Kind = CombatOrderKind.FireMode, FireMode = HoldFire, Reason = CombatOrderReason.HoldFire });
+                }
+
+                continue;
+            }
 
             // A pawn mid-aim keeps its fire mode unless its shot is at the hostile our blocker is fighting.
             if (InterruptsAim(s) && !locked.Contains(s.Target) && !quietPawn)
