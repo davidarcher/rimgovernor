@@ -51,7 +51,7 @@ public sealed class ForecastActivityOutcomesTests
         Assert.Equal(["food", "shelter"], result.Selected);
         Assert.Equal("builder", result.Plan!.Allocations.Single(a => a.Activity == "deliver").Pawn);
         Assert.Equal("helper", result.Plan.Allocations.Single(a => a.Activity == "harvest").Pawn);
-        Assert.Equal(310, result.NetBenefit);
+        Assert.Equal(310, result.NetBenefit.Value);
         foreach (var pawn in result.Plan.Allocations.GroupBy(a => a.Pawn))
         {
             var rows = pawn.OrderBy(a => a.Depart).ToArray();
@@ -65,7 +65,7 @@ public sealed class ForecastActivityOutcomesTests
         var result = CompareActivityOutcomes(Work(true), Needs());
         Assert.Equal(2, result.Selected.Length);
         Assert.DoesNotContain(result.Plan!.Allocations, a => a.Activity == "deliver");
-        Assert.Equal(340, result.NetBenefit);
+        Assert.Equal(340, result.NetBenefit.Value);
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public sealed class ForecastActivityOutcomesTests
         var needs = Needs();
         var result = CompareActivityOutcomes(Work(true), [needs[0], needs[0] with { Id = "other-shelter" }]);
         Assert.Single(result.Selected);
-        Assert.Equal(230, result.NetBenefit);
+        Assert.Equal(230, result.NetBenefit.Value);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class ForecastActivityOutcomesTests
         var result = CompareActivityOutcomes(problem, Needs());
         Assert.Equal(2, result.Selected.Length);
         Assert.Single(result.Plan!.Allocations, a => a.Activity == "deliver");
-        Assert.Equal(330, result.NetBenefit);
+        Assert.Equal(330, result.NetBenefit.Value);
     }
 
     [Fact]

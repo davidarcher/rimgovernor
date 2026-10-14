@@ -6,16 +6,20 @@ public sealed record ForecastActivityOutcome(string Id, string Need, string Comp
     Fact<double> Deadline, Fact<double> AvoidedLaborLoss);
 
 public sealed record ForecastActivityOutcomeComparison(string[] Selected, ForecastActivityPlan? Plan,
-    double NetBenefit, string[] Findings, int Expansions, bool SearchTruncated);
+    Fact<double> NetBenefit, string[] Findings, int Expansions, bool SearchTruncated);
+
+public enum ForecastOutcomeObjective { NetLaborBenefit, EarliestDeadline }
 
 public static partial class PolicyFunctions
 {
     /// <summary>Compare postponement and combinations using the existing ColonyForecast activity scheduler.
     /// One alternative per need; shared prerequisites execute once and all outcomes share pawn capacity.</summary>
     public static ForecastActivityOutcomeComparison CompareActivityOutcomes(ForecastActivityProblem problem,
-        ForecastActivityOutcome[] outcomes)
+        ForecastActivityOutcome[] outcomes, ForecastOutcomeObjective objective = ForecastOutcomeObjective.NetLaborBenefit)
     {
         ValidateActivityProblem(problem);
+        if (!Enum.IsDefined(objective)) throw new DomainException("invalid outcome objective");
+        var deadlinesFirst = objective == ForecastOutcomeObjective.EarliestDeadline;
         var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
         if (outcomes.Length > 16 || outcomes.Select(o => o.Id).Distinct().Count() != outcomes.Length
             || outcomes.Any(o => string.IsNullOrWhiteSpace(o.Id) || string.IsNullOrWhiteSpace(o.Need)
@@ -27,13 +31,28 @@ public static partial class PolicyFunctions
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var known = outcomes.Where(o =>
         {
-            if (o.Deadline.IsKnown && o.AvoidedLaborLoss.IsKnown) return true;
+            if (o.Deadline.IsKnown && (deadlinesFirst || o.AvoidedLaborLoss.IsKnown)) return true;
             findings.Add("unknown_outcome_estimate:" + o.Id);
             return false;
         }).OrderBy(o => o.Id, StringComparer.Ordinal).ToArray();
         var expansions = 0;
         var truncated = false;
-        var best = new ForecastActivityOutcomeComparison([], null, 0, [], 0, false);
+        var best = new ForecastActivityOutcomeComparison([], null, deadlinesFirst ? default : Known(0.0), [], 0, false);
+        if (deadlinesFirst && !problem.AlternativeLaborCost.IsKnown)
+            return best with { Findings = [.. findings, "unknown_labor_ceiling"] };
+        if (deadlinesFirst && outcomes.GroupBy(o => o.Need).Any(g => g.Select(o => o.Deadline).Distinct().Count() != 1))
+            throw new DomainException("alternatives for one need require the same deadline");
+        var deadlines = known.Select(o => o.Deadline.Value).Distinct().Order().ToArray();
+        int CompareDeadlines(List<ForecastActivityOutcome> selected)
+        {
+            foreach (var deadline in deadlines)
+            {
+                var delta = selected.Count(o => o.Deadline.Value == deadline)
+                    - known.Count(o => best.Selected.Contains(o.Id) && o.Deadline.Value == deadline);
+                if (delta != 0) return delta;
+            }
+            return 0;
+        }
         bool Spend()
         {
             if (expansions == problem.ExpansionBudget) { truncated = true; return false; }
@@ -52,13 +71,13 @@ public static partial class PolicyFunctions
             }
             foreach (var outcome in selected) Include(outcome.Completion);
             if (expansions == problem.ExpansionBudget) { truncated = true; return; }
-            var benefit = selected.Sum(o => o.AvoidedLaborLoss.Value);
+            var benefit = deadlinesFirst ? 0 : selected.Sum(o => o.AvoidedLaborLoss.Value);
             if (!double.IsFinite(benefit)) throw new DomainException("activity outcome benefit overflow");
             var compared = CompareActivityPlans(problem with
             {
                 Activities = problem.Activities.Where(t => included.Contains(t.Id)).ToArray(),
                 Options = problem.Options.Where(o => included.Contains(o.Activity)).ToArray(),
-                AlternativeLaborCost = Known(benefit), ExpansionBudget = problem.ExpansionBudget - expansions,
+                AlternativeLaborCost = deadlinesFirst ? problem.AlternativeLaborCost : Known(benefit), ExpansionBudget = problem.ExpansionBudget - expansions,
             });
             expansions += compared.Expansions;
             truncated |= compared.SearchTruncated;
@@ -68,9 +87,12 @@ public static partial class PolicyFunctions
                 if (selected.Any(o => plan.Allocations.Single(a => a.Activity == o.Completion).End > o.Deadline.Value))
                 { findings.Add("outcome_deadline"); continue; }
                 var net = benefit - plan.LaborCost;
-                if (net > best.NetBenefit || (net == best.NetBenefit && best.Plan is { } previous
+                if (deadlinesFirst && plan.LaborCost >= problem.AlternativeLaborCost.Value)
+                { findings.Add("labor_ceiling"); continue; }
+                var rank = deadlinesFirst ? CompareDeadlines(selected) : net.CompareTo(best.NetBenefit.Value);
+                if (rank > 0 || (rank == 0 && best.Plan is { } previous
                     && (plan.LaborCost < previous.LaborCost || (plan.LaborCost == previous.LaborCost && plan.CompletedAt < previous.CompletedAt))))
-                    best = new(selected.Select(o => o.Id).ToArray(), plan, net, [], 0, false);
+                    best = new(selected.Select(o => o.Id).ToArray(), plan, deadlinesFirst ? default : Known(net), [], 0, false);
             }
         }
         void Search(int start, List<ForecastActivityOutcome> selected)

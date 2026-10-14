@@ -344,3 +344,10 @@ profile (including `knownExpansions`). It checks the live Open portfolio rate,
 the brain-created zone's body, cells and population floor, then native
 feeding over 15 days. It does not require population to end at 90% of its start.
 The nightly tier runs this case.
+
+The [observed survival-deadline adapter](../architecture/colony-forecast.md#observed-deadlines-for-shelter-and-food)
+uses the existing eligibility/rot-aware food forecast and per-pawn cold model in
+bounded activity comparisons. Food stock exhaustion is not starvation onset;
+constant-temperature serious-hypothermia timing is not a weather or room-heat
+forecast. Candidate relief and labor ceilings remain explicit supplied evidence.
+No native execution or production cutover is implied.

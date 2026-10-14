@@ -663,3 +663,54 @@ separate allocation, not spend the same pawn time twice. Live adoption also need
 construction/delivery adapters in planner-owned Hands activities, observed
 completion and replanning. The construction-labor admission gate and existing
 helpers remain until that replacement is demonstrated (#3127/#3128).
+
+## Observed deadlines for shelter and food
+
+`SurvivalNeedsOf` derives per-pawn deadline evidence from a `ColonyForecastRequest`.
+The shared work roster and forecast origin must have the same tick. It reuses
+`ForecastFood` allocation over the full food census, including competing eaters,
+ownership, eligibility and rot. Its food deadline is eligible stock exhaustion,
+not time to starvation injury: stomach contents, eating jobs and existing hunger
+are not modeled. Incomplete food evidence leaves the deadline unknown.
+
+Cold uses observed cell temperature, worn-apparel comfortable minimum and current
+hypothermia with the existing `OutdoorBudgetFor` model and published tuning.
+The limit is serious hypothermia, assuming unchanged temperature and clothing.
+Already-serious hypothermia has a zero deadline even in a warm cell; this is an
+immediate-attention finding, not evidence that treatment is unnecessary. A
+known non-growing hazard or a limit beyond the requested horizon is marked not
+due. Missing or invalid body readings remain unknown. Heat, weather transitions,
+frostbite and recovery trajectories are outside this component.
+
+`CompareSurvivalActivities` joins explicit candidate relief to these needs and
+uses `CompareActivityOutcomes` with the `EarliestDeadline` objective. It compares
+counts of prevented needs at each deadline, earliest first, then lower labor
+cost and earlier completion. Alternatives for one need must agree on its
+deadline. This is an explicit ordinal policy, not a physiological conversion of
+cold or hunger into labor. It does not claim the two deadline bases have equal
+medical severity. `NetBenefit` is unknown in this mode. The default scalar
+objective remains available for the earlier supplied-loss proof.
+
+The caller must supply a known labor-cost ceiling; plans at or above it wait.
+This ceiling, task rates/routes/availability and material feasibility remain
+estimates, not calibrated observations. Unknown ceilings refuse selection. Both
+objectives share candidate generation, dependency scheduling and a single
+expansion budget. No live shelter or food production caller dispatches this
+comparison yet.
+
+Candidate relief must explicitly establish that completing the terminal task
+prevents its named shortfall through the assessed horizon. Unknown effects get
+no credit. Finishing a roof alone does not establish thermal protection; harvest
+alone does not establish sufficient edible food reaching the intended pawn.
+The adapter does not infer either effect from task names. A missed deadline
+cannot be credited as prevention; emergency mitigation after harm starts needs
+its own candidate/model and remains outstanding. These diagnostics do not create
+stock demand, reservations or another durable owner.
+
+`ForecastSurvivalNeedsTests` uses native-shaped fact fixtures to show food stock,
+competing consumption, rot, temperature and apparel changing the choice. It also
+covers unknown evidence/effects, already-serious cold, postponement, labor caps,
+frame consistency and bounded determinism. This proves the pure decision path,
+not native reads or completed shelter work. Live candidate effects, work-time
+estimation, construction/delivery Hands adapters and observed replanning remain
+#3127/#3128/#3132-#3135 integration work.
