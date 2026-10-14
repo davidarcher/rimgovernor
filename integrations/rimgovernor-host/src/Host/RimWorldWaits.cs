@@ -26,13 +26,6 @@ internal static class RimWorldWaits
                 sdkVersion = typeof(ToolAttribute).Assembly.GetName().Version?.ToString() ?? string.Empty,
                 sdkInformationalVersion = GetInformationalVersion(typeof(ToolAttribute).Assembly)
             },
-            sdk = RimBridgeExtensionDiscovery.GetSdkStatus(),
-            companions = new
-            {
-                totalCount = RimBridgeExtensionDiscovery.GetDiagnostics().Count,
-                registeredToolCount = RimBridgeCapabilities.ExtensionTools?.Count ?? 0,
-                diagnostics = RimBridgeExtensionDiscovery.GetDiagnostics()
-            },
             patches = RimBridgePatches.DescribeStatus(),
             recentOperationCount = journal.OperationCount,
             trackedOperationCount = journal.OperationCount,

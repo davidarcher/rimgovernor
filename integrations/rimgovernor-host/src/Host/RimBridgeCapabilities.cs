@@ -15,8 +15,6 @@ internal static class RimBridgeCapabilities
 
     public static LogJournal LogJournal { get; private set; }
 
-    public static IReadOnlyList<AnnotatedExtensionCapabilityProvider.DiscoveredTool> ExtensionTools { get; private set; } = [];
-
     public static void Initialize()
     {
         if (Registry != null)
@@ -38,26 +36,21 @@ internal static class RimBridgeCapabilities
             aliasMetadataType: typeof(RimBridgeTools),
             source: CapabilitySourceKind.Core));
         var extensionProviders = RimBridgeExtensionDiscovery.DiscoverProviders();
-        var extensionTools = new List<AnnotatedExtensionCapabilityProvider.DiscoveredTool>();
 
         foreach (var provider in extensionProviders)
         {
             try
             {
                 registry.RegisterProvider(provider);
-                extensionTools.AddRange(provider.Tools);
-                RimBridgeExtensionDiscovery.MarkProviderRegistered(provider.ProviderId, provider.Tools.Count);
             }
             catch (Exception ex)
             {
-                RimBridgeExtensionDiscovery.MarkProviderRegistrationFailed(provider.ProviderId, ex);
                 Verse.Log.Error($"[RimBridge] Failed to register annotated extension provider '{provider.ProviderId}': {ex}");
             }
         }
 
         Journal = journal;
         LogJournal = logJournal;
-        ExtensionTools = extensionTools;
         Registry = registry;
         LegacyToolExecution.Initialize(registry);
         RimGovernor.Host.Sdk.RimBridgeToolAccess.Current = new RegistryToolInvoker(registry);

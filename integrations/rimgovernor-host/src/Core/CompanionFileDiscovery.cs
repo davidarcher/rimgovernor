@@ -5,12 +5,6 @@ using System.Linq;
 
 namespace RimGovernor.Host.Core;
 
-public enum CompanionRootKind
-{
-    Global,
-    Mod
-}
-
 public sealed class CompanionAssemblyCandidate
 {
     public string AssemblyPath { get; set; } = string.Empty;
@@ -19,11 +13,7 @@ public sealed class CompanionAssemblyCandidate
 
     public string BundleDirectory { get; set; }
 
-    public CompanionRootKind RootKind { get; set; }
-
     public string OwnerId { get; set; } = string.Empty;
-
-    public bool IsBundled => string.IsNullOrWhiteSpace(BundleDirectory) == false;
 }
 
 public static class CompanionFileDiscovery
@@ -34,7 +24,6 @@ public static class CompanionFileDiscovery
 
     public static IReadOnlyList<CompanionAssemblyCandidate> DiscoverBridgeToolsRoot(
         string bridgeToolsRoot,
-        CompanionRootKind rootKind,
         string ownerId)
     {
         if (string.IsNullOrWhiteSpace(bridgeToolsRoot) || Directory.Exists(bridgeToolsRoot) == false)
@@ -51,7 +40,6 @@ public static class CompanionFileDiscovery
             {
                 AssemblyPath = Path.GetFullPath(file),
                 BridgeToolsRoot = root,
-                RootKind = rootKind,
                 OwnerId = ownerId ?? string.Empty
             });
         }
@@ -59,7 +47,7 @@ public static class CompanionFileDiscovery
         foreach (var directory in Directory.GetDirectories(root, "*", SearchOption.TopDirectoryOnly)
             .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase))
         {
-            candidates.AddRange(DiscoverBundleDirectory(root, directory, rootKind, ownerId));
+            candidates.AddRange(DiscoverBundleDirectory(root, directory, ownerId));
         }
 
         return candidates;
@@ -68,7 +56,6 @@ public static class CompanionFileDiscovery
     private static IEnumerable<CompanionAssemblyCandidate> DiscoverBundleDirectory(
         string root,
         string bundleDirectory,
-        CompanionRootKind rootKind,
         string ownerId)
     {
         var bundleName = Path.GetFileName(bundleDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
@@ -90,7 +77,6 @@ public static class CompanionFileDiscovery
                 AssemblyPath = Path.GetFullPath(entry),
                 BridgeToolsRoot = root,
                 BundleDirectory = Path.GetFullPath(bundleDirectory),
-                RootKind = rootKind,
                 OwnerId = ownerId ?? string.Empty
             };
         }
