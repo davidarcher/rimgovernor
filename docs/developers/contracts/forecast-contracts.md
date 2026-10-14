@@ -24,6 +24,13 @@ rechecks journal claims atomically with Method commit against the last full
 review's material evidence. This is not a native resource lock; indefinite
 production, pending construction and sale admission remain outside that check.
 
+The work ledger now performs [joint production material selection](../architecture/colony-forecast.md#joint-production-material-choices)
+before fixed-batch admission: bounded generation retains allowed ingredient
+alternatives, bounded comparison chooses an affordable combination, and only then
+are filters pinned. The live objective is funded batch count, with explicit
+postponement, unknowns and truncation; quality and colony utility are not calibrated.
+The existing journal transaction remains the final shared-material admission owner.
+
 [Unfinished work](../architecture/colony-forecast.md#ingredients-inside-unfinished-work)
 is observed by exact bound item ID and embedded quantities. One initialized bound
 item funds one remaining iteration; its ingredients are never loose stock. Unknown

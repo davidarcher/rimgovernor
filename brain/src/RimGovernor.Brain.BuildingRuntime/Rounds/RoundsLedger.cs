@@ -426,7 +426,12 @@ public sealed class RoundsLedgerPlanner
         }
 
         var id = PlanIds.MintPlanId();
-        var (actions, claims, key) = LedgerActions(id, pending);
+        var materials = PolicyFunctions.SelectLedgerMaterials(pending.Place, p.Journal.ProductionMaterials(state.Snapshot, call));
+        var selectionReason = $"material options: generated={materials.Generated}, searched={materials.Comparison.Expansions}, generation_truncated={materials.GenerationTruncated}, search_truncated={materials.Comparison.SearchTruncated}, findings={materials.Comparison.Findings.Count}, kinds={string.Join(",", materials.Comparison.Findings.Select(f => f.Split(':')[0]).Distinct())}";
+        var chosen = new LedgerPending { Snapshot = pending.Snapshot, Remove = pending.Remove, Place = materials.Selected };
+        var (actions, claims, key) = LedgerActions(id, chosen);
+        if (actions.Count == 0)
+            return new RoundsLedgerResult { Verdict = Verdict.AwaitingPlan("production_material", selectionReason) };
         if (arbiter is not null && !arbiter.TryClaim([], [.. claims]))
         {
             return new RoundsLedgerResult { Verdict = Verdict.ClaimHeld("bench") };
@@ -439,10 +444,15 @@ public sealed class RoundsLedgerPlanner
             throw new ControlException("step: p.session.State() != state");
         }
 
-        await p.Journal.CommitMethodReasonAsync(owner.Standard.Id, owner.Revision, LedgerMethod(owner, key), "", plan, call).ConfigureAwait(false);
+        await p.Journal.CommitMethodReasonAsync(owner.Standard.Id, owner.Revision, LedgerMethod(owner, key), selectionReason, plan, call).ConfigureAwait(false);
         lock (r.Ledger.Mu)
         {
-            r.Ledger.Pending = null;
+            var removed = Math.Min(pending.Remove.Count, actions.Count);
+            var committed = materials.Selected.Take(actions.Count - removed).ToArray();
+            r.Ledger.Pending = new LedgerPending { Snapshot = pending.Snapshot,
+                Remove = pending.Remove.Skip(removed).ToArray(),
+                Place = pending.Place.Where(p => !committed.Any(c => c.Bench == p.Bench
+                    && (c.Spec.Key() == p.Spec.Key() || PolicyFunctions.IsMaterialSpecialization(p.Spec, c.Spec)))).ToArray(), Unplaced = pending.Unplaced };
         }
 
         foreach (var action in actions)

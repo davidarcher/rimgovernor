@@ -1,0 +1,68 @@
+namespace RimGovernor.Brain.Policy;
+
+public sealed record ProductionMaterialView(Fact<EquatableArray<ProductionRecipeInput>> Recipes,
+    Fact<IReadOnlyDictionary<Resource, Fact<double>>> Availability);
+public sealed record LedgerMaterialSelection(EquatableArray<LedgerPlacement> Selected, EquatableArray<LedgerPlacement> Postponed,
+    int Generated, bool GenerationTruncated, ForecastMaterialComparison Comparison);
+
+public static partial class PolicyFunctions
+{
+    /// <summary>Generate ingredient variants before comparing batches jointly; never broaden a declarer's allowed filter.</summary>
+    public static LedgerMaterialSelection SelectLedgerMaterials(IReadOnlyList<LedgerPlacement> placements,
+        ProductionMaterialView view, int generationBudget = 1024, int searchBudget = 4096)
+    {
+        if (generationBudget < 1) throw new DomainException("positive material generation budget required");
+        var recipes = view.Recipes.TryGetValue(out var catalog) ? catalog.ToDictionary(r => r.Recipe, StringComparer.Ordinal) : [];
+        var options = new List<ForecastMaterialOption>();
+        var variants = new Dictionary<string, LedgerPlacement>(StringComparer.Ordinal);
+        var originals = new Dictionary<string, LedgerPlacement>(StringComparer.Ordinal);
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var generated = 0;
+        var truncated = false;
+        foreach (var placement in placements.Where(p => p.Spec.Mode == BillMode.GearBatch)
+            .OrderBy(p => p.Bench, StringComparer.Ordinal).ThenBy(p => p.Spec.Key(), StringComparer.Ordinal))
+        {
+            var spec = placement.Spec;
+            var demand = placement.Bench + "/" + spec.Key();
+            if (!originals.TryAdd(demand, placement)) throw new DomainException("duplicate material demand");
+            if (!recipes.TryGetValue(spec.Recipe, out var recipe) || !recipe.Slots.TryGetValue(out var slots))
+            { findings.Add("unknown_recipe:" + demand); continue; }
+            void Generate(int slot, HashSet<string> filter)
+            {
+                if (generated == generationBudget) { truncated = true; return; }
+                generated++;
+                if (slot < slots.Count)
+                {
+                    foreach (var material in slots[slot].Where(a => spec.Ingredients.Count == 0 || spec.Ingredients.Contains(a.Resource.Value))
+                        .Select(a => a.Resource.Value).Distinct().Order(StringComparer.Ordinal))
+                    {
+                        Generate(slot + 1, new HashSet<string>(filter, StringComparer.Ordinal) { material });
+                        if (truncated) return;
+                    }
+                    return;
+                }
+                var narrowed = spec with { Ingredients = EquatableArray.From(filter.Order(StringComparer.Ordinal)) };
+                var id = demand + "/" + string.Join(",", narrowed.Ingredients);
+                if (variants.ContainsKey(id)) return;
+                var batch = new ProductionBatch(new ProductionBill(placement.Bench, spec.Recipe, spec.Mode, spec.Target, [.. narrowed.Ingredients]),
+                    new ProgressView { Action = new ActionId(id), Stage = Stage.Pending })
+                { Slots = recipe.Slots, UsesUnfinishedItem = recipe.UsesUnfinishedItem };
+                var promise = ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch]), default);
+                // Native bills have one global filter. A union that reopens a slot is not a pinned assignment.
+                if (!promise.TryGetValue(out var claims) || claims.Any(c => c.MaterialClaims.Any(m => !m.Units.IsKnown)))
+                { findings.Add("unrepresentable_or_unknown_filter:" + id); return; }
+                var cost = EquatableArray.From(claims.SelectMany(c => c.MaterialClaims).Select(c => new Amount(c.Resource, checked((long)c.Units.Value))));
+                variants.Add(id, placement with { Spec = narrowed });
+                // This live slice maximizes funded declared batches. It does not invent material prices or colony utility.
+                options.Add(new(demand, id, Known(1.0), cost));
+            }
+            Generate(0, new(StringComparer.Ordinal));
+        }
+        var comparison = CompareMaterialPlans(options, view.Availability, searchBudget);
+        comparison = comparison with { Findings = EquatableArray.From(comparison.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)) };
+        var selected = comparison.Selected.Select(o => variants[o.Id]).Concat(placements.Where(p => p.Spec.Mode != BillMode.GearBatch));
+        var chosen = comparison.Selected.Select(o => o.Demand).ToHashSet(StringComparer.Ordinal);
+        return new(EquatableArray.From(selected), EquatableArray.From(originals.Where(p => !chosen.Contains(p.Key)).Select(p => p.Value)),
+            generated, truncated, comparison);
+    }
+}

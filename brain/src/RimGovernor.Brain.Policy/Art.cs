@@ -23,19 +23,10 @@ public sealed record ArtDemand
     /// <summary>Rank the stuffs a sculpture takes and price a sale.</summary>
     public ItemFacts Items { get; init; } = new();
 
-    /// <summary>The best stocked stuff (beauty factor times market value, as beds choose) with enough for one sculpture of size, false when none.</summary>
-    internal bool Stuff(Sculpture size, out Resource stuff)
-    {
-        var materials = new BedMaterials
-        {
-            Stock = Stock,
-            Cost = new Dictionary<Resource, long> { [new Resource(size.Def)] = size.Cost },
-            Items = Items,
-        };
-        var (best, ok) = materials.BestStuff(new Resource(size.Def), 0, true);
-        stuff = best;
-        return ok;
-    }
+    /// <summary>Keep all stocked, scored materials meeting the existing nonnegative suitability floor for joint selection.</summary>
+    internal EquatableArray<string> StuffChoices(Sculpture size) => EquatableArray.From(Items.StuffsFor(new Resource(size.Def))
+        .Where(stuff => size.Cost > 0 && Stock.GetValueOrDefault(stuff) >= size.Cost && Items.TryStuffScore(stuff, out var score) && score >= 0)
+        .Select(stuff => stuff.Value).Distinct().Order(StringComparer.Ordinal));
 }
 
 /// <summary>When an art bill may choose the sculpture of a rank.</summary>
@@ -198,7 +189,8 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            var ok = demand.Stuff(size, out var stuff);
+            var materials = demand.StuffChoices(size);
+            var ok = materials.Count > 0;
             var gate = SculptureGate(rank);
             if (rank > 0 && (!ok || demand.Gap < gate.MinGap || demand.Fits < size.Side() || demand.Skill.GetValueOrDefault(artist) < gate.MinSkill))
             {
@@ -208,7 +200,7 @@ public static partial class PolicyFunctions
             var first = options[0];
             if (ok)
             {
-                first = first with { Ingredients = EquatableArray.From([stuff.Value]) };
+                first = first with { Ingredients = materials };
             }
 
             selection = first;
@@ -309,7 +301,7 @@ public static partial class PolicyFunctions
     /// When an art bill may choose the sculpture of a rank, rank 0 the smallest in the catalog's rows
     /// (ItemFacts.Sculptures): the owed room's impressiveness gap, a free square the size of the footprint,
     /// stock for it, and an artist skill that expects at least a Normal (rank 1) or Good (rank 2 and up) piece.
-    /// The smallest sculpture is always allowed, in the best stocked stuff when there is one. The gates are
+    /// The smallest sculpture is always allowed, retaining the eligible stocked stuffs for joint selection. The gates are
     /// planner policy by rank, not game numbers.
     /// </summary>
     internal static SculptureRankGate SculptureGate(int rank) =>

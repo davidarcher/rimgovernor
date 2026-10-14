@@ -54,7 +54,22 @@ public static partial class PolicyFunctions
     public static bool ProductionAdmissionFits(ProductionAdmissionEvidence evidence,
         Fact<EquatableArray<ProductionBatch>> committed, EquatableArray<ProductionBatch> proposed)
     {
-        if (!committed.TryGetValue(out var rows) || !evidence.ForecastPromises.TryGetValue(out var baseline)) return false;
+        var free = ProductionAdmissionBudget(evidence, committed);
+        var candidate = ProductionPromisesOf(PriceProductionBatches(Known(proposed), evidence.Recipes), default);
+        if (!free.TryGetValue(out var budget) || !candidate.TryGetValue(out var candidateClaims)) return false;
+        var required = new Dictionary<Resource, double>();
+        foreach (var claim in candidateClaims.SelectMany(c => c.MaterialClaims))
+        {
+            if (!claim.Units.TryGetValue(out var units)) return false;
+            required[claim.Resource] = required.GetValueOrDefault(claim.Resource) + units;
+        }
+        return required.All(p => p.Value == 0 || budget.GetValueOrDefault(p.Key, Known(0.0)).TryGetValue(out var available) && available >= p.Value);
+    }
+
+    public static Fact<IReadOnlyDictionary<Resource, Fact<double>>> ProductionAdmissionBudget(ProductionAdmissionEvidence evidence,
+        Fact<EquatableArray<ProductionBatch>> committed)
+    {
+        if (!committed.TryGetValue(out var rows) || !evidence.ForecastPromises.TryGetValue(out var baseline)) return default;
         var reviewed = evidence.Reviewed.ToHashSet();
         var released = rows.Where(b => b.Progress.Attempt.Value == 0
             && b.Progress.Stage is Stage.Cancelled or Stage.Unsuccessful).Select(b => "production/" + b.Progress.Action.Value).ToHashSet(StringComparer.Ordinal);
@@ -64,18 +79,9 @@ public static partial class PolicyFunctions
         var additions = rows.Where(b => !reviewed.Contains(b.Progress.Action) && !released.Contains("production/" + b.Progress.Action.Value))
             .Select(b => b with { Progress = new ProgressView { Action = b.Progress.Action, Stage = Stage.Pending } });
         var pending = ProductionPromisesOf(PriceProductionBatches(Known(EquatableArray.From(additions)), evidence.Recipes), default);
-        var candidate = ProductionPromisesOf(PriceProductionBatches(Known(proposed), evidence.Recipes), default);
-        if (!pending.TryGetValue(out var pendingClaims) || !candidate.TryGetValue(out var candidateClaims)) return false;
+        if (!pending.TryGetValue(out var pendingClaims)) return default;
         held.AddRange(pendingClaims);
-        var free = SharedMaterialBudgetOf(evidence.Stock, evidence.Construction,
+        return SharedMaterialBudgetOf(evidence.Stock, evidence.Construction,
             ProductionMaterialHoldsOf(Known(EquatableArray.From(held)), evidence.Reservations));
-        if (!free.TryGetValue(out var budget)) return false;
-        var required = new Dictionary<Resource, double>();
-        foreach (var claim in candidateClaims.SelectMany(c => c.MaterialClaims))
-        {
-            if (!claim.Units.TryGetValue(out var units)) return false;
-            required[claim.Resource] = required.GetValueOrDefault(claim.Resource) + units;
-        }
-        return required.All(p => p.Value == 0 || budget.GetValueOrDefault(p.Key, Known(0.0)).TryGetValue(out var available) && available >= p.Value);
     }
 }

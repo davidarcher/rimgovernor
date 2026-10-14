@@ -505,3 +505,51 @@ sales, indefinite production and other consumers are not yet admitted through
 this material check. Native simulation can still change stock between reviews.
 The wider claim-overlap migration in #2742 and live timed selection in #3128 remain
 open; no existing hauling, cleaning or eating helper is removed.
+
+### Joint production material choices
+
+Before the work ledger commits new fixed batches, `SelectLedgerMaterials`
+expands each declared recipe's allowed ingredient slots into material alternatives.
+It compares combinations across jobs against `ProductionAdmissionBudget`, the same
+free-material calculation used by atomic admission. Every job also has a postpone
+alternative. A flexible job can therefore choose timber so a metal-only job can
+proceed, even when its deterministic standalone choice would have used metal.
+Only the selected combination receives narrowed bill filters.
+
+`CompareMaterialPlans` accepts supplied option values. The live ledger currently
+assigns **one unit of value per funded declared batch**; it maximizes batch count,
+with stable ordinal ties. This is an explicit provisional objective, not calibrated
+colony utility. Ordinary sculpture declarations retain all stocked materials that
+meet their existing suitability floor instead of first picking the highest local
+beauty/market score. Recipe size, bench and worker selection still happen upstream.
+Other declarers' explicit ingredient restrictions remain binding. This slice does
+not compare product quality, market returns, partial batch sizes, or all possible
+craftable products.
+
+Generation permits 1,024 recursive expansions and comparison permits 4,096 search
+expansions. Both bounds, counts and unknown findings are returned; the existing
+Method reason records counts, truncation and finding kinds. Results are best found
+within these bounds, not proofs of global optimality. Missing recipe costs or
+required material estimates postpone the affected options. A whole unknown budget
+postpones all fixed batches. Indefinite/stock-target bills retain their existing
+path and are not priced by this comparison.
+
+Native bills have one global ingredient filter. A generated union that would
+reopen ambiguous choices in any slot is rejected rather than treated as an exact
+assignment. Mixed materials within one ingredient slot are not generated. The
+selected filters are re-priced and rechecked inside the existing atomic Method
+commit, so another journal claimant can still invalidate a selection. No extra
+reservation store or demand owner is introduced. Postponed placements remain in
+the existing pending ledger and are redeclared at full review. Reconciliation
+recognizes a pinned material subset as serving the original broad declaration,
+while preferring exact matches and preserving recipe, worker and target identity.
+Hands remains the sole order writer.
+
+`MaterialChoiceTests` proves joint alternatives outperform local pinning, changing
+stock/allowed filters changes the feasible combination, supplied values can change
+the winner, sculpture declarations retain alternatives, ambiguous filters and
+unknowns cannot pretend to be exact, bounded search reports truncation, pinned
+readback avoids duplicate bills, and selected filters become exact shared journal
+claims. These are policy and journal tests. Native crafting completion, calibrated
+utility, joint pawn/time/bench/material scheduling, pending construction and sales
+admission, and integrated needs forecasts remain unproved #3127/#3128 work.

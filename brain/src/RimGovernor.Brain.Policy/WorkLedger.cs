@@ -263,9 +263,12 @@ public static partial class PolicyFunctions
         var matchedBills = new List<ActualBill>();
         var held = new List<ActualBill>();
         var excluded = new List<ActualBill>();
-        foreach (var b in actual)
+        foreach (var b in actual.OrderBy(b => wanted.ContainsKey(b.Spec.Key()) ? 0 : 1).ThenBy(b => b.Id, StringComparer.Ordinal))
         {
             var k = b.Spec.Key();
+            if (!wanted.ContainsKey(k))
+                k = wanted.Where(p => IsMaterialSpecialization(p.Value, b.Spec) && matched.GetValueOrDefault(p.Key) < WantedCopies(copies, p.Key))
+                    .Select(p => p.Key).Order(StringComparer.Ordinal).FirstOrDefault() ?? k;
             var isWanted = wanted.ContainsKey(k);
             if (isWanted && matched.GetValueOrDefault(k) < WantedCopies(copies, k) && !b.Spent)
             {
@@ -329,6 +332,12 @@ public static partial class PolicyFunctions
 
     // How many bills of the spec stand, at least one.
     private static int WantedCopies(IReadOnlyDictionary<string, int> copies, string key) => copies.TryGetValue(key, out var n) && n > 1 ? n : 1;
+
+    /// <summary>A fixed batch's narrowed native filter still serves the original allowed-material demand.</summary>
+    public static bool IsMaterialSpecialization(OrderSpec wanted, OrderSpec actual) =>
+        wanted.Mode == BillMode.GearBatch && actual.Mode == BillMode.GearBatch
+        && actual.Ingredients.Count > 0 && (actual with { Ingredients = wanted.Ingredients }).Key() == wanted.Key()
+        && (wanted.Ingredients.Count == 0 || actual.Ingredients.All(wanted.Ingredients.Contains));
 
     /// <summary>
     /// Reads the benches' bills in the ledger's terms. It is unknown (Ok false) when any bench's bills, or any
