@@ -103,6 +103,10 @@ internal sealed class PlannerWave : IDisposable
             {
                 reason = BuildingReasonExistingWork;
             }
+            catch (ProductionMaterialException)
+            {
+                reason = Verdict.AwaitingPlan("production_material", "insufficient_unknown_or_bounded");
+            }
             catch (Exception e)
             {
                 error = e;

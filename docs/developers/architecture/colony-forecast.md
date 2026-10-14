@@ -412,8 +412,9 @@ and refuse required unknown materials. Other construction planners are not cut o
 The construction forecast request includes these same production commitments from
 `DerivedDemand.Work`, rather than asking callers to recreate them.
 
-Publication occurs on the next review after commit, not atomically at admission.
-Pending proposals before commit, indefinite stock-target/forever bills, production
+Shared planner publication occurs on the next review after commit. Fixed batches
+also have the transaction-time admission check below. Pending building proposals,
+indefinite stock-target/forever bills, production
 surviving a new launch, selecting unbound unfinished work, portable equipment,
 and full timed selection/dispatch remain outside this slice. The ordinary cooking
 declarer emits stock-target bills, so a synthetic fixed cooking batch proves generic
@@ -467,3 +468,40 @@ remaining native holds, duplicate identity and wire unknowns. The registered
 callbacks in a prepared lab, including the production ownership check. It does
 not demonstrate autonomous pawn crafting, recovery yield, route feasibility or
 full coordinated dispatch. Ordinary stock-target cooking remains outside this slice.
+
+### Fixed-batch material admission
+
+Every Method containing a fixed-count production batch checks material availability
+inside the journal transaction that binds the Method and creates its plan. The
+existing SQLite transaction serializes competing callers, including separate store
+connections. A refused transaction leaves neither a plan nor a Method binding.
+Two batches proposed from the same review cannot each claim the same remaining
+inputs; multiple batches inside one proposal must fit together too.
+
+The full review records replaceable material evidence in its existing Rounds row:
+stock, observed construction deficit, native job holds, recipe ingredients and
+reviewed production promises. Admission re-reads the bounded current-world journal
+projection, combines reviewed promises with batches committed since that review,
+and calls the same pure material-budget functions used by `ResourceDemandOf`.
+It does not decrement a separate stock ledger. The proposal's exact ingredient
+filter and catalog slots determine its costs; unknown quantities or missing
+evidence refuse admission. The existing 256-action projection bound also bounds
+admission, including historical batch actions; reaching it refuses further batches.
+
+A never-dispatched cancelled commitment releases its claim immediately. Dispatch,
+an accepted placement, or a later journal cancellation does not refund old stock:
+post-review batches retain their full claim until a fresh review observes native
+progress. Reviewed bills retain that review's remaining/unfinished-item accounting.
+This avoids spending stale stock again after a job consumes inputs. Fresh reviews
+replace evidence; immediate reviews preserve it within the same world, and world
+changes or rewinds discard it. Disabled reviews cannot authorize admission.
+
+`ProductionAdmissionTests` covers competition within and across Methods, a race
+between independent database connections, atomic rollback and retry after
+cancellation, stale dispatch evidence, exact native-hold overlap, unknown inputs,
+and review/world lifecycle. These are policy/journal guarantees, not native
+resource locks or evidence of autonomous gameplay. Pending construction, trade
+sales, indefinite production and other consumers are not yet admitted through
+this material check. Native simulation can still change stock between reviews.
+The wider claim-overlap migration in #2742 and live timed selection in #3128 remain
+open; no existing hauling, cleaning or eating helper is removed.

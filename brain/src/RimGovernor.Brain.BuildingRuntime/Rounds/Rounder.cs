@@ -414,26 +414,15 @@ public sealed partial class Rounder
         PlanFood(ref foodProjection);
         reading = reading.WithProjection(foodProjection);
         reading = reading.WithFacts(rf => rf with { ConstructionClaims = claims });
-        var batches = await p.Journal.ProductionBatchesAsync(state.Snapshot, reading.Projection.Identity.Tick, ct).ConfigureAwait(false);
-        if (batches.TryGetValue(out var batchRows) && reading.Catalog is { } batchCatalog)
+        reading = reading.WithFacts(rf => rf with { ProductionAdmission = new()
         {
-            var enriched = new List<ProductionBatch>();
-            foreach (var batch in batchRows)
-            {
-                try
-                {
-                    enriched.Add(batch with
-                    {
-                        Slots = batchCatalog.RecipeIngredients(batch.Order.Recipe),
-                        UsesUnfinishedItem = Known(batchCatalog.RecipeUsesUnfinishedItem(batch.Order.Recipe)),
-                    });
-                }
-                catch (DomainException) { enriched.Add(batch); }
-            }
-            batches = Known(EquatableArray.From(enriched));
-        }
-        var productionPromises = PolicyApi.ProductionPromisesOf(batches, ObservationApi.ProductionBatchStates(reading.Frame.Bills));
-        reading = reading.WithFacts(rf => rf with { ProductionPromises = productionPromises });
+            Recipes = reading.Catalog is { } batchCatalog ? Known(batchCatalog.ProductionRecipeInputs(
+                reading.Frame.Tables.Buildings.Table.Values().Select(b => b.Building?.DefName ?? ""))) : default,
+            Bills = ObservationApi.ProductionBatchStates(reading.Frame.Bills),
+        } });
+        var batches = await p.Journal.ProductionBatchesAsync(state.Snapshot, reading.Projection.Identity.Tick, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(rf => rf with { ProductionPromises = PolicyApi.ProductionPromisesOf(
+            PolicyApi.PriceProductionBatches(batches, rf.ProductionAdmission.Recipes), rf.ProductionAdmission.Bills) });
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { ConstructionClaims = reading.Projection.Facts.ConstructionClaims } });
         ReviewRoyalty(state.Snapshot, reading, ct);
         // A creepjoiner held apart owes the isolation room, so the census is read before the child rooms and the layout.

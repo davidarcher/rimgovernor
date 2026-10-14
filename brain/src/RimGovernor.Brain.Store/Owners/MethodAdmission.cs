@@ -26,7 +26,21 @@ public sealed partial class Store
         AdmitAcquisitionMethod(tx, owner, plan);
         AdmitWorkMethod(tx, owner, plan);
         AdmitSupplyMethod(tx, owner, plan);
+        AdmitProductionMaterials(tx, owner, plan);
         CreatePlanIn(tx, plan);
+    }
+
+    private static void AdmitProductionMaterials(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
+    {
+        var proposed = plan.Actions.Where(a => a.ProductionBill is { Mode: BillMode.GearBatch })
+            .Select(a => new ProductionBatch(a.ProductionBill!, new ProgressView { Action = a.Id, Stage = Stage.Pending })).ToArray();
+        if (proposed.Length == 0) return;
+        var review = LoadRounds(tx);
+        var committed = ProductionBatchesIn(tx, owner.OwnerSnapshot, null);
+        if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot || review.ProductionMaterials is not { } evidence
+            || !committed.TryGetValue(out var rows) || rows.Count + proposed.Length > MaxProductionClaims
+            || !ProductionAdmissionFits(evidence, committed, EquatableArray.From(proposed)))
+            throw new ProductionMaterialException();
     }
 
     /// <summary>

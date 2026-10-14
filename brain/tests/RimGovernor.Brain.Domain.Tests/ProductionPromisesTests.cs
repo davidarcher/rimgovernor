@@ -140,7 +140,12 @@ public sealed class ProductionPromisesTests
         using var lifetime = new CancellationTokenSource();
         using var journal = JournalStore.Open(Path.Combine(Path.GetTempPath(), "rg-production-" + Guid.NewGuid().ToString("N") + ".db"), lifetime.Token);
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
-        var facts = Facts(Known(default(EquatableArray<ForecastCommitment>))) with { Tick = new Tick(100), LedgerOwed = Known(true) };
+        var facts = Facts(Known(default(EquatableArray<ForecastCommitment>))) with
+        {
+            Tick = new Tick(100), LedgerOwed = Known(true), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
+            ProductionAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots, Known(false))]),
+                Bills = Known(default(EquatableArray<ProductionBatchState>)) },
+        };
         var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, lifetime.Token);
         var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
         Assert.Empty(journal.ProductionBatches(world, facts.Tick, lifetime.Token).Value);

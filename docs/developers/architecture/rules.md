@@ -130,7 +130,8 @@ The landing report answers each in a line.
    value from the shared demand calculation. Committed fixed production batches
    publish exact single-choice ingredients on the next review; shared acquisition,
    trade retention and stone-wall funding consume them ([scope](colony-forecast.md#live-fixed-batch-material-promises)).
-   Ingredients before that review, indefinite production, other construction and
+   Fixed batches additionally check the same budget functions inside Method commit;
+   journal actions own claims between reviews. Indefinite production, other construction and
    trade/export paths retain the planner-local exception. Per-target construction
    finishing settings do not reserve ingredients.
 9. **Unknown is never a number.** Use `Fact<T>`/unknown, not a sentinel,

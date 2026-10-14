@@ -46,8 +46,18 @@ public sealed partial class DefinitionCatalog
     /// <summary>The distinct defs the recipe makes, in the recipe's order.</summary>
     public IReadOnlyList<P.Resource> RecipeProducts(string name) => RecipeProductDefs(Recipe(name));
 
-    /// <summary>Whether the recipe can reuse ingredients embedded in an unfinished item.</summary>
-    public bool RecipeUsesUnfinishedItem(string name) => Recipe(name).unfinishedThingDef is not null;
+    /// <summary>Definition-only inputs for observed building types, including recipes not yet claimed by a Method.</summary>
+    public EquatableArray<P.ProductionRecipeInput> ProductionRecipeInputs(IEnumerable<string> buildingDefs)
+    {
+        var buildings = buildingDefs.ToHashSet(StringComparer.Ordinal);
+        var result = new List<P.ProductionRecipeInput>();
+        foreach (var recipe in Rows<RecipeDef>().Values.Where(r => r.products.Count > 0 && RecipeBenchesOf(r).Any(buildings.Contains)).OrderBy(r => r.defName, StringComparer.Ordinal))
+        {
+            try { result.Add(new(recipe.defName, RecipeIngredients(recipe.defName), Known(recipe.unfinishedThingDef is not null))); }
+            catch (DomainException) { result.Add(new(recipe.defName, default, default)); }
+        }
+        return EquatableArray.From(result);
+    }
 
     private static List<P.Resource> RecipeProductDefs(RecipeDef row)
     {

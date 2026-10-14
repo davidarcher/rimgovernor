@@ -238,6 +238,8 @@ public sealed record RoundsFacts
     /// <summary>Committed fixed batches reconciled with current native remaining counts.</summary>
     public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
 
+    public ProductionAdmissionObservation ProductionAdmission { get; init; } = new();
+
     public Fact<SleepingObservation> Sleeping { get; init; }
 
     public Fact<bool> SleepingRecovered { get; init; }

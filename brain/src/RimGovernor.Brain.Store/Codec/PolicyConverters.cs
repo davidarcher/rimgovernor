@@ -2149,6 +2149,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
     protected override Rounds Read(JsonElement e, Codecs o) =>
         new()
         {
+            ProductionMaterials = e.GetOr<ProductionAdmissionEvidence?>("ProductionMaterials", null, o),
             Emergency = e.Get<EquatableArray<ConcernId>>("Emergency", o),
             Unsafe = e.Get<EquatableArray<string>>("Unsafe", o),
             BrewingFinished = e.Bool("BrewingFinished"),
@@ -2187,6 +2188,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
 
     protected override void WriteFields(Utf8JsonWriter w, Rounds v, Codecs o)
     {
+        if (v.ProductionMaterials is { } materials) w.Put("ProductionMaterials", materials, o);
         w.Put("Emergency", v.Emergency, o);
         w.Put("Unsafe", v.Unsafe, o);
         w.WriteBoolean("BrewingFinished", v.BrewingFinished);

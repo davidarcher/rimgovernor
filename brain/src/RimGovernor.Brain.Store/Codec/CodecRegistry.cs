@@ -6,6 +6,12 @@ internal static class CodecRegistry
     internal static Codecs Build()
     {
         var codecs = new Codecs();
+        codecs.Register(new ProductionAdmissionEvidenceConverter());
+        codecs.Register(new ProductionRecipeInputConverter());
+        codecs.Register(new ProductionMaterialPromiseConverter());
+        codecs.Register(new ForecastMaterialClaimConverter());
+        codecs.Register(new IngredientReservationConverter());
+        codecs.Register(new AmountConverter());
         codecs.Register(new StringValueCodec());
         codecs.Register(new Int32Codec());
         codecs.Register(new Int64Codec());

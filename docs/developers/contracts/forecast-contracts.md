@@ -19,8 +19,10 @@ supplied estimate; forecast claims do not acquire native reservations.
 [Live fixed batches](../architecture/colony-forecast.md#live-fixed-batch-material-promises)
 project committed Method actions and current native remaining counts into the
 shared demand pipeline. Exact single-choice ingredients reconcile with native
-holds by bill ID; alternatives stay unknown. Indefinite production and atomic
-admission-time material reservation remain outside that integration.
+holds by bill ID; alternatives stay unknown. [Fixed-batch admission](../architecture/colony-forecast.md#fixed-batch-material-admission)
+rechecks journal claims atomically with Method commit against the last full
+review's material evidence. This is not a native resource lock; indefinite
+production, pending construction and sale admission remain outside that check.
 
 [Unfinished work](../architecture/colony-forecast.md#ingredients-inside-unfinished-work)
 is observed by exact bound item ID and embedded quantities. One initialized bound

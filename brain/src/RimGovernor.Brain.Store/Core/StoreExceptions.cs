@@ -2,6 +2,12 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Store;
 
+/// <summary>A fixed batch cannot claim material from the current review and committed journal work.</summary>
+public sealed class ProductionMaterialException : DomainException
+{
+    public ProductionMaterialException() : base("fixed production batch material is insufficient or unknown, or the claim bound is exhausted") { }
+}
+
 /// <summary>Go <c>core.ErrConflict</c>: a plan or action identity already exists, or a compare-and-swap lost.</summary>
 public class ConflictException : DomainException
 {

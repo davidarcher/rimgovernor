@@ -18,6 +18,8 @@ public sealed record ReserveSupply(string Thing, string Definition, bool Forbid)
 /// </summary>
 public sealed record Rounds
 {
+    public ProductionAdmissionEvidence? ProductionMaterials { get; init; }
+
     /// <summary>Emergency findings guide response planning and reporting.</summary>
     public EquatableArray<ConcernId> Emergency { get; init; }
 

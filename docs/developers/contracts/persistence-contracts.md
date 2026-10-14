@@ -46,6 +46,14 @@ The review derives their material credit from native readback; it does not persi
 an embedded-material ledger. The existing native production record's configuration
 fingerprint excludes mutable remaining count; no second tracker is added.
 
+Fixed-batch admission uses a replaceable material-evidence field in the existing
+Rounds record: observed stock, construction deficit, native ingredient holds,
+catalog recipe inputs and the reviewed batch claims. Journal actions remain the
+only commitment owner. Admission re-reads them inside the method transaction;
+it never maintains a mutable remaining-stock ledger. Full reviews replace this
+evidence, immediate reviews retain it only in the same world, and world changes
+or rewinds discard it. Missing evidence refuses new fixed batches.
+
 ### Layout plan record
 
 The layout plan (`policy.LayoutPlan`, see [spatial contracts](spatial-contracts.md#layout-planner))
