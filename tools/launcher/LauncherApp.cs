@@ -617,6 +617,8 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         var stale = EndpointFile.PathIn(endpointDir);
         try
         {
+            // File.Delete throws when the directory is missing, as it is for a game id that has not run here yet.
+            _ = Directory.CreateDirectory(endpointDir);
             File.Delete(stale);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
