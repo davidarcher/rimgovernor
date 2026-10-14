@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
             foreach (var order in command.Orders)
             {
                 if (order == null) return false;
-                bool door = order.Order is Operations.CombatOrderOrder.DoorCase || order.Order is Operations.CombatOrderOrder.MortarFireCase;
+                bool door = order.Order is Operations.CombatOrderOrder.DoorCase { Value.Mode: not (Operations.CombatDoorMode.Open or Operations.CombatDoorMode.Shut) } || order.Order is Operations.CombatOrderOrder.MortarFireCase;
                 if (door ? order.Pawn != null : !NativeDraftProtocol.ValidEntityTokenOptional(order.Pawn)) return false;
                 var ownId = order.Pawn?.EntityId ?? "";
                 switch (order.Order)
@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
                         if (mode != Operations.CombatFireMode.AtWill && mode != Operations.CombatFireMode.Hold) return false; break;
                     case Operations.CombatOrderOrder.DoorCase { Value: var doorOrder }:
                         if (!ValidCell(doorOrder.Cell) || doorOrder.Mode is null
-                            || doorOrder.Mode < Operations.CombatDoorMode.HoldOpen || doorOrder.Mode > Operations.CombatDoorMode.Allow) return false; break;
+                            || doorOrder.Mode < Operations.CombatDoorMode.HoldOpen || doorOrder.Mode > Operations.CombatDoorMode.Shut) return false; break;
                     case Operations.CombatOrderOrder.RescueCase { Value: var rescue }:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(rescue.Downed) || rescue.Downed?.EntityId == ownId
                             || rescue.Dest != null && !ValidCell(rescue.Dest)) return false; break;
@@ -88,7 +88,22 @@ namespace HomeBridge.BridgeTools
                 var orderPawn = order.Pawn ?? new Operations.EntityPrecondition();
                 var result = new Receipts.CombatOrderResult { Index = (uint)i };
                 string refusal; string? job = null;
-                if (order.Order is Operations.CombatOrderOrder.DoorCase { Value: var doorOrder }) refusal = Door(map, doorOrder);
+                if (order.Order is Operations.CombatOrderOrder.DoorCase { Value: var doorOrder })
+                {
+                    if (doorOrder.Mode is Operations.CombatDoorMode.Open or Operations.CombatDoorMode.Shut)
+                    {
+                        result = result with { PawnId = orderPawn.EntityId };
+                        var admitted = pawns[(orderPawn.EntityId ?? "")];
+                        refusal = admitted.refusal;
+                        if (refusal.Length == 0) refusal = Drafted(identity, admitted.pawn!);
+                        if (refusal.Length == 0)
+                        {
+                            try { refusal = PawnDoor(map, admitted.pawn!, doorOrder); }
+                            catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " door failed: " + error.GetType().Name); }
+                        }
+                    }
+                    else refusal = Door(map, doorOrder);
+                }
                 else if (order.Order is Operations.CombatOrderOrder.MortarFireCase { Value: var mortarOrder })
                 {
                     try { refusal = MortarFire(map, mortarOrder, out job); }
@@ -425,6 +440,28 @@ namespace HomeBridge.BridgeTools
             }
             bool open = order.Mode.GetValueOrDefault() == Operations.CombatDoorMode.HoldOpen;
             if (door.HoldOpen != open) HoldOpenField.SetValue(door, open);
+            return "";
+        }
+
+        // A pawn-driven door order: the drafted pawn, beside the door and not in it, opens or starts shutting it
+        // without the walk through (vanilla's own approach-open and manual close).
+        private static string PawnDoor(Map map, Pawn pawn, Operations.CombatDoor order)
+        {
+            var cell = new IntVec3(order.Cell?.X.GetValueOrDefault() ?? 0, 0, order.Cell?.Z.GetValueOrDefault() ?? 0);
+            if (!cell.InBounds(map)) return "not_a_door";
+            var door = cell.GetEdifice(map) as Building_Door;
+            if (door == null || door.Faction != Faction.OfPlayerSilentFail) return "not_a_door";
+            if (pawn.Map != map || !pawn.Position.IsAdjacentToCardinalOrInside(CellRect.SingleCell(cell)) || pawn.Position == cell) return "not_adjacent";
+            if (door.IsForbidden(pawn)) return "forbidden";
+            if (order.Mode == Operations.CombatDoorMode.Open)
+            {
+                if (!door.PawnCanOpen(pawn)) return "cannot_open";
+                if (!door.Open) door.StartManualOpenBy(pawn);
+                return "";
+            }
+            if (!door.Open) return "";
+            if (door.BlockedOpenMomentary || door.HoldOpen) return "occupied";
+            door.StartManualCloseBy(pawn);
             return "";
         }
 

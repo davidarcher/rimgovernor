@@ -13,7 +13,7 @@ public static partial class BridgeFunctions
         var orders = new List<Op.CombatOrder>(batch.Orders.Count);
         foreach (var command in batch.Orders)
         {
-            var named = command.Kind is not ("door" or "mortar_fire");
+            var named = command.Kind is not ("door" or "mortar_fire") || (command.Kind == "door" && command.Door is "open" or "shut");
             var order = new Op.CombatOrder
             {
                 Pawn = named ? new Op.EntityPrecondition { EntityId = command.Pawn.Value } : null,
@@ -60,6 +60,8 @@ public static partial class BridgeFunctions
         "close" => Op.CombatDoorMode.Close,
         "forbid" => Op.CombatDoorMode.Forbid,
         "allow" => Op.CombatDoorMode.Allow,
+        "open" => Op.CombatDoorMode.Open,
+        "shut" => Op.CombatDoorMode.Shut,
         _ => throw Contract($"combat door mode {name} unsupported"),
     };
 }

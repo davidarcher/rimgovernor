@@ -29,7 +29,7 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 planner's spike traps out of the compound so the raider reaches the firing line (otherwise it usually dies to the traps
 first; with them out the colonists fire and win in 2406 ticks). `--armor` puts both sides in a flak vest and
 helmet, `--melee` gives the raiders longswords, `--cover` lays sandbags in front of the colonists on open ground, `--psycast`
-gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks); `--permit` is described under Reads; `--burn` (with `--policy --open`) is the infestation described under Reads.
+gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks); `--permit` is described under Reads; `--burn` (with `--policy --open`) is the infestation described under Reads; `--doortest` (with `--policy --open --burn`) probes door mechanics, see Known harness facts.
 
 ## The native seat
 
@@ -72,6 +72,7 @@ processes. About 8–12 ms a fight after a ~7 s startup.
 
 ## Known harness facts
 
+- Doors (`--doortest`): a drafted pawn ordered onto a door cell opens the door as it approaches (the engine's approach notification, before it steps in); a Stop issued then leaves the pawn on the cell it was on and the door open. The door stays open `ticksUntilClose` = 210 ticks, then shuts. `HoldOpen` only keeps an already-open door from shutting; it does not open a closed one. Clearing the hold lets it shut on its own. `Building_Door.StartManualCloseBy(pawn)` on an open, empty door sets the timer to 110 ticks and the door shuts when it runs out (it is not instant).
 - Filth is skipped (`skips.txt`): which neighbouring cell a drop of blood lands on, and whether a new filth spawns, varied from process to process and moved the draw count by one, which turned a long armored fight into 2513, 2517, 2899 or 3000 ticks.
 - Standing things (a staged compound) take fixed thing ids: the game seeds some choices from a thing's id (a raider choosing to ignite a wall or attack it), and ids left to the map generator differ from process to process.
 - Pawns are generated with `mustBeCapableOfViolence`: without it about 16% of generated colonists carry a backstory
@@ -97,7 +98,7 @@ two or more cells off (the engine refuses an adjacent target). The three staged 
 wall, out of line of sight of the corridor, and the hive's own pawn spawning is off (its insects spawn on the axis and see the carrier). The throw
 lands at t=1130 (a Fire at the stool); the carrier, unarmed and so out of the formation, keeps a retreat role, walks back past the last door, and only
 then do the doors close and lock (a forbidden door is unreachable to a pawn still inside). The colonists win in 1866 ticks, the same in every
-process, by shooting the insects, not by heat: the one fire raises the hive 1 C at most, so 4 stools do not reach 150 C. A finding for the policy, not tuned here.
+process, by shooting the insects, not by heat: the one fire raised the hive about 1 C in the ticks observed, but the doors stood open with insects in them, so whether 4 stools can reach 150 C in a sealed room is not yet established. The carrier now opens the innermost door with the pawn `Open` door order from the next door's cell, without stepping into the doorway.
 The harness had to change for the throw to land at all: a projectile launches from the caster's draw position, which only the render pass
 advances, so a pawn that had walked shot from the cell it spawned in; `Arena.Play` now resets each pawn's tweened position every tick
 (this moved the numbers above: `--no-traps` 2406, `--permit` 1372). **Royalty**: built as the rounds build it, from the frame's colony royalty section and pawn rows against the catalog

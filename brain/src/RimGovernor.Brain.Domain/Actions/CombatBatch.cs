@@ -41,6 +41,9 @@ public sealed record CombatBatch : IActionPayload
             DomainException.Require(o.Cell.X >= 0 && o.Cell.Z >= 0 && o.Aim.X >= 0 && o.Aim.Z >= 0, "invalid combat cell");
             switch (o.Kind)
             {
+                case "door" when o.Door is "open" or "shut":
+                    DomainException.Require(o.Pawn.IsValid, "combat pawn missing");
+                    break;
                 case "door":
                 case "mortar_fire":
                     DomainException.Require(o.Pawn.IsEmpty, "combat structure order names pawn");
@@ -70,7 +73,7 @@ public sealed record CombatBatch : IActionPayload
             }
             if (o.Kind == "door")
             {
-                DomainException.Require(o.Door is "allow" or "forbid" or "hold_open" or "close", "invalid combat door mode");
+                DomainException.Require(o.Door is "allow" or "forbid" or "hold_open" or "close" or "open" or "shut", "invalid combat door mode");
             }
             if (o.Kind == "fire_mode")
             {

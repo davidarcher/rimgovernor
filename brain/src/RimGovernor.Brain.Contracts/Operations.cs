@@ -40,6 +40,12 @@ public enum CombatDoorMode
     Forbid = 3,
     [WireName("COMBAT_DOOR_MODE_ALLOW")]
     Allow = 4,
+    /// <summary>The named pawn, adjacent, opens the door at once (vanilla's approach-open) without stepping into it.</summary>
+    [WireName("COMBAT_DOOR_MODE_OPEN")]
+    Open = 5,
+    /// <summary>The named pawn starts the door's manual shutdown (vanilla's 110-tick close); refused while something stands in it.</summary>
+    [WireName("COMBAT_DOOR_MODE_SHUT")]
+    Shut = 6,
 }
 
 [JsonConverter(typeof(WireEnumConverter<ThingDesignation>))]

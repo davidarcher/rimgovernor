@@ -319,6 +319,20 @@ public static partial class PolicyFunctions
 
         PodDoor Send(PodDoor d)
         {
+            if (d.Mode == DoorMode.Open)
+            {
+                // A pawn-driven open is an instant trigger: it stands until the door reads open, then is done.
+                var read = view.DoorStates.TryGetValue(out var seen) ? seen.Items.FirstOrDefault(s => s.Cell == d.Cell) : null;
+                var isOpen = read is not null && read.Open.TryGetValue(out var o) && o;
+                if (isOpen)
+                {
+                    return d with { Sent = true };
+                }
+
+                output.Add(new CombatOrder { Pawn = d.Opener, Kind = CombatOrderKind.Door, Cell = d.Cell, Door = DoorMode.Open, Reason = CombatOrderReason.Formation });
+                return d with { Sent = true };
+            }
+
             if (view.DoorStates.TryGetValue(out var states))
             {
                 var index = states.Items.ToList().FindIndex(s => s.Cell == d.Cell);

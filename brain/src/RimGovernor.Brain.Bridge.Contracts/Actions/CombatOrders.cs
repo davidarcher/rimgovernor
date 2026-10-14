@@ -38,7 +38,7 @@ public static partial class BridgeFunctions
         {
             var order = command.Orders[i] ?? throw Contract($"combat order {i} missing");
             BuildingUnknown(order);
-            var door = order.Order is Op.CombatOrderOrder.DoorCase;
+            var door = order.Order is Op.CombatOrderOrder.DoorCase { Value.Mode: not (Op.CombatDoorMode.Open or Op.CombatDoorMode.Shut) };
             var fire = order.Order is Op.CombatOrderOrder.MortarFireCase;
             if (door || fire)
             {
@@ -78,7 +78,7 @@ public static partial class BridgeFunctions
                     {
                         throw Contract($"combat order {i} door cell missing or invalid");
                     }
-                    if ((doorOrder.Mode ?? Op.CombatDoorMode.Unspecified) is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Allow)
+                    if ((doorOrder.Mode ?? Op.CombatDoorMode.Unspecified) is < Op.CombatDoorMode.HoldOpen or > Op.CombatDoorMode.Shut)
                     {
                         throw Contract($"combat order {i} door mode unsupported");
                     }

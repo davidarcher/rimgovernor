@@ -14,6 +14,12 @@ public enum DoorMode
 
     /// <summary>Shuts a door.</summary>
     Close,
+
+    /// <summary>A named pawn opens the door from beside it, without entering.</summary>
+    Open,
+
+    /// <summary>A named pawn starts the door's manual shutdown from beside it.</summary>
+    Shut,
 }
 
 /// <summary>One rescue_path cell: hostile line of fire on it, and a player door standing on it.</summary>

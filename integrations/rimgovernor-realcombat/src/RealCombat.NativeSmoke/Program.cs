@@ -125,6 +125,7 @@ if (args.Contains("--burn"))
 
 GameHost.Boot(game);
 var controller = new SeatController();
+var doorProbe = args.Contains("--doortest") ? new DoorProbe() : null;
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
 if (policy && !open)
 {
@@ -132,7 +133,7 @@ if (policy && !open)
     stage = new DefenseStage(RimGovernor.Brain.Domain.Rotation.West, 2, range) { Traps = !args.Contains("--no-traps") };
 }
 
-var arena = new Arena(request, burn is not null ? burn.Raise : stage is null ? null : stage.Raise) { Controller = bare ? null : policy ? live : controller };
+var arena = new Arena(request, burn is not null ? burn.Raise : stage is null ? null : stage.Raise) { Controller = bare ? null : doorProbe is not null ? doorProbe : policy ? live : controller };
 if (stage is not null)
 {
     live.Layout = stage.Layout;
@@ -143,6 +144,11 @@ Console.Error.WriteLine($"winner={result.Winner} ticks={result.Ticks} {(bare ? "
 foreach (var p in result.Pawns)
 {
     Console.Error.WriteLine($"  {p.Id} shots={p.Shots} hitsTaken={p.HitsTaken} dead={p.Dead} downed={p.Downed}");
+}
+
+if (doorProbe is not null)
+{
+    return 0;
 }
 
 if (policy)
@@ -220,4 +226,91 @@ internal sealed class SeatController : IFightController
     {
         Orders = [new Operations.CombatOrder { Pawn = new Operations.EntityPrecondition { EntityId = pawn }, Order = order }],
     };
+}
+
+
+// --doortest (with --burn): the draft-and-cancel door trick. A colonist walks to the cell beside the outer corridor door, is
+// ordered onto the door cell, and is stopped the moment the door starts to open; the door is then watched, a hold-open set and
+// cleared, and a manual close tried. Prints the door and pawn every few ticks.
+internal sealed class DoorProbe : IFightController
+{
+    private NativeSeat? _seat;
+    private string _pawn = "";
+    private int _phase;
+    private int _since;
+    private int _lastLog = -100;
+
+    public void Begin(Map map) => _seat = NativeSeat.Open(map);
+
+    public void Decide(Map map, int tick)
+    {
+        var door = new IntVec3(38, 0, 30).GetEdifice(map) as RimWorld.Building_Door;
+        var pawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault();
+        if (door is null || pawn is null)
+        {
+            return;
+        }
+
+        var f = typeof(RimWorld.Building_Door);
+        object? Field(string n) => f.GetField(n, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)?.GetValue(door);
+        string State() => $"open={door.Open} free={door.FreePassage} hold={door.HoldOpen} ticksOpen={Field("visualTicksOpen")} untilClose={Field("ticksUntilClose")} pawn={pawn.Position.x},{pawn.Position.z} job={pawn.CurJobDef?.defName}";
+        void Say(string what) => Console.Error.WriteLine($"t={tick} [{what}] {State()}");
+        void Do(Operations.CombatOrderOrder order) => _seat!.Apply(new Operations.CombatOrders { Orders = [new Operations.CombatOrder { Pawn = new Operations.EntityPrecondition { EntityId = "Thing_" + pawn.ThingID }, Order = order }] });
+        _pawn = pawn.ThingID;
+
+        if (tick == 1)
+        {
+            Do(new Operations.CombatOrderOrder.DraftCase(new Operations.Clear()));
+            Do(new Operations.CombatOrderOrder.MoveCase(new RimGovernor.Contracts.Wire.Common.Cell { X = 37, Z = 30 }));
+            _phase = 1;
+        }
+
+        if (_phase == 1 && pawn.Position.x == 37 && pawn.Position.z == 30)
+        {
+            Say("beside the door; ordering onto it");
+            Do(new Operations.CombatOrderOrder.MoveCase(new RimGovernor.Contracts.Wire.Common.Cell { X = 38, Z = 30 }));
+            _phase = 2;
+            _since = tick;
+        }
+
+        if (_phase == 2 && (door.Open || Convert.ToInt32(Field("visualTicksOpen") ?? 0) > 0))
+        {
+            Say("door started opening; stopping the pawn");
+            Do(new Operations.CombatOrderOrder.StopCase(new Operations.Clear()));
+            _phase = 3;
+            _since = tick;
+        }
+
+        if (_phase == 3 && tick - _since == 120)
+        {
+            Say("120 ticks later; setting hold-open");
+            Do(new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = new RimGovernor.Contracts.Wire.Common.Cell { X = 38, Z = 30 }, Mode = Operations.CombatDoorMode.HoldOpen }));
+            _phase = 4;
+            _since = tick;
+        }
+
+        if (_phase == 4 && tick - _since == 200)
+        {
+            Say("200 ticks held; releasing hold (Close)");
+            Do(new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = new RimGovernor.Contracts.Wire.Common.Cell { X = 38, Z = 30 }, Mode = Operations.CombatDoorMode.Close }));
+            _phase = 5;
+            _since = tick;
+        }
+
+        if (_phase == 5 && tick - _since == 30)
+        {
+            Say("30 ticks after release; trying StartManualCloseBy");
+            var m = f.GetMethod("StartManualCloseBy");
+            Console.Error.WriteLine($"   StartManualCloseBy present={m is not null}");
+            m?.Invoke(door, [pawn]);
+            _phase = 6;
+            _since = tick;
+        }
+
+        if (_phase >= 2 && tick - _lastLog >= 10 && tick - _since < 400)
+        {
+            _lastLog = tick;
+            Say("watch");
+        }
+    }
 }

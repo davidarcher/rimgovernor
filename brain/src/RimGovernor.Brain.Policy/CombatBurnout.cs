@@ -563,6 +563,12 @@ public static partial class PolicyFunctions
         var clear = cs.Dead || cs.Downed || !cs.Cell.TryGetValue(out var carrierNow) || Dist(carrierNow, b.Hive) > Dist(corridor[^1], b.Hive);
         var shut = b.Lit.Value > 0 && !approach && !doThrow && clear && (!armed || view.Tick.Value - b.Thrown.Value >= BurnThrowTicks);
         var want = new List<PodDoor>();
+        // The carrier opens the innermost door from the next door's cell, never stepping into the doorway.
+        if (approach && cs.Cell.TryGetValue(out var standing) && standing == corridor[1] && !InnerDoorOpen(view, b))
+        {
+            want.Add(new PodDoor { Cell = corridor[0], Mode = DoorMode.Open, Opener = b.Carrier });
+        }
+
         foreach (var d in corridor)
         {
             if (shut)
@@ -592,7 +598,7 @@ public static partial class PolicyFunctions
             {
                 // A held door only stays open once something has opened it: the carrier walks in through the corridor
                 // to the first door, then back out to the throw cell.
-                r.Cell = InnerDoorOpen(view, b) ? b.ThrowCell() : b.CorridorDoors()[0];
+                r.Cell = b.CorridorDoors()[1];
                 r.Retreat = true; // a move a shooter in the middle of an aim does not drop
                 continue;
             }
