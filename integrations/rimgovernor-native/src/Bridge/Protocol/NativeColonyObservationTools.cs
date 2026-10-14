@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
             result = result with { FoodSupply = new Obs.FoodSupplySection { Outcome = Food(FoodSupplyFacts.Read(people,
                     things.Where(FoodSupplyFacts.SharedFood).ToList())) } };
             Span("cf.foodSupply");
-            result = result with { Forecast = new Obs.ForecastSection { Outcome = Forecast(ForecastFacts.Read(map, people, things)) } };
+            result = result with { Forecast = new Obs.ForecastSection { Outcome = Forecast(ForecastFacts.Read(map, people, things)) with { Needs = NativeNeedsForecast.Read(map, people) } } };
             Span("cf.forecast");
             result = result with { Upkeep = ReadComfort(map, things, routePathBudgetMs) };
             Span("cf.upkeep");

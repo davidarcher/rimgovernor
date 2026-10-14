@@ -293,3 +293,8 @@ delivery obligation remains. Failed cooking is never automatically replayed.
 Fresh observations are ephemeral. Predecessor
 plans retain cleanup responsibility after a positively refused replacement.
 This adds no independent stock ledger or saved production workflow.
+
+Needs candidates and projected timelines are derived from the current Rounds
+frame and selected forecast inputs, in memory only; `RoundsFacts.NeedsAlternatives`
+is not admitted intent. It adds no persistence owner or second progress record.
+The existing Method/Plan journal owns any subsequently selected execution.

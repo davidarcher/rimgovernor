@@ -69,3 +69,5 @@ The [live work-resource view](developers/architecture/colony-forecast.md#shared-
 owns the shared observation and journal projection for migrated work paths;
 [work assignment](developers/contracts/work-assignment.md#shared-method-availability)
 and [persistence](developers/contracts/persistence-contracts.md) define its consumers and state ownership.
+
+- [Needs alternatives and future capacity](developers/architecture/colony-forecast.md#needs-alternatives-and-future-capacity): ordinary-review candidates, shared occupancy, conditional mechanics, native residual scene and supported states.

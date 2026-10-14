@@ -235,7 +235,7 @@ public static partial class ObservationPackage
                 QuestSites = FrameWorldSites(frame.Quests),
                 QuestExpeditionTrips = FrameExpeditionTrips(frame.Quests, expected.Map),
                 QuestWorkers = p.WorkPawns,
-                ForecastObserved = p.Facts.ForecastObserved with { WorkPawns = p.WorkPawns },
+                ForecastObserved = p.Facts.ForecastObserved with { WorkPawns = p.WorkPawns, Needs = colony.Forecast?.Outcome?.Observed?.Needs },
             },
         };
         var (capacity, departures) = FrameQuestWorkerCapacity(frame.Quests, expected.Map);

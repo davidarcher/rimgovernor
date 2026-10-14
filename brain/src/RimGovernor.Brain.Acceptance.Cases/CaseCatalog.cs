@@ -13,6 +13,7 @@ public static class CaseCatalog
         ArgumentNullException.ThrowIfNull(registry);
         HostSeams.Install();
         registry.Register(PawnActivityCase.Case());
+        registry.Register(NeedsForecastCase.Case());
         registry.Register(PawnControlCase.Case());
         registry.Register(PawnControlCase.LifecycleCase());
         registry.Register(PawnDeliveryCase.Case());

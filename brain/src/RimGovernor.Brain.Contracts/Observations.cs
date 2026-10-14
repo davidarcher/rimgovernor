@@ -6766,6 +6766,8 @@ public sealed record PatientForecast
 
 public sealed record ForecastFacts
 {
+    public NeedsForecastRead? Needs { get; init; }
+
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> AnimalIds { get; init; }
 

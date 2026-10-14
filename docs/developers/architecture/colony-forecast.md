@@ -1039,3 +1039,69 @@ planner-local accounting is still an architecture-rule-8 exception. Timed
 coupled consequences (#3133), portfolio choice (#3134), needs-derived occupancy
 (#3132), and helper retirement (#3149) remain separate work. The supplied-estimate
 forecast APIs remain useful for tests, but are not evidence of live capacity.
+
+## Needs alternatives and future capacity
+
+The ordinary Rounds read carries `Forecast.Needs`: per-pawn food/rest/recreation
+levels, native current fall/recovery rates, thresholds, food capacity, expiring
+memories, authority state and bounded eligible food/bed/horseshoes targets.
+`ReviewWorkResources` generates `NeedsAlternatives` from this frame and its shared
+work view. It exposes alternatives; #3134 owns portfolio selection and #3135 owns
+enabling needs dispatch and deleting competing routine writers. No new scheduler,
+state store or game-order writer is introduced.
+
+Generation retains food/count, now/later, partial/full bed recovery and horseshoes
+alternatives. Counts respect the observed single-ingestion limit and projected
+nutrition wanted; a raw-food serving chews once, not once per item. Target travel
+uses native route cost. Starts include now, the need threshold event, half the
+bounded horizon and protected-window ends. These are finite search samples, not
+proof of globally optimal timing. The policy expansion budget is 256; the native
+read bounds 16 pawns, eight targets per family/pawn and 128 route probes. Both
+report truncation; omitted choices have not been compared. Continue/defer is the
+empty selected-needs set, not another mutable Method.
+
+`ForecastNeedsTimeline` evaluates a selected set on the existing pawn timeline.
+Travel and need service occupy time once; overlapping need actions, current work
+and explicitly protected obligations are rejected. The legacy native timetable is
+not a strategic constraint on this forecast. Explicit player work, drafted,
+downed and mental-state authority remain protected, and journal ownership with
+unknown remaining duration remains unknown. Existing timetable-aware callers
+retain their behavior until the control cutover.
+
+Eating changes food at completed ingestion; an interruption before completion
+credits no food. Interrupted rest/recreation credits elapsed service only.
+Outputs separate final levels, integrated deficits, threshold exposure, excess
+nutrition/recovery, memory effects and productive windows. Productive windows
+exclude selected needs, travel and intervals at zero food/rest where physiological
+work capability is unassessed. They are a conservative supported-work bound, not
+a claim that RimWorld prohibits all labor at those levels. The returned capacity
+feeds the same `ForecastActivityProblem` as production: a paired test demonstrates
+that rest makes later production feasible, rather than merely changing a report.
+
+### Validity and unknowns
+
+Rates are observed at current health, need category, tolerance and bed conditions.
+The projection is piecewise linear in time, not a per-tick copy of RimWorld.
+Category-dependent fall, changing recreation tolerance, new health events,
+weather, disease/relationship changes, room mood, table/chair travel, ingestion
+outcomes and poisoning remain explicitly unassessed. Prediction values are
+conditional estimates, not qualified risk or guaranteed completion times.
+Sleep/recreation service uses native gain mechanics; ingestion service reads the
+native chew duration and eating-speed stat. Arrival cost excludes a subsequent
+native chewing-position or horseshoes-position choice, identified in findings.
+
+Memory expiry/fading changes the observed mood target conditionally. Permanent
+memories carry an explicit flag. Unknown expiry, repeated/grouped memories or
+unsupported renewal/stacking make the memory result unknown. The
+`MemoryAdjustedMoodTarget` is only that memory contribution applied to the current
+target, not predicted actual mood: need-category and room thoughts, mood response
+and break probability are unassessed. Existing Mood/comfort functions still own
+current diagnostics and legacy relief; they are not copied into a second scheduler.
+
+The registered `observations/needs-forecast` prepared scene observes physical food,
+bed and horseshoes recovery and correlates #3125 intervals with predictions. It
+reports signed residuals, service/travel and missing-history ticks for each family.
+The scene is registered/compiling; measured errors await nightly execution. It is
+not evidence of autonomous portfolio selection. Pure tests cover equal current
+mood with different thought expiry, meals, quantity waste, recovery, timing,
+interruption, unknowns, protected work, distance and bounded generation.

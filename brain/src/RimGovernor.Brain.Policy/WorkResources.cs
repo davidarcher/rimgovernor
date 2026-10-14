@@ -33,12 +33,12 @@ public static partial class PolicyFunctions
                 ? Known(Math.Max(0, units - native.Where(n => n.Bill == bill && n.CarriedResource == m.Resource.Value).Sum(n => (double)n.CarriedCount))) : default };
         })) })));
     }
-    public static ForecastCapacityResult WorkCapacityOf(WorkResourceView view, string pawn, double horizon)
+    public static ForecastCapacityResult WorkCapacityOf(WorkResourceView view, string pawn, double horizon, bool protectTimetable = true)
     {
         var observed = view.Evidence.Pawns.TryGetValue(out var rows) ? rows.SingleOrDefault(p => p.Pawn == pawn) : null;
         var work = new WorkPawn { Id = new(pawn), Available = observed?.Available ?? default,
             Applies = observed?.Applies ?? default, Schedule = observed?.Schedule ?? default };
-        return ForecastPawnCapacityOf(new() { Pawn = work, Location = "start", HorizonTicks = horizon,
+        return ForecastPawnCapacityOf(new() { Pawn = work, ProtectTimetable = protectTimetable, Location = "start", HorizonTicks = horizon,
             LocalHour = observed?.LocalHour ?? default, OpportunityCostPerTick = Known(1.0),
             CurrentWork = new(work.Id, observed?.Occupied ?? default, default,
                 observed is { Occupied.IsKnown: true, Occupied.Value: false } ? Known(0.0) : default),
@@ -57,6 +57,7 @@ public static partial class PolicyFunctions
         {
             ProductionPromises = !actions.Truncated && production.TryGetValue(out var rows) ? Known(MergeWorkMaterialPromises(rows.Concat(claims.Materials))) : default,
             WorkClaims = claims, WorkView = view,
+            NeedsAlternatives = ReviewNeedsAlternatives(facts.ForecastObserved.Needs, view),
         };
     }
 

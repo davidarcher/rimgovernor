@@ -626,3 +626,11 @@ It does not assign a second role by counting that pawn's timetable again.
 Existing construction skill/tier checks remain in force. See
 [shared live work resources](../architecture/colony-forecast.md#shared-live-work-resources)
 for reconciliation, unknown durations, bounds and remaining consumer exceptions.
+
+The [needs candidate projection](../architecture/colony-forecast.md#needs-alternatives-and-future-capacity)
+uses the same work-resource view and occupancy union. Its explicit
+`ProtectTimetable = false` ignores legacy generated timetable slots for strategic
+comparison, but never actual current work, player authority or journal claims.
+Selected need effects return productive windows to the existing activity search;
+there is no independent needs labor budget. Existing routine assignment callers
+remain timetable-aware until #3135 replaces those writers.

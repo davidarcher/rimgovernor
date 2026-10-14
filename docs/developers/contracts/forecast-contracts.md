@@ -375,3 +375,9 @@ food activities. Colony facts include each spawned pawn's activity identity,
 revision/state, current job target/bill, carried thing/definition/count and local hour. These are observed
 facts, not additional stock or a completion estimate. Native bill holds include
 spawned queued/placed ingredients; carried inputs are outside that loose census.
+
+Needs observations and the conditional projection are described in
+[needs alternatives and future capacity](../architecture/colony-forecast.md#needs-alternatives-and-future-capacity).
+The routine `Forecast.Needs` census carries native rates, target eligibility and
+memory expiry. Missing census/targets/rates remain unknown or explicitly absent;
+truncation is not completeness. No save intent or journal schema is added.

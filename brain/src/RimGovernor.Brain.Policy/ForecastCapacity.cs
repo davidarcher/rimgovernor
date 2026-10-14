@@ -7,6 +7,7 @@ public sealed record ForecastOccupancy(string Id, string Pawn, Fact<double> Star
 
 public sealed record ForecastCapacityInput
 {
+    public bool ProtectTimetable { get; init; } = true;
     public required WorkPawn Pawn { get; init; }
     public required string Location { get; init; }
     public double HorizonTicks { get; init; }
@@ -37,7 +38,7 @@ public static partial class PolicyFunctions
             return Result(Known(default(EquatableArray<ForecastTimeWindow>)), Known(0.0), "pawn_unavailable");
         var current = input.CurrentWork ?? ForecastCurrentWorkOf(pawn, input.CurrentJobRemainingTicks);
         if (current.Pawn != pawn.Id) throw new DomainException("capacity current work names another pawn");
-        if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || !pawn.WorkHoursPerDay().IsKnown
+        if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || (input.ProtectTimetable && !pawn.WorkHoursPerDay().IsKnown)
             || !input.LocalHour.TryGetValue(out var hour) || !input.Occupancy.TryGetValue(out var occupancy))
             return Result(default, default, "unknown_capacity_inputs");
         if (!double.IsFinite(hour) || hour < 0 || hour >= 24) throw new DomainException("invalid local hour");
@@ -60,7 +61,7 @@ public static partial class PolicyFunctions
             if (start < input.HorizonTicks && end > start) blocked.Add(new(start, Math.Min(end, input.HorizonTicks)));
         }
         // Protect every non-work timetable slot. Needs estimates can reserve more time; they never add free capacity.
-        for (var offset = 0; offset <= Math.Ceiling(input.HorizonTicks / GameTime.TicksPerHour); offset++)
+        for (var offset = 0; input.ProtectTimetable && offset <= Math.Ceiling(input.HorizonTicks / GameTime.TicksPerHour); offset++)
         {
             var local = Math.Floor(hour) + offset;
             var tick = Math.Max(0, (local - hour) * GameTime.TicksPerHour);

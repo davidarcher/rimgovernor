@@ -529,6 +529,7 @@ public sealed record RoundsFacts
 
     /// <summary>Observed ColonyForecast diagnostics not carried by the facts above.</summary>
     public ColonyForecastObserved ForecastObserved { get; init; } = new();
+    public ForecastNeedsReview? NeedsAlternatives { get; init; }
 
     public Fact<long> Wood { get; init; }
 

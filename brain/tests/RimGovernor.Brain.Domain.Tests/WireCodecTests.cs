@@ -214,7 +214,13 @@ public sealed class WireCodecTests
             }
             else
             {
-                obj[property.Name] = Fill(property.PropertyType, depth + 1, variant);
+                // Custom observation converters encode domain facts as nullable wire values, not CLR getter objects.
+                obj[property.Name] = property.CustomConverter switch
+                {
+                    ObservedNumberJsonConverter => JsonValue.Create(1.5),
+                    ObservedMemoriesJsonConverter => new JsonArray(),
+                    _ => Fill(property.PropertyType, depth + 1, variant),
+                };
             }
         }
 
