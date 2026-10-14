@@ -54,8 +54,7 @@ retreat cells, direction and choke the policy holds are read off the result the 
 (`PolicyController.Layout`). `--open` withholds all of that: open ground, no layout, the squad fallback.
 
 What it does not do yet: feed burn, royalty and drug inputs. The policy fields two defenders per opponent, so a 1v1 duel is
-never one of its fights. A compound fight is not yet reproducible across processes: the raider's first job against the ring
-(ignite a wall, or attack it) differs from run to run, so the same seed gives 619 to 3000 ticks. Open-ground fights are.
+never one of its fights.
 
 ## Determinism
 
@@ -68,6 +67,7 @@ processes. About 8–12 ms a fight after a ~7 s startup.
 
 ## Known harness facts
 
+- Standing things (a staged compound) take fixed thing ids: the game seeds some choices from a thing's id (a raider choosing to ignite a wall or attack it), and ids left to the map generator differ from process to process.
 - Pawns are generated with `mustBeCapableOfViolence`: without it about 16% of generated colonists carry a backstory
   that forbids violence, never fire, and make the colonist side look weak.
 - A skip target that no longer exists in the game build fails the boot with its name, so a game update that renames one

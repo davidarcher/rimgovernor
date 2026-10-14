@@ -15,6 +15,7 @@ namespace RimGovernor.RealCombat;
 public sealed class Arena
 {
     private const int FirstThingId = 100000;
+    private const int FirstStandingId = 1000;
     private const int StartTick = 60000;
     private const int SettleTicks = 120;
     private const int SettleSeed = 333;
@@ -87,6 +88,12 @@ public sealed class Arena
     // The request's terrain, weather and standing things become part of the baseline every fight returns to.
     private void Furnish()
     {
+        // Standing things take fixed ids: the game seeds some choices (which way a raider trashes a wall) from a thing's id.
+        foreach (var field in _idFields)
+        {
+            field.SetValue(Find.UniqueIDsManager, FirstStandingId);
+        }
+
         if (_req.Terrain.Length > 0)
         {
             var terrain = DefDatabase<TerrainDef>.GetNamed(_req.Terrain);
