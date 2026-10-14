@@ -1,0 +1,182 @@
+using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
+using RimWorld;
+using Verse;
+using Building = RimGovernor.Brain.Domain.Building;
+using Cell = RimGovernor.Brain.Domain.Cell;
+
+namespace RimGovernor.RealCombat.Native;
+
+/// <summary>
+/// A walled compound with the killbox the colony's own planner lays out in it, built at once. The ring wall closes the
+/// map except for the killbox's opening; the census of the map (what the live game reads off its cell mirror) goes to
+/// <see cref="PolicyFunctions.DefenseLayouts"/>, the planner that proposes the funnel, trap corridor and firing line in
+/// play; every building it proposes is placed instantly, so a fight starts on the finished defense. The layout the
+/// policy holds in the fight (<see cref="Layout"/>) is read off the planner's result the way the defense round reads it.
+/// </summary>
+public sealed class DefenseStage(Rotation toward, int defenders, double minRange)
+{
+    private static readonly Cell[] Directions = [new(0, 1), new(1, 0), new(0, -1), new(-1, 0)];
+
+    /// <summary>The layout the policy holds, or unknown when the planner refused the site.</summary>
+    public Fact<CombatLayout> Layout { get; private set; }
+
+    /// <summary>The planner's refusal, or empty.</summary>
+    public string Failure { get; private set; } = "";
+
+    /// <summary>The planner's result.</summary>
+    public DefenseLayout? Planned { get; private set; }
+
+    /// <summary>The cell behind the killbox's back wall, where the defenders start.</summary>
+    public Cell Home { get; private set; }
+
+    /// <summary>The cell the raiders reach first, outside the ring.</summary>
+    public Cell Entry { get; private set; }
+
+    /// <summary>Builds the ring wall, plans the killbox and places what it proposes.</summary>
+    public void Raise(Map map)
+    {
+        var bounds = new Bounds(map.Size.x, map.Size.z);
+        var (killbox, region, home, ok) = PolicyFunctions.LayoutKillbox(PolicyFunctions.OpeningPlan(toward), bounds);
+        if (!ok)
+        {
+            Failure = "no killbox opening in a map this size";
+            return;
+        }
+
+        Home = home;
+        Entry = killbox.Entry;
+        var d = Directions[(int)killbox.Toward];
+        var p = new Cell(-d.Z, d.X);
+        var names = RoundsDefenseLayoutPlanner.DefenseDefinitionNames;
+
+        // The ring: PerimeterThick rows from the entry inward, across the whole map but for the opening.
+        var ring = new List<Cell>();
+        var openLow = -killbox.Width / 2;
+        for (var row = 0; row < PolicyFunctions.PerimeterThick; row++)
+        {
+            for (var a = -Math.Max(bounds.Width, bounds.Height); a <= Math.Max(bounds.Width, bounds.Height); a++)
+            {
+                if (a >= openLow && a < openLow + killbox.Width)
+                {
+                    continue;
+                }
+
+                var c = new Cell(Entry.X + (d.X * row) + (p.X * a), Entry.Z + (d.Z * row) + (p.Z * a));
+                if (c.X >= 0 && c.Z >= 0 && c.X < bounds.Width && c.Z < bounds.Height)
+                {
+                    ring.Add(c);
+                }
+            }
+        }
+
+        foreach (var c in ring)
+        {
+            Place(map, new Building(names.Wall, c, Rotation.North, names.WallStuff));
+        }
+
+        killbox = killbox with { Walled = EquatableArray.From(ring) };
+        var cells = new List<DefenseCell>();
+        for (var x = region.X; x < region.X + region.Width; x++)
+        {
+            for (var z = region.Z; z < region.Z + region.Height; z++)
+            {
+                cells.Add(Census(map, new IntVec3(x, 0, z), names));
+            }
+        }
+
+        var request = new DefenseRequest
+        {
+            Bounds = bounds,
+            Region = region,
+            Home = Home,
+            Cells = EquatableArray.From(cells),
+            Definitions = names,
+            MinRange = Fact.Known(minRange),
+            Defenders = defenders,
+            Killbox = killbox,
+        };
+        try
+        {
+            Planned = PolicyFunctions.DefenseLayouts(request);
+        }
+        catch (DefenseException ex)
+        {
+            Failure = ex.Message;
+            return;
+        }
+
+        foreach (var tier in Planned.Tiers)
+        {
+            foreach (var b in tier.Buildings)
+            {
+                Place(map, b);
+            }
+        }
+
+        var layout = new CombatLayout
+        {
+            Firing = [.. Planned.Firing.Select(f => f.Cell)],
+            Retreat = [.. Planned.Firing.Select(f => f.Retreat)],
+            Toward = Planned.Toward,
+        };
+        if (Planned.TrapLane.Count > 0)
+        {
+            layout = layout with { Choke = Fact.Known(Planned.TrapLane[^1]) };
+        }
+
+        Layout = Fact.Known(layout);
+    }
+
+    // The census row the live game's cell mirror reads for a cell.
+    private static DefenseCell Census(Map map, IntVec3 c, DefenseDefinitions names)
+    {
+        var edifice = c.GetEdifice(map);
+        var terrain = c.GetTerrain(map);
+        var wall = DefDatabase<ThingDef>.GetNamed(names.Wall);
+        var trap = DefDatabase<ThingDef>.GetNamed(names.Trap);
+        var cover = c.GetCover(map);
+        return new DefenseCell
+        {
+            Cell = new Cell(c.x, c.z),
+            Walkable = Fact.Known(c.Walkable(map)),
+            Passable = Fact.Known(!c.Impassable(map)),
+            PlayerOwned = Fact.Known(edifice?.Faction == Faction.OfPlayer),
+            NaturalRock = Fact.Known(edifice?.def.building?.isNaturalRock == true),
+            EdgeReachable = Fact.Known(map.reachability.CanReachMapEdge(c, TraverseParms.For(TraverseMode.PassDoors))),
+            Door = Fact.Known(edifice is Building_Door),
+            Roofed = Fact.Known(c.Roofed(map)),
+            WallSupport = Fact.Known(terrain.affordances.Contains(wall.terrainAffordanceNeeded ?? TerrainAffordanceDefOf.Light)),
+            TrapSupport = Fact.Known(terrain.affordances.Contains(trap.terrainAffordanceNeeded ?? TerrainAffordanceDefOf.Light)),
+            CoverFill = Fact.Known(cover == null ? 0d : cover.def.fillPercent),
+            Edifice = edifice?.def.defName ?? "",
+        };
+    }
+
+    // A building stands at once; a floor is laid as terrain.
+    private static void Place(Map map, Building b)
+    {
+        var at = new IntVec3(b.Cell.X, 0, b.Cell.Z);
+        var thing = DefDatabase<ThingDef>.GetNamedSilentFail(b.Definition);
+        if (thing is null)
+        {
+            if (DefDatabase<TerrainDef>.GetNamedSilentFail(b.Definition) is { } floor)
+            {
+                map.terrainGrid.SetTerrain(at, floor);
+                return;
+            }
+
+            throw new InvalidOperationException($"realcombat: the game has no def {b.Definition}");
+        }
+
+        var stuff = b.Stuff.Length > 0 ? DefDatabase<ThingDef>.GetNamed(b.Stuff) : null;
+        var made = ThingMaker.MakeThing(thing, stuff);
+        if (made.def.CanHaveFaction)
+        {
+            made.SetFaction(Faction.OfPlayer);
+        }
+
+        GenSpawn.Spawn(made, at, map, new Rot4((int)b.Rotation));
+    }
+}

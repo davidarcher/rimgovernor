@@ -10,8 +10,8 @@ no live-game integration.
 |---|---|
 | `src/RealCombat` | Library. `GameHost.Boot` loads every def, the language and a seeded world; `Arena` builds a map, sweeps it and fights it once per seed. `Protocol.cs` is the request/response shape. `skips.txt` lists the UI, audio and non-combat tickers Harmony skips so the tick runs without a window. |
 | `src/RealCombat.Host` | The process: `RimGovernor.RealCombat.Host --game <dir> --request <json> --out <json>`. |
-| `src/RealCombat.Native` | Library. `NativeSeat` hosts the native mod's own `CombatMirror` (observation) and `NativeCombatOrders` (orders) over an arena map, so a controller sees and commands a simulated fight through the code it uses against the live game. Bridge exposes its internals to it (`InternalsVisibleTo`). `Arena.Controller` is the hook that plays the colonists instead of the built-in retargeting (the hostiles then act under an assault lord, as a raid does). `PolicyController` is the controller that decides with the live policy. |
-| `src/RealCombat.NativeSmoke` | Throwaway: a duel observed and commanded through the seat, or with `--policy` a 2v1 played by the live combat policy (`PolicyController`). |
+| `src/RealCombat.Native` | Library. `DefenseStage` raises a ring-walled compound and the planner's killbox in it. `NativeSeat` hosts the native mod's own `CombatMirror` (observation) and `NativeCombatOrders` (orders) over an arena map, so a controller sees and commands a simulated fight through the code it uses against the live game. Bridge exposes its internals to it (`InternalsVisibleTo`). `Arena.Controller` is the hook that plays the colonists instead of the built-in retargeting (the hostiles then act under an assault lord, as a raid does). `PolicyController` is the controller that decides with the live policy. |
+| `src/RealCombat.NativeSmoke` | Throwaway: a duel observed and commanded through the seat, or with `--policy` a 2v1 played by the live combat policy (`PolicyController`) inside a staged killbox compound (`DefenseStage`). |
 
 ## Build and run
 
@@ -24,7 +24,7 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 ```
 
 `--bare` plays both sides with the built-in retargeting, `--policy` plays the colonists with the live combat policy,
-`--trace` prints each decision and its results, `--squad` withholds the defense layout.
+`--trace` prints each decision and its results, `--open` fights on open ground with no layout.
 
 ## The native seat
 
@@ -45,10 +45,17 @@ reads it with the brain's own `FacadeNativeClient.ReadCombatAsync`. `BuildingRun
 defense round's chain (frame inputs, `CombatView`, the newest stop, `DecideCombat`) and builds the wire batch, which
 `NativeSeat.Apply` hands to the order handler. It decides at the first check, at each stop event and at a 300-tick backstop.
 
-Geometry asks are answered from the arena map through the mod's own `NativeCombatGeometryTools`. The colony's defense layout
-is the controller's `Layout` (unknown by default, so only the squad fallback forms; the smoke holds a two-cell line, `Toward`
-pointing home, and the policy takes the `Hold` tactic). What it does not do yet: derive a layout from the map, and feed burn,
-royalty and drug inputs. The policy fields two defenders per opponent, so a 1v1 duel is never one of its fights.
+Geometry asks are answered from the arena map through the mod's own `NativeCombatGeometryTools`. The defense layout comes
+from `DefenseStage`, which stages a compound as the colony's planner expects to find one: a ring wall across the map but
+for the killbox's opening (`OpeningPlan`, `LayoutKillbox`), a census of every cell in the killbox region read off the map,
+and `PolicyFunctions.DefenseLayouts` over it. Every building the planner proposes (funnel and back walls, the defenders'
+door, spike traps, fences, sandbags) is placed at once, so a fight starts on the finished defense, and the firing line,
+retreat cells, direction and choke the policy holds are read off the result the way the defense round reads them
+(`PolicyController.Layout`). `--open` withholds all of that: open ground, no layout, the squad fallback.
+
+What it does not do yet: feed burn, royalty and drug inputs. The policy fields two defenders per opponent, so a 1v1 duel is
+never one of its fights. A compound fight is not yet reproducible across processes: the raider's first job against the ring
+(ignite a wall, or attack it) differs from run to run, so the same seed gives 619 to 3000 ticks. Open-ground fights are.
 
 ## Determinism
 

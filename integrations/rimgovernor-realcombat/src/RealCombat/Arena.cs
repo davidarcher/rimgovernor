@@ -22,6 +22,7 @@ public sealed class Arena
     private static readonly BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
 
     private readonly RealFightRequest _req;
+    private readonly Action<Map>? _stage;
     private readonly Map _map;
     private readonly Faction _hostile;
     private readonly HashSet<Thing> _baselineThings;
@@ -29,9 +30,12 @@ public sealed class Arena
     private readonly FieldInfo[] _idFields = typeof(UniqueIDsManager).GetFields(Private).Where(f => f.FieldType == typeof(int)).ToArray();
     private readonly FieldInfo _tickField = typeof(TickManager).GetField("ticksGameInt", Private)!;
 
-    public Arena(RealFightRequest req)
+    /// <param name="req">The arena.</param>
+    /// <param name="stage">Builds standing structures on the map after the request's things, before the baseline (a defense compound the fight is played in); they are part of every fight's start.</param>
+    public Arena(RealFightRequest req, Action<Map>? stage = null)
     {
         _req = req;
+        _stage = stage;
         _map = GameHost.BuildMap(req.Width, req.Height);
         _hostile = Find.FactionManager.AllFactionsListForReading.FirstOrDefault(f => f.def.defName == req.HostileFaction)
             ?? throw new InvalidOperationException($"realcombat: the generated world has no faction {req.HostileFaction}");
@@ -105,6 +109,12 @@ public sealed class Arena
             var def = DefDatabase<ThingDef>.GetNamed(t.Def);
             var stuff = t.Stuff.Length > 0 ? DefDatabase<ThingDef>.GetNamed(t.Stuff) : null;
             GenSpawn.Spawn(ThingMaker.MakeThing(def, stuff), new IntVec3(t.X, 0, t.Z), _map);
+        }
+
+        if (_stage is not null)
+        {
+            using var scope = new RandScope(SettleSeed);
+            _stage(_map);
         }
     }
 

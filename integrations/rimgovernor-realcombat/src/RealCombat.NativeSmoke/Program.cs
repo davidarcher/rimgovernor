@@ -27,15 +27,26 @@ var request = new RealFightRequest
         new RealPawn { Id = "host", Side = "hostile", Kind = "Pirate", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
     ],
 };
+// --policy fights inside a walled compound with the killbox the colony's planner lays out (DefenseStage); --open is
+// the same fight on open ground, where the policy holds no layout and forms the squad fallback.
+var open = args.Contains("--open");
+DefenseStage? stage = null;
 if (policy)
 {
     // The policy fields at least two defenders for each opponent, so a duel is never one of its fights: two against one.
+    var home = new RimGovernor.Brain.Domain.Cell(20, 30);
+    if (!open)
+    {
+        var (_, _, h, _) = RimGovernor.Brain.Policy.PolicyFunctions.LayoutKillbox(RimGovernor.Brain.Policy.PolicyFunctions.OpeningPlan(RimGovernor.Brain.Domain.Rotation.West), new RimGovernor.Brain.Policy.Bounds(request.Width, request.Height));
+        home = h;
+    }
+
     request = request with
     {
         Pawns =
         [
-            new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = 20, Z = 29, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
-            new RealPawn { Id = "col1", Side = "colonist", Kind = "Colonist", X = 20, Z = 31, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = home.X, Z = home.Z - 1, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col1", Side = "colonist", Kind = "Colonist", X = home.X, Z = home.Z + 1, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
             new RealPawn { Id = "host", Side = "hostile", Kind = "Pirate", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
         ],
     };
@@ -44,17 +55,18 @@ if (policy)
 GameHost.Boot(game);
 var controller = new SeatController();
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
-if (policy && !args.Contains("--squad"))
+if (policy && !open)
 {
-    // A held defense line a few cells in front of the colonists, with home to the west and the raiders to the east.
-    live.Layout = RimGovernor.Brain.Domain.Fact.Known(new RimGovernor.Brain.Policy.CombatLayout
-    {
-        Firing = [new RimGovernor.Brain.Domain.Cell(23, 29), new RimGovernor.Brain.Domain.Cell(23, 31)],
-        Retreat = [new RimGovernor.Brain.Domain.Cell(21, 29), new RimGovernor.Brain.Domain.Cell(21, 31)],
-        Toward = RimGovernor.Brain.Domain.Rotation.West,
-    });
+    var range = Verse.DefDatabase<Verse.ThingDef>.GetNamed("Gun_BoltActionRifle").Verbs[0].range;
+    stage = new DefenseStage(RimGovernor.Brain.Domain.Rotation.West, 2, range);
 }
-var arena = new Arena(request) { Controller = bare ? null : policy ? live : controller };
+
+var arena = new Arena(request, stage is null ? null : stage.Raise) { Controller = bare ? null : policy ? live : controller };
+if (stage is not null)
+{
+    live.Layout = stage.Layout;
+    Console.Error.WriteLine($"stage: layout {(stage.Layout.IsKnown ? "held" : "none")} refusal={(stage.Failure.Length == 0 ? "none" : stage.Failure)} firing={stage.Planned?.Firing.Count} tiers={stage.Planned?.Tiers.Count}");
+}
 var result = arena.Fight(1);
 Console.Error.WriteLine($"winner={result.Winner} ticks={result.Ticks} {(bare ? "(bare)" : policy ? "policy " + live.Summary : controller.Summary)}");
 foreach (var p in result.Pawns)
