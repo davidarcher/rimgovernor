@@ -4,11 +4,13 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastMaterialOption(string Demand, string Id, Fact<double> Value, EquatableArray<Amount> Cost)
 {
     public ForecastProductionEstimate? Estimate { get; init; }
+    public ForecastRequirementAssessment? Requirements { get; init; }
 }
 public sealed record ForecastMaterialComparison(EquatableArray<ForecastMaterialOption> Selected, double Value,
     int Expansions, bool SearchTruncated, EquatableArray<string> Findings)
 {
     public ForecastMaterialValue? Valuation { get; init; }
+    public ForecastRequirementPriority Priority { get; init; } = new();
 }
 
 public static partial class PolicyFunctions
@@ -25,18 +27,22 @@ public static partial class PolicyFunctions
                 || o.Value.TryGetValue(out var v) && (!double.IsFinite(v) || v < 0)
                 || o.Cost.Any(c => !ValidResource(c.Resource) || c.Count < 0))) throw new DomainException("invalid material option");
         var findings = new SortedSet<string>(StringComparer.Ordinal);
+        if (valuation is not null && rows.Any(o => o.Requirements is not null))
+            throw new DomainException("requirement priorities and scalar utility are separate objectives");
         if (!availability.TryGetValue(out var budget)) return new([], 0, 0, false, ["unknown_material_budget"]);
         var groups = rows.GroupBy(o => o.Demand, StringComparer.Ordinal).Select(g => g.ToArray()).ToArray();
         var selected = new List<ForecastMaterialOption>();
         ForecastMaterialOption[] best = [];
         double bestValue = 0;
+        var bestPriority = new ForecastRequirementPriority();
         ForecastMaterialValue? bestValuation = valuation is null ? null : new(0, 0, 0);
         var expansions = 0;
         var truncated = false;
-        void Search(int index, double value, Dictionary<Resource, long> used, ForecastMaterialValue? priced)
+        void Search(int index, double value, Dictionary<Resource, long> used, ForecastMaterialValue? priced, ForecastRequirementPriority priority)
         {
             // Any partial selection is a complete alternative with all remaining demands postponed.
-            if (value > bestValue) { bestValue = value; best = selected.ToArray(); bestValuation = priced; }
+            if (priority.BetterThan(bestPriority, value, bestValue))
+            { bestValue = value; best = selected.ToArray(); bestValuation = priced; bestPriority = priority; }
             if (index == groups.Length) return;
             foreach (var option in groups[index])
             {
@@ -52,15 +58,16 @@ public static partial class PolicyFunctions
                 if (!double.IsFinite(value + benefit)) throw new DomainException("material value overflow");
                 selected.Add(option);
                 var evaluated = valuation is null ? null : ValueMaterialPlan(selected, valuation, findings);
-                if (valuation is null || evaluated is not null)
-                    Search(index + 1, evaluated?.Net ?? value + benefit, next, evaluated);
+                var requirements = RequirementPriorityOf(selected, findings);
+                if ((valuation is null || evaluated is not null) && requirements is not null)
+                    Search(index + 1, evaluated?.Net ?? value + benefit, next, evaluated, requirements);
                 selected.RemoveAt(selected.Count - 1);
             }
             if (expansions == expansionBudget) { truncated = true; return; }
             expansions++;
-            Search(index + 1, value, used, priced);
+            Search(index + 1, value, used, priced, priority);
         }
-        Search(0, 0, [], bestValuation);
-        return new(EquatableArray.From(best), bestValue, expansions, truncated, EquatableArray.From(findings)) { Valuation = bestValuation };
+        Search(0, 0, [], bestValuation, bestPriority);
+        return new(EquatableArray.From(best), bestValue, expansions, truncated, EquatableArray.From(findings)) { Valuation = bestValuation, Priority = bestPriority };
     }
 }

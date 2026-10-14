@@ -35,7 +35,7 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var (orders, unknown) = GearOrders(needs, v, review!, r);
+        var (orders, unknown) = GearOrders(needs, v, review!, r, clothing: true);
         return AbstainUnless(unknown, orders);
     }
 
@@ -132,6 +132,7 @@ public static partial class PolicyFunctions
             return (null, null, Cause.UnreadBenches);
         }
         r.Observation.TryGetValue(out var observed);
+        if (!observed!.Stored.IsKnown) return (null, null, Cause.UnreadGearDemand);
         return (review, ModeledGearObservation(observed!, review.Loadouts), null);
     }
 
@@ -149,7 +150,7 @@ public static partial class PolicyFunctions
     /// (declared as it stands) or the first funded recipe's batch sized to the demand left after stored stock.
     /// Unknown names the fact left unread (a bench census, bills or a recipe's facts).
     /// </summary>
-    private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) GearOrders(List<GearNeed> needs, GearObservation v, GearReview review, GearPlanningRequest r)
+    private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) GearOrders(List<GearNeed> needs, GearObservation v, GearReview review, GearPlanningRequest r, bool clothing = false)
     {
         var orders = new List<OrderSpec>();
         Cause? unknown = null;
@@ -169,6 +170,32 @@ public static partial class PolicyFunctions
             p.Candidates.TryGetValue(out var candidates);
             pending = pending || candidates.Count > 0;
         }
+        var queued = new Dictionary<Resource, long>();
+        var held = new HashSet<Resource>();
+        var productionBenches = benches;
+        if (clothing)
+        {
+            var products = needs.Select(n => n.Need.Definition).ToHashSet();
+            var seenBills = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var bench in benches)
+            {
+                if (!bench.Bills.TryGetValue(out var bills)) return (orders, Cause.UnreadBills);
+                foreach (var bill in bills.Where(b => !b.Spent && b.Products.Any(products.Contains)))
+                {
+                    if (!bill.Active.TryGetValue(out var active)) return (orders, Cause.UnreadBills);
+                    if (!active || !seenBills.Add(bill.Id)) continue;
+                    if (!bill.Spec.TryGetValue(out var spec)) return (orders, Cause.UnreadBills);
+                    orders.Add(spec);
+                    foreach (var product in bill.Products.Where(products.Contains))
+                    {
+                        if (spec.Mode != BillMode.GearBatch) held.Add(product);
+                        else queued[product] = checked(queued.GetValueOrDefault(product) + spec.Target);
+                    }
+                }
+            }
+            // Existing finite output is netted above, so resolve only the residual new production here.
+            productionBenches = benches.Select(b => b with { Bills = Known(EquatableArray.From(b.Bills.Value.Where(x => !x.Products.Any(products.Contains)))) }).ToArray();
+        }
         var done = new HashSet<GearStockKey>();
         foreach (var n in needs)
         {
@@ -178,7 +205,15 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var (method, resolved) = ProduceNeed(n, count, benches, r);
+            if (clothing)
+            {
+                if (held.Contains(n.Need.Definition)) continue;
+                var covered = Math.Min(count, queued.GetValueOrDefault(n.Need.Definition));
+                count -= (int)covered;
+                queued[n.Need.Definition] = queued.GetValueOrDefault(n.Need.Definition) - covered;
+                if (count == 0) continue;
+            }
+            var (method, resolved) = ProduceNeed(n, count, productionBenches, r);
             if (!resolved)
             {
                 continue;
@@ -209,6 +244,7 @@ public static partial class PolicyFunctions
                             Mode = BillMode.GearBatch,
                             Target = method.Count,
                             BenchKind = GearBenchDef(benches, method.Bench),
+                            Requirements = clothing ? ClothingRequirements(needs.Where(x => x.Need.Definition == key.Definition && x.Need.Stuff == key.Stuff).Take(count).ToArray(), method, benches, r) : null,
                         }
                     );
                     break;

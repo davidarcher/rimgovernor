@@ -516,9 +516,7 @@ alternative. A flexible job can therefore choose timber so a metal-only job can
 proceed, even when its deterministic standalone choice would have used metal.
 Only the selected combination receives narrowed bill filters.
 
-`CompareMaterialPlans` accepts supplied option values. The live ledger currently
-assigns **one unit of value per funded declared batch**; it maximizes batch count,
-with stable ordinal ties. This is an explicit provisional objective, not calibrated
+`CompareMaterialPlans` accepts supplied option values. Unclassified live orders receive **one unit of value per funded declared batch**, with stable ordinal ties. Clothing now carries the explicit requirement priorities described below. This is an explicit provisional objective, not calibrated
 colony utility. Ordinary sculpture declarations retain all stocked materials that
 meet their existing suitability floor instead of first picking the highest local
 beauty/market score. Recipe size, bench and worker selection still happen upstream.
@@ -557,9 +555,7 @@ admission, and integrated needs forecasts remain unproved #3127/#3128 work.
 ### Need-based production valuation proof
 
 The existing material generator and bounded comparison also accept explicit
-`ForecastProductionValuation` inputs. This is an opt-in policy proof: the live
-ledger still uses funded batch count because its declarers do not yet supply
-comparable benefit and labor estimates. Supplying a valuation switches the whole
+`ForecastProductionValuation` inputs. This is an opt-in policy proof: live clothing uses the explicit priority objective below, while unclassified producers still use batch count. No live producer supplies the comparable scalar utility estimates for this proof. Supplying a valuation switches the whole
 comparison to it; an unknown estimate never falls back to batch count.
 
 Each exact narrowed order key supplies the **whole batch's** need relief and labor
@@ -603,3 +599,21 @@ The next integration must derive comparable estimates from owning need forecasts
 net existing commitments out of remaining needs once, and populate exact variant
 estimates at a coherent review. Urgency, deadlines, uncertain outcomes, interactions
 between different needs and joint worker/time capacity are not inferred here.
+
+### Live clothing priorities
+
+The [equipment owner](../contracts/equipment-upkeep.md#live-clothing-requirement-selection)
+now attaches observed clothing requirement effects to exact material variants.
+The same bounded comparison ranks thermal safety, required coverage and condition
+before unclassified batch count, then uses ingredient market value and base recipe
+work as tie-break costs. Need relief is capped by stable need identity across
+selected batches. This explicit priority objective is separate from the supplied
+scalar utility proof; mixing them in one comparison is rejected.
+
+Clothing-only optional upgrades with no required relief wait. Unknown variant
+estimates do not revert to batch-count scoring. Existing shared stock budgets,
+atomic journal admission, generation/search bounds and postponed placements are
+unchanged. Method reasons report priority totals and clothing cost estimates.
+Other producers still lack need classifications. This is live clothing selection,
+not calibrated colony economics or joint pawn/bench/time scheduling; garment shape
+and recipe selection remain upstream, and whole batches cannot split materials.

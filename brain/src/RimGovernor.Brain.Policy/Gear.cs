@@ -323,6 +323,7 @@ public sealed record RecipeHost
 
 public sealed record GearPlanningRequest
 {
+    public IReadOnlyDictionary<Resource, double> MaterialPrices { get; init; } = new Dictionary<Resource, double>();
     public Fact<GearObservation> Observation { get; init; }
     public IReadOnlyList<MethodId> Seen { get; init; } = [];
     public Fact<EquatableArray<GearBench>> Benches { get; init; }

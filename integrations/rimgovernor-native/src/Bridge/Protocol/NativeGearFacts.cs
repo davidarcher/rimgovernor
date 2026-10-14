@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
             var apparelOnMap = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().ToList();
             var byId = new Dictionary<string, Apparel>();
             foreach (var apparel in apparelOnMap) byId[apparel.GetUniqueLoadID()] = apparel;
-            var billOptions = new Dictionary<RecipeDef, Obs.GearLoadoutOption?>();
+            var billOptions = new Dictionary<RecipeDef, IReadOnlyList<Obs.GearLoadoutOption>>();
             var stored = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()
                 .Where(a => a.IsInValidStorage() && !a.IsForbidden(Faction.OfPlayer) && !a.WornByCorpse
                     && (!a.def.useHitPoints || (float)a.HitPoints / a.MaxHitPoints > .5f))
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                         row = row with { Candidates = [.. row.Candidates, new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) }] };
                 }
                 Lap();
-                row = row with { LoadoutModel = Model(map, pawn, row, catalog, byId, billOptions) };
+                row = row with { LoadoutModel = Model(pawn, row, catalog, byId, billOptions) };
                 modelTicks += Lap();
                 result = result with { Pawns = [.. result.Pawns, row] };
             }
@@ -125,8 +125,8 @@ namespace HomeBridge.BridgeTools
             .GroupBy(r => r.ProducedThingDef).Select(g => g.OrderBy(r => r.defName, StringComparer.Ordinal).First())
             .OrderBy(r => r.ProducedThingDef.defName, StringComparer.Ordinal).ToList();
 
-        private static Obs.GearLoadoutModel Model(Map map, Pawn pawn, Obs.GearLoadout row, List<RecipeDef> catalog,
-            Dictionary<string, Apparel> things, Dictionary<RecipeDef, Obs.GearLoadoutOption?> billOptions)
+        private static Obs.GearLoadoutModel Model(Pawn pawn, Obs.GearLoadout row, List<RecipeDef> catalog,
+            Dictionary<string, Apparel> things, Dictionary<RecipeDef, IReadOnlyList<Obs.GearLoadoutOption>> billOptions)
         {
             var model = new Obs.GearLoadoutModel();
             if (pawn.story?.traits != null)
@@ -145,22 +145,21 @@ namespace HomeBridge.BridgeTools
                 if (!def.apparel.CorrectGenderForWearing(pawn.gender) || !def.apparel.developmentalStageFilter.Has(pawn.DevelopmentalStage)
                     || !ApparelUtility.HasPartsToWear(pawn, def)) continue;
                 // A bill option does not depend on the pawn: built once per census.
-                if (!billOptions.TryGetValue(recipe, out var option)) billOptions[recipe] = option = BillOption(map, recipe);
-                if (option != null) model = model with { Options = [.. model.Options, option] };
+                if (!billOptions.TryGetValue(recipe, out var options)) billOptions[recipe] = options = BillOptions(recipe);
+                model = model with { Options = [.. model.Options, .. options] };
             }
             return model;
         }
 
-        // One stuff per definition: the allowed stuff with the most stock.
-        private static Obs.GearLoadoutOption? BillOption(Map map, RecipeDef recipe)
+        // Expose legal material candidates; the brain owns selection and its search bound.
+        private static IReadOnlyList<Obs.GearLoadoutOption> BillOptions(RecipeDef recipe)
         {
             var def = recipe.ProducedThingDef;
-            var stuff = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).OrderByDescending(s => map.resourceCounter.GetCount(s))
-                .ThenBy(s => s.defName, StringComparer.Ordinal).FirstOrDefault() : null;
-            if (def.MadeFromStuff && stuff == null) return null;
-            return Option("bill:" + def.defName + "/" + (stuff?.defName ?? ""), def, stuff, "bill");
+            if (!def.MadeFromStuff) return new[] { Option("bill:" + def.defName + "/", def, null, "bill") };
+            return GenStuff.AllowedStuffsFor(def).Where(s => recipe.fixedIngredientFilter.Allows(s))
+                .OrderBy(s => s.defName, StringComparer.Ordinal)
+                .Select(s => Option("bill:" + def.defName + "/" + s.defName, def, s, "bill")).ToArray();
         }
-
         private static Obs.GearLoadoutOption Physical(Apparel apparel, string source)
         {
             var row = Option(apparel.GetUniqueLoadID(), apparel.def, apparel.Stuff, source);

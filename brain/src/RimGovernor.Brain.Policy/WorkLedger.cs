@@ -10,6 +10,8 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record OrderSpec
 {
+    /// <summary>Derived choice evidence from the declaring need owner; never native bill identity.</summary>
+    public ProductionRequirements? Requirements { get; init; }
     public string Recipe { get; init; } = "";
 
     /// <summary>The ingredient filter; order is not identity.</summary>

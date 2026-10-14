@@ -27,8 +27,7 @@ production, pending construction and sale admission remain outside that check.
 The work ledger now performs [joint production material selection](../architecture/colony-forecast.md#joint-production-material-choices)
 before fixed-batch admission: bounded generation retains allowed ingredient
 alternatives, bounded comparison chooses an affordable combination, and only then
-are filters pinned. The live objective is funded batch count, with explicit
-postponement, unknowns and truncation; quality and colony utility are not calibrated.
+are filters pinned. The live objective gives [observed clothing requirements](equipment-upkeep.md#live-clothing-requirement-selection) explicit priority before unclassified batch count, with postponement, unknowns and truncation; quality and colony utility are not calibrated.
 The existing journal transaction remains the final shared-material admission owner.
 The [need-based valuation proof](../architecture/colony-forecast.md#need-based-production-valuation-proof)
 accepts explicit whole-batch relief, material and labor utility costs in the same

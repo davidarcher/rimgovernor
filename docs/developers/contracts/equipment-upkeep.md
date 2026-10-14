@@ -36,8 +36,9 @@ concern can select a fresh method at the next review.
 
 ## Production and resource protection
 
-The production bench census carries two throughput facts for the rate model
-(#2590); nothing acts on them yet. `GearRecipe.WorkAmount` is the work one unit
+The production bench census carries work and speed facts for the rate model
+(#2590). Clothing selection uses base recipe work as a tie-break estimate;
+it does not claim a worker completion time. `GearRecipe.WorkAmount` is the work one unit
 takes, from the definition catalog (`RecipeDef.workAmount`, else the first
 product's base `WorkToMake`, as the game's `WorkAmountTotal` does, without the
 stuff multiplier); `RequiredWork` remains the skill gate. `GearBench.WorkSpeed`
@@ -112,8 +113,7 @@ is not yet an executed method.
 catalog and worn gear. The native gear census supplies it per pawn
 (`GearLoadout.loadout_model`, with the outdoor temperature): traits, every
 worn garment, the eligible loose or stored candidates and the producible
-definitions whose recipe research is finished (one stuff each, the most
-stocked), every unworn option uncapped, each an id, def, stuff, quality,
+definitions whose recipe research is finished (every allowed stuff admitted by the discovered recipe filter), every unworn option uncapped, each an id, def, stuff, quality,
 condition and flags (tainted, locked, smoke-pop). Everything def-static is
 the catalog's: The brain takes each option's layers and body-part groups,
 shield, psychic and move-speed offsets from the ThingDef row, and armor,
@@ -281,3 +281,68 @@ are different evidence levels.
 These targets bind to `MaintainResource`: its workshop ladder stages missing
 benches, and its storage prerequisite creates covered, reachable allow-listed
 stockpile space before the standing stock bill. Spares default to disabled.
+
+## Live clothing requirement selection
+
+`DeclareGearOrders` attaches derived requirement evidence to new clothing batches.
+The existing work-ledger material comparison consumes it without a separate
+planner or reservation store. This evidence is not bill identity, saved intent,
+or a second demand target. The equipment loadout model remains the need owner.
+
+The native census now exposes all allowed materials for each discovered garment
+recipe, in definition order, rather than only the most-stocked material. The
+existing loadout search chooses garment definitions and retains its search bound.
+For each declared garment, the material comparison keeps the observed, eligible
+material variants allowed by its existing category filter. Unobserved material
+stats never inherit the chosen material's protection. A candidate that worsens
+observed thermal exposure or removes existing core coverage is excluded.
+
+Known clothing effects have explicit priorities, compared lexicographically:
+
+1. Reduce cold/heat exposure within the loadout model's ambient/seasonal range.
+2. Restore missing core coverage or an observed required apparel definition.
+3. Replace a tattered worn garment.
+
+Thermal relief is the fraction of a pawn's current modeled deficit removed.
+Coverage and condition use one unit per pawn/group or worn item. Shared need IDs
+cap combined relief at one, preventing multiple batches from each claiming the
+same benefit. These are estimated outcomes at the observed Normal-quality material
+stats, not a guarantee of the crafted quality or that the pawn wears the product.
+No number converts optional art into a clothing necessity. Other producers remain
+unclassified and retain funded batch count as the next comparison criterion;
+their urgency is not modeled by this clothing slice.
+
+For equal requirement relief and other funded batch count, clothing variants
+prefer lower ingredient market value, then lower base recipe work. Market value
+is a transparent cost proxy, not calibrated opportunity cost. Base work is the
+catalog recipe amount times batch size; pawn skill, material work multipliers,
+travel, bench speed and available work windows are not a completion-time estimate.
+Unknown prices or recipe work exclude the affected variants with explicit
+findings. Clothing production upgrades with no coverage, condition, required-def
+or thermal relief wait for a justified upgrade valuation; wearing an eligible
+existing improvement still uses the existing equipment path.
+
+The equipment owner nets serviceable unassigned stock before new production.
+Active finite bills contribute their observed remaining target once per bill ID
+and product; existing bills remain declared. Only the residual shortage becomes
+new work. Indefinite/stock-target bills do not imply a finite quantity and hold
+new production for that product. Missing stock, bill activity or configuration
+abstains. This retains the existing one-garment-per-recipe-iteration assumption;
+modded multi-output recipes need quantity evidence before that assumption can be
+relaxed. Within a def/stuff batch, remaining beneficiaries use stable pawn order.
+Physical eligible replacements continue to precede new production.
+
+An exact bill configuration already standing is not offered as additional output:
+native creation is idempotent for that configuration. Another material can serve
+the residual need; otherwise it waits for readback to change. Whole batches still
+use one material assignment per ingredient slot, so a two-item batch cannot yet
+split one item into cloth and one into wool. Alternative garment shapes and
+recipes remain upstream loadout/recipe choices, not joint colony-wide options.
+
+`ClothingChoiceTests` exercises the live declaration-to-material-selection policy
+with observed-input fixtures: temperature and scarcity changes, clothing versus
+optional production, stock plus queued output netting, duplicate bill exclusion,
+physical replacement precedence, unknown costs/work/stock, optional-upgrade
+postponement, tattered clothing and shared priority caps. Native candidate reads,
+actual crafting and wearing remain nightly gameplay evidence, not claims of these
+unit tests. Hands and atomic journal material admission retain their ownership.

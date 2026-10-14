@@ -53,10 +53,13 @@ public static partial class PolicyFunctions
                 if (!promise.TryGetValue(out var claims) || claims.Any(c => c.MaterialClaims.Any(m => !m.Units.IsKnown)))
                 { findings.Add("unrepresentable_or_unknown_filter:" + id); return; }
                 var cost = EquatableArray.From(claims.SelectMany(c => c.MaterialClaims).Select(c => new Amount(c.Resource, checked((long)c.Units.Value))));
+                var requirement = spec.Requirements?.Variants.FirstOrDefault(v => v.Ingredients.Order(StringComparer.Ordinal).SequenceEqual(narrowed.Ingredients));
+                if (spec.Requirements is not null && requirement is null)
+                { findings.Add("requirement_variant_unavailable:" + id); return; }
                 variants.Add(id, placement with { Spec = narrowed });
                 // This live slice maximizes funded declared batches. It does not invent material prices or colony utility.
-                options.Add(new(demand, id, valuation is null ? Known(1.0) : default, cost)
-                    { Estimate = valuation?.ByOrderKey.GetValueOrDefault(narrowed.Key()) });
+                options.Add(new(demand, id, valuation is null ? Known(spec.Requirements is null ? 1.0 : 0.0) : default, cost)
+                    { Estimate = valuation?.ByOrderKey.GetValueOrDefault(narrowed.Key()), Requirements = requirement?.Assessment });
             }
             Generate(0, new(StringComparer.Ordinal));
         }
