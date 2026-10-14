@@ -17,9 +17,13 @@ internal sealed class HostSnapshots(string sessionId, ISource source, Observatio
     private readonly SemaphoreSlim _refresh = new(1, 1);
     private readonly object _mu = new();
     private DateTimeOffset _started;
+    private bool _gamePaused;
     private ControllerSnapshot _snapshot = new() { SessionId = sessionId, Mode = "manual", Status = "Waiting for game observations", Stale = true };
 
     public void Dispose() => _refresh.Dispose();
+
+    /// <summary>Whether the last good observation found the game paused; false until one succeeds.</summary>
+    public bool GamePaused { get { lock (_mu) { return _gamePaused; } } }
 
     /// <summary>Plans are read from the journal the player writes; set by the host once the journal is open.</summary>
     public required StoreJournal Journal { get; init; }
@@ -51,6 +55,7 @@ internal sealed class HostSnapshots(string sessionId, ISource source, Observatio
             lock (_mu)
             {
                 _started = reading.Snapshot.StartedAt;
+                _gamePaused = reading.Snapshot.Status.Paused.TryGetValue(out var paused) && paused;
                 _snapshot = _snapshot with
                 {
                     Connected = true,

@@ -235,7 +235,7 @@ public sealed class BrainHost : IAsyncDisposable
             }
         }
 
-        var loop = new SchedulerLoop(player, session, planners.Scheduler, planners.Windows, wake, timings, options.Watchdog, _planners, _steps, _log, _lifetime.Token);
+        var loop = new SchedulerLoop(player, session, planners.Scheduler, planners.Windows, wake, timings, options.Watchdog, _planners, _steps, _log, _lifetime.Token, () => snapshots?.GamePaused == true);
         _loop = loop;
         loop.Start();
         _saveLoop = Task.Run(() => new SaveSignalLoop(facade, flusher, _log).RunAsync(_lifetime.Token), CancellationToken.None);

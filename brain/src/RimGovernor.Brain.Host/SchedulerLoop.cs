@@ -30,6 +30,7 @@ internal sealed class SchedulerLoop
     private readonly StepSupervisor _steps;
     private readonly HostLog _log;
     private readonly CancellationToken _lifetime;
+    private readonly Func<bool> _gamePaused;
     private Thread? _thread;
 
     public SchedulerLoop(
@@ -43,8 +44,10 @@ internal sealed class SchedulerLoop
         PlannerSupervisor planners,
         StepSupervisor steps,
         HostLog log,
-        CancellationToken lifetime)
+        CancellationToken lifetime,
+        Func<bool>? gamePaused = null)
     {
+        _gamePaused = gamePaused ?? (() => false);
         _player = player;
         _session = session;
         _scheduler = scheduler;
@@ -233,7 +236,7 @@ internal sealed class SchedulerLoop
         var task = Task.Run(() => work(cancel.Token), CancellationToken.None);
         try
         {
-            if (task.Wait(_watchdog.StallAfter, _lifetime))
+            if (WaitUnpaused(task, _watchdog.StallAfter))
             {
                 return Outcome.Done;
             }
@@ -257,6 +260,28 @@ internal sealed class SchedulerLoop
             error = e.InnerExceptions.Count == 1 ? e.InnerExceptions[0] : e;
             return Outcome.Faulted;
         }
+    }
+
+    /// <summary>
+    /// Waits for <paramref name="task"/> up to <paramref name="limit"/> of game time: a paused game delivers no ticks, so a
+    /// step that waits on the next tick is not stalled, and the clock stops while the game is paused.
+    /// </summary>
+    private bool WaitUnpaused(Task task, TimeSpan limit)
+    {
+        var slice = TimeSpan.FromMilliseconds(500);
+        var waited = TimeSpan.Zero;
+        while (waited < limit)
+        {
+            if (task.Wait(slice, _lifetime))
+            {
+                return true;
+            }
+            if (!_gamePaused())
+            {
+                waited += slice;
+            }
+        }
+        return task.IsCompleted;
     }
 
     /// <summary>Sleeps for <paramref name="delay"/> unless committed evidence wakes the loop first; false when the host is stopping.</summary>
