@@ -183,4 +183,25 @@ public sealed class ForecastWorkInputsTests
         facts = facts with { ProductionPromises = default };
         Assert.False(ConstructionForecastRequestOf(new("world", 100), 1, facts, policy, ResourceDemandOf(facts, policy, new()), new()).IsKnown);
     }
+
+    [Fact]
+    public void PlannedRoomsAreClaimsOnFreeMaterialAndUnknownPlanLeavesThemUnknown()
+    {
+        var wood = new Resource("WoodLog");
+        var planned = Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(new Dictionary<int, IReadOnlyDictionary<Resource, long>>
+        {
+            [2] = new Dictionary<Resource, long> { [wood] = 30 },
+            [1] = new Dictionary<Resource, long> { [wood] = 50 },
+            [3] = new Dictionary<Resource, long>(),
+        });
+        var commitments = PlannedRoomCommitments(planned).Value;
+        Assert.Equal(["planned/room1", "planned/room2"], commitments.Select(c => c.Id));
+        Assert.All(commitments, c => Assert.Contains("planned_construction_labor", c.UnsupportedEffects));
+
+        var stock = Known(EquatableArray.From(new[] { new Amount(wood, 100) }));
+        var free = ForecastMaterialBudgetOf(stock, Known(default(EquatableArray<IngredientReservation>)), commitments, 7).Value;
+        Assert.Equal(20, free[wood].Value);
+
+        Assert.False(PlannedRoomCommitments(Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>()).IsKnown);
+    }
 }

@@ -9,6 +9,9 @@ public sealed record ForecastWorkInputs
     public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
     public Fact<EquatableArray<IngredientReservation>> IngredientReservations { get; init; }
     public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
+
+    /// <summary>One material-claim commitment per planned room (PlannedRoomCommitments); unknown while the plan is.</summary>
+    public Fact<EquatableArray<ForecastCommitment>> PlannedRooms { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -21,6 +24,7 @@ public static partial class PolicyFunctions
             Tick = facts.Tick, Construction = facts.CurrentConstruction, Pawns = facts.ForecastObserved.WorkPawns,
             IngredientReservations = facts.BillReservations,
             ProductionPromises = facts.ProductionPromises,
+            PlannedRooms = PlannedRoomCommitments(facts.PlannedConstruction),
         };
         if (!facts.ConstructionClaims.TryGetValue(out var claims) || !facts.CurrentConstruction.TryGetValue(out var census) || !census.Colony)
             return input;
@@ -37,6 +41,38 @@ public static partial class PolicyFunctions
         return input with { ConstructionCommitments = Known(EquatableArray.From(commitments.OrderBy(c => c.Id, StringComparer.Ordinal))) };
     }
 
+    private static readonly EquatableArray<string> PlannedLaborUnsupported = EquatableArray.From(new[] { "planned_construction_labor" });
+
+    /// <summary>
+    /// What the layout plan still owes each room, as forecast commitments: exact material claims by room id, no
+    /// stock effect and no site. The plan places nothing yet, so there is no work, route or finish time to
+    /// schedule; labor is declared unsupported rather than guessed. The claims hold free material back from other
+    /// alternatives the way a production promise does, so a proposal that spends the plan's wood is seen to.
+    /// </summary>
+    public static Fact<EquatableArray<ForecastCommitment>> PlannedRoomCommitments(Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> planned)
+    {
+        if (!planned.TryGetValue(out var rooms))
+        {
+            return default;
+        }
+        var commitments = new List<ForecastCommitment>();
+        foreach (var (room, needs) in rooms.OrderBy(r => r.Key))
+        {
+            var claims = needs.Where(n => n.Value > 0).OrderBy(n => n.Key.Value, StringComparer.Ordinal)
+                .Select(n => new ForecastMaterialClaim(n.Key, Known((double)n.Value), Known(string.Empty))).ToArray();
+            if (claims.Length == 0)
+            {
+                continue;
+            }
+            commitments.Add(new("planned/room" + room, default)
+            {
+                MaterialClaims = EquatableArray.From(claims),
+                UnsupportedEffects = PlannedLaborUnsupported,
+            });
+        }
+        return Known(EquatableArray.From(commitments));
+    }
+
     /// <summary>Join estimates to the shared review input; unknown claims cannot be converted to an empty plan.</summary>
     public static Fact<ColonyForecastRequest> ConstructionForecastRequestOf(ColonyForecastOrigin origin, double horizonDays,
         RoundsFacts facts, RoundsPolicy policy, DerivedDemand demand, ForecastConstructionContext estimates)
@@ -46,13 +82,15 @@ public static partial class PolicyFunctions
             throw new DomainException("forecast demand and facts must come from the same tick");
         if (!work.ConstructionCommitments.TryGetValue(out var commitments) || !work.Pawns.TryGetValue(out var pawns)
             || !work.ProductionPromises.TryGetValue(out var production)) return default;
+        // An unknown plan leaves the planned rooms out rather than the whole request unknown: it is one input among several.
+        var plannedRooms = work.PlannedRooms.TryGetValue(out var rooms) ? rooms : default;
         var observed = pawns.ToDictionary(p => p.Id.Value, StringComparer.Ordinal);
         if (estimates.Workers.Any(w => !observed.ContainsKey(w.Capacity.Pawn)))
             throw new DomainException("forecast estimate names an unobserved pawn");
         return Known(new ColonyForecastRequest
         {
             Origin = origin, HorizonDays = horizonDays, Facts = ColonyForecastFactsOf(facts, policy), Demand = demand,
-            Commitments = EquatableArray.From(commitments.Concat(production)),
+            Commitments = EquatableArray.From(commitments.Concat(production).Concat(plannedRooms)),
             Construction = estimates with
             {
                 Census = work.Construction, IngredientReservations = work.IngredientReservations,

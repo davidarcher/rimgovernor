@@ -164,6 +164,8 @@ public static partial class PolicyFunctions
             Stock = new StockReader(f.Resources, f.Wood),
             Owed = f.ConstructionDeficit,
             Admitted = f.Admitted,
-            Planned = f.PlannedConstruction,
+            Planned = f.PlannedConstruction.TryGetValue(out var rooms)
+                ? Known<IReadOnlyDictionary<Resource, long>>(PlannedTotal(rooms.Values))
+                : Unknown<IReadOnlyDictionary<Resource, long>>(),
         });
 }

@@ -244,6 +244,23 @@ scarce materials and bill holds, skill/tier protection, changed/removed sites,
 unknown routes, independent runnable work and the shared search budget.
 
 
+## Planned rooms
+
+`ForecastWorkInputs.PlannedRooms` carries one commitment per room of the layout plan, `planned/room{id}`,
+built by `PlannedRoomCommitments` from `RoundsFacts.PlannedConstruction`: the material the plan still owes that
+room. It is the reconciler's own diff, not a second one: `Rounder.PlannedConstructionOf` builds each room's
+`ReconcileInput` from the plan (the stored `Pieces` as the template, the colony's standing buildings and floors as
+the census) and `PlannedOwedCost` prices the `WallIn`, `DoorIn`, `VentIn`, `FloorIn` and `Build` operations that
+`Reconcile` says are owed, from the def catalog. The price and the build therefore read the same diff. A wall two
+rooms share is claimed by the lowest room id. The commitment is exact `MaterialClaims` (no reservation bill, no
+stock effect, no site), so `ForecastMaterialBudgetOf` holds that material back from other alternatives. It is
+the same plan the shared construction demand reads, so the two cannot disagree.
+
+Not modelled: nothing is placed yet, so there is no work amount, route or finish time to schedule and labor is
+declared in `UnsupportedEffects` (`planned_construction_labor`). Scheduling planned rooms against pawn capacity
+needs a planned-site notion with a work estimate (the catalog's work to build) and a legality read; that is
+forecast work, not done here. A wall, door, vent or piece with a blueprint or frame already placed is left out of the planned claim: the standing site owes its outstanding material through the construction census, so nothing is claimed twice.
+
 ## Review inputs and pawn windows
 
 `ResourceDemandOf` attaches `ForecastWorkInputs` to its existing `DerivedDemand`.

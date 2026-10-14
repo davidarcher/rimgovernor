@@ -20,13 +20,33 @@ public sealed class PlannedShellDemandTests
         ],
     };
 
+    private static readonly Func<string, IReadOnlyList<Amount>?> NoPrice = _ => null;
+
+    /// <summary>Prices what Reconcile says the plan owes, the way the runtime does: the ring, pieces and floors each by their own list.</summary>
+    private static Dictionary<Resource, long> Owed(LayoutPlan plan, GroundCensus ground, Func<string, IReadOnlyList<Amount>?> shell,
+        Func<string, IReadOnlyList<Amount>?>? piece = null, Func<string, IReadOnlyList<Amount>?>? floor = null,
+        Func<Cell, string>? wantedFloor = null, IReadOnlyList<ClearanceTarget>? rows = null,
+        IReadOnlySet<(string, Cell)>? placed = null)
+    {
+        var owed = plan.Rooms.Select(room => (room, Reconcile(new ReconcileInput
+        {
+            Plan = plan,
+            Room = room,
+            Ground = ground,
+            Rows = rows ?? [],
+            Furniture = plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Select(p => p.Wanted())] : [],
+            WantedFloor = wantedFloor,
+        }).Owed)).ToList();
+        return PlannedTotal(PlannedOwedCost(owed, shell, piece ?? NoPrice, floor ?? NoPrice, "Vent", placed ?? new HashSet<(string, Cell)>()).Values);
+    }
+
     private static IReadOnlyList<Amount>? Price(string def) => [new Amount(Wood, 5)];
 
     [Fact]
     public void WholePlanIsDemandedAndASharedWallIsCountedOnce()
     {
         // Two 3x3 rooms with a wall between: 16 + 16 - 5 shared ring cells.
-        var demand = PlannedShellDemand(Plan(), new GroundCensus(), Price);
+        var demand = Owed(Plan(), new GroundCensus(), Price);
         Assert.Equal(27 * 5, demand[Wood]);
     }
 
@@ -38,13 +58,23 @@ public sealed class PlannedShellDemandTests
         {
             ground.Walls.Add(c);
         }
-        var demand = PlannedShellDemand(Plan(), ground, Price);
+        var demand = Owed(Plan(), ground, Price);
         Assert.Equal((27 - 16) * 5, demand[Wood]);
     }
 
     [Fact]
+    public void AWallAlreadyPlacedAsABlueprintIsOwedByTheCensusNotThePlan()
+    {
+        var (wallDef, _) = Plan().Rooms[0].RingDefs();
+        var cells = Plan().Rooms[0].Region.Walls().Cells().Take(4).ToList();
+        var placed = new HashSet<(string, Cell)>(cells.Select(c => (wallDef, c)));
+        var demand = Owed(Plan(), new GroundCensus(), Price, placed: placed);
+        Assert.Equal((27 - 4) * 5, demand[Wood]);
+    }
+
+    [Fact]
     public void AnUnavailableDefAddsNothing() =>
-        Assert.Empty(PlannedShellDemand(Plan(), new GroundCensus(), _ => null));
+        Assert.Empty(Owed(Plan(), new GroundCensus(), _ => null));
 
     [Fact]
     public void ConstructionDemandRaisesTheWholePlanWhereStockFallsShort()
@@ -55,33 +85,12 @@ public sealed class PlannedShellDemandTests
         Assert.Equal(135, demand[Wood]);
     }
 
-    private static FlooringFacts Flooring(Fact<FlooringObservation> observed = default) => new()
-    {
-        Definitions = new Dictionary<string, FloorDefinition>
-        {
-            ["WoodPlankFloor"] = new()
-            {
-                Available = Fact.Known(true),
-                Terrain = Fact.Known(true),
-                Cleanliness = Fact.Known(0.0),
-                Beauty = Fact.Known(0.0),
-                Flammability = Fact.Known(1.0),
-                PathCost = Fact.Known(0),
-                Costs = Fact.Known(EquatableArray.From(new[] { new Amount(Wood, 2) })),
-                WorkToBuild = Fact.Known(100.0),
-            },
-        },
-        Style = _ => ("WoodPlankFloor", true),
-        Observation = observed,
-        Stock = Fact.Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
-    };
-
     [Fact]
     public void FloorsAreDemandedBeforeTheColonyCanPayForThem()
     {
-        // The stock is empty, yet the bedroom's nine floor cells are demanded in full.
+        // Nothing is paid for yet, and the bedroom's nine floor cells are demanded in full.
         var plan = new LayoutPlan { Rooms = [new PlannedRoom { Id = 1, Role = PlannedBedroom, Region = RectRegion(Rect(0, 0)) }] };
-        var demand = PlannedFloorDemand(plan, Flooring(), DefaultFlooringPolicy());
+        var demand = Owed(plan, new GroundCensus(), NoPrice, null, name => [new Amount(Wood, 2)], _ => "WoodPlankFloor");
         Assert.Equal(9 * 2, demand[Wood]);
     }
 
@@ -95,7 +104,7 @@ public sealed class PlannedShellDemandTests
             Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [bench, bench with { Slot = "bench2", Rect = new Rectangle { X = 2, Z = 1, Width = 1, Height = 1 } }] },
         };
         IReadOnlyList<Amount>? price(string def) => [new Amount(Wood, 20)];
-        Assert.Equal(40, PlannedPieceDemand(plan, new HashSet<(string, Cell)>(), price)[Wood]);
-        Assert.Equal(20, PlannedPieceDemand(plan, new HashSet<(string, Cell)> { ("TableButcher", bench.Anchor()) }, price)[Wood]);
+        Assert.Equal(40, Owed(plan, new GroundCensus(), NoPrice, price)[Wood]);
+        Assert.Equal(20, Owed(plan, new GroundCensus(), NoPrice, price, rows: [new ClearanceTarget { DefName = "TableButcher", Minimum = bench.Anchor(), Maximum = bench.Anchor(), Player = true }])[Wood]);
     }
 }
