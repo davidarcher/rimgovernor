@@ -213,13 +213,14 @@ public sealed partial class Store
         var needs = new RoundsFindings();
         RecoveryRequest? recovery = null;
         RoundsDetection? detection = null;
-        var productionMaterials = reset ? null : previous.ProductionMaterials;
+        var workEvidence = reset ? null : previous.WorkEvidence;
         // Stopping routine work must not depend on a successful native observation.
         if (request.Enabled && !request.Immediate)
         {
-            productionMaterials = PolicyFunctions.ProductionAdmissionEvidenceOf(facts,
+            workEvidence = PolicyFunctions.WorkAdmissionEvidenceOf(facts,
                 ProductionBatchesIn(tx, request.Current, request.Tick));
-            facts = facts with { ProductionPromises = productionMaterials.ForecastPromises };
+            facts = PolicyFunctions.ReviewWorkResources(facts, ProductionBatchesIn(tx, request.Current, request.Tick),
+                WorkActionsIn(tx, request.Current));
             facts = facts with
             {
                 ResourceRunways = ResourceRunways(request),
@@ -344,7 +345,7 @@ public sealed partial class Store
             Latches = needs.Latches,
             Immediate = request.Immediate,
             OrdinaryTick = !reset ? previous.OrdinaryTick : default,
-            ProductionMaterials = productionMaterials,
+            WorkEvidence = workEvidence,
         };
         if (request.Enabled && !request.Immediate)
         {

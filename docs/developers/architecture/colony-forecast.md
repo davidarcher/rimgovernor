@@ -530,9 +530,7 @@ changes or rewinds discard it. Disabled reviews cannot authorize admission.
 between independent database connections, atomic rollback and retry after
 cancellation, stale dispatch evidence, exact native-hold overlap, unknown inputs,
 and review/world lifecycle. These are policy/journal guarantees, not native
-resource locks or evidence of autonomous gameplay. Pending construction, trade
-sales, indefinite production and other consumers are not yet admitted through
-this material check. Native simulation can still change stock between reviews.
+resource locks or evidence of autonomous gameplay. Pending placements and food activities now share this boundary; see [shared live work resources](#shared-live-work-resources). Trade sales and indefinite production remain outside it. Native simulation can still change stock between reviews.
 The wider claim-overlap migration in #2742 and live timed selection in #3128 remain
 open; no existing hauling, cleaning or eating helper is removed.
 
@@ -992,3 +990,52 @@ same stuff and goes unpriced where it cannot be made from it. Barns, pens and ya
 ids (`PlanHerdSites`, `PlanPenSites` and `PlanYardSites` place them), so the baseline and these alternatives
 cover them like any other room; their furniture is not in the plan's stored pieces, so only the ring, doors and
 floors are priced.
+
+
+### Shared live work resources
+
+The full Rounds review freezes `WorkAdmissionEvidence` in the existing review
+row. `WorkResourcesOf` combines that observation with current Method actions;
+it owns no mutable reservation table. Food activity selection and continuation,
+fixed-batch material selection, work-priority assignment and Method admission
+consume this projection. Admission reconstructs it inside the journal transaction.
+
+The projection includes loose stock, native bill holds, outstanding construction,
+exact building costs, remaining fixed batches, pawn timetables/current work and
+native activity ownership/carried inputs. Pending placements hold exact costs;
+a matching observed site transfers ownership to the construction deficit. Food
+delivery protects its declared stock without consuming it in the forecast.
+Carried units are outside loose stock and reduce the outstanding claim. Cooking
+binds the ingredient definition as well as concrete stack IDs, and native checks
+that definition. Exact bill/resource identity overlaps an iteration with its
+remaining batch promise and native hold once. No prospective output adds stock.
+
+One installed activity owns its pawn until release or observed ownership end.
+Pending replacement retains the installed predecessor; accepted replacement
+supersedes it. A refused replacement cannot erase its predecessor's claim.
+Never-dispatched cancellation releases a promise, while dispatched work remains
+protected until fresh evidence reconciles it. Cleanup can outlive the Concern
+and does not require an affordable productive continuation.
+
+Capacity uses the existing `ForecastPawnCapacityOf` timetable and occupancy
+calculation, with a seven-day projection bound. Live current-job duration is
+unknown, so occupied pawns do not acquire a fictional free day. A claimed pawn
+is excluded from routine work assignment and unavailable to another activity;
+disjoint pawns remain usable. Bench and target claims are exclusive while their
+owning work remains outstanding. These are conservative availability constraints,
+not calibrated completion estimates or native locks. Work can change between
+review and dispatch; Hands and native legality remain authoritative.
+
+The journal bounds work projection at 1,024 actions and fixed batches at 256;
+exhaustion is explicit truncation with unknown dependent availability, never an empty census. Unknown quantities
+remain resource-local where their resource is known. An unpriced commitment
+with unknown material identity makes material availability unknown, while pawn
+and target evidence remains separate. Neither missing observations nor accepted
+orders prove completed work.
+
+Remaining consumers outside this admission coverage include terrain work,
+indefinite production, trade/export and non-activity legacy support jobs. Their
+planner-local accounting is still an architecture-rule-8 exception. Timed
+coupled consequences (#3133), portfolio choice (#3134), needs-derived occupancy
+(#3132), and helper retirement (#3149) remain separate work. The supplied-estimate
+forecast APIs remain useful for tests, but are not evidence of live capacity.

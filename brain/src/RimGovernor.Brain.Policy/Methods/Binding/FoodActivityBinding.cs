@@ -23,7 +23,7 @@ internal static class FoodActivityBinding
             var continuation = cooking.Continuation;
             var step = cooking.Supplied
                 ? new PawnActivityStep(PawnActivityKind.Cook, continuation.Bench, continuation.WorkGiver, "", 0, output.Deadline)
-                    { Cooking = new(continuation.Bill, continuation.Recipe, [new(option.Target, cooking.IngredientCount)]) }
+                    { Cooking = new(continuation.Bill, continuation.Recipe, [new(option.Target, cooking.IngredientCount)]) { Resource = option.Resource } }
                 : new PawnActivityStep(PawnActivityKind.Deliver, option.Target, "", "", cooking.IngredientCount, output.Deadline)
                     { Destination = option.Destination };
             var remaining = cooking.Supplied

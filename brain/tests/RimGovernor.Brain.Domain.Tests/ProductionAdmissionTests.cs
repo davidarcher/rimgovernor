@@ -18,21 +18,23 @@ public sealed class ProductionAdmissionTests
     private static RoundsFacts Facts => new()
     {
         Tick = new Tick(100), LedgerOwed = Known(true), SculptureRoomsOwed = Known(true),
+        WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
+        ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
             Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }]),
         Resources = Known<EquatableArray<Amount>>([new(Wood, 100), new(Other, 100)]),
         ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Wood] = 40 }),
         BillReservations = Known(default(EquatableArray<IngredientReservation>)),
-        ProductionAdmission = new()
+        WorkAdmission = new()
         {
             Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Known<EquatableArray<EquatableArray<Amount>>>([[new(Wood, 10)]]), Known(false))]),
             Bills = Known(default(EquatableArray<ProductionBatchState>)),
         },
     };
-    private static ProductionAdmissionEvidence Evidence(RoundsFacts? facts = null, params ProductionBatch[] reviewed) =>
-        ProductionAdmissionEvidenceOf(facts ?? Facts, Known(EquatableArray.From(reviewed)));
-    private static bool Fits(ProductionAdmissionEvidence evidence, ProductionBatch[] committed, params ProductionBatch[] proposed) =>
+    private static WorkAdmissionEvidence Evidence(RoundsFacts? facts = null, params ProductionBatch[] reviewed) =>
+        WorkAdmissionEvidenceOf(facts ?? Facts, Known(EquatableArray.From(reviewed)));
+    private static bool Fits(WorkAdmissionEvidence evidence, ProductionBatch[] committed, params ProductionBatch[] proposed) =>
         ProductionAdmissionFits(evidence, Known(EquatableArray.From(committed)), EquatableArray.From(proposed));
     private static PlanSpec Plan(string id) => new(new PlanId(id), new PlanRevision(1),
         [DomainAction.NewProductionBillAction(new ActionId(id), Batch(id).Order)]);
@@ -75,11 +77,11 @@ public sealed class ProductionAdmissionTests
     {
         Assert.False(Fits(Evidence(Facts with { Resources = default }), [], Batch("new")));
         Assert.False(Fits(Evidence(Facts with { BillReservations = default }), [], Batch("new")));
-        Assert.False(Fits(Evidence(Facts with { ProductionAdmission = new() }), [], Batch("new")));
+        Assert.False(Fits(Evidence(Facts with { WorkAdmission = new() }), [], Batch("new")));
         var first = Batch("first") with { Progress = Batch("first").Progress with { Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") } };
         var f = Facts with
         {
-            ProductionAdmission = Facts.ProductionAdmission with { Bills = Known<EquatableArray<ProductionBatchState>>([new("bill", Known(true), Known(1), Known(false), Known(false))]) },
+            WorkAdmission = Facts.WorkAdmission with { Bills = Known<EquatableArray<ProductionBatchState>>([new("bill", Known(true), Known(1), Known(false), Known(false))]) },
             BillReservations = Known<EquatableArray<IngredientReservation>>([new() { Bill = Known("bill"), Pawn = new("pawn"), Items = [new(Wood, 10)] }]),
         };
         Assert.True(Fits(Evidence(f, first), [first], Batch("new")));
@@ -94,12 +96,12 @@ public sealed class ProductionAdmissionTests
         var request = new RoundsRequest { Current = World, Tick = Facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = Facts };
         var full = journal.ReviewRounds(request, ct);
         var immediate = journal.ReviewRounds(request with { Revision = full.Review.Revision, Immediate = true, Tick = new Tick(101), Facts = new() }, ct);
-        Assert.Equal(100, journal.LoadRounds(ct).ProductionMaterials!.Stock.Value[0].Count);
+        Assert.Equal(100, journal.LoadRounds(ct).WorkEvidence!.Stock.Value[0].Count);
         var unread = journal.ReviewRounds(request with { Revision = immediate.Review.Revision, Tick = new Tick(102), Facts = Facts with { Resources = default } }, ct);
         var owner = Assert.Single(unread.Standards, s => s.Standard.Kind == MaintainWorkLedger);
         Assert.Throws<ProductionMaterialException>(() => journal.CommitMethod(owner.Standard.Id, owner.Revision, new MethodId("unread"), Plan("unread"), ct));
         var changed = journal.ReviewRounds(request with { Revision = unread.Review.Revision, Immediate = true, Current = World with { Load = new LoadId("new-load") }, Tick = new Tick(103), Facts = new() }, ct);
-        Assert.Null(changed.Review.ProductionMaterials);
+        Assert.Null(changed.Review.WorkEvidence);
     }
 
     [Fact]

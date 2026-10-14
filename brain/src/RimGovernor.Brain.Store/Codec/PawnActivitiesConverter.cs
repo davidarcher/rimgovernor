@@ -20,7 +20,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
     }
     private static PawnActivityCooking? ReadCooking(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Bill"), e.Str("Recipe"), EquatableArray.From(e.GetProperty("Ingredients").EnumerateArray()
-            .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32()))));
+            .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32())))) { Resource = e.Str("Resource") };
     private static ActivityOutputDelivery? ReadOutput(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Resource"), new(e.GetProperty("Origin").GetProperty("X").GetInt32(), e.GetProperty("Origin").GetProperty("Z").GetInt32()),
             new(e.GetProperty("Destination").GetProperty("X").GetInt32(), e.GetProperty("Destination").GetProperty("Z").GetInt32()),
@@ -68,6 +68,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 if (s.Cooking is { } cooking)
                 {
                     w.WriteStartObject("Cooking"); w.WriteString("Bill", cooking.Bill); w.WriteString("Recipe", cooking.Recipe);
+                    w.WriteString("Resource", cooking.Resource);
                     w.WriteStartArray("Ingredients");
                     foreach (var ingredient in cooking.Ingredients)
                     { w.WriteStartObject(); w.WriteString("Thing", ingredient.Thing); w.WriteNumber("Count", ingredient.Count); w.WriteEndObject(); }

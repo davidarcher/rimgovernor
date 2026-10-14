@@ -143,7 +143,9 @@ public sealed class ProductionPromisesTests
         var facts = Facts(Known(default(EquatableArray<ForecastCommitment>))) with
         {
             Tick = new Tick(100), LedgerOwed = Known(true), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
-            ProductionAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots, Known(false))]),
+            ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
+            WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
+            WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots, Known(false))]),
                 Bills = Known(default(EquatableArray<ProductionBatchState>)) },
         };
         var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, lifetime.Token);

@@ -153,6 +153,16 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var group in stock) result = result with { Resources = [.. result.Resources, new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) }] };
             Span("cf.resources");
+            result = result with { WorkResources = RimGovernor.Brain.Domain.EquatableArray.From(map.mapPawns.AllPawnsSpawned
+                .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(p =>
+                {
+                    var execution = NativePawnActivities.Read(p);
+                    var carried = p.carryTracker?.CarriedThing;
+                    return new Obs.WorkResourcePawn(p.GetUniqueLoadID(), execution?.Assignment ?? "", execution?.Revision ?? 0,
+                        execution?.State ?? "", carried?.GetUniqueLoadID() ?? "", carried?.def.defName ?? "", carried?.stackCount ?? 0)
+                        { LocalHour = GenLocalDate.HourFloat(map), Bill = p.CurJob?.bill?.GetUniqueLoadID() ?? "",
+                            Target = p.CurJob?.targetA.Thing?.GetUniqueLoadID() ?? "" };
+                })) };
             result = result with { EventLoot = EventLootFacts.Read(map, things, reachable) };
             Span("cf.eventLoot");
             result = ReadProduction(result, map, people, things, reachable, humanFood);

@@ -117,6 +117,8 @@ public sealed class RoundsWorkPlanner
         }
         required = MergeWorkRequirements([.. required], study);
         var demand = RoundsDiseaseDemand(read.Projection, definitions, review, state.Snapshot);
+        var sharedWork = p.Journal.WorkResources(state.Snapshot, call);
+        demand = demand with { CommittedPawns = sharedWork.Claims.Pawns, WorkClaimsTruncated = sharedWork.Claims.Truncated };
         var decision = PolicyApi.PlanWork(pawns, required, demand);
         if (!decision.Capacity.IsKnown)
         {

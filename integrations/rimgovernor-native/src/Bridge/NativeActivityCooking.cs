@@ -55,7 +55,8 @@ namespace HomeBridge.BridgeTools
                     || thing.IsForbidden(pawn) || thing.IsBurning() || !bill.IsFixedOrAllowedIngredient(thing)
                     || !pawn.CanReserveAndReach(thing, PathEndMode.ClosestTouch, Danger.Some, stackCount: selected.Count)
                     || thing.Position.DistanceTo(bench.Position) > bill.ingredientSearchRadius
-                    || ingredientDef != null && thing.def != ingredientDef) return false;
+                    || ingredientDef != null && thing.def != ingredientDef
+                    || choice.Resource.Length != 0 && thing.def.defName != choice.Resource) return false;
                 ingredientDef = thing.def;
                 ingredients.Add(new ThingCount(thing, selected.Count));
             }

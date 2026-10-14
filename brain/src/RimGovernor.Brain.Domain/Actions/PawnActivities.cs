@@ -3,7 +3,10 @@ namespace RimGovernor.Brain.Domain;
 public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Cook }
 
 public sealed record PawnActivityIngredient(string Thing, int Count);
-public sealed record PawnActivityCooking(string Bill, string Recipe, EquatableArray<PawnActivityIngredient> Ingredients);
+public sealed record PawnActivityCooking(string Bill, string Recipe, EquatableArray<PawnActivityIngredient> Ingredients)
+{
+    public string Resource { get; init; } = "";
+}
 
 /// <summary>An authorized step, not a native-priority request. Deadlines are absolute game ticks.</summary>
 public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, string WorkGiver,

@@ -22,7 +22,7 @@ shared demand pipeline. Exact single-choice ingredients reconcile with native
 holds by bill ID; alternatives stay unknown. [Fixed-batch admission](../architecture/colony-forecast.md#fixed-batch-material-admission)
 rechecks journal claims atomically with Method commit against the last full
 review's material evidence. This is not a native resource lock; indefinite
-production, pending construction and sale admission remain outside that check.
+production and sale admission remain outside that check.
 
 The work ledger now performs [joint production material selection](../architecture/colony-forecast.md#joint-production-material-choices)
 before fixed-batch admission: bounded generation retains allowed ingredient
@@ -368,3 +368,10 @@ which are not repeating native Cook authorization. The existing recipe-input cat
 and base work alongside ingredient slots. Worker rates, carrying/travel estimates,
 destination eligibility and continued bench availability remain explicit estimates.
 This is policy generation and comparison, not native dispatch.
+
+The [shared live work-resource view](../architecture/colony-forecast.md#shared-live-work-resources)
+extends fixed-batch admission to pending building placements and planner-owned
+food activities. Colony facts include each spawned pawn's activity identity,
+revision/state, current job target/bill, carried thing/definition/count and local hour. These are observed
+facts, not additional stock or a completion estimate. Native bill holds include
+spawned queued/placed ingredients; carried inputs are outside that loose census.

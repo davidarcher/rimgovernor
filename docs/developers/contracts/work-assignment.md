@@ -617,3 +617,12 @@ remain ordinary game work; actual mood/recreation recovery is a separate check.
 The 24-hour timetable length (`domain.ScheduleHours`) and the 0-4 priority range
 (`domain.MaxPriority`: 0 disabled, 1 first to 4 last) are fixed by the game and
 shared by every priority consumer; see [kept constants](kept-constants.md).
+
+## Shared Method availability
+
+Routine assignment excludes pawns already owned by activity Methods, using the
+same journal projection consumed by food selection and material admission.
+It does not assign a second role by counting that pawn's timetable again.
+Existing construction skill/tier checks remain in force. See
+[shared live work resources](../architecture/colony-forecast.md#shared-live-work-resources)
+for reconciliation, unknown durations, bounds and remaining consumer exceptions.

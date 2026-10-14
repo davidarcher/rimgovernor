@@ -65,3 +65,8 @@ proposals; Git and result artifacts retain implementation history and run eviden
 - [Pawn activity observations and reports](developers/architecture/pawn-activity.md)
 
 - [Planner-owned pawn activities](developers/contracts/pawn-activities.md): [live harvest and delivery](developers/contracts/pawn-activities.md#live-harvest-and-delivery), Method admission, [continuation and release](developers/contracts/method-continuation.md#pawn-activity-methods), exact cooking ingredients and delivery destinations, needs execution, bounded holds and ownership.
+
+The [live work-resource view](developers/architecture/colony-forecast.md#shared-live-work-resources)
+owns the shared observation and journal projection for migrated work paths;
+[work assignment](developers/contracts/work-assignment.md#shared-method-availability)
+and [persistence](developers/contracts/persistence-contracts.md) define its consumers and state ownership.

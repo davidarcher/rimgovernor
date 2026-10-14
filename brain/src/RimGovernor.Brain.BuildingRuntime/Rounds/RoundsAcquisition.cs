@@ -260,7 +260,8 @@ public sealed class RoundsAcquisitionPlanner
             _ = Boundary.Context(observed.Context, state.Snapshot);
             var activityMethod = new MethodId($"food-activity-{id}");
             var activity = PolicyFunctions.StartFoodActivity(observed, state.Snapshot.Native.Value, activityMethod.Value,
-                checked(observedTick + _reviewer.Policy.AcquisitionProgress().Deadline.Value), out var comparison);
+                checked(observedTick + _reviewer.Policy.AcquisitionProgress().Deadline.Value), out var comparison,
+                p.Journal.WorkResources(state.Snapshot, call));
             if (activity is null) return new RoundsAcquisitionResult { Verdict = BuildingReasonExistingWork };
             var activityPlan = new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]);
             p.Current(call, epoch);

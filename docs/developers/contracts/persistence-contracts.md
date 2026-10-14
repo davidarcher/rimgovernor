@@ -1,16 +1,24 @@
 # Persistence contracts
 
+The existing full-review admission evidence owns the observed work-resource view:
+material census, exact building/recipe costs, native carried inputs and current
+pawn availability. Method actions remain the sole owner of commitments; current
+pawn, bench, target and material claims are derived from them inside admission
+transactions. This extends the existing review row, not a second reservation
+store. Native reservations and carried/embedded inputs are reconciled against
+that observation; dispatch alone cannot release an unobserved cost.
+
 [Documentation](../../README.md)
 
 Vocabulary follows the [glossary](../glossary.md). Stored names: tables
 `standards`, `methods` (`standard_id`, `episode`) and `rounds`; blob keys `standard/<id>`; the
 `standard` and `episode` JSON keys; status words `open`/`settled`/`voided` (Standards, Once included).
 Finding strings are `unclear`/`unmet`/`met` (Incident bindings
-store `unclear`/`active`/`clear`); journal schema 216, governor-state blobs version 6. Databases and saves from other versions are refused;
+store `unclear`/`active`/`clear`); governor-state blobs version 6. Databases and saves from other versions are refused;
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 2 and the same `application_id`.
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 5 and the same `application_id`.
 Domain payloads (actions, admissions, transitions, Standards, Incidents, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`

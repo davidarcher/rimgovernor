@@ -203,7 +203,10 @@ public sealed record RoundsFacts
     /// <summary>Committed fixed batches reconciled with current native remaining counts.</summary>
     public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
 
-    public ProductionAdmissionObservation ProductionAdmission { get; init; } = new();
+    public WorkAdmissionObservation WorkAdmission { get; init; } = new();
+    public Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>> WorkResources { get; init; }
+    public WorkResourceClaims? WorkClaims { get; init; }
+    public WorkResourceView? WorkView { get; init; }
 
     public Fact<SleepingObservation> Sleeping { get; init; }
 

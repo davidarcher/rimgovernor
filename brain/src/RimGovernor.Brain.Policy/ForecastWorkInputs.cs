@@ -9,6 +9,8 @@ public sealed record ForecastWorkInputs
     public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
     public Fact<EquatableArray<IngredientReservation>> IngredientReservations { get; init; }
     public Fact<EquatableArray<ForecastCommitment>> ProductionPromises { get; init; }
+    public WorkResourceClaims? Claims { get; init; }
+    public WorkResourceView? Resources { get; init; }
 
     /// <summary>One material-claim commitment per planned room (PlannedRoomCommitments); unknown while the plan is.</summary>
     public Fact<EquatableArray<ForecastCommitment>> PlannedRooms { get; init; }
@@ -24,6 +26,8 @@ public static partial class PolicyFunctions
             Tick = facts.Tick, Construction = facts.CurrentConstruction, Pawns = facts.ForecastObserved.WorkPawns,
             IngredientReservations = facts.BillReservations,
             ProductionPromises = facts.ProductionPromises,
+            Claims = facts.WorkClaims,
+            Resources = facts.WorkView,
             PlannedRooms = PlannedRoomCommitments(facts.PlannedConstruction),
         };
         if (!facts.ConstructionClaims.TryGetValue(out var claims) || !facts.CurrentConstruction.TryGetValue(out var census) || !census.Colony)
@@ -94,7 +98,9 @@ public static partial class PolicyFunctions
             Construction = estimates with
             {
                 Census = work.Construction, IngredientReservations = work.IngredientReservations,
-                Workers = estimates.Workers.Select(w => w with { Observed = observed[w.Capacity.Pawn] }).ToArray(),
+                Workers = estimates.Workers.Select(w => w with { Observed = observed[w.Capacity.Pawn],
+                    Capacity = work.Resources is null ? w.Capacity : w.Capacity with
+                    { Windows = work.Resources.Capacity.GetValueOrDefault(w.Capacity.Pawn)?.Capacity.Windows ?? default } }).ToArray(),
             },
         });
     }

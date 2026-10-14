@@ -18,7 +18,7 @@ public sealed record ReserveSupply(string Thing, string Definition, bool Forbid)
 /// </summary>
 public sealed record Rounds
 {
-    public ProductionAdmissionEvidence? ProductionMaterials { get; init; }
+    public WorkAdmissionEvidence? WorkEvidence { get; init; }
 
     /// <summary>The loose things the last known safety census reported unsafe to haul; the unsafe-loot Safeguard refuses allowing them at dispatch.</summary>
     public EquatableArray<string> Unsafe { get; init; }

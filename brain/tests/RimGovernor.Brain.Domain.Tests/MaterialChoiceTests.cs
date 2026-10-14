@@ -139,10 +139,12 @@ public sealed class MaterialChoiceTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-material-options-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
         var facts = new RoundsFacts { Tick = new Tick(100), LedgerOwed = Known(true),
+            ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
+            WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             Resources = Known<EquatableArray<Amount>>([new(Metal, 10), new(Timber, 10)]),
             ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
             BillReservations = Known(default(EquatableArray<IngredientReservation>)),
-            ProductionAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };
+            WorkAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };
         var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
         var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
         var selected = SelectLedgerMaterials([Flexible, Machine], journal.ProductionMaterials(world, ct));

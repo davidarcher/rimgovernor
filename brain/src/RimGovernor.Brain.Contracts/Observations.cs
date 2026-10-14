@@ -8990,6 +8990,8 @@ public abstract record DeliveryLedgerSectionOutcome
 
 public sealed record ColonyFactsSnapshot
 {
+    [JsonConverter(typeof(EquatableArrayJsonConverter<WorkResourcePawn>))]
+    public EquatableArray<WorkResourcePawn>? WorkResources { get; init; }
     public Common.ObservationContext? Context { get; init; }
 
     public uint? ColonistCount { get; init; }

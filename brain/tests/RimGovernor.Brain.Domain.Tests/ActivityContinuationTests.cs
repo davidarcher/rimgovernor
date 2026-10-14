@@ -22,7 +22,7 @@ public sealed class ActivityContinuationTests
     {
         BridgeFunctions.RegisterIntentKinds();
         var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = new() { Tick = new(100), LedgerOwed = Known(true) } }, ct);
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
         owner = journal.CommitMethod(owner.Standard.Id, owner.Revision, new("method"), plan, ct);
         var scope = Root with { Plan = plan.Id };
@@ -71,6 +71,7 @@ public sealed class ActivityContinuationTests
         Assert.False(method.Needed.Value);
         var release = Plan("release", ReviewActivityOwnership(Batch, method.Needed, 110, [Row()]).Release!);
         journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row()], release, ct);
+        Assert.Contains("pawn", journal.WorkResources(Root, ct).Claims.Pawns);
         var old = journal.LoadPlan(initial.Id, ct);
         Assert.True(old.Retired);
         Assert.Equal(release.Id, old.SupersededBy);
@@ -83,6 +84,7 @@ public sealed class ActivityContinuationTests
         var sent = journal.Dispatch(release.Id, release.Actions[0].Id, scope, new(110), ct);
         journal.RecordReceipt(release.Id, release.Actions[0].Id, sent.View.Attempt, Receipt.Accepted, ct);
         Assert.Empty(journal.ActivityMethods(Root, ct));
+        Assert.DoesNotContain("pawn", journal.WorkResources(Root, ct).Claims.Pawns);
         Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row()], release, ct));
     }
 

@@ -116,7 +116,7 @@ public sealed class FoodActivityContinuationTests
         BridgeFunctions.RegisterIntentKinds();
         using var journal = Journal.Open(path, ct);
         var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = new() { Tick = new(100), LedgerOwed = Known(true) } }, ct);
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
         var harvest = Harvest();
         var plan = new PlanSpec(new("harvest"), new(1), [DomainAction.NewPawnActivitiesAction(new("harvest-action"), harvest)]);
@@ -195,7 +195,7 @@ public sealed class FoodActivityContinuationTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-food-worker-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         BridgeFunctions.RegisterIntentKinds();
         var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = new() { Tick = new(100), LedgerOwed = Known(true) } }, ct);
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
         var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
         var batch = Harvest();
         var plan = new PlanSpec(new("harvest"), new(1), [DomainAction.NewPawnActivitiesAction(new("harvest-action"), batch)]);

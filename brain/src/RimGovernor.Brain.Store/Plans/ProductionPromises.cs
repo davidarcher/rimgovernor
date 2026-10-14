@@ -11,8 +11,8 @@ public sealed partial class Store
     public ProductionMaterialView ProductionMaterials(GenerationSnapshot current, CancellationToken cancellationToken) => Run(tx =>
     {
         var review = LoadRounds(tx);
-        if (!review.Enabled || review.Snapshot != current || review.ProductionMaterials is not { } evidence) return new(default, default);
-        return new ProductionMaterialView(evidence.Recipes, PolicyFunctions.ProductionAdmissionBudget(evidence, ProductionBatchesIn(tx, current, null)));
+        if (!review.Enabled || review.Snapshot != current || review.WorkEvidence is not { } evidence) return new(default, default);
+        return new ProductionMaterialView(evidence.Recipes, WorkResourcesIn(tx, current).Materials);
     }, cancellationToken);
     /// <summary>Bounded projection of committed batch actions; native readback decides which applied bills remain.</summary>
     public Fact<EquatableArray<ProductionBatch>> ProductionBatches(GenerationSnapshot current, Tick tick, CancellationToken cancellationToken)

@@ -14,6 +14,7 @@ public sealed record ForecastCapacityInput
     public Fact<double> OpportunityCostPerTick { get; init; }
     /// <summary>Remaining useful current-job time, not total duration or sunk effort; required when a job is observed.</summary>
     public Fact<double> CurrentJobRemainingTicks { get; init; }
+    public ForecastCurrentWork? CurrentWork { get; init; }
     /// <summary>Explicit endpoint assumption for gaps after protected activity. Missing endpoints block route evaluation.</summary>
     public Fact<string> LocationAfterProtectedTime { get; init; }
     /// <summary>Known empty means no additional needs/protected work. Unknown is not a free day.</summary>
@@ -34,7 +35,8 @@ public static partial class PolicyFunctions
         var pawn = input.Pawn;
         if ((pawn.Available.TryGetValue(out var available) && !available) || (pawn.Applies.TryGetValue(out var applies) && !applies))
             return Result(Known(default(EquatableArray<ForecastTimeWindow>)), Known(0.0), "pawn_unavailable");
-        var current = ForecastCurrentWorkOf(pawn, input.CurrentJobRemainingTicks);
+        var current = input.CurrentWork ?? ForecastCurrentWorkOf(pawn, input.CurrentJobRemainingTicks);
+        if (current.Pawn != pawn.Id) throw new DomainException("capacity current work names another pawn");
         if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || !pawn.WorkHoursPerDay().IsKnown
             || !input.LocalHour.TryGetValue(out var hour) || !input.Occupancy.TryGetValue(out var occupancy))
             return Result(default, default, "unknown_capacity_inputs");

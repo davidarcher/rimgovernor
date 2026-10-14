@@ -370,15 +370,16 @@ public sealed partial class Rounder
         PlanFood(ref foodProjection);
         reading = reading.WithProjection(foodProjection);
         reading = reading.WithFacts(rf => rf with { ConstructionClaims = claims });
-        reading = reading.WithFacts(rf => rf with { ProductionAdmission = new()
+        reading = reading.WithFacts(rf => rf with { WorkAdmission = new()
         {
+            Buildings = reading.Catalog is { } buildingCatalog ? Known(buildingCatalog.WorkBuildingCosts()) : default,
             Recipes = reading.Catalog is { } batchCatalog ? Known(batchCatalog.ProductionRecipeInputs(
                 reading.Frame.Tables.Buildings.Table.Values().Select(b => b.Building?.DefName ?? ""))) : default,
             Bills = ObservationApi.ProductionBatchStates(reading.Frame.Bills),
         } });
         var batches = await p.Journal.ProductionBatchesAsync(state.Snapshot, reading.Projection.Identity.Tick, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { ProductionPromises = PolicyApi.ProductionPromisesOf(
-            PolicyApi.PriceProductionBatches(batches, rf.ProductionAdmission.Recipes), rf.ProductionAdmission.Bills) });
+        var workActions = p.Journal.WorkActions(state.Snapshot, ct);
+        reading = reading.WithFacts(rf => PolicyApi.ReviewWorkResources(rf, batches, workActions));
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { ConstructionClaims = reading.Projection.Facts.ConstructionClaims } });
         ReviewRoyalty(state.Snapshot, reading, ct);
         // A creepjoiner held apart owes the isolation room, so the census is read before the child rooms and the layout.

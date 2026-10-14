@@ -81,6 +81,8 @@ public sealed partial class Store
             if (!owner.Deficit) throw new ConflictException("recovered Concern permits release only");
             AdmitRoundsSafeguards(tx, owner);
             AdmitRoundsReview(tx, SummarizeOwner(owner));
+            if (!WorkResourcesFit(WorkResourcesIn(tx, current, previous), next))
+                throw new ConflictException("work_resource_conflict_or_unknown");
         }
         CreatePlanIn(tx, next);
         InsertPlanOwner(tx, next.Id, "standard");

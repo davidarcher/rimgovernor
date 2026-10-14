@@ -329,6 +329,8 @@ public sealed record WorkDecision
 /// <summary>The colony census the baseline owner table scales by. The default value asks for the baseline alone.</summary>
 public sealed record WorkDemand
 {
+    public EquatableArray<string> CommittedPawns { get; init; }
+    public bool WorkClaimsTruncated { get; init; }
     /// <summary>Temporarily replaces the roster with medical rest until immunity.</summary>
     public IReadOnlyList<DiseaseRest> Resting { get; init; } = [];
 
@@ -447,6 +449,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static WorkDecision PlanWork(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> required, WorkDemand demand)
     {
+        if (demand.WorkClaimsTruncated) return new();
         ValidateDiseaseRest(demand.Resting);
         var resting = new HashSet<PawnId>();
         foreach (var row in demand.Resting)
@@ -470,6 +473,7 @@ public static partial class PolicyFunctions
         var known = true;
         foreach (var pawn in pawns)
         {
+            if (demand.CommittedPawns.Contains(pawn.Id.Value)) continue;
             if (!ValidResource(new Resource(pawn.Id.Value)) || !seen.Add(pawn.Id))
             {
                 throw new DomainException("invalid work pawn");
@@ -952,6 +956,8 @@ public static partial class PolicyFunctions
         var jobs = PlanHerd(facts.HerdPlanInput()).Jobs;
         var demand = new WorkDemand
         {
+            CommittedPawns = facts.WorkClaims?.Pawns ?? [],
+            WorkClaimsTruncated = facts.WorkClaims?.Truncated ?? false,
             Construction = building,
             Arming = HuntArming(facts.FoodPlan),
             Handling = jobs.ContainsKey(HerdJob.Milk) || jobs.ContainsKey(HerdJob.Wool),

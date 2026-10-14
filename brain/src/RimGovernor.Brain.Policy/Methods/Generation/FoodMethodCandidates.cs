@@ -7,12 +7,19 @@ internal sealed record FoodMethodCandidates(ForecastActivityProblem? Problem, Fo
     IReadOnlyDictionary<string, FoodActivityOption> Bindings, bool Truncated)
 {
     internal static FoodMethodCandidates Generate(FoodActivityRead read, long deadline,
-        string? pawn = null, string? resource = null, ActivityOutputDelivery? obligation = null, bool allowCooking = false)
+        string? pawn = null, string? resource = null, ActivityOutputDelivery? obligation = null, bool allowCooking = false, WorkResourceView? resources = null)
     {
-        if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick) return new(null, [], new Dictionary<string, FoodActivityOption>(), read.Truncated);
+        if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick || resources?.Claims.Truncated == true)
+            return new(null, [], new Dictionary<string, FoodActivityOption>(), read.Truncated || resources?.Claims.Truncated == true);
         var horizon = deadline - tick;
         // The shared outcome comparator admits sixteen alternatives. Stable enumeration is not ranking.
         var rows = read.Options.Where(o => (pawn is null || o.Pawn == pawn) && (resource is null || o.Resource == resource))
+            .Where(o => resources is null || !resources.Claims.Pawns.Contains(o.Pawn) && !resources.Claims.Targets.Contains(o.Target)
+                && (o.Cooking is null || !resources.Claims.Targets.Contains(o.Cooking.Continuation.Bench)
+                    && !resources.Claims.Targets.Contains(o.Cooking.Continuation.Bill))
+                && (obligation is null || resources.Materials.TryGetValue(out var budget)
+                    && budget.GetValueOrDefault(new Resource(o.Resource), Known(0.0)).TryGetValue(out var free)
+                    && free >= (o.Cooking?.IngredientCount ?? o.Count)))
             .Where(o => obligation?.Cooking is { } pinned
                 ? o.Cooking is { Supplied: true } c && c.Continuation.Bench == pinned.Bench && c.Continuation.Bill == pinned.Bill
                     && c.Continuation.Recipe == pinned.Recipe && c.IngredientCount == obligation.Count
@@ -32,6 +39,10 @@ internal sealed record FoodMethodCandidates(ForecastActivityProblem? Problem, Fo
         var routes = new List<ForecastActivityRoute>();
         var outcomes = new List<ForecastActivityOutcome>();
         var truncated = read.Truncated || rows.Length > 16;
+        var capacities = resources?.Capacity.ToDictionary(p => p.Key, p => p.Value.Capacity.Windows.TryGetValue(out var windows)
+            ? Known(EquatableArray.From(windows.Where(w => w.End > tick - resources.Evidence.Tick.Value)
+                .Select(w => w with { Start = Math.Max(0, w.Start - (tick - resources.Evidence.Tick.Value)),
+                    End = w.End - (tick - resources.Evidence.Tick.Value) }))) : default, StringComparer.Ordinal);
         var workers = rows.Take(16).Select(o => o.Pawn).Distinct(StringComparer.Ordinal).ToArray();
         foreach (var option in rows.Take(16))
         {
@@ -66,8 +77,9 @@ internal sealed record FoodMethodCandidates(ForecastActivityProblem? Problem, Fo
         var problem = activities.Count == 0 ? null : new ForecastActivityProblem
         {
             Activities = activities.ToArray(), Options = options.ToArray(), Routes = routes.ToArray(),
-            Pawns = workers.Select((_, index) => new ForecastPawnCapacity("worker-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), "start",
-                Known<EquatableArray<ForecastTimeWindow>>([new(0, horizon)]), Known(1.0))).ToArray(),
+            Pawns = workers.Select((pawnId, index) => new ForecastPawnCapacity("worker-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), "start",
+                resources is null ? Known<EquatableArray<ForecastTimeWindow>>([new(0, horizon)])
+                    : capacities!.GetValueOrDefault(pawnId), Known(1.0))).ToArray(),
             Deadline = Known((double)horizon), AlternativeLaborCost = Known((double)horizon), ExpansionBudget = 512,
         };
         return new(problem, outcomes.ToArray(), bindings, truncated);

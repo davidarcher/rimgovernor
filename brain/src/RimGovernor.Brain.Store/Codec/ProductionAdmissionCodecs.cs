@@ -11,10 +11,15 @@ internal sealed class AmountConverter : ObjectCodec<Amount>
     { w.Put("Resource", v.Resource, o); w.WriteNumber("Count", v.Count); }
 }
 
-internal sealed class ProductionAdmissionEvidenceConverter : ObjectCodec<ProductionAdmissionEvidence>
+internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmissionEvidence>
 {
-    protected override ProductionAdmissionEvidence Read(JsonElement e, Codecs o) => new()
+    protected override WorkAdmissionEvidence Read(JsonElement e, Codecs o) => new()
     {
+        Tick = e.Get<Tick>("Tick", o),
+        Buildings = e.Get<Fact<EquatableArray<WorkBuildingCost>>>("Buildings", o),
+        Standing = e.Get<Fact<EquatableArray<Building>>>("Standing", o),
+        Pawns = e.Get<Fact<EquatableArray<WorkPawnAvailability>>>("Pawns", o),
+        WorkResources = e.Get<Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>>>("WorkResources", o),
         Stock = e.Get<Fact<EquatableArray<Amount>>>("Stock", o),
         Construction = e.Get<Fact<IReadOnlyDictionary<Resource, long>>>("Construction", o),
         Reservations = e.Get<Fact<EquatableArray<IngredientReservation>>>("Reservations", o),
@@ -22,12 +27,39 @@ internal sealed class ProductionAdmissionEvidenceConverter : ObjectCodec<Product
         Promises = e.Get<Fact<EquatableArray<ProductionMaterialPromise>>>("Promises", o),
         Reviewed = e.Get<EquatableArray<ActionId>>("Reviewed", o),
     };
-    protected override void WriteFields(Utf8JsonWriter w, ProductionAdmissionEvidence v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, WorkAdmissionEvidence v, Codecs o)
     {
+        w.Put("Tick", v.Tick, o); w.Put("Buildings", v.Buildings, o); w.Put("Standing", v.Standing, o);
+        w.Put("Pawns", v.Pawns, o); w.Put("WorkResources", v.WorkResources, o);
         w.Put("Stock", v.Stock, o); w.Put("Construction", v.Construction, o);
         w.Put("Reservations", v.Reservations, o); w.Put("Recipes", v.Recipes, o);
         w.Put("Promises", v.Promises, o); w.Put("Reviewed", v.Reviewed, o);
     }
+}
+
+internal sealed class WorkBuildingCostConverter : ObjectCodec<WorkBuildingCost>
+{
+    protected override WorkBuildingCost Read(JsonElement e, Codecs o) => new(e.Str("Definition"), e.Str("Stuff"), e.Get<Fact<EquatableArray<Amount>>>("Materials", o));
+    protected override void WriteFields(Utf8JsonWriter w, WorkBuildingCost v, Codecs o)
+    { w.WriteString("Definition", v.Definition); w.WriteString("Stuff", v.Stuff); w.Put("Materials", v.Materials, o); }
+}
+
+internal sealed class WorkPawnAvailabilityConverter : ObjectCodec<WorkPawnAvailability>
+{
+    protected override WorkPawnAvailability Read(JsonElement e, Codecs o) => new(e.Str("Pawn"), e.Get<Fact<bool>>("Available", o),
+        e.Get<Fact<bool>>("Applies", o), e.Get<Fact<bool>>("Occupied", o), e.Get<Fact<string>>("Target", o))
+    { Schedule = e.Get<Fact<EquatableArray<string>>>("Schedule", o), LocalHour = e.Get<Fact<double>>("LocalHour", o) };
+    protected override void WriteFields(Utf8JsonWriter w, WorkPawnAvailability v, Codecs o)
+    { w.WriteString("Pawn", v.Pawn); w.Put("Available", v.Available, o); w.Put("Applies", v.Applies, o); w.Put("Occupied", v.Occupied, o); w.Put("Target", v.Target, o); w.Put("Schedule", v.Schedule, o); w.Put("LocalHour", v.LocalHour, o); }
+}
+
+internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>
+{
+    protected override RimGovernor.Contracts.Wire.Observations.WorkResourcePawn Read(JsonElement e, Codecs o) =>
+        new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Get<double?>("LocalHour", o), Bill = e.Str("Bill"), Target = e.Str("Target") };
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.WorkResourcePawn v, Codecs o)
+    { w.WriteString("Pawn", v.Pawn); w.WriteString("Assignment", v.Assignment); w.WriteNumber("Revision", v.Revision);
+      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNumber("CarriedCount", v.CarriedCount); w.Put("LocalHour", v.LocalHour, o); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); }
 }
 
 internal sealed class ProductionRecipeInputConverter : ObjectCodec<ProductionRecipeInput>
