@@ -24,7 +24,6 @@
 | [brain/tests](../../brain/tests) | Bug-driven xUnit tests |
 | [tools/rg](../../tools/rg) | Repository tool host behind `RimGovernor.cmd` (land, test, issue, affected, acceptance, remote tools, reports) |
 | [tools/launcher](../../tools/launcher) | Windows launcher (C#, WinForms and WebView2): setup, game start/stop, new colony, acceptance tab |
-| [tools/observability](../../tools/observability) | Optional Grafana/OTLP stack and dashboards |
 | [integrations/rimgovernor-native/src/Bridge](../../integrations/rimgovernor-native/src/Bridge) | Colony observations, operations, supervision and rendering |
 | [integrations/rimgovernor-host/src](../../integrations/rimgovernor-host/src) | Vendored RimBridgeServer fork: tool registration, lifecycle tools and main-thread dispatch (may fold into the mod, #3141) |
 | [integrations/rimgovernor-realcombat](../../integrations/rimgovernor-realcombat) | RimWorld's own combat run headless in a bare process, with the mod's combat mirror and order handler hosted over it (#3142), and the parity tool that compares it with the hand-ported sim |

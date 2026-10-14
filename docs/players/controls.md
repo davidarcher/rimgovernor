@@ -2,11 +2,12 @@
 
 [Player guide](README.md)
 
-The launcher controls the game; Grafana shows what the governor is doing.
+The launcher controls the game and shows what the governor is doing.
 
 | Tab | Use it to |
 | --- | --- |
-| Launch | Start, stop or restart the brain; select a save; generate a colony; change settings; read build and start diagnostics under Details; start the Observability stack and open its dashboards. |
+| Launch | Start, stop or restart the brain; select a save; generate a colony; change settings; read build and start diagnostics under Details. |
+| Observe | Watch the running brain: Now, Concerns, Problems and Log. Read-only. |
 | Acceptance | Run a native test case visibly on this checkout's private game. Stop the brain and close its game first. |
 
 ## Speed and manual control
@@ -15,24 +16,22 @@ The launcher controls the game; Grafana shows what the governor is doing.
 The default uses adaptive Ultrafast pacing. Pause in RimWorld to take manual
 control; once Auto resumes, the governor can adjust work and settings again.
 
-## Watch the governor in Grafana
+## Watch the governor
 
-The Now, Explain, Problems, Log and Ledger views live in Grafana, not in the launcher.
-Turn on **Send telemetry to local collector** in Settings and start the
-Observability stack (it needs Docker; see [launch](launch.md#settings)). When it
-reads healthy, the Observability section shows a button for each dashboard.
-While it is stopped the section shows a one-line hint.
+The Observe tab reads the running game and needs nothing else installed. Its header shows
+whether the brain answers, the game tick and pause state, and running counts of warnings and
+errors. Play first; before the game is up the tab says so. Rows come from the brain's log, so
+Problems and Log show what happened since the launcher began watching.
 
-| Question | Dashboard |
+| Question | View |
 | --- | --- |
-| What is the bot doing, what is it waiting on, what stage is the colony in? | Now |
-| Why did a Concern change state, newest first, with the cause and the Method? | Concern transitions |
-| What went wrong or was refused? | Problems |
-| What did the brain log? Filter by level, kind and text. | Log |
+| What stage is the colony in, is it healthy, how long do resources last, how is pace? | Now |
+| What is each Concern doing, what is it blocked by, when is it reviewed next? | Concerns |
+| What went wrong or was refused? Repeats are collapsed with a count. | Problems |
+| What did the brain log? Filter by level, kind and text; click a row for its fields. | Log |
 
-Dashboards show the last 6 hours and refresh every 10 s. The concern history is
-read-only and survives a restart. A method shown on a "started" line may belong
-to the previous review.
+The tab refreshes every second and a half while it shows. The Concerns table is the latest
+review, not a history.
 
 Save before ending a session you want to keep. **Stop** ends the brain;
 **Close game** ends its RimWorld process. See [save and resume](save-and-resume.md).

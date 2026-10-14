@@ -142,6 +142,34 @@
   #acProgress pre { height: 180px; }
   #acProgress .ncactions { margin-top: 8px; }
   #acList { max-height: 460px; }
+
+  .obbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .obbar .pill { padding: 1px 9px; border-radius: 10px; background: var(--raised); border: 1px solid var(--line); font-size: 12px; }
+  .obbar .pill.up { color: var(--ok); } .obbar .pill.down { color: var(--bad); } .obbar .pill.warn { color: var(--warn); }
+  .obbar .grow { flex: 1; }
+  .subtabs { display: flex; gap: 4px; margin: 12px 0 8px; }
+  .subtabs button { padding: 4px 12px; background: transparent; color: var(--muted); }
+  .subtabs button[aria-selected=true] { color: var(--text); border-color: var(--accent); }
+  .obcard { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 12px; }
+  .obcard h3 { font-size: 13px; margin: 0 0 6px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 2px 10px; user-select: text; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  table.ob { width: 100%; border-collapse: collapse; font-size: 13px; user-select: text; }
+  table.ob th { text-align: left; color: var(--muted); font-weight: 500; padding: 3px 8px 3px 0; }
+  table.ob td { padding: 3px 8px 3px 0; border-top: 1px solid #23261f; vertical-align: top; overflow-wrap: anywhere; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .bad { color: var(--bad); } .wait { color: var(--warn); } .good { color: var(--ok); }
+  .obrow { border-top: 1px solid #23261f; padding: 4px 2px; font-size: 13px; cursor: pointer; }
+  .obrow:first-child { border-top: none; }
+  .obrow .l { display: grid; grid-template-columns: 8px 66px 150px 1fr; gap: 8px; align-items: baseline; }
+  .obrow .t { color: var(--muted); font-size: 12px; }
+  .obrow .k { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .obrow.WARN .dot { background: var(--warn); } .obrow.ERROR .dot { background: var(--bad); } .obrow.INFO .dot { background: var(--ok); }
+  .obrow pre { display: none; height: auto; max-height: 240px; margin-left: 18px; }
+  .obrow.open pre { display: block; }
+  .obfilters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .obfilters input[type=text] { width: 180px; }
+  .oblist { max-height: 460px; overflow: auto; }
 </style>
 </head>
 <body>
@@ -153,8 +181,37 @@
 
   <nav class="tabs" role="tablist" aria-label="Views">
     <button role="tab" id="tab-launch" data-tab="launch" aria-selected="true">Launch</button>
+    <button role="tab" id="tab-observe" data-tab="observe" aria-selected="false">Observe</button>
     <button role="tab" id="tab-acceptance" data-tab="acceptance" aria-selected="false">Acceptance</button>
   </nav>
+  <div class="view" id="view-observe" role="tabpanel" aria-labelledby="tab-observe" hidden>
+    <div class="obbar" id="obBar" aria-live="polite">
+      <span class="pill down" id="obConn">no game</span>
+      <span id="obTick"></span>
+      <span class="grow"></span>
+      <span class="pill" id="obWarn">0 warn</span>
+      <span class="pill" id="obErr">0 error</span>
+    </div>
+    <div class="alert" id="obProblem" role="alert" hidden></div>
+    <nav class="subtabs" role="tablist" aria-label="Observe views">
+      <button role="tab" data-ob="now" aria-selected="true">Now</button>
+      <button role="tab" data-ob="concerns" aria-selected="false">Concerns</button>
+      <button role="tab" data-ob="problems" aria-selected="false">Problems</button>
+      <button role="tab" data-ob="log" aria-selected="false">Log</button>
+    </nav>
+    <div id="ob-now"></div>
+    <div id="ob-concerns" hidden></div>
+    <div id="ob-problems" hidden></div>
+    <div id="ob-log" hidden>
+      <div class="obfilters">
+        <select id="obLevel"><option value="WARN">Warnings and errors</option><option value="ALL">Everything</option><option value="ERROR">Errors only</option></select>
+        <input type="text" id="obKind" placeholder="Kind (regex)" spellcheck="false">
+        <input type="text" id="obSearch" placeholder="Search" spellcheck="false">
+        <span class="pbstatus" id="obCount"></span>
+      </div>
+      <div class="oblist" id="obList"></div>
+    </div>
+  </div>
   <div class="view" id="view-acceptance" role="tabpanel" aria-labelledby="tab-acceptance" hidden>
     <section class="events" aria-label="Acceptance cases">
       <div class="evbar"><h2>Acceptance cases</h2><span class="pbstatus" id="acCount"></span></div>
@@ -190,17 +247,6 @@
     </div>
     <div class="alert" id="alert" role="alert" hidden></div>
     <ul class="status" id="status" aria-label="Components"></ul>
-    <section class="obs" aria-label="Observability">
-      <h2>Observability <span class="pbstatus" id="obsState"></span></h2>
-      <p class="note" id="obsHint">What the bot is doing, why, its problems and its log are read in Grafana (needs Docker): press Start, and turn on "Send telemetry to local collector" in Settings before Play.</p>
-      <div class="secondary">
-        <button id="obsStart">Start</button>
-        <button id="obsStop">Stop</button>
-        <button id="obsOpen">Open Grafana</button>
-      </div>
-      <div class="secondary" id="obsLinks" hidden></div>
-      <div class="alert" id="obsProblem" role="alert" hidden></div>
-    </section>
     <details class="log" id="logbox" open>
       <summary>Details</summary>
       <pre id="log"></pre>
@@ -278,7 +324,6 @@
       <div class="check"><input type="checkbox" id="layoutOverlay"><label for="layoutOverlay">Show the layout plan in game</label></div>
     </details>
 
-    <div class="check"><input type="checkbox" id="telemetry"><label for="telemetry">Send telemetry to local collector</label></div>
 
     <details>
       <summary>Advanced</summary>
@@ -292,7 +337,7 @@
 
 <script>
 const $ = id => document.getElementById(id);
-const bools = ['layoutOverlay', 'telemetry'];
+const bools = ['layoutOverlay'];
 const texts = ['extraArgs', 'loadSave'];
 let view = null, loaded = false, busyAction = false;
 
@@ -388,32 +433,6 @@ async function refresh() {
   fillSaves(v.saves || [], loaded ? read().loadSave : v.settings.loadSave);
   if (!loaded) { fill(v.settings); loaded = true; }
 }
-
-async function refreshObs() {
-  let o;
-  try { o = await getObservability(); } catch (e) { return; }
-  $('obsState').textContent = o.state;
-  $('obsStart').disabled = o.state !== 'stopped';
-  $('obsStop').disabled = o.state === 'stopped';
-  $('obsOpen').disabled = o.state !== 'healthy';
-  // Observation lives in Grafana: the deep links show while it answers,
-  // the one-line hint while it does not.
-  const up = o.state === 'healthy';
-  $('obsHint').hidden = up;
-  $('obsLinks').hidden = !up;
-  if (up && !$('obsLinks').children.length) {
-    $('obsLinks').innerHTML = o.dashboards.map(d => `<button data-url="${esc(d.url)}">${esc(d.name)}</button>`).join('');
-  }
-  $('obsProblem').hidden = !o.problem;
-  $('obsProblem').textContent = o.problem;
-}
-$('obsLinks').onclick = e => {
-  const url = e.target.dataset && e.target.dataset.url;
-  if (url) openLink(url).catch(() => {});
-};
-$('obsStart').onclick = () => { startObservability(); setTimeout(refreshObs, 300); };
-$('obsStop').onclick = () => { stopObservability(); setTimeout(refreshObs, 300); };
-$('obsOpen').onclick = () => openLink('http://localhost:3000').catch(() => {});
 
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])); }
 
@@ -724,10 +743,139 @@ $('ncCancel').onclick = async () => {
   $('ncCancel').disabled = true;
   try { await cancelNewColony(); } finally { $('ncCancel').disabled = false; pollNewColony(); }
 };
+// Observe tab: live reads of the brain (state, routines, colony) plus the rows its
+// log ring gained since the last poll. Everything shown is read-only. The game's
+// route bodies are rendered as they come: an absent field shows as unknown.
+const ob = { since: 0, rows: [], view: null, sub: 'now', openSeq: new Set(), key: '' };
+const OB_KEEP = 3000;
+const num = (v, d = 0) => v == null ? '?' : Number(v).toLocaleString(undefined, { maximumFractionDigits: d });
+const lastOf = kind => { for (let i = ob.rows.length - 1; i >= 0; i--) if (ob.rows[i].kind === kind) return ob.rows[i]; return null; };
+const lastN = (kind, n) => ob.rows.filter(r => r.kind === kind).slice(-n).reverse();
+const rowLine = r => esc([r.verdict, r.reason, r.target].filter(Boolean).join(' / ') || r.text || '');
+const clock = at => at ? at.slice(11, 19) : '';
+
+function obRowHtml(r) {
+  return `<div class="obrow ${esc(r.level)}${ob.openSeq.has(r.seq) ? ' open' : ''}" data-seq="${r.seq}"><div class="l"><span class="dot"></span>` +
+    `<span class="t">${esc(clock(r.at))}${r.tick != null ? ' t' + r.tick : ''}</span><span class="k" title="${esc(r.component)}">${esc(r.kind)}</span><span>${rowLine(r)}</span></div>` +
+    `<pre>${esc(r.detail)}</pre></div>`;
+}
+
+function obNow(v) {
+  const rt = v.routines, col = v.colony, st = rt && rt.stage;
+  let h = '<div class="obcard"><h3>Stage</h3>';
+  h += st ? `<dl class="kv"><dt>Stage</dt><dd>${esc(st.stage)}${st.held ? ' <span class="wait">(held)</span>' : ''}</dd><dt>Since tick</dt><dd>${num(st.since)}</dd>` +
+    `<dt>Blocker</dt><dd>${esc(st.blocker || 'none')}</dd><dt>Reason</dt><dd>${esc(st.reason || '')}</dd></dl>` : '<span class="detail">Not filed yet (no enabled review has run).</span>';
+  h += '</div>';
+  if (rt && rt.emergency && rt.emergency.length) h += `<div class="obcard"><h3>Emergency</h3><span class="bad">${rt.emergency.map(esc).join(', ')}</span></div>`;
+  if (col) {
+    const pawns = (col.pawns || []).map(p => `<tr><td>${esc(p.label)}</td><td class="num${p.downed ? ' bad' : ''}">${p.downed ? 'downed' : ''}</td><td class="num">${p.mood == null ? '?' : num(p.mood * 100)}</td><td class="num">${p.food == null ? '?' : num(p.food * 100)}</td></tr>`).join('');
+    h += `<div class="obcard"><h3>Colony</h3><dl class="kv"><dt>Colonists / workers</dt><dd>${num(col.colonists)} / ${num(col.workers)}${col.downed ? ` <span class="bad">(${col.downed} downed)</span>` : ''}</dd>` +
+      `<dt>Mood (mean)</dt><dd>${col.moodMean == null ? '?' : num(col.moodMean * 100)}</dd><dt>Food</dt><dd>${num(col.foodNutrition, 1)} nutrition, ${num(col.foodRunwayDays, 1)} days</dd>` +
+      `<dt>Raid points</dt><dd>${num(col.raidPoints)}</dd><dt>Wealth</dt><dd>${num(col.wealthTotal)}</dd><dt>Tech</dt><dd>${esc(col.techTier || col.playerTechLevel || '?')}</dd></dl>` +
+      (pawns ? `<table class="ob" style="margin-top:8px"><tr><th>Colonist</th><th></th><th class="num">Mood</th><th class="num">Food</th></tr>${pawns}</table>` : '') + '</div>';
+  }
+  if (rt && rt.resourceRunways && rt.resourceRunways.length) {
+    h += '<div class="obcard"><h3>Resource runways</h3><table class="ob"><tr><th>Resource</th><th class="num">Stock</th><th class="num">Per day</th><th class="num">Days left</th><th class="num">Target</th></tr>' +
+      rt.resourceRunways.map(r => `<tr><td>${esc(r.resource)}</td><td class="num">${num(r.stock)}</td><td class="num">${num(r.consumptionPerDay, 1)}</td>` +
+        `<td class="num ${r.deficit ? 'bad' : ''}">${num(r.daysLeft, 1)}${r.deficit ? ' deficit' : ''}</td><td class="num">${num(r.target)}</td></tr>`).join('') + '</table></div>';
+  }
+  const review = lastOf('rounds_review');
+  if (review) h += `<div class="obcard"><h3>Latest rounds review</h3>${obRowHtml(review)}</div>`;
+  const steps = lastN('clock_step', 8);
+  if (steps.length) h += `<div class="obcard"><h3>Pace: newest clock steps</h3>${steps.map(obRowHtml).join('')}</div>`;
+  const events = ob.rows.filter(r => ['clock_stop', 'authority', 'colony_stage'].includes(r.kind)).slice(-8).reverse();
+  if (events.length) h += `<div class="obcard"><h3>Stops, authority and stage changes</h3>${events.map(obRowHtml).join('')}</div>`;
+  return h;
+}
+
+function obConcerns(v) {
+  const rt = v.routines;
+  if (!rt) return '<div class="evempty">No routines read yet: the brain has not answered.</div>';
+  const list = [...(rt.progress || [])].sort((a, b) => (!!b.blocked - !!a.blocked) || a.concern.localeCompare(b.concern));
+  const tick = v.state && v.state.game && v.state.game.tick;
+  let h = `<div class="obcard"><h3>Concerns (${list.length}); last review tick ${num(rt.lastReviewTick)}</h3><table class="ob"><tr><th>Concern</th><th>Method</th><th>Expected</th><th>Blocked by</th><th class="num">Progress</th><th class="num">Next review</th></tr>`;
+  h += list.map(c => `<tr><td>${esc(c.concern)}${c.subject ? ' <span class="detail">' + esc(c.subject) + '</span>' : ''}</td><td>${esc(c.method)}</td><td>${esc(c.expected)}</td>` +
+    `<td class="${c.blocked ? 'wait' : 'good'}">${esc(c.blocked || 'progressing')}</td><td class="num">${num(c.lastProgress)}</td><td class="num">${num(c.nextReview)}${tick != null && c.nextReview ? ' (' + (c.nextReview - tick >= 0 ? 'in ' : '') + num(c.nextReview - tick) + ')' : ''}</td></tr>`).join('');
+  h += '</table></div>';
+  if (rt.noOps && rt.noOps.length) h += `<div class="obcard"><h3>Inspected, nothing to do</h3><table class="ob">${rt.noOps.map(n => `<tr><td>${esc(n.concern)}</td><td>${esc(n.reason)}</td></tr>`).join('')}</table></div>`;
+  return h;
+}
+
+function obProblems() {
+  const groups = new Map();
+  for (const r of ob.rows) {
+    if (r.level !== 'WARN' && r.level !== 'ERROR') continue;
+    const key = [r.level, r.kind, r.component, r.verdict, r.reason, r.target].join('\u0001');
+    const g = groups.get(key) || { n: 0, last: r };
+    g.n++; g.last = r; groups.set(key, g);
+  }
+  const list = [...groups.values()].sort((a, b) => b.last.seq - a.last.seq);
+  if (!list.length) return '<div class="evempty">No warnings or errors since the launcher began watching.</div>';
+  return '<div class="obcard"><h3>Problems, collapsed by kind, component, verdict, reason and target</h3>' +
+    list.map(g => `<div style="display:flex;gap:8px"><b class="num" style="min-width:3em;text-align:right">${g.n}&times;</b><div style="flex:1">${obRowHtml(g.last)}</div></div>`).join('') + '</div>';
+}
+
+function obLog() {
+  const level = $('obLevel').value;
+  let kind = null;
+  try { kind = $('obKind').value.trim() ? new RegExp($('obKind').value.trim(), 'i') : null; } catch (e) { kind = null; }
+  const needle = $('obSearch').value.trim().toLowerCase();
+  const rows = ob.rows.filter(r => (level === 'ALL' || r.level === 'ERROR' || (level === 'WARN' && r.level === 'WARN')) &&
+    (!kind || kind.test(r.kind)) && (!needle || (r.kind + ' ' + rowLine(r) + ' ' + r.component).toLowerCase().includes(needle)));
+  $('obCount').textContent = rows.length + ' of ' + ob.rows.length;
+  const list = $('obList'), atEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 4;
+  const html = rows.slice(-400).map(obRowHtml).join('');
+  if (html !== ob.logHtml) { ob.logHtml = html; list.innerHTML = html; if (atEnd) list.scrollTop = list.scrollHeight; }
+}
+
+function obRender() {
+  const v = ob.view;
+  if (!v) return;
+  const g = v.state && v.state.game;
+  $('obConn').textContent = !v.problem ? (g && g.stale ? 'stale' : 'connected') : 'no game';
+  $('obConn').className = 'pill ' + (!v.problem ? (g && g.stale ? 'warn' : 'up') : 'down');
+  $('obTick').textContent = g && g.tick != null ? 'tick ' + num(g.tick) + (g.paused ? ' (paused)' : '') + (v.state.status ? ' - ' + v.state.status.label : '') : '';
+  $('obWarn').textContent = v.warns + ' warn'; $('obWarn').className = 'pill' + (v.warns ? ' warn' : '');
+  $('obErr').textContent = v.errors + ' error'; $('obErr').className = 'pill' + (v.errors ? ' down' : '');
+  $('obProblem').hidden = !v.problem;
+  $('obProblem').textContent = v.problem;
+  if (ob.sub === 'now') $('ob-now').innerHTML = obNow(v);
+  else if (ob.sub === 'concerns') $('ob-concerns').innerHTML = obConcerns(v);
+  else if (ob.sub === 'problems') $('ob-problems').innerHTML = obProblems();
+  else obLog();
+}
+
+async function pollObserve() {
+  const v = await getObserve(ob.since);
+  ob.view = v;
+  if (v.rows.length) {
+    ob.rows.push(...v.rows);
+    if (ob.rows.length > OB_KEEP) ob.rows.splice(0, ob.rows.length - OB_KEEP);
+  }
+  ob.since = v.next;
+  obRender();
+}
+document.querySelectorAll('[data-ob]').forEach(b => b.onclick = () => {
+  ob.sub = b.dataset.ob;
+  document.querySelectorAll('[data-ob]').forEach(o => {
+    o.setAttribute('aria-selected', String(o === b));
+    $('ob-' + o.dataset.ob).hidden = o !== b;
+  });
+  ob.logHtml = '';
+  obRender();
+});
+document.getElementById('view-observe').addEventListener('click', e => {
+  const row = e.target.closest('.obrow');
+  if (!row || window.getSelection().toString()) return;
+  const seq = Number(row.dataset.seq);
+  if (ob.openSeq.has(seq)) ob.openSeq.delete(seq); else ob.openSeq.add(seq);
+  row.classList.toggle('open');
+});
+['obLevel', 'obKind', 'obSearch'].forEach(id => $(id).addEventListener('input', () => { ob.logHtml = ''; obLog(); }));
+everyWhile('view-observe', pollObserve, 1500);
+
 window.addEventListener('focus', () => focused());
 setInterval(refresh, 600);
-setInterval(refreshObs, 2000);
-refreshObs();
 refresh().then(() => $('primary').focus());
 </script>
 </body>

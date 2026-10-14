@@ -84,8 +84,7 @@ Retention is a ring by count: each insert deletes rows more than
 transaction. The history lasts as long as the `state-*.sqlite` file; a launch that
 continues a state keeps it, a fresh state starts empty. Reader: the nightly case
 `explain/every-concern` (#2702, through the case's own store handle). The
-Problems and Log dashboards read Loki rows and Prometheus metrics, which carry
-no explanation rows.
+Observe tab reads log rows, which carry no explanation rows.
 
 The derived `rounds` payload records its last inspection scope (`Immediate`) and
 last full enabled inspection time (`OrdinaryTick`) separately from the latest

@@ -74,14 +74,6 @@ Settings persist to `.rimgovernor/launcher.json`.
   runs at Ultrafast (adaptive: paces ticks to your frame rate).
 - **Colony policy**: allow slaughter or release of surplus animals, the layout
   overlay, and food reserve days.
-- **Send telemetry to local collector**: saved, but the in-process brain has no
-  collector endpoint yet and writes only its local OTLP files. The launcher page's **Observability** section starts and stops the
-  optional Docker stack ([developer guide](../developers/observability.md)),
-  shows stopped/starting/healthy, and opens Grafana and its Now, Concern
-  transitions, Problems, Log and Ledger dashboards (the launcher no longer has those
-  tabs). While the stack is stopped the section shows a one-line hint. It needs
-  Docker; without it the section says so and Play is unaffected. See
-  [controls](controls.md#watch-the-governor-in-grafana).
 - **Advanced**: extra arguments appended to the game's command line.
 
 ## Related reading

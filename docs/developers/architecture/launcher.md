@@ -29,7 +29,7 @@ The page is loaded with `NavigateToString` and has an opaque origin, so the
 new-colony client makes its HTTP requests from C#. The game's address comes from
 the `http-endpoint.json` file the in-process brain writes (address, pid, run id);
 the launcher trusts it only when its pid is the game it started and
-`/api/health` answers. Observation lives in Grafana.
+`/api/health` answers. The Observe tab reads the same channel.
 
 The page polls only its visible tab and skips a tick while a request is in flight.
 
@@ -37,16 +37,22 @@ The page polls only its visible tab and skips a tick while a request is in fligh
 
 | Tab | Source and purpose |
 | --- | --- |
-| Launch | Game files and mod state, saved games, settings and colony generation; the Details log of build and start diagnostics; the observability stack toggle and dashboard links |
+| Launch | Game files and mod state, saved games, settings and colony generation; the Details log of build and start diagnostics |
+| Observe | Read-only view of the running brain: Now, Concerns, Problems and Log |
 | Acceptance | Registered case list and one visible native run |
 
-The launcher is the control surface; Grafana is the observation surface. The
-tab-to-panel map is in the
-[dashboards README](../../../tools/observability/dashboards/README.md).
-While the stack is healthy the observability section shows one button per
-dashboard (`Links.Dashboards` in [Links.cs](../../../tools/launcher/Links.cs));
-`openLink` accepts only those exact URLs, the player guide and the Grafana root.
-While the stack is stopped it shows a one-line hint instead.
+## Observe tab
+
+The tab polls `getObserve(since)` (`ObserveService` in [Observe.cs](../../../tools/launcher/Observe.cs)) every 1.5 s while it shows. The reply carries
+`GET /api/state`, `/api/routines` and `/api/player/colony` as the game answered them (null when a
+route does not answer; the page shows unknown, never a guess), plus the rows the game's log ring
+(`otlp/logs.jsonl`, read with `LogTail`) gained since `since`. The first read of a ring starts at its end,
+so history from an earlier run is not shown; the launcher keeps the newest 3000 rows and counts
+WARN and ERROR rows since it began watching. Views: Now (stage, emergencies, colony census, resource
+runways, latest rounds review, newest `clock_step`, `clock_stop`, `authority` and `colony_stage`
+rows), Concerns (every concern's method, blocker and next review, from `/api/routines`), Problems
+(WARN and ERROR rows collapsed by kind, component, verdict, reason and target) and Log (filter by
+level, kind regex and text). Nothing writes to the game; `openLink` accepts only the player guide.
 
 ## Controls
 
@@ -61,8 +67,7 @@ to load act in the launcher. Observe, continue and layout overlay reach the
 in-process host as the `RIMGOVERNOR_OBSERVE`, `RIMGOVERNOR_CONTINUE_STATE` and
 `RIMGOVERNOR_LAYOUT_OVERLAY` environment variables of the game
 ([brain host](brain-host.md#hosting-in-the-mod-3115)); Observe also blocks colony
-generation in the launcher. Telemetry is kept in the file but has no host input
-yet: the host writes the OTLP files and has no endpoint to send to.
+generation in the launcher.
 Journal selection and save behavior are described in
 [save and resume](../../players/save-and-resume.md).
 

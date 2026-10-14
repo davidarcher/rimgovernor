@@ -62,9 +62,7 @@ internal sealed class MainForm : Form
             },
             ["stopAcceptCase"] = _ => Run(app.Accept.Stop),
             ["openLink"] = a => Run(() => OpenLink(Arg<string>(a, 0))),
-            ["getObservability"] = async _ => await app.Obs.ViewAsync(_stop.Token).ConfigureAwait(true),
-            ["startObservability"] = _ => Background(app.Obs.StartAsync),
-            ["stopObservability"] = _ => Background(app.Obs.StopAsync),
+            ["getObserve"] = async a => await app.Watch.ViewAsync(Arg<long>(a, 0), _stop.Token).ConfigureAwait(true),
         };
         Shown += async (_, _) => await InitializeWebViewAsync().ConfigureAwait(true);
         FormClosed += (_, _) => Shutdown();

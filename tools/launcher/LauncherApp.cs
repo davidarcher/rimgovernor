@@ -60,7 +60,7 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         CaseCatalog.Register(_registry);
         Colony = new NewColonyRunner(this, _http, _settings.NewColony ?? NewColonySpec.Default);
         Accept = new AcceptRunner(this, _registry);
-        Obs = new ObsController(repo, new ProcessCommandRunner(), _http, Log);
+        Watch = new ObserveService(_http, BrainAddressAsync, LogsPath);
     }
 
     public string Repo { get; }
@@ -73,7 +73,8 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
 
     public AcceptRunner Accept { get; }
 
-    public ObsController Obs { get; }
+    /// <summary>The Observe tab's reads of the running brain and its log ring.</summary>
+    public ObserveService Watch { get; }
 
     private string SettingsPath => Path.Combine(PrivateDir, "launcher.json");
 
@@ -253,6 +254,20 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         else if (state == GameState.Running)
         {
             SetState(GameState.Stopped, "The game stopped responding.");
+        }
+    }
+
+    /// <summary>The log ring (<c>logs.jsonl</c>) of the configured game's brain; null when no game is configured. It outlives the process, so it exists between runs.</summary>
+    private string? LogsPath()
+    {
+        try
+        {
+            var gameId = Settings.ConfiguredGame(File.ReadAllText(ConfigPath));
+            return Path.Combine(GameSessions.EndpointDirectory(ConfigDir, gameId), "logs.jsonl");
+        }
+        catch (Exception e) when (e is IOException or LauncherException or UnauthorizedAccessException)
+        {
+            return null;
         }
     }
 

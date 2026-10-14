@@ -1,9 +1,9 @@
 # OTEL core: OTLP/JSON file sink
 
-[Documentation](../../README.md) · [Observability stack](../observability.md)
+[Documentation](../../README.md)
 
 `brain/src/RimGovernor.Brain.Telemetry` writes RimGovernor's telemetry (spans, metrics, log rows) as OTLP/JSON
-files and reads them back. This page is the contract the writer, the readers and the Grafana dashboards share.
+files and reads them back. This page is the contract the writer, the readers and the launcher's Observe tab share.
 There is no collector exporter: the files are the only sink, and a collector's file receiver can be pointed at
 the rings.
 

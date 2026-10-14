@@ -51,7 +51,7 @@ lists the routes the in-process host offers.
     wave, never releases to full speed while any evidence is stale, and a new window starts at the
     earned ceiling.
   - `Epoch.pacing_reason`/`paced_ticks_per_second` and `Status.effective_ticks_per_second` feed the
-    clock_step row and the Grafana Now dashboard. `speedmatrix/observations`' `player` row checks the
+    clock_step row and the Observe tab's Now view. `speedmatrix/observations`' `player` row checks the
     hazard gaps, the over-budget frame share (the manual-command dispatch bound) and `speed_changes`
     per 6000 ticks.
 

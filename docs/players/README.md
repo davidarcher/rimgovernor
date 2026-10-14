@@ -13,11 +13,10 @@ needs, or pause in RimWorld to take manual control.
 ## When something stops
 
 - **Paused:** unpause in RimWorld when ready to return to Auto.
-- **Concern blocked:** read its reason in the Grafana Concern transitions
-  dashboard. Issued orders still need capable pawns, materials and access.
+- **Concern blocked:** read its reason in the Observe tab's Concerns view. Issued orders still need capable pawns, materials and access.
 - **Launch failed:** inspect Details on the Launch tab and the
   [setup prerequisites](setup.md).
-- **Stale report:** check the Grafana Problems dashboard for diagnostics.
+- **Stale report:** check the Observe tab's Problems view for diagnostics.
 
 The [backlog](https://github.com/davidarcher/rimgovernor/issues) tracks known
 gameplay limitations.

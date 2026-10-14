@@ -112,7 +112,7 @@ wait is short. The stage
 adds no action kind; the `rounds_review` timeline event carries
 `stage`/`stage_blocker`/`stage_reason`/`stage_held` and `colony_stage` records each
 change. The `clock_step` row carries
-the pacing reason, effective TPS and last clock-stop latency split (shown by the Grafana Now dashboard).
+the pacing reason, effective TPS and last clock-stop latency split (shown by the Observe tab's Now view (the `clock_step` rows)).
 
 ## Method compilation and work allocation
 

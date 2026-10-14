@@ -18,7 +18,6 @@ verify and land the change.
 | Planner replay | [Colony snapshots](testing/colony-snapshots.md) |
 
 | Performance diagnosis | [Measure throughput](testing/measure-throughput.md) |
-| Optional Grafana/OTLP backend | [Observability stack](observability.md) |
 | Wire changes | [Wire contracts](../../contracts/README.md) |
 | Deployment names | [Project identity](project-identity.md) |
 | Architectural constraints | [Rules](architecture/rules.md) |

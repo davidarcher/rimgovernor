@@ -7,7 +7,7 @@ namespace RimGovernor.Launcher;
 /// The launcher's persisted choices (<c>.rimgovernor/launcher.json</c>; Go <c>Settings</c>). The page edits them and
 /// the file keeps the page's camelCase names. <see cref="ExtraArgs"/> and <see cref="LoadSave"/> act on the launcher's
 /// start; <see cref="Observe"/>, <see cref="ContinueState"/> and <see cref="LayoutOverlay"/> reach the in-process host as
-/// environment variables (<see cref="HostEnvironment"/>, #3115). <see cref="Telemetry"/> has no host input yet.
+/// environment variables (<see cref="HostEnvironment"/>, #3115).
 /// </summary>
 public sealed record Settings
 {
@@ -27,9 +27,6 @@ public sealed record Settings
     public string LoadSave { get; init; } = "";
 
     public bool LayoutOverlay { get; init; } = true;
-
-    /// <summary>Send telemetry to the local observability stack (the stack itself is started separately).</summary>
-    public bool Telemetry { get; init; }
 
     /// <summary>Free text split on whitespace (double quotes group) and appended to the game's command line.</summary>
     public string ExtraArgs { get; init; } = "";
@@ -88,8 +85,7 @@ public sealed record Settings
 
     /// <summary>
     /// The in-process host's inputs for these settings, as environment variables of the game (<c>InProcEnvironment</c>
-    /// of Brain.Host reads them): observe, continue-state and layout-overlay. <see cref="Telemetry"/> has no input yet:
-    /// the host writes the OTLP files only and has no endpoint to send to.
+    /// of Brain.Host reads them): observe, continue-state and layout-overlay.
     /// </summary>
     public IReadOnlyList<KeyValuePair<string, string>> HostEnvironment() =>
     [

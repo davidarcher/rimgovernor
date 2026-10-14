@@ -372,7 +372,7 @@ reason, also `no_bench` when the model wants more benches than exist and
 `bench_slots_full` for an unplaced copy with capable benches), the demand signal the
 facilities ladder reads. A finished bill is spent and never satisfies an order.
 
-The Grafana `rg-ledger` dashboard shows the ledger's read-only view. Each review leaves a
+The ledger's read-only view is stored as a derived copy (`ledger_rows`); the launcher does not show it yet. Each review leaves a
 `policy.LedgerView` (`policy.BuildLedgerView`) in `Rounder.ledger.view`, a projection of the
 memory above; after the review `store.ReplaceLedgerRows` replaces the `ledger_rows` table with it
 (a derived copy for the snapshot, one row per table row, never read back; see
