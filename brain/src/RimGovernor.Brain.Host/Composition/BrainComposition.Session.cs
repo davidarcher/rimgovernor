@@ -39,6 +39,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
         ArgumentNullException.ThrowIfNull(telemetry);
         var client = FacadeNativeClient.Create(facade, _options.CatalogFactory);
         client.StartingIdeoligion = _options.StartingIdeoligion;
+        client.Telemetry = telemetry;
         // The writers go through the client's counting facade, so their native calls are tallied like its reads.
         var writer = new FacadeActionsWriter(client.Facade);
         _client = client;

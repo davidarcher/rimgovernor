@@ -4,7 +4,8 @@ using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.NativeFacade;
-using P = RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Telemetry;
+using P =RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Host;
 
@@ -523,6 +524,9 @@ internal sealed partial class FacadeNativeClient : IDisposable
     /// </summary>
     internal TimeSpan FrameReadTimeout { get; init; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>Where a frame read that gave up writes its <c>native_frame</c> miss row; null for a bare client.</summary>
+    internal TelemetryEmitter? Telemetry { get; set; }
+
     /// <summary>
     /// Go's <c>caller.frames != nil</c>: whether reads are served from the snapshot stream. Off, the routine, combat,
     /// planning-window and table reads are unavailable and the colony facts, status and entity lists are read live.
@@ -720,6 +724,7 @@ internal sealed partial class FacadeNativeClient : IDisposable
         Func<FrameView, FrameLookup<T>> lookup,
         CancellationToken cancellationToken)
     {
+        var waitStarted = Stopwatch.GetTimestamp();
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         limit.CancelAfter(FrameReadTimeout);
         var token = limit.Token;
@@ -786,10 +791,26 @@ internal sealed partial class FacadeNativeClient : IDisposable
                 _frameExpected = Math.Min(_frameExpected, latest?.Writes ?? 0);
             }
             string detail;
+            long expectedWrites;
             lock (_frameGate)
             {
+                expectedWrites = _frameExpected;
                 detail = _frameOpened ? "no snapshot frame carried " + name : "snapshot stream not open for " + name + (_frameOpenError.Length == 0 ? "" : ": " + _frameOpenError);
             }
+            Telemetry?.Event(
+                TelemetryLevel.Warn,
+                "native-client",
+                "native_frame",
+                "a frame read timed out",
+                [
+                    new("outcome", "miss"),
+                    new("native_tool", name),
+                    new("why", detail),
+                    new("waited_ms", (long)Stopwatch.GetElapsedTime(waitStarted).TotalMilliseconds),
+                    new("latest_frame", latest?.Number ?? 0),
+                    new("latest_writes", latest?.Writes ?? 0),
+                    new("expected_writes", expectedWrites),
+                ]);
             throw new BridgeUnavailableException(detail);
         }
     }
