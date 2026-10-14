@@ -1,0 +1,27 @@
+<Project>
+  <!-- Imported by the executables: the process loads the game's own managed dependencies (Brutal.*, Waylith.*, ...)
+       and Rendering/ from beside the exe, and probes only what its deps.json lists, so the game references copy local. -->
+  <PropertyGroup>
+    <GameAssembly>$(RimWorldDir)/Assembly-CSharp.dll</GameAssembly>
+    <GameAvailable Condition="Exists('$(GameAssembly)')">true</GameAvailable>
+    <TieredCompilation>false</TieredCompilation>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/Assembly-CSharp.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="Waylith.UnityCompat"><HintPath>$(RimWorldDir)/Waylith.UnityCompat.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>true</Private></Reference>
+  </ItemGroup>
+  <Target Name="CopyGameRuntime" AfterTargets="Build" Condition="'$(GameAvailable)' == 'true'">
+    <ItemGroup>
+      <GameDll Include="$(RimWorldDir)/*.dll" Exclude="$(RimWorldDir)/0Harmony.dll" />
+      <GameRendering Include="$(RimWorldDir)/Rendering/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(GameDll)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(GameRendering)" DestinationFiles="@(GameRendering->'$(OutDir)Rendering/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="ReportGameUnavailable" BeforeTargets="CoreCompile" Condition="'$(GameAvailable)' != 'true'">
+    <Message Importance="high" Text="$(MSBuildProjectName): unavailable (missing $(GameAssembly)); built as a stub, set RimWorldDir to a game install." />
+  </Target>
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- RimWorld's own combat code behind a request/response protocol (#3142): boots the game's data in a bare net10.0
+       process (Waylith has no Unity) and fights an arena once per seed. A library; RealCombat.Host is its process. -->
+  <PropertyGroup>
+    <RootNamespace>RimGovernor.RealCombat</RootNamespace>
+    <AssemblyName>RimGovernor.RealCombat</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <Import Project="../../GameRuntime.targets" />
+  <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Compile Include="*.cs" />
+    <EmbeddedResource Include="skips.txt" LogicalName="skips.txt" />
+  </ItemGroup>
+</Project>

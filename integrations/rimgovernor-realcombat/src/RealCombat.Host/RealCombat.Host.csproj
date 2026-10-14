@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runs one fight request through RealCombat and writes the outcomes as JSON; see Program.cs. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>RimGovernor.RealCombat.Host</RootNamespace>
+    <AssemblyName>RimGovernor.RealCombat.Host</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <Import Project="../../GameRuntime.targets" />
+  <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Compile Include="Program.cs" />
+    <ProjectReference Include="../RealCombat/RealCombat.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(GameAvailable)' != 'true'">
+    <Compile Include="Properties/Unavailable.cs" />
+  </ItemGroup>
+</Project>

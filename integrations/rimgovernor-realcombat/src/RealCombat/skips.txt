@@ -1,0 +1,27 @@
+RimWorld.AmbientSoundManager::EnsureWorldAmbientSoundCreated
+uninit Verse.Find::get_ColonistBar
+uninit Verse.Find::get_MapUI
+RimWorld.ColonistBar::MarkColonistsDirty
+RimWorld.FactionIdeosTracker::RecalculateIdeosBasedOnPlayerPawns
+RimWorld.Ideo::RecacheColonistBelieverCount
+uninit Verse.Find::get_Selector
+RimWorld.Selector::Deselect
+RimWorld.Selector::IsSelected
+Verse.MapDrawer::MapMeshDirty
+Verse.Map::MapPostTick
+Verse.WindManager::WindManagerTick
+RimWorld.Storyteller::StorytellerTick
+RimWorld.Planet.World::WorldTick
+RimWorld.Planet.World::WorldPostTick
+RimWorld.Scenario::TickScenario
+RimWorld.QuestManager::QuestManagerTick
+RimWorld.DateNotifier::DateNotifierTick
+Verse.GameComponentUtility::GameComponentTick
+RimWorld.FilthMonitor::FilthMonitorTick
+RimWorld.StoryWatcher::StoryWatcherTick
+RimWorld.GameEnder::GameEndTick
+RimWorld.TaleManager::TaleManagerTick
+RimWorld.History::HistoryTick
+Verse.LetterStack::LetterStackTick
+RimWorld.Autosaver::AutosaverTick
+RimWorld.TransportShipManager::ShipObjectsTick

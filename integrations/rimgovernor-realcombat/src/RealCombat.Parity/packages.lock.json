@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net10.0": {
+      "rimgovernor.brain.bridge": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.bridge.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )",
+          "RimGovernor.Brain.Telemetry": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Domain": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.domain": {
+        "type": "Project"
+      },
+      "rimgovernor.brain.policy": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.simulation": {
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Bridge": "[1.0.0, )",
+          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
+          "RimGovernor.Brain.Domain": "[1.0.0, )",
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
+      },
+      "rimgovernor.brain.telemetry": {
+        "type": "Project"
+      },
+      "RimGovernor.RealCombat": {
+        "type": "Project"
+      }
+    }
+  }
+}
