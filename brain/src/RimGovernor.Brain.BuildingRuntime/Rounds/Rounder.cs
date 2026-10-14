@@ -456,7 +456,6 @@ public sealed partial class Rounder
         }
         reading = reading.WithFacts(rf => rf with { WarmRooms = WarmCoolingRooms(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { PlanLit = RoundsBuildingPlanner.PlanLitRooms(reading.Projection) });
-        reading = reading.WithFacts(rf => rf with { PlannedConstruction = PlannedConstructionOf(reading.Projection) });
         if (MethodEnabled(PolicyApi.MaintainClimateEnvelope))
         {
             reading = reading.WithFacts(rf => rf with { EnvelopeOwed = EnvelopeOwed(reading.Projection) });
@@ -516,6 +515,7 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Flooring = TrafficFlooringFacts(reading.Projection, Policy.Flooring) } });
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { Upkeep = c.Facts.Upkeep with { Flooring = reading.Projection.Facts.Upkeep.Flooring } } });
         }
+        reading = reading.WithFacts(rf => rf with { PlannedConstruction = PlannedConstructionOf(reading.Projection, Policy.Flooring) });
         if (Firebreak is not null)
         {
             var vFirebreakOwed = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, Stage, FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
@@ -942,7 +942,7 @@ internal static partial class BuildingRuntimePackage
     /// The whole plan's unbuilt walls and doors priced from the def catalog with the stuff the shell chooser
     /// takes (ShellSharedStuff); unknown while the plan or the construction census is.
     /// </summary>
-    internal static Fact<IReadOnlyDictionary<Resource, long>> PlannedConstructionOf(ColonyProjection colony)
+    internal static Fact<IReadOnlyDictionary<Resource, long>> PlannedConstructionOf(ColonyProjection colony, FlooringPolicy flooring)
     {
         if (!colony.LayoutPlan.TryGetValue(out var plan))
         {
@@ -977,7 +977,12 @@ internal static partial class BuildingRuntimePackage
             }
             return null;
         }
-        return Known<IReadOnlyDictionary<Resource, long>>(PolicyApi.PlannedShellDemand(plan, plan.GroundWithRock(ground, NaturalRock(colony)), Price));
+        var demand = PolicyApi.PlannedShellDemand(plan, plan.GroundWithRock(ground, NaturalRock(colony)), Price);
+        foreach (var (resource, n) in PolicyApi.PlannedFloorDemand(plan, FlooringFactsOf(colony), flooring))
+        {
+            demand[resource] = demand.GetValueOrDefault(resource) + n;
+        }
+        return Known<IReadOnlyDictionary<Resource, long>>(demand);
     }
 
     /// <summary>The recorded plan's retired ground with its kept rooms' walls; empty while the plan is unknown.</summary>

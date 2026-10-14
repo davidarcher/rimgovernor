@@ -114,7 +114,7 @@ internal static partial class BuildingRuntimePackage
         return (ShelterBedDefinition, slots);
     }
 
-    /// <summary>Reports a planned room's ring method: a build wave of a "role-shell-x-z" reconcile (PlannedRoomMethod), for acceptance tooling reading the journal.</summary>
+    /// <summary>Reports a planned room's ring method: a build wave of a "role-shell-room&lt;id&gt;" reconcile (PlannedRoomMethod), for acceptance tooling reading the journal.</summary>
     public static bool IsShellMethod(MethodId method) => StorePackage.IsRoomShellMethod(method);
 
     /// <summary>Names the bunk rungs' methods under the initial shelter goal.</summary>

@@ -24,7 +24,7 @@ internal static partial class SleepingSuites
     // The title's bedroom floor (70) outgrows a suite sized for Greedy (50): 7x7 then, 7x8 after (layout_suite_role.go SuiteSize).
     private const string SuiteTitle = "Baron";
 
-    [GeneratedRegex(@"^bedroom-shell-(\d+)-(\d+)", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex(@"^bedroom-shell-room(\d+)", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex ShellMethod();
 
     /// <summary>The Greedy colonist's completed move into a suite.</summary>
@@ -77,8 +77,8 @@ internal static partial class SleepingSuites
         journal.PlanHistoryWithMethods(256, ["bedroom-*", "sleeping-assign-*"], cancellationToken).Reverse();
 
     /// <summary>The room of <paramref name="role"/> whose interior starts at x,z.</summary>
-    private static PlannedRoom? RoomAt(LayoutPlan plan, PlannedRole role, int x, int z) =>
-        plan.Rooms.FirstOrDefault(r => r.Role == role && r.Region.Bounds().X == x && r.Region.Bounds().Z == z);
+    private static PlannedRoom? RoomWithId(LayoutPlan plan, PlannedRole role, int id) =>
+        plan.Rooms.FirstOrDefault(r => r.Role == role && r.Id == id);
 
     /// <summary>The journal's newest review and layout plan; null when either is not there yet.</summary>
     private static LayoutPlan? PlanOf(Journal journal, CancellationToken cancellationToken)
@@ -120,9 +120,8 @@ internal static partial class SleepingSuites
             var method = plan.Method.Value;
             if (ShellMethod().Match(method) is { Success: true } shell)
             {
-                var x = int.Parse(shell.Groups[1].Value, CultureInfo.InvariantCulture);
-                var z = int.Parse(shell.Groups[2].Value, CultureInfo.InvariantCulture);
-                if (RoomAt(layout, PolicyFunctions.PlannedBedroom, x, z) is not null && Completed(plan))
+                var id = int.Parse(shell.Groups[1].Value, CultureInfo.InvariantCulture);
+                if (RoomWithId(layout, PolicyFunctions.PlannedBedroom, id) is not null && Completed(plan))
                 {
                     standard++;
                 }
@@ -289,7 +288,6 @@ internal static partial class SleepingSuites
             return null;
         }
 
-        var firstBounds = first.Region.Bounds();
         foreach (var plan in History(journal, cancellationToken))
         {
             if (ShellMethod().Match(plan.Method.Value) is not { Success: true } shell)
@@ -297,14 +295,13 @@ internal static partial class SleepingSuites
                 continue;
             }
 
-            var x = int.Parse(shell.Groups[1].Value, CultureInfo.InvariantCulture);
-            var z = int.Parse(shell.Groups[2].Value, CultureInfo.InvariantCulture);
-            if (x == firstBounds.X && z == firstBounds.Z)
+            var id = int.Parse(shell.Groups[1].Value, CultureInfo.InvariantCulture);
+            if (id == first.Id)
             {
                 continue;
             }
 
-            if (RoomAt(layout, PolicyFunctions.PlannedSuite, x, z) is { } room && Completed(plan))
+            if (RoomWithId(layout, PolicyFunctions.PlannedSuite, id) is { } room && Completed(plan))
             {
                 return room;
             }
@@ -324,7 +321,7 @@ internal static partial class SleepingSuites
         var review = journal.LoadRounds(cancellationToken);
         var layout = journal.LayoutPlan(review.Snapshot, review.Tick, cancellationToken)?.Plan;
         var firstBounds = first.Room.Region.Bounds();
-        var kept = layout is null ? null : RoomAt(layout, PolicyFunctions.PlannedSuite, firstBounds.X, firstBounds.Z);
+        var kept = layout is null ? null : RoomWithId(layout, PolicyFunctions.PlannedSuite, first.Room.Id);
         if (kept is null || !kept.Same(first.Room))
         {
             throw new AcceptanceException($"the first suite {Bounds(firstBounds)} changed or left the plan (now {(kept is null ? "absent" : Bounds(kept.Region.Bounds()))})");

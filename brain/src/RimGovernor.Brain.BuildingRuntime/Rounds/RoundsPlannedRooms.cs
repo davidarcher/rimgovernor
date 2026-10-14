@@ -203,7 +203,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     internal static MethodId PlannedRoomMethod(PlannedRoom room) =>
-        new($"{Wire.Name(room.Role)}-shell-{room.Region.Bounds().X}-{room.Region.Bounds().Z}");
+        new($"{Wire.Name(room.Role)}-shell-room{room.Id}");
 
     internal static int ShelterCampfires(ColonyProjection facts) => PolicyFunctions.ShelterCampfires(facts.LayoutPlan.TryGetValue(out var plan) && plan.Cold);
 

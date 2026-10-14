@@ -41,7 +41,7 @@ internal static class ShelterShell
         /// <summary>The ring: every wall cell and the door.</summary>
         internal required HashSet<Cell> Cells { get; init; }
 
-        /// <summary>The method glob of the ring's build waves ("shelter-shell-&lt;x&gt;-&lt;z&gt;-build-*", plannedRoomMethod).</summary>
+        /// <summary>The method glob of the ring's build waves ("shelter-shell-room&lt;id&gt;-build-*", plannedRoomMethod).</summary>
         internal required string Pattern { get; init; }
 
         /// <summary>The shell's geometry for the report.</summary>
@@ -231,7 +231,7 @@ internal static class ShelterShell
                     {
                         Footprint = footprint,
                         Cells = cells,
-                        Pattern = string.Create(CultureInfo.InvariantCulture, $"{Wire.Name(room.Role)}-shell-{inner.X}-{inner.Z}-build-*"),
+                        Pattern = string.Create(CultureInfo.InvariantCulture, $"{Wire.Name(room.Role)}-shell-room{room.Id}-build-*"),
                     };
                     return ("", true);
                 },

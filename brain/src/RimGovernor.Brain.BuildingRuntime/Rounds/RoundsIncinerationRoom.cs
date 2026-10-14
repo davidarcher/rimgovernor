@@ -118,7 +118,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     internal static MethodId IncineratorMethod(PlannedRoom room) =>
-        new($"incinerator-shell-{room.Region.Bounds().X}-{room.Region.Bounds().Z}");
+        new($"incinerator-shell-room{room.Id}");
 }
 
 public sealed partial class RoundsIncinerationPlanner

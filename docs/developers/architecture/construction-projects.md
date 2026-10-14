@@ -1,6 +1,6 @@
 # Construction projects: one record per planned room (design proposal)
 
-Status: first slice built (the planned source for walls and doors, `PlannedShellDemand`, merged into `ConstructionDemand` as `Planned`); floors, furniture, the `RoomProject` record and room-id method names are still proposal. Decisions below were made with the maintainer. Written after tracing why wood demand needed a hard-coded
+Status: built so far: the planned source for walls, doors and floors (`PlannedShellDemand`, `PlannedFloorDemand`, merged into `ConstructionDemand` as `Planned`) and room-id method names. Furniture is not priced (the plan stores no furniture: only lamps, which are not priced yet, and each owner derives its template when it furnishes) and the `RoomProject` record is still proposal. Decisions below were made with the maintainer. Written after tracing why wood demand needed a hard-coded
 floor (the wood latch, since removed) and why a replan could site a second shelter.
 
 ## What exists today
@@ -20,7 +20,7 @@ How a room becomes admitted work (`RoundsRoomReconcile.cs`):
 2. The diff's operations commit as waves: removals first, then installs from packed stock, then the on-site
    builds (`RoomBuildKinds`: door, wall, floor, furniture, vent).
 3. `CommitBuildsAsync` previews each ready piece natively and admits the accepted ones as one method:
-   `"{role}-shell-{x}-{z}-build-{hash of the piece list}"`. Each piece is one action with id
+   `"{role}-shell-room{id}-build-{hash of the piece list}"` (it was keyed by region coordinates until the room-id rename). Each piece is one action with id
    `"{plan}-{i}"`. The method name is keyed by role and region coordinates, not by `PlannedRoom.Id`.
 4. A `DependencyRecord` is written only when the previewed cost of the wave exceeds the stock at that
    instant. It lives at most one game day, at most 64 records, and drops when the need's episode ends or
@@ -37,8 +37,7 @@ contributes no demand at all.
   and a wave previews short, so the supply plan starts gathering after the build is ready to place.
   A flat floor (the removed wood latch) was the only look-ahead.
 - No per-project view. Nothing can say what a given room needs, how far along it is, or which room is next.
-- Project identity is unstable. The method name follows the room's coordinates and `PlannedRoom.Id`
-  changes when a replan re-sites an unbuilt room, so a room's history does not survive a re-site. This is
+- Project identity is unstable. Method names used to follow the room's coordinates, so a re-site orphaned a room's history; they now carry `PlannedRoom.Id`. This is
   the same instability that let replans site a second shelter beside one under construction (fixed for held
   rooms in `1fc827a36`).
 - Admitted and Owed overlap once a blueprint is placed; the per-resource maximum is what prevents double
@@ -65,8 +64,9 @@ Decisions:
   preview stays the authority at admission, and Admitted and Owed take over once pieces are placed, so a
   pricing error corrects itself. A native preview per piece was rejected: one game-thread call per piece,
   hundreds per review for a whole plan, stale when it lands.
-- **Key by room id.** Method names use the room id instead of the room's coordinates, so a project survives a
-  re-site. Acceptance patterns that match `*-shell-*-build-*` and `bedroom-shell-x-z` change with it.
+- **Key by room id (built).** Shell, bedroom, incinerator and `RoomName` methods carry the room id instead of the
+  room's coordinates, and `Occupancy.RoomMethodIds` maps them to in-flight rooms. Dig, tomb and jail methods still
+  carry coordinates.
 - **No new persisted state.** Per `AGENTS.md`, state has one owner. The plan is the journal's, the world is
   native, the project record is derived in memory each review. The persistence table needs one line saying
   "RoomProject: derived, not stored".

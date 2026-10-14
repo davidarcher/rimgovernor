@@ -114,13 +114,12 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>
-    /// Prefixes a bedroom room's reconcile methods. The "bedroom-shell-x-z" stem is the one the sleeping
+    /// Prefixes a bedroom room's reconcile methods. The "bedroom-shell-room&lt;id&gt;" stem is the one the sleeping
     /// acceptance cases read the journal by; the build side appends the wave (removal, install, build).
     /// </summary>
     internal static string BedroomReconcileName(Pol.PlannedRoom room)
     {
-        var b = room.Region.Bounds();
-        return string.Create(CultureInfo.InvariantCulture, $"bedroom-shell-{b.X}-{b.Z}");
+        return string.Create(CultureInfo.InvariantCulture, $"bedroom-shell-room{room.Id}");
     }
 
     /// <summary>A bedroom shell's short why: the colonists still outside a bedroom.</summary>

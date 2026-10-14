@@ -173,12 +173,12 @@ public static partial class PolicyFunctions
     internal static int BedroomCount(LayoutPlan p) => p.Rooms.Count(r => r.Role == PlannedBedroom);
 
     /// <summary>The walls of the plan's rooms an open journal plan is working on, keyed by the room's interior origin as the plan's method ids are: added to the occupied cells, they make such a room fixed before any building of it is accepted.</summary>
-    public static HashSet<Cell> InFlightRoomCells(LayoutPlan plan, IReadOnlySet<Cell> origins)
+    public static HashSet<Cell> InFlightRoomCells(LayoutPlan plan, IReadOnlySet<Cell> origins, IReadOnlySet<int>? ids = null)
     {
         var output = new HashSet<Cell>();
         foreach (var r in plan.Rooms)
         {
-            if (origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z)))
+            if (origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z)) || (ids?.Contains(r.Id) ?? false))
             {
                 output.UnionWith(RectCells(RoomWalls(r)));
             }
@@ -186,9 +186,9 @@ public static partial class PolicyFunctions
         return output;
     }
 
-    /// <summary>The ids of the plan's rooms an open journal plan is working on, keyed by origin as InFlightRoomCells is.</summary>
-    public static HashSet<int> InFlightRooms(LayoutPlan plan, IReadOnlySet<Cell> origins) =>
-        [.. plan.Rooms.Where(r => origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z))).Select(r => r.Id)];
+    /// <summary>The ids of the plan's rooms an open journal plan is working on: those a shell method names by id, and those the origin-keyed methods name by their interior origin.</summary>
+    public static HashSet<int> InFlightRooms(LayoutPlan plan, IReadOnlySet<Cell> origins, IReadOnlySet<int>? ids = null) =>
+        [.. plan.Rooms.Where(r => origins.Contains(new Cell(r.Region.Bounds().X, r.Region.Bounds().Z)) || (ids?.Contains(r.Id) ?? false)).Select(r => r.Id)];
 
     /// <summary>How many planned rooms hold one of roles.</summary>
     public static int RoomsOfRoles(LayoutPlan plan, IEnumerable<PlannedRole> roles) => roles.Sum(role => plan.RoomsOf(role).Count);

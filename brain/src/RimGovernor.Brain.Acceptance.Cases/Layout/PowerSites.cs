@@ -191,7 +191,7 @@ internal static class LayoutPowerSites
         _ => "NORTH",
     };
 
-    /// <summary>A planned room's ring method: a build wave of a "role-shell-x-z" reconcile (Go <c>path.Match("*-shell-*-build-*")</c>).</summary>
+    /// <summary>A planned room's ring method: a build wave of a "role-shell-room&lt;id&gt;" reconcile (Go <c>path.Match("*-shell-*-build-*")</c>).</summary>
     private static bool IsShellMethod(string method)
     {
         var shell = method.IndexOf("-shell-", StringComparison.Ordinal);

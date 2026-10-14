@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The occupied cells of a layout and the interior origins of the planned rooms in flight.</summary>
-internal sealed record LayoutOccupancy(HashSet<Cell> Cells, HashSet<Cell> Origins);
+internal sealed record LayoutOccupancy(HashSet<Cell> Cells, HashSet<Cell> Origins, HashSet<int> Rooms);
 
 internal static partial class Occupancy
 {
@@ -12,6 +12,26 @@ internal static partial class Occupancy
     // steps, and the tomb and jail pieces.
     [GeneratedRegex(@"^(?:plan-dig-[^-]+-[^-]+|bedroom-[^-]+|[^-]+-shell|(?:tomb|jail)-place)-([0-9]+)-([0-9]+)(?:-.*)?\z", RegexOptions.CultureInvariant)]
     private static partial Regex RoomMethodPattern();
+
+    // Matches the method ids of the plans keyed by a planned room's id: its ring, bedroom and incinerator shells.
+    [GeneratedRegex(@"^[^-]+-shell-room([0-9]+)(?:-.*)?\z", RegexOptions.CultureInvariant)]
+    private static partial Regex RoomIdPattern();
+
+    /// <summary>The ids of the planned rooms an open (not retired) plan's shell method works on; a re-sited room keeps its id, so its work is still found.</summary>
+    public static HashSet<int> RoomMethodIds(IEnumerable<PlanState> plans)
+    {
+        var output = new HashSet<int>();
+        foreach (var p in plans)
+        {
+            if (!p.Retired
+                && RoomIdPattern().Match(p.Method.Value) is { Success: true } m
+                && int.TryParse(m.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var id))
+            {
+                output.Add(id);
+            }
+        }
+        return output;
+    }
 
     /// <summary>
     /// The interior origins of the planned rooms an open (not retired) plan's method works on.
@@ -137,10 +157,11 @@ public sealed partial class Rounder
             return null;
         }
         var origins = Occupancy.RoomMethodOrigins(plans);
-        foreach (var c in InFlightRoomCells(plan, origins))
+        var rooms = Occupancy.RoomMethodIds(plans);
+        foreach (var c in InFlightRoomCells(plan, origins, rooms))
         {
             cells.Add(c);
         }
-        return new LayoutOccupancy(cells, origins);
+        return new LayoutOccupancy(cells, origins, rooms);
     }
 }

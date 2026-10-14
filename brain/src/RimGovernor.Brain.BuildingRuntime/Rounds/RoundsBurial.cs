@@ -108,7 +108,6 @@ public sealed class RoundsBurialPlanner
 
     internal static string RoomName(string role, PlannedRoom room)
     {
-        var bounds = room.Region.Bounds();
-        return string.Create(CultureInfo.InvariantCulture, $"{role}-{bounds.X}-{bounds.Z}");
+        return string.Create(CultureInfo.InvariantCulture, $"{role}-room{room.Id}");
     }
 }

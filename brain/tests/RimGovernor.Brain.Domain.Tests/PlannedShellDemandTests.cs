@@ -54,4 +54,34 @@ public sealed class PlannedShellDemandTests
         var demand = ConstructionDemand(new ConstructionDemandInput { Stock = stock, Planned = Fact.Known<IReadOnlyDictionary<Resource, long>>(planned) });
         Assert.Equal(135, demand[Wood]);
     }
+
+    private static FlooringFacts Flooring(Fact<FlooringObservation> observed = default) => new()
+    {
+        Definitions = new Dictionary<string, FloorDefinition>
+        {
+            ["WoodPlankFloor"] = new()
+            {
+                Available = Fact.Known(true),
+                Terrain = Fact.Known(true),
+                Cleanliness = Fact.Known(0.0),
+                Beauty = Fact.Known(0.0),
+                Flammability = Fact.Known(1.0),
+                PathCost = Fact.Known(0),
+                Costs = Fact.Known(EquatableArray.From(new[] { new Amount(Wood, 2) })),
+                WorkToBuild = Fact.Known(100.0),
+            },
+        },
+        Style = _ => ("WoodPlankFloor", true),
+        Observation = observed,
+        Stock = Fact.Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
+    };
+
+    [Fact]
+    public void FloorsAreDemandedBeforeTheColonyCanPayForThem()
+    {
+        // The stock is empty, yet the bedroom's nine floor cells are demanded in full.
+        var plan = new LayoutPlan { Rooms = [new PlannedRoom { Id = 1, Role = PlannedBedroom, Region = RectRegion(Rect(0, 0)) }] };
+        var demand = PlannedFloorDemand(plan, Flooring(), DefaultFlooringPolicy());
+        Assert.Equal(9 * 2, demand[Wood]);
+    }
 }

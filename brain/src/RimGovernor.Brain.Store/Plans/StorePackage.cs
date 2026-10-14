@@ -27,7 +27,7 @@ public static class StorePackage
     public static bool ProgressOpen(PlanState p, Progress progress) =>
         Standard.WorkOpen([progress]) || (!p.Retired && PolicyFunctions.AppliedBuildingOpen(progress, default));
 
-    /// <summary>A planned room's ring method: a build wave of a "&lt;role&gt;-shell-&lt;x&gt;-&lt;z&gt;" reconcile.</summary>
+    /// <summary>A planned room's ring method: a build wave of a "&lt;role&gt;-shell-room&lt;id&gt;" reconcile.</summary>
     public static bool IsRoomShellMethod(MethodId method) => GlobMatch(method.Value, "*-shell-*-build-*");
 
     /// <summary>Go <c>path.Match</c> restricted to the <c>*</c> wildcard, which never crosses a path separator.</summary>

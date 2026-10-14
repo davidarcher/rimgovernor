@@ -274,7 +274,7 @@ public sealed partial class Rounder
             growth = growth with
             {
                 Fixed = PolicyFunctions.FixedRooms(plan, ground, found.Cells),
-                InFlight = PolicyFunctions.InFlightRooms(plan, found.Origins),
+                InFlight = PolicyFunctions.InFlightRooms(plan, found.Origins, found.Rooms),
             };
         }
         else
