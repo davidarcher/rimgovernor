@@ -110,14 +110,13 @@ public sealed record TradeMission
 public sealed partial record Standard
 {
     /// <summary>A Once Standard whose Record is the mission (Go <c>NewTradeMissionStandard</c>).</summary>
-    public static Standard NewTradeMissionStandard(StandardId id, int priority, GenerationSnapshot snapshot, TradeMission m)
+    public static Standard NewTradeMissionStandard(StandardId id, GenerationSnapshot snapshot, TradeMission m)
     {
         DomainException.Require(m.Phase == TradeMissionPhase.Planned && m.HomeColony == snapshot.Colony && m.HomeMap == snapshot.Map, "trade mission scope mismatch");
         var g = new Standard
         {
             Id = id,
             Kind = Concerns.TradeMission,
-            Priority = priority,
             Snapshot = snapshot,
             Status = StandardStatus.Open,
             Finding = Finding.Unclear,

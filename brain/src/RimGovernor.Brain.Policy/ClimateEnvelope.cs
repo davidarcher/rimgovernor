@@ -16,11 +16,8 @@ public static partial class PolicyFunctions
     /// </summary>
     public static readonly ConcernId MaintainClimateEnvelope = new("MaintainClimateEnvelope");
 
-    /// <summary>Ranks MaintainClimateEnvelope with the other priority-3 chores.</summary>
-    internal const int ClimateEnvelopePriority = 3;
-
     /// <summary>Raises MaintainClimateEnvelope while a planned vent or roof is owed; unknown raises nothing.</summary>
-    internal static void InspectClimateEnvelope(RoundsRun c) => c.Owed(MaintainClimateEnvelope, ClimateEnvelopePriority, c.F.EnvelopeOwed);
+    internal static void InspectClimateEnvelope(RoundsRun c) => c.Owed(MaintainClimateEnvelope, c.F.EnvelopeOwed);
 
     /// <summary>Keeps the vents and roofs of a room's ready operations: the plan-wide envelope owes the room nothing else.</summary>
     public static List<Operation> EnvelopeOps(IEnumerable<Operation> ops) =>

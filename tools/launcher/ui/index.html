@@ -761,12 +761,8 @@ function obRowHtml(r) {
 }
 
 function obNow(v) {
-  const rt = v.routines, col = v.colony, st = rt && rt.stage;
-  let h = '<div class="obcard"><h3>Stage</h3>';
-  h += st ? `<dl class="kv"><dt>Stage</dt><dd>${esc(st.stage)}${st.held ? ' <span class="wait">(held)</span>' : ''}</dd><dt>Since tick</dt><dd>${num(st.since)}</dd>` +
-    `<dt>Blocker</dt><dd>${esc(st.blocker || 'none')}</dd><dt>Reason</dt><dd>${esc(st.reason || '')}</dd></dl>` : '<span class="detail">Not filed yet (no enabled review has run).</span>';
-  h += '</div>';
-  if (rt && rt.emergency && rt.emergency.length) h += `<div class="obcard"><h3>Emergency</h3><span class="bad">${rt.emergency.map(esc).join(', ')}</span></div>`;
+  const rt = v.routines, col = v.colony;
+  let h = '';
   if (col) {
     const pawns = (col.pawns || []).map(p => `<tr><td>${esc(p.label)}</td><td class="num${p.downed ? ' bad' : ''}">${p.downed ? 'downed' : ''}</td><td class="num">${p.mood == null ? '?' : num(p.mood * 100)}</td><td class="num">${p.food == null ? '?' : num(p.food * 100)}</td></tr>`).join('');
     h += `<div class="obcard"><h3>Colony</h3><dl class="kv"><dt>Colonists / workers</dt><dd>${num(col.colonists)} / ${num(col.workers)}${col.downed ? ` <span class="bad">(${col.downed} downed)</span>` : ''}</dd>` +
@@ -783,8 +779,8 @@ function obNow(v) {
   if (review) h += `<div class="obcard"><h3>Latest rounds review</h3>${obRowHtml(review)}</div>`;
   const steps = lastN('clock_step', 8);
   if (steps.length) h += `<div class="obcard"><h3>Pace: newest clock steps</h3>${steps.map(obRowHtml).join('')}</div>`;
-  const events = ob.rows.filter(r => ['clock_stop', 'authority', 'colony_stage'].includes(r.kind)).slice(-8).reverse();
-  if (events.length) h += `<div class="obcard"><h3>Stops, authority and stage changes</h3>${events.map(obRowHtml).join('')}</div>`;
+  const events = ob.rows.filter(r => ['clock_stop', 'authority'].includes(r.kind)).slice(-8).reverse();
+  if (events.length) h += `<div class="obcard"><h3>Stops and authority changes</h3>${events.map(obRowHtml).join('')}</div>`;
   return h;
 }
 

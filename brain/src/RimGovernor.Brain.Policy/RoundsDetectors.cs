@@ -49,33 +49,33 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
     public bool StoneActive { get; set; }
 
     /// <summary>Appends a Concern and returns it for the detector to adjust.</summary>
-    public RoundsConcern Raise(ConcernId id, int priority)
+    public RoundsConcern Raise(ConcernId id)
     {
-        var concern = new RoundsConcern { Id = id, Priority = priority, Deficit = PolicyFunctions.RoundsDeficit(id, F, P) };
+        var concern = new RoundsConcern { Id = id, Deficit = PolicyFunctions.RoundsDeficit(id, F, P) };
         R.Concerns.Add(concern);
         return concern;
     }
 
     /// <summary>Appends id's assessment and returns it for the detector to adjust.</summary>
-    public RoundsAssessment Assess(ConcernId id, int priority, Fact<bool> recovered)
+    public RoundsAssessment Assess(ConcernId id, Fact<bool> recovered)
     {
         var need = Finding.Unclear;
         if (recovered.TryGetValue(out var value))
         {
             need = value ? Finding.Met : Finding.Unmet;
         }
-        var assessment = new RoundsAssessment { Id = id, Priority = priority, Finding = need };
+        var assessment = new RoundsAssessment { Id = id, Finding = need };
         R.Assessments.Add(assessment);
         return assessment;
     }
 
     /// <summary>Assesses a goal that is recovered unless its fact says a step is owed; unknown raises nothing. A known deficit is a full one.</summary>
-    public void Owed(ConcernId id, int priority, Fact<bool> owed)
+    public void Owed(ConcernId id, Fact<bool> owed)
     {
-        Assess(id, priority, PolicyFunctions.NotFact(owed));
+        Assess(id, PolicyFunctions.NotFact(owed));
         if (owed.TryGetValue(out var v) && v)
         {
-            Raise(id, priority).Deficit = Known(1.0);
+            Raise(id).Deficit = Known(1.0);
         }
     }
 }
@@ -91,9 +91,9 @@ public static partial class PolicyFunctions
     {
         if (Positive(c.F.ChoiceDialog))
         {
-            c.Raise(AnswerDialog, 0);
+            c.Raise(AnswerDialog);
         }
-        c.Assess(AnswerDialog, 0, NotFact(c.F.ChoiceDialog));
+        c.Assess(AnswerDialog, NotFact(c.F.ChoiceDialog));
     }
 
     internal static void InspectActiveCombat(RoundsRun c)
@@ -101,9 +101,9 @@ public static partial class PolicyFunctions
         var f = c.F;
         if (!Positive(CombatCleared(f)))
         {
-            c.Raise(ActiveCombat, 0);
+            c.Raise(ActiveCombat);
         }
-        var a = c.Assess(ActiveCombat, 0, CombatCleared(f));
+        var a = c.Assess(ActiveCombat, CombatCleared(f));
         if (Positive(Measured(f.Hostiles, n => n == 0)))
         {
             a.Hunt = EquatableArray.From(HuntRequest(f.FoodPlan));
@@ -113,12 +113,11 @@ public static partial class PolicyFunctions
     internal static void InspectCriticalMedicine(RoundsRun c)
     {
         var medicalMet = Measured(c.F.CriticalPatients, v => v == 0);
-        var priority = CriticalMedicinePriority(c.F);
         if (!Positive(medicalMet))
         {
-            c.Raise(CriticalMedicine, priority);
+            c.Raise(CriticalMedicine);
         }
-        c.Assess(CriticalMedicine, priority, medicalMet);
+        c.Assess(CriticalMedicine, medicalMet);
     }
 
     internal static void InspectRestoreWorkers(RoundsRun c)
@@ -126,19 +125,18 @@ public static partial class PolicyFunctions
         var f = c.F;
         if (Positive(Measured(f.Hostiles, n => n == 0)) && Positive(f.CleanupPawns))
         {
-            c.Raise(RestoreWorkers, 1);
+            c.Raise(RestoreWorkers);
         }
-        c.Assess(RestoreWorkers, 1, NotFact(f.CleanupPawns));
+        c.Assess(RestoreWorkers, NotFact(f.CleanupPawns));
     }
 
     internal static void InspectManageSupplySafety(RoundsRun c)
     {
-        var priority = SupplySafetyPriority(c.F);
         if (Positive(c.F.EventLootPending))
         {
-            c.Raise(ManageSupplySafety, priority);
+            c.Raise(ManageSupplySafety);
         }
-        c.Assess(ManageSupplySafety, priority, NotFact(c.F.EventLootPending));
+        c.Assess(ManageSupplySafety, NotFact(c.F.EventLootPending));
     }
 
     internal static void InspectWorkAssignments(RoundsRun c)
@@ -151,9 +149,9 @@ public static partial class PolicyFunctions
         }
         if (!Positive(workMet))
         {
-            c.Raise(EnsureWorkAssignments, 2);
+            c.Raise(EnsureWorkAssignments);
         }
-        c.Assess(EnsureWorkAssignments, 2, workMet);
+        c.Assess(EnsureWorkAssignments, workMet);
     }
 
     internal static void InspectFoodSupply(RoundsRun c)
@@ -169,9 +167,9 @@ public static partial class PolicyFunctions
         var butcherOwed = butcherMet.TryGetValue(out var met) && !met;
         if (HumanFoodPending(f.FoodPlan) || l.Food || !Positive(foodMet) || !Positive(productionMet) || !Positive(fieldsCovered) || butcherOwed)
         {
-            c.Raise(EnsureFoodSupply, 2);
+            c.Raise(EnsureFoodSupply);
         }
-        c.Assess(EnsureFoodSupply, 2, AllFacts(Known(!HumanFoodPending(f.FoodPlan)), foodMet, productionMet, fieldsCovered, butcherMet, LatchRecovered(l.Food, f.FoodDays)));
+        c.Assess(EnsureFoodSupply, AllFacts(Known(!HumanFoodPending(f.FoodPlan)), foodMet, productionMet, fieldsCovered, butcherMet, LatchRecovered(l.Food, f.FoodDays)));
     }
 
     internal static void InspectHousing(RoundsRun c)
@@ -180,10 +178,10 @@ public static partial class PolicyFunctions
         c.R.Latches.Housing = housing.Phase;
         if (housing.Phase != Phase.None)
         {
-            var g = c.Raise(MaintainHousing, housing.Priority);
+            var g = c.Raise(MaintainHousing);
             g.Deficit = housing.Deficit;
         }
-        c.Assess(MaintainHousing, housing.Priority, housing.Recovered);
+        c.Assess(MaintainHousing, housing.Recovered);
     }
 
     internal static void InspectTemperatureSafety(RoundsRun c)
@@ -203,18 +201,18 @@ public static partial class PolicyFunctions
         }
         if (l.Cold || l.Hot || !Positive(temperatureMet))
         {
-            c.Raise(EnsureTemperatureSafety, 2);
+            c.Raise(EnsureTemperatureSafety);
         }
-        c.Assess(EnsureTemperatureSafety, 2, AllFacts(temperatureMet, LatchRecovered(l.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature)), LatchRecovered(l.Hot, Fallback(f.SleepingMax, f.OutdoorTemperature))));
+        c.Assess(EnsureTemperatureSafety, AllFacts(temperatureMet, LatchRecovered(l.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature)), LatchRecovered(l.Hot, Fallback(f.SleepingMax, f.OutdoorTemperature))));
     }
 
     internal static void InspectCooking(RoundsRun c)
     {
         if (!Positive(CookingMet(c.F)))
         {
-            c.Raise(EnsureCooking, 2);
+            c.Raise(EnsureCooking);
         }
-        c.Assess(EnsureCooking, 2, CookingMet(c.F));
+        c.Assess(EnsureCooking, CookingMet(c.F));
     }
 
     internal static void InspectBasicPower(RoundsRun c)
@@ -226,9 +224,9 @@ public static partial class PolicyFunctions
             // the power deficit it measures is real but answering it with a generator is not, so the goal
             // stays open with no method (it neither extends the startup hold nor is cancelled) until the
             // flare ends and the planner can tell an outage from a shortfall.
-            c.Raise(EnsureBasicPower, 2).MethodUnavailable = PowerOutageHold(c.F.DisasterConditions);
+            c.Raise(EnsureBasicPower).MethodUnavailable = PowerOutageHold(c.F.DisasterConditions);
         }
-        c.Assess(EnsureBasicPower, 2, powerMet);
+        c.Assess(EnsureBasicPower, powerMet);
     }
 
     internal static void InspectBasicDefense(RoundsRun c)
@@ -238,7 +236,7 @@ public static partial class PolicyFunctions
         var defense = BasicDefenseRecovered(defenseMet, f.Unarmed);
         if (!Positive(defense))
         {
-            var g = c.Raise(EnsureBasicDefense, 3);
+            var g = c.Raise(EnsureBasicDefense);
             var k = FootholdCount(f).TryGetValue(out var n);
             var sk = f.Armed.TryGetValue(out var stock);
             if (k && sk && n > 0)
@@ -251,7 +249,7 @@ public static partial class PolicyFunctions
                 g.Deficit = Known(deficit);
             }
         }
-        c.Assess(EnsureBasicDefense, 3, defense);
+        c.Assess(EnsureBasicDefense, defense);
     }
 
     internal static void InspectComfort(RoundsRun c)
@@ -260,22 +258,19 @@ public static partial class PolicyFunctions
         var basicComfort = ReviewBasicComfort(f.BasicComfort);
         // A table with a seat and a recreation source are provided with the starter hut, at foothold
         // priority: the two cheapest mood debuffs to remove should not wait for the ranked comfort project.
-        // While the initial shelter is still owed there is no room to furnish, so the goal holds no method
-        // and neither extends the startup hold nor competes.
-        var comfortRanked = c.P.ColonyStage >= ColonyStage.Development;
         if (!Positive(basicComfort.Recovered()))
         {
             c.R.Latches.Comfort = Phase.ComfortBasic;
-            var g = c.Raise(EnsureComfort, basicComfort.Priority());
+            var g = c.Raise(EnsureComfort);
             g.Deficit = basicComfort.Deficit();
-            g.MethodUnavailable = !Positive(FootholdShelter(f)) || !Positive(FootholdSleeping(f)) || (basicComfort.Priority() == 3 && !basicComfort.VarietyKnown);
+            g.MethodUnavailable = basicComfort.CoreRecovered() && !basicComfort.VarietyKnown;
         }
-        else if (comfortRanked && !Positive(f.ComfortRecovered))
+        else if (!Positive(f.ComfortRecovered))
         {
             // The ranked phase: hosting rooms and proof of use, once the basic facilities stand and the
             // colony reached StageDevelopment.
             c.R.Latches.Comfort = Phase.ComfortRanked;
-            var g = c.Raise(EnsureComfort, 4);
+            var g = c.Raise(EnsureComfort);
             g.Deficit = f.ComfortDeficit;
         }
         else if (Positive(f.PartySpotOwed))
@@ -285,15 +280,10 @@ public static partial class PolicyFunctions
             // deficit once the one-shot is spent or no cell takes it), so comfort is Unmet for a pass or
             // two, not indefinitely.
             c.R.Latches.Comfort = Phase.ComfortSpot;
-            c.Raise(EnsureComfort, 4).Deficit = Known(1.0);
+            c.Raise(EnsureComfort).Deficit = Known(1.0);
         }
-        var priority = 4;
         var recovered = basicComfort.Recovered();
-        if (c.R.Latches.Comfort == Phase.ComfortBasic)
-        {
-            priority = basicComfort.Priority();
-        }
-        else
+        if (c.R.Latches.Comfort != Phase.ComfortBasic)
         {
             // The ranked phase is assessed at every stage, as before the merge; only its goal waits for StageDevelopment.
             recovered = AllFacts(recovered, f.ComfortRecovered);
@@ -302,7 +292,7 @@ public static partial class PolicyFunctions
                 recovered = Known(false);
             }
         }
-        c.Assess(EnsureComfort, priority, recovered);
+        c.Assess(EnsureComfort, recovered);
     }
 
     internal static void InspectPests(RoundsRun c)
@@ -315,9 +305,9 @@ public static partial class PolicyFunctions
         var pests = PestCensus(c.F.AnimalUpkeep.WildAnimals);
         if (pests.TryGetValue(out var n) && n > 0)
         {
-            c.Raise(ClearPests, 2).Deficit = Known(1.0);
+            c.Raise(ClearPests).Deficit = Known(1.0);
         }
-        c.Assess(ClearPests, 2, Measured(pests, v => v == 0));
+        c.Assess(ClearPests, Measured(pests, v => v == 0));
     }
 
     internal static void InspectEquipment(RoundsRun c)
@@ -335,7 +325,7 @@ public static partial class PolicyFunctions
         var retire = Positive(f.CraftingSpotRetireOwed);
         if (!Positive(gear.Recovered) || retire)
         {
-            var g = c.Raise(MaintainEquipment, 3);
+            var g = c.Raise(MaintainEquipment);
             g.Deficit = gear.Deficit;
             if (retire && Positive(gear.Recovered))
             {
@@ -351,7 +341,7 @@ public static partial class PolicyFunctions
         {
             equipped = Known(false);
         }
-        c.Assess(MaintainEquipment, 3, equipped);
+        c.Assess(MaintainEquipment, equipped);
     }
 
     /// <summary>
@@ -365,12 +355,11 @@ public static partial class PolicyFunctions
         var f = c.F;
         var p = c.P;
         var researchNeeds = DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways, f.Items);
-        var researchPolicy = ResearchPolicy(p, c.L.Soldiers, c.L.FoodFirst);
-        var (researchTarget, researchDerived) = ResearchConcern(researchPolicy, researchNeeds, f.Research);
+        var (researchTarget, researchDerived) = ResearchConcern(researchNeeds, f.Research);
         var (researchRecovered, researchDeficit) = ResearchTargetNeed(researchTarget, researchDerived, f.Research);
         // An empty Anomaly knowledge slot with a project to fund is a spending need of its own; a disabled
         // goal (no target, empty ladder) funds none.
-        if (f.Research.TryGetValue(out var facts) && facts.KnowledgePick.Value is { Length: > 0 } && (researchNeeds.Count != 0 || researchPolicy.ResearchLadder.Count != 0))
+        if (f.Research.TryGetValue(out var facts) && facts.KnowledgePick.Value is { Length: > 0 } && researchNeeds.Count != 0)
         {
             researchDeficit.TryGetValue(out var deficit);
             researchRecovered = Known(false);
@@ -378,9 +367,9 @@ public static partial class PolicyFunctions
         }
         if (!Positive(researchRecovered))
         {
-            c.Raise(EnsureResearch, 4).Deficit = researchDeficit;
+            c.Raise(EnsureResearch).Deficit = researchDeficit;
         }
-        c.Assess(EnsureResearch, 4, researchRecovered);
+        c.Assess(EnsureResearch, researchRecovered);
     }
 
     internal static void InspectResource(RoundsRun c)
@@ -410,17 +399,16 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var priority = 4;
         if (!Positive(resourceRecovered))
         {
-            var g = c.Raise(MaintainResource, priority);
+            var g = c.Raise(MaintainResource);
             g.Deficit = resourceDeficit;
             // The ladder's research rung: while a project the workshop recorded as gating the bench is
             // unfinished, the goal has no method of its own and holds no slot, so EnsureResearch can take
             // one. Construction demand is chopped or mined meanwhile.
             g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && c.Demand.Works.Count == 0;
         }
-        c.Assess(MaintainResource, priority, resourceRecovered);
+        c.Assess(MaintainResource, resourceRecovered);
     }
 
     /// <summary>
@@ -458,7 +446,7 @@ public static partial class PolicyFunctions
         tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, c.Demand.Needs, RoundsTradeFloors(p, null), c.Demand.Retained);
         var shortage = RoundsSilverShort(f, p, c.Medicine.Active).TryGetValue(out var silverShort) && silverShort;
         tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
-        c.Assess(TradeWithCaravan, 3, TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity()))));
+        c.Assess(TradeWithCaravan, TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity()))));
     }
 
     /// <summary>EnsureDefensiveLayout is config-only like EnsureResearch: opt-in activates the goal at priority 3 (after the storage gate) and the planner reports no work once every tier stands.</summary>
@@ -467,9 +455,9 @@ public static partial class PolicyFunctions
         var recovered = Known(!c.P.DefensiveLayout);
         if (!Positive(recovered))
         {
-            c.Raise(EnsureDefensiveLayout, 3);
+            c.Raise(EnsureDefensiveLayout);
         }
-        c.Assess(EnsureDefensiveLayout, 3, recovered);
+        c.Assess(EnsureDefensiveLayout, recovered);
     }
 
     /// <summary>Serves one of the direct upkeep goals: ReviewUpkeep files a need for each, and hold is the goal's extra method hold.</summary>
@@ -488,10 +476,10 @@ public static partial class PolicyFunctions
                 recovered = Known(!n.Active);
                 targetsKnown = true;
             }
-            c.Assess(id, n.Priority, recovered);
+            c.Assess(id, recovered);
             if (!Positive(recovered))
             {
-                var g = c.Raise(id, n.Priority);
+                var g = c.Raise(id);
                 // These needs are binary, so a confirmed active deficit reports Known(1.0) rather than a partial fraction.
                 if (targetsKnown)
                 {
@@ -511,13 +499,10 @@ public static partial class PolicyFunctions
     /// <summary>
     /// Clearance ranks below repairs and above direct cleaning. Safety goals already suspend all development
     /// work through the shared emergency gate. While the shrine breach is issued, obstruction clearance
-    /// waits so the construction hand is the breacher, not a wanderer past the trap line. While the initial
-    /// shelter is owed (the housing latch still at HousingShelter, the Foothold shelter fact) clearance
-    /// waits as well: its Deconstruct jobs use the Construction work the shelter needs (#2814). The planner
-    /// holds the same way; this marks the review.
+    /// waits so the construction hand is the breacher, not a wanderer past the trap line.
     /// </summary>
     internal static bool HoldClearance(RoundsRun c) =>
-        c.Upkeep.History.Repairs || c.F.IsIssued(ClearAncientShrine) || c.R.Latches.Housing == Phase.HousingShelter;
+        c.Upkeep.History.Repairs || c.F.IsIssued(ClearAncientShrine);
 
     /// <summary>Repairs hold the shrine only when their method is served: a repair deficit nothing can serve must not hold the breach forever.</summary>
     internal static bool HoldShrine(RoundsRun c)
@@ -535,21 +520,17 @@ public static partial class PolicyFunctions
     /// Known(1.0); an unknown census stays DevelopmentUnknown. Method availability follows the composed
     /// capability list, since both verticals dispatch.
     /// </summary>
-    internal static void FacilityInspect(RoundsRun c, ConcernId id, int priority, Func<RoundsRun, Fact<bool>> recoveredOf, Func<RoundsRun, bool> active)
+    internal static void FacilityInspect(RoundsRun c, ConcernId id, Func<RoundsRun, Fact<bool>> recoveredOf, Func<RoundsRun, bool> active)
     {
         var recovered = recoveredOf(c);
-        if (!recovered.TryGetValue(out _) && !active(c) && !c.F.IsIssued(id))
-        {
-            priority = 4;
-        }
         if (c.F.IsIssued(id))
         {
             recovered = Known(false);
         }
-        c.Assess(id, priority, recovered);
+        c.Assess(id, recovered);
         if (!Positive(recovered))
         {
-            var g = c.Raise(id, priority);
+            var g = c.Raise(id);
             if (recovered.TryGetValue(out _))
             {
                 g.Deficit = Known(1.0);
@@ -557,10 +538,7 @@ public static partial class PolicyFunctions
         }
     }
 
-    internal static Action<RoundsRun> FacilityInspection(ConcernId id, int priority, Func<RoundsRun, Fact<bool>> recovered, Func<RoundsRun, bool> active) =>
-        c => FacilityInspect(c, id, priority, recovered, active);
-
-    internal static void InspectHomeCoverage(RoundsRun c) => FacilityInspect(c, MaintainHomeCoverage, 3, r =>
+    internal static void InspectHomeCoverage(RoundsRun c) => FacilityInspect(c, MaintainHomeCoverage, r =>
     {
         if (r.Home.TryGetValue(out var diff))
         {
@@ -569,7 +547,7 @@ public static partial class PolicyFunctions
         return Unknown<bool>();
     }, r => r.HomeActive);
 
-    internal static void InspectStoneShell(RoundsRun c) => FacilityInspect(c, MaintainStoneShell, 4, r =>
+    internal static void InspectStoneShell(RoundsRun c) => FacilityInspect(c, MaintainStoneShell, r =>
     {
         if (r.Stone.TryGetValue(out var rows))
         {
@@ -585,39 +563,27 @@ public static partial class PolicyFunctions
         // A plan issued for the care phase is not a medicine bill.
         var active = medicine.Active || (f.IsIssued(MaintainMedicalReserves) && c.Previous.Medical != Phase.MedicalCare);
         var reserveRecovered = Unknown<bool>();
-        var reservePriority = 3;
         if (medicine.Stock.TryGetValue(out _))
         {
             reserveRecovered = Known(!active);
         }
-        else if (!active)
-        {
-            reservePriority = 4;
-        }
         // MaintainMedicalReserves is the one medical upkeep goal: resting and hospital care for the sick
-        // first (from StageStable), then the medicine stock. The care phase keeps its pre-merge shape:
+        // first then the medicine stock. The care phase keeps its pre-merge shape:
         // priority 2, no ranked method and no labor, since work assignments own disease rest and monitoring
         // recovery must not reserve execution capacity while the pawn rests.
-        var careRaised = c.P.ColonyStage >= ColonyStage.Stable;
-        var priority = reservePriority;
-        var recovered = reserveRecovered;
-        if (careRaised)
-        {
-            recovered = AllFacts(f.MedicalCareRecovered, reserveRecovered);
-        }
-        if (careRaised && !Positive(f.MedicalCareRecovered))
+        var recovered = AllFacts(f.MedicalCareRecovered, reserveRecovered);
+        if (!Positive(f.MedicalCareRecovered))
         {
             c.R.Latches.Medical = Phase.MedicalCare;
-            priority = 2;
-            var g = c.Raise(MaintainMedicalReserves, 2);
+            var g = c.Raise(MaintainMedicalReserves);
             g.MethodUnavailable = true;
         }
         else if (!Positive(reserveRecovered))
         {
             c.R.Latches.Medical = Phase.MedicalReserves;
-            c.Raise(MaintainMedicalReserves, reservePriority);
+            c.Raise(MaintainMedicalReserves);
         }
-        c.Assess(MaintainMedicalReserves, priority, recovered);
+        c.Assess(MaintainMedicalReserves, recovered);
     }
 
     /// <summary>An operation the planner serves stands on a living colonist until the health change removes it.</summary>
@@ -635,10 +601,10 @@ public static partial class PolicyFunctions
         {
             recovered = Known(false);
         }
-        c.Assess(MaintainSurgery, SurgeryPriority, recovered);
+        c.Assess(MaintainSurgery, recovered);
         if (!Positive(recovered))
         {
-            c.Raise(MaintainSurgery, SurgeryPriority);
+            c.Raise(MaintainSurgery);
         }
     }
 
@@ -646,10 +612,10 @@ public static partial class PolicyFunctions
     internal static void InspectBabyFeeding(RoundsRun c)
     {
         var recovered = Measured(c.F.BabyFeeding, b => !b.IsShort);
-        c.Assess(MaintainBabyFeeding, BabyFeedingPriority, recovered);
+        c.Assess(MaintainBabyFeeding, recovered);
         if (recovered.TryGetValue(out var v) && !v)
         {
-            c.Raise(MaintainBabyFeeding, BabyFeedingPriority);
+            c.Raise(MaintainBabyFeeding);
         }
     }
 
@@ -667,31 +633,22 @@ public static partial class PolicyFunctions
         var stockpileOwed = Negative(FoodStorageStanding(f));
         var active = c.FoodStorage.Active || f.IsIssued(MaintainFoodStorage) || reserveAccess || reserveRefill;
         var recovered = Unknown<bool>();
-        var priority = FoodStorageUpkeepPriority;
         var larder = SelectCorpseLarder(f.FoodStorageUpkeep);
         // The stockpile, releasing cooking inputs and preserving fresh corpses must not wait behind
         // development projects, just as refrigeration must not.
-        if (larder.Kind != "" || reserveAccess || stockpileOwed)
-        {
-            priority = 2;
-        }
         if (c.FoodStorage.StoredNutrition.TryGetValue(out _))
         {
             recovered = Known(!active);
-        }
-        else if (!active && !stockpileOwed)
-        {
-            priority = 4;
         }
         if (reserveAccess || reserveRefill)
         {
             recovered = Known(false);
         }
         recovered = AllFacts(Known(!stockpileOwed), recovered);
-        c.Assess(MaintainFoodStorage, priority, recovered);
+        c.Assess(MaintainFoodStorage, recovered);
         if (!Positive(recovered))
         {
-            c.Raise(MaintainFoodStorage, priority).MethodUnavailable = !stockpileOwed && larder.Kind == "" && !reserveAccess && !reserveRefill;
+            c.Raise(MaintainFoodStorage).MethodUnavailable = !stockpileOwed && larder.Kind == "" && !reserveAccess && !reserveRefill;
         }
     }
 
@@ -715,10 +672,10 @@ public static partial class PolicyFunctions
         {
             recovered = Known(false);
         }
-        c.Assess(MaintainRefrigeration, RefrigerationPriority, recovered);
+        c.Assess(MaintainRefrigeration, recovered);
         if (!Positive(recovered))
         {
-            var g = c.Raise(MaintainRefrigeration, RefrigerationPriority);
+            var g = c.Raise(MaintainRefrigeration);
             // A cooler cannot run under a solar flare either (the cooler planner reports solar_flare), but
             // the goal keeps a method: the warm stock is cooked ahead on a bench that still works.
             if (refrigeration.WarmNutrition.TryGetValue(out var nutrition) && c.P.FoodStorage.AtRiskNutritionThreshold > 0)
@@ -744,19 +701,14 @@ public static partial class PolicyFunctions
     internal static void InspectLighting(RoundsRun c)
     {
         var recovered = Unknown<bool>();
-        var priority = LightingPriority;
         if (c.Lighting.Known)
         {
             recovered = Known(!c.Lighting.Active);
         }
-        else if (!c.Lighting.Active)
-        {
-            priority = 4;
-        }
-        c.Assess(MaintainLighting, priority, recovered);
+        c.Assess(MaintainLighting, recovered);
         if (!Positive(recovered))
         {
-            var g = c.Raise(MaintainLighting, priority);
+            var g = c.Raise(MaintainLighting);
             if (c.Lighting.Known)
             {
                 g.Deficit = Known(1.0);
@@ -773,10 +725,10 @@ public static partial class PolicyFunctions
         {
             recovered = Known(!flooring.Active);
         }
-        c.Assess(MaintainFlooring, FlooringPriority, recovered);
+        c.Assess(MaintainFlooring, recovered);
         if (!Positive(recovered))
         {
-            var g = c.Raise(MaintainFlooring, FlooringPriority);
+            var g = c.Raise(MaintainFlooring);
             if (flooring.Known)
             {
                 g.Deficit = Known(1.0);
@@ -788,23 +740,18 @@ public static partial class PolicyFunctions
     internal static void InspectRoutes(RoundsRun c)
     {
         var recovered = Unknown<bool>();
-        var priority = RoutesPriority;
         if (c.Routes.Known)
         {
             recovered = Known(!c.Routes.Active);
-        }
-        else if (!c.Routes.Active)
-        {
-            priority = 4;
         }
         if (DoorChanges(c.F.Upkeep.Rooms, c.F.Upkeep.Routes, c.P).Count > 0)
         {
             recovered = Known(false);
         }
-        c.Assess(MaintainRoutes, priority, recovered);
+        c.Assess(MaintainRoutes, recovered);
         if (!Positive(recovered))
         {
-            var g = c.Raise(MaintainRoutes, priority);
+            var g = c.Raise(MaintainRoutes);
             if (c.Routes.Known)
             {
                 g.Deficit = Known(1.0);
@@ -835,10 +782,10 @@ public static partial class PolicyFunctions
                 recovered = Known(Artists(profiles).Count == 0);
             }
         }
-        c.Assess(MaintainArt, ArtPriority, recovered);
+        c.Assess(MaintainArt, recovered);
         if (recovered.TryGetValue(out var v) && !v)
         {
-            c.Raise(MaintainArt, ArtPriority).Deficit = Known(1.0);
+            c.Raise(MaintainArt).Deficit = Known(1.0);
         }
     }
 
@@ -851,56 +798,48 @@ public static partial class PolicyFunctions
         {
             recovered = Known(!(g > 0));
         }
-        c.Assess(MaintainTrade, TradePriority, recovered);
+        c.Assess(MaintainTrade, recovered);
         if (recovered.TryGetValue(out var v) && !v)
         {
             // Binary like the other upkeep needs: the silver amount is not a fraction.
-            c.Raise(MaintainTrade, TradePriority).Deficit = Known(1.0);
+            c.Raise(MaintainTrade).Deficit = Known(1.0);
         }
     }
 
     /// <summary>
-    /// A Safe area edit is owed. A settings write, ranked with the upkeep projects; unknown raises nothing.
-    /// While a sheltering trigger holds it is ShelterPriority, so a threat's emergency cannot veto the Safe
-    /// area that PlanSheltering moves pawns into.
+    /// A Safe area edit is owed. A settings write, unknown raises nothing.
     /// </summary>
     internal static void InspectShelter(RoundsRun c)
     {
-        var priority = 3;
-        var (trigger, _) = ShelterTriggerOf(c.F);
-        if (trigger != ShelterTrigger.None)
-        {
-            priority = ShelterPriority(trigger);
-        }
-        c.Owed(MaintainShelter, priority, c.F.SafeAreaOwed);
+        c.Owed(MaintainShelter, c.F.SafeAreaOwed);
     }
 
     /// <summary>MaintainFirebreak: ring work is owed.</summary>
-    internal static void InspectFirebreak(RoundsRun c) => c.Owed(MaintainFirebreak, 3, c.F.FirebreakOwed);
+    internal static void InspectFirebreak(RoundsRun c) => c.Owed(MaintainFirebreak, c.F.FirebreakOwed);
 
     /// <summary>MaintainMechs: a mech is owed inside the bandwidth.</summary>
-    internal static void InspectMechs(RoundsRun c) => c.Owed(MaintainMechs, MechPriority, c.F.MechGestationOwed);
+    internal static void InspectMechs(RoundsRun c) => c.Owed(MaintainMechs, c.F.MechGestationOwed);
 
     /// <summary>MaintainPsylink: a held neuroformer waits for a willing colonist.</summary>
-    internal static void InspectPsylink(RoundsRun c) => c.Owed(MaintainPsylink, 3, c.F.PsylinkOwed);
+    internal static void InspectPsylink(RoundsRun c) => c.Owed(MaintainPsylink, c.F.PsylinkOwed);
 
     /// <summary>MaintainIdeoRoles: a role place and a fitting believer.</summary>
-    internal static void InspectIdeoRoles(RoundsRun c) => c.Owed(MaintainIdeoRoles, 3, c.F.RolesOwed);
+    internal static void InspectIdeoRoles(RoundsRun c) => c.Owed(MaintainIdeoRoles, c.F.RolesOwed);
 
     /// <summary>MaintainRituals: a ritual is due, calm and ready to begin.</summary>
-    internal static void InspectRituals(RoundsRun c) => c.Owed(MaintainRituals, 3, c.F.RitualsOwed);
+    internal static void InspectRituals(RoundsRun c) => c.Owed(MaintainRituals, c.F.RitualsOwed);
 
     /// <summary>ManageCreepJoiners: a creepjoiner holds a weapon before its downside has shown.</summary>
-    internal static void InspectCreepJoiners(RoundsRun c) => c.Owed(ManageCreepJoiners, 3, c.F.CreepJoinerOwed);
+    internal static void InspectCreepJoiners(RoundsRun c) => c.Owed(ManageCreepJoiners, c.F.CreepJoinerOwed);
 
     /// <summary>A colonist holds permit points for a permit worth taking. Unknown without the royalty read raises nothing.</summary>
     internal static void InspectPermits(RoundsRun c)
     {
-        c.Assess(MaintainPermits, 3, PermitsSpent(c.F.Royalty));
+        c.Assess(MaintainPermits, PermitsSpent(c.F.Royalty));
         var owed = NextPermitOf(c.F.Royalty) is not null;
         if (owed)
         {
-            c.Raise(MaintainPermits, 3).Deficit = Known(1.0);
+            c.Raise(MaintainPermits).Deficit = Known(1.0);
         }
     }
 
@@ -939,10 +878,10 @@ public static partial class PolicyFunctions
         {
             recovered = Known(false);
         }
-        c.Assess(MaintainHerd, 3, recovered);
+        c.Assess(MaintainHerd, recovered);
         if (!Positive(recovered))
         {
-            c.Raise(MaintainHerd, 3).MethodUnavailable = true;
+            c.Raise(MaintainHerd).MethodUnavailable = true;
         }
     }
 
@@ -964,7 +903,7 @@ public static partial class PolicyFunctions
         var letterKnown = JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).TryGetValue(out var letterDeficit);
         var ceremonyStarts = CeremonyStartOf(f.Royalty) is not null;
         if (!ShrineArrestTarget(f).IsEmpty || LanceTarget(f) is not null || EntityCaptureOwed(f.Containment) || EntityDoorOwed(f.Containment) || EntityTendOwed(f.Containment)
-            || EntityBioferriteOwed(f.Containment, f.Research) || MonolithAdvanceOwedNow(f, p.ColonyStage) || (prisonerDeficitKnown && prisonerDeficit)
+            || EntityBioferriteOwed(f.Containment, f.Research) || MonolithAdvanceOwedNow(f) || (prisonerDeficitKnown && prisonerDeficit)
             || (custodyDeficitKnown && custodyDeficit) || (joinerDeficitKnown && joinerDeficit) || (questKnown && questDeficit) || (letterKnown && letterDeficit)
             || ceremonyStarts || DecreeDeficit(f) || MonumentDeficit(f) || DepartureDeficit(f) || RefugeeDeficit(f) || GravInspectionDeficit(f))
         {
@@ -982,10 +921,10 @@ public static partial class PolicyFunctions
         {
             recovered = Known(!joinerDeficit);
         }
-        c.Assess(MaintainPopulation, 3, recovered);
+        c.Assess(MaintainPopulation, recovered);
         if (!Positive(recovered))
         {
-            c.Raise(MaintainPopulation, 3).MethodUnavailable = true;
+            c.Raise(MaintainPopulation).MethodUnavailable = true;
         }
     }
 
@@ -997,19 +936,14 @@ public static partial class PolicyFunctions
     internal static void AnimalInspect(RoundsRun c, ConcernId id, Func<RoundsRun, Fact<bool>> recoveredOf, Func<RoundsRun, bool> active)
     {
         var recovered = recoveredOf(c);
-        var priority = 3;
-        if (!recovered.TryGetValue(out _) && !active(c) && !c.F.IsIssued(id))
-        {
-            priority = 4;
-        }
         if (c.F.IsIssued(id))
         {
             recovered = Known(false);
         }
-        c.Assess(id, priority, recovered);
+        c.Assess(id, recovered);
         if (!Positive(recovered))
         {
-            var g = c.Raise(id, priority);
+            var g = c.Raise(id);
             if (recovered.TryGetValue(out _))
             {
                 g.Deficit = Known(1.0);
@@ -1042,10 +976,10 @@ public static partial class PolicyFunctions
         {
             recovered = Known(!deficit);
         }
-        c.Assess(RemoveBlight, 3, recovered);
+        c.Assess(RemoveBlight, recovered);
         if (!Positive(recovered))
         {
-            c.Raise(RemoveBlight, 3);
+            c.Raise(RemoveBlight);
         }
     }
 
@@ -1057,30 +991,30 @@ public static partial class PolicyFunctions
         {
             cleared = Known(!deficit);
         }
-        c.Assess(ManagePollution, 3, cleared);
+        c.Assess(ManagePollution, cleared);
         if (c.F.Pollution.TryGetValue(out _) && !Positive(cleared))
         {
-            c.Raise(ManagePollution, 3);
+            c.Raise(ManagePollution);
         }
     }
 
     /// <summary>Unknown without the charger read, and then it raises no goal. Always assessed, like ManagePollution.</summary>
     internal static void InspectMechCharger(RoundsRun c)
     {
-        c.Assess(EnsureMechCharger, 3, NotFact(c.F.MechChargerOwed));
+        c.Assess(EnsureMechCharger, NotFact(c.F.MechChargerOwed));
         if (c.F.MechChargerOwed.TryGetValue(out var owed) && owed)
         {
-            c.Raise(EnsureMechCharger, 3);
+            c.Raise(EnsureMechCharger);
         }
     }
 
     /// <summary>Unknown without the gene-building read, and then it raises no goal. Always assessed, like EnsureMechCharger.</summary>
     internal static void InspectGeneBank(RoundsRun c)
     {
-        c.Assess(MaintainGeneBank, 3, NotFact(c.F.GeneBankOwed));
+        c.Assess(MaintainGeneBank, NotFact(c.F.GeneBankOwed));
         if (c.F.GeneBankOwed.TryGetValue(out var owed) && owed)
         {
-            c.Raise(MaintainGeneBank, 3);
+            c.Raise(MaintainGeneBank);
         }
     }
 
@@ -1092,10 +1026,10 @@ public static partial class PolicyFunctions
         {
             recovered = Known(!review.Active);
         }
-        c.Assess(MaintainStockpiles, StockpilePriorityRank, recovered);
+        c.Assess(MaintainStockpiles, recovered);
         if (!Positive(recovered))
         {
-            c.Raise(MaintainStockpiles, StockpilePriorityRank);
+            c.Raise(MaintainStockpiles);
         }
     }
 
@@ -1108,11 +1042,11 @@ public static partial class PolicyFunctions
         c.F.Mood.Validate();
         foreach (var state in c.F.Mood.States)
         {
-            c.R.Assessments.Add(new RoundsAssessment { Id = EnsureMood, Subject = state.Pawn.Id, Priority = state.Priority(), Finding = state.Need(), MethodUnavailable = true });
+            c.R.Assessments.Add(new RoundsAssessment { Id = EnsureMood, Subject = state.Pawn.Id, Finding = state.Need(), MethodUnavailable = true });
         }
     }
 
-    /// <summary>Runs last: a disaster promotes every goal and assessment filed before it.</summary>
+    /// <summary>Runs last: the disaster review files its own assessment.</summary>
     internal static void InspectDisaster(RoundsRun c)
     {
         var f = c.F;
@@ -1127,21 +1061,7 @@ public static partial class PolicyFunctions
             {
                 need = Finding.Unmet;
             }
-            var priority = disaster is null ? 3 : disaster.Promote(RecoverDisasterServices, 3);
-            if (areaChanges.Count > 0)
-            {
-                var (trigger, _) = ShelterTriggerOf(f);
-                priority = ShelterPriority(trigger);
-            }
-            r.Assessments.Add(new RoundsAssessment { Id = RecoverDisasterServices, Priority = priority, Finding = need });
-            foreach (var concern in r.Concerns)
-            {
-                concern.Priority = disaster is null ? concern.Priority : disaster.Promote(concern.Id, concern.Priority);
-            }
-            foreach (var assessment in r.Assessments)
-            {
-                assessment.Priority = disaster is null ? assessment.Priority : disaster.Promote(assessment.Id, assessment.Priority);
-            }
+            r.Assessments.Add(new RoundsAssessment { Id = RecoverDisasterServices, Finding = need });
         }
     }
 }

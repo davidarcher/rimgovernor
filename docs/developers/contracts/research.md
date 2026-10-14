@@ -7,23 +7,16 @@ research orders.
 
 ## Target
 
-`policy.ResearchConcern` picks, in order:
+`policy.ResearchConcern` picks the first unfinished project among the recorded needs, all *derived*
+(the concern stays in deficit while the project is current):
 
-1. The project a maintained production target's workshop ladder recorded as gating its bench (a
-   *derived* need: the concern stays in deficit while the project is current).
-2. The first unfinished rung of the research ladder (`RoundsPolicy.ResearchLadder`,
-   `policy.DefaultResearchLadder`: Stonecutting, Electricity, Batteries, GeothermalPower, SolarPanels,
-   Smithing, CarpetMaking, ComplexClothing, MicroelectronicsBasics, MultiAnalyzer, Machining, Gunsmithing, ChargedShot, BeamWeapons; BeamWeapons is Odyssey's and skipped when the census does not list it).
+1. The project a maintained production target's workshop ladder recorded as gating its bench.
+2. The fishing request and ComplexFurniture, from the census.
+3. Every project a planner reported waiting on (`awaiting_plan:research:<project>`): a planner that
+   cannot proceed for want of research is the evidence that the research is owed (`Rounder.NoteResearchWait`).
 
-The ladder is reordered by `policy.ResearchPolicy`: armor rungs follow Electricity once a soldier role
-exists, and the `FoodFirst` latch (`RoundsFacts.NoSoil`, no cell with fertility in the planning window,
-and `FoodDays` under `FoodFirstRunwayDays`) moves Electricity and Hydroponics to the head, ahead of the
-stage pacing. Maps with soil are unchanged.
-
-A rung is a deficit only while the research tab is idle: any current project, the player's included,
-recovers the concern and is never replaced, and the planner lends the clock ticks until it finishes. The
-ladder is walked only under a known research census and skips rungs the installed game does not list;
-an empty ladder with no target disables the concern.
+There is no fixed roadmap: with no need recorded nothing is researched and the concern is disabled. The
+planner lends the clock ticks until the target finishes, and skips projects the installed game does not list.
 
 A concern whose only method is gated on research reports the project instead of no method:
 `EnsureBasicPower` with every generator definition unavailable and `MaintainStoneShell` with no

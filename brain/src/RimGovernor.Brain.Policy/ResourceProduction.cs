@@ -199,7 +199,7 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (ResourceSource Source, bool Found) BuriedResourceSource(IReadOnlyList<ResourceSource> sources, RemoteWorkRequest r)
     {
-        if (RemoteThreatHold(r.Safety).Length != 0 || r.Competition.UrgentPriority > 0)
+        if (RemoteThreatHold(r.Safety).Length != 0 || r.Competition.Urgent)
         {
             return (new ResourceSource(), false);
         }
@@ -258,7 +258,7 @@ public static partial class PolicyFunctions
             if (source.Method == ResourceSourceMethod.Mine)
             {
                 var reason = RemoteThreatHold(r.Safety);
-                if (reason.Length == 0 && r.Competition.UrgentPriority > 0)
+                if (reason.Length == 0 && r.Competition.Urgent)
                 {
                     reason = RemoteHoldUrgentWork;
                 }

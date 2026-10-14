@@ -9,43 +9,19 @@ public sealed record SurgeryContext
     public IReadOnlyList<PawnProfile> Profiles { get; init; } = [];
 
     public bool HospitalBed { get; init; }
-
-    /// <summary>Gates electives by each colonist's remaining personal share; the default value is ungated.</summary>
-    public ElectiveShare Elective { get; init; } = new();
 }
 
-/// <summary>
-/// Prices electives against personal shares. Of is the colonist's share
-/// (observation.ColonyProjection.PersonalShareOf); null gates nothing. Items price the installed part; a part
-/// with no price is not affordable while Of is set, as an unknown share is not.
-/// </summary>
-public sealed record ElectiveShare
+public static class RoundsFactsSurgeryExtensions
 {
-    public ItemFacts Items { get; init; } = new();
-
-    public Func<PawnId, PersonalShare>? Of { get; init; }
-
-    /// <summary>Whether the pawn's remaining share covers the elective's installed part, within ElectiveShareSlack.</summary>
-    internal bool Affordable(PawnId pawn, SurgeryOperation op)
+    /// <summary>The surgery ranking context over f: the hospital bed and the work profiles.</summary>
+    public static SurgeryContext SurgeryContextOf(this RoundsFacts f)
     {
-        if (Of is null)
+        f.WorkProfiles.TryGetValue(out var profiles);
+        return new SurgeryContext
         {
-            return true;
-        }
-        double price;
-        try
-        {
-            price = Items.MarketValue(op.Item);
-        }
-        catch (DomainException)
-        {
-            return false;
-        }
-        if (op.Item.IsEmpty)
-        {
-            return false;
-        }
-        return Of(pawn).Allows(price / (1 + PolicyFunctions.ElectiveShareSlack));
+            Profiles = profiles,
+            HospitalBed = PolicyFunctions.Positive(PolicyFunctions.HospitalBedReady(f.Sleeping)),
+        };
     }
 }
 
@@ -124,9 +100,6 @@ public static partial class PolicyFunctions
     /// <summary>The medical-operation goal. It restores missing or destroyed parts; later kinds (cure, amputation, electives) add their own candidates to SelectSurgery.</summary>
     public static readonly ConcernId MaintainSurgery = new("MaintainSurgery");
 
-    /// <summary>Keeps MaintainSurgery out of development arbitration: a queued bill is doctor work native assigns, not a reserved labor slot.</summary>
-    internal const int SurgeryPriority = 2;
-
     /// <summary>The highest native failure chance a restore or a chronic cure may carry for the best eligible doctor.</summary>
     public const double RestoreFailureCap = 0.20;
 
@@ -135,13 +108,6 @@ public static partial class PolicyFunctions
     /// need a hospital bed and no restore or cure pending colony-wide.
     /// </summary>
     public const double ElectiveFailureCap = 0.05;
-
-    /// <summary>
-    /// The stateless hysteresis of the elective gate: an elective is affordable while its part's market value is
-    /// within (1+slack) x the colonist's remaining share. Electives are only offered once the part is on the map,
-    /// so the part is already bought or fabricated and wealth jitter around the price must not strand it.
-    /// </summary>
-    public const double ElectiveShareSlack = 0.1;
 
     /// <summary>No living colonist has an operation the planner serves. A queued bill does not settle it; the health change does.</summary>
     public static Fact<bool> SurgeryRecovered(Fact<EquatableArray<CarePawn>> pawns)
@@ -235,51 +201,14 @@ public static partial class PolicyFunctions
         ["ChemicalDamageSevere"] = 1,
     };
 
-    /// <summary>A medical bed stands and no living colonist has a surgery bill queued or a served operation (restore, cure or chronic replacement) offered.</summary>
-    private static bool ElectivesAllowed(IReadOnlyList<CarePawn> rows, bool hospital)
-    {
-        if (!hospital)
-        {
-            return false;
-        }
-        foreach (var pawn in rows)
-        {
-            if (pawn.Dead.TryGetValue(out var dead) && dead)
-            {
-                continue;
-            }
-            // The stock read is a bool: one surgery bill anywhere holds electives, or a later review books the
-            // same part twice.
-            if (!pawn.QueuedSurgeries.TryGetValue(out var queued) || queued > 0)
-            {
-                return false;
-            }
-            if (!pawn.Operations.TryGetValue(out var ops))
-            {
-                return false;
-            }
-            foreach (var op in ops)
-            {
-                var (served, known) = ServedSurgery(pawn, op);
-                if (!known || served > 0)
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
     /// <summary>An install on a healthy part whose part beats a natural one (bionic, archotech); implants and lesser parts are never electives.</summary>
     private static bool ElectiveUpgrade(SurgeryOperation op) =>
         op.Kind == SurgeryKind.Install && op.Recipe.IsKnown && op.PartIndex.IsKnown && op.Tier > 1;
 
     /// <summary>
-    /// An elective upgrade could be queued now (stocked, within ElectiveFailureCap, a hospital bed, nothing
-    /// served pending, the part within the colonist's remaining share) on a living colonist without a queued
-    /// bill. It keeps MaintainSurgery open; blocked or unaffordable electives never do.
+    /// An elective upgrade could be queued now (stocked, within ElectiveFailureCap, a hospital bed) on a living colonist without a queued bill. It keeps MaintainSurgery open; a blocked elective never does.
     ///
-    /// A chosen elective whose part is missing (ChosenElective) also holds it open while a usable bench can
+    /// A chosen elective whose part is missing (ChosenElectives) also holds it open while a usable bench can
     /// fabricate the part: the part bill is the work. fabricable is FabricableParts; null fabricates nothing.
     /// </summary>
     public static Fact<bool> ElectiveSurgeryOwed(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, IReadOnlySet<Resource>? fabricable)
@@ -288,15 +217,16 @@ public static partial class PolicyFunctions
         {
             return Unknown<bool>();
         }
-        if (!ElectivesAllowed(rows, ctx.HospitalBed))
+        if (!ctx.HospitalBed)
         {
             return Known(false);
         }
-        var gate = ctx.Elective;
-        var (want, ok) = ChosenElective(pawns, ctx);
-        if (ok && FabricableItems(want.Items, fabricable).Count > 0)
+        foreach (var want in ChosenElectives(pawns, ctx))
         {
-            return Known(true);
+            if (FabricableItems(want.Items, fabricable).Count > 0)
+            {
+                return Known(true);
+            }
         }
         foreach (var pawn in rows)
         {
@@ -314,8 +244,7 @@ public static partial class PolicyFunctions
                 if (ElectiveUpgrade(op)
                     && op.IngredientsOnMap.TryGetValue(out var stocked)
                     && stocked
-                    && SurgeryAcceptable(op, ElectiveFailureCap)
-                    && gate.Affordable(pawn.Id, op))
+                    && SurgeryAcceptable(op, ElectiveFailureCap))
                 {
                     return Known(true);
                 }
@@ -372,9 +301,8 @@ public static partial class PolicyFunctions
     /// Ranks every living patient's served operations. A patient with a queued bill or an open surgery action
     /// (inFlight) gets nothing new. Each part picks its best stocked recipe (bionic, then prosthetic, then peg)
     /// that some eligible doctor performs within the kind's failure cap; the patient queues its most valuable
-    /// part, weighted by its role (UpgradeRoleWeight). When electives are allowed, healthy parts whose installed
-    /// part fits the colonist's remaining share (ctx.Elective) compete with their gain over the natural part, one
-    /// elective per review colony-wide. Served operations never pass the share gate.
+    /// part, weighted by its role (UpgradeRoleWeight). When electives are allowed, healthy parts compete with
+    /// their gain over the natural part. A patient with a served operation queues that first; two patients never queue the same part item in one review.
     /// </summary>
     public static SurgerySelection SelectSurgery(Fact<EquatableArray<CarePawn>> pawns, IReadOnlySet<PawnId>? inFlight, SurgeryContext ctx)
     {
@@ -382,7 +310,7 @@ public static partial class PolicyFunctions
         var queue = new List<SurgeryChoice>();
         pawns.TryGetValue(out var rowList);
         var rows = rowList;
-        var electives = ElectivesAllowed(rows, ctx.HospitalBed);
+        var electives = ctx.HospitalBed;
         var profiles = new Dictionary<PawnId, PawnProfile>();
         foreach (var p in ctx.Profiles)
         {
@@ -417,7 +345,7 @@ public static partial class PolicyFunctions
                 }
                 var (weight, _) = ServedSurgery(pawn, op);
                 op.PartDefName.TryGetValue(out var name);
-                if (weight <= 0 && electives && ElectiveUpgrade(op) && ctx.Elective.Affordable(pawn.Id, op))
+                if (weight <= 0 && electives && ElectiveUpgrade(op))
                 {
                     weight = PartWeight(name ?? "");
                     elective[part] = true;
@@ -441,6 +369,7 @@ public static partial class PolicyFunctions
             }
             order.Sort();
             SurgeryChoice? best = null;
+            SurgeryChoice? bestElective = null;
             foreach (var part in order)
             {
                 var isElective = elective.GetValueOrDefault(part);
@@ -452,30 +381,35 @@ public static partial class PolicyFunctions
                         wants.Add(want);
                     }
                 }
+                else if (isElective)
+                {
+                    if (bestElective is null || choice.Value > bestElective.Value)
+                    {
+                        bestElective = choice;
+                    }
+                }
                 else if (best is null || choice.Value > best.Value)
                 {
                     best = choice;
                 }
             }
+            // A served operation outranks the same patient's elective.
+            best ??= bestElective;
             if (best is not null)
             {
                 queue.Add(best);
             }
         }
         queue = [.. queue.OrderByDescending(c => c.Value).ThenBy(c => c.Pawn)];
-        // The stock read is a bool, not a count: one elective per review, to the pawn whose role gains most
-        // (ties by pawn id), so two bills never race for one part.
+        // The stock read is a bool, not a count: an item goes to the pawn whose role gains most (ties by pawn id)
+        // in a review, so two bills never race for one part.
         var kept = new List<SurgeryChoice>();
-        var seenElective = false;
+        var claimed = new HashSet<Resource>();
         foreach (var choice in queue)
         {
-            if (choice.Elective)
+            if (choice.Elective && !claimed.Add(choice.Item))
             {
-                if (seenElective)
-                {
-                    continue;
-                }
-                seenElective = true;
+                continue;
             }
             kept.Add(choice);
         }

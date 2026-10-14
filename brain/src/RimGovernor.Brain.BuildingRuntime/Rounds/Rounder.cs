@@ -64,15 +64,6 @@ public sealed partial class Rounder
     /// <summary>Set when the mood relief planner is composed: it casts mood psycasts, so the review reads the royalty facts.</summary>
     internal bool MoodCasts;
 
-    /// <summary>
-    /// The colony stage of the review the last step loaded: the stage the store holds that step's review to, so
-    /// the planners' targets (staged) agree with the review's. Foothold before any review filed one.
-    /// </summary>
-    internal ColonyStage Stage;
-
-    /// <summary>The last stage record logged; the OTLP log ring records a change once, not every review.</summary>
-    internal Fact<ColonyStageRecord> StageLogged;
-
     /// <summary>The acceptance fault that pins the food plan's gap to zero (Faults.FoodGapZero); the scheduler sets it.</summary>
     internal bool FoodGapZero;
 
@@ -159,36 +150,6 @@ public sealed partial class Rounder
     }
 
     /// <summary>
-    /// The configured policy with its goal budgets set by the colony stage (policy.StageRoundsPolicy): the
-    /// development-project limit, the research ladder's pace and the stall deadline.
-    /// </summary>
-    internal RoundsPolicy Staged() => PolicyApi.StageRoundsPolicy(Policy, Stage);
-
-    /// <summary>
-    /// Records a review's stage in the OTLP log ring and timeline once per change of stage or blocker:
-    /// `[routine] colony stage Reserves (settling: production clear 1.0 of 2.0 days)`.
-    /// </summary>
-    internal void LogColonyStage(RoundsReview review, CancellationToken ct)
-    {
-        if (review.Stage is null)
-        {
-            return;
-        }
-        var stage = review.Stage;
-        if (StageLogged.TryGetValue(out var last) && last.Stage == stage.Stage && last.Blocker == stage.Blocker && last.Held == stage.Held)
-        {
-            return;
-        }
-        StageLogged = Known(stage);
-        var message = "colony stage " + stage.Stage;
-        if (stage.Reason != "")
-        {
-            message += " (" + stage.Blocker + ": " + stage.Reason + ")";
-        }
-        ClockEvents.Event("routine", "colony_stage", message, ("stage", stage.Stage.ToString()), ("since", (long)stage.Since.Value), ("blocker", stage.Blocker.ToString()), ("reason", stage.Reason), ("held", stage.Held));
-    }
-
-    /// <summary>
     /// Records the reading's tech tier in the OTLP log ring once per change: `[layout] tech tier Masonry
     /// (Stonecutting)`. An unknown tier (no research census) is not a change.
     /// </summary>
@@ -234,7 +195,7 @@ public sealed partial class Rounder
     /// The configured policy with its food and wood targets widened by the calendar the reading carries
     /// (policy.RoundsPolicy.Seasonal): the same targets DetectRounds measures the latches against.
     /// </summary>
-    internal RoundsPolicy Seasonal(RoundsFacts facts) => Staged().Seasonal(facts.Calendar, facts.DisasterConditions);
+    internal RoundsPolicy Seasonal(RoundsFacts facts) => Policy.Seasonal(facts.Calendar, facts.DisasterConditions);
 
     /// <summary>
     /// Puts the review frame's colony facts, pawn and things tables into the colony mirror, which recordings and
@@ -348,11 +309,6 @@ public sealed partial class Rounder
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native.Value == 0");
         }
         var previous = await p.Journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-        Stage = ColonyStage.Foothold;
-        if (previous.Stage is not null)
-        {
-            Stage = previous.Stage.Stage;
-        }
         var expected = await StepScopeAsync(Native, ct).ConfigureAwait(false);
         if (expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map || !expected.NativeGeneration.TryGetValue(out var native) || native != state.Snapshot.Native)
         {
@@ -445,9 +401,9 @@ public sealed partial class Rounder
         }
         Census.RememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan);
         reading = reading.WithFacts(rf => rf with { TitleClaimQuests = [.. TitleClaimQuests(reading.Projection)] });
-        reading = reading.WithFacts(rf => rf with { BedroomsOwed = BedroomsOwedOf(reading.Projection, Stage) });
-        reading = reading.WithFacts(rf => rf with { NoSoil = PolicyApi.NoSoil(reading.Projection.Cells) });
+        reading = reading.WithFacts(rf => rf with { BedroomsOwed = BedroomsOwedOf(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { BurialOwed = BurialOwed(reading.Projection) });
+        reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = ButcherTableAffordable(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { IncinerationOwed = IncinerationOwed(reading.Projection) });
         // The herd furniture is read only when the containment method is on (readDefinitions above); a review without it owes no herd step.
         if (MethodEnabled(PolicyApi.MaintainAnimalContainment))
@@ -480,7 +436,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { ShelterCombatants = RoundsRecoveryPlanner.ShelterCombatants(p.Journal, new StoreWorld(state.Snapshot.Colony, state.Snapshot.Load, state.Snapshot.Map), ct) });
         if (MethodEnabled(PolicyApi.MaintainArt))
         {
-            reading = reading.WithFacts(rf => rf with { SculptureRoomsOwed = SculptureRoomsOwedOf(reading.Projection, Stage) });
+            reading = reading.WithFacts(rf => rf with { SculptureRoomsOwed = SculptureRoomsOwedOf(reading.Projection) });
         }
         reading = reading.WithFacts(rf => rf with { ExportProducts = [.. Exports.Products(state.Snapshot)] });
         var vSaleArt = await ReviewSaleArtAsync(Native, Boundary.Identity(state.Snapshot), reading.Projection, ct).ConfigureAwait(false);
@@ -518,7 +474,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { PlannedConstruction = PlannedConstructionOf(reading.Projection, Policy.Flooring) });
         if (Firebreak is not null)
         {
-            var vFirebreakOwed = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, Stage, FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
+            var vFirebreakOwed = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
             reading = reading.WithFacts(rf => rf with { FirebreakOwed = vFirebreakOwed });
         }
         Fact<EquatableArray<PawnId>> psylinkCandidates = default;
@@ -626,7 +582,7 @@ public sealed partial class Rounder
                 }
                 known = benchWork.TryGetValue(out var rows);
                 required = MergeWorkRequirements([.. required ?? []], rows ?? []);
-                required = MergeWorkRequirements([.. required], RoundsResearchWork(PolicyApi.ResearchPolicy(Policy, previous.Latches.Soldiers || PolicyApi.GearSoldierPresent(reading.Projection.Facts.Gear), previous.Latches.FoodFirst || PolicyApi.FoodFirstOwed(reading.Projection.Facts)), needs, reading.Projection.Facts.Research));
+                required = MergeWorkRequirements([.. required], RoundsResearchWork(needs, reading.Projection.Facts.Research));
                 required = MergeWorkRequirements([.. required], FishingWork(reading.Projection));
                 var studyKnown = StudyWork(reading.Projection, ct).TryGetValue(out var study);
                 required = MergeWorkRequirements([.. required], study);
@@ -739,11 +695,9 @@ public sealed partial class Rounder
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
-        var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count), ("emergency", RoundsEmergencyNames(result.Emergency)) };
-        attrs.AddRange(RoundsStageAttrs(result.Review.Stage));
+        var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
         ClockEvents.Event("routine", "rounds_review", "rounds ran", [.. attrs]);
-        LogColonyStage(result.Review, ct);
         LogGearSearch(result.Needs.GearBudgetPawns, ct);
         RecordRoundsSnapshot(state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection, ct);
         await DrawSafetyOverlayAsync(state.Snapshot, reading.Projection, reading.Emergency, ct).ConfigureAwait(false);
@@ -851,16 +805,6 @@ internal static partial class BuildingRuntimePackage
         return d with { Attrs = attrs };
     }
 
-    /// <summary>The review row's colony stage attrs: the stage the review derived and the first unmet condition of the next.</summary>
-    internal static List<(string Key, object? Value)> RoundsStageAttrs(ColonyStageRecord? stage)
-    {
-        if (stage is null)
-        {
-            return [];
-        }
-        return [("stage", stage.Stage.ToString()), ("stage_blocker", stage.Blocker.ToString()), ("stage_reason", stage.Reason), ("stage_held", stage.Held)];
-    }
-
     /// <summary>
     /// The review row's stored-food attrs: the food runway the review read and the seasonal thresholds it held it
     /// to, with the calendar they came from. An unknown fact leaves its attr out.
@@ -889,7 +833,6 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Renders the needs that suspended the review's goals for an event attr.</summary>
-    internal static List<string> RoundsEmergencyNames(IEnumerable<ConcernId> ids) => [.. ids.Select(id => id.Value)];
 
     /// <summary>
     /// Writes the review's colony snapshot when snapshot.DirEnv names a directory; a failed write is logged,

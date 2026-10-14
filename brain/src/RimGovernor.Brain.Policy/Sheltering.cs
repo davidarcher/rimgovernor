@@ -144,9 +144,6 @@ public static partial class PolicyFunctions
         return SortedCells(set);
     }
 
-    /// <summary>Emergency findings guide response planning and reporting.</summary>
-    public static int ShelterPriority(ShelterTrigger trigger) => trigger == ShelterTrigger.Threat ? 1 : 2;
-
     /// <summary>
     /// The active sheltering trigger: toxic fallout, a cold snap or heat wave whose outdoor temperature is
     /// outside the sleeping comfort range, or hostiles on the map (a raid or manhunter pack). Known is false

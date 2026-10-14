@@ -70,7 +70,7 @@ matrix runs through a `PlanSupply` adapter.
 
 ### Demands
 
-A `SupplyDemand` is a good (`ResourceKey`), a priority (1-100), a horizon and
+A `SupplyDemand` is a good (`ResourceKey`), a horizon and
 either a flow (`PerDay`) or a stock deficit (`Units`).
 
 - **Nutrition** is the flow `NutritionDemand` builds from the food forecast,
@@ -78,8 +78,7 @@ either a flow (`PerDay`) or a stock deficit (`Units`).
   horizon is the usable runway, or `max(usable, TargetDays)` once usable runway
   reaches `MinDays`; target coverage is `1 + max(0, TargetDays - usable) /
   TargetDays` and the target is consumption times coverage. It carries the
-  emergency flag (runway under `EmergencyDays`) and outranks every resource
-  deficit.
+  emergency flag (runway under `EmergencyDays`), which exempts it from urgent-work holds.
 - **A resource deficit** (`target - stock`) is a stock demand wanted now
   (horizon 0). A construction shortfall edge or a runway forecast gives the
   demand a deadline as its horizon.
@@ -146,7 +145,7 @@ credit (`uncredited_until_delivered`) until it delivers.
 
 Hold reasons are stable words: `no risk-adjusted <good>`, `lead exceeds
 runway`, `target covered`, `labor budget`, `no_demand`, `no_storage_headroom`,
-`competing_urgent_work` (urgent work outranks every matched demand),
+`competing_urgent_work` (urgent work stands and no matched demand is an emergency),
 `unknown: <facts>` for a candidate missing a fact and `unknown_demand_or_cost`
 when the demand itself is unknown. Explain terms are `risk_discount`,
 `<good>_per_day` (`<good>_units` for a stock demand), `work_per_day`,

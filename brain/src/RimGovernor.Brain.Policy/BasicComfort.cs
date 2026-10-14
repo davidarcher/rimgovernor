@@ -31,7 +31,7 @@ public sealed record BasicComfortReview
             return Unknown<bool>();
         }
 
-        if (Priority() == 3 && !VarietyKnown)
+        if (CoreRecovered() && !VarietyKnown)
         {
             return Unknown<bool>();
         }
@@ -46,7 +46,7 @@ public sealed record BasicComfortReview
             return Unknown<double>();
         }
 
-        if (Priority() == 3 && !VarietyKnown)
+        if (CoreRecovered() && !VarietyKnown)
         {
             return Unknown<double>();
         }
@@ -65,8 +65,8 @@ public sealed record BasicComfortReview
         return Known(value);
     }
 
-    /// <summary>Basic capacity remains foothold work; variety uses maintenance admission.</summary>
-    public int Priority() => Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered ? 3 : 2;
+    /// <summary>The dining and recreation capacity stand; only variety is left.</summary>
+    public bool CoreRecovered() => Dining == ComfortNeed.Recovered && Recreation == ComfortNeed.Recovered;
 }
 
 public static partial class PolicyFunctions

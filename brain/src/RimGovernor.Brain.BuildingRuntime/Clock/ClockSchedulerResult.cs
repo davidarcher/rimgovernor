@@ -165,8 +165,6 @@ public sealed class ClockSchedulerResult
 
     public List<string> Waiting { get; set; } = [];
 
-    public List<ProposalOutcome> Proposals { get; } = [];
-
     public List<string> MissedCutoff { get; } = [];
 
     public List<string> HeldBy { get; } = [];

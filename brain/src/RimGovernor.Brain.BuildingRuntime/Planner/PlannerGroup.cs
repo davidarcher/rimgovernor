@@ -1,24 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Planner priorities, the priority class the planner's goal usually carries in <c>DetectRounds</c>. A tight step budget is spent lowest-first.</summary>
-internal static class PlannerPriority
-{
-    /// <summary>Naming, active combat.</summary>
-    public const int Preempt = 0;
-
-    /// <summary>Critical medicine, disaster recovery.</summary>
-    public const int Critical = 1;
-
-    /// <summary>Work, food, shelter, warmth, cooking, power, storage.</summary>
-    public const int Foothold = 2;
-
-    /// <summary>Maintenance and development.</summary>
-    public const int Maintenance = 3;
-
-    /// <summary>Comfort and expansion.</summary>
-    public const int Comfort = 4;
-}
-
 /// <summary>
 /// Says whether a clock admission waits on the planner. The admission cycle joins the critical class only:
 /// authority, emergency evidence and the planners whose verdict the window decision reads. The optional class is
@@ -49,8 +30,8 @@ internal enum CriticalWait
 /// wave: once it is done, every planner fails for the same reason and the wait throws that error.
 /// </summary>
 /// <remarks>
-/// <see cref="Go"/> only queues; <see cref="Start"/> runs the queue critical class first, then priority order
-/// (stable, so queue order breaks ties) with at most <c>width</c> planners at once, taking a slot before the next
+/// <see cref="Go"/> only queues; <see cref="Start"/> runs the queue critical class first, then in queue order
+/// with at most <c>width</c> planners at once, taking a slot before the next
 /// planner starts. Native reads execute one at a time on the game's main thread, so the wave overlaps round
 /// trips, and the order slots are taken decides which goals' reads go first when the step budget is tight.
 /// <see cref="WaitCriticalAsync"/> returns once every critical planner has returned; <see cref="WaitUntilAsync"/>
@@ -61,7 +42,7 @@ internal sealed class PlannerGroup
     /// <summary>Bounds how many planners a step runs at once. It matches the bridge's in-flight call cap so admission order, not gate queueing, decides whose native reads go first.</summary>
     public static int PlannerWidth => BridgeApi.MaxConcurrentCalls;
 
-    private sealed record QueuedPlanner(string Name, PlannerClass Class, int Priority, Func<Task> Run);
+    private sealed record QueuedPlanner(string Name, PlannerClass Class, Func<Task> Run);
 
     private readonly CancellationToken _ctx;
     private readonly int _width;
@@ -87,12 +68,12 @@ internal sealed class PlannerGroup
     }
 
     /// <summary>
-    /// Queues <paramref name="fn"/> as the named planner of <paramref name="cls"/> at <paramref name="priority"/>.
+    /// Queues <paramref name="fn"/> as the named planner of <paramref name="cls"/>.
     /// Each fn wraps its planner's error with the planner's name, so a recorded failure names its source.
     /// </summary>
-    public void Go(string name, PlannerClass cls, int priority, Func<Task> fn)
+    public void Go(string name, PlannerClass cls, Func<Task> fn)
     {
-        _queued.Add(new QueuedPlanner(name, cls, priority, fn));
+        _queued.Add(new QueuedPlanner(name, cls, fn));
         _names.Add(name);
         _pending.Add(name);
         if (cls == PlannerClass.Critical)
@@ -102,7 +83,7 @@ internal sealed class PlannerGroup
     }
 
     /// <summary>
-    /// Runs the queue in the background: critical planners first, then by priority, each taking a slot before the
+    /// Runs the queue in the background: critical planners first, then in queue order, each taking a slot before the
     /// next starts. A planner queued behind a finished step context is skipped, not run.
     /// </summary>
     public void Start()
@@ -114,7 +95,6 @@ internal sealed class PlannerGroup
         _started = true;
         var ordered = _queued
             .OrderBy(p => p.Class == PlannerClass.Critical ? 0 : 1)
-            .ThenBy(p => p.Priority)
             .ToList();
         _queued = [];
         if (_criticalLeft == 0)

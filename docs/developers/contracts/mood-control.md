@@ -284,7 +284,7 @@ and the game chooses it. Game code read with ilspycmd:
 
 `policy.CommonRoomTargets` sets the impressiveness target of each dining and rec
 room (no beds) to the tech-tier baseline (`ImpressivenessLevels.Baseline`), the same
-for any colonist count. `RoomGate` still charges every upgrade step.
+for any colonist count.
 
 ### The PartySpot
 

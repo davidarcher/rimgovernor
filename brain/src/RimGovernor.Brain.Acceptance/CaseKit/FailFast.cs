@@ -8,17 +8,13 @@ namespace RimGovernor.Brain.Acceptance;
 /// reporting the same refusal text the run notes say to read first. The default value is on with the defaults below;
 /// a case where one of these shapes is an expected transient sets <see cref="Disabled"/> or raises the threshold.
 /// <para>
-/// Four shapes abort, each with the journal's own text as the failure: <b>no method</b> (the rounds handed the
+/// Three shapes abort, each with the journal's own text as the failure: <b>no method</b> (the rounds handed the
 /// watched goal a development slot and its planner committed nothing for <see cref="NoMethodReviews"/> consecutive
 /// reviews while the goal stayed open/unmet with no method); <b>unsuccessful</b> (an action of one of the goal's
 /// committed methods ended unsuccessful for any reason but interrupted or cancelled: a pawn's own needs or a
 /// cancelled order are re-planned; a native failure, an expiry, a dead target or an unachieved outcome are not);
 /// <b>refusal</b> (the service's latest scheduler step still carries the same isolated planner failure on a native
-/// refusal after <see cref="RefusalSamples"/> consecutive samples); <b>emergency park</b> (the review's development
-/// rows report an emergency holding goals back, the watched goal is suspended, and the live tick has not moved for
-/// <see cref="ParkSamples"/> consecutive samples: for example a downed colonist with no tend/rescue family to serve
-/// the emergency, the clock refusing every window as no_work, and the suspended goal waiting for a world that never
-/// moves again).
+/// refusal after <see cref="RefusalSamples"/> consecutive samples).
 /// </para>
 /// </summary>
 public sealed record FailFast
@@ -50,16 +46,8 @@ public sealed record FailFast
     /// </summary>
     public IReadOnlyList<string> RetryableUnsuccessful { get; init; } = [];
 
-    /// <summary>
-    /// How many consecutive samples the watched goal may sit suspended under an emergency with the live tick
-    /// unchanged before the watch fails (default 12: a minute at the usual 5 s poll, past the stop between windows
-    /// and a checkpoint capture). A sample without a live tick does not count.
-    /// </summary>
-    public int ParkSamples { get; init; }
-
     internal const int DefaultNoMethodReviews = 5;
     internal const int DefaultRefusalSamples = 6;
-    internal const int DefaultParkSamples = 12;
 }
 
 /// <summary>
@@ -117,16 +105,12 @@ internal sealed class FailFastState
     private readonly string _logPath;
     private readonly int _noMethodReviews;
     private readonly int _refusalSamples;
-    private readonly int _parkSamples;
 
     private ulong _lastRevision;
     private readonly List<ulong> _idleReviews = [];
 
     private string _lastStepLine = "";
     private int _stepSamples;
-
-    private ulong _parkTick;
-    private int _parkCount;
 
     internal FailFastState(FailFast cfg, string goal, string logPath)
     {
@@ -135,7 +119,6 @@ internal sealed class FailFastState
         _logPath = logPath;
         _noMethodReviews = cfg.NoMethodReviews > 0 ? cfg.NoMethodReviews : FailFast.DefaultNoMethodReviews;
         _refusalSamples = cfg.RefusalSamples > 0 ? cfg.RefusalSamples : FailFast.DefaultRefusalSamples;
-        _parkSamples = cfg.ParkSamples > 0 ? cfg.ParkSamples : FailFast.DefaultParkSamples;
     }
 
     /// <summary>Folds one sample (a standard sample without an error) and the service's latest scheduler step.</summary>
@@ -154,11 +137,6 @@ internal sealed class FailFastState
         if (NoMethod(sample) is { } noMethod)
         {
             return noMethod;
-        }
-
-        if (EmergencyPark(sample) is { } park)
-        {
-            return park;
         }
 
         if (_logPath.Length > 0 && StepEvents.LastSchedulerStepFile(_logPath) is { } step)
@@ -258,43 +236,5 @@ internal sealed class FailFastState
             "refusal",
             string.Create(CultureInfo.InvariantCulture, $"the latest scheduler step has repeated the same native refusal for {_stepSamples} samples: {step.PlannerFailures}"),
             JsonValue.Create(step.Line));
-    }
-
-    // Counts consecutive samples in which the Safeguards veto the watched goal, the review names emergency needs
-    // (sample["emergency"]), and the live tick is where the previous sample left it. Any of the three changing resets
-    // the count: a moving tick means something is serving the emergency, and a goal no longer vetoed or a review with
-    // no emergency means it was served.
-    private FailFastVerdict? EmergencyPark(JsonObject sample)
-    {
-        var tickValue = SampleJson.Tick(sample["tick"]);
-        var emergency = SampleJson.Strings(sample["emergency"]);
-        var vetoed = sample["vetoed"].AsBool() == true;
-        var tick = tickValue ?? 0;
-        if (tickValue is null || !vetoed || emergency.Count == 0 || tick != _parkTick)
-        {
-            _parkTick = tick;
-            _parkCount = 0;
-            if (tickValue is null || !vetoed || emergency.Count == 0)
-            {
-                return null;
-            }
-        }
-
-        _parkCount++;
-        if (_parkCount < _parkSamples)
-        {
-            return null;
-        }
-
-        return new FailFastVerdict(
-            "emergency_park",
-            string.Create(CultureInfo.InvariantCulture, $"standard {_concern} stayed vetoed while emergency [{string.Join(' ', emergency)}] with the live tick parked at {tick} for {_parkCount} samples: nothing serves the emergency and the clock admits no work"),
-            new JsonObject
-            {
-                ["tick"] = tick,
-                ["emergency"] = sample["emergency"]?.DeepClone(),
-                ["review_revision"] = sample["review_revision"]?.DeepClone(),
-                ["development"] = sample["development"]?.DeepClone(),
-            });
     }
 }

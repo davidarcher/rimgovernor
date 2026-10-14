@@ -47,8 +47,31 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class Rounder
 {
-    /// <summary>Adds the research the latest census asks for: the fishing request and, once everyone has a bedroom, ComplexFurniture.</summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _researchWanted = new(StringComparer.Ordinal);
+
+    /// <summary>Records the projects a planner's research wait names: a planner that cannot proceed for want of research is the evidence that the research is owed.</summary>
+    internal void NoteResearchWait(Verdict v)
+    {
+        if (v.Outcome != Outcome.Refused || v.Refusal.Kind != Cause.AwaitingPlan || v.Refusal.Subject != "research")
+        {
+            return;
+        }
+        foreach (var project in v.Refusal.Detail.Split('+', StringSplitOptions.RemoveEmptyEntries))
+        {
+            _researchWanted[project] = 0;
+        }
+    }
+
+    /// <summary>Adds the research planners reported waiting on to what the census asks for.</summary>
     internal IReadOnlyList<string> CensusResearchNeeds(IReadOnlyList<string> needs)
+    {
+        var census = CensusResearchNeedsCore(needs);
+        var wanted = _researchWanted.Keys.Where(k => !census.Contains(k)).OrderBy(k => k, StringComparer.Ordinal).ToList();
+        return wanted.Count == 0 ? census : [.. census, .. wanted];
+    }
+
+    /// <summary>Adds the research the latest census asks for: the fishing request and, once everyone has a bedroom, ComplexFurniture.</summary>
+    private IReadOnlyList<string> CensusResearchNeedsCore(IReadOnlyList<string> needs)
     {
         lock (Census.Mu)
         {

@@ -204,5 +204,5 @@ public static partial class PolicyFunctions
     /// <summary>Go <c>GatheringOwed</c>: measures HoldGatherings: known false when no party is due now, unknown while its inputs are.</summary>
     public static Fact<bool> GatheringOwed(Fact<GatheringPlan> plan) => plan.TryGetValue(out var p) ? Known(!p.Organizer.IsEmpty) : Unknown<bool>();
 
-    internal static void InspectGathering(RoundsRun c) => c.Owed(HoldGatherings, 3, c.F.GatheringOwed);
+    internal static void InspectGathering(RoundsRun c) => c.Owed(HoldGatherings, c.F.GatheringOwed);
 }

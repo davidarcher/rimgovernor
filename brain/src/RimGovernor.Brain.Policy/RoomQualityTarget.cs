@@ -124,8 +124,7 @@ public static partial class PolicyFunctions
     /// TraitEffects; a missing entry reads as no relevant trait.
     /// <para>
     /// Min is the ceiling the room climbs to, not a spend it demands: the in-place upgrade planners place one
-    /// piece at a time while the room is below it, and RoomGate refuses a step the owners' remaining personal
-    /// share does not pay for (a necessity, Baseline(Camp) = 0, is never charged).
+    /// piece at a time while the room is below it.
     /// </para>
     /// <para>
     /// Per owner, the floor is the max of: the tier baseline (ImpressivenessLevels.Baseline), unless the owner

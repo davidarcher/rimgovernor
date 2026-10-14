@@ -12,7 +12,6 @@ public static partial class PolicyFunctions
     /// </summary>
     public static UpkeepNeed ReviewFireSafety(Fact<EquatableArray<UpkeepFire>> fires, bool previous, bool issued)
     {
-        var priority = 1;
         var active = previous || issued;
         var unsafeFire = false;
         var targets = Unknown<EquatableArray<string>>();
@@ -48,11 +47,7 @@ public static partial class PolicyFunctions
                 metric = Known(total);
             }
         }
-        else if (!active)
-        {
-            priority = 4;
-        }
-        return new UpkeepNeed { Concern = MaintainFireSafety, Priority = priority, Active = active, Unsafe = unsafeFire, Targets = targets, Metric = metric };
+        return new UpkeepNeed { Concern = MaintainFireSafety, Active = active, Unsafe = unsafeFire, Targets = targets, Metric = metric };
     }
 
     /// <summary>The immediate (safety-scope) review. Throws DomainException on invalid facts.</summary>
@@ -86,14 +81,11 @@ public static partial class PolicyFunctions
                 // Area protection has a fresh native input; service restoration does not. Absence of an
                 // area change never clears an ongoing recovery.
                 var finding = Finding.Unclear;
-                var priority = 3;
                 if (PlanSheltering(f).Count > 0)
                 {
                     finding = Finding.Unmet;
-                    var (trigger, _) = ShelterTriggerOf(f);
-                    priority = ShelterPriority(trigger);
                 }
-                c.R.Assessments.Add(new RoundsAssessment { Id = d.Concern, Priority = priority, Finding = finding });
+                c.R.Assessments.Add(new RoundsAssessment { Id = d.Concern, Finding = finding });
             }
             else
             {
@@ -118,14 +110,14 @@ public static partial class PolicyFunctions
             }
             foreach (var n in c.R.Concerns)
             {
-                if (n.Priority >= 3 && !available.Contains(n.Id))
+                if (!available.Contains(n.Id))
                 {
                     n.MethodUnavailable = true;
                 }
             }
             foreach (var n in c.R.Assessments)
             {
-                if (n.Id == MaintainFireSafety && n.Priority < 2 && !available.Contains(n.Id))
+                if (n.Id == MaintainFireSafety && !available.Contains(n.Id))
                 {
                     n.MethodUnavailable = true;
                 }

@@ -21,7 +21,7 @@ public sealed partial class Rounder
             Child = PolicyFunctions.ChildRoomShapes(BuildingRuntimePackage.ChildRoomNeeds(projection), BuildingRuntimePackage.FurnitureDefinitions(projection)),
             Crops = FieldCrops.Of(projection),
             FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays,
-            Suites = BuildingRuntimePackage.SuiteWishesOf(projection, plan, Stage) is { } wishes ? [.. wishes] : [],
+            Suites = BuildingRuntimePackage.SuiteWishesOf(projection, plan) is { } wishes ? [.. wishes] : [],
         };
         var inputs = new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]);
         if (inputs.Same(StationInputs))

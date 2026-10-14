@@ -82,12 +82,12 @@ public sealed class RoundsResearchPlanner
 
     private async Task<RoundsResearchResult> StepRecordedAsync(StepArbiter arbiter, Player p, ControlState state, Sto.Rounds review, CancellationToken call, CancellationToken epoch)
     {
-        var staged = reviewer.Staged();
+        var staged = reviewer.Policy;
         var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
         var needs = BuildingRuntimePackage.RoundsResearchNeeds(p.Journal, staged, items, state.Snapshot, call);
         needs = reviewer.CensusResearchNeeds(needs);
         needs = PolicyFunctions.DeepDrillingResearch(needs, review.ResourceRunwayState(), items);
-        if (needs.Count == 0 && staged.ResearchLadder.Count == 0)
+        if (needs.Count == 0)
         {
             return new RoundsResearchResult { Verdict = BuildingRuntimePackage.BuildingReasonDisabled };
         }
@@ -121,7 +121,7 @@ public sealed class RoundsResearchPlanner
             throw new ControlException("step: research read older than the review");
         }
 
-        var inputs = new ResearchCall(PolicyFunctions.ResearchPolicy(staged, review.Latches.Soldiers, review.Latches.FoodFirst), needs, read);
+        var inputs = new ResearchCall(staged, needs, read);
         if (deficit && goal is not null)
         {
             SnapshotPackage.NoteResearch(inputs);
@@ -284,7 +284,7 @@ public sealed class RoundsResearchPlanner
             Finished = [.. finished],
             Projects = [.. read.Projects.Keys.Select(name => new ResearchProjectId(name))],
         };
-        var (target, _) = PolicyFunctions.ResearchConcern(input.Policy, input.Needs, Known(facts));
+        var (target, _) = PolicyFunctions.ResearchConcern(input.Needs, Known(facts));
         if (target == "")
         {
             return ("", BuildingRuntimePackage.BuildingReasonNoDeficit);

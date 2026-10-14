@@ -28,13 +28,9 @@ clock still advances under the standing deficit.
 
 ## the brain planning
 
-`CriticalMedicine` is a priority-1 emergency only
-while a critical patient is bleeding or downed with a tend outstanding, or that
-count is unknown (`policy.UrgentPatients`). A living colonist who merely needs
-tending (chronic conditions included), or who is downed with nothing to tend
-(malnutrition, exhaustion, a tended wound), keeps the concern active at priority 2:
-the same tend and rescue methods serve them while the colony's other work and its
-clock go on.
+`CriticalMedicine` is active while a critical patient needs tending or rescue or that
+count is unknown. The same tend and rescue methods serve every patient; the
+concern carries no priority.
 
 The executor's emergency gate (`policy.EvaluateEmergency`) holds dispatch as
 `critical_medical` on the same terms: a bleeding or downed-untended colonist, or an
@@ -45,7 +41,7 @@ downed so the native watcher lets rescue and recovery take ticks.
 
 ## Maintained care
 
-`MaintainMedicalReserves` (care phase, priority 2) retains native visible condition
+`MaintainMedicalReserves` (care phase) retains native visible condition
 identities, severity, immunity, retend timing, care policy and medical-rest state.
 It enables ordinary Patient and PatientBedRest work when available and not
 disabled; native jobs choose beds. Missing observations, unavailable work or player
@@ -115,7 +111,7 @@ operation bill; see the `surgery` row of [action contracts](action-contracts.md)
 The native setup used by medical acceptance is excluded from production builds and
 from the model execution surface.
 
-### MaintainSurgery (priority 2)
+### MaintainSurgery
 
 Restores missing or destroyed parts. Per part it takes the best recipe whose
 ingredients are on the map (bionic, then prosthetic, then peg) that some eligible
@@ -159,49 +155,30 @@ loses 70 goodwill (850); a colony of seven does not. The harvest queues a medica
 `ProductionBillIntent` with `acknowledge_violation`.
 
 **Electives** are bionic or archotech installs on a healthy part. They need a
-medical bed, no served operation (restore, cure, chronic replacement) or queued bill
-anywhere, a stocked part and a failure chance within 5% (`ElectiveFailureCap`). The
-part's market value (`ItemFacts.MarketValue(op.Item)`) must also fit the colonist's
-remaining personal share (`SurgeryContext.Elective`, read through
-`observation.ColonyProjection.PersonalShareOf`, see
-[upkeep contracts](upkeep-contracts.md#personal-wealth-shares)): an
-unknown share or unpriced part is necessities only, so no elective. The gate carries
-`ElectiveShareSlack` (10%) of stateless hysteresis, since the part is already on the
-map and wealth jitter near its price must not strand it. Affordable electives from
-every colonist compete by gain over the natural part x part weight x role weight;
-exactly one is queued colony-wide, ties by pawn id. `ElectiveSurgeryOwed` applies the
-same gate, so an unaffordable elective never holds MaintainSurgery open. Served
-operations never pass the share gate; the zero `ElectiveShare` is ungated, which the
-other `SelectSurgery` callers rely on.
+medical bed, a stocked part and a failure chance within 5% (`ElectiveFailureCap`). No
+wealth budget and no colony-wide one-at-a-time rule limits them: the doctor's ability,
+the stocked part and the patient's own state do. A patient with a served operation
+(restore, cure, chronic replacement) or a queued bill gets no elective. Each patient's
+best elective ranks by gain over the natural part x part weight x role weight; ties go to
+the lower pawn id, and a part item goes to one patient per review. The stock read is a
+bool, so two bills queued in different reviews can still race for one part.
 
-**Elective part demand.** `policy.ChosenElective(pawns, ctx)` is the one elective
-colony-wide whose part is missing: the best affordable elective (same gate, slack and
-ranking as `SelectSurgery`, over stocked and missing parts alike) that a doctor
-performs within `ElectiveFailureCap`. It is none while electives are not allowed (a
-served operation anywhere wins) or once any option of the chosen part is on the map,
-when `SelectSurgery` queues it. `ElectiveParts` turns it into a `SurgeryPart` of the
-items some usable bench fabricates, appended after the served parts, so the existing
-`SurgeryPartBill` (fabricate-first, `FabricableParts`) builds it; a part nothing
+**Elective part demand.** `policy.ChosenElectives(pawns, ctx)` is each patient's best
+elective whose part is missing (same ranking as `SelectSurgery`, over stocked and missing
+parts alike) that a doctor performs within `ElectiveFailureCap`, with a part item wanted
+by one patient at most. A patient whose best part has an option on the map wants nothing
+here: `SelectSurgery` queues it. `ElectiveParts` turns the wants into `SurgeryPart`s of
+the items some usable bench fabricates, appended after the served parts, so the existing
+`SurgeryPartBill` (fabricate-first, `FabricableParts`) builds them; a part nothing
 fabricates yields no demand there. `ElectiveSurgeryOwed` holds MaintainSurgery open
 for a chosen elective only while it is fabricable. Demand clears when the part is
-stocked, installed, queued or no longer affordable. The trade side
+stocked, installed or queued. The trade side
 (`RoundsTrade.cs`) sees served parts only.
 
-**Elective part purchase.** When no item of the chosen elective can be fabricated and
-no served part purchase is pending, `policy.SurgeryPurchaseParts` adds its part to the
-trade part demand. `surgeryPartTargets` buys one unit (MaxBuy 1) with no unit price ceiling, under
-the trade-wide silver reserve. The share gate lives in
-`ChosenElective`, so an unaffordable elective demands nothing and the concern recovers.
-
-Acceptance: `medical/surgery-elective-rich` and `medical/surgery-elective-poor` share a
-hospital, three Medicine 20 doctors, a third colonist missing a leg with a prosthetic
-stocked (the one served operation) and a stocked BionicEye and BionicArm
-(`test/medical_management_setup` `condition=elective`, `wealth=rich|poor`: 6000 gold,
-or every loose item but wood, medicine, those parts and eight meals destroyed). Both
-assert served first (no elective intent before the leg's bill, the leg installed by
-the end). Rich asserts exactly one elective intent at first sight, no colonist with
-two queued elective bills, and a bionic installed after one served window. Poor
-asserts no elective is ever queued or installed and MaintainSurgery recovers.
+**Elective part purchase.** For each chosen elective no item of which can be fabricated,
+`policy.SurgeryPurchaseParts` adds its part to the trade part demand beside the served
+parts. `surgeryPartTargets` buys one unit (MaxBuy 1) with no unit price ceiling, under
+the trade-wide silver reserve.
 
 **Peg-leg cycling** takes the same one-surgery slot after harvest and part recovery.
 It installs and removes cheap wood parts (peg leg, wooden hand, wooden foot) on colony

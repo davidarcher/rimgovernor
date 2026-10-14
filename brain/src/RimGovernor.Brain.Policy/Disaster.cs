@@ -194,39 +194,6 @@ public sealed record DisasterHistory
             throw new DomainException("disaster phase contradicts evidence");
         }
     }
-
-    /// <summary>The priority a concern takes while an unmet disaster service names it as its goal.</summary>
-    public int Promote(ConcernId id, int priority)
-    {
-        if (Phase != DisasterPhase.Disrupted && Phase != DisasterPhase.Recovering)
-        {
-            return priority;
-        }
-        foreach (var e in Services)
-        {
-            if (e.Finding != Finding.Unmet)
-            {
-                continue;
-            }
-            var goal = e.Service switch
-            {
-                DisasterService.Food => PolicyFunctions.EnsureFoodSupply,
-                DisasterService.Production => PolicyFunctions.EnsureFoodSupply,
-                DisasterService.Sleeping => PolicyFunctions.MaintainHousing,
-                DisasterService.Shelter => PolicyFunctions.MaintainHousing,
-                DisasterService.Temperature => PolicyFunctions.EnsureTemperatureSafety,
-                DisasterService.Cooking => PolicyFunctions.EnsureCooking,
-                DisasterService.Power => PolicyFunctions.EnsureBasicPower,
-                DisasterService.Storage => PolicyFunctions.MaintainFoodStorage,
-                _ => PolicyFunctions.RecoverDisasterServices,
-            };
-            if (goal == id || (id == PolicyFunctions.MaintainResource && (e.Service == DisasterService.Temperature || e.Service == DisasterService.Cooking)))
-            {
-                return Math.Min(priority, 2);
-            }
-        }
-        return priority;
-    }
 }
 
 public static partial class PolicyFunctions

@@ -347,8 +347,6 @@ public static partial class ObservationPackage
             throw new ObservationStaleException();
         }
         cancellationToken.ThrowIfCancellationRequested();
-        p = PersonalShares(p, frame, catalog, pawns);
-        p = StampGearShares(p);
         p = StampGearCreepjoinersOn(p, pawns, RequireCatalog(catalog).CreepJoinerDownsides());
         p = p with { Facts = StampQuestGuestProtection(p.Facts) };
         p = p with { Facts = StampQuestRefugees(p.Facts) };

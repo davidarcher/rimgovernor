@@ -66,41 +66,10 @@ food concern walks acquire, cook, store, grow, naming `prerequisite:EnsureCookin
 cooking is known missing. Prerequisites remain explicit dependencies; pawn work priorities schedule the
 orders without reserving a builder for a Concern.
 
-**Colony stage** (`policy.ColonyStage`: Foothold, Reserves, Stable, Development) is a
-pure function of colony facts and progress records (`ReviewColonyStage`), never of
-research. Exit criteria via `StageColonyFacts`:
-
-| Stage | Exits when |
-| --- | --- |
-| Foothold | Roofed sleeping for every colonist, an active meal bill, an owned food stockpile (a standing meals, raw food, perishables or ingredients zone the store claimed; a player-flagged food zone does not count, and unread claims are unknown, not missing), runway at `FootholdFoodDays`, two armed fighters. |
-| Reserves | Runway at `FoodTargetDays`, growing field sown, research bench built, no production concern blocked. |
-| Stable | Power online, season's climate answered, production concerns unblocked for `StableTicks` (two days), Stable held `DevelopmentTicks` (three days), runway at twice target. |
-
-Exits are laxer than entries (`ColonyStagePolicy`: stages above Foothold drop only under
-two thirds of `FootholdFoodDays`, Development only under the target, Stable only after a
-production concern stays blocked `StableExitTicks`). The stage climbs one step per review,
-drops cascade, and unknown facts neither advance nor drop it.
-
-Inspection-specific stage and prerequisite checks determine useful work.
-There is no stage-based worker allocation or generic development admission queue.
-
-The record (`ColonyStageRecord`: stage, since, first unmet criterion as blocker+reason,
-held) lives on `Rounds.Stage` and sets the next review's budgets
-(`policy.StageRoundsPolicy`): the research ladder walks 2/5/8/all rungs at
-Foothold/Reserves/Stable/Development; food reserve and wood targets scale 1.5x at
-Stable and 2x at Development. A Foothold colony with shelter unmet promotes shelter
-planning into the critical planner wave. Every planner runs; none is held by name. While the
-initial shelter is owed (the housing latch at `shelter`) the shelter owns the Construction
-labor, and method admission (`AdmitConstructionLabor`, over `PolicyFunctions.ConstructionLaborHeld`)
-refuses a plan holding an action that draws on it (`DrawsConstructionLabor`: building, roofing,
-deconstruction and floor, foundation and wall removal, moving or uninstalling a building, cover
-clearance) with `awaiting_plan:construction_labor`. The housing goal, a concern the review calls an
-emergency and work of priority 0 or 1 are exempt, and so is a plan of other kinds: gathering,
-growing, zoning, bills and settings never wait, so the supply the shelter's own demand asks for
-(`ConstructionDemand`, the `DependencyRecord`) is not held behind it (#3147). The stockpiles
-planner zones the start kit's storage but raises no storage shell or shelf while the shelter is
-owed. A later goal that needs the builders joins the rule through the same admission, not through
-a per-planner hold. The defense layout's killbox digs (#2818)
+Inspection-specific prerequisite checks determine useful work.
+There is no stage and no generic development admission queue. Every planner runs; none is held by name. Construction labor is not
+reserved for the initial shelter: the shelter's own demand (`ConstructionDemand`, the
+`DependencyRecord`) and vanilla work priorities decide who builds what. The defense layout's killbox digs (#2818)
 also wait on a raid: no `ActiveCombat` incident in the journal files `awaiting_plan:raid`, and
 the first raid releases them. An item on a ring cell is never an obstruction (the
 builder hauls it aside when the wall goes over it), so a ring cell waits on no haul. The
@@ -110,10 +79,7 @@ wave is open (disjoint cells; `store.shelterOpenWorkExempt`). A ring is not
 placed in a stuff with no accessible stock while the start kit is still forbidden
 (`awaiting_plan:start_kit`); the supplies planner releases the kit like any safe forbidden
 stack (one plan allows every pending stack), with or without storage, so the
-wait is short. The stage
-adds no action kind; the `rounds_review` timeline event carries
-`stage`/`stage_blocker`/`stage_reason`/`stage_held` and `colony_stage` records each
-change. The `clock_step` row carries
+wait is short. The `clock_step` row carries
 the pacing reason, effective TPS and last clock-stop latency split (shown by the Observe tab's Now view (the `clock_step` rows)).
 
 ## Method compilation and work allocation
@@ -188,9 +154,8 @@ conditions distinguish `disrupted` from `temporary_survival`; expiry leaves
 `recovering` until every tracked service gate passes. Missing observations stay
 `unknown`; a load change or tick rewind discards the episode. Food, production,
 shelter, sleeping, temperature, cooking, power and storage use the existing gates;
-affected services and needed wood acquisition are promoted to survival priority without
-superseding combat or medical emergencies. This is coordination within existing concerns,
-not an executor.
+affected services and needed wood acquisition stay unmet until their gate passes.
+This is coordination within existing concerns, not an executor.
 
 - Unusable cooking bench: one campfire method when none exists; no new bills on it.
   Replacement cooking searches at most eight nearby free cells with native previews.
@@ -527,8 +492,9 @@ The native threat section supplies wealth split, storyteller wealth, current rai
 points, adaptation and difficulty scale; absent or invalid readings are unknown. They are
 storyteller inputs, not a raid prediction.
 
-- Turret budget from observed raid points: unknown or below 300 allows two, below 800
-  four, else six. Power, stock, spacing and lines of fire still gate placement; armed
+- Turret budget from the observed raid shortfall (raid points minus defense capacity): the turrets
+  standing plus the shortfall over the points a standing powered turret adds; one is built when none stands
+  to measure. Power, stock, spacing and lines of fire still gate placement; armed
   colonists size the firing line, never wealth.
 - Over the configured item-wealth share, routine trade offers excess Steel, Plasteel,
   Gold, Uranium and Jade, retaining the greatest of target, economic floor and
@@ -688,7 +654,7 @@ resource planner's log:
 | Reason | Meaning |
 | --- | --- |
 | `threat_present` | Known hostile on the map (reported ahead of the route verdict it causes). |
-| `urgent_competing_work` | Urgent patient or disrupting disaster (`policy.UrgentWorkCompeting`); outranks every demand priority in `PlanSupply`. |
+| `urgent_competing_work` | Urgent patient or disrupting disaster (`policy.UrgentWorkCompeting`); holds `PlanSupply` candidates unless a demand they serve is an emergency. |
 | `roof_support_risk` | The deposit is not open surface, or a recovery removal the mirror roof check still refuses after the thin roofs are down (thick roof, unknown cell). A ruin whose removal merely drops a thin roof is not held: `PlanRecoveryBatch` removes the roofs first, then the ruin; native's per-building roof verdict no longer holds it in the queue and native re-checks at admission. |
 | `route_unsafe` | Native walked no safe route to the target and back to storage. |
 | `missing_storage` | No accepting headroom. |

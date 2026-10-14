@@ -320,17 +320,17 @@ internal static partial class StoreSchema
         CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, started_tick INTEGER NOT NULL, ended_tick INTEGER, payload TEXT NOT NULL) STRICT;
         CREATE UNIQUE INDEX open_incidents ON incidents(colony,load_token,map_id,kind,subject) WHERE ended_tick IS NULL;
         CREATE TABLE plan_owner(plan_id TEXT PRIMARY KEY REFERENCES plans(id), kind TEXT NOT NULL CHECK(kind IN ('standard','incident')), UNIQUE(plan_id,kind)) STRICT;
-        CREATE TABLE standard_methods(standard_id TEXT NOT NULL REFERENCES standards(id), episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'standard' CHECK(kind='standard'), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(standard_id,episode,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
-        CREATE TABLE incident_methods(incident_id TEXT NOT NULL REFERENCES incidents(id), method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'incident' CHECK(kind='incident'), priority INTEGER NOT NULL, reason TEXT, PRIMARY KEY(incident_id,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
-        CREATE VIEW plan_methods AS SELECT plan_id,kind,standard_id AS owner_id,episode,method_id,priority,reason FROM standard_methods UNION ALL SELECT plan_id,kind,incident_id,NULL,method_id,priority,reason FROM incident_methods;
+        CREATE TABLE standard_methods(standard_id TEXT NOT NULL REFERENCES standards(id), episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'standard' CHECK(kind='standard'), reason TEXT, PRIMARY KEY(standard_id,episode,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
+        CREATE TABLE incident_methods(incident_id TEXT NOT NULL REFERENCES incidents(id), method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'incident' CHECK(kind='incident'), reason TEXT, PRIMARY KEY(incident_id,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
+        CREATE VIEW plan_methods AS SELECT plan_id,kind,standard_id AS owner_id,episode,method_id,reason FROM standard_methods UNION ALL SELECT plan_id,kind,incident_id,NULL,method_id,reason FROM incident_methods;
         """,
         [
             "SELECT id,revision,payload,retired FROM standards LIMIT 0",
             "SELECT id,colony,load_token,map_id,kind,subject,started_tick,ended_tick,payload FROM incidents LIMIT 0",
             "SELECT plan_id,kind FROM plan_owner LIMIT 0",
-            "SELECT standard_id,episode,method_id,plan_id,kind,priority,reason FROM standard_methods LIMIT 0",
-            "SELECT incident_id,method_id,plan_id,kind,priority,reason FROM incident_methods LIMIT 0",
-            "SELECT plan_id,kind,owner_id,episode,method_id,priority,reason FROM plan_methods LIMIT 0",
+            "SELECT standard_id,episode,method_id,plan_id,kind,reason FROM standard_methods LIMIT 0",
+            "SELECT incident_id,method_id,plan_id,kind,reason FROM incident_methods LIMIT 0",
+            "SELECT plan_id,kind,owner_id,episode,method_id,reason FROM plan_methods LIMIT 0",
         ]
     );
 }

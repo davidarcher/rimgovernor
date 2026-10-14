@@ -27,21 +27,11 @@ public static partial class PolicyFunctions
     internal const int MortarBehindMin = 4;
     internal const int MortarBehindMax = 10;
 
-    /// <summary>The raid-point reading at which a second mortar is budgeted; the first comes with the turret budget's top band.</summary>
-    internal const double MortarHighPoints = ArmoryFabricationPoints;
-
     /// <summary>
-    /// The number of mortars the observed raid points demand: none while they are unknown or below
-    /// TurretHighPoints, then one, plus one more for every MortarHighPoints-TurretHighPoints above that.
+    /// One mortar while the raid shortfall stands and a turret line exists to place it behind; none otherwise.
     /// </summary>
-    public static int MortarBudget(Fact<double> raidPoints)
-    {
-        if (!raidPoints.TryGetValue(out var points) || double.IsNaN(points) || double.IsInfinity(points) || points < TurretHighPoints)
-        {
-            return 0;
-        }
-        return 1 + (int)((points - TurretHighPoints) / (MortarHighPoints - TurretHighPoints));
-    }
+    public static int MortarBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
+        TurretsOwed(raidPoints, capacity, turrets) > 0 && TurretsStanding(turrets) > 0 ? 1 : 0;
 
     /// <summary>Reports whether the observed gates (available definition, budget, stock for one mortar) allow at least one mortar before any site is read.</summary>
     public static bool MortarGatesOpen(this DefenseRequest r) => MortarGate(r, 1) > 0;

@@ -109,7 +109,7 @@ public sealed class RoundsWorkPlanner
         required = MergeWorkRequirements([.. required], benchRows);
         var needs = RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Projection.Facts.Items, state.Snapshot, call);
         needs = _reviewer.CensusResearchNeeds(needs);
-        required = MergeWorkRequirements([.. required], RoundsResearchWork(PolicyApi.ResearchPolicy(_reviewer.Policy, review.Latches.Soldiers, review.Latches.FoodFirst), needs, read.Projection.Facts.Research));
+        required = MergeWorkRequirements([.. required], RoundsResearchWork(needs, read.Projection.Facts.Research));
         required = MergeWorkRequirements([.. required], FishingWork(read.Projection));
         if (!StudyWork(read.Projection, call).TryGetValue(out var study))
         {

@@ -76,7 +76,6 @@ internal sealed record ProgressDto(
 // routines
 
 internal sealed record RoundsStatusDto(
-    IReadOnlyList<string> Emergency,
     ExtentEligibilityDto ExtentEligibility,
     RoundsExtentDto Extent,
     IReadOnlyList<ResourceRunwayDto> ResourceRunways,
@@ -85,7 +84,6 @@ internal sealed record RoundsStatusDto(
     IReadOnlyList<string> ActiveFamilies,
     long? LastReviewTick,
     IReadOnlyList<ConcernProgressDto> Progress,
-    ColonyStageDto? Stage,
     RoundsRosterDto? Roster,
     IReadOnlyList<RoundsSectionDto> Sections,
     IReadOnlyList<NoOpDto> NoOps,
@@ -122,8 +120,6 @@ internal sealed record ResourceRunwayDto(
 internal sealed record NoOpDto(string Concern, string Reason);
 
 internal sealed record LootHoldDto(string Thing, string Definition, int X, int Z, string Reason);
-
-internal sealed record ColonyStageDto(string Stage, long Since, string Blocker, string Reason, bool Held);
 
 internal sealed record ConcernProgressDto(
     string Concern,
@@ -222,10 +218,7 @@ internal sealed record ColonyStatusPawnDto(
     string Label,
     bool? Downed,
     double? Mood,
-    double? Food,
-    double? Share,
-    double? Spent,
-    double? Remaining);
+    double? Food);
 
 internal sealed record MoodLedgerDto(
     IReadOnlyList<MoodSourceDto> Sources,

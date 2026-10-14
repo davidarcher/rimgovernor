@@ -63,9 +63,6 @@ public static partial class PolicyFunctions
     /// </summary>
     public static readonly ConcernId MaintainArt = new("MaintainArt");
 
-    /// <summary>Ranks MaintainArt with the other upkeep projects.</summary>
-    internal const int ArtPriority = 3;
-
     /// <summary>MaintainArt's bill purpose: one small sculpture pinned to the artist named in ProductionBillContext.Artists.</summary>
     public static readonly BillPurpose ArtBill = new("art");
 

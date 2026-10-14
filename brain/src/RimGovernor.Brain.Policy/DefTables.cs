@@ -68,7 +68,6 @@ public static partial class PolicyFunctions
         DefTable.Of("herdTrainables", "RimWorld.TrainableDef", SortedKeys(HerdTrainables)),
         DefTable.Of("threatKinds", "Verse.PawnKindDef", SortedKeys(ThreatKinds)),
         DefTable.Of("threatWeapons", "Verse.ThingDef", SortedKeys(ThreatWeapons)),
-        DefTable.Of("ArmorResearchRungs", "Verse.ResearchProjectDef", ArmorResearchRungs),
         DefTable.Of("gearValuables", "Verse.ThingDef", ResourceKeys(GearValuableDefs)),
         DefTable.Of("traitStatWeights", "RimWorld.StatDef", SortedKeys(TraitStatWeights)),
         DefTable.Of("sociableTraits", "RimWorld.TraitDef", SortedKeys(SociableTraits)),

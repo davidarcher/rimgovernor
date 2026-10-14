@@ -50,7 +50,6 @@ public sealed class StandardConverter : ObjectCodec<Standard>
         {
             Id = e.Get<StandardId>("ID", o),
             Kind = e.Get<ConcernId>("Kind", o),
-            Priority = e.I32("Priority"),
             Snapshot = e.Get<GenerationSnapshot>("Snapshot", o),
             Episode = e.U64("Episode"),
             Status = e.Get<StandardStatus>("Status", o),
@@ -65,7 +64,6 @@ public sealed class StandardConverter : ObjectCodec<Standard>
     {
         w.Put("ID", v.Id, o);
         w.Put("Kind", v.Kind, o);
-        w.WriteNumber("Priority", v.Priority);
         w.Put("Snapshot", v.Snapshot, o);
         w.WriteNumber("Episode", v.Episode);
         w.Put("Status", v.Status, o);
@@ -92,7 +90,6 @@ public sealed class IncidentConverter : ObjectCodec<Incident>
             Kind = e.Get<ConcernId>("Kind", o),
             Subject = e.GetOr("Subject", default(PawnId), o),
             Trigger = e.Str("Trigger"),
-            Priority = e.I32("Priority"),
             Snapshot = e.Get<GenerationSnapshot>("Snapshot", o),
             Started = e.Get<Tick>("Started", o),
             Closed = e.BoolOr("Closed"),
@@ -106,7 +103,6 @@ public sealed class IncidentConverter : ObjectCodec<Incident>
         w.Put("Kind", v.Kind, o);
         w.Put("Subject", v.Subject, o);
         w.WriteString("Trigger", v.Trigger);
-        w.WriteNumber("Priority", v.Priority);
         w.Put("Snapshot", v.Snapshot, o);
         w.Put("Started", v.Started, o);
         w.WriteBoolean("Closed", v.Closed);

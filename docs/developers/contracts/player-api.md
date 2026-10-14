@@ -30,9 +30,7 @@ read-only service exposes none of these player routes.
 `/api/player/colony` fields; unknown facts are null:
 
 - food nutrition and runway, colonists, workers, downed, mood mean;
-- the living home roster: each colonist's `id`, `label`, `downed`, `mood`, `food`, and the read-only
-  personal wealth share `share`, what is attributed to them now `spent`, and `remaining` (null until a
-  review has filed fresh colony facts, for a slave's spent, and for any unread input);
+- the living home roster: each colonist's `id`, `label`, `downed`, `mood`, `food`;
 - raid points and the wealth split: `raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`,
   `wealthPawns`;
 - the ancient shrine census `shrines`: id, `sealed`, `inHome`, `caskets`, `filledCaskets`,

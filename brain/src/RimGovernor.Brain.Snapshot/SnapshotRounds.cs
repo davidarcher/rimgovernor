@@ -106,7 +106,7 @@ public static partial class SnapshotPackage
         // Cells, so neither is recorded. The bed price is a function over the catalog and cannot be: a replay
         // prices no bed.
         var none = new ColonyProjection();
-        reading = reading with { Facts = none.Facts, Zones = none.Zones, Window = none.Window, BedPrice = none.BedPrice };
+        reading = reading with { Facts = none.Facts, Zones = none.Zones, Window = none.Window };
         return new SnapshotRounds
         {
             Projection = reading,

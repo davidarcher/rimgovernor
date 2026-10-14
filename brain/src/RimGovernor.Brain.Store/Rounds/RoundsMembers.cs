@@ -42,10 +42,10 @@ public static class RoundsMembers
     /// Asks the policy Safeguards whether this review admits a proposal for the goal, returning the veto's reason
     /// or "". A goal the review does not bind (a player goal) is outside the routine Safeguards.
     /// </summary>
-    public static string Veto(this Rounds r, Standard g) => r.Need(g.Id, out var need) ? r.VetoNeed(need, g.Priority) : "";
+    public static string Veto(this Rounds r, Standard g) => r.Need(g.Id, out var need) ? r.VetoNeed(need) : "";
 
     /// <summary>Asks the Safeguards whether this review admits a proposal for the incident, returning the veto's reason or "".</summary>
-    public static string VetoIncident(this Rounds r, DomainIncident i) => r.VetoNeed(i.Kind, i.Priority);
+    public static string VetoIncident(this Rounds r, DomainIncident i) => r.VetoNeed(i.Kind);
 
     /// <summary>The review's colony-wide binding for <paramref name="kind"/>, or null.</summary>
     public static RoundsIncident? Incident(this Rounds r, ConcernId kind)

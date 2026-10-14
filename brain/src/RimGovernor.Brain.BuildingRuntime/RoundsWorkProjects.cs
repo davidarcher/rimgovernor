@@ -327,9 +327,9 @@ internal static partial class BuildingRuntimePackage
     /// without it AssignWork leaves Research unowned and the development rank reports labor_unavailable. Empty
     /// when no target is owed or it is already finished.
     /// </summary>
-    internal static IReadOnlyList<Pol.WorkRequirement> RoundsResearchWork(Pol.RoundsPolicy p, IReadOnlyList<string> needs, Fact<Pol.ResearchFacts> research)
+    internal static IReadOnlyList<Pol.WorkRequirement> RoundsResearchWork(IReadOnlyList<string> needs, Fact<Pol.ResearchFacts> research)
     {
-        var (target, _) = ResearchConcern(p, needs, research);
+        var (target, _) = ResearchConcern(needs, research);
         if (target == "")
         {
             return [];

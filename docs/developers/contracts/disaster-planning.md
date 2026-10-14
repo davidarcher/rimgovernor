@@ -48,12 +48,10 @@ tracked damage. Fuel shortages use the native target and enter below one quarter
 of that target. Forbidden or burning buildings are excluded from new work; their
 exclusion cannot clear previously tracked damage.
 
-The review records ordered refuel, breakdown and repair needs. It promotes affected
-service concerns to priority 2, including wood when cooking or temperature is disrupted.
-Existing emergency priorities, player cancellation, resource reservations and
-admission checks still apply. A known roof-sensitive hazard independently keeps
-`RecoverDisasterServices` at priority 2, including when buildings are intact or
-another service is unknown.
+The review records ordered refuel, breakdown and repair needs. It ranks nothing: concerns carry no priority, and a disrupted service is simply
+unmet. Player cancellation, resource reservations and admission checks still
+apply. A known roof-sensitive hazard independently keeps `RecoverDisasterServices`
+unmet, including when buildings are intact or another service is unknown.
 
 The durable `Recovery` review records at most eight native admission candidates.
 Available workers are ordered by exact pawn identity. During a roof-sensitive

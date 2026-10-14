@@ -32,6 +32,6 @@ internal static partial class BuildingRuntimePackage
     {
         var mortars = MortarsBuilt(journal, snapshot, ct);
         var shells = await LoadMortarShellsAsync(native, snapshot, ct).ConfigureAwait(false);
-        return PolicyApi.MortarShellTargets(mortars, PolicyApi.AssessArmory(projection.Facts.RaidPoints, projection.Facts.Research), shells);
+        return PolicyApi.MortarShellTargets(mortars, PolicyApi.AssessArmory(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.Facts.Research), shells);
     }
 }

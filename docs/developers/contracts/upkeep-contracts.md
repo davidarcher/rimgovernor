@@ -589,12 +589,10 @@ and window start; the window restarts on load).
 
 `EnsureComfort` has two phases recorded as `Latches.Comfort`.
 
-- `basic` (foothold, priority 2): once initial shelter roof and sleeping gates hold, one
+- `basic`: one
   eating surface, one adjacent seat and one recreation source every colonist can reach, read
   from the native census before the hosting-room filter. Capacity alone recovers it; observed
-  use is the `ranked` phase's (from `StageDevelopment`). While shelter is owed the concern is
-  `method_unavailable` and reports `awaiting_plan:initial_shelter`, never extending the
-  startup hold. An inaccessible existing facility is a blocker, not a duplicate. Methods are
+  use is the `ranked` phase's (from `StageDevelopment`).  An inaccessible existing facility is a blocker, not a duplicate. Methods are
   `basic-comfort-<definition>` under plans `routine-basic-comfort-*`.
 - Maintenance priority (3) covers a second reachable building-backed joy kind: immediately
   for multiple joy-needing colonists, for a lone colonist when native boredom is set for the
@@ -661,7 +659,7 @@ threshold on its own.
 ## Corpse larder
 
 `MaintainFoodStorage` also reviews fresh animal corpses when ordinary storage has no
-deficit. Larder handling runs at priority 2; the journal admits only the corpse and
+deficit. The journal admits only the corpse and
 forbid/allow direction the review selects. It releases forbidden corpses outside
 refrigeration, then hauls eligible loose corpses into native-selected frozen storage. With
 none, it can admit an animal-corpse-only stockpile on observed free cells in a frozen room;
@@ -680,114 +678,3 @@ rotten corpses are excluded.
 
 `snapshot.TestCorpseLarderReleasesOneFrozenCorpse` replays the release decision over a
 recorded snapshot.
-
-## Personal wealth shares
-
-`policy.PersonalShares` answers how much a colonist may still direct at their own bedroom,
-gear and bionics. Nothing is persisted; it is recomputed from the wealth fact each review.
-
-- Pool: `PersonalPool` is `WealthFacts.Items + Buildings`, pawns excluded. Unknown unless
-  the fact is known, finite and non-negative.
-- `PersonalShareFraction` f is 0.2 and must stay below 1 (a test enforces it): personal
-  spend raises the pool, so the total converges at f/(1-f) times the starting pool.
-- Weight per free colonist: base 1, +0.25 soldier, +0.25 doctor, +0.5 Greedy, +0.25
-  Jealous; an Ascetic is 0.5. Share = f x pool x weight / total weight. Slaves and
-  prisoners get a zero share (necessities only).
-- `PersonalShare{Share, Spent, Remaining}`: Remaining is `max(Share - Spent, 0)`. Unknown
-  pool or spent leaves Remaining unknown and `Allows` refuses any charged upgrade; a
-  zero-value `PersonalShare` is ungated. A delta of zero or less (a necessity) always
-  passes.
-
-### Held shares and the accessor
-
-Every routine reading computes per-colonist shares into the held
-`observation.ColonyProjection.Facts.PersonalShares` (`ColonyPersonal.cs`; the
-one holder, so detection's elective surgery gate reads the same map) from data it already
-holds; nothing calls native. Gates read one accessor:
-
-```go
-func (r ColonyProjection) PersonalShareOf(pawn policy.PawnID) policy.PersonalShare
-```
-
-Use `share.Allows(delta)` with the upgrade's market-value delta. A colonist with no held
-share (no routine reading, unread roster or wealth, a prisoner) gets
-`policy.UnknownPersonalShare`: gated, every part unknown, only necessities pass. A slave
-has a known zero share and unknown spent, with the same effect.
-
-Inputs: pool from `Facts.Wealth`; weights from `WorkPawns` trait effects; Soldier is a gear
-role of soldier; Doctor is `policy.ShareDoctors` (the `DoctorsWanted` most skilled capable
-Medicine colonists). Spent prices beds, worn apparel (loadout model `Worn` options) and the
-primary weapon from catalog MarketValue rows (unobserved quality reads as Normal), and is
-unknown for everyone while the sleeping census is, and for a colonist whose gear model,
-weapon or installed parts (`CarePawn.InstalledParts`) was not read.
-
-The same shares are the read-only `share`, `spent` and `remaining` per roster row of
-`/api/player/colony` (`player-api.md`), taken from the held projection only while it is
-the current native generation.
-
-### Acceptance
-
-`upkeep/personal-share-rich` and `upkeep/personal-share-poor` stage the same bare greedy
-bedroom and gear (`test/gear_fixture` `share_setup`) in a rich and a stripped colony: the rich
-one reaches the upgrade rungs, the poor one does not, yet its bare colonist is dressed and
-its bed stays owned (necessities are never charged).
-
-### Wealth pool and spent attribution
-
-- Worn apparel, equipped weapons and carried inventory are in `WealthItems`, so the pool
-  already contains the gear `Spent` charges, intentionally. Installed bionics land in
-  `WealthPawns`, outside the pool. `WealthBuildings` is not halved.
-- `policy.PersonalSpent` derives each free colonist's `Spent` from the sleeping census and
-  carried gear every review. Slaves and prisoners get no entry; any unread part (room
-  census, wealth, bed quality or price, gear) makes spent Unknown, never zero.
-- `ItemMarketValue(base, quality, condition)` reproduces the MarketValue stat parts
-  (quality multiplier with gain caps, then the hit-point curve); `base` is the catalog
-  (def, stuff) value at Normal quality (`GearOption.Cost`).
-- Bed: priced via `BedPrice` from `SleepingBed.Definition/Stuff/Quality` at full health,
-  split among the bed's owners. Room contents proxy: `RoomQuality.Wealth` less bed values,
-  floored at 0, split among the room's owners; medical, prisoner and slave beds and
-  owner-less rooms charge no free colonist.
-- Installed parts: item market price times `PartDiscount(Tier)` (`PartRestoreDiscount`
-  0.25 up to `PartBionicTier`, `PartUpgradeDiscount` 0.75 above). A part with no item, no
-  price or a failed read (`PartsUnread`) makes spent Unknown.
-
-### Bedroom upgrade gates
-
-`RoomTarget.Min` from `RoomQualityTargets` is the tier ceiling (Greedy, Jealous and a title
-raise it, Ascetic caps it); the owners' share is the gate. `bedroomGate` builds
-`policy.RoomGate` per review (`Stage`, `Shares` = `PersonalShareOf`) for `NextRoomUpgrade`,
-`NextBeautyUpgrade` and, via `BedMaterials.Gate`, `NextBedReplacement`. The zero `RoomGate`
-is ungated.
-
-- A step is charged its market-value delta: a template piece or plant pot at the catalog's
-  `(def, stuff)` value in the stuff `upgradeBedroom` builds it in (`pieceStuff`); a bed
-  rebuild at the new bed (Normal quality) less the owned bed; a floor at material cost per
-  cell, laying only the cells the share pays for. An unpriced step is refused while gated.
-- Never charged: a delta of zero or less, a room with no owners (common and throne rooms
-  stay on the baseline), the royal title's bed and furniture, and the assign and remove
-  steps finishing a started bed replacement.
-- Charged steps begin at the Reserves stage (`stage < Reserves` refuses them), the previous
-  review's stage as `Rounder.stage` carries it.
-- A shared room spends its owners' combined remaining share; an unknown remaining refuses
-  the room.
-- A refused step is not due, so `bedroomsOwed` (`MaintainHousing`) closes once no
-  affordable step is left; raising the share or stage reopens it.
-
-### Suite and sculpture gates
-
-`SuiteClaims` and `NextSculpture` take the same `RoomGate` (`bedroomGate`).
-
-- A suite is priced by furnishing only: the new bed (`RoomGate.SuiteBed` in `SuiteBedStuff`)
-  less the claimant's owned bed, plus the available template pieces
-  (`RoomFurniture.BedroomUpgradePieces`, in `pieceStuff`). Walls, door ring and floor are
-  not charged.
-- Claims are priced in `orderSuiteClaims` order against the vacant suite they would take: a
-  suite whose bed stands has only the move left (free); an unbuilt or empty one, and any
-  claim past the vacant suites, is charged full furnishing. An unaffordable or unpriced
-  claim is dropped: `SuiteTargets` grows nothing, `UpgradeTargets` leaves the owner's room
-  to the in-place ladder and `MaintainHousing` closes.
-- `SuiteClaims` covers solo bedrooms only (the claimant is the lone owner). The royal-title
-  and bed-replacement assign/remove steps stay ungated.
-- The sculpture install (`NextSculpture`) charges the packed item's `MarketValue` against
-  the room owners' combined share. `SculptureRoomsOwed`, `NewArtDemand` and the art sale
-  are unchanged.

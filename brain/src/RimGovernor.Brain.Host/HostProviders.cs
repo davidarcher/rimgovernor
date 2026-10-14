@@ -91,9 +91,7 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
             status = status with
             {
                 Progress = review.Progress,
-                Emergency = review.Emergency,
                 NoOps = review.NoOps,
-                Stage = review.Stage,
                 Roster = review.Roster,
                 ResourceRunways = review.ResourceRunwayState(),
             };

@@ -66,12 +66,6 @@ public sealed record ArmoryPrimary
 
 public static partial class PolicyFunctions
 {
-    // The raid-point thresholds at which the threat tier steps up. The lower two match the turret budget's
-    // (TurretBudget) so defenses and gear scale together.
-    internal static readonly double ArmorySmithingPoints = TurretStepPoints;
-    internal static readonly double ArmoryMachiningPoints = TurretHighPoints;
-    internal const double ArmoryFabricationPoints = 2500;
-
     /// <summary>The research project each tier above neolithic needs.</summary>
     private static readonly Dictionary<ArmoryTier, ResearchProjectId> _armoryResearch = new()
     {
@@ -80,32 +74,12 @@ public static partial class PolicyFunctions
         [ArmoryTier.Fabrication] = new("Fabrication"),
     };
 
-    /// <summary>The tier the observed raid points call for; unknown (or NaN) points are ArmoryTier.Unknown.</summary>
-    public static ArmoryTier ArmoryThreatTier(Fact<double> raidPoints)
-    {
-        var known = raidPoints.TryGetValue(out var points);
-        if (!known || double.IsNaN(points))
-        {
-            return ArmoryTier.Unknown;
-        }
-
-        if (points < ArmorySmithingPoints)
-        {
-            return ArmoryTier.Neolithic;
-        }
-
-        if (points < ArmoryMachiningPoints)
-        {
-            return ArmoryTier.Smithing;
-        }
-
-        if (points < ArmoryFabricationPoints)
-        {
-            return ArmoryTier.Machining;
-        }
-
-        return ArmoryTier.Fabrication;
-    }
+    /// <summary>
+    /// The tier the threat calls for: the best the research allows while the raid outsizes the defense, neolithic
+    /// once the defense covers it; an unknown raid or capacity is ArmoryTier.Unknown.
+    /// </summary>
+    public static ArmoryTier ArmoryThreatTier(Fact<double> raidPoints, Fact<double> capacity) =>
+        DefenseShortfall(raidPoints, capacity).TryGetValue(out var shortfall) ? (shortfall > 0 ? ArmoryTier.Fabrication : ArmoryTier.Neolithic) : ArmoryTier.Unknown;
 
     /// <summary>The highest tier whose research, and every lower tier's, is finished. An unknown census allows only neolithic.</summary>
     public static ArmoryTier ArmoryResearchTier(Fact<ResearchFacts> research)
@@ -129,9 +103,9 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Selects the armory tier from raid points and research.</summary>
-    public static ArmoryAssessment AssessArmory(Fact<double> raidPoints, Fact<ResearchFacts> research)
+    public static ArmoryAssessment AssessArmory(Fact<double> raidPoints, Fact<double> capacity, Fact<ResearchFacts> research)
     {
-        var a = new ArmoryAssessment { Threat = ArmoryThreatTier(raidPoints), Research = ArmoryResearchTier(research) };
+        var a = new ArmoryAssessment { Threat = ArmoryThreatTier(raidPoints, capacity), Research = ArmoryResearchTier(research) };
         return a with { Tier = (ArmoryTier)Math.Min((int)a.Threat, (int)a.Research) };
     }
 

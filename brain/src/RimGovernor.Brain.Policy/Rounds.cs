@@ -54,19 +54,9 @@ public sealed record RoundsPolicy
     /// Bounds how long a goal's progress record may go without native evidence advancing its expected
     /// observable before ExpireConcernProgress rotates the method (or keys the failed situation out with a
     /// cooldown): ConcernProgressContract's default contract and the food ladder's rungs (FoodProgress) both
-    /// use it as their deadline. StageRoundsPolicy scales it down during Foothold (StageGoalStallScale) so a
-    /// stuck method rotates in a fraction of a day rather than the full day this defaults to, while
-    /// starvation risk is highest; it returns to this value once the colony reaches Reserves.
+    /// use it as their deadline.
     /// </summary>
     public long ConcernStallTicks { get; init; }
-
-    /// <summary>
-    /// The ordered roadmap EnsureResearch walks when the workshop ladder records no need
-    /// (DefaultResearchLadder by default; empty disables the roadmap). Each rung is reached through
-    /// ResearchPrerequisiteQueue like a target, a current native project is respected and recovers the goal,
-    /// and the planner lends the clock ticks while one is current so the rung finishes on its own.
-    /// </summary>
-    public EquatableArray<string> ResearchLadder { get; init; }
 
     /// <summary>
     /// How long MaintainPopulation feeds a prisoner it has no use for (not worth recruiting, not enslavable)
@@ -82,16 +72,6 @@ public sealed record RoundsPolicy
     /// decides per tier from its own admitted plans.
     /// </summary>
     public bool DefensiveLayout { get; init; }
-
-    /// <summary>Holds the colony stage thresholds; zero fields take the defaults RoundsPolicy.Stages derives from the food thresholds.</summary>
-    public ColonyStagePolicy Stage { get; init; } = new();
-
-    /// <summary>
-    /// The stage the last review left (StageRoundsPolicy): InspectRounds raises only the goals the stage
-    /// allows (StageGoalAllowed). DefaultRoundsPolicy stands at Development, so a policy nobody staged raises
-    /// every goal.
-    /// </summary>
-    public ColonyStage ColonyStage { get; init; }
 
     /// <summary>Is the MaintainPopulation slice of this policy.</summary>
     public PrisonerPolicy Prisoners() => new() { ReleaseAfterDays = PrisonerReleaseAfterDays, FoodTargetDays = FoodTargetDays };
@@ -127,7 +107,6 @@ public sealed record RoundsPolicy
         {
             throw new DomainException("invalid prisoner release threshold");
         }
-        this.Stages().Validate();
         if (HuntStallTicks <= 0)
         {
             throw new DomainException("invalid hunt stall grace");
@@ -140,13 +119,6 @@ public sealed record RoundsPolicy
         {
             throw new DomainException("invalid standard stall grace");
         }
-        foreach (var rung in ResearchLadder)
-        {
-            if (!PolicyFunctions.ValidResource(new Resource(rung)))
-            {
-                throw new DomainException("invalid research ladder rung");
-            }
-        }
     }
 }
 
@@ -157,9 +129,6 @@ public sealed record RoundsPolicy
 /// </summary>
 public sealed record RoundsFacts
 {
-    /// <summary>The colonists' personal wealth shares the elective surgery gate reads; null is ungated, a live reading always sets it (an empty map gates every colonist).</summary>
-    public IReadOnlyDictionary<PawnId, PersonalShare>? PersonalShares { get; init; }
-
     /// <summary>The catalog's item numbers (market value, nutrition, medical potency, stuff factors); the zero value without a catalog.</summary>
     public ItemFacts Items { get; init; } = new();
 
@@ -242,6 +211,9 @@ public sealed record RoundsFacts
 
     /// <summary>A planned individual bedroom step is due; it keeps MaintainHousing open once everyone owns a shelter bed.</summary>
     public Fact<bool> BedroomsOwed { get; init; }
+
+    /// <summary>The stock covers the butcher table's build cost (its cheapest stuff choice).</summary>
+    public Fact<bool> ButcherTableAffordable { get; init; }
 
     /// <summary>A tomb, grave or morgue step is due; it keeps MaintainBurial open while a corpse waits on one.</summary>
     public Fact<bool> BurialOwed { get; init; }
@@ -534,9 +506,6 @@ public sealed record RoundsFacts
 
     public Fact<double> FieldCoverage { get; init; }
 
-    /// <summary>Whether the observed planning window holds no soil (NoSoil); with a short FoodDays it latches RoundsLatches.FoodFirst.</summary>
-    public Fact<bool> NoSoil { get; init; }
-
     /// <summary>The same plan's construction helper record; null when the plan ran without the helper input.</summary>
     public ConstructionHelpRecord? WorkHelp { get; init; }
 
@@ -700,12 +669,6 @@ public sealed record RoundsLatches
     /// <summary>The planned outdoor dash window (#2765), held until its bound; zero when none is open.</summary>
     public DashWindow Dash { get; set; } = new();
 
-    /// <summary>Latches once the gear census derives a soldier role: the research roadmap then walks the armor ladder (ArmorResearchLadder) and keeps walking it when the squad is later undrafted.</summary>
-    public bool Soldiers { get; set; }
-
-    /// <summary>Latches once a map with no soil runs under FoodFirstRunwayDays of stored food: the research roadmap then leads with the food chain (FoodFirstLadder).</summary>
-    public bool FoodFirst { get; set; }
-
     /// <summary>The MaintainHousing phase this review left owed (reviewHousing); empty once housing recovered. The housing planners run only for their own phase.</summary>
     public Phase Housing { get; set; }
 
@@ -758,7 +721,6 @@ public sealed record RoundsAssessment
     /// <summary>The pawn a per-pawn Response (EnsureMood) is assessed for; empty otherwise. (Id, Subject) keys its incident.</summary>
     public PawnId Subject { get; set; }
 
-    public int Priority { get; set; }
 
     public Finding Finding { get; set; }
 
@@ -798,25 +760,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId MaintainResource = new("MaintainResource");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     public static readonly ConcernId TradeWithCaravan = new("TradeWithCaravan");
-
-    /// <summary>MaintainFoodStorage's entry development priority, the same priority the medical reserve starts MaintainMedicalReserves at.</summary>
-    internal const int FoodStorageUpkeepPriority = 3;
-
-    /// <summary>Keeps MaintainRefrigeration out of the ranked development queue (see InspectRefrigeration's comment).</summary>
-    internal const int RefrigerationPriority = 2;
-
-    /// <summary>Ranks MaintainLighting with the other upkeep projects.</summary>
-    internal const int LightingPriority = 3;
-
-    /// <summary>Ranks MaintainFlooring at the lowest goal rank in every tier: floors add no speed or dirt benefit early, and must not take labor or starting wood from rooms still unbuilt.</summary>
-    internal const int FlooringPriority = DomainConstants.MaxPriority;
-
-    /// <summary>
-    /// Ranks MaintainRoutes with the other upkeep projects: an unreachable facility idles whatever it serves,
-    /// so it ranks with a dark bench, never as an emergency.
-    /// </summary>
-    internal const int RoutesPriority = 3;
-
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
     public static RoundsPolicy DefaultRoundsPolicy() => new()
     {
@@ -837,15 +780,13 @@ public static partial class PolicyFunctions
         HuntStallTicks = GameTime.TicksPerDay / 2,
         AcquisitionStallTicks = GameTime.TicksPerDay,
         ConcernStallTicks = GameTime.TicksPerDay,
-        ResearchLadder = EquatableArray.From(DefaultResearchLadder()),
-        ColonyStage = ColonyStage.Development,
     };
 
     /// <summary>Reads a Go-nil-map lookup of UpkeepIssued: absent is false.</summary>
     public static bool IsIssued(this RoundsFacts f, ConcernId id) => f.UpkeepIssued is not null && f.UpkeepIssued.TryGetValue(id, out var issued) && issued;
 
     // The foothold facts below are read live from one review's facts: the foothold goals open on them
-    // (InspectRounds), and the colony stage (StageColonyFacts), the disaster services (DisasterServiceFacts)
+    // (InspectRounds), and the disaster services (DisasterServiceFacts)
     // and the food ladder (FoodProgress) read the ones they need.
 
     /// <summary>The colonist count the foothold sizes for: the housing target when it is larger.</summary>
@@ -1085,8 +1026,6 @@ public static partial class PolicyFunctions
             Food = LatchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
             Cold = LatchValue(previous.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
             Hot = LatchValue(previous.Hot, Fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
-            Soldiers = previous.Soldiers || GearSoldierPresent(f.Gear),
-            FoodFirst = previous.FoodFirst || FoodFirstOwed(f),
         };
         c.R = new RoundsFindings { Latches = c.L with { } };
         c.Demand = ResourceDemandOf(f, p, c.L);
@@ -1142,7 +1081,7 @@ public static partial class PolicyFunctions
             }
             foreach (var concern in r.Concerns)
             {
-                if (concern.Priority >= 3 && !available.Contains(concern.Id))
+                if (!available.Contains(concern.Id))
                 {
                     concern.MethodUnavailable = true;
                 }
@@ -1156,7 +1095,7 @@ public static partial class PolicyFunctions
             }
             foreach (var a in r.Assessments)
             {
-                if (a.Priority < 2 && declarable.Contains(a.Id) && !available.Contains(a.Id))
+                if (declarable.Contains(a.Id) && !available.Contains(a.Id))
                 {
                     a.MethodUnavailable = true;
                 }
@@ -1178,29 +1117,6 @@ public static partial class PolicyFunctions
         return r;
     }
 
-    /// <summary>
-    /// 1 (an emergency finding) while any critical patient is urgent (policy.UrgentPatients) or the urgent
-    /// count is unknown, and 2 while every patient is stable: resting under care, only needing a tend, or
-    /// downed with nothing to tend. A stable patient is served by the same tend and rescue methods without
-    /// classifying their condition as an emergency.
-    /// </summary>
-    internal static int CriticalMedicinePriority(RoundsFacts f)
-    {
-        if (!f.CriticalPatients.TryGetValue(out var patients) || patients == 0)
-        {
-            return 1;
-        }
-        if (Positive(f.AllPatientsResting))
-        {
-            return 2;
-        }
-        if (f.UrgentPatients.TryGetValue(out var urgent) && urgent == 0)
-        {
-            return 2;
-        }
-        return 1;
-    }
-
     /// <summary>EnsureCooking's recovery: cooking ready and no cooking campfire owed its retirement.</summary>
     internal static Fact<bool> CookingMet(RoundsFacts f)
     {
@@ -1212,15 +1128,9 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The WoodLog stock at which the butcher table is owed: the table is stuff-built, so the butcher spot
-    /// stands in for it below the stock and the goal never starves the colony of wood.
-    /// </summary>
-    public const long ButcherTableWood = 120;
-
-    /// <summary>
     /// EnsureFoodSupply's butcher-facility recovery. A bench must stand apart from the kitchen: a butcher
     /// bench inside it keeps the colony fed but not clean. The butcher spot stands in the planned butchery
-    /// until the table is built; below ButcherTableWood the spot alone is enough, and a table standing beside
+    /// until the table is built; while the stock cannot pay for the table the spot alone is enough, and a table standing beside
     /// its spot owes the spot's removal. It is wanted whatever the food runway, because hunts and hides are
     /// processed on it.
     /// </summary>
@@ -1261,9 +1171,8 @@ public static partial class PolicyFunctions
         {
             return Known(!spot);
         }
-        // Only the spot stands apart: with the wood to build the table, the goal stays open for it.
-        var ok = f.Wood.TryGetValue(out var wood);
-        return Known(!ok || wood < ButcherTableWood);
+        // Only the spot stands apart: with the stock to build the table, the goal stays open for it.
+        return Known(!(f.ButcherTableAffordable.TryGetValue(out var affordable) && affordable));
     }
 
     /// <summary>The free, instant bench that hosts the club and short bow recipes; MaintainEquipment stands one in the planned workshop until a real weapon bench is built.</summary>

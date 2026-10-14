@@ -113,7 +113,6 @@ public sealed record Candidate
 
     public required Progress Progress { get; init; }
 
-    public int Priority { get; init; }
 
     public Purpose Purpose { get; init; }
 
@@ -416,7 +415,7 @@ public static partial class PolicyFunctions
             return result;
         }
 
-        var candidates = PolicySort.ByLess(r.Candidates, (a, b) => a.Priority != b.Priority ? a.Priority > b.Priority : a.Action.Id < b.Action.Id);
+        var candidates = PolicySort.ByLess(r.Candidates, (a, b) => a.Action.Id < b.Action.Id);
         var boundsKnown = r.Bounds.TryGetValue(out var bounds);
         var stockFresh = r.Stock.Snapshot.Matches(r.Current);
         var occupied = new Dictionary<Cell, int>();

@@ -168,8 +168,6 @@ public static partial class PolicyFunctions
     /// <summary>Keeps the benches' production bills equal to the orders the planners declared (ReconcileLedger).</summary>
     public static readonly ConcernId MaintainWorkLedger = new("MaintainWorkLedger");
 
-    private const int WorkLedgerPriority = 3;
-
     /// <summary>The vanilla bill stack cap of one bench.</summary>
     public const int LedgerBenchSlots = 15;
 
@@ -484,10 +482,10 @@ public static partial class PolicyFunctions
     // Unknown while the declarations or the bench readback are unread, and then it raises no Concern.
     internal static void InspectWorkLedger(RoundsRun c)
     {
-        c.Assess(MaintainWorkLedger, WorkLedgerPriority, NotFact(c.F.LedgerOwed));
+        c.Assess(MaintainWorkLedger, NotFact(c.F.LedgerOwed));
         if (c.F.LedgerOwed.TryGetValue(out var owed) && owed)
         {
-            c.Raise(MaintainWorkLedger, WorkLedgerPriority);
+            c.Raise(MaintainWorkLedger);
         }
     }
 }

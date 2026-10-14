@@ -3,17 +3,10 @@ namespace RimGovernor.Brain.Policy;
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// The raid-point level below which defense is never promoted: the lowest armory threshold, so one or two
-    /// early stragglers do not lift the wall over shelter and food (#2527).
-    /// </summary>
-    public const double DefensePromotionFloor = 300.0;
-
-    /// <summary>
-    /// Reports that projected raid points could overpower the colony: at least the floor and above the observed
-    /// defense capacity. An unknown raid size or capacity is never a promotion.
+    /// Reports that projected raid points could overpower the colony: above the observed defense capacity. An unknown raid size or capacity is never a promotion.
     /// </summary>
     public static bool DefensePromoted(Fact<double> raidPoints, Fact<double> capacity) =>
-        raidPoints.TryGetValue(out var raid) && capacity.TryGetValue(out var have) && raid >= DefensePromotionFloor && raid > have;
+        raidPoints.TryGetValue(out var raid) && capacity.TryGetValue(out var have) && raid > have;
 
     /// <summary>
     /// The construction tier of a defense build. Defense is Secure unless promoted to Survive; while a roamer is

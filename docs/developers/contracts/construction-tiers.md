@@ -110,8 +110,7 @@ placed Survive, and already placed layout blueprints and frames are lifted to
 Survive with the set-tier op (`RoundsDefenseLayoutPlanner.retier`, one
 `defense-retier-*` method per set of sites), when
 `policy.DefensePromoted(Facts.RaidPoints, Facts.DefenseCapacity)` holds: raid
-points at least `DefensePromotionFloor` (300, the lowest armory threshold) and
-above the observed capacity. Unknown raid points or capacity never promote. It
+points above the observed capacity. Unknown raid points or capacity never promote. It
 is re-evaluated each defense round; a site already at Survive is not selected,
 so the op is idempotent. While a roamer is owned, the core ring is placed Comfort
 so its materials arrive before other Secure builds (a promotion outranks that);

@@ -712,7 +712,7 @@ public static class ServiceWaits
                 .Select(row => row.AsMap())
                 .Select(row => row?["concern"].AsString() + "=" + row?["method"].AsString())
                 .Order(StringComparer.Ordinal);
-            var latches = Wait.Signature(routines["reviewsEnabled"].ToJson(), routines["methodsEnabled"].ToJson(), string.Join(',', routines["emergency"].AsSlice().Select(c => c.AsString())));
+            var latches = Wait.Signature(routines["reviewsEnabled"].ToJson(), routines["methodsEnabled"].ToJson());
             return (Wait.Signature(latches, string.Join(';', needs)), false);
         }, cancellationToken).ConfigureAwait(false);
         return review;

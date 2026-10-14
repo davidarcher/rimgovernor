@@ -54,9 +54,6 @@ public static partial class PolicyFunctions
 {
     public static readonly ConcernId MaintainMechs = new("MaintainMechs");
 
-    /// <summary>Ranks MaintainMechs with the other upkeep projects.</summary>
-    internal const int MechPriority = 3;
-
     /// <summary>MaintainMechs' bill purpose: one single-count gestation bill (BillMode.GearBatch, target 1) on a gestator.</summary>
     public static readonly BillPurpose MechGestationBill = new("mech_gestation");
 

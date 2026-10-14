@@ -55,8 +55,7 @@ public static partial class PolicyFunctions
         IReadOnlyList<FurnitureRoom> rooms,
         Func<string, bool> available,
         Fact<FlooringObservation> flooring,
-        FlooringFacts floors,
-        RoomGate gate)
+        FlooringFacts floors)
     {
         var furniture = new Dictionary<string, FurnitureRoom>(StringComparer.Ordinal);
         foreach (var r in rooms)
@@ -83,7 +82,7 @@ public static partial class PolicyFunctions
             {
                 pot = pot || p.Def == PlantPotDefinition;
             }
-            if (!pot && available(PlantPotDefinition) && gate.PieceAllowed(targets[id].Owners, PlantPotDefinition))
+            if (!pot && available(PlantPotDefinition))
             {
                 var (cell, _, ok) = FreeSpot(room, new Cell(1, 1));
                 if (ok)
@@ -93,7 +92,7 @@ public static partial class PolicyFunctions
             }
             if (floorRooms.TryGetValue(id, out var fr) && fk)
             {
-                var (u, ok) = FloorUpgrade(id, fr, fo!.Terrains, floors, gate, targets[id].Owners);
+                var (u, ok) = FloorUpgrade(id, fr, fo!.Terrains, floors);
                 if (ok)
                 {
                     return (u, true);
@@ -117,15 +116,11 @@ public static partial class PolicyFunctions
         IReadOnlyDictionary<string, RoomTarget> targets,
         IReadOnlyList<FurnitureRoom> rooms,
         IReadOnlyList<PackedSculpture> packed,
-        ItemFacts items,
-        RoomGate gate)
+        ItemFacts items)
     {
         foreach (var room in SculptureRooms(obs, targets, rooms))
         {
-            // The install is charged the sculpture's market value against the room's owners' share; the
-            // rooms owed and the art sale are not gated.
-            var affordable = packed.Where(p => gate.Allows(targets[room.Id].Owners, p.MarketValue)).ToList();
-            var (p, cell, rot, ok) = FitSculpture(room.Room, RankSculptures(affordable), null, items);
+            var (p, cell, rot, ok) = FitSculpture(room.Room, RankSculptures(packed), null, items);
             if (ok)
             {
                 return (new SculptureStep { Room = room.Id, Packed = p.Id, Anchor = cell, Rot = rot }, true);
@@ -212,9 +207,7 @@ public static partial class PolicyFunctions
         string id,
         FloorRoom room,
         IReadOnlyDictionary<string, FloorTerrain> terrains,
-        FlooringFacts floors,
-        RoomGate gate,
-        IReadOnlyList<PawnId> owners)
+        FlooringFacts floors)
     {
         var names = floors.Definitions.Keys.Order(StringComparer.Ordinal).ToList();
         var best = "";
@@ -250,19 +243,6 @@ public static partial class PolicyFunctions
             if (cells.Count == MaxBeautyFloorCells)
             {
                 break;
-            }
-        }
-        // A gated room lays only the cells its owners' remaining share pays for, at the floor's material price.
-        if (gate.Shares is not null && owners.Count > 0)
-        {
-            var (price, ok) = gate.FloorCellPrice(floors.Definitions[best]);
-            if (!ok)
-            {
-                return (new RoomUpgrade(), false);
-            }
-            while (cells.Count > 0 && !gate.Allows(owners, price * cells.Count))
-            {
-                cells.RemoveAt(cells.Count - 1);
             }
         }
         if (cells.Count == 0)

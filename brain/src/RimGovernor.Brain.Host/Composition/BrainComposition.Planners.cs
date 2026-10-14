@@ -619,13 +619,6 @@ public sealed partial class BrainComposition
     private static (RoundsPolicy Thresholds, RoundsCapabilities Capabilities) RoundsCapabilitiesFor(BrainFamilies sc, bool layoutOverlay)
     {
         var thresholds = DefaultRoundsPolicy();
-        if (!sc.FootholdComposed)
-        {
-            // Foothold's exit criteria (shelter, cooking, food storage, basic defense) have no planner in this
-            // composition, so the measured stage could never climb and every staged family composed here would never
-            // be raised. Apply every stage's goals.
-            thresholds = thresholds with { Stage = thresholds.Stage with { Floor = ColonyStage.Development } };
-        }
         var methods = new List<ConcernId>();
         void Add(bool enabled, params ConcernId[] ids)
         {
@@ -684,10 +677,8 @@ public sealed partial class BrainComposition
             thresholds = thresholds with { DefensiveLayout = true };
             methods.Add(EnsureDefensiveLayout);
         }
-        thresholds = thresholds with { ResearchLadder = [] };
         if (sc.ResearchPlans)
         {
-            thresholds = thresholds with { ResearchLadder = EquatableArray.From(DefaultResearchLadder()) };
             methods.Add(EnsureResearch);
         }
         if (sc.ResourceTargetsConfigured && !methods.Contains(MaintainResource))

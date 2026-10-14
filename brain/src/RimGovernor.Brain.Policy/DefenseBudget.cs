@@ -2,28 +2,56 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
 {
-    // Threat demand: the base budget plus TurretStep more for every TurretStepPoints of observed raid points.
-    // Unknown threat keeps the base budget. There is no ceiling; power, stock and the layout's geometry decide
-    // how many of the demanded turrets are placed, and each gate that stops placement is named on the tier.
-    internal const int TurretBaseBudget = 2;
-    internal const int TurretStep = 2;
-
-    /// <summary>The raid-point span that adds TurretStep to the demand.</summary>
-    internal const int TurretStepPoints = 300;
-
-    /// <summary>The raid-point reading at which the mortar tier opens (sieges are then a threat worth the shells).</summary>
-    internal const int TurretHighPoints = 800;
+    /// <summary>
+    /// The raid points the colony cannot yet stop: the observed raid size minus the observed defense capacity
+    /// (colonists and powered turrets). Zero when the colony covers the raid; unknown when either is unknown.
+    /// </summary>
+    public static Fact<double> DefenseShortfall(Fact<double> raidPoints, Fact<double> capacity)
+    {
+        if (!raidPoints.TryGetValue(out var raid) || !capacity.TryGetValue(out var have) || double.IsNaN(raid) || double.IsInfinity(raid) || double.IsNaN(have))
+        {
+            return Unknown<double>();
+        }
+        return Known(Math.Max(0, raid - have));
+    }
 
     /// <summary>
-    /// The number of turrets the observed raid points demand: unknown, negative or NaN readings keep the base
-    /// budget, and each full TurretStepPoints adds TurretStep.
+    /// How many more turrets the shortfall asks for: the shortfall divided by what a standing powered turret is
+    /// observed to add (its DPS in raid-point units, averaged over those standing). With none standing there is no
+    /// yield to measure, so one is built and the next review reads it; standing turrets none of which is powered
+    /// yet are that probe, and ask for no more. No shortfall, or an unknown one, asks for none.
     /// </summary>
-    public static int TurretBudget(Fact<double> raidPoints)
+    internal static int TurretsOwed(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets)
     {
-        if (!raidPoints.TryGetValue(out var points) || double.IsNaN(points) || double.IsInfinity(points) || points < TurretStepPoints)
+        if (!DefenseShortfall(raidPoints, capacity).TryGetValue(out var shortfall) || shortfall <= 0)
         {
-            return TurretBaseBudget;
+            return 0;
         }
-        return TurretBaseBudget + (TurretStep * (int)(points / TurretStepPoints));
+        var sum = 0.0;
+        var n = 0;
+        foreach (var t in turrets.TryGetValue(out var standing) ? standing : default)
+        {
+            if (t.Powered.TryGetValue(out var powered) && powered && t.Dps.TryGetValue(out var dps) && dps > 0)
+            {
+                sum += dps * DefensePointsPerDps;
+                n++;
+            }
+        }
+        if (n == 0)
+        {
+            return TurretsStanding(turrets) == 0 ? 1 : 0;
+        }
+        return Math.Max(1, (int)Math.Ceiling(shortfall / (sum / n)));
     }
+
+    private static int TurretsStanding(Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
+        turrets.TryGetValue(out var standing) ? standing.Count : 0;
+
+    /// <summary>
+    /// The turret count the layout plans: those already standing plus those the raid shortfall still asks for.
+    /// There is no ceiling; power, stock and the layout's geometry decide how many are placed, and each gate that
+    /// stops placement is named on the tier.
+    /// </summary>
+    public static int TurretBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
+        TurretsStanding(turrets) + TurretsOwed(raidPoints, capacity, turrets);
 }

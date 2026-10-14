@@ -287,9 +287,6 @@ public sealed partial record ColonyProjection
 
     public RoundsFacts Facts { get; init; } = new();
 
-    /// <summary>Prices a bed by (def, stuff) from the catalog's MarketValue rows; null without a catalog.</summary>
-    public BedPrice? BedPrice { get; init; }
-
     public Fact<int> Workers { get; init; }
 
     public Bounds Bounds { get; init; }

@@ -10,7 +10,6 @@ Bridge.Contracts/Foundation/NewColonyValidation.cs|NewColonyBounds.MaxTimeoutMs|
 BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.DefaultHorizonTicks|2500
 BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.FullTicksPerSecond|9000
 BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.ReleaseTicksPerSecond|60000
-BuildingRuntime/Clock/ClockPlannerCatalog.cs|ClockPlannerCatalog.ReviewEveryComfort|15000
 BuildingRuntime/Clock/ClockScheduler.cs|ClockScheduler.IdleLendTicks|2500
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.HeatRedrawEvery|2500
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.OverlayRedrawEvery|60000
@@ -189,7 +188,6 @@ Observation/SleepingUpkeep.cs|ObservationPackage.UpkeepRooms|"Space"
 Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept|"WoodLog"
 PlayerApi/LifecycleRoutes.cs|LifecycleRoutes.MaxLoadTimeoutMs|120000
 Policy/Acquisition.cs|PolicyFunctions.SelectAcquisition|"WoodLog"
-Policy/Armory.cs|PolicyFunctions.ArmoryFabricationPoints|2500
 Policy/Burn.cs|PolicyFunctions.AshDef|"Filth_Ash"
 Policy/ChildRooms.cs|FurnitureRole.DeathrestCasket|"DeathrestCasket"
 Policy/ClearanceGround.cs|PolicyFunctions.StandInBed|"SleepingSpot"
@@ -292,8 +290,6 @@ Policy/OrganHarvest.cs|PolicyConstants.SilverPerCapacity|1500
 Policy/PartySpot.cs|PolicyConstants.PartySpotDefinition|"PartySpot"
 Policy/PerimeterCut.cs|PolicyFunctions.PerimeterTableValue|"Wall"
 Policy/PermitChoice.cs|PolicyFunctions.PermitCategoryOf|"Shuttle"
-Policy/PersonalSpend.cs|PolicyFunctions.MarketQualityMaxGain|2000
-Policy/PersonalSpend.cs|PolicyFunctions.MarketQualityMaxGain|3000
 Policy/PowerBudget.cs|PolicyConstants.BatteryDefinition|"Battery"
 Policy/PowerMethod.cs|PolicyConstants.GeneratorDefinitions|"ChemfuelPoweredGenerator"
 Policy/PowerMethod.cs|PolicyConstants.GeneratorDefinitions|"SolarGenerator"

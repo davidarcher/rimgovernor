@@ -241,9 +241,6 @@ public static partial class PolicyFunctions
     // only UsableIngredients. MaintainArt keeps room decoration only.
     public static readonly ConcernId MaintainTrade = new("MaintainTrade");
 
-    /// <summary>Ranks MaintainTrade with the other upkeep projects.</summary>
-    internal const int TradePriority = 3;
-
     /// <summary>
     /// How far ahead ExportGuard keeps the colony's own use of an ingredient whole: an export may not draw a
     /// resource below its reserve plus this many days of its observed use.
@@ -285,6 +282,10 @@ public static partial class PolicyFunctions
     /// Judgment, not a game number.
     /// </summary>
     private static double ExportQualityCentre(int skill) => Math.Min(4, 1 + (Math.Max(0, skill) / 8.0));
+
+    // Quality price factors of the MarketValue stat (StatPart_Quality on MarketValueBase in Core
+    // Stats_Basics_General.xml), indexed Awful=0 through Legendary=6.
+    private static readonly double[] MarketQualityFactor = [.5, .75, 1, 1.25, 1.5, 2.5, 5];
 
     /// <summary>The MarketValue factor of the expected quality: the quality price factors interpolated at the skill's centre.</summary>
     private static double ExportQualityFactor(int skill)

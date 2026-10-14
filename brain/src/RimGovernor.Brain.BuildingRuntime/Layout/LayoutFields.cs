@@ -188,9 +188,9 @@ internal static class LayoutFieldPlanning
         return (null, "every field block is full");
     }
 
-    /// <summary>Needed cells weighted by urgency: goal priority 0 is the most urgent of the 0-4 classes.</summary>
+    /// <summary>Needed cells.</summary>
     public static int FieldShortfallWeight(FieldShortfall s) =>
-        s.Options.Count == 0 ? 0 : (5 - s.Standard.Standard.Priority) * s.Options[0].Needed;
+        s.Options.Count == 0 ? 0 : s.Options[0].Needed;
 
     /// <summary>Orders the ledger heaviest first (stable); the first placed block takes the patch's richest free cells. It decides order only, never how many cells a goal gets.</summary>
     public static List<FieldShortfall> RankFieldShortfalls(IEnumerable<FieldShortfall> ledger) =>

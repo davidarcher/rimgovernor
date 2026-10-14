@@ -118,7 +118,6 @@ internal static class ReadProjections
         var extentDto = new RoundsExtentDto(extent is not null, extent?.Regions.Count ?? 0, extent?.Regions.Sum(r => r.Cells.Count) ?? 0);
         var eligibility = PolicyFunctions.ExtentEligibility(v.ExtentEligibility);
         return new RoundsStatusDto(
-            [.. v.Emergency.Select(c => c.Value)],
             new ExtentEligibilityDto(
                 eligibility.Known,
                 eligibility.Reason,
@@ -130,7 +129,6 @@ internal static class ReadProjections
             [.. v.ActiveFamilies],
             v.LastReviewTick.TryGetValue(out var last) ? last.Value : null,
             [.. v.Progress.Select(ConcernProgressRow)],
-            v.Stage is { } s ? new ColonyStageDto(s.Stage.Name(), s.Since.Value, Wire.Name(s.Blocker), s.Reason, s.Held) : null,
             v.Roster is { } roster ? Roster(roster) : null,
             [.. v.Sections.Select(x => new RoundsSectionDto(Wire.Name(x.Section), Wire.Name(x.Family), x.AsOf, x.Complete, x.Source, x.StoredAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture)))],
             [.. v.NoOps.Select(n => new NoOpDto(n.Concern.Value, Wire.Name(n.Reason)))],
@@ -217,10 +215,7 @@ internal static class ReadProjections
                 pawn.Label,
                 Value(pawn.Downed),
                 Value(pawn.Mood),
-                Value(pawn.Food),
-                Value(pawn.Share),
-                Value(pawn.Spent),
-                Value(pawn.Remaining));
+                Value(pawn.Food));
             if (row.Downed == true)
             {
                 downed++;

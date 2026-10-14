@@ -50,10 +50,8 @@ public sealed partial class ClockScheduler
     private readonly IClock _clock;
     private readonly ClockFacts _facts;
     private readonly PlannerQueue _queue;
-    private readonly LateProposals _late = new();
     private readonly List<PlannerEntry> _catalog;
     private readonly PlannerReasonLog _plannerReasons = new();
-    private readonly Dictionary<string, bool> _starved = new(StringComparer.Ordinal);
     private readonly Lock _mu = new();
 
     private long _lastTick;
@@ -494,40 +492,18 @@ public sealed partial class ClockScheduler
         };
     }
 
-    // How long the optional wave is joined after the critical wave returned: the critical wave's own duration
-    // floored by OptionalGrace, or the whole wall budget when a pending planner missed the previous step's cutoff.
-    private TimeSpan OptionalWaveGrace(TimeSpan critical, IReadOnlyList<string> pending) =>
-        pending.Any(name => _starved.GetValueOrDefault(name))
-            ? Config.Budget.EffectiveWall
-            : critical > Config.Budget.EffectiveOptionalGrace ? critical : Config.Budget.EffectiveOptionalGrace;
-
-    // A planner that returned loses its starved mark and one that missed the cutoff gains it. A mark lasts until
-    // its planner returns, so a wave that does not run it leaves it alone.
-    private void MarkStarved(IEnumerable<string> finished, IEnumerable<string> missed)
-    {
-        foreach (var name in finished)
-        {
-            _starved.Remove(name);
-        }
-        foreach (var name in missed)
-        {
-            _starved[name] = true;
-            _queue.Mark(name);
-        }
-    }
-
     /// <summary>
     /// Runs the rounder and the selected planner wave as an admission cycle and an optional wave. The cycle joins
     /// the routine review and the critical planners under the wall budget: past it, the critical planners still
     /// pending are named on HeldBy and the step admits nothing. The optional planners run on the same snapshot and
-    /// are joined for one critical-wave duration more (floored by OptionalGrace, never past the wall budget); those
+    /// are joined up to the wall budget; those
     /// still evaluating at that cutoff are cancelled, recorded on MissedCutoff and their results discarded. The
     /// coordinator then arbitrates the proposals that made the cutoff, and any carried from an earlier step.
     /// </summary>
     internal async Task<List<string>> RunPlannerWaveAsync(ClockSchedulerResult output, PlannerSelectionResult sel, long tick, bool immediate, CancellationToken call, CancellationToken epoch)
     {
         using var immediateScope = ReviewScope.BeginImmediate(immediate);
-        var arbiter = new StepArbiter(_late);
+        var arbiter = new StepArbiter();
         using var wave = new PlannerWave(call);
         var began = Stopwatch.GetTimestamp();
         // Under player acceleration the critical wave is the evidence the backoff keeps inside the horizon, aged from
@@ -573,7 +549,6 @@ public sealed partial class ClockScheduler
             {
                 await watched(TimeSpan.Zero, false).ConfigureAwait(false);
                 var stuck = wave.Close();
-                arbiter.Close();
                 output.CriticalWave += Stopwatch.GetElapsedTime(began);
                 foreach (var name in stuck)
                 {
@@ -584,40 +559,18 @@ public sealed partial class ClockScheduler
             var criticalWall = Stopwatch.GetElapsedTime(began);
             output.CriticalWave += criticalWall;
             await watched(_clock.Now() - readAt, true).ConfigureAwait(false);
-            var grace = OptionalWaveGrace(criticalWall, wave.Group.Pending());
-            var left = Config.Budget.EffectiveWall - criticalWall;
-            var cutoff = wall.IsCompleted ? wall : PlannerWave.After(grace < left ? grace : left);
+            var cutoff = wall;
             var pending = await wave.Group.WaitUntilAsync(cutoff).ConfigureAwait(false);
             output.MissedCutoff.AddRange(pending);
-            MarkStarved(wave.FinishedNames(), output.MissedCutoff);
             foreach (var (name, ms) in wave.PlannerMs())
             {
                 output.PlannerMs[name] = output.PlannerMs.GetValueOrDefault(name) + ms;
             }
             wave.Close();
-            arbiter.Close();
-            // The proposal planners proposed instead of committing: rank their proposals by (priority, urgency,
-            // ID) against the claims the wave left on the arbiter and the stock the review observed, revalidate
-            // each against this step and commit the winners.
-            var budget = StepBudgetOf(output, arbiter);
-            var scope = ReadValidityScope.TryGet(out var v) ? v : default;
-            var (proposals, commitFailures) = await arbiter.CoordinateAsync(budget, scope, call).ConfigureAwait(false);
-            output.Proposals.AddRange(proposals);
-            foreach (var outcome in proposals)
-            {
-                wave.Decided(outcome.Planner, outcome.Verdict);
-            }
             wave.Merge(output);
             // A failed planner is reported, not fatal: the step still reports what the other planners committed,
             // and the failed planner retries next step.
             output.PlannerFailures.AddRange(wave.Group.Failures());
-            output.PlannerFailures.AddRange(commitFailures);
-            // A planner's own failure filed its planner_step row when it returned; a proposal that failed to
-            // commit has none, so it files one here.
-            foreach (var failure in commitFailures)
-            {
-                PlannerReasons.PlannerBookkeepingFailed("proposals", failure);
-            }
             return planners;
         }
         finally
@@ -650,34 +603,12 @@ public sealed partial class ClockScheduler
             kinds => plans is null ? [] : PlannerQueue.OpenWorkOfKinds(plans, kinds));
     }
 
-    // The coordinator's quantity budget for this step: the stock the rounds' resource runways observed. Nothing is
-    // read when no proposal claims a quantity, and a step without a review carries no stock.
-    private static ProposalBudget StepBudgetOf(ClockSchedulerResult output, StepArbiter arbiter)
-    {
-        if (output.Rounds is not { } rounds || !arbiter.ClaimsQuantities())
-        {
-            return new ProposalBudget(new Dictionary<Resource, long>());
-        }
-        var review = rounds.Review;
-        var stock = new Dictionary<Resource, long>();
-        foreach (var runway in review.ResourceRunways)
-        {
-            if (runway.Stock is { } have && runway.Tick == review.Tick)
-            {
-                stock[runway.Resource] = have;
-            }
-        }
-        return new ProposalBudget(stock);
-    }
-
     // Runs the rounder synchronously first (every other planner's dispatch depends on being able to load the review
     // it commits), then queues the configured catalog planners the pick selects (null: all) onto the wave sharing
     // the arbiter, returning the queued names without waiting. The rounder's own error aborts before anything is
-    // queued; an error from a queued planner is isolated by the wave. The colony stage's foothold hold promotes the
-    // startup planners into the critical cycle for the step.
+    // queued; an error from a queued planner is isolated by the wave.
     private async Task<List<string>> StepPlannersAsync(ClockSchedulerResult output, PlannerWave wave, StepArbiter arbiter, Func<PlannerEntry, bool>? pick, bool immediate, CancellationToken call, CancellationToken epoch)
     {
-        var startup = false;
         if (Config.Rounds is { } rounds)
         {
             RoundsResult review;
@@ -702,13 +633,7 @@ public sealed partial class ClockScheduler
             {
                 await EstablishExtentAsync(review.Review.Tick, call).ConfigureAwait(false);
             }
-            // Foothold: the shelter's planner is critical for this step, its siting reads outlasting the optional
-            // grace. Every other planner still runs.
-            if (review.Review.Stage is { } stage && stage.NeedsShelter())
-            {
-                startup = true;
-            }
         }
-        return QueuePlanners(wave, arbiter, pick, startup, call, epoch);
+        return QueuePlanners(wave, arbiter, pick, call, epoch);
     }
 }

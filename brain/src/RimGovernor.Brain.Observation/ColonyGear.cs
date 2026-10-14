@@ -407,29 +407,6 @@ public static partial class ObservationPackage
     }
 
     /// <summary>
-    /// Puts each pawn's personal share on its loadout model input, so PlanGearLoadout drops an upgrade the
-    /// colonist cannot afford. It runs after PersonalShares, which reads the same models' worn gear; the held
-    /// census is copied, never mutated in place.
-    /// </summary>
-    internal static ColonyProjection StampGearShares(ColonyProjection p)
-    {
-        if (!p.Facts.Gear.TryGetValue(out var gear))
-        {
-            return p;
-        }
-        var stamped = new List<GearPawn>(gear.Pawns);
-        for (var i = 0; i < stamped.Count; i++)
-        {
-            var g = stamped[i];
-            if (g.LoadoutModel.TryGetValue(out var model))
-            {
-                stamped[i] = g with { LoadoutModel = Known(model with { Share = p.PersonalShareOf(g.Pawn) }) };
-            }
-        }
-        return p with { Facts = p.Facts with { Gear = Known(gear with { Pawns = stamped }) } };
-    }
-
-    /// <summary>
     /// The pawn's outfit census: unknown without an apparel policy, wearer inputs or catalog.
     /// </summary>
     public static Fact<ApparelPolicyState> ApparelPolicyFacts(O.GearLoadout p, DefinitionCatalog? catalog)

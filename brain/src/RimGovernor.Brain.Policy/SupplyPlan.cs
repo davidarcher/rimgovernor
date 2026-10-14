@@ -19,9 +19,6 @@ public sealed record SupplyDemand
 
     public long Units { get; init; }
 
-    /// <summary>1..100; the higher serves first and wins urgent-work contests.</summary>
-    public int Priority { get; init; }
-
     /// <summary>
     /// The longest lead a candidate may have and still serve the demand; 0 is a floor wanted now. It is also
     /// the window an upfront cost is amortised over (at least one day).
@@ -57,8 +54,8 @@ public sealed record NutritionDemandInput
 }
 
 /// <summary>
-/// The input of PlanSupply. Labor is the shared budget in work ticks per day (workers * 20000). UrgentPriority
-/// is competing urgent work: it holds a candidate whose best matched demand ranks below it.
+/// The input of PlanSupply. Labor is the shared budget in work ticks per day (workers * 20000). Urgent
+/// is competing urgent work: it holds a candidate unless a demand it serves is an emergency.
 /// </summary>
 public sealed record SupplyPlanRequest
 {
@@ -68,7 +65,7 @@ public sealed record SupplyPlanRequest
 
     public Fact<double> Labor { get; init; }
 
-    public int UrgentPriority { get; init; }
+    public bool Urgent { get; init; }
 
     /// <summary>
     /// Each ingredient resource's units a produce candidate may spend: stock above what the plan protects. A
@@ -211,7 +208,7 @@ internal sealed class SupplyShare(int demands)
 
     public double Value { get; set; }
 
-    public int Priority { get; set; }
+    public bool Emergency { get; set; }
 
     /// <summary>A stock demand with units left matched a yield holding some.</summary>
     public bool UnitMatched { get; set; }
@@ -248,7 +245,7 @@ internal sealed class SupplyCand
     /// <summary>Matches a flow demand.</summary>
     public bool Flow { get; set; }
 
-    public int Priority { get; set; }
+    public bool Emergency { get; set; }
 
     public double LaborNew { get; set; }
 
@@ -268,9 +265,6 @@ internal sealed class SupplyCand
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Ranks nutrition above every resource deficit.</summary>
-    public const int NutritionPriority = 100;
-
     /// <summary>The demand and yield key of nutrition.</summary>
     public static ResourceKey NutritionKey { get; } = new() { Def = CandidateNutrition };
 
@@ -329,7 +323,6 @@ public static partial class PolicyFunctions
         {
             Good = NutritionKey,
             PerDay = target,
-            Priority = NutritionPriority,
             HorizonDays = horizon,
             Emergency = input.EmergencyDays > 0 && runway < input.EmergencyDays,
             Cover = cover,
@@ -341,7 +334,6 @@ public static partial class PolicyFunctions
     {
         Good = d.Key,
         Units = d.Count,
-        Priority = d.Priority,
     };
 
     private static bool ValidCandidateKind(CandidateKind k) =>
@@ -412,7 +404,7 @@ public static partial class PolicyFunctions
         var known = r.Candidates.TryGetValue(out var rows);
         var lk = r.Labor.TryGetValue(out var labor);
         var dk = r.Demands.TryGetValue(out var demandRows);
-        if (!known || (lk && !FoodNumber(labor)) || r.UrgentPriority < 0 || r.UrgentPriority > 100)
+        if (!known || (lk && !FoodNumber(labor)))
         {
             throw new SupplyPlanFactsException();
         }
@@ -425,8 +417,6 @@ public static partial class PolicyFunctions
                 || !FoodNumber(d.PerDay)
                 || !ValidAcquisitionCount(d.Units)
                 || (d.PerDay > 0 && d.Units > 0)
-                || d.Priority < 1
-                || d.Priority > 100
                 || !FoodNumber(d.HorizonDays)
                 || !FoodNumber(d.Cover)
                 || (i > 0 && demands[i - 1].Good == d.Good))
@@ -539,7 +529,7 @@ public static partial class PolicyFunctions
             }
             else
             {
-                used += Consider(c, demands, remaining, delivered, finite, usable, used, labor, r.UrgentPriority);
+                used += Consider(c, demands, remaining, delivered, finite, usable, used, labor, r.Urgent);
             }
             portfolio.Add(c.Entry);
         }
@@ -731,11 +721,8 @@ public static partial class PolicyFunctions
                 {
                     var amount = Rate(c, y, d);
                     s.Credit[i] += amount;
-                    s.Value += amount * d.Priority * (1 + y.UnitValue);
-                    if (amount > 0)
-                    {
-                        s.Priority = Math.Max(s.Priority, d.Priority);
-                    }
+                    s.Value += amount * (1 + y.UnitValue);
+                    s.Emergency = s.Emergency || (d.Emergency && amount > 0);
                     continue;
                 }
                 var capacity = Units(c, y, d);
@@ -757,8 +744,8 @@ public static partial class PolicyFunctions
                 used += count;
                 s.Credit[i] += count;
                 s.Wanted += count;
-                s.Priority = Math.Max(s.Priority, d.Priority);
-                s.Value += count * (double)d.Priority * (1 + y.UnitValue);
+                s.Emergency = s.Emergency || d.Emergency;
+                s.Value += count * (1 + y.UnitValue);
             }
             if (c.C.NeedsHaul && used > 0)
             {
@@ -791,7 +778,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            c.Priority = Math.Max(c.Priority, d.Priority);
+            c.Emergency = c.Emergency || d.Emergency;
             window = Math.Max(window, d.Window);
             if (d.Flow)
             {
@@ -991,7 +978,7 @@ public static partial class PolicyFunctions
         Dictionary<ResourceKey, long> usable,
         double used,
         double labor,
-        int urgent
+        bool urgent
     )
     {
         var e = c.Entry;
@@ -1025,7 +1012,7 @@ public static partial class PolicyFunctions
             e.Reason = "lead exceeds runway";
             return 0;
         }
-        if (urgent > f.Priority)
+        if (urgent && !f.Emergency)
         {
             e.Reason = "competing_urgent_work";
             return 0;

@@ -96,12 +96,9 @@ public enum MonolithOrder
     Interact,
 }
 
-/// <summary>What the monolith advance needs the colony to be: at least Stable, and for the awakening defended against the waves, with containment stable and no threat standing.</summary>
+/// <summary>What the monolith advance needs the colony to be: for the awakening defended against the waves, with containment stable and no threat standing.</summary>
 public sealed record AwakenGate
 {
-    /// <summary>The colony stage of the review; the default is Foothold.</summary>
-    public ColonyStage Stage { get; init; }
-
     /// <summary>The observed defense capacity.</summary>
     public Fact<double> Capacity { get; init; }
 
@@ -193,10 +190,6 @@ public static partial class PolicyFunctions
                 outcome = outcome with { Order = MonolithOrder.Interact, Target = target, Performers = performers };
             }
             return outcome;
-        }
-        if (gate.Stage < ColonyStage.Stable)
-        {
-            return outcome with { Hold = $"colony stage {Wire.Name(gate.Stage)} has not reached {Wire.Name(ColonyStage.Stable)}" };
         }
         if (!can)
         {
@@ -336,13 +329,12 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Whether the monolith is to be advanced now: a standing work for MaintainPopulation, whose custody step carries it.</summary>
-    internal static bool MonolithAdvanceOwedNow(RoundsFacts f, ColonyStage stage) => MonolithAdvanceOwed(f.Monolith, MonolithGate(f, stage)).Order != MonolithOrder.None;
+    internal static bool MonolithAdvanceOwedNow(RoundsFacts f) => MonolithAdvanceOwed(f.Monolith, MonolithGate(f)).Order != MonolithOrder.None;
 
-    /// <summary>The advance gate the facts and the review's stage give.</summary>
-    public static AwakenGate MonolithGate(RoundsFacts f, ColonyStage stage) =>
+    /// <summary>The advance gate the facts give.</summary>
+    public static AwakenGate MonolithGate(RoundsFacts f) =>
         new()
         {
-            Stage = stage,
             Capacity = f.DefenseCapacity,
             RaidPoints = f.RaidPoints,
             Hostiles = f.Hostiles,

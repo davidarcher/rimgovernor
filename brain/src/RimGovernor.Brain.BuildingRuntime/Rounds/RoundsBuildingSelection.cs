@@ -305,6 +305,29 @@ internal static partial class BuildingRuntimePackage
         return false;
     }
 
+    /// <summary>Whether the stock covers the butcher table's build cost at its cheapest stuff choice; unknown without the definition or the stock.</summary>
+    internal static Fact<bool> ButcherTableAffordable(ColonyProjection facts)
+    {
+        if (!facts.Resources.TryGetValue(out var stock))
+        {
+            return Unknown<bool>();
+        }
+        foreach (var d in facts.Definitions)
+        {
+            if (d.Name != PolicyConstants.ButcherTableDefinition)
+            {
+                continue;
+            }
+            var (price, ok) = RoundsDefenseLayoutPlanner.DefenseUnitPrice(facts, d);
+            if (!ok)
+            {
+                return Unknown<bool>();
+            }
+            return Known(price.Costs.All(a => stock.GetValueOrDefault(a.Resource) >= a.Count));
+        }
+        return Unknown<bool>();
+    }
+
     internal static bool ButcherTableWanted(ColonyProjection facts, IReadOnlyList<CookingBench> benches)
     {
         foreach (var b in benches)
@@ -314,7 +337,7 @@ internal static partial class BuildingRuntimePackage
                 return false;
             }
         }
-        return facts.Facts.Wood.TryGetValue(out var wood) && wood >= PolicyApi.ButcherTableWood && ComfortBuilderAvailable(facts, "TableButcher");
+        return facts.Facts.ButcherTableAffordable.TryGetValue(out var affordable) && affordable && ComfortBuilderAvailable(facts, "TableButcher");
     }
 
     internal static bool ButcherBenchApart(IReadOnlyList<CookingBench> benches, Fact<RoomObservation> rooms) =>

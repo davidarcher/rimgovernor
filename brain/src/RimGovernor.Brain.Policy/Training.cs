@@ -33,9 +33,6 @@ public static partial class PolicyFunctions
     /// </summary>
     public static readonly ConcernId MaintainTraining = new("MaintainTraining");
 
-    /// <summary>Ranks MaintainTraining with the other priority-3 chores.</summary>
-    private const int TrainingPriority = 3;
-
     /// <summary>
     /// The skill a pawn trains, mirroring the native choice: the higher usable level, then the stronger passion,
     /// then Shooting. A skill is unusable when disabled; Shooting also for a Brawler. False when neither is
@@ -160,10 +157,10 @@ public static partial class PolicyFunctions
     internal static void InspectTraining(RoundsRun c)
     {
         var review = ReviewTraining(c.F.WorkProfiles, c.F.Research);
-        c.Assess(MaintainTraining, TrainingPriority, Measured(review, r => r.Below == 0));
+        c.Assess(MaintainTraining, Measured(review, r => r.Below == 0));
         if (review.TryGetValue(out var r) && r.Below > 0)
         {
-            c.Raise(MaintainTraining, TrainingPriority).Deficit = Known((double)r.Below / r.Capable);
+            c.Raise(MaintainTraining).Deficit = Known((double)r.Below / r.Capable);
         }
     }
 

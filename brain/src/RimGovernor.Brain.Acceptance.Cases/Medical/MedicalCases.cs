@@ -10,11 +10,6 @@ public static class MedicalCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        foreach (var elective in ElectiveShare.All())
-        {
-            registry.Register(elective);
-        }
-
         registry.Register(PegCycle.Case());
         registry.Register(PlagueReadback.Case());
         registry.Register(StablePatient.Case());

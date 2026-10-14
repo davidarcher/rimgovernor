@@ -463,7 +463,7 @@ public sealed partial class RoundsTradePlanner
                 continue;
             }
             var id = new StandardId("trade-mission-" + PlanIds.MintPlanId().Value);
-            var standard = Standard.NewTradeMissionStandard(id, 1, state.Snapshot, m);
+            var standard = Standard.NewTradeMissionStandard(id, state.Snapshot, m);
             Reviewer.Player.Journal.SeedStandard(standard, ct);
             return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
         }

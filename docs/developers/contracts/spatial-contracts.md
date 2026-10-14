@@ -738,9 +738,9 @@ the smallest of four the brain gates, and the gate that stops a tier short is na
 
 | Tier | Threat demand (raid points) | Power | Stock | Geometry |
 |---|---|---|---|---|
-| Turrets | `TurretBudget`: 2, plus 2 per full 300 points; unknown, NaN or infinite keeps 2 | spare watts cover every turret's draw | steel and components for the turrets, then again with routed conduits | verified, spaced flank slots (`defenseMaxWidth` per side, two rows) |
-| Mortars | `MortarBudget`: none below 800 points, then 1, plus 1 per 1700 more | none (unpowered) | `stockCovers` the summed mortar cost | unroofed, spaced cells behind the line (`mortarBehindMin`..`Max`) |
-| IEDs | `IEDBudget`: 2, plus 1 per full 300 points | none | `IEDStock` covers the summed IED cost | free approach cells every `defenseIEDSpacing` out to `defenseIEDReach` |
+| Turrets | `TurretBudget`: turrets standing plus the raid shortfall over the observed points per powered turret; none while the shortfall is zero or unknown | spare watts cover every turret's draw | steel and components for the turrets, then again with routed conduits | verified, spaced flank slots (`defenseMaxWidth` per side, two rows) |
+| Mortars | `MortarBudget`: one while a shortfall stands and a turret line exists | none (unpowered) | `stockCovers` the summed mortar cost | unroofed, spaced cells behind the line (`mortarBehindMin`..`Max`) |
+| IEDs | `IEDBudget`: one per planned turret | none | `IEDStock` covers the summed IED cost | free approach cells every `defenseIEDSpacing` out to `defenseIEDReach` |
 
 Kept constants are geometry, not caps: `defenseMaxWidth`, `defenseMaxDefenders`,
 `turretSpacing`, `conduitReach`, `defenseIEDReach`, `defenseIEDSpacing`,

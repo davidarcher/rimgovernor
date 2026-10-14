@@ -187,7 +187,6 @@ internal static partial class BuildingRuntimePackage
     public static readonly Verdict BuildingReasonDisabled = new(Outcome.Disabled);
     public static readonly Verdict BuildingReasonNoReview = new(Outcome.NoReview);
     public static readonly Verdict BuildingReasonNoDeficit = new(Outcome.NothingToDo);
-    public static readonly Verdict BuildingReasonExpired = new(Outcome.Expired);
     public static readonly Verdict BuildingReasonExistingWork = Verdict.WaitOn(Cause.ExistingWork);
 
     /// <summary>The initial shelter's indoor furnishing waits on its open bunk rungs, which do not hold the ring itself.</summary>
@@ -202,12 +201,6 @@ internal static partial class BuildingRuntimePackage
     /// <summary>The choice dialog's own interactivity delay has not elapsed; the next review re-reads it.</summary>
     public static readonly Verdict BuildingReasonNotInteractive = Verdict.WaitOn(Cause.Dialog);
 
-    /// <summary>
-    /// A proposal planner's result when the coordinator gave a claim it needs to a higher-ranked proposal; the
-    /// step row's proposal outcome names the claim.
-    /// </summary>
-    public static readonly Verdict BuildingReasonWaiting = Verdict.WaitOn(Cause.Claim);
-
     /// <summary>The shrine planner's answer while every target shrine holds; the shrine result's hold carries the reason.</summary>
     public static readonly Verdict BuildingReasonHeld = Verdict.WaitOn(Cause.BreachHeld);
 
@@ -218,7 +211,6 @@ internal static partial class BuildingRuntimePackage
     public static readonly Verdict BuildingReasonSleepingUseNeeded = Verdict.WaitOn(Cause.SleepingUse);
     public static readonly Verdict BuildingReasonNoSquad = Verdict.NoWorker("squad");
     public static readonly Verdict BuildingReasonShellBlocked = Verdict.AwaitingPlan("earlier_shell", "");
-    public static readonly Verdict BuildingReasonShelterPending = Verdict.AwaitingPlan("initial_shelter", "");
     public static readonly Verdict BuildingReasonThreatPending = Verdict.AwaitingPlan("raid", "");
     public static readonly Verdict BuildingReasonSuiteStock = Verdict.AwaitingPlan("suite_materials", "walls");
     public static readonly Verdict BuildingReasonWorkshopUnavailable = Verdict.NoWorker("workshop_bench");
@@ -232,13 +224,6 @@ internal static partial class BuildingRuntimePackage
     public static readonly Verdict BuildingReasonNoLayoutPlan = Verdict.AwaitingPlan("layout_plan", "");
 
     public static readonly Verdict BuildingReasonNoWeaponBench = Verdict.AwaitingPlan("weapon_bench", "");
-
-    /// <summary>
-    /// A proposal planner's result when the step's stock, less the quantities earlier proposals claimed and
-    /// admitted plans hold, does not cover a quantity it needs and no less urgent commitment could be preempted
-    /// to release it; the outcome's Demand is the shortfall.
-    /// </summary>
-    public static readonly Verdict BuildingReasonDemand = Verdict.AwaitingPlan("stock", "unmet_demand");
 
     internal static readonly Verdict BuildingReasonStoneShellUnstocked = Verdict.AwaitingPlan("replacement_material", "");
     internal static readonly Verdict BuildingReasonDefensePerimeterNoStone = Verdict.AwaitingPlan("perimeter_stone", "");

@@ -228,9 +228,6 @@ public static partial class PolicyFunctions
     /// </summary>
     public static readonly ConcernId MaintainStockpiles = new("MaintainStockpiles");
 
-    /// <summary>Ranks MaintainStockpiles with the other upkeep goals.</summary>
-    internal const int StockpilePriorityRank = 3;
-
     /// <summary>The deficit a standing edit ranks with: small, like the tidy's, so it never outranks real shortfalls.</summary>
     internal const double StockpileDeficit = 0.1;
 

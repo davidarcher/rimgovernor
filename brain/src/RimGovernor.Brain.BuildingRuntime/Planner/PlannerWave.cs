@@ -10,24 +10,16 @@ public sealed record StepBudget
     /// <summary>The planner waves' wall budget, counted from the wave's start (after the rounds): under the 60 s step call, so a wave that never returns holds admission with its planners named instead of failing the step on the context deadline.</summary>
     public static readonly TimeSpan DefaultStepWall = TimeSpan.FromSeconds(40);
 
-    /// <summary>The least grace the optional wave gets after the critical wave returns. A step whose critical wave is quicker than this still lets the optional reviews finish.</summary>
-    public static readonly TimeSpan DefaultOptionalGrace = TimeSpan.FromSeconds(1);
-
     /// <summary>The most native round trips a step may spend; zero leaves it unbounded. It is reported, and an overrun is flagged on the row, never enforced mid-read.</summary>
     public ulong Reads { get; init; }
 
-    /// <summary>Bounds the planner waves: the critical wave still pending at the deadline holds admission naming its planners, and the optional wave's cutoff never passes it. Zero or less means <see cref="DefaultStepWall"/>.</summary>
+    /// <summary>Bounds the planner waves: the critical wave still pending at the deadline holds admission naming its planners, and the optional wave's cutoff is the same deadline. Zero or less means <see cref="DefaultStepWall"/>.</summary>
     public TimeSpan Wall { get; init; }
 
     /// <summary>Bounds the native-work window a step lends (the largest NativeWorkTicks its planners ask for); zero means the window's own maximum.</summary>
     public uint NativeWork { get; init; }
 
-    /// <summary>Floors how long after the critical wave returns the step still joins the optional wave; zero or less means <see cref="DefaultOptionalGrace"/>.</summary>
-    public TimeSpan OptionalGrace { get; init; }
-
     internal TimeSpan EffectiveWall => Wall <= TimeSpan.Zero ? DefaultStepWall : Wall;
-
-    internal TimeSpan EffectiveOptionalGrace => OptionalGrace <= TimeSpan.Zero ? DefaultOptionalGrace : OptionalGrace;
 }
 
 /// <summary>
@@ -76,7 +68,7 @@ internal sealed class PlannerWave : IDisposable
         }
         var ct = entry.Class == PlannerClass.Critical ? Call : _optional.Token;
         var start = DateTimeOffset.UtcNow;
-        Group.Go(entry.Name, entry.Class, entry.Priority, async () =>
+        Group.Go(entry.Name, entry.Class, async () =>
         {
             using var audit = entry.AuditReads();
             using var span = Tel.StartSpan("buildingruntime", "planner." + entry.Name, new Dictionary<string, object?>
@@ -102,10 +94,6 @@ internal sealed class PlannerWave : IDisposable
             catch (OpenMethodException)
             {
                 reason = BuildingReasonExistingWork;
-            }
-            catch (ConstructionLaborException)
-            {
-                reason = Verdict.AwaitingPlan("construction_labor", "initial_shelter");
             }
             catch (ProductionMaterialException)
             {
@@ -143,6 +131,10 @@ internal sealed class PlannerWave : IDisposable
             if (error is not null)
             {
                 error = new PlannerException(entry.Name, error);
+            }
+            if (error is null)
+            {
+                s.Config.Rounds?.NoteResearchWait(reason);
             }
             var failure = Done(entry.Name, reason, error);
             if (failure is not null)
@@ -228,15 +220,6 @@ internal sealed class PlannerWave : IDisposable
                 _reasons[name] = reason;
             }
             return error;
-        }
-    }
-
-    /// <summary>Records a reason decided after the planner returned: a proposal planner's proposal outcome from the coordinator.</summary>
-    public void Decided(string name, Verdict reason)
-    {
-        lock (_mu)
-        {
-            _reasons[name] = reason;
         }
     }
 

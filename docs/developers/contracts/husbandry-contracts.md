@@ -116,7 +116,7 @@ before. Raw facts only; policy decides.
   affordable pawn row (trader holds it and will trade, colony side none, race
   and sex match, `TradeLine.pawn_gender` read natively from the pawn, cheapest
   then line id) as a second purchase line beside `SelectPawnPurchase`, within
-  the same budget (`PawnPurchaseFraction` of silver, above the reserve and
+  the same budget (the silver above the reserve and
   the lines already selected). No joiner-capacity gate and no `allow_pawns`
   (only giving a pawn away needs it). An unbuildable race catalog fails the
   reading.

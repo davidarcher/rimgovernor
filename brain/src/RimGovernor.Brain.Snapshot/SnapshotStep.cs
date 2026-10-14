@@ -37,7 +37,7 @@ public static partial class SnapshotPackage
     public static void RecordStep(string dir, string planner, ConcernId goal, GenerationSnapshot current, ColonyProjection reading)
     {
         var none = new ColonyProjection();
-        reading = reading with { Zones = none.Zones, Window = none.Window, BedPrice = none.BedPrice };
+        reading = reading with { Zones = none.Zones, Window = none.Window };
         var tick = reading.Identity.Tick;
         var step = new SnapshotStep
         {

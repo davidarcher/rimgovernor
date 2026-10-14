@@ -24,9 +24,6 @@ public sealed record BedMaterials
 
     public ItemFacts Items { get; init; } = new();
 
-    /// <summary>The personal-share gate on a quality or material rebuild; the default is ungated.</summary>
-    public RoomGate Gate { get; init; } = new();
-
     /// <summary>The best-scoring stocked stuff for def scoring above floor (or at least floor when orEqual), false when none.</summary>
     internal (Resource Stuff, bool Ok) BestStuff(Resource def, double floor, bool orEqual)
     {
@@ -280,10 +277,6 @@ public static partial class PolicyFunctions
                 stuff = st;
             }
             else
-            {
-                continue;
-            }
-            if (!materials.Gate.BedAllowed([s.Owner], want, stuff, owned))
             {
                 continue;
             }

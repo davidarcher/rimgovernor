@@ -28,7 +28,6 @@ actually ran. Risks below are hypotheses for the named scenarios to test.
 | --- | --- | --- |
 | Pure deterministic decisions | Policy gates, `DecideCombat`, `PlanSupply` | Replay decisions without a game or model call. |
 | Selective planning | [Planner catalog](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Clock/ClockPlannerCatalog.cs), [due queue](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Clock/ClockPlannerQueue.cs), read audit | Declared sections, families, action outcomes and tick cadences already select work; tested undeclared reads fail the package. |
-| Shared proposal arbitration | [Proposal and claim coordinator](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Proposal.cs) | Migrated planners compete deterministically by priority, urgency and stable ID, with named claim conflicts. |
 | Supply forecasting | [Food view](../../../brain/src/RimGovernor.Brain.Policy/FoodPlan.cs), [resource supply](../../../brain/src/RimGovernor.Brain.Policy/ResourceSupply.cs), [ranker](../../../brain/src/RimGovernor.Brain.Policy/SupplyPlan.cs) | Lead, risk, labor, multiple yields and demand horizons already inform acquisition. |
 | Journaled ordinary execution | [Executor batch path](../../../brain/src/RimGovernor.Brain.Executor/Intent.cs) | Prepare and dispatch are journaled before the native write; batches avoid one call per order. |
 | Native supervision | [Hazard constants](../../../integrations/rimgovernor-native/src/Bridge/SupervisedPlayHazards.cs), [detection contract](hazard-detection-bounds.md) | Tick-paced hazard detection, direct hooks and expiring authority protect the simulation independently of planner speed. |
@@ -51,8 +50,7 @@ numbers or admission guards.
    These are different contracts, not one universal reaction deadline.
 2. [ReviewDisaster](../../../brain/src/RimGovernor.Brain.Policy/Disaster.cs) derives service
    deficits and a phase from observed conditions and infrastructure. Expiring
-   forecast time alone does not prove restoration. `DisasterHistory.Promote`
-   raises affected Concerns' priority.
+   forecast time alone does not prove restoration.
 3. RoundsRecoveryPlanner.step
    re-reads owned facts, derives `PlanSheltering`, cancels obsolete area actions,
    and waits on still-open work. Area changes precede repair/refuel selection.
@@ -104,8 +102,7 @@ resource/labor conflict.
 guarantee is that all competing commitments fit the same meaningful capacity
 estimate. `policy.ResidualSupplyLabor` subtracts food commitments from `workers * 20000`;
 it does not deduct all construction, medical and recovery commitments.
-`stepBudget` in [ClockScheduler](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Clock/ClockScheduler.cs)
-supplies resource stock to proposal arbitration, not a work-type/time model.
+No step-level budget models work type or time.
 This creates a risk of overcommitment; this assessment does not claim a measured
 starvation or development regression from it.
 

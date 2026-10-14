@@ -37,7 +37,6 @@ public sealed partial class Store
             Latches = r.Latches,
             Standards = MergeImmediateRows(previous.Standards, r.Standards, v => v.Concern),
             Incidents = MergeImmediateRows(previous.Incidents, r.Incidents, v => v.Kind),
-            Emergency = MergeImmediateRows(previous.Emergency, r.Emergency, v => v),
             NoOps = MergeImmediateRows(previous.NoOps, r.NoOps, v => v.Concern),
         };
         // The previous record may be a disabled round, which files no mood proposals; an enabled record carries
@@ -53,6 +52,6 @@ public sealed partial class Store
         {
             incidents.Add(LoadIncident(tx, b.Incident));
         }
-        return (next, result with { Standards = standards, Incidents = incidents, Emergency = [.. next.Emergency] });
+        return (next, result with { Standards = standards, Incidents = incidents });
     }
 }

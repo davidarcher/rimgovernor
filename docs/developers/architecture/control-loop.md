@@ -44,9 +44,8 @@ flowchart TD
     Advance --> Round[Inspect ordinary Concerns]
     Round --> Critical[Remaining critical planner wave]
     Critical --> Optional[Optional planner wave within budget]
-    Critical --> Proposals[Proposals and claims]
-    Optional --> Proposals
-    Proposals --> Admit[Admission and dispatch]
+    Critical --> Admit[Admission and dispatch]
+    Optional --> Admit
     Admit --> Observe[Observe progress]
     Observe --> Event
     Event -->|native stop cancels blocked ordinary review| Immediate
@@ -65,8 +64,8 @@ rewind and revoked authority still invalidate unsafe work. The scoped review
 does not interpret missing facts as recovery. Ordinary recovery service work,
 medical reserves and surgery remain in the ordinary pass.
 
-Critical planners precede optional work within each pass; startup shelter can
-be promoted. Response accounting includes pre-wave review, while the planner
+Critical planners precede optional work within each pass; owed shelter is
+critical. Response accounting includes pre-wave review, while the planner
 wall budget remains a separate hang guard. There is no calibrated numeric
 end-to-end latency gate.
 
@@ -76,9 +75,9 @@ Vanilla work priorities schedule queued pawn jobs. Concerns do not reserve
 exclusive development slots. Method ownership, open work, Safeguards,
 dependencies and per-planner bounds prevent duplicate or unsafe admission.
 
-Migrated planners use shared proposal arbitration by priority, urgency and stable
-ID, with claims on pawns, entities and quantities. These claims are not a complete
-colony-wide labor forecast. Supply planning accounts for its own labor and lead
+Planners claim pawns and entities through a step-scoped first-come claim set
+(`StepArbiter.TryClaim`); start order within a wave follows the planner catalog.
+These claims are not a complete colony-wide labor forecast. Supply planning accounts for its own labor and lead
 times; [resource demand](supply-model.md) feeds material shortfalls back into
 acquisition.
 
@@ -177,8 +176,6 @@ uncertain write or unavailable method. Unknown observations cannot settle it.
 
 Observed stalled work can trigger a bounded cooldown or alternate method.
 Completion can clear the blocker without replacing the action's evidence.
-A colony stage summarizes combined survival and development criteria; it does
-not guarantee future stability or reserve workers.
 
 [Controller contracts](../contracts/controller-contracts.md) define disease,
-hunting, combat extensions and stage criteria.
+hunting and combat extensions.

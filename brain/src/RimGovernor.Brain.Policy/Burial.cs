@@ -25,9 +25,6 @@ public static partial class PolicyFunctions
 {
     public static readonly ConcernId MaintainBurial = new("MaintainBurial");
 
-    /// <summary>Ranks MaintainBurial with the other priority-3 chores.</summary>
-    internal const int BurialPriority = 3;
-
     /// <summary>
     /// Ranks the morgue below graves and sarcophagi, which take a colonist corpse the morgue holds until one
     /// has room, and above the Low corpse dump. The native acceptance case burial/grave_over_morgue verifies
@@ -44,10 +41,10 @@ public static partial class PolicyFunctions
             recovered = Known(!owed);
         }
 
-        c.Assess(MaintainBurial, BurialPriority, recovered);
+        c.Assess(MaintainBurial, recovered);
         if (!Positive(recovered))
         {
-            c.Raise(MaintainBurial, BurialPriority);
+            c.Raise(MaintainBurial);
         }
     }
 

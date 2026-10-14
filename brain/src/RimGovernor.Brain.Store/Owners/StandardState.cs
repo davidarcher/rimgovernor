@@ -27,7 +27,6 @@ public sealed record StandardState(Standard Standard, ulong Revision, EquatableA
 
     GenerationSnapshot IMethodOwner.OwnerSnapshot => Standard.Snapshot;
 
-    int IMethodOwner.OwnerPriority => Standard.Priority;
 
     IReadOnlyList<PlanId> IMethodOwner.OwnerPlans => [.. Methods.Select(m => m.Plan)];
 
@@ -49,12 +48,11 @@ public sealed record StandardState(Standard Standard, ulong Revision, EquatableA
     {
         Store.InsertPlanOwner(tx, plan, "standard");
         _ = tx.Execute(
-            "INSERT INTO standard_methods(standard_id,episode,method_id,plan_id,priority,reason) VALUES($id,$episode,$method,$plan,$priority,$reason)",
+            "INSERT INTO standard_methods(standard_id,episode,method_id,plan_id,reason) VALUES($id,$episode,$method,$plan,$reason)",
             ("$id", Standard.Id),
             ("$episode", Standard.Episode.ToString(CultureInfo.InvariantCulture)),
             ("$method", method),
             ("$plan", plan),
-            ("$priority", Standard.Priority),
             ("$reason", reason.Length == 0 ? null : reason)
         );
     }
@@ -73,7 +71,6 @@ public sealed record OwnerSummary(
     ConcernId Kind,
     StandardStatus Status,
     Finding Finding,
-    int Priority,
     ulong Episode,
     ulong Revision,
     GenerationSnapshot Snapshot,
@@ -94,7 +91,6 @@ internal interface IMethodOwner
     /// </summary>
     bool OwnerNeed(Rounds rounds, out ConcernId need);
 
-    int OwnerPriority { get; }
 
     IReadOnlyList<PlanId> OwnerPlans { get; }
 
@@ -118,7 +114,7 @@ public sealed partial class Store
     private const int MaxStandardPayload = 8192;
 
     internal static OwnerSummary SummarizeOwner(StandardState o) =>
-        new(o.Standard.Id.Value, o.Standard.Kind, o.Standard.Status, o.Standard.Finding, o.Standard.Priority, o.Standard.Episode, o.Revision, o.Standard.Snapshot, o.Retired);
+        new(o.Standard.Id.Value, o.Standard.Kind, o.Standard.Status, o.Standard.Finding, o.Standard.Episode, o.Revision, o.Standard.Snapshot, o.Retired);
 
     internal static void InsertPlanOwner(StoreTransaction tx, PlanId plan, string kind) =>
         tx.ExecuteOrConflict("INSERT INTO plan_owner(plan_id,kind) VALUES($plan,$kind)", ("$plan", plan), ("$kind", kind));

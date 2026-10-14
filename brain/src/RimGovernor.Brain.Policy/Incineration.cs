@@ -90,10 +90,10 @@ public static partial class PolicyFunctions
     /// <summary>Unknown without the plan and construction census, and then it raises no goal.</summary>
     internal static void InspectIncineration(RoundsRun c)
     {
-        c.Assess(MaintainIncineration, 3, NotFact(c.F.IncinerationOwed));
+        c.Assess(MaintainIncineration, NotFact(c.F.IncinerationOwed));
         if (c.F.IncinerationOwed.TryGetValue(out var owed) && owed)
         {
-            c.Raise(MaintainIncineration, 3);
+            c.Raise(MaintainIncineration);
         }
     }
 }

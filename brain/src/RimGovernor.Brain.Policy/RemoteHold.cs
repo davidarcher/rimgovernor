@@ -41,9 +41,6 @@ public static partial class PolicyFunctions
     /// <summary>Go <c>UrgentCompetingWork</c>.</summary>
     public static readonly Reason UrgentCompetingWork = new("urgent_competing_work");
 
-    /// <summary>UrgentWorkPriority outranks every demand priority (1-100) so urgent work holds acquisition whatever the shortage.</summary>
-    public const int UrgentWorkPriority = 100;
-
     /// <summary>
     /// Known true while a colonist is an urgent patient (bleeding, or downed with a tend outstanding) or a
     /// disaster still disrupts a colony service. Unknown patients leave it unknown; the dispatch-time
@@ -81,7 +78,7 @@ public static partial class PolicyFunctions
     {
         if (UrgentWorkCompeting(f).TryGetValue(out var urgent) && urgent)
         {
-            return new AcquisitionCompetition { UrgentPriority = UrgentWorkPriority };
+            return new AcquisitionCompetition { Urgent = true };
         }
         return new AcquisitionCompetition();
     }

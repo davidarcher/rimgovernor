@@ -162,12 +162,6 @@ public sealed record GearLoadoutInput
     /// <summary>Whether a psychic-drone letter has been seen.</summary>
     public bool PsychicDrone { get; init; }
 
-    /// <summary>
-    /// The colonist's personal wealth share: an upgrade gap whose market-value delta it does not cover is dropped
-    /// from the plan. The zero value is ungated; necessities are never charged.
-    /// </summary>
-    public PersonalShare Share { get; init; } = new();
-
     public double Ambient { get; init; }
     public double ComfortableMin { get; init; }
     public double ComfortableMax { get; init; }
@@ -892,10 +886,6 @@ public static partial class PolicyFunctions
                     alternative.Add(worn);
                 }
             }
-            if (!GearGapAffordable(p, o, alternative, best))
-            {
-                continue;
-            }
             gaps.Add(new GearGap { Slot = o.Slot, Wanted = o, Source = o.Source, Gain = bestScore - GearEnsembleScore(p, alternative) });
         }
         var sorted = gaps.OrderByDescending(g => g.Gain).ThenBy(g => Wire.Name(g.Slot), StringComparer.Ordinal).ToList();
@@ -907,70 +897,6 @@ public static partial class PolicyFunctions
             SearchBudgetExhausted = exhausted,
             Gaps = EquatableArray.From(sorted),
         };
-    }
-
-    /// <summary>
-    /// Whether the colonist's remaining share covers the gap, decided once at gap-build time so every
-    /// GearGapThreshold reader agrees and an unaffordable upgrade holds nothing open. Necessities are never
-    /// charged: the slot is empty (no worn item conflicts), a replaced item is tattered, or the gap supplies the
-    /// legs (or a woman's chest) coverage the alternative lacks. Anything else is an upgrade priced as the wanted
-    /// item's market value less the worn items it replaces (quality and condition priced by ItemMarketValue); an
-    /// unpriceable upgrade is refused under a gated share. Weapons (the primary slot) are exempt: the armory drives them.
-    /// </summary>
-    private static bool GearGapAffordable(GearLoadoutInput p, GearOption wanted, IReadOnlyList<GearOption> alternative, IReadOnlyList<GearOption> best)
-    {
-        if (wanted.Slot == GearSlot.Primary)
-        {
-            return true;
-        }
-        var replaced = new List<GearOption>();
-        foreach (var w in p.Worn)
-        {
-            if (GearConflicts(w, wanted))
-            {
-                if (w.Condition <= GearTatteredCondition)
-                {
-                    return true;
-                }
-                replaced.Add(w);
-            }
-        }
-        if (replaced.Count == 0)
-        {
-            return true;
-        }
-        if (!p.Nudist)
-        {
-            var (legs, chest) = GearCoverage(alternative);
-            var (bestLegs, bestChest) = GearCoverage(best);
-            if ((!legs && bestLegs) || (p.Female && !chest && bestChest))
-            {
-                return true;
-            }
-        }
-        (double Value, bool Ok) Price(GearOption o)
-        {
-            var item = PersonalItemOf(o);
-            if (o.Source == GearSource.Bill)
-            {
-                item = item with { Condition = 1 }; // a crafted garment is new
-            }
-            var v = ItemMarketValue(o.Cost, item.Quality, item.Condition);
-            return (v.ValueOrDefault, v.IsKnown);
-        }
-        var (delta, ok) = Price(wanted);
-        foreach (var w in replaced)
-        {
-            var (v, vok) = Price(w);
-            delta -= v;
-            ok = ok && vok;
-        }
-        if (!ok)
-        {
-            // Allows(+Inf) is false under any gated share and true when ungated.
-            return p.Share.Allows(double.PositiveInfinity);
-        }
-        return p.Share.Allows(delta);
     }
 
     private static int GearPurchases(IEnumerable<GearOption> items) => items.Count(o => o.Source != GearSource.Worn);

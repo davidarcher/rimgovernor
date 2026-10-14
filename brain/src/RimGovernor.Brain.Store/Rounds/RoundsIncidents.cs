@@ -102,7 +102,7 @@ public sealed partial class Store
                 huntPrey = EquatableArray.From(n.Hunt.Select(prey => (PawnId)prey));
                 trigger = n.Id.Value + " hunt";
             }
-            var opened = OpenIncidentIn(tx, new IncidentAssessment(n.Id, subject, trigger, n.Priority, current, tick, huntPrey));
+            var opened = OpenIncidentIn(tx, new IncidentAssessment(n.Id, subject, trigger, current, tick, huntPrey));
             bindings.Add(new RoundsIncident { Kind = n.Id, Subject = subject, Incident = opened.Incident.Id, Situation = n.Finding.Situation() });
             states.Add(opened);
         }

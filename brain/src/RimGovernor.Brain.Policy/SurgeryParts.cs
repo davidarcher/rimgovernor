@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One missing part a restore wants: the items that would serve it, best first, and the surgery's rank as a demand priority.</summary>
+/// <summary>One missing part a restore wants: the items that would serve it, best first, and how much the want is worth.</summary>
 public sealed record SurgeryPart
 {
     public PawnId Pawn { get; init; }
@@ -9,7 +9,7 @@ public sealed record SurgeryPart
 
     public IReadOnlyList<Resource> Items { get; init; } = [];
 
-    public int Priority { get; init; }
+    public double Value { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -21,8 +21,8 @@ public static partial class PolicyFunctions
     public static readonly BillPurpose SurgeryPartBill = new("surgery_part");
 
     /// <summary>
-    /// Turns the part-short wants into part demand, highest priority first. Priority scales the want's value (the
-    /// best part's tier times the body part's weight, at most 1.5) onto ResourceDemand's 1..100.
+    /// Turns the part-short wants into part demand, most valuable want first (the best part's tier times the
+    /// body part's weight).
     /// </summary>
     public static IReadOnlyList<SurgeryPart> SurgeryParts(IReadOnlyList<SurgeryWant> wants)
     {
@@ -41,16 +41,16 @@ public static partial class PolicyFunctions
                     {
                         Pawn = want.Pawn,
                         Part = want.Part,
-                        Priority = Math.Min(100, Math.Max(1, (int)Math.Ceiling(want.Value / 1.5 * 100))),
+                        Value = want.Value,
                         Items = items,
                     }
                 );
             }
         }
-        return [.. output.OrderByDescending(p => p.Priority)];
+        return [.. output.OrderByDescending(p => p.Value)];
     }
 
-    /// <summary>The part demand as resource targets: one unit per part of its best item, merged by item at the highest priority.</summary>
+    /// <summary>The part demand as resource targets: one unit per part of its best item, merged by item.</summary>
     public static IReadOnlyList<ResourceDemand> SurgeryPartDemand(IReadOnlyList<SurgeryPart> parts)
     {
         var output = new List<ResourceDemand>();
@@ -60,11 +60,11 @@ public static partial class PolicyFunctions
             var item = part.Items[0];
             if (index.TryGetValue(item, out var i))
             {
-                output[i] = output[i] with { Count = output[i].Count + 1, Priority = Math.Max(output[i].Priority, part.Priority) };
+                output[i] = output[i] with { Count = output[i].Count + 1 };
                 continue;
             }
             index[item] = output.Count;
-            output.Add(new ResourceDemand { Key = new ResourceKey { Def = item }, Count = 1, Priority = part.Priority });
+            output.Add(new ResourceDemand { Key = new ResourceKey { Def = item }, Count = 1 });
         }
         return output;
     }
@@ -114,9 +114,8 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The parts a trader must supply: the served parts no bench can fabricate (TradeSurgeryParts) and, when
-    /// none of those is pending, the chosen elective's part provided no item of it can be fabricated (the bill
-    /// path, ElectiveParts, takes it otherwise). One elective at a time: ChosenElective is a single want, and it
-    /// exists only while nothing served is wanted. Silver still bounds the purchase through the trade's reserve.
+    /// none of those is pending, each chosen elective's part provided no item of it can be fabricated (the bill
+    /// path, ElectiveParts, takes it otherwise). Silver bounds the purchase through the trade's reserve.
     /// </summary>
     public static IReadOnlyList<SurgeryPart> SurgeryPurchaseParts(
         Fact<EquatableArray<CarePawn>> pawns,
@@ -126,12 +125,8 @@ public static partial class PolicyFunctions
     )
     {
         var output = TradeSurgeryParts(served, fabricable);
-        var (want, chosen) = ChosenElective(pawns, ctx);
-        if (output.Count > 0 || !chosen || FabricableItems(want.Items, fabricable).Count > 0)
-        {
-            return output;
-        }
-        return SurgeryParts([want]);
+        var unmade = ChosenElectives(pawns, ctx).Where(w => FabricableItems(w.Items, fabricable).Count == 0).ToList();
+        return [.. output, .. SurgeryParts(unmade)];
     }
 
     /// <summary>Adds the parts only a trader can supply to the trade need; an unknown need stays unknown.</summary>
@@ -216,31 +211,27 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The one elective colony-wide whose part is missing: the best affordable elective upgrade (ctx.Elective,
-    /// the same gate and slack as SelectSurgery) a doctor can perform within ElectiveFailureCap, ranked as
-    /// SelectSurgery ranks (gain over the natural part x part weight x role weight, ties by pawn id then part)
-    /// but over every elective, stocked or not. It returns a PartShort want whose Options and Items are that
-    /// part's affordable recipes, best first. Nothing is chosen while electives are not allowed (no hospital
-    /// bed, a queued bill or a served operation anywhere, so served demand never conflicts) or once some option
-    /// of the chosen part is on the map: SelectSurgery then queues it. The purchase path and ElectiveParts both
+    /// Each patient's elective whose part is missing: their best elective upgrade a doctor can perform within
+    /// ElectiveFailureCap, ranked as SelectSurgery ranks (gain over the natural part x part weight x role weight,
+    /// ties by pawn id then part) but over every elective, stocked or not. Each is a PartShort want whose Options
+    /// and Items are that part's recipes, best first. A patient with a served operation, a queued bill or a
+    /// stocked option of their best part wants nothing (SelectSurgery queues the stocked one), and a part item
+    /// already wanted by a higher-ranked patient is not wanted twice. The purchase path and ElectiveParts both
     /// read this.
     /// </summary>
-    public static (SurgeryWant Want, bool Ok) ChosenElective(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx)
+    public static IReadOnlyList<SurgeryWant> ChosenElectives(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx)
     {
-        pawns.TryGetValue(out var rowList);
-        var rows = rowList;
-        if (!ElectivesAllowed(rows, ctx.HospitalBed))
+        pawns.TryGetValue(out var rows);
+        if (!ctx.HospitalBed)
         {
-            return (new SurgeryWant(), false);
+            return [];
         }
         var profiles = new Dictionary<PawnId, PawnProfile>();
         foreach (var p in ctx.Profiles)
         {
             profiles[p.Id] = p;
         }
-        var best = new SurgeryWant();
-        var bestStocked = false;
-        var found = false;
+        var wants = new List<SurgeryWant>();
         foreach (var pawn in rows)
         {
             if (!pawn.Dead.TryGetValue(out var dead) || dead)
@@ -251,13 +242,26 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            pawn.Operations.TryGetValue(out var ops);
+            if (!pawn.Operations.TryGetValue(out var ops))
+            {
+                continue;
+            }
+            var served = false;
+            foreach (var op in ops)
+            {
+                var (weight, known) = ServedSurgery(pawn, op);
+                served = served || !known || weight > 0;
+            }
+            if (served)
+            {
+                continue;
+            }
             var parts = new Dictionary<int, List<SurgeryOperation>>();
             var order = new List<int>();
             foreach (var op in ops)
             {
                 var pk = op.PartIndex.TryGetValue(out var part);
-                if (!op.Recipe.IsKnown || !pk || !ElectiveUpgrade(op) || !SurgeryAcceptable(op, ElectiveFailureCap) || !ctx.Elective.Affordable(pawn.Id, op))
+                if (!op.Recipe.IsKnown || !pk || !ElectiveUpgrade(op) || !SurgeryAcceptable(op, ElectiveFailureCap))
                 {
                     continue;
                 }
@@ -270,6 +274,8 @@ public static partial class PolicyFunctions
                 group.Add(op);
             }
             order.Sort();
+            SurgeryWant? best = null;
+            var bestStocked = false;
             foreach (var part in order)
             {
                 var group = parts[part].OrderByDescending(OpTier).ToList();
@@ -281,14 +287,13 @@ public static partial class PolicyFunctions
                 }
                 group[0].Recipe.TryGetValue(out var top);
                 var value = (group[0].Tier - 1) * weight;
-                if (found && (value < best.Value || (value == best.Value && (pawn.Id.CompareTo(best.Pawn) > 0 || (pawn.Id == best.Pawn && part > best.Part)))))
+                if (best is not null && value <= best.Value)
                 {
                     continue;
                 }
-                found = true;
-                bestStocked = false;
                 var options = new List<string>();
                 var items = new List<Resource>();
+                bestStocked = false;
                 foreach (var op in group)
                 {
                     op.Recipe.TryGetValue(out var recipe);
@@ -313,8 +318,26 @@ public static partial class PolicyFunctions
                     Items = items,
                 };
             }
+            if (best is not null && !bestStocked)
+            {
+                wants.Add(best);
+            }
         }
-        return (best, found && !bestStocked);
+        var claimed = new HashSet<Resource>();
+        var output = new List<SurgeryWant>();
+        foreach (var want in wants.OrderByDescending(w => w.Value).ThenBy(w => w.Pawn).ThenBy(w => w.Part))
+        {
+            if (want.Items.Any(claimed.Contains))
+            {
+                continue;
+            }
+            foreach (var item in want.Items)
+            {
+                claimed.Add(item);
+            }
+            output.Add(want);
+        }
+        return output;
     }
 
     /// <summary>The valid items some usable bench can fabricate, in order.</summary>
@@ -332,18 +355,12 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The chosen elective's part demand for the bill path: one SurgeryPart of its fabricable items, or none. A
+    /// Each chosen elective's part demand for the bill path: one SurgeryPart of its fabricable items. A
     /// part nothing fabricates yields none here (the purchase path supplies it). Callers append it after the
     /// served parts, which win any conflict.
     /// </summary>
-    public static IReadOnlyList<SurgeryPart> ElectiveParts(SurgeryWant want, bool chosen, IReadOnlySet<Resource> fabricable)
-    {
-        if (!chosen)
-        {
-            return [];
-        }
-        return SurgeryParts([want with { Items = FabricableItems(want.Items, fabricable) }]);
-    }
+    public static IReadOnlyList<SurgeryPart> ElectiveParts(IReadOnlyList<SurgeryWant> wants, IReadOnlySet<Resource> fabricable) =>
+        SurgeryParts([.. wants.Select(w => w with { Items = FabricableItems(w.Items, fabricable) })]);
 
     private static bool ProducesItem(ProductionRecipe recipe, Resource item)
     {

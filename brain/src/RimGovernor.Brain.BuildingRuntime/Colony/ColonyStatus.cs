@@ -14,7 +14,7 @@ public interface IColonyStatusNative
     Task<PbObservations.ListPawnsReply> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct);
 }
 
-/// <summary>One living home colonist's state. Share, Spent and Remaining are the colonist's personal wealth share from the held colony projection; unknown when it is missing or stale or holds no share for the colonist.</summary>
+/// <summary>One living home colonist's state.</summary>
 public sealed record ColonyStatusPawn
 {
     public PawnId Id { get; init; }
@@ -26,12 +26,6 @@ public sealed record ColonyStatusPawn
     public Fact<double> Mood { get; init; }
 
     public Fact<double> Food { get; init; }
-
-    public Fact<double> Share { get; init; }
-
-    public Fact<double> Spent { get; init; }
-
-    public Fact<double> Remaining { get; init; }
 }
 
 /// <summary>One <see cref="ColonyStatus"/> read. Unknown facts are unknown, never zero: a native census that omits the field says so.</summary>
@@ -150,14 +144,12 @@ public sealed class ColonyStatus
         {
             report = report with { Shrines = await ObservationApi.ObserveShrines(source, decoded, call).ConfigureAwait(false) };
         }
-        IReadOnlyDictionary<PawnId, PersonalShare>? shares = null;
         if (_food is not null && FactStore.TryGet<ColonyProjection>(_food, FactSection.Colony, out var held))
         {
             var id = held.Value.Identity;
             if (id.SameContext(decoded) && id.Tick <= decoded.Tick
                 && id.NativeGeneration.TryGetValue(out var a) && decoded.NativeGeneration.TryGetValue(out var b) && a == b)
             {
-                shares = held.Value.Facts.PersonalShares;
                 var labels = new Dictionary<PawnId, string>();
                 if (held.Value.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals))
                 {
@@ -192,10 +184,6 @@ public sealed class ColonyStatus
             if (row.Needs is { } needs)
             {
                 pawn = pawn with { Mood = OptionalFact(needs.Mood is not null, needs.Mood.GetValueOrDefault()), Food = OptionalFact(needs.Food is not null, needs.Food.GetValueOrDefault()) };
-            }
-            if (shares is not null && shares.TryGetValue(pawn.Id, out var share))
-            {
-                pawn = pawn with { Share = share.Share, Spent = share.Spent, Remaining = share.Remaining };
             }
             rows.Add(pawn);
         }

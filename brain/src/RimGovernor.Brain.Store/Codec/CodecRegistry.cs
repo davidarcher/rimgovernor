@@ -53,7 +53,6 @@ internal static class CodecRegistry
         codecs.Register(new CleanConverter());
         codecs.Register(new PawnActivitiesConverter());
         codecs.Register(new ColonyIdConverter());
-        codecs.Register(new ColonyStageRecordConverter());
         codecs.Register(new CombatAnimalRestorationConverter());
         codecs.Register(new CombatBatchConverter());
         codecs.Register(new CombatBurnConverter());

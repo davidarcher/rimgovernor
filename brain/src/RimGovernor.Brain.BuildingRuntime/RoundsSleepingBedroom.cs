@@ -9,7 +9,7 @@ internal static partial class BuildingRuntimePackage
     /// The projection's next bedroom step: none without the layout plan, the room census or the sleeping
     /// census. A tribe builds its wood bedrooms at Camp tier too.
     /// </summary>
-    internal static Pol.BedroomStep BedroomStepOf(Observation.ColonyProjection facts, Pol.ColonyStage stage)
+    internal static Pol.BedroomStep BedroomStepOf(Observation.ColonyProjection facts)
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -18,7 +18,7 @@ internal static partial class BuildingRuntimePackage
         {
             return new Pol.BedroomStep();
         }
-        return NextBedroomStep(plan!, rooms!, sleeping!, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts), BedroomGate(facts, stage));
+        return NextBedroomStep(plan!, rooms!, sleeping!, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
     }
 
     /// <summary>The projection's next wing migration step: none without the layout plan, the room census or the sleeping census.</summary>
@@ -51,7 +51,7 @@ internal static partial class BuildingRuntimePackage
     /// The target-sized bedrooms the station graph sizes (#2939): the plan's suites with their owners' targets
     /// and the claims no vacant suite answers; null while the room, sleeping or work census is unknown.
     /// </summary>
-    internal static IReadOnlyList<Pol.SuiteWish>? SuiteWishesOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.ColonyStage stage)
+    internal static IReadOnlyList<Pol.SuiteWish>? SuiteWishesOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan)
     {
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var sk = facts.Facts.Sleeping.TryGetValue(out var sleeping);
@@ -61,12 +61,12 @@ internal static partial class BuildingRuntimePackage
             return null;
         }
         var targets = BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>();
-        var claims = SuiteClaims(plan, rooms!, sleeping!, targets, traits, SuitePressure(facts) ?? new Dictionary<Pol.PawnId, double>(), BedroomGate(facts, stage));
+        var claims = SuiteClaims(plan, rooms!, sleeping!, targets, traits, SuitePressure(facts) ?? new Dictionary<Pol.PawnId, double>());
         return SuiteWishes(plan, rooms!, sleeping!, targets, claims);
     }
 
     /// <summary>Excludes pawns awaiting a suite; their current rooms receive no in-place quality upgrade.</summary>
-    internal static IReadOnlyDictionary<string, Pol.RoomTarget> UpgradeTargetsOf(Observation.ColonyProjection facts, IReadOnlyDictionary<string, Pol.RoomTarget>? targets, Pol.ColonyStage stage)
+    internal static IReadOnlyDictionary<string, Pol.RoomTarget> UpgradeTargetsOf(Observation.ColonyProjection facts, IReadOnlyDictionary<string, Pol.RoomTarget>? targets)
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -76,7 +76,7 @@ internal static partial class BuildingRuntimePackage
         {
             return targets ?? new Dictionary<string, Pol.RoomTarget>();
         }
-        var claims = SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>(), traits, SuitePressure(facts) ?? new Dictionary<Pol.PawnId, double>(), BedroomGate(facts, stage));
+        var claims = SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>(), traits, SuitePressure(facts) ?? new Dictionary<Pol.PawnId, double>());
         return UpgradeTargets(targets ?? new Dictionary<string, Pol.RoomTarget>(), sleeping!, claims);
     }
 
@@ -84,9 +84,9 @@ internal static partial class BuildingRuntimePackage
     /// The review's BedroomsOwed fact for the projection. A due room quality swap or wing migration owes a
     /// bedroom too, so MaintainHousing stays open until it is done.
     /// </summary>
-    internal static Fact<bool> BedroomsOwedOf(Observation.ColonyProjection facts, Pol.ColonyStage stage)
+    internal static Fact<bool> BedroomsOwedOf(Observation.ColonyProjection facts)
     {
-        var owed = BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts), BedroomGate(facts, stage));
+        var owed = BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
         if (owed.TryGetValue(out var v) && !v)
         {
             if (BedroomSwapOf(facts).Ok)
@@ -97,7 +97,7 @@ internal static partial class BuildingRuntimePackage
             {
                 return Known<bool>(true);
             }
-            if (RoomUpgradeOf(facts, stage).Due)
+            if (RoomUpgradeOf(facts).Due)
             {
                 return Known<bool>(true);
             }

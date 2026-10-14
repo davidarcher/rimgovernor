@@ -47,9 +47,7 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    their departments and applied by `MaintainStockpiles`: see
    [storage](storage.md). Once ComplexFurniture is researched and no zone edit
    stands, `RoundsStockpilePlanner` upgrades the warehouse (the general store)
-   with a Shelf inside it, up to a third of its footprint, one at a time. The
-   upgrade runs under the stockpiles planner, so while the initial shelter is owed
-   admission refuses it for the builders (`awaiting_plan:construction_labor`). `MaintainStockpiles` patches each built shelf with its zone's filter and
+   with a Shelf inside it, up to a third of its footprint, one at a time.  `MaintainStockpiles` patches each built shelf with its zone's filter and
    priority (role `shelf:<buildingID>`). Native storage
    capacity counts a shelf cell's free slots (three stacks per cell).
 6. **Bill**: `RoundsResourcePlanner` dispatches the bill and native readback
@@ -496,8 +494,8 @@ unknown blockers, forbidden conduits and unfinished work cannot be replaced.
 The topology census includes ordinary, hidden and waterproof conduits.
 
 Native power facts identify rain-sensitive equipment and whether its whole
-footprint is roofed. Exposed equipment and ordinary conduits keep power at
-priority 2 even in dry weather. Where a free, observed perimeter exists, the power
+footprint is roofed. Exposed equipment and ordinary conduits keep power
+unmet even in dry weather. Where a free, observed perimeter exists, the power
 planner builds a small enclosure around exposed equipment through shared Hands.
 The door precedes the walls in one wave; ordinary colonist roofing has a bounded allowance,
 and only an observed roof clears exposure. Blocked sites remain a deficit.
@@ -578,7 +576,7 @@ can eat, which is baby food, milk or insect jelly
 `DefinitionCatalog.BabyEdible`).
 The mother is Urgent and every other pawn Childcare by default. No write
 beyond the existing production bill is owed. `MaintainBabyFeeding`
-(priority 2, Food domain) is raised while babies live, no colonist can
+(Food domain) is raised while babies live, no colonist can
 breastfeed and the shared stock a baby eats (stocks whose eaters include a
 baby) is under the game's low-baby-food alert level per baby
 (`policy.BabyFoodAlertNutrition`, `Alert_LowBabyFood`). It places one
@@ -1025,10 +1023,9 @@ early at 0, and damage is an integer). The mod depends on Odyssey (`About.xml`
 `modDependencies` and `loadAfter`), so the BeamWeapons project always exists;
 research that a census does not list never unlocks its tier.
 
-The research ladder supplies the gates: `DefaultResearchLadder` ends with
-Gunsmithing, ChargedShot and BeamWeapons, after Microelectronics and the
-multi-analyzer, and the planned laboratory builds the high-tech bench and the
-analyzer early (see [research](../contracts/research.md)).
+The gates come from research waits: a planner that cannot proceed for want of
+Gunsmithing, ChargedShot or BeamWeapons reports the wait and the research planner
+pursues it (see [research](../contracts/research.md)).
 
 **The drill.** The drill itself is native (#2610, `src/Runtime/Training`).
 `WorkGiver_TrainRange` sits under the `RimGovernorTraining` work type

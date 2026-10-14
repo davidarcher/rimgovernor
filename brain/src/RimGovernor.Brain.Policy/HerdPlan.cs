@@ -107,7 +107,7 @@ public sealed partial record HerdPlan
     public HerdPolicy Policy { get; init; } = new();
 
     /// <summary>
-    /// The races that are herds: a fertile breeding pair or HerdMinAnimals animals kept, with a policy ceiling to
+    /// The races that are herds: a fertile breeding pair or any animal kept, with a policy ceiling to
     /// size a unit from (a founder or companion has none and stays with the misc animals).
     /// </summary>
     public IReadOnlyList<Resource> Herds { get; init; } = [];
@@ -202,12 +202,6 @@ public static partial class PolicyFunctions
 
     /// <summary>The breeding stock kept beyond a job's head count.</summary>
     public const long HerdSpare = HerdPairSize;
-
-    /// <summary>The smallest ceiling the wealth budget cuts a race without a job to.</summary>
-    public const long HerdUnplannedFloor = 6;
-
-    /// <summary>The headcount at which a race with no breeding pair is still a herd with a unit of its own.</summary>
-    public const long HerdMinAnimals = 5;
 
     private sealed class HerdRaceStats
     {
@@ -567,7 +561,7 @@ public static partial class PolicyFunctions
             {
                 if (!targets.ContainsKey(def) && !retiring.Contains(def) && roles[def].Job != HerdJob.Companion)
                 {
-                    max[def] = HerdShareOf(stats[def].N, budget.Share, HerdUnplannedFloor);
+                    max[def] = HerdShareOf(stats[def].N, budget.Share, HerdPairSize);
                 }
             }
         }
@@ -619,7 +613,7 @@ public static partial class PolicyFunctions
         var herds = new List<Resource>();
         foreach (var def in order)
         {
-            if (max.TryGetValue(def, out var ceiling) && ceiling > 0 && (stats[def].Paired() || stats[def].N >= HerdMinAnimals))
+            if (max.TryGetValue(def, out var ceiling) && ceiling > 0 && (stats[def].Paired() || stats[def].N > 0))
             {
                 herds.Add(def);
             }

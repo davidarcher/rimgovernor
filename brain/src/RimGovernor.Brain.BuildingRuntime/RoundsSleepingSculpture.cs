@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The review's MaintainArt room input: a bedroom below target, weakest in beauty, with a free cell.</summary>
-    internal static Fact<bool> SculptureRoomsOwedOf(Observation.ColonyProjection facts, Pol.ColonyStage stage)
+    internal static Fact<bool> SculptureRoomsOwedOf(Observation.ColonyProjection facts)
     {
         var rk = facts.Rooms.TryGetValue(out var rooms);
         var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
@@ -14,7 +14,7 @@ internal static partial class BuildingRuntimePackage
             return Unknown<bool>();
         }
         facts.TechTier.TryGetValue(out var tier);
-        return SculptureRoomsOwed(facts.Facts.Sleeping, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), stage), FurnitureRooms(rooms!, census, facts.Cells));
+        return SculptureRoomsOwed(facts.Facts.Sleeping, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells));
     }
 
     /// <summary>The policy view of packed sculpture stock.</summary>
@@ -104,7 +104,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             inner[item.Id] = item;
         }
-        var (step, due) = NextSculpture(obs!, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), Reviewer.Stage), FurnitureRooms(rooms!, census, facts.Cells), packed, facts.Facts.Items, BedroomGate(facts, Reviewer.Stage));
+        var (step, due) = NextSculpture(obs!, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells), packed, facts.Facts.Items);
         if (!due)
         {
             return none;

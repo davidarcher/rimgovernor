@@ -78,7 +78,7 @@ public sealed partial class RoundsDefensePlanner
         var journal = _reviewer.Player.Journal;
         var combat = await _native.ReadCombatAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
         var tick = new Tick((long)(combat.Context?.Tick ?? 0));
-        var incident = await journal.OpenIncidentAsync(new IncidentAssessment(PolicyApi.ActiveCombat, default, "restore_combat_settings", 0, state.Snapshot, tick, []), ct).ConfigureAwait(false);
+        var incident = await journal.OpenIncidentAsync(new IncidentAssessment(PolicyApi.ActiveCombat, default, "restore_combat_settings", state.Snapshot, tick, []), ct).ConfigureAwait(false);
         var payload = Encoding.UTF8.GetBytes(global::RimGovernor.Brain.Store.Codec.StoreJson.Serialize(kept));
         var prefix = Encoding.UTF8.GetBytes($"{kept.Owner.Value}/{state.Snapshot.Load.Value}/{tick.Value}/");
         var sum = SHA256.HashData([.. prefix, .. payload]);

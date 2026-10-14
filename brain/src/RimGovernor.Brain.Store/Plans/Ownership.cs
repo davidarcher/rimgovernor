@@ -98,7 +98,6 @@ public sealed partial class Store
                                 {
                                     Action = a,
                                     Progress = new Progress(r.Plan, a.Id),
-                                    Priority = 4 - owner.Standard.Priority,
                                     Purpose = r.Purpose,
                                     Preview = preview,
                                 }

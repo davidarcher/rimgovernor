@@ -17,20 +17,9 @@ public static partial class PolicyFunctions
     /// <summary>Keeps IEDs two cells apart along the approach: PlaceWorker_NeverAdjacentTrap refuses a trap beside another.</summary>
     internal const int DefenseIEDSpacing = 2;
 
-    internal const int IedBaseBudget = 2;
-
-    /// <summary>
-    /// The number of approach IEDs the observed raid points demand: the base two, plus one for every
-    /// TurretStepPoints. Unknown, NaN or infinite threat keeps the base.
-    /// </summary>
-    public static int IEDBudget(Fact<double> raidPoints)
-    {
-        if (!raidPoints.TryGetValue(out var points) || double.IsNaN(points) || double.IsInfinity(points) || points < TurretStepPoints)
-        {
-            return IedBaseBudget;
-        }
-        return IedBaseBudget + (int)(points / TurretStepPoints);
-    }
+    /// <summary>The approach IEDs the layout plans: one for each turret it plans, so the approach is covered as far as the firing line is.</summary>
+    public static int IEDBudget(Fact<double> raidPoints, Fact<double> capacity, Fact<EquatableArray<DefenseTurretFacts>> turrets) =>
+        TurretBudget(raidPoints, capacity, turrets);
 
     /// <summary>
     /// Reports every keepOff cell strictly farther than radius from <paramref name="at"/>: the game's explosion

@@ -45,7 +45,7 @@ public static partial class PolicyFunctions
             return Known(new EquatableArray<ResourceDemand>());
         }
 
-        return Known(EquatableArray.From([new ResourceDemand { Key = new ResourceKey { Def = resource }, Count = deficit, Priority = 1 }]));
+        return Known(EquatableArray.From([new ResourceDemand { Key = new ResourceKey { Def = resource }, Count = deficit }]));
     }
 
     /// <summary>The catalog rows of selected native mine sources; headroom is the storage accepting the output.</summary>

@@ -98,10 +98,10 @@ public sealed record UpkeepHistory
     public bool Repairs { get; init; }
 }
 
-public sealed record UpkeepNeed(ConcernId Concern, int Priority, bool Active, Fact<EquatableArray<string>> Targets, Fact<double> Metric, bool Unsafe)
+public sealed record UpkeepNeed(ConcernId Concern, bool Active, Fact<EquatableArray<string>> Targets, Fact<double> Metric, bool Unsafe)
 {
     /// <summary>The zero value Go's struct literal starts from.</summary>
-    public UpkeepNeed() : this(default, 0, false, default, default, false)
+    public UpkeepNeed() : this(default, false, default, default, false)
     {
     }
 }
@@ -127,18 +127,14 @@ public static partial class PolicyFunctions
     {
         var needs = new List<UpkeepNeed>();
         var history = new UpkeepHistory();
-        bool Add(ConcernId goal, int priority, bool active, Fact<EquatableArray<string>> targets, Fact<double> metric, bool unsafeNeed)
+        bool Add(ConcernId goal, bool active, Fact<EquatableArray<string>> targets, Fact<double> metric, bool unsafeNeed)
         {
             if (targets.TryGetValue(out var rows))
             {
                 active = rows.Count > 0;
             }
             active = active || (issued?.GetValueOrDefault(goal) ?? false);
-            if (!targets.IsKnown && !active)
-            {
-                priority = 4;
-            }
-            needs.Add(new UpkeepNeed(goal, priority, active, targets, metric, unsafeNeed));
+            needs.Add(new UpkeepNeed(goal, active, targets, metric, unsafeNeed));
             return active;
         }
         static bool Valid(HashSet<string> seen, string id)
@@ -196,7 +192,7 @@ public static partial class PolicyFunctions
             targets = Known(EquatableArray.From(result));
             metric = Known(total);
         }
-        history = history with { Repairs = Add(MaintainEssentialRepairs, 3, previous.Repairs, targets, metric, false) };
+        history = history with { Repairs = Add(MaintainEssentialRepairs, previous.Repairs, targets, metric, false) };
         if (v.Filth.TryGetValue(out var filth))
         {
             var seen = new HashSet<string>();
@@ -261,7 +257,7 @@ public static partial class PolicyFunctions
             }
             clearanceTargets = Known(EquatableArray.From(selected));
         }
-        history = history with { Clearance = Add(ClearHomeObstructions, 3, previous.Clearance, clearanceTargets, Unknown<double>(), false) };
+        history = history with { Clearance = Add(ClearHomeObstructions, previous.Clearance, clearanceTargets, Unknown<double>(), false) };
         var shrineTargets = Unknown<EquatableArray<string>>();
         if (v.Shrines.TryGetValue(out var shrines))
         {
@@ -275,7 +271,7 @@ public static partial class PolicyFunctions
             }
             shrineTargets = Known(EquatableArray.From(ShrineClearanceTargets(shrines, v.ShrinePolicy)));
         }
-        history = history with { Shrine = Add(ClearAncientShrine, 3, previous.Shrine, shrineTargets, Unknown<double>(), false) };
+        history = history with { Shrine = Add(ClearAncientShrine, previous.Shrine, shrineTargets, Unknown<double>(), false) };
         return Result();
     }
 }

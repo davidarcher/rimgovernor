@@ -56,8 +56,6 @@ public sealed record FirebreakRequest
 
     public IReadOnlyDictionary<Cell, Fact<FirebreakGround>> Ground { get; init; } = new Dictionary<Cell, Fact<FirebreakGround>>();
 
-    public Fact<ColonyStage> Stage { get; init; }
-
     public Tick Now { get; init; }
 
     /// <summary>The floor census rows.</summary>
@@ -111,8 +109,7 @@ public static partial class PolicyFunctions
         var unknown = Unknown<FirebreakPlan>();
         var pk = r.Planned.TryGetValue(out var planned);
         var ck = r.Claims.TryGetValue(out var claims);
-        var sk = r.Stage.TryGetValue(out var stage);
-        if (!pk || !ck || !sk)
+        if (!pk || !ck)
         {
             return (unknown, dwell);
         }
@@ -151,14 +148,11 @@ public static partial class PolicyFunctions
             cells.Add(new FirebreakCell(c, FirebreakTreatment.Cut));
         }
         var settled = new List<int>();
-        if (stage == ColonyStage.Development)
+        for (var i = 0; i < cells.Count; i++)
         {
-            for (var i = 0; i < cells.Count; i++)
+            if (r.Now.Value - next[cells[i].Cell].Value >= FirebreakSettleTicks.Value)
             {
-                if (r.Now.Value - next[cells[i].Cell].Value >= FirebreakSettleTicks.Value)
-                {
-                    settled.Add(i);
-                }
+                settled.Add(i);
             }
         }
         if (settled.Count > 0)

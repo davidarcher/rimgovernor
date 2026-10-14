@@ -8,12 +8,6 @@ public sealed class ProductionMaterialException : DomainException
     public ProductionMaterialException() : base("fixed production batch material is insufficient or unknown, or the claim bound is exhausted") { }
 }
 
-/// <summary>A plan draws on Construction labor while the initial shelter owns it (<see cref="Policy.PolicyFunctions.ConstructionLaborHeld"/>).</summary>
-public sealed class ConstructionLaborException : DomainException
-{
-    public ConstructionLaborException() : base("the initial shelter holds the construction labor") { }
-}
-
 /// <summary>Go <c>core.ErrConflict</c>: a plan or action identity already exists, or a compare-and-swap lost.</summary>
 public class ConflictException : DomainException
 {

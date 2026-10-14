@@ -109,10 +109,6 @@ internal static partial class BuildingRuntimePackage
         return new Decision { Kind = "layout_edit", Component = "layout", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs };
     }
 
-    /// <summary>The proposal's zone edits alone: the storage shells and the shelf upgrade need builders.</summary>
-    internal static Pol.StockpileReview WithoutBuilds(Pol.StockpileReview proposal) =>
-        proposal with { Rooms = [], Shelf = new Pol.ShelfStep() };
-
     /// <summary>Whether the census found the Shelf buildable (researched).</summary>
     internal static bool ShelfAvailable(Observation.ColonyProjection projection)
     {
@@ -421,21 +417,6 @@ public sealed partial class RoundsStockpilePlanner
         return (new RoundsStockpileResult { Verdict = result.Verdict }, result.Verdict == BuildingReasonAdmitted);
     }
 
-    /// <summary>Whether the initial shelter is owed under review, the reading the priority gate holds planners on.</summary>
-    private bool ShelterOwedUnder(Sto.Rounds review, CancellationToken call)
-    {
-        var standards = new List<Sto.StandardState>();
-        foreach (var binding in review.Standards)
-        {
-            if (binding.Concern != MaintainHousing)
-            {
-                continue;
-            }
-            standards.Add(_reviewer.Player.Journal.LoadStandard(binding.Standard, call));
-        }
-        return ClockPlannerCatalog.ShelterOwed(new Sto.RoundsResult { Review = review, Standards = standards });
-    }
-
     internal async Task<RoundsStockpileResult> StepAsync(StepArbiter? _, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
@@ -485,14 +466,7 @@ public sealed partial class RoundsStockpilePlanner
         {
             return new RoundsStockpileResult { Verdict = BuildingReasonNoDeficit };
         }
-        // While the initial shelter is owed the builders are its: zone edits are instant and go on, but no storage
-        // shell or shelf is raised.
         Verdict waiting = default;
-        if (ShelterOwedUnder(review, call))
-        {
-            proposal = WithoutBuilds(proposal);
-            waiting = BuildingReasonShelterPending;
-        }
         // A planned room not yet standing is raised first; while its shell waits (already tried, no space,
         // refused) the zone edits go on.
         if (proposal.Rooms.Count > 0)

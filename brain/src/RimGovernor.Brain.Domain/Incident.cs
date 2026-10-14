@@ -25,9 +25,6 @@ public sealed record Incident
 
     public string Trigger { get; init; } = "";
 
-    /// <summary>From the latest assessment.</summary>
-    public int Priority { get; init; }
-
     public GenerationSnapshot Snapshot { get; init; }
 
     public Tick Started { get; init; }
@@ -54,7 +51,7 @@ public sealed record Incident
             "invalid incident trigger"
         );
         DomainException.Require(
-            Priority >= 0 && Priority <= DomainConstants.MaxPriority && Started.Value >= 0 && Snapshot.IsValid,
+            Started.Value >= 0 && Snapshot.IsValid,
             "invalid incident assessment"
         );
         DomainException.Require(!(Closed && Ended < Started) && !(!Closed && Ended.Value != 0), "invalid incident lifetime");

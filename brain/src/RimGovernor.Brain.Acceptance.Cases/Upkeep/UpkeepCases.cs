@@ -13,9 +13,5 @@ public static class UpkeepCases
         registry.Register(UpkeepGreedyBedroom.Case());
         registry.Register(UpkeepHomeCoverage.Case());
         registry.Register(UpkeepJealousAscetic.Case());
-        foreach (var personalShare in UpkeepPersonalShare.Cases())
-        {
-            registry.Register(personalShare);
-        }
     }
 }

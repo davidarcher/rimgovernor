@@ -60,8 +60,7 @@ public static partial class PolicyFunctions
     /// <summary>
     /// Go <c>SelectAnimalPurchase</c>: picks the live animal a trader offers that the herd plan wants: a pawn row
     /// the trader holds and will trade, with none on the colony side, of the first want that has an affordable
-    /// row of its race and a sex it wants. The budget is SelectPawnPurchase's: min(PawnPurchaseFraction of colony
-    /// silver, colony silver - reserve - spent). Cheapest row, then line id, within a want. It returns false when
+    /// row of its race and a sex it wants. The budget is SelectPawnPurchase's: colony silver - reserve - spent. Cheapest row, then line id, within a want. It returns false when
     /// nothing is wanted or affordable.
     /// </summary>
     public static (TradeSelectionLine Line, bool Ok) SelectAnimalPurchase(
@@ -85,7 +84,7 @@ public static partial class PolicyFunctions
                 spent += line.Count * price.GetValueOrDefault(line.LineID);
             }
         }
-        var budget = Math.Min(PawnPurchaseFraction * colonySilver, (double)(colonySilver - reserve) - spent);
+        var budget = (double)(colonySilver - reserve) - spent;
         foreach (var want in wants)
         {
             TradeSheetRowFact? best = null;

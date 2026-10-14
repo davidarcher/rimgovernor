@@ -66,8 +66,6 @@ public sealed partial record Standard
     /// <summary>The Concern the Standard serves.</summary>
     public ConcernId Kind { get; init; }
 
-    public int Priority { get; init; }
-
     public GenerationSnapshot Snapshot { get; init; }
 
     public ulong Episode { get; init; }
@@ -100,13 +98,12 @@ public sealed partial record Standard
     public string? Record { get; init; }
 
     /// <summary>A new open, unclear Standard (Go <c>NewStandard</c>); throws when invalid.</summary>
-    public static Standard NewStandard(StandardId id, ConcernId kind, int priority, GenerationSnapshot snapshot)
+    public static Standard NewStandard(StandardId id, ConcernId kind, GenerationSnapshot snapshot)
     {
         var g = new Standard
         {
             Id = id,
             Kind = kind,
-            Priority = priority,
             Snapshot = snapshot,
             Status = StandardStatus.Open,
             Finding = Finding.Unclear,
@@ -117,7 +114,7 @@ public sealed partial record Standard
 
     public void Validate()
     {
-        DomainException.Require(Id.IsValid && Kind.IsValid && Priority >= 0 && Priority <= DomainConstants.MaxPriority && Snapshot.IsValid, "invalid standard");
+        DomainException.Require(Id.IsValid && Kind.IsValid && Snapshot.IsValid, "invalid standard");
         DomainException.Require(Record is null || System.Text.Encoding.UTF8.GetByteCount(Record) <= DomainConstants.MaxStandardRecord, "standard record exceeds bound");
         if (Kind == Concerns.TradeMission)
         {

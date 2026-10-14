@@ -3,10 +3,10 @@ namespace RimGovernor.Brain.Policy;
 public sealed record AcquisitionCompetition
 {
     /// <summary>
-    /// Zero means no competing urgent work. Routine deficits are not a veto. An urgent priority above every
-    /// matched demand holds this candidate.
+    /// Whether competing urgent work stands. Routine deficits are not a veto. Urgent work holds a candidate
+    /// unless a demand it serves is an emergency.
     /// </summary>
-    public int UrgentPriority { get; init; }
+    public bool Urgent { get; init; }
 }
 
 public static partial class PolicyFunctions

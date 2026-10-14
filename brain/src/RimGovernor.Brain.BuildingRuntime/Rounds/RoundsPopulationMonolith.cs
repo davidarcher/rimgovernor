@@ -30,7 +30,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var snapshot = EmergencySnapshot.New(state.Snapshot, review.Tick, emergency.Facts);
         var (hostiles, _) = PolicyFunctions.EmergencyNeeds(snapshot, state.Snapshot, review.Tick);
         facts = facts with { Hostiles = hostiles };
-        var advance = PolicyFunctions.MonolithAdvanceOwed(facts.Monolith, PolicyFunctions.MonolithGate(facts, reviewer.Staged().ColonyStage));
+        var advance = PolicyFunctions.MonolithAdvanceOwed(facts.Monolith, PolicyFunctions.MonolithGate(facts));
         foreach (var issue in advance.Issues)
         {
             BuildingRuntimePackage.DefenseAction("routine-population-custody", TelemetryLevel.Warn, "refused", "monolith_advance_unread", "monolith", new Dictionary<string, object?> { ["detail"] = issue }, call);

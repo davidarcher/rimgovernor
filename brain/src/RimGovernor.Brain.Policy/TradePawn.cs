@@ -4,9 +4,6 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
 {
-    /// <summary>The share of the colony's current silver one pawn purchase may spend.</summary>
-    public const double PawnPurchaseFraction = 0.5;
-
     /// <summary>Scores an offered pawn from its skills and passions: each usable skill's level weighted by how fast its passion grows it. A disabled skill adds nothing.</summary>
     public static double PawnPurchaseValue(IReadOnlyList<ProfileSkill> skills)
     {
@@ -23,8 +20,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Picks the slave or prisoner a caravan offers that the colony buys: only while capacity (JoinerCapacity) is
-    /// known true, only a violence-capable pawn with readable skills, at most min(PawnPurchaseFraction of colony
-    /// silver, colony silver - reserve - spent) where spent is what the resource lines already selected will cost,
+    /// known true, only a violence-capable pawn with readable skills, at most colony silver - reserve - spent where spent is what the resource lines already selected will cost,
     /// and among those the best skill value per silver (line id on ties). It returns false when no pawn qualifies.
     /// </summary>
     public static (TradeSelectionLine Line, bool Ok) SelectPawnPurchase(bool capacity, IReadOnlyList<TradeSheetRowFact> rows, long colonySilver, long reserve, IReadOnlyList<TradeSelectionLine> selected)
@@ -46,7 +42,7 @@ public static partial class PolicyFunctions
                 spent += line.Count * price.GetValueOrDefault(line.LineID);
             }
         }
-        var budget = Math.Min(PawnPurchaseFraction * colonySilver, (colonySilver - reserve) - spent);
+        var budget = (colonySilver - reserve) - spent;
         var best = new TradeSelectionLine("", "", 0);
         var bestScore = 0.0;
         var found = false;

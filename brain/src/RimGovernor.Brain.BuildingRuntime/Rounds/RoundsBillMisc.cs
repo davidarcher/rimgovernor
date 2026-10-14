@@ -125,8 +125,8 @@ internal static partial class BuildingRuntimePackage
     internal static async Task<(IReadOnlyList<SurgeryPart> Parts, IReadOnlyList<ProductionBench> Benches)> SurgeryPartDemandAsync(object native, C.Identity identity, Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, CancellationToken call)
     {
         var parts = PolicyApi.SurgeryParts(PolicyApi.SelectSurgery(pawns, new HashSet<PawnId>(), new SurgeryContext()).Wants);
-        var chosen = PolicyApi.ChosenElective(pawns, ctx).Ok;
-        if (parts.Count == 0 && !chosen)
+        var chosen = PolicyApi.ChosenElectives(pawns, ctx);
+        if (parts.Count == 0 && chosen.Count == 0)
         {
             return (parts, []);
         }
@@ -142,13 +142,13 @@ internal static partial class BuildingRuntimePackage
     internal static (IReadOnlyList<SurgeryPart> Parts, IReadOnlyList<ProductionBench> Benches) SurgeryPartsOn(Fact<EquatableArray<CarePawn>> pawns, SurgeryContext ctx, IReadOnlyList<GearBench> benches)
     {
         var parts = PolicyApi.SurgeryParts(PolicyApi.SelectSurgery(pawns, new HashSet<PawnId>(), new SurgeryContext()).Wants).ToList();
-        var (elective, chosen) = PolicyApi.ChosenElective(pawns, ctx);
-        if (parts.Count == 0 && !chosen)
+        var chosen = PolicyApi.ChosenElectives(pawns, ctx);
+        if (parts.Count == 0 && chosen.Count == 0)
         {
             return (parts, []);
         }
         var productions = PartBenches(benches);
-        parts.AddRange(PolicyApi.ElectiveParts(elective, chosen, PolicyApi.FabricableParts(productions)));
+        parts.AddRange(PolicyApi.ElectiveParts(chosen, PolicyApi.FabricableParts(productions)));
         return (parts, productions);
     }
 

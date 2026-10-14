@@ -335,19 +335,14 @@ queued control hops before observation hops within a frame (untyped tools bypass
 that ordering).
 
 **Critical and optional planners.** The admission cycle waits on the critical class
-only. Each catalog entry is `critical` (preempt and critical priority classes and
-fire safety) or `optional` (the development reviews). The Rounder review completes first; `StepBudget.Wall` bounds the subsequent
+only. Each catalog entry is `critical` (combat, custody, medicine, recovery, fire safety and the like) or `optional` (the development reviews). The Rounder review completes first; `StepBudget.Wall` bounds the subsequent
 planner wave; past it, planners still
 evaluating are named on `ClockSchedulerResult.HeldBy` (`held_by` on the row) and the
 step admits nothing (an `admission` row, verdict `refused`, reason `critical_wave_budget`). Optional
 planners run on the same snapshot, started after the critical ones, and are joined
-for one critical-wave duration more (floored by `StepBudget.OptionalGrace`, never
-past the wall budget); those still evaluating are cancelled, listed under
+up to the same wall budget; those still evaluating are cancelled, listed under
 `missed_cutoff`, and their results discarded. Planners write into a private result
 merged only if they made the cutoff.
-
-An unmet startup shelter promotes startup planners (`plannerEntry.startup`)
-into the critical cycle. Other configured planners remain eligible.
 
 **Latched-hold escape.** While a Worker is attached, admission defers a step on a
 latched terminal outcome the Worker has not reconciled, or on queued watched-kind
@@ -364,20 +359,12 @@ are deliberately not configurable:
 
 | Regulator | Why it is kept |
 |---|---|
-| `StepBudget` (`Reads`, `Wall`, `NativeWork`, `OptionalGrace`) | Bounds one step's planner waves; an overrun is reported on the `clock_step` row, and a wave past `Wall` holds admission naming its planners instead of failing the step. |
+| `StepBudget` (`Reads`, `Wall`, `NativeWork`) | Bounds one step's planner waves; an overrun is reported on the `clock_step` row, and a wave past `Wall` holds admission naming its planners instead of failing the step. |
 | `DefaultStepWall = 40s` | Under the 60 s step call so a wedged wave is named, not a context deadline. |
-| `DefaultOptionalGrace = 1s` | Lets optional reviews finish after a quick critical wave. |
 | `clockStopSpanLimit = 10 min` | Discards stop spans that cannot be one review's wait (a long-stopped clock, wall-clock skew). |
 | `ConstructionHelpHoldTicks` (one game hour) | Keeps construction helpers across a brief gap in suitable work so they do not flap. |
 | `TradeOffersMaxAgeTicks` (three game hours) | Rereads a trader's offers once the record is stale; a freshness bound, not a veto. |
 | `ProgressCooldownMax` (three game days) | A failed situation is retried, never banned; it is the retry ceiling of every progress cooldown. |
-
-**Proposals.** Migrated planners return proposals; the coordinator arbitrates them
-after the cutoff by `(priority, urgency, id)` against the step's claim index. Before
-commit a proposal is revalidated against the step's read validity
-(`domain.ReadValidity`). A proposal that reached its arbiter after the cutoff is
-carried to the next step's coordinator, where an expired one is reported `expired`
-with the stale dependency named (`ProposalOutcome.Stale`) and never commits.
 
 **Read validity.** `domain.ReadValidity` is a step's scope (colony, map, load,
 native generation), the plan revision it commits under, the observation tick, and an

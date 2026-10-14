@@ -15,7 +15,6 @@ public sealed record IncidentState(Incident Incident, EquatableArray<IncidentMet
 {
     GenerationSnapshot IMethodOwner.OwnerSnapshot => Incident.Snapshot;
 
-    int IMethodOwner.OwnerPriority => Incident.Priority;
 
     IReadOnlyList<PlanId> IMethodOwner.OwnerPlans => [.. Methods.Select(m => m.Plan)];
 
@@ -36,11 +35,10 @@ public sealed record IncidentState(Incident Incident, EquatableArray<IncidentMet
     {
         Store.InsertPlanOwner(tx, plan, "incident");
         _ = tx.Execute(
-            "INSERT INTO incident_methods(incident_id,method_id,plan_id,priority,reason) VALUES($id,$method,$plan,$priority,$reason)",
+            "INSERT INTO incident_methods(incident_id,method_id,plan_id,reason) VALUES($id,$method,$plan,$reason)",
             ("$id", Incident.Id),
             ("$method", method),
             ("$plan", plan),
-            ("$priority", Incident.Priority),
             ("$reason", reason.Length == 0 ? null : reason)
         );
     }
@@ -53,14 +51,13 @@ public sealed record IncidentMethod(MethodId Method, PlanId Plan);
 
 /// <summary>
 /// What a review asserts about one occurrence: its key (the snapshot's world, <see cref="Kind"/>, <see cref="Subject"/>),
-/// the trigger it opens with and the priority the assessment ranks it at.
+/// the trigger it opens with.
 /// </summary>
 /// <param name="HuntPrey">The squad prey of the assessment; empty unless the food plan raises it with no hostile standing.</param>
 public sealed record IncidentAssessment(
     ConcernId Kind,
     PawnId Subject,
     string Trigger,
-    int Priority,
     GenerationSnapshot Snapshot,
     Tick Tick,
     EquatableArray<PawnId> HuntPrey
@@ -72,7 +69,7 @@ public sealed partial class Store
 
     /// <summary>
     /// Opens the occurrence the assessment asserts, or, when one is already open under its key, refreshes that
-    /// row's priority, snapshot and hunt prey from the assessment and keeps its id, start and trigger: a
+    /// row's snapshot and hunt prey from the assessment and keeps its id, start and trigger: a
     /// re-trigger inside an occurrence is idempotent.
     /// </summary>
     public IncidentState OpenIncident(IncidentAssessment assessment, CancellationToken cancellationToken) => Run(tx => OpenIncidentIn(tx, assessment), cancellationToken);
@@ -86,7 +83,6 @@ public sealed partial class Store
             Kind = a.Kind,
             Subject = a.Subject,
             Trigger = a.Trigger,
-            Priority = a.Priority,
             Snapshot = a.Snapshot,
             Started = a.Tick,
             HuntPrey = a.HuntPrey,
@@ -122,7 +118,7 @@ public sealed partial class Store
             {
                 throw new ConflictException($"incident {id} assessed before it started");
             }
-            var refreshed = state.Incident with { Priority = a.Priority, Snapshot = a.Snapshot, HuntPrey = a.HuntPrey };
+            var refreshed = state.Incident with { Snapshot = a.Snapshot, HuntPrey = a.HuntPrey };
             _ = tx.Execute("UPDATE incidents SET payload=$payload WHERE id=$id", ("$payload", CanonicalIncident(refreshed)), ("$id", id));
             next = next with { Id = id };
         }

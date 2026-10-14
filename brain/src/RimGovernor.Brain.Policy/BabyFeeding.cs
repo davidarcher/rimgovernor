@@ -37,8 +37,6 @@ public static partial class PolicyFunctions
     /// <summary>MaintainBabyFeeding's bill purpose.</summary>
     public static readonly BillPurpose BabyFoodBill = new("baby_food");
 
-    internal const int BabyFeedingPriority = 2;
-
     /// <summary>
     /// The baby-edible nutrition per baby below which the game raises Alert_LowBabyFood
     /// (Alert_LowBabyFood.NutritionThresholdPerBaby, read from the game assembly's constants).

@@ -8,12 +8,10 @@ public sealed record SafeguardContext
     public EquatableArray<string> Unsafe { get; init; }
 }
 
-/// <summary>The routine goal a proposal would serve: its need and its current priority.</summary>
+/// <summary>The routine goal a proposal would serve: its need.</summary>
 public sealed record SafeguardProposal
 {
     public ConcernId Need { get; init; }
-
-    public int Priority { get; init; }
 }
 
 /// <summary>What a Safeguard is asked to admit: a whole-goal proposal or one action at dispatch. Exactly one is set.</summary>
@@ -33,7 +31,7 @@ public sealed record SafeguardRefusal
 }
 
 /// <summary>
-/// An admission veto, not a goal row. Priority orders work only; suspending other work is a Safeguard's job.
+/// An admission veto, not a goal row. Suspending other work is a Safeguard's job.
 /// The planner runner asks the Safeguards before planning for a need, method admission asks them again as a
 /// backstop, and dispatch asks them before any prepared plan writes. A Safeguard returns "" for an admission
 /// kind it does not govern.

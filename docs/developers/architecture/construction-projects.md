@@ -144,17 +144,15 @@ Checked in `SupplyPlan.PlanSupply`:
   `Value / (1 + labor + distance...)` until it is spent, so a 40-room demand cannot over-commit labor.
 - A stock demand's contribution per candidate is bounded by the remaining deficit and, for hauled yields,
   by storage headroom; the acquisition planner opens at most eight rows per pass.
-- `Priority` already multiplies a candidate's value (`amount * Priority * (1 + UnitValue)`), and nutrition is
-  100, so food outranks a flat-priority wood demand without any wood-specific rule.
-- Higher-priority urgent work (`UrgentPriority`) holds acquisition outright.
+- A candidate's value is `amount * (1 + UnitValue)`; demands carry no priority.
+- Urgent work (`Urgent`) holds acquisition unless a demand the candidate serves is an emergency.
 
 Remaining risk: wood is demanded as an absolute stock level, so a large plan keeps wood gathering justified
 while storage has room. That is intended; it should be watched in a playtest, not capped in code.
 
 ## Open questions
 
-- The construction-labor admission check (`ConstructionLabor.cs`) holds builders while the shelter is owed.
-  Demand for held rooms must still count, or nothing gathers for them. Because demand is declared for the
-  whole plan this holds by construction, but a test should say so.
+- Demand for a room waiting on builders must still count, or nothing gathers for it. Demand is declared for the
+  whole plan, so this holds by construction, but a test should say so.
 - Which Round facts feed the urgency weight, and whether the weight is needed at all once the ranker has
   run on real whole-plan demand.

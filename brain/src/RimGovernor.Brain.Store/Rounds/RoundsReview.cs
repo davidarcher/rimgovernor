@@ -115,10 +115,6 @@ public sealed partial class Store
                 throw new StoreCorruptException("invalid routine progress history");
             }
         }
-        if (r.Stage is { } stage && !TryValidate(() => PolicyFunctions.ValidateColonyStage(stage, r.Tick)))
-        {
-            throw new StoreCorruptException("invalid routine stage history");
-        }
         // The stored review is the fact: a binding is valid when it names a routine goal the table knows, not
         // when a second derivation from empty facts would also have assessed it. Response kinds live in the
         // incidents table; Standards binds Standards only.
@@ -213,11 +209,7 @@ public sealed partial class Store
             mood = new MoodHistory();
             disaster = null;
         }
-        // The stage the last review left sets this review's goal budgets (the research ladder's pace, the stall
-        // deadline); the stage this review derives is filed for the next.
-        var previousStage = previous.Stage is { } priorStage && !reset ? priorStage : new ColonyStageRecord();
         var facts = request.Facts;
-        request = request with { Policy = PolicyFunctions.StageRoundsPolicy(request.Policy, previousStage.Stage) };
         var needs = new RoundsFindings();
         RecoveryRequest? recovery = null;
         RoundsDetection? detection = null;
@@ -431,7 +423,6 @@ public sealed partial class Store
         }
         var resultStandards = new List<StandardState>();
         var resultIncidents = new List<IncidentState>();
-        IReadOnlyList<ConcernId> resultEmergency = [];
         // states is every assessment's row in assessment order, as the goal handles ranking and progress read.
         var states = new List<StandardState>();
         if (!request.Enabled)
@@ -449,7 +440,7 @@ public sealed partial class Store
             // Manual control retains progress and prerequisites in the same world.
             if (!reset)
             {
-                r = r with { Progress = previous.Progress, Stage = previous.Stage, Dependencies = previous.Dependencies, NoOps = previous.NoOps };
+                r = r with { Progress = previous.Progress, Dependencies = previous.Dependencies, NoOps = previous.NoOps };
             }
             foreach (var binding in r.Standards)
             {
@@ -458,9 +449,6 @@ public sealed partial class Store
         }
         else
         {
-            // Emergency findings guide response planning and reporting.
-            r = r with { Emergency = EquatableArray.From(needs.All().Where(PolicyFunctions.EmergencyNeed).Select(n => n.Id).ToList()) };
-            resultEmergency = [.. r.Emergency];
             foreach (var n in needs.NoOps)
             {
                 n.Reason.Validate();
@@ -476,7 +464,7 @@ public sealed partial class Store
                 if (g is null || g.Standard.Status == StandardStatus.Voided)
                 {
                     var id = MintRoundsStandardId(tx, new World(b.Colony, b.Load, b.Map), n.Id);
-                    var goal = Standard.NewStandard(id, n.Id, n.Priority, b) with { Once = PolicyFunctions.IsOnceKind(n.Id) };
+                    var goal = Standard.NewStandard(id, n.Id, b) with { Once = PolicyFunctions.IsOnceKind(n.Id) };
                     CreateStandard(tx, goal);
                     g = new StandardState(goal, 0, default, 0, default, false);
                 }
@@ -485,7 +473,7 @@ public sealed partial class Store
                     CancelUndispatchedMethods(tx, g);
                 }
                 var open = StandardOpenWork(tx, g);
-                var next = Standard.Review(g.Standard with { Priority = n.Priority }, b, n.Finding, open);
+                var next = Standard.Review(g.Standard, b, n.Finding, open);
                 g = SaveStandard(tx, g, next);
                 bound.Add(new RoundsStandard(n.Id, g.Standard.Id));
                 resultStandards.Add(g);
@@ -496,8 +484,6 @@ public sealed partial class Store
         if (request.Enabled && !request.Immediate)
         {
             r = r with { Progress = RoundsProgress(tx, request, previous, reset, needs, states) };
-            var stage = PolicyFunctions.ReviewColonyStage(previousStage, PolicyFunctions.StageColonyFacts(needs, request.Facts, request.Policy, r.Progress), request.Policy.Stages(), request.Tick);
-            r = r with { Stage = stage };
             var records = reset ? default : previous.Dependencies;
             var (ready, dependencies) = ReviewWork(tx, request, needs, states, records);
             var unavailable = new Dictionary<ConcernId, bool>();
@@ -540,7 +526,6 @@ public sealed partial class Store
             Detection = detection,
             Standards = resultStandards,
             Incidents = resultIncidents,
-            Emergency = resultEmergency,
         };
         if (request.Enabled && request.Immediate && !reset)
         {

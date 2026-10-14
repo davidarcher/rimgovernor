@@ -17,15 +17,12 @@ public sealed record ResourceQuantity
 
 /// <summary>
 /// Count is an unmet quantity in output, a stock target or a remaining bill-of-materials cost in input.
-/// Larger Priority is more important.
 /// </summary>
 public sealed record ResourceDemand
 {
     public ResourceKey Key { get; init; } = new();
 
     public long Count { get; init; }
-
-    public int Priority { get; init; }
 }
 
 /// <summary>
@@ -69,12 +66,11 @@ public static partial class PolicyFunctions
     }
 
     internal static bool ValidDemand(ResourceDemand d) =>
-        ValidAcquisitionKey(d.Key) && ValidAcquisitionCount(d.Count) && d.Priority >= 1 && d.Priority <= 100;
+        ValidAcquisitionKey(d.Key) && ValidAcquisitionCount(d.Count);
 
     /// <summary>
     /// Takes the maximum overlapping stock target/floor, adds planned costs, then spends each stock unit once.
-    /// Exact-stuff obligations take precedence over any-stuff obligations. Floors have priority 1; merged rows
-    /// retain their highest priority. Output is canonical and contains no zero rows. Throws
+    /// Exact-stuff obligations take precedence over any-stuff obligations. Output is canonical and contains no zero rows. Throws
     /// <see cref="DomainException"/> on invalid input.
     /// </summary>
     public static Fact<EquatableArray<ResourceDemand>> BuildResourceDemand(ResourceDemandInput input)
@@ -89,7 +85,7 @@ public static partial class PolicyFunctions
                 throw new DomainException("invalid resource target");
             }
             var prior = wanted.GetValueOrDefault(target.Key) ?? new ResourceDemand();
-            wanted[target.Key] = target with { Count = Math.Max(target.Count, prior.Count), Priority = Math.Max(target.Priority, prior.Priority) };
+            wanted[target.Key] = target with { Count = Math.Max(target.Count, prior.Count) };
         }
         foreach (var (def, count) in input.EconomicFloors)
         {
@@ -99,7 +95,7 @@ public static partial class PolicyFunctions
                 throw new DomainException("invalid economic floor");
             }
             var prior = wanted.GetValueOrDefault(key) ?? new ResourceDemand();
-            wanted[key] = new ResourceDemand { Key = key, Count = Math.Max(count, prior.Count), Priority = Math.Max(1, prior.Priority) };
+            wanted[key] = new ResourceDemand { Key = key, Count = Math.Max(count, prior.Count) };
         }
         // A definition-wide floor includes its stuff-specific stock targets, rather than asking for both the
         // floor and the same units a second time.
@@ -125,7 +121,7 @@ public static partial class PolicyFunctions
                 throw new DomainException("invalid planned construction cost");
             }
             var prior = wanted.GetValueOrDefault(planned.Key) ?? new ResourceDemand();
-            var merged = planned with { Count = planned.Count + prior.Count, Priority = Math.Max(planned.Priority, prior.Priority) };
+            var merged = planned with { Count = planned.Count + prior.Count };
             if (!ValidAcquisitionCount(merged.Count))
             {
                 throw new DomainException("combined resource demand exceeds bound");

@@ -76,7 +76,7 @@ public static partial class PolicyFunctions
     /// Every pawn owed a suite, most suite pressure first: the sole owner of a standing planned standard
     /// bedroom below its target's Min whose space is the weakest stat, or whose target needs more floor than
     /// the room has (Greedy, Jealous of a suite, a title), and the owner of a suite smaller than its target.
-    /// An ascetic never gets one. A claim the owner's remaining share cannot furnish is dropped (RoomGate).
+    /// An ascetic never gets one.
     /// </summary>
     public static IReadOnlyList<SuiteClaim> SuiteClaims(
         LayoutPlan plan,
@@ -84,8 +84,7 @@ public static partial class PolicyFunctions
         SleepingObservation sleeping,
         IReadOnlyDictionary<string, RoomTarget> targets,
         IReadOnlyDictionary<PawnId, TraitEffects> traits,
-        IReadOnlyDictionary<PawnId, double> pressure,
-        RoomGate gate)
+        IReadOnlyDictionary<PawnId, double> pressure)
     {
         if (!sleeping.Rooms.TryGetValue(out var census))
         {
@@ -140,7 +139,7 @@ public static partial class PolicyFunctions
             }
             output.Add(new SuiteClaim { Pawn = s.Owner, Bed = s.Bed, Target = t.Min, Reason = reason });
         }
-        return GateSuiteClaims(OrderSuiteClaims(output, pressure), plan, rooms, sleeping, gate);
+        return OrderSuiteClaims(output, pressure);
     }
 
     /// <summary>Whether Greedy, Jealous or a title raised the target above the tier baseline (RoomQualityTargets names them only then).</summary>

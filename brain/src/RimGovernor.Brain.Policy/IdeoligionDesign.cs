@@ -138,7 +138,7 @@ public sealed record DesignComparison
 
 public static partial class PolicyFunctions
 {
-    internal static void InspectIdeoligion(RoundsRun c) => c.Owed(ImproveIdeoligion, 3, c.F.ReformOwed);
+    internal static void InspectIdeoligion(RoundsRun c) => c.Owed(ImproveIdeoligion, c.F.ReformOwed);
 
     /// <summary>Assigned work and mood with complete believer coverage.</summary>
     public static Fact<DesignNeeds> IdeoligionNeeds(IdeoligionFacts ideo, Fact<EquatableArray<WorkPawn>> workers, Fact<EquatableArray<MoodPawn>> moods)

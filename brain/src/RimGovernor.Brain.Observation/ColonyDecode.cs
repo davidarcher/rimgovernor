@@ -130,7 +130,6 @@ public static partial class ObservationPackage
             r = r with
             {
                 RoofSupport = Verse.RoofCollapseUtility.RoofMaxSupportDistance,
-                BedPrice = MarketBedPrice(catalog),
                 Packable = catalog.Packable(),
                 LightTerrains = new LightTerrains(catalog.LightTerrains().ToDictionary(terrain => terrain, _ => true)),
                 Impressiveness = catalog.ImpressivenessLevels(),

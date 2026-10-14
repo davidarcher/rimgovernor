@@ -370,7 +370,7 @@ public static partial class PolicyFunctions
             {
                 if (count > 0)
                 {
-                    targets.Add(new ResourceDemand { Key = new ResourceKey { Def = resource }, Count = count, Priority = 2 });
+                    targets.Add(new ResourceDemand { Key = new ResourceKey { Def = resource }, Count = count });
                 }
             }
         }

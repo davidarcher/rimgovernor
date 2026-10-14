@@ -101,8 +101,6 @@ public interface IPlanReader
 /// </summary>
 public sealed record RoundsStatus
 {
-    public IReadOnlyList<ConcernId> Emergency { get; init; } = [];
-
     public ExtentEligibilityRequest ExtentEligibility { get; init; } = new();
 
     /// <summary>The derived colony extent; absent stays unknown.</summary>
@@ -120,9 +118,6 @@ public sealed record RoundsStatus
 
     /// <summary>Every active concern's progress record from the last review.</summary>
     public IReadOnlyList<ConcernProgress> Progress { get; init; } = [];
-
-    /// <summary>The colony stage the last review derived; null until an enabled review filed one.</summary>
-    public ColonyStageRecord? Stage { get; init; }
 
     /// <summary>The roster planner's last recorded report; null until an enabled review planned work.</summary>
     public WorkRosterReport? Roster { get; init; }

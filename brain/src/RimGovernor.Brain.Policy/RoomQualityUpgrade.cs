@@ -44,12 +44,6 @@ public sealed record RoomUpgrade
     public string Stuff { get; init; } = "";
 }
 
-public sealed partial record RoomFurniture
-{
-    /// <summary>The definitions the closer's slots place in a bedroom: end table, dresser and the standing lamp (a suite's furnishing by them).</summary>
-    public IReadOnlyList<string> BedroomUpgradePieces() => [EndTable.Def, Dresser.Def, PolicyConstants.StandingLampDef];
-}
-
 public static partial class PolicyFunctions
 {
     /// <summary>
@@ -100,8 +94,7 @@ public static partial class PolicyFunctions
         SleepingObservation obs,
         IReadOnlyDictionary<string, RoomTarget> targets,
         IReadOnlyList<FurnitureRoom> rooms,
-        Func<string, bool> available,
-        RoomGate gate)
+        Func<string, bool> available)
     {
         if (!obs.Rooms.TryGetValue(out var census))
         {
@@ -148,7 +141,7 @@ public static partial class PolicyFunctions
             {
                 foreach (var piece in plan.Pieces)
                 {
-                    if (piece.Slot != slot || have.Contains(piece.Def) || !available(piece.Def) || RoomPieceOverlaps(room.Pieces, piece.Rect) || !gate.PieceAllowed(t.Owners, piece.Def))
+                    if (piece.Slot != slot || have.Contains(piece.Def) || !available(piece.Def) || RoomPieceOverlaps(room.Pieces, piece.Rect))
                     {
                         continue;
                     }

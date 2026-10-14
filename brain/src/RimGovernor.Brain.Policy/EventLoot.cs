@@ -107,9 +107,4 @@ public static partial class PolicyFunctions
         return (new EventLootHistory { Pending = sorted }, Known(sorted.Count > 0));
     }
 
-    /// <summary>
-    /// Go <c>supplySafetyPriority</c>, a Standard's: UnsafeLootSafeguard refuses allowing unsafe loot at
-    /// dispatch, so unsafe loot raises no emergency.
-    /// </summary>
-    internal static int SupplySafetyPriority(RoundsFacts f) => f.EventLoot.IsKnown ? 2 : 4;
 }

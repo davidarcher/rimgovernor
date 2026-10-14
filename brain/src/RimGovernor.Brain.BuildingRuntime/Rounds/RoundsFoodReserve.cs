@@ -12,7 +12,7 @@ public sealed partial class Rounder
     {
         p = p with { Facts = p.Facts with { FoodReserve = Unknown<FoodReserveReview>() } };
         var known = p.FoodSupply.TryGetValue(out var supply);
-        var staged = Staged();
+        var staged = Policy;
         if (!known || staged.FoodReserveDays == 0)
         {
             return;

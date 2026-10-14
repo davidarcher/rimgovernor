@@ -20,7 +20,7 @@ public readonly record struct Phase(string Value)
     /// <summary>ReviewSleeping has a colonist without a suitable owned bed, an unused one or a bedroom step due.</summary>
     public static Phase HousingSleeping => new("sleeping");
 
-    /// <summary>Indoor capacity keeps no spare place beyond the population. Raised from StageReserves.</summary>
+    /// <summary>Indoor capacity keeps no spare place beyond the population.</summary>
     public static Phase HousingExpansion => new("expansion");
 
     /// <summary>
@@ -29,7 +29,7 @@ public readonly record struct Phase(string Value)
     /// </summary>
     public static Phase ComfortBasic => new("basic");
 
-    /// <summary>EnsureComfort's ranked step: hosting rooms and proof of use, from StageDevelopment.</summary>
+    /// <summary>EnsureComfort's ranked step: hosting rooms and proof of use.</summary>
     public static Phase ComfortRanked => new("ranked");
 
     /// <summary>The PartySpot step, owed once neither facility phase is: the ranked planner serves it (RoundsFacts.PartySpotOwed).</summary>
@@ -52,7 +52,6 @@ public readonly record struct Phase(string Value)
 public sealed record HousingReview
 {
     public Phase Phase { get; init; }
-    public int Priority { get; init; }
     public Fact<double> Deficit { get; init; }
     public Fact<bool> Recovered { get; init; }
 }
@@ -98,55 +97,43 @@ public static partial class PolicyFunctions
             sleeping = Known(false);
         }
         var sleepingKnown = sleeping.IsKnown;
-        var sleepingPriority = 3;
-        if (!sleepingKnown && !sleepingActive)
-        {
-            sleepingPriority = 4;
-        }
         var expansion = Unknown<bool>();
         if (f.Colonists.TryGetValue(out var n) && n > 0)
         {
             expansion = Measured(f.IndoorCapacity, capacity => capacity >= n + HousingSparePlaces);
         }
-        var staged = p.ColonyStage >= ColonyStage.Reserves;
-        var recovered = AllFacts(shelter, sleeping);
-        if (staged)
-        {
-            recovered = AllFacts(recovered, expansion);
-        }
+        var recovered = AllFacts(shelter, sleeping, expansion);
         if (!Positive(shelter))
         {
             return new HousingReview
             {
                 Phase = Phase.HousingShelter,
-                Priority = 2,
                 Deficit = Unknown<double>(),
                 Recovered = shelter,
             };
         }
         if (!Positive(sleeping) && (sleepingKnown || sleepingActive))
         {
-            return SleepingHousing(sleeping, sleepingPriority);
+            return SleepingHousing(sleeping);
         }
-        if (staged && !Positive(expansion))
+        if (!Positive(expansion))
         {
             return new HousingReview
             {
                 Phase = Phase.HousingExpansion,
-                Priority = 4,
                 Deficit = RoundsDeficit(MaintainHousing, f, p),
                 Recovered = expansion,
             };
         }
         if (!Positive(sleeping))
         {
-            return SleepingHousing(sleeping, sleepingPriority);
+            return SleepingHousing(sleeping);
         }
-        return new HousingReview { Priority = 2, Recovered = recovered };
+        return new HousingReview { Recovered = recovered };
     }
 
     /// <summary>The bedroom phase: a confirmed deficit ranks at Known(1.0); an unknown census stays DevelopmentUnknown.</summary>
-    private static HousingReview SleepingHousing(Fact<bool> sleeping, int priority)
+    private static HousingReview SleepingHousing(Fact<bool> sleeping)
     {
         var deficit = Unknown<double>();
         if (sleeping.IsKnown)
@@ -156,7 +143,6 @@ public static partial class PolicyFunctions
         return new HousingReview
         {
             Phase = Phase.HousingSleeping,
-            Priority = priority,
             Deficit = deficit,
             Recovered = sleeping,
         };

@@ -8,8 +8,6 @@ public sealed record RoundsConcern
 {
     public ConcernId Id { get; set; }
 
-    public int Priority { get; set; }
-
     public Fact<double> Deficit { get; set; }
 
     public bool MethodUnavailable { get; set; }
@@ -233,35 +231,14 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The roadmap EnsureResearch walks when neither an operator target nor a workshop need names a project:
-    /// the early research direction a new colony needs on its own (stone blocks, then power with its
-    /// storage, geothermal and solar rungs, the medieval crafts, then Machining simple firearms, then the
-    /// ChargedShot and BeamWeapons gates of the training tiers; BeamWeapons is Odyssey's, so the census
-    /// omits and the walk skips it without), with Microelectronics and the multi-analyzer after the crafts:
-    /// the hi-tech bench and analyzer the lab is planned for. Rungs the native census does not list
-    /// (another mod set) are skipped.
+    /// Resolves the project EnsureResearch pursues: the first unfinished project some need recorded (a bench
+    /// the workshop ladder gates, a planner waiting on research, the fishing and furniture requests). With no
+    /// need nothing is researched. Derived is true for any target found.
     /// </summary>
-    public static string[] DefaultResearchLadder() =>
-        ["Stonecutting", "Electricity", "Batteries", "GeothermalPower", "SolarPanels", "Smithing", "CarpetMaking", "ComplexClothing", "MicroelectronicsBasics", "MultiAnalyzer", "Machining", "Gunsmithing", "ChargedShot", "BeamWeapons"];
-
-    /// <summary>
-    /// Resolves the project EnsureResearch pursues and whether it is a workshop need (derived): the first
-    /// unfinished project the workshop ladder recorded, then the first unfinished rung of
-    /// RoundsPolicy.ResearchLadder. A ladder rung is only walked under a known research census: the ladder
-    /// is a default, not a declared need, and without the census there is nothing to measure it against.
-    /// </summary>
-    public static (string Target, bool Derived) ResearchConcern(RoundsPolicy p, IReadOnlyList<string> needs, Fact<ResearchFacts> facts)
+    public static (string Target, bool Derived) ResearchConcern(IReadOnlyList<string> needs, Fact<ResearchFacts> facts)
     {
         var target = ResearchConcernTarget("", needs, facts);
-        if (target != "")
-        {
-            return (target, true);
-        }
-        if (!facts.TryGetValue(out _))
-        {
-            return ("", false);
-        }
-        return (ResearchConcernTarget("", p.ResearchLadder, facts), false);
+        return (target, target != "");
     }
 
     /// <summary>

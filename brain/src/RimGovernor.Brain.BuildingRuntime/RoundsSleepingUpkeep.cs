@@ -146,7 +146,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 return couple;
             }
         }
-        if (BedroomsFirst(choice.Method) && BedroomStepOf(facts, Reviewer.Stage).Kind != Pol.BedroomStepKind.None)
+        if (BedroomsFirst(choice.Method) && BedroomStepOf(facts).Kind != Pol.BedroomStepKind.None)
         {
             choice = choice with { Method = Pol.SleepingMethod.NoDemand };
         }
@@ -157,7 +157,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             case Pol.SleepingMethod.NoDemand:
             {
                 // A bed replacement under way finishes first: its new bed stands unowned until the owner moves.
-                var (rep, repDue) = BedReplacementOf(facts, Reviewer.Stage);
+                var (rep, repDue) = BedReplacementOf(facts);
                 if (repDue && rep.Step == Pol.BedReplacementStep.Assign)
                 {
                     choice = new Pol.SleepingChoice { Method = Pol.SleepingMethod.Assign, Pawn = rep.Pawn, Bed = rep.Bed, PreviousBed = rep.PreviousBed };
@@ -168,7 +168,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                     return await RemoveOldBedAsync(state, review, goal, reading, rep, call, epoch).ConfigureAwait(false);
                 }
                 // Everyone owns a bed: walk them into planned bedrooms.
-                var step = BedroomStepOf(facts, Reviewer.Stage);
+                var step = BedroomStepOf(facts);
                 if (step.Kind == Pol.BedroomStepKind.None)
                 {
                     // Then pawns leave a Retiring wing, one per step.
@@ -216,17 +216,17 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                             {
                                 return await UpgradeBedroomAsync(state, review, goal, reading, companion, call, epoch).ConfigureAwait(false);
                             }
-                            var (upgrade, upgradeDue) = RoomUpgradeOf(facts, Reviewer.Stage);
+                            var (upgrade, upgradeDue) = RoomUpgradeOf(facts);
                             if (upgradeDue)
                             {
                                 return await UpgradeBedroomAsync(state, review, goal, reading, upgrade, call, epoch).ConfigureAwait(false);
                             }
-                            var (replacement, replacementDue) = BedReplacementOf(facts, Reviewer.Stage);
+                            var (replacement, replacementDue) = BedReplacementOf(facts);
                             if (replacementDue && replacement.Step == Pol.BedReplacementStep.Build)
                             {
                                 return await UpgradeBedroomAsync(state, review, goal, reading, new Pol.RoomUpgrade { Room = replacement.Room, Slot = "bed", Def = replacement.Def, Stuff = replacement.Stuff, Anchor = replacement.Cell, Rot = replacement.Rot }, call, epoch).ConfigureAwait(false);
                             }
-                            var (beauty, beautyDue) = BeautyUpgrade(facts, Reviewer.Stage);
+                            var (beauty, beautyDue) = BeautyUpgrade(facts);
                             if (beautyDue)
                             {
                                 return await UpgradeBedroomAsync(state, review, goal, reading, beauty, call, epoch).ConfigureAwait(false);

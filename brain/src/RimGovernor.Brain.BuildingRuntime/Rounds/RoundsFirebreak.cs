@@ -57,12 +57,8 @@ internal sealed class FirebreakMemory
         }
     }
 
-    internal async Task<Fact<bool>> ReviewAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, ColonyStage stage, IReadOnlySet<Cell> busy, CancellationToken ct)
+    internal async Task<Fact<bool>> ReviewAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, IReadOnlySet<Cell> busy, CancellationToken ct)
     {
-        if (stage == ColonyStage.Foothold)
-        {
-            return Known(false);
-        }
         var world = StockpileWorld(current);
         var tick = projection.Identity.Tick;
         var request = FirebreakRequest(projection);
@@ -74,9 +70,8 @@ internal sealed class FirebreakMemory
         var flooringKnown = projection.Facts.Upkeep.Flooring.TryGetValue(out var flooring);
         if (!flooringKnown)
         {
-            stage = (ColonyStage)Math.Min((int)stage, (int)ColonyStage.Stable);
+            return Unknown<bool>();
         }
-        request = request with { Stage = Known(stage) };
         var style = FloorStyle(projection);
         if (style is not null)
         {

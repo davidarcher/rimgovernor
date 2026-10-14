@@ -87,8 +87,7 @@ public static partial class PolicyFunctions
         SleepingObservation sleeping,
         IReadOnlyDictionary<string, RoomTarget>? targets,
         IReadOnlyDictionary<PawnId, TraitEffects>? traits,
-        IReadOnlyDictionary<PawnId, double>? pressure,
-        RoomGate gate)
+        IReadOnlyDictionary<PawnId, double>? pressure)
     {
         if (sleeping.People.Count == 0 || sleeping.People.Count != sleeping.Colonists)
         {
@@ -173,7 +172,7 @@ public static partial class PolicyFunctions
         // Once the standard rooms have nothing to do, a qualifying pawn is walked into a suite.
         BedroomStep SuiteStep()
         {
-            var step = NextSuiteStep(plan, rooms, sleeping, SuiteClaims(plan, rooms, sleeping, targets!, traits!, pressure!, gate));
+            var step = NextSuiteStep(plan, rooms, sleeping, SuiteClaims(plan, rooms, sleeping, targets!, traits!, pressure!));
             return step with { Unhoused = unhoused.Count };
         }
         if (unhoused.Count == 0)
@@ -319,7 +318,7 @@ public static partial class PolicyFunctions
                 return needs;
             }
         }
-        var step = NextBedroomStep(plan, rooms, sleeping, targets, null, null, new RoomGate());
+        var step = NextBedroomStep(plan, rooms, sleeping, targets, null, null);
         if ((step.Kind != BedroomStepKind.None && step.Room.Role != PlannedRole.Suite) || step.Unhoused > 0)
         {
             return needs;
@@ -334,8 +333,7 @@ public static partial class PolicyFunctions
         Fact<SleepingObservation> sleeping,
         IReadOnlyDictionary<string, RoomTarget>? targets,
         IReadOnlyDictionary<PawnId, TraitEffects>? traits,
-        IReadOnlyDictionary<PawnId, double>? pressure,
-        RoomGate gate)
+        IReadOnlyDictionary<PawnId, double>? pressure)
     {
         var pk = plan.TryGetValue(out var p);
         var rk = rooms.TryGetValue(out var r);
@@ -344,6 +342,6 @@ public static partial class PolicyFunctions
         {
             return Unknown<bool>();
         }
-        return Known(NextBedroomStep(p!, r!, s!, targets, traits, pressure, gate).Kind != BedroomStepKind.None);
+        return Known(NextBedroomStep(p!, r!, s!, targets, traits, pressure).Kind != BedroomStepKind.None);
     }
 }

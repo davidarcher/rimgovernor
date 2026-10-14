@@ -487,7 +487,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             Definition = DefenseMortarDefinition,
             Stock = projection.Resources,
-            Max = PolicyApi.MortarBudget(projection.Facts.RaidPoints),
+            Max = PolicyApi.MortarBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets),
             Available = Known(DefenseDefinitionAvailable(read, DefenseMortarDefinition)),
         };
         foreach (var d in projection.Definitions)
@@ -524,7 +524,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var projection = read.Projection;
         var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
-        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = PolicyApi.TurretBudget(projection.Facts.RaidPoints) };
+        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = PolicyApi.TurretBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets) };
         DefenseRequest Done() => request with { Turret = turret, UnitCosts = unitCosts };
         var rk = projection.Facts.Research.TryGetValue(out var research);
         var finished = new HashSet<ResearchProjectId>(research?.Finished ?? []);

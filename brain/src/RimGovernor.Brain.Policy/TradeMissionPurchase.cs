@@ -173,7 +173,7 @@ public static partial class PolicyFunctions
         var resourceTargets = new List<ResourceDemand>();
         foreach (var (def, target) in request.Targets)
         {
-            resourceTargets.Add(new ResourceDemand { Key = new ResourceKey { Def = def }, Count = target, Priority = 1 });
+            resourceTargets.Add(new ResourceDemand { Key = new ResourceKey { Def = def }, Count = target });
         }
         var stockFact = known ? Known(EquatableArray.From(quantities)) : Unknown<EquatableArray<ResourceQuantity>>();
         var demand = BuildResourceDemand(new ResourceDemandInput { Targets = EquatableArray.From(resourceTargets), Stock = stockFact });
@@ -213,7 +213,7 @@ public static partial class PolicyFunctions
             if (count > 0)
             {
                 wanted[item.Definition] = count;
-                demands.Add(new SupplyDemand { Good = new ResourceKey { Def = new Resource(item.Definition) }, Units = count, Priority = 1 });
+                demands.Add(new SupplyDemand { Good = new ResourceKey { Def = new Resource(item.Definition) }, Units = count });
             }
         }
         foreach (var row in request.Rows)

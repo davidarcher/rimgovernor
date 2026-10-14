@@ -102,32 +102,6 @@ internal sealed class CastMarkConverter : ObjectCodec<CastMark>
 }
 
 internal sealed class CauseConverter() : StringCodec<Cause>(s => new(s), v => v.Value);
-internal sealed class ColonyStageRecordConverter : ObjectCodec<ColonyStageRecord>
-{
-    protected override ColonyStageRecord Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Stage = e.Get<ColonyStage>("Stage", o),
-            Since = e.Get<Tick>("Since", o),
-            Blocker = e.Get<StageBlocker>("Blocker", o),
-            Reason = e.Str("Reason"),
-            Held = e.Bool("Held"),
-            ProductionBlocked = e.Bool("ProductionBlocked"),
-            ProductionSince = e.Get<Tick>("ProductionSince", o),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, ColonyStageRecord v, Codecs o)
-    {
-        w.Put("Stage", v.Stage, o);
-        w.Put("Since", v.Since, o);
-        w.Put("Blocker", v.Blocker, o);
-        w.WriteString("Reason", v.Reason);
-        w.WriteBoolean("Held", v.Held);
-        w.WriteBoolean("ProductionBlocked", v.ProductionBlocked);
-        w.Put("ProductionSince", v.ProductionSince, o);
-    }
-}
-
 internal sealed class CombatAnimalRestorationConverter : ObjectCodec<CombatAnimalRestoration>
 {
     protected override CombatAnimalRestoration Read(JsonElement e, Codecs o) =>
@@ -2185,7 +2159,6 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
         new()
         {
             ProductionMaterials = e.GetOr<ProductionAdmissionEvidence?>("ProductionMaterials", null, o),
-            Emergency = e.Get<EquatableArray<ConcernId>>("Emergency", o),
             Unsafe = e.Get<EquatableArray<string>>("Unsafe", o),
             BrewingFinished = e.Bool("BrewingFinished"),
             ResourceRunways = e.Get<EquatableArray<ResourceRunwayRecord>>("ResourceRunways", o),
@@ -2213,7 +2186,6 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             Incidents = e.Get<EquatableArray<RoundsIncident>>("Incidents", o),
             Roster = e.GetOr<WorkRosterReport?>("Roster", null, o),
             Progress = e.Get<EquatableArray<ConcernProgress>>("Progress", o),
-            Stage = e.GetOr<ColonyStageRecord?>("Stage", null, o),
             ReadyWork = e.GetOr<ReadyWorkReport?>("ReadyWork", null, o),
             Built = e.Get<EquatableArray<ActionId>>("Built", o),
             WallCells = e.Get<EquatableArray<WallCell>>("WallCells", o),
@@ -2224,7 +2196,6 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
     protected override void WriteFields(Utf8JsonWriter w, Rounds v, Codecs o)
     {
         if (v.ProductionMaterials is { } materials) w.Put("ProductionMaterials", materials, o);
-        w.Put("Emergency", v.Emergency, o);
         w.Put("Unsafe", v.Unsafe, o);
         w.WriteBoolean("BrewingFinished", v.BrewingFinished);
         w.Put("ResourceRunways", v.ResourceRunways, o);
@@ -2270,10 +2241,6 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             w.Put("Roster", vRoster, o);
         }
         w.Put("Progress", v.Progress, o);
-        if (v.Stage is { } vStage)
-        {
-            w.Put("Stage", vStage, o);
-        }
         if (v.ReadyWork is { } vReadyWork)
         {
             w.Put("ReadyWork", vReadyWork, o);
@@ -2306,8 +2273,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
             Hot = e.Bool("Hot"),
             Upkeep = e.Get<UpkeepHistory>("Upkeep", o),
             Dash = e.Get<DashWindow>("Dash", o),
-            Soldiers = e.Bool("Soldiers"),
-            FoodFirst = e.Bool("FoodFirst"),
             Housing = e.Get<Phase>("Housing", o),
             Comfort = e.Get<Phase>("Comfort", o),
             Medical = e.Get<Phase>("Medical", o),
@@ -2331,8 +2296,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         w.WriteBoolean("Hot", v.Hot);
         w.Put("Upkeep", v.Upkeep, o);
         w.Put("Dash", v.Dash, o);
-        w.WriteBoolean("Soldiers", v.Soldiers);
-        w.WriteBoolean("FoodFirst", v.FoodFirst);
         w.Put("Housing", v.Housing, o);
         w.Put("Comfort", v.Comfort, o);
         w.Put("Medical", v.Medical, o);
@@ -2377,13 +2340,11 @@ internal sealed class SafeguardProposalConverter : ObjectCodec<SafeguardProposal
         new()
         {
             Need = e.Get<ConcernId>("Need", o),
-            Priority = e.I32("Priority"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, SafeguardProposal v, Codecs o)
     {
         w.Put("Need", v.Need, o);
-        w.WriteNumber("Priority", v.Priority);
     }
 }
 

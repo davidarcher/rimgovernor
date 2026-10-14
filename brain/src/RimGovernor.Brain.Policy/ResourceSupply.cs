@@ -81,7 +81,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var demand = SupplyDemandOfResource(new ResourceDemand { Key = new ResourceKey { Def = input.Resource }, Count = input.Deficit, Priority = 1 });
+            var demand = SupplyDemandOfResource(new ResourceDemand { Key = new ResourceKey { Def = input.Resource }, Count = input.Deficit });
             demands.Add(demand with { HorizonDays = input.HorizonDays });
             foreach (var q in input.Usable)
             {

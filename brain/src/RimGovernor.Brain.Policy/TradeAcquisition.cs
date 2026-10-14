@@ -167,7 +167,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                if (matched is null || d.Demand.Priority > matched.Demand.Priority)
+                if (matched is null || d.Gap > matched.Gap)
                 {
                     matched = d;
                 }

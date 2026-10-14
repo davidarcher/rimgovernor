@@ -262,7 +262,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
         }
 
         sample["latch_food"] = review.Latches.Food;
-        sample["emergency"] = new JsonArray([.. review.Emergency.Select(id => (JsonNode?)id.Value)]);
         if (PolicyFunctions.IsIncidentKind(need))
         {
             return SampleIncident(review, need, sample, ct);
@@ -287,7 +286,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
 
         sample["status"] = Wire.Name(goal.Standard.Status);
         sample["need"] = Wire.Name(goal.Standard.Finding);
-        sample["priority"] = goal.Standard.Priority;
         sample["vetoed"] = review.Veto(goal.Standard).Length != 0;
         sample["epoch"] = (long)goal.Standard.Episode;
         sample["method_count"] = goal.Methods.Count;
@@ -334,7 +332,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
         sample["incident"] = incident.Incident.Id.Value;
         sample["status"] = incident.Incident.Closed ? "closed" : "open";
         sample["need"] = binding is null ? "" : Wire.Name(binding.Situation);
-        sample["priority"] = incident.Incident.Priority;
         sample["vetoed"] = review.VetoIncident(incident.Incident).Length != 0;
         sample["method_count"] = incident.Methods.Count;
         var plans = new JsonArray();

@@ -87,12 +87,6 @@ public sealed partial class Rounder
         }
 
         var previous = p.Journal.LoadRounds(ctx);
-        Stage = ColonyStage.Foothold;
-        if (previous.Stage is not null)
-        {
-            Stage = previous.Stage.Stage;
-        }
-
         var expected = await StepScopeAsync(Native, ctx).ConfigureAwait(false);
         if (expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map
             || !expected.NativeGeneration.TryGetValue(out var native) || native != state.Snapshot.Native)
@@ -172,22 +166,7 @@ public sealed partial class Rounder
 
 internal static partial class BuildingRuntimePackage
 {
-    internal static bool ImmediatePlanner(PlannerEntry e)
-    {
-        switch (e.Name)
-        {
-            case "undraft":
-            case DefensePlanner:
-            case "tend":
-            case "rescue":
-            case "recovery":
-            case "maintainShelter":
-            case "fireSafety":
-                return true;
-        }
-
-        return false;
-    }
+    internal static bool ImmediatePlanner(PlannerEntry e) => e.Immediate;
 
     /// <summary>Whether the running wave is the immediate review (Go <c>immediateReview(ctx)</c>; the flag rides the wave's async scope).</summary>
     internal static bool ImmediateReview() => ReviewScope.Immediate;

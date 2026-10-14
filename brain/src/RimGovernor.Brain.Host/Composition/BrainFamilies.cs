@@ -306,13 +306,6 @@ public sealed record BrainFamilies
     /// <summary>The name of every enabled family, in composition order (Go <c>activeRoundsFamilies</c>).</summary>
     public IReadOnlyList<string> Active() => [.. Entries.Where(e => e.Get(this)).Select(e => e.Name)];
 
-    /// <summary>
-    /// Whether the composition plans every Foothold exit criterion (shelter, cooking, food storage and basic
-    /// defense), so the measured colony stage can climb (Go <c>footholdComposed</c>).
-    /// </summary>
-    public bool FootholdComposed =>
-        (Sleeping || Shelter) && (Bill || Cooking) && Stockpiles && (Defense || Equip);
-
     /// <summary>Whether EnsureResearch is composed (Go <c>researchPlans</c>).</summary>
     public bool ResearchPlans => Research;
 

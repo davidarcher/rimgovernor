@@ -96,7 +96,7 @@ no def name is written in the brain, and the colonist's own downside def is neve
 the answer unknown, and unknown holds the colonist back; a colonist with no Anomaly block is no
 creepjoiner.
 
-- **`ManageCreepJoiners`** (People, priority 3, `policy.CreepJoinerDownsides.WeaponDrops`): each review
+- **`ManageCreepJoiners`** (People, `policy.CreepJoinerDownsides.WeaponDrops`): each review
   reads the frame's colonist rows (complete roster only) and opens the concern while an available
   colonist held back from arms holds a weapon. Its planner orders one `drop_equipment` action per such
   colonist in one plan (job token `DropWeapon`, [action contracts](action-contracts.md)); a drop is

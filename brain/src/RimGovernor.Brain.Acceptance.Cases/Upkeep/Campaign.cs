@@ -306,12 +306,6 @@ internal static class UpkeepCampaign
         }
 
         report["rounds_review_first"] = routines.DeepClone();
-        if (review.Emergency.Count > 0)
-        {
-            var patients = string.Join(' ', review.MedicalCare.Patients.Select(p => p.ToString()));
-            throw new AcceptanceException($"first review holds development as an emergency (patients [{patients}]); the world is unusable");
-        }
-
         // The earlier goals are checked on every review while this stage's watch runs, and once more after it: a
         // reopened goal has a tick budget to recover in, and the stage ends only once every one is recovered.
         var tracker = new ClosedTracker(closed);

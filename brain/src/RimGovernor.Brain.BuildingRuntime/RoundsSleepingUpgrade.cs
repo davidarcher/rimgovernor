@@ -2,34 +2,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static partial class BuildingRuntimePackage
 {
-    /// <summary>
-    /// The personal-share gate on in-place bedroom upgrades: charged steps begin at Reserves and must fit the
-    /// owners' remaining share. stage is the review's colony stage.
-    /// </summary>
-    internal static Pol.RoomGate BedroomGate(Observation.ColonyProjection facts, Pol.ColonyStage stage)
-    {
-        // A piece is priced in the stuff UpgradeBedroom would build it in; the item facts carry no row for a stuff-made def.
-        Func<string, (double Price, bool Ok)> piecePrice = def =>
-            facts.BedPrice is null ? (0, false) : facts.BedPrice(new Pol.Resource(def), new Pol.Resource(PieceStuff(facts, def)));
-        var gate = new Pol.RoomGate { Stage = stage, Shares = facts.PersonalShareOf, Items = facts.Facts.Items, BedPrice = facts.BedPrice, PiecePrice = piecePrice };
-        // A suite is furnished with the bed the furnish step stages and the template pieces the closer fills, priced in their stuffs.
-        var definitions = facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available }).ToList();
-        var (bed, method) = SleepingDefinition(facts.Shapes.Furniture, definitions, null, false, true);
-        if (method == Pol.SleepingMethod.Build)
-        {
-            gate = gate with { SuiteBed = new Pol.Resource(bed), SuiteBedStuff = new Pol.Resource(PieceStuff(facts, bed)) };
-        }
-        var pieces = new List<string>();
-        foreach (var def in facts.Shapes.Furniture.BedroomUpgradePieces())
-        {
-            if (def != "" && facts.DefinitionAvailable(def).TryGetValue(out var v) && v)
-            {
-                pieces.Add(def);
-            }
-        }
-        return gate with { SuitePieces = [.. pieces] };
-    }
-
     /// <summary>The stuff a bedroom upgrade piece is built in: the allowed stocked one with the best rest effectiveness, else the ordinary placement stuff.</summary>
     internal static string PieceStuff(Observation.ColonyProjection facts, string def)
     {
@@ -52,7 +24,7 @@ internal static partial class BuildingRuntimePackage
         facts.DefinitionAvailable(def).TryGetValue(out var v) && v;
 
     /// <summary>The next room quality upgrade: one template piece for an owned bedroom below its target.</summary>
-    internal static (Pol.RoomUpgrade Upgrade, bool Due) RoomUpgradeOf(Observation.ColonyProjection facts, Pol.ColonyStage stage)
+    internal static (Pol.RoomUpgrade Upgrade, bool Due) RoomUpgradeOf(Observation.ColonyProjection facts)
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -69,11 +41,11 @@ internal static partial class BuildingRuntimePackage
             targets.TryAdd(id, t);
         }
         targets = WithThroneTargets(facts, targets);
-        return NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, targets, stage), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), BedroomGate(facts, stage));
+        return NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, targets), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
     }
 
     /// <summary>The next bed replacement step, read from the same census as RoomUpgradeOf.</summary>
-    internal static (Pol.BedReplacement Replacement, bool Due) BedReplacementOf(Observation.ColonyProjection facts, Pol.ColonyStage stage)
+    internal static (Pol.BedReplacement Replacement, bool Due) BedReplacementOf(Observation.ColonyProjection facts)
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -86,7 +58,7 @@ internal static partial class BuildingRuntimePackage
         facts.TechTier.TryGetValue(out var tier);
         var cost = new Dictionary<Pol.Resource, long>();
         var stock = facts.Resources.TryGetValue(out var known) ? known : new Dictionary<Pol.Resource, long>();
-        var materials = new Pol.BedMaterials { Cost = cost, Items = facts.Facts.Items, Gate = BedroomGate(facts, stage), Stock = stock };
+        var materials = new Pol.BedMaterials { Cost = cost, Items = facts.Facts.Items, Stock = stock };
         foreach (var d in facts.Definitions)
         {
             // A bed's stuff is the allowed stocked one with the best rest effectiveness; a def with no rest effectiveness is no bed.
@@ -111,7 +83,7 @@ internal static partial class BuildingRuntimePackage
                 }
             }
         }
-        return NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), stage), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials);
+        return NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials);
     }
 
     /// <summary>The next unmet royal bedroom thing.</summary>
@@ -153,7 +125,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>The next beauty lever: a plant pot or a prettier floor for a bedroom whose weakest stat is beauty.</summary>
-    internal static (Pol.RoomUpgrade Upgrade, bool Due) BeautyUpgrade(Observation.ColonyProjection facts, Pol.ColonyStage stage)
+    internal static (Pol.RoomUpgrade Upgrade, bool Due) BeautyUpgrade(Observation.ColonyProjection facts)
     {
         var sk = facts.Facts.Sleeping.TryGetValue(out var obs);
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -170,7 +142,7 @@ internal static partial class BuildingRuntimePackage
         {
             definitions[d.Name] = new Pol.FloorDefinition { Available = d.Available, Terrain = d.Terrain, Cleanliness = d.Cleanliness, Beauty = d.Beauty, Flammability = d.Flammability, PathCost = d.PathCost, Costs = d.Costs, WorkToBuild = d.WorkToBuild };
         }
-        return NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithThroneTargets(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), stage), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors, BedroomGate(facts, stage));
+        return NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithThroneTargets(facts, RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
     }
 }
 

@@ -27,24 +27,7 @@ public sealed partial class Store
         AdmitWorkMethod(tx, owner, plan);
         AdmitSupplyMethod(tx, owner, plan);
         AdmitProductionMaterials(tx, owner, plan);
-        AdmitConstructionLabor(tx, owner, plan);
         CreatePlanIn(tx, plan);
-    }
-
-    // While the initial shelter is owed its builders are its own. An owner the review does not bind (a player
-    // goal) is outside the rule, as it is outside the routine Safeguards.
-    private static void AdmitConstructionLabor(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
-    {
-        if (!plan.Actions.Any(a => DrawsConstructionLabor(a.Kind)))
-        {
-            return;
-        }
-        var review = LoadRounds(tx);
-        if (owner.OwnerNeed(review, out var need)
-            && ConstructionLaborHeld(review.Latches, review.Emergency, need, owner.OwnerPriority, plan.Actions.Select(a => a.Kind)))
-        {
-            throw new ConstructionLaborException();
-        }
     }
 
     private static void AdmitProductionMaterials(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
@@ -103,7 +86,7 @@ public sealed partial class Store
         {
             return;
         }
-        var (refusal, vetoed) = review.Refuse(new SafeguardProposal { Need = need, Priority = owner.OwnerPriority });
+        var (refusal, vetoed) = review.Refuse(new SafeguardProposal { Need = need });
         if (vetoed)
         {
             throw new NotAdmittedException($"{owner.OwnerLabel}: {refusal.Safeguard}: {refusal.Reason}");

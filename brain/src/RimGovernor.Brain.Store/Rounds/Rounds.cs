@@ -20,9 +20,6 @@ public sealed record Rounds
 {
     public ProductionAdmissionEvidence? ProductionMaterials { get; init; }
 
-    /// <summary>Emergency findings guide response planning and reporting.</summary>
-    public EquatableArray<ConcernId> Emergency { get; init; }
-
     /// <summary>The loose things the last known safety census reported unsafe to haul; the unsafe-loot Safeguard refuses allowing them at dispatch.</summary>
     public EquatableArray<string> Unsafe { get; init; }
 
@@ -85,9 +82,6 @@ public sealed record Rounds
     /// <summary>Every active goal's progress record, keyed by need.</summary>
     public EquatableArray<ConcernProgress> Progress { get; init; }
 
-    /// <summary>The colony stage the review derived, with the first unmet condition of the next stage; a disabled review keeps the last one.</summary>
-    public ColonyStageRecord? Stage { get; init; }
-
     /// <summary>The shadow ready-work projection of this enabled review's plans and unserved goals. Diagnostics only: no admission reads it.</summary>
     public ReadyWorkReport? ReadyWork { get; init; }
 
@@ -133,9 +127,6 @@ public sealed record RoundsResult
 
     /// <summary>The occurrences <see cref="Rounds.Incidents"/> binds.</summary>
     public IReadOnlyList<IncidentState> Incidents { get; init; } = [];
-
-    /// <summary>Emergency findings guide response planning and reporting.</summary>
-    public IReadOnlyList<ConcernId> Emergency { get; init; } = [];
 
     /// <summary>What an enabled review passed <c>DetectRounds</c>: the journal-enriched facts, the prior latches and the staged policy. Not journalled.</summary>
     public RoundsDetection? Detection { get; init; }
