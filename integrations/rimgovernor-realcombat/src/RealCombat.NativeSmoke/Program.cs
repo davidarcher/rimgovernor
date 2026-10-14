@@ -93,7 +93,7 @@ if (args.Contains("--permit"))
     var raiders = Enumerable.Range(1, 3).Select(i => host with { Id = "host" + i, Z = 30 + (i * 2) });
     var holder = true;
     request = request with { Pawns = [.. request.Pawns.Concat(raiders).Select(p => p.Side == "colonist" && holder ? Holder(p) : p)] };
-    RealPawn Holder(RealPawn p) { holder = false; return p with { Title = "Acolyte", Favor = 10, Permits = ["CallMilitaryAidSmall"] }; }
+    RealPawn Holder(RealPawn p) { holder = false; return args.Contains("--no-aid") ? p : p with { Title = "Acolyte", Favor = 10, Permits = ["CallMilitaryAidSmall"] }; }
 }
 
 if (args.Contains("--cover"))
