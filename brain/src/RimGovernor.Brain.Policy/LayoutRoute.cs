@@ -220,6 +220,21 @@ public sealed class RouteGrid
         return null;
     }
 
+    /// <summary>
+    /// Says why no route joined from and to, for the error text: how many start cells are walkable, the rooms the walk
+    /// does reach from them and the rooms the goals stand in. Names the sealed side of the plan; empty for none.
+    /// </summary>
+    public string Stranded(IReadOnlyList<Cell> from, IReadOnlyList<Cell> to, IReadOnlyList<PlannedRoom> rooms)
+    {
+        var open = from.Count(c => In(c) && room[Index(c)] != 0);
+        var reached = Flood(from, new bool[rooms.Count], rooms.Count);
+        string Name(IEnumerable<int> idx) => string.Join(",", idx.Select(i => $"{rooms[i].Id}:{rooms[i].Role}"));
+        var goals = to.Where(In).Select(At).Where(i => i >= 0).Distinct().Order().ToList();
+        var reach = Enumerable.Range(0, rooms.Count).Where(i => reached[i]).ToList();
+        var edge = to.Count(c => !In(c) || room[Index(c)] == 0);
+        return $" (start cells walkable {open}/{from.Count}; reached rooms [{Name(reach)}]; goal rooms [{Name(goals)}]; goal cells off the walk {edge}/{to.Count})";
+    }
+
     /// <summary>Marks the rooms (by index) pawns reach from the start cells when a closed room can be entered but not left for another room.</summary>
     private bool[] Flood(IEnumerable<Cell> start, bool[] closed, int rooms)
     {
@@ -348,7 +363,7 @@ public static partial class PolicyFunctions
                 var path = walk.RoutePath(from, to);
                 if (path is null)
                 {
-                    return new RouteCheck { Error = $"no route {trip.From} -> {trip.To}" };
+                    return new RouteCheck { Error = $"no route {trip.From} -> {trip.To}{walk.Stranded(from, to, rooms)}" };
                 }
                 var ends = new HashSet<int> { walk.At(path[0]), walk.At(path[^1]) };
                 foreach (var c in path)

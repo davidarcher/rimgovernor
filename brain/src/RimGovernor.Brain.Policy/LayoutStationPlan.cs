@@ -141,7 +141,8 @@ public sealed record StationFacts
         }
         if (Plan.Rooms.Any(r => r.Role == PolicyFunctions.PlannedShelter))
         {
-            if (RetireShelter)
+            // A shelter being built is the room the node asks for: siting another beside it would owe two.
+            if (RetireShelter || Plan.Rooms.Any(HeldUnbuiltShelter))
             {
                 return s;
             }
@@ -283,6 +284,9 @@ public sealed record StationFacts
         };
     }
 
+    /// <summary>Whether r is a shelter the colony holds (pinned, as a journal plan works on it) that does not stand yet: it stays where it is sited, and fills the shelter node, until it stands or the work ends.</summary>
+    internal bool HeldUnbuiltShelter(PlannedRoom r) => r.Role == PolicyFunctions.PlannedShelter && Pinned.Contains(r.Id) && !(Built?.Contains(r.Id) ?? false);
+
     /// <summary>
     /// The pinned standing rooms (StationFacts.Pinned) as the embedding holds them (EmbedInput.Standing): every built
     /// room that is pinned, whatever its role or whether a group carries it, bar the attached rooms and a room whose
@@ -295,7 +299,7 @@ public sealed record StationFacts
         var output = new List<BuiltRegion>();
         foreach (var r in Plan.Rooms)
         {
-            if (built.Contains(r.Id) && Pinned.Contains(r.Id) && !r.Attached() && !replaced.Contains(r.Id))
+            if ((built.Contains(r.Id) || HeldUnbuiltShelter(r)) && Pinned.Contains(r.Id) && !r.Attached() && !replaced.Contains(r.Id))
             {
                 output.Add(new BuiltRegion { Room = r.Id, Planned = r.Role, Region = r.Region, Pinned = true });
             }
