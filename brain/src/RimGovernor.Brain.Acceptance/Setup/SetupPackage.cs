@@ -96,7 +96,18 @@ public static class SetupPackage
             _ = Directory.CreateDirectory(dir);
         }
 
-        File.Copy(source, destination, overwrite: true);
+        try
+        {
+            File.Copy(source, destination, overwrite: true);
+        }
+        catch (IOException) when (File.Exists(destination))
+        {
+            // A process that has the destination mapped ("a file with a user-mapped section open") blocks the overwrite but
+            // usually not a rename, so move the old file aside and write the new one in its place. The aside file stays: it
+            // is still mapped, it is harmless, and its name records which file was locked.
+            File.Move(destination, destination + ".old-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture));
+            File.Copy(source, destination, overwrite: false);
+        }
     }
 
     /// <summary>

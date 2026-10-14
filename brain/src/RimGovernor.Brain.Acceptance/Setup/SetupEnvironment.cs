@@ -634,11 +634,6 @@ public static partial class SetupEnvironment
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-
-        // Reused MSBuild nodes and the shared compiler outlive the build with the game's Assembly-CSharp.dll memory-mapped,
-        // so the next game-copy refresh failed "a file with a user-mapped section open".
-        info.Environment["MSBUILDDISABLENODEREUSE"] = "1";
-        info.Environment["UseSharedCompilation"] = "false";
         foreach (var a in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", command })
         {
             info.ArgumentList.Add(a);
