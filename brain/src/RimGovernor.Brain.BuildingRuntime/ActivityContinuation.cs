@@ -21,7 +21,7 @@ public sealed partial class Worker
                 var food = await foodSource.ReadFoodActivityAsync(new(Boundary.Identity(current), [], method.Batch.Orders[0]), ct).ConfigureAwait(false);
                 if (!food.Known || food.Context?.Tick is not { } foodTick) continue;
                 _ = Boundary.Context(food.Context, current);
-                var next = PolicyFunctions.ContinueFoodActivity(method.Batch, method.Needed, food);
+                var next = PolicyFunctions.ContinueFoodActivity(method.Batch, method.Needed, food, out _);
                 if (next is not null && food.Execution is { } execution)
                 {
                     var id = PlanIds.MintPlanId();

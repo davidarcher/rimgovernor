@@ -18,7 +18,7 @@ public sealed class FoodActivityContinuationTests
         new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, travel, 30);
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new()
     { Known = true, Context = new() { Tick = 110 }, Options = EquatableArray.From(options) };
-    private static PawnActivities Harvest() => StartFoodActivity(Read(Option()), 1, "method", 500)!;
+    private static PawnActivities Harvest() => StartFoodActivity(Read(Option()), 1, "method", 500, out _)!;
     private static FoodActivityRead Terminal(PawnActivities batch, string state, params FoodActivityOption[] options) => Read(options) with
     { Execution = new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 110) };
 
@@ -27,8 +27,8 @@ public sealed class FoodActivityContinuationTests
     {
         var harvest = Harvest();
         Assert.Equal("crop", harvest.Orders[0].Steps[0].Target);
-        Assert.Null(ContinueFoodActivity(harvest, Known(true), Read(Option("food"))));
-        var delivery = ContinueFoodActivity(harvest, Known(true), Terminal(harvest, "completed", Option("new-stack-after-merge", 3)))!;
+        Assert.Null(ContinueFoodActivity(harvest, Known(true), Read(Option("food")), out _));
+        var delivery = ContinueFoodActivity(harvest, Known(true), Terminal(harvest, "completed", Option("new-stack-after-merge", 3)), out _)!;
         var step = Assert.Single(Assert.Single(delivery.Orders).Steps);
         Assert.Equal(PawnActivityKind.Deliver, step.Kind);
         Assert.Equal("new-stack-after-merge", step.Target);
@@ -41,16 +41,16 @@ public sealed class FoodActivityContinuationTests
     [Fact]
     public void InterruptedDeliveryRebindsSplitStackAndChangedDestinationWithoutRenewingDeadline()
     {
-        var delivery = ContinueFoodActivity(Harvest(), Known(true), Terminal(Harvest(), "completed", Option("old-stack")))!;
+        var delivery = ContinueFoodActivity(Harvest(), Known(true), Terminal(Harvest(), "completed", Option("old-stack")), out _)!;
         var retry = ContinueFoodActivity(delivery, Known(true), Terminal(delivery, "failed",
-            Option("split-stack", 2) with { Destination = new(10, 11) }))!;
+            Option("split-stack", 2) with { Destination = new(10, 11) }), out _)!;
         Assert.Equal("split-stack", retry.Orders[0].Steps[0].Target);
         Assert.Equal(2, retry.Orders[0].Steps[0].Count);
         Assert.Equal(500, retry.Orders[0].Steps[0].Deadline);
         Assert.Equal(1, retry.Orders[0].OutputDelivery!.AttemptsLeft);
-        Assert.True(ContinueFoodActivity(retry, Known(true), Terminal(retry, "failed"))!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(delivery, Known(true), Terminal(delivery, "failed", Option("duplicate")) with { Carrying = true })!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(delivery, Known(true), Terminal(delivery, "completed", Option("still-at-source")))!.Orders[0].Release);
+        Assert.True(ContinueFoodActivity(retry, Known(true), Terminal(retry, "failed"), out _)!.Orders[0].Release);
+        Assert.True(ContinueFoodActivity(delivery, Known(true), Terminal(delivery, "failed", Option("duplicate")) with { Carrying = true }, out _)!.Orders[0].Release);
+        Assert.True(ContinueFoodActivity(delivery, Known(true), Terminal(delivery, "completed", Option("still-at-source")), out _)!.Orders[0].Release);
     }
 
     [Fact]
@@ -58,13 +58,13 @@ public sealed class FoodActivityContinuationTests
     {
         var batch = Harvest();
         var read = Terminal(batch, "completed", Option("food"));
-        Assert.Null(ContinueFoodActivity(batch, default, read));
-        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Known = false }));
-        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { Assignment = "other" } }));
-        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { State = "running" } }));
-        Assert.True(ContinueFoodActivity(batch, Known(false), read)!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { State = "failed" } })!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(batch, Known(true), read with { Context = new() { Tick = 500 } })!.Orders[0].Release);
+        Assert.Null(ContinueFoodActivity(batch, default, read, out _));
+        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Known = false }, out _));
+        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { Assignment = "other" } }, out _));
+        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { State = "running" } }, out _));
+        Assert.True(ContinueFoodActivity(batch, Known(false), read, out _)!.Orders[0].Release);
+        Assert.True(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { State = "failed" } }, out _)!.Orders[0].Release);
+        Assert.True(ContinueFoodActivity(batch, Known(true), read with { Context = new() { Tick = 500 } }, out _)!.Orders[0].Release);
     }
 
     [Fact]
@@ -72,11 +72,27 @@ public sealed class FoodActivityContinuationTests
     {
         var slow = Option("slow", travel: 200);
         var fast = Option("fast", travel: 10);
-        Assert.Equal("fast", StartFoodActivity(Read(slow, fast), 1, "m", 500)!.Orders[0].Steps[0].Target);
-        Assert.Equal("slow", StartFoodActivity(Read(slow, fast with { TravelTicks = 300 }), 1, "m", 500)!.Orders[0].Steps[0].Target);
-        Assert.Null(StartFoodActivity(Read(fast) with { Known = false }, 1, "m", 500));
-        Assert.Null(StartFoodActivity(Read(fast with { TravelTicks = double.NaN }), 1, "m", 500));
-        Assert.Null(StartFoodActivity(Read(slow), 1, "m", 120));
+        Assert.Equal("fast", StartFoodActivity(Read(slow, fast), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
+        Assert.Equal("slow", StartFoodActivity(Read(slow, fast with { TravelTicks = 300 }), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
+        Assert.Null(StartFoodActivity(Read(fast) with { Known = false }, 1, "m", 500, out _));
+        Assert.Null(StartFoodActivity(Read(fast with { TravelTicks = double.NaN }), 1, "m", 500, out _));
+        Assert.Null(StartFoodActivity(Read(slow), 1, "m", 120, out _));
+    }
+
+    [Fact]
+    public void FoodMethodUsesSharedOutcomeSelectionAndReportsOmittedAlternatives()
+    {
+        var options = Enumerable.Range(0, 17).Select(i => Option("crop-" + i.ToString("D2"), travel: i == 16 ? 0 : 20)).ToArray();
+        var result = StartFoodActivity(Read(options), 1, "method", 500, out var comparison)!;
+        Assert.NotNull(comparison);
+        Assert.Single(comparison.Selected);
+        Assert.Contains("generation_truncated", comparison.Findings);
+        Assert.False(comparison.SearchTruncated);
+        Assert.False(comparison.NetBenefit.IsKnown); // Efficiency is not fabricated avoided hunger loss.
+        Assert.Equal("crop-00", result.Orders[0].Steps[0].Target);
+        Assert.Equal(comparison.Selected[0], Assert.Single(comparison.Plan!.Allocations).Activity);
+        StartFoodActivity(Read(Option()) with { Truncated = true }, 1, "m", 500, out comparison);
+        Assert.Contains("generation_truncated", comparison!.Findings);
     }
 
     [Fact]
@@ -84,10 +100,10 @@ public sealed class FoodActivityContinuationTests
     {
         var small = Option("a-small", count: 1, travel: 10);
         var large = Option("b-large", count: 8, travel: 30);
-        Assert.Equal("b-large", StartFoodActivity(Read(small, large), 1, "m", 500)!.Orders[0].Steps[0].Target);
-        Assert.Equal("a-small", StartFoodActivity(Read(large with { Count = 1 }, small), 1, "m", 500)!.Orders[0].Steps[0].Target);
-        Assert.Equal("a-small", StartFoodActivity(Read(small with { Target = "z-tie" }, small), 1, "m", 500)!.Orders[0].Steps[0].Target);
-        Assert.Null(StartFoodActivity(Read(large with { WorkTicks = 500 }), 1, "m", 500));
+        Assert.Equal("b-large", StartFoodActivity(Read(small, large), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
+        Assert.Equal("a-small", StartFoodActivity(Read(large with { Count = 1 }, small), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
+        Assert.Equal("a-small", StartFoodActivity(Read(small with { Target = "z-tie" }, small), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
+        Assert.Null(StartFoodActivity(Read(large with { WorkTicks = 500 }), 1, "m", 500, out _));
     }
 
     [Theory]
@@ -113,7 +129,7 @@ public sealed class FoodActivityContinuationTests
         var dispatched = journal.Dispatch(plan.Id, stored.Id, scope, new(100), ct);
         journal.RecordReceipt(plan.Id, stored.Id, dispatched.View.Attempt, Receipt.Accepted, ct);
         var read = Terminal(harvest, "completed", Option("observed-food", 4));
-        var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), ContinueFoodActivity(harvest, Known(true), read)!)]);
+        var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), ContinueFoodActivity(harvest, Known(true), read, out _)!)]);
         journal.ContinueActivityMethod(plan.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], next, ct);
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = next.Id }, ct);
         var intent = BridgeFunctions.IntentAction(next.Actions[0].Id.Value, journal.LoadPlan(next.Id, ct).Spec.Actions[0]).Intent!.PawnActivities!.Batch!;
@@ -134,7 +150,7 @@ public sealed class FoodActivityContinuationTests
         var obligation = Assert.Single(journal.ActivityMethods(Root, ct));
         Assert.Equal(1, obligation.Batch.Orders[0].Revision);
         Assert.False(obligation.Needed.Value);
-        var release = ContinueFoodActivity(obligation.Batch, obligation.Needed, read)!;
+        var release = ContinueFoodActivity(obligation.Batch, obligation.Needed, read, out _)!;
         var cleanup = new PlanSpec(new("cleanup"), new(1), [DomainAction.NewPawnActivitiesAction(new("cleanup-action"), release)]);
         journal.ContinueActivityMethod(next.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], cleanup, ct);
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = cleanup.Id }, ct);

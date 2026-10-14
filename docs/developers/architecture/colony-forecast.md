@@ -889,31 +889,54 @@ recovery remain unintegrated. Predicted yield is never credited as actual stock.
 
 ### Live activity policy stages
 
-The live food bridge has three internal stages in Policy, behind the existing
-`StartFoodActivity` / `ContinueFoodActivity` lifecycle entry points:
+These are steps in proposing and advancing a Method, not new domain actors:
 
-| Stage | Responsibility | Forbidden dependency |
-| --- | --- | --- |
-| `Activities.Generation` | Enumerate eligible observed options and map them to existing `ForecastActivityProblem` inputs | Evaluation, binding, action construction |
-| `Activities.Evaluation` | Compare the generated problems through ColonyForecast's allocator; rank feasible trips by labor per unit | Native food contracts and family-specific binding |
-| `Activities.Binding` | Turn the selected observed option into an exact activity revision, or release | Generation and comparison |
+`Concern -> candidate Method alternatives -> ColonyForecast comparison -> Plan/actions -> Method journal -> Hands`
 
-`ActivitySelection<T>` has a private constructor and read-only binding. Only its
-comparison method can mint it; the binder accepts that selection, not a raw
-candidate. All stage types are internal, so runtime callers use the lifecycle
-entry points. `RGARCH009` checks semantic references, including aliases, method
-groups and target-typed construction, and rejects forbidden stage dependencies
-without a baseline. Future live cooking generation and binding belong in these
-same stages; recipe and ingredient alternatives must reach evaluation before binding.
-The lifecycle entry points also reject direct activity construction, comparison
-calls and arithmetic, including arithmetic inside local functions. Ownership and
-terminal-state checks stay there; valuation must pass through evaluation.
+The existing worker observes outcomes and advances or releases the same Method.
+Only journal admission creates an owned Method; generated alternatives are
+transient forecast inputs and concrete target bindings, not persistent Methods.
 
-This is a dependency fence, not a proof that arbitrary scoring math is correct or
-that a generator enumerates every useful combination. The gate does not police
-all older Policy code or all arithmetic in orchestration. Behavior tests and
-review remain necessary, including review of changes to the gate itself.
-The local trip objective, bounded enumeration, unknown handling and horizon
-assumptions are unchanged. The full `ForecastFoodCandidates` portfolio generator
-is still separate from this live adapter; no new planning engine or state owner
-is introduced.
+| Owner | Responsibility |
+| --- | --- |
+| `RoundsAcquisitionPlanner` | Read shared food demand and native options; admit the proposed Method through the existing journal |
+| `FoodMethodCandidates` in `Methods.Generation` | Generate one graph, mutually exclusive outcomes for the current Method decision, and an outcome-ID-to-native-option binding map |
+| `PolicyFunctions.CompareActivityOutcomes` | Shared ColonyForecast alternative search, scheduling, deadlines, labor ceiling, postponement and selection |
+| `FoodActivityBinding` in `Methods.Binding` | Resolve the selected outcome ID into exact activity actions; no independent ranking |
+| `StartFoodActivity` / `ContinueFoodActivity` | Pure ownership/lifecycle checks and sequencing of generation, comparison and binding |
+| Existing Method journal and Hands | Admission, progress/revision ownership, dispatch and release |
+
+There is no separate generic activity-candidate or selection engine. Binding
+consumes the existing `ForecastActivityOutcomeComparison`. The public lifecycle
+functions also return that comparison for inspection, including findings and
+search truncation. The planner includes bounded selection in its existing Method
+reason; this does not introduce telemetry or persistence ownership.
+
+The local bridge uses the shared comparator's explicit `LowestLaborPerUnit`
+objective. It accepts alternatives for only one need, requires known positive
+comparable progress units and a known labor ceiling, and leaves `NetBenefit`
+unknown: an efficiency ratio is not an estimate of avoided hunger damage.
+The existing acquisition horizon supplies the ceiling; equal unit labor rates
+and zero recovery cost on native Danger.None routes remain local assumptions.
+Full survival portfolio selection uses the existing outcome/effect mechanisms,
+not this ratio across unrelated needs.
+
+The live adapter enumerates at most sixteen eligible alternatives, matching the
+shared outcome comparator, with one 512-expansion budget. Both omitted native
+options and policy generation limits produce `generation_truncated`; omitted
+choices may be better. This is narrower than the former 128 independent trip
+comparisons. Equal objective values use the shared comparator's lower-total-labor,
+then earlier-completion tie break, followed by stable outcome ordering.
+
+`RGARCH009` has no baseline. Generation and binding cannot call each other or
+policy comparison helpers. Lifecycle entry points can call the shared outcome
+comparator but cannot add arithmetic, use the lower-level allocator directly, or
+construct orders. These stages cannot construct or clone a forecast selection.
+Checks resolve aliases, method groups and target-typed construction. All Method
+implementation types remain internal. This is a dependency fence, not proof of
+complete candidate generation or correct arbitrary scoring; gate changes still
+require review. Older planners are not all migrated into this structure.
+
+The full `ForecastFoodCandidates` raw-versus-cooked generator is not yet connected
+to this live adapter. Cooking, coupled needs, helper delegation and shared claims
+remain integration work. Existing helpers stay until their replacement is proven.

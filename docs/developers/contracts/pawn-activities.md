@@ -9,9 +9,10 @@ first production caller, not the full #3127/#3128/#3132/#3135 cutover.
 
 The normal acquisition planner keeps the shared FoodPlan's selected plant demand.
 For those sources, the typed `food_activity` read enumerates idle, capable pawns,
-native routes and empty allowed storage cells. ColonyForecast's bounded allocator
-checks each same-pawn trip against the existing acquisition horizon; policy ranks
-feasible trips by labor per item. It assumes equal unit labor rates and zero injury
+native routes and empty allowed storage cells. ColonyForecast's shared outcome
+comparator evaluates these mutually exclusive Method alternatives against the
+existing acquisition horizon, using its explicit labor-per-unit objective.
+It assumes equal unit labor rates and zero injury
 recovery on Danger.None routes, not calibrated opportunity costs or proof of safety.
 Non-idle jobs are protected, including a fresh check at native admission.
 
@@ -34,9 +35,10 @@ retains the previous installed assignment through journal predecessor history
 and permits cleanup only; an uncertain receipt never authorizes replacement.
 
 Reads bound plants/pawns/stacks to 16, destinations per source to eight and route
-probes to 128. Truncation is explicit in the read and initial Method reason; an
-omitted alternative is not proven worse. The allocator uses 16 expansions per
-trip. There is no joint helper assignment, needs forecast, mixed production
+probes to 128. Policy generates at most 16 eligible alternatives for the shared
+comparator, which uses one 512-expansion budget. Native and policy generation
+truncation are exposed in the returned comparison findings and initial Method
+reason; an omitted alternative is not proven worse. There is no joint helper assignment, needs forecast, mixed production
 selection or cross-owner material reservation in this slice. Other acquisition
 families and existing hauling/cleaning/eating helpers remain.
 
@@ -164,7 +166,7 @@ normal authority and current facts must authorize new control after load.
 
 Live food policy separates candidate generation, generic comparison and exact
 binding under the [enforced stage contract](../architecture/colony-forecast.md#live-activity-policy-stages).
-The binder requires an evaluator-created selection. Lifecycle ownership checks,
+The binder consumes the shared forecast's selected outcome and concrete binding map. Lifecycle ownership checks,
 the Method journal and Hands retain their existing responsibilities.
 
 Pawn observations expose `ActivityExecution` (assignment, Method, revision, step,

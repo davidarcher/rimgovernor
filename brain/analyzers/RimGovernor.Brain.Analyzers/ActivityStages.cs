@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
 {
-    private const string Root = "RimGovernor.Brain.Policy.Activities";
+    private const string Root = "RimGovernor.Brain.Policy.Methods";
     private static readonly DiagnosticDescriptor Descriptor = new("RGARCH009", "Activity stage ownership",
         "activity stage {0} cannot depend on {1}", "Architecture", DiagnosticSeverity.Error, true);
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Descriptor);
@@ -31,6 +31,12 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
             var creation = (IObjectCreationOperation)c.Operation;
             Check(c.ContainingSymbol, creation.Constructor, creation.Syntax.GetLocation(), c.ReportDiagnostic);
         }, OperationKind.ObjectCreation);
+        context.RegisterSyntaxNodeAction(c =>
+        {
+            if ((IsLifecycle(c.ContainingSymbol) || (c.ContainingSymbol?.ContainingNamespace.ToDisplayString() ?? "").StartsWith(Root + ".", StringComparison.Ordinal))
+                && c.SemanticModel.GetTypeInfo(c.Node, c.CancellationToken).Type?.Name == "ForecastActivityOutcomeComparison")
+                c.ReportDiagnostic(Diagnostic.Create(Descriptor, c.Node.GetLocation(), "Method policy", "rewriting forecast selection"));
+        }, SyntaxKind.WithExpression);
         context.RegisterSyntaxNodeAction(c =>
         {
             if (IsLifecycle(c.ContainingSymbol))
@@ -61,17 +67,16 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
         if (ns.StartsWith(Root + ".", StringComparison.Ordinal))
         {
             var other = ns.Substring(Root.Length + 1).Split('.')[0];
-            allowed = lifecycle || stage == other || (stage == "Binding" && other == "Evaluation"
-                && (target is INamedTypeSymbol || target is IPropertySymbol { Name: "Binding" }));
+            allowed = lifecycle || stage == other;
         }
         else if (ns.StartsWith("RimGovernor.Brain.Policy", StringComparison.Ordinal))
         {
             // Data contracts are permitted; calls into the unpartitioned policy implementation
             // are not. This also catches aliases, method groups and helper/extension calls.
             allowed = type.Name != "PolicyFunctions" || target is INamedTypeSymbol
-                || (stage == "Evaluation" && target.Name == "CompareActivityPlans")
-                || (lifecycle && target.Name == "MatchesActivityOwner");
+                || (lifecycle && target.Name is "MatchesActivityOwner" or "CompareActivityOutcomes");
             if (type.Name != "PolicyFunctions" && target is IMethodSymbol { MethodKind: not MethodKind.Constructor }) allowed = false;
+            if (type.Name == "ForecastActivityOutcomeComparison" && target is IMethodSymbol) allowed = false;
         }
         else if (stage != "Binding" && ns == "RimGovernor.Brain.Domain"
             && (!lifecycle || target is IMethodSymbol)

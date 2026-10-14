@@ -13,21 +13,21 @@ public sealed class ActivityStagesTests
     [InlineData("Generation", "P.CompareActivityPlans();", true)]
     [InlineData("Binding", "P.CompareActivityPlans();", true)]
     [InlineData("Binding", "System.Action a = P.CompareActivityPlans;", true)]
-    [InlineData("Evaluation", "P.CompareActivityPlans();", false)]
+    [InlineData("Generation", "P.CompareActivityOutcomes();", true)]
     [InlineData("Generation", "RimGovernor.Brain.Domain.PawnActivities a = new();", true)]
     [InlineData("Binding", "RimGovernor.Brain.Domain.PawnActivities a = new();", false)]
     [InlineData("Generation", "Helper.Choose();", true)]
-    [InlineData("Binding", "RimGovernor.Brain.Policy.Activities.Evaluation.Selection.Compare();", true)]
+    [InlineData("Binding", "RimGovernor.Brain.Policy.Methods.Evaluation.Selection.Compare();", true)]
     public async Task StageDependenciesAreCheckedSemantically(string stage, string body, bool rejected)
     {
         var source = $$"""
             using P = RimGovernor.Brain.Policy.PolicyFunctions;
             using RimGovernor.Brain.Policy;
-            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions { public static void CompareActivityPlans() {} }
+            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions { public static void CompareActivityPlans() {} public static void CompareActivityOutcomes() {} }
                 public static class Helper { public static void Choose() {} } }
             namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
-            namespace RimGovernor.Brain.Policy.Activities.Evaluation { internal class Selection { internal static void Compare() {} } }
-            namespace RimGovernor.Brain.Policy.Activities.{{stage}} { internal class Stage { void Run() { {{body}} } } }
+            namespace RimGovernor.Brain.Policy.Methods.Evaluation { internal class Selection { internal static void Compare() {} } }
+            namespace RimGovernor.Brain.Policy.Methods.{{stage}} { internal class Stage { void Run() { {{body}} } } }
             """;
         await Check(source, rejected);
     }
@@ -36,15 +36,28 @@ public sealed class ActivityStagesTests
     [InlineData("CompareActivityPlans();")]
     [InlineData("int Rank() => 4 / 2; Rank();")]
     [InlineData("RimGovernor.Brain.Domain.PawnActivities a = new();")]
+    [InlineData("ForecastActivityOutcomeComparison a = new();")]
+    [InlineData("ForecastActivityOutcomeComparison a = null!; var b = a with { }; ")]
     public async Task LifecycleCannotReintroduceLocalRankingOrDirectOrders(string body)
     {
         await Check($$"""
             namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
-            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions {
-                public static void CompareActivityPlans() {}
+            namespace RimGovernor.Brain.Policy { public record ForecastActivityOutcomeComparison; public static class PolicyFunctions {
+                public static void CompareActivityPlans() {} public static void CompareActivityOutcomes() {}
                 public static void StartFoodActivity() { {{body}} }
             } }
             """, true);
+    }
+
+    [Fact]
+    public async Task LifecycleCanUseTheSharedOutcomeComparator()
+    {
+        await Check("""
+            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions {
+                public static void CompareActivityOutcomes() {}
+                public static void StartFoodActivity() { CompareActivityOutcomes(); }
+            } }
+            """, false);
     }
 
     private static async Task Check(string source, bool rejected)
