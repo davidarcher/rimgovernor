@@ -119,6 +119,7 @@ namespace HomeBridge.BridgeTools
         {
             if (raidArmor.HasValue && NativePawnDetails.Defaults(details).Equipment.GetValueOrDefault()) row = row with { RaidArmor = raidArmor.Value };
             row = NativePawnDetails.Apply(pawn, colonists, row, details, context);
+            row = row with { ActivityExecution = NativePawnActivities.Read(pawn) };
             row = row with { Snapshot = PawnSnapshotToken(pawn, row, context) };
             return row;
         }

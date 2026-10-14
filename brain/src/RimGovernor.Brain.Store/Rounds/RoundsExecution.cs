@@ -15,6 +15,7 @@ public sealed partial class Store
         ActionKind.SupplyAllow,
         ActionKind.SupplyForbid,
         ActionKind.WorkAssignment,
+        ActionKind.PawnActivities,
         ActionKind.Acquisition,
         ActionKind.AcquisitionWithdraw,
         ActionKind.ZoneCreate,

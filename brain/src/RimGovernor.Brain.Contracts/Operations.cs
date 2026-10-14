@@ -1134,6 +1134,7 @@ public sealed record Action
 [JsonDerivedType(typeof(ActionIntent.DesignateCase), "designate")]
 [JsonDerivedType(typeof(ActionIntent.RelocateCase), "relocate")]
 [JsonDerivedType(typeof(ActionIntent.BuildingPatchCase), "buildingPatch")]
+[JsonDerivedType(typeof(ActionIntent.PawnActivitiesCase), "pawnActivities")]
 [JsonDerivedType(typeof(ActionIntent.GiveJobCase), "giveJob")]
 [JsonDerivedType(typeof(ActionIntent.DraftCase), "draft")]
 [JsonDerivedType(typeof(ActionIntent.CombatOrdersCase), "combatOrders")]
@@ -1313,6 +1314,10 @@ public abstract record ActionIntent
     [JsonIgnore]
     public GiveJobIntent? GiveJob => (this as GiveJobCase)?.Value;
 
+    [JsonIgnore]
+    public PawnActivitiesIntent? PawnActivities => (this as PawnActivitiesCase)?.Value;
+    public sealed record PawnActivitiesCase(PawnActivitiesIntent Value) : ActionIntent;
+    public static implicit operator ActionIntent(PawnActivitiesIntent value) => new PawnActivitiesCase(value);
     public sealed record GiveJobCase(GiveJobIntent Value) : ActionIntent;
 
     public static implicit operator ActionIntent(GiveJobIntent value) => new GiveJobCase(value);

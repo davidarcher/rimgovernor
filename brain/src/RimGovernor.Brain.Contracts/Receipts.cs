@@ -277,6 +277,7 @@ public sealed record EffectEvidence
 [JsonDerivedType(typeof(EffectEvidenceEffect.ZoneCase), "zone")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.AssignCase), "assign")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.WallCase), "wall")]
+[JsonDerivedType(typeof(EffectEvidenceEffect.PawnActivitiesCase), "pawnActivities")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.JobCase), "job")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.AnimalCase), "animal")]
 [JsonDerivedType(typeof(EffectEvidenceEffect.PrisonerCase), "prisoner")]
@@ -305,6 +306,8 @@ public sealed record EffectEvidence
 public abstract record EffectEvidenceEffect
 {
     private protected EffectEvidenceEffect() { }
+    public sealed record PawnActivitiesCase(PawnActivitiesEffect Value) : EffectEvidenceEffect;
+    public static implicit operator EffectEvidenceEffect(PawnActivitiesEffect value) => new PawnActivitiesCase(value);
 
     /// <summary>The <c>Construction</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]

@@ -6,6 +6,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 
 - [Remote acceptance manifests and landing handoff](remote-acceptance.md)
 - [Thrown bridge hop: host behaviour](bridge-thrown-hop.md): a rethrow is safe; the reply shape
+- [Planner-owned pawn activities](pawn-activities.md)
 - [Action completion contracts](action-contracts.md)
 - [Controller and colony contracts](controller-contracts.md)
 - [Equipment and apparel upkeep](equipment-upkeep.md)

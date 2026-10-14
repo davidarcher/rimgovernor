@@ -51,6 +51,7 @@ public enum ActionKind
     OpenCasket,
     OwnedDraft,
     PawnSettings,
+    PawnActivities,
     PolicyPrune,
     PrisonerInteraction,
     ProductionBill,

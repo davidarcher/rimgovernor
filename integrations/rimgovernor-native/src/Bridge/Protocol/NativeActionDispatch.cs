@@ -59,6 +59,7 @@ namespace HomeBridge.BridgeTools
             [typeof(Operations.ActionIntent.DesignateCase)] = new DesignateActionHandler(),
             [typeof(Operations.ActionIntent.RelocateCase)] = new RelocateActionHandler(),
             [typeof(Operations.ActionIntent.BuildingPatchCase)] = new BuildingPatchActionHandler(),
+            [typeof(Operations.ActionIntent.PawnActivitiesCase)] = new PawnActivitiesActionHandler(),
             [typeof(Operations.ActionIntent.GiveJobCase)] = new GiveJobActionHandler(),
             [typeof(Operations.ActionIntent.AreaCase)] = new AreaActionHandler(),
             [typeof(Operations.ActionIntent.PolicyPruneCase)] = new PolicyPruneActionHandler(),

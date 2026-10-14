@@ -11,6 +11,8 @@ namespace RimGovernor.Contracts.Wire;
     NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     AllowOutOfOrderMetadataProperties = true)]
+[JsonSerializable(typeof(Operations.ActionIntent.PawnActivitiesCase), TypeInfoPropertyName = "OperationsPawnActivitiesCase")]
+[JsonSerializable(typeof(Receipts.EffectEvidenceEffect.PawnActivitiesCase), TypeInfoPropertyName = "ReceiptsPawnActivitiesCase")]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(uint))]

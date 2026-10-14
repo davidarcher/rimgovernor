@@ -149,7 +149,7 @@ public sealed partial class Worker
     internal static bool RoundsExecutableKind(ActionKind kind) => kind switch
     {
         ActionKind.Building or ActionKind.OwnedDraft or ActionKind.Subdue
-            or ActionKind.SupplyAllow or ActionKind.SupplyForbid or ActionKind.WorkAssignment or ActionKind.Acquisition or ActionKind.AcquisitionWithdraw or ActionKind.ZoneCreate
+            or ActionKind.SupplyAllow or ActionKind.SupplyForbid or ActionKind.WorkAssignment or ActionKind.PawnActivities or ActionKind.Acquisition or ActionKind.AcquisitionWithdraw or ActionKind.ZoneCreate
             or ActionKind.ProductionBill or ActionKind.Tend or ActionKind.Rescue or ActionKind.Capture or ActionKind.UseItem or ActionKind.Haul or ActionKind.Equip or ActionKind.DropEquipment
             or ActionKind.GearReplace or ActionKind.ApparelPolicy or ActionKind.RecoveryService or ActionKind.Movement or ActionKind.Husbandry
             or ActionKind.PrisonerInteraction or ActionKind.Repair or ActionKind.Clean or ActionKind.MineAcquisition or ActionKind.OpenCasket

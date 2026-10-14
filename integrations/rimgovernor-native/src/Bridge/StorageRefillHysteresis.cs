@@ -34,6 +34,7 @@ namespace HomeBridge.BridgeTools
 
         private static void Refill(Pawn p, Thing t, ref Job? __result)
         {
+            if (NativePawnActivities.Owned(p)) return;
             if (__result == null || !Supervisor.IsActive || __result.def != JobDefOf.HaulToCell) return;
             var map = p.Map;
             ISlotGroup? group = map.haulDestinationManager.SlotGroupAt(__result.targetB.Cell);

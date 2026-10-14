@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
             else if (moving) activity = carrying ? "carrying" : "travel";
             else if (job == null) activity = "idle";
             else if (job.def == JobDefOf.Ingest || job.def == JobDefOf.LayDown || job.def.joyKind != null) activity = "needs";
-            else if (job.def == JobDefOf.Wait) activity = "waiting";
+            else if (job.def == JobDefOf.Wait || NativePawnActivities.IsHold(job)) activity = "waiting";
             else if (job.def == JobDefOf.AttackMelee || job.def == JobDefOf.AttackStatic || job.def == JobDefOf.Wait_Combat) activity = "combat";
             else if (driver?.ActiveSkill != null && driver.GetType().Assembly == typeof(JobDriver).Assembly) activity = "work";
             // A stationary haul, an unnamed/modded toil and a standing pawn are not proof of work or input waiting.
@@ -104,7 +104,7 @@ namespace HomeBridge.BridgeTools
                 (driver?.GetType().FullName ?? "") + ":" + (driver?.CurToilIndex ?? -1).ToString(CultureInfo.InvariantCulture),
                 activity, purpose,
                 job == null ? "" : Target(job.targetA) + "|" + Target(job.targetB) + "|" + Target(job.targetC),
-                Location(pawn));
+                Location(pawn), NativePawnActivities.Read(pawn)?.Method, NativePawnActivities.Read(pawn)?.Assignment);
         }
 
         private static void Started(Pawn ___pawn)
@@ -158,6 +158,13 @@ namespace HomeBridge.BridgeTools
             if (!Ready()) return;
             foreach (var map in Find.Maps)
                 foreach (var pawn in map.mapPawns.FreeColonistsSpawned) Started(pawn);
+        }
+        internal static void Execution(RimGovernor.Contracts.Wire.Operations.PawnActivityExecution row, Pawn pawn)
+        {
+            emitter?.EmitRow("pawn_activity_execution", new RowContext { Component = "pawn-activity", Tick = row.Tick },
+                new Dictionary<string, object?> { ["pawn"] = pawn.GetUniqueLoadID(), ["assignment"] = row.Assignment,
+                    ["method"] = row.Method, ["revision"] = row.Revision, ["step"] = row.Step, ["state"] = row.State,
+                    ["reason"] = row.Reason, ["job_id"] = row.JobId });
         }
         private static void Fail(Exception error)
         {

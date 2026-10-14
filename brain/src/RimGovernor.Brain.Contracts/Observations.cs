@@ -1804,6 +1804,7 @@ public sealed record PawnState
 
     public bool? PlayerControlled { get; init; }
 
+    public Operations.PawnActivityExecution? ActivityExecution { get; init; }
     public JobEvidence? Job { get; init; }
 
     public PawnNeeds? Needs { get; init; }

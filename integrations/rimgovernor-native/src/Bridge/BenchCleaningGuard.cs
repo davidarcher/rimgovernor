@@ -45,6 +45,7 @@ namespace HomeBridge.BridgeTools
 
         private static void ArmAfterTend(JobDriver_TendPatient __instance)
         {
+            if (NativePawnActivities.Owned(__instance.pawn)) return;
             var doctor = __instance.pawn;
             var patient = __instance.job.targetA.Pawn;
             if (patient == null || patient == doctor || !Supervisor.IsActive) return;
@@ -55,6 +56,7 @@ namespace HomeBridge.BridgeTools
 
         private static void BeforeBill(Pawn pawn, Thing thing, bool forced, ref Job? __result)
         {
+            if (NativePawnActivities.Owned(pawn)) return;
             if (forced || __result == null || __result.def != JobDefOf.DoBill || !Supervisor.IsActive
                 || FloatMenuMakerMap.makingFor == pawn || !thing.Spawned) return;
             var clean = CleanJob(pawn, thing.Map, thing.def.hasInteractionCell ? thing.InteractionCell : thing.Position);

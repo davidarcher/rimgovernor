@@ -60,3 +60,5 @@ work and decisions. Documentation describes current behavior and explicit
 proposals; Git and result artifacts retain implementation history and run evidence.
 
 - [Pawn activity observations and reports](developers/architecture/pawn-activity.md)
+
+- [Planner-owned pawn activities](developers/contracts/pawn-activities.md): exact assignments, needs execution, bounded holds and ownership.
