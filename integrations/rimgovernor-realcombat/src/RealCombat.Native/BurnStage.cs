@@ -47,6 +47,10 @@ public sealed class BurnStage(Cell hive, Cell exit)
         made.SetFaction(Faction.OfInsects);
         GenSpawn.Spawn(made, new IntVec3(hive.X, 0, hive.Z), map);
 
+        // Only the staged insects are in the room: the hive's own, spawned on the corridor axis, would see the carrier.
+        var spawner = ((ThingWithComps)made).GetComp<CompSpawnerPawn>();
+        typeof(CompSpawnerPawn).GetField("canSpawnPawns", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)?.SetValue(spawner, false);
+
         // The seal, its corridor and the flanks beside the doors lie under rock; the retreat past them is open sky.
         var roof = RoofDefOf.RoofRockThick;
         var roofed = new List<Cell>();

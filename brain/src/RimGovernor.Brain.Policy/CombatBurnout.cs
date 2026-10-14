@@ -441,6 +441,13 @@ public static partial class PolicyFunctions
             return;
         }
 
+        // A thrown molotov leaves the carrier unarmed, which the formation takes as no role: it keeps one to retreat on.
+        var spent = StateOf(b.Carrier);
+        if (b.Lit.Value > 0 && !spent.Dead && !spent.Downed && !m.Roles.Any(r => r.Pawn == b.Carrier))
+        {
+            m.Roles = EquatableArray.From(m.Roles.Append(new CombatRole { Pawn = b.Carrier }));
+        }
+
         foreach (var r in m.Roles)
         {
             if (StateOf(r.Pawn).WeaponFacts.Burner())
@@ -496,7 +503,8 @@ public static partial class PolicyFunctions
         Cell aim = default;
         var doThrow = false;
         var approach = false;
-        if (wantThrow)
+        var armed = StateOf(b.Carrier).WeaponFacts.Burner();
+        if (wantThrow && armed)
         {
             var lighter = b.Lighter();
             Cell? target = site!.Fuel.Items.Contains(lighter) ? lighter : null;
@@ -550,7 +558,10 @@ public static partial class PolicyFunctions
         var had = new List<PodDoor>(m.WaitDoors);
         Shelter(view, m);
         var corridor = b.CorridorDoors();
-        var shut = b.Lit.Value > 0 && !approach && !doThrow && view.Tick.Value - b.Thrown.Value >= BurnThrowTicks;
+        // The doors lock behind the carrier, never on it: a forbidden door is unreachable to a pawn still inside.
+        var cs = StateOf(b.Carrier);
+        var clear = cs.Dead || cs.Downed || !cs.Cell.TryGetValue(out var carrierNow) || Dist(carrierNow, b.Hive) > Dist(corridor[^1], b.Hive);
+        var shut = b.Lit.Value > 0 && !approach && !doThrow && clear && (!armed || view.Tick.Value - b.Thrown.Value >= BurnThrowTicks);
         var want = new List<PodDoor>();
         foreach (var d in corridor)
         {
@@ -586,7 +597,7 @@ public static partial class PolicyFunctions
                 continue;
             }
 
-            if (r.Pawn == b.Carrier && view.Tick.Value - b.Thrown.Value < BurnThrowTicks)
+            if (r.Pawn == b.Carrier && view.Tick.Value - b.Thrown.Value < BurnThrowTicks && StateOf(b.Carrier).WeaponFacts.Burner())
             {
                 if (doThrow)
                 {

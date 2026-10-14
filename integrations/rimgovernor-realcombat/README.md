@@ -93,10 +93,11 @@ that `PolicyFunctions.BurnBuilds` asks for over an empty census, `RealPawn` inse
 `LordJob_DefendAndExpandHive`, and the policy plays three colonists west of the corridor, one with a molotov. It reads the site
 (`missing=0 roofed fuel=4`), holds the corridor doors open and sends the carrier in (a held door opens only once something passes), holds its fire
 (fire-at-will would spend the molotov on the first insect in sight), and from a corridor door cell with the line open orders the throw at a stool
-two or more cells off (the engine refuses an adjacent target). The throw lands at t=1090 (a Fire at the stool), and only then do the doors close
-and lock behind everyone. It does not win: the insects are on the carrier in the doorway for the 200 ticks before the throw, it is downed there
-(its body keeps the doors from shutting), one fire never heats the room (hive 1 C at most; whether 4 stools can reach 150 C is answered no here), the
-spelopede breaches the seal by t=1500, and the insects win in 3571 ticks, the same in every process. A finding for the policy, not tuned here.
+two or more cells off (the engine refuses an adjacent target). The three staged megascarabs stand off the corridor axis against the room's west
+wall, out of line of sight of the corridor, and the hive's own pawn spawning is off (its insects spawn on the axis and see the carrier). The throw
+lands at t=1130 (a Fire at the stool); the carrier, unarmed and so out of the formation, keeps a retreat role, walks back past the last door, and only
+then do the doors close and lock (a forbidden door is unreachable to a pawn still inside). The colonists win in 1866 ticks, the same in every
+process, by shooting the insects, not by heat: the one fire raises the hive 1 C at most, so 4 stools do not reach 150 C. A finding for the policy, not tuned here.
 The harness had to change for the throw to land at all: a projectile launches from the caster's draw position, which only the render pass
 advances, so a pawn that had walked shot from the cell it spawned in; `Arena.Play` now resets each pawn's tweened position every tick
 (this moved the numbers above: `--no-traps` 2406, `--permit` 1372). **Royalty**: built as the rounds build it, from the frame's colony royalty section and pawn rows against the catalog

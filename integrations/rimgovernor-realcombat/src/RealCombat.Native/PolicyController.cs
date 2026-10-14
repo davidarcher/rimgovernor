@@ -212,7 +212,7 @@ public sealed class PolicyController : IFightController
         (step.View.Burn.TryGetValue(out var site) ? $"site(missing={site.Missing} roofed={site.Roofed} fuel={site.Fuel.Count})" : "none")
         + (step.View.HiveTemperatureC.TryGetValue(out var c) ? $" hive={c:F0}C" : "")
         + (step.View.DoorStates.TryGetValue(out var doors) ? " doors=" + string.Join(";", doors.Items.Select(d => $"{d.Cell.X},{d.Cell.Z}:open={d.Open} hold={d.HoldOpen}")) : " doors=unknown")
-        + $" roles=[{string.Join(" ", step.Memory.Roles.Items.Select(r => $"{r.Pawn}:cell={(r.Cell is { } rc ? rc.X + "," + rc.Z : "-")} retreat={r.Retreat} ground={r.Ground is not null} target={r.Target}"))}] structures={step.View.Structures.Count} tactic={step.Memory.Tactic} wait={step.Memory.Wait}"
+        + $" defenders=[{string.Join(" ", step.View.Defenders.Items.Select(d => d.Id + ":dead=" + d.Dead + ",down=" + d.Downed))}] orderable=[{string.Join(" ", step.View.Orderable.Items)}] roles=[{string.Join(" ", step.Memory.Roles.Items.Select(r => $"{r.Pawn}:cell={(r.Cell is { } rc ? rc.X + "," + rc.Z : "-")} retreat={r.Retreat} ground={r.Ground is not null} target={r.Target}"))}] structures={step.View.Structures.Count} tactic={step.Memory.Tactic} wait={step.Memory.Wait}"
         + (step.Memory.Burn is { } b ? $" lit={b.Lit.Value} thrown={b.Thrown.Value} done={b.Done}" : "");
 
     private static string Casters(CombatView view) =>

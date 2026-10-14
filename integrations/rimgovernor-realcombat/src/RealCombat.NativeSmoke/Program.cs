@@ -102,7 +102,7 @@ if (args.Contains("--cover"))
 }
 
 // --burn (with --policy --open): an infestation. A hive at 44,30 under rock with the burn-out room the policy plans built around
-// it (BurnStage), three megascarabs in it, and three colonists west of the corridor, the first carrying a molotov.
+// it (BurnStage), three megascarabs in it (off the corridor axis, out of sight of the corridor; the hive spawns none of its own), and three colonists west of the corridor, the first carrying a molotov.
 BurnStage? burn = null;
 if (args.Contains("--burn"))
 {
@@ -116,9 +116,9 @@ if (args.Contains("--burn"))
             new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = 35, Z = 29, Weapon = "Weapon_GrenadeMolotov", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
             new RealPawn { Id = "col1", Side = "colonist", Kind = "Colonist", X = 35, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
             new RealPawn { Id = "col2", Side = "colonist", Kind = "Colonist", X = 35, Z = 31, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
-            new RealPawn { Id = "bug0", Side = "hostile", Kind = "Megascarab", X = 43, Z = 30 },
-            new RealPawn { Id = "bug1", Side = "hostile", Kind = "Megascarab", X = 45, Z = 30 },
-            new RealPawn { Id = "bug2", Side = "hostile", Kind = "Megascarab", X = 44, Z = 31 },
+            new RealPawn { Id = "bug0", Side = "hostile", Kind = "Megascarab", X = 41, Z = 28 },
+            new RealPawn { Id = "bug1", Side = "hostile", Kind = "Megascarab", X = 41, Z = 32 },
+            new RealPawn { Id = "bug2", Side = "hostile", Kind = "Megascarab", X = 42, Z = 27 },
         ],
     };
 }
