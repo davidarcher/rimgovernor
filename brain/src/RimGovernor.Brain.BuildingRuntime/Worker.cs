@@ -461,6 +461,8 @@ public sealed partial class Worker
             _session.Disable();
             scope = _session.State();
         }
+        if (_config.RoundsMethods && scope.Enabled && scope.ObservationKnown)
+            await ContinueActivityMethodsAsync(scope.Snapshot, call).ConfigureAwait(false);
         var plans = await _player.Journal.LoadPlansAsync(call).ConfigureAwait(false);
         var breakHeld = new HashSet<ActionId>();
         if (scope.Enabled && scope.ObservationKnown)

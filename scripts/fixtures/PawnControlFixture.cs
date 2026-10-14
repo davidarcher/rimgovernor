@@ -137,6 +137,15 @@ namespace HomeBridge.BridgeTools
             if(!fireOffer.IsValid)throw new InvalidOperationException("Emergency offer missing.");
             worker.jobs.StartJob(fireOffer.Job,JobCondition.None,fireOffer.SourceNode);
             if(worker.CurJob?.def!=JobDefOf.BeatFire || worker.CurJob.playerForced)throw new InvalidOperationException("Emergency did not preempt recreation.");
+            var release=emergency with {Orders=new[]{emergency.Orders[0] with {ExpectedRevision=5,Revision=6,Release=true,Steps=Array.Empty<PawnActivityStep>()}}};
+            NativePawnActivities.Apply(release,Context());
+            NativePawnActivities.Apply(release,Context());
+            if(NativePawnActivities.Owned(worker)||NativePawnActivities.Read(worker)!=null)throw new InvalidOperationException("Repeated release retained ownership.");
+            var reacquire=bounded with {Orders=new[]{bounded.Orders[0] with {Assignment="fresh-assignment",ExpectedRevision=0,Revision=1,Steps=new[]{new PawnActivityStep(PawnActivityKind.Hold,"","","",0,deadline)}}}};
+            NativePawnActivities.Apply(reacquire,Context());
+            var collidingRelease=release with {Orders=new[]{release.Orders[0] with {ExpectedRevision=1,Revision=2}}};
+            if(NativePawnActivities.Validate(collidingRelease,Context())==null)throw new InvalidOperationException("Release matched revision but ignored changed assignment.");
+            if(NativePawnActivities.Validate(release,Context())==null)throw new InvalidOperationException("Old release could erase a newer assignment.");
             var playerJob=JobMaker.MakeJob(JobDefOf.Wait,400);
             if(!worker.jobs.TryTakeOrderedJob(playerJob,JobTag.Misc))throw new InvalidOperationException("Player job rejected.");
             if(NativePawnActivities.Owned(worker)||worker.CurJob!=playerJob)throw new InvalidOperationException("Ownership blocked player takeover.");

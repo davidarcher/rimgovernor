@@ -172,6 +172,12 @@ public sealed partial class Store
 
     internal static void AuthorizeStandardPlan(StoreTransaction tx, Rounds review, StandardState owner, GenerationSnapshot root, GenerationSnapshot target)
     {
+        if (ActivityReleaseContinuation(tx, target.Plan, root))
+        {
+            var release = LoadIn(tx, target.Plan);
+            if (release.Spec.Revision != target.Revision) throw new ConflictException("release plan revised");
+            return;
+        }
         if (!review.Need(owner.Standard.Id, out _))
         {
             throw new ConflictException("standard is not bound by the review");

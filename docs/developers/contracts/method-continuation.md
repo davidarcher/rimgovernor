@@ -16,6 +16,39 @@ or persistent Method store.
 | Game-tick progress horizon reached | Reobserve and reassess; never cancel or certify completion solely from elapsed ticks. |
 | Expected result observed | Release this responsibility; independently inspect the Concern's complete outcome. |
 
+## Pawn activity Methods
+
+The existing worker revisits installed single-batch Standard Methods independently
+of new-work Concern eligibility. It reads exact pawn assignment/Method/revision
+ownership. Missing pawn rows or an unknown Concern finding retain uncertainty.
+Stable needed work is left alone. A known recovered Concern, failed assignment
+or expired final deadline produces an explicit release through the existing
+journal and Hands. Different/newer native ownership is never released on behalf
+of the old Method. Positive absence resolves the old obligation without a write.
+
+`ContinueActivityMethod` replaces the Method's current plan atomically, retaining
+the old plan as superseded history and keeping the Method identity. It refuses
+unresolved installation receipts, stale world/load/generation or ticks, running
+productive steps, changed assignment identities and omitted still-owned pawns.
+Productive continuation requires an unmet Concern and its usual review/Safeguards.
+A recovered Concern permits only release. The release authorization exception is
+limited to plans with a recorded predecessor; it does not admit unrelated work.
+Review cancellation preserves these cleanup plans until Hands resolves them.
+
+Callers must bind productive steps to fresh observed targets/ingredients before
+submission. This API does not generate food candidates, locate harvest output,
+verify output quantities, recover carried ingredients or choose replacement
+destinations. The worker's failure response currently releases for reconsideration;
+it does not replay a failed job. Full food-chain selection and output rebinding
+remain required before the proposed live food loop can be enabled.
+
+Native release retains the last release in the existing transient assignment row
+for idempotent receipt retry, but reports no ownership and intercepts no jobs.
+Fresh acquisition starts from expected revision zero. A stale release cannot
+erase a subsequent assignment. World/authority changes clear this transient row.
+Journal/policy tests cover lifecycle decisions and transactional continuation;
+the prepared pawn lifecycle case checks repeated release and reacquisition.
+
 ## Combat shelter
 
 Entry requires live threats and no viable combat assignment. Shelter selects

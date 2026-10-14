@@ -492,6 +492,8 @@ public sealed partial class Store
             {
                 continue;
             }
+            // Recovery cancels new work, never the cleanup needed to surrender an existing assignment.
+            if (ActivityReleasePlan(p.Spec)) continue;
             var undispatched = p.Progress.All(progress =>
             {
                 var v = progress.View;
@@ -517,6 +519,7 @@ public sealed partial class Store
         foreach (var plan in owner.OwnerPlans)
         {
             var p = LoadIn(tx, plan);
+            if (ActivityReleasePlan(p.Spec)) continue;
             foreach (var progress in p.Progress)
             {
                 var v = progress.View;
@@ -546,6 +549,7 @@ public sealed partial class Store
             throw new DomainException("retired plan does not admit work");
         }
         tx.Floors.Guard(current, tick);
+        if (ActivityReleaseContinuation(tx, plan, current)) return;
         var (owner, ownerFound) = tx.QueryFirst("SELECT kind,owner_id,episode FROM plan_methods WHERE plan_id=$id", [("$id", plan)], r => (Kind: r.GetString(0), Owner: r.GetString(1), Episode: r.Text(2)));
         if (!ownerFound)
         {

@@ -43,8 +43,8 @@ namespace HomeBridge.BridgeTools
         private static JobDef cookingDef = null!;
         private static bool replacing;
         internal static bool IsHold(Job job) => job.def == holdDef;
-        internal static bool Owned(Pawn pawn) => Entries.ContainsKey(pawn);
-        internal static Operations.PawnActivityExecution? Read(Pawn pawn) => Entries.TryGetValue(pawn, out var e) ? Row(e) : null;
+        internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
+        internal static Operations.PawnActivityExecution? Read(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release ? Row(e) : null;
         private static Operations.PawnActivityExecution Row(Entry e) => new(e.Order.Assignment, e.Order.Method, e.Order.Revision,
             e.Step, e.State, e.Reason, e.Running == null ? null : e.RunningId, e.Tick);
 
@@ -86,11 +86,12 @@ namespace HomeBridge.BridgeTools
             foreach (var order in batch.Orders)
             {
                 var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == order.Pawn);
-                if (pawn == null || !pawn.IsColonistPlayerControlled || pawn.Downed || pawn.InMentalState || pawn.Drafted) return Refuse("Activity pawn is unavailable.");
+                if (pawn == null || (!order.Release && (!pawn.IsColonistPlayerControlled || pawn.Downed || pawn.InMentalState || pawn.Drafted))) return Refuse("Activity pawn is unavailable.");
                 Entries.TryGetValue(pawn, out var old);
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
-                if ((old?.Order.Revision ?? 0) != order.ExpectedRevision) return Refuse("Stale activity revision.");
-                if (old == null && (pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) return Refuse("Player/queued work must be explicitly resolved before control.");
+                if ((old == null || old.Order.Release ? 0 : old.Order.Revision) != order.ExpectedRevision) return Refuse("Stale activity revision.");
+                if (old != null && !old.Order.Release && (old.Order.Assignment != order.Assignment || old.Order.Method != order.Method)) return Refuse("Activity ownership changed.");
+                if ((old == null || old.Order.Release) && (pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) return Refuse("Player/queued work must be explicitly resolved before control.");
                 foreach (var step in order.Steps)
                 {
                     if (step.Deadline <= Find.TickManager.TicksGame) return Refuse("Activity deadline already passed.");
@@ -145,8 +146,8 @@ namespace HomeBridge.BridgeTools
             {
                 var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.First(p => p.GetUniqueLoadID() == order.Pawn);
                 Entries.TryGetValue(pawn, out var old);
-                if (old?.Order.Revision == order.Revision) continue;
-                oldJobs.Add((pawn, old?.Running ?? pawn.CurJob));
+                if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
+                oldJobs.Add((pawn, order.Release ? old?.Running : old?.Running ?? pawn.CurJob));
                 var e = new Entry { Pawn = pawn, Order = order with { Steps = order.Steps.ToArray() }, Identity = identity, Generation = batch.AuthorityGeneration,
                     Tick = Find.TickManager.TicksGame, Dependencies = order.Steps.Select(s => s.WaitForFilth.Length == 0 ? null : Thing(s.WaitForFilth)).ToArray() };
                 Entries[pawn] = e;
@@ -161,7 +162,9 @@ namespace HomeBridge.BridgeTools
             finally { replacing = false; }
             foreach (var e in changed)
             {
-                if (e.Order.Release) { e.State = "released"; Emit(e); Entries.Remove(e.Pawn); }
+                // Retain only the last release receipt in the same row so an uncertain Hands retry is
+                // idempotent. This row owns no job; a fresh assignment may acquire from revision zero.
+                if (e.Order.Release) { e.State = "released"; Emit(e); }
                 else Emit(e);
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.PawnActivitiesEffect { Assignments = batch.Orders.Select(o =>
@@ -169,7 +172,7 @@ namespace HomeBridge.BridgeTools
         }
         private static bool TryOwned(Pawn pawn, out Entry e)
         {
-            if (!Entries.TryGetValue(pawn, out e!)) return false;
+            if (!Entries.TryGetValue(pawn, out e!) || e.Order.Release) return false;
             var s = NativeControlAuthority.ForGame(Current.Game).Status();
             if (!s.Active || s.Generation != e.Generation || !ReferenceEquals(e.Identity.Game, Current.Game) || pawn.Map != e.Identity.Map)
             { Release(e); return false; }

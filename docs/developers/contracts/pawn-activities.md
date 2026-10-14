@@ -88,7 +88,11 @@ cannot transfer ownership. Actual StartJob and EndCurrentJob hooks distinguish a
 offer from execution. Native reservation failures terminate the attempt visibly.
 Successful work advances only to an explicitly authorized next step; failed or
 interrupted work never silently restarts. A new revision is required to retry.
-The longer-lived Method can survive interruption and submit a new attempt.
+The longer-lived Method can survive interruption and submit a new attempt through
+the [journal continuation path](method-continuation.md#pawn-activity-methods).
+Worker cleanup remains active after Concern recovery and releases failed or
+expired installed assignments. Productive continuation requires terminal native
+readback and current exact input binding by its owning planner.
 
 GovernorWait has no opportunistic prefix or player-forced flag. Absolute game-tick
 deadlines never reset when revisited. The first dependency adapter holds on an
