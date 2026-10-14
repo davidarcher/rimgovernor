@@ -20,7 +20,6 @@ public static partial class BridgeFunctions
     /// </summary>
     public static void ValidateClockEventsPage(EventsPage? page, EventsRequest request)
     {
-        ClockWire(request);
         ValidateIdentity(request.Identity);
         if (request.AfterCursor is null || request.AfterCursor.GetValueOrDefault() < 0 || request.Limit is null || request.Limit.GetValueOrDefault() < 1 || request.Limit.GetValueOrDefault() > 128)
         {
@@ -36,7 +35,6 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock events page required");
         }
-        ClockWire(page);
         ValidateContext(page.Context);
         if (!SameIdentity(page.Context?.Identity, request.Identity))
         {

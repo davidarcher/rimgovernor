@@ -8,13 +8,6 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 // validators of the colony censuses (acquisition, development, environment, recovery, production and waste).
 public static partial class BridgeFunctions
 {
-    /// <summary>
-    /// Go's <c>proto.Equal(x, &amp;T{listed fields})</c> where the literal copies <paramref name="allowed"/> from
-    /// <paramref name="message"/>: the message carries no field outside the listed ones.
-    /// </summary>
-    private static bool OnlyFields(object message, params string[] allowed) =>
-        PopulatedFields(message).All(entry => allowed.Contains(entry.Field.Name, StringComparer.Ordinal));
-
     /// <summary>Go's <c>refSnapshot</c>: whether <paramref name="snapshot"/> is the CAS token of <paramref name="reference"/> read under <paramref name="context"/>.</summary>
     private static bool RefSnapshot(SnapshotRef? snapshot, Ref? reference, ObservationContext? context) =>
         snapshot is not null
@@ -145,7 +138,7 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>validateColonyPower</c>: the development facts are power, networks, the short circuit and geysers, nothing else.</summary>
     private static void ValidateColonyPower(DevelopmentFacts? v, MapSize? size)
     {
-        if (v is null || !OnlyFields(v, "power", "networks", "short_circuit_tick", "geysers"))
+        if (v is null)
         {
             throw Contract("unsupported development facts");
         }
@@ -175,22 +168,7 @@ public static partial class BridgeFunctions
         {
             if (net is null
                 || !IsValidId((net.Id ?? ""))
-                || networks.Contains((net.Id ?? ""))
-                || !OnlyFields(
-                    net,
-                    "id",
-                    "producers",
-                    "consumers",
-                    "batteries",
-                    "transmitters",
-                    "connectors",
-                    "generation_w",
-                    "consumption_w",
-                    "net_w",
-                    "stored_watt_days",
-                    "capacity_watt_days",
-                    "has_source",
-                    "has_active_source"))
+                || networks.Contains((net.Id ?? "")))
             {
                 throw Contract("invalid power network");
             }
@@ -220,7 +198,7 @@ public static partial class BridgeFunctions
         var geysers = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in v.Geysers)
         {
-            if (row is null || !OnlyFields(row, "geyser", "cells", "occupied") || !ValidRef(row.Geyser) || row.Occupied is null || geysers.Contains((row.Geyser.Id ?? "")))
+            if (row is null || !ValidRef(row.Geyser) || row.Occupied is null || geysers.Contains((row.Geyser.Id ?? "")))
             {
                 throw Contract("invalid steam geyser");
             }
@@ -257,10 +235,6 @@ public static partial class BridgeFunctions
             {
                 throw Contract("invalid environment condition duration");
             }
-            if (!OnlyFields(row, "id", "def_name", "permanent", "ticks_left"))
-            {
-                throw Contract("invalid environment condition");
-            }
             seen.Add((row.Id ?? ""));
         }
         if (v.Environment.Count > 0 && v.Issues.Any(issue => (issue.Field ?? "") == "environment"))
@@ -287,7 +261,7 @@ public static partial class BridgeFunctions
             return;
         }
         var v = reply.Outcome?.Observed;
-        if (v is null || !Equals(v.Context, colony.Context) || !OnlyFields(v, "context", "restrictions", "buildings"))
+        if (v is null || !Equals(v.Context, colony.Context))
         {
             throw Contract("invalid recovery context or outcome");
         }
@@ -302,7 +276,7 @@ public static partial class BridgeFunctions
         seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var r in v.Restrictions)
         {
-            if (r is null || !ValidRef(r.Pawn) || seen.Contains((r.Pawn.Id ?? "")) || (r.AreaId is not null && !IsValidId((r.AreaId ?? ""))) || !OnlyFields(r, "pawn", "area_id"))
+            if (r is null || !ValidRef(r.Pawn) || seen.Contains((r.Pawn.Id ?? "")) || (r.AreaId is not null && !IsValidId((r.AreaId ?? ""))))
             {
                 throw Contract("invalid recovery restriction");
             }
@@ -435,8 +409,7 @@ public static partial class BridgeFunctions
                 if (recipe is null
                     || recipe.Recipe is null
                     || !IsValidId((recipe.Recipe.DefName ?? ""))
-                    || recipes.Contains((recipe.Recipe.DefName ?? ""))
-                    || !OnlyFields(recipe, "recipe", "available_now", "available_on_bench"))
+                    || recipes.Contains((recipe.Recipe.DefName ?? "")))
                 {
                     throw Contract("invalid production recipe");
                 }
@@ -447,26 +420,7 @@ public static partial class BridgeFunctions
             {
                 if (bill is null
                     || bill.Recipe is null
-                    || !IsValidId((bill.Recipe.DefName ?? ""))
-                    || !OnlyFields(
-                        bill,
-                        "default_ingredients",
-                        "unrestricted_worker",
-                        "managed_unchanged",
-                        "id",
-                        "recipe",
-                        "suspended",
-                        "repeat_mode",
-                        "repeat_count",
-                        "target_count",
-                        "unpause_below",
-                        "pause_when_satisfied",
-                        "paused",
-                        "finished",
-                        "reservations",
-                        "unfinished_work",
-                        "worker",
-                        "ingredient_filter"))
+                    || !IsValidId((bill.Recipe.DefName ?? "")))
                 {
                     throw Contract("invalid production bill");
                 }
@@ -476,10 +430,6 @@ public static partial class BridgeFunctions
                 }
                 if (bill.IngredientFilter is { } filter)
                 {
-                    if (!OnlyFields(filter, "allowed_def_names"))
-                    {
-                        throw Contract("invalid bill filter");
-                    }
                     var allowed = new HashSet<string>(StringComparer.Ordinal);
                     foreach (var id in filter.AllowedDefNames)
                     {

@@ -21,7 +21,6 @@ internal sealed partial class FacadeNativeClient
     internal async Task<(PbClock.AttemptReply Value, BridgeResult Receipt)> ReadClockAttemptAsync(PbClock.AttemptRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.ClockWire(request);
         BridgeFunctions.ValidateIdentity(request.Identity);
         BridgeFunctions.BuildingAttempt(request.Attempt);
         var reply = await Facade.ReadClockAttemptAsync(request, cancellationToken).ConfigureAwait(false);
@@ -48,7 +47,6 @@ internal sealed partial class FacadeNativeClient
     internal async Task<(PbClock.EventsReply Value, BridgeResult Receipt)> ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.ClockWire(request);
         BridgeFunctions.ValidateIdentity(request.Identity);
         if (request.AfterCursor is null
             || request.AfterCursor.GetValueOrDefault() < 0

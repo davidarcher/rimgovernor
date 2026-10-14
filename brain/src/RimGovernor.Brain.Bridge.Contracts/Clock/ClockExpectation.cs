@@ -9,8 +9,6 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>ValidateClockExpectation</c>: checks immutable admission evidence, not live permission.</summary>
     public static void ValidateClockExpectation(ClockExpectation e)
     {
-        ClockWire(e.Identity);
-        ClockWire(e.Attempt);
         ValidateIdentity(e.Identity);
         BuildingAttempt(e.Attempt);
         if (e.NativeGeneration == 0)
@@ -110,7 +108,6 @@ public static partial class BridgeFunctions
     public static void ValidateClockControlReply(ControlReply? reply, ClockExpectation e)
     {
         ValidateClockExpectation(e);
-        ClockWire(reply);
         switch (reply!.Outcome)
         {
             case ControlReplyOutcome.ReceiptCase:
@@ -139,7 +136,6 @@ public static partial class BridgeFunctions
     public static ClockEpochState AssessClockEpoch(Epoch? original, ObservationContext? current, Status? status)
     {
         ValidateClockEpoch(original);
-        ClockWire(current);
         ValidateContext(current);
         if (status is not null)
         {

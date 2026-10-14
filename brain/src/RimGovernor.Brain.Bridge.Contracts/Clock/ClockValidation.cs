@@ -40,7 +40,6 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock policy presence or bounds");
         }
-        ClockWire(p);
         if (p.HealthDropFraction.GetValueOrDefault() < 0.01f
             || p.HealthDropFraction.GetValueOrDefault() > 1
             || p.MinHealthFraction.GetValueOrDefault() < 0.01f
@@ -108,7 +107,6 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock epoch owner required");
         }
-        ClockWire(owner);
         ValidId((owner.ControllerSessionId ?? ""));
     }
 
@@ -122,7 +120,6 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock epoch required");
         }
-        ClockWire(e);
         ClockOwner(e.Owner);
         ValidateContext(e.Origin);
         if (e.Origin?.NativeGeneration is null
@@ -177,7 +174,6 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock status required");
         }
-        ClockWire(s);
         ValidateContext(s.Context);
         if (!SameIdentity(s.Context?.Identity, identity))
         {
@@ -278,7 +274,6 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock receipt required");
         }
-        ClockWire(r);
         BuildingAttempt(r.Attempt);
         ValidateContext(r.AdmittedContext);
         if (!Equals(r.Attempt, attempt)

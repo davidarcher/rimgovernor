@@ -19,7 +19,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeFunctions.Contract("clock authority required");
         }
-        BridgeFunctions.ClockWire(pre);
         BridgeFunctions.ValidateIdentity(pre.Identity);
         BridgeFunctions.BuildingAttempt(pre.Attempt);
         if (pre.ExpectedGeneration is null || pre.ExpectedGeneration.GetValueOrDefault() == 0)
@@ -34,7 +33,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeFunctions.Contract("owned clock request required");
         }
-        BridgeFunctions.ClockWire(request);
         BridgeFunctions.ValidateIdentity(request.Identity);
         BridgeFunctions.ClockOwner(request.Owner);
     }
@@ -57,7 +55,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
     public async Task<PbClock.ControlReply> StartAsync(PbClock.StartRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.ClockWire(request);
         Precondition(request.Authority);
         if (request.Speed is null
             || (int)request.Speed.GetValueOrDefault() < 1
@@ -99,7 +96,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
     public async Task<PbClock.ControlReply> ChangeSpeedAsync(PbClock.SpeedRequest request, PbClock.Epoch original, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.ClockWire(request);
         Precondition(request.Authority);
         if (request.Speed is null || (int)request.Speed.GetValueOrDefault() < 1 || (int)request.Speed.GetValueOrDefault() > 4)
         {
