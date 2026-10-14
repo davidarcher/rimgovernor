@@ -1,98 +1,100 @@
 # Planner-owned pawn activities
 
-`PawnActivities` is a Hands intent for installing/revising/releasing an atomic set
-of exact per-pawn assignments. EnsureFoodSupply now admits a bounded, same-pawn
-harvest-to-delivery attempt, with optional one-iteration cooking, for selected plant acquisition demand. This is the
-first production caller, not the full #3127/#3128/#3132/#3135 cutover.
+`PawnActivities` is the existing Hands intent for atomic exact assignments. Its
+Method journals selected tasks, prerequisite edges, participants, absolute departure
+windows and remaining obligations. It has no separate scheduler or workflow store.
+Food acquisition and material delivery/building use the same ColonyForecast search,
+binding, journal continuation and native ownership contract.
 
 ## Live harvest and delivery
 
-The normal acquisition planner keeps the shared FoodPlan's selected plant demand.
-For those sources, the typed `food_activity` read enumerates idle, capable pawns,
-native routes and empty allowed storage cells. ColonyForecast's shared outcome
-comparator evaluates these mutually exclusive Method alternatives against the
-existing acquisition horizon, using its explicit labor-per-unit objective with
-nominal nutrition as the comparable unit.
-It assumes equal unit labor rates and zero injury
-recovery on Danger.None routes, not calibrated opportunity costs or proof of safety.
-Non-idle jobs are protected, including a fresh check at native admission.
+The acquisition planner supplies the shared FoodPlan's selected plant demand.
+Native reads enumerate capable harvesters and haulers separately, route estimates,
+carrying limits and allowed storage cells. Policy proposes self-service and delegated
+harvest/delivery combinations, including useful approach before harvest finishes.
+Adding a low-capacity helper creates a smaller alternative; it never shrinks every
+self-service option. Shared availability, work, travel, waiting, displacement,
+deadline and explicit recovery estimates feed the bounded common comparator.
 
-The admitted Method journals one exact harvest through Hands. Its OutputDelivery
-payload records only resource, source area, destination, quantity cap, original
-deadline and remaining attempts. It is an obligation, not predicted inventory.
-On completed harvest, the worker reads native ownership and fresh loose food
-within two cells of the original source, then journals an exact delivery revision.
-Equivalent food is fungible: the read does not claim individual-stack provenance
-or credit the harvest's predicted yield. Split/merged/replaced stacks are rebound
-by current identity and quantity; empty storage destinations are reconsidered.
+Native route costs are estimates, not calibrated toil durations. Current live
+callers assume equal unit labor rates, zero recovery cost on Danger.None routes,
+and predictable prerequisite timing with divisible alternative work. Unknown
+routes/windows are not zero. Retaining/postponing wins when no affordable complete
+alternative is known. This establishes combination generation and execution, not
+expert play or a coupled colony economic forecast.
 
-Running work is retained. Missing observations or unknown demand cannot authorize
-replacement. Known recovery releases; a completed delivery ends this one trip.
-A failed delivery with an empty carry tracker can use fresh source/destination
-observations, at most three delivery attempts under the original deadline. A
-failed harvest, no feasible food, exhausted attempts, expiry or carried food
-releases instead. Carried-food resumption remains unsupported. A refused Apply
-retains the previous installed assignment through journal predecessor history
-and permits cleanup only; an uncertain receipt never authorizes replacement.
+After observed harvest completion the Method reconsiders raw delivery versus
+eligible cooking. A still-approaching helper keeps that decision pending; it does
+not accidentally bypass reconsideration. A raw delivery can retain the helper;
+a recipe choice explicitly releases participants it no longer uses. Selected
+recipe, bench, bill, ingredient definition and counts remain policy decisions.
 
-Reads bound plants/pawns/stacks to 16, destinations per source to eight and route
-probes to 128. Policy generates at most 16 eligible alternatives for the shared
-comparator, which uses one 512-expansion budget. Native and policy generation
-truncation are exposed in the returned comparison findings and initial Method
-reason; an omitted alternative is not proven worse. There is no joint helper assignment, needs forecast, mixed production
-portfolio selection or cross-owner material reservation in this slice. Other acquisition
-families and existing hauling/cleaning/eating helpers remain.
+## Live one-iteration cooking
 
-Pure tests cover changed stacks, shrinking counts, interrupted delivery, carried
-food, lost ownership, unknowns and deadlines. Real-journal tests retain the
-obligation and exact targets through Hands intent construction, including cleanup
-after native refusal. The prepared delivery case checks native candidate reads,
-replacement-stack binding and physical delivery; its explicit fixture revisions
-do not establish autonomous end-to-end colony behavior.
+Observed eligible existing bills offer one-iteration supply/cook/output-delivery
+alternatives through the same comparator and selected-task lifecycle. Native
+reports exact slot counts, pawn-adjusted work, nominal nutrition and routes; it
+neither chooses recipes nor creates bills. The current aggregate cooking route
+supports one observed cook for all three stages; delegated cooking needs separate
+observed route legs. Combining undersized ingredient stacks is not implemented.
 
-## Execution contract
+Supply completion permits fresh exact ingredient rebinding at the selected bench
+staging area. Cook completion permits only observed matching output delivery.
+Failed consuming work releases; nearby food cannot authorize replay, refund or
+inferred consumption. Nominal nutrition is not eater-specific survival value.
 
-### Live one-iteration cooking
+## Live material delivery and building
 
-After harvest produces observed loose food, policy proposes raw delivery and
-eligible one-iteration cooking alternatives before choosing a recipe or stack.
-Native enumerates eligible existing bills, exact single-resource slot counts,
-worker-adjusted recipe work, nominal nutrition, bench supply cells and routes.
-It neither creates bills nor selects the winning recipe. Shared ColonyForecast
-comparison evaluates supply, cooking and output-delivery dependencies against the
-same deadline and labor ceiling. Recipe material conversion uses the same graph
-constructor as the broader food candidate generator.
+The ordinary building planner considers sites from its existing Method history.
+Native reads observe each site's material demand, eligible suppliers/builders,
+source/return/site routes, carrying capacity and construction work. Policy builds
+a supply prerequisite and finishing task, compares self-service with delegation,
+and uses the same selected-task binding/continuation as food. Supply preparation
+approaches the source; finishing preparation approaches the site. Native rebinds
+blueprints to frames and reads remaining demand before each bounded trip. Actual
+finished buildings, not accepted orders or successful supply, satisfy finishing.
 
-The selected Method first delivers the exact ingredient count from one observed
-stack to a selected cell near the bench. On completion it reobserves local stock
-and rebinds the same bench/bill/recipe to a current stack with enough ingredients.
-Changed identities can therefore recover, but combining several undersized stacks
-is not implemented in this live caller. Missing/blocked benches, insufficient
-ingredients or failed supply release; they do not silently change recipes.
+The live census supports one required material with a sufficient observed source
+stack, repeated capacity-bounded trips, or an already-supplied site. Mixed-material
+sites and missing whole source stacks produce explicit findings. Multi-source
+assembly and arbitrary construction recipes remain unimplemented. Reverse route
+costs are observed separately; pickup/setup time and route changes remain estimate
+limits. Native construction tiers, skill/capacity guards and reservations still
+veto exact work. Existing construction demand owns the material budget.
 
-Cooking authorization replaces the supply obligation with an output-delivery
-obligation. Completed Cook permits delivery only of currently observed matching
-food near the bench. Failed Cook always releases, even if meals or ingredients
-are nearby: no replay, refund or assumption of atomic consumption. Unknown or
-running execution holds; Concern recovery releases. All stages retain the original
-Method identity and deadline and use normal journal/Hands transitions.
+## Continuation, observations and bounds
 
-Bounds are four benches, eight bills per bench, two supply cells and four product
-destinations within the shared 128-route-probe read budget. Policy retains its
-16-outcome, 32-task and 512-expansion limits; cooking alternatives may reach the
-task limit first. Omission is explicit. Nominal nutrition is not eater-specific
-eligibility or a coupled survival forecast. Work estimates use recipe work and
-the pawn's work-speed stat, not calibrated end-to-end toil timing. Product identity
-is fungible local stock, not proof of individual batch provenance. The broad
-multi-batch survival portfolio, helper delegation and carried-item recovery remain
-unintegrated; existing hauling/cleaning/eating helpers stay.
+A completed participant can progress while another keeps its byte-equivalent
+assignment and revision. Unknown evidence preserves useful work. Known Concern
+recovery, timeout, takeover or consuming failure triggers cleanup of still-owned
+participants; a newer owner is never released. A refused batch retains predecessor
+cleanup responsibility. Fresh exact terminal/held readback projects availability
+through the existing WorkResources owner, while claims against other Methods stay
+in force. It does not invent fresh inventory from ownership evidence.
 
-Pure tests cover distance/work/ingredient-driven reversals, stale recipe refusal,
-changed ingredient identities, observed meal delivery and interrupted cooking.
-Codec/Hands tests preserve obligations and exact ingredients. The prepared native
-cooking case also probes eligible recipe observations; its explicit revisions
-prove native conversion, not autonomous full-chain planning.
+Native output binding reads current identities and quantities: local split/merged
+stacks, previously bound stacks moved elsewhere, or the selected pawn's carried
+stack. Fungible local stock is not individual-output provenance. Arbitrarily moved
+replacement identities outside the source neighborhood are not inferred. Delivery
+failure can resume exact carried input with at most three retries under the original
+deadline; consuming work cannot replay. Blocked selected destinations release for
+normal reconsideration. No hidden storage fallback changes the chosen destination.
 
+Reads bound participants/stacks/sites to 16 and route probes to 128; alternatives
+are bounded to 16 outcomes/32 tasks and the common search to 512 expansions.
+Truncation and unknown estimates remain explicit; omission never proves inferiority.
+No prospective output is credited as current inventory. Full material/equipment
+contention, coupled needs consequences and global portfolio choice remain separate
+work. Hauling/cleaning/eating helpers remain until the integrated retirement work.
+
+The registered `coordination/food-delegated`, `coordination/food-carried-recovery`
+and `coordination/construction-delegated` prepared cases use normal Rounds and
+Hands. Their fixture establishes facts, captures exact installed ownership and
+injects one carrying failure; it installs no chosen tasks. They assert native
+completion, physical output and observed cleanup. Registration/compilation does
+not establish that these game scenarios have passed; nightly execution supplies
+that evidence. Pure and journal tests cover choice reversals, partial progress,
+rebinding, unknowns, deadlines, refusal and stale atomic revisions.
 ## Exact activity execution
 
 The existing executor journals the domain action and dispatches its typed intent
@@ -112,8 +114,8 @@ before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
 The initial step families are exact thing-target work (Clean, Repair, Harvest and BeatFire through a named native WorkGiver), selected food/count,
-selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, and Hold. Unsupported families are refused, not sent to a
-native economic selector. Other recreation and construction adapters remain outside this
+selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, material Supply, FinishFrame, Approach and Hold. Unsupported families are refused, not sent to a
+native economic selector. Other recreation adapters remain outside this
 initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
 the normal internal mechanics of their chosen job; this does not model every toil
@@ -124,7 +126,7 @@ cell. The custom delivery driver uses native pathing, reservations, stack splitt
 and carrying, but does not ask the hauling WorkGiver to select storage. It never
 collects nearby duplicates or substitutes a nearby drop location. Admission and
 execution require a capable hauler, sufficient source quantity and carrying capacity,
-an empty carry tracker, and a reachable, unreserved destination without loose items.
+an empty carry tracker or the exact selected carried stack, and a reachable, unreserved destination without loose items.
 This initial adapter deliberately refuses stack merging and multi-trip deliveries.
 The planner must split larger transfers into bounded attempts and observe each result.
 
@@ -132,8 +134,7 @@ Destination availability is rechecked during execution. A changed destination,
 lost source, capacity shortfall or deadline fails the assignment visibly. Completion
 requires the selected count dropped directly at the selected cell. An interruption
 after pickup may leave food carried by the pawn: failure is not evidence that it is
-still at the source, and a new planner decision must inspect that state. Resuming a
-carried stack is not yet supported by this adapter. Newly harvested/cooked items
+still at the source, and a new planner decision must inspect that state. An exact carried stack can resume after fresh observed binding. Newly harvested/cooked items
 require fresh observed identities and a revised assignment; future output IDs are
 not guessed.
 
@@ -194,9 +195,7 @@ Work deadline exhaustion is a failure. Native food/rest levels and physiological
 consequences are not modified by execution.
 
 Completion/failure stops the current clock window through the existing requested
-pause journal path, exposing typed readback for replanning. Without another
-assignment, an owned pawn waits and the game pauses rather than reverting to
-vanilla choices. Downing, mental state or drafting encountered at selection/start
+pause journal path, exposing typed readback for replanning. A terminal coordinated participant waits without repeatedly pausing useful work by other participants. A nongraph assignment still pauses while awaiting a decision. Downing, mental state or drafting encountered at selection/start
 pauses and releases this voluntary-work owner; native involuntary behavior and
 the existing combat owner are not replaced. This is not a complete autonomous
 emergency-response policy; full-control production cutover requires that coverage.

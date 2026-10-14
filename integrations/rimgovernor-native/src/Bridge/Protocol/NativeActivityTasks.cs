@@ -1,0 +1,132 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using RimGovernor.Host.Sdk;
+using RimGovernor.Brain.Domain;
+using RimWorld;
+using Verse;
+using Verse.AI;
+using Obs = RimGovernor.Contracts.Wire.Observations;
+
+namespace HomeBridge.BridgeTools;
+
+public sealed class NativeActivityTasks
+{
+    [Tool("rimgovernor/activity_tasks", Description = "Read exact activity ownership and bounded legal bindings for selected Method tasks. No orders or economic selection.")]
+    public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken ct,
+        [ToolParameter(Description = "ActivityTaskRequest JSON.")] object? request = null)
+    {
+        if (!ProtoBoundary.TryParse<Obs.ActivityTaskRequest>(ctx, "rimgovernor/activity_tasks", request!, out var parsed, out _))
+            return ProtoBoundary.Encode(new Obs.ActivityTaskRead());
+        return ProtoBoundary.Encode(await ProtoBoundary.CaptureOnMainThread(ctx, () => Read(parsed), ct).ConfigureAwait(false));
+    }
+    internal static Obs.ActivityTaskRead Read(Obs.ActivityTaskRequest request)
+    {
+        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
+        request.Batch.Validate();
+        var participants = new List<Obs.ActivityTaskObservation>();
+        var bindings = new List<Obs.ActivityTaskBinding>();
+        var satisfied = new HashSet<string>(StringComparer.Ordinal);
+        var budget = 128;
+        var truncated = false;
+        foreach (var order in request.Batch.Orders)
+        {
+            var pawn = map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == order.Pawn);
+            if (pawn == null) continue; // Missing participant is unknown, never completion.
+            participants.Add(new(order.Pawn, NativePawnActivities.Read(pawn)));
+            if (pawn.Downed || pawn.Drafted || pawn.InMentalState || !pawn.IsColonistPlayerControlled) continue;
+            foreach (var task in request.Batch.Tasks.Where(t => t.Pawn == order.Pawn))
+            {
+                if (--budget < 0) { truncated = true; break; }
+                var step = task.Step;
+                var site = task.SiteDefinition.Length == 0 ? null : map.thingGrid.ThingsListAt(new(task.Location.X, 0, task.Location.Z))
+                    .FirstOrDefault(t => t is IConstructible && t.def.entityDefToBuild?.defName == task.SiteDefinition);
+                if (task.SiteDefinition.Length != 0 && (map.thingGrid.ThingsListAt(new(task.Location.X, 0, task.Location.Z))
+                    .Any(t => t is Verse.Building && t.def.defName == task.SiteDefinition && t.Faction == Faction.OfPlayer)
+                    || step.Kind == PawnActivityKind.Supply && site is IConstructible observedSite
+                        && DefDatabase<ThingDef>.GetNamedSilentFail(task.Resource) is { } material && observedSite.ThingCountNeeded(material) == 0))
+                { satisfied.Add(task.Id); continue; }
+                if (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply)
+                {
+                    var source = task.Source ?? task.Location;
+                    var carried = pawn.carryTracker.CarriedThing;
+                    var candidates = carried is not null ? new[] { carried }
+                        : map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
+                            .Where(t => t.Spawned && t.def.defName == task.Resource
+                                && (t.Position.DistanceToSquared(new(source.X, 0, source.Z)) <= 4
+                                    || order.Steps.Any(s => s.Target == t.GetUniqueLoadID())))
+                            .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
+                    if (candidates.Length > 16) truncated = true;
+                    foreach (var item in candidates.Take(16))
+                    {
+                        if (--budget < 0) { truncated = true; break; }
+                        if (item.def.defName != task.Resource || item.Destroyed || item.IsForbidden(pawn)
+                            || carried == null && !pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)) continue;
+                        var count = Math.Min(task.Step.Count, Math.Min(item.stackCount, pawn.carryTracker.MaxStackSpaceEver(item.def)));
+                        if (count <= 0 || carried != null && count != carried.stackCount) continue;
+                        var bound = step with { Target = item.GetUniqueLoadID(), Count = count };
+                        if (step.Kind == PawnActivityKind.Supply)
+                        {
+                            if (site is not IConstructible constructible) continue;
+                            count = Math.Min(count, constructible.ThingCountNeeded(item.def));
+                            bound = bound with { Container = site.GetUniqueLoadID(), Count = count };
+                            if (count <= 0 || !NativePawnActivities.SupplyAllowed(pawn, item, bound)) continue;
+                        }
+                        else
+                        {
+                            var destination = step.Destination!.Value;
+                            if (!JobDriver_GovernorDeliver.DestinationAvailable(pawn, new(destination.X, 0, destination.Z))
+                                || !pawn.CanReserveAndReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) continue;
+                        }
+                        bindings.Add(new(task.Id, bound) { RemainingCount = step.Kind == PawnActivityKind.Supply && site is IConstructible current
+                            ? Fact.Known(current.ThingCountNeeded(item.def)) : default });
+                    }
+                }
+                else if (step.Kind == PawnActivityKind.Work)
+                {
+                    var target = task.SiteDefinition.Length == 0
+                        ? map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target)
+                        : map.thingGrid.ThingsListAt(new(task.Location.X, 0, task.Location.Z))
+                            .FirstOrDefault(t => t is Frame && t.def.entityDefToBuild?.defName == task.SiteDefinition);
+                    if (target == null || target.IsForbidden(pawn) || !pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None)) continue;
+                    if (DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is not WorkGiver_Scanner giver
+                        || giver.MissingRequiredCapacity(pawn) != null || pawn.WorkTagIsDisabled(giver.def.workTags)
+                        || giver.def.workType != null && pawn.WorkTypeIsDisabled(giver.def.workType)) continue;
+                    if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
+                    bindings.Add(new(task.Id, step with { Target = target.GetUniqueLoadID() }));
+                }
+                else if (step.Kind == PawnActivityKind.Cook)
+                {
+                    var bench = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target);
+                    if (bench == null || step.Cooking is not { } recipe || task.Source is not { } input) continue;
+                    var count = recipe.Ingredients.Sum(i => i.Count);
+                    var ingredients = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
+                        .Where(t => t.Spawned && t.def.defName == task.Resource && t.stackCount >= count
+                            && t.Position.DistanceToSquared(new(input.X, 0, input.Z)) <= 4)
+                        .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
+                    if (ingredients.Length > 16) truncated = true;
+                    foreach (var ingredient in ingredients.Take(16))
+                    {
+                        var bound = step with { Cooking = recipe with { Ingredients = [new(ingredient.GetUniqueLoadID(), count)] } };
+                        if (NativeActivityCooking.Resolve(pawn, bench, bound, out _, out _, out _)) bindings.Add(new(task.Id, bound));
+                    }
+                }
+            }
+        }
+        Obs.FoodActivityRead? food = null;
+        var pendingFood = request.Batch.Tasks.FirstOrDefault(t => t.Step.Kind == PawnActivityKind.Deliver && t.Source != null && t.Step.Destination != null);
+        if (pendingFood != null && request.Batch.Tasks.Any(t => t.Step.Job == "Harvest"))
+        {
+            var output = new ActivityOutputDelivery(pendingFood.Resource, pendingFood.Source!.Value,
+                pendingFood.Step.Destination!.Value, pendingFood.Step.Count, pendingFood.Step.Deadline, pendingFood.AttemptsLeft);
+            var reads = request.Batch.Orders.Select(o => NativeFoodActivity.Read(new(request.Identity, [], o with { OutputDelivery = output }) { AllowCooking = true })).ToArray();
+            food = new() { Context = context, Known = reads.All(r => r.Known), Truncated = reads.Any(r => r.Truncated),
+                Options = EquatableArray.From(reads.SelectMany(r => r.Options)) };
+        }
+        return new() { Context = context, Known = true, Truncated = truncated, Food = food,
+            Pawns = EquatableArray.From(participants), Bindings = EquatableArray.From(bindings), SatisfiedTasks = EquatableArray.From(satisfied) };
+    }
+}

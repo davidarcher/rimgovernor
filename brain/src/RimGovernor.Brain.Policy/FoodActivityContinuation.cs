@@ -6,42 +6,52 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
 {
+    public static ActivityOutputDelivery? FoodReconsideration(PawnActivities batch, ActivityTaskRead read)
+    {
+        if (!read.Known || !batch.Tasks.Any(t => t.Step.Job == "Harvest" && batch.Orders.Any(o => o.Task == t.Id
+            && read.Pawns.Any(p => p.Pawn == o.Pawn && p.Execution is { State: "completed" } e
+                && e.Assignment == o.Assignment && e.Revision == o.Revision)))) return null;
+        var delivery = batch.Tasks.SingleOrDefault(t => t.Step.Kind == PawnActivityKind.Deliver);
+        return delivery is null || delivery.Source is not { } source || delivery.Step.Destination is not { } destination ? null
+            : new(delivery.Resource, source, destination, delivery.Step.Count, delivery.Step.Deadline, delivery.AttemptsLeft);
+    }
+
+    public static PawnActivities? ReconsiderObservedFood(PawnActivities batch, Fact<bool> needed, ActivityTaskRead execution,
+        FoodActivityRead food, out ForecastActivityOutcomeComparison? comparison, WorkResourceView? resources = null)
+    {
+        comparison = null;
+        var output = FoodReconsideration(batch, execution);
+        var ownership = execution.Pawns.Select(p => p.Execution is { } e ? new ActivityOwnership(p.Pawn, e.Assignment, e.Method, e.Revision, e.State)
+            : new ActivityOwnership(p.Pawn, "", "", 0, "unowned")).ToArray();
+        var takeover = batch.Orders.Any(o => !o.Release && ownership.Any(p => p.Pawn == o.Pawn && !MatchesActivityOwner(o, p)));
+        var cleanup = ReviewActivityOwnership(batch, takeover ? Known(false) : needed, execution.Context?.Tick ?? 0, ownership).Release;
+        if (cleanup is not null) return cleanup;
+        // Keep the decision boundary alive while a helper finishes its already selected approach.
+        if (batch.Orders.Any(o => !execution.Pawns.Any(p => p.Pawn == o.Pawn && p.Execution is { } e
+            && e.Assignment == o.Assignment && e.Method == o.Method && e.Revision == o.Revision
+            && (e.State == "completed" || o.Preparing && e.State == "holding")))) return null;
+        if (output is null || !needed.TryGetValue(out var useful) || !useful || food.Context?.Tick is not { } tick
+            || batch.Orders.Any(o => o.Revision == long.MaxValue)) return null;
+        if (resources is not null && !resources.Materials.IsKnown) return null;
+        var candidates = FoodMethodCandidates.GenerateObserved(food, output.Deadline, resources);
+        if (candidates.Problem is null) return null;
+        comparison = CompareActivityOutcomes(candidates.Problem, candidates.Outcomes, ForecastOutcomeObjective.LowestLaborPerUnit,
+            generationTruncated: candidates.Truncated);
+        var next = FoodActivityBinding.Reconsider(comparison, candidates.Bindings, batch, tick);
+        return next ?? (comparison.Findings.Any(f => f.Contains("unknown", StringComparison.Ordinal)) ? null
+            : ReviewActivityOwnership(batch, Known(false), tick, ownership).Release);
+    }
     // One bounded trip, at most three observed attempts, under the original acquisition horizon.
     // Native route costs are used as travel estimates; no distance-derived timing or output credit.
     public static PawnActivities? StartFoodActivity(FoodActivityRead read, ulong authority, string method, long deadline, out ForecastActivityOutcomeComparison? comparison, WorkResourceView? resources = null)
     {
         comparison = null;
         if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick) return null;
-        var candidates = FoodMethodCandidates.Generate(read, deadline, resources: resources);
+        var candidates = FoodMethodCandidates.GenerateStart(read, deadline, resources);
         if (candidates.Problem is null) return null;
         comparison = CompareActivityOutcomes(candidates.Problem, candidates.Outcomes, ForecastOutcomeObjective.LowestLaborPerUnit,
             generationTruncated: candidates.Truncated);
-        return FoodActivityBinding.Start(comparison, candidates.Bindings, authority, method, deadline);
+        return FoodActivityBinding.StartCoordinated(comparison, candidates.Bindings, authority, method, tick);
     }
 
-    public static PawnActivities? ContinueFoodActivity(PawnActivities batch, Fact<bool> needed, FoodActivityRead read, out ForecastActivityOutcomeComparison? comparison, WorkResourceView? resources = null)
-    {
-        comparison = null;
-        if (batch.Orders.Length != 1 || batch.Orders[0].OutputDelivery is not { } output) return null;
-        var order = batch.Orders[0];
-        if (!read.Known || read.Context?.Tick is not { } tick || read.Execution is not { } execution) return null;
-        var owner = new ActivityOwnership(order.Pawn, execution.Assignment, execution.Method, execution.Revision, execution.State);
-        if (!MatchesActivityOwner(order, owner) || execution.State is not ("completed" or "failed") || order.Revision == long.MaxValue) return null;
-        // Recovery and unknown demand cannot authorize new productive work. Completing delivery ends this trip.
-        if (!needed.TryGetValue(out var useful)) return null;
-        // A fresh execution read can precede the full stock/capacity review. Wait for that evidence;
-        // lack of evidence does not prove that every productive continuation is unaffordable.
-        if (resources is not null && useful && output.AttemptsLeft > 0 && tick < output.Deadline && !read.Carrying
-            && !(execution.State == "completed" && order.Steps[0].Kind == PawnActivityKind.Deliver && output.Cooking is null)
-            && (!resources.Materials.IsKnown || !resources.Capacity.TryGetValue(order.Pawn, out var capacity)
-                || !capacity.Capacity.Windows.IsKnown)) return null;
-        var candidates = FoodMethodCandidates.Generate(read, output.Deadline, order.Pawn, output.Resource, output,
-            allowCooking: order.Steps[0].Kind == PawnActivityKind.Work, resources: resources);
-        comparison = candidates.Problem is not null && useful && !read.Carrying && output.AttemptsLeft > 0 && read.Context.Tick < output.Deadline
-            && !(execution.State == "failed" && order.Steps[0].Kind == PawnActivityKind.Work)
-            && !(execution.State == "failed" && (order.Steps[0].Kind == PawnActivityKind.Cook || output.Cooking is not null))
-            && !(execution.State == "completed" && order.Steps[0].Kind == PawnActivityKind.Deliver && output.Cooking is null)
-            ? CompareActivityOutcomes(candidates.Problem, candidates.Outcomes, ForecastOutcomeObjective.LowestLaborPerUnit, generationTruncated: candidates.Truncated) : null;
-        return FoodActivityBinding.Continue(batch, comparison, candidates.Bindings);
-    }
 }

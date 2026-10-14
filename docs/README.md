@@ -45,6 +45,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Plan and reconcile trade missions | [Controllable trade](developers/contracts/controllable-trade.md) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
 | Trace observed harvest through cooking and meal delivery | [Live food Method](developers/contracts/pawn-activities.md#live-one-iteration-cooking) |
+| Trace shared helper coordination through supply and finishing | [Live construction Method](developers/contracts/pawn-activities.md#live-material-delivery-and-building) |
 | Change the native boundary | [Wire contracts](../contracts/README.md) |
 
 ## Gameplay and remote evidence

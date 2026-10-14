@@ -42,19 +42,21 @@ public sealed partial class Store
         return new(EquatableArray.From(rows));
     }
 
-    private static WorkResourceView WorkResourcesIn(StoreTransaction tx, GenerationSnapshot current, PlanId exclude = default)
+    private static WorkResourceView WorkResourcesIn(StoreTransaction tx, GenerationSnapshot current, PlanId exclude = default,
+        IReadOnlyList<ActivityOwnership>? observed = null)
     {
         var review = LoadRounds(tx);
         if (!review.Enabled || review.Snapshot != current || review.WorkEvidence is not { } evidence)
             return new(new(), new([], [], [], ["work_resource_review_unavailable"]), default);
         if (!exclude.IsEmpty && LoadIn(tx, exclude).Spec.Actions.SingleOrDefault()?.PawnActivities is { } continuation)
-            evidence = PolicyFunctions.WorkContinuationEvidence(evidence, continuation);
+            evidence = PolicyFunctions.WorkContinuationEvidence(evidence, continuation, observed);
         var actions = WorkActionsIn(tx, current, exclude);
         return PolicyFunctions.WorkResourcesOf(evidence, ProductionBatchesIn(tx, current, null), actions.Actions, actions.Truncated);
     }
 
-    public WorkResourceView WorkResources(GenerationSnapshot current, CancellationToken ct, PlanId exclude = default) =>
-        Run(tx => WorkResourcesIn(tx, current, exclude), ct);
+    public WorkResourceView WorkResources(GenerationSnapshot current, CancellationToken ct, PlanId exclude = default,
+        IReadOnlyList<ActivityOwnership>? observed = null) =>
+        Run(tx => WorkResourcesIn(tx, current, exclude, observed), ct);
 
     public WorkActionCensus WorkActions(GenerationSnapshot current, CancellationToken ct) =>
         Run(tx => WorkActionsIn(tx, current), ct);

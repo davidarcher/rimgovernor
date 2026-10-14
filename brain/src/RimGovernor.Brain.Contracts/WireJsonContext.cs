@@ -10,12 +10,19 @@ namespace RimGovernor.Contracts.Wire;
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
     NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-    AllowOutOfOrderMetadataProperties = true)]
+    AllowOutOfOrderMetadataProperties = true,
+    Converters = [typeof(FactJsonConverter<double>), typeof(FactJsonConverter<bool>), typeof(FactJsonConverter<int>),
+        typeof(EquatableArrayJsonConverter<SelectedActivityTask>), typeof(EquatableArrayJsonConverter<PawnActivityIngredient>),
+        typeof(EquatableArrayJsonConverter<string>)])]
 [JsonSerializable(typeof(Operations.ActionIntent.PawnActivitiesCase), TypeInfoPropertyName = "OperationsPawnActivitiesCase")]
 [JsonSerializable(typeof(Receipts.EffectEvidenceEffect.PawnActivitiesCase), TypeInfoPropertyName = "ReceiptsPawnActivitiesCase")]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(Observations.FoodActivityRequest))]
 [JsonSerializable(typeof(Observations.FoodActivityRead))]
+[JsonSerializable(typeof(Observations.ActivityTaskRequest))]
+[JsonSerializable(typeof(Observations.ActivityTaskRead))]
+[JsonSerializable(typeof(Observations.ConstructionActivityRequest))]
+[JsonSerializable(typeof(Observations.ConstructionActivityRead))]
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(uint))]
 [JsonSerializable(typeof(long))]

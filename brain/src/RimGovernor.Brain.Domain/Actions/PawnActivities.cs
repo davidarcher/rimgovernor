@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Domain;
 
-public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Cook }
+public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Cook, Approach, Supply }
 
 public sealed record PawnActivityIngredient(string Thing, int Count);
 public sealed record PawnActivityCooking(string Bill, string Recipe, EquatableArray<PawnActivityIngredient> Ingredients)
@@ -14,6 +14,19 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
 {
     public Cell? Destination { get; init; }
     public PawnActivityCooking? Cooking { get; init; }
+    public long NotBefore { get; init; }
+    public string Container { get; init; } = "";
+}
+
+/// <summary>Selected remaining intent owned by this Method. No forecast or mutable progress flags.</summary>
+public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray<string> Prerequisites,
+    PawnActivityStep Step, Cell Location, long DepartTick)
+{
+    public string Resource { get; init; } = "";
+    public Cell? Source { get; init; }
+    public string SiteDefinition { get; init; } = "";
+    public bool CompletionMustBeObserved { get; init; }
+    public int AttemptsLeft { get; init; } = 3;
 }
 
 public sealed record ActivityCookingContinuation(string Bench, string Bill, string Recipe, string WorkGiver,
@@ -27,11 +40,18 @@ public sealed record PawnActivityOrder(string Pawn, string Assignment, string Me
 {
     /// <summary>A bounded obligation, never inventory credit or a predicted output identity.</summary>
     public ActivityOutputDelivery? OutputDelivery { get; init; }
+    public string Task { get; init; } = "";
+    public bool Preparing { get; init; }
 }
 
 /// <summary>One atomic execution-table edit under the existing world/authority.</summary>
 public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder[] Orders) : IActionPayload
 {
+    public EquatableArray<SelectedActivityTask> Tasks { get; init; }
+    public static bool SameOrder(PawnActivityOrder a, PawnActivityOrder b) => a.Pawn == b.Pawn && a.Assignment == b.Assignment
+        && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision
+        && a.Release == b.Release && a.OutputDelivery == b.OutputDelivery && a.Task == b.Task && a.Preparing == b.Preparing
+        && a.Steps.SequenceEqual(b.Steps);
     public void Validate()
     {
         DomainException.Require(AuthorityGeneration > 0 && Orders is { Length: > 0 and <= 64 }, "activity batch requires authority and bounded orders");
@@ -45,12 +65,14 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
             foreach (var step in order.Steps)
             {
                 DomainException.Require(step != null && Enum.IsDefined(step.Kind) && step.Deadline > 0
-                    && (step.Kind == PawnActivityKind.Hold || Identity.IsValidText(step.Target))
+                    && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Approach || Identity.IsValidText(step.Target))
                     && (step.Kind != PawnActivityKind.Work || Identity.IsValidText(step.WorkGiver) && Identity.IsValidText(step.Job))
-                    && (step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Deliver) || step.Count > 0)
-                    && (step.Kind == PawnActivityKind.Deliver
+                    && (step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Deliver or PawnActivityKind.Supply) || step.Count > 0)
+                    && (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
                         ? step.Destination is { X: >= 0, Z: >= 0 } && step.WorkGiver.Length == 0 && step.Job.Length == 0
-                        : step.Destination is null), "invalid activity step");
+                        : step.Destination is null)
+                    && step.NotBefore >= 0 && step.NotBefore < step.Deadline
+                    && (step.Kind == PawnActivityKind.Supply ? Identity.IsValidText(step.Container) : step.Container.Length == 0), "invalid activity step");
                 if (step.Kind == PawnActivityKind.Cook)
                 {
                     var cooking = step.Cooking;
@@ -73,6 +95,20 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                         && Identity.IsValidText(cook.Recipe) && Identity.IsValidText(cook.WorkGiver) && Identity.IsValidText(cook.Product)
                         && cook.ProductCount > 0 && cook.Origin is { X: >= 0, Z: >= 0 } && cook.Destination is { X: >= 0, Z: >= 0 }, "invalid cooking continuation");
             }
+        }
+        DomainException.Require(Tasks.Count <= 32 && Tasks.Select(t => t.Id).Distinct(StringComparer.Ordinal).Count() == Tasks.Count,
+            "invalid selected activity task identities");
+        var taskIds = Tasks.Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var task in Tasks)
+            DomainException.Require(Identity.IsValidText(task.Id) && Orders.Any(o => o.Pawn == task.Pawn && !o.Release)
+                && task.Prerequisites.All(p => p != task.Id && taskIds.Contains(p)) && task.AttemptsLeft is >= 0 and <= 3
+                && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        while (visited.Count < Tasks.Count)
+        {
+            var ready = Tasks.Where(t => !visited.Contains(t.Id) && t.Prerequisites.All(visited.Contains)).ToArray();
+            DomainException.Require(ready.Length > 0, "cyclic selected activity obligations");
+            foreach (var task in ready) visited.Add(task.Id);
         }
     }
 }

@@ -21,6 +21,13 @@ or persistent Method store.
 The existing worker revisits installed single-batch Standard Methods independently
 of new-work Concern eligibility. It reads exact pawn assignment/Method/revision
 ownership. Missing pawn rows or an unknown Concern finding retain uncertainty.
+Selected activity tasks and prerequisite edges live in that Method's existing
+action payload. Each completed participant may advance independently; useful
+running participants remain identical at the same revision. Preparing participants
+may approach before prerequisites complete and wait for a fresh exact binding.
+Food and construction use this one lifecycle, including observed output/carried
+rebinding and bounded non-consuming retries. Consuming failure releases instead
+of replaying. Future output IDs are never pre-authorized.
 Stable needed work is left alone. A known recovered Concern, failed assignment
 or expired final deadline produces an explicit release through the existing
 journal and Hands. Different/newer native ownership is never released on behalf

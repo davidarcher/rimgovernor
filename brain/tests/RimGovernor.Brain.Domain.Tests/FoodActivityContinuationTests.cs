@@ -15,7 +15,7 @@ public sealed class FoodActivityContinuationTests
 {
     private static readonly GenerationSnapshot Root = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
     private static FoodActivityOption Option(string target = "crop", int count = 8, double travel = 20) =>
-        new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, travel, 30) { NutritionPerUnit = Known(1.0) };
+        new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, travel, 30) { NutritionPerUnit = Known(1.0), ApproachTicks = Known(travel), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new()
     { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 }, Options = EquatableArray.From(options) };
     private static PawnActivities Harvest() => StartFoodActivity(Read(Option()), 1, "method", 500, out _)!;
@@ -23,59 +23,14 @@ public sealed class FoodActivityContinuationTests
     { Execution = new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 110) };
 
     [Fact]
-    public void HarvestBindsOnlyFreshObservedFoodAndClampsToChangedQuantity()
-    {
-        var harvest = Harvest();
-        Assert.Equal("crop", harvest.Orders[0].Steps[0].Target);
-        Assert.Null(ContinueFoodActivity(harvest, Known(true), Read(Option("food")), out _));
-        var delivery = ContinueFoodActivity(harvest, Known(true), Terminal(harvest, "completed", Option("new-stack-after-merge", 3)), out _)!;
-        var step = Assert.Single(Assert.Single(delivery.Orders).Steps);
-        Assert.Equal(PawnActivityKind.Deliver, step.Kind);
-        Assert.Equal("new-stack-after-merge", step.Target);
-        Assert.Equal(3, step.Count);
-        Assert.Equal(new Cell(8, 9), step.Destination);
-        Assert.Equal(500, step.Deadline);
-        Assert.Equal(2, delivery.Orders[0].OutputDelivery!.AttemptsLeft);
-    }
-
-    [Fact]
-    public void InterruptedDeliveryRebindsSplitStackAndChangedDestinationWithoutRenewingDeadline()
-    {
-        var delivery = ContinueFoodActivity(Harvest(), Known(true), Terminal(Harvest(), "completed", Option("old-stack")), out _)!;
-        var retry = ContinueFoodActivity(delivery, Known(true), Terminal(delivery, "failed",
-            Option("split-stack", 2) with { Destination = new(10, 11) }), out _)!;
-        Assert.Equal("split-stack", retry.Orders[0].Steps[0].Target);
-        Assert.Equal(2, retry.Orders[0].Steps[0].Count);
-        Assert.Equal(500, retry.Orders[0].Steps[0].Deadline);
-        Assert.Equal(1, retry.Orders[0].OutputDelivery!.AttemptsLeft);
-        Assert.True(ContinueFoodActivity(retry, Known(true), Terminal(retry, "failed"), out _)!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(delivery, Known(true), Terminal(delivery, "failed", Option("duplicate")) with { Carrying = true }, out _)!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(delivery, Known(true), Terminal(delivery, "completed", Option("still-at-source")), out _)!.Orders[0].Release);
-    }
-
-    [Fact]
-    public void UnknownsNewOwnersAndRunningWorkCannotTriggerReplacement()
-    {
-        var batch = Harvest();
-        var read = Terminal(batch, "completed", Option("food"));
-        Assert.Null(ContinueFoodActivity(batch, default, read, out _));
-        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Known = false }, out _));
-        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { Assignment = "other" } }, out _));
-        Assert.Null(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { State = "running" } }, out _));
-        Assert.True(ContinueFoodActivity(batch, Known(false), read, out _)!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(batch, Known(true), read with { Execution = read.Execution! with { State = "failed" } }, out _)!.Orders[0].Release);
-        Assert.True(ContinueFoodActivity(batch, Known(true), read with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 500 } }, out _)!.Orders[0].Release);
-    }
-
-    [Fact]
     public void NativeRouteCostChangesChoiceAndUnknownOrLateOptionsDoNotAcquire()
     {
         var slow = Option("slow", travel: 200);
         var fast = Option("fast", travel: 10);
         Assert.Equal("fast", StartFoodActivity(Read(slow, fast), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
-        Assert.Equal("slow", StartFoodActivity(Read(slow, fast with { TravelTicks = 300 }), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
+        Assert.Equal("slow", StartFoodActivity(Read(slow, fast with { TravelTicks = 300, ApproachTicks = Known(300.0) }), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
         Assert.Null(StartFoodActivity(Read(fast) with { Known = false }, 1, "m", 500, out _));
-        Assert.Null(StartFoodActivity(Read(fast with { TravelTicks = double.NaN }), 1, "m", 500, out _));
+        Assert.Null(StartFoodActivity(Read(fast with { TravelTicks = double.NaN, ApproachTicks = default }), 1, "m", 500, out _));
         Assert.Null(StartFoodActivity(Read(slow), 1, "m", 120, out _));
     }
 
@@ -122,21 +77,21 @@ public sealed class FoodActivityContinuationTests
         var plan = new PlanSpec(new("harvest"), new(1), [DomainAction.NewPawnActivitiesAction(new("harvest-action"), harvest)]);
         journal.CommitMethod(owner.Standard.Id, owner.Revision, new("method"), plan, ct);
         var stored = journal.LoadPlan(plan.Id, ct).Spec.Actions[0];
-        Assert.Equal(harvest.Orders[0].OutputDelivery, stored.PawnActivities!.Orders[0].OutputDelivery);
+        Assert.Equal(harvest.Tasks, stored.PawnActivities!.Tasks);
         Assert.Equal(PawnActivityKind.Work, BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!.Orders[0].Steps[0].Kind);
         var scope = Root with { Plan = plan.Id };
         journal.Prepare(plan.Id, stored.Id, scope, new(100), ct);
         var dispatched = journal.Dispatch(plan.Id, stored.Id, scope, new(100), ct);
         journal.RecordReceipt(plan.Id, stored.Id, dispatched.View.Attempt, Receipt.Accepted, ct);
         var read = Terminal(harvest, "completed", Option("observed-food", 4));
-        var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), ContinueFoodActivity(harvest, Known(true), read, out _)!)]);
+        var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), ReconsiderObservedFood(harvest, Known(true), TaskRead(harvest, read), read, out _)!)]);
         journal.ContinueActivityMethod(plan.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], next, ct);
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = next.Id }, ct);
         var intent = BridgeFunctions.IntentAction(next.Actions[0].Id.Value, journal.LoadPlan(next.Id, ct).Spec.Actions[0]).Intent!.PawnActivities!.Batch!;
         Assert.Equal("observed-food", intent.Orders[0].Steps[0].Target);
         Assert.Equal(4, intent.Orders[0].Steps[0].Count);
         Assert.Equal("method", intent.Orders[0].Method);
-        Assert.Equal(2, intent.Orders[0].OutputDelivery!.AttemptsLeft);
+        Assert.Equal(3, intent.Tasks.Single().AttemptsLeft);
         // A stack can change again between the observation and Apply. Refusal leaves the harvest
         // assignment installed; its retired predecessor must still authorize cleanup through Hands.
         var deliveryScope = Root with { Plan = next.Id };
@@ -150,20 +105,26 @@ public sealed class FoodActivityContinuationTests
         var obligation = Assert.Single(journal.ActivityMethods(Root, ct));
         Assert.Equal(1, obligation.Batch.Orders[0].Revision);
         Assert.False(obligation.Needed.Value);
-        var release = ContinueFoodActivity(obligation.Batch, obligation.Needed, read, out _)!;
+        var release = ContinueCoordinatedActivity(obligation.Batch, obligation.Needed, TaskRead(obligation.Batch, read))!;
         var cleanup = new PlanSpec(new("cleanup"), new(1), [DomainAction.NewPawnActivitiesAction(new("cleanup-action"), release)]);
         journal.ContinueActivityMethod(next.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], cleanup, ct);
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = cleanup.Id }, ct);
         Assert.True(journal.LoadPlan(cleanup.Id, ct).Spec.Actions[0].PawnActivities!.Orders[0].Release);
     }
 
+    private static ActivityTaskRead TaskRead(PawnActivities batch, FoodActivityRead food) => new()
+    {
+        Context = food.Context, Known = food.Known, Food = food,
+        Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn, food.Execution))),
+    };
     private sealed class Worlds : IWorldSource
     {
         public Task<World> ReadWorldAsync(CancellationToken ct) => Task.FromResult(new World(Root.Colony, Root.Load, Root.Map));
     }
-    private sealed class Reads(FoodActivityRead read) : IArrivalPawns, IFoodActivitySource
+    private sealed class Reads(FoodActivityRead read) : IArrivalPawns, IActivityTaskSource
     {
-        public Task<FoodActivityRead> ReadFoodActivityAsync(FoodActivityRequest request, CancellationToken ct) => Task.FromResult(read);
+        public Task<ActivityTaskRead> ReadActivityTasksAsync(ActivityTaskRequest request, CancellationToken ct) => Task.FromResult(TaskRead(request.Batch, read));
+        public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(new ConstructionActivityRead());
         public Task<ListPawnsReply> ReadCombatPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
             Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = read.Context } });
     }

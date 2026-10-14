@@ -49,6 +49,20 @@ public sealed class ActivityStagesTests
             """, true);
     }
 
+    [Theory]
+    [InlineData("StartConstructionActivity")]
+    [InlineData("ReconsiderObservedFood")]
+    [InlineData("ContinueCoordinatedActivity")]
+    public async Task CoordinatedEntrypointsCannotConstructActionsOrLocalScores(string entry)
+    {
+        await Check($$"""
+            namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
+            namespace RimGovernor.Brain.Policy { public static class PolicyFunctions {
+                public static void {{entry}}() { RimGovernor.Brain.Domain.PawnActivities a = new(); int score = 4 / 2; }
+            } }
+            """, true);
+    }
+
     [Fact]
     public async Task LifecycleCanUseTheSharedOutcomeComparator()
     {

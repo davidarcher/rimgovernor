@@ -114,6 +114,12 @@ public static partial class PolicyFunctions
                 { MaterialClaims = EquatableArray.From(units.Select(a => new ForecastMaterialClaim(a.Resource, Known((double)a.Count), Known("")))) });
             }
             if (row.Action.PawnActivities is not { } batch) continue;
+            foreach (var task in batch.Tasks)
+            {
+                if (task.Step.Container.Length != 0) targets.Add(task.Step.Container);
+                if (task.SiteDefinition.Length != 0 && task.Step.Target.Length != 0) targets.Add(task.Step.Target);
+                if (task.Step.Cooking is { } recipe) { targets.Add(task.Step.Target); targets.Add(recipe.Bill); }
+            }
             foreach (var order in batch.Orders)
             {
                 // Accepted release ends ownership. A pending release must retain its predecessor's claim.
@@ -127,6 +133,7 @@ public static partial class PolicyFunctions
                 foreach (var step in order.Steps)
                 {
                     if (step.Target.Length != 0) targets.Add(step.Target);
+                    if (step.Container.Length != 0) targets.Add(step.Container);
                     if (step.Cooking is { } cooking) targets.Add(cooking.Bill);
                 }
                 if (order.OutputDelivery?.Cooking is { } continuation)
@@ -137,7 +144,10 @@ public static partial class PolicyFunctions
                     if (step.Kind == PawnActivityKind.Deliver && order.OutputDelivery is { } output)
                     {
                         // Moving stock protects its use, not a second physical consumption. Carried units are outside loose stock.
-                        var carried = observed?.CarriedResource == output.Resource ? observed.CarriedCount : 0;
+                        var input = observed ?? (progress.Attempt.Value == 0 && evidence.WorkResources.TryGetValue(out var inputs)
+                            ? inputs.SingleOrDefault(p => p.Pawn == order.Pawn && p.Assignment == order.Assignment
+                                && p.Revision == order.ExpectedRevision && p.State is "completed" or "failed") : null);
+                        var carried = input?.CarriedResource == output.Resource && (observed is not null || input.CarriedThing == step.Target) ? input.CarriedCount : 0;
                         if (observed?.State == "completed") continue;
                         claims.Add(new(new(output.Resource), Known((double)Math.Max(0, step.Count - carried)), Known("")));
                     }
@@ -183,14 +193,14 @@ public static partial class PolicyFunctions
             ? roster.ToDictionary(p => p.Pawn, p => WorkCapacityOf(view, p.Pawn, 7 * GameTime.TicksPerDay), StringComparer.Ordinal) : new Dictionary<string, ForecastCapacityResult>() };
     }
 
-    public static bool WorkResourcesFit(WorkResourceView view, PlanSpec proposed)
+    public static bool WorkResourcesFit(WorkResourceView view, PlanSpec proposed, IReadOnlySet<string>? retainedParticipants = null)
     {
         if (view.Claims.Truncated) return false;
         var exclusive = new HashSet<string>(StringComparer.Ordinal);
         foreach (var action in proposed.Actions)
         {
             var parts = action.PawnActivities is { } batch
-                ? batch.Orders.Select(o => DomainAction.NewPawnActivitiesAction(action.Id, batch with { Orders = [o] })) : [action];
+                ? batch.Orders.Select(o => DomainAction.NewPawnActivitiesAction(action.Id, batch with { Orders = [o], Tasks = [] })) : [action];
             foreach (var part in parts)
             {
                 var claim = WorkClaimsOf(view.Evidence, [new(proposed.Id, part, new ProgressView { Action = part.Id, Stage = Stage.Pending })]);
@@ -211,8 +221,8 @@ public static partial class PolicyFunctions
             var observed = roster.SingleOrDefault(p => p.Pawn == pawn);
             if (observed is null || !observed.Available.TryGetValue(out var available) || !available
                 || !observed.Applies.TryGetValue(out var applies) || !applies) return false;
-            if (proposed.Actions.SelectMany(a => a.PawnActivities?.Orders ?? []).Any(o => o.Pawn == pawn
-                && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Cook))
+            if (retainedParticipants?.Contains(pawn) != true && proposed.Actions.SelectMany(a => a.PawnActivities?.Orders ?? []).Any(o => o.Pawn == pawn
+                && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Cook or PawnActivityKind.Approach or PawnActivityKind.Supply))
                 && (!view.Capacity.TryGetValue(pawn, out var capacity) || !capacity.Capacity.Windows.TryGetValue(out var windows)
                     || !windows.Any(w => w.Start == 0 && w.End > 0))) return false;
         }
@@ -235,11 +245,15 @@ public static partial class PolicyFunctions
         return true;
     }
 
-    public static WorkAdmissionEvidence WorkContinuationEvidence(WorkAdmissionEvidence evidence, PawnActivities batch)
+    public static WorkAdmissionEvidence WorkContinuationEvidence(WorkAdmissionEvidence evidence, PawnActivities batch,
+        IReadOnlyList<ActivityOwnership>? observed = null)
     {
         if (!evidence.Pawns.TryGetValue(out var pawns) || !evidence.WorkResources.TryGetValue(out var native)) return evidence;
         return evidence with { Pawns = Known(EquatableArray.From(pawns.Select(p => batch.Orders.Any(o => o.Pawn == p.Pawn
-            && native.Any(n => n.Pawn == o.Pawn && n.Assignment == o.Assignment && n.Revision == o.Revision && n.State is "completed" or "failed"))
+            && (observed is not null ? observed.Any(n => MatchesActivityOwner(o, n)
+                && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))
+                : native.Any(n => n.Pawn == o.Pawn && n.Assignment == o.Assignment && n.Revision == o.Revision
+                    && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))))
             ? p with { Occupied = Known(false) } : p))) };
     }
 }

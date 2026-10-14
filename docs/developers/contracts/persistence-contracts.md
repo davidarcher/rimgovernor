@@ -18,7 +18,7 @@ store `unclear`/`active`/`clear`); governor-state blobs version 6. Databases and
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 5 and the same `application_id`.
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 6 and the same `application_id`.
 Domain payloads (actions, admissions, transitions, Standards, Incidents, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`
@@ -215,6 +215,16 @@ stockpiles) are re-derived on every `MaintainStockpiles` pass; the standing zone
 their only record. Durable Standards come back from the save blobs, so nothing needs a restore step.
 
 ## Method ownership
+
+Selected coordinated activities keep their remaining tasks, dependency identities,
+participant bindings and bounded recovery obligations in the existing journaled
+`PawnActivities` payload. This is selected intent, not a saved forecast or a second
+workflow store. Successful task progress is derived from exact native ownership
+and terminal readback before a successor journal revision removes the obligation.
+Running participants retain their identical installed order across revisions.
+Fresh resource/site observations bind dependent work; predicted quantities never
+become inventory. A consuming operation is never replayed after uncertain or failed
+execution. World/load changes discard the disposable execution context.
 
 A Method binds one Plan to one owner in `standard_methods` (keyed by Standard, Episode and MethodID),
 or `incident_methods` (keyed by owner and MethodID). `plan_owner(plan_id PRIMARY

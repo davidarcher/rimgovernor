@@ -66,11 +66,14 @@ public sealed partial class Store
         foreach (var order in batch.Orders)
         {
             var original = old.Orders.SingleOrDefault(o => o.Pawn == order.Pawn);
+            if (original is not null && PawnActivities.SameOrder(original, order)
+                && MatchesActivityOwner(original, observed.Single(r => r.Pawn == original.Pawn))) continue;
             if (original is null || original.Release || order.Assignment != original.Assignment
                 || order.Method != prior.Method.Value || order.ExpectedRevision != original.Revision)
                 throw new ConflictException("activity continuation changes ownership or skips a revision");
             var row = observed.Single(r => r.Pawn == original.Pawn);
-            if (!MatchesActivityOwner(original, row) || (!order.Release && row.State is not ("completed" or "failed")))
+            if (!MatchesActivityOwner(original, row) || (!order.Release && row.State is not ("completed" or "failed")
+                && !(original.Preparing && row.State == "holding")))
                 throw new ConflictException("activity continuation requires exact observed ownership and a terminal prior step");
         }
         batch.Validate();
@@ -81,7 +84,9 @@ public sealed partial class Store
             if (!owner.Deficit) throw new ConflictException("recovered Concern permits release only");
             AdmitRoundsSafeguards(tx, owner);
             AdmitRoundsReview(tx, SummarizeOwner(owner));
-            if (!WorkResourcesFit(WorkResourcesIn(tx, current, previous), next))
+            var retained = batch.Orders.Where(o => old.Orders.Any(p => PawnActivities.SameOrder(p, o)))
+                .Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
+            if (!WorkResourcesFit(WorkResourcesIn(tx, current, previous, observed), next, retained))
                 throw new ConflictException("work_resource_conflict_or_unknown");
         }
         CreatePlanIn(tx, next);

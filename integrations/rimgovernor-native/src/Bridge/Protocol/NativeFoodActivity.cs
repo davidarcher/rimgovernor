@@ -41,7 +41,7 @@ public sealed class NativeFoodActivity
             pawns = pawns.Where(p => p.GetUniqueLoadID() == existing.Pawn).ToArray();
             if (pawns.Length != 1) return result; // Missing pawn is unknown, not a completed delivery.
             result = result with { Execution = NativePawnActivities.Read(pawns[0]), Carrying = pawns[0].carryTracker.CarriedThing != null };
-            if (result.Execution?.State is not ("completed" or "failed")) return result with { Known = true };
+            if (result.Execution?.State is not ("completed" or "failed") && !(existing.Preparing && result.Execution?.State == "holding")) return result with { Known = true };
         }
         if (pawns.Length > 16) { pawns = pawns.Take(16).ToArray(); truncated = true; }
         var plants = request.Plants.Select(id => map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id))
@@ -67,9 +67,9 @@ public sealed class NativeFoodActivity
                 var product = plant?.def.plant.harvestedThingDef ?? source.def;
                 if (product?.ingestible is null || !product.IsNutritionGivingIngestible || source.IsForbidden(pawn)
                     || !pawn.CanReserveAndReach(source, PathEndMode.Touch, Danger.None)) continue;
-                if (plant is not null && (giver?.Worker is not WorkGiver_Scanner scanner || !plant.HarvestableNow
+                var harvestAllowed = plant is not null && !(giver?.Worker is not WorkGiver_Scanner scanner || !plant.HarvestableNow
                     || pawn.WorkTagIsDisabled(giver.workTags) || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))
-                    || scanner.MissingRequiredCapacity(pawn) != null || !scanner.HasJobOnCell(pawn, plant.Position, false))) continue;
+                    || scanner.MissingRequiredCapacity(pawn) != null || !scanner.HasJobOnCell(pawn, plant.Position, false));
                 var count = Math.Min(plant is null ? source.stackCount : plant.YieldNow(), pawn.carryTracker.MaxStackSpaceEver(product));
                 if (existing?.OutputDelivery is { } obligation) count = Math.Min(count, obligation.Count);
                 if (count <= 0) continue;
@@ -97,10 +97,11 @@ public sealed class NativeFoodActivity
                     if (!route.Found) continue;
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
                         new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count,
-                        approach.TotalCost + route.TotalCost, work) { NutritionPerUnit = Fact.Known((double)product.GetStatValueAbstract(StatDefOf.Nutrition)) });
+                        approach.TotalCost + route.TotalCost, work) { NutritionPerUnit = Fact.Known((double)product.GetStatValueAbstract(StatDefOf.Nutrition)),
+                            ApproachTicks = Fact.Known((double)approach.TotalCost), DeliveryTicks = Fact.Known((double)route.TotalCost), HarvestAllowed = Fact.Known(harvestAllowed) });
                 }
                 // Preserve raw alternatives before recipe expansion can spend the remaining route budget.
-                if (plant is null && existing?.Steps[0].Kind == PawnActivityKind.Work)
+                if (plant is null && existing is not null && (request.AllowCooking || existing.Steps[0].Kind == PawnActivityKind.Work))
                     NativeFoodCooking.Add(pawn, source, count, approach.TotalCost, existing, options, ref budget, ref truncated);
             }
             if (budget <= 0) { truncated = true; break; }

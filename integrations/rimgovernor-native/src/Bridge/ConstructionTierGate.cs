@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
             job.targetQueueB = kept.Count > 1 ? kept.Skip(1).ToList() : null;
         }
 
-        private static bool Blocked(Pawn pawn, Thing? site, ThingDef material)
+        internal static bool Blocked(Pawn pawn, Thing? site, ThingDef material)
         {
             if (site == null || !(site is IConstructible) || pawn.Map == null) return false;
             var tier = ConstructionSkillGuard.Setting(site)?.Tier ?? ConstructionSkillSetting.None;

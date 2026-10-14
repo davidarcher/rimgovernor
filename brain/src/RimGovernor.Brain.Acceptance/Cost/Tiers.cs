@@ -27,6 +27,7 @@ public static class Tiers
     private static readonly HashSet<string> EndToEnd = new(StringComparer.Ordinal)
     {
         "combatlab/native-hold",
+        "coordination/food-delegated", "coordination/food-carried-recovery", "coordination/construction-delegated",
         "campaign/foothold", "campaign/recovery", "clearance/shrine-breach",
         "defense/perimeter", "food/reserve", "food/starving-tribal-recovery", "production/ladder",
         "shelter/bunks-first", "startup/labor",

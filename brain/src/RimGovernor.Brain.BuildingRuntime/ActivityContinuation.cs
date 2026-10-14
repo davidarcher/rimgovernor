@@ -15,24 +15,32 @@ public sealed partial class Worker
             : new ActivityOwnership(pair.Key, "", "", 0, "unowned")).ToArray();
         foreach (var method in methods)
         {
-            if (method.Batch.Orders.Length == 1 && method.Batch.Orders[0].OutputDelivery is not null
-                && _config.Pawns is IFoodActivitySource foodSource)
+            if (method.Batch.Tasks.Count != 0 && _config.Pawns is IActivityTaskSource taskSource)
             {
-                var food = await foodSource.ReadFoodActivityAsync(new(Boundary.Identity(current), [], method.Batch.Orders[0]), ct).ConfigureAwait(false);
-                if (!food.Known || food.Context?.Tick is not { } foodTick) continue;
-                _ = Boundary.Context(food.Context, current);
-                var next = PolicyFunctions.ContinueFoodActivity(method.Batch, method.Needed, food, out _,
-                    _player.Journal.WorkResources(current, ct, method.Plan));
-                if (next is not null && food.Execution is { } execution)
+                var read = await taskSource.ReadActivityTasksAsync(new(Boundary.Identity(current), method.Batch), ct).ConfigureAwait(false);
+                if (!read.Known || read.Context?.Tick is not { } taskTick) continue;
+                _ = Boundary.Context(read.Context, current);
+                var participants = read.Pawns.Select(p => p.Execution is { } e
+                    ? new ActivityOwnership(p.Pawn, e.Assignment, e.Method, e.Revision, e.State)
+                    : new ActivityOwnership(p.Pawn, "", "", 0, "unowned")).ToArray();
+                if (PolicyFunctions.ReviewActivityOwnership(method.Batch, method.Needed, taskTick, participants).OwnershipEnded)
                 {
-                    var id = PlanIds.MintPlanId();
-                    var order = method.Batch.Orders[0];
-                    _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(foodTick),
-                        [new(order.Pawn, execution.Assignment, execution.Method, execution.Revision, execution.State)],
-                        new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), next)]), ct);
+                    _player.Journal.ResolveActivityMethod(method.Plan, current, new Tick(taskTick), participants, ct);
                     _advanced = true;
                     continue;
                 }
+                var next = PolicyFunctions.FoodReconsideration(method.Batch, read) is not null
+                    ? read.Food is { } food ? PolicyFunctions.ReconsiderObservedFood(method.Batch, method.Needed, read, food, out _,
+                        _player.Journal.WorkResources(current, ct, method.Plan, participants)) : null
+                    : PolicyFunctions.ContinueCoordinatedActivity(method.Batch, method.Needed, read);
+                if (next is not null)
+                {
+                    var id = PlanIds.MintPlanId();
+                    _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(taskTick), participants,
+                        new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), next)]), ct);
+                    _advanced = true;
+                }
+                continue;
             }
             var decision = PolicyFunctions.ReviewActivityOwnership(method.Batch, method.Needed, tick, ownership);
             if (decision.OwnershipEnded)

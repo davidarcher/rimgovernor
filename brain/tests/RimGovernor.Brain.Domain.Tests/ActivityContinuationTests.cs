@@ -35,6 +35,27 @@ public sealed class ActivityContinuationTests
         "rg-continuation-" + Guid.NewGuid().ToString("N") + ".db"), ct);
 
     [Fact]
+    public void PartialParticipantRevisionRetainsRunningOwnerAndRejectsStaleEvidenceAtomically()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Open(ct);
+        var helper = Order with { Pawn = "helper", Assignment = "helper-assignment" };
+        var batch = Batch with { Orders = [Order, helper] };
+        var initial = Plan("partial-initial", batch);
+        Admit(journal, initial, ct);
+        var release = Order with { ExpectedRevision = 1, Revision = 2, Release = true, Steps = [] };
+        var next = Plan("partial-next", batch with { Orders = [release, helper] });
+        var helperRead = new ActivityOwnership("helper", helper.Assignment, helper.Method, helper.Revision, "started");
+        Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110),
+            [Row("completed"), helperRead with { Revision = 2 }], next, ct));
+        Assert.False(journal.LoadPlan(initial.Id, ct).Retired);
+        journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed"), helperRead], next, ct);
+        var persisted = journal.LoadPlan(next.Id, ct).Spec.Actions.Single().PawnActivities!;
+        Assert.True(PawnActivities.SameOrder(helper, persisted.Orders.Single(o => o.Pawn == "helper")));
+        Assert.Contains("helper", journal.WorkResources(Root, ct).Claims.Pawns);
+    }
+
+    [Fact]
     public void RecoveryReleasesButStableOrUnknownNeedDoesNotChurnUsefulWork()
     {
         Assert.Null(ReviewActivityOwnership(Batch, Known(true), 110, [Row()]).Release);

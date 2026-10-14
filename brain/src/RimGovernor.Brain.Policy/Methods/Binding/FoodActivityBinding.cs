@@ -4,44 +4,23 @@ namespace RimGovernor.Brain.Policy.Methods.Binding;
 
 internal static class FoodActivityBinding
 {
-    internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection, IReadOnlyDictionary<string, FoodActivityOption> bindings, ulong authority, string method, long deadline)
+    internal static PawnActivities? Reconsider(ForecastActivityOutcomeComparison? selection,
+        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, PawnActivities previous, long tick)
     {
-        var option = Selected(selection, bindings);
-        if (option is null) return null;
-        var output = new ActivityOutputDelivery(option.Resource, option.Origin, option.Destination, option.Count, deadline, 3);
-        return new(authority, [new(option.Pawn, method + "/" + option.Pawn, method, 0, 1, false,
-            [new(PawnActivityKind.Work, option.Target, option.WorkGiver, "Harvest", 0, deadline)]) { OutputDelivery = output }]);
-    }
-
-    internal static PawnActivities Continue(PawnActivities batch, ForecastActivityOutcomeComparison? selection, IReadOnlyDictionary<string, FoodActivityOption> bindings)
-    {
-        var order = batch.Orders[0];
-        var output = order.OutputDelivery!;
-        var option = Selected(selection, bindings);
-        if (option?.Cooking is { } cooking)
+        var selected = CoordinatedActivityBinding.Start(selection, bindings, previous.AuthorityGeneration, previous.Orders[0].Method, tick);
+        if (selected is null) return null;
+        var next = new List<PawnActivityOrder>();
+        foreach (var old in previous.Orders)
         {
-            var continuation = cooking.Continuation;
-            var step = cooking.Supplied
-                ? new PawnActivityStep(PawnActivityKind.Cook, continuation.Bench, continuation.WorkGiver, "", 0, output.Deadline)
-                    { Cooking = new(continuation.Bill, continuation.Recipe, [new(option.Target, cooking.IngredientCount)]) { Resource = option.Resource } }
-                : new PawnActivityStep(PawnActivityKind.Deliver, option.Target, "", "", cooking.IngredientCount, output.Deadline)
-                    { Destination = option.Destination };
-            var remaining = cooking.Supplied
-                ? new ActivityOutputDelivery(continuation.Product, continuation.Origin, continuation.Destination, continuation.ProductCount, output.Deadline, output.AttemptsLeft)
-                : output with { Count = cooking.IngredientCount, Destination = option.Destination, Cooking = continuation };
-            return new(batch.AuthorityGeneration, [order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1,
-                Release = false, Steps = [step], OutputDelivery = remaining }]);
+            var replacement = selected.Orders.SingleOrDefault(o => o.Pawn == old.Pawn);
+            next.Add(replacement is null ? old with { ExpectedRevision = old.Revision, Revision = old.Revision + 1,
+                Release = true, Steps = [], Task = "", Preparing = false, OutputDelivery = null }
+                : replacement with { Assignment = old.Assignment, ExpectedRevision = old.Revision, Revision = old.Revision + 1 });
         }
-        var next = order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1,
-            Release = option is null, Steps = option is null ? [] : [new(PawnActivityKind.Deliver, option.Target, "", "",
-                Math.Min(output.Count, option.Count), output.Deadline) { Destination = option.Destination }],
-            OutputDelivery = option is null ? null : output with { Destination = option.Destination, AttemptsLeft = output.AttemptsLeft - 1 } };
-        return new(batch.AuthorityGeneration, [next]);
+        if (selected.Orders.Any(o => !previous.Orders.Any(p => p.Pawn == o.Pawn))) return null;
+        return selected with { Orders = next.ToArray() };
     }
-    private static FoodActivityOption? Selected(ForecastActivityOutcomeComparison? selection, IReadOnlyDictionary<string, FoodActivityOption> bindings)
-    {
-        if (selection?.Plan is null || selection.Selected.Length != 1) return null;
-        var id = selection.Selected[0];
-        return selection.Plan.Allocations.Any(a => a.Activity == id) && bindings.TryGetValue(id, out var option) ? option : null;
-    }
+    internal static PawnActivities? StartCoordinated(ForecastActivityOutcomeComparison? selection,
+        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick) =>
+        CoordinatedActivityBinding.Start(selection, bindings, authority, method, tick);
 }

@@ -891,15 +891,16 @@ This guard does not supply live forecast selection, cross-owner pawn claims,
 output rebinding or completed-work evidence.
 
 The first live activity caller is the normal EnsureFoodSupply acquisition planner:
-it takes the shared FoodPlan's selected plant sources, compares bounded same-pawn
+it takes the shared FoodPlan's selected plant sources, compares bounded self-service and delegated
 harvest/delivery Method alternatives with the shared outcome comparator and journals exact harvest
 through Hands. The worker binds observed loose food to a delivery continuation
-and handles changed stacks, destinations and bounded empty-handed retry. See the
+and handles changed stacks and bounded observed carried-input retry. Construction
+uses the same mechanism for material delivery and finishing, including repeated
+capacity-bounded supply and native blueprint/frame rebinding. See the
 [owning contract](../contracts/pawn-activities.md#live-harvest-and-delivery) for
 assumptions and limits. This is not yet the full ForecastFoodCandidates portfolio
-caller: one-iteration cooking is available after harvest; helper delegation,
-coupled needs, material claims and carried-item
-recovery remain unintegrated. Predicted yield is never credited as actual stock.
+caller: one-iteration cooking is available after harvest; coupled needs and the
+full multi-batch portfolio remain separate work. Predicted yield is never credited as actual stock.
 
 ### Live activity policy stages
 
@@ -913,11 +914,11 @@ transient forecast inputs and concrete target bindings, not persistent Methods.
 
 | Owner | Responsibility |
 | --- | --- |
-| `RoundsAcquisitionPlanner` | Read shared food demand and native options; admit the proposed Method through the existing journal |
-| `FoodMethodCandidates` in `Methods.Generation` | Generate one graph, mutually exclusive outcomes for the current Method decision, and an outcome-ID-to-native-option binding map |
+| `RoundsAcquisitionPlanner` / `RoundsBuildingPlanner` | Read existing demand and native options; admit the proposed Method through the existing journal |
+| `FoodMethodCandidates` / `ConstructionMethodCandidates` in `Methods.Generation` | Generate one graph, mutually exclusive outcomes for the current Method decision, and task/pawn binding data |
 | `PolicyFunctions.CompareActivityOutcomes` | Shared ColonyForecast alternative search, scheduling, deadlines, labor ceiling, postponement and selection |
-| `FoodActivityBinding` in `Methods.Binding` | Resolve the selected outcome ID into exact activity actions; no independent ranking |
-| `StartFoodActivity` / `ContinueFoodActivity` | Pure ownership/lifecycle checks and sequencing of generation, comparison and binding |
+| `CoordinatedActivityBinding` / `FoodActivityBinding` in `Methods.Binding` | Resolve selected allocations into exact activity actions; no independent ranking |
+| `StartFoodActivity` / `StartConstructionActivity` / `ReconsiderObservedFood` / `ContinueCoordinatedActivity` | Pure ownership/lifecycle checks and sequencing of generation, comparison and binding |
 | Existing Method journal and Hands | Admission, progress/revision ownership, dispatch and release |
 
 There is no separate generic activity-candidate or selection engine. Binding
@@ -956,8 +957,9 @@ The live adapter now compares raw delivery with one cooking iteration after
 observed harvest, including supply and output delivery. It shares recipe material
 conversion with `ForecastFoodCandidates`, but does not yet consume that generator's
 full multi-batch survival portfolio. Nominal nutrition is the live per-unit
-objective; eater eligibility, coupled needs, helper delegation and shared claims
-remain integration work. See [live cooking](../contracts/pawn-activities.md#live-one-iteration-cooking)
+objective; eater eligibility, coupled needs and delegated cooking routes remain
+integration work. Shared Method claims protect participants and exact resources.
+See [live cooking](../contracts/pawn-activities.md#live-one-iteration-cooking)
 for binding, failure and native-read limits. Existing helpers stay until their
 replacement is proven.
 ### Planned room alternatives

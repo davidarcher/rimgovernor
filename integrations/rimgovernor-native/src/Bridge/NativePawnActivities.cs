@@ -92,14 +92,21 @@ namespace HomeBridge.BridgeTools
                 if ((old == null || old.Order.Release ? 0 : old.Order.Revision) != order.ExpectedRevision) return Refuse("Stale activity revision.");
                 if (old != null && !old.Order.Release && (old.Order.Assignment != order.Assignment || old.Order.Method != order.Method)) return Refuse("Activity ownership changed.");
                 if ((old == null || old.Order.Release) && (pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) return Refuse("Player/queued work must be explicitly resolved before control.");
-                if ((old == null || old.Order.Release) && order.OutputDelivery != null && !NativeFoodActivity.Available(pawn)) return Refuse("Food activity pawn is no longer idle.");
+                if ((old == null || old.Order.Release) && (order.OutputDelivery != null || batch.Tasks.Count != 0) && !NativeFoodActivity.Available(pawn)) return Refuse("Activity pawn is no longer idle.");
                 foreach (var step in order.Steps)
                 {
                     if (step.Deadline <= Find.TickManager.TicksGame) return Refuse("Activity deadline already passed.");
                     if (step.WaitForFilth.Length != 0 && !(Thing(step.WaitForFilth) is Filth)) return Refuse("Unknown filth dependency.");
                     if (step.Kind == PawnActivityKind.Hold) continue;
-                    var target = Thing(step.Target);
-                    if (target == null || target.Destroyed || !target.Spawned || target.Map != pawn.Map) return Refuse("Activity target unavailable.");
+                    if (step.Kind == PawnActivityKind.Approach)
+                    {
+                        var destination = step.Destination!.Value;
+                        if (!pawn.CanReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) return Refuse("Approach unavailable.");
+                        continue;
+                    }
+                    var target = Thing(step.Target) ?? (pawn.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? pawn.carryTracker.CarriedThing : null);
+                    if (target == null || target.Destroyed || (!target.Spawned && pawn.carryTracker.CarriedThing != target)
+                        || target.Spawned && target.Map != pawn.Map) return Refuse("Activity target unavailable.");
                     if (step.Kind == PawnActivityKind.Work)
                     {
                         var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
@@ -110,6 +117,7 @@ namespace HomeBridge.BridgeTools
                     if (step.Kind == PawnActivityKind.Recreation && (target.def.defName != "HorseshoesPin" || pawn.needs.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) return Refuse("Selected recreation unavailable.");
                     if (step.Kind == PawnActivityKind.Sleep && !RestUtility.CanUseBedNow(target, pawn, true)) return Refuse("Selected bed unavailable.");
                     if (step.Kind == PawnActivityKind.Deliver && !DeliveryAllowed(pawn, target, step)) return Refuse("Selected delivery unavailable.");
+                    if (step.Kind == PawnActivityKind.Supply && !SupplyAllowed(pawn, target, step)) return Refuse("Selected material delivery unavailable.");
                     if (step.Kind == PawnActivityKind.Cook && !NativeActivityCooking.Resolve(pawn, target, step, out _, out _, out var cookingReason)) return Refuse(cookingReason);
                 }
             }
@@ -118,10 +126,9 @@ namespace HomeBridge.BridgeTools
         private static bool Supported(WorkGiverDef giver, string job) =>
             (job == "Clean" && giver.Worker is WorkGiver_CleanFilth) || (job == "Repair" && giver.Worker is WorkGiver_Repair)
             || (job == "Harvest" && giver.Worker is WorkGiver_GrowerHarvest)
+            || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames)
             || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
-        private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => a.Pawn == b.Pawn && a.Assignment == b.Assignment
-            && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision && a.Release == b.Release
-            && a.OutputDelivery == b.OutputDelivery && a.Steps.SequenceEqual(b.Steps);
+        private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => PawnActivities.SameOrder(a, b);
         private static Common.Failure Refuse(string text) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, text);
         private static Thing? Thing(string id) => Find.CurrentMap.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
 
@@ -129,11 +136,26 @@ namespace HomeBridge.BridgeTools
         {
             if (step.Destination is not { } destination || target.def.category != ThingCategory.Item || !target.def.EverHaulable
                 || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
-                || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || pawn.carryTracker.CarriedThing != null
+                || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
+                || pawn.carryTracker.CarriedThing != null && (pawn.carryTracker.CarriedThing != target || target.stackCount != step.Count)
                 || target.stackCount < step.Count || pawn.carryTracker.MaxStackSpaceEver(target.def) < step.Count) return false;
             var cell = new IntVec3(destination.X, 0, destination.Z);
             return JobDriver_GovernorDeliver.DestinationAvailable(pawn, cell)
                 && pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.Some);
+        }
+
+        internal static bool SupplyAllowed(Pawn pawn, Thing target, PawnActivityStep step)
+        {
+            var site = Thing(step.Container);
+            return site is IConstructible construction && site.Faction == Faction.OfPlayer
+                && !site.IsForbidden(pawn) && !target.IsForbidden(pawn) && target.stackCount >= step.Count
+                && construction.ThingCountNeeded(target.def) >= step.Count
+                && !ConstructionTierGate.Blocked(pawn, site, target.def)
+                && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) && !pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
+                && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
+                && (pawn.carryTracker.CarriedThing == null || pawn.carryTracker.CarriedThing == target && target.stackCount == step.Count)
+                && pawn.carryTracker.MaxStackSpaceEver(target.def) >= step.Count
+                && pawn.CanReserveAndReach(site, PathEndMode.Touch, Danger.None);
         }
 
         internal static Receipts.EffectEvidence Apply(PawnActivities batch, Common.ObservationContext context)
@@ -200,13 +222,16 @@ namespace HomeBridge.BridgeTools
         private static Job OfferJob(Entry e)
         {
             if (e.Step >= e.Order.Steps.Length || e.State == "failed")
-            { Find.TickManager.Pause(); return JobMaker.MakeJob(holdDef); }
+            { if (e.Order.Task.Length == 0) Find.TickManager.Pause(); return JobMaker.MakeJob(holdDef); }
             var step = e.Order.Steps[e.Step];
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "deadline"); return JobMaker.MakeJob(holdDef); }
             if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return JobMaker.MakeJob(holdDef);
-            var target = Thing(step.Target) ?? throw new InvalidOperationException("target_missing");
             var p = e.Pawn;
-            if (target.IsForbidden(p) || !p.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some)) throw new InvalidOperationException("target_unreachable_or_reserved");
+            if (step.Kind == PawnActivityKind.Approach)
+                return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z));
+            var target = Thing(step.Target) ?? (p.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? p.carryTracker.CarriedThing : null)
+                ?? throw new InvalidOperationException("target_missing");
+            if (p.carryTracker.CarriedThing != target && (target.IsForbidden(p) || !p.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some))) throw new InvalidOperationException("target_unreachable_or_reserved");
             Job? job = null;
             if (step.Kind == PawnActivityKind.Work)
             {
@@ -246,6 +271,13 @@ namespace HomeBridge.BridgeTools
                 job.haulMode = HaulMode.ToCellNonStorage;
                 job.workGiverDef = DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver);
             }
+            else if (step.Kind == PawnActivityKind.Supply)
+            {
+                if (!SupplyAllowed(p, target, step)) throw new InvalidOperationException("supply_unavailable");
+                var site = Thing(step.Container)!;
+                job = JobMaker.MakeJob(JobDefOf.HaulToContainer, target, site, site);
+                job.count = step.Count; job.haulOpportunisticDuplicates = false;
+            }
             if (step.Kind == PawnActivityKind.Recreation)
             {
                 if (target.def.defName != "HorseshoesPin" || p.needs.joy == null || !p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) throw new InvalidOperationException("recreation_unavailable");
@@ -257,6 +289,7 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Ready(Entry e)
         {
+            if (Find.TickManager.TicksGame < e.Order.Steps[e.Step].NotBefore) return false;
             var dep = e.Dependencies[e.Step];
             if (dep == null) return true;
             // Exact known filth destroyed by cleaning is observed completion, not job success.
@@ -313,7 +346,7 @@ namespace HomeBridge.BridgeTools
         internal static void WaitTick(Pawn pawn)
         {
             if (!TryOwned(pawn, out var e)) { pawn.jobs.EndCurrentJob(JobCondition.InterruptForced); return; }
-            if (e.State == "failed" || e.Step >= e.Order.Steps.Length) { Find.TickManager.Pause(); return; }
+            if (e.State == "failed" || e.Step >= e.Order.Steps.Length) { if (e.Order.Task.Length == 0) Find.TickManager.Pause(); return; }
             var step = e.Order.Steps[e.Step];
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "hold_deadline"); return; }
             if (!Ready(e)) return;
@@ -375,7 +408,7 @@ namespace HomeBridge.BridgeTools
             && !cell.GetThingList(pawn.Map).Any(t => t.def.category == ThingCategory.Item);
 
         public override bool TryMakePreToilReservations(bool errorOnFailed) =>
-            pawn.Reserve(job.targetA, job, 1, job.count, null, errorOnFailed)
+            (pawn.carryTracker.CarriedThing == job.targetA.Thing || pawn.Reserve(job.targetA, job, 1, job.count, null, errorOnFailed))
             && pawn.Reserve(job.targetB, job, 1, -1, null, errorOnFailed);
 
         protected override IEnumerable<Toil> MakeNewToils()
@@ -384,9 +417,12 @@ namespace HomeBridge.BridgeTools
             this.FailOnForbidden(TargetIndex.A);
             this.FailOnBurningImmobile(TargetIndex.B);
             this.FailOn(() => !DestinationAvailable(pawn, job.targetB.Cell));
-            yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch)
-                .FailOnSomeonePhysicallyInteracting(TargetIndex.A);
-            yield return Toils_Haul.StartCarryThing(TargetIndex.A, failIfStackCountLessThanJobCount: true);
+            if (pawn.carryTracker.CarriedThing != job.targetA.Thing)
+            {
+                yield return Toils_Goto.GotoThing(TargetIndex.A, PathEndMode.ClosestTouch)
+                    .FailOnSomeonePhysicallyInteracting(TargetIndex.A);
+                yield return Toils_Haul.StartCarryThing(TargetIndex.A, failIfStackCountLessThanJobCount: true);
+            }
             yield return Toils_Goto.GotoCell(TargetIndex.B, PathEndMode.OnCell);
             yield return Toils_General.DoAtomic(() =>
             {
