@@ -456,6 +456,7 @@ public sealed partial class Rounder
         }
         reading = reading.WithFacts(rf => rf with { WarmRooms = WarmCoolingRooms(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { PlanLit = RoundsBuildingPlanner.PlanLitRooms(reading.Projection) });
+        reading = reading.WithFacts(rf => rf with { PlannedConstruction = PlannedConstructionOf(reading.Projection) });
         if (MethodEnabled(PolicyApi.MaintainClimateEnvelope))
         {
             reading = reading.WithFacts(rf => rf with { EnvelopeOwed = EnvelopeOwed(reading.Projection) });
@@ -935,6 +936,48 @@ internal static partial class BuildingRuntimePackage
         }
         // The native census takes rectangles: a non-rect ground is asked for by its bounds.
         return [.. PolicyApi.PlannedGround(plan, ground).Select(g => g.Bounds())];
+    }
+
+    /// <summary>
+    /// The whole plan's unbuilt walls and doors priced from the def catalog with the stuff the shell chooser
+    /// takes (ShellSharedStuff); unknown while the plan or the construction census is.
+    /// </summary>
+    internal static Fact<IReadOnlyDictionary<Resource, long>> PlannedConstructionOf(ColonyProjection colony)
+    {
+        if (!colony.LayoutPlan.TryGetValue(out var plan))
+        {
+            return Unknown<IReadOnlyDictionary<Resource, long>>();
+        }
+        var (ground, groundKnown) = ColonyGround(colony);
+        if (!groundKnown)
+        {
+            return Unknown<IReadOnlyDictionary<Resource, long>>();
+        }
+        var wall = AnimalContainmentDefinition(colony.Definitions, PolicyApi.ShellWallDefinition);
+        var door = AnimalContainmentDefinition(colony.Definitions, PolicyApi.ShellDoorDefinition);
+        var shell = wall is not null && door is not null ? ShellSharedStuff(colony, wall, door) : null;
+        IReadOnlyList<Amount>? Price(string name)
+        {
+            var def = AnimalContainmentDefinition(colony.Definitions, name);
+            if (def is null)
+            {
+                return null;
+            }
+            if (def.StuffOptions.Count == 0)
+            {
+                return def.Costs.TryGetValue(out var costs) ? costs : null;
+            }
+            var stuff = shell is not null && def.MakeableFrom(shell) ? shell : null;
+            foreach (var option in def.StuffOptions)
+            {
+                if (option.Stuff == stuff)
+                {
+                    return option.Costs;
+                }
+            }
+            return null;
+        }
+        return Known<IReadOnlyDictionary<Resource, long>>(PolicyApi.PlannedShellDemand(plan, plan.GroundWithRock(ground, NaturalRock(colony)), Price));
     }
 
     /// <summary>The recorded plan's retired ground with its kept rooms' walls; empty while the plan is unknown.</summary>

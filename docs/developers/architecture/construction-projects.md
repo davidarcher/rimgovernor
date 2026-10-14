@@ -1,6 +1,6 @@
 # Construction projects: one record per planned room (design proposal)
 
-Status: proposal, nothing here is built. Decisions below were made with the maintainer. Written after tracing why wood demand needed a hard-coded
+Status: first slice built (the planned source for walls and doors, `PlannedShellDemand`, merged into `ConstructionDemand` as `Planned`); floors, furniture, the `RoomProject` record and room-id method names are still proposal. Decisions below were made with the maintainer. Written after tracing why wood demand needed a hard-coded
 floor (the wood latch, since removed) and why a replan could site a second shelter.
 
 ## What exists today

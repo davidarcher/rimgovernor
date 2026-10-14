@@ -76,6 +76,9 @@ public sealed record ConstructionDemandInput
 
     /// <summary>The open costs of admitted-but-unplaced methods.</summary>
     public EquatableArray<AdmittedCost> Admitted { get; init; }
+
+    /// <summary>The material the whole layout plan still owes (PlannedShellDemand), before any room is admitted.</summary>
+    public Fact<IReadOnlyDictionary<Resource, long>> Planned { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -83,7 +86,7 @@ public static partial class PolicyFunctions
     internal static readonly Resource ConstructionWoodLog = new("WoodLog");
 
     /// <summary>
-    /// The stock MaintainResource must reach for construction, per resource: a blueprint's owed material, the
+    /// The stock MaintainResource must reach for construction, per resource: the plan's unbuilt walls and doors, a blueprint's owed material, the
     /// open costs of admitted methods (each action once), each counted where the stock falls short of it, merged by maximum. It is an absolute stock level;
     /// the supply plan measures its shortfall against the stock of the moment.
     /// </summary>
@@ -102,6 +105,16 @@ public static partial class PolicyFunctions
         if (input.Owed.TryGetValue(out var owed))
         {
             foreach (var (resource, n) in owed)
+            {
+                if (Short(resource, n))
+                {
+                    Raise(resource, n);
+                }
+            }
+        }
+        if (input.Planned.TryGetValue(out var planned))
+        {
+            foreach (var (resource, n) in planned)
             {
                 if (Short(resource, n))
                 {
@@ -151,5 +164,6 @@ public static partial class PolicyFunctions
             Stock = new StockReader(f.Resources, f.Wood),
             Owed = f.ConstructionDeficit,
             Admitted = f.Admitted,
+            Planned = f.PlannedConstruction,
         });
 }

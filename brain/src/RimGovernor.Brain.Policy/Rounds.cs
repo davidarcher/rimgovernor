@@ -225,6 +225,9 @@ public sealed record RoundsFacts
     /// <summary>The material standing blueprints and frames are still owed, per resource.</summary>
     public Fact<IReadOnlyDictionary<Resource, long>> ConstructionDeficit { get; init; }
 
+    /// <summary>The material the whole layout plan still owes its walls and doors (PlannedShellDemand); unknown while the plan or the construction census is.</summary>
+    public Fact<IReadOnlyDictionary<Resource, long>> PlannedConstruction { get; init; }
+
     /// <summary>Live bill jobs' promised ingredients, per working pawn (MaterialBudget).</summary>
     public Fact<EquatableArray<IngredientReservation>> BillReservations { get; init; }
 
