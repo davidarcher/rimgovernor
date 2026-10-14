@@ -6,7 +6,11 @@ public sealed record ForecastSurvivalNeed(string Id, PawnId Pawn, string Basis, 
 public sealed record ForecastSurvivalNeeds(ForecastSurvivalNeed[] Needs, string[] Findings);
 /// <summary>Explicit candidate effect: completing this task prevents this need through the assessed horizon.
 /// A roof or harvested crop alone does not establish that effect.</summary>
-public sealed record ForecastActivityRelief(string Id, string Need, string Completion, Fact<bool> PreventsShortfall);
+public sealed record ForecastActivityRelief(string Id, string Need, string Completion)
+{
+    public ForecastFoodEffect? Food { get; init; }
+    public ForecastShelterEffect? Shelter { get; init; }
+}
 
 public static partial class PolicyFunctions
 {
@@ -79,12 +83,12 @@ public static partial class PolicyFunctions
         {
             if (!needs.TryGetValue(effect.Need, out var need))
             { findings.Add("unobserved_relief_need:" + effect.Id); continue; }
-            if (!effect.PreventsShortfall.TryGetValue(out var prevents))
-            { findings.Add("unknown_relief_effect:" + effect.Id); continue; }
-            if (!prevents || !need.Window.TryGetValue(out var window) || !window.Due) continue;
+            if (!need.Window.TryGetValue(out var window) || !window.Due) continue;
             outcomes.Add(new(effect.Id, effect.Need, effect.Completion, Known(window.Ticks), default));
         }
-        var comparison = CompareActivityOutcomes(problem, outcomes.ToArray(), ForecastOutcomeObjective.EarliestDeadline);
+        var comparison = CompareActivityOutcomes(problem, outcomes.ToArray(), ForecastOutcomeObjective.EarliestDeadline,
+            (selected, plan) => AssessSurvivalEffects(request, problem, relief.Where(r => selected.Any(o => o.Id == r.Id)).ToArray(),
+                needs, plan, findings));
         findings.UnionWith(comparison.Findings);
         return comparison with { Findings = findings.ToArray() };
     }

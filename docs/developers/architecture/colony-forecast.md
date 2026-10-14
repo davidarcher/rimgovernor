@@ -653,7 +653,7 @@ mechanism covers shared prerequisites, deadline failure, costly recovery,
 postponement, unknown estimates and deterministic truncation.
 
 These are supplied synthetic estimates, not calibrated exposure/hunger losses
-or a live shelter policy. Candidate graphs and their material feasibility are
+or a live shelter policy. Candidate graphs and material inputs are
 supplied; this comparison does not reserve stock, generate room designs, forecast
 weather or eating, or dispatch work. Partial shelter has no modeled benefit.
 Existing construction forecasting still evaluates declared commitments in its
@@ -698,7 +698,7 @@ objectives share candidate generation, dependency scheduling and a single
 expansion budget. No live shelter or food production caller dispatches this
 comparison yet.
 
-Candidate relief must explicitly establish that completing the terminal task
+Typed candidate effects are assessed on each scheduled plan to establish that completing the terminal task
 prevents its named shortfall through the assessed horizon. Unknown effects get
 no credit. Finishing a roof alone does not establish thermal protection; harvest
 alone does not establish sufficient edible food reaching the intended pawn.
@@ -711,6 +711,70 @@ stock demand, reservations or another durable owner.
 competing consumption, rot, temperature and apparel changing the choice. It also
 covers unknown evidence/effects, already-serious cold, postponement, labor caps,
 frame consistency and bounded determinism. This proves the pure decision path,
-not native reads or completed shelter work. Live candidate effects, work-time
+not native reads or completed shelter work. Live candidate generation and temperature-envelope estimation, work-time
 estimation, construction/delivery Hands adapters and observed replanning remain
 #3127/#3128/#3132-#3135 integration work.
+
+## Quantitative activity effects
+
+`CompareSurvivalActivities` now evaluates typed food and shelter evidence on each
+scheduled combination before ranking it. The supplied `PreventsShortfall` boolean
+has been removed. The existing bounded outcome search invokes a pure assessment
+of each complete plan; unknown/refused effects remain findings. There is no
+second scheduler, demand store or order writer.
+
+Food effects name a terminal activity output and its exact resource. Quantity
+comes from the activity's declared output; nutrition per unit comes from the
+native item catalog. Conditional eater/holder/expiry evidence is passed through
+the existing food allocator, including all competing consumers. Each physical
+terminal output is allocated once even when several outcomes name it. Starting
+at each pawn's baseline food-exhaustion time, the assessment consumes its allocated
+shares in expiry order and requires uninterrupted coverage through the horizon.
+An output not yet delivered at the end of existing coverage gets no credit;
+expiry is relative to the forecast origin. Missing eligibility, quantity,
+nutrition or expiry is unknown. This checks conditional edible availability,
+not ingestion, food poisoning or starvation physiology.
+
+Activity `Inputs` consume exact quantities at service start; `Outputs` add exact
+quantities at completion. The survival assessment uses the existing
+`ForecastMaterialBudgetOf` over observed stock, native holds and the request's
+committed claims, rebuilt for every alternative. All scheduled activities share
+that balance. A positive-duration prerequisite's output can fund a dependent
+input at the same tick; zero-duration output follows consumption and cannot fund
+itself. This enables harvest/cook/delivery chains and shelter/food fuel contention.
+Inputs and outputs also appear as signed conditional stock changes on the plan.
+The general activity scheduler alone does not certify material feasibility;
+this effect assessment owns that check for survival selection.
+
+Food moved through a chain must be consumed and re-emitted rather than invented
+again at each stage. An intermediate edible output consumed later by the selected
+plan cannot also receive food-relief credit. Consuming resources already counted
+in the baseline food census returns an explicit unknown pending timed food
+reallocation; it cannot reuse the same nutrition as both baseline meals and recipe
+inputs. Expiry-order allocation is conservative and does not revisit an early
+skipped delivery after later food extends coverage. Partial relief receives no
+full-horizon prevention credit.
+
+Shelter effects declare enclosure/roof status, required completion activities,
+a location and a minimum/maximum temperature estimate valid through the horizon.
+Each beneficiary must have a known comfortable range, and the entire estimated
+range must fit inside it. Required work must finish by the terminal completion;
+the beneficiary's last scheduled activity must reach that shelter by then.
+Missing heating dependencies, missing arrival, a cold roof or an unknown/short
+thermal estimate cannot certify protection. Staying at that destination through
+the horizon is an explicit candidate assumption; future occupancy changes are
+not simulated. Heating fuel/power must be represented in the candidate's inputs
+and prerequisites where required.
+
+There is still no native room-heat trajectory estimator: enclosure, future room
+temperatures, continued occupancy, output eligibility/expiry and recipe yields
+remain conditional candidate evidence. This layer checks their sufficiency and
+shared accounting; it does not establish that those estimates will occur. Live
+candidate generation, room heat/power/fuel transitions, native completion and
+Hands construction/delivery dispatch remain integration work. The existing
+construction admission gate and helpers are unchanged.
+
+Scenario tests cover insufficient nutrition, wrong eaters, rot before the horizon,
+shared-output allocation, missing heating/arrival, unknown temperature/material
+facts, shared fuel after commitments, and an actual harvest/cook/delivery DAG.
+They prove policy decisions from fixtures, not observed gameplay completion.

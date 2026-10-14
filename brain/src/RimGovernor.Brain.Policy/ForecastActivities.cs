@@ -15,6 +15,8 @@ public sealed record ForecastActivity(string Id, string Location, string EndLoca
 {
     /// <summary>One physical output per resource at completion; support activities normally have none.</summary>
     public EquatableArray<ForecastActivityYield> Outputs { get; init; }
+    /// <summary>Exact resources consumed at service start; delivery-only movement must not consume them again.</summary>
+    public EquatableArray<ForecastActivityYield> Inputs { get; init; }
 }
 public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks)
 {
@@ -85,7 +87,9 @@ public static partial class PolicyFunctions
                 var total = rows.Sum(a => a.LaborCost);
                 if (!double.IsFinite(total)) throw new DomainException("activity plan cost overflow");
                 var effects = rows.SelectMany(a => tasks.First(t => t.Id == a.Activity).Outputs
-                    .Select(o => new ForecastStockChange(o.Resource, Known(a.End / GameTime.TicksPerDay), o.Units)));
+                    .Select(o => new ForecastStockChange(o.Resource, Known(a.End / GameTime.TicksPerDay), o.Units))
+                    .Concat(tasks.First(t => t.Id == a.Activity).Inputs.Select(i => new ForecastStockChange(i.Resource,
+                        Known(a.Start / GameTime.TicksPerDay), i.Units.TryGetValue(out var units) ? Known(-units) : default))));
                 plans.TryAdd(key, new(rows, rows.Max(a => a.End), total)
                 {
                     StockChanges = EquatableArray.From(effects),
@@ -197,9 +201,10 @@ public static partial class PolicyFunctions
         {
             if (task.Prerequisites.Distinct().Count() != task.Prerequisites.Length || task.Prerequisites.Any(id => !tasks.ContainsKey(id)))
                 throw new DomainException("invalid activity dependency");
-            if (task.Outputs.Select(o => o.Resource).Distinct().Count() != task.Outputs.Count)
+            if (task.Outputs.Select(o => o.Resource).Distinct().Count() != task.Outputs.Count
+                || task.Inputs.Select(o => o.Resource).Distinct().Count() != task.Inputs.Count)
                 throw new DomainException("duplicate activity output");
-            foreach (var output in task.Outputs)
+            foreach (var output in task.Outputs.Concat(task.Inputs))
             {
                 if (!ValidResource(output.Resource)) throw new DomainException("invalid activity output resource");
                 Number(output.Units);

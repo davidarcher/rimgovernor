@@ -16,11 +16,11 @@ public sealed class ForecastSurvivalNeedsTests
         Demand = new DerivedDemand { Work = new ForecastWorkInputs { Tick = new(42),
             Pawns = Known(EquatableArray.From(new[] {
                 new WorkPawn { Id = Builder, Body = Known(new PawnBody { CellTemperatureC = Known(temperature),
-                    ComfortableMinC = Known(comfort), Hypothermia = Known(0.335) }) },
+                    ComfortableMinC = Known(comfort), ComfortableMaxC = Known(30.0), Hypothermia = Known(0.335) }) },
                 new WorkPawn { Id = Helper, Body = Known(new PawnBody { CellTemperatureC = Known(20.0),
-                    ComfortableMinC = Known(0.0), Hypothermia = Known(0.0) }) },
+                    ComfortableMinC = Known(0.0), ComfortableMaxC = Known(30.0), Hypothermia = Known(0.0) }) },
             })) } },
-        Facts = new ColonyForecastFacts { Food = new FoodSupply { Complete = Known(true),
+        Facts = new ColonyForecastFacts { Items = new ItemFacts { Nutrition = new Dictionary<Resource, double> { [new("TestFood")] = 1 } }, Food = new FoodSupply { Complete = Known(true),
             Consumers = [new() { Id = Builder, NutritionPerDay = Known(1.0) }, new() { Id = Helper, NutritionPerDay = Known(1.0) }],
             Stocks = [new() { Id = "food", Nutrition = Known(2 * foodTicks / GameTime.TicksPerDay),
                 Holder = Known(default(RimGovernor.Brain.Policy.PawnId)), Perishable = Known(false), Eaters = [Builder, Helper] }] } },
@@ -28,7 +28,7 @@ public sealed class ForecastSurvivalNeedsTests
     // Work/travel estimates remain supplied. The changed inputs below are observed native-shaped facts.
     private static ForecastActivityProblem Work() => new()
     {
-        Activities = [new("deliver", "site", "site", []), new("build", "site", "site", ["deliver"]), new("harvest", "site", "site", [])],
+        Activities = [new("deliver", "site", "site", []), new("build", "site", "site", ["deliver"]), new("harvest", "site", "site", []) { Outputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestFood"), Known(1.0)) }) }],
         Pawns = [new("builder", "site", Known(EquatableArray.From(new[] { new ForecastTimeWindow(200, 1000) { StartLocation = Known("site") } })), Known(1.0)),
             new("helper", "site", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 1000) })), Known(1.0))],
         Options = [new("deliver", "helper", Known(200.0), Known(0.0)), new("build", "builder", Known(600.0), Known(0.0)),
@@ -36,7 +36,7 @@ public sealed class ForecastSurvivalNeedsTests
         Deadline = Known(2000.0), AlternativeLaborCost = Known(1900.0), ExpansionBudget = 4096,
     };
     private static ForecastActivityRelief[] Effects() =>
-        [new("shelter", "cold/builder", "build", Known(true)), new("food", "food/builder", "harvest", Known(true))];
+        [new("shelter", "cold/builder", "build") { Shelter = new("site", ["deliver", "build"], Known(true), Known(true), Known(10.0), Known(20.0), Known(2000.0)) }, new("food", "food/builder", "harvest") { Food = new(new("TestFood"), new FoodStock { Holder = Known(default(RimGovernor.Brain.Policy.PawnId)), Perishable = Known(false), Eaters = [Builder, Helper] }) }];
 
     [Fact]
     public void ObservedFoodStockReversesTheChoiceWithoutInventedLossWeights()
@@ -89,7 +89,7 @@ public sealed class ForecastSurvivalNeedsTests
     public void FinishingRoofDoesNotAutomaticallyProveThermalRelief()
     {
         var effects = Effects();
-        effects[0] = effects[0] with { PreventsShortfall = default };
+        effects[0] = effects[0] with { Shelter = null };
         var result = CompareSurvivalActivities(Frame(), Work(), effects);
         Assert.Equal(["food"], result.Selected);
         Assert.Contains("unknown_relief_effect:shelter", result.Findings);
@@ -137,6 +137,110 @@ public sealed class ForecastSurvivalNeedsTests
         var result = CompareSurvivalActivities(Frame(3000, 20), Work(), Effects());
         Assert.Empty(result.Selected);
         Assert.Null(result.Plan);
+    }
+
+    [Fact]
+    public void TooLittleFoodWrongEaterAndEarlyRotReceiveNoFullReliefCredit()
+    {
+        var frame = Frame(950, 20);
+        var problem = Work();
+        var scarce = problem with { Activities = problem.Activities.Select(t => t.Id == "harvest"
+            ? t with { Outputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestFood"), Known(0.01)) }) } : t).ToArray() };
+        Assert.Empty(CompareSurvivalActivities(frame, scarce, Effects()).Selected);
+        var effects = Effects();
+        effects[1] = effects[1] with { Food = effects[1].Food! with { Eligibility = effects[1].Food!.Eligibility with { Eaters = [Helper] } } };
+        Assert.Empty(CompareSurvivalActivities(frame, problem, effects).Selected);
+        effects = Effects();
+        effects[1] = effects[1] with { Food = effects[1].Food! with { Eligibility = effects[1].Food!.Eligibility with { Perishable = Known(true), RotTicks = Known(1200L) } } };
+        Assert.Empty(CompareSurvivalActivities(frame, problem, effects).Selected);
+    }
+
+    [Fact]
+    public void SharedFoodOutputIsAllocatedOnceAcrossBeneficiaries()
+    {
+        var frame = Frame(950, 20);
+        var problem = Work() with { Activities = Work().Activities.Select(t => t.Id == "harvest"
+            ? t with { Outputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestFood"), Known(0.025)) }) } : t).ToArray() };
+        var food = Effects()[1];
+        var result = CompareSurvivalActivities(frame, problem, [food, food with { Id = "helper-food", Need = "food/helper" }]);
+        // 1500 pawn-ticks of food cannot cover two 1050-tick deficits.
+        Assert.Empty(result.Selected);
+        Assert.Equal(2, CompareSurvivalActivities(frame, Work(), [food, food with { Id = "helper-food", Need = "food/helper" }]).Selected.Length);
+    }
+
+    [Fact]
+    public void RoofWithoutWarmthHeatingOrOccupantArrivalDoesNotProtect()
+    {
+        var effects = Effects();
+        effects[0] = effects[0] with { Shelter = effects[0].Shelter! with { MinC = Known(-20.0) } };
+        Assert.Equal(["food"], CompareSurvivalActivities(Frame(), Work(), effects).Selected);
+        effects = Effects();
+        effects[0] = effects[0] with { Shelter = effects[0].Shelter! with { RequiredActivities = ["heater"] } };
+        Assert.Equal(["food"], CompareSurvivalActivities(Frame(), Work(), effects).Selected);
+        effects = Effects();
+        effects[0] = effects[0] with { Shelter = effects[0].Shelter! with { Location = "other-room" } };
+        Assert.Equal(["food"], CompareSurvivalActivities(Frame(), Work(), effects).Selected);
+    }
+
+    private static ColonyForecastRequest Materials(ColonyForecastRequest frame, long amount) => frame with
+    {
+        Facts = frame.Facts with { Stock = Known(EquatableArray.From(new[] { new Amount(new("TestFuel"), amount) })) },
+        Demand = frame.Demand with { Work = frame.Demand.Work with { IngredientReservations = Known(default(EquatableArray<IngredientReservation>)) } },
+    };
+
+    [Fact]
+    public void UnknownThermalBoundsAndUnknownMaterialBudgetCannotCertifyRelief()
+    {
+        var effects = Effects();
+        effects[0] = effects[0] with { Shelter = effects[0].Shelter! with { MinC = default } };
+        var unknown = CompareSurvivalActivities(Frame(), Work(), effects);
+        Assert.Equal(["food"], unknown.Selected);
+        Assert.Contains("unknown_shelter_protection:shelter", unknown.Findings);
+        var problem = Work() with { Activities = Work().Activities.Select(t => t.Id == "harvest"
+            ? t with { Inputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestFuel"), Known(1.0)) }) } : t).ToArray() };
+        var noBudget = CompareSurvivalActivities(Frame(950, 20), problem, Effects());
+        Assert.Empty(noBudget.Selected);
+        Assert.Contains("unknown_effect_material_budget", noBudget.Findings);
+    }
+
+    [Fact]
+    public void ShelterAndFoodCompeteForOneMaterialBudgetAfterClaims()
+    {
+        var problem = Work() with
+        {
+            Pawns = Work().Pawns.Select(p => p with { Windows = Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 2000) })) }).ToArray(),
+            Activities = Work().Activities.Select(t => t.Id is "build" or "harvest"
+                ? t with { Inputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestFuel"), Known(1.0)) }) } : t).ToArray(),
+        };
+        Assert.Equal(2, CompareSurvivalActivities(Materials(Frame(), 2), problem, Effects()).Selected.Length);
+        Assert.Equal(["shelter"], CompareSurvivalActivities(Materials(Frame(), 1), problem, Effects()).Selected);
+        var claimed = Materials(Frame(), 2) with { Commitments = EquatableArray.From(new[] { new ForecastCommitment("other", default)
+            { MaterialClaims = EquatableArray.From(new[] { new ForecastMaterialClaim(new("TestFuel"), Known(1.0), Known("")) }) } }) };
+        Assert.Equal(["shelter"], CompareSurvivalActivities(claimed, problem, Effects()).Selected);
+    }
+
+    [Fact]
+    public void HarvestCookAndDeliverChainMustFinishAndFundAllInputs()
+    {
+        var frame = Materials(Frame(950, 20), 1);
+        var problem = Work() with
+        {
+            Activities = [new("harvest", "site", "site", []) { Outputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestRaw"), Known(2.0)) }) },
+                new("cook", "site", "site", ["harvest"]) { Inputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestRaw"), Known(2.0)), new ForecastActivityYield(new("TestFuel"), Known(1.0)) }), Outputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestFood"), Known(0.1)) }) },
+                new("haul", "site", "site", ["cook"]) { Inputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestFood"), Known(0.1)) }), Outputs = EquatableArray.From(new[] { new ForecastActivityYield(new("TestFood"), Known(0.1)) }) }],
+            Options = [new("harvest", "helper", Known(100.0), Known(0.0)), new("cook", "helper", Known(200.0), Known(0.0)), new("haul", "helper", Known(100.0), Known(0.0))],
+        };
+        var effect = Effects()[1] with { Completion = "haul" };
+        var result = CompareSurvivalActivities(frame, problem, [effect]);
+        Assert.Equal(["food"], result.Selected);
+        Assert.Equal(3, result.Plan!.Allocations.Length);
+        Assert.Equal(400, result.Plan.CompletedAt);
+        Assert.Empty(CompareSurvivalActivities(Materials(frame, 0), problem, [effect]).Selected);
+        var late = problem with { Options = problem.Options.Select(o => o.Activity == "haul" ? o with { WorkTicks = Known(900.0) } : o).ToArray() };
+        Assert.Empty(CompareSurvivalActivities(frame, late, [effect]).Selected);
+        // Naming both intermediate and final edible output cannot count the cooked meal twice.
+        Assert.Single(CompareSurvivalActivities(frame, problem,
+            [effect, effect with { Id = "intermediate", Need = "food/helper", Completion = "cook" }]).Selected);
     }
 
     [Fact]

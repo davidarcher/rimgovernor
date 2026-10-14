@@ -351,3 +351,10 @@ bounded activity comparisons. Food stock exhaustion is not starvation onset;
 constant-temperature serious-hypothermia timing is not a weather or room-heat
 forecast. Candidate relief and labor ceilings remain explicit supplied evidence.
 No native execution or production cutover is implied.
+
+[Quantitative candidate effects](../architecture/colony-forecast.md#quantitative-activity-effects)
+replace a supplied prevention flag in that adapter. Food is checked against
+catalog nutrition, actual scheduled output time, eater shares and expiry;
+shelter requires occupant arrival and a sufficient conditional temperature range.
+The plan shares one stock/claim budget for all activity inputs. Thermal estimates
+and future output evidence remain supplied, not native predictions.

@@ -15,7 +15,8 @@ public static partial class PolicyFunctions
     /// <summary>Compare postponement and combinations using the existing ColonyForecast activity scheduler.
     /// One alternative per need; shared prerequisites execute once and all outcomes share pawn capacity.</summary>
     public static ForecastActivityOutcomeComparison CompareActivityOutcomes(ForecastActivityProblem problem,
-        ForecastActivityOutcome[] outcomes, ForecastOutcomeObjective objective = ForecastOutcomeObjective.NetLaborBenefit)
+        ForecastActivityOutcome[] outcomes, ForecastOutcomeObjective objective = ForecastOutcomeObjective.NetLaborBenefit,
+        Func<ForecastActivityOutcome[], ForecastActivityPlan, Fact<bool>>? assess = null)
     {
         ValidateActivityProblem(problem);
         if (!Enum.IsDefined(objective)) throw new DomainException("invalid outcome objective");
@@ -86,6 +87,12 @@ public static partial class PolicyFunctions
             {
                 if (selected.Any(o => plan.Allocations.Single(a => a.Activity == o.Completion).End > o.Deadline.Value))
                 { findings.Add("outcome_deadline"); continue; }
+                if (assess is not null)
+                {
+                    var accepted = assess(selected.ToArray(), plan);
+                    if (!accepted.TryGetValue(out var valid)) { findings.Add("unknown_plan_effect"); continue; }
+                    if (!valid) { findings.Add("insufficient_plan_effect"); continue; }
+                }
                 var net = benefit - plan.LaborCost;
                 if (deadlinesFirst && plan.LaborCost >= problem.AlternativeLaborCost.Value)
                 { findings.Add("labor_ceiling"); continue; }
