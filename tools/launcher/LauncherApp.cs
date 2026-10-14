@@ -636,7 +636,8 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
             env[name] = value;
         }
 
-        string[] args = [.. spec.Args, .. settings.GameArguments()];
+        // The shared launch config carries the acceptance probes' pause-on-load flag; a player's game must run after a load.
+        string[] args = [.. spec.Args.Where(a => !string.Equals(a, "-rimgovernor-pause-on-load", StringComparison.Ordinal)), .. settings.GameArguments()];
         GameProcess game;
         try
         {
