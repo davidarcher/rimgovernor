@@ -39,22 +39,35 @@ public sealed class PawnActivityTests
     }
 
     [Fact]
-    public void SamplingGapsAreUnknownAndLoadsNeverJoin()
+    public void QuietIntervalsNeedNoHeartbeatAndLoadsNeverJoin()
     {
         var rows = new List<PawnActivityInterval>();
         var ledger = new PawnActivityLedger(rows.Add);
-        ledger.Observe(Sample(0));
-        ledger.Observe(Sample(15));
-        ledger.Observe(Sample(100));
-        Assert.Equal("unknown", rows[1].Start.Activity);
-        Assert.Equal(15, rows[1].Start.Tick);
-        Assert.Equal(100, rows[1].EndTick);
+        ledger.Observe(Sample(0, "waiting"));
+        ledger.Observe(Sample(10000, "waiting"));
+        Assert.Empty(rows);
+        ledger.Observe(Sample(10001, "work"));
+        Assert.Equal(10001, Assert.Single(rows).EndTick);
         ledger.Observe(Sample(5, "unknown", world: "load2"));
         ledger.End("pawn", 1, 10, "", "Succeeded");
         Assert.Equal("load2", rows[^1].Start.World);
         Assert.Equal(5, rows[^1].Start.Tick);
     }
 
+    [Fact]
+    public void SameTickNestedTransitionsDoNotDoubleChargeTime()
+    {
+        var rows = new List<PawnActivityInterval>();
+        var ledger = new PawnActivityLedger(rows.Add);
+        ledger.Observe(Sample(0));
+        ledger.Observe(Sample(7, "unknown"));
+        ledger.Observe(Sample(7, "work"));
+        ledger.End("pawn", 1, 9, "", "Succeeded");
+        Assert.Equal(2, rows.Count);
+        Assert.Equal(7, rows[0].EndTick);
+        Assert.Equal(7, rows[1].Start.Tick);
+        Assert.Equal(9, rows.Sum(r => r.EndTick - r.Start.Tick));
+    }
     [Fact]
     public void UnsupportedJobsRetainRawIdentityAndHistoryIsBounded()
     {
@@ -88,7 +101,7 @@ public sealed class PawnActivityTests
             await using (var writer = RimGovernor.Brain.Telemetry.Otlp.OtlpFileWriter.Start(new() { Dir = directory }))
             {
                 var emitter = new TelemetryEmitter(writer);
-                PawnActivityTelemetry.Write(emitter, new(1, Sample(10), 20, "3,4", "Succeeded", 15));
+                PawnActivityTelemetry.Write(emitter, new(1, Sample(10), 20, "3,4", "Succeeded"));
             }
             var rows = PawnActivityReport.Read(Path.Combine(directory, "logs.jsonl"), "load1", "pawn", 0, 30);
             Assert.Equal(3, rows.Count);
@@ -111,8 +124,8 @@ public sealed class PawnActivityTests
         ledger.Reset();
         Assert.Equal(15, Assert.Single(rows).EndTick);
         ledger.Observe(Sample(100));
-        ledger.RemoveExcept(new HashSet<string>(), 110);
-        Assert.Equal("death_or_despawn", rows[^1].EndReason);
+        ledger.Remove("pawn", 110, "1,2", "despawn");
+        Assert.Equal("despawn", rows[^1].EndReason);
         Assert.Equal(0, ledger.Count);
     }
 }

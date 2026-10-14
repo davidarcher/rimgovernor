@@ -6,34 +6,41 @@ Only spawned, living colonists are observed; other pawns and off-map time are
 outside this window. Missing history is not idle time.
 
 Job starts and ends are captured at native lifecycle hooks. The end prefix reads
-the old job before cleanup can replace or recycle it. Every 15 game ticks, the
-tracker samples movement, carrying, job driver/toil index and supported native
-phase evidence. Activity and purpose are separate. Walking while carrying is
-carrying; stationary unsupported phases stay unknown. A vanilla active-skill
+the old job before cleanup can replace or recycle it. Shared native toil
+transitions, path start/stop, carry operations, downing/recovery and pawn
+spawn/despawn/faction/death changes update the observation at their game tick.
+There is no tick hook or periodic colonist scan. Attaching to a running game
+performs one initial census.
+
+Activity and purpose are separate. An active path is travel (or carrying),
+including temporary congestion along the route. This measures travel time, not
+per-cell motion. Stationary unsupported phases stay unknown. A vanilla active-skill
 phase is classified as work, not proof of useful output. Sleeping/eating/joy,
 explicit Wait, combat and downed recovery have separate categories. A modded
 job retains its raw identifiers; standing still never implies waiting for inputs.
 
-Phase boundaries have up to 15 ticks of sampling uncertainty and short phases
-can be missed. Job hooks carry exact observed ticks, but this does not make the
-internal phase estimates exact. Each interval records its sampling resolution.
-It includes raw job ID/definition, phase, targets, locations and end condition.
+Hook boundaries use the transition's game tick. Nested instant toils can advance
+several times in that tick; zero-duration intermediate states do not charge time.
+The record describes the live state after the callback. Mods that bypass native
+transition methods or mutate semantic state within a toil are not comprehensively
+observed; exact timestamps do not imply comprehensive semantic classification.
+Intervals include raw job ID/definition, phase, targets, locations and end condition.
 Purpose comes from existing operation intent or the native work type. Current
 native actions do not carry Method or scheduler-assignment IDs; those remain
 null rather than being guessed from purpose text. Later assignment contracts
 can supply them without introducing another activity history.
 
-Only open intervals live in memory (cap 512 pawns). Long intervals checkpoint
-after 2048 game ticks; this bounds the unflushed tail and is a telemetry choice,
-not a game constant. A capacity event reports refused observations. The existing
+Only open intervals live in memory (cap 512 pawns). Quiet tasks need no heartbeat
+or periodic checkpoint. A capacity event reports refused observations. The existing
 OTLP queue and rotating logs own retention (default 16 x 32 MiB logs, queue 16384);
-there is no new file, save component or database. Ring rotation, queue loss,
-crashes and an unfinished interval appear as missing time in a requested report.
-Rewind/load closes old intervals only through their last observation and starts
-a new world/load/map identity. Death/despawn closes at the next sampled census;
-its boundary has the same sampling uncertainty. Observation exceptions stop the
+there is no new file, save component or database. A live interval is exported when
+its state changes or ends. Until then its tail appears as unknown in offline
+reports; a crash can lose that entire open interval. Ring rotation and queue loss
+also appear as missing time. Absence of an event during a long task is not itself
+a gap. Rewind/load resets at the next lifecycle observation, closes old intervals
+only through their last observation, and starts a new world/load/map identity.
+Death/despawn closes through lifecycle hooks. Observation exceptions stop the
 tracker with a fault event; they do not interfere with pawn jobs.
-
 ## Reader
 
 Use the world and pawn identifiers from pawn_activity_interval rows:
@@ -55,12 +62,12 @@ Successful job termination is never used as a substitute for physical output.
 
 ## Evidence
 
-Pure tests cover interruption, replacement, unknown jobs, bounds, missing records
+Pure tests cover long event-free tasks, same-tick transitions, interruption, replacement, unknown jobs, bounds, missing records
 and timeline changes. observations/pawn-activity starts from a small prepared lab,
 walks a colonist to a mature crop, verifies travel/work intervals, actual produced
-items and a worker-attributed output event. A snapshot cannot exercise native
+items and a worker-attributed output event. It also checks that the activity owner has no game-tick hook. A snapshot cannot exercise native
 Harmony hooks or establish actual delivery. The case reports paired steady-state
-sampling/accounting timings on the same paused fixture. Those microbenchmarks
+event-state reading/accounting timings on the same paused fixture. Those microbenchmarks
 exclude asynchronous disk export and do not certify whole-game TPS or cost on
 large colonies; no low-overhead claim follows from compilation alone.
 

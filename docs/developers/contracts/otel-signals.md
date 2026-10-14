@@ -211,11 +211,10 @@ The [pawn activity contract](../architecture/pawn-activity.md) owns these event 
 
 | Kind | Payload | Reader |
 | --- | --- | --- |
-| pawn_activity_interval | sequence, world (colony/load/map), pawn, start_tick, end_tick, job, job_id, phase, activity, purpose, targets, start_location, end_location, end_reason, sampling_ticks, nullable method/assignment | RimGovernor.cmd pawnactivity; observations/pawn-activity |
+| pawn_activity_interval | sequence, world (colony/load/map), pawn, start_tick, end_tick, job, job_id, phase, activity, purpose, targets, start_location, end_location, end_reason, nullable method/assignment | RimGovernor.cmd pawnactivity; observations/pawn-activity |
 | pawn_activity_output | colony, load, nullable map/pawn/job_id, source, output_kind, resource, units, tick; observed production-site output, not job success or storage delivery | OTLP timeline; observations/pawn-activity |
 | pawn_activity_fault | error; subsequent observations stop and report as missing time | OTLP timeline; pawnactivity gaps |
 | pawn_activity_capacity | refused_observations; open interval cap reached | OTLP timeline; pawnactivity gaps |
 
 These events use the existing bounded telemetry queue and rotating logs. Interval
-boundaries are non-overlapping, but phase changes are sampled; sampling_ticks is
-part of the evidence. Lost or rotated records are unknown time, not zero work.
+boundaries are non-overlapping and captured by native transition hooks; there is no periodic phase sampling. Open intervals export only when changed or closed. Lost or rotated records are unknown time, not zero work.

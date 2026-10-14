@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Host.Sdk;
 using RimWorld;
+using HarmonyLib;
 using Verse;
 using Verse.AI;
 
@@ -65,6 +66,7 @@ namespace HomeBridge.BridgeTools
                 for (var i = 0; i < iterations; i++) ledger.Observe(PawnActivityTracker.ReadSample(worker));
                 var trackedMs = timer.Elapsed.TotalMilliseconds;
                 return new { success = true, tick = Find.TickManager.TicksGame, produced = observed, iterations,
+                    periodic_activity_hook = Harmony.GetPatchInfo(AccessTools.Method(typeof(TickManager), nameof(TickManager.DoSingleTick)))?.Owners.Contains("rimgovernor.pawn-activity") == true,
                     baseline_sample_ms = baselineMs, sample_and_accounting_ms = trackedMs,
                     note = "Same paused native fixture; steady-state microbenchmark, excludes disk export and does not claim whole-game TPS." };
             }, cancellationToken).ConfigureAwait(false);

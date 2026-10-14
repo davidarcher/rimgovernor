@@ -30,6 +30,7 @@ internal static class PawnActivityCase
             _ = await s.AdvanceAsync(120, null, ct).ConfigureAwait(false);
             var state = await s.Harness.CallAsync("activity-" + ticks.ToString(CultureInfo.InvariantCulture),
                 "test/pawn_activity_read", [], ct).ConfigureAwait(false);
+            if (state["periodic_activity_hook"].AsBool() != false) throw new AcceptanceException("Activity tracker installed a periodic tick hook.");
             var to = (long)state["tick"].AsNumber();
             var rows = PawnActivityReport.Read(logs, world, pawn, from, to);
             var delivered = OtlpTimeline.Read(logs).Any(r => r.Kind == PawnActivityTelemetry.OutputKind
@@ -59,12 +60,12 @@ internal static class PawnActivityCase
             1, "benchmark", observed.Activity, observed.Purpose, "", "");
         var baseline = new TelemetryEmitter(NullTelemetrySink.Instance);
         var timer = Stopwatch.StartNew();
-        for (var i = 0; i < iterations; i++) PawnActivityTelemetry.Write(baseline, new(i + 1, sample, observed.End, "", observed.Outcome, 15));
+        for (var i = 0; i < iterations; i++) PawnActivityTelemetry.Write(baseline, new(i + 1, sample, observed.End, "", observed.Outcome));
         var baselineMs = timer.Elapsed.TotalMilliseconds;
         await using var writer = OtlpFileWriter.Start(new() { Dir = Path.Combine(output, "activity-telemetry-benchmark") });
         var emitter = new TelemetryEmitter(writer);
         timer.Restart();
-        for (var i = 0; i < iterations; i++) PawnActivityTelemetry.Write(emitter, new(i + 1, sample, observed.End, "", observed.Outcome, 15));
+        for (var i = 0; i < iterations; i++) PawnActivityTelemetry.Write(emitter, new(i + 1, sample, observed.End, "", observed.Outcome));
         var enqueueMs = timer.Elapsed.TotalMilliseconds;
         await writer.ShutdownAsync(ct).ConfigureAwait(false);
         return new JsonObject { ["intervals"] = iterations, ["disabled_sink_ms"] = baselineMs,

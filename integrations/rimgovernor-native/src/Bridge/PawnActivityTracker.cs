@@ -15,20 +15,20 @@ namespace HomeBridge.BridgeTools
     /// <summary>Passive game-thread observations. Never creates, changes or terminates a job.</summary>
     public static class PawnActivityTracker
     {
-        public const int SampleTicks = 15;
+
         private static TelemetryEmitter? emitter;
         private static PawnActivityLedger? ledger;
         private static Game? game;
         private static int lastTick = -1;
         private static bool installed;
         private static bool failed;
-        private static readonly HashSet<string> present = new(StringComparer.Ordinal);
+
 
         internal static void Attach(TelemetryEmitter target)
         {
             emitter = target;
-            ledger = new PawnActivityLedger(row => PawnActivityTelemetry.Write(target, row), SampleTicks);
-            try { Install(); } catch (Exception error) { Fail(error); }
+            ledger = new PawnActivityLedger(row => PawnActivityTelemetry.Write(target, row));
+            try { Install(); Seed(); } catch (Exception error) { Fail(error); }
         }
 
         internal static void Install()
@@ -39,9 +39,25 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Started)));
             // Prefix captures the old job before cleanup/replacement and pooled job reuse.
             harmony.Patch(AccessTools.Method(typeof(Pawn_JobTracker), nameof(Pawn_JobTracker.EndCurrentJob)),
-                prefix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Ending)));
-            harmony.Patch(AccessTools.Method(typeof(TickManager), nameof(TickManager.DoSingleTick)),
-                postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Ticked)));
+                prefix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Ending)),
+                postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Started)));
+            harmony.Patch(AccessTools.Method(typeof(JobDriver), "TryActuallyStartNextToil"),
+                postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(ToilChanged)));
+            foreach (var name in new[] { "StartPath", "StopDead" })
+                harmony.Patch(AccessTools.Method(typeof(Pawn_PathFollower), name),
+                    postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Started)));
+            foreach (var method in typeof(Pawn_CarryTracker).GetMethods().Where(m =>
+                m.Name == "TryStartCarry" || m.Name == "TryDropCarriedThing" || m.Name == "DestroyCarriedThing"))
+                harmony.Patch(method, postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Started)));
+            foreach (var name in new[] { "MakeDowned", "MakeUndowned" })
+                harmony.Patch(AccessTools.Method(typeof(Pawn_HealthTracker), name),
+                    postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Started)));
+            foreach (var name in new[] { "SpawnSetup", "SetFaction", "Kill" })
+                harmony.Patch(AccessTools.Method(typeof(Pawn), name),
+                    postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(PawnChanged)));
+            harmony.Patch(AccessTools.Method(typeof(Pawn), "DeSpawn"),
+                prefix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(Despawning)),
+                postfix: new HarmonyMethod(typeof(PawnActivityTracker), nameof(PawnChanged)));
             installed = true;
         }
 
@@ -69,7 +85,8 @@ namespace HomeBridge.BridgeTools
             var driver = pawn.jobs?.curDriver;
             var identity = Current.Game.GetComponent<ColonyIdentity>();
             var world = identity.ColonyId + "/" + identity.LoadToken + "/" + pawn.Map.uniqueID;
-            var moving = pawn.pather?.MovingNow == true;
+            // Path travel includes temporary congestion; it is not per-cell movement telemetry.
+            var moving = pawn.pather?.Moving == true;
             var carrying = pawn.carryTracker?.CarriedThing != null;
             var activity = "unknown";
             if (pawn.Downed) activity = "recovery";
@@ -92,7 +109,18 @@ namespace HomeBridge.BridgeTools
 
         private static void Started(Pawn ___pawn)
         {
-            try { if (Ready() && Included(___pawn)) ledger!.Observe(ReadSample(___pawn)); }
+            try
+            {
+                if (!Ready() || ___pawn == null) return;
+                if (!Included(___pawn))
+                {
+                    ledger!.Remove(___pawn.GetUniqueLoadID(), lastTick, Location(___pawn), "left_observation");
+                    return;
+                }
+                var refused = ledger!.RefusedPawns;
+                ledger.Observe(ReadSample(___pawn));
+                if (ledger.RefusedPawns != refused) emitter!.Event(TelemetryLevel.Warn, "pawn-activity", "pawn_activity_capacity", "Colonists beyond the open-interval cap are unobserved.", new Dictionary<string, object?> { ["refused_observations"] = ledger.RefusedPawns });
+            }
             catch (Exception error) { Fail(error); }
         }
 
@@ -107,26 +135,30 @@ namespace HomeBridge.BridgeTools
             catch (Exception error) { Fail(error); }
         }
 
-        private static void Ticked()
+        private static void ToilChanged(JobDriver __instance)
+        {
+            // Instant toils may recurse or replace the job during init. Observe only the live driver.
+            if (__instance.pawn?.jobs?.curDriver == __instance) Started(__instance.pawn);
+        }
+
+        private static void PawnChanged(Pawn __instance) => Started(__instance);
+
+        private static void Despawning(Pawn __instance)
         {
             try
             {
-                if (!Ready() || lastTick % SampleTicks != 0) return;
-                var refused = ledger!.RefusedPawns;
-                present.Clear();
-                foreach (var map in Find.Maps)
-                    foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
-                    {
-                        if (!Included(pawn)) continue;
-                        present.Add(pawn.GetUniqueLoadID());
-                        ledger!.Observe(ReadSample(pawn));
-                    }
-                ledger!.RemoveExcept(present, lastTick);
-                if (ledger.RefusedPawns != refused) emitter!.Event(TelemetryLevel.Warn, "pawn-activity", "pawn_activity_capacity", "Colonists beyond the open-interval cap are unobserved.", new Dictionary<string, object?> { ["refused_observations"] = ledger.RefusedPawns });
+                if (Ready()) ledger!.Remove(__instance.GetUniqueLoadID(), lastTick, Location(__instance), "despawn");
             }
             catch (Exception error) { Fail(error); }
         }
 
+        private static void Seed()
+        {
+            // One census when attaching to an already running game, never a periodic scan.
+            if (!Ready()) return;
+            foreach (var map in Find.Maps)
+                foreach (var pawn in map.mapPawns.FreeColonistsSpawned) Started(pawn);
+        }
         private static void Fail(Exception error)
         {
             failed = true;

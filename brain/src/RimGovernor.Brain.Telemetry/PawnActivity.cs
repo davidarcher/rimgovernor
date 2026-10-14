@@ -7,10 +7,10 @@ public sealed record PawnActivitySample(
     string? Method = null, string? Assignment = null);
 
 public sealed record PawnActivityInterval(long Sequence, PawnActivitySample Start,
-    long EndTick, string EndLocation, string EndReason, int SamplingTicks);
+    long EndTick, string EndLocation, string EndReason);
 
 /// <summary>Open intervals only; detailed history belongs to the telemetry ring. Single-thread owned.</summary>
-public sealed class PawnActivityLedger(Action<PawnActivityInterval> emit, int samplingTicks = 15, int maxPawns = 512)
+public sealed class PawnActivityLedger(Action<PawnActivityInterval> emit, int maxPawns = 512)
 {
     private sealed record Open(PawnActivitySample Start, PawnActivitySample Last);
     private readonly Dictionary<string, Open> _open = new(StringComparer.Ordinal);
@@ -28,16 +28,9 @@ public sealed class PawnActivityLedger(Action<PawnActivityInterval> emit, int sa
                 Close(current, current.Last.Tick, current.Last.Location, "timeline_changed");
                 _open.Remove(sample.Pawn);
             }
-            else if (sample.Tick - current.Last.Tick > samplingTicks * 2L)
+            else if (!Same(current.Start, sample))
             {
-                Close(current, current.Last.Tick, current.Last.Location, "observation_gap");
-                var gap = current.Last with { Activity = "unknown", Phase = "gap", Purpose = "unknown", Job = "", JobId = -1, Targets = "", Method = null, Assignment = null };
-                emit(new PawnActivityInterval(++_sequence, gap, sample.Tick, sample.Location, "observation_gap", samplingTicks));
-                _open.Remove(sample.Pawn);
-            }
-            else if (!Same(current.Start, sample) || sample.Tick - current.Start.Tick >= 2048)
-            {
-                Close(current, sample.Tick, sample.Location, Same(current.Start, sample) ? "checkpoint" : "phase_changed");
+                Close(current, sample.Tick, sample.Location, "phase_changed");
                 _open.Remove(sample.Pawn);
             }
             else
@@ -62,16 +55,11 @@ public sealed class PawnActivityLedger(Action<PawnActivityInterval> emit, int sa
         _open.Remove(pawn);
     }
 
-    public void RemoveExcept(IReadOnlySet<string> present, long tick)
+    public void Remove(string pawn, long tick, string location, string reason)
     {
-        foreach (var id in _open.Keys.Where(id => !present.Contains(id)).ToArray())
-        {
-            var current = _open[id];
-            Close(current, Math.Max(current.Last.Tick, tick), current.Last.Location, "death_or_despawn");
-            _open.Remove(id);
-        }
+        if (!_open.Remove(pawn, out var current)) return;
+        Close(current, Math.Max(current.Start.Tick, tick), location, reason);
     }
-
     public void Reset()
     {
         foreach (var current in _open.Values) Close(current, current.Last.Tick, current.Last.Location, "timeline_changed");
@@ -81,7 +69,7 @@ public sealed class PawnActivityLedger(Action<PawnActivityInterval> emit, int sa
     private void Close(Open current, long tick, string location, string reason)
     {
         if (tick > current.Start.Tick)
-            emit(new PawnActivityInterval(++_sequence, current.Start, tick, location, reason, samplingTicks));
+            emit(new PawnActivityInterval(++_sequence, current.Start, tick, location, reason));
     }
 
     private static bool Same(PawnActivitySample a, PawnActivitySample b) =>
@@ -106,7 +94,7 @@ public static class PawnActivityTelemetry
                 ["job"] = s.Job, ["job_id"] = s.JobId, ["phase"] = s.Phase,
                 ["activity"] = s.Activity, ["purpose"] = s.Purpose, ["targets"] = s.Targets,
                 ["start_location"] = s.Location, ["end_location"] = interval.EndLocation,
-                ["end_reason"] = interval.EndReason, ["sampling_ticks"] = interval.SamplingTicks,
+                ["end_reason"] = interval.EndReason,
                 ["method"] = s.Method, ["assignment"] = s.Assignment,
             });
     }
