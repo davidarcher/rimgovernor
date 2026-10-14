@@ -1,5 +1,6 @@
-// Parity-tool copy of integrations/rimgovernor-native GameThreadStatService with Run executing inline: the tool already
-// stands on the game thread and has no frame hook to drain a queue. Deleted with the tool when the port goes (#3142).
+// Copy of integrations/rimgovernor-native GameThreadStatService with Run executing inline: the headless host already
+// stands on the game thread and has no frame hook to drain a queue. The mod's service refuses a call on the game thread
+// by design, so this is a copy, not a flag on it (#3142).
 #nullable enable
 using System;
 using System.Collections.Concurrent;
@@ -12,7 +13,7 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 
-namespace HomeBridge.BridgeTools
+namespace RimGovernor.RealCombat.Native
 {
     /// <summary>
     /// The production <see cref="IStatSource"/>: the game's own <c>StatWorker</c> evaluation for a ThingDef or
@@ -48,10 +49,10 @@ namespace HomeBridge.BridgeTools
     /// example no loaded game or a paused frame loop, is a <see cref="StatException"/>, never a hang).
     /// </para>
     /// </remarks>
-    public sealed class GameThreadStatService : IStatSource
+    public sealed class InlineStatService : IStatSource
     {
         /// <summary>The process-wide service the frame hook drains.</summary>
-        public static readonly GameThreadStatService Instance = new GameThreadStatService();
+        public static readonly InlineStatService Instance = new InlineStatService();
 
         /// <summary>Game-thread microseconds a drain may spend before it leaves the rest for the next frame.</summary>
         internal const long DrainBudgetMicros = 1_500;
@@ -84,7 +85,6 @@ namespace HomeBridge.BridgeTools
             internal readonly Key Key;
             internal readonly Func<object> Work;
             internal readonly TaskCompletionSource<object> Done = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-            internal volatile bool Abandoned;
             internal Request(Key key, Func<object> work) { Key = key; Work = work; }
         }
 
@@ -145,7 +145,6 @@ namespace HomeBridge.BridgeTools
             var budget = DrainBudgetMicros * Stopwatch.Frequency / 1_000_000;
             while (queue.TryDequeue(out var request))
             {
-                if (request.Abandoned) continue;
                 if (game == null)
                 {
                     request.Done.TrySetException(new StatException("No game is loaded."));

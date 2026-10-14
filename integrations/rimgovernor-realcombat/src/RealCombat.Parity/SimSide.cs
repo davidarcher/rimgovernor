@@ -25,7 +25,7 @@ internal sealed class SimSide
             }
         }
 
-        _stats = new CtxStats(new HomeBridge.BridgeTools.GameThreadStatService());
+        _stats = new RimGovernor.RealCombat.Native.ContextStats(RimGovernor.RealCombat.Native.InlineStatService.Instance);
         _catalog = new DefinitionCatalog(defs, _stats, new CatalogDerived("Silver", "Wort", 10f));
     }
 

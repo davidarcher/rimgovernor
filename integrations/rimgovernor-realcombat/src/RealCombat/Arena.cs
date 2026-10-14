@@ -2,6 +2,7 @@ using System.Reflection;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Verse.AI.Group;
 
 namespace RimGovernor.RealCombat;
 
@@ -183,6 +184,10 @@ public sealed class Arena
         {
             Retarget(fighters);
         }
+        else
+        {
+            Raid(fighters);
+        }
 
         while (ticks < _req.MaxTicks && Standing(fighters, "colonist") && Standing(fighters, "hostile"))
         {
@@ -196,6 +201,18 @@ public sealed class Arena
         }
 
         return ticks;
+    }
+
+    // The hostiles behave as a raid does in the game: under the assault lord's AI, not a scripted target. A controller
+    // plays the colonists only, so the other side must act on its own.
+    private void Raid(List<(RealPawn Spec, Pawn Pawn)> fighters)
+    {
+        var raiders = fighters.Where(f => f.Spec.Side == "hostile").Select(f => f.Pawn).ToList();
+        if (raiders.Count > 0)
+        {
+            var faction = raiders[0].Faction;
+            LordMaker.MakeNewLord(faction, new LordJob_AssaultColony(faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), _map, raiders);
+        }
     }
 
     private static bool IsOut(Pawn p) => p.Dead || p.Downed || p.Destroyed || !p.Spawned;

@@ -10,8 +10,8 @@ no live-game integration.
 |---|---|
 | `src/RealCombat` | Library. `GameHost.Boot` loads every def, the language and a seeded world; `Arena` builds a map, sweeps it and fights it once per seed. `Protocol.cs` is the request/response shape. `skips.txt` lists the UI, audio and non-combat tickers Harmony skips so the tick runs without a window. |
 | `src/RealCombat.Host` | The process: `RimGovernor.RealCombat.Host --game <dir> --request <json> --out <json>`. |
-| `src/RealCombat.Native` | Library. `NativeSeat` hosts the native mod's own `CombatMirror` (observation) and `NativeCombatOrders` (orders) over an arena map, so a controller sees and commands a simulated fight through the code it uses against the live game. Bridge exposes its internals to it (`InternalsVisibleTo`). `Arena.Controller` is the hook that plays the colonists instead of the built-in retargeting. |
-| `src/RealCombat.NativeSmoke` | Throwaway: one duel observed and commanded through the seat. |
+| `src/RealCombat.Native` | Library. `NativeSeat` hosts the native mod's own `CombatMirror` (observation) and `NativeCombatOrders` (orders) over an arena map, so a controller sees and commands a simulated fight through the code it uses against the live game. Bridge exposes its internals to it (`InternalsVisibleTo`). `Arena.Controller` is the hook that plays the colonists instead of the built-in retargeting (the hostiles then act under an assault lord, as a raid does). `PolicyController` is the controller that decides with the live policy. |
+| `src/RealCombat.NativeSmoke` | Throwaway: a duel observed and commanded through the seat, or with `--policy` a 2v1 played by the live combat policy (`PolicyController`). |
 | `src/RealCombat.Parity` | Throwaway: plays one `Spec` through this host and through the hand-ported sim and compares win rates and tick quantiles. Deleted with the port. |
 
 ## Build and run
@@ -36,6 +36,19 @@ game turns on view-gated effects (motes, flecks, sounds) that need a camera, and
 reads its map through `NativeControlAuthority.Capture`, which the seat redirects to the arena map. Orders need the pawn
 drafted by an order (`Draft`) first: the handler refuses `not_drafted` for a pawn the seat did not draft. Building this
 project builds the Bridge project, which writes its gitignored `BridgeTools/RimGovernor` deploy folder.
+
+## The live policy in the loop
+
+`PolicyController` decides a fight with the code that decides one in the game. Every ten ticks it captures a snapshot
+frame with the mod's own `SnapshotFrames.Capture`, publishes it to a facade (`PolicyFacade`, a `DispatchProxy` over
+`INativeFacade` that serves only the catalog, the frame stream and the stat service; any other call throws by name) and
+reads it with the brain's own `FacadeNativeClient.ReadCombatAsync`. `BuildingRuntimePackage.DecideCombatStep` then runs the
+defense round's chain (frame inputs, `CombatView`, the newest stop, `DecideCombat`) and builds the wire batch, which
+`NativeSeat.Apply` hands to the order handler. It decides at the first check, at each stop event and at a 300-tick backstop.
+
+What this does not do yet: geometry asks are answered with an empty answered reply (no standable cells, proposals or
+sight lines) and no defense layout is held, so the policy forms the squad fallback, not a killbox; burn, royalty and
+drug inputs are not fed. The policy fields two defenders per opponent, so a 1v1 duel is never one of its fights.
 
 ## Determinism
 

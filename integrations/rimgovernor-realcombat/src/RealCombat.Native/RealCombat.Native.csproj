@@ -14,5 +14,9 @@
     <ProjectReference Include="../RealCombat/RealCombat.csproj" />
     <!-- Bridge builds to its own gitignored deploy folder (BridgeTools/RimGovernor); redirecting its OutputPath would build its whole project graph twice. -->
     <ProjectReference Include="../../../rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj" />
+    <!-- The live policy chain, so a fight is decided by the code that decides one in the game. -->
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.BuildingRuntime/RimGovernor.Brain.BuildingRuntime.csproj" />
+    <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.NativeFacade/RimGovernor.Brain.NativeFacade.csproj" />
   </ItemGroup>
 </Project>

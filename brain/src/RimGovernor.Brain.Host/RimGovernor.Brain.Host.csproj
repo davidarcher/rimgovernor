@@ -24,6 +24,10 @@
     <ProjectReference Include="../RimGovernor.Brain.PlayerApi/RimGovernor.Brain.PlayerApi.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The headless real-engine host drives the live combat read over its arena (#3142). -->
+    <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Names two imported namespaces both declare, or a namespace that shares its class's name. -->
     <Using Include="RimGovernor.Brain.Store.Store" Alias="StoreJournal" />
     <Using Include="RimGovernor.Brain.Observation.IClock" Alias="ObservationClock" />

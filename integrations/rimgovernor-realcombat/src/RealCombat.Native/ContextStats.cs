@@ -2,13 +2,15 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 
+namespace RimGovernor.RealCombat.Native;
+
 // IStatSource whose hypothetical-context requests are answered by a real generated pawn built to the context.
-sealed class CtxStats(IStatSource inner) : IStatSource
+public sealed class ContextStats(IStatSource inner) : IStatSource
 {
     readonly Dictionary<string, Pawn> cache = new();
     Pawn PawnFor(StatSubject s)
     {
-        var ctx = s.Context!; var kind = ctx.Pawn.KindDef.Value; var skills = ctx.Pawn.SkillLevels.Value;
+        var ctx = s.Context!; var kind = ctx.Pawn!.KindDef.Value; var skills = ctx.Pawn!.SkillLevels.Value;
         var key = kind + "|" + string.Join(",", skills.OrderBy(k => k.Key).Select(k => k.Key + "=" + k.Value));
         if (cache.TryGetValue(key, out var p)) return p;
         Rand.PushState(4242);

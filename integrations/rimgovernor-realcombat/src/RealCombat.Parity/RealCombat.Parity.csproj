@@ -14,6 +14,7 @@
   <ItemGroup Condition="'$(GameAvailable)' == 'true'">
     <Compile Include="*.cs" />
     <ProjectReference Include="../RealCombat/RealCombat.csproj" />
+    <ProjectReference Include="../RealCombat.Native/RealCombat.Native.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Simulation/RimGovernor.Brain.Simulation.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(GameAvailable)' != 'true'">

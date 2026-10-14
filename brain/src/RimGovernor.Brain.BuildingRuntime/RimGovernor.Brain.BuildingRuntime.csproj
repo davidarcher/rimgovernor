@@ -97,5 +97,7 @@
   <ItemGroup>
     <!-- The host's native client (#3113) implements this assembly's internal source interfaces. -->
     <InternalsVisibleTo Include="RimGovernor.Brain.Host" />
+    <!-- The headless real-engine host drives the live combat read and decision over its arena (#3142). -->
+    <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />
   </ItemGroup>
 </Project>

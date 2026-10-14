@@ -7,9 +7,11 @@ using Operations = RimGovernor.Contracts.Wire.Operations;
 // One duel in which the colonist is observed through the mod's combat mirror and commanded through its combat order
 // handler (the raider stands still: nothing drives it yet). With --bare the built-in retargeting plays both sides.
 // Exit 0 when the seat observed events and applied the draft and the attack.
-//   RimGovernor.RealCombat.NativeSmoke --game <dir> [--bare]
+// With --policy the live combat policy (PolicyController) plays the colonist.
+//   RimGovernor.RealCombat.NativeSmoke --game <dir> [--bare|--policy]
 var game = args[Array.IndexOf(args, "--game") + 1];
 var bare = args.Contains("--bare");
+var policy = args.Contains("--policy");
 var request = new RealFightRequest
 {
     Name = "native-smoke",
@@ -25,14 +27,34 @@ var request = new RealFightRequest
         new RealPawn { Id = "host", Side = "hostile", Kind = "Pirate", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
     ],
 };
+if (policy)
+{
+    // The policy fields at least two defenders for each opponent, so a duel is never one of its fights: two against one.
+    request = request with
+    {
+        Pawns =
+        [
+            new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = 20, Z = 29, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col1", Side = "colonist", Kind = "Colonist", X = 20, Z = 31, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "host", Side = "hostile", Kind = "Pirate", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+        ],
+    };
+}
+
 GameHost.Boot(game);
 var controller = new SeatController();
-var arena = new Arena(request) { Controller = bare ? null : controller };
+var live = new PolicyController();
+var arena = new Arena(request) { Controller = bare ? null : policy ? live : controller };
 var result = arena.Fight(1);
-Console.Error.WriteLine($"winner={result.Winner} ticks={result.Ticks} {(bare ? "(bare)" : controller.Summary)}");
+Console.Error.WriteLine($"winner={result.Winner} ticks={result.Ticks} {(bare ? "(bare)" : policy ? "policy " + live.Summary : controller.Summary)}");
 foreach (var p in result.Pawns)
 {
     Console.Error.WriteLine($"  {p.Id} shots={p.Shots} hitsTaken={p.HitsTaken} dead={p.Dead} downed={p.Downed}");
+}
+
+if (policy)
+{
+    return live.Decisions > 0 && live.Applied > 0 && live.Failure.Length == 0 ? 0 : 1;
 }
 
 return bare || controller.Applied == 2 && controller.Refused == 0 && controller.Events > 0 ? 0 : 1;
