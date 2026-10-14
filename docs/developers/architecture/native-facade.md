@@ -63,11 +63,15 @@ stuff and cost reads from the game. `INativeFacade.Stats` exposes it.
 - Calls are synchronous for the brain and block the calling thread until the game thread drains them. Calling on
   the game thread throws `InvalidOperationException`. A call waits at most 30 s, then throws `StatException`.
 - `Drain` runs once per frame from `ObservationFrameHook.OnUpdate` and answers all queued requests, so a planner
-  pass asking for many stats is answered together.
-- **Per-tick game-thread time budget: 1.5 ms per drain** (`GameThreadStatService.DrainBudgetMicros`). A drain
+  pass asking for many stats is answered together. A caller that asks one stat after another (the catalog
+  builders) enqueues its next request only after the previous answer, so a drain that has emptied the queue
+  waits `FollowUpGraceMicros` (250 µs) for it before ending; without that, a cold catalog build cost one game
+  frame per stat, about two minutes, and suspended the brain (#3147).
+- **Per-tick game-thread time budget: 4 ms per drain** (`GameThreadStatService.DrainBudgetMicros`). A drain
   stops starting new requests once it has spent that long; at least one request runs per drain and a request is
   never interrupted. The budget is separate from the main-thread admission allowance, since a drain takes no
-  admission slot and no watchdog entry.
+  admission slot and no watchdog entry. The wait is bounded by the grace and by the remaining budget, and only
+  happens while a drain is running, which is only while stat requests are queued.
 - Results are memoized per load (dropped when the drain sees a different `Current.Game`). Failures are never kept.
 - No guessed default: an unknown def, stuff or stat, a non-finite value and a thing request carrying a stated
   `StatContext` (a hypothetical pawn the game cannot evaluate; the internal answer is Unknown) all throw

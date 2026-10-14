@@ -27,10 +27,12 @@ namespace HomeBridge.BridgeTools
     /// </para>
     /// <para>
     /// Per-tick game-thread time budget. A drain stops starting new requests once <see cref="DrainBudgetMicros"/>
-    /// (1.5 ms) of game-thread time has been spent in it; the rest wait for the next frame. At least one request
+    /// (4 ms) of game-thread time has been spent in it; the rest wait for the next frame. At least one request
     /// runs per drain, so the queue always makes progress, and a single request is never interrupted. A stat
-    /// evaluation costs microseconds to a few hundred microseconds, so one drain answers dozens of them; the
-    /// budget exists so a pathological batch can never stall a frame, not as the usual limit. The budget is
+    /// evaluation costs microseconds to a few hundred microseconds, so one drain answers dozens of them. A
+    /// caller that asks one stat after another (the catalog builders do) enqueues its next request only after
+    /// the previous answer, so a drain that has emptied the queue waits <see cref="FollowUpGraceMicros"/> for it
+    /// before ending; without the wait a cold catalog build cost one game frame per stat (about two minutes, #3147). The budget is
     /// separate from the main-thread admission allowance (<c>MainThreadAdmission</c>) that tool and facade hops
     /// share, because a drain is not a hop: it takes no admission slot and needs no watchdog entry.
     /// </para>
@@ -52,7 +54,13 @@ namespace HomeBridge.BridgeTools
         internal static readonly GameThreadStatService Instance = new GameThreadStatService();
 
         /// <summary>Game-thread microseconds a drain may spend before it leaves the rest for the next frame.</summary>
-        internal const long DrainBudgetMicros = 1_500;
+        internal const long DrainBudgetMicros = 4_000;
+
+        /// <summary>
+        /// How long a drain that has emptied the queue waits for the blocked caller's next request before it ends:
+        /// a sequential caller (one stat after another) is otherwise answered one request per frame (#3147).
+        /// </summary>
+        internal const long FollowUpGraceMicros = 250;
 
         /// <summary>How long a call waits for a drain before it gives up.</summary>
         internal static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(30);
@@ -153,8 +161,17 @@ namespace HomeBridge.BridgeTools
             if (!ReferenceEquals(current.Game, game)) Volatile.Write(ref epoch, current = new Epoch(game));
             var started = Stopwatch.GetTimestamp();
             var budget = DrainBudgetMicros * Stopwatch.Frequency / 1_000_000;
-            while (queue.TryDequeue(out var request))
+            var grace = FollowUpGraceMicros * Stopwatch.Frequency / 1_000_000;
+            while (true)
             {
+                if (!queue.TryDequeue(out var request))
+                {
+                    // A sequential caller (the catalog builders ask one stat after another) is blocked on the answer
+                    // just given and enqueues its next request within microseconds: wait for it, inside the budget,
+                    // rather than answer one request per frame.
+                    if (AwaitFollowUp(started, budget, grace)) continue;
+                    break;
+                }
                 if (request.Abandoned) continue;
                 if (game == null)
                 {
@@ -174,6 +191,22 @@ namespace HomeBridge.BridgeTools
                 }
                 if (Stopwatch.GetTimestamp() - started >= budget) break;
             }
+        }
+
+        /// <summary>
+        /// True when a request arrived within <paramref name="grace"/> of now while the drain still has budget.
+        /// Spins on the game thread, so it is bounded by the grace and by the drain's remaining budget.
+        /// </summary>
+        private bool AwaitFollowUp(long started, long budget, long grace)
+        {
+            var from = Stopwatch.GetTimestamp();
+            while (queue.IsEmpty)
+            {
+                var now = Stopwatch.GetTimestamp();
+                if (now - from >= grace || now - started >= budget) return false;
+                Thread.SpinWait(20);
+            }
+            return true;
         }
 
         // The cores below run on the game thread, inside a drain.
