@@ -4,15 +4,13 @@ using RimGovernor.Contracts.Wire.Common;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>ClockCommand</c>: exactly one immutable clock intent (one arm set). Requested lease durations are
-/// command arguments, never restored permission; live lease tokens are absent.
+/// Go's <c>ClockCommand</c>: exactly one immutable clock intent (one arm set).
 /// </summary>
-public sealed record ClockCommand(ClockStart? Start = null, ClockRenew? Renew = null, ClockSpeed? Speed = null);
+public sealed record ClockCommand(ClockStart? Start = null, ClockSpeed? Speed = null);
 
 /// <summary>Go's <c>ClockStart</c>.</summary>
 /// <param name="Speed">The requested epoch speed.</param>
 /// <param name="Policy">The watch policy, nullable only for a malformed request that validation rejects.</param>
-/// <param name="LeaseMs">The requested lease duration in milliseconds.</param>
 /// <param name="MaxTicks">The tick budget.</param>
 /// <param name="TestAcceleration">
 /// Asks for the native tick boost; it requires SPEED_ULTRAFAST and a game launched with test acceleration
@@ -31,7 +29,6 @@ public sealed record ClockCommand(ClockStart? Start = null, ClockRenew? Renew = 
 public sealed record ClockStart(
     Speed Speed,
     WatchPolicy? Policy,
-    uint LeaseMs,
     uint MaxTicks,
     bool TestAcceleration = false,
     uint BlindTickBudget = 0,
@@ -41,9 +38,6 @@ public sealed record ClockStart(
     /// <summary>The start's pacing as StartRequest carries it: absent (null) for fixed pacing.</summary>
     public Pacing? WirePacing => PlayerAccelerated ? Pacing.PlayerAccelerated : null;
 }
-
-/// <summary>Go's <c>ClockRenew</c>.</summary>
-public sealed record ClockRenew(Epoch? Original, uint LeaseMs);
 
 /// <summary>Go's <c>ClockSpeed</c>; <paramref name="MaxTicksPerSecond"/> is the ceiling the change carries, null keeps the epoch's.</summary>
 public sealed record ClockSpeed(Epoch? Original, Speed Speed, uint? MaxTicksPerSecond = null);

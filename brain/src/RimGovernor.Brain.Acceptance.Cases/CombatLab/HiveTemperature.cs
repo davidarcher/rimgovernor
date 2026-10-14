@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -21,20 +20,14 @@ internal static class CombatLabHiveTemperature
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("combatlab/hive-temperature reads the snapshot ring from Windows named shared memory");
-        }
-
         await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
         _ = await CombatStage.StageAsync(h, "lab-infestation", cancellationToken).ConfigureAwait(false);
-        using var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
         var (_, tick) = await CombatStage.TickAsync(h, CombatLabMirror.StepTicks, cancellationToken).ConfigureAwait(false);
         var v = await frames.SnapshotAsync(tick, cancellationToken).ConfigureAwait(false);
         if (v["combatHiveTemperatureC"] is null)

@@ -14,8 +14,8 @@ namespace HomeBridge.BridgeTools
     // the ceiling doubles every ramp interval back to unlimited. Neither
     // transition ends the epoch: the requested speed stays what it was and
     // the clamp lives in a TickRateMultiplier postfix, so the external
-    // speed-change watcher never sees it. The lease is the fault guard
-    // (controller gone), the budget the liveness guard (controller slow).
+    // speed-change watcher never sees it. The budget is the liveness guard
+    // (controller slow).
     internal static partial class Supervisor
     {
         internal const int NormalTicksPerSecond = 60;

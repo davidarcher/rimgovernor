@@ -104,17 +104,11 @@ namespace HomeBridge.BridgeTools
         // the thread that runs it (RunHop reads the argument, a detached
         // encode inherits it), since the main thread and encoder workers do
         // not share the caller's flow.
-        //
-        // encoding=proto-shm is proto-gzip for a controller on this
-        // host: a reply of ReplyRing.InlineBytes or more goes raw into a
-        // ReplyRing slot and field "slot" names it.
         internal const string EncodingArgument = "encoding";
         internal const string BinaryEncoding = "proto-gzip";
-        internal const string ShmEncoding = "proto-shm";
         internal const string PayloadField = "payload";
         internal const string ProtoField = "proto";
-        internal const string SlotField = "slot";
-        internal enum ReplyForm { Payload, Gzip, Shm }
+        internal enum ReplyForm { Payload, Gzip }
         [ThreadStatic] private static ReplyForm? form;
         private static readonly AsyncLocal<ReplyForm> callerForm = new AsyncLocal<ReplyForm>();
 
@@ -136,7 +130,6 @@ namespace HomeBridge.BridgeTools
             var arguments = ctx?.Arguments;
             if (arguments == null || !arguments.TryGetValue(EncodingArgument, out var raw) || !TryString(raw, out var value)) return ReplyForm.Payload;
             if (string.Equals(value, BinaryEncoding, StringComparison.Ordinal)) return ReplyForm.Gzip;
-            if (string.Equals(value, ShmEncoding, StringComparison.Ordinal)) return ReplyForm.Shm;
             return ReplyForm.Payload;
         }
 
@@ -155,16 +148,6 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var raw = WireJson.SerializeToUtf8Bytes(reply);
-                if (wanted == ReplyForm.Shm && raw.Length >= ReplyRing.InlineBytes)
-                {
-                    var slot = ReplyRing.Write(raw);
-                    if (slot != null)
-                    {
-                        field = SlotField;
-                        ObservationWork.Payload(raw.Length);
-                        return slot;
-                    }
-                }
                 using (var buffer = new MemoryStream())
                 {
                     using (var gzip = new GZipStream(buffer, CompressionLevel.Fastest, true))
@@ -440,7 +423,7 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Hop? work = null)
         {
             var envelope = reply as Dictionary<string, object?>;
-            if (envelope == null || !(envelope.ContainsKey(PayloadField) || envelope.ContainsKey(ProtoField) || envelope.ContainsKey(SlotField)) || envelope.ContainsKey(TimingField)) return reply;
+            if (envelope == null || !(envelope.ContainsKey(PayloadField) || envelope.ContainsKey(ProtoField)) || envelope.ContainsKey(TimingField)) return reply;
             var timing = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["queueMs"] = Millis(started - queued),
@@ -488,7 +471,6 @@ namespace HomeBridge.BridgeTools
                 case Common.FailureCode.StaleIdentity:
                 case Common.FailureCode.StaleGeneration:
                 case Common.FailureCode.AuthorityRequired:
-                case Common.FailureCode.LeaseExpired:
                 case Common.FailureCode.OwnerConflict:
                 case Common.FailureCode.AttemptConflict:
                 case Common.FailureCode.CapacityExhausted:

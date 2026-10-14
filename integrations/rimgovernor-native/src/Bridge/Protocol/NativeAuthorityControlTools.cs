@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools
                 return new Authority.ControlReply { Outcome = Refusal(NativeControlError.AuthorityRequired, before) };
             Current.Game.CurrentMap = map;
             context = context with { NativeGeneration = state.Status().Generation };
-            SnapshotStream.Open(new RimGovernor.Contracts.Wire.Observations.SnapshotStreamRequest { Keyframe = true });
+            SnapshotStream.RequestCapture();
             return new Authority.ControlReply { Outcome = new Authority.FocusedMap { Context = context } };
         }
 

@@ -59,8 +59,6 @@ internal static class WireProbeAccessors
         public Clock.OperationOutcome OperationOutcome => e.Event?.OperationOutcome;
         public Clock.AuthorityChanged AuthorityChanged => e.Event?.AuthorityChanged;
         public Clock.ObservationInvalidated ObservationInvalidated => e.Event?.ObservationInvalidated;
-        public Clock.RuleFired RuleFired => e.Event?.RuleFired;
-        public Clock.RuleLeaseExpired RuleLeaseExpired => e.Event?.RuleLeaseExpired;
     }
     extension(Clock.Notification n)
     {

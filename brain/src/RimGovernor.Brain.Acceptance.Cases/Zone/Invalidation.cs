@@ -77,7 +77,6 @@ internal static class ZoneInvalidation
                     ["hostileWithin"] = 40,
                     ["injuryStopCooldownMs"] = 0,
                 },
-                ["leaseMs"] = 30000,
                 ["maxTicks"] = WindowTicks,
             },
             cancellationToken).ConfigureAwait(false);

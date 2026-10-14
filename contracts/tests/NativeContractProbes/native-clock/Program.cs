@@ -56,14 +56,13 @@ internal static class NativeClockProbe
         return reply;
     }
     private static Clock.ControlReply Start(Clock.StartRequest request) => Call<Clock.StartRequest, Clock.ControlReply>(request, (ctx, json) => Tools.Start(ctx, default, json));
-    private static Clock.ControlReply Renew(Clock.RenewRequest request) => Call<Clock.RenewRequest, Clock.ControlReply>(request, (ctx, json) => Tools.Renew(ctx, default, json));
     private static Clock.ControlReply Speed(Clock.SpeedRequest request) => Call<Clock.SpeedRequest, Clock.ControlReply>(request, (ctx, json) => Tools.ChangeSpeed(ctx, default, json));
     private static Clock.StatusReply Status() => Call<Clock.StatusRequest, Clock.StatusReply>(new Clock.StatusRequest { Identity = Identity }, (ctx, json) => Tools.ReadStatus(ctx, default, json));
     private static Clock.StatusReply Pause(Clock.OwnedRequest request) => Call<Clock.OwnedRequest, Clock.StatusReply>(request, (ctx, json) => Tools.Pause(ctx, default, json));
     private static Clock.EventsReply Events(long after = 0, uint limit = 128, int dispatches = 1) => Call<Clock.EventsRequest, Clock.EventsReply>(new Clock.EventsRequest { Identity = Identity, AfterCursor = after, Limit = limit }, (ctx, json) => Tools.ReadEvents(ctx, default, json), dispatches);
     private static Authority.WritePrecondition Pre() => new() { Identity = Identity, ExpectedGeneration = grant.Generation,
         Attempt = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "clock/" + ++nextAttempt, AttemptId = 1 } };
-    private static Clock.StartRequest Request() => new() { Authority = Pre(), Speed = Clock.Speed.Normal, LeaseMs = 1000, MaxTicks = 10,
+    private static Clock.StartRequest Request() => new() { Authority = Pre(), Speed = Clock.Speed.Normal, MaxTicks = 10,
         Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = .1f, MinHealthFraction = .5f, HostileWithin = 30, InjuryStopCooldownMs = 0, SeriousSingleHitDamage = 20, SeriousSummaryHealthFloor = .5f, SeriousBleedRateFloor = 1, SeriousVitalPartFloor = .5f, ExplosiveNearMarginCells = 3, MeleeReachCells = 1.5f, InjurySeverityFloorTicks = 5000, PredatorMarginCells = 25 } };
     private static void Reset()
     {
@@ -90,8 +89,8 @@ internal static class NativeClockProbe
         Check(Status().Status.NeverStarted != null && Find.TickManager.Paused && authority.Status().Generation == grant.Generation, "initial event read changed clock or authority");
         foreach (var pair in new[] { (-1L, 1u), (0L, 0u), (0L, 129u) }) Check(Events(pair.Item1, pair.Item2, 1).Failure?.Code == Common.FailureCode.InvalidRequest, "malformed cursor/limit admitted"); // the shape check is the typed core (HandleReadEvents), one hop that changes nothing
         Check(Events(long.MaxValue, 128).Failure != null, "cursor past the journal admitted");
-        foreach (Func<Clock.StartRequest, Clock.StartRequest> mutation in new Func<Clock.StartRequest, Clock.StartRequest>[] { r => r with { Speed = Clock.Speed.Unspecified }, r => r with { LeaseMs = 999 },
-            r => r with { LeaseMs = 30001 }, r => r with { MaxTicks = 0 }, r => r with { Policy = null }, r => r with { Policy = r.Policy with { HealthDropFraction = float.NaN } },
+        foreach (Func<Clock.StartRequest, Clock.StartRequest> mutation in new Func<Clock.StartRequest, Clock.StartRequest>[] { r => r with { Speed = Clock.Speed.Unspecified },
+            r => r with { MaxTicks = 0 }, r => r with { Policy = null }, r => r with { Policy = r.Policy with { HealthDropFraction = float.NaN } },
             r => r with { Policy = r.Policy with { HostileWithin = null } }, r => r with { Policy = r.Policy with { InjuryStopCooldownMs = 1800001 } }, r => r with { Policy = r.Policy with { SeriousSingleHitDamage = null } }, r => r with { Policy = r.Policy with { MeleeReachCells = float.NaN } }, r => r with { Policy = r.Policy with { InjurySeverityFloorTicks = 0 } }, r => r with { Policy = r.Policy with { PredatorMarginCells = null } } })
         { var r = mutation(Request()); Check(Start(r).Failure != null && !Supervisor.IsActiveForFixture(), "invalid Start affected clock"); }
         // A wire enum value outside the schema cannot be held by a record (the encoder refuses it), so it is sent as raw JSON text.
@@ -109,11 +108,8 @@ internal static class NativeClockProbe
         Check(ledger.Count == 1 && Start(request).Equals(reply) && ledger.Count == 1, "exact start replay dispatched");
         var altered = request with { MaxTicks = request.MaxTicks + 1 };
         Check(Start(altered).Failure.Code == Common.FailureCode.AttemptConflict, "altered attempt reused");
-        var renew = new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 30000 };
-        var renewed = Renew(renew).Receipt.Applied.Status.Running.Epoch;
-        Check(renewed.TickDeadline == epoch.TickDeadline && renewed.Owner.Equals(epoch.Owner) && renewed.LeaseRemainingMs > 29000, "renew budget/owner/deadline");
         Supervisor.WallTime += 1000000000; Supervisor.OnUpdate();
-        Check(Status().Status.Running != null, "UTC jump expired monotonic lease");
+        Check(Status().Status.Running != null, "UTC jump stopped the epoch");
         var speed = new Clock.SpeedRequest { Epoch = owned, Authority = Pre(), Speed = Clock.Speed.Fast };
         Check(Speed(speed).Receipt.Applied.Status.Running.Epoch.RequestedSpeed == Clock.Speed.Fast && Status().Status.Running.Epoch.TickDeadline == 10, "speed extended budget");
         var first = Events(0, 1).Page; var second = Events(first.NextCursor.Value, 128).Page;
@@ -129,7 +125,6 @@ internal static class NativeClockProbe
         Check(Status().Status.ActualPaused == false && Status().Status.Stopped != null, "player-driven stopped clock");
         var retaken = Pause(owned).Status;
         Check(retaken.Stopped != null && retaken.ActualPaused == true && retaken.Stopped.PauseVerified == true && Find.TickManager.Paused && retaken.Stopped.Epoch.Owner.Equals(epoch.Owner), "owned pause did not re-take the player-driven clock");
-        Check(Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 1000 }).Failure != null, "renew restarted stopped clock");
         var lookup = Call<Clock.AttemptRequest, Clock.AttemptReply>(new Clock.AttemptRequest { Identity = Identity, Attempt = request.Authority.Attempt }, (ctx, json) => Tools.ReadAttempt(ctx, default, json));
         Check(lookup.Receipt.Equals(reply.Receipt), "clock lookup lost original receipt");
     }
@@ -139,9 +134,6 @@ internal static class NativeClockProbe
         var immediate = Start(Request()); Check(immediate.Receipt.Applied.Status.Stopped?.Reason == Clock.StopReason.Hostile, "initial safety stop not owned");
         Reset(); var request = Request(); var epoch = Start(request).Receipt.Applied.Status.Running.Epoch;
         var owned = new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner };
-        Supervisor.FixtureExpire(); Supervisor.OnUpdate();
-        Check(Status().Status.Stopped.Reason == Clock.StopReason.LeaseExpired && (Status().Status.ActualPaused == true), "expired owned lease not stopped");
-        Check(Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 1000 }).Failure != null, "expired renew reacquired");
         Reset(); epoch = Start(Request()).Receipt.Applied.Status.Running.Epoch; owned = new() { Identity = Identity, Owner = epoch.Owner };
         Supervisor.RefusePause = true;
         Check(Pause(owned).Status.Stopping != null && Status().Status.ActualPaused == false, "failed pause disarmed");
@@ -207,8 +199,6 @@ internal static class NativeClockProbe
         Reset();
         var epoch = Start(Request()).Receipt.Applied.Status.Running.Epoch;
         var owned = new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner };
-        Check(Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 1000 }).Receipt != null,
-            "same-generation clock renewal refused");
         var admitted = NativeOperationState.ForAdmission(Identity).Ledger.Count;
         // Any authority transition (here Manual then Auto again) advances the
         // generation; the epoch stays bound to the generation that started it.
@@ -216,14 +206,12 @@ internal static class NativeClockProbe
         grant = authority.SetMode(authority.Status().Generation, NativeControlMode.Auto).Snapshot;
         Check(grant.Active && grant.Generation != epoch.Origin.NativeGeneration, "replacement grant setup failed");
         // No watcher update runs between revocation, reacquisition and these requests.
-        var renewal = Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 30000 });
-        Check(renewal.Failure?.Code == Common.FailureCode.StaleGeneration, "new grant renewed invalidated epoch before watcher update");
         var speed = Speed(new Clock.SpeedRequest { Epoch = owned, Authority = Pre(), Speed = Clock.Speed.Superfast });
         Check(speed.Failure?.Code == Common.FailureCode.StaleGeneration, "new grant changed invalidated epoch speed before watcher update");
         Check(NativeOperationState.ForAdmission(Identity).Ledger.Count == admitted, "replacement-grant refusal admitted an attempt");
         var retained = Status().Status.Running.Epoch;
         Check(retained.Origin.NativeGeneration == epoch.Origin.NativeGeneration && retained.RequestedSpeed == Clock.Speed.Normal
-            && retained.LeaseRemainingMs <= 1000, "replacement request changed epoch grant, speed or deadline");
+            , "replacement request changed epoch grant, speed or deadline");
         Supervisor.OnUpdate();
         Check(Status().Status.Stopped != null && Find.TickManager.CurTimeSpeed == TimeSpeed.Paused,
             "replacement grant masked original-grant invalidation from watcher");
@@ -235,8 +223,6 @@ internal static class NativeClockProbe
         var owned = new Clock.OwnedRequest { Identity = Identity, Owner = epoch.Owner };
         var count = NativeOperationState.ForAdmission(Identity).Ledger.Count;
         HarmonyLib.Harmony.Healthy = false;
-        Check(Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 30000 }).Failure?.Code == Common.FailureCode.Unavailable,
-            "clock renewal ignored removed enforcement hooks");
         Check(Speed(new Clock.SpeedRequest { Epoch = owned, Authority = Pre(), Speed = Clock.Speed.Superfast }).Failure?.Code == Common.FailureCode.Unavailable,
             "clock speed ignored removed enforcement hooks");
         Check(NativeOperationState.ForAdmission(Identity).Ledger.Count == count && Find.TickManager.CurTimeSpeed == TimeSpeed.Normal,

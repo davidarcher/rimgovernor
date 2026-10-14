@@ -70,7 +70,6 @@ namespace HomeBridge.BridgeTools
             [typeof(Operations.ActionIntent.FoodPolicyCase)] = new FoodPolicyActionHandler(),
             [typeof(Operations.ActionIntent.AutoHomeAreaCase)] = new AutoHomeAreaActionHandler(),
             [typeof(Operations.ActionIntent.PawnSettingsCase)] = new PawnSettingsActionHandler(),
-            [typeof(Operations.ActionIntent.RulesAttachCase)] = new RulesAttachActionHandler(),
             [typeof(Operations.ActionIntent.RemoveProductionBillCase)] = new RemoveProductionBillActionHandler(),
         };
 

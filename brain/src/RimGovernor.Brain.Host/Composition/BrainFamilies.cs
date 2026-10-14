@@ -148,9 +148,6 @@ public sealed record BrainFamilies
     /// <summary>The <c>husbandry</c> family.</summary>
     public bool Husbandry { get; init; } = true;
 
-    /// <summary>The <c>rules</c> family.</summary>
-    public bool Rules { get; init; } = true;
-
     /// <summary>The <c>prisoner-interaction</c> family.</summary>
     public bool PrisonerInteraction { get; init; } = true;
 
@@ -253,7 +250,6 @@ public sealed record BrainFamilies
         new("animal-containment", f => f.AnimalContainment, (f, on) => f with { AnimalContainment = on }),
         new("recovery", f => f.Recovery, (f, on) => f with { Recovery = on }),
         new("husbandry", f => f.Husbandry, (f, on) => f with { Husbandry = on }),
-        new("rules", f => f.Rules, (f, on) => f with { Rules = on }),
         new("prisoner-interaction", f => f.PrisonerInteraction, (f, on) => f with { PrisonerInteraction = on }),
         new("population-custody", f => f.PopulationCustody, (f, on) => f with { PopulationCustody = on }),
         new("population-joiner", f => f.PopulationJoiner, (f, on) => f with { PopulationJoiner = on }),

@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -20,36 +19,31 @@ internal sealed record CombatState(JsonObject Frame)
 }
 
 /// <summary>
-/// Reads the combat sections of the snapshot stream's frames: the case maps the ring the way the controller's bridge
-/// does (Go <c>combatFrames</c>). Windows only, like the ring.
+/// Reads the combat sections of the snapshot stream's frames over the tool channel: the case maps the frames the way
+/// the controller's bridge does (Go <c>combatFrames</c>).
 /// </summary>
-[SupportedOSPlatform("windows")]
-internal sealed class CombatFrames : IDisposable
+internal sealed class CombatFrames
 {
     /// <summary>Bounds the wait for a frame after a step.</summary>
     private static readonly TimeSpan FrameWait = TimeSpan.FromSeconds(10);
 
     private readonly JsonObject _identity;
-    private readonly SnapshotRingReader _reader;
+    private readonly SnapshotPoller _poller;
     private ulong _last;
+    private ulong _seen;
 
-    private CombatFrames(JsonObject identity, SnapshotRingReader reader)
+    private CombatFrames(JsonObject identity, SnapshotPoller poller)
     {
         _identity = identity;
-        _reader = reader;
+        _poller = poller;
     }
 
-    /// <summary>Opens the snapshot stream and maps its ring.</summary>
+    /// <summary>Subscribes the snapshot stream.</summary>
     internal static async Task<CombatFrames> OpenAsync(Harness h, JsonObject identity, CancellationToken cancellationToken)
     {
-        var reply = await h.WireAsync("combat-open-stream", "observations_open_snapshot_stream", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var name = reply["opened"].AsMap()?["name"].AsString() ?? "";
-        if (name.Length == 0)
-        {
-            throw new AcceptanceException($"snapshot stream not opened: {reply.ToJson()}");
-        }
-
-        return new CombatFrames(identity, SnapshotRingReader.Open(name));
+        var poller = new SnapshotPoller(h);
+        _ = await poller.HeadAsync(cancellationToken).ConfigureAwait(false);
+        return new CombatFrames(identity, poller);
     }
 
     /// <summary>The combat state of the first frame published after the last one read and captured at or past <paramref name="tick"/>.</summary>
@@ -62,9 +56,10 @@ internal sealed class CombatFrames : IDisposable
         var deadline = DateTime.UtcNow + FrameWait;
         while (true)
         {
-            var frame = _reader.Latest();
-            if (frame is not null && frame.Number > _last)
+            var frame = await _poller.LatestAsync(Math.Max(_last, _seen), cancellationToken).ConfigureAwait(false);
+            if (frame is not null)
             {
+                _seen = frame.Number;
                 var v = JsonNode.Parse(frame.Payload)?.AsObject() ?? throw new AcceptanceException($"snapshot frame {frame.Number} is not a JSON object");
                 if (new CombatState(v).Tick >= tick)
                 {
@@ -84,10 +79,7 @@ internal sealed class CombatFrames : IDisposable
                 throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"no snapshot frame at or past tick {tick} within {FrameWait} (last read {_last})"));
             }
 
-            var after = frame is not null ? frame.Number : _last;
-            _ = await _reader.WaitAsync(after, TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
+            _ = await _poller.WaitAsync(Math.Max(_last, _seen), TimeSpan.FromMilliseconds(250), cancellationToken).ConfigureAwait(false);
         }
     }
-
-    public void Dispose() => _reader.Dispose();
 }

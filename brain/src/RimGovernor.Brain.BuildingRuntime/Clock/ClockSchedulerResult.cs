@@ -26,8 +26,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsAcquisitionResult? FoodAcquisition { get; set; }
 
-    public RoundsRulesResult? Rules { get; set; }
-
     public RoundsAcquisitionResult? ResourceAcquisition { get; set; }
 
     public RoundsAcquisitionResult? PestAcquisition { get; set; }
@@ -193,7 +191,6 @@ public sealed class ClockSchedulerResult
         Butcher = other.Butcher ?? Butcher;
         Fields = other.Fields ?? Fields;
         FoodAcquisition = other.FoodAcquisition ?? FoodAcquisition;
-        Rules = other.Rules ?? Rules;
         ResourceAcquisition = other.ResourceAcquisition ?? ResourceAcquisition;
         PestAcquisition = other.PestAcquisition ?? PestAcquisition;
         Work = other.Work ?? Work;

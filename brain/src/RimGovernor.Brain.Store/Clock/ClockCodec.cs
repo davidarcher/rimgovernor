@@ -126,7 +126,6 @@ public static partial class ClockJournal
         ulong Native,
         string Kind,
         int Speed,
-        uint LeaseMs,
         uint MaxTicks,
         string Policy,
         string Original,
@@ -144,11 +143,11 @@ public static partial class ClockJournal
 
     /// <summary>The columns <see cref="ReadIntentRow"/> reads, in order.</summary>
     internal const string IntentColumns =
-        "intent_key,colony,map_id,load_token,plan_id,revision,native_generation,kind,speed,lease_ms,max_ticks,policy,original,test_acceleration,blind_tick_budget,max_ticks_per_second,ceiling_set,player_accelerated,window_profile,window_tick,window_review_revision,window_captured_cursor,window_max_ticks";
+        "intent_key,colony,map_id,load_token,plan_id,revision,native_generation,kind,speed,max_ticks,policy,original,test_acceleration,blind_tick_budget,max_ticks_per_second,ceiling_set,player_accelerated,window_profile,window_tick,window_review_revision,window_captured_cursor,window_max_ticks";
 
     /// <summary>The placeholders <see cref="IntentParameters"/> binds, in the order of <see cref="IntentColumns"/>.</summary>
     internal const string IntentValues =
-        "$key,$colony,$map,$load,$plan,$revision,$native,$kind,$speed,$lease,$maxticks,$policy,$original,$test,$blind,$perSecond,$ceiling,$player,$wprofile,$wtick,$wrevision,$wcursor,$wmaxticks";
+        "$key,$colony,$map,$load,$plan,$revision,$native,$kind,$speed,$maxticks,$policy,$original,$test,$blind,$perSecond,$ceiling,$player,$wprofile,$wtick,$wrevision,$wcursor,$wmaxticks";
 
     /// <summary>Go <c>encodeClockIntent</c>: validates the attempt and returns the intent's column values.</summary>
     internal static IntentRow EncodeIntent(ClockAttempt v)
@@ -158,7 +157,6 @@ public static partial class ClockJournal
         var s = intent.Snapshot;
         string kind;
         var speed = 0;
-        uint lease = 0;
         uint maxTicks = 0;
         uint blind = 0;
         uint perSecond = 0;
@@ -171,19 +169,12 @@ public static partial class ClockJournal
         {
             kind = "start";
             speed = (int)start.Speed;
-            lease = start.LeaseMs;
             maxTicks = start.MaxTicks;
             test = start.TestAcceleration;
             blind = start.BlindTickBudget;
             perSecond = start.MaxTicksPerSecond;
             player = start.PlayerAccelerated;
             policy = Encoding.UTF8.GetString(Binary(start.Policy!));
-        }
-        else if (intent.Command.Renew is { } renew)
-        {
-            kind = "renew";
-            lease = renew.LeaseMs;
-            original = Encoding.UTF8.GetString(Binary(renew.Original!));
         }
         else
         {
@@ -208,7 +199,6 @@ public static partial class ClockJournal
             s.Native.Value,
             kind,
             speed,
-            lease,
             maxTicks,
             policy,
             original,
@@ -237,7 +227,6 @@ public static partial class ClockJournal
             ("$native", row.Native),
             ("$kind", row.Kind),
             ("$speed", row.Speed),
-            ("$lease", (long)row.LeaseMs),
             ("$maxticks", (long)row.MaxTicks),
             ("$policy", Encoding.UTF8.GetBytes(row.Policy)),
             ("$original", Encoding.UTF8.GetBytes(row.Original)),
@@ -266,24 +255,23 @@ public static partial class ClockJournal
             r.GetString(at + 7),
             checked((int)r.GetInt64(at + 8)),
             checked((uint)r.GetInt64(at + 9)),
-            checked((uint)r.GetInt64(at + 10)),
+            Encoding.UTF8.GetString(r.RequiredBlob(at + 10)),
             Encoding.UTF8.GetString(r.RequiredBlob(at + 11)),
-            Encoding.UTF8.GetString(r.RequiredBlob(at + 12)),
-            r.GetInt64(at + 13) != 0,
+            r.GetInt64(at + 12) != 0,
+            checked((uint)r.GetInt64(at + 13)),
             checked((uint)r.GetInt64(at + 14)),
-            checked((uint)r.GetInt64(at + 15)),
+            r.GetInt64(at + 15) != 0,
             r.GetInt64(at + 16) != 0,
-            r.GetInt64(at + 17) != 0,
-            r.Text(at + 18),
-            r.Number(at + 19),
-            r.IsDBNull(at + 20) ? null : r.UnsignedText(at + 20),
-            r.Number(at + 21),
-            r.Number(at + 22) is { } maxTicks ? checked((uint)maxTicks) : null
+            r.Text(at + 17),
+            r.Number(at + 18),
+            r.IsDBNull(at + 19) ? null : r.UnsignedText(at + 19),
+            r.Number(at + 20),
+            r.Number(at + 21) is { } maxTicks ? checked((uint)maxTicks) : null
         );
 
     /// <summary>
     /// Go <c>decodeClockIntent</c>: rebuilds the intent from its columns and refuses a row whose columns do not
-    /// round-trip, so a start row carrying renewal fields (or the reverse) is corrupt.
+    /// round-trip, so a start row carrying speed-change fields (or the reverse) is corrupt.
     /// </summary>
     internal static ClockIntent DecodeIntent(string id, PbCommon.AttemptKey attempt, IntentRow row)
     {
@@ -306,7 +294,6 @@ public static partial class ClockJournal
                     Start: new ClockStart(
                         (Pb.Speed)row.Speed,
                         Unmarshal<Pb.WatchPolicy>(Encoding.UTF8.GetBytes(row.Policy)),
-                        row.LeaseMs,
                         row.MaxTicks,
                         row.TestAcceleration,
                         row.BlindTickBudget,
@@ -314,9 +301,6 @@ public static partial class ClockJournal
                         row.PlayerAccelerated
                     )
                 );
-                break;
-            case "renew":
-                command = new ClockCommand(Renew: new ClockRenew(Unmarshal<Pb.Epoch>(Encoding.UTF8.GetBytes(row.Original)), row.LeaseMs));
                 break;
             case "speed":
                 command = new ClockCommand(

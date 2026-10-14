@@ -34,7 +34,7 @@ public sealed class LayersAnalyzer : GateAnalyzer
 
     /// <summary>
     /// Role denials on top of the order. Go also denied bridge->policy; the C# bridge returns Policy types by design
-    /// (go-to-csharp-port-conventions.md, "The catalog bridge"), so that denial is dropped. Go's store->gabp becomes
+    /// (go-to-csharp-port-conventions.md, "The catalog bridge"), so that denial is dropped. Go's store->transport becomes
     /// store -> the two transport projects.
     /// </summary>
     private static readonly string[][] Denied =

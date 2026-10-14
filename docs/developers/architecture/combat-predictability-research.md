@@ -273,8 +273,7 @@ durable datum. Diagnostic forecast/outcome emissions require a registered
 
 Ordinary native hold should remain useful. Issue targeted overrides only for
 an identified coordination or safety benefit and return to the role when it
-ends. Do not introduce draft-capable native reflex rules: the closed
-[native-rule whitelist](../contracts/native-rules.md) remains authoritative.
+ends. Do not introduce draft-capable native reflex rules; drafts stay plan-owned.
 
 ### 5.1 Fast combat simulation for search and policy development
 

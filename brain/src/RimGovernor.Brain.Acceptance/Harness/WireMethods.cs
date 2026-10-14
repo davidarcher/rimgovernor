@@ -36,12 +36,8 @@ public static class WireMethods
         ["observations_read_bills"] = (typeof(W.Observations.BillsRequest), typeof(W.Observations.BillsReply)),
         ["observations_read_recipes"] = (typeof(W.Observations.RecipesRequest), typeof(W.Observations.RecipesReply)),
         ["operations_apply"] = (typeof(W.Operations.ApplyRequest), typeof(W.Operations.ApplyReply)),
-        ["rules_attach"] = (typeof(W.Operations.RulesAttachRequest), typeof(W.Operations.RulesAttachReply)),
-        ["rules_clear"] = (typeof(W.Operations.RulesClearRequest), typeof(W.Operations.RulesClearReply)),
-        ["rules_read_status"] = (typeof(W.Operations.RulesStatusRequest), typeof(W.Operations.RulesStatusReply)),
         ["receipts_lookup"] = (typeof(W.Receipts.LookupRequest), typeof(W.Receipts.LookupReply)),
         ["clock_start"] = (typeof(W.Clock.StartRequest), typeof(W.Clock.ControlReply)),
-        ["clock_renew"] = (typeof(W.Clock.RenewRequest), typeof(W.Clock.ControlReply)),
         ["clock_change_speed"] = (typeof(W.Clock.SpeedRequest), typeof(W.Clock.ControlReply)),
         ["clock_pause"] = (typeof(W.Clock.OwnedRequest), typeof(W.Clock.StatusReply)),
         ["clock_read_status"] = (typeof(W.Clock.StatusRequest), typeof(W.Clock.StatusReply)),
@@ -80,7 +76,7 @@ public static class WireMethods
         ["presentation_overlay"] = (typeof(W.Presentation.OverlayRequest), typeof(W.Presentation.OverlayReply)),
         ["presentation_render_state"] = (typeof(W.Presentation.ReadRequest), typeof(W.Presentation.RenderReply)),
         ["presentation_render_demand"] = (typeof(W.Presentation.RenderDemand), typeof(W.Presentation.RenderReply)),
-        ["observations_open_snapshot_stream"] = (typeof(W.Observations.SnapshotStreamRequest), typeof(W.Observations.SnapshotStreamReply)),
+        ["observations_read_snapshot"] = (typeof(W.Observations.SnapshotReadRequest), typeof(W.Observations.SnapshotReadReply)),
         ["observations_flush_snapshot"] = (typeof(W.Observations.FlushSnapshotRequest), typeof(W.Observations.FlushSnapshotReply)),
     };
 

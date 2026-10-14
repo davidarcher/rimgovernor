@@ -369,44 +369,6 @@ public sealed class RitualConverter : ObjectCodec<Ritual>
     }
 }
 
-public sealed class RuleConverter : ObjectCodec<Rule>
-{
-    protected override Rule Read(JsonElement e, Codecs o) =>
-        new(
-            e.Str("Id"),
-            e.Get<RuleTrigger>("Trigger", o),
-            e.Get<EquatableArray<RulePredicate>>("Predicates", o),
-            e.Get<RuleActionKind>("Action", o),
-            e.Str("Job"),
-            e.Get<RuleTarget>("Target", o),
-            e.Get<uint>("Radius", o),
-            e.Get<float>("PredatorMarginCells", o)
-        );
-
-    protected override void WriteFields(Utf8JsonWriter w, Rule v, Codecs o)
-    {
-        w.WriteString("Id", v.Id);
-        w.Put("Trigger", v.Trigger, o);
-        w.Put("Predicates", v.Predicates, o);
-        w.Put("Action", v.Action, o);
-        w.WriteString("Job", v.Job);
-        w.Put("Target", v.Target, o);
-        w.WriteNumber("Radius", v.Radius);
-        w.WriteNumber("PredatorMarginCells", v.PredatorMarginCells);
-    }
-}
-
-public sealed class RulesAttachConverter : ObjectCodec<RulesAttach>
-{
-    protected override RulesAttach Read(JsonElement e, Codecs o) => new(e.Get<EquatableArray<Rule>>("Rules", o), e.I64("LeaseTicks"));
-
-    protected override void WriteFields(Utf8JsonWriter w, RulesAttach v, Codecs o)
-    {
-        w.Put("Rules", v.Rules, o);
-        w.WriteNumber("LeaseTicks", v.LeaseTicks);
-    }
-}
-
 public sealed class FilterSelectorConverter : ObjectCodec<FilterSelector>
 {
     protected override FilterSelector Read(JsonElement e, Codecs o) => new(e.Get<SelectorKind>("Kind", o), e.Str("Name"));

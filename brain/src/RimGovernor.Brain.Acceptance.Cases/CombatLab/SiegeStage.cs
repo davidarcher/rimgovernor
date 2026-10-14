@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -32,20 +31,14 @@ internal static class CombatLabSiegeStage
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("combatlab/siege-stage reads the snapshot ring from Windows named shared memory");
-        }
-
         await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
         var report = s.Report;
-        using var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
         var staged = await CombatStage.StageAsync(h, "lab-siege", cancellationToken).ConfigureAwait(false);
         var hostiles = staged.Hostiles();
         JsonObject? last = null;
@@ -103,7 +96,6 @@ internal static class CombatLabSiegeStage
 
     // siegeFarOpen reads the next combat frame and reports whether its emergency census lists an engaging besieger at
     // least siegeFarCells from the nearest colonist: the threat the fight opens on.
-    [SupportedOSPlatform("windows")]
     private static async Task<bool> FarOpenAsync(CombatFrames frames, IReadOnlyList<string> hostiles, Report report, CancellationToken cancellationToken)
     {
         var v = await frames.SnapshotAsync(0, cancellationToken).ConfigureAwait(false);

@@ -21,8 +21,6 @@ public interface IClockWriter
 
     Task<PbClock.ControlReply> StartAsync(PbClock.StartRequest request, CancellationToken ct);
 
-    Task<PbClock.ControlReply> RenewAsync(PbClock.RenewRequest request, PbClock.Epoch original, CancellationToken ct);
-
     Task<PbClock.ControlReply> ChangeSpeedAsync(PbClock.SpeedRequest request, PbClock.Epoch original, CancellationToken ct);
 }
 

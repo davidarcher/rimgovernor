@@ -83,7 +83,7 @@ public static partial class ClockJournal
                 continue;
             }
             var command = attempts[i].Intent.Command;
-            var original = command.Speed?.Original ?? command.Renew?.Original;
+            var original = command.Speed?.Original;
             if (original is null)
             {
                 continue;

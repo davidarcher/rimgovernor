@@ -49,7 +49,7 @@ internal static class ShelterBunks
         // The precondition must not already satisfy the outcome: the colony starts with no roofed room holding a bed.
         var (colonists, beside) = await UnhousedColonyAsync(s, report, cancellationToken).ConfigureAwait(false);
 
-        // Wood for the ring, dropped before the service takes the sole GABP slot.
+        // Wood for the ring, dropped before the service starts.
         var dropped = await h.CallAsync(
             "drop-wood",
             "test/hut_shell_fixture",

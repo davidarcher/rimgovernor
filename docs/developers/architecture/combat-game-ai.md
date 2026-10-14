@@ -1,6 +1,6 @@
 # Combat in the game: the rules the planner works against
 
-[Documentation](../../README.md) · [Architecture](overview.md) · [Weapon planner](../contracts/weapon-planner.md) · [Native rules](../contracts/native-rules.md) · [Predictive combat research](combat-predictability-research.md)
+[Documentation](../../README.md) · [Architecture](overview.md) · [Weapon planner](../contracts/weapon-planner.md) · [Predictive combat research](combat-predictability-research.md)
 
 RimWorld owns targeting, pathing, weapon execution and raid state. The brain owns squad
 composition, positions and tactical transitions. The game constants below are

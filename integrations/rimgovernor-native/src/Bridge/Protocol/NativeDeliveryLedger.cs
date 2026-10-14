@@ -68,8 +68,6 @@ namespace HomeBridge.BridgeTools
             if (kind != null) row = row with { SourceKind = kind.Value };
             return row;
         }
-
-        // The kill hook is shared: native rules (NativeRuleRuntime) trigger from it.
         internal static bool EnsureInstalled() { Install(); return installed; }
 
         private static void Install()
@@ -170,7 +168,6 @@ namespace HomeBridge.BridgeTools
                     PotentialNutrition = meat == null ? 0 : Math.Max(0, __instance.GetStatValue(StatDefOf.MeatAmount)) * meat.GetStatValueAbstract(StatDefOf.Nutrition),
                     Tick = Find.TickManager.TicksGame };
                 state.Kills.Add(record);
-                if (__instance.Faction == null) NativeRuleRuntime.OnPreyKilled(__0?.Instigator as Pawn, __instance);
             }
             catch (Exception error) { ModLog.Error("observe", "Kill counting failed: " + error); }
         }

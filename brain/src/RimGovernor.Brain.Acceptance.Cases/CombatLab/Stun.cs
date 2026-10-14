@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -21,15 +20,9 @@ internal static class CombatLabStun
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("combatlab/stun reads the snapshot ring from Windows named shared memory");
-        }
-
         await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
@@ -41,7 +34,7 @@ internal static class CombatLabStun
             throw new AcceptanceException($"staged {CaseSupport.Tag(mechs.Count)} mechs, want 1");
         }
 
-        using var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
 
         async Task<JsonObject> RowAsync(int tick)
         {

@@ -7,7 +7,6 @@ public static class AuthorityCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
-        registry.Register(AuthorityDisconnect.Case());
         registry.Register(AuthorityWarm.Case());
     }
 }

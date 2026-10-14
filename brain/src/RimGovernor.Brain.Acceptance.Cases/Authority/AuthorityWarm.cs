@@ -64,7 +64,6 @@ internal static class AuthorityWarm
                         ["attempt"] = new JsonObject { ["controllerSessionId"] = WarmController, ["actionId"] = "clock-start", ["attemptId"] = 1 },
                     },
                     ["speed"] = "SPEED_SUPERFAST",
-                    ["leaseMs"] = 30000,
                     ["maxTicks"] = 600000,
                     ["policy"] = new JsonObject
                     {

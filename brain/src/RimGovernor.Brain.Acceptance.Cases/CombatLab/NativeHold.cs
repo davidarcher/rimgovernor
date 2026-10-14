@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -26,15 +25,9 @@ internal static class CombatLabNativeHold
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("combatlab/native-hold reads the snapshot ring from Windows named shared memory");
-        }
-
         await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
@@ -57,7 +50,7 @@ internal static class CombatLabNativeHold
         }).ConfigureAwait(false);
         var defender = staged.Colonists()[0];
         var hostiles = new HashSet<string>(staged.Hostiles(), StringComparer.Ordinal);
-        using var frames = await CombatFrames.OpenAsync(h, identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(h, identity, cancellationToken).ConfigureAwait(false);
         _ = await Authority.GrantAutoAsync(h.WireFunc(), "native-hold-acquire", identity, cancellationToken).ConfigureAwait(false);
         await LabOps.DraftAllAsync(h, identity, "native-hold-draft", [defender], cancellationToken).ConfigureAwait(false);
 

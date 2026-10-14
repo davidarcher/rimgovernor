@@ -73,8 +73,6 @@ public static partial class ClockJournal
             or Pb.ClockEventEvent.ForcePauseWaitingCase
             or Pb.ClockEventEvent.OperationOutcomeCase
             or Pb.ClockEventEvent.AuthorityChangedCase
-            or Pb.ClockEventEvent.RuleFiredCase
-            or Pb.ClockEventEvent.RuleLeaseExpiredCase
             or Pb.ClockEventEvent.ObservationInvalidatedCase
             or Pb.ClockEventEvent.AlertCase
             or Pb.ClockEventEvent.InjuryObservedCase

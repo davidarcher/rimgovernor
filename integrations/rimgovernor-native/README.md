@@ -53,7 +53,7 @@ initialize inactive authority; only the trusted host's explicit control path can
 acquire it. Model interpretation receives no control or execution capability.
 
 Operations implement temporary `SetDrafted` and guarded `AttackTarget`. Other command variants remain unsupported.
-Admission checks current identity, generation, lease and
+Admission checks current identity, generation and
 ordinary native placement rules on the game thread. One unsaved per-load ledger
 retains up to 4096 attempts without eviction. Exact retries return the original
 receipt after revocation; changed requests conflict. Applied records an observed

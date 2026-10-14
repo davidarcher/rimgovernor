@@ -10,7 +10,7 @@ public sealed partial class ClockCoordinator
     public Task<(ClockAttempt? Attempt, Exception? Error)> CommandWindow(ClockWindowRequest request, CancellationToken ct)
     {
         var intent = request.Intent;
-        if (intent.Window is null || intent.Command.Start is null || intent.Command.Renew is not null || intent.Command.Speed is not null)
+        if (intent.Window is null || intent.Command.Start is null || intent.Command.Speed is not null)
         {
             return Held();
         }

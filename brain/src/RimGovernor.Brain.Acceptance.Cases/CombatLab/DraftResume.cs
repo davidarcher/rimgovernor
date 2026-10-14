@@ -78,7 +78,7 @@ public static class CombatLabResume
             _ = await service.StopAsync().ConfigureAwait(false);
         }
 
-        // Kill mid-fight and restart on the same journal. The game frees the GABP slot shortly after the kill, so the
+        // Kill mid-fight and restart on the same journal. The game may need a moment after the kill, so the
         // restart may retry.
         var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(90);
         ServiceProcess restarted;

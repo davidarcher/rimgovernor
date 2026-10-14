@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Host;
 
 /// <summary>
 /// The typed native client over <see cref="INativeFacade"/> (#3113): what Go's <c>bridge.Client</c> was to the
-/// planners, minus the transport (GABP, the shared-memory ring, leases, reconnect, blind ticks). Each Go
+/// planners, minus the transport (there is none: the facade is an in-process call). Each Go
 /// <c>Client.ReadX</c> is one <c>ReadXAsync</c> core method here that builds the request, makes the facade call,
 /// unwraps the reply's outcome and validates it the way the Go decoder did.
 /// </summary>

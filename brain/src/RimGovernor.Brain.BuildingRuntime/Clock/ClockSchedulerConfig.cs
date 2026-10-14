@@ -113,8 +113,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsHusbandryPlanner? Husbandry { get; init; }
 
-    public RoundsRulesPlanner? Rules { get; init; }
-
     public RoundsPrisonerInteractionPlanner? PrisonerInteraction { get; init; }
 
     public RoundsPopulationCustodyPlanner? PopulationCustody { get; init; }

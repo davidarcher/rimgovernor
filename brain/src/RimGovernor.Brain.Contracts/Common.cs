@@ -81,8 +81,6 @@ public enum FailureCode
     StaleGeneration = 4,
     [WireName("FAILURE_CODE_AUTHORITY_REQUIRED")]
     AuthorityRequired = 5,
-    [WireName("FAILURE_CODE_LEASE_EXPIRED")]
-    LeaseExpired = 6,
     [WireName("FAILURE_CODE_OWNER_CONFLICT")]
     OwnerConflict = 7,
     [WireName("FAILURE_CODE_ATTEMPT_CONFLICT")]

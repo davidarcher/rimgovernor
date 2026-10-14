@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// What a case's Run receives: the open, prepared game (Go <c>cases.Session</c>); <see cref="CaseSession"/> implements it
 /// over the session opener. The brain is in-process in the mod, so the Go <c>Rimgovernor</c> member (the prebuilt serve
-/// binary) is gone, and <see cref="Release"/> / <see cref="Reattach"/> are trivial: there is no sole GABP slot to hand over.
+/// binary) is gone, and <see cref="Release"/> / <see cref="Reattach"/> are trivial: the HTTP channel has no exclusive slot to hand over.
 /// </summary>
 public interface ISession
 {

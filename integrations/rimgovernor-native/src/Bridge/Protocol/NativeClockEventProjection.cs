@@ -83,7 +83,6 @@ namespace HomeBridge.BridgeTools
                 case "external_pause": return Clock.StopReason.ExternalPause;
                 case "letter_pause": return Clock.StopReason.LetterPause;
                 case "external_speed_changed": return Clock.StopReason.ExternalSpeedChanged;
-                case "lease_expired": return Clock.StopReason.LeaseExpired;
                 case "watcher_error": return Clock.StopReason.WatcherError;
                 case "event_journal_error": return Clock.StopReason.EventJournalError;
                 case "force_paused": return Clock.StopReason.ForcePaused;
@@ -109,7 +108,7 @@ namespace HomeBridge.BridgeTools
             var result = new Clock.ClockEvent { Cursor = cursor, Context = context, ObservedAtUnixMs = observedAt, Detail = Text(detail) };
             // Only an authority change observed outside an epoch has no owner.
             if (owner != null) result = result with { Owner = owner };
-            else if (kind != "authority_changed" && kind != "rule_fired" && kind != "rule_lease_expired") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
+            else if (kind != "authority_changed") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
             switch (kind)
             {
                 case "authority_changed":
@@ -121,13 +120,6 @@ namespace HomeBridge.BridgeTools
                     result = result with { Event = changed };
                     break;
                 }
-                case "rule_fired":
-                    result = result with { Event = new Clock.RuleFired { RuleId = Id(String(P(), "ruleId")), Job = Id(String(P(), "job")), Radius = checked((uint)Number(P(), "radius")),
-                        ActorId = Id(String(P(), "actorId")), TargetId = Id(String(P(), "targetId")), Tick = Number(P(), "tick") } };
-                    break;
-                case "rule_lease_expired":
-                    result = result with { Event = new Clock.RuleLeaseExpired { ExpiresAtTick = Number(P(), "expiresAtTick"), Deactivated = checked((uint)Number(P(), "deactivated")) } };
-                    break;
                 case "observation_invalidated":
                 {
                     var invalidated = new Clock.ObservationInvalidated { Reason = Text(String(P(), "reason")), Families = EquatableArray.From(FamilyNames(P())) };

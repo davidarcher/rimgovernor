@@ -197,7 +197,7 @@ Kept, reason recorded:
 | NativeClearanceObservationTools.cs | 428 | mixed | Clearance target census with salvage evidence cache, ancient-danger and hive-danger checks; mostly live state. | Classify() ThingDefOf.ShipChunk/Wall checks (3 defs); HiveDangerRadius=14; salvageSignatureEveryTicks=60 | Go rule over ThingDef rows (ShipChunk/Wall by defName/thingClass); HiveDangerRadius into GameConstants (#2626) |
 | NativeClockEventProjection.cs | 212 | code | Projects clock-journal event rows into typed Clock.Event protos; clock transport infrastructure. |  |  |
 | NativeClockRuntime.cs | 549 | state | Clock epoch runtime: leases, speed, pause holds, event journal pages and authority. |  |  |
-| NativeClockTools.cs | 161 | state | Tool handlers for clock start/renew/change-speed/read-events. |  |  |
+| NativeClockTools.cs | 150 | state | Tool handlers for clock start/change-speed/read-events. |  |  |
 | NativeColonyObservationTools.cs | 558 | mixed | Reads the whole colony facts frame (food, power, wealth, crops, conditions) from live game state. | CropDefs DefDatabase enumeration (conduit list deleted, #2657) | kept, see the #2657 disposition |
 | NativeCombatGeometryTools.cs | 234 | code | Combat geometry read: cover, line of fire and path ticks via CoverUtility/GenSight/pathfinder. |  |  |
 | NativeCombatOperations.cs | 47 | code | Attack rules: picks melee or ranged attack job per vanilla float-menu logic. |  |  |
@@ -303,10 +303,6 @@ Kept, reason recorded:
 | NativeRitual.cs | 243 | code | RitualIntent: starts bestowing ceremony via the bestower toil gizmo and begins held ritual precepts through Command_Ritual and Dialog_BeginRitual. |  |  |
 | NativeRoomObservationTools.cs | 221 | state | Room census with geometry, temperature, beds, doors, stockpile membership and room stats. | Fixed list of 5 RoomStatDefOf (Cleanliness, Wealth, Space, Beauty, Impressiveness) read per room | RoomStatDef rows (stat names only; values stay live) |
 | NativeRoyaltyColony.cs | 110 | mixed | Royalty colony section: player thrones, pending bestowing ceremonies, and neuroformer/neurotrainer stock. | ReadNeuroformers def enumeration (PsychicAmplifier plus ThingCategory NeurotrainersPsycast defs), TeachesPsycast from CompProperties_UseEffect_GainAbility, Craftable (any recipe product), Tradeable (def.tradeability), ~20 lines | ThingDef.thingCategories + ThingDef.comps (use-effect ability) + ThingDef.tradeability; Craftable = Go rule over RecipeDef.products; Held count and ceremonies stay state |
-| NativeRuleBook.cs | 135 | state | Lease ledger of attached native rules with validation, per-actor cooldown and firing counts. |  |  |
-| NativeRuleRuntime.cs | 174 | code | Harmony DoSingleTick hook that fires PreyKilled rules by finding nearest designated prey and issuing a prioritized Hunt job. |  |  |
-| NativeRuleTools.cs | 68 | state | Bridge tools rules_attach, rules_clear and rules_read_status delegating to the rule runtime. |  |  |
-| NativeRulesAttach.cs | 39 | state | RulesAttachIntent action handler that validates through a throwaway rule book and attaches rules with a lease. |  |  |
 | NativeShrineBreachSafety.cs | 38 | code | Computes structural cells of ancient shrine rooms around a candidate breach wall for the roof-support check. |  |  |
 | NativeShrineObservationTools.cs | 160 | state | Ancient shrine census: casket groups, room rect, guards, occupants and safe breach walls. |  |  |
 | NativeSiteExtraction.cs | 62 | code | Quest site extraction facts: crew, exit cells, caravan carry capacity, food days, cargo and home routes via caravan dialog and path finders. |  |  |
@@ -353,11 +349,9 @@ Kept, reason recorded:
 | ProtoOverlayTools.cs | 110 | state | Draws a named controller overlay layer of cell shapes and labels on the map. |  | none |
 | ProtoPresentationMediaTools.cs | 71 | state | Reads and leases the controller rendering demand state. |  | none |
 | ReplyEncoder.cs | 52 | code | Bounded encoder-worker slot reservation for detached replies. |  | none |
-| ReplyRing.cs | 156 | code | Shared-memory reply ring for large proto-shm replies. |  | none |
 | RowDiff.cs | 57 | code | Per-row hash compare of a keyed family to report changed and removed ids. |  | none |
 | SnapshotFrames.cs | 282 | mixed | Captures one whole snapshot stream frame of all state families plus combat inputs in one hop. | CombatInputs copies mortar verbProps minRange and range and caps (64 doors, 16 mortars); hive ThingDefOf constant | ThingDef verbs (VerbProperties.minRange and range) of the turret gun def; caps as GameConstants (#2626) or Go |
-| SnapshotSections.cs | 174 | code | Elides unchanged singleton sections and delta-encodes keyed tables with watermarks. |  | none |
-| SnapshotStream.cs | 367 | state | Opens the snapshot ring, schedules frame captures on ticks, pause edges and writes, and publishes frames. |  | none |
+| SnapshotStream.cs | 300 | state | Opens the frame handoff and the pull read, schedules frame captures on ticks, pause edges and writes, and publishes frames. |  | none |
 | SocialBeerBill.cs | 32 | code | Harmony patch making a reserve beer bill count stocked beer and fermenting wort. | Hardcoded defName Beer lookup (1 line) | ThingDef row by defName Beer or a Go rule |
 
 ## observations.proto messages and enums
@@ -806,7 +800,7 @@ Kept, reason recorded:
 | ObservationBatchSnapshot | message | 2219 | 9 | state | Batch of status, pawns, supplies, buildings, rooms, zones reads |  |  |
 | ObservationBatchRequest | message | 2224 | 7 | state | Request envelope for the batch read |  |  |
 | ObservationBatchReply | message | 2225 | 3 | state | Outcome oneof of batch read |  |  |
-| SnapshotStreamRequest | message | 2247 | 5 | state | Stream subscription: resource sources, keyframe flag, budgets |  |  |
+| SnapshotStreamRequest | message | 2247 | 5 | state | Stream subscription: resource sources, budgets |  |  |
 | DefinitionCatalog | message | 2265 | 12 | static | Catalog envelope holding def mirror, stat table, facts, constants | thing_defs,terrain_defs,defs,class_chains,research | already the def mirror itself (defs.proto ThingDef/TerrainDef/DefSets); research duplicates DefSets ResearchProjectDef rows |
 | ClassChain | message | 2299 | 2 | static | CLR class and its bases for def class matching | name,bases | none in defs.proto; reflection over assemblies; keep as Go ClassIsA index |
 | ThingDefFacts | message | 2310 | 4 | code | Game-computed ThingDef flags (food kind, meal ingredients; raw meat, medicine and room roles are Go, #2632) |  |  |
@@ -863,7 +857,7 @@ Kept, reason recorded:
 | DefinitionCatalogRequest | message | 2746 | 2 | state | Request envelope for the catalog read |  |  |
 | CreationDefinitionCatalog | message | 2748 | 2 | static | Def mirror before a world exists | defs,class_chains | already the DefSets mirror itself |
 | DefinitionCatalogReply | message | 2749 | 4 | state | Outcome oneof of catalog read |  |  |
-| SnapshotStreamOpened | message | 2750 | 3 | state | Shared-memory ring name, slots and slot bytes |  |  |
+| SnapshotStreamOpened | message | 2750 | 3 | state | Stream name (in-process) |  |  |
 | SnapshotStreamReply | message | 2755 | 3 | state | Outcome oneof of stream open |  |  |
 | FlushSnapshotRequest | message | 2758 | 0 | state | Flush request (empty) |  |  |
 | FlushSnapshotReply | message | 2759 | 2 | state | Outcome oneof of flush |  |  |

@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
     // back toward the boosted rate. The epoch holds neverForceNormalSpeed, so
     // the game's forced slowdown never applies. Every tick of such an epoch runs
     // the full frame check (OnUpdate) first, as an accelerated epoch does: ownership,
-    // lease, a player pause and the tick-bounded hazard probe are checked
+    // a player pause and the tick-bounded hazard probe are checked
     // between any two ticks of a frame, however many the frame carries.
     internal static partial class Supervisor
     {

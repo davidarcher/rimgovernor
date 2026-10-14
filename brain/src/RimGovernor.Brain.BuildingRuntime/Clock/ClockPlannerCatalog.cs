@@ -310,8 +310,6 @@ internal static class ClockPlannerCatalog
             c => c.AnimalContainment is not null, (s, ct, e, a) => s.Config.AnimalContainment!.StepAsync(a, ct, e), (o, m) => o.AnimalContainment = m, MaintainAnimalContainment),
         E("recovery", C, PlannerPriority.Critical, [ActionKind.RecoveryService, ActionKind.WorkAssignment, ActionKind.Husbandry], SectionsRecovery,
             c => c.Recovery is not null, (s, ct, e, a) => s.Config.Recovery!.StepAsync(a, ct, e), (o, m) => o.Recovery = m),
-        E("rules", O, PlannerPriority.Maintenance, [ActionKind.RulesAttach], SectionsWork,
-            c => c.Rules is not null, (s, ct, e, a) => s.Config.Rules!.StepAsync(a, ct, e), (o, m) => o.Rules = m, EnsureFoodSupply, every: new Tick(ReviewEveryRounds.Value / 2)),
         E("husbandry", O, PlannerPriority.Maintenance, [ActionKind.Husbandry], [FactSection.Pawns, FactSection.Colony],
             c => c.Husbandry is not null, (s, ct, e, a) => s.Config.Husbandry!.StepAsync(a, ct, e), (o, m) => o.Husbandry = m),
         E("prisonerInteraction", O, PlannerPriority.Maintenance, [ActionKind.PrisonerInteraction], [FactSection.Population, FactSection.Pawns],

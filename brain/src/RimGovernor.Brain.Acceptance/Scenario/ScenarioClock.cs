@@ -57,7 +57,6 @@ public sealed class ScenarioClock
     {
         "external_pause",
         "external_speed_changed",
-        "lease_expired",
         "session_changed",
         "unavailable",
         "watcher_error",
@@ -102,9 +101,6 @@ public sealed class ScenarioClock
     /// </summary>
     public bool TestAcceleration { get; set; }
 
-    /// <summary>The lease every clock_start requests; zero means 30000.</summary>
-    public uint LeaseMs { get; set; }
-
     /// <summary>
     /// The current authority grant (SetMode(Auto)'s "granted" body: {context, authority}); its
     /// context.nativeGeneration is the generation every owned write below is admitted against. Settable so callers
@@ -123,8 +119,6 @@ public sealed class ScenarioClock
 
     /// <summary>The epoch of the latest admitted control.</summary>
     public ulong Epoch { get; private set; }
-
-    private uint EffectiveLeaseMs => LeaseMs == 0 ? 30000 : LeaseMs;
 
     private JsonObject Precondition()
     {
@@ -192,7 +186,7 @@ public sealed class ScenarioClock
         }
     }
 
-    /// <summary>Issues one owned clock control call (start/renew/change_speed) and projects its admitted status, mirroring TypedScenarioClock.control().</summary>
+    /// <summary>Issues one owned clock control call (start/change_speed) and projects its admitted status, mirroring TypedScenarioClock.control().</summary>
     public async Task<JsonObject> ControlAsync(string method, JsonObject request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -328,7 +322,6 @@ public sealed class ScenarioClock
             ["authority"] = Precondition(),
             ["speed"] = "SPEED_" + speed.ToUpperInvariant(),
             ["policy"] = ScenarioPolicy(),
-            ["leaseMs"] = EffectiveLeaseMs,
             ["maxTicks"] = maxTicks,
         };
         if (TestAcceleration)

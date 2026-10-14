@@ -10485,12 +10485,11 @@ public abstract record ObservationBatchReplyOutcome
 }
 
 /// <summary>
-/// The snapshot stream: native publishes whole BundleSnapshot frames
-/// into a named shared-memory ring and signals a named event; this request
-/// opens it (or replaces its subscription) and names the ring. A frame carries
-/// every state family whole (no page caps, no field masks) plus the
-/// subscription's resource sources, and the whole map as a
-/// cell grid. Clock status stays a dedicated read.
+/// The snapshot stream: native captures whole BundleSnapshot frames and hands
+/// the newest to the in-process brain; this request opens it (or replaces its
+/// subscription). A frame carries every state family whole (no page caps, no
+/// field masks) plus the subscription's resource sources, and the whole map as
+/// a cell grid. Clock status stays a dedicated read.
 /// </summary>
 public sealed record SnapshotStreamRequest
 {
@@ -10499,13 +10498,6 @@ public sealed record SnapshotStreamRequest
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> ResourceSources { get; init; }
-
-    /// <summary>
-    /// Only makes the next frame a keyframe, carrying every section;
-    /// the subscription and the other fields are left as they are. Every
-    /// other open is a keyframe too.
-    /// </summary>
-    public bool? Keyframe { get; init; }
 
     /// <summary>
     /// Main-thread milliseconds one frame may spend measuring route path costs
@@ -11178,13 +11170,9 @@ public abstract record DefinitionCatalogReplyOutcome
 public sealed record SnapshotStreamOpened
 {
     /// <summary>
-    /// mapping name; the ready event is name + "-ready"
+    /// the stream's name; always "in-process"
     /// </summary>
     public string Name { get; init; } = "";
-
-    public uint Slots { get; init; }
-
-    public uint SlotBytes { get; init; }
 }
 
 public sealed record SnapshotStreamReply
@@ -11224,6 +11212,81 @@ public abstract record SnapshotStreamReplyOutcome
     public sealed record FailureCase(Common.Failure Value) : SnapshotStreamReplyOutcome;
 
     public static implicit operator SnapshotStreamReplyOutcome(Common.Failure value) => new FailureCase(value);
+}
+
+/// <summary>
+/// Reads the newest captured snapshot frame over the tool channel (the acceptance
+/// harness; the in-process brain takes frames through the facade's frame channel).
+/// The first read subscribes the default shape and makes the next frame capture.
+/// </summary>
+public sealed record SnapshotReadRequest
+{
+    /// <summary>
+    /// Only a frame numbered past this is returned; the head and write counters always are.
+    /// </summary>
+    public ulong? AfterNumber { get; init; }
+}
+
+public sealed record SnapshotRead
+{
+    /// <summary>
+    /// the newest captured frame's number, 0 before the first
+    /// </summary>
+    public ulong Head { get; init; }
+
+    /// <summary>
+    /// the applied-write counter now: a frame captured at or past it reflects every write that returned before this read
+    /// </summary>
+    public long Writes { get; init; }
+
+    /// <summary>
+    /// the write counter the returned frame was captured at
+    /// </summary>
+    public long FrameWrites { get; init; }
+
+    /// <summary>
+    /// the newest frame when it is numbered past the request's after_number
+    /// </summary>
+    public BundleSnapshot? Frame { get; init; }
+}
+
+public sealed record SnapshotReadReply
+{
+    public SnapshotReadReplyOutcome? Outcome { get; init; }
+}
+
+/// <summary>The <c>outcome</c> choice of <see cref="SnapshotReadReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SnapshotReadReplyOutcome.ReadCase), "read")]
+[JsonDerivedType(typeof(SnapshotReadReplyOutcome.UnavailableCase), "unavailable")]
+[JsonDerivedType(typeof(SnapshotReadReplyOutcome.FailureCase), "failure")]
+public abstract record SnapshotReadReplyOutcome
+{
+    private protected SnapshotReadReplyOutcome() { }
+
+    /// <summary>The <c>Read</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public SnapshotRead? Read => (this as ReadCase)?.Value;
+
+    public sealed record ReadCase(SnapshotRead Value) : SnapshotReadReplyOutcome;
+
+    public static implicit operator SnapshotReadReplyOutcome(SnapshotRead value) => new ReadCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
+    public sealed record UnavailableCase(Common.Unavailable Value) : SnapshotReadReplyOutcome;
+
+    public static implicit operator SnapshotReadReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
+
+    public sealed record FailureCase(Common.Failure Value) : SnapshotReadReplyOutcome;
+
+    public static implicit operator SnapshotReadReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>

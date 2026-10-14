@@ -12,7 +12,6 @@ using Kind = HomeBridge.BridgeTools.NativeAttemptLedger.DecisionKind;
 internal static class ClockLedgerChecks
 {
     private const string Start = "rimgovernor.clock.v1.Clock/Start";
-    private const string Renew = "rimgovernor.clock.v1.Clock/Renew";
     private const string Speed = "rimgovernor.clock.v1.Clock/ChangeSpeed";
     private static int checks;
     private static void Check(bool value, string detail) { checks++; if (!value) throw new Exception(detail); }
@@ -25,7 +24,7 @@ internal static class ClockLedgerChecks
     private static Authority.WritePrecondition Pre(ulong id = 1) => new Authority.WritePrecondition
         { Identity = Identity(), ExpectedGeneration = 3, Attempt = new Common.AttemptKey { ControllerSessionId = "controller", ActionId = "action", AttemptId = id } };
     private static Clock.StartRequest Request(ulong id = 1) => new Clock.StartRequest
-        { Authority = Pre(id), Speed = Clock.Speed.Normal, LeaseMs = 1000, MaxTicks = 100, Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0 } };
+        { Authority = Pre(id), Speed = Clock.Speed.Normal, MaxTicks = 100, Policy = new Clock.WatchPolicy { Mode = Clock.WatchMode.Colony, HealthDropFraction = 0 } };
     private static Clock.Status Status() => new Clock.Status { Context = Context(), State = new Clock.NeverStarted(), ActualPaused = true };
     internal static int Run()
     {
@@ -85,7 +84,7 @@ internal static class ClockLedgerChecks
         foreach (var change in new Func<Clock.StartRequest, Clock.StartRequest>[] {
             r => r with { Authority = r.Authority with { ExpectedGeneration = r.Authority.ExpectedGeneration + 1 } },
             r => r with { Authority = r.Authority with { Identity = r.Authority.Identity with { MapId = 1 } } },
-            r => r with { Speed = Clock.Speed.Fast }, r => r with { LeaseMs = r.LeaseMs + 1 }, r => r with { MaxTicks = r.MaxTicks + 1 },
+            r => r with { Speed = Clock.Speed.Fast }, r => r with { MaxTicks = r.MaxTicks + 1 },
             r => r with { Policy = r.Policy with { HealthDropFraction = null } },
             r => r with { Policy = r.Policy with { AcknowledgedHostileIds = ["hostile"] } } })
         {
@@ -110,7 +109,7 @@ internal static class ClockLedgerChecks
         ThrowsJson(() => RimGovernor.Contracts.Wire.WireJson.Deserialize<Clock.StartRequest>("{\"unexpected\":1," + originalJson.Substring(1)), "clock unknown root member rejected");
         ThrowsJson(() => RimGovernor.Contracts.Wire.WireJson.Deserialize<Clock.StartRequest>(originalJson.Replace("\"policy\":{", "\"policy\":{\"unexpected\":1,")), "clock unknown nested member rejected");
         Check(ledger.InspectClock(Start.ToLowerInvariant(), original).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "clock full method spelling is fixed");
-        Check(ledger.InspectClock(Renew, original).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "clock request cannot impersonate another method");
+        Check(ledger.InspectClock(Speed, original).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "clock request cannot impersonate another method");
         Check(ledger.InspectClock(Start, new Clock.OwnedRequest()).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "unguarded pause is outside admitted request union");
         Check(ledger.InspectClock(Start, new Receipts.LookupRequest()).Reply!.Failure.Code == Common.FailureCode.InvalidRequest, "other messages cannot be smuggled as clock requests");
         var repeated = Request(10) with { Policy = Request(10).Policy with { AcknowledgedHostileIds = ["first", "second"] } };
@@ -121,21 +120,14 @@ internal static class ClockLedgerChecks
     private static void Variants(NativeAttemptLedger ledger)
     {
         var epoch = new Clock.OwnedRequest { Identity = Identity(), Owner = new Clock.EpochOwner { ControllerSessionId = "controller", Epoch = 1 } };
-        var renew = new Clock.RenewRequest { Authority = Pre(3), Epoch = epoch, LeaseMs = 1000 };
-        var admission = ledger.AdmitClock(Renew, renew, Context());
-        Check(admission.Kind == Kind.Admitted, "typed renew admitted");
-        var uncertain = ledger.FinishClockUncertain(admission.Handle!, null, "unknown native result");
-        Check(uncertain.Uncertain.LastObserved == null && ledger.InspectClock(Renew, renew).Kind == Kind.Replay, "renew uncertainty is retained");
-        var changedRenew = renew with { Epoch = renew.Epoch with { Owner = renew.Epoch.Owner with { Epoch = renew.Epoch.Owner.Epoch + 1 } } };
-        Check(ledger.InspectClock(Renew, changedRenew).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "original epoch ownership participates in retry equality");
         var speed = new Clock.SpeedRequest { Authority = Pre(4), Epoch = epoch, Speed = Clock.Speed.Superfast };
-        admission = ledger.AdmitClock(Speed, speed, Context());
+        var admission = ledger.AdmitClock(Speed, speed, Context());
         Check(admission.Kind == Kind.Admitted, "typed speed change admitted");
         var evidence = Status();
         var receipt = ledger.FinishClockUncertain(admission.Handle!, evidence, "partially observed");
         var mutatedEvidence = evidence with { ActualPaused = false };
         Check(mutatedEvidence.ActualPaused == false && receipt.Uncertain.LastObserved.ActualPaused == true && ledger.LookupClock(speed.Authority.Attempt, Context()).Receipt.Equals(receipt), "uncertain speed status is detached and retained");
-        var conflictingSpeed = speed with { Authority = renew.Authority };
+        var conflictingSpeed = speed with { Authority = Pre(10) };
         Check(ledger.InspectClock(Speed, conflictingSpeed).Reply!.Failure.Code == Common.FailureCode.AttemptConflict, "clock methods share attempt namespace");
         var max = Request(ulong.MaxValue);
         Check(ledger.AdmitClock(Start, max, Context()).Kind == Kind.Admitted, "clock uint64 maximum attempt is preserved");

@@ -133,8 +133,6 @@ public static partial class BridgeFunctions
             || e.TickDeadline.GetValueOrDefault() - e.StartTick.GetValueOrDefault() > 1800000
             || e.LastTick is null
             || e.LastTick.GetValueOrDefault() < e.StartTick.GetValueOrDefault()
-            || e.LeaseRemainingMs is null
-            || e.LeaseRemainingMs.GetValueOrDefault() > 30000
             || e.RequestedSpeed is null
             || (int)e.RequestedSpeed.GetValueOrDefault() < 1
             || (int)e.RequestedSpeed.GetValueOrDefault() > 4)

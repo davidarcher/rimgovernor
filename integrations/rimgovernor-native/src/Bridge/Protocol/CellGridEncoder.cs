@@ -15,21 +15,11 @@ namespace HomeBridge.BridgeTools
     /// The whole-map cell grid every snapshot frame carries: one
     /// array per policy.SiteCell field, with the sentinels and string table
     /// the CellGrid comment (mirror.proto) defines. Read reads the map on
-    /// the game thread; Attach encodes it on the encoder worker, a keyframe
-    /// (every array) on a stream keyframe, a map change, a failed read or
-    /// every KeyframeSeconds, else a delta carrying only the arrays that
-    /// differ from that keyframe, each dense or sparse, whichever is
-    /// smaller. Deltas are cumulative against the keyframe, so a reader
-    /// that skips frames needs only the keyframe. A delta that would carry
-    /// every array is sent as a new keyframe instead.
-    ///
-    /// Attach runs one frame at a time (SnapshotStream's pending gate), so
-    /// its state needs no lock.
+    /// the game thread; AttachWhole encodes it on the encoder worker, every
+    /// array whole.
     /// </summary>
     internal static class CellGridEncoder
     {
-        internal const long KeyframeSeconds = 30;
-
         internal enum Kind : byte { Code, Number, Index }
 
         // The CellGrid arrays in field order (cell first); Read fills its
@@ -216,37 +206,9 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        // Encoder worker state: the keyframe deltas are against.
-        private static GridRead? keyframe;
-        private static ulong keyframeSeq;
-        private static long keyframeAt;
-
-        /// On the encoder worker: adds read to frame as a keyframe or a
-        /// delta against the held keyframe. A null read (the capture failed)
-        /// adds nothing and makes the next grid a keyframe.
-        internal static Obs.BundleSnapshot Attach(Obs.BundleSnapshot frame, GridRead? read, bool streamKeyframe)
-        {
-            if (read == null) { keyframe = null; return frame; }
-            var now = Stopwatch.GetTimestamp();
-            var held = keyframe;
-            Mirror.CellGrid? grid = null;
-            if (!streamKeyframe && held != null && held.MapId == read.MapId && held.X == read.X && held.Z == read.Z && held.Width == read.Width && held.Height == read.Height
-                && now - keyframeAt < KeyframeSeconds * Stopwatch.Frequency)
-                grid = Encode(read, held);
-            if (grid == null)
-            {
-                grid = Encode(read, null)!;
-                keyframe = read;
-                keyframeSeq++;
-                keyframeAt = now;
-            }
-            return frame with { Grid = grid, KeyframeSeq = keyframeSeq, SkyGlow = read.SkyGlow };
-        }
-
         private static ulong wholeSeq;
 
-        /// On the encoder worker: adds read to frame as a keyframe for the in-process subscriber, leaving the
-        /// ring's held keyframe alone. A null read adds nothing.
+        /// On the encoder worker: adds read to frame as a whole grid. A null read adds nothing.
         internal static Obs.BundleSnapshot AttachWhole(Obs.BundleSnapshot frame, GridRead? read)
         {
             if (read == null) return frame;

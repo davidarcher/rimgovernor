@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -31,17 +30,6 @@ internal static class ApplyDeferredSnapshot
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("apply/deferred_snapshot reads the snapshot ring from Windows named shared memory");
-        }
-
-        await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
-    }
-
-    [SupportedOSPlatform("windows")]
-    private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
-    {
         var h = s.Harness;
         var report = s.Report;
         if (!Dyn.Contains(s.Names, "rimgovernor/observations_flush_snapshot"))
@@ -49,25 +37,18 @@ internal static class ApplyDeferredSnapshot
             throw new AcceptanceException("missing rimgovernor/observations_flush_snapshot in discovery");
         }
 
-        var opened = await h.WireAsync("open-stream", "observations_open_snapshot_stream", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        var name = opened["opened"].AsMap()?["name"].AsString() ?? "";
-        if (name.Length == 0)
-        {
-            throw new AcceptanceException($"snapshot stream not opened: {opened.ToJson()}");
-        }
-
-        using var reader = SnapshotRingReader.Open(name);
+        var reader = new SnapshotPoller(h);
 
         // Burst sends DeferredBurst refused applies (a refusal is still an applied write to the stream) and reports the
         // frames captured while it ran and the write count it ends at.
         async Task<(ulong Frames, long Writes)> Burst(string label, bool deferred)
         {
-            if (!await WaitFrameAsync(reader, reader.Writes(), FrameWait, cancellationToken).ConfigureAwait(false))
+            if (!await WaitFrameAsync(reader, await reader.WritesAsync(cancellationToken).ConfigureAwait(false), FrameWait, cancellationToken).ConfigureAwait(false))
             {
                 throw new AcceptanceException($"{label}: no frame caught up before the burst");
             }
 
-            var start = reader.Head();
+            var start = await reader.HeadAsync(cancellationToken).ConfigureAwait(false);
             for (var i = 0; i < DeferredBurst; i++)
             {
                 var request = new JsonObject
@@ -83,7 +64,7 @@ internal static class ApplyDeferredSnapshot
                 _ = await h.WireAsync(string.Create(CultureInfo.InvariantCulture, $"{label}-{i}"), "operations_apply", request, cancellationToken).ConfigureAwait(false);
             }
 
-            return (reader.Head() - start, reader.Writes());
+            return (await reader.HeadAsync(cancellationToken).ConfigureAwait(false) - start, await reader.WritesAsync(cancellationToken).ConfigureAwait(false));
         }
 
         var (plain, _) = await Burst("plain", deferred: false).ConfigureAwait(false);
@@ -124,19 +105,24 @@ internal static class ApplyDeferredSnapshot
     }
 
     /// <summary>Waits up to <paramref name="limit"/> for a committed frame captured at or past <paramref name="writes"/>.</summary>
-    [SupportedOSPlatform("windows")]
-    private static async Task<bool> WaitFrameAsync(SnapshotRingReader reader, long writes, TimeSpan limit, CancellationToken cancellationToken)
+    private static async Task<bool> WaitFrameAsync(SnapshotPoller reader, long writes, TimeSpan limit, CancellationToken cancellationToken)
     {
         var deadline = DateTime.UtcNow + limit;
+        ulong seen = 0;
         while (DateTime.UtcNow < deadline && !cancellationToken.IsCancellationRequested)
         {
-            var frame = reader.Latest();
-            if (frame is not null && frame.Writes >= writes)
+            var frame = await reader.LatestAsync(seen, cancellationToken).ConfigureAwait(false);
+            if (frame is not null)
             {
-                return true;
+                if (frame.Writes >= writes)
+                {
+                    return true;
+                }
+
+                seen = frame.Number;
             }
 
-            _ = await reader.WaitAsync(frame?.Number ?? 0, TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
+            _ = await reader.WaitAsync(seen, TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
         }
 
         return false;

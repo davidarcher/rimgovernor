@@ -493,30 +493,8 @@ internal sealed class ClockEventPoll(
                 case PbClock.ClockEventEvent.AlertCase { Value: var alert }:
                     ClockEvents.Event("clock-scheduler", "alert", "game alert", ("key", (alert.Key ?? "")), ("label", (alert.Label ?? "")), ("priority", (alert.Priority ?? "")), ("cursor", @event.Cursor.GetValueOrDefault()));
                     break;
-                case PbClock.ClockEventEvent.RuleFiredCase or PbClock.ClockEventEvent.RuleLeaseExpiredCase:
-                    Tel.Decide(RuleDecision(@event));
-                    break;
             }
         }
-    }
-
-    // The "rule" row of a native rule event: a firing is verdict fired, reason the trigger word, target the actor; a
-    // lapsed lease is verdict expired, reason lease_expired, target the rule runtime (Go ruleDecision).
-    private static Decision RuleDecision(PbClock.ClockEvent @event)
-    {
-        var attrs = new Dictionary<string, object?> { ["cursor"] = @event.Cursor };
-        if (@event.Event is PbClock.ClockEventEvent.RuleFiredCase { Value: var fired })
-        {
-            attrs["rule"] = fired.RuleId;
-            attrs["target"] = fired.TargetId;
-            attrs["params"] = new Dictionary<string, object?> { ["job"] = fired.Job, ["radius"] = fired.Radius };
-            attrs["tick"] = fired.Tick;
-            return new Decision { Kind = "rule", Component = "clock-scheduler", Verdict = "fired", Reason = "prey_killed", Target = fired.ActorId ?? "", Attrs = attrs };
-        }
-        var expired = @event.Event?.RuleLeaseExpired;
-        attrs["expires_at_tick"] = expired?.ExpiresAtTick;
-        attrs["deactivated"] = expired?.Deactivated;
-        return new Decision { Kind = "rule", Component = "clock-scheduler", Verdict = "expired", Reason = "lease_expired", Target = "rules", Attrs = attrs };
     }
 
     // The stop's latency legs on the row: the live half of the split the throughput report computes offline (Go clockStopLegs).

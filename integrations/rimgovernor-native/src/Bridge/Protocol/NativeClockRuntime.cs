@@ -26,9 +26,8 @@ namespace HomeBridge.BridgeTools
             internal Common.ObservationContext LastObservation;
             internal readonly Authority.WritePrecondition Authority;
             internal readonly Clock.WatchPolicy Policy;
-            internal readonly int LeaseMs;
-            internal TypedEpoch(Clock.EpochOwner owner, Common.ObservationContext origin, Authority.WritePrecondition authority, Clock.WatchPolicy policy, int leaseMs)
-            { Owner = owner; Origin = origin; LastObservation = origin; Authority = authority; Policy = policy; LeaseMs = leaseMs; }
+            internal TypedEpoch(Clock.EpochOwner owner, Common.ObservationContext origin, Authority.WritePrecondition authority, Clock.WatchPolicy policy)
+            { Owner = owner; Origin = origin; LastObservation = origin; Authority = authority; Policy = policy; }
             internal bool PauseRequested;
             internal bool StopPauseVerified;
             // The armed combat event that stopped this epoch, else unset.
@@ -41,20 +40,16 @@ namespace HomeBridge.BridgeTools
         // does. Read once at startup; never toggled at runtime.
         internal static readonly bool TestAccelerationLaunch = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0;
         internal static bool TestAccelerationAvailable => TestAccelerationLaunch && BoostField != null && BoostField.FieldType == typeof(bool);
-        private static readonly Stopwatch TypedClock = Stopwatch.StartNew();
         private static TypedEpoch TypedOf(State s) => s.Typed ?? throw new InvalidOperationException("Clock epoch is not typed.");
-        private static long LeaseNow(State s) => TypedClock.ElapsedMilliseconds;
         private static void AttachTypedEpoch(State s)
         {
             // Every epoch is typed: the untyped home/supervised_play start is gone (#661/#662).
             if (pendingTyped == null) throw new InvalidOperationException("Clock epochs start only through the typed clock start.");
             s.Typed = pendingTyped;
             s.Typed.Owner = s.Typed.Owner with { Epoch = s.Epoch };
-            s.LeaseExpiresMs = checked(LeaseNow(s) + s.Typed.LeaseMs);
         }
         private static bool StopInvalidTypedAuthority(State s)
         {
-            if (LeaseNow(s) >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Owned clock lease expired.", true, null); return true; }
             var pre = TypedOf(s).Authority;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
             { Stop(s, "unavailable", "Authorizing native authority is unavailable.", true, null); return true; }
@@ -72,18 +67,6 @@ namespace HomeBridge.BridgeTools
                 + (string.IsNullOrEmpty(detail) ? "" : "; " + detail), true, null);
             return true;
         }
-        // A typed epoch's lease lapsing is the only native-observable sign that
-        // the bot process is gone: it renews every live epoch well inside the
-        // lease, so silence past it means a crash, hang or dropped transport.
-        // Authority follows the clock down as Disconnect, so a reconnecting or
-        // restarted controller observes Inactive and grants Auto afresh instead
-        // of finding an Auto it cannot prove it owns.
-        private static void RevokeDisconnected(State s)
-        {
-            if (!ReferenceEquals(Current.Game, s.Session)) return;
-            if (NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority != null)
-                authority.RevokeExternal(NativeControlRevocationReason.Disconnect);
-        }
         private static void CaptureTypedContext(State s)
         {
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map)
@@ -92,9 +75,9 @@ namespace HomeBridge.BridgeTools
 
         internal static Common.Failure? ValidateTypedStart(Clock.StartRequest request)
         {
-            if (request.Speed is null || !OrdinarySpeed(request.Speed.GetValueOrDefault()) || request.LeaseMs is null || request.LeaseMs.GetValueOrDefault() < 1000 || request.LeaseMs.GetValueOrDefault() > 30000
+            if (request.Speed is null || !OrdinarySpeed(request.Speed.GetValueOrDefault())
                 || request.MaxTicks is null || request.MaxTicks.GetValueOrDefault() < 1 || request.MaxTicks.GetValueOrDefault() > 1800000 || request.Policy is null || request.Authority?.Attempt is null || request.Authority.Identity is null || !ValidPolicy(request.Policy, request.MaxTicks.GetValueOrDefault()))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Start requires an ordinary speed, lease1000..30000, tick budget1..1800000 and a complete bounded watch policy.");
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Start requires an ordinary speed, tick budget1..1800000 and a complete bounded watch policy.");
             if (request.TestAcceleration.GetValueOrDefault() && request.Speed.GetValueOrDefault() != Clock.Speed.Ultrafast)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Test acceleration requires SPEED_ULTRAFAST.");
             if (request.TestAcceleration.GetValueOrDefault() && !TestAccelerationAvailable)
@@ -130,11 +113,11 @@ namespace HomeBridge.BridgeTools
                 if (pendingTyped != null) throw new InvalidOperationException("Reentrant clock start");
                 var policy = request.Policy ?? throw new InvalidOperationException("Missing policy");
                 pendingTyped = new TypedEpoch(new Clock.EpochOwner { ControllerSessionId = (request.Authority?.Attempt ?? throw new InvalidOperationException("Missing attempt")).ControllerSessionId },
-                    context, request.Authority ?? throw new InvalidOperationException("Missing authority"), policy, (int)request.LeaseMs.GetValueOrDefault());
+                    context, request.Authority ?? throw new InvalidOperationException("Missing authority"), policy);
                 var metadata = pendingTyped;
                 try
                 {
-                    Start((metadata.Owner.ControllerSessionId ?? ""), NativeSpeed(request.Speed.GetValueOrDefault()), (int)request.LeaseMs.GetValueOrDefault(),
+                    Start((metadata.Owner.ControllerSessionId ?? ""), NativeSpeed(request.Speed.GetValueOrDefault()),
                         policy.Mode.GetValueOrDefault() == Clock.WatchMode.Colony ? "colony" : "combat", policy.HealthDropFraction.GetValueOrDefault(),
                         policy.MinHealthFraction.GetValueOrDefault(), policy.HostileWithin.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedHostileIds),
                         ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
@@ -159,19 +142,9 @@ namespace HomeBridge.BridgeTools
                 if (s?.Typed == null || !Equals(request.Identity, s.Typed.Origin.Identity) || !request.Owner.Equals(s.Typed.Owner)
                     || !ReferenceEquals(s.Session, Current.Game) || !ReferenceEquals(s.Map, Find.CurrentMap))
                     return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "No matching canonical owned clock epoch exists.");
-                if (active && (!s.Active || s.PendingKind != null || LeaseNow(s) >= s.LeaseExpiresMs))
-                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The owned clock epoch is stopped, stopping or expired.");
+                if (active && (!s.Active || s.PendingKind != null))
+                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The owned clock epoch is stopped or stopping.");
                 return null;
-            }
-        }
-        internal static Clock.Status TypedRenew(Clock.RenewRequest request, Common.ObservationContext context)
-        {
-            lock (Gate)
-            {
-                if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
-                var s = ActiveState;
-                s.LeaseExpiresMs = checked(LeaseNow(s) + request.LeaseMs.GetValueOrDefault());
-                return TypedStatus(context);
             }
         }
         // An accelerated epoch owns the boost for its whole life: it pauses or
@@ -217,8 +190,8 @@ namespace HomeBridge.BridgeTools
                 var state = _state; var original = state?.Typed?.Authority;
                 if (state == null || original == null || requested == null)
                     return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The epoch has no matching authorizing grant.");
-                if (!state.Active || state.PendingKind != null || LeaseNow(state) >= state.LeaseExpiresMs)
-                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The original epoch is stopped, stopping or expired.");
+                if (!state.Active || state.PendingKind != null)
+                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The original epoch is stopped or stopping.");
                 try
                 {
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Required native clock enforcement hooks are unavailable.");
@@ -319,7 +292,7 @@ namespace HomeBridge.BridgeTools
         }
         private static Clock.Epoch BaseEpoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner, Origin = TypedOf(s).Origin,
             RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = TypedOf(s).Policy, StartTick = s.StartTick,
-            TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0,
+            TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration,
             BlindTickBudget = (uint)s.BlindTickBudget, MaxTicksPerSecond = (uint)s.MaxTicksPerSecond, RegulatedTicksPerSecond = (uint)s.RegulatedTicksPerSecond };
 
         // The read never waits: the controller polls the page.
@@ -469,12 +442,10 @@ namespace HomeBridge.BridgeTools
                 || value.ObservedAtUnixMs is null || value.ObservedAtUnixMs < 0
                 || value.Event is null) return false;
             var body = value.Event;
-            if (value.Owner == null ? body.AuthorityChanged == null && body.RuleFired == null && body.RuleLeaseExpired == null
+            if (value.Owner == null ? body.AuthorityChanged == null
                 : value.Owner.ControllerSessionId is null || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId) || value.Owner.Epoch is null || value.Owner.Epoch <= 0) return false;
             if (body.AuthorityChanged != null) return body.AuthorityChanged.Generation is > 0
                 && (body.AuthorityChanged.PreviousGeneration is null || body.AuthorityChanged.PreviousGeneration < body.AuthorityChanged.Generation);
-            if (body.RuleFired != null) return body.RuleFired.RuleId is not null && body.RuleFired.ActorId is not null && body.RuleFired.TargetId is not null && body.RuleFired.Tick is >= 0;
-            if (body.RuleLeaseExpired != null) return body.RuleLeaseExpired.ExpiresAtTick is not null && body.RuleLeaseExpired.Deactivated is not null;
             if (body.OperationOutcome != null) return ValidStoredOutcome(body.OperationOutcome);
             if (body.Stopped != null) return ValidStoredStop(body.Stopped);
             if (body.PauseFailed != null) return body.PauseFailed.Pending != null && ValidStoredStop(body.PauseFailed.Pending);

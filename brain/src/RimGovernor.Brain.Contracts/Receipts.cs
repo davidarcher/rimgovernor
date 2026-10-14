@@ -104,8 +104,6 @@ public enum SettingsField
     MechControlGroup = 30,
     [WireName("SETTINGS_FIELD_PERMIT")]
     Permit = 31,
-    [WireName("SETTINGS_FIELD_RULES")]
-    Rules = 32,
     [WireName("SETTINGS_FIELD_EXTRACT_BIOFERRITE")]
     ExtractBioferrite = 33,
     [WireName("SETTINGS_FIELD_EAT_TRIGGER")]

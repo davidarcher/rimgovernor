@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
                 Support = Lifecycle.CapabilitySupport.Supported,
                 Detail = "Complete bounded core building/blueprint/frame facts and construction resources. Exact filters; no frozen paging, CAS snapshots, settings, services, bills, inspect text or power networks."
             }] };
-            foreach (var method in new[] { "Start", "Renew", "ChangeSpeed", "Pause", "ReadStatus", "ReadEvents", "ReadAttempt" })
+            foreach (var method in new[] { "Start", "ChangeSpeed", "Pause", "ReadStatus", "ReadEvents", "ReadAttempt" })
                 loaded = loaded with { Capabilities = [.. loaded.Capabilities, new Lifecycle.Capability
                 {
                     FullMethodName = "rimgovernor.clock.v1.Clock/" + method,

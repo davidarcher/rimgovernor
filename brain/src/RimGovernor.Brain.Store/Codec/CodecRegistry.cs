@@ -224,8 +224,6 @@ internal static class CodecRegistry
         codecs.Register(new RoundsShrineStepConverter());
         codecs.Register(new RoundsStandardConverter());
         codecs.Register(new RowRunConverter());
-        codecs.Register(new RuleConverter());
-        codecs.Register(new RulesAttachConverter());
         codecs.Register(new SafeguardProposalConverter());
         codecs.Register(new ShrineHoldConverter());
         codecs.Register(new SiteLaneConverter());

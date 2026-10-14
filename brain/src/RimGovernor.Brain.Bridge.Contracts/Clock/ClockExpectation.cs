@@ -18,7 +18,7 @@ public static partial class BridgeFunctions
             throw Contract("clock expectation admission mismatch");
         }
         var command = e.Command;
-        var arms = (command.Start is not null ? 1 : 0) + (command.Renew is not null ? 1 : 0) + (command.Speed is not null ? 1 : 0);
+        var arms = (command.Start is not null ? 1 : 0) + (command.Speed is not null ? 1 : 0);
         if (arms != 1)
         {
             throw Contract("one clock command required");
@@ -38,16 +38,10 @@ public static partial class BridgeFunctions
                 throw Contract("clock blind tick budget or tick rate ceiling");
             }
             ClockPacing(start.WirePacing ?? Pacing.Unspecified, start.Speed, start.TestAcceleration);
-            AuthorityDuration(start.LeaseMs);
             ClockPolicy(start.Policy, start.MaxTicks);
             return;
         }
         Epoch? original = null;
-        if (command.Renew is { } renew)
-        {
-            original = renew.Original;
-            AuthorityDuration(renew.LeaseMs);
-        }
         if (command.Speed is { } speed)
         {
             original = speed.Original;
@@ -93,21 +87,11 @@ public static partial class BridgeFunctions
                 || actual.RequestedSpeed.GetValueOrDefault() != start.Speed
                 || actual.TestAcceleration.GetValueOrDefault() != start.TestAcceleration
                 || !Equals(actual.Policy, start.Policy)
-                || actual.LeaseRemainingMs.GetValueOrDefault() > start.LeaseMs
                 || actual.BlindTickBudget.GetValueOrDefault() != start.BlindTickBudget
                 || actual.MaxTicksPerSecond.GetValueOrDefault() != start.MaxTicksPerSecond
                 || (actual.Pacing.GetValueOrDefault() == Pacing.PlayerAccelerated) != start.PlayerAccelerated)
             {
                 throw Contract("clock start epoch mismatch");
-            }
-            return;
-        }
-        if (e.Command.Renew is { } renew)
-        {
-            ClockSameEpoch(actual, renew.Original, renew.Original?.RequestedSpeed ?? Speed.Unspecified);
-            if (actual!.LeaseRemainingMs.GetValueOrDefault() > renew.LeaseMs)
-            {
-                throw Contract("clock renewal lease exceeds request");
             }
             return;
         }

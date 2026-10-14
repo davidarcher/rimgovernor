@@ -11,8 +11,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// The sheltering cases (Go <c>shelter/sheltering.go</c>) prove MaintainShelter's Safe area and the sheltering planner end to
 /// end on the lab: the ShelterFixture hut at the centre is the only roofed room, so the Safe area covers it. The assertion is
 /// the native allowed-area writes landing on colonists and a tame animal, the Safe area the game holds and the pawns
-/// physically sheltering from a real condition or a real manhunter pack. The controller holds the GABP slot while it runs, so
-/// the trigger ends between two service runs: the planner keeps no history, so the restarted service restores from the
+/// physically sheltering from a real condition or a real manhunter pack. The trigger ends between two service runs: the planner keeps no history, so the restarted service restores from the
 /// facts alone.
 /// </summary>
 internal static class ShelterSheltering

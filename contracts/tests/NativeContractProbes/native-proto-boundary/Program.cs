@@ -81,13 +81,6 @@ internal static class NativeProtoBoundaryProbe {
         Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.BinaryEncoding};
         Check(Parse("{}",out parsed,out refusal),"encoding argument accepted");
         Check(ProtoBoundary.FormOf(new Ctx())==ProtoBoundary.ReplyForm.Gzip,"encoding argument read");
-        Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]=ProtoBoundary.ShmEncoding};
-        Check(ProtoBoundary.FormOf(new Ctx())==ProtoBoundary.ReplyForm.Shm,"shared-memory encoding read");
-        var small=ProtoBoundary.WithForm(ProtoBoundary.ReplyForm.Shm,()=>ProtoBoundary.Encode(reply));
-        Check(small.Count==1 && small[ProtoBoundary.ProtoField] is string,"small shm reply stays inline");
-        var large=new Common.Failure{Detail=new string('x',ReplyRing.InlineBytes)};
-        var slotted=ProtoBoundary.WithForm(ProtoBoundary.ReplyForm.Shm,()=>ProtoBoundary.Encode(large));
-        Check(slotted.ContainsKey(ProtoBoundary.SlotField)||slotted.ContainsKey(ProtoBoundary.ProtoField),"large shm reply goes to a slot, or inline without a ring");
         Raw=new Dictionary<string,object>{["request"]="{}",[ProtoBoundary.EncodingArgument]="json"};
         Check(ProtoBoundary.FormOf(new Ctx())==ProtoBoundary.ReplyForm.Payload,"other encoding stays ProtoJSON");
         Raw=null;

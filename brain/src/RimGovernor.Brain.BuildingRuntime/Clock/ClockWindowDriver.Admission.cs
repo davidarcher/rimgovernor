@@ -417,11 +417,6 @@ public sealed partial class ClockWindowDriver
         var (remaining, items) = await ClockWindowWork.RoundsWorkAsync(journal, _scheduler.Config.RoundsMethods, state.Snapshot, plans, call).ConfigureAwait(false);
         work |= remaining;
         fingerprint.AddRange(items);
-        if (ClockScheduler.RulesDispatchTurn(_scheduler.Config.Worker, step.Rules))
-        {
-            run.Deferred = true;
-            return false;
-        }
         var pending = _scheduler.Latched.Pending(fingerprint);
         JournalHoldEscape();
         if (_scheduler.Config.Worker && pending.Count > 0)
@@ -521,7 +516,6 @@ public sealed partial class ClockWindowDriver
             SquadUnanswered = squadUnanswered,
             Sheltered = sheltered,
         };
-        start = start with { MaxTicks = await _scheduler.RulesWindowAsync(state.Snapshot, tick, start.MaxTicks, call).ConfigureAwait(false) };
         var combatMaxTicks = Math.Min(scheduler.CombatMaxTicks, start.MaxTicks);
         var decision = EvaluateClockWindow(facts, new ClockWindowLimits { Now = _clock.Now(), MaxAge = scheduler.MaxAge, MaxTicks = start.MaxTicks, CombatMaxTicks = combatMaxTicks });
         run.Decision = decision;
@@ -587,8 +581,8 @@ public sealed partial class ClockWindowDriver
             {
                 continue;
             }
-            if (old.Snapshot != state.Snapshot || old.Window != admission || old.Command.Start is not { } oldStart || old.Command.Renew is not null || old.Command.Speed is not null
-                || oldStart.Speed != start.Speed || oldStart.LeaseMs != start.LeaseMs || oldStart.MaxTicks != start.MaxTicks || !Equals(oldStart.Policy, start.Policy))
+            if (old.Snapshot != state.Snapshot || old.Window != admission || old.Command.Start is not { } oldStart || old.Command.Speed is not null
+                || oldStart.Speed != start.Speed || oldStart.MaxTicks != start.MaxTicks || !Equals(oldStart.Policy, start.Policy))
             {
                 throw new EvidenceException("clock window key collides with a different journaled window");
             }

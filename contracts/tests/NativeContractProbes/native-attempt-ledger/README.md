@@ -10,8 +10,8 @@ no game/SDK access and executes no native mutations.
 
 One unsaved ledger belongs to one colony/load across maps and admits clock
 control only. `InspectClock`/`AdmitClock`
-accept only StartRequest, RenewRequest and SpeedRequest records with
-their exact method names. Call `InspectClock` before rechecking a changed lease:
+accept only StartRequest and SpeedRequest records with
+their exact method names. Call `InspectClock` before rechecking a changed request:
 replay returns prior evidence, not new permission. If New, validate current
 guards and call `AdmitClock` immediately before effects on the same game
 thread; a refused guard consumes no entry. `FinishClockApplied` requires

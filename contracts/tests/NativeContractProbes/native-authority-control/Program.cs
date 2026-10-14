@@ -201,7 +201,7 @@ internal static class NativeAuthorityControlProbe
         try
         {
             var generation = state.Status().Generation;
-            var keyframes = SnapshotStream.KeyframeRequests;
+            var captures = SnapshotStream.CaptureRequests;
             var target = Identity with { MapId = 77 };
             Wire.ControlRequest Request() => new() { Operation = new Wire.FocusMap
             { Identity = Identity, Target = target, ExpectedGeneration = generation } };
@@ -218,7 +218,7 @@ internal static class NativeAuthorityControlProbe
                 Failure(Call(request), field == "generation" ? Common.FailureCode.StaleGeneration
                     : field == "targetLoad" ? Common.FailureCode.InvalidRequest : Common.FailureCode.StaleIdentity);
                 Check(ReferenceEquals(Find.CurrentMap, source) && state.Status().Generation == generation
-                    && SnapshotStream.KeyframeRequests == keyframes, "refused focus changed view, authority or keyframe");
+                    && SnapshotStream.CaptureRequests == captures, "refused focus changed view, authority or capture");
             }
             var reply = Call(Request());
             Check(reply.FocusedMap != null && reply.FocusedMap.Context.Identity.Equals(target)
@@ -227,12 +227,12 @@ internal static class NativeAuthorityControlProbe
             Check(source.mapPawns.AllPawns.Count == 1 && source.mapPawns.AllPawns[0].thingIDNumber == 1
                 && destination.mapPawns.AllPawns.Count == 1 && destination.mapPawns.AllPawns[0].thingIDNumber == 2,
                 "focus moved a pawn");
-            Check(SnapshotStream.KeyframeRequests == keyframes + 1, "focus did not request one keyframe");
+            Check(SnapshotStream.CaptureRequests == captures + 1, "focus did not request one capture");
             Check(!state.Status().Active && state.Status().Reason == NativeControlRevocationReason.IdentityChanged,
                 "focus granted authority");
             var inactive = WithFocus(Request(), f => f with { Identity = target, Target = Identity, ExpectedGeneration = state.Status().Generation });
             Failure(Call(inactive), Common.FailureCode.AuthorityRequired);
-            Check(ReferenceEquals(Find.CurrentMap, destination) && SnapshotStream.KeyframeRequests == keyframes + 1,
+            Check(ReferenceEquals(Find.CurrentMap, destination) && SnapshotStream.CaptureRequests == captures + 1,
                 "inactive focus changed view");
         }
         finally { Find.LoadedMaps = null; }

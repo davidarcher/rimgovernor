@@ -102,7 +102,6 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
             ActionKind.Rescue => DomainAction.NewRescueAction(id, Payload<Rescue>()),
             ActionKind.ResearchSelect => DomainAction.NewResearchSelectAction(id, Payload<ResearchSelect>()),
             ActionKind.Ritual => DomainAction.NewRitualAction(id, Payload<Ritual>()),
-            ActionKind.RulesAttach => DomainAction.NewRulesAttachAction(id, Payload<RulesAttach>()),
             ActionKind.StockpilePatch => DomainAction.NewStockpilePatchAction(id, Payload<StockpilePatch>()),
             ActionKind.Strip => DomainAction.NewStripAction(id, Payload<Strip>()),
             ActionKind.Subdue => DomainAction.NewSubdueAction(id, Payload<Subdue>()),

@@ -11,8 +11,7 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public static partial class BridgeFunctions
 {
     /// <summary>
-    /// Go's <c>MaxConcurrentCalls</c>: how many native calls one client may have in flight at once. The GABP
-    /// connection correlates concurrent requests by id, so calls need not be single-flight; this cap is
+    /// Go's <c>MaxConcurrentCalls</c>: how many native calls one client may have in flight at once. Calls need not be single-flight; this cap is
     /// backpressure against a caller bug flooding the native bridge at once.
     /// </summary>
     public const int MaxConcurrentCalls = 8;

@@ -201,7 +201,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The job the work giver builds on the target, taken as a player-forced order. Null
-        // (reason set) when no giver builds it or the pawn does not take it. Shared with the native rules.
+        // (reason set) when no giver builds it or the pawn does not take it.
         internal static Job? TryTake(Pawn pawn, Thing target, JobDef def, out string? reason)
         {
             var result = Build(pawn, target, def, out reason);

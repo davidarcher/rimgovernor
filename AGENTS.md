@@ -46,8 +46,6 @@ edit the main checkout. Details: [landing](docs/developers/development-process.m
 - Extend the shared Concern/Method/action system. Hands owns game-order writes;
   advisers neither write orders nor own colony invariants. Do not copy the
   existing combat bypass into new work.
-- The one policy exception is [native rules](docs/developers/contracts/native-rules.md)
-  (`rules_attach`; being removed in #3141).
 - Keep policy pure and orchestration free of decision math. Use typed boundary
   contracts, explicit ownership and explicit unknowns. The five mechanical
   [architecture gates](docs/developers/architecture/rules.md) have shrink-only

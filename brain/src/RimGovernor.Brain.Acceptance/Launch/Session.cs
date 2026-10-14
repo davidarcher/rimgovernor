@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// Starting, attaching to and connecting to the configured game (Go <c>session.go</c>'s OpenBridgeSession and friends).
-/// The Go harness opened a GABP bridge session through a launcher; the brain now runs in the mod and the harness talks to
+/// The brain runs in the mod and the harness talks to
 /// its local HTTP channel, so the session is an <see cref="INativeTransport"/> and the launch is
 /// <see cref="GameProcess.StartDetached"/> with the channel's directory in the environment. The game records its channel
 /// in <c>http-endpoint.json</c> under that directory (<see cref="EndpointDirectory"/>), which also tells a later

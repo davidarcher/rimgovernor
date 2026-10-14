@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -25,22 +24,16 @@ internal static class CombatLabHoldFire
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("combatlab/holdfire reads the snapshot ring from Windows named shared memory");
-        }
-
         await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
         var identity = s.Identity;
         var report = s.Report;
         var staged = await CombatStage.StageAsync(h, "lab-ranged", cancellationToken).ConfigureAwait(false);
-        using var frames = await CombatFrames.OpenAsync(h, identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(h, identity, cancellationToken).ConfigureAwait(false);
         var colonists = staged.Colonists();
         var hostiles = staged.Hostiles();
         if (colonists.Count < 2 || hostiles.Count < 2)
@@ -109,7 +102,6 @@ internal static class CombatLabHoldFire
 
     // shotsFor steps the lab, at least min ticks and at most holdFireTicks, until until fires a shot, and counts every
     // new shot_fired event by shooter.
-    [SupportedOSPlatform("windows")]
     private static async Task ShotsForAsync(
         Harness h,
         CombatFrames frames,

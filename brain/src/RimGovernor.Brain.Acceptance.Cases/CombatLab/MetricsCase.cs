@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -229,18 +228,12 @@ internal static class CombatLabMetrics
     // forms on.
     private static async Task<StagedFixture> StagePodsAsync(ISession s, string name, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException($"{name} reads the snapshot ring from Windows named shared memory");
-        }
-
         return await StagePodsWindowsAsync(s, name, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task<StagedFixture> StagePodsWindowsAsync(ISession s, string name, CancellationToken cancellationToken)
     {
-        using var frames = await CombatFrames.OpenAsync(s.Harness, s.Identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(s.Harness, s.Identity, cancellationToken).ConfigureAwait(false);
         _ = await frames.NextAsync(0, cancellationToken).ConfigureAwait(false);
         var staged = await CombatStage.StageAsync(s.Harness, name, cancellationToken).ConfigureAwait(false);
         var (_, tick) = await CombatStage.TickAsync(s.Harness, 1, cancellationToken).ConfigureAwait(false);

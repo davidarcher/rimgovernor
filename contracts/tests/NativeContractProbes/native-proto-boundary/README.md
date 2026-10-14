@@ -23,7 +23,7 @@ and must be refused by each method's semantic validator.
 
 The identity check leaves native generation absent when no authority owner
 exists. Looking up existing authority never initializes a clock; reading its
-status can still apply lease-expiry/context invalidation as intended by that
+status can still apply context invalidation as intended by that
 owner. It does not create game components or issue orders.
 
 Note: without a real `RimGovernor.Host.dll` path supplied as an argument, the

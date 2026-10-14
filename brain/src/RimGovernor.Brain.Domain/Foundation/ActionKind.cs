@@ -64,7 +64,6 @@ public enum ActionKind
     Rescue,
     ResearchSelect,
     Ritual,
-    RulesAttach,
     StockpilePatch,
     Strip,
     Subdue,

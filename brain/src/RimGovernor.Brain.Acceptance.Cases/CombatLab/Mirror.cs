@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -34,15 +33,9 @@ internal static class CombatLabMirror
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("combatlab/mirror reads the snapshot ring from Windows named shared memory");
-        }
-
         await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
@@ -53,7 +46,7 @@ internal static class CombatLabMirror
         // Geometry reads the staged layout before any tick: the undrafted colonists wander off their cells once the
         // clock runs.
         await GeometryAsync(h, identity, staged, report, cancellationToken).ConfigureAwait(false);
-        using var frames = await CombatFrames.OpenAsync(h, identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(h, identity, cancellationToken).ConfigureAwait(false);
 
         // One step so a frame is captured past the staging.
         var (_, tick) = await CombatStage.TickAsync(h, StepTicks, cancellationToken).ConfigureAwait(false);
@@ -86,7 +79,6 @@ internal static class CombatLabMirror
 
     // dropPods stages lab-pods: the center drop's arrival is a combat_events hostile_arrived row with strategy pods, its
     // landing cells and an open tick after the arrival, and by that tick every raider is out.
-    [SupportedOSPlatform("windows")]
     private static async Task DropPodsAsync(Harness h, CombatFrames frames, Report report, CancellationToken cancellationToken)
     {
         var staged = await CombatStage.StageAsync(h, "lab-pods", cancellationToken).ConfigureAwait(false);
@@ -353,7 +345,6 @@ internal static class CombatLabMirror
 
     // fight runs the lab until a pawn goes down or dies, then checks that the event and the pawn's change came in one
     // frame at one watermark. Every frame carries the whole event ring, so only events not seen before are counted.
-    [SupportedOSPlatform("windows")]
     private static async Task FightAsync(Harness h, CombatFrames f, Report report, CancellationToken cancellationToken)
     {
         var kinds = new Dictionary<string, int>(StringComparer.Ordinal);

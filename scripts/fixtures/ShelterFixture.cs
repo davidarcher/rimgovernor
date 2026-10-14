@@ -16,8 +16,7 @@ namespace HomeBridge.BridgeTools
     // condition or a manhunter pack at the west edge. test/shelter_stage
     // ends the trigger (the fallout ends, the pack leaves the map) and
     // reports every tracked pawn's allowed area, whether it stands in the
-    // hut and its injuries. The controller holds the native client while it
-    // runs, so the case calls these between service runs.
+    // hut and its injuries. The case calls these between service runs.
     public sealed class ShelterFixture
     {
         private static readonly List<Pawn> tracked = new List<Pawn>();

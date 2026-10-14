@@ -137,7 +137,6 @@ public sealed partial class ClockScheduler
             (c.FoodAcquisition, c.FoodAcquisition?.Reviewer, null, null),
             (c.PestAcquisition, c.PestAcquisition?.Reviewer, null, null),
             (c.ResourceAcquisition, c.ResourceAcquisition?.Reviewer, null, null),
-            (c.Rules, c.Rules?.Reviewer, null, null),
             (c.Work, c.Work?.Reviewer, null, null),
             (c.Supplies, c.Supplies?.Reviewer, null, null),
             (c.Clearance, c.Clearance?.Reviewer, null, null),

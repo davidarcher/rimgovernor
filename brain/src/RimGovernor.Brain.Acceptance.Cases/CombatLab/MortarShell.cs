@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -26,15 +25,9 @@ internal static class CombatLabMortarShell
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("combatlab/mortar-shell reads the snapshot ring from Windows named shared memory");
-        }
-
         await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
@@ -46,7 +39,7 @@ internal static class CombatLabMortarShell
             cx = x;
             cz = z;
         }).ConfigureAwait(false);
-        using var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
         _ = await Authority.GrantAutoAsync(h.WireFunc(), "combat-mortar-shell-acquire", s.Identity, cancellationToken).ConfigureAwait(false);
         var colonists = staged.Colonists();
         JsonObject Mortar() => CaseSupport.Cell(cx, cz + CombatFixtures.SiegeOurMortar);
@@ -96,7 +89,6 @@ internal static class CombatLabMortarShell
 
     // awaitLoaded steps the clock until a frame's combat_mortars row for the mortar at (x, z) shows shell loaded, within
     // shellLoadTicks.
-    [SupportedOSPlatform("windows")]
     private static async Task AwaitLoadedAsync(Harness h, CombatFrames frames, int x, int z, string shell, Report report, string key, CancellationToken cancellationToken)
     {
         var last = "";

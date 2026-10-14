@@ -481,7 +481,7 @@ public sealed class Session
     }
 
     /// <summary>
-    /// Hands the game to a service (Go <c>Release</c> gave up the sole GABP slot). The brain runs in the mod and the
+    /// Hands the game to a service (Go <c>Release</c> gave up the harness's exclusive session). The brain runs in the mod and the
     /// HTTP channel has no exclusive slot, so the harness stays usable and this does nothing.
     /// </summary>
     public static void Release()

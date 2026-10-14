@@ -92,9 +92,8 @@ public static partial class BridgeFunctions
 
     private static void ClockJournalEvent(ClockEvent @event)
     {
-        // Only an authority change observed outside any epoch and the native rule events (rules run with or
-        // without an epoch) have no owner.
-        var ownerless = @event.Event is ClockEventEvent.AuthorityChangedCase or ClockEventEvent.RuleFiredCase or ClockEventEvent.RuleLeaseExpiredCase;
+        // Only an authority change observed outside any epoch has no owner.
+        var ownerless = @event.Event is ClockEventEvent.AuthorityChangedCase;
         if (@event.Owner is not null || !ownerless)
         {
             ClockOwner(@event.Owner);
@@ -170,23 +169,6 @@ public static partial class BridgeFunctions
                     || !Diagnostic(authority.Reason is not null, authority.Reason ?? ""))
                 {
                     throw Contract("clock authority change evidence");
-                }
-                break;
-            case ClockEventEvent.RuleFiredCase { Value: var rule }:
-                if (!IsValidId(rule.RuleId ?? "")
-                    || !IsValidId(rule.Job ?? "")
-                    || !IsValidId(rule.ActorId ?? "")
-                    || !IsValidId(rule.TargetId ?? "")
-                    || rule.Tick is null
-                    || rule.Tick < 0)
-                {
-                    throw Contract("clock rule fired evidence");
-                }
-                break;
-            case ClockEventEvent.RuleLeaseExpiredCase { Value: var lease }:
-                if (lease.ExpiresAtTick is null || lease.Deactivated is null)
-                {
-                    throw Contract("clock rule lease evidence");
                 }
                 break;
             case ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated }:

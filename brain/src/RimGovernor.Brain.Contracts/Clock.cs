@@ -113,8 +113,6 @@ public enum StopReason
     LetterPause = 6,
     [WireName("STOP_REASON_EXTERNAL_SPEED_CHANGED")]
     ExternalSpeedChanged = 7,
-    [WireName("STOP_REASON_LEASE_EXPIRED")]
-    LeaseExpired = 8,
     [WireName("STOP_REASON_WATCHER_ERROR")]
     WatcherError = 9,
     [WireName("STOP_REASON_EVENT_JOURNAL_ERROR")]
@@ -370,8 +368,6 @@ public sealed record StartRequest
 
     public WatchPolicy? Policy { get; init; }
 
-    public uint? LeaseMs { get; init; }
-
     public uint? MaxTicks { get; init; }
 
     /// <summary>
@@ -416,15 +412,6 @@ public sealed record OwnedRequest
     public EpochOwner? Owner { get; init; }
 }
 
-public sealed record RenewRequest
-{
-    public OwnedRequest? Epoch { get; init; }
-
-    public Authority.WritePrecondition? Authority { get; init; }
-
-    public uint? LeaseMs { get; init; }
-}
-
 public sealed record SpeedRequest
 {
     public OwnedRequest? Epoch { get; init; }
@@ -458,8 +445,6 @@ public sealed record Epoch
     public long? StartTick { get; init; }
 
     public long? TickDeadline { get; init; }
-
-    public uint? LeaseRemainingMs { get; init; }
 
     public long? LastTick { get; init; }
 
@@ -1131,37 +1116,6 @@ public sealed record AuthorityChanged
     public bool? Active { get; init; }
 }
 
-/// <summary>
-/// A native rule fired (operations.v1.Rule): journaled before the write it
-/// makes. job, radius, actor_id and target_id are the rule's parameters and
-/// the pawn and prey it resolved; tick is the game tick of the firing.
-/// </summary>
-public sealed record RuleFired
-{
-    public string? RuleId { get; init; }
-
-    public string? Job { get; init; }
-
-    public uint? Radius { get; init; }
-
-    public string? ActorId { get; init; }
-
-    public string? TargetId { get; init; }
-
-    public long? Tick { get; init; }
-}
-
-/// <summary>
-/// The attached rules' lease passed and native deactivated all of them without
-/// Go. One event per attachment.
-/// </summary>
-public sealed record RuleLeaseExpired
-{
-    public long? ExpiresAtTick { get; init; }
-
-    public uint? Deactivated { get; init; }
-}
-
 public sealed record WatchLatched
 {
     public OperationOutcome? Outcome { get; init; }
@@ -1374,7 +1328,7 @@ public sealed record ClockEvent
 
     /// <summary>
     /// Absent only for the epoch-less events: AuthorityChanged observed outside
-    /// any epoch, RuleFired and RuleLeaseExpired (rules run with or without one).
+    /// any epoch.
     /// </summary>
     public EpochOwner? Owner { get; init; }
 
@@ -1409,8 +1363,6 @@ public sealed record ClockEvent
 [JsonDerivedType(typeof(ClockEventEvent.OperationOutcomeCase), "operationOutcome")]
 [JsonDerivedType(typeof(ClockEventEvent.AuthorityChangedCase), "authorityChanged")]
 [JsonDerivedType(typeof(ClockEventEvent.ObservationInvalidatedCase), "observationInvalidated")]
-[JsonDerivedType(typeof(ClockEventEvent.RuleFiredCase), "ruleFired")]
-[JsonDerivedType(typeof(ClockEventEvent.RuleLeaseExpiredCase), "ruleLeaseExpired")]
 public abstract record ClockEventEvent
 {
     private protected ClockEventEvent() { }
@@ -1518,22 +1470,6 @@ public abstract record ClockEventEvent
     public sealed record ObservationInvalidatedCase(ObservationInvalidated Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(ObservationInvalidated value) => new ObservationInvalidatedCase(value);
-
-    /// <summary>The <c>RuleFired</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public RuleFired? RuleFired => (this as RuleFiredCase)?.Value;
-
-    public sealed record RuleFiredCase(RuleFired Value) : ClockEventEvent;
-
-    public static implicit operator ClockEventEvent(RuleFired value) => new RuleFiredCase(value);
-
-    /// <summary>The <c>RuleLeaseExpired</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public RuleLeaseExpired? RuleLeaseExpired => (this as RuleLeaseExpiredCase)?.Value;
-
-    public sealed record RuleLeaseExpiredCase(RuleLeaseExpired Value) : ClockEventEvent;
-
-    public static implicit operator ClockEventEvent(RuleLeaseExpired value) => new RuleLeaseExpiredCase(value);
 }
 
 public sealed record EventsRequest

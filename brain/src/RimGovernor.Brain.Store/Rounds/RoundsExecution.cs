@@ -66,7 +66,6 @@ public sealed partial class Store
         ActionKind.AreaPlantCut,
         ActionKind.CutPlant,
         ActionKind.Strip,
-        ActionKind.RulesAttach,
         ActionKind.MoveBuilding,
         ActionKind.UninstallBuilding,
         ActionKind.CoverClearance,

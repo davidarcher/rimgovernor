@@ -13,8 +13,8 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace RimGovernor.Brain.NativeFacade;
 
 /// <summary>
-/// The brain's direct, in-memory call path to the native mod: the capabilities Go reached over GABP and
-/// JSON (<c>contracts/native-protobuf-cutover.md</c>) as typed calls. A call carries the same request and
+/// The brain's direct, in-memory call path to the native mod: the capabilities Go reached over a remote
+/// transport and JSON (<c>contracts/native-protobuf-cutover.md</c>) as typed calls. A call carries the same request and
 /// reply records as the tool's JSON bodies (<c>RimGovernor.Contracts.Wire</c>); no call is serialized, and nothing
 /// is parsed from text.
 /// </summary>
@@ -97,19 +97,11 @@ public interface INativeFacade
 
     Task<Operations.ApplyReply> ApplyAsync(Operations.ApplyRequest request, CancellationToken cancellationToken);
 
-    Task<Operations.RulesAttachReply> AttachRulesAsync(Operations.RulesAttachRequest request, CancellationToken cancellationToken);
-
-    Task<Operations.RulesClearReply> ClearRulesAsync(Operations.RulesClearRequest request, CancellationToken cancellationToken);
-
-    Task<Operations.RulesStatusReply> ReadRulesStatusAsync(Operations.RulesStatusRequest request, CancellationToken cancellationToken);
-
     Task<Receipts.LookupReply> LookupReceiptAsync(Receipts.LookupRequest request, CancellationToken cancellationToken);
 
     // Clock.
 
     Task<Clock.ControlReply> StartClockAsync(Clock.StartRequest request, CancellationToken cancellationToken);
-
-    Task<Clock.ControlReply> RenewClockAsync(Clock.RenewRequest request, CancellationToken cancellationToken);
 
     Task<Clock.ControlReply> ChangeClockSpeedAsync(Clock.SpeedRequest request, CancellationToken cancellationToken);
 

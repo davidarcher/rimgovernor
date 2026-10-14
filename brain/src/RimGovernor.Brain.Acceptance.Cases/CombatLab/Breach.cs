@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using System.Text.Json.Nodes;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -24,15 +23,9 @@ internal static class CombatLabBreach
 
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            throw new AcceptanceException("combatlab/breach reads the snapshot ring from Windows named shared memory");
-        }
-
         await RunWindowsAsync(s, cancellationToken).ConfigureAwait(false);
     }
 
-    [SupportedOSPlatform("windows")]
     private static async Task RunWindowsAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
@@ -43,7 +36,7 @@ internal static class CombatLabBreach
         // The room's centre is the first colonist's cell two north.
         var cx = staged.Fixture.Pawns[0].X + 2;
         var cz = staged.Fixture.Pawns[0].Z + 2;
-        using var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        var frames = await CombatFrames.OpenAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
         var jobs = new SortedDictionary<string, int>(StringComparer.Ordinal);
         for (var ticks = CombatLabMirror.StepTicks; ticks <= DigTicks; ticks += CombatLabMirror.StepTicks)
         {

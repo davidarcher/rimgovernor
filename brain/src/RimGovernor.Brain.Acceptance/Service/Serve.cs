@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 // The service-driven family's lifecycle (Go serve.go). The Go harness launched a `rimgovernor serve` child beside the
-// game and held the sole GABP slot until it released it. The brain now runs in-process in the mod, so a
+// game and held the harness's only session until it released it. The brain now runs in-process in the mod, so a
 // ServiceProcess is a handle on the player API the mod's local HTTP channel serves: "launching" the service means
 // finding the channel's endpoint file and checking the brain answers, and "stopping" it ends the handle's own work
 // (keep-alive, evidence) without touching the game.
@@ -104,8 +104,8 @@ public sealed partial class ServiceProcess : ICheckpointService
     /// health and session and waits until the brain has attached to the same identity. <paramref name="harness"/>
     /// may be null when the caller already prepared the game itself (a GameReuse case), in which case
     /// <paramref name="identity"/> is required. The launch is recorded under report["service"]
-    /// (report["service_N"] for a restart). The Go version released the harness's GABP session here; with the
-    /// HTTP channel there is no sole slot, so the harness stays usable.
+    /// (report["service_N"] for a restart). The Go version released the harness's session here; with the
+    /// HTTP channel there is no exclusive session, so the harness stays usable.
     /// </summary>
     public static Task<ServiceProcess> ServeAsync(Config cfg, Harness? harness, JsonObject? identity, ServeSpec spec, Report? report, CancellationToken cancellationToken)
     {

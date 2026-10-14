@@ -84,7 +84,6 @@ public sealed partial class BrainComposition
         RoundsRitualsPlanner? cfgRituals = null;
         Rounder? cfgRounds = null;
         RoundsBuildingPlanner? cfgRoutes = null;
-        RoundsRulesPlanner? cfgRules = null;
         RoundsShrinePlanner? cfgShrine = null;
         RoundsBuildingPlanner? cfgSleeping = null;
         RoundsSleepingUpkeepPlanner? cfgSleepingUpkeep = null;
@@ -162,7 +161,7 @@ public sealed partial class BrainComposition
         var training = sc.Training;
         var envelope = sc.Envelope;
 
-        if (!routine && (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || incineration || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets || sc.Rules))
+        if (!routine && (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || incineration || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
         {
             throw new InvalidOperationException("building plans require rounds");
         }
@@ -305,10 +304,6 @@ public sealed partial class BrainComposition
         if (husbandry)
         {
             cfgHusbandry = RoundsHusbandryPlanner.NewRoundsHusbandryPlanner(reviewer);
-        }
-        if (sc.Rules)
-        {
-            cfgRules = RoundsRulesPlanner.Create(reviewer);
         }
         if (prisonerInteraction)
         {
@@ -544,7 +539,6 @@ public sealed partial class BrainComposition
             Rituals = cfgRituals,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
-            Rules = cfgRules,
             Shrine = cfgShrine,
             Sleeping = cfgSleeping,
             SleepingUpkeep = cfgSleepingUpkeep,
@@ -595,7 +589,6 @@ public sealed partial class BrainComposition
                 HostileWithin = 20f,
                 InjuryStopCooldownMs = 0,
             }),
-            30000,
             DefaultClockWindowTicks,
             testAcceleration,
             _options.ClockBlindTicks,

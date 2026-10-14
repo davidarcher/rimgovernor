@@ -108,18 +108,6 @@ public static partial class BridgeFunctions
         ValidateIdentity(value);
     }
 
-    /// <summary>
-    /// Go's <c>authorityDuration</c>: a requested lease duration in milliseconds, 1000 through 30000. The clock
-    /// domain's own lease-duration requests use the same bound.
-    /// </summary>
-    internal static void AuthorityDuration(uint? value)
-    {
-        if (value is null || value < 1000 || value > 30000)
-        {
-            throw Contract("authority duration outside1000..30000ms");
-        }
-    }
-
     /// <summary>Go's <c>buildingAttempt</c>: a complete attempt key with no unknown fields.</summary>
     internal static void BuildingAttempt(AttemptKey? attempt)
     {

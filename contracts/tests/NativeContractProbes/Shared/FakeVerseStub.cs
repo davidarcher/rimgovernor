@@ -85,19 +85,11 @@ namespace RimWorld
 namespace HomeBridge.BridgeTools
 {
     // SnapshotStream's native frame hook is outside these in-process probes.
-    // The control adapter still requests a keyframe after changing the view.
+    // The control adapter still requests a capture after changing the view.
     internal static class SnapshotStream
     {
-        internal static int KeyframeRequests;
-        internal static RimGovernor.Contracts.Wire.Observations.SnapshotStreamReply Open(
-            RimGovernor.Contracts.Wire.Observations.SnapshotStreamRequest request)
-        {
-            if (request.Keyframe == true) KeyframeRequests++;
-            return new RimGovernor.Contracts.Wire.Observations.SnapshotStreamReply
-            {
-                Outcome = new RimGovernor.Contracts.Wire.Observations.SnapshotStreamOpened()
-            };
-        }
+        internal static int CaptureRequests;
+        internal static void RequestCapture() => CaptureRequests++;
     }
     public class ColonyIdentity { public string ColonyId = "colony"; public string LoadToken = "load"; }
 
@@ -148,7 +140,7 @@ namespace HomeBridge.BridgeTools
 
     // native-clock's fixture-only supervisor double: completes the partial class whose typed-epoch
     // members (AttachTypedEpoch/AttachTypedEvent/CaptureTypedContext/StopInvalidTypedAuthority/
-    // typedSpeedCall/LeaseNow) live in the real production NativeClock*.cs files this project compiles.
+    // typedSpeedCall) live in the real production NativeClock*.cs files this project compiles.
     internal static partial class Supervisor
     {
         private static readonly object Gate = new object();
@@ -172,7 +164,7 @@ namespace HomeBridge.BridgeTools
         // use and returned so callers can read it under the Gate.
         private static ClockEventJournal EnsureJournal() { if (Journal == null) { Journal = new ClockEventJournal(); _cursor = Journal.Newest; } return Journal; }
         private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
-        private static object Start(string owner, Verse.TimeSpeed speed, int leaseMs, string mode, float healthDrop, float minHealth, float hostileWithin,
+        private static object Start(string owner, Verse.TimeSpeed speed, string mode, float healthDrop, float minHealth, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured, int cooldown, int maxTicks, string surgical, bool acceleration, string rest,
             int blindTickBudget = 0, int maxTicksPerSecond = 0, bool playerPaced = false)
         {
@@ -221,7 +213,7 @@ namespace HomeBridge.BridgeTools
         private sealed class State
         {
             internal TypedEpoch Typed; internal bool Active; internal object Session; internal Verse.Map Map; internal long Epoch;
-            internal Verse.TimeSpeed RequestedSpeed; internal long LeaseExpiresMs; internal int StartTick, LastTick, MaxProbeTickGap, ProbeCount;
+            internal Verse.TimeSpeed RequestedSpeed; internal int StartTick, LastTick, MaxProbeTickGap, ProbeCount;
             internal long? TickDeadline, StopAtMs; internal string PendingKind, PendingDetail, StopReason, StopDetail, ForcePauseKind;
             internal bool? PauseVerified; internal long ForcePauseSinceMs; internal bool TestAcceleration;
             internal int BlindTickBudget, MaxTicksPerSecond, RegulatedTicksPerSecond;
@@ -243,7 +235,6 @@ namespace HomeBridge.BridgeTools
         private static void AcknowledgeRows(State s, long afterCursor) { }
         internal static void FixtureReset()
         { _state = null; Journal = null; _epoch = _cursor = 0; RefusePause = false; InitialStop = null; _patchError = null; HarmonyLib.Harmony.Installed = false; }
-        internal static void FixtureExpire() => _state.LeaseExpiresMs = LeaseNow(_state);
         internal static bool IsActiveForFixture() => _state != null && _state.Active;
         internal static void FixtureEvent(string kind, Dictionary<string, object> row) => Add(kind, "Observed", _state, row);
         internal static void FixtureLegacyEvent() { Journal.Append(new Dictionary<string, object> { ["cursor"] = _cursor + 1 }); _cursor = Journal.Newest; }

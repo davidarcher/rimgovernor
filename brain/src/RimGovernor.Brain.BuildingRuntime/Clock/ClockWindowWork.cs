@@ -32,7 +32,7 @@ internal static class ClockWindowWork
         ActionKind.RecoveryService, ActionKind.Movement, ActionKind.Husbandry, ActionKind.PrisonerInteraction,
         ActionKind.Repair, ActionKind.Clean, ActionKind.MineAcquisition, ActionKind.Deconstruction,
         ActionKind.RemoveRoof, ActionKind.BuildRoof, ActionKind.AreaPlantCut, ActionKind.CutPlant, ActionKind.Strip,
-        ActionKind.RulesAttach, ActionKind.MoveBuilding, ActionKind.UninstallBuilding, ActionKind.CoverClearance,
+        ActionKind.MoveBuilding, ActionKind.UninstallBuilding, ActionKind.CoverClearance,
         ActionKind.WastepackHaul, ActionKind.MoodRelief, ActionKind.Excavation, ActionKind.DialogAnswer,
         ActionKind.Trade, ActionKind.CommsTradeRequest, ActionKind.QuestAccept, ActionKind.QuestShuttle,
         ActionKind.HackDesignation, ActionKind.GiveItem, ActionKind.Ritual, ActionKind.IdeoligionReform,
@@ -191,7 +191,7 @@ internal static class ClockWindowWork
         {
             text.Append(item).Append('\n');
         }
-        text.Append(start.Speed).Append('|').Append(start.TestAcceleration).Append('|').Append(start.LeaseMs).Append('\n');
+        text.Append(start.Speed).Append('|').Append(start.TestAcceleration).Append('\n');
         text.Append(start.Policy is null ? "" : RimGovernor.Contracts.Wire.WireJson.Serialize(start.Policy));
         var sum = SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()));
         return "clock-window-" + Convert.ToHexStringLower(sum);

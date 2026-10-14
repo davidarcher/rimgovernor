@@ -2,7 +2,7 @@
 
 | Contract | Required behavior |
 | --- | --- |
-| `Start`, `Pause`, `Renew`, `ChangeSpeed` | Exact epoch ownership, bounded native tick budget, no lease stealing or automatic reacquisition. |
+| `Start`, `Pause`, `ChangeSpeed` | Exact epoch ownership, bounded native tick budget, no automatic reacquisition. |
 | `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` is an ordinary wire speed; the native tick boost behind it (`StartRequest.test_acceleration`) is admitted only by a game launched with `-rimgovernor-test-acceleration`, which the acceptance harness (`RimGovernor.cmd acceptance`) adds to its acceptance profiles alone (headless and rendered) (`Status.test_acceleration_available`), and an accelerated epoch pauses rather than changing speed. |
 | `clock.Event`, `EventsPage` | Immutable typed events, explicit gaps, journal failure holds play. |
 | `clock.ControlReceipt`, `ReadAttempt` | Shared attempt namespace and retained clock outcome; no retry inferred from missing receipt. |
@@ -15,7 +15,7 @@
 ## Clock validation
 
 `Start` requires current authority and one ordinary speed, a complete watch policy,
-lease 1000–30000 ms and tick budget 1–1800000. Policy fractions must be finite in
+and a tick budget 1–1800000. Policy fractions must be finite in
 0.01–1, hostile distance finite in 1–250, cooldown 0–1800000 ms. Each exact
 pawn ID set has at most 256 entries without duplicates. `watched_attempts` has at
 most 16 distinct complete attempt keys, each resolving to a tracked construction
@@ -27,7 +27,7 @@ require a budget at most 600 ticks. Native eligibility is checked on every sweep
 acknowledgements cannot disable death or severe-health checks. Unknown numeric
 enum values, omitted required fields and unsupported policies are refusals.
 
-Renewal and speed changes retain the original tick deadline. Pause is permitted
+Speed changes retain the original tick deadline. Pause is permitted
 for the exact identity/session/epoch even after automation revocation so cleanup
 can stop owned play. It cannot affect a replacement epoch or another owner.
 Epochs are positive signed 64-bit values; cursor zero is the initial position.
@@ -50,11 +50,8 @@ no native acknowledge/delete/resume alias.
 Typed journal payloads cover started/speed, notification/alert, injury/health,
 hostile/downed/predator/hunting/medical-rest, hostiles-cleared, tick budget,
 watch-latched with its operation outcome, authority changes (owner-less when
-observed outside an epoch), pause-failure, external pause/speed, lease,
-unavailable/watcher/journal errors, force-pause waiting/cleared events,
-the owner-less `RuleFired` (journaled before the native rule's write) and
-`RuleLeaseExpired` (one per attachment) events of the
-[native rule runtime](../../docs/developers/contracts/native-rules.md) and
+observed outside an epoch), pause-failure, external pause/speed,
+unavailable/watcher/journal errors, force-pause waiting/cleared events and
 `STOP_REASON_DIALOG_PAUSE` with its `DialogPause` (window id/type/title) when a
 game-opened `Verse.Dialog_NodeTree` force-pauses a running epoch. Like a
 letter pause it is a non-benign stop the player acknowledges; the brain
@@ -64,14 +61,13 @@ than reported as a running epoch's pause. Source numeric pawn IDs must resolve t
 canonical IDs, never suffix matching. Every event carries its original native
 context, not whichever map happens to be selected during later reads.
 
-Lease durations use a monotonic clock within the native process lifetime. Durable event/stop timestamps remain Unix milliseconds
-for diagnostic chronology; wall-clock jumps never change lease expiry. Stop
+Durable event/stop timestamps are Unix milliseconds for diagnostic chronology. Stop
 snapshots retain original epoch identity; observed current context makes identity
 replacement explicit.
 
-Start/renew/speed use the common attempt namespace and the same 4096-entry,
+Start/speed use the common attempt namespace and the same 4096-entry,
 unsaved, non-evicting ledger as ordinary guarded operations. Record admission
-before clock or lease changes. Equality compares the complete typed request,
+before clock changes. Equality compares the complete typed request,
 including the method and immutable original preconditions. An identical attempt
 replays its receipt; changed reuse is conflict. The clock receipt contains original
 admission context, authorizing owner and applied or uncertain state. An applied

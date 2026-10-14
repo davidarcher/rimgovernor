@@ -7,8 +7,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>tickbudget/boundaries</c> (Go <c>tickbudget/tickbudget.go</c>): exact native execution tick boundaries and
 /// external clock ownership in a private game. Every speed runs exactly its tick budget and pauses verified, an
-/// external pause or speed change stops the supervised clock and holds it until the player resumes, a lease expires
-/// before its tick limit, and loading a save retires the old watcher without claiming the new session's clock.
+/// external pause or speed change stops the supervised clock and holds it until the player resumes,
+/// and loading a save retires the old watcher without claiming the new session's clock.
 /// </summary>
 internal static class TickbudgetBoundaries
 {
@@ -208,34 +208,6 @@ internal static class TickbudgetBoundaries
         }
 
         report["results"] = results.DeepClone();
-
-        // A lease that is never renewed stops the clock before its tick limit.
-        clock.LeaseMs = 1000;
-        try
-        {
-            _ = await clock.ChangeAsync("Normal", 3000, cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException($"lease-start: {e.Message}", e);
-        }
-
-        clock.LeaseMs = 0;
-        var expired = await Stopped(clock, "lease-expired").ConfigureAwait(false);
-        var expiredVerified = expired["pauseVerified"].AsBool() == true;
-        if (expired["stopReason"].AsString() != "lease_expired" || !expiredVerified)
-        {
-            throw new AcceptanceException($"lease-expired: unexpected stop result {expired.ToJson()}");
-        }
-
-        if (expired["lastTick"].AsNumber() >= expired["tickDeadline"].AsNumber())
-        {
-            throw new AcceptanceException($"lease-expired: expected lastTick before tickDeadline: {expired.ToJson()}");
-        }
-
-        results.Add(new JsonObject { ["lease_expiry"] = expired.DeepClone() });
-        report["results"] = results.DeepClone();
-        await Console.Out.WriteLineAsync("PASS lease expiry before tick limit").ConfigureAwait(false);
 
         // Loading a native save retires the old watcher without claiming the new session's clock or carrying its old
         // tick deadline over.

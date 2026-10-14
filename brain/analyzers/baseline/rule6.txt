@@ -4,11 +4,9 @@ Bridge.Contracts/Clock/ClockEvents.cs|BridgeFunctions.ClockStopEvent|1800000
 Bridge.Contracts/Clock/ClockExpectation.cs|BridgeFunctions.ValidateClockExpectation|1800000
 Bridge.Contracts/Clock/ClockExpectation.cs|BridgeFunctions.ValidateClockExpectation|60000
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockEpoch|1800000
-Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockEpoch|30000
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockPolicy|1800000
 Bridge.Contracts/Facts/ColonyGearValidation.cs|BridgeFunctions.ValidateColonyGear|300000
 Bridge.Contracts/Foundation/NewColonyValidation.cs|NewColonyBounds.MaxTimeoutMs|1800000
-Bridge.Contracts/Foundation/WireValidation.cs|BridgeFunctions.AuthorityDuration|30000
 BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.DefaultHorizonTicks|2500
 BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.FullTicksPerSecond|9000
 BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.ReleaseTicksPerSecond|60000
@@ -159,7 +157,6 @@ Host/Client/FacadeNativeClient.Defense.cs|FacadeNativeClient.DefenseSpatialAcces
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"HiddenConduit"
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"PowerConduit"
 Host/Client/FacadeNativeClient.Sites.cs|PlacementReads.SalvageMaxAgeTicks|2500
-Host/Composition/BrainComposition.Planners.cs|BrainComposition.CreateWindows|30000
 Host/Composition/BrainComposition.Planners.cs|BrainComposition.DefaultClockWindowTicks|60000
 Host/Composition/BrainCompositionOptions.cs|BrainCompositionOptions.MaxClockBlindTicks|1800000
 Observation/ColonyDecode.cs|ObservationPackage.DecodeColony|"PowerConduit"
@@ -313,7 +310,6 @@ Policy/RoomQualityUpgrade.cs|PolicyFunctions.WeakestRoomStat|1500
 Policy/Rooms.cs|PolicyFunctions.FacilityCatalog|"Throne"
 Policy/Routes.cs|PolicyFunctions.DefaultRoutesPolicy|"Door"
 Policy/Routes.cs|PolicyFunctions.DefaultRoutesPolicy|"WoodLog"
-Policy/Rules.cs|PolicyFunctions.RuleLeaseTicks|2500
 Policy/SiteType.cs|PolicyFunctions.SiteSteelUnit|"Steel"
 Policy/SiteType.cs|PolicyFunctions.SteelResource|"Steel"
 Policy/SleepingMethod.cs|PolicyFunctions.SleepingBedrollDefinition|"Bedroll"

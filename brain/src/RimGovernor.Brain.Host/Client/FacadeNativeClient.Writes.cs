@@ -3,99 +3,10 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Host;
 
-// Go rules.go (AttachReactions, ClearReactions, ReadReactions), authority.go (FocusMap) and lifecycle_save.go (Save,
+// Go authority.go (FocusMap) and lifecycle_save.go (Save,
 // ReadSave): the writes that are methods of the client rather than of a writer class.
 internal sealed partial class FacadeNativeClient
 {
-    /// <summary>
-    /// Go <c>Client.AttachReactions</c>: replaces every active native rule with the accepted ones and sets the lease
-    /// to <paramref name="expiresAtTick"/> (an absolute game tick). Refused rules come back on the reply with their reasons.
-    /// </summary>
-    internal async Task<(PbOperations.RulesAttached Value, BridgeResult Receipt)> AttachReactionsAsync(
-        PbCommon.Identity identity,
-        IReadOnlyList<PbOperations.Rule> rules,
-        long expiresAtTick,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(rules);
-        if (!WritesIdentityIsValid(identity) || expiresAtTick <= 0)
-        {
-            throw BridgeFunctions.Contract("invalid rules attach");
-        }
-        var request = new PbOperations.RulesAttachRequest
-        {
-            Identity = identity,
-            ExpiresAtTick = expiresAtTick,
-            Rules = EquatableArray.From(rules),
-        };
-        var reply = await Facade.AttachRulesAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        var attached = reply.Outcome?.Attached;
-        if (attached is null
-            || !WritesContextMatches(attached.Context, identity)
-            || attached.AcceptedIds.Count + attached.Refused.Count != rules.Count)
-        {
-            throw BridgeFunctions.Contract("invalid rules attach evidence");
-        }
-        foreach (var refusal in attached.Refused)
-        {
-            if (refusal.Reason.GetValueOrDefault() == PbOperations.RuleRefusalReason.Unspecified)
-            {
-                throw BridgeFunctions.Contract("rule refusal reason missing");
-            }
-        }
-        return (attached, NoReceipt);
-    }
-
-    /// <summary>Go <c>Client.ClearReactions</c>: deactivates every native rule and reports how many were active.</summary>
-    internal async Task<(uint Value, BridgeResult Receipt)> ClearReactionsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        if (!WritesIdentityIsValid(identity))
-        {
-            throw BridgeFunctions.Contract("invalid rules clear");
-        }
-        var reply = await Facade.ClearRulesAsync(new PbOperations.RulesClearRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        var cleared = reply.Outcome?.Cleared;
-        if (cleared is null || !WritesContextMatches(cleared.Context, identity) || cleared.Cleared is null)
-        {
-            throw BridgeFunctions.Contract("invalid rules clear evidence");
-        }
-        return (cleared.Cleared.GetValueOrDefault(), NoReceipt);
-    }
-
-    /// <summary>Go <c>Client.ReadReactions</c>: reads the active native rules, their lease and firing history.</summary>
-    internal async Task<(PbOperations.RulesStatus Value, BridgeResult Receipt)> ReadReactionsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        if (!WritesIdentityIsValid(identity))
-        {
-            throw BridgeFunctions.Contract("invalid rules status read");
-        }
-        var reply = await Facade.ReadRulesStatusAsync(new PbOperations.RulesStatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome?.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        var status = reply.Outcome?.Status;
-        if (status is null || !WritesContextMatches(status.Context, identity))
-        {
-            throw BridgeFunctions.Contract("invalid rules status evidence");
-        }
-        foreach (var rule in status.Rules)
-        {
-            if (!BridgeFunctions.IsValidId(rule.RuleId ?? ""))
-            {
-                throw BridgeFunctions.Contract("rules status rule id");
-            }
-        }
-        return (status, NoReceipt);
-    }
 
     /// <summary>
     /// Go <c>AuthorityControl.FocusMap</c>: changes only the viewed loaded map under the trusted control CAS. A

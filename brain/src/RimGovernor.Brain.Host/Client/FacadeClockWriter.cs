@@ -59,7 +59,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         ArgumentNullException.ThrowIfNull(request);
         BridgeFunctions.ClockWire(request);
         Precondition(request.Authority);
-        BridgeFunctions.AuthorityDuration(request.LeaseMs);
         if (request.Speed is null
             || (int)request.Speed.GetValueOrDefault() < 1
             || (int)request.Speed.GetValueOrDefault() > 4
@@ -88,30 +87,12 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
             new ClockCommand(Start: new ClockStart(
                 request.Speed.GetValueOrDefault(),
                 request.Policy,
-                request.LeaseMs.GetValueOrDefault(),
                 request.MaxTicks.GetValueOrDefault(),
                 request.TestAcceleration.GetValueOrDefault(),
                 request.BlindTickBudget.GetValueOrDefault(),
                 request.MaxTicksPerSecond.GetValueOrDefault(),
                 request.Pacing.GetValueOrDefault() == PbClock.Pacing.PlayerAccelerated)));
         return await CallAsync(() => _facade.StartClockAsync(request, ct), pre, expectation, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>Go <c>ClockControl.Renew</c>.</summary>
-    public async Task<PbClock.ControlReply> RenewAsync(PbClock.RenewRequest request, PbClock.Epoch original, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.ClockWire(request);
-        Precondition(request.Authority);
-        BridgeFunctions.AuthorityDuration(request.LeaseMs);
-        var pre = request.Authority!;
-        Original(request.Epoch, pre, original);
-        var expectation = new ClockExpectation(
-            pre.Identity,
-            pre.Attempt,
-            pre.ExpectedGeneration.GetValueOrDefault(),
-            new ClockCommand(Renew: new ClockRenew(original, request.LeaseMs.GetValueOrDefault())));
-        return await CallAsync(() => _facade.RenewClockAsync(request, ct), pre, expectation, ct).ConfigureAwait(false);
     }
 
     /// <summary>Go <c>ClockControl.ChangeSpeed</c>.</summary>

@@ -140,15 +140,6 @@ namespace HomeBridge.BridgeTools
         public Task<Operations.ApplyReply> ApplyAsync(Operations.ApplyRequest request, CancellationToken cancellationToken)
             => Write("operations_apply", request, () => NativeActionTools.HandleApply(request), cancellationToken);
 
-        public Task<Operations.RulesAttachReply> AttachRulesAsync(Operations.RulesAttachRequest request, CancellationToken cancellationToken)
-            => Write("rules_attach", request, () => NativeRuleTools.HandleAttach(request), cancellationToken);
-
-        public Task<Operations.RulesClearReply> ClearRulesAsync(Operations.RulesClearRequest request, CancellationToken cancellationToken)
-            => Write("rules_clear", request, () => NativeRuleTools.HandleClear(request), cancellationToken);
-
-        public Task<Operations.RulesStatusReply> ReadRulesStatusAsync(Operations.RulesStatusRequest request, CancellationToken cancellationToken)
-            => Read("rules_read_status", request, () => NativeRuleTools.HandleReadStatus(request), cancellationToken);
-
         public Task<Receipts.LookupReply> LookupReceiptAsync(Receipts.LookupRequest request, CancellationToken cancellationToken)
             => Read("receipts_lookup", request, () => NativeOperationTools.HandleLookup(request), cancellationToken);
 
@@ -156,9 +147,6 @@ namespace HomeBridge.BridgeTools
 
         public Task<Clock.ControlReply> StartClockAsync(Clock.StartRequest request, CancellationToken cancellationToken)
             => Write("clock_start", request, () => NativeClockTools.HandleStart(request), cancellationToken);
-
-        public Task<Clock.ControlReply> RenewClockAsync(Clock.RenewRequest request, CancellationToken cancellationToken)
-            => Write("clock_renew", request, () => NativeClockTools.HandleRenew(request), cancellationToken);
 
         public Task<Clock.ControlReply> ChangeClockSpeedAsync(Clock.SpeedRequest request, CancellationToken cancellationToken)
             => Write("clock_change_speed", request, () => NativeClockTools.HandleChangeSpeed(request), cancellationToken);
@@ -290,7 +278,7 @@ namespace HomeBridge.BridgeTools
                     return Task.FromResult(new Obs.SnapshotStreamReply { Outcome = ProtoBoundary.Fail(RimGovernor.Contracts.Wire.Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
                 }
             }
-            return Read("observations_open_snapshot_stream", request, () => SnapshotStream.OpenInProcess(request), cancellationToken);
+            return Read("observations_read_snapshot", request, () => SnapshotStream.Open(request), cancellationToken);
         }
 
         public Task<Obs.FlushSnapshotReply> FlushFramesAsync(Obs.FlushSnapshotRequest request, CancellationToken cancellationToken)

@@ -94,7 +94,6 @@ public static partial class BridgeFunctions
         [ActionKind.GearReplace] = WearAction,
         [ActionKind.UseItem] = UseItemAction,
         [ActionKind.Strip] = StripAction,
-        [ActionKind.RulesAttach] = RulesAttachAction,
     }.ToFrozenDictionary();
 
     /// <summary>

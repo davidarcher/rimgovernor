@@ -236,7 +236,7 @@ public sealed partial class ClockCoordinator : IDisposable
         }
         else
         {
-            original = command.Renew is not null ? command.Renew.Original : command.Speed!.Original;
+            original = command.Speed!.Original;
             var found = false;
             foreach (var epoch in epochs)
             {
@@ -405,7 +405,6 @@ public sealed partial class ClockCoordinator : IDisposable
                             Authority = pre,
                             Speed = s.Speed,
                             Policy = s.Policy,
-                            LeaseMs = s.LeaseMs,
                             MaxTicks = s.MaxTicks,
                             TestAcceleration = s.TestAcceleration,
                         };
@@ -422,16 +421,6 @@ public sealed partial class ClockCoordinator : IDisposable
                             request = request with { Pacing = pacing };
                         }
                         reply = await _writer.StartAsync(request, call).ConfigureAwait(false);
-                    }
-                    else if (command.Renew is { } r)
-                    {
-                        var request = new PbClock.RenewRequest
-                        {
-                            Epoch = new PbClock.OwnedRequest { Identity = e0.Identity, Owner = r.Original!.Owner },
-                            Authority = pre,
-                            LeaseMs = r.LeaseMs,
-                        };
-                        reply = await _writer.RenewAsync(request, r.Original, call).ConfigureAwait(false);
                     }
                     else if (command.Speed is { } sp)
                     {

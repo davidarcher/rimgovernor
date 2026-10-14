@@ -51,7 +51,6 @@ namespace HomeBridge.BridgeTools
                 switch (request)
                 {
                     case Clock.StartRequest start: Request = start; break;
-                    case Clock.RenewRequest renew: Request = renew; break;
                     case Clock.SpeedRequest speed: Request = speed; break;
                     default: throw new ArgumentException("Unsupported admitted request type.", nameof(request));
                 }
@@ -176,7 +175,6 @@ namespace HomeBridge.BridgeTools
             switch (request)
             {
                 case Clock.StartRequest start when method == "rimgovernor.clock.v1.Clock/Start": return start.Authority;
-                case Clock.RenewRequest renew when method == "rimgovernor.clock.v1.Clock/Renew": return renew.Authority;
                 case Clock.SpeedRequest speed when method == "rimgovernor.clock.v1.Clock/ChangeSpeed": return speed.Authority;
                 default: return null;
             }

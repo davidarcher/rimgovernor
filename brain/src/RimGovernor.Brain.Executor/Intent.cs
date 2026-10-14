@@ -94,7 +94,6 @@ public sealed partial class Executor
         ActionKind.GearReplace,
         ActionKind.UseItem,
         ActionKind.Strip,
-        ActionKind.RulesAttach,
     }.ToFrozenSet();
 
     /// <summary>Whether <paramref name="kind"/> dispatches with its plan's other plain intents in one native Apply; other kinds run their own flow per action.</summary>

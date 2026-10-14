@@ -70,17 +70,9 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
 
     public Task<Operations.ApplyReply> ApplyAsync(Operations.ApplyRequest request, CancellationToken cancellationToken) => Count("operations_apply", () => inner.ApplyAsync(request, cancellationToken));
 
-    public Task<Operations.RulesAttachReply> AttachRulesAsync(Operations.RulesAttachRequest request, CancellationToken cancellationToken) => Count("rules_attach", () => inner.AttachRulesAsync(request, cancellationToken));
-
-    public Task<Operations.RulesClearReply> ClearRulesAsync(Operations.RulesClearRequest request, CancellationToken cancellationToken) => Count("rules_clear", () => inner.ClearRulesAsync(request, cancellationToken));
-
-    public Task<Operations.RulesStatusReply> ReadRulesStatusAsync(Operations.RulesStatusRequest request, CancellationToken cancellationToken) => Count("rules_read_status", () => inner.ReadRulesStatusAsync(request, cancellationToken));
-
     public Task<Receipts.LookupReply> LookupReceiptAsync(Receipts.LookupRequest request, CancellationToken cancellationToken) => Count("receipts_lookup", () => inner.LookupReceiptAsync(request, cancellationToken));
 
     public Task<Clock.ControlReply> StartClockAsync(Clock.StartRequest request, CancellationToken cancellationToken) => Count("clock_start", () => inner.StartClockAsync(request, cancellationToken));
-
-    public Task<Clock.ControlReply> RenewClockAsync(Clock.RenewRequest request, CancellationToken cancellationToken) => Count("clock_renew", () => inner.RenewClockAsync(request, cancellationToken));
 
     public Task<Clock.ControlReply> ChangeClockSpeedAsync(Clock.SpeedRequest request, CancellationToken cancellationToken) => Count("clock_change_speed", () => inner.ChangeClockSpeedAsync(request, cancellationToken));
 
@@ -158,7 +150,7 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
 
     public Task<Presentation.RenderReply> DemandRenderingAsync(Presentation.RenderDemand request, CancellationToken cancellationToken) => Count("presentation_render_demand", () => inner.DemandRenderingAsync(request, cancellationToken));
 
-    public Task<Obs.SnapshotStreamReply> OpenFramesAsync(Obs.SnapshotStreamRequest request, CancellationToken cancellationToken) => Count("observations_open_snapshot_stream", () => inner.OpenFramesAsync(request, cancellationToken));
+    public Task<Obs.SnapshotStreamReply> OpenFramesAsync(Obs.SnapshotStreamRequest request, CancellationToken cancellationToken) => Count("observations_read_snapshot", () => inner.OpenFramesAsync(request, cancellationToken));
 
     public Task<Obs.FlushSnapshotReply> FlushFramesAsync(Obs.FlushSnapshotRequest request, CancellationToken cancellationToken) => Count("observations_flush_snapshot", () => inner.FlushFramesAsync(request, cancellationToken));
 

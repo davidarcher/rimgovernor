@@ -267,7 +267,7 @@ public sealed partial class Store
         foreach (var plan in owner.OwnerPlans)
         {
             var p = LoadIn(tx, plan);
-            open = open || (PlanOpen(p) && !RulesAttachOnly(p.Spec));
+            open = open || PlanOpen(p);
             if (!open)
             {
                 // A fight's drafts are its open work.
@@ -276,12 +276,6 @@ public sealed partial class Store
         }
         return open;
     }
-
-    /// <summary>
-    /// A plan of native rule attachments alone: one in-memory write per Round that holds no pawn work, so it
-    /// neither waits behind the owner's open work nor counts as open work for its other planners.
-    /// </summary>
-    internal static bool RulesAttachOnly(PlanSpec plan) => plan.Actions.Count > 0 && plan.Actions.All(a => a.Kind == ActionKind.RulesAttach);
 
     /// <summary><see cref="StandardOpenWork"/> without the fights: whether any of the owner's plans is still open.</summary>
     internal static bool PlanOpenWork(StoreTransaction tx, IMethodOwner owner) => owner.OwnerPlans.Any(plan => PlanOpen(LoadIn(tx, plan)));
@@ -477,7 +471,6 @@ public sealed partial class Store
         AcquisitionOpenWorkExempt(tx, state, plan)
         || FieldOpenWorkExempt(tx, state, plan)
         || GrowerCropOpenWorkExempt(plan)
-        || RulesAttachOnly(plan)
         || MealReplacementOpenWorkExempt(state, plan)
         || FoodFacilityOpenWorkExempt(tx, state, method, plan)
         || ReserveAccessOpenWorkExempt(tx, state, plan)

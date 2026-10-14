@@ -40,7 +40,6 @@ internal static class NativeContractProbesDispatcher
                 case "native-attempt-ledger": NativeAttemptLedgerProbe.Invoke(); return 0;
                 case "native-construction-causality": NativeConstructionCausalityProbe.Invoke(); return 0;
                 case "native-ref-index": NativeRefIndexProbe.Invoke(); return 0;
-                case "native-rule-runtime": NativeRuleRuntimeProbe.Invoke(); return 0;
 
                 // ---- Category 4: hybrid fake-Verse + real-DLL reflection ----
                 case "native-proto-boundary": NativeProtoBoundaryProbe.Invoke(rest); return 0;
@@ -83,7 +82,6 @@ internal static class NativeContractProbesDispatcher
         foreach (var name in new[]
         {
             "native-authority", "native-authority-control", "native-authority-status", "native-clock",
-            "native-attempt-ledger", "native-construction-causality", "native-designation-guards", "native-ref-index", "native-observation-work", "native-rule-runtime",
             "native-threat-classifier", "native-reply-encoder", "native-acquisition-token",
             "native-proto-boundary",
             "native-movement-operations",

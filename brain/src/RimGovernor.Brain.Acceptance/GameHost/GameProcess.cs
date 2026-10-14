@@ -8,8 +8,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Describes one game launch (Go <c>gamehost.Spec</c>). Env entries override the inherited environment; inherited
-/// <c>GABS_*</c>/<c>GABP_*</c> variables are dropped. There is no GABP port or token to manage any more.
+/// Describes one game launch (Go <c>gamehost.Spec</c>). Env entries override the inherited environment.
 /// </summary>
 public sealed class GameLaunchSpec
 {
@@ -419,7 +418,7 @@ public sealed class GameProcess
     }
 
     /// <summary>
-    /// The child's environment block: the parent minus inherited GABS_*/GABP_*, then overrides. Names compare
+    /// The child's environment block: the parent, then overrides. Names compare
     /// case-insensitively (Windows). Returned as the UTF-16 block text (NUL-separated entries).
     /// </summary>
     private static string ChildEnv(System.Collections.IDictionary parent, IReadOnlyDictionary<string, string> overrides)
@@ -428,7 +427,7 @@ public sealed class GameProcess
         foreach (System.Collections.DictionaryEntry kv in parent)
         {
             var k = (string)kv.Key;
-            if (k.Length == 0 || k.StartsWith("GABS_", StringComparison.OrdinalIgnoreCase) || k.StartsWith("GABP_", StringComparison.OrdinalIgnoreCase))
+            if (k.Length == 0)
             {
                 continue;
             }

@@ -31,19 +31,6 @@ reserve every future cost atomically. Native dispatch validates current legality
 Acknowledging a request establishes acceptance; completion requires the
 [action's native postcondition](../contracts/action-contracts.md).
 
-## Native rules
-
-The brain may hand native a standing, declarative reaction: "on trigger X, if predicates P, do
-whitelisted action A" ([native rules](../contracts/native-rules.md)). It is still a brain-authored
-order, deterministic and journaled: a pure policy function derives the rule set from the plan
-(`policy.HuntChainRules` from the hunt plan), the `rules_attach` action
-([action contracts](../contracts/action-contracts.md)) reaches the session journal before the
-native write like every other intent, and native only executes the rules it was given. The set
-is attached with a lease each Round (`family rules`, one method per Round under
-`EnsureFoodSupply`); when the brain stops renewing it native deactivates every rule by itself. Each
-firing is journaled on the clock ring before its write, and the brain ingests it as a `rule` row.
-Rules never draft: drafts stay plan-owned.
-
 ## Recover and cancel precisely
 
 A refusal before writing can be reconsidered when conditions change. A lost reply
@@ -68,7 +55,7 @@ Hands while paused. It does not resume simulation. Direction and colony/map/load
 changes invalidate work prepared under the previous context. Dispatch is
 journaled before any native write, so a prepared but undispatched action has no
 write outstanding: when the native generation moves under it (a cancelled
-dispatch, a re-acquired lease) it is prepared again under the current authority
+dispatch, a re-acquired authority) it is prepared again under the current authority
 rather than left stranded.
 
 Implementation: [Brain.Domain](../../../brain/src/RimGovernor.Brain.Domain) (plans/concerns),

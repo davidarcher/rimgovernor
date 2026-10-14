@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static object Start(string owner, TimeSpeed speed, int leaseMs,
+        internal static object Start(string owner, TimeSpeed speed,
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
             int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "",
@@ -129,7 +129,6 @@ namespace HomeBridge.BridgeTools
                     Mode = profile, HostileWithin = ClampFloat(hostileWithin, 1f, 250f),
                     HealthDropFraction = ClampFloat(healthDropFraction, 0.01f, 1f),
                     MinHealthFraction = ClampFloat(minHealthFraction, 0.01f, 1f),
-                    LeaseExpiresMs = NowMs() + Clamp(leaseMs, 1000, 30000),
                     StartTick = Find.TickManager.TicksGame,
                     TickDeadline = maxTicks == 0 ? (long?)null : (long)Find.TickManager.TicksGame + maxTicks,
                     LastTick = Find.TickManager.TicksGame,
@@ -257,7 +256,7 @@ namespace HomeBridge.BridgeTools
         {
             {
                 // The frame can contain many accelerated ticks. Check ownership,
-                // lease and tick-bounded hazards before admitting another tick.
+                // tick-bounded hazards before admitting another tick.
                 if (s.TestAcceleration || s.PlayerPaced) OnUpdate();
                 if (!s.Active) return;
                 if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map))
@@ -350,7 +349,6 @@ namespace HomeBridge.BridgeTools
                     if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, "external_speed_changed", "Speed changed outside the supervisor.", true,
                         new Dictionary<string, object?> { { "expectedSpeed", s.RequestedSpeed.ToString() },
                             { "actualSpeed", tm.CurTimeSpeed.ToString() } }); return; }
-                    if (LeaseNow(s) >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Heartbeat lease expired.", true, null); return; }
                     Regulate(s);
                     if (!RunProbeIfDue(s, tm)) return;
                     RunDigestIfDue(s, tm);
@@ -1265,7 +1263,6 @@ namespace HomeBridge.BridgeTools
             payload["detectedTick"] = s.DetectedTick;
             s.Active = false; s.StopReason = kind; s.StopDetail = detail; ClockPauseAccounting.Stopped(); Add(kind, detail, s, payload);
             LogTiming(s, kind);
-            if (kind == "lease_expired") RevokeDisconnected(s);
         }
         private static void RestoreBoost(State s)
         {
@@ -1348,9 +1345,6 @@ namespace HomeBridge.BridgeTools
                 catch (Exception error) { ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); return false; }
             }
         }
-        // A native rule's journal row (rule_fired, rule_lease_expired). True only once the row is
-        // in the journal, so a rule writes the game only after its firing is recorded.
-        internal static bool PublishRuleEvent(string kind, string detail, Dictionary<string, object?> payload) => Publish(kind, detail, payload);
         private static object Snapshot(State? s, bool success)
         {
             EnsureJournal();
@@ -1387,7 +1381,6 @@ namespace HomeBridge.BridgeTools
                 { "forcePauseKind", s != null ? s.ForcePauseKind : null },
                 { "pauseVerified", s != null ? (object?)s.PauseVerified : null },
                 { "sessionChanged", s != null && s.StopReason == "session_changed" },
-                { "leaseExpiresAtMs", s != null ? NowMs() + Math.Max(0, s.LeaseExpiresMs - LeaseNow(s)) : 0 }, { "leaseRemainingMs", s != null ? Math.Max(0, s.LeaseExpiresMs - LeaseNow(s)) : 0 },
                 { "stopReason", s != null ? s.StopReason : null }, { "stopDetail", s != null ? s.StopDetail : null },
                 { "newestCursor", _cursor }, { "patchError", _patchError } };
         }
@@ -1478,7 +1471,7 @@ namespace HomeBridge.BridgeTools
             public State(object session, Map map) { Session = session; Map = map; }
             public bool Active; public long Epoch; public string? Owner; public readonly object Session; public readonly Map Map; public TimeSpeed RequestedSpeed;
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
-            public long LeaseExpiresMs; public long LastProbeMs; public int LastTick; public bool PausedAtStop;
+            public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick; public long? TickDeadline;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned; public bool PriorNeverForceNormal; public bool NeverForceNormalOwned;
             // Blind-tick regulator (SupervisedPlayRegulator.cs): the budget and

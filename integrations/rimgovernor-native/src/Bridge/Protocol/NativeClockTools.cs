@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
             return Supervisor.TypedEvents(parsed, context);
         }
 
-        [Tool("rimgovernor/clock_start", Title = "Start guarded owned clock", Description = "Admit one ordinary supervised epoch under current authority, a bounded tick budget and monotonic lease. Exact attempts replay; never reacquires authority.")]
+        [Tool("rimgovernor/clock_start", Title = "Start guarded owned clock", Description = "Admit one ordinary supervised epoch under current authority, and a bounded tick budget. Exact attempts replay; never reacquires authority.")]
         [ToolResponse("payload", "string", "Official clock ControlReply ProtoJSON.", Always = true)]
         public Task<object> Start(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official clock StartRequest ProtoJSON string.")] object? request = null)
@@ -53,18 +53,6 @@ namespace HomeBridge.BridgeTools
         internal static Clock.ControlReply HandleStart(Clock.StartRequest parsed)
             => Control("Start", parsed, parsed.Authority, null,
                 () => Supervisor.ValidateTypedStart(parsed), context => Supervisor.TypedStart(parsed, context));
-
-        [Tool("rimgovernor/clock_renew", Title = "Renew owned clock lease", Description = "Renew only a live exact owned epoch under current authority; retain original tick deadline and replay admitted attempts.")]
-        [ToolResponse("payload", "string", "Official clock ControlReply ProtoJSON.", Always = true)]
-        public Task<object> Renew(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Official clock RenewRequest ProtoJSON string.")] object? request = null)
-            => Dispatch<Clock.RenewRequest, Clock.ControlReply>(ctx, cancellationToken, "rimgovernor/clock_renew", request,
-                failure => new Clock.ControlReply { Outcome = new Clock.ControlReplyOutcome.FailureCase(failure) }, HandleRenew);
-
-        internal static Clock.ControlReply HandleRenew(Clock.RenewRequest parsed)
-            => Control("Renew", parsed, parsed.Authority, parsed.Epoch,
-                () => parsed.LeaseMs is not null && parsed.LeaseMs.GetValueOrDefault() >= 1000 && parsed.LeaseMs.GetValueOrDefault() <= 30000 ? null : Invalid("Clock lease must be1000..30000ms."),
-                context => Supervisor.TypedRenew(parsed, context));
 
         [Tool("rimgovernor/clock_change_speed", Title = "Change owned clock speed", Description = "Change one live owned epoch to an ordinary speed under current authority without extending its tick budget.")]
         [ToolResponse("payload", "string", "Official clock ControlReply ProtoJSON.", Always = true)]

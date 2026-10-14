@@ -2,9 +2,6 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
-using System.IO;
-using System.IO.MemoryMappedFiles;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Host.Sdk;
@@ -17,56 +14,29 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 namespace HomeBridge.BridgeTools
 {
     /// <summary>
-    /// The snapshot stream: whole BundleSnapshot frames published into
-    /// a named shared-memory ring, read lock-free by the controller
-    /// (go/internal/snapshotshm). The game thread captures a frame right after
-    /// a frame's ticks (Supervisor.OnFrame) every PeriodTicks, on a pause
-    /// edge and after every applied write (a deferred
-    /// write waits for observations_flush_snapshot or DeferredSeconds); an encoder worker formats it and
-    /// writes it into the next slot under a per-slot seqlock, so the game
-    /// thread never waits on a reader. Nothing is captured until the
-    /// controller opens the stream. The encoder leaves out unchanged
-    /// singleton sections (SnapshotSections); an open is a keyframe.
-    ///
-    /// Layout (little-endian):
-    ///   header, 64 bytes:
-    ///     0  uint32 magic "RGSS"   4  uint32 version
-    ///     8  uint32 slots          12 uint32 slot bytes
-    ///     16 uint64 head: the last committed frame's number (0: none)
-    ///     24 uint64 writes: applied-write counter, bumped on the game thread
-    ///   slot i at 64 + i*slotBytes, frame n in slot n % slots:
-    ///     0  uint64 seqlock: 2n+1 while writing, 2n once committed
-    ///     8  uint64 writes the frame was captured at
-    ///     16 uint32 payload length
-    ///     20 uint32 capture microseconds (game thread)
-    ///     24 uint32 encode microseconds  28 uint32 write microseconds
-    ///     32 reserved
-    ///     40 payload: BundleSnapshot WireJson UTF-8 bytes
-    /// The ready event (Windows only; a Linux reader polls) is name + "-ready",
-    /// a manual-reset event set after each commit.
-    ///
-    /// Names are per process: Windows Local\RimGovernorSnapshot-&lt;pid&gt;-&lt;guid&gt;
-    /// (kernel objects, freed with the last handle); Linux
-    /// /dev/shm/RimGovernorSnapshot-&lt;pid&gt;-&lt;guid&gt;, a file that outlives a
-    /// killed process, so each new ring deletes the files of dead pids and
-    /// the ring unlinks its own on quit.
+    /// The snapshot stream: whole BundleSnapshot frames captured on the game
+    /// thread and handed to the in-process brain (the facade's frame channel,
+    /// latest wins). The game thread captures a frame right after a frame's
+    /// ticks (Supervisor.OnFrame) every PeriodTicks, on a pause edge and after
+    /// every applied write (a deferred write waits for observations_flush_snapshot
+    /// or DeferredSeconds); an encoder worker finishes it, so the game thread never
+    /// waits on a reader. Nothing is captured until a subscriber attaches: the
+    /// brain through the facade, or the acceptance harness through the
+    /// observations_read_snapshot tool, which pulls the newest frame.
     /// </summary>
     public sealed class SnapshotStreamTools
     {
-        private const string ToolName = "rimgovernor/observations_open_snapshot_stream";
+        private const string ReadToolName = "rimgovernor/observations_read_snapshot";
 
-        [Tool(ToolName, Title = "Open snapshot stream",
-            Description = "Official SnapshotStreamRequest ProtoJSON. Opens (or resubscribes) the shared-memory snapshot ring and names it. Read-only.")]
-        [ToolResponse("payload", "string", "Official observations SnapshotStreamReply ProtoJSON.", Always = true)]
-        public async Task<object> Open(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw value must be a SnapshotStreamRequest ProtoJSON string.")] object? request = null)
+        [Tool(ReadToolName, Title = "Read snapshot",
+            Description = "Official SnapshotReadRequest ProtoJSON. Returns the newest captured snapshot frame (the first read subscribes the default shape), the frame head and the applied-write counter. Read-only.")]
+        [ToolResponse("payload", "string", "Official observations SnapshotReadReply ProtoJSON.", Always = true)]
+        public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Raw value must be a SnapshotReadRequest ProtoJSON string.")] object? request = null)
         {
-            if (!ProtoBoundary.TryParse<Obs.SnapshotStreamRequest>(ctx, ToolName, request!, out var parsed, out var failure))
-                return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamReplyOutcome.FailureCase(failure) });
-            foreach (var resource in parsed.ResourceSources)
-                if (!ProtoBoundary.IsIdentifier(resource))
-                    return ProtoBoundary.Encode(new Obs.SnapshotStreamReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Resource sources must be identifiers.") });
-            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(SnapshotStream.Open(parsed)), cancellationToken).ConfigureAwait(false);
+            if (!ProtoBoundary.TryParse<Obs.SnapshotReadRequest>(ctx, ReadToolName, request!, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Obs.SnapshotReadReply { Outcome = new Obs.SnapshotReadReplyOutcome.FailureCase(failure) });
+            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(SnapshotStream.Read(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
         private const string FlushToolName = "rimgovernor/observations_flush_snapshot";
@@ -89,21 +59,21 @@ namespace HomeBridge.BridgeTools
 
     internal static class SnapshotStream
     {
-        internal const int Slots = 3;
-        internal const int SlotBytes = 32 << 20;
-        internal const int HeaderBytes = 64, SlotHeaderBytes = 40;
         internal const int PeriodTicks = 60;
         internal const long PausedPeriodSeconds = 1;
-        private const uint Magic = 0x53534752; // "RGSS"
-        private const uint Version = 2;
 
         private static readonly object Gate = new object();
-        private static Ring? ring;
 
-        /// The in-process subscriber's slot (the native facade's frame channel): latest wins, whole frames. It
-        /// is fed alongside the ring while a subscriber is attached; the ring stays until #3102.
+        /// The in-process subscriber's slot (the native facade's frame channel): latest wins, whole frames.
         internal static readonly RimGovernor.Brain.NativeFacade.FrameHandoff Handoff = new RimGovernor.Brain.NativeFacade.FrameHandoff();
         private static Obs.SnapshotStreamRequest subscription = new Obs.SnapshotStreamRequest();
+
+        // The pull subscriber (the acceptance harness's observations_read_snapshot tool): the newest published
+        // frame and how many were published since the first read. Guarded by Gate.
+        private static bool pull;
+        private static ulong pullHead;
+        private static Obs.BundleSnapshot? pullFrame;
+        private static long pullFrameWrites;
 
         /// The shape the stream captures now (the default request until a
         /// controller subscribes); test/profile_capture profiles it.
@@ -120,15 +90,12 @@ namespace HomeBridge.BridgeTools
         private static int capturedTick = int.MinValue;
         private static bool capturedPaused;
         private static int pending; // captures handed to the encoder, not yet written
-        private static int keyframeDue = 1; // the next published frame carries every section
 
         /// On the game thread: an applied write the next frame must reflect,
         /// or, deferred, one a flush or the safety net makes it capture.
         internal static void NoteWrite(bool deferred = false)
         {
-            var r = ring;
             var value = Interlocked.Increment(ref writes);
-            r?.WriteHeader(24, value);
             if (!deferred) { RaiseDue(value); return; }
             if (deferredAt == 0) deferredAt = Stopwatch.GetTimestamp();
         }
@@ -149,43 +116,67 @@ namespace HomeBridge.BridgeTools
                 if (Interlocked.CompareExchange(ref due, value, seen) == seen) return;
         }
 
-        internal static Obs.SnapshotStreamReply Open(Obs.SnapshotStreamRequest request) => Open(request, inProcess: false);
-
-        /// Opens (or resubscribes) the stream for the in-process subscriber: frames go to Handoff and no
-        /// shared-memory ring is created for it.
-        internal static Obs.SnapshotStreamReply OpenInProcess(Obs.SnapshotStreamRequest request) => Open(request, inProcess: true);
-
-        private static Obs.SnapshotStreamReply Open(Obs.SnapshotStreamRequest request, bool inProcess)
+        /// Opens (or resubscribes) the stream for the in-process subscriber: frames go to Handoff.
+        internal static Obs.SnapshotStreamReply Open(Obs.SnapshotStreamRequest request)
         {
             lock (Gate)
             {
                 // Frames are captured from the supervised-play frame hook; a
-                // stream opened before any clock start (a lab case)
-                // installs it itself.
+                // stream opened before any clock start installs it itself.
                 try
                 {
                     Supervisor.EnsurePatched();
-                    if (inProcess) Handoff.Attach(); else ring ??= new Ring();
+                    Handoff.Attach();
                 }
                 catch (Exception e)
                 {
-                    return new Obs.SnapshotStreamReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot ring could not be created: " + e.Message } };
+                    return new Obs.SnapshotStreamReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot stream could not be opened: " + e.Message } };
                 }
-                // A keyframe request keeps the subscription; every
-                // open makes the next frame carry every section.
-                if (!request.Keyframe.GetValueOrDefault()) subscription = request;
-                Interlocked.Exchange(ref keyframeDue, 1);
+                subscription = request;
                 capturedWrites = -1; // the new subscription publishes at once
-                if (inProcess) return new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamOpened { Name = "in-process" } };
-                return new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamOpened { Name = ring!.Name, Slots = Slots, SlotBytes = SlotBytes } };
+                return new Obs.SnapshotStreamReply { Outcome = new Obs.SnapshotStreamOpened { Name = "in-process" } };
+            }
+        }
+
+        /// Makes the next frame capture at once (a map focus change), whoever is subscribed.
+        internal static void RequestCapture() => Interlocked.Exchange(ref capturedWrites, -1);
+
+        /// The newest published frame for a pull subscriber. The first read subscribes (the stream keeps the
+        /// shape the brain set, else the default) and makes the next frame capture.
+        internal static Obs.SnapshotReadReply Read(Obs.SnapshotReadRequest request)
+        {
+            lock (Gate)
+            {
+                if (!pull)
+                {
+                    try { Supervisor.EnsurePatched(); }
+                    catch (Exception e)
+                    {
+                        return new Obs.SnapshotReadReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "Snapshot stream could not be opened: " + e.Message } };
+                    }
+                    pull = true;
+                    capturedWrites = -1;
+                }
+                var newer = pullFrame != null && pullHead > request.AfterNumber.GetValueOrDefault();
+                return new Obs.SnapshotReadReply
+                {
+                    Outcome = new Obs.SnapshotRead
+                    {
+                        Head = pullHead,
+                        Writes = Interlocked.Read(ref writes),
+                        FrameWrites = pullFrameWrites,
+                        Frame = newer ? pullFrame : null,
+                    },
+                };
             }
         }
 
         /// The TickManagerUpdate postfix, on the game thread, once per frame.
         internal static void OnFrame()
         {
-            var r = ring;
-            if (r == null && !Handoff.Attached) return;
+            bool pulled;
+            lock (Gate) pulled = pull;
+            if (!pulled && !Handoff.Attached) return;
             var tm = Find.TickManager;
             var map = Find.CurrentMap;
             if (tm == null || map == null) return;
@@ -240,29 +231,19 @@ namespace HomeBridge.BridgeTools
             if (w == Interlocked.Read(ref writes)) deferredAt = 0;
             capturedAt = Stopwatch.GetTimestamp(); lastCaptureMicros = captureMicros;
             if (frame == null) { Interlocked.Exchange(ref pending, 0); return; }
-            var keyframe = !failed && Interlocked.Exchange(ref keyframeDue, 0) == 1;
             var captured = frame;
             Task.Factory.StartNew(() =>
             {
                 try
                 {
-                    // The in-process subscriber gets the whole frame: taken before the ring path elides sections
-                    // from it (a clone only while both are attached), with a keyframe grid that leaves the ring's
-                    // delta baseline alone.
-                    RimGovernor.Brain.NativeFacade.NativeFrame? whole = null;
-                    if (Handoff.Attached)
+                    // Subscribers get the whole frame, with a whole-map cell grid.
+                    var copy = captured;
+                    if (!failed) copy = CellGridEncoder.AttachWhole(copy, grid);
+                    if (pulled)
                     {
-                        var copy = captured;
-                        if (!failed) copy = CellGridEncoder.AttachWhole(copy, grid);
-                        whole = new RimGovernor.Brain.NativeFacade.NativeFrame(copy, w, captureMicros);
+                        lock (Gate) { pullFrame = copy; pullFrameWrites = w; pullHead++; }
                     }
-                    if (r != null)
-                    {
-                        var ringFrame = captured;
-                        if (!failed) { ringFrame = SnapshotSections.Elide(ringFrame, keyframe); ringFrame = CellGridEncoder.Attach(ringFrame, grid, keyframe); }
-                        r.Publish(ringFrame, w, captureMicros);
-                    }
-                    if (whole != null) Handoff.Publish(whole);
+                    if (Handoff.Attached) Handoff.Publish(new RimGovernor.Brain.NativeFacade.NativeFrame(copy, w, captureMicros));
                 }
                 catch (Exception e) { ModLog.Warn("snapshot", "frame publish failed: " + e.Message); }
                 finally { Interlocked.Exchange(ref pending, 0); }
@@ -296,111 +277,6 @@ namespace HomeBridge.BridgeTools
         {
             var micros = (Stopwatch.GetTimestamp() - started) * 1_000_000 / Stopwatch.Frequency;
             return (uint)Math.Min(Math.Max(micros, 0), uint.MaxValue);
-        }
-
-        private sealed class Ring
-        {
-            internal readonly string Name;
-            private readonly MemoryMappedFile mapping;
-            private readonly MemoryMappedViewAccessor view;
-            private readonly FileStream? file;
-            private readonly EventWaitHandle? ready;
-            private readonly object writer = new object();
-            private ulong head;
-
-            internal Ring()
-            {
-                long capacity = HeaderBytes + (long)Slots * SlotBytes;
-                var unique = Process.GetCurrentProcess().Id + "-" + Guid.NewGuid().ToString("N");
-                if (Application.platform == RuntimePlatform.LinuxPlayer)
-                {
-                    SweepDeadRings();
-                    Name = ShmDir + "/" + Prefix + unique;
-                    file = new FileStream(Name, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite);
-                    file.SetLength(capacity);
-                    mapping = MemoryMappedFile.CreateFromFile(file, null, capacity, MemoryMappedFileAccess.ReadWrite, HandleInheritability.None, true);
-                    var own = Name;
-                    Application.quitting += () => { try { File.Delete(own); } catch (Exception) { } };
-                }
-                else
-                {
-                    Name = "Local\\" + Prefix + unique;
-                    mapping = MemoryMappedFile.CreateNew(Name, capacity);
-                    ready = new EventWaitHandle(false, EventResetMode.ManualReset, Name + "-ready");
-                }
-                view = mapping.CreateViewAccessor();
-                view.Write(0, Magic);
-                view.Write(4, Version);
-                view.Write(8, (uint)Slots);
-                view.Write(12, (uint)SlotBytes);
-                view.Write(16, 0UL);
-                view.Write(24, 0L);
-            }
-
-            private const string ShmDir = "/dev/shm", Prefix = "RimGovernorSnapshot-";
-
-            // Deletes the ring files of processes that are gone (a killed
-            // game never runs its quit hook). A name without a pid is left.
-            private static void SweepDeadRings()
-            {
-                try
-                {
-                    foreach (var path in Directory.GetFiles(ShmDir, Prefix + "*"))
-                    {
-                        var rest = Path.GetFileName(path).Substring(Prefix.Length);
-                        var dash = rest.IndexOf('-');
-                        if (dash <= 0 || !int.TryParse(rest.Substring(0, dash), out var pid)) continue;
-                        if (Directory.Exists("/proc/" + pid)) continue;
-                        try { File.Delete(path); } catch (Exception) { }
-                    }
-                }
-                catch (Exception e) { ModLog.Warn("snapshot", "ring sweep failed: " + e.Message); }
-            }
-
-            internal void WriteHeader(long offset, long value) { view.Write(offset, value); Thread.MemoryBarrier(); }
-
-            // On an encoder worker. A frame over the slot is dropped (logged
-            // once); the controller then reads that family over the HTTP channel.
-            internal void Publish(Obs.BundleSnapshot frame, long capturedAt, uint captureMicros)
-            {
-                var encodeStarted = Stopwatch.GetTimestamp();
-                var payload = WireJson.SerializeToUtf8Bytes(frame);
-                var encodeMicros = Micros(encodeStarted);
-                if (payload.Length > SlotBytes - SlotHeaderBytes)
-                {
-                    ModLog.Warn("snapshot", "frame of " + payload.Length + " bytes exceeds the " + SlotBytes + "-byte slot; not published.");
-                    return;
-                }
-                lock (writer)
-                {
-                    var writeStarted = Stopwatch.GetTimestamp();
-                    var n = head + 1;
-                    long slot = HeaderBytes + (long)(n % Slots) * SlotBytes;
-                    ready?.Reset();
-                    view.Write(slot, 2 * n + 1);
-                    Thread.MemoryBarrier();
-                    view.Write(slot + 8, capturedAt);
-                    view.Write(slot + 16, (uint)payload.Length);
-                    view.Write(slot + 20, captureMicros);
-                    view.Write(slot + 24, encodeMicros);
-                    bool retained = false;
-                    var handle = view.SafeMemoryMappedViewHandle;
-                    try
-                    {
-                        handle.DangerousAddRef(ref retained);
-                        Marshal.Copy(payload, 0, IntPtr.Add(handle.DangerousGetHandle(), (int)(slot + SlotHeaderBytes)), payload.Length);
-                    }
-                    finally { if (retained) handle.DangerousRelease(); }
-                    // The copy and header writes; the commit below is a few stores.
-                    view.Write(slot + 28, Micros(writeStarted));
-                    Thread.MemoryBarrier();
-                    view.Write(slot, 2 * n);
-                    Thread.MemoryBarrier();
-                    view.Write(16, n);
-                    head = n;
-                    ready?.Set();
-                }
-            }
         }
     }
 }
