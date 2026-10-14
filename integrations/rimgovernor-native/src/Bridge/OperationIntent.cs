@@ -147,7 +147,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Intent of a pawn's current job, or null when it is not bot work.
-        private static string? IntentOf(Pawn pawn, Job job)
+        internal static string? PurposeOf(Pawn pawn, Job job)
         {
             if (ordered.TryGetValue(pawn, out var entry))
             {
@@ -185,7 +185,7 @@ namespace HomeBridge.BridgeTools
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
             {
                 var job = pawn.CurJob;
-                var intent = job == null ? null : IntentOf(pawn, job);
+                var intent = job == null ? null : PurposeOf(pawn, job);
                 if (intent == null || job == null) continue;
                 if (!shown.TryGetValue(pawn, out var last) || last != intent)
                 {

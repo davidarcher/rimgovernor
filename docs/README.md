@@ -58,3 +58,5 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 [GitHub issues](https://github.com/davidarcher/rimgovernor/issues) hold unfinished
 work and decisions. Documentation describes current behavior and explicit
 proposals; Git and result artifacts retain implementation history and run evidence.
+
+- [Pawn activity observations and reports](developers/architecture/pawn-activity.md)

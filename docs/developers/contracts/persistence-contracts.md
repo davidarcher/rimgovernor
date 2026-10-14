@@ -31,6 +31,7 @@ copy of a fact is a bug, not a cache.
 | OTLP files `otlp/traces.jsonl`, `logs.jsonl`, `metrics.jsonl` | All brain telemetry, one log record per thing that happened ([OTEL signals](otel-signals.md)), the only log: always on in the host, nothing else is written to stderr but the startup banner, fatals and panics; snapshot dumps and the acceptance harness's replay transcript are opt-in recordings | Diagnostics only |
 | SQLite table `concern_transitions` (session journal) | Player-facing explanation history: one row per change of a concern's winning typed cause ([below](#concern_transitions)). Not telemetry, so it is not a telemetry row | Not restored; read by the nightly `explain/every-concern` case |
 | SQLite table `ledger_rows` (session journal) | A derived, replaceable copy of the latest work-ledger review (`policy.LedgerView`), one row per row of each Ledger table, the whole set replaced in one transaction after every review ([below](#ledger_rows)). Not a second store: the brain never reads it back as truth and may delete it any time | Not restored; the next review rewrites it |
+| Native memory, pawn activity open intervals | At most 512 open colonist intervals; no completed history or second save. Completed intervals enter the existing OTLP ring; reports are derived from retained rows | Reset on game/load change or tick rewind; unobserved time stays unknown |
 
 ### Layout plan record
 

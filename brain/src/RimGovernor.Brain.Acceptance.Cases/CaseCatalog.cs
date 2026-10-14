@@ -12,6 +12,7 @@ public static class CaseCatalog
     {
         ArgumentNullException.ThrowIfNull(registry);
         HostSeams.Install();
+        registry.Register(PawnActivityCase.Case());
 
         // The case areas land with #3090 and #3093; each area adds one line below (sorted by area).
         ApplyCases.Register(registry);

@@ -76,6 +76,7 @@
     <Compile Include="../../../../scripts/fixtures/DraftFaultFixture.cs" Condition="'$(DraftFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RuntimeFaultFixture.cs" Condition="'$(RuntimeFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MapScopeFixture.cs" Condition="'$(MapScopeFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/PawnActivityFixture.cs" Condition="'$(PawnActivityFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ForecastFixture.cs" Condition="'$(ForecastFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/BuildingTemperatureFixture.cs" Condition="'$(BuildingTemperatureFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CaravanDepartureFixture.cs" Condition="'$(CaravanDepartureFixture)' == 'true'" />

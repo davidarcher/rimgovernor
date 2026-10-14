@@ -100,9 +100,9 @@ namespace HomeBridge.BridgeTools
 
         private static bool PlayerWork(Pawn? pawn) => pawn != null && pawn.Faction == Faction.OfPlayerSilentFail;
 
-        private static void Count(Obs.DeliverySourceKind kind, string source, Thing? produced) { if (produced != null) Count(kind, source, produced.def, produced.stackCount); }
+        private static void Count(Obs.DeliverySourceKind kind, string source, Thing? produced, Pawn? worker = null) { if (produced != null) Count(kind, source, produced.def, produced.stackCount, worker); }
 
-        private static void Count(Obs.DeliverySourceKind kind, string source, ThingDef def, int units)
+        private static void Count(Obs.DeliverySourceKind kind, string source, ThingDef def, int units, Pawn? worker = null)
         {
             if (Current.Game == null || def == null || units <= 0) return;
             var state = States.GetOrCreateValue(Current.Game);
@@ -111,6 +111,7 @@ namespace HomeBridge.BridgeTools
             counter.Units += units;
             if (NativeFoodPolicy.IsFood(def) && def.ingestible.HumanEdible) counter.Nutrition += units * def.GetStatValueAbstract(StatDefOf.Nutrition);
             counter.LastTick = Find.TickManager.TicksGame;
+            PawnActivityTracker.Output(kind.ToString(), source, def.defName, units, worker);
         }
 
         // QuestManager.Notify_PlantHarvested carries the freshly made harvest stack.
@@ -122,8 +123,8 @@ namespace HomeBridge.BridgeTools
             var grower = plant == null || plant.Map == null ? null
                 : (ILoadReferenceable?)(plant.Map.zoneManager.ZoneAt(plant.Position) as Zone_Growing)
                     ?? plant.Position.GetThingList(plant.Map).OfType<Building_PlantGrower>().FirstOrDefault();
-            if (grower != null) Count(Obs.DeliverySourceKind.Crop, grower.GetUniqueLoadID(), __1);
-            else if (__1?.def != null && NativeFoodPolicy.IsFood(__1.def)) Count(Obs.DeliverySourceKind.Forage, plant?.def.defName ?? __1.def.defName, __1);
+            if (grower != null) Count(Obs.DeliverySourceKind.Crop, grower.GetUniqueLoadID(), __1, __0);
+            else if (__1?.def != null && NativeFoodPolicy.IsFood(__1.def)) Count(Obs.DeliverySourceKind.Forage, plant?.def.defName ?? __1.def.defName, __1, __0);
         }
 
         // FishingUtility.GetCatchesFor is the catch roll of one completed fishing job.
@@ -132,7 +133,7 @@ namespace HomeBridge.BridgeTools
             if (!PlayerWork(__0) || __result == null) return;
             var body = __0.Map?.waterBodyTracker.WaterBodyAt(__1);
             var source = body == null ? "unknown" : body.rootCell.x + "," + body.rootCell.z;
-            foreach (var thing in __result) Count(Obs.DeliverySourceKind.Fish, source, thing);
+            foreach (var thing in __result) Count(Obs.DeliverySourceKind.Fish, source, thing, __0);
         }
 
         private static void Laid(CompEggLayer __instance, Thing __result)

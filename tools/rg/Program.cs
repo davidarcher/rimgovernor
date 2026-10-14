@@ -26,6 +26,7 @@ internal static class Program
           remotebundle  encrypted remote-acceptance bundles: pack, publish, verify, extract, bootstrap
           thoughtaudit  regenerate the thought-to-trigger table from the installed game
           colonyreview  render a colony-week recording into an HTML report or a site index
+          pawnactivity  report pawn time and gaps from the OTLP ring
           combatcalibrate  run the combatsim sim-vs-real calibration gate
 
         <tool> -help shows a tool's flags.
@@ -61,6 +62,7 @@ internal static class Program
         {
             return tool switch
             {
+                "pawnactivity" => await PawnActivityCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "land" => await LandCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "test" => await TestCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "issue" => await IssueCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
