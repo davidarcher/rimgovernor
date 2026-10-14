@@ -13,34 +13,37 @@ internal static partial class BuildingRuntimePackage
     /// <summary>
     /// The combat step the defense round takes, without its plan store: the frame inputs, the view, the newest stop,
     /// <c>DecideCombat</c>, and the wire batch of its orders. The offline real-engine host drives a fight with it (#3142),
-    /// so a fight there is decided by the code that decides one live. A geometry ask is answered with an empty answered reply (no
-    /// standable cells, proposals or sight lines), so the policy forms without terrain knowledge. Null when there is no fight to decide.
+    /// so a fight there is decided by the code that decides one live. A geometry ask is answered from the game through <paramref name="read"/>; the layout is the
+    /// caller's (unknown when it holds none). Null when there is no fight to decide.
     /// </summary>
-    internal static CombatStep? DecideCombatStep(BridgeCombat combat, IReadOnlyList<PawnId> orderable, CombatMemory memory, string key)
+    internal static CombatStep? DecideCombatStep(BridgeCombat combat, IReadOnlyList<PawnId> orderable, CombatMemory memory, string key, PbCommon.Identity identity, Func<M.CombatGeometryRequest, M.CombatGeometry> read, Fact<CombatLayout> layout)
     {
         var (inputs, _) = CombatFrameInputs(combat, []);
         if (inputs is null)
         {
             return null;
         }
-        var view = CombatView(combat, inputs, orderable, Unknown<CombatLayout>());
         var stop = CombatStop(combat, memory.Tick);
-        var (orders, ask, next) = PolicyApi.DecideCombat(view, new GeometryReply(), stop, memory);
-        var reply = new GeometryReply { Answered = true };
-        if (ask is not null)
+        // A geometry ask is answered from the game and the question asked again with the answer, as the defense round does.
+        (List<CombatOrder> Orders, CombatMemory Next) Decide(CombatView v)
         {
-            (orders, _, next) = PolicyApi.DecideCombat(view, reply, stop, memory);
+            var (o, ask, n) = PolicyApi.DecideCombat(v, new GeometryReply(), stop, memory);
+            if (ask is null)
+            {
+                return (o, n);
+            }
+            var reply = AnswerGeometry(read, (_, _, _) => { }, identity, ask);
+            var (o2, _, n2) = PolicyApi.DecideCombat(v, reply, stop, memory);
+            return (o2, n2);
         }
+        var view = CombatView(combat, inputs, orderable, layout);
+        var (orders, next) = Decide(view);
         var drafts = UndraftedRoles(next, orderable, view);
         if (drafts.Count > 0)
         {
             var all = orderable.Concat(drafts).OrderBy(d => d.Value, StringComparer.Ordinal).ToList();
-            view = CombatView(combat, inputs, all, Unknown<CombatLayout>());
-            (orders, ask, next) = PolicyApi.DecideCombat(view, reply, stop, memory);
-            if (ask is not null)
-            {
-                (orders, _, next) = PolicyApi.DecideCombat(view, reply, stop, memory);
-            }
+            view = CombatView(combat, inputs, all, layout);
+            (orders, next) = Decide(view);
         }
         var commands = CombatBatchCommands(drafts, orders);
         PbOperations.CombatOrders? batch = null;

@@ -46,9 +46,10 @@ reads it with the brain's own `FacadeNativeClient.ReadCombatAsync`. `BuildingRun
 defense round's chain (frame inputs, `CombatView`, the newest stop, `DecideCombat`) and builds the wire batch, which
 `NativeSeat.Apply` hands to the order handler. It decides at the first check, at each stop event and at a 300-tick backstop.
 
-What this does not do yet: geometry asks are answered with an empty answered reply (no standable cells, proposals or
-sight lines) and no defense layout is held, so the policy forms the squad fallback, not a killbox; burn, royalty and
-drug inputs are not fed. The policy fields two defenders per opponent, so a 1v1 duel is never one of its fights.
+Geometry asks are answered from the arena map through the mod's own `NativeCombatGeometryTools`. The colony's defense layout
+is the controller's `Layout` (unknown by default, so only the squad fallback forms; the smoke holds a two-cell line, `Toward`
+pointing home, and the policy takes the `Hold` tactic). What it does not do yet: derive a layout from the map, and feed burn,
+royalty and drug inputs. The policy fields two defenders per opponent, so a 1v1 duel is never one of its fights.
 
 ## Determinism
 

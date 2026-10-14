@@ -32,6 +32,9 @@ public sealed class PolicyController : IFightController
     /// <summary>Receives one line per decision and per check that changed what a colonist is doing; null is silent.</summary>
     public Action<string>? Log { get; set; }
 
+    /// <summary>The defense layout the colony holds for the fight (unknown when it holds none, so only the squad fallback forms).</summary>
+    public RimGovernor.Brain.Domain.Fact<CombatLayout> Layout { get; set; } = RimGovernor.Brain.Domain.Fact.Unknown<CombatLayout>();
+
     /// <summary>Decisions that sent a batch.</summary>
     public int Decisions { get; private set; }
 
@@ -91,7 +94,7 @@ public sealed class PolicyController : IFightController
                 return;
             }
 
-            var step = BuildingRuntimePackage.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}");
+            var step = BuildingRuntimePackage.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout);
             if (step is null)
             {
                 Idle = "no fight: " + BuildingRuntimePackage.CombatFrameInputs(combat, []).Reason;
@@ -148,6 +151,9 @@ public sealed class PolicyController : IFightController
             Failure = e.GetType().Name + ": " + e.Message;
         }
     }
+
+    private RimGovernor.Contracts.Wire.Mirror.CombatGeometry GeometryOf(RimGovernor.Contracts.Wire.Mirror.CombatGeometryRequest request) =>
+        _client!.CombatGeometryAsync(request, CancellationToken.None).GetAwaiter().GetResult().Value;
 
     // The catalog of the load over the game's Defs, with stats read inline: the mod's GameThreadStatService refuses a
     // caller on the game thread, which is where an arena fight is decided.

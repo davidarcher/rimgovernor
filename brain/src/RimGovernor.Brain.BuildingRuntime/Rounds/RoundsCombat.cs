@@ -210,13 +210,24 @@ public sealed partial class RoundsDefensePlanner
         return (output, orders);
     }
 
+    /// <summary>Answers the policy's geometry question from the native; see <see cref="BuildingRuntimePackage.AnswerGeometry"/>.</summary>
+    internal GeometryReply AnswerGeometry(C.Identity identity, GeometryRequest? ask, CancellationToken ct) =>
+        BuildingRuntimePackage.AnswerGeometry(
+            request => _native.CombatGeometry(request, ct).Geometry,
+            (what, target, ex) => DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", what, target, new Dictionary<string, object?> { ["error"] = ex }, ct),
+            identity,
+            ask);
+}
+
+internal static partial class BuildingRuntimePackage
+{
     /// <summary>Answers the policy's geometry question from the native: the standable cells, proposals, scored cover lines and sight lines.</summary>
-    internal GeometryReply AnswerGeometry(C.Identity identity, GeometryRequest? ask, CancellationToken ct)
+    internal static GeometryReply AnswerGeometry(Func<M.CombatGeometryRequest, M.CombatGeometry> read, Action<string, string, Exception> failed, C.Identity identity, GeometryRequest? ask)
     {
         var reply = new GeometryReply { Answered = true };
         if (ask is not null && ask.Propose == FormationRole.RescuePath)
         {
-            return AnswerRescuePath(identity, ask, ct);
+            return AnswerRescuePath(read, failed, identity, ask);
         }
         if (ask is null || (ask.Hostiles.Count == 0 && (ask.Propose != default || ask.Cells.Count == 0)))
         {
@@ -279,11 +290,11 @@ public sealed partial class RoundsDefensePlanner
         M.CombatGeometry geometry;
         try
         {
-            geometry = _native.CombatGeometry(request, ct).Geometry;
+            geometry = read(request);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "geometry_read", "", new Dictionary<string, object?> { ["error"] = ex }, ct);
+            failed("geometry_read", "", ex);
             return reply;
         }
         var standable = new List<Cell>();
@@ -320,7 +331,7 @@ public sealed partial class RoundsDefensePlanner
         return reply with { Standable = [.. standable], Proposals = [.. proposals], Lines = [.. sightLines], Scored = [.. scoredCells] };
     }
 
-    internal GeometryReply AnswerRescuePath(C.Identity identity, GeometryRequest ask, CancellationToken ct)
+    internal static GeometryReply AnswerRescuePath(Func<M.CombatGeometryRequest, M.CombatGeometry> read, Action<string, string, Exception> failed, C.Identity identity, GeometryRequest ask)
     {
         var reply = new GeometryReply { Answered = true, Role = FormationRole.RescuePath };
         if (ask.Hostiles.Count == 0 || ask.Pawn.IsEmpty)
@@ -332,11 +343,11 @@ public sealed partial class RoundsDefensePlanner
         M.CombatGeometry geometry;
         try
         {
-            geometry = _native.CombatGeometry(BridgeApi.CombatGeometryProposeAsk(identity, propose, hostiles, ask.Pawn.Value), ct).Geometry;
+            geometry = read(BridgeApi.CombatGeometryProposeAsk(identity, propose, hostiles, ask.Pawn.Value));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            DefenseAction("routine-defense", TelemetryLevel.Warn, "failed", "rescue_path_read", ask.Pawn.Value, new Dictionary<string, object?> { ["error"] = ex }, ct);
+            failed("rescue_path_read", ask.Pawn.Value, ex);
             return reply;
         }
         var route = new List<RouteCell>();
@@ -349,10 +360,7 @@ public sealed partial class RoundsDefensePlanner
         }
         return reply with { Route = [.. route] };
     }
-}
 
-internal static partial class BuildingRuntimePackage
-{
     /// <summary>The rows of a combat read as policy pawn states; falls back to the observation rows when the combat read lists no pawns.</summary>
     internal static List<CombatPawnState> CombatPawnStates(BridgeCombat combat, IReadOnlyDictionary<string, O.PawnState> rows, IReadOnlyDictionary<string, WeaponDef> weapons)
     {

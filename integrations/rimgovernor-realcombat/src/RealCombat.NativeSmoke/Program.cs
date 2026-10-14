@@ -44,6 +44,16 @@ if (policy)
 GameHost.Boot(game);
 var controller = new SeatController();
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
+if (policy && !args.Contains("--squad"))
+{
+    // A held defense line a few cells in front of the colonists, with home to the west and the raiders to the east.
+    live.Layout = RimGovernor.Brain.Domain.Fact.Known(new RimGovernor.Brain.Policy.CombatLayout
+    {
+        Firing = [new RimGovernor.Brain.Domain.Cell(23, 29), new RimGovernor.Brain.Domain.Cell(23, 31)],
+        Retreat = [new RimGovernor.Brain.Domain.Cell(21, 29), new RimGovernor.Brain.Domain.Cell(21, 31)],
+        Toward = RimGovernor.Brain.Domain.Rotation.West,
+    });
+}
 var arena = new Arena(request) { Controller = bare ? null : policy ? live : controller };
 var result = arena.Fight(1);
 Console.Error.WriteLine($"winner={result.Winner} ticks={result.Ticks} {(bare ? "(bare)" : policy ? "policy " + live.Summary : controller.Summary)}");
