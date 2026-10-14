@@ -29,7 +29,7 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 planner's spike traps out of the compound so the raider reaches the firing line (otherwise it usually dies to the traps
 first; with them out the colonists fire and win in 1644 ticks). `--armor` puts both sides in a flak vest and
 helmet, `--melee` gives the raiders longswords, `--cover` lays sandbags in front of the colonists on open ground, `--psycast`
-gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks); `--permit` is described under Reads.
+gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks); `--permit` is described under Reads; `--burn` (with `--policy --open`) is the infestation described under Reads.
 
 ## The native seat
 
@@ -58,7 +58,7 @@ door, spike traps, fences, sandbags) is placed at once, so a fight starts on the
 retreat cells, direction and choke the policy holds are read off the result the way the defense round reads them
 (`PolicyController.Layout`). `--open` withholds all of that: open ground, no layout, the squad fallback.
 
-What it does not do yet: start a burn-out, or feed permits. The policy fields two defenders per opponent, so a 1v1 duel is
+The policy fields two defenders per opponent, so a 1v1 duel is
 never one of its fights.
 
 ## Determinism
@@ -88,8 +88,14 @@ The defense round adds three reads to the combat view after the frame; `PolicyCo
 carried drugs come from the mirror; `RealPawn.Carried` puts a drug in an inventory and `Hediffs` gives a starting hediff).
 In the compound with `--drugs --high`, both colonists are ordered go-juice at the first stop with the raider in range and
 no other order, and the handler applies it (one colonist is then overdosed and downed, the other rescues them to the bed and the fight stands off without a winner at 3000 ticks). **Burn**: while a burn-out is active the step surveys its site with the
-native defense-site read, served from the arena map; nothing in the harness starts a burn-out yet (it needs an
-infestation and a staged seal). **Royalty**: built as the rounds build it, from the frame's colony royalty section and pawn rows against the catalog
+native defense-site read, served from the arena map; `--burn` starts one: `BurnStage` spawns a hive under thick rock roof at 44,30 and places the seal, corridor doors and stools
+that `PolicyFunctions.BurnBuilds` asks for over an empty census, `RealPawn` insects (non-humanlike kinds skip the gear/trait strip) join the hive's
+`LordJob_DefendAndExpandHive`, and the policy plays three colonists west of the corridor, one with a molotov. It reads the site
+(`missing=0 roofed fuel=4`), picks a stool, closes and forbids the corridor doors and orders the throw at t=310, and the game refuses
+it: `cannot_hit`, because no stool is in line of sight of the carrier (the sealed room's walls and closed doors block the projectile,
+`CanHitTarget` false for all four stools). The fire is never lit (no Fire thing, the room stays at the outdoor temperature), the
+hive's own spelopede mines through a seal wall by t=1500 (`stop=breach`, burn done), and the colonists fight the insects out in the open
+and win in 6443 ticks, the same in every process. A finding for the policy, not tuned here. **Royalty**: built as the rounds build it, from the frame's colony royalty section and pawn rows against the catalog
 (`ColonyProjection.RoyaltyOf`), so it is known where Royalty is loaded. `RealPawn.Psycasts` gives a colonist a psylink, the
 named psycasts and full psyfocus. The step's cast and permit orders leave the batch as Ability actions (`CombatStep.Calls`), and
 `NativeSeat.ApplyAbility` runs them through the mod's `NativeAbilityOperations`. They go after the batch: a combat order issued after a cast replaces the cast job. The caster is not left idle: it stands in `Wait_Combat` and fires at will (same shot count as its partner). `RealPawn.Title`, `Favor` and `Permits` make an Empire title holder; with `--permit` the first colonist is an acolyte with the trooper squad permit against four raiders, the policy calls the aid at the first stop (outmatched) and the colonists win in 1593 ticks, the same in every process. The four Empire troopers land beside the caster about 330 ticks in and march to the raiders; `--permit --no-aid` withholds the permit and the raiders win at 919 ticks. The headless game has no UI root, so the seat stands a `Targeter` in for `Find.Targeter`, which the permit call goes through.

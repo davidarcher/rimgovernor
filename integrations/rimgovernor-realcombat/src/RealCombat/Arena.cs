@@ -225,7 +225,17 @@ public sealed class Arena
     private void Raid(List<(RealPawn Spec, Pawn Pawn)> fighters)
     {
         var raiders = fighters.Where(f => f.Spec.Side == "hostile").Select(f => f.Pawn).ToList();
-        if (raiders.Count > 0)
+        if (raiders.Count > 0 && raiders[0].Faction == Faction.OfInsects && _map.listerThings.ThingsOfDef(ThingDefOf.Hive).FirstOrDefault() is Hive hive)
+        {
+            // Insects guard their hive as an infestation's do.
+            var spawner = hive.PawnSpawner;
+            var lord = spawner.Lord ?? CompSpawnerPawn.CreateNewLord(hive, true, 20f, typeof(LordJob_DefendAndExpandHive));
+            foreach (var insect in raiders)
+            {
+                lord.AddPawn(insect);
+            }
+        }
+        else if (raiders.Count > 0)
         {
             var faction = raiders[0].Faction;
             LordMaker.MakeNewLord(faction, new LordJob_AssaultColony(faction, canKidnap: false, canTimeoutOrFlee: false, canSteal: false), _map, raiders);
@@ -307,6 +317,12 @@ public sealed class Arena
     {
         var kind = DefDatabase<PawnKindDef>.GetNamed(spec.Kind);
         var faction = spec.Side == "colonist" ? Faction.OfPlayer : _hostile;
+        if (!kind.RaceProps.Humanlike)
+        {
+            // An animal or insect has no gear, traits or skills to strip.
+            return PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, PawnGenerationContext.NonPlayer, -1, forceGenerateNewPawn: true, canGeneratePawnRelations: false));
+        }
+
         var pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
             kind,
             faction,

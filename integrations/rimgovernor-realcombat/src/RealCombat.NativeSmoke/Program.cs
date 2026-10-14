@@ -101,6 +101,28 @@ if (args.Contains("--cover"))
     request = request with { Things = [.. Enumerable.Range(28, 5).Select(z => new RealThing("Sandbags", "", 23, z))] };
 }
 
+// --burn (with --policy --open): an infestation. A hive at 44,30 under rock with the burn-out room the policy plans built around
+// it (BurnStage), three megascarabs in it, and three colonists west of the corridor, the first carrying a molotov.
+BurnStage? burn = null;
+if (args.Contains("--burn"))
+{
+    burn = new BurnStage(new RimGovernor.Brain.Domain.Cell(44, 30), new RimGovernor.Brain.Domain.Cell(-1, 0));
+    request = request with
+    {
+        HostileFaction = "Insect",
+        MaxTicks = 20000,
+        Pawns =
+        [
+            new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = 35, Z = 29, Weapon = "Weapon_GrenadeMolotov", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col1", Side = "colonist", Kind = "Colonist", X = 35, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col2", Side = "colonist", Kind = "Colonist", X = 35, Z = 31, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "bug0", Side = "hostile", Kind = "Megascarab", X = 43, Z = 30 },
+            new RealPawn { Id = "bug1", Side = "hostile", Kind = "Megascarab", X = 45, Z = 30 },
+            new RealPawn { Id = "bug2", Side = "hostile", Kind = "Megascarab", X = 44, Z = 31 },
+        ],
+    };
+}
+
 GameHost.Boot(game);
 var controller = new SeatController();
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
@@ -110,7 +132,7 @@ if (policy && !open)
     stage = new DefenseStage(RimGovernor.Brain.Domain.Rotation.West, 2, range) { Traps = !args.Contains("--no-traps") };
 }
 
-var arena = new Arena(request, stage is null ? null : stage.Raise) { Controller = bare ? null : policy ? live : controller };
+var arena = new Arena(request, burn is not null ? burn.Raise : stage is null ? null : stage.Raise) { Controller = bare ? null : policy ? live : controller };
 if (stage is not null)
 {
     live.Layout = stage.Layout;

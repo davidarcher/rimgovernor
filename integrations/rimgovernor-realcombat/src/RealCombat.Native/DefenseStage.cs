@@ -196,7 +196,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
     }
 
     // A building stands at once; a floor is laid as terrain.
-    private static void Place(Map map, Building b)
+    internal static void Place(Map map, Building b)
     {
         var at = new IntVec3(b.Cell.X, 0, b.Cell.Z);
         var thing = DefDatabase<ThingDef>.GetNamedSilentFail(b.Definition);
