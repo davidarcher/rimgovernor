@@ -6,7 +6,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <param name="Drafts">The roles the memory names that are not orderable yet; drafted ahead of the orders.</param>
 /// <param name="Batch">The wire batch (drafts first, then orders), or null when there is nothing to send.</param>
 /// <param name="Memory">The memory after the decision.</param>
-internal sealed record CombatStep(CombatView View, IReadOnlyList<CombatOrder> Orders, IReadOnlyList<PawnId> Drafts, PbOperations.CombatOrders? Batch, CombatMemory Memory);
+/// <param name="Calls">The permit and psycast calls, each its own wire Ability action; they are not in <paramref name="Orders"/> or the batch.</param>
+internal sealed record CombatStep(CombatView View, IReadOnlyList<CombatOrder> Orders, IReadOnlyList<PawnId> Drafts, PbOperations.CombatOrders? Batch, CombatMemory Memory, IReadOnlyList<PbOperations.Action> Calls);
 
 /// <summary>
 /// The reads the defense round adds to a combat view after the frame: the burn-out census of the active burn, the remembered
@@ -61,6 +62,10 @@ internal static partial class BuildingRuntimePackage
             view = reads.Complete(CombatView(combat, inputs, all, layout), memory);
             (orders, next) = Decide(view);
         }
+        // The permit and psycast calls leave the batch as Ability actions, as the defense round sends them.
+        var (rest, calls) = SplitPermitCalls(orders);
+        orders = rest;
+        var callActions = PermitCallActions(new PlanId(key), calls).Select((a, i) => BridgeApi.IntentAction($"{key}-c{i}", a)).ToList();
         var commands = CombatBatchCommands(drafts, orders);
         PbOperations.CombatOrders? batch = null;
         if (commands.Count > 0)
@@ -68,7 +73,7 @@ internal static partial class BuildingRuntimePackage
             var action = DomainAction.NewCombatBatchAction(new ActionId(key), new CombatBatch(new PlanId(key), key, commands));
             batch = BridgeApi.IntentAction(key, action).Intent is PbOperations.ActionIntent.CombatOrdersCase { Value: var wire } ? wire : null;
         }
-        return new CombatStep(view, orders, drafts, batch, next);
+        return new CombatStep(view, orders, drafts, batch, next, callActions);
     }
 
     /// <summary>The memory after the batch's results: a refused order is remembered as the round remembers it.</summary>

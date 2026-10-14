@@ -28,7 +28,8 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 `--trace` prints each decision and its results, `--open` fights on open ground with no layout, `--no-traps` leaves the
 planner's spike traps out of the compound so the raider reaches the firing line (otherwise it usually dies to the traps
 first; with them out the colonists fire and win in 1644 ticks). `--armor` puts both sides in a flak vest and
-helmet, `--melee` gives the raiders longswords, `--cover` lays sandbags in front of the colonists on open ground.
+helmet, `--melee` gives the raiders longswords, `--cover` lays sandbags in front of the colonists on open ground, `--psycast`
+gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks).
 
 ## The native seat
 
@@ -57,7 +58,7 @@ door, spike traps, fences, sandbags) is placed at once, so a fight starts on the
 retreat cells, direction and choke the policy holds are read off the result the way the defense round reads them
 (`PolicyController.Layout`). `--open` withholds all of that: open ground, no layout, the squad fallback.
 
-What it does not do yet: feed burn, royalty and drug inputs. The policy fields two defenders per opponent, so a 1v1 duel is
+What it does not do yet: start a burn-out, or feed permits. The policy fields two defenders per opponent, so a 1v1 duel is
 never one of its fights.
 
 ## Determinism
@@ -88,7 +89,12 @@ carried drugs come from the mirror; `RealPawn.Carried` puts a drug in an invento
 In the compound with `--drugs --high`, both colonists are ordered go-juice at the first stop with the raider in range and
 no other order, and the handler applies it (one colonist is then overdosed and downed, the other rescues them to the bed and the fight stands off without a winner at 3000 ticks). **Burn**: while a burn-out is active the step surveys its site with the
 native defense-site read, served from the arena map; nothing in the harness starts a burn-out yet (it needs an
-infestation and a staged seal). **Royalty**: left unknown, which holds every permit and psycast call. Reading it needs
-the colony section's royalty facts and royal pawns (title, psylink, psycasts, permits), which the arena does not make.
+infestation and a staged seal). **Royalty**: built as the rounds build it, from the frame's colony royalty section and pawn rows against the catalog
+(`ColonyProjection.RoyaltyOf`), so it is known where Royalty is loaded. `RealPawn.Psycasts` gives a colonist a psylink, the
+named psycasts and full psyfocus. The step's cast and permit orders leave the batch as Ability actions (`CombatStep.Calls`), and
+`NativeSeat.ApplyAbility` runs them through the mod's `NativeAbilityOperations`. They go after the batch: a combat order
+issued after a cast replaces the cast job. Open: the caster then stands idle (`Wait_Combat`) until the next decision, since
+the policy decides only on a stop or the 300 tick backstop. Permits are not exercised: they need a title, favor and the
+Empire faction in the arena.
 
 The compound has a bed behind the back wall (`DefenseStage`): the rescue order carries a downed colonist to one and is refused `no_bed` without.

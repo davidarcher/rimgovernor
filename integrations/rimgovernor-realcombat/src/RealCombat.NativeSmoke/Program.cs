@@ -77,6 +77,14 @@ if (args.Contains("--melee"))
     request = request with { Pawns = [.. request.Pawns.Select(p => p.Side == "hostile" ? p with { Weapon = "MeleeWeapon_LongSword", WeaponStuff = "Steel", Skills = new Dictionary<string, int> { ["Melee"] = 8 } } : p)] };
 }
 
+// --psycast: the first colonist knows Stun (Royalty), and the raiders stand 18 cells off, inside the 20 cells the policy casts at.
+if (args.Contains("--psycast"))
+{
+    var caster = true;
+    request = request with { Pawns = [.. request.Pawns.Select(p => p.Side == "colonist" && caster ? CastFirst(p) : p.Side == "hostile" ? p with { X = 38 } : p)] };
+    RealPawn CastFirst(RealPawn p) { caster = false; return p with { Psycasts = ["Stun"] }; }
+}
+
 if (args.Contains("--cover"))
 {
     request = request with { Things = [.. Enumerable.Range(28, 5).Select(z => new RealThing("Sandbags", "", 23, z))] };

@@ -71,6 +71,9 @@ public sealed record RealPawn
 
     /// <summary>HediffDef names the pawn starts with (GoJuiceHigh).</summary>
     public IReadOnlyList<string> Hediffs { get; init; } = [];
+
+    /// <summary>AbilityDef names of psycasts the pawn knows (Stun); any gives it a psylink and full psyfocus. Needs Royalty.</summary>
+    public IReadOnlyList<string> Psycasts { get; init; } = [];
 }
 
 /// <param name="FirstShotTick">Ticks from the fight start to the pawn first shot; -1 when it never fired.</param>

@@ -77,6 +77,20 @@ public sealed class NativeSeat
         return ((Receipts.EffectEvidenceEffect.CombatOrdersCase)effect.Effect!).Value.Results;
     }
 
+    /// <summary>Applies one Ability action (a psycast or permit call) under native authority; null when applied, else the refusal.</summary>
+    public string? ApplyAbility(Operations.Action action)
+    {
+        try
+        {
+            NativeAbilityOperations.Apply(action.Intent?.Ability);
+            return null;
+        }
+        catch (ApplyRefusedException e)
+        {
+            return e.Message;
+        }
+    }
+
     private static bool CaptureIdentity(ref NativeControlIdentity? __result)
     {
         var game = Current.Game;

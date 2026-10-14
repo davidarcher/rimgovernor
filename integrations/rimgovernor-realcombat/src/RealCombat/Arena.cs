@@ -363,6 +363,17 @@ public sealed class Arena
             pawn.inventory.innerContainer.TryAdd(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(c)));
         }
 
+        if (spec.Psycasts.Count > 0)
+        {
+            pawn.ChangePsylinkLevel(1, false);
+            foreach (var cast in spec.Psycasts)
+            {
+                pawn.abilities.GainAbility(DefDatabase<AbilityDef>.GetNamed(cast));
+            }
+
+            pawn.psychicEntropy.OffsetPsyfocusDirectly(1f);
+        }
+
         pawn.equipment.DestroyAllEquipment();
         if (spec.Weapon.Length > 0)
         {

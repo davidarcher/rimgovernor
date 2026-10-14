@@ -94,18 +94,20 @@ public sealed class PolicyController : IFightController
                 return;
             }
 
-            var step = BuildingRuntimePackage.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout, ReadsOf(tick));
+            var step = BuildingRuntimePackage.DecideCombatStep(combat, _orderable, _memory with { Tick = new Tick(tick) }, $"rc-{tick}", _seat.Identity, GeometryOf, Layout, ReadsOf(tick, frame));
             if (step is null)
             {
                 Idle = "no fight: " + BuildingRuntimePackage.CombatFrameInputs(combat, []).Reason;
                 return;
             }
 
-            Log?.Invoke($"t={tick} reads drugs=[{string.Join(",", step.View.Drugs.Items)}] burn={step.View.Burn.IsKnown} royalty={step.View.Royalty.IsKnown} dosed={step.Memory.Dosed.Count}");
+            Log?.Invoke($"t={tick} reads drugs=[{string.Join(",", step.View.Drugs.Items)}] burn={step.View.Burn.IsKnown} royalty={step.View.Royalty.IsKnown} dosed={step.Memory.Dosed.Count} casters=[{Casters(step.View)}]");
             _memory = step.Memory;
             _decided = tick;
+            if (step.Batch is null && step.Calls.Count > 0) { Decisions++; }
             if (step.Batch is not { } batch)
             {
+                ApplyCalls(step);
                 Idle = $"empty batch: tactic={step.Memory.Tactic} roles={step.Memory.Roles.Count} refusal={step.Memory.Refusal} orders={step.Orders.Count} pawns={step.View.Pawns.Count}";
                 return;
             }
@@ -136,6 +138,9 @@ public sealed class PolicyController : IFightController
                 Log?.Invoke($"   result {r.PawnId} applied={r.Applied} refusal={r.Refusal} job={r.JobDef}");
             }
 
+            // The calls go after the batch: an order issued after a cast would replace the cast job.
+            ApplyCalls(step);
+
             Applied += results.Count(r => r.Applied == true);
             Refused += results.Count(r => r.Applied != true);
             _memory = BuildingRuntimePackage.CombatStepResults(step, results);
@@ -155,14 +160,43 @@ public sealed class PolicyController : IFightController
 
     // The reads the defense round adds to the view: the catalog's combat drugs and, while a burn-out is active, the
     // census of its site; both come through the facade, the burn site from the arena map.
-    private CombatReads ReadsOf(int tick)
+    private CombatReads ReadsOf(int tick, Obs.BundleSnapshot frame)
     {
         var identity = _seat!.Identity;
         var catalog = _client!.DefinitionCatalogAsync(identity, CancellationToken.None).GetAwaiter().GetResult();
         var items = catalog.ItemFacts();
         var drugs = items.CombatDrugs().Select(d => d.Def.ToString()).ToList();
-        return new CombatReads(drugs, RimGovernor.Brain.Domain.Fact.Unknown<RoyaltyFacts>(), memory =>
+        return new CombatReads(drugs, RoyaltyOf(frame, catalog), memory =>
             BuildingRuntimePackage.CombatBurnSiteAsync(_client, identity, memory, tick, items, CancellationToken.None).GetAwaiter().GetResult());
+    }
+
+    private void ApplyCalls(CombatStep step)
+    {
+        foreach (var call in step.Calls)
+        {
+            var refusal = _seat!.ApplyAbility(call);
+            Log?.Invoke($"   call {call.Intent?.Ability?.PawnId} {(call.Intent?.Ability?.Source?.Psycast?.Ability ?? "permit")} {(refusal is null ? "applied" : "refused: " + refusal)}");
+            if (refusal is null) { Applied++; } else { Refused++; }
+        }
+    }
+
+    private static string Casters(CombatView view) =>
+        !view.Royalty.TryGetValue(out var royal) ? "" : string.Join(" ", royal.Psycasts.Select(c =>
+            c.Key.Value + ":" + string.Join(",", c.Value.Items.Select(x => x.Def + "/" + x.Target + "/focus=" + x.PsyfocusCost + "/cd=" + x.CooldownRemaining))));
+
+    // The royalty fact the rounds read: the colonists' pawn rows and the colony section of the frame, against the catalog.
+    // Unknown when the frame has no royalty section (no Royalty) or a row cannot be used.
+    private static RimGovernor.Brain.Domain.Fact<RoyaltyFacts> RoyaltyOf(Obs.BundleSnapshot frame, DefinitionCatalog catalog)
+    {
+        try
+        {
+            var colony = RimGovernor.Brain.Observation.ObservationPackage.ColonyRoyalty(frame.ColonyFacts?.Royalty);
+            return new RimGovernor.Brain.Observation.ColonyProjection { RoyaltyColony = colony }.RoyaltyOf(frame.Pawns, catalog);
+        }
+        catch (RimGovernor.Brain.Domain.DomainException)
+        {
+            return RimGovernor.Brain.Domain.Fact.Unknown<RoyaltyFacts>();
+        }
     }
 
     private RimGovernor.Contracts.Wire.Mirror.CombatGeometry GeometryOf(RimGovernor.Contracts.Wire.Mirror.CombatGeometryRequest request) =>
