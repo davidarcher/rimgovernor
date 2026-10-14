@@ -12,6 +12,8 @@ internal static class PawnCookingCase
         Run = async (s, ct) =>
         {
             _ = await s.RuntimeAsync(ct).ConfigureAwait(false);
+            // Native path grids gather at most once per game tick; let the prepared stove settle.
+            _ = await s.AdvanceAsync(1, null, ct).ConfigureAwait(false);
             for (var attempt = 1; attempt <= 3; attempt++)
             {
                 _ = await s.Harness.CallAsync("select-" + attempt, "test/pawn_cooking_select", new() { ["attempt"] = attempt }, ct).ConfigureAwait(false);

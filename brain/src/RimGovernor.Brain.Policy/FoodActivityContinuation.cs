@@ -29,10 +29,12 @@ public static partial class PolicyFunctions
         if (!MatchesActivityOwner(order, owner) || execution.State is not ("completed" or "failed") || order.Revision == long.MaxValue) return null;
         // Recovery and unknown demand cannot authorize new productive work. Completing delivery ends this trip.
         if (!needed.TryGetValue(out var useful)) return null;
-        var candidates = FoodMethodCandidates.Generate(read, output.Deadline, order.Pawn, output.Resource);
+        var candidates = FoodMethodCandidates.Generate(read, output.Deadline, order.Pawn, output.Resource, output,
+            allowCooking: order.Steps[0].Kind == PawnActivityKind.Work);
         comparison = candidates.Problem is not null && useful && !read.Carrying && output.AttemptsLeft > 0 && read.Context.Tick < output.Deadline
             && !(execution.State == "failed" && order.Steps[0].Kind == PawnActivityKind.Work)
-            && !(execution.State == "completed" && order.Steps[0].Kind == PawnActivityKind.Deliver)
+            && !(execution.State == "failed" && (order.Steps[0].Kind == PawnActivityKind.Cook || output.Cooking is not null))
+            && !(execution.State == "completed" && order.Steps[0].Kind == PawnActivityKind.Deliver && output.Cooking is null)
             ? CompareActivityOutcomes(candidates.Problem, candidates.Outcomes, ForecastOutcomeObjective.LowestLaborPerUnit, generationTruncated: candidates.Truncated) : null;
         return FoodActivityBinding.Continue(batch, comparison, candidates.Bindings);
     }

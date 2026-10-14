@@ -15,7 +15,7 @@ public sealed class FoodActivityContinuationTests
 {
     private static readonly GenerationSnapshot Root = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
     private static FoodActivityOption Option(string target = "crop", int count = 8, double travel = 20) =>
-        new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, travel, 30);
+        new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, travel, 30) { NutritionPerUnit = Known(1.0) };
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new()
     { Known = true, Context = new() { Tick = 110 }, Options = EquatableArray.From(options) };
     private static PawnActivities Harvest() => StartFoodActivity(Read(Option()), 1, "method", 500, out _)!;
@@ -90,7 +90,7 @@ public sealed class FoodActivityContinuationTests
         Assert.False(comparison.SearchTruncated);
         Assert.False(comparison.NetBenefit.IsKnown); // Efficiency is not fabricated avoided hunger loss.
         Assert.Equal("crop-00", result.Orders[0].Steps[0].Target);
-        Assert.Equal(comparison.Selected[0], Assert.Single(comparison.Plan!.Allocations).Activity);
+        Assert.Contains(comparison.Plan!.Allocations, a => a.Activity == comparison.Selected[0]);
         StartFoodActivity(Read(Option()) with { Truncated = true }, 1, "m", 500, out comparison);
         Assert.Contains("generation_truncated", comparison!.Findings);
     }

@@ -48,6 +48,13 @@ namespace HomeBridge.BridgeTools
             expectedMeals = selectedBill.recipe.products.Single().count;
             foreach (var meal in map.listerThings.AllThings.Where(t => t.def == selectedBill.recipe.products[0].thingDef).ToArray()) meal.Destroy();
             deadline = Find.TickManager.TicksGame + 6000;
+            var destination = GenRadial.RadialCellsAround(center, 8, false).First(c => c.InBounds(map) && c.Standable(map)
+                && c.DistanceTo(center) > 5 && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item));
+            var storage = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+            map.zoneManager.RegisterZone(storage);
+            storage.GetStoreSettings().filter.SetDisallowAll();
+            storage.GetStoreSettings().filter.SetAllow(selectedBill.recipe.products[0].thingDef, true);
+            storage.AddCell(destination);
             return new { success = true };
         }, ct).ConfigureAwait(false);
 
@@ -56,6 +63,30 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description="1 removes selected ingredient after installation; 2 drains bench fuel; 3 runs the explicit revised assignment.")] int attempt = 1) => await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (attempt is < 1 or > 3) throw new InvalidOperationException("Unknown fixture attempt.");
+            if (attempt == 1)
+            {
+                var map = worker!.Map;
+                var center = cookingBench.Position;
+                var raw = unselectedIngredient.def;
+                var needed = firstCount + secondCount;
+                var destination = map.haulDestinationManager.AllGroupsListInPriorityOrder.SelectMany(g => g.CellsList).Single();
+                var observations = new List<RimGovernor.Contracts.Wire.Observations.FoodActivityOption>();
+                var budget = 128; var truncated = false;
+                var obligation = new PawnActivityOrder(worker.GetUniqueLoadID(), "candidate-probe", "food-method", 0, 1, false,
+                    new[] { new PawnActivityStep(PawnActivityKind.Work, "observed-harvest", "harvest", "Harvest", 0, deadline) })
+                    { OutputDelivery = new(raw.defName, new(center.x, center.z), new(destination.x, destination.z), 60, deadline, 3) };
+                NativeFoodCooking.Add(worker, unselectedIngredient, 60, 0, obligation, observations, ref budget, ref truncated);
+                if (!observations.Any(o => o.Cooking?.Continuation.Bill == selectedBill.GetUniqueLoadID()
+                    && o.Cooking.IngredientCount == needed && o.Cooking.CookTicks > 0 && o.Cooking.ProductNutrition.IsKnown))
+                {
+                    var probeGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(g => g.workType == DefDatabase<WorkTypeDef>.GetNamed("Cooking")
+                        && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(cookingBench));
+                    NativeActivityCooking.ResolveRecipe(worker, cookingBench, probeGiver.defName, selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName, out _, out var reason);
+                    using var toBench = map.pathFinder.FindPathNow(unselectedIngredient.Position, cookingBench.InteractionCell, TraverseParms.For(worker, Danger.None), peMode: PathEndMode.OnCell);
+                    using var toStore = map.pathFinder.FindPathNow(cookingBench.InteractionCell, destination, TraverseParms.For(worker, Danger.None), peMode: PathEndMode.OnCell);
+                    throw new InvalidOperationException($"Native cooking candidate read omitted the eligible exact recipe: {reason}; options={observations.Count}; budget={budget}; work={selectedBill.recipe.WorkAmountTotal(null)}; benchRoute={toBench.Found}; storeRoute={toStore.Found}; interaction={cookingBench.InteractionCell}; destination={destination}.");
+                }
+                }
             if (attempt > 1 && NativePawnActivities.Read(worker!)?.State != "failed") throw new InvalidOperationException("Expected failed prior assignment.");
             if (attempt == 2)
             { firstIngredient = GenSpawn.Spawn(DefDatabase<ThingDef>.GetNamed("RawRice"), firstIngredientCell, worker!.Map); firstIngredient.stackCount = firstCount + 2; }

@@ -277,6 +277,11 @@ blocks a second method, and service work is neither canceled nor replayed.
 Harvest/delivery activity obligations live in their existing journaled
 `PawnActivityOrder.OutputDelivery` payload, including resource/source area,
 quantity cap, destination, original deadline and attempt budget. Native holds
-only the installed execution copy; fresh observations are ephemeral. Predecessor
+the installed execution copy. A selected cooking continuation additionally
+records the bench/bill/recipe, one-resource input count, output definition/count
+and final destination in this same payload. Ingredient identities are rebound
+from observations after supply; after cooking authorization only the output
+delivery obligation remains. Failed cooking is never automatically replayed.
+Fresh observations are ephemeral. Predecessor
 plans retain cleanup responsibility after a positively refused replacement.
 This adds no independent stock ledger or saved production workflow.

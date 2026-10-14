@@ -41,8 +41,11 @@ binds observed loose food and retries interrupted, empty-handed delivery within
 the original deadline/attempt budget. It releases carried-food attempts instead
 of assuming the source still exists. A positively refused replacement retains
 its installed predecessor's cleanup obligation; unknown receipts remain unknown.
-Cooking output, carried ingredients and coupled food-chain selection remain
-outside this caller.
+The same caller can select one cooking iteration after observed harvest, supply
+its bench, rebind the exact recipe to fresh ingredients, then deliver observed
+meals. Failed supply or cooking releases rather than replaying consumption.
+Carried ingredients and coupled survival portfolio selection remain outside this
+caller; see [cooking limits](pawn-activities.md#live-one-iteration-cooking).
 
 Productive alternatives for this caller are transient Method proposals: family
 generation supplies forecast outcomes and exact target bindings, ColonyForecast's

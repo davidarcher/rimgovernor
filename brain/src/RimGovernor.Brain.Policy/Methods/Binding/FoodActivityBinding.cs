@@ -18,6 +18,20 @@ internal static class FoodActivityBinding
         var order = batch.Orders[0];
         var output = order.OutputDelivery!;
         var option = Selected(selection, bindings);
+        if (option?.Cooking is { } cooking)
+        {
+            var continuation = cooking.Continuation;
+            var step = cooking.Supplied
+                ? new PawnActivityStep(PawnActivityKind.Cook, continuation.Bench, continuation.WorkGiver, "", 0, output.Deadline)
+                    { Cooking = new(continuation.Bill, continuation.Recipe, [new(option.Target, cooking.IngredientCount)]) }
+                : new PawnActivityStep(PawnActivityKind.Deliver, option.Target, "", "", cooking.IngredientCount, output.Deadline)
+                    { Destination = option.Destination };
+            var remaining = cooking.Supplied
+                ? new ActivityOutputDelivery(continuation.Product, continuation.Origin, continuation.Destination, continuation.ProductCount, output.Deadline, output.AttemptsLeft)
+                : output with { Count = cooking.IngredientCount, Destination = option.Destination, Cooking = continuation };
+            return new(batch.AuthorityGeneration, [order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1,
+                Release = false, Steps = [step], OutputDelivery = remaining }]);
+        }
         var next = order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1,
             Release = option is null, Steps = option is null ? [] : [new(PawnActivityKind.Deliver, option.Target, "", "",
                 Math.Min(output.Count, option.Count), output.Deadline) { Destination = option.Destination }],

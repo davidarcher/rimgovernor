@@ -24,7 +24,12 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
     private static ActivityOutputDelivery? ReadOutput(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Resource"), new(e.GetProperty("Origin").GetProperty("X").GetInt32(), e.GetProperty("Origin").GetProperty("Z").GetInt32()),
             new(e.GetProperty("Destination").GetProperty("X").GetInt32(), e.GetProperty("Destination").GetProperty("Z").GetInt32()),
-            e.GetProperty("Count").GetInt32(), e.GetProperty("Deadline").GetInt64(), e.GetProperty("AttemptsLeft").GetInt32());
+            e.GetProperty("Count").GetInt32(), e.GetProperty("Deadline").GetInt64(), e.GetProperty("AttemptsLeft").GetInt32())
+        { Cooking = e.GetProperty("Cooking") is var c && c.ValueKind != JsonValueKind.Null
+            ? new(c.Str("Bench"), c.Str("Bill"), c.Str("Recipe"), c.Str("WorkGiver"),
+                new(c.GetProperty("Origin").GetProperty("X").GetInt32(), c.GetProperty("Origin").GetProperty("Z").GetInt32()),
+                c.Str("Product"), c.GetProperty("ProductCount").GetInt32(),
+                new(c.GetProperty("Destination").GetProperty("X").GetInt32(), c.GetProperty("Destination").GetProperty("Z").GetInt32())) : null };
     protected override void WriteFields(Utf8JsonWriter w, PawnActivities v, Codecs o)
     {
         v.Validate(); w.WriteNumber("AuthorityGeneration", v.AuthorityGeneration);
@@ -39,6 +44,16 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 w.WriteNumber("Deadline", output.Deadline); w.WriteNumber("AttemptsLeft", output.AttemptsLeft);
                 w.WriteStartObject("Origin"); w.WriteNumber("X", output.Origin.X); w.WriteNumber("Z", output.Origin.Z); w.WriteEndObject();
                 w.WriteStartObject("Destination"); w.WriteNumber("X", output.Destination.X); w.WriteNumber("Z", output.Destination.Z); w.WriteEndObject();
+                if (output.Cooking is { } next)
+                {
+                    w.WriteStartObject("Cooking"); w.WriteString("Bench", next.Bench); w.WriteString("Bill", next.Bill);
+                    w.WriteString("Recipe", next.Recipe); w.WriteString("WorkGiver", next.WorkGiver); w.WriteString("Product", next.Product);
+                    w.WriteNumber("ProductCount", next.ProductCount);
+                    w.WriteStartObject("Origin"); w.WriteNumber("X", next.Origin.X); w.WriteNumber("Z", next.Origin.Z); w.WriteEndObject();
+                    w.WriteStartObject("Destination"); w.WriteNumber("X", next.Destination.X); w.WriteNumber("Z", next.Destination.Z); w.WriteEndObject();
+                    w.WriteEndObject();
+                }
+                else w.WriteNull("Cooking");
                 w.WriteEndObject();
             }
             else w.WriteNull("OutputDelivery");

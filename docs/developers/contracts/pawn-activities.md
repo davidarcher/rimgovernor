@@ -2,7 +2,7 @@
 
 `PawnActivities` is a Hands intent for installing/revising/releasing an atomic set
 of exact per-pawn assignments. EnsureFoodSupply now admits a bounded, same-pawn
-harvest-to-delivery attempt for selected plant acquisition demand. This is the
+harvest-to-delivery attempt, with optional one-iteration cooking, for selected plant acquisition demand. This is the
 first production caller, not the full #3127/#3128/#3132/#3135 cutover.
 
 ## Live harvest and delivery
@@ -11,7 +11,8 @@ The normal acquisition planner keeps the shared FoodPlan's selected plant demand
 For those sources, the typed `food_activity` read enumerates idle, capable pawns,
 native routes and empty allowed storage cells. ColonyForecast's shared outcome
 comparator evaluates these mutually exclusive Method alternatives against the
-existing acquisition horizon, using its explicit labor-per-unit objective.
+existing acquisition horizon, using its explicit labor-per-unit objective with
+nominal nutrition as the comparable unit.
 It assumes equal unit labor rates and zero injury
 recovery on Danger.None routes, not calibrated opportunity costs or proof of safety.
 Non-idle jobs are protected, including a fresh check at native admission.
@@ -39,7 +40,7 @@ probes to 128. Policy generates at most 16 eligible alternatives for the shared
 comparator, which uses one 512-expansion budget. Native and policy generation
 truncation are exposed in the returned comparison findings and initial Method
 reason; an omitted alternative is not proven worse. There is no joint helper assignment, needs forecast, mixed production
-selection or cross-owner material reservation in this slice. Other acquisition
+portfolio selection or cross-owner material reservation in this slice. Other acquisition
 families and existing hauling/cleaning/eating helpers remain.
 
 Pure tests cover changed stacks, shrinking counts, interrupted delivery, carried
@@ -50,6 +51,49 @@ replacement-stack binding and physical delivery; its explicit fixture revisions
 do not establish autonomous end-to-end colony behavior.
 
 ## Execution contract
+
+### Live one-iteration cooking
+
+After harvest produces observed loose food, policy proposes raw delivery and
+eligible one-iteration cooking alternatives before choosing a recipe or stack.
+Native enumerates eligible existing bills, exact single-resource slot counts,
+worker-adjusted recipe work, nominal nutrition, bench supply cells and routes.
+It neither creates bills nor selects the winning recipe. Shared ColonyForecast
+comparison evaluates supply, cooking and output-delivery dependencies against the
+same deadline and labor ceiling. Recipe material conversion uses the same graph
+constructor as the broader food candidate generator.
+
+The selected Method first delivers the exact ingredient count from one observed
+stack to a selected cell near the bench. On completion it reobserves local stock
+and rebinds the same bench/bill/recipe to a current stack with enough ingredients.
+Changed identities can therefore recover, but combining several undersized stacks
+is not implemented in this live caller. Missing/blocked benches, insufficient
+ingredients or failed supply release; they do not silently change recipes.
+
+Cooking authorization replaces the supply obligation with an output-delivery
+obligation. Completed Cook permits delivery only of currently observed matching
+food near the bench. Failed Cook always releases, even if meals or ingredients
+are nearby: no replay, refund or assumption of atomic consumption. Unknown or
+running execution holds; Concern recovery releases. All stages retain the original
+Method identity and deadline and use normal journal/Hands transitions.
+
+Bounds are four benches, eight bills per bench, two supply cells and four product
+destinations within the shared 128-route-probe read budget. Policy retains its
+16-outcome, 32-task and 512-expansion limits; cooking alternatives may reach the
+task limit first. Omission is explicit. Nominal nutrition is not eater-specific
+eligibility or a coupled survival forecast. Work estimates use recipe work and
+the pawn's work-speed stat, not calibrated end-to-end toil timing. Product identity
+is fungible local stock, not proof of individual batch provenance. The broad
+multi-batch survival portfolio, helper delegation and carried-item recovery remain
+unintegrated; existing hauling/cleaning/eating helpers stay.
+
+Pure tests cover distance/work/ingredient-driven reversals, stale recipe refusal,
+changed ingredient identities, observed meal delivery and interrupted cooking.
+Codec/Hands tests preserve obligations and exact ingredients. The prepared native
+cooking case also probes eligible recipe observations; its explicit revisions
+prove native conversion, not autonomous full-chain planning.
+
+## Exact activity execution
 
 The existing executor journals the domain action and dispatches its typed intent
 through Actions/Apply. Installation acknowledges authorization, not started or

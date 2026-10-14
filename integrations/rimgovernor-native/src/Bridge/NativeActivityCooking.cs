@@ -11,24 +11,23 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeActivityCooking
     {
-        // Validate the supplied choice. Never call JobOnThing or search for substitute ingredients/bills.
-        internal static bool Resolve(Pawn pawn, Thing target, PawnActivityStep step,
-            out Bill_Production? bill, out List<ThingCount> ingredients, out string reason)
+        internal static bool ResolveRecipe(Pawn pawn, Thing target, string workGiver, string billId, string recipeId,
+            out Bill_Production? bill, out string reason)
         {
-            bill = null; ingredients = new List<ThingCount>();
+            bill = null;
             reason = "cooking_bench_unavailable";
-            if (step.Cooking is not { } choice || target is not Building_WorkTable bench || !NativeProductionBills.Usable(bench)
+            if (target is not Building_WorkTable bench || !NativeProductionBills.Usable(bench)
                 || pawn.carryTracker.CarriedThing != null || target.IsForbidden(pawn)
                 || !pawn.CanReserveAndReach(target, PathEndMode.InteractionCell, Danger.Some)
                 || target.def.hasInteractionCell && !pawn.CanReserveSittableOrSpot(target.InteractionCell, target)) return false;
-            var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
+            var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(workGiver);
             reason = "cooking_worker_unavailable";
             if (giver?.Worker is not WorkGiver_DoBill scanner || !scanner.ThingIsUsableBillGiver(target)
                 || giver.workType != DefDatabase<WorkTypeDef>.GetNamed("Cooking") || pawn.WorkTagIsDisabled(giver.workTags)
                 || pawn.WorkTypeIsDisabled(giver.workType) || scanner.MissingRequiredCapacity(pawn) != null) return false;
-            bill = bench.BillStack.Bills.OfType<Bill_Production>().SingleOrDefault(b => b.GetUniqueLoadID() == choice.Bill);
+            bill = bench.BillStack.Bills.OfType<Bill_Production>().SingleOrDefault(b => b.GetUniqueLoadID() == billId);
             reason = "cooking_bill_unavailable";
-            if (bill == null || bill is Bill_ProductionWithUft || bill.recipe.defName != choice.Recipe
+            if (bill == null || bill is Bill_ProductionWithUft || bill.recipe.defName != recipeId
                 || !bill.ShouldDoNow() || !bill.PawnAllowedToStartAnew(pawn) || bill.GetStoreMode() != BillStoreModeDefOf.DropOnFloor) return false;
             var recipe = bill.recipe;
             reason = "cooking_recipe_unsupported";
@@ -37,6 +36,16 @@ namespace HomeBridge.BridgeTools
                 || recipe.specialProducts != null || recipe.products.Count != 1 || !recipe.products[0].thingDef.IsNutritionGivingIngestible
                 || recipe.ingredients.Count == 0 || recipe.FirstSkillRequirementPawnDoesntSatisfy(pawn) != null
                 || recipe.requiredGiverWorkType != null && recipe.requiredGiverWorkType != giver.workType) return false;
+            return true;
+        }
+        // Validate the supplied choice. Never call JobOnThing or search for substitute ingredients/bills.
+        internal static bool Resolve(Pawn pawn, Thing target, PawnActivityStep step,
+            out Bill_Production? bill, out List<ThingCount> ingredients, out string reason)
+        {
+            ingredients = new List<ThingCount>(); bill = null; reason = "cooking_choice_missing";
+            if (step.Cooking is not { } choice || !ResolveRecipe(pawn, target, step.WorkGiver, choice.Bill, choice.Recipe, out bill, out reason)) return false;
+            var bench = (Building_WorkTable)target;
+            var recipe = bill!.recipe;
             ThingDef? ingredientDef = null;
             reason = "cooking_ingredient_unavailable";
             foreach (var selected in choice.Ingredients)

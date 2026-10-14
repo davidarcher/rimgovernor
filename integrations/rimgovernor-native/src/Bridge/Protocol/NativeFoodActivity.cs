@@ -56,7 +56,8 @@ public sealed class NativeFoodActivity
             IEnumerable<Thing> sources = plants;
             if (existing?.OutputDelivery is { } output)
                 sources = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
-                    .Where(t => t.Spawned && t.def.defName == output.Resource && t.Position.DistanceToSquared(new(output.Origin.X, 0, output.Origin.Z)) <= 4)
+                    .Where(t => t.Spawned && t.def.defName == output.Resource && t.Position.DistanceToSquared(output.Cooking is null
+                        ? new(output.Origin.X, 0, output.Origin.Z) : new(output.Destination.X, 0, output.Destination.Z)) <= 4)
                     .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
             if (sources.Count() > 16) { sources = sources.Take(16); truncated = true; }
             foreach (var source in sources)
@@ -76,6 +77,11 @@ public sealed class NativeFoodActivity
                 using var approach = map.pathFinder.FindPathNow(pawn.Position, source, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.Touch);
                 budget--;
                 if (!approach.Found) continue;
+                if (existing?.OutputDelivery?.Cooking is not null)
+                {
+                    NativeFoodCooking.Add(pawn, source, count, approach.TotalCost, existing, options, ref budget, ref truncated);
+                    continue; // Supply was selected; rebind that exact recipe only.
+                }
                 // Enumerate exact, empty storage cells. Policy ranks options; native never chooses storage.
                 var cells = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => plant is null
                         ? g.Settings.AllowedToAccept(source) : g.Settings.filter.Allows(product))
@@ -91,8 +97,11 @@ public sealed class NativeFoodActivity
                     if (!route.Found) continue;
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
                         new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count,
-                        approach.TotalCost + route.TotalCost, work));
+                        approach.TotalCost + route.TotalCost, work) { NutritionPerUnit = Fact.Known((double)product.GetStatValueAbstract(StatDefOf.Nutrition)) });
                 }
+                // Preserve raw alternatives before recipe expansion can spend the remaining route budget.
+                if (plant is null && existing?.Steps[0].Kind == PawnActivityKind.Work)
+                    NativeFoodCooking.Add(pawn, source, count, approach.TotalCost, existing, options, ref budget, ref truncated);
             }
             if (budget <= 0) { truncated = true; break; }
         }

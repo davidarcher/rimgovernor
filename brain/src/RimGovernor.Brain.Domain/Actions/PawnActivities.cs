@@ -13,7 +13,12 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
     public PawnActivityCooking? Cooking { get; init; }
 }
 
-public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline, int AttemptsLeft);
+public sealed record ActivityCookingContinuation(string Bench, string Bill, string Recipe, string WorkGiver,
+    Cell Origin, string Product, int ProductCount, Cell Destination);
+public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline, int AttemptsLeft)
+{
+    public ActivityCookingContinuation? Cooking { get; init; }
+}
 public sealed record PawnActivityOrder(string Pawn, string Assignment, string Method, long ExpectedRevision,
     long Revision, bool Release, PawnActivityStep[] Steps)
 {
@@ -56,9 +61,15 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 else DomainException.Require(step.Cooking == null, "cooking arguments on another activity family");
             }
             if (order.OutputDelivery is { } output)
+            {
                 DomainException.Require(Identity.IsValidText(output.Resource) && output.Count > 0 && output.Deadline > 0
                     && output.AttemptsLeft is >= 0 and <= 3 && output.Origin is { X: >= 0, Z: >= 0 }
                     && output.Destination is { X: >= 0, Z: >= 0 }, "invalid output delivery obligation");
+                if (output.Cooking is { } cook)
+                    DomainException.Require(Identity.IsValidText(cook.Bench) && Identity.IsValidText(cook.Bill)
+                        && Identity.IsValidText(cook.Recipe) && Identity.IsValidText(cook.WorkGiver) && Identity.IsValidText(cook.Product)
+                        && cook.ProductCount > 0 && cook.Origin is { X: >= 0, Z: >= 0 } && cook.Destination is { X: >= 0, Z: >= 0 }, "invalid cooking continuation");
+            }
         }
     }
 }

@@ -41,8 +41,9 @@ admitted Method's identity, revisions and execution responsibility. Observations
 drive continuation, rebinding or release through that same owner; an accepted
 write alone does not complete the Concern.
 
-For food, the live comparison currently covers bounded same-pawn harvest/delivery
-alternatives. It does not yet compare the complete raw-versus-cooked portfolio
+For food, the live comparison covers bounded same-pawn harvest/delivery
+alternatives and, after observed harvest, raw delivery versus one cooking iteration.
+It does not yet compare the complete raw-versus-cooked portfolio
 against all colony work. The [live stage contract](colony-forecast.md#live-activity-policy-stages)
 owns class responsibilities, the local objective and search limits. `RGARCH009`
 enforces its dependency boundaries without a baseline; it is not universal

@@ -899,7 +899,8 @@ through Hands. The worker binds observed loose food to a delivery continuation
 and handles changed stacks, destinations and bounded empty-handed retry. See the
 [owning contract](../contracts/pawn-activities.md#live-harvest-and-delivery) for
 assumptions and limits. This is not yet the full ForecastFoodCandidates portfolio
-caller: cooking, helper delegation, coupled needs, material claims and carried-item
+caller: one-iteration cooking is available after harvest; helper delegation,
+coupled needs, material claims and carried-item
 recovery remain unintegrated. Predicted yield is never credited as actual stock.
 
 ### Live activity policy stages
@@ -929,7 +930,7 @@ reason; this does not introduce telemetry or persistence ownership.
 
 The local bridge uses the shared comparator's explicit `LowestLaborPerUnit`
 objective. It accepts alternatives for only one need, requires known positive
-comparable progress units and a known labor ceiling, and leaves `NetBenefit`
+comparable progress units (nominal nutrition for food) and a known labor ceiling, and leaves `NetBenefit`
 unknown: an efficiency ratio is not an estimate of avoided hunger damage.
 The existing acquisition horizon supplies the ceiling; equal unit labor rates
 and zero recovery cost on native Danger.None routes remain local assumptions.
@@ -937,7 +938,8 @@ Full survival portfolio selection uses the existing outcome/effect mechanisms,
 not this ratio across unrelated needs.
 
 The live adapter enumerates at most sixteen eligible alternatives, matching the
-shared outcome comparator, with one 512-expansion budget. Both omitted native
+shared outcome comparator, with a 32-task cap and one 512-expansion budget.
+Cooking alternatives require more tasks and can reach that cap first. Both omitted native
 options and policy generation limits produce `generation_truncated`; omitted
 choices may be better. This is narrower than the former 128 independent trip
 comparisons. Equal objective values use the shared comparator's lower-total-labor,
@@ -952,10 +954,14 @@ implementation types remain internal. This is a dependency fence, not proof of
 complete candidate generation or correct arbitrary scoring; gate changes still
 require review. Older planners are not all migrated into this structure.
 
-The full `ForecastFoodCandidates` raw-versus-cooked generator is not yet connected
-to this live adapter. Cooking, coupled needs, helper delegation and shared claims
-remain integration work. Existing helpers stay until their replacement is proven.
-
+The live adapter now compares raw delivery with one cooking iteration after
+observed harvest, including supply and output delivery. It shares recipe material
+conversion with `ForecastFoodCandidates`, but does not yet consume that generator's
+full multi-batch survival portfolio. Nominal nutrition is the live per-unit
+objective; eater eligibility, coupled needs, helper delegation and shared claims
+remain integration work. See [live cooking](../contracts/pawn-activities.md#live-one-iteration-cooking)
+for binding, failure and native-read limits. Existing helpers stay until their
+replacement is proven.
 ### Planned room alternatives
 
 `PlannedRoomAlternatives` (Policy, pure) is candidate generation for planned rooms: it produces temporary
@@ -985,3 +991,4 @@ Limits: a shared wall is attributed to the lowest room id under every alternativ
 same stuff and goes unpriced where it cannot be made from it. Barn and pen rooms come from plan reservations
 (`HerdRooms`) with room id 0, which `PlannedBuiltRooms` skips, so neither the baseline planned demand nor these
 alternatives cover them.
+

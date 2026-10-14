@@ -149,11 +149,8 @@ public static partial class PolicyFunctions
                     var id = harvest + "-recipe-" + generated;
                     Transfer(id + "-supply", harvest, source.Id, bench.Id, raw, perBatch * batches);
                     var cook = id + "-cook";
-                    activities.Add(new(cook, bench.Id, bench.Id, [id + "-supply"])
-                    {
-                        Inputs = EquatableArray.From(new[] { new ForecastActivityYield(raw, Known(perBatch * batches)) }),
-                        Outputs = EquatableArray.From(new[] { new ForecastActivityYield(products[0].Resource, Known((double)products[0].Count * batches)) }),
-                    });
+                    activities.Add(Methods.Generation.FoodRecipeActivity.Create(cook, bench.Id, [id + "-supply"],
+                        raw, perBatch * batches, products[0].Resource, (double)products[0].Count * batches));
                     bindings.Add(new(cook, source.Id, bench.Id, recipe.Name) { Iterations = batches });
                     foreach (var worker in workers)
                     {
