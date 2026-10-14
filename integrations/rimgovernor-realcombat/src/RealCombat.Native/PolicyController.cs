@@ -29,6 +29,9 @@ public sealed class PolicyController : IFightController
     private int _decided = int.MinValue;
     private int _serial;
 
+    /// <summary>Receives one line per decision and per check that changed what a colonist is doing; null is silent.</summary>
+    public Action<string>? Log { get; set; }
+
     /// <summary>Decisions that sent a batch.</summary>
     public int Decisions { get; private set; }
 
@@ -60,6 +63,14 @@ public sealed class PolicyController : IFightController
         if (tick % CheckEvery != 0)
         {
             return;
+        }
+
+        if (Log is not null && tick % 30 == 0)
+        {
+            foreach (var p in map.mapPawns.AllPawnsSpawned)
+            {
+                Log($"t={tick} {p.LabelShort} {(p.Faction?.IsPlayer == true ? "col" : "host")} pos={p.Position.x},{p.Position.z} hp={p.health.summaryHealth.SummaryHealthPercent:0.00} drafted={p.Drafted} downed={p.Downed} job={p.CurJobDef?.defName} target={p.CurJob?.targetA.Thing?.LabelShort} verb={p.TryGetAttackVerb(null)?.GetType().Name} aiming={p.stances.curStance.GetType().Name}");
+            }
         }
 
         try
@@ -96,7 +107,31 @@ public sealed class PolicyController : IFightController
             }
 
             Decisions++;
+            Log?.Invoke($"t={tick} decide tactic={step.Memory.Tactic} roles=[{string.Join(" ", step.Memory.Roles.Select(r => $"{r.Pawn.Value}->{r.Target.Value}@{r.Cell?.X},{r.Cell?.Z}"))}] stop={stop.Kind.Value}");
+            foreach (var o in batch.Orders)
+            {
+                Log?.Invoke($"   order {o.Pawn?.EntityId} {o.Order}");
+            }
+
+            if (Log is not null)
+            {
+                foreach (var v in step.View.Pawns.Items)
+                {
+                    Log($"   view {v.Id.Value} dead={v.Dead} downed={v.Downed} bloodLoss={v.BloodLoss} bleed/day={v.BleedRatePerDay} hoursToDeath={v.HoursUntilBleedDeath}");
+                }
+
+                foreach (var p in map.mapPawns.AllPawnsSpawned)
+                {
+                    Log($"   game {p.ThingID} bleedRate={p.health.hediffSet.BleedRateTotal:0.000} bloodLoss={p.health.hediffSet.GetFirstHediffOfDef(RimWorld.HediffDefOf.BloodLoss)?.Severity} hediffs=[{string.Join(", ", p.health.hediffSet.hediffs.Select(h => h.def.defName + ":" + h.Part?.def.defName + ":" + h.Severity.ToString("0.00") + (h.Bleeding ? ":bleeding" : "")))}]");
+                }
+            }
+
             var results = _seat.Apply(batch);
+            foreach (var r in results)
+            {
+                Log?.Invoke($"   result {r.PawnId} applied={r.Applied} refusal={r.Refusal} job={r.JobDef}");
+            }
+
             Applied += results.Count(r => r.Applied == true);
             Refused += results.Count(r => r.Applied != true);
             _memory = BuildingRuntimePackage.CombatStepResults(step, results);

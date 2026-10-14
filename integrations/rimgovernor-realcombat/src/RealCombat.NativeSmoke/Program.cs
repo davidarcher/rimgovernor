@@ -43,7 +43,7 @@ if (policy)
 
 GameHost.Boot(game);
 var controller = new SeatController();
-var live = new PolicyController();
+var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
 var arena = new Arena(request) { Controller = bare ? null : policy ? live : controller };
 var result = arena.Fight(1);
 Console.Error.WriteLine($"winner={result.Winner} ticks={result.Ticks} {(bare ? "(bare)" : policy ? "policy " + live.Summary : controller.Summary)}");

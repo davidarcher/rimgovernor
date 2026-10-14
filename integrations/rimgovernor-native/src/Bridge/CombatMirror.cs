@@ -293,6 +293,8 @@ namespace HomeBridge.BridgeTools
                 }
             }
             var stance = pawn.stances?.curStance;
+            // A ranged pawn standing to shoot (Wait_Combat) holds no job target; the stance's focus is what it aims at.
+            if (row.TargetId == null && stance is Stance_Busy busy && busy.focusTarg.Thing is { } aimed) row = row with { TargetId = LoadId(aimed) };
             if (stance is Stance_Warmup warmup) { row = row with { Stance = Mirror.CombatStance.Warmup }; row = row with { StanceTicksLeft = warmup.ticksLeft }; }
             else if (stance is Stance_Cooldown cooldown) { row = row with { Stance = Mirror.CombatStance.Cooldown }; row = row with { StanceTicksLeft = cooldown.ticksLeft }; }
             else if (job != null && job.def == JobDefOf.AttackMelee) row = row with { Stance = Mirror.CombatStance.Melee };
