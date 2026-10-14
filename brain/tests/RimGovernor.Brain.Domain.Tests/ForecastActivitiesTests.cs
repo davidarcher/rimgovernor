@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ForecastActivitiesTests
 {
-    private static ForecastPawnCapacity Pawn(string id, double rate = 1, double until = 5000) => new(id, "home", Known(0.0), Known(until), Known(rate));
+    private static ForecastPawnCapacity Pawn(string id, double rate = 1, double until = 5000) => new(id, "home", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, until) })), Known(rate));
     private static ForecastActivityOption Option(string task, string pawn, double ticks, double injury = 0) => new(task, pawn, Known(ticks), Known(injury));
     private static ForecastActivityRoute Route(string pawn, string from, string to, double ticks) => new(pawn, from, to, Known(ticks));
     // Synthetic estimates, not game constants: the helper has a 100-tick detour.
@@ -143,7 +143,7 @@ public sealed class ForecastActivitiesTests
         Assert.Empty(CompareActivityPlans(p with { Routes = [] }).Alternatives);
         Assert.Equal("unknown_deadline", CompareActivityPlans(p with { Deadline = Unknown<double>() }).Decision);
         Assert.Equal("unknown_alternative_cost", CompareActivityPlans(p with { AlternativeLaborCost = Unknown<double>() }).Decision);
-        Assert.Empty(CompareActivityPlans(p with { Pawns = p.Pawns.Select(a => a with { AvailableFrom = Unknown<double>() }).ToArray() }).Alternatives);
+        Assert.Empty(CompareActivityPlans(p with { Pawns = p.Pawns.Select(a => a with { Windows = Unknown<EquatableArray<ForecastTimeWindow>>() }).ToArray() }).Alternatives);
     }
 
     [Fact]

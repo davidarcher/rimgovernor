@@ -23,7 +23,7 @@ public sealed class ForecastConstructionTests
     private static ForecastConstructionWorker Worker(string id = "worker", int skill = 8) => new(
         new WorkPawn { Id = new RimGovernor.Brain.Policy.PawnId(id), Available = Known(true), Applies = Known(true), ConstructionAble = Known(true),
             Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Construction", Level = skill } })) },
-        new(id, "stock", Known(0.0), Known(1000.0), Known(1.0)), Known(1.0));
+        new(id, "stock", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 1000) })), Known(1.0)), Known(1.0));
     private static ForecastCommitment Commitment(ConstructionSite site) => new(site.Id, default)
     { Construction = site.Building, AlternativeLaborCost = Known(2000.0) };
     private static ColonyForecastRequest Request(params ConstructionSite[] sites) => new()

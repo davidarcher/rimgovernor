@@ -6,6 +6,8 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record DerivedDemand
 {
+    /// <summary>Activity inputs from the same review, consumed alongside these resource targets.</summary>
+    public ForecastWorkInputs Work { get; init; } = new();
     /// <summary>Every stock level some source asks for, per resource: the targets MaintainResource and the trade stock against.</summary>
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
 
@@ -51,6 +53,7 @@ public static partial class PolicyFunctions
         var needs = ResourceConcernTargets(ResourceConcernTargets(f.ResourceNeeds, works), ResourceRunwayTargets(f.ResourceRunways));
         return new DerivedDemand
         {
+            Work = ForecastWorkInputsOf(f),
             Needs = needs,
             Works = works,
             Serves = clothing.Serves,

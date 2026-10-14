@@ -107,15 +107,14 @@ second production scheduler. `ForecastColony` now calls it for the construction 
 
 A `ForecastActivityProblem` supplies activities, prerequisite IDs, start/end
 locations, eligible pawn options, elapsed service durations, directed route
-durations and one availability interval per pawn. Every activity is required
+durations and known/unknown availability windows per pawn. Every activity is required
 exactly once. Service may include pickup, loaded transit and delivery; those
 stages must be included in the supplied duration and final location, not counted
 again as approach travel. Durations are elapsed ticks, not native work units.
 No activity ID or work-family name changes the algorithm. Each pawn shares one
 serial occupancy timeline across all work types; different pawns can overlap.
 Protected obligations bound availability, while optional baseline work supplies
-an explicit displaced-labor rate. Intermittent protected obligations are not
-represented by a single interval and must not be flattened into free time.
+an explicit displaced-labor rate. Tasks must fit wholly inside one free window; they cannot span a protected obligation. Unknown positions after protected time cannot reuse an earlier location.
 
 The search enumerates dependency-ready tasks and eligible pawn assignments,
 including self-service and delegation, with earliest and just-in-time approach
@@ -196,8 +195,7 @@ include native legality and work prohibitions; a forecast is never a reservation
 
 Commitments are considered by tier (untiered first), then ordinal commitment ID.
 This is a conservative bounded list schedule, not a search across commitment
-orders. The selected allocations advance each participating pawn's available
-start and location for later commitments. Different pawns can overlap; earlier
+orders. The selected allocations trim each participating pawn's remaining windows and update its location for later commitments. Different pawns can overlap; earlier
 gaps are not reused. One expansion budget is shared across the scenario.
 Truncation and exhaustion stay visible in comparisons/results. Unknown or
 infeasible commitments produce per-commitment results and leave independent
@@ -232,11 +230,64 @@ estimates with caller assumptions. A delivery assumes one stated pickup location
 for that site's outstanding materials. No adapter currently measures these
 construction routes or derives a coupled needs schedule; missing estimates do
 not receive distance-based or zero-cost defaults. The observed `WorkPawn` and
-construction census are real boundary types, but live Method commitment assembly
-and production selection remain #3127/#3135 work. Native dispatch and helper
+construction census are real boundary types. The shared review input now assembles standing construction commitments from journal claims, as described below; live selection and dispatch remain unconnected. Native dispatch and helper
 replacement remain #3128. No native gameplay improvement is claimed.
 
 `ForecastConstructionTests` covers decoding existing native fields, inventory
 consumption once, baseline/delta cancellation, shared versus disjoint workers,
 scarce materials and bill holds, skill/tier protection, changed/removed sites,
 unknown routes, independent runnable work and the shared search budget.
+
+
+## Review inputs and pawn windows
+
+`ResourceDemandOf` attaches `ForecastWorkInputs` to its existing `DerivedDemand`.
+The normal observation path supplies the observed work pawns, and the review's
+existing journal claims identify construction owners. Only claimed geometries
+with a current standing site produce commitments; repeated historical claims at
+the same geometry produce one outcome. Missing claims or an incomplete census
+stay unknown, while completed, removed and cancelled claims stop generating
+future work. There is no new demand calculation, journal or saved plan.
+
+`ConstructionForecastRequestOf` consumes that exact demand value, its observed
+workers and material reservations. It rejects a tick mismatch and estimates for
+unobserved pawns, and replaces copied worker facts with the current observations.
+It does not invent labor budgets, routes or free time. The returned request and
+forecast retain the same demand object used by supply consumers. This connects
+input assembly; it does not call the comparison or dispatch from live assignment
+selection. General work-family integration and material/equipment claims remain
+#3127 work; native assignment cutover remains #3128/#3135.
+
+`ForecastPawnCapacityOf` derives one timeline per pawn from observed availability,
+its 24-hour timetable, local time, remaining useful current-job time and declared
+needs/protected occupancy. Its horizon is bounded to seven game days. Non-work
+slots are protected; this consumes timetable constraints as observations and does
+not install a timetable or make native priorities the new activity selector.
+Needs transition estimates remain #3132's responsibility. An observed current job
+with no remaining-time estimate makes capacity unknown rather than freeing the
+pawn. The input is remaining work only, not sunk effort.
+
+Overlapping active obligations are unioned. Repeated identical IDs count once;
+conflicting IDs fail. Completed/cancelled rows release their occupancy. Unavailable
+pawns have known zero capacity; an unread schedule, job or active obligation stays
+unknown. The output contains free windows and total free ticks. Each window after
+protected time requires an explicit location estimate before approach travel can
+be evaluated; unknown location is not the pawn's old position. The current input
+can state a common endpoint assumption for these gaps; it does not infer where a
+pawn will eat or sleep. Different work types use these same windows, and one task
+cannot straddle a protected interval even when the total free time is sufficient.
+
+Generic activities can also carry multiple typed outputs. Each completed activity
+emits its outputs once in `ForecastActivityPlan.StockChanges`, at its completion
+day. Helpers and retrieval do not automatically get another copy. Unknown yield
+quantities remain unknown when those effects enter the inventory forecast. The
+plan's labor comparison still assumes the caller's declared outcome/alternative;
+these effects are conditional, not observed goods or a new utility currency.
+
+`ForecastWorkInputsTests` exercises shared cook/builder capacity, independent
+workers, overlapping obligations, cancellation, known-zero versus unknown time,
+changed timetables, remaining current jobs, protected gaps and missing endpoints,
+multiple outputs with support, review claim deduplication and the shared demand
+reference. Construction's existing skill/tier tests remain in force. These tests
+do not establish general live work-family eligibility, native equipment claims
+or resolution of every planner-local ingredient promise.

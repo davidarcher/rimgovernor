@@ -136,7 +136,12 @@ public static partial class PolicyFunctions
             foreach (var group in plan.Allocations.GroupBy(a => a.Pawn))
             {
                 var last = group.MaxBy(a => a.End)!;
-                capacity[group.Key] = capacity[group.Key] with { AvailableFrom = Known(last.End), Location = site.Id };
+                var available = capacity[group.Key];
+                capacity[group.Key] = available with
+                {
+                    Windows = Known(EquatableArray.From(available.Windows.Value.Where(w => w.End >= last.End)
+                        .Select(w => last.End >= w.Start ? w with { Start = last.End, StartLocation = Known(site.Id) } : w))), Location = site.Id,
+                };
             }
             var deliveryRow = plan.Allocations.SingleOrDefault(a => a.Activity == "deliver");
             foreach (var need in needs) stock[need.Resource] -= need.Count;

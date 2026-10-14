@@ -24,6 +24,7 @@ public sealed record ColonyForecastDelta
 
 public sealed record ColonyForecastRequest
 {
+    public DerivedDemand Demand { get; init; } = new();
     public required ColonyForecastOrigin Origin { get; init; }
     public required double HorizonDays { get; init; }
     public ColonyForecastFacts Facts { get; init; } = new();
@@ -49,6 +50,7 @@ public sealed record ColonyForecastScenario
 /// <summary>Baseline/delta consequences and observed diagnostics, not native feasibility or a utility score.</summary>
 public sealed record ColonyForecast
 {
+    public DerivedDemand Demand { get; init; } = new();
     public required ColonyForecastOrigin Origin { get; init; }
     public double HorizonDays { get; init; }
     public EquatableArray<string> Assumptions { get; init; }
@@ -90,6 +92,7 @@ public static partial class PolicyFunctions
         }
         return new ColonyForecast
         {
+            Demand = request.Demand,
             Origin = request.Origin,
             HorizonDays = request.HorizonDays,
             Assumptions = request.Assumptions,

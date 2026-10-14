@@ -1,11 +1,21 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Relative game ticks; availability excludes protected obligations. Cost is displaced baseline labor per tick.</summary>
-public sealed record ForecastPawnCapacity(string Pawn, string Location, Fact<double> AvailableFrom,
-    Fact<double> AvailableUntil, Fact<double> OpportunityCostPerTick);
+public sealed record ForecastTimeWindow(double Start, double End)
+{
+    /// <summary>Position after protected time; unknown must not reuse the pawn's earlier location.</summary>
+    public Fact<string> StartLocation { get; init; }
+}
+public sealed record ForecastPawnCapacity(string Pawn, string Location, Fact<EquatableArray<ForecastTimeWindow>> Windows,
+    Fact<double> OpportunityCostPerTick);
 
 /// <summary>Dependencies gate service, not preparatory travel. Each task and its output are counted once.</summary>
-public sealed record ForecastActivity(string Id, string Location, string EndLocation, string[] Prerequisites);
+public sealed record ForecastActivityYield(Resource Resource, Fact<double> Units);
+public sealed record ForecastActivity(string Id, string Location, string EndLocation, string[] Prerequisites)
+{
+    /// <summary>One physical output per resource at completion; support activities normally have none.</summary>
+    public EquatableArray<ForecastActivityYield> Outputs { get; init; }
+}
 public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks);
 /// <summary>Route duration supplied by observation/estimation, never inferred from straight-line distance.</summary>
 public sealed record ForecastActivityRoute(string Pawn, string From, string To, Fact<double> Ticks);
@@ -28,7 +38,10 @@ public sealed record ForecastActivityAllocation(string Activity, string Pawn, do
 {
     public double LaborCost => DisplacedLaborTicks + RecoveryLaborTicks;
 }
-public sealed record ForecastActivityPlan(ForecastActivityAllocation[] Allocations, double CompletedAt, double LaborCost);
+public sealed record ForecastActivityPlan(ForecastActivityAllocation[] Allocations, double CompletedAt, double LaborCost)
+{
+    public EquatableArray<ForecastStockChange> StockChanges { get; init; }
+}
 public sealed record ForecastActivityComparison(ForecastActivityPlan? Selected, ForecastActivityPlan[] Alternatives,
     string Decision, string[] Findings, int Expansions, bool SearchTruncated);
 
@@ -63,7 +76,9 @@ public static partial class PolicyFunctions
                 var key = string.Join(";", rows.Select(a => FormattableString.Invariant($"{a.Activity}:{a.Pawn}:{a.Depart:R}:{a.Start:R}:{a.End:R}")));
                 var total = rows.Sum(a => a.LaborCost);
                 if (!double.IsFinite(total)) throw new DomainException("activity plan cost overflow");
-                plans.TryAdd(key, new(rows, rows.Max(a => a.End), total));
+                var effects = rows.SelectMany(a => tasks.First(t => t.Id == a.Activity).Outputs
+                    .Select(o => new ForecastStockChange(o.Resource, Known(a.End / GameTime.TicksPerDay), o.Units)));
+                plans.TryAdd(key, new(rows, rows.Max(a => a.End), total) { StockChanges = EquatableArray.From(effects) });
                 return;
             }
             var done = assigned.ToDictionary(a => a.Activity, StringComparer.Ordinal);
@@ -75,34 +90,42 @@ public static partial class PolicyFunctions
                     // Unknown/refused options also consume the deterministic search budget.
                     if (!SpendExpansion()) return;
                     var pawn = pawns[option.Pawn];
-                    if (!pawn.AvailableFrom.TryGetValue(out var from) || !pawn.AvailableUntil.TryGetValue(out var until)
+                    if (!pawn.Windows.TryGetValue(out var windows)
                         || !pawn.OpportunityCostPerTick.TryGetValue(out var rate) || !option.WorkTicks.TryGetValue(out var work)
                         || !option.RecoveryLaborTicks.TryGetValue(out var recovery))
                     { findings.Add("unknown_capacity_or_cost:" + task.Id + ":" + pawn.Pawn); continue; }
                     var previous = assigned.LastOrDefault(a => a.Pawn == pawn.Pawn);
-                    var location = previous == null ? pawn.Location : tasks.First(t => t.Id == previous.Activity).EndLocation;
-                    var free = previous?.End ?? from;
-                    var route = location == task.Location ? Known(0.0)
-                        : routes.TryGetValue((pawn.Pawn, location, task.Location), out var observed) ? observed.Ticks : Unknown<double>();
-                    if (!route.TryGetValue(out var travel))
-                    { findings.Add("unknown_route:" + pawn.Pawn + ":" + location + ":" + task.Location); continue; }
+                    var released = previous?.End ?? 0;
                     // Earliest departure and just-in-time departure are generic alternatives. Delayed travel
                     // assumes the baseline work is divisible; neither is a named helper/squad template.
-                    foreach (var depart in new[] { free, Math.Max(free, ready - travel) }.Distinct())
+                    foreach (var window in windows)
                     {
-                        if (!SpendExpansion()) return;
-                        var arrive = depart + travel;
-                        var start = Math.Max(arrive, ready);
-                        var end = start + work;
-                        var cost = (end - depart) * rate + recovery;
-                        if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
-                        if (end > until || end > deadline)
-                        { findings.Add("capacity_or_deadline:" + task.Id + ":" + pawn.Pawn); continue; }
-                        assigned.Add(new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
-                            (end - depart) * rate, recovery));
-                        Search(assigned);
-                        assigned.RemoveAt(assigned.Count - 1);
-                        if (truncated) return;
+                        var location = previous is not null && previous.Depart >= window.Start && previous.End <= window.End
+                            ? Known(tasks.First(t => t.Id == previous.Activity).EndLocation)
+                            : window.StartLocation.IsKnown ? window.StartLocation : window.Start == 0 ? Known(pawn.Location) : Unknown<string>();
+                        if (!location.TryGetValue(out var origin))
+                        { if (!SpendExpansion()) return; findings.Add("unknown_window_location:" + pawn.Pawn); continue; }
+                        var route = origin == task.Location ? Known(0.0)
+                            : routes.TryGetValue((pawn.Pawn, origin, task.Location), out var observed) ? observed.Ticks : Unknown<double>();
+                        if (!route.TryGetValue(out var travel))
+                        { if (!SpendExpansion()) return; findings.Add("unknown_route:" + pawn.Pawn + ":" + origin + ":" + task.Location); continue; }
+                        var free = Math.Max(released, window.Start);
+                        foreach (var depart in new[] { free, Math.Max(free, ready - travel) }.Distinct())
+                        {
+                            if (!SpendExpansion()) return;
+                            var arrive = depart + travel;
+                            var start = Math.Max(arrive, ready);
+                            var end = start + work;
+                            var cost = (end - depart) * rate + recovery;
+                            if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
+                            if (end > window.End || end > deadline)
+                            { findings.Add("capacity_or_deadline:" + task.Id + ":" + pawn.Pawn); continue; }
+                            assigned.Add(new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
+                                (end - depart) * rate, recovery));
+                            Search(assigned);
+                            assigned.RemoveAt(assigned.Count - 1);
+                            if (truncated) return;
+                        }
                     }
                 }
             }
@@ -133,8 +156,17 @@ public static partial class PolicyFunctions
         var tasks = p.Activities.ToDictionary(t => t.Id);
         var pawns = p.Pawns.Select(a => a.Pawn).ToHashSet();
         foreach (var task in p.Activities)
+        {
             if (task.Prerequisites.Distinct().Count() != task.Prerequisites.Length || task.Prerequisites.Any(id => !tasks.ContainsKey(id)))
                 throw new DomainException("invalid activity dependency");
+            if (task.Outputs.Select(o => o.Resource).Distinct().Count() != task.Outputs.Count)
+                throw new DomainException("duplicate activity output");
+            foreach (var output in task.Outputs)
+            {
+                if (!ValidResource(output.Resource)) throw new DomainException("invalid activity output resource");
+                Number(output.Units);
+            }
+        }
         var remaining = tasks.Keys.ToHashSet();
         while (remaining.Count > 0)
         {
@@ -145,9 +177,17 @@ public static partial class PolicyFunctions
         Number(p.Deadline); Number(p.AlternativeLaborCost);
         foreach (var pawn in p.Pawns)
         {
-            Number(pawn.AvailableFrom); Number(pawn.AvailableUntil); Number(pawn.OpportunityCostPerTick);
-            if (pawn.AvailableFrom.IsKnown && pawn.AvailableUntil.IsKnown && pawn.AvailableFrom.Value > pawn.AvailableUntil.Value)
-                throw new DomainException("invalid pawn availability");
+            Number(pawn.OpportunityCostPerTick);
+            if (pawn.Windows.TryGetValue(out var windows))
+            {
+                double end = 0;
+                foreach (var window in windows)
+                {
+                    if (!double.IsFinite(window.Start) || !double.IsFinite(window.End) || window.Start < end || window.End < window.Start)
+                        throw new DomainException("invalid pawn availability");
+                    end = window.End;
+                }
+            }
         }
         if (p.Options.Select(o => (o.Activity, o.Pawn)).Distinct().Count() != p.Options.Length
             || p.Routes.Select(r => (r.Pawn, r.From, r.To)).Distinct().Count() != p.Routes.Length)
