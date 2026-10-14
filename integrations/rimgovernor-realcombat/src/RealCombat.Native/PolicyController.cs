@@ -154,7 +154,7 @@ public sealed class PolicyController : IFightController
         }
         catch (Exception e)
         {
-            Failure = e.GetType().Name + ": " + e.Message;
+            Failure = e.GetType().Name + ": " + e.Message + (Log is null ? "" : Environment.NewLine + e.StackTrace);
         }
     }
 
@@ -182,7 +182,9 @@ public sealed class PolicyController : IFightController
 
     private static string Casters(CombatView view) =>
         !view.Royalty.TryGetValue(out var royal) ? "" : string.Join(" ", royal.Psycasts.Select(c =>
-            c.Key.Value + ":" + string.Join(",", c.Value.Items.Select(x => x.Def + "/" + x.Target + "/focus=" + x.PsyfocusCost + "/cd=" + x.CooldownRemaining))));
+            c.Key.Value + ":" + string.Join(",", c.Value.Items.Select(x => x.Def + "/" + x.Target + "/focus=" + x.PsyfocusCost + "/cd=" + x.CooldownRemaining))))
+            + " holders=" + string.Join(" ", royal.Holders.Select(h => h.Key.Value + ":" + string.Join(",", h.Value.Select(x => x.FactionDef + "/favor=" + x.Favor + "/permits=" + string.Join("+", x.Permits) + "/cd=" + string.Join("+", x.Cooldowns.Select(c => c.Key + "=" + c.Value.RemainingTicks))))))
+            + " permitdefs=" + string.Join(" ", royal.Permits.Select(p => p.Key + ":acts=" + p.Value.Acts + ",cost=" + p.Value.FavorCost));
 
     // The royalty fact the rounds read: the colonists' pawn rows and the colony section of the frame, against the catalog.
     // Unknown when the frame has no royalty section (no Royalty) or a row cannot be used.

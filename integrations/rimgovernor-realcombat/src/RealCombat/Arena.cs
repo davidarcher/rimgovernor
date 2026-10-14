@@ -374,6 +374,18 @@ public sealed class Arena
             pawn.psychicEntropy.OffsetPsyfocusDirectly(1f);
         }
 
+        if (spec.Title.Length > 0)
+        {
+            var empire = Find.FactionManager.FirstFactionOfDef(FactionDefOf.Empire)
+                ?? throw new InvalidOperationException("realcombat: the world has no Empire for a royal title");
+            pawn.royalty.SetTitle(empire, DefDatabase<RoyalTitleDef>.GetNamed(spec.Title), false, false, false);
+            pawn.royalty.SetFavor(empire, spec.Favor, false);
+            foreach (var permit in spec.Permits)
+            {
+                pawn.royalty.AddPermit(DefDatabase<RoyalTitlePermitDef>.GetNamed(permit), empire);
+            }
+        }
+
         pawn.equipment.DestroyAllEquipment();
         if (spec.Weapon.Length > 0)
         {

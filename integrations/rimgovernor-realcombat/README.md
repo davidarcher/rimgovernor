@@ -29,7 +29,7 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 planner's spike traps out of the compound so the raider reaches the firing line (otherwise it usually dies to the traps
 first; with them out the colonists fire and win in 1644 ticks). `--armor` puts both sides in a flak vest and
 helmet, `--melee` gives the raiders longswords, `--cover` lays sandbags in front of the colonists on open ground, `--psycast`
-gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks).
+gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks); `--permit` is described under Reads.
 
 ## The native seat
 
@@ -92,9 +92,6 @@ native defense-site read, served from the arena map; nothing in the harness star
 infestation and a staged seal). **Royalty**: built as the rounds build it, from the frame's colony royalty section and pawn rows against the catalog
 (`ColonyProjection.RoyaltyOf`), so it is known where Royalty is loaded. `RealPawn.Psycasts` gives a colonist a psylink, the
 named psycasts and full psyfocus. The step's cast and permit orders leave the batch as Ability actions (`CombatStep.Calls`), and
-`NativeSeat.ApplyAbility` runs them through the mod's `NativeAbilityOperations`. They go after the batch: a combat order
-issued after a cast replaces the cast job. Open: the caster then stands idle (`Wait_Combat`) until the next decision, since
-the policy decides only on a stop or the 300 tick backstop. Permits are not exercised: they need a title, favor and the
-Empire faction in the arena.
+`NativeSeat.ApplyAbility` runs them through the mod's `NativeAbilityOperations`. They go after the batch: a combat order issued after a cast replaces the cast job. The caster is not left idle: it stands in `Wait_Combat` and fires at will (same shot count as its partner). `RealPawn.Title`, `Favor` and `Permits` make an Empire title holder; with `--permit` the first colonist is an acolyte with the trooper squad permit against four raiders, the policy calls the aid at the first stop (outmatched) and the colonists win in 1593 ticks, the same in every process. The headless game has no UI root, so the seat stands a `Targeter` in for `Find.Targeter`, which the permit call goes through.
 
 The compound has a bed behind the back wall (`DefenseStage`): the rescue order carries a downed colonist to one and is refused `no_bed` without.

@@ -54,6 +54,10 @@ public sealed class NativeSeat
             typeof(NativeControlAuthority).GetMethod("Capture", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
                 ?? throw new MissingMethodException("NativeControlAuthority.Capture is gone"),
             prefix: new HarmonyMethod(typeof(NativeSeat).GetMethod(nameof(CaptureIdentity), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!));
+        // A permit call goes through the player's targeter, which a headless game has no UI root for.
+        new Harmony("realcombat.native-seat.targeter").Patch(
+            typeof(Find).GetProperty("Targeter")!.GetGetMethod(),
+            prefix: new HarmonyMethod(typeof(NativeSeat).GetMethod(nameof(StandInTargeter), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!));
         CombatMirror.EnsureHooks();
         NativePawnControlState.Initialize();
         var authority = NativeControlAuthority.ForGame(game);
@@ -89,6 +93,14 @@ public sealed class NativeSeat
         {
             return e.Message;
         }
+    }
+
+    private static readonly RimWorld.Targeter s_targeter = new();
+
+    private static bool StandInTargeter(ref RimWorld.Targeter __result)
+    {
+        __result = s_targeter;
+        return false;
     }
 
     private static bool CaptureIdentity(ref NativeControlIdentity? __result)

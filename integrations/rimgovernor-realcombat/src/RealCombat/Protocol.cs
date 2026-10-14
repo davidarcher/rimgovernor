@@ -74,6 +74,15 @@ public sealed record RealPawn
 
     /// <summary>AbilityDef names of psycasts the pawn knows (Stun); any gives it a psylink and full psyfocus. Needs Royalty.</summary>
     public IReadOnlyList<string> Psycasts { get; init; } = [];
+
+    /// <summary>RoyalTitleDef name the pawn holds with the Empire (Acolyte); empty for none. Needs Royalty.</summary>
+    public string Title { get; init; } = "";
+
+    /// <summary>Favor held with the Empire.</summary>
+    public int Favor { get; init; }
+
+    /// <summary>RoyalTitlePermitDef names the pawn holds (CallMilitaryAidSmall).</summary>
+    public IReadOnlyList<string> Permits { get; init; } = [];
 }
 
 /// <param name="FirstShotTick">Ticks from the fight start to the pawn first shot; -1 when it never fired.</param>

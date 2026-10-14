@@ -178,6 +178,8 @@ namespace HomeBridge.BridgeTools
         {
             var tick = Find.TickManager.TicksGame;
             var favorBefore = call.Pawn.royalty.GetFavor(call.Faction);
+            // The game makes a call free when the permit was never used or its cooldown has run out: no favor is spent then.
+            var free = call.Held.LastUsedTick < 0 || Math.Max(tick - call.Held.LastUsedTick, 0) >= call.Def.CooldownTicks;
             var option = (call.Worker.GetRoyalAidOptions(call.Map, call.Pawn, call.Faction) ?? Enumerable.Empty<FloatMenuOption>()).FirstOrDefault(o => !o.Disabled && o.action != null);
             if (option == null)
                 throw new ApplyRefusedException(Common.FailureCode.InvalidRequest, "Ability guard aid: the permit offers no enabled aid option.");
@@ -194,8 +196,8 @@ namespace HomeBridge.BridgeTools
                 Find.Targeter.StopTargeting();
             }
             var favorAfter = call.Pawn.royalty.GetFavor(call.Faction);
-            if (call.Held.LastUsedTick != tick || favorAfter != favorBefore - call.Def.royalAid.favorCost)
-                throw new InvalidOperationException("Permit call readback did not start the cooldown and spend the favor.");
+            if (call.Held.LastUsedTick != tick || favorAfter != (free ? favorBefore : favorBefore - call.Def.royalAid.favorCost))
+                throw new InvalidOperationException("Permit call readback did not start the cooldown and spend the favor a non-free call costs.");
             return new Receipts.EffectEvidence
             {
                 Effect = new Receipts.AbilityEffect

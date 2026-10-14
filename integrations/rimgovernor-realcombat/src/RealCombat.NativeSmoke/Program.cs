@@ -85,6 +85,17 @@ if (args.Contains("--psycast"))
     RealPawn CastFirst(RealPawn p) { caster = false; return p with { Psycasts = ["Stun"] }; }
 }
 
+// --permit: the first colonist is an Empire acolyte with the trooper squad permit and favor for it, against four raiders,
+// which outmatch the two colonists so the policy calls the aid.
+if (args.Contains("--permit"))
+{
+    var host = request.Pawns.Last(p => p.Side == "hostile");
+    var raiders = Enumerable.Range(1, 3).Select(i => host with { Id = "host" + i, Z = 30 + (i * 2) });
+    var holder = true;
+    request = request with { Pawns = [.. request.Pawns.Concat(raiders).Select(p => p.Side == "colonist" && holder ? Holder(p) : p)] };
+    RealPawn Holder(RealPawn p) { holder = false; return p with { Title = "Acolyte", Favor = 10, Permits = ["CallMilitaryAidSmall"] }; }
+}
+
 if (args.Contains("--cover"))
 {
     request = request with { Things = [.. Enumerable.Range(28, 5).Select(z => new RealThing("Sandbags", "", 23, z))] };
