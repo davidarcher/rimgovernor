@@ -169,3 +169,7 @@ while storage has room. That is intended; it should be watched in a playtest, no
   whole plan, so this holds by construction, but a test should say so.
 - Which Round facts feed the urgency weight, and whether the weight is needed at all once the ranker has
   run on real whole-plan demand.
+
+Planned rooms also expose candidate Method alternatives per room (stuff, shell/floor/stations scope), `PlannedRoomAlternatives`; see
+[Planned room alternatives](colony-forecast.md#planned-room-alternatives). They are not yet outcomes the shared comparator can take; Rounds does not
+generate or choose among them yet.

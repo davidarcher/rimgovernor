@@ -955,3 +955,33 @@ require review. Older planners are not all migrated into this structure.
 The full `ForecastFoodCandidates` raw-versus-cooked generator is not yet connected
 to this live adapter. Cooking, coupled needs, helper delegation and shared claims
 remain integration work. Existing helpers stay until their replacement is proven.
+
+### Planned room alternatives
+
+`PlannedRoomAlternatives` (Policy, pure) is candidate generation for planned rooms: it produces temporary
+candidate Method alternatives and nothing else. Alternatives of one room exclude each other. Each
+`PlannedRoomAlternative` carries the exact material it would claim, in the commitment shape of the baseline planned
+claim. It does not build a `ColonyForecastDelta`, rank, select or postpone. Alternatives:
+
+- **Stuff** – one per stuff the caller passes (the catalog's `StuffOptions` that make the room's wall and door),
+  `planned/room{id}/{stuff}`, priced through the same `PlannedOwedCost` with a per-stuff shell price.
+- **Scope** – `Shell` (walls, doors, vents), `ShellFloor`, and the full scope, by filtering the operation kinds of
+  the same owed diff: `planned/room{id}/{stuff}/{Shell|ShellFloor}`.
+
+Postponing a room is not an alternative here; the shared comparator owns it.
+
+**Why the shared comparator does not take them yet.** `CompareActivityOutcomes` compares `ForecastActivityOutcome`s,
+which need a need, a completion activity in the `ForecastActivityProblem`, a deadline, `AvoidedLaborLoss` and, for
+the per-unit objective, positive `ProgressUnits`. A planned room has none of these: it places nothing, so there is
+no activity with work ticks (the catalog's work to build is not wired for unplaced sites), no need a room
+relieves (needs are #3132), and no avoided loss or progress unit without inventing one. Its material claim also
+lives on a commitment, not on an outcome. `CompareMaterialPlans` takes mutually exclusive options per demand, but
+maximises a supplied `Value` and skips an option whose value is unknown, which would skip every alternative. When
+rooms gain an activity graph and a need, the alternatives are generated in the Methods generation stage (fenced by
+`RGARCH009`), their claims attached to the outcome's activities, and a binding step resolves the selected id; the
+family never runs its own winner loop. Nothing in Rounds builds them yet.
+
+Limits: a shared wall is attributed to the lowest room id under every alternative; the vent def is priced by the
+same stuff and goes unpriced where it cannot be made from it. Barn and pen rooms come from plan reservations
+(`HerdRooms`) with room id 0, which `PlannedBuiltRooms` skips, so neither the baseline planned demand nor these
+alternatives cover them.
