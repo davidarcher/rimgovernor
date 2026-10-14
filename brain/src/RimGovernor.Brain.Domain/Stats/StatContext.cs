@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Domain;
 // The live state of a thing request that the defs do not hold (Go stateval.StatContext). Every field is a
 // Fact: an unstated fact is Unknown and a stat that reads it fails with StatException naming it, never a
 // default. Only the facts a caller states or a fake needs are modelled here; the game-thread service (#3080)
-// reads the rest from the thing itself, and hypothetical pawns (combatsim) state the pawn facts below.
+// reads the rest from the thing itself, and hypothetical pawns (offline fight hosts) state the pawn facts below.
 
 /// <summary>The live state of the thing a request is about; a null context on the subject is a definition request.</summary>
 public sealed record StatContext

@@ -239,53 +239,15 @@ was recorded) are the real timing data for combat simulator calibration.
 
 The combat baselines are sweep outputs: `CombatLab/baselines/<fixture>.json` is
 the sweep of seeds 1..20 recorded from main with the routine
-defense planner running. A tactic is first compared on one seed (three at most) and widened in the sim;
+defense planner running. A tactic is first compared on one seed (three at most);
 a full sweep of the same seeds runs only when asked or by the nightly, with `-against
 brain/src/RimGovernor.Brain.Acceptance.Cases/CombatLab/baselines` and gets paired deltas row
 by row. Re-record one with `acceptance sweep <fixture> -record`
 (seeds 1..20 only; a failed seed, a seed with no contact or no orders, or a
 summary that is not derived from the rows is refused). Re-record only when asked or by the nightly (not as a
 default step of a fix), after a schema bump or an intended change to the
-fixture, planner or simulator. lab-open
+fixture or planner. lab-open
 is smoke-only: recorded, but not a tactics signal.
-
-## Simulator calibration gate
-
-`RimGovernor.cmd combatcalibrate [-record | -show report.json]` decides whether
-combat simulator results may be trusted for the ranged slice (#2844). It plays each
-fixture in the calibration and held-out fixture lists in the sim,
-under each combat-lab variant tuning, over the baseline's seeds, and
-compares the result with the real-game sweeps: the baselines for the default
-tuning, and `CombatLab/calibration/variants/<fixture>/<variant>.json` (a
-sweep file from `acceptance sweep`, seeds 1..20) for the others.
-The thresholds are constants in the calibration gate: pooled pairwise rank
-agreement >= 0.80 on held-out fixtures, zero survival-critical misrankings (the
-sim prefers a variant whose real sweep has more colonist deaths), and colonist
-deaths and downs within +/-25% of the real mean or +/-1 pawn. Variants are
-ordered deaths first, then downs, then colonist damage.
-
-The gate fails closed and exits 1: a fixture the sim cannot import (melee
-pawns, turrets, staged conditions), a variant with no real sweep, a sweep with
-defects or a different seed list, and a role with nothing measured are
-failures. The report also carries native regret (the real outcome lost by
-following the sim's pick) and false-safe variants (the sim sees no colonist
-death, the real sweep does). `calibration/report.json` and `report.txt` are the
-recorded output, stamped with the pinned assembly hash,
-`RulesVersion`, the thresholds version and the sweep schema; a stale stamp or
-output is a stale report. Bump `RulesVersion` with any port or approximation change that can move
-an outcome, then re-record. A failing report is a valid record; the sim is
-trusted only where a passing report of this build accepts it.
-`lab-split-ranged` is the held-out fixture built so both variant knobs act: four
-riflemen with a hand-written layout (firing line behind four stone chunks)
-against eight rifle gunners in two clusters (four cells apart inside a cluster,
-sixteen between the clusters). The line is outmatched, so `ScatterCells` applies
-once it falls below half; the clusters are two raid groups at `GroupGap` 8,
-singletons (below the group minimum) at 3 and one group at 20. Its
-`CombatLab/calibration/variants/lab-split-ranged/` files are the four
-non-default sweeps.
-
-A held-out fixture joins the gate by becoming importable and gaining real
-variant sweeps; the fixture lists and variants are fixed before measuring.
 
 `acceptance suite -stages` schedules missing stages and their dependent tails
 for iteration. The ordinary suite restages from scratch. Preserve

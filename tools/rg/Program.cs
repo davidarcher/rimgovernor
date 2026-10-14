@@ -1,7 +1,6 @@
 using System.Text;
 using RimGovernor.Tools.Commands;
 using RimGovernor.Tools.Commands.ColonyReview;
-using RimGovernor.Tools.Commands.CombatCalibrate;
 using RimGovernor.Tools.Commands.ThoughtAudit;
 using RimGovernor.Tools.Common;
 
@@ -27,7 +26,6 @@ internal static class Program
           thoughtaudit  regenerate the thought-to-trigger table from the installed game
           colonyreview  render a colony-week recording into an HTML report or a site index
           pawnactivity  report pawn time and gaps from the OTLP ring
-          combatcalibrate  run the combatsim sim-vs-real calibration gate
 
         <tool> -help shows a tool's flags.
         """;
@@ -72,7 +70,6 @@ internal static class Program
                 "remotebundle" => await RemoteBundleTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "thoughtaudit" => await ThoughtAuditCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "colonyreview" => await ColonyReviewCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
-                "combatcalibrate" => await CombatCalibrateCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 _ => throw new UsageException($"unknown tool \"{tool}\"\n\n{Usage}"),
             };
         }

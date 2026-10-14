@@ -12,7 +12,6 @@ no live-game integration.
 | `src/RealCombat.Host` | The process: `RimGovernor.RealCombat.Host --game <dir> --request <json> --out <json>`. |
 | `src/RealCombat.Native` | Library. `NativeSeat` hosts the native mod's own `CombatMirror` (observation) and `NativeCombatOrders` (orders) over an arena map, so a controller sees and commands a simulated fight through the code it uses against the live game. Bridge exposes its internals to it (`InternalsVisibleTo`). `Arena.Controller` is the hook that plays the colonists instead of the built-in retargeting (the hostiles then act under an assault lord, as a raid does). `PolicyController` is the controller that decides with the live policy. |
 | `src/RealCombat.NativeSmoke` | Throwaway: a duel observed and commanded through the seat, or with `--policy` a 2v1 played by the live combat policy (`PolicyController`). |
-| `src/RealCombat.Parity` | Throwaway: plays one `Spec` through this host and through the hand-ported sim and compares win rates and tick quantiles. Deleted with the port. |
 
 ## Build and run
 
@@ -20,12 +19,12 @@ The game copy must match the runtime's `Assembly-CSharp` (the private copy under
 `Data` is a junction to Steam). Where `RimWorldDir` has no `Assembly-CSharp.dll` the projects build as stubs.
 
 ```bash
-dotnet build integrations/rimgovernor-realcombat/src/RealCombat.Parity -c Release -p:RimWorldDir=D:/rimgovernor/.rimgovernor/native-rimworld
-integrations/rimgovernor-realcombat/src/RealCombat.Parity/bin/Release/RimGovernor.RealCombat.Parity.exe --game D:/rimgovernor/.rimgovernor/native-rimworld --case duel25 --seeds 1000
+dotnet build integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke -c Release -p:RimWorldDir=D:/rimgovernor/.rimgovernor/native-rimworld
+dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Release/RimGovernor.RealCombat.NativeSmoke.dll --game D:/rimgovernor/.rimgovernor/native-rimworld --policy
 ```
 
-`--case` is one of `duel15 duel25 squad2v2 squad3v3`, one per process (each builds its own map). Exit 1 when a gated
-metric (colonist win rate, median and mean ticks) leaves its tolerance.
+`--bare` plays both sides with the built-in retargeting, `--policy` plays the colonists with the live combat policy,
+`--trace` prints each decision and its results, `--squad` withholds the defense layout.
 
 ## The native seat
 
