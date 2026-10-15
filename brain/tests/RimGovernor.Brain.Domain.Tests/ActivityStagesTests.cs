@@ -51,6 +51,7 @@ public sealed class ActivityStagesTests
 
     [Theory]
     [InlineData("StartConstructionActivity")]
+    [InlineData("StartCoupledActivity")]
     [InlineData("ReconsiderObservedFood")]
     [InlineData("ContinueCoordinatedActivity")]
     public async Task CoordinatedEntrypointsCannotConstructActionsOrLocalScores(string entry)

@@ -532,6 +532,8 @@ public sealed record RoundsFacts
     public ForecastNeedsReview? NeedsAlternatives { get; init; }
     public ForecastCoupledCandidates? CoupledAlternatives { get; init; }
     public EquatableArray<PlannedRoom> PlannedShelters { get; init; }
+    /// <summary>Existing journal ownership, not forecast progress.</summary>
+    public bool CoupledWorkActive { get; init; }
     public EssentialServiceInputs EssentialInputs { get; init; } = new();
 
     public Fact<long> Wood { get; init; }
@@ -692,6 +694,8 @@ public sealed record RoundsLatches
 /// </summary>
 public sealed record RoundsFindings
 {
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ForecastCoupledSelection? CoupledSelection { get; set; }
     public DisasterHistory? Disaster { get; set; }
 
     public RoundsLatches Latches { get; set; } = new();
@@ -1038,6 +1042,9 @@ public static partial class PolicyFunctions
         c.R = new RoundsFindings { Latches = c.L with { } };
         c.Demand = ResourceDemandOf(f, p, c.L);
         c.R.ResourceDemand = c.Demand;
+        if (f.CoupledAlternatives is { } coupled)
+            c.R.CoupledSelection = CompareActivityOutcomes(CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
+                1, f, p, c.Demand, [], new()), coupled);
         foreach (var d in InspectionRegistry.Inspections)
         {
             int goals = c.R.Concerns.Count, assessments = c.R.Assessments.Count;

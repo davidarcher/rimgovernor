@@ -4,6 +4,8 @@ internal sealed record CoordinatedMethodCandidates(ForecastActivityProblem? Prob
     IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> Bindings, bool Truncated)
 {
     public EquatableArray<string> Findings { get; init; }
+    public EquatableArray<ForecastCompositionOperation> Operations { get; init; }
+    public EquatableArray<ForecastCompositionSupply> Observed { get; init; }
 }
 
 internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableArray<string> Prerequisites,
@@ -21,5 +23,6 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     public PawnActivityRecipe? Recipe { get; init; }
     public string ProductStuff { get; init; } = "";
     public ClothingActivityRequirement? Clothing { get; init; }
+    public EquatableArray<SelectedActivityInput> SelectedInputs { get; init; }
     public EquatableArray<(string Thing, string Resource, int Count, int AvailableCount)> Inputs { get; init; }
 }

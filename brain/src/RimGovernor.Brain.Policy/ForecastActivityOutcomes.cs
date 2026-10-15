@@ -5,6 +5,8 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastActivityOutcome(string Id, string Need, string Completion,
     Fact<double> Deadline, Fact<double> AvoidedLaborLoss)
 {
+    /// <summary>Explicit alternative realizations; demand identity alone never excludes additive contributions.</summary>
+    public string ChoiceIdentity { get; init; } = "";
     /// <summary>Comparable progress toward the same need, not credited inventory or avoided loss.</summary>
     public Fact<double> ProgressUnits { get; init; }
     public ForecastRequirementAssessment? Requirements { get; init; }
@@ -22,7 +24,7 @@ public enum ForecastOutcomeObjective { NetLaborBenefit, EarliestDeadline, Lowest
 public static partial class PolicyFunctions
 {
     /// <summary>Compare postponement and combinations using the existing ColonyForecast activity scheduler.
-    /// One alternative per need; shared prerequisites execute once and all outcomes share pawn capacity.</summary>
+    /// Explicit choice identities exclude variants; shared prerequisites execute once and all outcomes share pawn capacity.</summary>
     public static ForecastActivityOutcomeComparison CompareActivityOutcomes(ForecastActivityProblem problem,
         ForecastActivityOutcome[] outcomes, ForecastOutcomeObjective objective = ForecastOutcomeObjective.NetLaborBenefit,
         Func<ForecastActivityOutcome[], ForecastActivityPlan, Fact<bool>>? assess = null, bool generationTruncated = false,
@@ -139,7 +141,7 @@ public static partial class PolicyFunctions
             for (var i = start; i < known.Length && !truncated; i++)
             {
                 if (!Spend()) return;
-                if (selected.Any(o => o.Need == known[i].Need || known[i].ExclusiveOutput.Length != 0 && o.ExclusiveOutput == known[i].ExclusiveOutput
+                if (perUnit && selected.Count != 0 || selected.Any(o => known[i].ChoiceIdentity.Length != 0 && o.ChoiceIdentity == known[i].ChoiceIdentity || known[i].ExclusiveOutput.Length != 0 && o.ExclusiveOutput == known[i].ExclusiveOutput
                     || o.Excludes.Contains(known[i].Id) || known[i].Excludes.Contains(o.Id))) continue;
                 selected.Add(known[i]);
                 Search(i + 1, selected);

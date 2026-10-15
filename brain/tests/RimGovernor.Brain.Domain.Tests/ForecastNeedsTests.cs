@@ -19,7 +19,7 @@ public sealed class ForecastNeedsTests
     };
     private static NeedsForecastPawn Pawn() => new()
     {
-        Pawn = "pawn", State = "eligible", Mood = Known(.5), MoodTarget = Known(.5), BreakThreshold = Known(.3),
+        Pawn = "pawn", State = "eligible", Awake = Known(true), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d), Mood = Known(.5), MoodTarget = Known(.5), BreakThreshold = Known(.3),
         Needs = [new("rest", Known(.2), Known(.0005), Known(.28), Known(1.0)),
             new("food", Known(.5), Known(.0001), Known(.3), Known(1.0)),
             new("joy", Known(.4), Known(.0001), Known(.3), Known(1.0))],

@@ -93,7 +93,8 @@ internal static class NativeNeedsForecast
             var unsupported = pawn.needs?.AllNeeds.Where(n => n is not Need_Food && n is not Need_Rest && n is not Need_Joy && n is not Need_Mood)
                 .Select(n => "unsupported_need:" + n.def.defName).ToList() ?? new List<string>();
             unsupported.Add("disease_and_relationship_changes");
-            rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state,
+            var conditionalMood = NativeConditionalMood.Read(pawn, unsupported);
+            rows.Add(conditionalMood with { Pawn = pawn.GetUniqueLoadID(), State = state,
                 ComfortableMin = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)), ComfortableMax = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)), Needs = EquatableArray.From(needs),
                 Mood = pawn.needs?.mood is { } mood ? K(mood.CurLevelPercentage) : default,
                 MoodTarget = pawn.needs?.mood is { } targetMood ? K(targetMood.CurInstantLevel) : default,

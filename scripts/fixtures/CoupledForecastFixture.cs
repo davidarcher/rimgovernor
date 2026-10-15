@@ -30,6 +30,14 @@ public sealed partial class PawnControlFixture
                     || option.IngredientCount != bill.recipe.ingredients.Sum(i => i.CountRequiredOfFor(unselectedIngredient.def,bill.recipe,bill)))
                     throw new InvalidOperationException("Native batch dimensions or exact ingredient option missing.");
             }
+            foreach (var partial in new[] { firstIngredient, secondIngredient })
+            {
+                var contribution = read.FoodConversions.FirstOrDefault(c => c.Source == partial.GetUniqueLoadID()
+                    && c.Bill == selectedBill.GetUniqueLoadID());
+                if (contribution == null || contribution.AvailableInput != partial.stackCount
+                    || contribution.IngredientCount != firstCount + secondCount || contribution.AvailableInput >= contribution.IngredientCount)
+                    throw new InvalidOperationException("Eligible partial source was omitted or misrepresented as a complete batch.");
+            }
             var source = read.FoodSources.Single(s => s.Target == unselectedIngredient.GetUniqueLoadID());
             if (source.Count != unselectedIngredient.stackCount || !source.FreshTicks.IsKnown)
                 throw new InvalidOperationException("Observed source quantity or expiry missing.");

@@ -13,6 +13,7 @@ namespace RimGovernor.Contracts.Wire;
     AllowOutOfOrderMetadataProperties = true,
     Converters = [typeof(FactJsonConverter<double>), typeof(FactJsonConverter<bool>), typeof(FactJsonConverter<int>),
         typeof(EquatableArrayJsonConverter<SelectedActivityTask>), typeof(EquatableArrayJsonConverter<PawnActivityIngredient>),
+        typeof(EquatableArrayJsonConverter<SelectedActivityInput>),
         typeof(EquatableArrayJsonConverter<string>)])]
 [JsonSerializable(typeof(Operations.ActionIntent.PawnActivitiesCase), TypeInfoPropertyName = "OperationsPawnActivitiesCase")]
 [JsonSerializable(typeof(Receipts.EffectEvidenceEffect.PawnActivitiesCase), TypeInfoPropertyName = "ReceiptsPawnActivitiesCase")]
@@ -913,6 +914,7 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.SkillLevelMechanics))]
 [JsonSerializable(typeof(Observations.NeedRate))]
 [JsonSerializable(typeof(Observations.NeedMemory))]
+[JsonSerializable(typeof(Observations.NeedConditionalThought))]
 [JsonSerializable(typeof(Observations.NeedTarget))]
 [JsonSerializable(typeof(Observations.ForecastFacts), TypeInfoPropertyName = "ObservationsForecastFacts")]
 [JsonSerializable(typeof(EquatableArray<Observations.CropForecast>), TypeInfoPropertyName = "EquatableArrayObservationsCropForecast")]

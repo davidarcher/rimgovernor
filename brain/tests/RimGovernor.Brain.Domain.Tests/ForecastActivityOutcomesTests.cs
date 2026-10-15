@@ -112,9 +112,9 @@ public sealed class ForecastActivityOutcomesTests
     }
 
     [Fact]
-    public void AlternativesForOneNeedCannotDoubleCountRelief()
+    public void ExplicitAlternativesCannotDoubleCountRelief()
     {
-        var needs = Needs();
+        var needs = Needs().Select(n => n with { ChoiceIdentity = n.Need }).ToArray();
         var result = CompareActivityOutcomes(Work(true), [needs[0], needs[0] with { Id = "other-shelter" }]);
         Assert.Single(result.Selected);
         Assert.Equal(230, result.NetBenefit.Value);

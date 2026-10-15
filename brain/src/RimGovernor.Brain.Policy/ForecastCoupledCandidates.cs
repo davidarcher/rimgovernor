@@ -4,7 +4,10 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>Unselected alternatives for ColonyForecast; the existing Method selector consumes these.</summary>
 public sealed record ForecastCoupledCandidates(ForecastCoupledContext Context,
-    EquatableArray<ForecastCommitment> Alternatives, EquatableArray<string> Findings, bool Truncated);
+    EquatableArray<ForecastCommitment> Alternatives, EquatableArray<string> Findings, bool Truncated)
+{
+    public int CompositionExpansions { get; init; }
+}
 
 public static partial class PolicyFunctions
 {
@@ -16,6 +19,20 @@ public static partial class PolicyFunctions
             || facts.WorkView is not { } resources) return null;
         if (read.Tick != facts.Tick.Value || needs.Tick != read.Tick || resources.Evidence.Tick.Value != read.Tick)
             return null; // A mixed frame cannot certify a consequence; caller retains absence explicitly.
+        bool Enabled(ConcernId concern) => !facts.AvailableMethods.TryGetValue(out var available) || available.Contains(concern);
+        if (!Enabled(EnsureWorkAssignments)) return null;
+        read = read with
+        {
+            Food = read.Food with { Options = EquatableArray.From(read.Food.Options.Where(o =>
+                !resources.Claims.Pawns.Contains(o.Pawn) && !resources.Claims.Targets.Contains(o.Target))) },
+            FoodConversions = EquatableArray.From(read.FoodConversions.Where(o => !resources.Claims.Pawns.Contains(o.Pawn)
+                && !resources.Claims.Targets.Contains(o.Source) && !resources.Claims.Targets.Contains(o.Bench)
+                && !resources.Claims.Targets.Contains(o.Bill)))
+        };
+        if (!Enabled(EnsureFoodSupply) || OutdoorAcquisitionHeld(facts))
+            read = read with { Food = read.Food with { Options = [] }, FoodConversions = [] };
+        if (!Enabled(MaintainHousing) && !Enabled(MaintainShelter) && !Enabled(EnsureTemperatureSafety))
+            read = read with { Construction = read.Construction with { Options = [] } };
         var bindings = new Dictionary<(string, string), Methods.ActivityTaskCandidate>();
         var deadline = checked(read.Tick + (long)horizon);
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
@@ -28,6 +45,7 @@ public static partial class PolicyFunctions
     .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToArray();
         var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>();
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
+        if (facts.CoupledWorkActive) findings.Add("protected_current_method_remaining_time_unassessed");
         var truncated = read.Truncated || facts.PlannedShelters.Count > 4; var expanded = 0;
         string Location(Cell c) => "cell/" + c.X + "/" + c.Z;
         bool Space(int count)
@@ -39,22 +57,38 @@ public static partial class PolicyFunctions
             => routes.TryAdd((pawn, from, to), new(pawn, from, to, ticks));
         void Option(string id, string pawn, Fact<double> ticks, string? equipment = null)
             => options.Add(new(id, pawn, ticks, Known(0.0)) { Equipment = equipment is null ? [] : [equipment] });
-        void Outcome(string id, params string[] completion)
-            => alternatives.Add(new(id, []) { ActivityCompletions = EquatableArray.From(completion), ExclusiveOutcome = id });
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
-        tasks.AddRange(food.Tasks); options.AddRange(food.Options); needTasks.AddRange(food.Needs); alternatives.AddRange(food.Alternatives);
-        foreach (var binding in food.Bindings) bindings.Add(binding.Key, binding.Value);
+        var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources);
+        var shelter = Methods.Generation.CoupledShelterCandidates.Generate(facts.PlannedShelters.Select(r =>
+            new ForecastShelterGeometry(r.Id, EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
+            read.Thermal, construction.Operations, construction.Bindings, deadline, horizon);
+        var constructionRoots = construction.Outcomes.Select(outcome => new ForecastCommitment(outcome.Id, [])
+        {
+            ActivityCompletions = [outcome.Completion], Outcome = outcome,
+            ExclusiveOutcome = "construction/" + construction.Bindings.Values.First(b => b.Id == outcome.Completion).Target
+        });
+        var templates = food.Bindings.Concat(construction.Bindings).Concat(shelter.Bindings).ToDictionary(b => b.Key, b => b.Value);
+        var shelterRoots = shelter.Roots.Keys.Select(id => new ForecastCommitment(id, []) { ExclusiveOutcome = id });
+        var composed = ComposeCoupledCandidates(food.Operations.Concat(shelter.Operations), food.Observed.Concat(construction.Observed).Concat(shelter.Observed),
+            food.Alternatives.Concat(constructionRoots).Concat(shelterRoots), food.Options.Concat(construction.Problem?.Options ?? []).Concat(shelter.Options),
+            templates, food.Needs, horizon, shelter.Roots);
+        tasks.AddRange(composed.Tasks); options.AddRange(composed.Options); needTasks.AddRange(composed.Needs); alternatives.AddRange(composed.Alternatives);
+        foreach (var binding in composed.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in food.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
-        truncated |= food.Truncated; AppendFamily(Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, checked(read.Tick + (long)horizon), resources));
-        if (facts.Gear.TryGetValue(out var gear))
+        foreach (var route in construction.Problem?.Routes ?? []) Route(route.Pawn, route.From, route.To, route.Ticks);
+        foreach (var route in shelter.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
+        findings.UnionWith(food.Findings); findings.UnionWith(construction.Findings); findings.UnionWith(composed.Findings);
+        truncated |= food.Truncated || construction.Truncated || composed.Truncated;
+        if (Enabled(MaintainEquipment) && facts.Gear.TryGetValue(out var gear))
             AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
                 checked(read.Tick + (long)horizon), resources));
         else findings.Add("unknown_clothing_requirements");
         foreach (var pawn in needs.Pawns)
         {
             var capacity = NeedsWorkCapacity(resources, pawn.Pawn, horizon);
-            var generated = GenerateNeedsAlternatives(pawn, capacity, horizon, needs.Truncated, 32);
+            var generated = GenerateNeedsAlternatives(pawn with { Targets = EquatableArray.From(pawn.Targets.Where(t => !resources.Claims.Targets.Contains(t.Id))) },
+                capacity, horizon, needs.Truncated, 32);
             findings.UnionWith(generated.Findings); truncated |= generated.Truncated;
             foreach (var choice in generated.Choices)
             {
@@ -78,10 +112,15 @@ public static partial class PolicyFunctions
                 Option(id, pawn.Pawn, Known(choice.End - choice.Start));
                 needTasks.Add(new(id, pawn.Pawn, choice.Kind, choice.Target, new(choice.Resource), choice.Count, Known(choice.Gain), choice.Thoughts)
                 { AvailableCount = pawn.Targets.Single(t => t.Id == choice.Target).StockCount, FreshTicks = pawn.Targets.Single(t => t.Id == choice.Target).FreshTicks });
-                Outcome(id, id);
+                alternatives.Add(new(id, []) { ActivityCompletions = [id], ExclusiveOutcome = "need/" + pawn.Pawn + "/" + choice.Kind
+                    + (choice.Kind == "food" ? "/use/" + Math.Round(choice.Start, 6).ToString("R", System.Globalization.CultureInfo.InvariantCulture) : "") });
             }
         }
-        var shelters = Methods.Generation.CoupledShelterCandidates.Append(facts.PlannedShelters.Select(r => new ForecastShelterGeometry(r.Id, EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)), read.Thermal, tasks, options, routes, bindings, alternatives, deadline);
+        var shelters = shelter.Plans.Select(plan => plan with
+        {
+            AlternativePrerequisites = EquatableArray.From(plan.AlternativePrerequisites.Select(group => EquatableArray.From(
+                group.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []).Distinct().Order(StringComparer.Ordinal))))
+        }).ToArray();
         // Recovery can unlock productive work which the earliest-only schedule would otherwise try too soon.
         // Propose the dependency, rather than hoping weights invent a missing complementary combination.
         var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1
@@ -137,7 +176,8 @@ public static partial class PolicyFunctions
             NeedTasks = EquatableArray.From(needTasks),
             Findings = EquatableArray.From(findings)
         },
-            EquatableArray.From(alternatives), EquatableArray.From(findings), truncated);
+            EquatableArray.From(alternatives), EquatableArray.From(findings), truncated)
+        { CompositionExpansions = composed.Expansions };
 
         void AppendFamily(Methods.CoordinatedMethodCandidates family)
         {

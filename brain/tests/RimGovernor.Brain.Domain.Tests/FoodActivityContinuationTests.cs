@@ -123,7 +123,14 @@ public sealed class FoodActivityContinuationTests
     }
     private sealed class Reads(FoodActivityRead read) : IArrivalPawns, IActivityTaskSource
     {
-        public Task<ActivityTaskRead> ReadActivityTasksAsync(ActivityTaskRequest request, CancellationToken ct) => Task.FromResult(TaskRead(request.Batch, read));
+        public Task<ActivityTaskRead> ReadActivityTasksAsync(ActivityTaskRequest request, CancellationToken ct) => Task.FromResult(
+            TaskRead(request.Batch, read) with
+            {
+                Bindings = EquatableArray.From(request.Batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Deliver)
+                    .SelectMany(task => read.Options.Where(o => o.Pawn == task.Pawn && o.Resource == task.Resource)
+                        .Select(observed => new ActivityTaskBinding(task.Id, task.Step with
+                            { Target = observed.Target, Count = Math.Min(task.Step.Count, observed.Count) })))),
+            });
         public Task<RecipeActivityRead> ReadRecipeActivityAsync(RecipeActivityRequest request, CancellationToken ct) => Task.FromResult(new RecipeActivityRead());
         public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(new ConstructionActivityRead());
         public Task<ListPawnsReply> ReadCombatPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
@@ -169,7 +176,7 @@ public sealed class FoodActivityContinuationTests
         var session = new DispatchSession(journal);
         using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
         var read = Terminal(batch, "completed", Option("live-observed-food", 2)) with
-        { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 110 } };
+        { Context = new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 200 } };
         var worker = Worker.CreateInternal(new() { RoundsMethods = true, Pawns = new Reads(read),
             StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);
         try
@@ -177,6 +184,8 @@ public sealed class FoodActivityContinuationTests
             var delivered = await session.Sent.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
             Assert.Equal("live-observed-food", delivered.Orders[0].Steps[0].Target);
             Assert.Equal(PawnActivityKind.Deliver, delivered.Orders[0].Steps[0].Kind);
+            Assert.Equal(2, delivered.Orders[0].Steps[0].Count);
+            Assert.Equal(500, delivered.Orders[0].Steps[0].Deadline);
             Assert.True(journal.LoadPlan(plan.Id, ct).Retired);
         }
         finally { await worker.Close(CancellationToken.None); }

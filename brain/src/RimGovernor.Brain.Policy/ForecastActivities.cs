@@ -21,6 +21,12 @@ public sealed record ForecastActivity(string Id, string Location, string EndLoca
 {
     /// <summary>Relative earliest service time; dependencies may require a later start.</summary>
     public double NotBefore { get; init; }
+    /// <summary>Additional known service-start bound. Null declares no bound; unknown prerequisite evidence is refused by composition.</summary>
+    public double? LatestStart { get; init; }
+    /// <summary>Known service-end bound for reusable facilities and exclusive availability.</summary>
+    public double? LatestFinish { get; init; }
+    /// <summary>Alternative realizations of one physical operation cannot execute together.</summary>
+    public string ChoiceIdentity { get; init; } = "";
     public string EquipmentLocation { get; init; } = "";
     /// <summary>One physical output per resource at completion; support activities normally have none.</summary>
     public EquatableArray<ForecastActivityYield> Outputs { get; init; }
@@ -152,7 +158,8 @@ public static partial class PolicyFunctions
                                 var end = start + work;
                                 var cost = (end - depart) * rate + recovery;
                                 if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
-                                if (end > window.End || end > deadline)
+                                if (end > window.End || end > deadline || task.LatestStart is { } latest && start > latest
+                                    || task.LatestFinish is { } latestFinish && end > latestFinish)
                                 { findings.Add("capacity_or_deadline:" + task.Id + ":" + pawn.Pawn); continue; }
                                 if (option.Equipment.Any(id => !equipment[id].Windows.Value.Any(w => start >= w.Start && end <= w.End))
                                     || shared.Any(a => start < a.End && a.Start < end && end > start && a.End > a.Start))
@@ -209,6 +216,10 @@ public static partial class PolicyFunctions
         foreach (var task in p.Activities)
         {
             if (!double.IsFinite(task.NotBefore) || task.NotBefore < 0) throw new DomainException("invalid earliest activity time");
+            if (task.LatestStart is { } latest && (!double.IsFinite(latest) || latest < task.NotBefore))
+                throw new DomainException("invalid latest activity time");
+            if (task.LatestFinish is { } finish && (!double.IsFinite(finish) || finish < task.NotBefore))
+                throw new DomainException("invalid latest activity finish");
             if (task.Prerequisites.Distinct().Count() != task.Prerequisites.Length || task.Prerequisites.Any(id => !tasks.ContainsKey(id)))
                 throw new DomainException("invalid activity dependency");
             if (task.Outputs.Select(o => o.Resource).Distinct().Count() != task.Outputs.Count

@@ -41,7 +41,9 @@ internal static class NativeCoupledFood
                 if (!recipe.AvailableNow || recipe.products.Count != 1 || recipe.products.Any(p => !p.thingDef.IsNutritionGivingIngestible)
                     || recipe.UsesUnfinishedThing || recipe.ingredients.Any(i => !i.filter.Allows(raw))) continue;
                 var required = recipe.ingredients.Sum(i => (long)i.CountRequiredOfFor(raw, recipe, bill));
-                if (required <= 0 || required > availableInput || required > int.MaxValue) continue;
+                // A row certifies an eligible source contribution, not a complete single-source batch.
+                // Policy may combine independently observed sources against this exact total requirement.
+                if (required <= 0 || availableInput <= 0 || required > int.MaxValue) continue;
                 foreach (var pawn in roster)
                 {
                     if (--budget < 0) { truncated = true; return Result(); }

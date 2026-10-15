@@ -533,7 +533,11 @@ public sealed partial class Rounder
         reading.Projection.Facts.DangerSeeds.TryGetValue(out var seeds);
         reading = reading.WithFacts(rf => rf with { DangerWindow = SafeArea.DangerWindow(StockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, seeds, expected.Tick) });
         reading = reading.WithFacts(rf => rf with { DangerHaulers = PolicyApi.DangerHaulers(reading.Projection.WorkPawns) });
-        reading = reading.WithFacts(PolicyApi.ReviewCoupledActivities);
+        reading = reading.WithFacts(rf => rf with { CoupledWorkActive = plans.Any(plan => !plan.Retired
+            && plan.SupersededBy.IsEmpty
+            && plan.Progress.Any(a => a.Action.PawnActivities is { Tasks.Count: > 0 } batch
+                && batch.Orders.Any(o => !o.Release && o.Method.StartsWith("coupled-", StringComparison.Ordinal))
+                && a.View.Stage is not (Stage.Unsuccessful or Stage.Cancelled))) });
         reading = reading.WithFacts(rf => rf with { Dash = PolicyApi.ReviewDash(previous.Latches.Dash, reading.Projection.Facts, reading.Projection.WorkPawns, expected.Tick, PolicyApi.PublishedHypothermiaTuning) });
         reading = reading.WithFacts(rf => rf with { UrgentPatients = PolicyApi.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
         var (amputationCritical, amputationUrgent) = PolicyApi.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients);
@@ -698,11 +702,13 @@ public sealed partial class Rounder
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
         reading = reading.WithFacts(rf => rf with { UnmetThroughput = [.. LedgerUnmet()] });
+        reading = reading.WithFacts(PolicyApi.ReviewCoupledActivities);
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading, RoomsEnabled(), claims);
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
+        AdmitCoupledSelection(result, reading.Projection.Facts, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
         ClockEvents.Event("routine", "rounds_review", "rounds ran", [.. attrs]);

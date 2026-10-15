@@ -167,32 +167,6 @@ public sealed partial class RoundsBuildingPlanner
         }
         var bunksOpen = false;
         var ringOpen = false;
-        if (r.Native is IActivityTaskSource activitySource)
-        {
-            var buildings = goal.Methods.SelectMany(m => p.Journal.LoadPlan(m.Plan, call).Progress)
-                .Select(a => a.Action.Building).Where(b => b is not null).Select(b => b!).Distinct().Take(17).ToArray();
-            if (buildings.Length != 0)
-            {
-                var activityRead = await activitySource.ReadConstructionActivityAsync(new(Boundary.Identity(state.Snapshot), EquatableArray.From(buildings)), call).ConfigureAwait(false);
-                if (activityRead.Known && activityRead.Context?.Tick is { } activityTick)
-                {
-                    _ = Boundary.Context(activityRead.Context, state.Snapshot);
-                    var activityId = PlanIds.MintPlanId();
-                    var activityMethod = new MethodId($"construction-activity-{activityId}");
-                    var activity = PolicyFunctions.StartConstructionActivity(activityRead, state.Snapshot.Native.Value, activityMethod.Value,
-                        checked(activityTick + r.Reviewer.Policy.AcquisitionProgress().Deadline.Value), p.Journal.WorkResources(state.Snapshot, call), out var comparison);
-                    if (activity is not null)
-                    {
-                        p.Current(call, epoch);
-                        if (p.Session.State() != state) throw new ControlException("construction activity scope changed");
-                        var committed = p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, activityMethod,
-                            comparison is { SearchTruncated: true } || activityRead.Truncated ? "coordinated construction (bounded candidates truncated)" : "coordinated construction",
-                            new PlanSpec(activityId, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{activityId}-0"), activity)]), call);
-                        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted, Decision = new(true, committed, []) };
-                    }
-                }
-            }
-        }
         foreach (var m in goal.Methods)
         {
             var plan = p.Journal.LoadPlan(m.Plan, call);

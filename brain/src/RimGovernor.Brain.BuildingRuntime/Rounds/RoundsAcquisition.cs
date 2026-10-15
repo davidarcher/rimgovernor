@@ -205,7 +205,7 @@ public sealed class RoundsAcquisitionPlanner
             else
             {
                 var sources = projection.Acquisition;
-                if (huntOnly)
+                if (huntOnly || food)
                 {
                     sources = HuntRows(sources);
                 }
@@ -251,25 +251,6 @@ public sealed class RoundsAcquisitionPlanner
         {
         }
         var id = PlanIds.MintPlanId();
-        if (food && selected.Any(s => !s.Hunt && s.Food) && _reviewer.Native is IFoodActivitySource activitySource)
-        {
-            var candidates = selected.Where(s => !s.Hunt && s.Food).Select(s => s.Id).Order(StringComparer.Ordinal).Take(16).ToArray();
-            var observed = await activitySource.ReadFoodActivityAsync(new(Boundary.Identity(state.Snapshot), EquatableArray.From(candidates)), call).ConfigureAwait(false);
-            if (!observed.Known || observed.Context?.Tick is not { } observedTick)
-                return new RoundsAcquisitionResult { Verdict = FieldUnavailable("food_activity") };
-            _ = Boundary.Context(observed.Context, state.Snapshot);
-            var activityMethod = new MethodId($"food-activity-{id}");
-            var activity = PolicyFunctions.StartFoodActivity(observed, state.Snapshot.Native.Value, activityMethod.Value,
-                checked(observedTick + _reviewer.Policy.AcquisitionProgress().Deadline.Value), out var comparison,
-                p.Journal.WorkResources(state.Snapshot, call));
-            if (activity is null) return new RoundsAcquisitionResult { Verdict = BuildingReasonExistingWork };
-            var activityPlan = new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]);
-            p.Current(call, epoch);
-            if (p.Session.State() != state) throw new ControlException("food activity scope changed");
-            p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, activityMethod,
-                observed.Truncated || selected.Count > candidates.Length || comparison is { SearchTruncated: true } || comparison?.Findings.Contains("generation_truncated") == true ? "harvest and deliver observed food (bounded candidates truncated)" : "harvest and deliver observed food", activityPlan, call);
-            return new RoundsAcquisitionResult { Verdict = BuildingReasonAdmitted, Plan = id };
-        }
         var actions = new List<DomainAction>();
         for (var i = 0; i < selected.Count; i++)
         {

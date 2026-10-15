@@ -24,10 +24,28 @@ public sealed record NeedRate(string Kind,
 public sealed record NeedMemory(string Id, double Offset,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> RemainingTicks, bool Fades)
 { public bool Permanent { get; init; } }
+/// <summary>Native mood-point contribution in a half-open local-hour window; EndHour less than StartHour wraps midnight. CurrentOffset is already present in MoodUnclampedTarget.</summary>
+public sealed record NeedConditionalThought(string Id, double StartHour, double EndHour, bool AwakeOnly,
+    double Offset, double CurrentOffset, string Provenance);
 public sealed record NeedsForecastPawn
 {
     public string Pawn { get; init; } = "";
     public string State { get; init; } = "unknown";
+    [JsonConverter(typeof(ObservedConditionalThoughtsJsonConverter))]
+    public Fact<EquatableArray<NeedConditionalThought>> ConditionalThoughts { get; init; }
+    public Fact<double> LocalHour { get; init; }
+    public Fact<bool> Awake { get; init; }
+    public Fact<double> SleepThreshold { get; init; }
+    public Fact<double> WakeThreshold { get; init; }
+    /// <summary>Earliest possible sleep relative to observation tick; unknown for blockers with no known recovery bound.</summary>
+    public Fact<double> SleepBlockedUntilTicks { get; init; }
+    public Fact<bool> SleepWhileStarving { get; init; }
+    /// <summary>Unclamped native target in normalized mood units, including CurrentOffset contributions once.</summary>
+    public Fact<double> MoodUnclampedTarget { get; init; }
+    public Fact<double> MoodRisePerTick { get; init; }
+    public Fact<double> MoodFallPerTick { get; init; }
+    public Fact<double> MoodIntervalTicks { get; init; }
+    public Fact<bool> MoodFreezesWhileAsleep { get; init; }
     public Fact<double> ComfortableMin { get; init; }
     public Fact<double> ComfortableMax { get; init; }
     [JsonConverter(typeof(ObservedNumberJsonConverter))]

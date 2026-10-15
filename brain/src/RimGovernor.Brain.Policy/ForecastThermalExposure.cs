@@ -35,6 +35,8 @@ public static partial class PolicyFunctions
                     if (room is null && cell.Temperature.TryGetValue(out var ambient)) Integrate(from, end, ambient, ambient);
                     else if (projection is { TemperatureAtHorizon.IsKnown: true, CompleteAt.IsKnown: true })
                     {
+                        if (from < projection.CompleteAt.Value && room!.Outdoors.TryGetValue(out var before))
+                            Integrate(from, Math.Min(end, projection.CompleteAt.Value), before, before);
                         var points = projection.Trajectory;
                         for (var index = 1; index < points.Count; index++)
                         {

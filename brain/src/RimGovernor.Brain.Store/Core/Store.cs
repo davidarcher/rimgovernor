@@ -16,7 +16,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// migrated (see <see cref="OpenOrReplace"/>). Version 4 is the C# journal (clock attempts carry no lease column): JSON payloads written by the
     /// hand-written codecs, with no per-kind column checks; the Standard payload gained the planner's Record text.
     /// </summary>
-    public const int SchemaVersion = 7;
+    public const int SchemaVersion = 8;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

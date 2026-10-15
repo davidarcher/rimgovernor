@@ -78,7 +78,7 @@ internal static class ClothingMethodCandidates
             bindings[(id, row.Pawn)] = new(id, row.Pawn, [make], PawnActivityKind.Deliver, "observed-output", "", "", 1, deadline, row.Location)
             { Resource = row.Product, ProductStuff = row.Stuff, Source = row.Location, Destination = row.Destination };
             outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, id, Known((double)horizon), default)
-            { Requirements = need.Assessment with { Work = Known(travel + work + row.OutputTravelTicks.Value) } });
+            { ChoiceIdentity = "clothing/" + need.Wearer + "/" + need.Product, Requirements = need.Assessment with { Work = Known(travel + work + row.OutputTravelTicks.Value) } });
         }
         var capacities = workers.Order(StringComparer.Ordinal).Select(p => new ForecastPawnCapacity(p, "start",
             resources.Capacity.TryGetValue(p, out var capacity) && capacity.Capacity.Windows.TryGetValue(out var windows)

@@ -15,7 +15,8 @@ public static partial class PolicyFunctions
         var rows = observed.ToDictionary(p => p.Pawn, StringComparer.Ordinal);
         // Any takeover ends this coordinated attempt; never release the new owner's pawn.
         var knownNeed = needed.TryGetValue(out var useful);
-        if (knownNeed && !useful || batch.Tasks.Any(t => t.Step.Deadline <= tick)
+        if (knownNeed && !useful || batch.Tasks.Any(t => t.Step.Deadline <= tick
+                && !batch.Orders.Any(o => o.Task == t.Id && rows[o.Pawn].State == "completed"))
             || batch.Orders.Any(o => !o.Release && !MatchesActivityOwner(o, rows[o.Pawn])))
             return ReviewActivityOwnership(batch, Known(false), tick, observed).Release;
         if (!knownNeed) return batch.Orders.Any(o => rows[o.Pawn].State == "failed")

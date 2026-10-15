@@ -142,6 +142,7 @@ public static partial class PolicyFunctions
             if (row.Action.PawnActivities is not { } batch) continue;
             foreach (var task in batch.Tasks)
             {
+                foreach (var input in task.Inputs.Where(i => i.Observed && i.Lot.Length != 0)) targets.Add(input.Lot);
                 if (task.Step.Destination is { } destination) targets.Add("cell/" + destination.X + "/" + destination.Z);
                 if (task.Step.Container.Length != 0) targets.Add(task.Step.Container);
                 if (task.SiteDefinition.Length != 0 && task.Step.Target.Length != 0) targets.Add(task.Step.Target);

@@ -247,6 +247,7 @@ public sealed class WireCodecTests
                 {
                     ObservedNumberJsonConverter => JsonValue.Create(1.5),
                     ObservedMemoriesJsonConverter => new JsonArray(),
+                    ObservedConditionalThoughtsJsonConverter => new JsonArray(),
                     _ => Fill(property.PropertyType, depth + 1, variant),
                 };
             }

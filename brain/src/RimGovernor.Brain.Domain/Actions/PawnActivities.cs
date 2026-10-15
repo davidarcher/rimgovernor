@@ -21,6 +21,11 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
 }
 
 /// <summary>Selected remaining intent owned by this Method. No forecast or mutable progress flags.</summary>
+public sealed record SelectedActivityInput(string Resource, string Lot, int Count, Cell Location, string Provenance)
+{
+    public bool Observed { get; init; }
+}
+
 public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray<string> Prerequisites,
     PawnActivityStep Step, Cell Location, long DepartTick)
 {
@@ -29,6 +34,7 @@ public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray
     public string SiteDefinition { get; init; } = "";
     public string ProductStuff { get; init; } = "";
     public bool CompletionMustBeObserved { get; init; }
+    public EquatableArray<SelectedActivityInput> Inputs { get; init; }
     public int AttemptsLeft { get; init; } = 3;
 }
 
@@ -106,6 +112,8 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         foreach (var task in Tasks)
             DomainException.Require(Identity.IsValidText(task.Id) && Orders.Any(o => o.Pawn == task.Pawn && !o.Release)
                 && task.Prerequisites.All(p => p != task.Id && taskIds.Contains(p)) && task.AttemptsLeft is >= 0 and <= 3
+                && task.Inputs.All(i => Identity.IsValidText(i.Resource) && Identity.IsValidText(i.Lot) && i.Count > 0
+                    && i.Location is { X: >= 0, Z: >= 0 } && Identity.IsValidText(i.Provenance))
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
         var visited = new HashSet<string>(StringComparer.Ordinal);
         while (visited.Count < Tasks.Count)

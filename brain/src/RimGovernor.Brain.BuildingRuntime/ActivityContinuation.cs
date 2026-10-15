@@ -29,10 +29,14 @@ public sealed partial class Worker
                     _advanced = true;
                     continue;
                 }
-                var next = PolicyFunctions.FoodReconsideration(method.Batch, read) is not null
-                    ? read.Food is { } food ? PolicyFunctions.ReconsiderObservedFood(method.Batch, method.Needed, read, food, out _,
-                        _player.Journal.WorkResources(current, ct, method.Plan, participants)) : null
-                    : PolicyFunctions.ContinueCoordinatedActivity(method.Batch, method.Needed, read);
+                var next = PolicyFunctions.ContinueCoordinatedActivity(method.Batch, method.Needed, read);
+                if (method.Batch.Orders.Any(o => o.Method.StartsWith("coupled-", StringComparison.Ordinal)))
+                    Tel.Decide(new Decision { Kind = "coupled_observed", Component = "worker", Target = method.Method.Value,
+                        Verdict = next is null ? "continue" : "transition", Reason = "native_task_evidence",
+                        Attrs = new Dictionary<string, object?> { ["observed_tick"] = taskTick,
+                            ["satisfied_tasks"] = read.SatisfiedTasks.ToArray(),
+                            ["remaining_tasks"] = method.Batch.Tasks.Select(t => t.Id).ToArray(),
+                            ["native_states"] = participants.Select(p => p.Pawn + ":" + p.State).ToArray() } });
                 if (next is not null)
                 {
                     var id = PlanIds.MintPlanId();

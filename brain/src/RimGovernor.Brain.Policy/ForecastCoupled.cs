@@ -35,9 +35,15 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
 {
     public EquatableArray<ForecastShelterOutcome> Shelters { get; init; }
     public EquatableArray<ForecastThermalExposure> ThermalExposure { get; init; }
+    public EquatableArray<string> CompletedDevelopmentSites { get; init; }
+    /// <summary>Known stationary-location exposure avoided relative to the same occupancy without proposed room changes.
+    /// Unobserved transit/idle receive no benefit.</summary>
+    public Fact<double> StationaryThermalRelief { get; init; }
+    public string ThermalOccupancy { get; init; } = "";
 }
 public sealed record ForecastCoupledScenario(EquatableArray<ForecastCoupledOutcome> Alternatives,
-    EquatableArray<string> Findings, bool Truncated);
+    EquatableArray<string> Findings, bool Truncated)
+{ public int Expansions { get; init; } }
 
 public static partial class PolicyFunctions
 {
@@ -110,6 +116,9 @@ public static partial class PolicyFunctions
             Options = context.Activities.Options.Where(o => included.Contains(o.Activity)).ToArray(),
             Deadline = Known(horizon)
         };
+        if (problem.Activities.Where(t => t.ChoiceIdentity.Length != 0).GroupBy(t => t.ChoiceIdentity).Any(g => g.Count() > 1))
+            return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+            { Coupled = new([], ["exclusive_operation_conflict"], false) };
         if (included.Count > 32) return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         { Coupled = new([], [.. findings, "selected_activity_budget_truncated"], true) };
         var compared = included.Count == 0 ? null : CompareActivityPlans(problem);
@@ -124,7 +133,7 @@ public static partial class PolicyFunctions
         return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         {
             MaterialAvailability = context.Resources.Materials,
-            Coupled = new(EquatableArray.From(results), EquatableArray.From(findings), context.Truncated || (compared?.SearchTruncated ?? false)),
+            Coupled = new(EquatableArray.From(results), EquatableArray.From(findings), context.Truncated || (compared?.SearchTruncated ?? false)) { Expansions = compared?.Expansions ?? 0 },
         };
     }
 
@@ -139,7 +148,6 @@ public static partial class PolicyFunctions
         var allocations = plan.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal);
         var effects = new List<ForecastStockChange>();
         var completed = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
-        var foodUsed = new Dictionary<(string, Resource), double>();
         var lots = context.InitialLots.ToDictionary(l => (l.Lot, l.Location, l.Resource), l => l.Count);
         var expiry = context.InitialLots.Where(l => l.Perishable).GroupBy(l => l.Lot).ToDictionary(g => g.Key, g => g.First().FreshTicks);
         var material = CoupledMaterialBudgetOf(request, commitments, problem, plan);
@@ -216,13 +224,12 @@ public static partial class PolicyFunctions
                 var ingestion = context.NeedTasks.SingleOrDefault(n => n.Task == task.Id && n.Kind == "food");
                 if (ingestion is not null)
                 {
-                    var ready = ingestion.FoodReady.Length == 0 ? 0 : allocations.GetValueOrDefault(ingestion.FoodReady)?.End;
-                    var freshAt = ingestion.FreshFrom.Length == 0 ? ready : allocations.GetValueOrDefault(ingestion.FreshFrom)?.End;
-                    var lot = (ingestion.FoodReady.Length == 0 ? ingestion.Target : ingestion.FoodReady, ingestion.Resource);
-                    if (!ingestion.AvailableCount.IsKnown || !ingestion.FreshTicks.IsKnown || ready is null || freshAt is null)
+                    // Physical lot accounting below owns quantity and dependency completion owns access.
+                    // Ingestion additionally needs the selected actual lot fresh through chewing.
+                    var foodExpiry = task.Inputs.Where(i => i.Resource == ingestion.Resource).Select(i => expiry.GetValueOrDefault(i.Lot)).ToArray();
+                    if (foodExpiry.Length == 0 || foodExpiry.Any(t => !t.IsKnown))
                     { completed[task.Id] = default; Uncertain("unknown_food_access_or_expiry", task.Id, e.Time); continue; }
-                    if (e.Time < ready || e.Allocation.End >= freshAt + ingestion.FreshTicks.Value
-                        || foodUsed.GetValueOrDefault(lot) + ingestion.Count > ingestion.AvailableCount.Value)
+                    if (foodExpiry.Any(t => e.Allocation.End >= t.Value))
                     { completed[task.Id] = Known(false); Refuse("food_unavailable_at_ingestion", task.Id, e.Time); continue; }
 
                 }
@@ -243,11 +250,6 @@ public static partial class PolicyFunctions
                 if (lotInputs.Any(g => lots.GetValueOrDefault(g.Key, Known(0.0)).Value < g.Sum(i => i.Units.Value)))
                 { completed[task.Id] = Known(false); Refuse("source_lot_shortfall", task.Id, e.Time); continue; }
                 foreach (var group in lotInputs) lots[group.Key] = Known(lots.GetValueOrDefault(group.Key, Known(0.0)).Value - group.Sum(i => i.Units.Value));
-                if (ingestion is not null)
-                {
-                    var foodLot = (ingestion.FoodReady.Length == 0 ? ingestion.Target : ingestion.FoodReady, ingestion.Resource);
-                    foodUsed[foodLot] = foodUsed.GetValueOrDefault(foodLot) + ingestion.Count;
-                }
                 completed[task.Id] = Known(true);
                 foreach (var group in inputs)
                 {
@@ -312,7 +314,8 @@ public static partial class PolicyFunctions
             };
             // Needs recovery is assessed without masking physiological unavailability beneath planned work.
             var physiology = ForecastNeedsTimeline(pawn, input with { Occupancy = Known<EquatableArray<ForecastOccupancy>>([]) }, choices);
-            if (!physiology.Capacity.Capacity.Windows.TryGetValue(out var able)) Uncertain("unknown_future_capacity", pawn.Pawn, 0);
+            if (!physiology.Capacity.Capacity.Windows.TryGetValue(out var able))
+            { if (productive.Length != 0 || choices.Count != 0) Uncertain("unknown_future_capacity", pawn.Pawn, 0); }
             else foreach (var work in productive)
                 if (!able.Any(w => w.Start <= work.Depart && w.End >= work.End))
                 { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
@@ -322,6 +325,7 @@ public static partial class PolicyFunctions
                 {
                     ThoughtOffsetAtHorizon = default,
                     MemoryAdjustedMoodTarget = default,
+                    Mood = null,
                     Findings = [.. projected.Findings, "future_meal_thoughts_unassessed"]
                 };
             needs[pawn.Pawn] = projected;
@@ -335,7 +339,28 @@ public static partial class PolicyFunctions
         findings.AddRange(inventory.Findings);
         var shelters = ForecastShelters(context.Shelters, plan with
         { Allocations = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true)).ToArray() }, horizon);
+        var exposure = ForecastThermalExposureOf(context, problem, plan, shelters, horizon);
+        var existingRooms = EquatableArray.From(context.Shelters.Where(r => r.Prerequisites.Count == 0 && r.AlternativePrerequisites.Count == 0));
+        var use = plan with { Allocations = plan.Allocations.Where(a => context.NeedTasks.Any(n => n.Task == a.Activity)).ToArray() };
+        var changedUse = ForecastThermalExposureOf(context, problem, use, shelters, horizon);
+        var unchanged = ForecastThermalExposureOf(context with { Shelters = existingRooms }, problem, use,
+            ForecastShelters(existingRooms, plan, horizon), horizon);
+        var reliefKnown = changedUse.Any(t => t.AssessedTicks > 0) && changedUse.Count == unchanged.Count && changedUse.Zip(unchanged)
+            .All(pair => pair.First.Pawn == pair.Second.Pawn && pair.First.AssessedTicks == pair.Second.AssessedTicks);
         return new(plan, feasible, inventory.Stocks, needs, EquatableArray.From(findings))
-        { Shelters = shelters, ThermalExposure = ForecastThermalExposureOf(context, problem, plan, shelters, horizon) };
+        {
+            Shelters = shelters, ThermalExposure = exposure,
+            ThermalOccupancy = string.Join(";", context.NeedTasks.Where(n => allocations.ContainsKey(n.Task))
+                .Select(n => (Need: n, Allocation: allocations[n.Task]))
+                .OrderBy(p => p.Need.Pawn, StringComparer.Ordinal).ThenBy(p => p.Allocation.Arrive).ThenBy(p => p.Need.Kind, StringComparer.Ordinal)
+                .Select(p => FormattableString.Invariant($"{p.Need.Pawn}|{p.Need.Kind}|{tasks[p.Need.Task].Location}|{p.Allocation.Arrive:R}|{p.Allocation.End:R}"))),
+            StationaryThermalRelief = reliefKnown ? Known(unchanged.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)
+                - changedUse.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)) : default,
+            CompletedDevelopmentSites = EquatableArray.From(plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true))
+                .Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
+                .Where(b => b is { Kind: PawnActivityKind.Work } && b.Job is "FinishFrame" or "BuildRoof")
+                .Select(b => b!.Job == "BuildRoof" ? "roof/" + b.Location.X + "/" + b.Location.Z : "site/" + b.Target)
+                .Distinct().Order(StringComparer.Ordinal))
+        };
     }
 }

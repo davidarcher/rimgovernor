@@ -143,6 +143,7 @@ public static partial class PolicyFunctions
     {
         var f = c.F;
         var workMet = AllFacts(f.WorkCoverage, Measured(f.CleanupPawns, v => !v));
+        if (f.CoupledWorkActive || c.R.CoupledSelection is { Selection.Selected.Length: > 0 }) workMet = Known(false);
         if (Positive(f.HostilityOwed) || Positive(f.SelfTendOwed) || Positive(f.NamesOwed) || Positive(f.MedicineCarryOwed) || Positive(f.EatTriggerOwed) || Positive(f.MedicalCareOwed))
         {
             workMet = Known(false);

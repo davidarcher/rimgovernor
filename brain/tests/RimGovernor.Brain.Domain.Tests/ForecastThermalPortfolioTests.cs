@@ -1,0 +1,95 @@
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
+using RimGovernor.Contracts.Wire.Observations;
+using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
+using static RimGovernor.Brain.Policy.PolicyFunctions;
+
+namespace RimGovernor.Brain.Domain.Tests;
+
+public sealed class ForecastThermalPortfolioTests
+{
+    private const double Horizon = 1000;
+    private static RoundsFacts Review(double ambient, bool demand = true, bool occupiedInside = true, bool restDemand = true)
+    {
+        var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
+        var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
+        var inside = new Cell(1, 1);
+        var wall = facts.ForecastObserved.Coupled!.Construction.Options.Single() with { Location = new(0, 1) };
+        var bed = occupiedInside ? inside : new Cell(3, 1);
+        var thermal = new CoupledThermalRead
+        {
+            Outdoors = Known(ambient), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
+            Cells = EquatableArray.From(cells.Append(new Cell(3, 1)).Select(c => new ThermalCell(c, Known(ambient), "none",
+                c != inside && c != wall.Location && c != new Cell(3, 1), false, false,
+                c == wall.Location ? wall.Site : "", c == wall.Location ? "TestWall" : "", c == wall.Location,
+                false, 0, c == inside))),
+            Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", inside, Known(1d))],
+            Sources = [new("heater", inside, true, Known(.35), Known(20d), Known(60000d))],
+        };
+        var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
+        {
+            Awake = Known(true), LocalHour = Known(6d), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(200d),
+            ComfortableMin = Known(10d), ComfortableMax = Known(30d),
+            MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
+            MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
+            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
+            Needs = [new("food", Known(1d), Known(0d), Known(.3), Known(1d)), new("rest", Known(restDemand ? .2 : .6), Known(0d), Known(.3), Known(1d))],
+            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = bed }],
+        };
+        facts = facts with
+        {
+            PlannedShelters = demand ? [new() { Id = 1, Region = RectRegion(new(1, 1, 1, 1)) }] : [],
+            ConstructionDeficit = demand ? facts.ConstructionDeficit : Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
+            ForecastObserved = facts.ForecastObserved with
+            {
+                Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
+                Coupled = facts.ForecastObserved.Coupled with
+                {
+                    Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [],
+                    Thermal = thermal, Construction = facts.ForecastObserved.Coupled.Construction with { Options = demand ? [wall] : [] },
+                    Routes = EquatableArray.From(cells.Append(bed).Distinct().SelectMany(a => cells.Append(bed).Distinct().Where(b => a != b)
+                        .Select(b => new CoupledRoute("pawn", a, b, Known(1d))))),
+                },
+            },
+        };
+        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+    }
+    private static ForecastCoupledSelection Select(RoundsFacts facts) => CompareActivityOutcomes(
+        CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, new(),
+            new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
+
+    [Fact]
+    public void SharedSelectorCombinesRealShellRoofAndInsideOccupancyForConditionalThermalRelief()
+    {
+        var facts = Review(-10);
+        var result = Select(facts);
+        Assert.Equal(Known(true), result.Selected.Feasible);
+        Assert.True(result.Selected.StationaryThermalRelief.Value > 0);
+        Assert.Contains(result.Selected.Plan.Allocations, a => facts.CoupledAlternatives!.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "rest"));
+        Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("site/", StringComparison.Ordinal));
+        Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("roof/", StringComparison.Ordinal));
+        Assert.True(result.Selected.ThermalExposure.Single().UnknownTicks > 0); // No blanket idle/travel protection.
+        Assert.True(result.SelectedVector.Urgent[1].Value < result.BaselineVector.Urgent[1].Value);
+        Assert.True(result.Selected.Shelters.Single().CompleteAt.Value < 200);
+    }
+
+    [Fact]
+    public void WarmOrOutsideOccupancyCannotClaimShelterReliefAndNoDemandRetainsNoChange()
+    {
+        var warm = Select(Review(20));
+        Assert.Equal(Known(0d), warm.Selected.StationaryThermalRelief);
+        var outside = Select(Review(-10, occupiedInside: false));
+        Assert.Equal(Known(0d), outside.Selected.StationaryThermalRelief);
+        var noDemand = Select(Review(20, demand: false, restDemand: false));
+        Assert.Empty(noDemand.Selection.Selected);
+        Assert.Empty(noDemand.Selected.Plan.Allocations);
+        var coldNoDemand = Select(Review(-10, demand: false, restDemand: false));
+        Assert.Empty(coldNoDemand.Selection.Selected);
+        var onlyConstruction = Review(-10, restDemand: false);
+        var built = Select(onlyConstruction);
+        Assert.DoesNotContain(built.Selected.Plan.Allocations, a => onlyConstruction.CoupledAlternatives!.Context.NeedTasks
+            .Any(n => n.Task == a.Activity && n.Kind == "rest"));
+    }
+}

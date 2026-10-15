@@ -12,6 +12,8 @@ public sealed record ForecastShelterPlan(int Room, EquatableArray<Cell> Interior
     public string Source { get; init; } = "";
     public Fact<double> AdditionalWatts { get; init; }
     public Fact<double> SurplusWatts { get; init; }
+    /// <summary>Each physical prerequisite needs one selected realization; distinct sites remain additive.</summary>
+    public EquatableArray<EquatableArray<string>> AlternativePrerequisites { get; init; }
 }
 public sealed record ForecastShelterOutcome(int Room, Fact<double> CompleteAt,
     Fact<double> TemperatureAtHorizon, EquatableArray<ForecastTemperaturePoint> Trajectory,
@@ -25,7 +27,8 @@ public static partial class PolicyFunctions
     {
         var selected = schedule.Allocations.Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
         var plans = rooms.ToArray();
-        var overloaded = plans.Where(r => r.PowerNetwork.Length != 0 && r.Prerequisites.All(selected.Contains))
+        var overloaded = plans.Where(r => r.PowerNetwork.Length != 0 && r.Prerequisites.All(selected.Contains)
+                && r.AlternativePrerequisites.All(group => group.Any(selected.Contains)))
             .GroupBy(r => r.PowerNetwork).Where(g => g.Any(r => !r.AdditionalWatts.IsKnown || !r.SurplusWatts.IsKnown)
                 || g.GroupBy(r => r.Source).Sum(s => s.First().AdditionalWatts.Value) > g.Min(r => r.SurplusWatts.Value))
             .Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
@@ -42,8 +45,10 @@ public static partial class PolicyFunctions
         { "current_weather_and_power_constant", "closed_doors_thin_roof", "spatial_mean_exchange_estimate", "heater_full_efficiency_below_20C" };
         var allocations = schedule.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal);
         var missing = room.Prerequisites.Where(p => !allocations.ContainsKey(p)).ToArray();
-        if (missing.Length != 0) return new(room.Room, default, default, [], [.. findings, "incomplete_shelter_prerequisites"]);
-        var complete = room.Prerequisites.Select(p => allocations[p].End).DefaultIfEmpty(0).Max();
+        if (missing.Length != 0 || room.AlternativePrerequisites.Any(group => !group.Any(allocations.ContainsKey)))
+            return new(room.Room, default, default, [], [.. findings, "incomplete_shelter_prerequisites"]);
+        var complete = room.Prerequisites.Select(p => allocations[p].End).Concat(room.AlternativePrerequisites
+            .Select(group => group.Where(allocations.ContainsKey).Min(p => allocations[p].End))).DefaultIfEmpty(0).Max();
         if (complete > horizon) return new(room.Room, Known(complete), default, [], [.. findings, "shelter_beyond_horizon"]);
         if (!room.InitialTemperature.IsKnown || !room.Outdoors.IsKnown || !room.ExchangePerTick.IsKnown
             || !room.HeatPerTick.IsKnown || !room.TargetTemperature.IsKnown || !room.SupplyTicks.IsKnown

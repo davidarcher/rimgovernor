@@ -2,6 +2,17 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
+Normal production consumes these read-only facts through the
+[shared portfolio selector and dependency composer](../architecture/portfolio-selection.md).
+The needs census includes native conditional-thought windows, unclamped mood
+target, actual seeker response/freeze mechanics and physiological sleep gates.
+Known empty conditional effects differ from unknown support. Exact partial
+recipe sources retain total recipe requirement and available source quantity;
+one source need not independently fund the recipe. These facts neither apply
+thoughts nor authorize execution. Selected input provenance extends only the
+existing disposable Method task payload; no save preference or progress owner
+is added.
+
 Forecasts are read-only and use native definitions and rates. One forecast
 implementation serves deterministic facts and player fact inspection.
 
@@ -402,7 +413,8 @@ omitted sizes have not been compared. Bindings expose recipe iteration counts,
 which are not repeating native Cook authorization. The existing recipe-input catalog projection carries product counts
 and base work alongside ingredient slots. Worker rates, carrying/travel estimates,
 destination eligibility and continued bench availability remain explicit estimates.
-This is policy generation and comparison, not native dispatch.
+Generation remains pure policy. Normal selection binds its chosen dependencies
+through the existing Method journal and Hands; observation never dispatches work.
 
 The [shared live work-resource view](../architecture/colony-forecast.md#shared-live-work-resources)
 extends fixed-batch admission to pending building placements and planner-owned

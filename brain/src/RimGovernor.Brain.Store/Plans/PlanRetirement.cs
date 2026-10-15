@@ -68,6 +68,14 @@ public sealed partial class Store
             {
                 continue;
             }
+            // Accepted assignment is installation evidence, not completion of its selected graph.
+            // Continuation or observed ownership resolution retires that Method; a refused
+            // replacement still owes cleanup of the installed predecessor.
+            if (InstalledActivityPlan(tx, p)?.Progress[0].Action.PawnActivities is { } activity
+                && activity.Orders.Any(order => !order.Release))
+            {
+                continue;
+            }
             // A fight owns its empty plan while open or rostering a drafted defender: retiring it would hide the
             // fight from its goal, and the clock scheduler would stop admitting ticks mid-fight.
             if (CombatFightHolds(tx, v.Plan))

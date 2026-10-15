@@ -616,7 +616,7 @@ public sealed partial class BrainComposition
     // Go roundsCapabilities: the routine policy thresholds and the method capabilities a composed serve declares from
     // its enabled families. Every family whose planner acts only while the development ranking selected its goal
     // must declare that goal here, or the review ranks it method_unavailable and the planner never runs.
-    private static (RoundsPolicy Thresholds, RoundsCapabilities Capabilities) RoundsCapabilitiesFor(BrainFamilies sc, bool layoutOverlay)
+    internal static (RoundsPolicy Thresholds, RoundsCapabilities Capabilities) RoundsCapabilitiesFor(BrainFamilies sc, bool layoutOverlay)
     {
         var thresholds = DefaultRoundsPolicy();
         var methods = new List<ConcernId>();
@@ -629,6 +629,7 @@ public sealed partial class BrainComposition
         }
 
         Add(sc.Acquisition || sc.Field || sc.Bill, EnsureFoodSupply);
+        Add(sc.Work, EnsureWorkAssignments);
         Add(sc.Acquisition, MaintainResource, ClearPests);
         Add(sc.Bill, EnsureCooking, MaintainBabyFeeding);
         Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);

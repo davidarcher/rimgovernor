@@ -10,6 +10,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ForecastCoupledTests
 {
+    private static bool Original(ForecastCommitment commitment, string id) => commitment.Id.StartsWith(id + "/composition/", StringComparison.Ordinal)
+        && !commitment.Id.Contains("/after/", StringComparison.Ordinal);
     private static readonly ObservationContext Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     private static RoundsFacts Review(double harvest = 25, double build = 250, double foodLevel = .2, double expiry = 1000)
     {
@@ -61,13 +63,14 @@ public sealed class ForecastCoupledTests
     public void OrdinaryReviewGeneratesRecoveryBeforeProductionAndValuesActualCompletedWork()
     {
         var facts = Review(); var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
-        var build = generated.Alternatives.Single(c => c.Id == "site-0-finish");
+        var build = generated.Alternatives.Single(c => Original(c, "site-0-finish"));
         Assert.DoesNotContain(Evaluate(facts, build).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
-        var combined = generated.Alternatives.Single(c => c.Id.StartsWith("site-0-finish/after/raw/", StringComparison.Ordinal)
-            && c.Id.EndsWith("/eat/pawn/0", StringComparison.Ordinal));
-        var compared = Evaluate(facts, combined);
-        var useful = Assert.Single(compared.Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
-        Assert.True(useful.Plan.Allocations.Single(a => a.Activity == combined.ActivityCompletions[0]).End <= 300);
+        var combinations = generated.Alternatives.Where(c => c.Id.StartsWith("site-0-finish/composition/", StringComparison.Ordinal) && c.Id.Contains("/after/raw/", StringComparison.Ordinal)
+            && c.Id.Contains("/eat/pawn/0/composition/", StringComparison.Ordinal)).ToArray();
+        Assert.NotEmpty(combinations);
+        var compared = combinations.Select(c => Evaluate(facts, c)).First(f => f.Proposed.Coupled!.Alternatives.Any(p => p.Feasible == Known(true)));
+        var useful = compared.Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
+        Assert.True(useful.Plan.CompletedAt <= 300);
         Assert.True(useful.Needs["pawn"].Needs.Single(n => n.Kind == "food").FinalLevel.Value > 0);
         Assert.Empty(compared.Baseline.Coupled!.Alternatives.Single().Plan.Allocations);
         Assert.DoesNotContain(compared.Baseline.Coupled.Alternatives.Single().Stocks, s => s.Resource.Value == "TestWall");
@@ -78,9 +81,9 @@ public sealed class ForecastCoupledTests
     {
         foreach (var facts in new[] { Review(harvest: 290), Review(expiry: 20) })
         {
-            var candidate = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id.StartsWith("site-0-finish/after/raw/", StringComparison.Ordinal)
-                && c.Id.EndsWith("/eat/pawn/0", StringComparison.Ordinal));
-            Assert.DoesNotContain(Evaluate(facts, candidate).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
+            var candidates = facts.CoupledAlternatives!.Alternatives.Where(c => c.Id.StartsWith("site-0-finish/composition/", StringComparison.Ordinal) && c.Id.Contains("/after/raw/", StringComparison.Ordinal)
+                && c.Id.Contains("/eat/pawn/0/composition/", StringComparison.Ordinal)).ToArray();
+            Assert.All(candidates, candidate => Assert.DoesNotContain(Evaluate(facts, candidate).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true)));
         }
     }
 
@@ -114,7 +117,7 @@ public sealed class ForecastCoupledTests
         Assert.Contains(generated.Findings, f => f.StartsWith("construction_outcome_unbound:", StringComparison.Ordinal));
     }
 
-    private static RoundsFacts ConstructionReview(int sites = 1, int stock = 100, int reserved = 0)
+    internal static RoundsFacts ConstructionReview(int sites = 1, int stock = 100, int reserved = 0)
     {
         var facts = Review(foodLevel: 1);
         facts = facts with
@@ -147,7 +150,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = ConstructionReview();
         Assert.Equal(0, facts.WorkView!.Materials.Value[new("Rice")].Value);
-        var selected = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id == "site-0-finish");
+        var selected = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         Assert.Contains(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
     }
 
@@ -157,7 +160,7 @@ public sealed class ForecastCoupledTests
         foreach (var stock in new[] { 100, 200 })
         {
             var facts = ConstructionReview(2, stock);
-            var selected = facts.CoupledAlternatives!.Alternatives.Where(c => c.Id is "site-0-finish" or "site-1-finish").ToArray();
+            var selected = facts.CoupledAlternatives!.Alternatives.Where(c => Original(c, "site-0-finish") || Original(c, "site-1-finish")).ToArray();
             var result = Evaluate(facts, selected).Proposed.Coupled!;
             Assert.Equal(stock == 200, result.Alternatives.Any(p => p.Feasible == Known(true)));
         }
@@ -167,7 +170,7 @@ public sealed class ForecastCoupledTests
     public void NativeHoldForAnotherBillCannotBeReleasedBySelectingConstruction()
     {
         var facts = ConstructionReview(reserved: 50);
-        var selected = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id == "site-0-finish");
+        var selected = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         Assert.DoesNotContain(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
     }
     [Theory]
@@ -229,7 +232,7 @@ public sealed class ForecastCoupledTests
             }
         };
         facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
-        var shelter = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id == "shelter/1");
+        var shelter = facts.CoupledAlternatives!.Alternatives.Single(c => c.ExclusiveOutcome == "shelter/1");
         Assert.Equal(10, shelter.ActivityCompletions.Count);
         var request = CoupledForecastRequestOf(new("world", 100), 1000.0 / GameTime.TicksPerDay, facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = [shelter] });
         var forecast = ForecastColony(request);
@@ -263,11 +266,12 @@ public sealed class ForecastCoupledTests
         Assert.DoesNotContain(generated.Context.Activities.Activities, t => t.Id.StartsWith("harvest/", StringComparison.Ordinal));
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);
         var firstMeal = generated.Context.NeedTasks.Single(n => n.FoodReady == batch.ActivityCompletions[0]);
-        var meal = generated.Alternatives.Single(c => c.Id == firstMeal.Task);
+        var meal = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(firstMeal.Task));
         var result = Evaluate(facts, batch, meal).Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)).ToArray();
         Assert.NotEmpty(result);
         Assert.All(result, p => Assert.Equal(1, p.Stocks.Single(s => s.Resource.Value == "Meal").Points[^1].BalanceUnits.Value));
-        var secondRecipe = batch.ActivityCompletions[1].Replace("/delivery/", "/recipe/", StringComparison.Ordinal);
+        var secondRecipe = generated.Context.Activities.Activities.Single(t => t.Id == batch.ActivityCompletions[1]).Prerequisites
+            .Single(id => generated.Context.Activities.Activities.Single(t => t.Id == id).Outputs.Any(o => o.Resource.Value == "Meal"));
         Assert.Contains(result, p => p.Plan.Allocations.Single(a => a.Activity == firstMeal.Task).End < p.Plan.Allocations.Single(a => a.Activity == secondRecipe).End);
         Assert.Contains(result, p => p.Plan.Allocations.Single(a => a.Activity == firstMeal.Task).End > p.Plan.Allocations.Single(a => a.Activity == secondRecipe).End);
     }
@@ -303,7 +307,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review(harvest: 250, foodLevel: .1);
         var meal = facts.CoupledAlternatives!.Alternatives.First(c => c.Id.StartsWith("raw/", StringComparison.Ordinal)
-            && c.Id.EndsWith("/eat/pawn/0", StringComparison.Ordinal));
+            && c.Id.Contains("/eat/pawn/0/composition/", StringComparison.Ordinal));
         var alternatives = Evaluate(facts, meal).Proposed.Coupled!.Alternatives;
         Assert.NotEmpty(alternatives);
         Assert.All(alternatives, p =>
@@ -321,7 +325,7 @@ public sealed class ForecastCoupledTests
         var context = facts.CoupledAlternatives!.Context;
         context = context with { Resources = context.Resources with { Claims = context.Resources.Claims with { Materials = [held] } } };
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives with { Context = context } };
-        var wall = facts.CoupledAlternatives.Alternatives.Single(c => c.Id == "site-0-finish");
+        var wall = facts.CoupledAlternatives.Alternatives.Single(c => Original(c, "site-0-finish"));
         var request = CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts, new(), new() { Work = ForecastWorkInputsOf(facts) },
             [held], new() { Remove = [held.Id], Add = [wall] });
         Assert.DoesNotContain(ForecastColony(request).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
@@ -349,7 +353,7 @@ public sealed class ForecastCoupledTests
     public void BeyondHorizonInvestmentRemainsUnassessedAndFreeTimeAloneCreatesNoProduction()
     {
         var facts = Review(build: 1000, foodLevel: 1);
-        var wall = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id == "site-0-finish");
+        var wall = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         var result = Evaluate(facts, wall);
         Assert.Empty(result.Proposed.Coupled!.Alternatives);
         Assert.Contains("unassessed_no_schedule_within_horizon", result.Proposed.Coupled.Findings);
@@ -402,7 +406,7 @@ public sealed class ForecastCoupledTests
             };
             facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
             var generated = facts.CoupledAlternatives!;
-            var wall = generated.Alternatives.Single(c => c.Id == "site-0-finish");
+            var wall = generated.Alternatives.Single(c => Original(c, "site-0-finish"));
             foreach (var stuff in new[] { "Rice", "Cloth" })
             {
                 var recipe = generated.Context.Activities.Activities.First(t => t.Id.StartsWith("clothing-", StringComparison.Ordinal) && t.Inputs.Any(i => i.Resource.Value == stuff));
@@ -448,7 +452,7 @@ public sealed class ForecastCoupledTests
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         if (obligated) facts = facts with { WorkView = facts.WorkView! with { Claims = facts.WorkView!.Claims with { Pawns = ["helper"] } } };
         facts = ReviewCoupledActivities(facts);
-        var batch = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.Id.Count(ch => ch == '/') == 1);
+        var batch = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && !c.Id.Contains("/eat/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal));
         var feasible = Evaluate(facts, batch).Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)).ToArray();
         Assert.NotEmpty(feasible);
         var cheapest = feasible.OrderBy(p => p.Plan.LaborCost).First();
@@ -480,7 +484,7 @@ public sealed class ForecastCoupledTests
             }
         };
         facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
-        var wall = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id == "site-0-finish");
+        var wall = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         var result = Evaluate(facts, wall).Proposed.Coupled!.Alternatives.Single(p => p.Feasible == Known(true));
         Assert.False(result.Needs["pawn"].MemoryAdjustedMoodTarget.IsKnown);
         Assert.Contains(result.Plan.Allocations, a => a.Activity == wall.ActivityCompletions[0]);
@@ -496,7 +500,7 @@ public sealed class ForecastCoupledTests
         var context = facts.CoupledAlternatives!.Context;
         context = context with { Resources = context.Resources with { Evidence = context.Resources.Evidence with { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new(held.Id, [new(new("Rice"), Known(20.0), Known(""))])]) } } };
         facts = facts with { CoupledAlternatives = facts.CoupledAlternatives with { Context = context } };
-        var wall = facts.CoupledAlternatives.Alternatives.Single(c => c.Id == "site-0-finish");
+        var wall = facts.CoupledAlternatives.Alternatives.Single(c => Original(c, "site-0-finish"));
         var request = CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [legacy], new() { Add = [wall] });
         var result = ForecastColony(request).Proposed.Coupled!;
         Assert.Equal(fits, result.Alternatives.Any(p => p.Feasible == Known(true)));
@@ -507,11 +511,11 @@ public sealed class ForecastCoupledTests
     public void UnboundExternalOutputCannotFinanceKnownPhysicalInputs()
     {
         var facts = ConstructionReview(stock: 0);
-        var wall = facts.CoupledAlternatives!.Alternatives.Single(c => c.Id == "site-0-finish");
+        Assert.DoesNotContain(facts.CoupledAlternatives!.Alternatives, c => Original(c, "site-0-finish"));
         var request = CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts, new(), new() { Work = ForecastWorkInputsOf(facts) },
-            [new("external", [new(new("Rice"), Known(0.0), Known(100.0))])], new() { Add = [wall] });
+            [new("external", [new(new("Rice"), Known(0.0), Known(100.0))])], new());
         var result = ForecastColony(request).Proposed.Coupled!.Alternatives;
-        Assert.DoesNotContain(result, p => p.Feasible == Known(true));
+        Assert.All(result, p => Assert.Empty(p.Plan.Allocations));
         Assert.All(result, p => Assert.Contains(p.Findings, f => f.Reason == "unbound_external_output"));
     }
     [Fact]

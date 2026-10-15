@@ -25,6 +25,7 @@
   <ItemGroup>
     <!-- The headless real-engine host drives the live combat read over its arena (#3142). -->
     <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />
+    <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
   </ItemGroup>
   <ItemGroup>
     <!-- Names two imported namespaces both declare, or a namespace that shares its class's name. -->

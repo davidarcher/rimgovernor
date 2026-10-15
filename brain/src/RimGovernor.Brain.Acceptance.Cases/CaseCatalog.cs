@@ -15,6 +15,8 @@ public static class CaseCatalog
         registry.Register(PawnActivityCase.Case());
         registry.Register(NeedsForecastCase.Case());
         registry.Register(CoupledForecastCase.Case());
+        registry.Register(ConditionalMoodCase.Case());
+        registry.Register(PortfolioNeedsCase.Case());
         registry.Register(PawnControlCase.Case());
         registry.Register(PawnControlCase.LifecycleCase());
         registry.Register(PawnDeliveryCase.Case());

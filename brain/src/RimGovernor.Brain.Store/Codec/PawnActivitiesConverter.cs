@@ -16,6 +16,10 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             ReadStep(t.GetProperty("Step")),
             new(t.GetProperty("X").GetInt32(), t.GetProperty("Z").GetInt32()), t.GetProperty("DepartTick").GetInt64())
             { Resource = t.Str("Resource"), ProductStuff = t.Str("ProductStuff"), SiteDefinition = t.Str("SiteDefinition"), CompletionMustBeObserved = t.GetProperty("CompletionMustBeObserved").GetBoolean(), AttemptsLeft = t.GetProperty("AttemptsLeft").GetInt32(),
+                Inputs = EquatableArray.From(t.GetProperty("Inputs").EnumerateArray().Select(i => new SelectedActivityInput(
+                    i.Str("Resource"), i.Str("Lot"), i.GetProperty("Count").GetInt32(),
+                    new(i.GetProperty("X").GetInt32(), i.GetProperty("Z").GetInt32()), i.Str("Provenance"))
+                    { Observed = i.GetProperty("Observed").GetBoolean() })),
                 Source = t.GetProperty("Source") is var source && source.ValueKind != JsonValueKind.Null
                     ? new(source.GetProperty("X").GetInt32(), source.GetProperty("Z").GetInt32()) : null })) };
         value.Validate(); return value;
@@ -49,6 +53,14 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             w.WriteString("Resource", task.Resource); w.WriteString("SiteDefinition", task.SiteDefinition); w.WriteNumber("AttemptsLeft", task.AttemptsLeft);
             w.WriteString("ProductStuff", task.ProductStuff);
             w.WriteBoolean("CompletionMustBeObserved", task.CompletionMustBeObserved);
+            w.WriteStartArray("Inputs");
+            foreach (var input in task.Inputs)
+            {
+                w.WriteStartObject(); w.WriteString("Resource", input.Resource); w.WriteString("Lot", input.Lot);
+                w.WriteNumber("Count", input.Count); w.WriteNumber("X", input.Location.X); w.WriteNumber("Z", input.Location.Z);
+                w.WriteString("Provenance", input.Provenance); w.WriteBoolean("Observed", input.Observed); w.WriteEndObject();
+            }
+            w.WriteEndArray();
             w.WriteStartArray("Prerequisites"); foreach (var dependency in task.Prerequisites) w.WriteStringValue(dependency); w.WriteEndArray();
             if (task.Source is { } source)
             { w.WriteStartObject("Source"); w.WriteNumber("X", source.X); w.WriteNumber("Z", source.Z); w.WriteEndObject(); }

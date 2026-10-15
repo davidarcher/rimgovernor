@@ -84,7 +84,7 @@ public static partial class PolicyFunctions
             if (!needs.TryGetValue(effect.Need, out var need))
             { findings.Add("unobserved_relief_need:" + effect.Id); continue; }
             if (!need.Window.TryGetValue(out var window) || !window.Due) continue;
-            outcomes.Add(new(effect.Id, effect.Need, effect.Completion, Known(window.Ticks), default));
+            outcomes.Add(new(effect.Id, effect.Need, effect.Completion, Known(window.Ticks), default) { ChoiceIdentity = effect.Need });
         }
         var comparison = CompareActivityOutcomes(problem, outcomes.ToArray(), ForecastOutcomeObjective.EarliestDeadline,
             (selected, plan) => AssessSurvivalEffects(request, problem, relief.Where(r => selected.Any(o => o.Id == r.Id)).ToArray(),

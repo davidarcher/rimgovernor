@@ -8,11 +8,13 @@ internal static partial class CoordinatedActivityBinding
         if (selection?.Plan is not { } plan || selection.Selected.Length == 0) return null;
         var tasks = plan.Allocations.Select(a => bindings.TryGetValue((a.Activity, a.Pawn), out var task)
             ? new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
-                new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count, task.Deadline)
+                new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
+                    task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
                     { Destination = task.Destination, Container = task.Container, Recipe = task.Recipe ?? (task.Cooking is { } cooking
                         ? new(cooking.Continuation.Bill, cooking.Continuation.Recipe, [new(task.Ingredient, cooking.IngredientCount)]) { Resource = task.Resource } : null) },
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
-                    { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff, CompletionMustBeObserved = task.CompletionMustBeObserved } : null).ToArray();
+                    { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
+                        Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved } : null).ToArray();
         if (tasks.Any(t => t is null)) return null;
         var selected = tasks.Select(t => t!).ToArray();
         if (selected.Length == 0) return null; // Retaining observed baseline work requires no new orders.

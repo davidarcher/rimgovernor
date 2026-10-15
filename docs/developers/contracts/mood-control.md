@@ -2,6 +2,12 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
+Normal production uses the [shared portfolio comparison](../architecture/portfolio-selection.md)
+for supported need services and conditional thought consequences. Native thought
+windows, actual mood response and physiological sleep activation remain separate
+facts; a selected bed service does not certify sleep. These forecasts do not
+replace the incident ownership and independent relief behavior described below.
+
 `EnsureMood` is a Response: one incident per pawn, keyed by the pawn's Thing ID as
 its subject, never a concern row. It enters at 0.10 above the pawn's observed
 minor-break threshold, or when the native current thought target is below that

@@ -86,6 +86,40 @@ public sealed class NativeActivityTasks
                             ? Fact.Known(current.ThingCountNeeded(item.def)) : default });
                     }
                 }
+                else if (step.Kind is PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)
+                {
+                    // Future output IDs are not Things. Rebind only the selected resource at
+                    // its selected use location; observed inputs retain their exact identity.
+                    var targets = map.listerThings.AllThings.Where(t => t.Spawned
+                        && (step.Kind == PawnActivityKind.Eat
+                            ? t.def.defName == task.Resource && t.Position.DistanceToSquared(new(task.Location.X, 0, task.Location.Z)) <= 4
+                                && (!task.Inputs.Any(i => i.Observed) || task.Inputs.Any(i => i.Observed && i.Lot == t.GetUniqueLoadID()))
+                            : t.GetUniqueLoadID() == step.Target))
+                        .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
+                    if (targets.Length > 16) truncated = true;
+                    foreach (var target in targets.Take(16))
+                    {
+                        if (--budget < 0) { truncated = true; break; }
+                        if (target.IsForbidden(pawn) || target.IsBurning()
+                            || !pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None)) continue;
+                        if (step.Kind == PawnActivityKind.Eat && (pawn.needs.food == null || !target.IngestibleNow
+                            || target.stackCount < step.Count || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
+                        if (step.Kind == PawnActivityKind.Sleep && (pawn.needs.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
+                        if (step.Kind == PawnActivityKind.Recreation && (target.def.defName != "HorseshoesPin" || pawn.needs.joy == null
+                            || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) continue;
+                        bindings.Add(new(task.Id, step with { Target = target.GetUniqueLoadID() }));
+                    }
+                }
+                else if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof" && step.Destination is { } destination)
+                {
+                    var cell = new IntVec3(destination.X, 0, destination.Z);
+                    if (!cell.InBounds(map)) continue;
+                    if (map.roofGrid.Roofed(cell)) { satisfied.Add(task.Id); continue; }
+                    if (map.areaManager.BuildRoof[cell] && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
+                        && DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is WorkGiver_BuildRoof giver
+                        && giver.HasJobOnCell(pawn, cell, false) && pawn.CanReach(cell, PathEndMode.Touch, Danger.None))
+                        bindings.Add(new(task.Id, step));
+                }
                 else if (step.Kind == PawnActivityKind.Work)
                 {
                     var target = task.SiteDefinition.Length == 0
@@ -124,15 +158,21 @@ public sealed class NativeActivityTasks
                     }
                     var count = recipe.Ingredients.Sum(i => i.Count);
                     var ingredients = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
-                        .Where(t => t.Spawned && t.def.defName == task.Resource && t.stackCount >= count
+                        .Where(t => t.Spawned && t.def.defName == task.Resource && !t.IsForbidden(pawn) && !t.IsBurning()
+                            && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.Some)
                             && t.Position.DistanceToSquared(new(input.X, 0, input.Z)) <= 4)
                         .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
                     if (ingredients.Length > 16) truncated = true;
+                    var remainingIngredients = count;
+                    var exactIngredients = new List<PawnActivityIngredient>();
                     foreach (var ingredient in ingredients.Take(16))
                     {
-                        var bound = step with { Recipe = recipe with { Ingredients = [new(ingredient.GetUniqueLoadID(), count)] } };
-                        if (NativeActivityRecipe.Resolve(pawn, bench, bound, out _, out _, out _)) bindings.Add(new(task.Id, bound));
+                        var take = Math.Min(remainingIngredients, ingredient.stackCount);
+                        if (take <= 0) break;
+                        exactIngredients.Add(new(ingredient.GetUniqueLoadID(), take)); remainingIngredients -= take;
                     }
+                    var bound = step with { Recipe = recipe with { Ingredients = EquatableArray.From(exactIngredients) } };
+                    if (remainingIngredients == 0 && NativeActivityRecipe.Resolve(pawn, bench, bound, out _, out _, out _)) bindings.Add(new(task.Id, bound));
                 }
             }
         }

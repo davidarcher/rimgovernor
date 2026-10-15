@@ -16,6 +16,8 @@ internal static class ConstructionMethodCandidates
         var activities = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new List<ForecastActivityRoute>(); var outcomes = new List<ForecastActivityOutcome>();
         var workers = new HashSet<string>(StringComparer.Ordinal);
+        var operations = new List<ForecastCompositionOperation>();
+        var observed = new Dictionary<string, ForecastCompositionSupply>(StringComparer.Ordinal);
         foreach (var group in groups.Take(16))
         {
             var id = "site-" + outcomes.Count;
@@ -30,6 +32,27 @@ internal static class ConstructionMethodCandidates
             if (!supplied) activities.Add(new(delivery, sourceLocation, siteLocation, [])
             { Inputs = [new(new(first.Resource), Known((double)first.Count)) { Lot = first.Input }] });
             activities.Add(new(finish, siteLocation, siteLocation, supplied ? [] : [delivery]));
+            var ready = "construction-ready/" + id;
+            var capability = new Resource("ConstructionReady");
+            if (supplied)
+                observed[ready] = new(ready, capability, Known(1), siteLocation, Known(0.0), Known((double)horizon))
+                { Kind = ForecastRequirementKind.Reusable, Provenance = "observed-site:" + first.Site };
+            else
+            {
+                var source = "construction-source/" + first.Input;
+                observed[source] = new(source, new(first.Resource), first.AvailableInput.TryGetValue(out var available)
+                    && available >= 0 && available <= int.MaxValue && available == Math.Floor(available) ? Known((int)available) : default,
+                    sourceLocation, Known(0.0), Known((double)horizon))
+                { Lot = first.Input, Provenance = "native-construction-source:" + first.Site + ":" + first.Input };
+                operations.Add(new(activities.Single(a => a.Id == delivery) with { Inputs = [], ChoiceIdentity = "construction-delivery/" + first.Site },
+                    [new(delivery + "/material", new(first.Resource), Known(first.Count), sourceLocation,
+                        ForecastRequirementKind.Consumed, Known<EquatableArray<string>>([source]), Known(0.0), Known((double)horizon))],
+                    [new(ready, capability, Known(1), siteLocation, Known(0.0), Known((double)horizon))
+                    { Producer = delivery, Kind = ForecastRequirementKind.Reusable, Provenance = "native-site-delivery:" + first.Site }]));
+            }
+            operations.Add(new(activities.Single(a => a.Id == finish) with { Prerequisites = [], ChoiceIdentity = "construction-finish/" + first.Site },
+                [new(finish + "/ready", capability, Known(1), siteLocation, ForecastRequirementKind.Reusable,
+                    Known<EquatableArray<string>>([ready]), Known(0.0), Known((double)horizon))], []));
             foreach (var row in group.GroupBy(o => o.Pawn).Select(g => g.First()))
             {
                 workers.Add(row.Pawn);
@@ -68,6 +91,7 @@ internal static class ConstructionMethodCandidates
             Deadline = Known((double)horizon),
             AlternativeLaborCost = Known((double)horizon)
         }, outcomes.ToArray(), bindings,
-            read.Truncated || groups.Length > 16);
+            read.Truncated || groups.Length > 16)
+        { Operations = EquatableArray.From(operations), Observed = EquatableArray.From(observed.Values) };
     }
 }
