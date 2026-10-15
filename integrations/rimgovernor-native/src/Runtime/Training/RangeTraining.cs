@@ -17,7 +17,7 @@ namespace RimGovernor.Runtime
     // the weapon tier, the XP per shot and the daily budget. The mod's work type,
     // work giver and job defs are Defs/WorkTypeDefs, WorkGiverDefs and
     // JobDefs/RimGovernorTraining.xml.
-    internal static class RangeTraining
+    public static class RangeTraining
     {
         public const string ShootingJob = "RimGovernor_TrainShooting";
         public const string WeaponDef = "Bow_Training";

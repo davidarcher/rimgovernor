@@ -71,7 +71,7 @@ internal static class NativeFoodCooking
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), source.def.defName, new(source.Position.x, source.Position.z),
                         new(supply.x, supply.z), "", available, approach + toSupply.TotalCost + toBench.TotalCost, 0)
                     { Cooking = new(continuation, (int)required, work / speed, toStore.TotalCost,
-                        Fact.Known((double)product.thingDef.GetStatValueAbstract(StatDefOf.Nutrition)), pinned is not null) });
+                        Fact.Known((double)product.thingDef.GetStatValueAbstract(StatDefOf.Nutrition)), pinned is not null) { Learning = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe) } });
                 }
             }
         }

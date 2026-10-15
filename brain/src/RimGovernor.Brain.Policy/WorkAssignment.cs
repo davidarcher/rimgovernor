@@ -102,6 +102,8 @@ public enum WorkType
 
 public sealed record WorkSkill
 {
+    public RimGovernor.Contracts.Wire.Observations.SkillLearning? Learning { get; init; }
+
     public string Name { get; init; } = "";
 
     public int Level { get; init; }

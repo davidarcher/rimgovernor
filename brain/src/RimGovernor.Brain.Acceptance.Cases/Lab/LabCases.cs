@@ -18,6 +18,7 @@ public static class LabCases
         registry.Register(LabSpawn.Case());
         registry.Register(LabSpoilagePick.Case());
         registry.Register(LabTraining.Case());
+        registry.Register(LabSkillLearning.Case());
         foreach (var c in LabTrainingRange.Cases())
         {
             registry.Register(c);

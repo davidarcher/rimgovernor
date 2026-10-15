@@ -7,10 +7,11 @@ internal static class PawnCookingCase
         Name = "control/pawn-activity-cooking",
         Scope = "Exact cooking consumes only authorized quantities from selected stacks and completes one selected recipe iteration despite competing bill/ingredient options. Missing ingredients and a blocked bench fail visibly. Unit tests cannot prove native consumption or food creation; fixture revisions are not autonomous forecast replanning.",
         Start = new FixtureStart { Op = "test/pawn_cooking_prepare", On = new LabStart() },
-        RequiredOps = ["test/pawn_cooking_prepare", "test/pawn_cooking_select", "test/pawn_cooking_read"],
+        RequiredOps = ["test/pawn_cooking_prepare", "test/pawn_cooking_select", "test/pawn_cooking_read", "test/skill_learning_verify"],
         QuietWorld = true, Crew = new Crew { Size = 3 }, Budget = TimeSpan.FromMinutes(4),
         Run = async (s, ct) =>
         {
+            _ = await s.Harness.CallAsync("learning-start", "test/skill_learning_verify", new() { ["action"] = "start" }, ct).ConfigureAwait(false);
             _ = await s.RuntimeAsync(ct).ConfigureAwait(false);
             // Native path grids gather at most once per game tick; let the prepared stove settle.
             _ = await s.AdvanceAsync(1, null, ct).ConfigureAwait(false);
@@ -35,6 +36,7 @@ internal static class PawnCookingCase
                     throw new AcceptanceException("Missing exact physical recipe conversion: " + read.ToJson());
                 s.Report["attempt-" + attempt] = read;
             }
+            await LabSkillLearning.VerifyCallbacksAsync(s, "recipe", ct).ConfigureAwait(false);
         },
     };
 

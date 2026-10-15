@@ -1,4 +1,5 @@
 using System;
+using HarmonyLib;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -146,6 +147,53 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
+        [Tool("test/skill_learning_verify", Description = "Test-only read observer of recipe/sparring XP callbacks; start or stop verification, never issue pawn work.")]
+        public async Task<object> VerifyLearning(IRimBridgeContext ctx, CancellationToken cancellationToken, string action)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (action == "start") SkillLearningVerifier.Start();
+                else if (action == "stop") SkillLearningVerifier.Stop();
+                else throw new ArgumentException("Expected start or stop.");
+                return new { recipe = SkillLearningVerifier.Recipes, sparring = SkillLearningVerifier.Sparring,
+                    failures = SkillLearningVerifier.Failures.ToArray() };
+            }, cancellationToken);
+        }
+        [Tool("test/skill_learning_probe", Description = "UNSAFE FOR MODEL EXECUTION. Compare bounded learning projections against native SkillRecord methods on detached records. Test builds only.")]
+        public async Task<object> LearningProbe(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var pawn = Find.CurrentMap.mapPawns.FreeColonistsSpawned.First(p => p.skills != null);
+                var failures = new List<string>();
+                var samples = 0;
+                foreach (var def in new[] { SkillDefOf.Cooking, SkillDefOf.Melee, SkillDefOf.Shooting })
+                foreach (var passion in new[] { Passion.None, Passion.Minor, Passion.Major })
+                foreach (var saturated in new[] { false, true })
+                {
+                    var actual = new SkillRecord(pawn, def) { levelInt = 10, passion = passion,
+                        xpSinceLastLevel = 100, xpSinceMidnight = saturated ? 5000 : 0 };
+                    var before = pawn.skills.GetSkill(def);
+                    var original = (before.levelInt, before.xpSinceLastLevel, before.xpSinceMidnight);
+                    var evidence = NativeSkillLearning.Read(pawn, actual) with {
+                        ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(1000),
+                        NextDecay = RimGovernor.Brain.Domain.Fact.Known(200),
+                        PracticeEligible = RimGovernor.Brain.Domain.Fact.Known(true),
+                        PracticeCeiling = RimGovernor.Brain.Domain.Fact.Known(SkillRecord.MaxLevel),
+                    };
+                    var direct = def == SkillDefOf.Shooting;
+                    var path = direct ? RimGovernor.Brain.Policy.SkillXpPath.Range : RimGovernor.Brain.Policy.SkillXpPath.NormalRecord;
+                    var prediction = RimGovernor.Brain.Policy.PolicyFunctions.ForecastSkill(evidence,
+                        new[] { new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, RimGovernor.Brain.Domain.Fact.Known(10d), path) }, 200);
+                    actual.Learn(10, direct);
+                    actual.Interval();
+                    samples++;
+                    if (!prediction.Xp.IsKnown || Math.Abs(prediction.Xp.Value - actual.xpSinceLastLevel) > .01
+                        || prediction.StoredLevel.Value != actual.levelInt)
+                        failures.Add(def.defName + "/" + passion + "/" + saturated);
+                    if (original != (before.levelInt, before.xpSinceLastLevel, before.xpSinceMidnight)) failures.Add("read_mutated_pawn");
+                }
+                return new { success = failures.Count == 0, samples, failures };
+            }, cancellationToken);
+        }
         [Tool("test/training_inspect", Description = "Read-only postcondition of the training fixture: the colonist's skills, hands, job and the range's hit points.")]
         public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string pawnId, string dummyId, string sentinels,
             string otherId = "", string bystanderId = "")
@@ -166,8 +214,26 @@ namespace HomeBridge.BridgeTools
                 var practice = new[] { "Bow_Training", "Gun_PracticeRifle", "Gun_PracticePulseRifle", "Gun_PracticeBeamEmitter" };
                 var held = pawn.equipment.AllEquipmentListForReading.Select(t => t.def.defName).Concat(pawn.inventory.innerContainer.Select(t => t.def.defName)).ToArray();
                 var shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
+                var before = (shooting.levelInt, shooting.xpSinceLastLevel, shooting.xpSinceMidnight);
+                var learning = NativeSkillLearning.Read(pawn, shooting);
+                var readOnly = before == (shooting.levelInt, shooting.xpSinceLastLevel, shooting.xpSinceMidnight);
+                // This fixture starts at level zero with no XP; under level ten there is no native decay.
+                // Count completed shots, never installation or elapsed time, as learning callbacks.
+                var shots = pawn.records.GetAsInt(RecordDefOf.ShotsFired);
+                var baseline = learning with {
+                    StoredLevel = RimGovernor.Brain.Domain.Fact.Known(0), Xp = RimGovernor.Brain.Domain.Fact.Known(0d),
+                    XpSinceMidnight = RimGovernor.Brain.Domain.Fact.Known(0d),
+                    PracticeEligible = RimGovernor.Brain.Domain.Fact.Known(true),
+                    RangeAppliedBudget = RimGovernor.Brain.Domain.Fact.Known((double)RangeTraining.DailyXpBudget),
+                    ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(2),
+                };
+                var events = Enumerable.Range(0, shots).Select(i => new RimGovernor.Brain.Policy.SkillXpEvent(
+                    i.ToString(), 1, learning.RangeRawXpPerShot, RimGovernor.Brain.Policy.SkillXpPath.Range)).ToArray();
+                var projected = RimGovernor.Brain.Policy.PolicyFunctions.ForecastSkill(baseline, events, 1);
                 return new
                 {
+                    learningReadOnly = readOnly, projectedLevel = projected.StoredLevel.ValueOrDefault,
+                    projectedXp = projected.Xp.ValueOrDefault, projectionKnown = projected.Xp.IsKnown,
                     success = true, tick = Find.TickManager.TicksGame,
                     shootingLevel = shooting.Level, shootingXp = shooting.xpSinceLastLevel, shootingMidnightXp = shooting.xpSinceMidnight,
                     primary = pawn.equipment.Primary?.def.defName, held, practiceOnMap = map.listerThings.AllThings.Count(t => practice.Contains(t.def.defName)),
@@ -183,6 +249,84 @@ namespace HomeBridge.BridgeTools
                     bystanderX = idle?.Position.x ?? 0, bystanderZ = idle?.Position.z ?? 0,
                 };
             }, cancellationToken);
+        }
+    }
+}
+
+namespace HomeBridge.BridgeTools
+{
+    // Test builds only. Observe actual callbacks, and predict from independently quoted job mechanics.
+    internal static class SkillLearningVerifier
+    {
+        private static readonly Harmony Harmony = new Harmony("rimgovernor.test.learning-verifier");
+        private static bool installed, enabled, busy;
+        internal static int Recipes, Sparring;
+        internal static readonly List<string> Failures = new List<string>();
+        internal sealed class Check
+        {
+            internal RimGovernor.Brain.Policy.SkillProjection Prediction;
+            internal string Kind;
+        }
+        internal static void Start()
+        {
+            Recipes = Sparring = 0; Failures.Clear(); enabled = true;
+            if (installed) return;
+            Harmony.Patch(AccessTools.Method(typeof(SkillRecord), nameof(SkillRecord.Learn)),
+                prefix: new HarmonyMethod(typeof(SkillLearningVerifier), nameof(Before)),
+                postfix: new HarmonyMethod(typeof(SkillLearningVerifier), nameof(After)));
+            installed = true;
+        }
+        internal static void Stop() { enabled = false; }
+        private static void Before(SkillRecord __instance, float xp, bool direct, bool ignoreLearnRate, out Check __state)
+        {
+            __state = null;
+            if (!enabled || busy || xp <= 0 || direct || ignoreLearnRate) return;
+            var pawn = __instance.Pawn;
+            var recipe = pawn.CurJob?.bill?.recipe;
+            var kind = "";
+            double raw = 0;
+            if (pawn.CurJob?.def.defName == SparringBouts.JobName && __instance.def == SkillDefOf.Melee)
+            {
+                var verb = pawn.equipment.PrimaryEq?.PrimaryVerb;
+                if (verb == null) { Failures.Add("missing_sparring_verb"); return; }
+                // The quote below comes from the normal learning observation.
+                kind = "sparring";
+            }
+            else if (recipe != null && recipe.workSkill == __instance.def && !recipe.UsesUnfinishedThing
+                && pawn.jobs.curDriver is JobDriver_DoBill driver)
+            {
+                var quote = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe);
+                if (!quote.RawXpPerWorkTick.IsKnown) return;
+                raw = quote.RawXpPerWorkTick.Value * driver.ticksSpentDoingRecipeWork;
+                kind = "recipe";
+            }
+            else return;
+            busy = true;
+            try
+            {
+                var evidence = NativeSkillLearning.Read(pawn, __instance) with {
+                    ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(2), NextDecay = RimGovernor.Brain.Domain.Fact.Known(200) };
+                if (kind == "sparring")
+                {
+                    if (!evidence.SparringRawXpPerExchange.IsKnown) { Failures.Add("sparring_quote_unknown"); return; }
+                    raw = evidence.SparringRawXpPerExchange.Value;
+                }
+                var predicted = RimGovernor.Brain.Policy.PolicyFunctions.ForecastSkill(evidence,
+                    new[] { new RimGovernor.Brain.Policy.SkillXpEvent("native-callback", 0,
+                        RimGovernor.Brain.Domain.Fact.Known(raw), RimGovernor.Brain.Policy.SkillXpPath.NormalRecord) }, 0);
+                if (Math.Abs(raw - xp) > .01) Failures.Add(kind + "_raw_xp_quote");
+                __state = new Check { Prediction = predicted, Kind = kind };
+            }
+            finally { busy = false; }
+        }
+        private static void After(SkillRecord __instance, Check __state)
+        {
+            if (__state == null) return;
+            if (__state.Kind == "recipe") Recipes++; else Sparring++;
+            var predicted = __state.Prediction;
+            if (!predicted.Xp.IsKnown || predicted.StoredLevel.Value != __instance.levelInt
+                || Math.Abs(predicted.Xp.Value - __instance.xpSinceLastLevel) > .1)
+                Failures.Add(__state.Kind + "_projected_state");
         }
     }
 }

@@ -74,3 +74,5 @@ owns the shared observation and journal projection for migrated work paths;
 and [persistence](developers/contracts/persistence-contracts.md) define its consumers and state ownership.
 
 - [Needs alternatives and future capacity](developers/architecture/colony-forecast.md#needs-alternatives-and-future-capacity): ordinary-review candidates, shared occupancy, conditional mechanics, native residual scene and supported states.
+
+- [Native skill learning and decay](developers/contracts/skill-learning.md): recipe/range/sparring learning paths, native decay and conditional capability projection.

@@ -910,6 +910,7 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.PatientForecast), TypeInfoPropertyName = "ObservationsPatientForecast")]
 [JsonSerializable(typeof(Observations.NeedsForecastRead))]
 [JsonSerializable(typeof(Observations.NeedsForecastPawn))]
+[JsonSerializable(typeof(Observations.SkillLevelMechanics))]
 [JsonSerializable(typeof(Observations.NeedRate))]
 [JsonSerializable(typeof(Observations.NeedMemory))]
 [JsonSerializable(typeof(Observations.NeedTarget))]

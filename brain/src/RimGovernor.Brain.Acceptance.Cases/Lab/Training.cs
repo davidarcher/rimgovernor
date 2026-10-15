@@ -79,6 +79,10 @@ internal static class LabTraining
             },
             cancellationToken).ConfigureAwait(false);
         s.Report["training"] = last;
+        if (last["learningReadOnly"].AsBool() != true || last["projectionKnown"].AsBool() != true
+            || last["projectedLevel"].AsNumber() != last["shootingLevel"].AsNumber()
+            || Math.Abs(last["projectedXp"].AsNumber() - last["shootingXp"].AsNumber()) > .1)
+            throw new AcceptanceException($"native learning read/projection diverged: {last.ToJson()}");
         var total = Gained(0, (int)last["shootingLevel"].AsNumber(), last["shootingXp"].AsNumber());
         if (total <= 0 || total > MaxXp)
         {

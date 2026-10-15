@@ -261,7 +261,7 @@ public static partial class ObservationPackage
                         known = false;
                         break;
                     }
-                    skills.Add(new WorkSkill { Name = entry.DefName ?? "", Level = (int)entry.Level.GetValueOrDefault(), Stored = (int)entry.StoredLevel.GetValueOrDefault(), Disabled = entry.Disabled.GetValueOrDefault(), Passion = SkillPassion(entry.Passion.GetValueOrDefault()) });
+                    skills.Add(new WorkSkill { Learning = entry.Learning, Name = entry.DefName ?? "", Level = (int)entry.Level.GetValueOrDefault(), Stored = (int)entry.StoredLevel.GetValueOrDefault(), Disabled = entry.Disabled.GetValueOrDefault(), Passion = SkillPassion(entry.Passion.GetValueOrDefault()) });
                 }
                 if (known)
                 {

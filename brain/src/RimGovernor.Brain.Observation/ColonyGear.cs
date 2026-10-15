@@ -453,7 +453,7 @@ public static partial class ObservationPackage
             var skills = new List<WorkSkill>();
             foreach (var sk in v.Skills)
             {
-                skills.Add(new WorkSkill { Name = sk.DefName ?? "", Level = (int)sk.Level.GetValueOrDefault(), Passion = SkillPassion(sk.Passion.GetValueOrDefault()), Disabled = sk.Disabled.GetValueOrDefault() });
+                skills.Add(new WorkSkill { Learning = sk.Learning, Name = sk.DefName ?? "", Level = (int)sk.Level.GetValueOrDefault(), Passion = SkillPassion(sk.Passion.GetValueOrDefault()), Disabled = sk.Disabled.GetValueOrDefault() });
             }
             work = work with { Skills = Known(EquatableArray.From(skills)) };
         }

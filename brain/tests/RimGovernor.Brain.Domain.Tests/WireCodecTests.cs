@@ -170,6 +170,11 @@ public sealed class WireCodecTests
     private static JsonNode? Fill(Type type, int depth, int variant)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
+        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(RimGovernor.Brain.Domain.Fact<>))
+        {
+            return Fill(type.GetGenericArguments()[0], depth, variant);
+        }
+
         if (type == typeof(string))
         {
             return "x";

@@ -1289,6 +1289,8 @@ public sealed record PawnEquipment
 /// </summary>
 public sealed record Skill
 {
+    public SkillLearning? Learning { get; init; }
+
     public string? DefName { get; init; }
 
     public int? Level { get; init; }

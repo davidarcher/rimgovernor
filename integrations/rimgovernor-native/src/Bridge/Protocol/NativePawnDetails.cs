@@ -492,7 +492,7 @@ namespace HomeBridge.BridgeTools
             else {
                 foreach(var skill in pawn.skills.skills) {
                     var defName=Id(skill.def.defName);
-                    row = row with { Skills = [.. row.Skills, new Obs.Skill {DefName=defName,Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
+                    row = row with { Skills = [.. row.Skills, new Obs.Skill {Learning=NativeSkillLearning.Read(pawn,skill),DefName=defName,Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
                 }
             }
             var tags=pawn.CombinedDisabledWorkTags;

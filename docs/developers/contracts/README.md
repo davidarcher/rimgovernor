@@ -44,3 +44,5 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Waste census contract](waste-management.md)
 
 - [Controllable trade](controllable-trade.md): shared targets, read-only request/packing facts, reconciliation and outbound Project ownership.
+
+- [Native skill learning and decay](skill-learning.md): observed mechanics, bounded conditional projection and evidence limits.

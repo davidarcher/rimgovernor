@@ -20,6 +20,7 @@ public sealed record RecipeActivityOption(string Id, string Pawn, string Bench, 
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<RecipeIngredientObservation>))] EquatableArray<RecipeIngredientObservation> Inputs, Fact<double> TravelTicks, Fact<double> WorkTicks,
     Fact<double> OutputTravelTicks, Cell Destination)
 {
+    public RecipeLearning? Learning { get; init; }
     public int RequiredCount { get; init; }
 }
 public sealed record RecipeActivityRead

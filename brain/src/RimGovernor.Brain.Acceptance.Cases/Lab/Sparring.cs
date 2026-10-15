@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class LabSparring
 {
-    internal static readonly string[] Ops = ["test/sparring_prepare", "test/sparring_inspect"];
+    internal static readonly string[] Ops = ["test/sparring_prepare", "test/sparring_inspect", "test/skill_learning_verify"];
 
     internal static AcceptanceCase Case() => new()
     {
@@ -124,6 +124,7 @@ internal static class LabSparring
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
         var h = s.Harness;
+        _ = await h.CallAsync("learning-start", "test/skill_learning_verify", new() { ["action"] = "start" }, cancellationToken).ConfigureAwait(false);
         Stage[] stages =
         [
             new() { Name = "pair", Eligible = 2, Levels = "5,3", Sizes = [2] },
@@ -159,10 +160,12 @@ internal static class LabSparring
                     throw new AcceptanceException($"{stage.Name}: {run.Error.Message}", run.Error);
                 }
             }
+            await LabSkillLearning.VerifyCallbacksAsync(s, "sparring", cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             s.Report["sparring"] = report;
+
         }
     }
 
