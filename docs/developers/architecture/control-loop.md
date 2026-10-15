@@ -103,6 +103,101 @@ Do not infer a universal atomic reservation of every future construction cost.
 
 ## Execute under supervision
 
+Epic #3168 replaces today's windowed clock with a continuous Run/Hold model.
+This section records the target design first, then what is built today; the
+implementing pieces (#3177 and the #3178 series) cite it as their source of
+truth. Where the two differ, the as-built text is current behavior and the
+target text is not yet true.
+
+### Target design: Run and Hold
+
+While the bot is on, the clock is in one of two states.
+
+- **Running.** The game advances at the brain's target speed. There are no tick
+  budgets, no window sizing and no per-window admission. Time passes
+  continuously unless a hold applies. Reads and orders run beside the advancing
+  game; a coherent frame still binds planner facts to its tick, and dispatch
+  still revalidates current context and the action's native contract.
+- **Held.** The game is paused for one named reason (below). The hold ends when
+  that reason is finished, not on a timer.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Running: bot on, Run(target speed)
+    Running --> Held: native hazard stop
+    Running --> Held: brain Hold(reason)
+    Running --> Held: game-forced pause
+    Held --> Running: reason finished, Run(target speed)
+    Running --> Running: heartbeat lost, native ceiling drops to Normal
+```
+
+**Into Held.**
+
+| Source | Reason | Examples |
+| --- | --- | --- |
+| Native | Tick-bounded hazard stop, within the [declared bound](hazard-detection-bounds.md) | hostile spawn, downing, stopping letter |
+| Brain request | A coupled order that needs a quiet world | a write checked against a paused snapshot; an order that waits on a prerequisite outcome |
+| Brain request | A decision-class event that needs review before time advances | see Combat below |
+| Brain request | A due autosave | see Autosave below |
+| Game | A game-forced pause | letters, dialogs |
+
+Losing the brain's heartbeat is not a hold. Native lowers the one ceiling
+(the [interface contracts](../contracts/interface-contracts.md) describe
+`ClockCeiling`) to Normal and the game keeps running; contact ramps it back.
+The brain only ever asks for a speed.
+
+**Out of Held.** The brain finishes the reason, then resumes at its target
+speed. In a fight it resumes as soon as the immediate review dispatches,
+without waiting for ordinary review.
+
+**What the old admission refusals become.** Window admission refused for the
+reasons below; the new model replaces each as listed.
+
+| Old refusal | Now |
+| --- | --- |
+| Stale, Unknown, InvalidLimits, NoWork, NotPaused | Gone. Staleness is a per-family tick tolerance on the facts a planner reads; a window needing a fresh paused status no longer exists |
+| Unsafe | A native hazard hold |
+| Outstanding | A coupled-order hold |
+| Unreviewed, Interrupted | A review hold, scoped to decision events only |
+
+**Combat.** The brain holds on decision events (a hostile appears, a downing,
+an injury crossing the severity threshold), not on every combat event. Resume
+latency from hold to dispatch is a measured gate. If its budget cannot be
+met, the brain falls back to a slower speed target while a fight is open
+rather than holding more often. The numeric budget comes from the baseline
+piece (#3169; see the [live clock baseline](brain-host.md#live-clock-baseline)):
+it is undecided until that table is filled, as is the heartbeat tolerance.
+
+**Autosave.** A periodic hold flushes governor state, saves, and resumes.
+
+**Native contract.** A new minimal wire contract replaces `StartRequest`, the
+epoch and its lease: `Run(target speed)`, `Hold(reason)` and a heartbeat (#3177).
+The one ceiling, which merges the frame budget with brain liveness, survives
+unchanged beneath it. The toggle itself is the existing player Resume/Pause
+route: Resume takes the clock and disables the player's speed keys, Pause stops
+the bot, pauses the game once and re-enables the keys. The toggle is not
+persisted; `AutoResume` decides at load.
+
+**Deleted and kept.**
+
+| Deleted | Kept |
+| --- | --- |
+| Tick budgets, finite windows and per-window admission; the 60,000 and 300-tick limits | Native hazard probe and its tick bounds |
+| Lease renewal and the clock attempt, epoch and receipt persistence (stores and saves are not migrated) | Native event journal, cursor announcements and the event reader |
+| Brain `PaceBackoff`, the 2,500-tick fallback horizon, native blind-tick regulator and `ClockBlindTicks` | The one native ceiling: frame budget plus heartbeat |
+| `FollowPlayerSpeed`, `PlayerQuiet`, `RepauseClock`, the `not_paused` refusal, `PlayerSpeedHook` and player-speed seeding | Brain `TargetSpeed` option and `POST /api/player/clock-speed` |
+| Native `PlayerAccelerated` as a pacing mode (its clamp becomes the one ceiling) | Immediate-protection review ahead of ordinary review; planner scheduling and Hands dispatch |
+| `NativeWorkTicks`, idle lend and `idle_stall` | The player Resume/Pause route and the speed-key block |
+
+### As built
+
+Landed: the brain `TargetSpeed` option (#3170), Resume/Pause owning the clock
+(#3172), the speed-key block while the bot holds the clock (#3173) and the one
+native ceiling with a brain heartbeat (#3171). Everything else in this section
+below still runs as described here until its removal piece lands (#3174 and
+#3175 for pacing and player-speed following; #3177 and #3178 for the contract
+and the hold state machine).
+
 Native grants bounded tick windows under a renewable wall-clock lease.
 A routine window permits up to 60,000 ticks; combat uses a 300-tick backstop.
 Native allowances, hazards and player input may stop either earlier. Lease

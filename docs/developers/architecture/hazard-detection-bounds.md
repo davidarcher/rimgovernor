@@ -8,6 +8,13 @@ it. `SupervisedPlayHazards.cs` declares the constants and the per-class
 table below; the native contract probe (`native-clock`) drives the pure
 cadence functions through every speed's tick pattern.
 
+> **Run/Hold (epic #3168).** The probe, bounds and stop kinds below survive as
+> the native hazard hold; what changes is what a stop ends. Today a stop closes
+> a window and the brain admits the next; under the target design a stop is a
+> Hold the brain finishes and resumes from, and the armed combat events become
+> decision-event holds, not every event ([control loop](control-loop.md#execute-under-supervision)).
+> The 300-tick `combatBackstopTicks` window backstop below is deleted with windows.
+
 ## Probe cadence
 
 | Gate | Where it runs | Interval |

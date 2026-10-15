@@ -6,6 +6,20 @@ the brain bridge and store validate clock commands and recovered evidence agains
 canonical native producer. Autonomous play (the in-process host, see [brain host](../architecture/brain-host.md)) composes the scheduler and workers;
 validation never restores permission after restart.
 
+> **Superseded in part by the Run/Hold design (epic #3168).** The target is
+> continuous run with named holds, a minimal `Run(target speed)` / `Hold(reason)`
+> plus heartbeat wire contract, and no clock attempt, epoch or receipt persistence
+> (see [Execute under supervision](../architecture/control-loop.md#execute-under-supervision)).
+> Until the removal pieces land (#3177, #3178, #3183, #3184) this page describes
+> current behavior. Marked for removal: Original command correlation, Durable
+> attempts, Explicit command coordinator, Owned epochs and pause cleanup,
+> Finite window admission (its Stale, Unknown, InvalidLimits, NoWork and NotPaused
+> refusals vanish; Unsafe, Outstanding, Unreviewed and Interrupted become holds),
+> Dispatch binding, lease renewal in Independent clock workers, and Clock
+> history retirement for attempts and epochs. Kept in concept: Immediate
+> protection and ordinary review, event cursors and review, the planner wave,
+> step causes and the due queue.
+
 ## Immediate protection and ordinary review
 
 The scheduler uses the same Concern store, due queue and Hands executor for
