@@ -26,8 +26,14 @@ public sealed class Arena
     private readonly Action<Map>? _stage;
     private readonly Map _map;
     private readonly Faction _hostile;
+    // This fight's departures: the pawns whose departure has been applied (they no longer count as standing or as targets)
+    // and the tick each was applied at, by pawn id.
+    private readonly HashSet<Pawn> _departing = [];
+    private readonly Dictionary<string, int> _applied = [];
+    private readonly Dictionary<Pawn, IntVec3> _fleeing = [];
     private readonly HashSet<Thing> _baselineThings;
     private readonly HashSet<Pawn> _baselineWorldPawns;
+    private readonly float[] _baselineSnow;
     private readonly FieldInfo[] _idFields = typeof(UniqueIDsManager).GetFields(Private).Where(f => f.FieldType == typeof(int)).ToArray();
     private readonly FieldInfo _tickField = typeof(TickManager).GetField("ticksGameInt", Private)!;
 
@@ -47,6 +53,7 @@ public sealed class Arena
         _readback = ReadbackCheck.Arena(req, _map, _hostile);
         _baselineThings = [.. _map.listerThings.AllThings];
         _baselineWorldPawns = [.. Find.WorldPawns.AllPawnsAliveOrDead];
+        _baselineSnow = _map.AllCells.Select(c => _map.snowGrid.GetDepth(c)).ToArray();
     }
 
     // Everything the map generator scattered goes, the roofs come off (a collapse in the first ticks moves the stream),
@@ -161,9 +168,14 @@ public sealed class Arena
         }
 
         _tickField.SetValue(Find.TickManager, StartTick);
+        RestoreSnow();
         HostPatches.Shots.Clear();
         HostPatches.Hits.Clear();
         HostPatches.FirstShot.Clear();
+        HostPatches.LastShot.Clear();
+        _departing.Clear();
+        _applied.Clear();
+        _fleeing.Clear();
         using var scope = new RandScope(seed);
         var fighters = new List<(RealPawn Spec, Pawn Pawn)>();
         try
@@ -206,6 +218,17 @@ public sealed class Arena
         }
     }
 
+    // Snow depth drifts as a fight runs (it melts a little each tick), and a pawn walking through snow is slowed by it, so a
+    // later fight in the arena would start from a different ground than the first. Every fight starts from the baseline's.
+    private void RestoreSnow()
+    {
+        var i = 0;
+        foreach (var cell in _map.AllCells)
+        {
+            _map.snowGrid.SetDepth(cell, _baselineSnow[i++]);
+        }
+    }
+
     // Every pawn attacks the nearest opponent still standing and keeps at it until the side is done.
     /// <summary>Decides in place of the built-in nearest-target retargeting; null keeps the built-in.</summary>
     public IFightController? Controller { get; set; }
@@ -226,6 +249,12 @@ public sealed class Arena
 
         while (ticks < _req.MaxTicks && Standing(fighters, "colonist") && Standing(fighters, "hostile"))
         {
+            Depart(fighters, ticks);
+            if (!Standing(fighters, "colonist") || !Standing(fighters, "hostile"))
+            {
+                break;
+            }
+
             controller?.Decide(_map, ticks);
 
             // Projectiles launch from the caster's draw position, which only the render pass advances: headless, a pawn
@@ -244,6 +273,87 @@ public sealed class Arena
         }
 
         return ticks;
+    }
+
+    // Applies the departures due at this tick, in request order, before the tick runs. A pawn already out (down, dead,
+    // gone) cannot depart: its departure stays unapplied. A departed pawn is dropped from its lord and, for a colonist,
+    // undrafted, so neither the assault lord nor the controller sends it back into the fight.
+    private void Depart(List<(RealPawn Spec, Pawn Pawn)> fighters, int tick)
+    {
+        // A fleeing pawn exits the map once it stands on its edge cell. The game's own exit-on-arrival toil would form a
+        // world caravan for a colonist, state that carries from one fight to the next; ExitMap without one does not.
+        foreach (var (pawn, edge) in _fleeing.ToList())
+        {
+            if (pawn.Spawned && pawn.Position == edge)
+            {
+                _fleeing.Remove(pawn);
+                pawn.ExitMap(false, Rot4.Invalid);
+            }
+        }
+
+        foreach (var d in _req.Departures)
+        {
+            if (d.Tick != tick)
+            {
+                continue;
+            }
+
+            var pawn = fighters.First(f => f.Spec.Id == d.Id).Pawn;
+            if (IsOut(pawn))
+            {
+                continue;
+            }
+
+            pawn.GetLord()?.Notify_PawnLost(pawn, PawnLostCondition.ExitedMap);
+            if (pawn.drafter != null)
+            {
+                pawn.drafter.Drafted = false;
+            }
+
+            if (d.Kind == RealDeparture.Leave)
+            {
+                pawn.jobs.StopAll();
+                pawn.ExitMap(false, Rot4.Invalid);
+            }
+            else
+            {
+                var edge = EdgeCell(pawn);
+                if (edge is null)
+                {
+                    continue; // nowhere to run to: the flight cannot be applied
+                }
+
+                var job = JobMaker.MakeJob(JobDefOf.Goto, edge.Value);
+                _fleeing[pawn] = edge.Value;
+                job.locomotionUrgency = LocomotionUrgency.Sprint;
+                pawn.jobs.StartJob(job, JobCondition.InterruptForced);
+            }
+
+            _departing.Add(pawn);
+            _applied[d.Id] = tick;
+        }
+    }
+
+    // The nearest reachable cell on the map edge, by straight-line distance; ties break in a fixed order.
+    private IntVec3? EdgeCell(Pawn pawn)
+    {
+        var at = pawn.Position;
+        var candidates = new[]
+        {
+            new IntVec3(at.x, 0, 0),
+            new IntVec3(at.x, 0, _map.Size.z - 1),
+            new IntVec3(0, 0, at.z),
+            new IntVec3(_map.Size.x - 1, 0, at.z),
+        };
+        foreach (var cell in candidates.OrderBy(c => c.DistanceToSquared(at)))
+        {
+            if (cell.Standable(_map) && pawn.CanReach(cell, PathEndMode.OnCell, Danger.Deadly))
+            {
+                return cell;
+            }
+        }
+
+        return null;
     }
 
     // The hostiles behave as a raid does in the game: under the assault lord's AI, not a scripted target. A controller
@@ -268,12 +378,12 @@ public sealed class Arena
         }
     }
 
-    private static bool IsOut(Pawn p) => p.Dead || p.Downed || p.Destroyed || !p.Spawned;
+    private bool IsOut(Pawn p) => p.Dead || p.Downed || p.Destroyed || !p.Spawned || _departing.Contains(p);
 
-    private static bool Standing(List<(RealPawn Spec, Pawn Pawn)> fighters, string side) =>
+    private bool Standing(List<(RealPawn Spec, Pawn Pawn)> fighters, string side) =>
         fighters.Any(f => f.Spec.Side == side && !IsOut(f.Pawn));
 
-    private static void Retarget(List<(RealPawn Spec, Pawn Pawn)> fighters)
+    private void Retarget(List<(RealPawn Spec, Pawn Pawn)> fighters)
     {
         foreach (var me in fighters)
         {
@@ -332,7 +442,10 @@ public sealed class Arena
                     f.Pawn.health.summaryHealth.SummaryHealthPercent,
                     HostPatches.Shots.GetValueOrDefault(f.Pawn.thingIDNumber),
                     HostPatches.Hits.GetValueOrDefault(f.Pawn.thingIDNumber),
-                    HostPatches.FirstShot.TryGetValue(f.Pawn.thingIDNumber, out var first) ? first - StartTick : -1)),
+                    HostPatches.FirstShot.TryGetValue(f.Pawn.thingIDNumber, out var first) ? first - StartTick : -1,
+                    HostPatches.LastShot.TryGetValue(f.Pawn.thingIDNumber, out var last) ? last - StartTick : -1,
+                    _applied.GetValueOrDefault(f.Spec.Id, -1),
+                    _applied.ContainsKey(f.Spec.Id) && !f.Pawn.Dead && !f.Pawn.Spawned)),
             ],
         };
     }

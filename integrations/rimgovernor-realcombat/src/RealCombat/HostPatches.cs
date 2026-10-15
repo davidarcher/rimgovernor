@@ -31,6 +31,9 @@ internal static class HostPatches
     /// <summary>The game tick of each shooter first shot, by thing id.</summary>
     internal static readonly Dictionary<int, int> FirstShot = [];
 
+    /// <summary>The game tick of each shooter last shot, by thing id.</summary>
+    internal static readonly Dictionary<int, int> LastShot = [];
+
     internal static void Install(Harmony harmony, AssetPack pack)
     {
         s_pack = pack;
@@ -114,6 +117,7 @@ internal static class HostPatches
         {
             Shots[p.thingIDNumber] = Shots.GetValueOrDefault(p.thingIDNumber) + 1;
             FirstShot.TryAdd(p.thingIDNumber, Find.TickManager.TicksGame);
+            LastShot[p.thingIDNumber] = Find.TickManager.TicksGame;
         }
     }
 

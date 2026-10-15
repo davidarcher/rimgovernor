@@ -35,6 +35,9 @@ public sealed record RealFightRequest
 
     public IReadOnlyList<RealPawn> Pawns { get; init; } = [];
 
+    /// <summary>Timed departures replayed at fixed ticks: the request decides who leaves and when, the host does not.</summary>
+    public IReadOnlyList<RealDeparture> Departures { get; init; } = [];
+
     /// <summary>One fight per seed, each from the same arena.</summary>
     public IReadOnlyList<int> Seeds { get; init; } = [];
 
@@ -64,6 +67,20 @@ public static class RequestJson
             throw new RealFightRejected([$"{e.Path}: {e.Message}"]);
         }
     }
+}
+
+/// <summary>A participant that stops contributing at a tick: <see cref="Leave"/> takes it off the map at once (the game's ExitMap),
+/// <see cref="Flee"/> undrafts it and sends it running (the game's goto job) to the nearest reachable map edge cell, where it exits the map.
+/// From the tick it is applied the pawn is no longer a target or shooter and the side-win check ignores it. A pawn already down, dead
+/// or gone when the tick comes is not departed (the result's DepartureTick is -1).</summary>
+/// <param name="Id">A pawn id of the request.</param>
+/// <param name="Tick">The fight tick (0 to MaxTicks) the departure is applied at, before that tick runs.</param>
+/// <param name="Kind">"leave" or "flee".</param>
+public sealed record RealDeparture(string Id, int Tick, string Kind)
+{
+    public const string Leave = "leave";
+
+    public const string Flee = "flee";
 }
 
 public sealed record RealThing(string Def, string Stuff, int X, int Z);
@@ -142,7 +159,10 @@ public sealed record RealPawn
 }
 
 /// <param name="FirstShotTick">Ticks from the fight start to the pawn first shot; -1 when it never fired.</param>
-public sealed record RealPawnOutcome(string Id, bool Downed, bool Dead, double HealthPercent, int Shots, int HitsTaken, int FirstShotTick);
+/// <param name="LastShotTick">Ticks from the fight start to the pawn last shot; -1 when it never fired.</param>
+/// <param name="DepartureTick">The tick the pawn's departure was applied at; -1 when it had none, or when the pawn was already out (or the fight over) when it came due.</param>
+/// <param name="GotAway">True when a departure was applied and the pawn is off the map alive (it left, or its flight reached the edge).</param>
+public sealed record RealPawnOutcome(string Id, bool Downed, bool Dead, double HealthPercent, int Shots, int HitsTaken, int FirstShotTick, int LastShotTick, int DepartureTick, bool GotAway);
 
 public sealed record RealSeedOutcome
 {

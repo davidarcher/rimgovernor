@@ -25,6 +25,14 @@ is not apparel; a cell outside the map; a duplicate or empty pawn id; a hediff o
 a part that is missing or inside one, an injury without a part, a severity outside `(0, maxSeverity]`; a humanlike pawn
 without `Age` or `Xenotype`; an animal or insect with an age, xenotype, gear, skills or traits.
 
+`Departures` (pawn `Id`, `Tick`, `Kind`) replay timed exits. At `Tick` (0 to `MaxTicks`; applied before that tick runs) a
+`leave` takes the pawn off the map at once (the game's `ExitMap`); a `flee` undrafts it and runs it (a goto job) to the nearest
+reachable edge cell, then exits it. From then on it is neither target nor shooter and the side-win check ignores it. An unknown
+id, a repeated id, a tick outside `0-MaxTicks` or another kind rejects by field (`Departures[0].Tick`). Per pawn the result
+reports `DepartureTick` (-1 when none applied, e.g. the pawn was already down), `GotAway` (off the map alive) and `LastShotTick`
+(no shot after the departure). Each fight restarts the map's snow depth from the baseline, so later seeds and `Verify` replays
+start from the same ground.
+
 A pawn's `Hediffs` (def, part, severity) and `Missing` (part labels) are its whole health: nothing the generator rolled
 survives. `Age` (biological and chronological) and `Xenotype` are required for humanlike pawns.
 
@@ -55,7 +63,8 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 
 `--request-check` is the request-format test: it runs every reject path (each must name its field and leave no map or pawn)
 and an accept case (age 41, Hussar, a missing hand, injuries on the right arm) that must read back equal and play
-deterministically; exit 0 is a pass. `--gear-check` plays a poor, half-hit-point rifle and worn flak vest against new gear
+deterministically, with a second hunter who leaves at tick 450 (`--flee`: flees instead) and must fire nothing after it;
+exit 0 is a pass. `--gear-check` plays a poor, half-hit-point rifle and worn flak vest against new gear
 (the fights differ) and reads a two-terrain map with two roofed patches back cell for cell. It builds two arenas: a third
 map in one process came up with ice over terrain the request had set.
 

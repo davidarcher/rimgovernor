@@ -190,6 +190,10 @@ internal static class RequestCheckMode
         Pawns = [Colonist, Raider],
     };
 
+    private const int DepartAt = 450;
+
+    private static readonly string DepartKind = Environment.GetCommandLineArgs().Contains("--flee") ? RealDeparture.Flee : RealDeparture.Leave;
+
     internal static int Run()
     {
         var failures = 0;
@@ -211,6 +215,11 @@ internal static class RequestCheckMode
             ("Pawns[0].Hediffs[0].Severity", () => With(Colonist with { Hediffs = [new("Cut", "right arm", 0)] })),
             ("Pawns[0].Missing[0]", () => With(Colonist with { Missing = ["tail"] })),
             ("Pawns[1].Id", () => Base with { Pawns = [Colonist, Raider with { Id = "col" }] }),
+            ("Departures[0].Id", () => Base with { Departures = [new("nobody", 10, RealDeparture.Leave)] }),
+            ("Departures[0].Tick", () => Base with { Departures = [new("col", -1, RealDeparture.Leave)] }),
+            ("Departures[0].Tick", () => Base with { Departures = [new("col", 601, RealDeparture.Flee)] }),
+            ("Departures[0].Kind", () => Base with { Departures = [new("col", 10, "vanish")] }),
+            ("Departures[1].Id", () => Base with { Departures = [new("col", 10, RealDeparture.Leave), new("col", 20, RealDeparture.Flee)] }),
             ("Pawns[0].WeaponQuality", () => With(Colonist with { WeaponQuality = "Shoddy" })),
             ("Pawns[0].WeaponHitPoints", () => With(Colonist with { WeaponHitPoints = -3 })),
             ("Pawns[0].Worn[0].Quality", () => With(Colonist with { Worn = [new("Apparel_FlakVest", "", "poor")] })),
@@ -260,13 +269,14 @@ internal static class RequestCheckMode
             failures++;
         }
 
-        var accept = With(Colonist with
+        var accepted = Colonist with
         {
             Age = 41,
             Xenotype = "Hussar",
             Missing = ["left hand"],
             Hediffs = [new("Cut", "right arm", 3), new("Cut", "right arm", 2.5), new("GoJuiceHigh", "", 0.5)],
-        });
+        };
+        var accept = Base with { MaxTicks = 900, Departures = [new("col2", DepartAt, DepartKind)], Pawns = [accepted, Colonist with { Id = "col2", Z = 34 }, Raider] };
         var arena = new Arena(accept with { Verify = true });
         var outcome = arena.Fight(1);
         var read = arena.Readback.Pawns[0];
@@ -281,6 +291,24 @@ internal static class RequestCheckMode
         if (outcome.Nondeterministic)
         {
             Console.Error.WriteLine("FAIL the accepted request is not deterministic");
+            failures++;
+        }
+
+        // Departures: the second hunter departs at tick DepartAt ("leave", or "flee" under --flee). It fires nothing after
+        // that tick, the first colonist keeps fighting, and the result records the applied tick. The accept fight is the
+        // only arena per process, so it carries the departure (Verify replays it, covering determinism).
+        var gone = outcome.Pawns.Single(p => p.Id == "col2");
+        var kept = outcome.Pawns.Single(p => p.Id == "col");
+        Console.Error.WriteLine($"{DepartKind}: ticks={outcome.Ticks} departedAt={gone.DepartureTick} gotAway={gone.GotAway} firstShot={gone.FirstShotTick} lastShot={gone.LastShotTick} keptShots={kept.Shots} keptLastShot={kept.LastShotTick}");
+        if (gone.DepartureTick != DepartAt || gone.LastShotTick > DepartAt || outcome.Ticks <= DepartAt || kept.LastShotTick <= DepartAt)
+        {
+            Console.Error.WriteLine($"FAIL the {DepartKind} departure was not replayed (applied tick, no shot after it, the others fighting on)");
+            failures++;
+        }
+
+        if (DepartKind == RealDeparture.Leave && !gone.GotAway)
+        {
+            Console.Error.WriteLine("FAIL a pawn that left the map is not reported as away");
             failures++;
         }
 

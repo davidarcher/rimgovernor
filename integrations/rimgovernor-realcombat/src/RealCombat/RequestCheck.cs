@@ -74,6 +74,31 @@ public static class RequestCheck
             Pawn(errors, req, req.Pawns[i], $"Pawns[{i}]", ids);
         }
 
+        var departing = new HashSet<string>();
+        for (var i = 0; i < req.Departures.Count; i++)
+        {
+            var d = req.Departures[i];
+            var at = $"Departures[{i}]";
+            if (!ids.Contains(d.Id))
+            {
+                errors.Add($"{at}.Id: '{d.Id}' names no pawn of the request");
+            }
+            else if (!departing.Add(d.Id))
+            {
+                errors.Add($"{at}.Id: '{d.Id}' departs twice");
+            }
+
+            if (d.Tick < 0 || d.Tick > req.MaxTicks)
+            {
+                errors.Add($"{at}.Tick: {d.Tick} is outside 0-{req.MaxTicks} (MaxTicks)");
+            }
+
+            if (d.Kind is not (RealDeparture.Leave or RealDeparture.Flee))
+            {
+                errors.Add($"{at}.Kind: '{d.Kind}' is neither {RealDeparture.Leave} nor {RealDeparture.Flee}");
+            }
+        }
+
         if (errors.Count > 0)
         {
             throw new RealFightRejected(errors);
