@@ -229,3 +229,52 @@ results. Existing needs, conditional mood, survival, productive learning and
 both matrix fixtures pass. The larger fixture still serves only one of four
 ingestions; #3193 remains the separate quality investigation. Native execution
 is not needed for this representation/allocation claim.
+
+## Independent four-meal reference (#3195)
+
+The larger fixture's measured incumbents serve one of four demanded ingestions at
+every budget. `PortfolioReferenceScheduleTests` establishes, independently of the
+selector and scheduler, whether more is physically possible. **Result: 4 of 4 is
+feasible.** A hand-built schedule relieves every demanded ingestion; no constraint
+binds before the horizon. This shows feasibility, not proven global optimality: it
+is a test-only existence proof, not an exhaustive solver, and says nothing about
+why the search misses it (tracked under
+[#3193](https://github.com/davidarcher/rimgovernor/issues/3193)).
+
+The reference uses root `food/27`, the four-meal production chain generated from
+the fixture, and one ingestion per demand event. The helper cooks all four meals
+back to back at its observed 91-tick rate; porter carries rice early and each meal
+just in time; diner and pawn each eat in both hunger windows. Activity numbers are
+`composition/N` of the generated ids.
+
+| Step | Worker | Activities | Ticks |
+| --- | --- | --- | --- |
+| Rice to the stove (4 each) | porter | `food/27/supply/0..3/rice/4` | 0–1, 2–3, 4–5, 6–7 |
+| Recipes (1 stove, serial) | helper | `food/27/recipe/0..3` | 1–92, 92–183, 183–274, 274–365 |
+| Carry meal to dining cell | porter | `food/27/delivery/0..3` | 92–93, 183–184, 274–275, 365–366 |
+| First ingestions | diner (meal 0), pawn (meal 1) | `food/27/delivery/0/eat/diner/0`, `food/27/delivery/1/eat/pawn/0` | 240–250 |
+| Second ingestions | diner (meal 2), pawn (meal 3) | `food/27/delivery/2/eat/diner/1`, `food/27/delivery/3/eat/pawn/1` | 490–500 |
+
+The last meal is ready at 366 and the last ingestion ends at 500, within the
+700-tick horizon. Four meals need four recipes and all 16 rice, so stove time is
+the constraint to watch: about 364 of 700 ticks with the fastest cook, which does
+not bind. A variant in which the developing pawn cooks the first two meals (100
+then 80 ticks) and the helper the rest is also accepted.
+
+`ReferenceScheduleChecker` re-derives the constraints from the fixture's data
+records and plain arithmetic; it calls no `PolicyFunctions` scheduling code (a test
+fails if its source mentions it). It validates per-worker non-overlap including
+travel and waiting, routes and availability windows; the single stove's exclusive
+use and location; dependencies, earliest/latest bounds and the horizon; exact
+observed rates (91/105/110 ticks, 1-tick carry, 10-tick ingestion) and the
+developing cook's level-by-experience table; lot conservation (rice in, meals out,
+no meal eaten before it is cooked and delivered); and ingestion timing. A hungry
+pawn's food crosses its threshold at (level − threshold) / fall, tick 250, and every
+nutrition / fall ticks later, 500. An event is relieved only if its ingestion ends
+by that tick (so 240–250 and 490–500).
+
+Negative tests show the checker rejects an overlapping worker, an overbooked stove,
+a meal eaten before it is cooked and delivered, a conservation violation (two
+ingestions of one meal), wrong cook rates and a missed hunger window. The reference
+is compared read-only with the recorded incumbents (one ingestion at all six
+budgets). No production code, budget or traversal changed. The two quality baselines already carry the drift from other landed work (each Support object has `"Maintenance": []`; the top-level Findings include `assigned_capability_floor_unknown`, `practice_held_essential_emergency_or_unknown`, `practice_observation_unknown` and `unsupported_defensive_improvement_without_assignment:<pawn>`), and this change leaves them unchanged. No numeric, vector, physical or selection value changed.
