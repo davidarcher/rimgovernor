@@ -328,21 +328,26 @@ for the normal gate. **Hypotheses** are labeled as such.
 3. **Scheduler on the reference set (production bound).** Replaying the four roots
    through `ForecastColony` (the public route to `ForecastCoupledScenarioOf`) with the
    production per-portfolio bound: 4,096 expansions, truncated, 1,023 alternatives,
-   **0 feasible**; every alternative carries `conflicting_selected_target_owners` on
-   `cell/3/1`. Pinning each activity to its reference worker leaves 420 alternatives,
-   still 0 feasible and all with the same finding, so the refusal does not depend on
-   assignment or on the truncation. A diner ingestion plus a pawn ingestion
-   (1,018 alternatives) is already refused. The scheduler cannot be given a larger
+   **1,023 feasible**, none carrying an owner or stack-quantity refusal (#3210; before
+   it, 0 feasible, every alternative refused with `conflicting_selected_target_owners`
+   on `cell/3/1`). Pinning each activity to its reference worker leaves 420
+   alternatives, all feasible; the best serves all four ingestions with urgent
+   `[0, 0, 0, 0, 0]` and labor 841. A diner ingestion plus a pawn ingestion
+   (1,018 alternatives, all feasible) was refused before. The scheduler cannot be given a larger
    bound: `ExpansionBudget` above 4,096 is rejected as an invalid activity graph or
    budget (asserted), so a larger-bound replay is not possible without a production
    change and was not made.
-4. **Why the reference is refused (true infeasibility under production rules).** Both
-   consumers' ingestion tasks name the same observed target `cell/3/1` (the fixture
-   copies the first pawn's need targets to `diner`); the evaluator allows one pawn to
-   own an exact target across a portfolio. The #3195 checker validates physical
-   constraints and does not model target ownership, so "4 of 4 feasible" there is a
-   physical statement, not one the production evaluator accepts for this fixture.
-   One consumer's two ingestions are accepted: the diner pair
+4. **Why the reference was refused, and why it is accepted now.** Both consumers'
+   ingestion tasks name the same delivery-cell target `cell/3/1`, the stack the
+   produced batch sits in. Until #3210 the evaluator allowed one pawn to own an exact
+   target across a portfolio. It now admits `MaxPawns` distinct owners (a generated
+   delivery stack carries vanilla's ingest value 10) and sums the claimed counts
+   against the batch quantity, so the two consumers share the stack and the #3195
+   physical schedule is a statement the production evaluator accepts. The ledger
+   (`source_lot_shortfall`, `timed_material_shortfall`) still bounds what the batch
+   can supply. The accepted statement concerns the scheduler on a given root set; the
+   subset search still does not reach cardinality 4 within a budget (item 2).
+   One consumer's two ingestions were accepted before: the diner pair
    (`food/27/delivery/0/.../diner/0` + `delivery/2/.../diner/1`) gives 1,646
    alternatives, 1,190 feasible, best consequence urgent
    `[325, 96.875, 450, 450, 0]`, needs component 4 equal to 1, labor 446.
@@ -360,16 +365,15 @@ for the normal gate. **Hypotheses** are labeled as such.
 
 ### Hypotheses (not measured)
 
-- The ceiling for this fixture under the current evaluator is two of four ingestions:
-  the worst-pawn components of the urgent vector cannot improve while the second
-  consumer is unfed, and a two-consumer portfolio is refused by the shared target.
-  Two ingestions is the best vector observed in every run; it is not proven optimal.
+- (Measured before #3210.) The ceiling for this fixture under the evaluator of the time
+  was two of four ingestions: the worst-pawn components of the urgent vector cannot
+  improve while the second consumer is unfed, and a two-consumer portfolio was refused
+  by the shared target. #3210 removed that refusal; the ceiling is now the search's reach.
 - A remedy that reaches the pair stage sooner (a cheaper single-root sweep, pair-first
   ordering, or a larger budget) would find the two-ingestion plan; the observed
   crossover is between 262,144 and 393,216 expansions. Choosing the lever is #3197.
 - Whether the shared target in `LargerFacts` represents a real colony (two pawns using
-  one dining target) or a fixture artifact is a separate question; if distinct targets
-  were intended, the four-ingestion reference would also need a feasibility run.
+  one dining target) or a fixture artifact is moot after #3210: the shared stack admits both.
 
 ### Verdict
 
@@ -378,8 +382,9 @@ cardinality-1 sweep** (43 of 62 single roots each spend the whole 4,096 schedule
 the sweep costs 185,139 expansions, so every budget up to 65,536 never leaves the first
 18 roots and 262,144 reaches 20 pairs). The missed plan serves two of four ingestions
 (one consumer's both events) and is strictly better than the incumbent; four of four is
-refused by the evaluator's exact-target ownership on the fixture's shared target, so the
-remedy (#3197) can aim at two, not four, on this fixture. Generation and feasibility are
+was refused by the evaluator's exact-target ownership on the fixture's shared target when
+this was written, so the remedy (#3197) aimed at two, not four, on this fixture; #3210 later
+replaced that rule with a capacity check and the scheduler accepts the four-root set. Generation and feasibility are
 not limiters; the per-portfolio bound is fixed at 4,096 and only matters through its cost
 per evaluation.
 
@@ -423,8 +428,14 @@ consequences and wins on labor, 354 against 355. The selected pair is root 1 plu
 `food/14/delivery/1/eat/diner/1`, so the diner eats at 240–250 and 490–500. This is
 equivalent in consequence to the issue's "incumbent plus one food/27 diner root" plan
 (urgent `[...,450,0]`, needs component 4 equal to 1) but is the first found in root order.
-Four of four stays unreachable: the evaluator allows one owner per exact target and both
-consumers share `cell/3/1` (#3202).
+When #3197 landed, four of four stayed unreachable because the evaluator allowed one owner
+per exact target and both consumers share `cell/3/1`. #3210 lifted that: the larger
+fixture's selection at 65,536 and 262,144 expansions is now the incumbent plus
+`food/14/delivery/1/eat/pawn/0` (the pawn eats at 305-315 from the stack the diner also
+uses), urgent `[75, 38.6, 265, 465, 0]`, needs component 4 equal to 2, labor 354, ending tick
+315, which beats the diner's second meal lexicographically (`75 < 325`). Budgets up to 16,384
+are unchanged and the original fixture is unchanged. Four of four is still not selected: the
+subset search does not reach cardinality 4.
 
 | Budget | Incumbent before (ingestions, urgent, needs[4], labor) | After |
 | ---: | --- | --- |

@@ -9,7 +9,13 @@ public sealed record ForecastNeedTask(string Task, string Pawn, string Kind, str
     public string FoodReady { get; init; } = "";
     public double ServiceDelay { get; init; }
     public Fact<double> FreshTicks { get; init; }
+    /// <summary>Stack quantity the claims on this target sum against (<see cref="Count"/> per claim); unknown skips that bound.</summary>
     public Fact<double> AvailableCount { get; init; }
+    /// <summary>The produced batch this claim eats from when the target is a cell several batches can be delivered to;
+    /// empty when the target itself is the stack. Claims sum against <see cref="AvailableCount"/> per (target, batch).</summary>
+    public string Batch { get; init; } = "";
+    /// <summary>Simultaneous claimants the target admits (vanilla ReservationManager maxPawns). Unknown is read as 1 by the evaluator.</summary>
+    public Fact<int> MaxPawns { get; init; }
     public string FreshFrom { get; init; } = "";
     public bool ThoughtsComplete { get; init; } = true;
 }
@@ -186,16 +192,25 @@ public static partial class PolicyFunctions
         void Refuse(string reason, string id, double time)
         { feasible = Known(false); Finding(reason, id, time); }
         // Hands owns exact targets for the whole Method, including future services.
-        // Temporal non-overlap cannot authorize a second participant on that target.
-        var observedNeedTargets = context.Needs.Pawns.SelectMany(p => p.Targets).Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
-        var selectedNeedOwners = context.NeedTasks.Where(n => allocations.ContainsKey(n.Task) && n.Target.Length != 0)
-            .Select(n => (n.Target, n.Pawn));
-        var boundNeedOwners = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
-            .OfType<Methods.ActivityTaskCandidate>().Where(b => observedNeedTargets.Contains(b.Target))
-            .Select(b => (b.Target, b.Pawn));
-        foreach (var shared in selectedNeedOwners.Concat(boundNeedOwners).Distinct()
-            .GroupBy(b => b.Target).Where(g => g.Select(b => b.Pawn).Distinct().Count() > 1))
-            Refuse("conflicting_selected_target_owners", shared.Key, 0);
+        // Temporal non-overlap cannot authorize extra participants: a target admits at most MaxPawns distinct owners
+        // (an unreadable MaxPawns is read as 1, this evaluator's policy), and its stack quantity bounds the summed claims.
+        var observedTargets = context.Needs.Pawns.SelectMany(p => p.Targets).GroupBy(t => t.Id, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().MaxPawns, StringComparer.Ordinal);
+        var needClaims = context.NeedTasks.Where(n => allocations.ContainsKey(n.Task) && n.Target.Length != 0)
+            .Select(n => (n.Target, n.Pawn, n.Count, n.MaxPawns, n.AvailableCount, Stack: n.Batch, n.Task)).ToArray();
+        var needClaimed = needClaims.Select(c => (c.Task, c.Pawn)).ToHashSet();
+        var boundClaims = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
+            .OfType<Methods.ActivityTaskCandidate>().Where(b => observedTargets.ContainsKey(b.Target) && !needClaimed.Contains((b.Id, b.Pawn)))
+            .Select(b => (b.Target, b.Pawn, Count: 0, MaxPawns: observedTargets[b.Target], AvailableCount: default(Fact<double>), Stack: "", Task: b.Id));
+        foreach (var target in needClaims.Concat(boundClaims).GroupBy(c => c.Target))
+        {
+            var capacity = target.Min(c => c.MaxPawns.TryGetValue(out var max) ? max : 1);
+            if (target.Select(c => c.Pawn).Distinct().Count() > capacity)
+                Refuse("conflicting_selected_target_owners", target.Key, 0);
+            foreach (var stack in target.Where(c => c.Count > 0 && c.AvailableCount.IsKnown).GroupBy(c => c.Stack))
+                if (stack.Sum(c => (double)c.Count) > stack.Min(c => c.AvailableCount.Value))
+                    Refuse("target_stack_quantity_exceeded", target.Key, 0);
+        }
         var supportChoices = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))).OfType<Methods.ActivityTaskCandidate>()
             .Where(b => b.Kind == PawnActivityKind.Deliver && b.SupportDemand.Length != 0)
             .Select(b => context.Support.Deliveries.FirstOrDefault(d => d.Demand == b.SupportDemand && d.Target == b.Target))

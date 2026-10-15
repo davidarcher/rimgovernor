@@ -186,10 +186,10 @@ public sealed class PortfolioSearchDiagnosisTests
     }
 
     [Fact]
-    public void ProductionRefusesTheFourIngestionReferenceOnASharedTarget()
+    public void ProductionAcceptsTheFourIngestionReferenceOnASharedStack()
     {
         var s = Shared.Value;
-        // Both consumers' ingestion tasks name the same observed target; Hands owns an exact target for one pawn only.
+        // Both consumers' ingestion tasks name the same delivery-cell target, a stack that admits both (capacity 10).
         var context = s.Generated.Context;
         var targets = context.NeedTasks.Where(n => n.Kind == "food" && s.ReferenceRoots.SelectMany(r => r.ActivityCompletions).Contains(n.Task))
             .GroupBy(n => n.Pawn).ToDictionary(g => g.Key, g => g.Select(n => n.Target).Distinct().ToArray());
@@ -201,27 +201,30 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Throws<DomainException>(() => ForecastColony(Replay(s, s.ReferenceRoots, 4097)));
         var production = ForecastColony(Replay(s, s.ReferenceRoots, 4096)).Baseline.Coupled!;
         Assert.True(production.Truncated);
-        Assert.Equal(4096, production.Expansions);
-        Assert.Equal(1023, production.Alternatives.Count);
-        Assert.DoesNotContain(production.Alternatives, a => a.Feasible == Known(true));
-        Assert.All(production.Alternatives, a => Assert.Contains(a.Findings, f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "cell/3/1"));
-
-        // Pinning every activity to its reference worker leaves nothing to assign differently; the owner conflict remains.
+        // Pinning every activity to its reference worker leaves nothing to assign differently.
         var pairs = PortfolioReferenceScheduleTests.Reference().Select(r => (r.Activity, r.Worker)).ToHashSet();
         var pinned = ForecastColony(Replay(s, s.ReferenceRoots, 4096, o => pairs.Contains((o.Activity, o.Pawn)))).Baseline.Coupled!;
-        Assert.DoesNotContain(pinned.Alternatives, a => a.Feasible == Known(true));
-        Assert.All(pinned.Alternatives, a => Assert.Contains(a.Findings, f => f.Reason == "conflicting_selected_target_owners"));
-
-        // One diner and one pawn ingestion already conflict; one consumer's ingestions do not.
         var mixed = ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[1]], 4096)).Baseline.Coupled!;
-        Assert.DoesNotContain(mixed.Alternatives, a => a.Feasible == Known(true));
         var diner = ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[2]], 4096)).Baseline.Coupled!;
-        Assert.Contains(diner.Alternatives, a => a.Feasible == Known(true));
         MaybeWrite("replay", new
         {
             Reference = Describe(production, s.ReferenceRoots), Pinned = Describe(pinned, s.ReferenceRoots),
             Mixed = Describe(mixed, [s.ReferenceRoots[0], s.ReferenceRoots[1]]), Diner = Describe(diner, [s.ReferenceRoots[0], s.ReferenceRoots[2]])
         });
+        // Both consumers' ingestions share one delivered stack (capacity 10, the batch quantity): #3210 accepts them.
+        Assert.Equal(4096, production.Expansions);
+        Assert.Equal(1023, production.Alternatives.Count);
+        Assert.All(production.Alternatives, a => Assert.Equal(Known(true), a.Feasible));
+        Assert.DoesNotContain(production.Alternatives.SelectMany(a => a.Findings),
+            f => f.Reason is "conflicting_selected_target_owners" or "target_stack_quantity_exceeded");
+        // The pinned reference assignment serves all four ingestions with no exposure: the reference set is accepted.
+        Assert.Equal(420, pinned.Alternatives.Count);
+        Assert.All(pinned.Alternatives, a => Assert.Equal(Known(true), a.Feasible));
+        Assert.Equal(1018, mixed.Alternatives.Count);
+        Assert.All(mixed.Alternatives, a => Assert.Equal(Known(true), a.Feasible));
+        Assert.Contains(diner.Alternatives, a => a.Feasible == Known(true));
+        Assert.Contains(pinned.Alternatives.Select(a => CoupledConsequences(a, s.ReferenceRoots)),
+            v => v.Labor == 841 && v.Urgent.All(x => x == Known(0d)));
     }
 
     [Fact]

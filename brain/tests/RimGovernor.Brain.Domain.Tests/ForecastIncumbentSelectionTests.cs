@@ -102,6 +102,73 @@ public sealed class ForecastIncumbentSelectionTests
         Assert.Contains(forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings),
             f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "horseshoes");
     }
+    /// <summary>The retained pawn plus <paramref name="helpers"/> proposed ones claim one target of the given capacity and stack.</summary>
+    private static IReadOnlyList<ForecastFinding> ClaimsOnOneTarget(string kind, string target, Fact<int> maxPawns, int helpers,
+        out bool anyFeasible, int count = 0, Fact<double> stock = default)
+    {
+        var (request, candidates) = Problem(1, 0, meal: false);
+        var names = Enumerable.Range(1, helpers).Select(i => "helper" + i).ToArray();
+        var roster = ReviewWorkResources(WorkResourceTestFacts.Create(["pawn", .. names]), Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var context = candidates.Context;
+        ForecastNeedTask Claim(string task, string pawn) => new(task, pawn, kind, target, new(""), count, Known(.2), [])
+            { MaxPawns = maxPawns, AvailableCount = stock };
+        context = context with
+        {
+            Resources = roster.WorkView!,
+            Needs = context.Needs with { Pawns = [context.Needs.Pawns[0], .. names.Select(n => context.Needs.Pawns[0] with { Pawn = n })] },
+            NeedTasks = [Claim("ongoing-joy", "pawn"), .. names.Select(n => Claim(n + "-joy", n))],
+            Activities = context.Activities with
+            {
+                Activities = [.. context.Activities.Activities, .. names.Select(n => new ForecastActivity(n + "-joy", "start", "start", []))],
+                Options = [.. context.Activities.Options, .. names.Select(n => new ForecastActivityOption(n + "-joy", n, Known(20d), Known(0d)))],
+                Pawns = [.. context.Activities.Pawns, .. names.Select(n => new ForecastPawnCapacity(n, "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d)))]
+            }
+        };
+        var forecast = ForecastColony(request with { Coupled = context, Commitments = candidates.Incumbents,
+            Proposed = new() { Add = [.. names.Select(n => new ForecastCommitment(n + "-joy", []) { ActivityCompletions = [n + "-joy"] })] } });
+        anyFeasible = forecast.Proposed.Coupled!.Alternatives.Any(a => a.Feasible == Known(true));
+        return [.. forecast.Proposed.Coupled.Alternatives.SelectMany(a => a.Findings)];
+    }
+
+    [Fact]
+    public void TwoPawnsCannotClaimAOneSlotBed()
+    {
+        var findings = ClaimsOnOneTarget("rest", "bed", Known(1), 1, out var feasible);
+        Assert.False(feasible);
+        Assert.Contains(findings, f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "bed");
+    }
+
+    [Fact]
+    public void AnUnreadableCapacityBehavesAsOneSlot()
+    {
+        var findings = ClaimsOnOneTarget("rest", "bed", default, 1, out var feasible);
+        Assert.False(feasible);
+        Assert.Contains(findings, f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "bed");
+    }
+
+    [Fact]
+    public void APinAdmitsUpToItsParticipantsAndRefusesOneMore()
+    {
+        var within = ClaimsOnOneTarget("joy", "pin", Known(3), 2, out var feasibleWithin);
+        Assert.True(feasibleWithin);
+        Assert.DoesNotContain(within, f => f.Reason is "conflicting_selected_target_owners" or "target_stack_quantity_exceeded");
+        var over = ClaimsOnOneTarget("joy", "pin", Known(3), 3, out var feasibleOver);
+        Assert.False(feasibleOver);
+        Assert.Contains(over, f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "pin");
+    }
+
+    [Fact]
+    public void ConsumersSharingAStackFitWithinItsQuantityAndAreRefusedBeyondIt()
+    {
+        // Three claimants of two units each against a stack of ten (capacity 10): six fits, then the stack is exhausted.
+        var within = ClaimsOnOneTarget("joy", "stack", Known(10), 2, out var feasibleWithin, count: 2, stock: Known(6d));
+        Assert.True(feasibleWithin);
+        Assert.DoesNotContain(within, f => f.Reason == "target_stack_quantity_exceeded");
+        var beyond = ClaimsOnOneTarget("joy", "stack", Known(10), 2, out var feasibleBeyond, count: 2, stock: Known(5d));
+        Assert.False(feasibleBeyond);
+        Assert.Contains(beyond, f => f.Reason == "target_stack_quantity_exceeded" && f.Commitment == "stack");
+        Assert.DoesNotContain(beyond, f => f.Reason == "conflicting_selected_target_owners");
+    }
     [Fact]
     public void NewlyUrgentFoodCanReleaseCurrentJoyThroughTheSameConsequenceComparison()
     {

@@ -110,7 +110,8 @@ public static partial class PolicyFunctions
         foreach (var task in practice.Practice.Where(p => p.Worker.JoyGainPerTick.IsKnown && p.Worker.JoyGainPerTick.Value > 0))
             needTasks.Add(new(task.Task, task.Worker.Pawn, "joy", task.Worker.Target, new(""), 0,
                 Known(task.Worker.JoyGainPerTick.Value * Math.Max(0, task.Worker.DurationTicks.Value - task.Worker.PreparationTicks)), [])
-                { ThoughtsComplete = false, ServiceDelay = task.Worker.PreparationTicks });
+                { ThoughtsComplete = false, ServiceDelay = task.Worker.PreparationTicks,
+                    MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == task.Worker.Target)?.MaxPawns ?? default });
         foreach (var pawn in needs.Pawns)
         {
             var capacity = NeedsWorkCapacity(resources, pawn.Pawn, horizon);
@@ -140,7 +141,7 @@ public static partial class PolicyFunctions
                             ? [new(choice.Resource, target.Id, choice.Count, physical, "observed need target") { Observed = true }] : [] };
                 Option(id, pawn.Pawn, Known(choice.End - choice.Start));
                 needTasks.Add(new(id, pawn.Pawn, choice.Kind, choice.Target, new(choice.Resource), choice.Count, Known(choice.Gain), choice.Thoughts)
-                { AvailableCount = pawn.Targets.Single(t => t.Id == choice.Target).StockCount, FreshTicks = pawn.Targets.Single(t => t.Id == choice.Target).FreshTicks });
+                { AvailableCount = target.StockCount, FreshTicks = target.FreshTicks, MaxPawns = target.MaxPawns });
                 alternatives.Add(new(id, []) { ActivityCompletions = [id], ExclusiveOutcome = "need/" + pawn.Pawn + "/" + choice.Kind
                     + (choice.Kind == "food" ? "/use/" + Math.Round(choice.Start, 6).ToString("R", System.Globalization.CultureInfo.InvariantCulture) : "") });
             }

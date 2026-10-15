@@ -149,7 +149,8 @@ public static partial class PolicyFunctions
             routes[(pawn, "start", "start")] = new(pawn, "start", "start", Known(0d));
             routes[(pawn, "start", startLocation)] = new(pawn, "start", startLocation, Known(0d));
             routes[(pawn, "start", location)] = new(pawn, "start", location, Known(entry.Travel));
-            needTasks.Add(new(id, pawn, service.Kind, service.Target, default, 0, Known(service.GainPerTick.Value * duration), []));
+            needTasks.Add(new(id, pawn, service.Kind, service.Target, default, 0, Known(service.GainPerTick.Value * duration), [])
+                { MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == service.Target)?.MaxPawns ?? default });
             retained.Add(new(id, []) { ActivityCompletions = [id] });
             incumbents.Add(new(entry.Row.Plan, entry.Row.Action.PawnActivities!, id, entry.Owner)
                 { Activities = EquatableArray.From(graph), ReleasedOwnership = entry.Released });

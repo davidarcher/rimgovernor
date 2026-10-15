@@ -13,6 +13,9 @@ internal sealed record CoupledFoodCandidates(ForecastActivity[] Tasks, ForecastA
 
 internal static partial class FoodMethodCandidates
 {
+    /// <summary>Vanilla JobDriver_Ingest reserves a food stack with maxPawns 10 and the eaten count; a generated delivery stack shares it.</summary>
+    private const int IngestMaxPawns = 10;
+
     internal static CoupledFoodCandidates GenerateCoupled(CoupledForecastRead read, NeedsForecastRead needs, long deadline)
     {
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
@@ -220,7 +223,8 @@ internal static partial class FoodMethodCandidates
                     Option(id, use.Pawn, use.ChewTicks);
                     bindings[(id, use.Pawn)] = new(id, use.Pawn, [supply], PawnActivityKind.Eat, "observed-output", "", "", count, deadline, cell) { Resource = resource.Value, Source = cell };
                     needTasks.Add(new(id, use.Pawn, "food", Location(cell), resource, count, Known(count * gain), [])
-                    { FoodReady = supply, FreshFrom = freshFrom, FreshTicks = use.FreshTicks, AvailableCount = quantity, ThoughtsComplete = false });
+                    { FoodReady = supply, FreshFrom = freshFrom, FreshTicks = use.FreshTicks, AvailableCount = quantity, ThoughtsComplete = false, Batch = supply,
+                        MaxPawns = Known(IngestMaxPawns) });
                     Outcome(id, id);
                 }
             }

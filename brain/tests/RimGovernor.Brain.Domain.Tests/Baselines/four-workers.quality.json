@@ -1008,10 +1008,10 @@
       "SearchTruncated": true,
       "Selected": [
         "food/0/delivery/0/composition/2/after/food/14/delivery/0/eat/diner/0/composition/16",
-        "food/14/delivery/1/eat/diner/1/composition/11"
+        "food/14/delivery/1/eat/pawn/0/composition/12"
       ],
       "Feasible": true,
-      "CompletedAt": 500,
+      "CompletedAt": 315,
       "LaborCost": 354,
       "Physical": [
         {
@@ -1099,12 +1099,12 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/1/eat/diner/1/composition/21",
-          "Pawn": "diner",
-          "Depart": 490,
-          "Arrive": 490,
-          "Start": 490,
-          "End": 500,
+          "Activity": "food/14/delivery/1/eat/pawn/0/composition/22",
+          "Pawn": "pawn",
+          "Depart": 305,
+          "Arrive": 305,
+          "Start": 305,
+          "End": 315,
           "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 10,
@@ -1211,10 +1211,10 @@
       },
       "SelectedVector": {
         "Urgent": [
-          325,
-          96.875,
-          450,
-          450,
+          75,
+          38.6,
+          265,
+          465,
           0
         ],
         "Needs": [
@@ -1222,7 +1222,7 @@
           null,
           0,
           0,
-          1,
+          2,
           0
         ],
         "MoodExposure": null,
@@ -1234,7 +1234,7 @@
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
-        "ThermalOccupancy": "diner|food|cell/3/1|214|250;diner|food|cell/3/1|490|500",
+        "ThermalOccupancy": "diner|food|cell/3/1|214|250;pawn|food|cell/3/1|305|315",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -1263,7 +1263,6 @@
         "conflicting_composition_choice:food/27/supply-choice/3/rice",
         "conflicting_composition_choice:food/5/supply-choice/0/rice",
         "conflicting_composition_choice:food/5/supply-choice/1/rice",
-        "conflicting_selected_target_owners:cell/3/1",
         "cooking_poisoning_and_future_environment_unassessed",
         "equipment_occupied:food/14/recipe/0/composition/8:diner",
         "equipment_occupied:food/14/recipe/0/composition/8:helper",
@@ -1273,9 +1272,6 @@
         "equipment_occupied:food/27/recipe/0/composition/29:pawn",
         "equipment_occupied:food/27/recipe/0/composition/29:porter",
         "exclusive_operation_conflict",
-        "failed_prerequisite:food/14/delivery/2/composition/15",
-        "failed_prerequisite:food/14/delivery/2/eat/pawn/0/composition/26",
-        "failed_prerequisite:food/14/delivery/2/eat/pawn/1/composition/27",
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/14/recipe/0",
@@ -1286,19 +1282,14 @@
         "productive_learning_unassessed:diner:SimpleMeal",
         "productive_learning_unassessed:helper:SimpleMeal",
         "productive_learning_unassessed:porter:SimpleMeal",
-        "productive_output_without_useful_demand:food/14/recipe/1/composition/11",
         "search_truncated",
-        "stock_shortfall:coupled/timed-effects",
         "support_observation_unknown",
-        "unassessed_need_completion:food/14/delivery/2/eat/pawn/0/composition/26",
-        "unassessed_need_completion:food/14/delivery/2/eat/pawn/1/composition/27",
         "unknown_clothing_requirements",
         "unknown_observed_shelter_geometry",
         "unsupported_defensive_improvement_without_assignment:diner",
         "unsupported_defensive_improvement_without_assignment:helper",
         "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter",
-        "work_outside_recovered_capacity:food/14/recipe/2/composition/14"
+        "unsupported_defensive_improvement_without_assignment:porter"
       ]
     }
   },
@@ -1315,10 +1306,10 @@
       "SearchTruncated": true,
       "Selected": [
         "food/0/delivery/0/composition/2/after/food/14/delivery/0/eat/diner/0/composition/16",
-        "food/14/delivery/1/eat/diner/1/composition/11"
+        "food/14/delivery/1/eat/pawn/0/composition/12"
       ],
       "Feasible": true,
-      "CompletedAt": 500,
+      "CompletedAt": 315,
       "LaborCost": 354,
       "Physical": [
         {
@@ -1406,12 +1397,12 @@
           "Learning": null
         },
         {
-          "Activity": "food/14/delivery/1/eat/diner/1/composition/21",
-          "Pawn": "diner",
-          "Depart": 490,
-          "Arrive": 490,
-          "Start": 490,
-          "End": 500,
+          "Activity": "food/14/delivery/1/eat/pawn/0/composition/22",
+          "Pawn": "pawn",
+          "Depart": 305,
+          "Arrive": 305,
+          "Start": 305,
+          "End": 315,
           "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 10,
@@ -1518,10 +1509,10 @@
       },
       "SelectedVector": {
         "Urgent": [
-          325,
-          96.875,
-          450,
-          450,
+          75,
+          38.6,
+          265,
+          465,
           0
         ],
         "Needs": [
@@ -1529,7 +1520,7 @@
           null,
           0,
           0,
-          1,
+          2,
           0
         ],
         "MoodExposure": null,
@@ -1541,7 +1532,7 @@
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
-        "ThermalOccupancy": "diner|food|cell/3/1|214|250;diner|food|cell/3/1|490|500",
+        "ThermalOccupancy": "diner|food|cell/3/1|214|250;pawn|food|cell/3/1|305|315",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -1570,7 +1561,6 @@
         "conflicting_composition_choice:food/27/supply-choice/3/rice",
         "conflicting_composition_choice:food/5/supply-choice/0/rice",
         "conflicting_composition_choice:food/5/supply-choice/1/rice",
-        "conflicting_selected_target_owners:cell/3/1",
         "cooking_poisoning_and_future_environment_unassessed",
         "equipment_occupied:food/14/recipe/0/composition/8:diner",
         "equipment_occupied:food/14/recipe/0/composition/8:helper",
@@ -1585,15 +1575,6 @@
         "equipment_occupied:food/5/recipe/0/composition/57:pawn",
         "equipment_occupied:food/5/recipe/0/composition/57:porter",
         "exclusive_operation_conflict",
-        "failed_prerequisite:food/14/delivery/2/composition/15",
-        "failed_prerequisite:food/14/delivery/2/eat/pawn/0/composition/26",
-        "failed_prerequisite:food/14/delivery/2/eat/pawn/1/composition/27",
-        "failed_prerequisite:food/27/delivery/1/composition/33",
-        "failed_prerequisite:food/27/delivery/1/eat/pawn/0/composition/46",
-        "failed_prerequisite:food/27/delivery/1/eat/pawn/1/composition/47",
-        "failed_prerequisite:food/5/delivery/1/composition/61",
-        "failed_prerequisite:food/5/delivery/1/eat/pawn/0/composition/68",
-        "failed_prerequisite:food/5/delivery/1/eat/pawn/1/composition/69",
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/14/recipe/0",
@@ -1604,27 +1585,14 @@
         "productive_learning_unassessed:diner:SimpleMeal",
         "productive_learning_unassessed:helper:SimpleMeal",
         "productive_learning_unassessed:porter:SimpleMeal",
-        "productive_output_without_useful_demand:food/14/recipe/1/composition/11",
-        "productive_output_without_useful_demand:food/27/recipe/0/composition/29",
-        "productive_output_without_useful_demand:food/5/recipe/0/composition/57",
         "search_truncated",
-        "stock_shortfall:coupled/timed-effects",
         "support_observation_unknown",
-        "unassessed_need_completion:food/14/delivery/2/eat/pawn/0/composition/26",
-        "unassessed_need_completion:food/14/delivery/2/eat/pawn/1/composition/27",
-        "unassessed_need_completion:food/27/delivery/1/eat/pawn/0/composition/46",
-        "unassessed_need_completion:food/27/delivery/1/eat/pawn/1/composition/47",
-        "unassessed_need_completion:food/5/delivery/1/eat/pawn/0/composition/68",
-        "unassessed_need_completion:food/5/delivery/1/eat/pawn/1/composition/69",
         "unknown_clothing_requirements",
         "unknown_observed_shelter_geometry",
         "unsupported_defensive_improvement_without_assignment:diner",
         "unsupported_defensive_improvement_without_assignment:helper",
         "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter",
-        "work_outside_recovered_capacity:food/14/recipe/2/composition/14",
-        "work_outside_recovered_capacity:food/27/recipe/1/composition/32",
-        "work_outside_recovered_capacity:food/5/recipe/1/composition/60"
+        "unsupported_defensive_improvement_without_assignment:porter"
       ]
     }
   }

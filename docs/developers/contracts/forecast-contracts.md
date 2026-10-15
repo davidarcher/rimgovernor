@@ -313,23 +313,31 @@ corpse's potential yield times its rot clock, replaced by the butchered meat; a 
 cadence over the trailing 14 days feeds the hunters' throughput
 ([hunting](../architecture/supply-model.md#hunting)).
 
-### Need-task targets and the one-owner rule
+### Need-task targets and the capacity rule
 
-`ForecastCoupled.EvaluateCoupledSchedule` refuses a portfolio in which two pawns own
-the same need target (`conflicting_selected_target_owners`, not time-aware; added with
-#3135). The owners are the `ForecastNeedTask.Target` of each selected need task plus
-the `ActivityTaskCandidate.Target` of each selected binding that names an observed
-`Needs.Pawns[].Targets` id. `ForecastNeedTask` is a policy-internal record; the wire
-type is `NeedTarget`. What a target means depends on its producer:
+`ForecastCoupled.EvaluateCoupledSchedule` checks every need target a portfolio claims
+against its capacity (not time-aware: Hands owns exact targets for the whole Method).
+A target is refused when its distinct selected owners exceed its `MaxPawns`
+(`conflicting_selected_target_owners`; the minimum over its claims, an unknown value
+read as 1, which is this evaluator's policy and not part of the contract) or when the
+claimed counts of one stack sum past its quantity (`target_stack_quantity_exceeded`).
+The claims are the `ForecastNeedTask`s of the selected activities (`Target`, `Pawn`,
+`Count` per claim, `AvailableCount` the stack quantity, `MaxPawns`, and `Batch` naming
+the produced batch when several batches can sit in one delivery cell; counts sum per
+target and batch), plus each selected binding that names an
+observed `Needs.Pawns[].Targets` id without a need task (capacity from that observed
+target, count 0). The rule never reads `Kind`; the first replaced #3135's one-owner check.
+`ForecastNeedTask` is a policy-internal record; the wire type is `NeedTarget`. What a
+target means depends on its producer:
 
-| Producer | `Kind` | `Target` | Meaning | Exclusive? |
+| Producer | `Kind` | `Target` | Meaning | `MaxPawns` |
 | --- | --- | --- | --- | --- |
-| Native `NativeNeedsForecast` bed row | `rest` | bed thing id | the bed the pawn lies in (`CanUseBedNow`) | yes |
-| Native horseshoes pin row | `joy` | pin thing id | the exact recreation object | yes |
-| Practice joy tasks (`ForecastCoupledCandidates`) | `joy` | practice target | the exact practice object | yes |
-| Native food row (observed stack) | `food` | meal stack thing id, `AvailableCount` = stack size | where to take meals from | no |
-| `CoupledFoodMethodCandidates.AddEating` (produced or delivered food) | `food` | `cell/x/z` of the delivery cell (`CoupledFoodUse.Location`) | the cell the meal stack will sit in | no |
-| Incumbent preparation (`ForecastIncumbentPreparation`) | observed service kind | the observed service target | the current service the pawn already holds | as its kind |
+| Native `NativeNeedsForecast` bed row | `rest` | bed thing id | the bed the pawn lies in (`CanUseBedNow`) | observed (`SleepingSlotsCount`) |
+| Native horseshoes pin row | `joy` | pin thing id | the exact recreation object | observed (`joyMaxParticipants`) |
+| Practice joy tasks (`ForecastCoupledCandidates`) | `joy` | practice target | the exact practice object | the observed target of that id, else unknown |
+| Native food row (observed stack) | `food` | meal stack thing id, `AvailableCount` = stack size | where to take meals from | observed (10) |
+| `CoupledFoodMethodCandidates.AddEating` (produced or delivered food) | `food` | `cell/x/z` of the delivery cell (`CoupledFoodUse.Location`) | the cell the meal stack will sit in; `Count` is the meal, `AvailableCount` the batch | 10, vanilla's ingest value, the generated stack's capacity |
+| Incumbent preparation (`ForecastIncumbentPreparation`) | observed service kind | the observed service target | the current service the pawn already holds | the observed target of that id, else unknown |
 
 Capacity (#3209): each observed `NeedTarget` carries `MaxPawns`, a `Fact<int>`, the
 number of simultaneous claimants vanilla `ReservationManager.CanReserve` admits on that
@@ -342,9 +350,9 @@ it, so `NativeNeedsForecast.IngestMaxPawns` mirrors it); a bed reads
 is unknown, which is explicit on the wire and not a guess; what the planner assumes for
 unknown (1) is evaluator policy, not part of the contract. Quantity is the existing
 `StockCount` (the stack size claims sum against), distinct from `AvailableCount`, which
-is capped at `maxNumToIngestAtOnce`. The evaluator ignores `MaxPawns` until #3210;
-generated targets (practice joy, delivery cells, incumbent preparation) carry no
-`NeedTarget` row and therefore no capacity. The wire codec is pinned by
+is capped at `maxNumToIngestAtOnce`. The evaluator reads it as above (#3210); a generated
+target without a `NeedTarget` row (a delivery cell) carries its capacity on the
+`ForecastNeedTask` itself. The wire codec is pinned by
 `WireCodecTests.NeedTargetMaxPawnsRoundTripsKnownAndUnknownAsNumberOrNull`.
 
 An ingestion target names only the source stack. The Eat step carries a thing target
@@ -356,8 +364,9 @@ cell, chair or table for the eater: the chew spot is chosen by RimWorld at inges
 and is listed as unsupported (`chew_spot_travel` on the food `NeedTarget`). The native
 legality check is per pawn and does not sum counts across pawns, so conservation of
 the shared stack lives in the evaluator's lot ledger (`Inputs` with `Lot`; refusals
-`source_lot_shortfall`, `timed_material_shortfall`), so a demand-versus-quantity
-check already exists independent of the owner rule. (From RimWorld's `JobDriver_Ingest`, to be confirmed by a native run:
+`source_lot_shortfall`, `timed_material_shortfall`), which bounds what a batch can supply
+independent of the capacity check, whose summed-count test refuses claims that exceed the
+stack at once. (From RimWorld's `JobDriver_Ingest`, to be confirmed by a native run:
 the ingest reservation names the stack count it will consume and allows several
 claimants while the counts fit; the brain's `CanReserveAndReach(target)` bind-time
 check uses the default single claimant, so it can refuse while another pawn holds an
