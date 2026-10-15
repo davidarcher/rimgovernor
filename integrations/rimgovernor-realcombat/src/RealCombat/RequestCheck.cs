@@ -37,6 +37,26 @@ public static class RequestCheck
         }
 
         Def<TerrainDef>(errors, "Terrain", req.Terrain, optional: true);
+        for (var i = 0; i < req.Ground.Count; i++)
+        {
+            var g = req.Ground[i];
+            var at = $"Ground[{i}]";
+            Def<TerrainDef>(errors, at + ".Terrain", g.Terrain, optional: true);
+            Def<RoofDef>(errors, at + ".Roof", g.Roof, optional: true);
+            if (g.Terrain.Length == 0 && g.Roof.Length == 0)
+            {
+                errors.Add($"{at}: states neither Terrain nor Roof");
+            }
+
+            if (g.MinX > g.MaxX || g.MinZ > g.MaxZ)
+            {
+                errors.Add($"{at}.MinX/MaxX/MinZ/MaxZ: {g.MinX}..{g.MaxX} x {g.MinZ}..{g.MaxZ} is an empty region");
+            }
+
+            Cell(errors, at + ".Min", req, g.MinX, g.MinZ);
+            Cell(errors, at + ".Max", req, g.MaxX, g.MaxZ);
+        }
+
         Def<WeatherDef>(errors, "Weather", req.Weather, optional: true);
         Def<FactionDef>(errors, "HostileFaction", req.HostileFaction, optional: false);
         for (var i = 0; i < req.Things.Count; i++)
@@ -74,12 +94,19 @@ public static class RequestCheck
 
         Cell(errors, at, req, p.X, p.Z);
         var kind = Def<PawnKindDef>(errors, at + ".Kind", p.Kind, optional: false);
-        Def<ThingDef>(errors, at + ".Weapon", p.Weapon, optional: true, check: d => d.IsWeapon ? null : "is not a weapon");
+        var weapon = Def<ThingDef>(errors, at + ".Weapon", p.Weapon, optional: true, check: d => d.IsWeapon ? null : "is not a weapon");
         Def<ThingDef>(errors, at + ".WeaponStuff", p.WeaponStuff, optional: true);
+        if (p.Weapon.Length == 0 && (p.WeaponQuality.Length > 0 || p.WeaponHitPoints != 0))
+        {
+            errors.Add($"{at}.WeaponQuality/WeaponHitPoints: the pawn has no weapon");
+        }
+
+        Condition(errors, at + ".WeaponQuality", at + ".WeaponHitPoints", weapon, p.WeaponQuality, p.WeaponHitPoints);
         for (var i = 0; i < p.Worn.Count; i++)
         {
-            Def<ThingDef>(errors, $"{at}.Worn[{i}].Def", p.Worn[i].Def, optional: false, check: d => d.IsApparel ? null : "is not apparel");
+            var wear = Def<ThingDef>(errors, $"{at}.Worn[{i}].Def", p.Worn[i].Def, optional: false, check: d => d.IsApparel ? null : "is not apparel");
             Def<ThingDef>(errors, $"{at}.Worn[{i}].Stuff", p.Worn[i].Stuff, optional: true);
+            Condition(errors, $"{at}.Worn[{i}].Quality", $"{at}.Worn[{i}].HitPoints", wear, p.Worn[i].Quality, p.Worn[i].HitPoints);
         }
 
         foreach (var (skill, level) in p.Skills)
@@ -227,6 +254,51 @@ public static class RequestCheck
 
         errors.Add(found.Count == 0 ? $"{field}: {race} has no body part '{label}'" : $"{field}: '{label}' names {found.Count} parts of {race}");
         return null;
+    }
+
+    // Quality is a QualityCategory name on a def that carries quality; hit points are positive (the maximum depends on
+    // stuff and quality, so an over-maximum value is rejected by the readback gate).
+    private static void Condition(List<string> errors, string qualityField, string hitPointsField, ThingDef? def, string quality, int hitPoints)
+    {
+        if (quality.Length > 0)
+        {
+            if (!Enum.TryParse<QualityCategory>(quality, out var q) || !Enum.IsDefined(q) || q.ToString() != quality)
+            {
+                errors.Add($"{qualityField}: '{quality}' is not a quality ({string.Join(", ", Enum.GetNames<QualityCategory>())})");
+            }
+            else if (def is not null && !def.comps.Any(c => typeof(CompQuality).IsAssignableFrom(c.compClass)))
+            {
+                errors.Add($"{qualityField}: {def.defName} has no quality");
+            }
+        }
+
+        if (hitPoints < 0)
+        {
+            errors.Add($"{hitPointsField}: {hitPoints} is negative (0 is full condition)");
+        }
+        else if (hitPoints > 0 && def is not null && def.useHitPoints == false)
+        {
+            errors.Add($"{hitPointsField}: {def.defName} has no hit points");
+        }
+    }
+
+    /// <summary>The terrain and roof the request states for a cell: the base terrain, then each region covering it in order. Empty roof is none.</summary>
+    internal static (string Terrain, string Roof) GroundAt(RealFightRequest req, int x, int z)
+    {
+        var terrain = req.Terrain;
+        var roof = "";
+        foreach (var g in req.Ground)
+        {
+            if (x < g.MinX || x > g.MaxX || z < g.MinZ || z > g.MaxZ)
+            {
+                continue;
+            }
+
+            terrain = g.Terrain.Length > 0 ? g.Terrain : terrain;
+            roof = g.Roof.Length > 0 ? g.Roof : roof;
+        }
+
+        return (terrain, roof);
     }
 
     private static void Cell(List<string> errors, string at, RealFightRequest req, int x, int z)

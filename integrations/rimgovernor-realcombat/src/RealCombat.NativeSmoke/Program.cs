@@ -130,6 +130,11 @@ if (args.Contains("--request-check"))
     return RequestCheckMode.Run();
 }
 
+if (args.Contains("--gear-check"))
+{
+    return RequestCheckMode.RunGear();
+}
+
 var controller = new SeatController();
 var doorProbe = args.Contains("--doortest") ? new DoorProbe() : null;
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
@@ -166,7 +171,8 @@ return bare || controller.Applied == 2 && controller.Refused == 0 && controller.
 
 // --request-check: the strict request format. Each reject case must throw RealFightRejected naming its field before a map
 // or pawn exists; the accept case (body-part hediff, missing part, non-30 age, non-Baseliner xenotype) must build and read
-// back equal. Exit 0 when every case behaves.
+// back equal. Exit 0 when every case behaves. --gear-check (two arenas: a process builds few maps before the game's terrain drifts)
+// plays worn gear against new gear and reads a two-terrain, roofed map back cell for cell.
 internal static class RequestCheckMode
 {
     private static readonly RealPawn Colonist = new() { Id = "col", Side = "colonist", Kind = "Colonist", Age = 30, Xenotype = "Baseliner", X = 20, Z = 30, Weapon = "Gun_BoltActionRifle" };
@@ -205,6 +211,14 @@ internal static class RequestCheckMode
             ("Pawns[0].Hediffs[0].Severity", () => With(Colonist with { Hediffs = [new("Cut", "right arm", 0)] })),
             ("Pawns[0].Missing[0]", () => With(Colonist with { Missing = ["tail"] })),
             ("Pawns[1].Id", () => Base with { Pawns = [Colonist, Raider with { Id = "col" }] }),
+            ("Pawns[0].WeaponQuality", () => With(Colonist with { WeaponQuality = "Shoddy" })),
+            ("Pawns[0].WeaponHitPoints", () => With(Colonist with { WeaponHitPoints = -3 })),
+            ("Pawns[0].Worn[0].Quality", () => With(Colonist with { Worn = [new("Apparel_FlakVest", "", "poor")] })),
+            ("Pawns[0].Worn[0].HitPoints", () => With(Colonist with { Worn = [new("Apparel_FlakVest", "", "", -1)] })),
+            ("Ground[0].Terrain", () => Base with { Ground = [new("NoSuchTerrain", "", 0, 0, 5, 5)] }),
+            ("Ground[0].Roof", () => Base with { Ground = [new("", "NoSuchRoof", 0, 0, 5, 5)] }),
+            ("Ground[0].Max.X/Z", () => Base with { Ground = [new("Sand", "", 0, 0, 99, 5)] }),
+            ("Ground[0]", () => Base with { Ground = [new("", "", 0, 0, 5, 5)] }),
         };
         var worldPawns = Verse.Find.WorldPawns.AllPawnsAliveOrDead.Count();
         foreach (var (field, make) in rejects)
@@ -273,6 +287,56 @@ internal static class RequestCheckMode
         Console.Error.WriteLine(failures == 0 ? "request-check: PASS" : $"request-check: FAIL ({failures})");
         return failures == 0 ? 0 : 1;
     }
+
+    // Gear condition and per-cell ground. A poor, half-hit-point rifle and a worn flak vest read back equal and the shots and
+    // damage differ from the same pawns in new gear; two terrains and a roofed patch read back cell for cell; a hit point
+    // count above the item's maximum is rejected by the readback gate.
+    internal static int RunGear()
+    {
+        var failures = 0;
+        var vest = Verse.DefDatabase<Verse.ThingDef>.GetNamed("Apparel_FlakVest");
+        var rifle = Verse.DefDatabase<Verse.ThingDef>.GetNamed("Gun_BoltActionRifle");
+        RealWear[] fresh = [new("Apparel_FlakVest", "", "Normal")];
+        RealWear[] worn = [new("Apparel_FlakVest", "", "Poor", vest.BaseMaxHitPoints / 2)];
+        var newGear = Colonist with { WeaponQuality = "Normal", Worn = fresh };
+        var oldGear = Colonist with { WeaponQuality = "Poor", WeaponHitPoints = rifle.BaseMaxHitPoints / 2, Worn = worn };
+        RealSeedOutcome Play(RealPawn colonist, out RealPawnReadback read, out RealReadback world)
+        {
+            var arena = new Arena(Base with { Terrain = "Soil", Ground = [new("Sand", "", 10, 10, 30, 40), new("", "RoofRockThick", 15, 15, 20, 20), new("", "RoofConstructed", 40, 40, 44, 44)], Pawns = [colonist, Raider with { Worn = fresh, WeaponQuality = "Normal" }] });
+            var o = arena.Fight(1);
+            read = arena.Readback.Pawns[0];
+            world = arena.Readback;
+            return o;
+        }
+
+        var good = Play(newGear, out var goodRead, out var goodWorld);
+        var bad = Play(oldGear, out var badRead, out _);
+        Console.Error.WriteLine($"gear: new ticks={good.Ticks} {Summ(good)}; worn ticks={bad.Ticks} {Summ(bad)}; read {badRead.WeaponQuality}/{badRead.WeaponHitPoints} vest {badRead.Worn[0]}");
+        if (badRead.WeaponQuality != "Poor" || badRead.WeaponHitPoints != rifle.BaseMaxHitPoints / 2 || badRead.Worn[0].Quality != "Poor" || badRead.Worn[0].HitPoints != vest.BaseMaxHitPoints / 2 || goodRead.WeaponQuality != "Normal")
+        {
+            Console.Error.WriteLine("FAIL the gear does not read back as stated");
+            failures++;
+        }
+
+        if (Summ(good) == Summ(bad) && good.Ticks == bad.Ticks)
+        {
+            Console.Error.WriteLine("FAIL worn gear played the same fight as new gear");
+            failures++;
+        }
+
+        var ground = goodWorld;
+        Console.Error.WriteLine($"ground: terrain=[{string.Join(", ", ground.TerrainCells.Select(kv => kv.Key + "=" + kv.Value))}] roof=[{string.Join(", ", ground.RoofCells.Select(kv => kv.Key + "=" + kv.Value))}]");
+        if (ground.TerrainCells.GetValueOrDefault("Sand") != 21 * 31 || ground.RoofCells.GetValueOrDefault("RoofRockThick") != 36 || ground.RoofCells.GetValueOrDefault("RoofConstructed") != 25)
+        {
+            Console.Error.WriteLine("FAIL the ground does not read back as stated");
+            failures++;
+        }
+
+        Console.Error.WriteLine(failures == 0 ? "gear-check: PASS" : $"gear-check: FAIL ({failures})");
+        return failures == 0 ? 0 : 1;
+    }
+
+    private static string Summ(RealSeedOutcome o) => string.Join(" ", o.Pawns.Select(p => $"{p.Id}:shots={p.Shots},hits={p.HitsTaken},hp={p.HealthPercent:0.###}"));
 
     private static RealFightRequest With(RealPawn first) => Base with { Pawns = [first, Raider] };
 }

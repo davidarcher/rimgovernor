@@ -16,6 +16,30 @@ internal static class ReadbackCheck
     {
         var errors = new List<string>();
         var terrains = map.AllCells.Select(c => map.terrainGrid.TerrainAt(c).defName).Distinct().Take(2).ToList();
+        var terrainCells = new Dictionary<string, int>();
+        var roofCells = new Dictionary<string, int>();
+        var wrong = new List<string>();
+        foreach (var cell in map.AllCells)
+        {
+            var held = map.terrainGrid.TerrainAt(cell).defName;
+            var roof = map.roofGrid.RoofAt(cell)?.defName ?? "";
+            terrainCells[held] = terrainCells.GetValueOrDefault(held) + 1;
+            if (roof.Length > 0)
+            {
+                roofCells[roof] = roofCells.GetValueOrDefault(roof) + 1;
+            }
+
+            var (terrain, stated) = RequestCheck.GroundAt(req, cell.x, cell.z);
+            if (wrong.Count < 5 && ((terrain.Length > 0 && terrain != held) || stated != roof))
+            {
+                wrong.Add($"{cell.x},{cell.z} requested {terrain}/{(stated.Length > 0 ? stated : "unroofed")}, the game holds {held}/{(roof.Length > 0 ? roof : "unroofed")}");
+            }
+        }
+
+        foreach (var cell in wrong)
+        {
+            errors.Add($"Ground: cell {cell}");
+        }
         var things = new List<RealThing>();
         for (var i = 0; i < req.Things.Count; i++)
         {
@@ -37,17 +61,14 @@ internal static class ReadbackCheck
             Width = map.Size.x,
             Height = map.Size.z,
             Terrain = terrains.Count == 1 ? terrains[0] : "mixed",
+            TerrainCells = terrainCells,
+            RoofCells = roofCells,
             Weather = map.weatherManager.curWeather.defName,
             HostileFaction = hostile.def.defName,
             Things = things,
         };
         Same(errors, "Width", req.Width, readback.Width);
         Same(errors, "Height", req.Height, readback.Height);
-        if (req.Terrain.Length > 0)
-        {
-            Same(errors, "Terrain", req.Terrain, readback.Terrain);
-        }
-
         if (req.Weather.Length > 0)
         {
             Same(errors, "Weather", req.Weather, readback.Weather);
@@ -77,7 +98,9 @@ internal static class ReadbackCheck
             Xenotype = pawn.genes?.Xenotype?.defName ?? "",
             Weapon = pawn.equipment?.Primary?.def.defName ?? "",
             WeaponStuff = pawn.equipment?.Primary?.Stuff?.defName ?? "",
-            Worn = [.. (pawn.apparel?.WornApparel ?? []).Select(a => new RealWear(a.def.defName, a.Stuff?.defName ?? ""))],
+            WeaponQuality = pawn.equipment?.Primary?.TryGetComp<CompQuality>()?.Quality.ToString() ?? "",
+            WeaponHitPoints = pawn.equipment?.Primary?.HitPoints ?? 0,
+            Worn = [.. (pawn.apparel?.WornApparel ?? []).Select(a => new RealWear(a.def.defName, a.Stuff?.defName ?? "", a.TryGetComp<CompQuality>()?.Quality.ToString() ?? "", a.HitPoints))],
             Skills = spec.Skills.Keys.ToDictionary(k => k, k => pawn.skills.GetSkill(DefDatabase<SkillDef>.GetNamed(k)).Level),
             Traits = [.. (pawn.story?.traits.allTraits ?? []).Select(t => new RealTrait(t.def.defName, t.Degree))],
             Carried = [.. pawn.inventory?.innerContainer.Select(t => t.def.defName) ?? []],
@@ -110,24 +133,43 @@ internal static class ReadbackCheck
             Same(errors, at + ".Xenotype", spec.Xenotype, read.Xenotype);
             Same(errors, at + ".Weapon", spec.Weapon, read.Weapon);
             Same(errors, at + ".WeaponStuff", spec.WeaponStuff, read.WeaponStuff);
-            Same(errors, at + ".Worn", Sorted(spec.Worn.Select(w => $"{w.Def}/{w.Stuff}")), Sorted(read.Worn.Select(w => $"{w.Def}/{w.Stuff}")));
+            if (spec.WeaponQuality.Length > 0)
+            {
+                Same(errors, at + ".WeaponQuality", spec.WeaponQuality, read.WeaponQuality);
+            }
+
+            if (spec.WeaponHitPoints > 0)
+            {
+                Same(errors, at + ".WeaponHitPoints", spec.WeaponHitPoints, read.WeaponHitPoints);
+            }
+
+            Worn(errors, at + ".Worn", spec.Worn, read.Worn);
             foreach (var (skill, level) in spec.Skills)
             {
                 Same(errors, $"{at}.Skills.{skill}", level, read.Skills[skill]);
             }
 
             Same(errors, at + ".Traits", Sorted(spec.Traits.Select(t => $"{t.Def}/{t.Degree}")), Sorted(read.Traits.Select(t => $"{t.Def}/{t.Degree}")));
-            // The generator's own inventory (a raider's medicine) is not stripped yet, so the request's items must be present, not alone.
-            var spare = read.Carried.ToList();
-            foreach (var item in spec.Carried.Where(c => !spare.Remove(c)))
-            {
-                errors.Add($"{at}.Carried: requested '{item}', the game holds [{string.Join(", ", read.Carried)}]");
-            }
+            Same(errors, at + ".Carried", Sorted(spec.Carried), Sorted(read.Carried));
 
             Same(errors, at + ".Psycasts", Sorted(spec.Psycasts), Sorted(read.Psycasts));
             Same(errors, at + ".Title", spec.Title, read.Title);
             Same(errors, at + ".Favor", spec.Favor, read.Favor);
             Same(errors, at + ".Permits", Sorted(spec.Permits), Sorted(read.Permits));
+        }
+
+        // A stated hit point count above the item's maximum (which stuff and quality set) is not condition the game can hold.
+        if (pawn.equipment?.Primary is { } held && held.HitPoints > held.MaxHitPoints)
+        {
+            errors.Add($"{at}.WeaponHitPoints: {held.HitPoints} is above the {held.def.defName}'s maximum {held.MaxHitPoints}");
+        }
+
+        foreach (var worn in pawn.apparel?.WornApparel ?? [])
+        {
+            if (worn.HitPoints > worn.MaxHitPoints)
+            {
+                errors.Add($"{at}.Worn: {worn.HitPoints} hit points is above the {worn.def.defName}'s maximum {worn.MaxHitPoints}");
+            }
         }
 
         Same(errors, at + ".Missing", Sorted(spec.Missing), Sorted(read.Missing));
@@ -139,6 +181,30 @@ internal static class ReadbackCheck
 
         Throw(errors);
         return read;
+    }
+
+    // Each stated item is matched by def and stuff to a worn one holding the stated quality and hit points (an unstated
+    // quality or 0 hit points matches any); a worn item left over was not asked for.
+    private static void Worn(List<string> errors, string field, IReadOnlyList<RealWear> asked, IReadOnlyList<RealWear> held)
+    {
+        var spare = held.ToList();
+        for (var i = 0; i < asked.Count; i++)
+        {
+            var a = asked[i];
+            var match = spare.FindIndex(h => h.Def == a.Def && h.Stuff == a.Stuff && (a.Quality.Length == 0 || h.Quality == a.Quality) && (a.HitPoints == 0 || h.HitPoints == a.HitPoints));
+            if (match < 0)
+            {
+                errors.Add($"{field}[{i}]: requested {a}, the game holds [{string.Join(", ", held)}]");
+                continue;
+            }
+
+            spare.RemoveAt(match);
+        }
+
+        foreach (var extra in spare)
+        {
+            errors.Add($"{field}: the game holds {extra}, which the request does not state");
+        }
     }
 
     private static void Hediffs(List<string> errors, string field, IReadOnlyList<RealHediff> asked, IReadOnlyList<RealHediff> held)

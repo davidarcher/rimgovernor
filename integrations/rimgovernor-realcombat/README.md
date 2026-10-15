@@ -32,8 +32,16 @@ After the arena is built, before the first tick, the host reads every imported f
 terrain, weather, hostile faction, standing things, and per pawn side, kind, cell, age, xenotype, weapon, worn, stated
 skills, traits, carried items, hediffs, missing parts, psycasts, title, favor, permits) and compares it with the request. A
 mismatch fails the run by field name (`readback Pawns[0].Age: requested ...`). `RealFightResult.Readback` carries what
-the game holds. The generator's own inventory (a raider's medicine) is not stripped yet, so `Carried` is checked for
-presence, not equality; gear is #3152.
+the game holds. A pawn's inventory is stripped of what the generator rolled (a raider's medicine), so `Carried` is
+checked for equality.
+
+Gear and ground are stated, not rolled. A weapon (`WeaponQuality`, `WeaponHitPoints`) and each `Worn` item (`Quality`,
+`HitPoints`) carry a QualityCategory name (`Awful` to `Legendary`; empty keeps the rolled quality) and current hit points
+(0 is full condition; a count above the item's maximum, which stuff and quality set, fails the readback). `Terrain` is the
+base fill and `Ground` lays rectangular regions over it, each with a `Terrain` and/or a `Roof` (`RoofConstructed`,
+`RoofRockThin`, `RoofRockThick`; later regions win, every cell starts unroofed). The readback compares every cell with the
+request and reports cell counts per terrain and roof in `TerrainCells` and `RoofCells`. Things (cover, obstacles) are
+unchanged.
 
 ## Build and run
 
@@ -47,7 +55,9 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 
 `--request-check` is the request-format test: it runs every reject path (each must name its field and leave no map or pawn)
 and an accept case (age 41, Hussar, a missing hand, injuries on the right arm) that must read back equal and play
-deterministically; exit 0 is a pass.
+deterministically; exit 0 is a pass. `--gear-check` plays a poor, half-hit-point rifle and worn flak vest against new gear
+(the fights differ) and reads a two-terrain map with two roofed patches back cell for cell. It builds two arenas: a third
+map in one process came up with ice over terrain the request had set.
 
 `--bare` plays both sides with the built-in retargeting, `--policy` plays the colonists with the live combat policy,
 `--drugs` gives each colonist go-juice (`--high` makes the raiders high on it, `--raiders N` adds raiders),

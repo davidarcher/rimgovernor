@@ -96,12 +96,17 @@ public sealed class Arena
             field.SetValue(Find.UniqueIDsManager, FirstStandingId);
         }
 
-        if (_req.Terrain.Length > 0)
+        foreach (var cell in _map.AllCells.ToList())
         {
-            var terrain = DefDatabase<TerrainDef>.GetNamed(_req.Terrain);
-            foreach (var cell in _map.AllCells.ToList())
+            var (terrain, roof) = RequestCheck.GroundAt(_req, cell.x, cell.z);
+            if (terrain.Length > 0)
             {
-                _map.terrainGrid.SetTerrain(cell, terrain);
+                _map.terrainGrid.SetTerrain(cell, DefDatabase<TerrainDef>.GetNamed(terrain));
+            }
+
+            if (roof.Length > 0)
+            {
+                _map.roofGrid.SetRoof(cell, DefDatabase<RoofDef>.GetNamed(roof));
             }
         }
 
@@ -416,11 +421,13 @@ public sealed class Arena
         {
             var stuff = w.Stuff.Length > 0 ? DefDatabase<ThingDef>.GetNamed(w.Stuff) : null;
             var apparel = (Apparel)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(w.Def), stuff);
+            Condition(apparel, w.Quality, w.HitPoints);
             pawn.apparel.Wear(apparel, false);
         }
 
         ApplyHealth(pawn, spec);
 
+        pawn.inventory.innerContainer.ClearAndDestroyContents(); // a raider's generated medicine is not part of the request
         foreach (var c in spec.Carried)
         {
             pawn.inventory.innerContainer.TryAdd(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(c)));
@@ -453,9 +460,25 @@ public sealed class Arena
         if (spec.Weapon.Length > 0)
         {
             var stuff = spec.WeaponStuff.Length > 0 ? DefDatabase<ThingDef>.GetNamed(spec.WeaponStuff) : null;
-            pawn.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(spec.Weapon), stuff));
+            var weapon = (ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(spec.Weapon), stuff);
+            Condition(weapon, spec.WeaponQuality, spec.WeaponHitPoints);
+            pawn.equipment.AddEquipment(weapon);
         }
 
         return pawn;
+    }
+
+    // The stated quality and hit points, as made; unstated quality keeps the rolled one and 0 hit points is full condition.
+    private static void Condition(Thing thing, string quality, int hitPoints)
+    {
+        if (quality.Length > 0)
+        {
+            thing.TryGetComp<CompQuality>().SetQuality(Enum.Parse<QualityCategory>(quality), ArtGenerationContext.Outsider);
+        }
+
+        if (hitPoints > 0)
+        {
+            thing.HitPoints = hitPoints;
+        }
     }
 }

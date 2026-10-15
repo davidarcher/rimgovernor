@@ -22,6 +22,9 @@ public sealed record RealFightRequest
     /// <summary>The TerrainDef laid on every cell; empty keeps the generated terrain.</summary>
     public string Terrain { get; init; } = "";
 
+    /// <summary>Cell regions laid over the base <see cref="Terrain"/>, each with its own terrain and roof; the map is unroofed where none says otherwise.</summary>
+    public IReadOnlyList<RealGround> Ground { get; init; } = [];
+
     /// <summary>The WeatherDef in force; empty keeps the generated weather.</summary>
     public string Weather { get; init; } = "";
 
@@ -65,7 +68,14 @@ public static class RequestJson
 
 public sealed record RealThing(string Def, string Stuff, int X, int Z);
 
-public sealed record RealWear(string Def, string Stuff);
+/// <param name="Quality">QualityCategory name (Awful, Poor, Normal, Good, Excellent, Masterwork, Legendary); empty leaves the quality the game rolls. Needs a def with quality.</param>
+/// <param name="HitPoints">Current hit points, 1 to the item's maximum; 0 is full condition.</param>
+public sealed record RealWear(string Def, string Stuff, string Quality = "", int HitPoints = 0);
+
+/// <summary>A rectangle of cells, MinX..MaxX and MinZ..MaxZ inclusive, set to a terrain and/or a roof. Later regions override earlier ones.</summary>
+/// <param name="Terrain">TerrainDef laid on the cells; empty changes no terrain (the base <see cref="RealFightRequest.Terrain"/> or an earlier region's stays).</param>
+/// <param name="Roof">RoofDef over the cells (RoofConstructed, RoofRockThin, RoofRockThick); empty changes no roof. Every cell starts unroofed (none).</param>
+public sealed record RealGround(string Terrain, string Roof, int MinX, int MinZ, int MaxX, int MaxZ);
 
 public sealed record RealTrait(string Def, int Degree);
 
@@ -89,6 +99,12 @@ public sealed record RealPawn
     public string Weapon { get; init; } = "";
 
     public string WeaponStuff { get; init; } = "";
+
+    /// <summary>QualityCategory name of the weapon; empty leaves the rolled quality.</summary>
+    public string WeaponQuality { get; init; } = "";
+
+    /// <summary>The weapon's current hit points; 0 is full condition.</summary>
+    public int WeaponHitPoints { get; init; }
 
     public IReadOnlyList<RealWear> Worn { get; init; } = [];
 
@@ -169,6 +185,12 @@ public sealed record RealReadback
     /// <summary>The TerrainDef on every cell, or "mixed".</summary>
     public string Terrain { get; init; } = "";
 
+    /// <summary>Cells per TerrainDef name. The cell-for-cell comparison with the request is made by the readback gate.</summary>
+    public IReadOnlyDictionary<string, int> TerrainCells { get; init; } = new Dictionary<string, int>();
+
+    /// <summary>Cells per RoofDef name; unroofed cells are not counted.</summary>
+    public IReadOnlyDictionary<string, int> RoofCells { get; init; } = new Dictionary<string, int>();
+
     public string Weather { get; init; } = "";
 
     public string HostileFaction { get; init; } = "";
@@ -198,6 +220,11 @@ public sealed record RealPawnReadback
     public string Weapon { get; init; } = "";
 
     public string WeaponStuff { get; init; } = "";
+
+    /// <summary>The weapon's quality and current hit points as held, whether or not the request stated them.</summary>
+    public string WeaponQuality { get; init; } = "";
+
+    public int WeaponHitPoints { get; init; }
 
     public IReadOnlyList<RealWear> Worn { get; init; } = [];
 
