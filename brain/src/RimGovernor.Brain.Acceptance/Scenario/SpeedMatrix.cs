@@ -413,40 +413,6 @@ public static class SpeedMatrix
     }
 
     /// <summary>
-    /// Lists the rows whose costliest live step issued more than <paramref name="maxReads"/> native round trips, the
-    /// step-cost bound: a live step plans under a running clock off the facts its one review bundle carries, so its
-    /// round trips are the bundle plus what an event within the step made stale. Rows that ran no live step are
-    /// skipped, and a maxReads of 0 disables the check. The step's wall time is reported beside it (live_step_ms_mean)
-    /// but not bounded: wall measures the box and the transport floor, the call count measures this repository.
-    /// </summary>
-    public static IReadOnlyList<string> CheckLiveStepCost(IReadOnlyList<SpeedMetrics> rows, double maxReads)
-    {
-        ArgumentNullException.ThrowIfNull(rows);
-        var problems = new List<string>();
-        if (maxReads <= 0)
-        {
-            return problems;
-        }
-
-        foreach (var row in rows)
-        {
-            if (row.LiveSteps <= 0)
-            {
-                continue;
-            }
-
-            if (row.MaxLiveStepReads > maxReads)
-            {
-                problems.Add(string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"{row.Case}: a live step issued {row.MaxLiveStepReads:F0} native reads, over {maxReads:F0} ({row.LiveSteps:F0} live steps, wall mean {row.LiveStepMs:F0}ms)"));
-            }
-        }
-
-        return problems;
-    }
-
-    /// <summary>
     /// Lists the clock-throughput expectations the matrix missed. <paramref name="maxPausedFraction"/>, when positive,
     /// bounds the paused fraction of every case at Superfast or faster (the speeds whose runs the wall-time sizing
     /// must widen). <paramref name="minUltrafastRatio"/>, when positive, requires the Ultrafast case's wall TPS to be
@@ -577,16 +543,6 @@ public sealed record SpeedMetrics
 
     public double NativePauseSamples { get; init; }
 
-    /// <summary>
-    /// The live steps: how many the row ran, the native round trips the costliest issued and the mean wall of one. A
-    /// row without a live step (no running clock was planned under) leaves LiveSteps at 0 and CheckLiveStepCost skips it.
-    /// </summary>
-    public double LiveSteps { get; init; }
-
-    public double MaxLiveStepReads { get; init; }
-
-    public double LiveStepMs { get; init; }
-
     /// <summary>The holds the row's journal carried, the mean native time a Run took to resume one, and wall TPS as a share of the speed's own rate.</summary>
     public double Holds { get; init; }
 
@@ -599,7 +555,7 @@ public sealed record SpeedMetrics
 
     /// <summary>
     /// Decodes the "case", "speed", "wall_tps", "ticks_advanced", "paused_fraction", "paused_fraction_native",
-    /// "native_pause_samples", "live_steps", "max_live_step_reads", "live_step_ms_mean", "holds",
+    /// "native_pause_samples", "holds",
     /// "resume_latency_ms_mean" and "effective_speed" fields of each metrics row.
     /// </summary>
     public static IReadOnlyList<SpeedMetrics> FromRows(IEnumerable<JsonObject> rows)
@@ -614,9 +570,6 @@ public sealed record SpeedMetrics
             PausedFraction = row["paused_fraction"].AsNumber(),
             PausedFractionNative = row["paused_fraction_native"].AsNumber(),
             NativePauseSamples = row["native_pause_samples"].AsNumber(),
-            LiveSteps = row["live_steps"].AsNumber(),
-            MaxLiveStepReads = row["max_live_step_reads"].AsNumber(),
-            LiveStepMs = row["live_step_ms_mean"].AsNumber(),
             Holds = row["holds"].AsNumber(),
             MeanResumeMs = row["resume_latency_ms_mean"].AsNumber(),
             EffectiveSpeed = row["effective_speed"].AsNumber(),

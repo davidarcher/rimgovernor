@@ -294,22 +294,6 @@ public sealed class StepSample
 
     public double MaxGateWaitMs { get; set; }
 
-    public ulong LiveSteps { get; set; }
-
-    public ulong LiveReads { get; set; }
-
-    public ulong MaxLiveReads { get; set; }
-
-    public double LiveElapsedMs { get; set; }
-
-    public double MaxLiveElapsedMs { get; set; }
-
-    /// <summary>The native round trips a live step issued on average; 0 without a live step.</summary>
-    public double LiveReadsPerStep() => LiveSteps == 0 ? 0 : (double)LiveReads / LiveSteps;
-
-    /// <summary>The mean wall time of a live step; 0 without one.</summary>
-    public double LiveStepMs() => LiveSteps == 0 ? 0 : LiveElapsedMs / LiveSteps;
-
     /// <summary>The mean wall time of a step of any reason; 0 without one.</summary>
     public double StepMs() => Steps == 0 ? 0 : ElapsedMs / Steps;
 }
@@ -412,8 +396,6 @@ public sealed class ClockSample
 /// </summary>
 public sealed class PhaseSummary
 {
-    private const string LiveStepReason = "live";
-
     public ClockSample Clock { get; } = new();
 
     public StepSample Steps { get; } = new();
@@ -676,17 +658,6 @@ public sealed class PhaseSummary
         if (payload.GetValueOrDefault("reason") is string { Length: > 0 } reason)
         {
             steps.Reasons[reason] = steps.Reasons.GetValueOrDefault(reason) + 1;
-
-            // The live steps carry the cost that bounds throughput at speed; keep their reads and wall apart from the
-            // cold and stopped steps, which read whole families.
-            if (reason == LiveStepReason)
-            {
-                steps.LiveSteps++;
-                steps.LiveReads += reads;
-                steps.MaxLiveReads = Math.Max(steps.MaxLiveReads, reads);
-                steps.LiveElapsedMs += elapsed;
-                steps.MaxLiveElapsedMs = Math.Max(steps.MaxLiveElapsedMs, elapsed);
-            }
         }
 
         if (payload.GetValueOrDefault("stop") is true)

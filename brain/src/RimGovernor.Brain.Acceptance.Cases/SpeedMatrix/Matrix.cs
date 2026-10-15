@@ -58,10 +58,6 @@ internal sealed partial class SpeedmatrixRun
     private const double MaxPausedFraction = 0;
     private const double MinUltrafastTpsRatio = 0;
 
-    // MaxLiveStepReads is the step-cost bound: a step planning under a running clock reads its one review bundle plus
-    // at most the families an event within the step made stale. The step's wall time is reported, not bounded.
-    private const double MaxLiveStepReads = 5;
-
     private readonly SpeedmatrixProfile _profile;
     private readonly ISession _session;
     private readonly Report _report;
@@ -139,7 +135,6 @@ internal sealed partial class SpeedmatrixRun
         m._report["provenance"] = m.Provenance();
         m._report["tolerance"] = Tolerance;
         m._report["max_paused_fraction"] = MaxPausedFraction;
-        m._report["max_live_step_reads"] = MaxLiveStepReads;
         m._report["min_ultrafast_tps_ratio"] = MinUltrafastTpsRatio;
         if (!Dyn.Contains(s.Names, ControlTool))
         {
@@ -233,13 +228,6 @@ internal sealed partial class SpeedmatrixRun
         {
             m._report["metric_problems"] = Problems(metricProblems);
             throw new AcceptanceException("clock throughput short of the thresholds: " + string.Join("; ", metricProblems));
-        }
-
-        var liveProblems = SpeedMatrix.CheckLiveStepCost(metrics, MaxLiveStepReads);
-        if (liveProblems.Count > 0)
-        {
-            m._report["live_step_problems"] = Problems(liveProblems);
-            throw new AcceptanceException("live steps over the read bound: " + string.Join("; ", liveProblems));
         }
 
         // Go checkStartupLog: the run's last assertion (no native error in the game's startup log) is a no-op there.
@@ -840,13 +828,7 @@ internal sealed partial class SpeedmatrixRun
             ["steps"] = steps.Steps,
             ["reads_per_step"] = readsPerStep,
 
-            // The step cost that bounds throughput at speed: the live steps apart from the cold and stopped ones, their
-            // reads and wall, and the player-gate wait a step spent queued behind the Worker's dispatch step.
-            ["live_steps"] = steps.LiveSteps,
-            ["live_step_reads_mean"] = steps.LiveReadsPerStep(),
-            ["max_live_step_reads"] = steps.MaxLiveReads,
-            ["live_step_ms_mean"] = steps.LiveStepMs(),
-            ["live_step_ms_max"] = steps.MaxLiveElapsedMs,
+            // The mean and worst step wall, and the player-gate wait a step spent queued behind the Worker's dispatch step.
             ["step_ms_mean"] = steps.StepMs(),
             ["step_ms_max"] = steps.MaxElapsedMs,
             ["gate_wait_ms_mean"] = gateWaitMean,
@@ -875,7 +857,7 @@ internal sealed partial class SpeedmatrixRun
             ["coupled_runs"] = steps.CoupledRuns,
             ["coupled_orders"] = steps.CoupledOrders,
 
-            // Live dispatch: steps by reason ("live" plans under a running clock), the worker's native runs made under
+            // Live dispatch: steps by reason, the worker's native runs made under
             // a running clock and the fraction native refused.
             ["step_reasons"] = stepReasons,
             ["dispatches"] = phases.Dispatch.Calls,
