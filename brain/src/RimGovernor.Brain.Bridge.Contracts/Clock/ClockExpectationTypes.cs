@@ -16,11 +16,6 @@ public sealed record ClockCommand(ClockStart? Start = null, ClockSpeed? Speed = 
 /// Asks for the native tick boost; it requires SPEED_ULTRAFAST and a game launched with test acceleration
 /// (headless acceptance profiles only), which native refuses otherwise.
 /// </param>
-/// <param name="BlindTickBudget">
-/// Arms the native blind-tick regulator: past this many ticks since the controller's last read or oldest
-/// unacknowledged journal row, native throttles the epoch toward Normal and ramps back once the controller
-/// catches up, journaling both as SpeedChanged. Zero leaves the epoch unregulated.
-/// </param>
 /// <param name="MaxTicksPerSecond">A continuous ceiling under the speed's own rate; zero is none.</param>
 /// <param name="PlayerAccelerated">
 /// Asks for player acceleration: an Ultrafast epoch, without test acceleration, whose ticks per frame native
@@ -31,7 +26,6 @@ public sealed record ClockStart(
     WatchPolicy? Policy,
     uint MaxTicks,
     bool TestAcceleration = false,
-    uint BlindTickBudget = 0,
     uint MaxTicksPerSecond = 0,
     bool PlayerAccelerated = false)
 {

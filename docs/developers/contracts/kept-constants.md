@@ -19,7 +19,6 @@ not a silent exemption.
 | `StrangerTombStackCap` | `Tomb.cs` | 4 | `KnowBuriedInSarcophagus` is a four-deep stacking memory (4, 2, 1, 0.5); feeding strangers past four live stacks changes nothing. |
 | `CombatMirror.RingSize` | `CombatMirror.cs` | 1024 | The combat event ring; every frame carries it whole, and a reader works from the watermark. See [hazard detection bounds](../architecture/hazard-detection-bounds.md#combat-event-ring). |
 | `CombatMirror.MaxDetailChars` | `CombatMirror.cs` | 256 | An event row's free-text `Detail`; a cut value ends in `...[truncated]` ([below](#visible-truncation)). |
-| `UnackedRowsKept` | `SupervisedPlayRegulator.cs` | 256 | A backlog of unacknowledged rows this long is already held at Normal speed, so the tail need not be kept. |
 | `InvalidationEntitiesMax` | `NativeClockRuntime.cs` | 64 | The narrowing of an observation invalidation: a larger entity list is an invalid scope, and the family-wide form is the way to name more. A message bound, not a game rule. |
 | `clockInboxCapacity` / `clockInboxBytes`, `ReviewCapacity` | `ClockReview.cs` (`ReviewCapacity`) | 4096 / 16 MiB, 4096 | Persistence rings of the clock inbox and review log; their wrap and refusal behaviour is in [Clock recovery](clock-recovery.md). |
 | Event read limit | `NativeClockTools.cs`, `ClockEventJournal.cs` | 1..128 | A page size for `clock_read_events`; the cursor makes the next page explicit. |

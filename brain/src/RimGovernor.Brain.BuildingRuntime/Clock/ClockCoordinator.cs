@@ -408,10 +408,6 @@ public sealed partial class ClockCoordinator : IDisposable
                             MaxTicks = s.MaxTicks,
                             TestAcceleration = s.TestAcceleration,
                         };
-                        if (s.BlindTickBudget != 0)
-                        {
-                            request = request with { BlindTickBudget = s.BlindTickBudget };
-                        }
                         if (s.MaxTicksPerSecond != 0)
                         {
                             request = request with { MaxTicksPerSecond = s.MaxTicksPerSecond };

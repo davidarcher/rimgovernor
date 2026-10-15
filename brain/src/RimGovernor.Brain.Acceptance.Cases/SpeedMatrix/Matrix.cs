@@ -371,8 +371,8 @@ internal sealed partial class SpeedmatrixRun
 
             var startTick = (ulong)before["tick"].AsNumber();
 
-            // The brain runs in the game process, so the serve flags the case adds (--clock-test-acceleration,
-            // --clock-blind-ticks) cannot be applied; the launch records them under its env entries.
+            // The brain runs in the game process, so the serve flag the case adds (--clock-test-acceleration)
+            // cannot be applied; the launch records them under its env entries.
             var serveArgs = c.ServeArgs();
             service = await _session.LaunchAsync(
                 new ServiceLaunch
@@ -814,7 +814,6 @@ internal sealed partial class SpeedmatrixRun
             ["case"] = c.Name,
             ["speed"] = c.Speed,
             ["test_acceleration"] = c.TestAcceleration,
-            ["blind_ticks"] = c.BlindTicks,
             ["player"] = c.Player,
 
             // Player acceleration's frame account: frames paced, those over the frame budget and the widest frame's tick work.
@@ -822,9 +821,8 @@ internal sealed partial class SpeedmatrixRun
             ["paced_frames_over_budget"] = clock.NativePacedOverBudget,
             ["max_paced_frame_ms"] = clock.NativeMaxPacedFrameMs,
 
-            // The regulator's transitions: SpeedChanged rows and the widest blind span they reported; zero on an unregulated row.
+            // SpeedChanged rows: an owner's ceiling or speed change.
             ["speed_changes"] = stops.SpeedChanges,
-            ["max_blind_ticks"] = stops.MaxBlindTicks,
             ["ticks_advanced"] = lastTick - startTick,
             ["wall_seconds"] = wallSeconds,
             ["budget_wall_tps"] = budgetTps,

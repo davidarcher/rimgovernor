@@ -79,10 +79,6 @@ public sealed partial class ClockWindowDriver : IClockWorkerStopper, IDisposable
         var start = Validated(config, scheduler.Config);
         var inbox = await player.Journal.BindClockInboxAsync(config.Profile, lifetime).ConfigureAwait(false);
         var driver = new ClockWindowDriver(player, session, scheduler, native, config with { Start = start, Profile = inbox.Profile }, clock, wake);
-        if (start.PlayerAccelerated || config.TargetSpeed is not null)
-        {
-            scheduler.Backoff = new PaceBackoff(new Tick(config.PaceHorizonTicks), clock.Now, driver.RequestCeilingAsync);
-        }
         session.AttachClockWorker(driver);
         driver._pollTask = Task.Run(() => driver.PollLoopAsync(lifetime), lifetime);
         return driver;
@@ -119,28 +115,6 @@ public sealed partial class ClockWindowDriver : IClockWorkerStopper, IDisposable
 
     /// <summary>The native profile whose journal the driver polls, canonical after the inbox bound it.</summary>
     public string Profile => _config.Profile;
-
-    // Changes the running epoch's tick ceiling: the pace backoff's request. It names the running epoch the last
-    // watched wave saw, keeping its speed and carrying the ceiling (Go requestCeiling).
-    private async Task RequestCeilingAsync(PbClock.Epoch original, uint ceiling, CancellationToken ct)
-    {
-        var state = _session.State();
-        if (!state.Enabled || !state.ObservationKnown)
-        {
-            throw new AuthorityException();
-        }
-        var sequence = await _player.Journal.ReadClockSequenceAsync(ct).ConfigureAwait(false);
-        var intent = new ClockIntent(sequence.NextRequestId(), "", state.Snapshot, new ClockCommand(Speed: new ClockSpeed(original, original.RequestedSpeed, ceiling)));
-        var (attempt, error) = await _session.CommandClock(intent, ct).ConfigureAwait(false);
-        if (error is not null)
-        {
-            throw error;
-        }
-        if (attempt?.Phase != ClockPhase.Applied)
-        {
-            throw new HeldException("pace ceiling request not applied");
-        }
-    }
 
     // Reads the native journal: one unheld read per round, answered at once. A read that captured evidence is followed
     // by the next at once; a failed call backs off from 250 ms to 2 s; otherwise the loop waits the cadence

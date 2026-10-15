@@ -130,7 +130,6 @@ public static partial class ClockJournal
         string Policy,
         string Original,
         bool TestAcceleration,
-        uint BlindTickBudget,
         uint MaxTicksPerSecond,
         bool CeilingSet,
         bool PlayerAccelerated,
@@ -143,11 +142,11 @@ public static partial class ClockJournal
 
     /// <summary>The columns <see cref="ReadIntentRow"/> reads, in order.</summary>
     internal const string IntentColumns =
-        "intent_key,colony,map_id,load_token,plan_id,revision,native_generation,kind,speed,max_ticks,policy,original,test_acceleration,blind_tick_budget,max_ticks_per_second,ceiling_set,player_accelerated,window_profile,window_tick,window_review_revision,window_captured_cursor,window_max_ticks";
+        "intent_key,colony,map_id,load_token,plan_id,revision,native_generation,kind,speed,max_ticks,policy,original,test_acceleration,max_ticks_per_second,ceiling_set,player_accelerated,window_profile,window_tick,window_review_revision,window_captured_cursor,window_max_ticks";
 
     /// <summary>The placeholders <see cref="IntentParameters"/> binds, in the order of <see cref="IntentColumns"/>.</summary>
     internal const string IntentValues =
-        "$key,$colony,$map,$load,$plan,$revision,$native,$kind,$speed,$maxticks,$policy,$original,$test,$blind,$perSecond,$ceiling,$player,$wprofile,$wtick,$wrevision,$wcursor,$wmaxticks";
+        "$key,$colony,$map,$load,$plan,$revision,$native,$kind,$speed,$maxticks,$policy,$original,$test,$perSecond,$ceiling,$player,$wprofile,$wtick,$wrevision,$wcursor,$wmaxticks";
 
     /// <summary>Go <c>encodeClockIntent</c>: validates the attempt and returns the intent's column values.</summary>
     internal static IntentRow EncodeIntent(ClockAttempt v)
@@ -158,7 +157,6 @@ public static partial class ClockJournal
         string kind;
         var speed = 0;
         uint maxTicks = 0;
-        uint blind = 0;
         uint perSecond = 0;
         bool test = false;
         bool ceilingSet = false;
@@ -171,7 +169,6 @@ public static partial class ClockJournal
             speed = (int)start.Speed;
             maxTicks = start.MaxTicks;
             test = start.TestAcceleration;
-            blind = start.BlindTickBudget;
             perSecond = start.MaxTicksPerSecond;
             player = start.PlayerAccelerated;
             policy = Encoding.UTF8.GetString(Binary(start.Policy!));
@@ -203,7 +200,6 @@ public static partial class ClockJournal
             policy,
             original,
             test,
-            blind,
             perSecond,
             ceilingSet,
             player,
@@ -231,7 +227,6 @@ public static partial class ClockJournal
             ("$policy", Encoding.UTF8.GetBytes(row.Policy)),
             ("$original", Encoding.UTF8.GetBytes(row.Original)),
             ("$test", row.TestAcceleration ? 1 : 0),
-            ("$blind", (long)row.BlindTickBudget),
             ("$perSecond", (long)row.MaxTicksPerSecond),
             ("$ceiling", row.CeilingSet ? 1 : 0),
             ("$player", row.PlayerAccelerated ? 1 : 0),
@@ -259,14 +254,13 @@ public static partial class ClockJournal
             Encoding.UTF8.GetString(r.RequiredBlob(at + 11)),
             r.GetInt64(at + 12) != 0,
             checked((uint)r.GetInt64(at + 13)),
-            checked((uint)r.GetInt64(at + 14)),
+            r.GetInt64(at + 14) != 0,
             r.GetInt64(at + 15) != 0,
-            r.GetInt64(at + 16) != 0,
-            r.Text(at + 17),
-            r.Number(at + 18),
-            r.IsDBNull(at + 19) ? null : r.UnsignedText(at + 19),
-            r.Number(at + 20),
-            r.Number(at + 21) is { } maxTicks ? checked((uint)maxTicks) : null
+            r.Text(at + 16),
+            r.Number(at + 17),
+            r.IsDBNull(at + 18) ? null : r.UnsignedText(at + 18),
+            r.Number(at + 19),
+            r.Number(at + 20) is { } maxTicks ? checked((uint)maxTicks) : null
         );
 
     /// <summary>
@@ -296,7 +290,6 @@ public static partial class ClockJournal
                         Unmarshal<Pb.WatchPolicy>(Encoding.UTF8.GetBytes(row.Policy)),
                         row.MaxTicks,
                         row.TestAcceleration,
-                        row.BlindTickBudget,
                         row.MaxTicksPerSecond,
                         row.PlayerAccelerated
                     )

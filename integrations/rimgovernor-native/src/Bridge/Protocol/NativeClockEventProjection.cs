@@ -140,12 +140,10 @@ namespace HomeBridge.BridgeTools
                     break;
                 }
                 case "started": result = result with { Event = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))) } }; break;
-                case "speed_changed": case "regulated":
+                case "speed_changed":
                 {
                     var speed = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) };
                     if (P().ContainsKey("maxTicksPerSecond")) speed = speed with { MaxTicksPerSecond = checked((uint)Number(P(), "maxTicksPerSecond")) };
-                    if (P().ContainsKey("regulatedTicksPerSecond")) speed = speed with { RegulatedTicksPerSecond = checked((uint)Number(P(), "regulatedTicksPerSecond")) };
-                    if (P().ContainsKey("blindTicks")) speed = speed with { BlindTicks = checked((long)Number(P(), "blindTicks")) };
                     result = result with { Event = speed };
                     break;
                 }

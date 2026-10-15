@@ -95,13 +95,10 @@ public sealed class StopSummary
     public double MaxLatencyMs { get; set; }
 
     /// <summary>
-    /// Counts the SpeedChanged rows the same pages carried: under the blind-tick regulator its throttle and release
-    /// transitions, which end no window.
+    /// Counts the SpeedChanged rows the same pages carried: an owner's ceiling or speed change,
+    /// which ends no window.
     /// </summary>
     public int SpeedChanges { get; set; }
-
-    /// <summary>The widest blind span a regulator row reported.</summary>
-    public long MaxBlindTicks { get; set; }
 
     /// <summary>The per-stop split, in cursor order.</summary>
     public List<StopLatency> Latencies { get; } = [];
@@ -130,7 +127,6 @@ public sealed class StopSummary
         row["mean_latency_ms"] = MeanLatencyMs;
         row["max_latency_ms"] = MaxLatencyMs;
         row["speed_changes"] = SpeedChanges;
-        row["max_blind_ticks"] = MaxBlindTicks;
         if (Latencies.Count > 0)
         {
             var latencies = new JsonArray();
@@ -207,7 +203,7 @@ public static class StopSummaries
                 var key = evt["cursor"] is { } cursorNode
                     ? CursorKey(cursorNode)
                     : string.Create(CultureInfo.InvariantCulture, $"row-{row.Sequence}-{evt["observedAtUnixMs"].ToJson()}");
-                if (evt["speedChanged"] is JsonObject changed)
+                if (evt["speedChanged"] is JsonObject)
                 {
                     if (!seen.Add(key))
                     {
@@ -215,11 +211,6 @@ public static class StopSummaries
                     }
 
                     summary.SpeedChanges++;
-                    if (Int64Value(changed["blindTicks"], out var blind) && blind > summary.MaxBlindTicks)
-                    {
-                        summary.MaxBlindTicks = blind;
-                    }
-
                     continue;
                 }
 

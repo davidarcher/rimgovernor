@@ -23,7 +23,7 @@ public sealed record BrainHostStatus(BrainHostState State, SchedulerStatus Sched
 /// The brain, hosted in the mod's process (#3082). One host is the controller that <c>cmd/rimgovernor serve</c>
 /// was: it opens the state database and the telemetry files, builds the session over the native facade, runs the
 /// scheduler on its own thread under a watchdog, serves the player routes, keeps the save's governor state
-/// flushed, and shuts all of it down in the order that leaves nothing half-written. The lease, blind-tick and
+/// flushed, and shuts all of it down in the order that leaves nothing half-written. The lease and
 /// reconnect machinery of the Go controller is not carried: the brain and the game share a process, so a link
 /// cannot drop under it.
 /// </summary>

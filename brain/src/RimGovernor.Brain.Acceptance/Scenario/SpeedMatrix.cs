@@ -9,9 +9,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// One column of the speed matrix: the serve speed it runs at (the player's choice serve follows) and whether the test
 /// acceleration is on (Go <c>SpeedCase</c>). "uncapped" is Ultrafast with acceleration; both acceptance profiles
-/// (headless and rendered) admit it, a player launch does not. "regulated" is uncapped under the native blind-tick
-/// regulator, the budget in <see cref="BlindTicks"/>: the row that must match the capped speeds' outcome while beating
-/// their wall time. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
+/// (headless and rendered) admit it, a player launch does not. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
 /// same save and renderer; it builds nothing, so it is outside the outcome comparison. "player" is Ultrafast under
 /// player acceleration (any Ultrafast without test acceleration): no test acceleration, native paces ticks per frame
 /// against its frame budget and the controller backs off before its evidence goes stale, the mode a player launch runs.
@@ -23,8 +21,6 @@ public sealed record SpeedCase
     public string Speed { get; init; } = "";
 
     public bool TestAcceleration { get; init; }
-
-    public uint BlindTicks { get; init; }
 
     public bool GovernorOff { get; init; }
 
@@ -38,7 +34,7 @@ public sealed record SpeedCase
 
     /// <summary>
     /// The serve flags a case adds (its speed is the player's choice, <see cref="Speed"/>, written before serve
-    /// starts): for uncapped the test-acceleration opt-in and for regulated the blind-tick budget.
+    /// starts): for uncapped the test-acceleration opt-in.
     /// </summary>
     public IReadOnlyList<string> ServeArgs()
     {
@@ -48,24 +44,13 @@ public sealed record SpeedCase
             args.Add("--clock-test-acceleration");
         }
 
-        if (BlindTicks > 0)
-        {
-            args.Add("--clock-blind-ticks");
-            args.Add(BlindTicks.ToString(CultureInfo.InvariantCulture));
-        }
-
         return args;
     }
 
-    /// <summary>The case as its report row (json tags name, speed, test_acceleration, blind_ticks, governor_off, player, observation_load).</summary>
+    /// <summary>The case as its report row (json tags name, speed, test_acceleration, governor_off, player, observation_load).</summary>
     public JsonObject ToJson()
     {
         var row = new JsonObject { ["name"] = Name, ["speed"] = Speed, ["test_acceleration"] = TestAcceleration };
-        if (BlindTicks > 0)
-        {
-            row["blind_ticks"] = BlindTicks;
-        }
-
         if (GovernorOff)
         {
             row["governor_off"] = true;
@@ -160,11 +145,8 @@ public sealed record SpeedOutcome
 /// <summary>The speed matrix's cases, bounds and cross-case comparisons (Go speedmatrix.go).</summary>
 public static class SpeedMatrix
 {
-    /// <summary>The -speeds default: every native speed plus uncapped, regulated and governor-off.</summary>
-    public const string DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off";
-
-    /// <summary>The regulated row's budget: the planning fact tolerance and the combat window already encode this horizon.</summary>
-    public const uint RegulatedBlindTicks = 300;
+    /// <summary>The -speeds default: every native speed plus uncapped and governor-off.</summary>
+    public const string DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,governor-off";
 
     /// <summary>
     /// The player row's bounds. A command queued for the game's main thread waits behind at most one frame's tick work,
@@ -174,7 +156,7 @@ public static class SpeedMatrix
     public const double MaxPlayerOverBudgetShare = 0.05;
 
     /// <summary>
-    /// Recovery from a stop resumes the backoff's earned rate rather than restarting at full speed, so tick-rate
+    /// The one ceiling holds its rate across a stop rather than oscillating, so tick-rate
     /// changes stay at most this many per 6000 ticks.
     /// </summary>
     public const int MaxPlayerSpeedChangesPer6000 = 6;
@@ -199,7 +181,6 @@ public static class SpeedMatrix
             ["superfast"] = new() { Name = "Superfast", Speed = "Superfast" },
             ["ultrafast"] = new() { Name = "Ultrafast", Speed = "Ultrafast" },
             ["uncapped"] = new() { Name = "uncapped", Speed = "Ultrafast", TestAcceleration = true },
-            ["regulated"] = new() { Name = "regulated", Speed = "Ultrafast", TestAcceleration = true, BlindTicks = RegulatedBlindTicks },
             ["governor-off"] = new() { Name = "governor-off", Speed = "Ultrafast", TestAcceleration = true, GovernorOff = true },
             ["player"] = new() { Name = "player", Speed = "Ultrafast", Player = true },
             ["observation-load"] = new() { Name = "observation-load", Speed = "Ultrafast", TestAcceleration = true, ObservationLoad = true },
@@ -216,7 +197,7 @@ public static class SpeedMatrix
 
             if (!known.TryGetValue(key, out var speedCase))
             {
-                throw new AcceptanceException($"unknown speed \"{part.Trim()}\" (want Normal, Fast, Superfast, Ultrafast, uncapped, regulated, governor-off, observation-load or player)");
+                throw new AcceptanceException($"unknown speed \"{part.Trim()}\" (want Normal, Fast, Superfast, Ultrafast, uncapped, governor-off, observation-load or player)");
             }
 
             if (!seen.Add(key))

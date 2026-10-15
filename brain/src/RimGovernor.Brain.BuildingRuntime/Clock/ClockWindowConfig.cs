@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>
 /// What the window driver needs beyond the scheduler's own configuration: the profile whose native journal it polls
 /// and the parameters every window it starts carries (the Go <c>ClockSchedulerConfig</c> fields the planning step
-/// does not use: Profile, Start, PaceHorizonTicks, Autosave) and the poll cadence (Go
+/// does not use: Profile, Start, Autosave) and the poll cadence (Go
 /// <c>ClockWorkerConfig</c>).
 /// </summary>
 public sealed record ClockWindowConfig
@@ -16,9 +16,6 @@ public sealed record ClockWindowConfig
 
     /// <summary>The live target speed each admission starts its window at (player acceleration only while it is Ultrafast); null keeps <see cref="Start"/>'s speed.</summary>
     public ClockTargetSpeed? TargetSpeed { get; init; }
-
-    /// <summary>The safe horizon player acceleration's backoff keeps its critical evidence inside; zero is <see cref="PaceBackoff.DefaultHorizonTicks"/>.</summary>
-    public uint PaceHorizonTicks { get; init; }
 
     /// <summary>Saves the game before a window starts at a paused tick; null saves nothing.</summary>
     public Func<PbCommon.Identity, long, CancellationToken, Task>? Autosave { get; init; }

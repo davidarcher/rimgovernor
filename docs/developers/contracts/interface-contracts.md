@@ -29,17 +29,8 @@ lists the routes the in-process host offers.
   `POST /api/player/clock-speed` (`{"speed":"Normal|Fast|Superfast|Ultrafast"}`) changes it live from the next
   window; a running window keeps its speed. `ClockTestAcceleration` ignores it. Acceptance sets each launch's speed
   (a speed-matrix row's) through that route once the brain is up; it writes no player speed.
-- **Blind-tick budget** (`BrainCompositionOptions.ClockBlindTicks`, `StartRequest.blind_tick_budget`). Blind ticks are
-  those the brain has not observed: since its last status or bundle read, or since the oldest
-  journal row it has not acknowledged with an events cursor, whichever is older (an events poll
-  acknowledges only). Past the budget native clamps `TickManager.TickRateMultiplier` to Normal at the
-  next frame and, once the brain reads again, doubles the ceiling every 100 ms back to unlimited.
-  Both transitions are journaled as `SpeedChanged` (`regulated_ticks_per_second`, `blind_ticks`) and
-  neither ends the epoch or reads as an external speed change. The lease guards a gone brain, the
-  budget a slow one. A continuous ceiling (`max_ticks_per_second`) sits beside it; an accelerated epoch
-  admits a live ceiling change through `SpeedRequest` while its speed stays Ultrafast.
-  `speedmatrix/plain`'s `regulated` row runs uncapped under a 300-tick budget and must match the
-  capped speeds' outcome.
+- **Owner ceiling** (`StartRequest.max_ticks_per_second`). A continuous ceiling beside the one ceiling below; an
+  accelerated epoch admits a live ceiling change through `SpeedRequest` while its speed stays Ultrafast.
 - **One ceiling** (`ClockCeiling.cs`, #3171) bounds every running epoch's tick rate, whatever its
   pacing: the lower of a frame-budget input and a brain-heartbeat input; the brain only asks for a
   speed. A frame whose tick work exceeds the 30 ms budget lowers the frame input to 70% of the rate
@@ -49,9 +40,9 @@ lists the routes the in-process host offers.
   contact ramps it back by doubling every 100 ms. `Epoch.ceiling_ticks_per_second` reports the
   ceiling (0 = none) and `pacing_reason` names the binding input (`FRAME_BUDGET` or `HEARTBEAT`).
   All of these numbers are conservative defaults, unmeasured until the live baseline (#3199).
-  The blind-tick regulator, the owner's `max_ticks_per_second` and player acceleration below still
-  run beside it until their removal (#3174); an explicit beat arrives with the Run/Hold contract
-  (#3177).
+  It is the only liveness and frame-budget guard: the brain-side pace backoff and the native
+  blind-tick regulator are gone (#3174). The owner's `max_ticks_per_second` and player acceleration
+  below still run beside it; an explicit beat arrives with the Run/Hold contract (#3177).
 - **Player acceleration** (every Ultrafast window without `ClockTestAcceleration`,
   `StartRequest.pacing = PACING_PLAYER_ACCELERATED`) is Ultrafast only and never combines with
   `ClockTestAcceleration`. Native raises Ultrafast's multiplier between 15x and 150x against the
@@ -60,12 +51,6 @@ lists the routes the in-process host offers.
   epoch holds `DebugViewSettings.neverForceNormalSpeed`, so the game's forced slowdown (danger
   holding the tick rate at Normal for 800 ticks) never applies. Every tick runs the full safety check, so hazard bounds stay
   tick-bounded however many ticks a frame carries.
-  - The brain watches each critical planner wave and lowers the epoch's `max_ticks_per_second` so
-    a wave fits in half the safe horizon (`ClockBlindTicks`, default 2500 when unset), with
-    hysteresis (changes under 25% ignored, at most one fresh change per 5 s). It parks at Normal only
-    when a wave's evidence nears the whole horizon (stale), climbs back at most doubling per fresh
-    wave, never releases to full speed while any evidence is stale, and a new window starts at the
-    earned ceiling.
   - `Epoch.pacing_reason`/`paced_ticks_per_second` and `Status.effective_ticks_per_second` feed the
     clock_step row and the Observe tab's Now view. `speedmatrix/observations`' `player` row checks the
     hazard gaps, the over-budget frame share (the manual-command dispatch bound) and `speed_changes`

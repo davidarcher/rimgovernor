@@ -129,7 +129,7 @@ RimGovernor.cmd acceptance run speedmatrix/plain -root <abs root>
 Needs a `ThroughputFixture` build. One staged colony is reloaded per row and
 run with the `haul` and `work` families for a 6000-tick budget, or until the
 stage runs out of work. Rows are `DefaultSpeedMatrix`
-(`Normal,Fast,Superfast,Ultrafast,uncapped,regulated,governor-off`);
+(`Normal,Fast,Superfast,Ultrafast,uncapped,governor-off`);
 `RIMGOVERNOR_SPEED_MATRIX=uncapped,governor-off` narrows a run.
 `governor-off` plays the same save natively at the uncapped speed with no
 brain attached (the simulation ceiling): it reports only `ticks_advanced`,

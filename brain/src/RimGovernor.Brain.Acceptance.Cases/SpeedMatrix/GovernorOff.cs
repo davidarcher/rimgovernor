@@ -112,7 +112,6 @@ internal sealed partial class SpeedmatrixRun
             ["case"] = c.Name,
             ["speed"] = c.Speed,
             ["test_acceleration"] = c.TestAcceleration,
-            ["blind_ticks"] = c.BlindTicks,
             ["governor_off"] = true,
             ["ticks_advanced"] = lastTick - startTick,
             ["wall_seconds"] = wallSeconds,

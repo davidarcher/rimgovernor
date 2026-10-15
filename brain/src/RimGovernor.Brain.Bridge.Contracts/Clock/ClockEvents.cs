@@ -114,7 +114,7 @@ public static partial class BridgeFunctions
                 }
                 break;
             case ClockEventEvent.SpeedChangedCase { Value: var changed }:
-                if (changed.Speed is null || changed.MaxTicksPerSecond > 60000 || changed.RegulatedTicksPerSecond > 60000 || changed.BlindTicks < 0)
+                if (changed.Speed is null || changed.MaxTicksPerSecond > 60000)
                 {
                     throw Contract("clock speed evidence required");
                 }

@@ -31,9 +31,9 @@ public static partial class BridgeFunctions
             {
                 throw Contract("clock test acceleration requires ultrafast");
             }
-            if (start.BlindTickBudget > 1800000 || start.MaxTicksPerSecond > 60000)
+            if (start.MaxTicksPerSecond > 60000)
             {
-                throw Contract("clock blind tick budget or tick rate ceiling");
+                throw Contract("clock tick rate ceiling");
             }
             ClockPacing(start.WirePacing ?? Pacing.Unspecified, start.Speed, start.TestAcceleration);
             ClockPolicy(start.Policy, start.MaxTicks);
@@ -85,7 +85,6 @@ public static partial class BridgeFunctions
                 || actual.RequestedSpeed != start.Speed
                 || actual.TestAcceleration.GetValueOrDefault() != start.TestAcceleration
                 || !Equals(actual.Policy, start.Policy)
-                || actual.BlindTickBudget.GetValueOrDefault() != start.BlindTickBudget
                 || actual.MaxTicksPerSecond.GetValueOrDefault() != start.MaxTicksPerSecond
                 || (actual.Pacing.GetValueOrDefault() == Pacing.PlayerAccelerated) != start.PlayerAccelerated)
             {

@@ -593,7 +593,6 @@ public sealed partial class BrainComposition
             }),
             DefaultClockWindowTicks,
             testAcceleration,
-            _options.ClockBlindTicks,
             0,
             speed == PbClock.Speed.Ultrafast && !testAcceleration);
         var window = new ClockWindowConfig
@@ -601,7 +600,6 @@ public sealed partial class BrainComposition
             Profile = _options.Profile,
             Start = start,
             TargetSpeed = testAcceleration ? null : TargetSpeed,
-            PaceHorizonTicks = _options.ClockBlindTicks,
             // The host's autosaver (Go newGoAutosaver(...).AtStop): saves at a paused window start, flushing governor state first.
             Autosave = context.Autosave,
             PageLimit = 128,

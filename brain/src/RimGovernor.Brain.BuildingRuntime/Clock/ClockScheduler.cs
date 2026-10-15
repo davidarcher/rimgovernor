@@ -505,15 +505,6 @@ public sealed partial class ClockScheduler
         var arbiter = new StepArbiter();
         using var wave = new PlannerWave(call);
         var began = Stopwatch.GetTimestamp();
-        // Under player acceleration the critical wave is the evidence the backoff keeps inside the horizon, aged from
-        // the step's status read.
-        Func<TimeSpan, bool, Task> watched = static (_, _) => Task.CompletedTask;
-        var readAt = Pace.Known ? Pace.At : _clock.Now();
-        if (Backoff is { } backoff && StepStatus is { State: PbClock.StatusState.RunningCase { Value.Epoch: { Pacing: PbClock.Pacing.PlayerAccelerated } paced } })
-        {
-            backoff.Epoch = paced;
-            watched = backoff.Watch(readAt, call);
-        }
         try
         {
             if (!immediate)
@@ -540,13 +531,11 @@ public sealed partial class ClockScheduler
             catch
             {
                 output.CriticalWave += Stopwatch.GetElapsedTime(began);
-                await watched(TimeSpan.Zero, false).ConfigureAwait(false);
                 throw;
             }
             var wall = PlannerWave.After(Config.Budget.EffectiveWall);
             if (await wave.Group.WaitCriticalAsync(wall).ConfigureAwait(false) == CriticalWait.Cutoff)
             {
-                await watched(TimeSpan.Zero, false).ConfigureAwait(false);
                 var stuck = wave.Close();
                 output.CriticalWave += Stopwatch.GetElapsedTime(began);
                 foreach (var name in stuck)
@@ -557,7 +546,6 @@ public sealed partial class ClockScheduler
             }
             var criticalWall = Stopwatch.GetElapsedTime(began);
             output.CriticalWave += criticalWall;
-            await watched(_clock.Now() - readAt, true).ConfigureAwait(false);
             var cutoff = wall;
             var pending = await wave.Group.WaitUntilAsync(cutoff).ConfigureAwait(false);
             output.MissedCutoff.AddRange(pending);

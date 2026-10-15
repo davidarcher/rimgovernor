@@ -76,7 +76,6 @@ the first native protective effect.
 | `authority` | event row. `change` (`changed`, `lost`, `retaken`), `reason`, `active`, `generation`, `previous_generation`, `cursor`, `paused`, `pace`, `stop_reason`; `WARN` for `lost` |
 | `clock_journal` | event row. `through_cursor`, `newest_cursor` |
 | `alert` | event row. `key`, `label`, `priority`, `cursor` |
-| `pace` | decision. `target` `backoff`, `reason` the `why`; attrs `ceiling`, `horizon_ticks`, `error` |
 | `idle_stall` | decision, `WARN`. `reason` `no_work`; attrs `tick`, `refusals`, `lend_ticks`, `standing` |
 
 

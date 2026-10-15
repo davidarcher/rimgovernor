@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// The scheduler state the window driver shares with the planning step: the pace measurement, the latched outcomes,
-// the pace backoff and the latest step's clock status. In Go these were fields of the one ClockScheduler that also
+// The scheduler state the window driver shares with the planning step: the pace measurement, the latched outcomes
+// and the latest step's clock status. In Go these were fields of the one ClockScheduler that also
 // admitted windows; the step here only plans, so the driver reaches them through these internal members.
 
 /// <summary>The pace the running window is measured at (Go <c>paceTick</c>, <c>paceAt</c>, <c>pacePerSecond</c>, <c>livePaceTicks</c>); touched only under the player gate.</summary>
@@ -29,10 +29,7 @@ public sealed partial class ClockScheduler
 
     internal ClockPaceMeasure Pace { get; } = new();
 
-    /// <summary>Player acceleration's backoff; null unless the window starts player-accelerated or follows the player's speed.</summary>
-    internal PaceBackoff? Backoff { get; set; }
-
-    /// <summary>The clock status the latest step read; the planner wave watches its running epoch.</summary>
+    /// <summary>The clock status the latest step read.</summary>
     internal PbClock.Status? StepStatus { get; private set; }
 
     internal long LastTick => _lastTick;

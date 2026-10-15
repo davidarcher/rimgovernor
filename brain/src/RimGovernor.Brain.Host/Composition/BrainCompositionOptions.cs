@@ -9,9 +9,6 @@ namespace RimGovernor.Brain.Host;
 /// </summary>
 public sealed record BrainCompositionOptions
 {
-    /// <summary>The largest <see cref="ClockBlindTicks"/> (Go <c>maxClockBlindTicks</c>, the wire bound of <c>StartRequest.blind_tick_budget</c>).</summary>
-    public const uint MaxClockBlindTicks = 1800000;
-
     /// <summary>The shared game profile directory whose native journal the clock window driver polls (Go <c>--profile</c>); must exist.</summary>
     public required string Profile { get; init; }
 
@@ -26,9 +23,6 @@ public sealed record BrainCompositionOptions
     /// Only the first window's speed: <c>POST /api/player/clock-speed</c> changes it live from the next window. Ignored with <see cref="ClockTestAcceleration"/>, which pins boosted Ultrafast.
     /// </summary>
     public PbClock.Speed TargetSpeed { get; init; } = PbClock.Speed.Ultrafast;
-
-    /// <summary>Arms the native blind-tick regulator past this many ticks, 1 to <see cref="MaxClockBlindTicks"/>; 0 leaves windows unregulated (Go <c>--clock-blind-ticks</c>, default 0).</summary>
-    public uint ClockBlindTicks { get; init; }
 
     /// <summary>Draws the colony layout plan as a native overlay (Go <c>--layout-overlay</c>, default on).</summary>
     public bool LayoutOverlay { get; init; } = true;
@@ -59,10 +53,6 @@ public sealed record BrainCompositionOptions
         if (TargetSpeed == PbClock.Speed.Unspecified || !Enum.IsDefined(TargetSpeed))
         {
             throw new ArgumentException("the clock target speed is Normal, Fast, Superfast or Ultrafast", nameof(TargetSpeed));
-        }
-        if (ClockBlindTicks > MaxClockBlindTicks)
-        {
-            throw new ArgumentException($"the clock blind tick budget must be 0 through {MaxClockBlindTicks}", nameof(ClockBlindTicks));
         }
         if (NativeTimeout < TimeSpan.FromSeconds(1) || NativeTimeout > TimeSpan.FromMinutes(1))
         {

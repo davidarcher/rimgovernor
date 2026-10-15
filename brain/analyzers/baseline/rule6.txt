@@ -6,9 +6,6 @@ Bridge.Contracts/Clock/ClockExpectation.cs|BridgeFunctions.ValidateClockExpectat
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockEpoch|1800000
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockPolicy|1800000
 Bridge.Contracts/Foundation/NewColonyValidation.cs|NewColonyBounds.MaxTimeoutMs|1800000
-BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.DefaultHorizonTicks|2500
-BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.FullTicksPerSecond|9000
-BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.ReleaseTicksPerSecond|60000
 BuildingRuntime/Clock/ClockScheduler.cs|ClockScheduler.IdleLendTicks|2500
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.HeatRedrawEvery|2500
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.OverlayRedrawEvery|60000
@@ -154,7 +151,6 @@ Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"H
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"PowerConduit"
 Host/Client/FacadeNativeClient.Sites.cs|PlacementReads.SalvageMaxAgeTicks|2500
 Host/Composition/BrainComposition.Planners.cs|BrainComposition.DefaultClockWindowTicks|60000
-Host/Composition/BrainCompositionOptions.cs|BrainCompositionOptions.MaxClockBlindTicks|1800000
 Observation/ColonyDecode.cs|ObservationPackage.DecodeColony|"PowerConduit"
 Observation/ColonyDecode.cs|ObservationPackage.DecodeColony|"WoodLog"
 Observation/Definitions.cs|ObservationPackage.StarterDefinitions|"Barricade"

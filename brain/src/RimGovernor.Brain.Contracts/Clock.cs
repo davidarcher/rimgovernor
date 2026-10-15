@@ -61,10 +61,9 @@ public enum Pacing
 
 /// <summary>
 /// What bounds the running epoch's tick rate right now, most binding
-/// first: the blind-tick regulator, the owner's
-/// max_ticks_per_second (the controller's backoff), the frame budget; else
-/// the pacing runs at its ceiling (ACCELERATED) or the speed's own rate
-/// (FIXED).
+/// first: the one ceiling (heartbeat or frame budget), the owner's
+/// max_ticks_per_second; else the pacing runs at its ceiling (ACCELERATED) or
+/// the speed's own rate (FIXED).
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<PacingReason>))]
 public enum PacingReason
@@ -77,8 +76,6 @@ public enum PacingReason
     Accelerated = 2,
     [WireName("PACING_REASON_FRAME_BUDGET")]
     FrameBudget = 3,
-    [WireName("PACING_REASON_REGULATED")]
-    Regulated = 5,
     [WireName("PACING_REASON_CEILING")]
     Ceiling = 6,
     /// <summary>
@@ -385,18 +382,6 @@ public sealed record StartRequest
     public bool? TestAcceleration { get; init; }
 
     /// <summary>
-    /// Blind-tick regulator. Blind ticks are the ticks between the
-    /// controller's last read (a status, events or bundle read, or the oldest
-    /// journal row it has not yet acknowledged with an after_cursor) and the
-    /// current tick. Past this budget native throttles the epoch toward Normal
-    /// at the next tick boundary and ramps back up once the controller catches
-    /// up (immediate decrease, multiplicative increase), journaling both
-    /// transitions as SpeedChanged without ending the epoch. Zero or absent
-    /// leaves the epoch unregulated.
-    /// </summary>
-    public uint? BlindTickBudget { get; init; }
-
-    /// <summary>
     /// Continuous ceiling on the epoch's tick rate, beneath the requested
     /// speed's own rate; an accelerated epoch admits a live change through
     /// SpeedRequest. Zero or absent is the speed's own rate.
@@ -456,15 +441,7 @@ public sealed record Epoch
 
     public bool? TestAcceleration { get; init; }
 
-    public uint? BlindTickBudget { get; init; }
-
     public uint? MaxTicksPerSecond { get; init; }
-
-    /// <summary>
-    /// The ceiling the blind-tick regulator holds right now; zero when it is
-    /// not throttling.
-    /// </summary>
-    public uint? RegulatedTicksPerSecond { get; init; }
 
     public Pacing? Pacing { get; init; }
 
@@ -1289,20 +1266,14 @@ public sealed record Rectangle
 }
 
 /// <summary>
-/// The epoch's speed, ceiling or regulator changed; the epoch continues. An
-/// owner's change carries its new ceiling; a regulator transition carries the
-/// ceiling it now holds (zero once it releases) and the blind ticks that
-/// drove it.
+/// The epoch's speed or ceiling changed; the epoch continues. An owner's
+/// change carries its new ceiling.
 /// </summary>
 public sealed record SpeedChanged
 {
     public Speed? Speed { get; init; }
 
     public uint? MaxTicksPerSecond { get; init; }
-
-    public uint? RegulatedTicksPerSecond { get; init; }
-
-    public long? BlindTicks { get; init; }
 }
 
 public sealed record PauseFailed

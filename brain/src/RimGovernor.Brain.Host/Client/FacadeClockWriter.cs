@@ -67,10 +67,9 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeFunctions.Contract("clock test acceleration requires ultrafast");
         }
-        if ((request.BlindTickBudget is not null && (request.BlindTickBudget.GetValueOrDefault() < 1 || request.BlindTickBudget.GetValueOrDefault() > 1800000))
-            || (request.MaxTicksPerSecond is not null && (request.MaxTicksPerSecond.GetValueOrDefault() < 1 || request.MaxTicksPerSecond.GetValueOrDefault() > 60000)))
+        if (request.MaxTicksPerSecond is not null && (request.MaxTicksPerSecond.GetValueOrDefault() < 1 || request.MaxTicksPerSecond.GetValueOrDefault() > 60000))
         {
-            throw BridgeFunctions.Contract("clock blind tick budget or tick rate ceiling");
+            throw BridgeFunctions.Contract("clock tick rate ceiling");
         }
         BridgeFunctions.ClockPacing(request.Pacing.GetValueOrDefault(), request.Speed.GetValueOrDefault(), request.TestAcceleration.GetValueOrDefault());
         BridgeFunctions.ClockPolicy(request.Policy, request.MaxTicks.GetValueOrDefault());
@@ -84,7 +83,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
                 request.Policy,
                 request.MaxTicks.GetValueOrDefault(),
                 request.TestAcceleration.GetValueOrDefault(),
-                request.BlindTickBudget.GetValueOrDefault(),
                 request.MaxTicksPerSecond.GetValueOrDefault(),
                 request.Pacing.GetValueOrDefault() == PbClock.Pacing.PlayerAccelerated)));
         return await CallAsync(() => _facade.StartClockAsync(request, ct), pre, expectation, ct).ConfigureAwait(false);

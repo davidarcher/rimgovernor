@@ -70,7 +70,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // The tick rate the epoch holds now: the paced (or speed's own)
-        // multiplier under the owner's and the regulator's ceilings.
+        // multiplier under the owner's and the one ceiling.
         private static int PacedTicksPerSecond(State s)
         {
             var tm = Find.TickManager;
@@ -99,9 +99,6 @@ namespace HomeBridge.BridgeTools
                 return s.Ceiling.Binding == ClockCeiling.Input.Heartbeat
                     ? RimGovernor.Contracts.Wire.Clock.PacingReason.Heartbeat
                     : RimGovernor.Contracts.Wire.Clock.PacingReason.FrameBudget;
-            if (s.RegulatedTicksPerSecond > 0 && s.RegulatedTicksPerSecond < unclamped
-                && (s.MaxTicksPerSecond == 0 || s.RegulatedTicksPerSecond <= s.MaxTicksPerSecond))
-                return RimGovernor.Contracts.Wire.Clock.PacingReason.Regulated;
             if (s.MaxTicksPerSecond > 0 && s.MaxTicksPerSecond < unclamped)
                 return RimGovernor.Contracts.Wire.Clock.PacingReason.Ceiling;
             if (!s.PlayerPaced || s.RequestedSpeed != TimeSpeed.Ultrafast) return RimGovernor.Contracts.Wire.Clock.PacingReason.Fixed;

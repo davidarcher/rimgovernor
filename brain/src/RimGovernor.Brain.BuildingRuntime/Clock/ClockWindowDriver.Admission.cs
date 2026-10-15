@@ -507,15 +507,6 @@ public sealed partial class ClockWindowDriver
         _combatStops.Admitted(status.State is PbClock.StatusState.StoppedCase { Value: var stoppedState } ? stoppedState : null, statusTick, _clock.Now(), run.Combat);
         var admission = new ClockWindowAdmission(_config.Profile, state.Snapshot, tick, review.Revision, review.InboxCursor, start.MaxTicks);
         var key = ClockWindowWork.Key(admission, fingerprint, start);
-        if (_scheduler.Backoff is { } backoff && start.PlayerAccelerated)
-        {
-            // The window resumes the rate the last critical waves earned.
-            var ceiling = backoff.Ceiling;
-            if (ceiling != 0 && (start.MaxTicksPerSecond == 0 || ceiling < start.MaxTicksPerSecond))
-            {
-                start = start with { MaxTicksPerSecond = ceiling };
-            }
-        }
         var requestId = "";
         // The store returns sequence order. Retain the latest exact logical window, including terminal refusals,
         // rather than allocating another native attempt.
