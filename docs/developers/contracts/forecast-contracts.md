@@ -5,6 +5,11 @@
 Forecasts are read-only and use native definitions and rates. One forecast
 implementation serves deterministic facts and player fact inspection.
 
+[Encounter prediction](encounter-prediction.md) is a separate hypothetical input
+to ColonyForecast. Its replaceable service returns encounter consequences and
+explicit qualification/coverage, never orders or available colony stock. Shared
+forecasting owns downstream hauling, butchery, treatment and displaced work once.
+
 The pure C# [ColonyForecast](../architecture/colony-forecast.md) evaluates
 supplied commitment deltas separately from these observed diagnostics.
 Its requested plan horizon does not change the existing maintenance window.

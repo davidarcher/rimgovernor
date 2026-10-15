@@ -3,7 +3,31 @@
 RimWorld's own combat code, run headless. A hand-ported combat sim would re-implement game logic that can drift
 from every game update; this host runs the game's logic itself, in a bare `net10.0` process (Waylith has no Unity), so there is nothing to
 port. Tracking issue: #3142. Nothing tunes policy at runtime, so the engine is offline only: one game per process,
-no live-game integration.
+no live colony control. Its optional prediction service is described below.
+
+## Bounded prediction worker
+
+`RealCombat.Host --game <private game directory> --worker stdio` boots once,
+emits a content-identified ready frame, then accepts strict schema-3 requests as
+JSON lines. Stdout carries protocol frames; game logs go to stderr. One request
+runs at a time. Frames are at most 1 MiB, one request has at most 64 seeds/32 actors,
+128 cells per side and 60000 ticks, and a process accepts at most eight requests.
+The arena-count bound limits retained native state; it does not hide earlier
+reconstruction failures. A failed arena ends the worker; an unsupported request
+returns an explicit rejection. No automatic retries, fallback or colony orders.
+
+The Host library's `LocalEncounterPredictor` supplies tighter caller budgets,
+cancellation and owned-process cleanup behind the implementation-independent
+`IEncounterPredictor`. The [owning contract](../../docs/developers/contracts/encounter-prediction.md)
+defines provenance, stale-result fencing, supported observations and qualification.
+The worker returns research samples, not qualified hunting decisions. Verify
+runs each seed twice and is included in effort/runtime accounting.
+
+`RealCombat.NativeSmoke --game <private game> --predictor <absolute host DLL>
+--fixture <absolute fixture directory> --out <absolute JSON>` exercises the same
+committed fixture seed through the direct engine and cold/warm worker, then
+unsupported input and cancellation. This is a lifecycle/reconstruction probe,
+not a statistical calibration sweep or a live hunting acceptance case.
 
 | Project | What it is |
 |---|---|

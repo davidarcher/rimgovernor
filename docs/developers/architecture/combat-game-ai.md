@@ -7,6 +7,11 @@ composition, positions and tactical transitions. The game constants below are
 from the shipped 1.6 assembly; verify them against the installed version before
 changing policy. This page describes behavior, not a performance benchmark.
 
+Hypothetical hunting consequences use the [encounter prediction contract](../contracts/encounter-prediction.md).
+An isolated real-engine sample is not qualified advice by itself; unavailable,
+stale and unqualified results cannot authorize a hunt. Hands remains the live
+order writer, and the shared forecast owns downstream colony consequences.
+
 ```mermaid
 flowchart LR
     View[Combat facts and geometry] --> Policy[the brain: formation and reaction]

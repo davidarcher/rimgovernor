@@ -4,6 +4,12 @@ The brain host (`brain/src/RimGovernor.Brain.Host`, `BrainHost`) runs the C# bra
 launch flag `-rimgovernor-inproc` (`InProcLaunch.Flag`). There is no separate process, transport, lease or reconnect machinery: the brain and the game
 share a process, so a link cannot drop under it.
 
+The optional [encounter predictor](../contracts/encounter-prediction.md) is an
+isolated hypothetical worker behind a typed replaceable interface. Host owns its
+bounded process lifecycle; it has no live colony facade or order authority. This
+is not another brain/controller. The current service is research-only and is not
+composed into live hunting selection until qualification and #3130 integration.
+
 ## Lifecycle
 
 `BrainHost.StartAsync(options, ct)` in order: validate options; start the OTLP file writer (a failure is reported and

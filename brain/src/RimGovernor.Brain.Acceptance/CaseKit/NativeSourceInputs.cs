@@ -63,7 +63,6 @@ public static partial class NativeSourceInputs
         new("brain/src/RimGovernor.Brain.Executor", "brain/src/RimGovernor.Brain.Executor", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.BuildingRuntime", "brain/src/RimGovernor.Brain.BuildingRuntime", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.PlayerApi", "brain/src/RimGovernor.Brain.PlayerApi", NotBuildOutput),
-        new("brain/src/RimGovernor.Brain.Facts", "brain/src/RimGovernor.Brain.Facts", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.Simulation", "brain/src/RimGovernor.Brain.Simulation", NotBuildOutput),
         new("scripts/build_native_mod.ps1", "scripts/build_native_mod.ps1"),
         new("scripts/fixtures", "scripts/fixtures", FixtureSource),

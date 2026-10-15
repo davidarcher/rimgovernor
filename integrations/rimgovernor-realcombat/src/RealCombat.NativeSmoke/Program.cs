@@ -10,6 +10,11 @@ using Operations = RimGovernor.Contracts.Wire.Operations;
 // With --policy the live combat policy (PolicyController) plays the colonist.
 //   RimGovernor.RealCombat.NativeSmoke --game <dir> [--bare|--policy]
 var game = args[Array.IndexOf(args, "--game") + 1];
+if (args.Contains("--predictor"))
+{
+    return await RimGovernor.RealCombat.NativeSmoke.PredictorCheck.RunAsync(game,
+        args[Array.IndexOf(args, "--predictor") + 1], args[Array.IndexOf(args, "--fixture") + 1], args[Array.IndexOf(args, "--out") + 1]);
+}
 var bare = args.Contains("--bare");
 var policy = args.Contains("--policy");
 var request = new RealFightRequest

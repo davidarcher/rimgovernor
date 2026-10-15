@@ -13,6 +13,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Apparel policy operation](apparel-policy.md)
 - [Weapon planner](weapon-planner.md)
 - [Native forecast contracts](forecast-contracts.md)
+- [Encounter prediction](encounter-prediction.md): replaceable prediction-only service, bounded worker lifecycle and scoped qualification.
 - [Animal husbandry contracts](husbandry-contracts.md): race catalog, herd plan, hospital animal ward, acceptance
 - [Ideology contracts](ideology-contracts.md): ideoligion defs, pawn certainty, colony section
 - [Interface contracts](interface-contracts.md)

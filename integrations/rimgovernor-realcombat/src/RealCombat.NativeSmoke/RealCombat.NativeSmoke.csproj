@@ -10,6 +10,7 @@
   <Import Project="../../GameRuntime.targets" />
   <ItemGroup Condition="'$(GameAvailable)' == 'true'">
     <Compile Include="Program.cs" />
+    <Compile Include="PredictorCheck.cs" />
     <ProjectReference Include="../RealCombat.Native/RealCombat.Native.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(GameAvailable)' != 'true'">
