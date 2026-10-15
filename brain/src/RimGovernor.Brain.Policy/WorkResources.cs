@@ -407,8 +407,11 @@ public static partial class PolicyFunctions
                 .GroupBy(c => c.ReservationBill.Value).Select(g => Methods.Evaluation.WorkMaterialEvaluation.ExistingBillCredit(view, g.Key, group.Key,
                     g.All(c => c.Units.IsKnown) ? g.Sum(c => c.Units.Value) : 0)).ToArray();
             if (group.Any(c => !c.Units.IsKnown) || credits.Any(c => !c.IsKnown) || !view.Materials.TryGetValue(out var budget)
-                || !budget.GetValueOrDefault(group.Key, Known(0.0)).TryGetValue(out var free)
-                || group.Sum(c => c.Units.Value) > free + credits.Sum(c => c.Value)) return "materials_short:" + group.Key.Value;
+                || !budget.GetValueOrDefault(group.Key, Known(0.0)).TryGetValue(out var free))
+                return "materials_short:" + group.Key.Value;
+            var need = group.Sum(c => c.Units.Value);
+            var credit = credits.Sum(c => c.Value);
+            if (need > free + credit) return $"materials_short:{group.Key.Value} (need {need}, free {free}, credit {credit})";
         }
         return null;
     }
