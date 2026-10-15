@@ -17,7 +17,7 @@ leaves a member absent; it cannot satisfy required presence.
 | ObservationContext | identity and nonnegative int64 tick; positive native_generation whenever authority is available. |
 | Owner | nonblank controller_session_id and positive uint64 player_direction. |
 | AttemptKey | controller_session_id, action_id and positive uint64 attempt_id. |
-| WritePrecondition | identity, positive expected_generation, nonblank lease_id and complete attempt. |
+| WritePrecondition | identity, positive expected_generation and complete attempt. |
 | Cell | both coordinates, each within the relevant native map; no missing-to-zero conversion. |
 | Opaque ID/definition/token | valid nonblank Unicode, <=256 UTF-8 bytes, no NUL; exact case/content; narrower native input limits are documented in the [presentation contract](presentation.md). |
 | Failure/Unavailable | supported nonzero reason/code; bounded diagnostic if supplied; absence of observed context never fabricates a loaded identity. |
@@ -35,7 +35,7 @@ required. Requested missing sections need explicit unavailability/read issues.
 
 | Family | Required request and reply checks |
 | --- | --- |
-| Authority | ReadStatus requires identity. Acquire requires identity, expected generation, Owner and duration; Renew requires identity/generation/session/lease/duration; Revoke requires identity/generation and an allowed external revocation reason. Duration1000–30000ms. Granted must be active for the requested owner; revoked must be inactive. Caller direction never authenticates itself. |
+| Authority | ReadStatus requires identity. SetMode requires identity, expected generation and a mode (Auto or Manual); Revoke requires identity/generation and an allowed external revocation reason (Manual, Disconnect or Shutdown). There is no lease, duration or renewal. Granted must be active; revoked must be inactive. Caller direction never authenticates itself. |
 | Placement | Exact identity, 1–16 candidates with def/x/z/rotation. Stuff optional/default. One ordered result per candidate, actual batch context, complete cost/footprint/blocker facts or candidate failure. Cardinal output rotations only. See the [placement contract](placement.md) for bounds/material availability. |
 | Observation reads | Exact expected identity; optional query filters/details and pagination have family-defined defaults. Reply context is actual, allowing ticks/generation to advance. Each SnapshotRef includes context/entity/token. Complete page has no next cursor and no unreadable required facts. Unavailable nested sections do not poison independently known siblings. |
 | Guarded operations | Complete WritePrecondition and one command. Every EntityPrecondition requires exact entity ID and expected snapshot token; standalone expected_* tokens are required. Exact target/cell/definition references for the chosen command are required. Optional patch fields mean unchanged; provided assignments select set or clear. Empty patch is no-change, never an implicit reset. |

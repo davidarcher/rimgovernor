@@ -81,30 +81,29 @@ Network IDs group one observation and must not be retained as stable cross-load
 identities. `FoodStock.room_id` names the native room holding an item at
 observation time, so storage-temperature policy can join stock to room reads.
 
-Authority acquisition is produced by the explicit player-control path. Status
-does not acquire authority, and renewal cannot resurrect an expired or revoked
-lease. Native player orders, explicit Manual, lease expiry and identity changes
-invalidate authority. An ordinary pause, letter or logging pause is not Manual.
-Acquisition and renewal require a duration between 1000 and 30000 milliseconds;
-expiry uses monotonic real time rather than game ticks.
+Authority is a mode (`MODE_AUTO` or `MODE_MANUAL`) plus a generation. There is
+no negotiated lease, lease ID, session, owner, duration or expiry: time alone
+never revokes authority, so there is nothing to acquire or renew. `Control.SetMode`
+is produced by the explicit player-control path and `Auto` grants the bot
+authority outright. Status does not grant authority. Native player orders,
+explicit Manual and identity changes invalidate authority. An ordinary pause,
+letter or logging pause is not Manual.
 
-External `Control.Revoke` requests permit only `MANUAL`, `PLAYER_DIRECTION`,
-`DISCONNECT`, and `SHUTDOWN`; other revocation reasons originate in native events.
+External `Control.Revoke` requests permit only `MANUAL`, `DISCONNECT` and
+`SHUTDOWN`; other revocation reasons originate in native events.
 Native raises `SHUTDOWN`
 when the game ends in an orderly way (process exit, or a game unload such as
 quit-to-menu or loading another save) while authority is Active. An ended
 game's final authority stays readable: `authority_read_status` for its exact
 identity answers `Inactive` with that final reason, generation and tick until
 another game is loaded, after which the identity is stale as usual.
-A successful acquire or explicit revoke increments the expected generation by
-exactly one, including revoking an already inactive authority. Renewal preserves
-the generation, lease ID, session and original player direction. Overflow fails
-closed. A granted reply has positive remaining lease time no greater than the
-requested duration. Native refresh applies expiry/context changes before the CAS
-check; a mismatched generation fails rather than returning a grant at another
+A successful `SetMode` or explicit revoke increments the expected generation by
+exactly one, including revoking an already inactive authority. Overflow fails
+closed. Native refresh applies context changes before the CAS check; a
+mismatched generation fails rather than returning a grant at another
 generation.
 
-New commands validate identity, generation, lease and ownership atomically on the
+New commands validate identity, generation and ownership atomically on the
 game thread. The attempt key is `(controller_session_id, action_id, attempt_id)`;
 the brain namespace survives brain process restarts. Record an attempt
 before effects. An identical admitted command replays its receipt, while conflicting
