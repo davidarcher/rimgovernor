@@ -105,6 +105,30 @@ public sealed class WireCodecTests
         Assert.Equal("stack", Assert.Single(Assert.Single(decoded.Clothing.Options).Inputs).Thing);
         Assert.False(Assert.Single(decoded.Clothing.Retained).CompletionTicks.IsKnown);
     }
+    [Fact]
+    public void NeedTargetMaxPawnsRoundTripsKnownAndUnknownAsNumberOrNull()
+    {
+        var read = new RimGovernor.Contracts.Wire.Observations.NeedsForecastRead
+        {
+            Tick = 1,
+            Pawns = [new() { Pawn = "p", Targets = [
+                new("stack", "food", "Meal", 4, default, default, default, default) { MaxPawns = RimGovernor.Brain.Domain.Fact.Known(10) },
+                new("pin", "joy", "", 1, default, default, default, default),
+            ] }],
+        };
+        var json = WireJson.Serialize(read);
+        var node = JsonNode.Parse(json)!;
+        var targets = node["pawns"]![0]!["targets"]!.AsArray();
+        Assert.Equal(10, targets[0]!["maxPawns"]!.GetValue<int>());
+        Assert.Null(targets[1]!["maxPawns"]);
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.NeedsForecastRead>(json).Pawns[0].Targets;
+        Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(10), decoded[0].MaxPawns);
+        Assert.False(decoded[1].MaxPawns.IsKnown);
+        targets[1]!["maxPawns"] = null;
+        var explicitNull = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.NeedsForecastRead>(node.ToJsonString()).Pawns[0].Targets;
+        Assert.False(explicitNull[1].MaxPawns.IsKnown);
+    }
+
     // The largest case count of any choice reachable from the type: how many documents cover every case.
     private static IEnumerable<int> Choices(Type type, int depth, HashSet<Type> seen)
     {

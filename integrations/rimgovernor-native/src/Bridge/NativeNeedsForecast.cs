@@ -71,12 +71,12 @@ internal static class NativeNeedsForecast
                             var thoughts = FoodUtility.ThoughtsFromIngesting(pawn, target, target.def)
                                 .Select(t => MealMemory(pawn, t)).ToArray();
                             targets.Add(new(target.GetUniqueLoadID(), "food", target.def.defName, target.def.ingestible.maxNumToIngestAtOnce > 0 ? Math.Min(target.stackCount, target.def.ingestible.maxNumToIngestAtOnce) : target.stackCount,
-                                travel, K(service), K(nutrition), default) { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount),
+                                travel, K(service), K(nutrition), default) { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount), MaxPawns = Capacity(IngestMaxPawns),
                                 FreshTicks = K(target.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay),
                                 Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                         }
                         else if (group.Key == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel, default, default,
-                            K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z) });
+                            K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount) });
                         else
                         {
                             var job = DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef;
@@ -84,7 +84,7 @@ internal static class NativeNeedsForecast
                             var gain = job.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * target.GetStatValue(StatDefOf.JoyGainFactor)
                                 * pawn.needs!.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
                             targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, default, default, K(gain))
-                                { Location = new(target.Position.x,target.Position.z), Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
+                                { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
                         }
                     }
                 }
@@ -177,5 +177,9 @@ internal static class NativeNeedsForecast
         thought.pawn = pawn;
         return new(source.thought.defName, thought.MoodOffset(), K(thought.DurationTicks), source.thought.lerpMoodToZero);
     }
+    /// <summary>The maxPawns literal JobDriver_Ingest passes to Reserve for a meal stack (decompiled 1.7; vanilla exposes no symbol for it).</summary>
+    internal const int IngestMaxPawns = 10;
+    /// <summary>Vanilla claimant capacity; a non-positive read is unknown, never a guess.</summary>
+    internal static Fact<int> Capacity(int maxPawns) => maxPawns > 0 ? Fact.Known(maxPawns) : default;
     private static Fact<double> K(double value) => double.IsFinite(value) ? Fact.Known(value) : default;
 }

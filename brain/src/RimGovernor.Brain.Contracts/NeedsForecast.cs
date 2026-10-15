@@ -90,7 +90,11 @@ public sealed record NeedTarget(string Id, string Kind, string Resource, int Ava
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
     public EquatableArray<NeedMemory> MealThoughts { get; init; }
     public Cell? Location { get; init; }
+    /// <summary>Stack quantity that claims sum against (vanilla ingest reserves a stack by count); unknown when unread.</summary>
     public Fact<double> StockCount { get; init; }
+    /// <summary>Simultaneous claimants vanilla lets reserve this target (ReservationManager maxPawns); unknown when unreadable, never a guess.
+    /// Claims on one target must share one value. The planner's default for unknown is evaluator policy, not contract.</summary>
+    public Fact<int> MaxPawns { get; init; }
     public Fact<double> FreshTicks { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Unsupported { get; init; }

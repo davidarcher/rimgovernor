@@ -331,6 +331,22 @@ type is `NeedTarget`. What a target means depends on its producer:
 | `CoupledFoodMethodCandidates.AddEating` (produced or delivered food) | `food` | `cell/x/z` of the delivery cell (`CoupledFoodUse.Location`) | the cell the meal stack will sit in | no |
 | Incumbent preparation (`ForecastIncumbentPreparation`) | observed service kind | the observed service target | the current service the pawn already holds | as its kind |
 
+Capacity (#3209): each observed `NeedTarget` carries `MaxPawns`, a `Fact<int>`, the
+number of simultaneous claimants vanilla `ReservationManager.CanReserve` admits on that
+target (claims must share one `maxPawns`, and summed stack counts must not exceed the
+stack). Native fills it from vanilla, never from the target's `Kind`: a food stack
+reads the literal 10 that `JobDriver_Ingest` reserves with (vanilla names no symbol for
+it, so `NativeNeedsForecast.IngestMaxPawns` mirrors it); a bed reads
+`Building_Bed.SleepingSlotsCount`; the horseshoes pin reads `joyMaxParticipants` of the
+`Play_Horseshoes` job def from `DefDatabase`. A value native cannot read (not positive)
+is unknown, which is explicit on the wire and not a guess; what the planner assumes for
+unknown (1) is evaluator policy, not part of the contract. Quantity is the existing
+`StockCount` (the stack size claims sum against), distinct from `AvailableCount`, which
+is capped at `maxNumToIngestAtOnce`. The evaluator ignores `MaxPawns` until #3210;
+generated targets (practice joy, delivery cells, incumbent preparation) carry no
+`NeedTarget` row and therefore no capacity. The wire codec is pinned by
+`WireCodecTests.NeedTargetMaxPawnsRoundTripsKnownAndUnknownAsNumberOrNull`.
+
 An ingestion target names only the source stack. The Eat step carries a thing target
 (or `observed-output`, rebound natively to the selected resource within two cells of
 the use cell and the observed lot) plus a `count`; native builds `JobDefOf.Ingest` on
