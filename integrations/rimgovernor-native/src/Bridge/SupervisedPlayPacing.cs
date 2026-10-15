@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
     // between any two ticks of a frame, however many the frame carries.
     internal static partial class Supervisor
     {
-        internal const int DefaultFrameBudgetMs = 30;
+        internal const int DefaultFrameBudgetMs = ClockCeiling.DefaultFrameBudgetMs;
         // Ultrafast's own multiplier is the floor: pacing never runs a
         // player slower than the speed they chose. The boosted rate (150x,
         // 9000 ticks/s) is the ceiling.
@@ -79,10 +79,26 @@ namespace HomeBridge.BridgeTools
             return Math.Max(0, rate);
         }
 
+        // The one ceiling (ClockCeiling.cs) applied to the multiplier the game ticks
+        // at. Pause (0) is the game's to keep. Caller holds Gate.
+        private static float ClockCeilingMultiplier(State s, float multiplier)
+        {
+            var ceiling = s.Ceiling.TicksPerSecond;
+            if (ceiling <= 0) return multiplier;
+            var capped = ceiling / (float)NormalTicksPerSecond;
+            return capped < multiplier ? capped : multiplier;
+        }
+
+        private static int CeilingTicksPerSecond(State s) => s.Ceiling.TicksPerSecond;
+
         // What bounds the epoch's rate, most binding first.
         private static RimGovernor.Contracts.Wire.Clock.PacingReason PacingReasonOf(State s)
         {
             var unclamped = UnclampedTicksPerSecond(s);
+            if (s.Ceiling.TicksPerSecond > 0 && s.Ceiling.TicksPerSecond < unclamped)
+                return s.Ceiling.Binding == ClockCeiling.Input.Heartbeat
+                    ? RimGovernor.Contracts.Wire.Clock.PacingReason.Heartbeat
+                    : RimGovernor.Contracts.Wire.Clock.PacingReason.FrameBudget;
             if (s.RegulatedTicksPerSecond > 0 && s.RegulatedTicksPerSecond < unclamped
                 && (s.MaxTicksPerSecond == 0 || s.RegulatedTicksPerSecond <= s.MaxTicksPerSecond))
                 return RimGovernor.Contracts.Wire.Clock.PacingReason.Regulated;

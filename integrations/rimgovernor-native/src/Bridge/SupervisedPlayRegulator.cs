@@ -51,6 +51,7 @@ namespace HomeBridge.BridgeTools
             lock (Gate) s = _state;
             if (s == null || !s.Active) return;
             __result = PacedMultiplier(s, __result);
+            __result = ClockCeilingMultiplier(s, __result);
             var ceiling = EffectiveTicksPerSecond(s);
             if (ceiling <= 0) return;
             var multiplier = ceiling / (float)NormalTicksPerSecond;
@@ -74,6 +75,7 @@ namespace HomeBridge.BridgeTools
         {
             if (s == null || !s.Active || Find.TickManager == null) return;
             s.LastReadTick = Find.TickManager.TicksGame;
+            s.Ceiling.Beat(NowMs());
         }
         internal static void NoteControllerRead()
         {
@@ -83,6 +85,7 @@ namespace HomeBridge.BridgeTools
         // it. Caller holds Gate.
         private static void AcknowledgeRows(State? s, long afterCursor)
         {
+            if (s != null && s.Active) s.Ceiling.Beat(NowMs());
             if (s == null || !s.Active || afterCursor <= s.AckedCursor) return;
             s.AckedCursor = afterCursor;
             while (s.Unacked.Count != 0 && s.Unacked[0].Key <= s.AckedCursor) s.Unacked.RemoveAt(0);

@@ -136,7 +136,7 @@ namespace HomeBridge.BridgeTools
                     TestAcceleration = testAcceleration,
                     BlindTickBudget = Clamp(blindTickBudget, 0, 1800000), MaxTicksPerSecond = Clamp(maxTicksPerSecond, 0, 60000),
                     PlayerPaced = playerPaced, FrameBudgetMs = DefaultFrameBudgetMs, Paced = PacedFloorMultiplier, LastPaceMs = NowMs(),
-                    LastReadTick = Find.TickManager.TicksGame, AckedCursor = _cursor,
+                    LastReadTick = Find.TickManager.TicksGame, AckedCursor = _cursor, Ceiling = new ClockCeiling(NowMs()),
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),
                     SurgicalRecovery = PawnIds(surgicalRecoveryIds),
@@ -222,6 +222,7 @@ namespace HomeBridge.BridgeTools
                 // critical section, so our own change cannot look external.
                 if (s.TestAcceleration && speed != TimeSpeed.Ultrafast)
                     return Failure("Pause the accelerated epoch before changing its speed.");
+                s.Ceiling.Beat(NowMs());
                 var old = s.RequestedSpeed;
                 s.RequestedSpeed = speed;
                 PlayerSpeedHook.Owned(() => Find.TickManager.CurTimeSpeed = speed);
@@ -303,7 +304,11 @@ namespace HomeBridge.BridgeTools
                 {
                     var tm = Find.TickManager;
                     if (tm != null)
-                        Pace(s, tm, (System.Diagnostics.Stopwatch.GetTimestamp() - _frameBeganTimestamp) * 1000.0 / System.Diagnostics.Stopwatch.Frequency, tm.TicksThisFrame);
+                        {
+                            var frameMs = (System.Diagnostics.Stopwatch.GetTimestamp() - _frameBeganTimestamp) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                            s.Ceiling.Frame(NowMs(), frameMs, tm.TicksThisFrame, (int)Math.Round(tm.TickRateMultiplier * NormalTicksPerSecond));
+                            Pace(s, tm, frameMs, tm.TicksThisFrame);
+                        }
                     s.Timing.Frames++;
                     if (s.Timing.FrameTicks > s.Timing.MaxFrameTicks) s.Timing.MaxFrameTicks = s.Timing.FrameTicks;
                     s.Timing.FrameTicks = 0;
@@ -1482,6 +1487,8 @@ namespace HomeBridge.BridgeTools
             // Player acceleration (SupervisedPlayPacing.cs): the mode, its frame
             // budget, the multiplier it holds and when it last ramped.
             public bool PlayerPaced; public int FrameBudgetMs; public float Paced; public long LastPaceMs; public int PaceLowered;
+            // The one ceiling (ClockCeiling.cs): frame budget plus brain heartbeat.
+            public ClockCeiling Ceiling = new ClockCeiling(0);
             public int LastReadTick; public long AckedCursor; public readonly List<KeyValuePair<long, int>> Unacked = new List<KeyValuePair<long, int>>();
             public long LastRampMs; public int MaxBlindTicks; public int RegulatorThrottles;
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;

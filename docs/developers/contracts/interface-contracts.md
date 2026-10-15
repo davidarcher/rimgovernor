@@ -40,6 +40,18 @@ lists the routes the in-process host offers.
   admits a live ceiling change through `SpeedRequest` while its speed stays Ultrafast.
   `speedmatrix/plain`'s `regulated` row runs uncapped under a 300-tick budget and must match the
   capped speeds' outcome.
+- **One ceiling** (`ClockCeiling.cs`, #3171) bounds every running epoch's tick rate, whatever its
+  pacing: the lower of a frame-budget input and a brain-heartbeat input; the brain only asks for a
+  speed. A frame whose tick work exceeds the 30 ms budget lowers the frame input to 70% of the rate
+  it ran at, at once; it climbs 25% per 250 ms only after a 1 s hold and only under 75% of the
+  budget, and releases at 9000 ticks/s. The heartbeat is brain contact (a status read, an events
+  read, a start or a speed request); none within 5 s drops the heartbeat input to Normal, and
+  contact ramps it back by doubling every 100 ms. `Epoch.ceiling_ticks_per_second` reports the
+  ceiling (0 = none) and `pacing_reason` names the binding input (`FRAME_BUDGET` or `HEARTBEAT`).
+  All of these numbers are conservative defaults, unmeasured until the live baseline (#3199).
+  The blind-tick regulator, the owner's `max_ticks_per_second` and player acceleration below still
+  run beside it until their removal (#3174); an explicit beat arrives with the Run/Hold contract
+  (#3177).
 - **Player acceleration** (every Ultrafast window without `ClockTestAcceleration`,
   `StartRequest.pacing = PACING_PLAYER_ACCELERATED`) is Ultrafast only and never combines with
   `ClockTestAcceleration`. Native raises Ultrafast's multiplier between 15x and 150x against the

@@ -231,6 +231,8 @@ namespace HomeBridge.BridgeTools
         private static double EffectiveTicksPerSecond() => 0;
         private static RimGovernor.Contracts.Wire.Clock.Status ReportFrames(RimGovernor.Contracts.Wire.Clock.Status status) => status;
         private static int PacedTicksPerSecond(State s) => 900;
+        // The one ceiling lives in the real ClockCeiling.cs (native-clock-ceiling probe); the fake reports none.
+        private static int CeilingTicksPerSecond(State s) => 0;
         private static RimGovernor.Contracts.Wire.Clock.PacingReason PacingReasonOf(State s) => RimGovernor.Contracts.Wire.Clock.PacingReason.Accelerated;
         private static void AcknowledgeRows(State s, long afterCursor) { }
         internal static void FixtureReset()

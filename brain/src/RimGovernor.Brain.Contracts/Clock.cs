@@ -81,6 +81,12 @@ public enum PacingReason
     Regulated = 5,
     [WireName("PACING_REASON_CEILING")]
     Ceiling = 6,
+    /// <summary>
+    /// The one ceiling is held at Normal (rising back) because the brain has not
+    /// made contact within the heartbeat tolerance.
+    /// </summary>
+    [WireName("PACING_REASON_HEARTBEAT")]
+    Heartbeat = 7,
 }
 
 [JsonConverter(typeof(WireEnumConverter<WatchMode>))]
@@ -471,6 +477,14 @@ public sealed record Epoch
     public uint? PacedTicksPerSecond { get; init; }
 
     public PacingReason? PacingReason { get; init; }
+
+    /// <summary>
+    /// The one ceiling on the epoch's tick rate (frame budget and brain
+    /// heartbeat, the lower of the two); zero when neither limits it. When it
+    /// bounds the rate, pacing_reason names the input that binds it
+    /// (PACING_REASON_FRAME_BUDGET or PACING_REASON_HEARTBEAT).
+    /// </summary>
+    public uint? CeilingTicksPerSecond { get; init; }
 }
 
 public sealed record Running

@@ -287,7 +287,7 @@ namespace HomeBridge.BridgeTools
         {
             var epoch = BaseEpoch(s);
             if (s.PlayerPaced) { epoch = epoch with { Pacing = Clock.Pacing.PlayerAccelerated }; epoch = epoch with { FrameBudgetMs = (uint)s.FrameBudgetMs }; }
-            if (live && s.Active) { epoch = epoch with { PacedTicksPerSecond = (uint)PacedTicksPerSecond(s) }; epoch = epoch with { PacingReason = PacingReasonOf(s) }; }
+            if (live && s.Active) { epoch = epoch with { PacedTicksPerSecond = (uint)PacedTicksPerSecond(s) }; epoch = epoch with { PacingReason = PacingReasonOf(s) }; epoch = epoch with { CeilingTicksPerSecond = (uint)CeilingTicksPerSecond(s) }; }
             return epoch;
         }
         private static Clock.Epoch BaseEpoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner, Origin = TypedOf(s).Origin,
