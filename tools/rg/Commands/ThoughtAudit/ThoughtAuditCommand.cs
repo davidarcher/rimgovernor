@@ -16,22 +16,35 @@ namespace RimGovernor.Tools.Commands.ThoughtAudit;
 /// workerClass) record what the worker reads; memory thoughts record the code and XML sites that grant them. The owner
 /// column is hand-maintained: regeneration keeps the owner of every def that remains and leaves new defs unowned. There is
 /// no check mode; a stale row simply shows up as unowned.
+/// <para>
+/// <c>-guards</c> (#3218, a removable spike) instead leaves the table alone and parses the decompiled sources with Roslyn
+/// (syntax only) to write draft mechanic cards: each grant site's guard conditions and the writers of the fields they read,
+/// with anything unresolved emitted as <c>unknown</c> and a reason. It writes -cards (JSON, the -only defs, default the
+/// three Gate 0 benchmarks) and -coverage (TSV, every def) under <c>docs/developers/</c>; see
+/// <c>docs/developers/mechanic-card-spike.md</c>.
+/// </para>
 /// </summary>
 internal static class ThoughtAuditCommand
 {
-    private const string Usage = "usage: thoughtaudit [-rimworld dir] [-out table] [-decompiled dir]";
+    private const string Usage = "usage: thoughtaudit [-rimworld dir] [-out table] [-decompiled dir] [-guards [-cards file] [-coverage file] [-only Def,Def]]";
 
     private static readonly string[] DefaultTable = ["brain", "src", "RimGovernor.Brain.Policy", "thought_triggers.tsv"];
 
+    private static readonly string[] DefaultBenchmarks = ["KnowBuriedInSarcophagus", "AteWithoutTable", "EnvironmentDark"];
+
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {
-        var flags = Flags.Parse(args, new HashSet<string>(), new HashSet<string> { "rimworld", "out", "decompiled" });
+        var flags = Flags.Parse(args, new HashSet<string> { "guards" }, new HashSet<string> { "rimworld", "out", "decompiled", "cards", "coverage", "only" });
         if (flags.HelpRequested)
         {
             Log.Info(Usage);
             Log.Info($"  -rimworld    RimWorld install directory (default: discovered, or ${SetupDiscovery.RimWorldDirEnv})");
             Log.Info("  -out         table to write (default brain/src/RimGovernor.Brain.Policy/thought_triggers.tsv in the checkout)");
             Log.Info("  -decompiled  directory for the decompiled sources (default: temporary, removed afterwards)");
+            Log.Info("  -guards      write draft mechanic cards and the coverage table instead of the trigger table (#3218)");
+            Log.Info("  -cards       with -guards: card JSON (default docs/developers/mechanic-card-drafts.json)");
+            Log.Info("  -coverage    with -guards: coverage TSV (default docs/developers/mechanic-card-coverage.tsv)");
+            Log.Info($"  -only        with -guards: comma-separated defs to write as cards (default {string.Join(',', DefaultBenchmarks)})");
             return 0;
         }
         if (flags.Positional.Count > 0)
@@ -44,11 +57,36 @@ internal static class ThoughtAuditCommand
         {
             outPath = Path.Combine([Repo.Require(Directory.GetCurrentDirectory()), .. DefaultTable]);
         }
-        await AuditAsync(rimworld, outPath, flags.String("decompiled"), ct).ConfigureAwait(false);
+        if (flags.Bool("guards"))
+        {
+            var docs = Path.Combine(Repo.Require(Directory.GetCurrentDirectory()), "docs", "developers");
+            var cards = flags.String("cards", Path.Combine(docs, "mechanic-card-drafts.json"));
+            var coverage = flags.String("coverage", Path.Combine(docs, "mechanic-card-coverage.tsv"));
+            var only = flags.String("only").Length > 0 ? flags.String("only").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : DefaultBenchmarks;
+            await WithDecompiled(rimworld, flags.String("decompiled"), root => GuardsAsync(rimworld, root, outPath, cards, coverage, only, ct), ct).ConfigureAwait(false);
+            return 0;
+        }
+        await WithDecompiled(rimworld, flags.String("decompiled"), decompiled => AuditAsync(rimworld, outPath, decompiled, ct), ct).ConfigureAwait(false);
         return 0;
     }
 
-    private static async Task AuditAsync(string rimworld, string outPath, string decompiled, CancellationToken ct)
+    private static async Task GuardsAsync(string rimworld, string root, string tablePath, string cardsPath, string coveragePath, string[] only, CancellationToken ct)
+    {
+        var (defs, xmlFiles) = ThoughtDefs.Load(Path.Combine(rimworld, "Data"));
+        var owners = File.Exists(tablePath) ? ThoughtRows.ParseOwners(await File.ReadAllTextAsync(tablePath, ct).ConfigureAwait(false)) : [];
+        var files = ThoughtDefs.SortedFiles(root, ".cs").Select(p => (p, File.ReadAllText(p))).ToList();
+        var index = SourceIndex.Build(files);
+        var cards = new GuardCards(index, root, new HashSet<string>(defs.Select(d => d.Name), StringComparer.Ordinal));
+        var all = cards.Build(defs, owners, xmlFiles);
+        var game = File.Exists(Path.Combine(rimworld, "Version.txt")) ? (await File.ReadAllTextAsync(Path.Combine(rimworld, "Version.txt"), ct).ConfigureAwait(false)).Trim() : "unknown";
+        var chosen = all.Where(c => only.Contains(c.Def)).ToList();
+        await File.WriteAllTextAsync(cardsPath, GuardOutput.Cards(game, GuardOutput.Summarize(all), chosen), new System.Text.UTF8Encoding(false), ct).ConfigureAwait(false);
+        await File.WriteAllTextAsync(coveragePath, GuardOutput.Coverage(all), new System.Text.UTF8Encoding(false), ct).ConfigureAwait(false);
+        Log.Info(string.Create(CultureInfo.InvariantCulture, $"thoughtaudit -guards: {all.Count} defs from {files.Count} sources; wrote {chosen.Count} cards to {cardsPath} and coverage to {coveragePath}"));
+    }
+
+    /// <summary>Runs <paramref name="work"/> on a decompiled tree: the given directory (decompiled into when empty), else a temporary one removed afterwards.</summary>
+    private static async Task WithDecompiled(string rimworld, string decompiled, Func<string, Task> work, CancellationToken ct)
     {
         string? temp = null;
         try
@@ -72,17 +110,7 @@ internal static class ThoughtAuditCommand
                     throw new ToolException("ilspycmd not found; install it with: dotnet tool install -g ilspycmd", e);
                 }
             }
-            var (defs, xmlFiles) = ThoughtDefs.Load(Path.Combine(rimworld, "Data"));
-            var names = new HashSet<string>(defs.Select(d => d.Name), StringComparer.Ordinal);
-            var (workers, sites) = ThoughtSources.Scan(decompiled, names);
-            var rows = ThoughtRows.Build(defs, workers, sites, xmlFiles);
-            if (File.Exists(outPath))
-            {
-                var owners = ThoughtRows.ParseOwners(await File.ReadAllTextAsync(outPath, ct).ConfigureAwait(false));
-                rows = [.. rows.Select(r => owners.TryGetValue(r.Def, out var owner) ? r with { Owner = owner } : r)];
-            }
-            await File.WriteAllTextAsync(outPath, ThoughtRows.Format(rows), ct).ConfigureAwait(false);
-            Log.Info(string.Create(CultureInfo.InvariantCulture, $"thoughtaudit: wrote {rows.Count} rows to {outPath}"));
+            await work(decompiled).ConfigureAwait(false);
         }
         finally
         {
@@ -91,5 +119,20 @@ internal static class ThoughtAuditCommand
                 Directory.Delete(temp, recursive: true);
             }
         }
+    }
+
+    private static async Task AuditAsync(string rimworld, string outPath, string decompiled, CancellationToken ct)
+    {
+        var (defs, xmlFiles) = ThoughtDefs.Load(Path.Combine(rimworld, "Data"));
+        var names = new HashSet<string>(defs.Select(d => d.Name), StringComparer.Ordinal);
+        var (workers, sites) = ThoughtSources.Scan(decompiled, names);
+        var rows = ThoughtRows.Build(defs, workers, sites, xmlFiles);
+        if (File.Exists(outPath))
+        {
+            var owners = ThoughtRows.ParseOwners(await File.ReadAllTextAsync(outPath, ct).ConfigureAwait(false));
+            rows = [.. rows.Select(r => owners.TryGetValue(r.Def, out var owner) ? r with { Owner = owner } : r)];
+        }
+        await File.WriteAllTextAsync(outPath, ThoughtRows.Format(rows), ct).ConfigureAwait(false);
+        Log.Info(string.Create(CultureInfo.InvariantCulture, $"thoughtaudit: wrote {rows.Count} rows to {outPath}"));
     }
 }

@@ -1,0 +1,799 @@
+{
+  "generator": "RimGovernor.cmd thoughtaudit -guards",
+  "status": "draft: extracted from syntax only, no probe has verified any card",
+  "game": "1.7.4979 rev109",
+  "coverage": {
+    "defs": 923,
+    "status": {
+      "partial": 293,
+      "resolved": 136,
+      "unknown": 494
+    },
+    "kindStatus": {
+      "memory/partial": 37,
+      "memory/resolved": 99,
+      "memory/unknown": 443,
+      "situational/partial": 256,
+      "situational/resolved": 37,
+      "situational/unknown": 51
+    },
+    "primaryReasonOfNonResolved": {
+      "conditions-in-callers": 26,
+      "depth-limit": 1,
+      "event-driven": 3,
+      "external-type": 175,
+      "indexer": 14,
+      "lambda": 3,
+      "no-code-or-xml-reference": 266,
+      "pattern": 6,
+      "state-expression": 65,
+      "switch": 4,
+      "unresolved-symbol": 5,
+      "unsupported-syntax": 54,
+      "virtual-call": 9,
+      "xml-granted": 156
+    },
+    "sites": 749,
+    "guards": 2410,
+    "guardsResolved": 1667,
+    "unknownLeavesByReason": {
+      "construction": 1,
+      "depth-limit": 2,
+      "external-type": 222,
+      "indexer": 63,
+      "lambda": 5,
+      "pattern": 9,
+      "state-expression": 200,
+      "switch": 8,
+      "unresolved-symbol": 18,
+      "unresolved-type": 4,
+      "unsupported-syntax": 69,
+      "virtual-call": 153
+    },
+    "unsupportedSyntaxKinds": {
+      "ConditionalAccessExpression": 49,
+      "DeclarationExpression": 7,
+      "GenericName": 1,
+      "SwitchExpression": 12
+    },
+    "topExternalTypes": {
+      "Color": 4,
+      "HashSet": 144,
+      "IEnumerable": 4,
+      "List": 61,
+      "float": 7,
+      "int": 1,
+      "item2": 1
+    }
+  },
+  "cards": [
+    {
+      "def": "AteWithoutTable",
+      "kind": "memory",
+      "owner": "EnsureComfort",
+      "status": "resolved",
+      "reasons": [],
+      "xml": {
+        "durationDays": "1",
+        "stackLimit": "1",
+        "nullifyingTraits": "Ascetic",
+        "stages": [
+          {
+            "label": "ate without table",
+            "baseMoodEffect": "-3"
+          }
+        ]
+      },
+      "sites": [
+        {
+          "site": "Toils_Ingest.FinalizeIngest",
+          "file": "RimWorld/Toils_Ingest.cs",
+          "bodyHash": "cb6613285f4b0ad7",
+          "access": "public static",
+          "callers": 6,
+          "guards": [
+            {
+              "origin": "lambda",
+              "text": "deferred: runs when the enclosing delegate is invoked",
+              "conditions": "resolved",
+              "expr": {
+                "lit": "deferred: runs when the enclosing delegate is invoked"
+              }
+            },
+            {
+              "origin": "if",
+              "text": "(ingester.needs.mood != null)",
+              "conditions": "resolved",
+              "expr": {
+                "op": "!=",
+                "args": [
+                  {
+                    "sym": "ingester.needs.mood",
+                    "kind": "field",
+                    "decl": "Pawn_NeedsTracker.mood",
+                    "type": "Need_Mood"
+                  },
+                  {
+                    "lit": "null"
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "text": "thing.def.IsNutritionGivingIngestible",
+              "conditions": "resolved",
+              "expr": {
+                "sym": "thing.def.IsNutritionGivingIngestible",
+                "kind": "prop",
+                "decl": "ThingDef.IsNutritionGivingIngestible",
+                "type": "bool"
+              }
+            },
+            {
+              "origin": "if",
+              "text": "(thing.def.ingestible.chairSearchRadius > 10f)",
+              "conditions": "resolved",
+              "expr": {
+                "op": ">",
+                "args": [
+                  {
+                    "sym": "thing.def.ingestible.chairSearchRadius",
+                    "kind": "field",
+                    "decl": "IngestibleProperties.chairSearchRadius",
+                    "type": "float"
+                  },
+                  {
+                    "lit": "10f"
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "text": "!(ingester.Position + ingester.Rotation.FacingCell).HasEatSurface(actor.Map)",
+              "conditions": "resolved",
+              "expr": {
+                "op": "not",
+                "args": [
+                  {
+                    "op": "call",
+                    "args": [
+                      {
+                        "sym": "(ingester.Position + ingester.Rotation.FacingCell).HasEatSurface",
+                        "kind": "method",
+                        "decl": "GenGrid.HasEatSurface",
+                        "type": "bool"
+                      },
+                      {
+                        "sym": "actor.Map",
+                        "kind": "prop",
+                        "decl": "IBillGiver.Map",
+                        "type": "Map"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "text": "(ingester.GetPosture() == PawnPosture.Standing)",
+              "conditions": "resolved",
+              "expr": {
+                "op": "==",
+                "args": [
+                  {
+                    "op": "call",
+                    "args": [
+                      {
+                        "sym": "ingester.GetPosture",
+                        "kind": "method",
+                        "decl": "PawnUtility.GetPosture",
+                        "type": "PawnPosture"
+                      }
+                    ]
+                  },
+                  {
+                    "sym": "PawnPosture.Standing",
+                    "kind": "enum",
+                    "decl": "PawnPosture.Standing",
+                    "type": "PawnPosture"
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "text": "!ingester.IsWildMan()",
+              "conditions": "resolved",
+              "expr": {
+                "op": "not",
+                "args": [
+                  {
+                    "op": "call",
+                    "args": [
+                      {
+                        "sym": "ingester.IsWildMan",
+                        "kind": "method",
+                        "decl": "WildManUtility.IsWildMan",
+                        "type": "bool"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "text": "thing.def.ingestible.tableDesired",
+              "conditions": "resolved",
+              "expr": {
+                "sym": "thing.def.ingestible.tableDesired",
+                "kind": "field",
+                "decl": "IngestibleProperties.tableDesired",
+                "type": "bool"
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Pawn_NeedsTracker.mood",
+              "kind": "field",
+              "writersFound": 1,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "Pawn_NeedsTracker.BindDirectNeedFields",
+                  "bodyHash": "1f27ff160017e7f0",
+                  "write": "ref-arg",
+                  "value": "out",
+                  "guards": []
+                }
+              ],
+              "follows": []
+            },
+            {
+              "field": "ThingDef.IsNutritionGivingIngestible",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "multi-statement getter"
+              ],
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "IngestibleProperties.chairSearchRadius",
+              "kind": "field",
+              "writersFound": 1,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "IngestibleProperties.chairSearchRadius",
+                  "bodyHash": "1e246847978a7196",
+                  "write": "init",
+                  "value": "32f",
+                  "guards": []
+                }
+              ],
+              "follows": []
+            },
+            {
+              "field": "IBillGiver.Map",
+              "kind": "prop",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "IngestibleProperties.tableDesired",
+              "kind": "field",
+              "writersFound": 1,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "IngestibleProperties.tableDesired",
+                  "bodyHash": "c396e0f13803a70d",
+                  "write": "init",
+                  "value": "true",
+                  "guards": []
+                }
+              ],
+              "follows": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "def": "EnvironmentDark",
+      "kind": "situational",
+      "owner": "MaintainLighting",
+      "status": "resolved",
+      "reasons": [],
+      "xml": {
+        "workerClass": "ThoughtWorker_Dark",
+        "nullifyingTraits": "NightOwlUndergrounder",
+        "stages": [
+          {
+            "label": "darkness",
+            "baseMoodEffect": "-5"
+          }
+        ]
+      },
+      "sites": [
+        {
+          "site": "ThoughtWorker_Dark.CurrentStateInternal",
+          "file": "RimWorld/ThoughtWorker_Dark.cs",
+          "bodyHash": "0dba530524177c70",
+          "access": "protected override",
+          "callers": 14,
+          "guards": [
+            {
+              "origin": "return-value",
+              "text": "(((p.Awake() and (p.needs.mood.recentMemory.TicksSinceLastLight > 240)) and !PawnUtility.IsBiologicallyOrArtificiallyBlind(p)) and ((p.Ideo == null) or !p.Ideo.IdeoPrefersDarkness()))",
+              "conditions": "resolved",
+              "expr": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "and",
+                    "args": [
+                      {
+                        "op": "and",
+                        "args": [
+                          {
+                            "op": "call",
+                            "args": [
+                              {
+                                "sym": "p.Awake",
+                                "kind": "method",
+                                "decl": "RestUtility.Awake",
+                                "type": "bool"
+                              }
+                            ]
+                          },
+                          {
+                            "op": ">",
+                            "args": [
+                              {
+                                "sym": "p.needs.mood.recentMemory.TicksSinceLastLight",
+                                "kind": "prop",
+                                "decl": "PawnRecentMemory.TicksSinceLastLight",
+                                "type": "int"
+                              },
+                              {
+                                "lit": "240"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "op": "not",
+                        "args": [
+                          {
+                            "op": "call",
+                            "args": [
+                              {
+                                "sym": "PawnUtility.IsBiologicallyOrArtificiallyBlind",
+                                "kind": "method",
+                                "decl": "PawnUtility.IsBiologicallyOrArtificiallyBlind",
+                                "type": "bool"
+                              },
+                              {
+                                "sym": "p",
+                                "kind": "param",
+                                "decl": "",
+                                "type": "Pawn"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "or",
+                    "args": [
+                      {
+                        "op": "==",
+                        "args": [
+                          {
+                            "sym": "p.Ideo",
+                            "kind": "prop",
+                            "decl": "Pawn.Ideo",
+                            "type": "Ideo"
+                          },
+                          {
+                            "lit": "null"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "not",
+                        "args": [
+                          {
+                            "op": "call",
+                            "args": [
+                              {
+                                "sym": "p.Ideo.IdeoPrefersDarkness",
+                                "kind": "method",
+                                "decl": "IdeoUtility.IdeoPrefersDarkness",
+                                "type": "bool"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "PawnRecentMemory.TicksSinceLastLight",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "PawnRecentMemory.lastLightTick",
+                "TickManager.TicksGame"
+              ],
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Pawn.Ideo",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "def": "KnowBuriedInSarcophagus",
+      "kind": "memory",
+      "status": "resolved",
+      "reasons": [],
+      "xml": {
+        "durationDays": "8",
+        "stackLimit": "4",
+        "stackedEffectMultiplier": "0.5",
+        "stages": [
+          {
+            "label": "buried in sarcophagus",
+            "baseMoodEffect": "4"
+          }
+        ]
+      },
+      "sites": [
+        {
+          "site": "Building_Sarcophagus.Notify_HauledTo",
+          "file": "RimWorld/Building_Sarcophagus.cs",
+          "bodyHash": "91b24c626f95fc53",
+          "access": "public override",
+          "callers": 3,
+          "guards": [
+            {
+              "origin": "early-exit",
+              "text": "thisIsFirstBodyEver",
+              "conditions": "resolved",
+              "expr": {
+                "sym": "thisIsFirstBodyEver",
+                "kind": "field",
+                "decl": "Building_Sarcophagus.thisIsFirstBodyEver",
+                "type": "bool"
+              }
+            },
+            {
+              "origin": "early-exit",
+              "text": "hauler.IsColonist",
+              "conditions": "resolved",
+              "expr": {
+                "sym": "hauler.IsColonist",
+                "kind": "prop",
+                "decl": "Pawn.IsColonist",
+                "type": "bool"
+              }
+            },
+            {
+              "origin": "early-exit",
+              "text": "base.Corpse.InnerPawn.def.race.Humanlike",
+              "conditions": "resolved",
+              "expr": {
+                "sym": "base.Corpse.InnerPawn.def.race.Humanlike",
+                "kind": "prop",
+                "decl": "RaceProperties.Humanlike",
+                "type": "bool"
+              }
+            },
+            {
+              "origin": "early-exit",
+              "text": "!base.Corpse.everBuriedInSarcophagus",
+              "conditions": "resolved",
+              "expr": {
+                "op": "not",
+                "args": [
+                  {
+                    "sym": "base.Corpse.everBuriedInSarcophagus",
+                    "kind": "field",
+                    "decl": "Corpse.everBuriedInSarcophagus",
+                    "type": "bool"
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "foreach",
+              "text": "nonempty(base.Map.mapPawns.FreeColonists)",
+              "conditions": "resolved",
+              "expr": {
+                "op": "nonempty",
+                "args": [
+                  {
+                    "sym": "base.Map.mapPawns.FreeColonists",
+                    "kind": "prop",
+                    "decl": "MapPawns.FreeColonists",
+                    "type": "List"
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "text": "(freeColonist.needs.mood != null)",
+              "conditions": "resolved",
+              "expr": {
+                "op": "!=",
+                "args": [
+                  {
+                    "sym": "freeColonist.needs.mood",
+                    "kind": "field",
+                    "decl": "Pawn_NeedsTracker.mood",
+                    "type": "Need_Mood"
+                  },
+                  {
+                    "lit": "null"
+                  }
+                ]
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Building_Sarcophagus.thisIsFirstBodyEver",
+              "kind": "field",
+              "writersFound": 1,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "Building_Sarcophagus.TryAcceptThing",
+                  "bodyHash": "4507054591858954",
+                  "write": "set",
+                  "value": "!everNonEmpty",
+                  "guards": [
+                    {
+                      "origin": "if",
+                      "text": "base.TryAcceptThing(thing, allowSpecialEffects)",
+                      "conditions": "resolved",
+                      "expr": {
+                        "op": "call",
+                        "args": [
+                          {
+                            "sym": "base.TryAcceptThing",
+                            "kind": "method",
+                            "decl": "Building_Sarcophagus.TryAcceptThing",
+                            "type": "bool"
+                          },
+                          {
+                            "sym": "thing",
+                            "kind": "param",
+                            "decl": "",
+                            "type": "Thing"
+                          },
+                          {
+                            "sym": "allowSpecialEffects",
+                            "kind": "param",
+                            "decl": "",
+                            "type": "bool"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "follows": [
+                {
+                  "field": "Building_Sarcophagus.everNonEmpty",
+                  "kind": "field",
+                  "writersFound": 2,
+                  "resetWriters": 0,
+                  "writers": [
+                    {
+                      "method": "Building_Sarcophagus.ExposeData",
+                      "bodyHash": "a137096c44fc738e",
+                      "write": "serialization",
+                      "value": "ref",
+                      "guards": []
+                    },
+                    {
+                      "method": "Building_Sarcophagus.TryAcceptThing",
+                      "bodyHash": "4507054591858954",
+                      "write": "set",
+                      "value": "true",
+                      "guards": [
+                        {
+                          "origin": "if",
+                          "text": "base.TryAcceptThing(thing, allowSpecialEffects)",
+                          "conditions": "resolved",
+                          "expr": {
+                            "op": "call",
+                            "args": [
+                              {
+                                "sym": "base.TryAcceptThing",
+                                "kind": "method",
+                                "decl": "Building_Sarcophagus.TryAcceptThing",
+                                "type": "bool"
+                              },
+                              {
+                                "sym": "thing",
+                                "kind": "param",
+                                "decl": "",
+                                "type": "Thing"
+                              },
+                              {
+                                "sym": "allowSpecialEffects",
+                                "kind": "param",
+                                "decl": "",
+                                "type": "bool"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "follows": []
+                }
+              ]
+            },
+            {
+              "field": "Pawn.IsColonist",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "multi-statement getter"
+              ],
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "RaceProperties.Humanlike",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "RaceProperties.intelligence"
+              ],
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Corpse.everBuriedInSarcophagus",
+              "kind": "field",
+              "writersFound": 2,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "Building_Sarcophagus.Notify_HauledTo",
+                  "bodyHash": "91b24c626f95fc53",
+                  "write": "set",
+                  "value": "true",
+                  "guards": [
+                    {
+                      "origin": "early-exit",
+                      "text": "thisIsFirstBodyEver",
+                      "conditions": "resolved",
+                      "expr": {
+                        "sym": "thisIsFirstBodyEver",
+                        "kind": "field",
+                        "decl": "Building_Sarcophagus.thisIsFirstBodyEver",
+                        "type": "bool"
+                      }
+                    },
+                    {
+                      "origin": "early-exit",
+                      "text": "hauler.IsColonist",
+                      "conditions": "resolved",
+                      "expr": {
+                        "sym": "hauler.IsColonist",
+                        "kind": "prop",
+                        "decl": "Pawn.IsColonist",
+                        "type": "bool"
+                      }
+                    },
+                    {
+                      "origin": "early-exit",
+                      "text": "base.Corpse.InnerPawn.def.race.Humanlike",
+                      "conditions": "resolved",
+                      "expr": {
+                        "sym": "base.Corpse.InnerPawn.def.race.Humanlike",
+                        "kind": "prop",
+                        "decl": "RaceProperties.Humanlike",
+                        "type": "bool"
+                      }
+                    },
+                    {
+                      "origin": "early-exit",
+                      "text": "!base.Corpse.everBuriedInSarcophagus",
+                      "conditions": "resolved",
+                      "expr": {
+                        "op": "not",
+                        "args": [
+                          {
+                            "sym": "base.Corpse.everBuriedInSarcophagus",
+                            "kind": "field",
+                            "decl": "Corpse.everBuriedInSarcophagus",
+                            "type": "bool"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "method": "Corpse.ExposeData",
+                  "bodyHash": "b567ad26f52e6622",
+                  "write": "serialization",
+                  "value": "ref",
+                  "guards": []
+                }
+              ],
+              "follows": []
+            },
+            {
+              "field": "MapPawns.FreeColonists",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "Faction.OfPlayer",
+                "MapPawns.FreeHumanlikesOfFaction"
+              ],
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Pawn_NeedsTracker.mood",
+              "kind": "field",
+              "writersFound": 1,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "Pawn_NeedsTracker.BindDirectNeedFields",
+                  "bodyHash": "1f27ff160017e7f0",
+                  "write": "ref-arg",
+                  "value": "out",
+                  "guards": []
+                }
+              ],
+              "follows": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

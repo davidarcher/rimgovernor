@@ -36,6 +36,11 @@
     <Compile Include="../../../tools/launcher/NewColony.cs" Link="Launcher/NewColony.cs" />
     <Compile Include="../../../tools/launcher/LauncherException.cs" Link="Launcher/LauncherException.cs" />
   </ItemGroup>
+  <!-- The thoughtaudit guard analysis (#3218 spike) is pure syntax analysis; compiled in to pin its unknown handling without the game. -->
+  <ItemGroup>
+    <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardIndex.cs" Link="ThoughtAudit/GuardIndex.cs" />
+    <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardAnalysis.cs" Link="ThoughtAudit/GuardAnalysis.cs" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Baselines/*.quality.json" LogicalName="RimGovernor.Brain.Domain.Tests.%(Filename)%(Extension)" />
   </ItemGroup>

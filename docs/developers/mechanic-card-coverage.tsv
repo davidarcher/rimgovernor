@@ -1,0 +1,924 @@
+def	kind	owner	status	sites	guards	unknown	primary_reason
+AdministeredDrug_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AdministeredDrug_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AdministeredHardDrug_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AdministeredHardDrug_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AdministeredRecreationalDrug_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AdministeredRecreationalDrug_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+Affair	situational		partial	3	10	7	indexer
+AgeReversalDemanded	situational		partial	1	4	2	external-type
+AgeReversalReceived	memory		resolved	1	2	0	
+AlcoholWithdrawal	situational		unknown	1	1	1	unsupported-syntax
+AmbrosiaHigh	situational		unknown	1	1	1	unsupported-syntax
+AmbrosiaWithdrawal	situational		unknown	1	1	1	unsupported-syntax
+AnestheticHigh	situational		unknown	1	1	1	unsupported-syntax
+AnimaScream	memory		unknown	0	0	0	xml-granted
+AnnoyingVoice	situational		partial	5	22	4	state-expression
+AnyBodyPartButGroinCovered_Disapproved_Female	situational		partial	1	4	2	external-type
+AnyBodyPartButGroinCovered_Disapproved_Male	situational		partial	1	4	2	external-type
+AnyBodyPartButGroinCovered_Disapproved_Memory	memory		unknown	0	0	0	no-code-or-xml-reference
+AnyBodyPartButGroinCovered_Disapproved_Social_Female	situational		partial	1	4	2	external-type
+AnyBodyPartButGroinCovered_Disapproved_Social_Male	situational		partial	1	4	2	external-type
+AnyBodyPartCovered_Disapproved_Female	situational		partial	1	4	2	external-type
+AnyBodyPartCovered_Disapproved_Male	situational		partial	1	4	2	external-type
+AnyBodyPartCovered_Disapproved_Memory	memory		unknown	0	0	0	no-code-or-xml-reference
+AnyBodyPartCovered_Disapproved_Social_Female	situational		partial	1	4	2	external-type
+AnyBodyPartCovered_Disapproved_Social_Male	situational		partial	1	4	2	external-type
+ApparelDamaged	situational	MaintainEquipment	partial	2	6	4	indexer
+ArtifactMoodBoost	memory		resolved	1	3	0	
+Ascetic	situational		partial	3	8	3	state-expression
+AteBabyFood	memory		unknown	0	0	0	xml-granted
+AteCorpse	memory		unknown	1	0	0	conditions-in-callers
+AteFineMeal	memory		unknown	0	0	0	xml-granted
+AteFoodInappropriateForTitle	memory		partial	1	3	1	unsupported-syntax
+AteFungusAsIngredient_Despised	memory		unknown	0	0	0	no-code-or-xml-reference
+AteFungusAsIngredient_Preferred	memory		unknown	0	0	0	no-code-or-xml-reference
+AteFungus_Despised	memory		unknown	0	0	0	no-code-or-xml-reference
+AteFungus_Preferred	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_Preferred	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_RequiredRavenous	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanMeat_RequiredStrong	memory		unknown	0	0	0	no-code-or-xml-reference
+AteHumanlikeMeatAsIngredient	memory		unknown	0	0	0	xml-granted
+AteHumanlikeMeatAsIngredientCannibal	memory		unknown	0	0	0	xml-granted
+AteHumanlikeMeatDirect	memory		unknown	0	0	0	xml-granted
+AteHumanlikeMeatDirectCannibal	memory		unknown	0	0	0	xml-granted
+AteInImpressiveDiningRoom	memory		resolved	1	5	0	
+AteInsectMeatAsIngredient	memory		unknown	0	0	0	xml-granted
+AteInsectMeatAsIngredient_Loved	memory		unknown	0	0	0	no-code-or-xml-reference
+AteInsectMeatDirect	memory		unknown	0	0	0	xml-granted
+AteInsectMeat_Loved	memory		unknown	0	0	0	no-code-or-xml-reference
+AteKibble	memory		unknown	0	0	0	xml-granted
+AteLavishMeal	memory		unknown	0	0	0	xml-granted
+AteMeat_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+AteMeat_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+AteMeat_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AteMeat_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+AteMeat_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+AteMeat_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonCannibalFood_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonCannibalFood_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonCannibalFood_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonCannibalFood_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonFungusMealWithPlants_Despised	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonFungusPlant_Despised	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonMeat_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonMeat_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonMeat_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonMeat_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonMeat_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNonMeat_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+AteNutrientPasteMeal	memory		unknown	0	0	0	no-code-or-xml-reference
+AteRawFood	memory	EnsureCooking	partial	1	7	1	unsupported-syntax
+AteRawHumanlikeMeat	memory		unknown	0	0	0	xml-granted
+AteRottenFood	memory		partial	1	2	1	unsupported-syntax
+AteTwistedMeat	memory		unknown	0	0	0	xml-granted
+AteVeneratedAnimalMeat	memory		unknown	0	0	0	no-code-or-xml-reference
+AteWithoutTable	memory	EnsureComfort	resolved	1	8	0	
+AttendedConcert	memory		unknown	1	0	0	event-driven
+AttendedParty	memory		unknown	2	0	0	event-driven
+AttendedWedding	memory		unknown	1	5	5	indexer
+Aurora	situational		partial	2	5	3	unsupported-syntax
+AwkwardExecution	memory		unknown	0	0	0	xml-granted
+BabyBorn	memory		resolved	1	2	0	
+BabyCriedSocial	memory		resolved	1	2	0	
+BabyGiggledSocial	memory		resolved	1	2	0	
+BabySick	situational	MaintainMedicalReserves	resolved	2	5	0	
+BeautifulSkyLanterns	memory		unknown	0	0	0	xml-granted
+BecameGhoul	memory		unknown	0	0	0	xml-granted
+BioSculpterDespised	memory		unknown	0	0	0	no-code-or-xml-reference
+BioferriteGenerator	situational		partial	5	19	4	state-expression
+BioluminescentSpores	situational		partial	3	7	1	state-expression
+BiosculpterPleasure	memory		unknown	1	0	0	conditions-in-callers
+BlindingCeremony_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+BlindingCeremony_Self_Elevated	memory		unknown	0	0	0	no-code-or-xml-reference
+BlindingCeremony_Self_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+BlindingCeremony_Self_Sublime	memory		unknown	0	0	0	no-code-or-xml-reference
+Blindness_ArtificialBlind	situational		partial	1	4	2	external-type
+Blindness_Elevated_Blind	situational		partial	1	4	2	external-type
+Blindness_Elevated_Blind_Social	situational		partial	1	4	2	external-type
+Blindness_Elevated_HalfBlind	situational		partial	1	4	2	external-type
+Blindness_Elevated_HalfBlind_Social	situational		partial	1	4	2	external-type
+Blindness_Elevated_NonBlind	situational		partial	1	4	2	external-type
+Blindness_Elevated_NonBlind_Social	situational		partial	1	4	2	external-type
+Blindness_Respected_Blind	situational		partial	1	4	2	external-type
+Blindness_Respected_Blind_Social	situational		partial	1	4	2	external-type
+Blindness_Respected_NonBlind_Social	situational		partial	1	4	2	external-type
+Blindness_Sublime_Blind	situational		partial	1	4	2	external-type
+Blindness_Sublime_Blind_Social	situational		partial	1	4	2	external-type
+Blindness_Sublime_HalfBlind	situational		partial	1	4	2	external-type
+Blindness_Sublime_HalfBlind_Social	situational		partial	1	4	2	external-type
+Blindness_Sublime_NonBlind	situational		partial	1	4	2	external-type
+Blindness_Sublime_NonBlind_Social	situational		partial	1	4	2	external-type
+BlissLobotomy	memory		unknown	0	0	0	xml-granted
+BloodRage	situational		unknown	1	1	1	unsupported-syntax
+BloodTorch	situational		partial	4	12	5	state-expression
+BloodfeederColonist_Revered	situational		partial	1	4	2	external-type
+BloodfeederColonist_Reviled	situational		partial	1	4	2	external-type
+BloodfeederDied_Revered	memory		unknown	0	0	0	no-code-or-xml-reference
+BloodfeederDied_Reviled	memory		unknown	0	0	0	no-code-or-xml-reference
+Bloodfeeder_ReveredBloodfeeder	situational		partial	1	4	2	external-type
+Bloodfeeder_ReviledBloodfeeder	situational		partial	1	4	2	external-type
+Bloodfeeders_Revered_Opinion_Bloodfeeder	situational		partial	1	4	2	external-type
+Bloodfeeders_Reviled_Opinion_Bloodfeeder	situational		partial	1	4	2	external-type
+BlowingSand	memory		unknown	0	0	0	xml-granted
+BodyPuristDisgust	situational		partial	6	25	5	state-expression
+BondedAnimalBanished	memory		resolved	1	2	0	
+BondedAnimalDied	memory		unknown	0	0	0	xml-granted
+BondedAnimalLost	memory		unknown	0	0	0	xml-granted
+BondedAnimalMaster	situational		unknown	3	6	6	external-type
+BondedAnimalReleased	memory		resolved	1	2	0	
+BondedThoughtCalm	situational		partial	1	3	2	external-type
+BondedThoughtKind	situational		partial	1	3	2	external-type
+BondedThoughtMuttering	situational		partial	1	3	2	external-type
+BondedThoughtWailing	situational		partial	1	3	2	external-type
+BoringBlinding	memory		unknown	0	0	0	xml-granted
+BoringDuel	memory		unknown	0	0	0	xml-granted
+BoringFestival	memory		unknown	0	0	0	xml-granted
+BoringParty	memory		unknown	0	0	0	xml-granted
+BoringSacrifice	memory		unknown	0	0	0	xml-granted
+BoringScarification	memory		unknown	0	0	0	xml-granted
+BotchedMySurgery	memory		resolved	1	2	0	
+BrawlerUnhappy	situational		resolved	1	1	0	
+BreastfedBaby	memory		resolved	2	4	0	
+BreastfedMe	memory		resolved	2	4	0	
+BrokeUpWithMe	memory		resolved	1	2	0	
+BrokeUpWithMeMood	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Know_Abhorrent_Opinion	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Know_Disapproved_Opinion	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHuman_Know_Horrible_Opinion	memory		unknown	0	0	0	no-code-or-xml-reference
+ButcheredHumanlikeCorpse	memory		unknown	0	0	0	xml-granted
+ButcheredHumanlikeCorpseOpinion	memory		unknown	0	0	0	xml-granted
+Catharsis	memory		unknown	1	0	0	conditions-in-callers
+ChangedIdeo_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+ChangedIdeo_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+ChangedIdeo_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Essential_Beggars	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Essential_HospitalityRefugees	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Essential_IntroWimp	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Essential_RefugeePodCrash	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Essential_ShuttleCrashRescue	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Essential_ThreatReward_Joiner	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Essential_WandererJoins	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Important_Beggars	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Important_HospitalityRefugees	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Important_IntroWimp	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Important_RefugeePodCrash	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Important_ShuttleCrashRescue	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Important_ThreatReward_Joiner	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Important_WandererJoins	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Worthwhile_Beggars	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Worthwhile_HospitalityRefugees	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Worthwhile_IntroWimp	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Worthwhile_RefugeePodCrash	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Worthwhile_ShuttleCrashRescue	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Worthwhile_ThreatReward_Joiner	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityFulfilled_Worthwhile_WandererJoins	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_Beggars	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_Beggars_Betrayed	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_HospitalityRefugees	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_IntroWimp	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_Pilgrims	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_Pilgrims_Betrayed	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_RefugeePodCrash	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_ShuttleCrashRescue	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_ThreatReward_Joiner	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Essential_WandererJoins	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_Beggars	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_Beggars_Betrayed	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_HospitalityRefugees	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_IntroWimp	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_Pilgrims	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_Pilgrims_Betrayed	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_RefugeePodCrash	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_ShuttleCrashRescue	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_ThreatReward_Joiner	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Important_WandererJoins	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_Beggars	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_Beggars_Betrayed	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_HospitalityRefugees	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_IntroWimp	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_Pilgrims	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_Pilgrims_Betrayed	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_RefugeePodCrash	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_ShuttleCrashRescue	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_ThreatReward_Joiner	memory		unknown	0	0	0	no-code-or-xml-reference
+CharityRefused_Worthwhile_WandererJoins	memory		unknown	0	0	0	no-code-or-xml-reference
+CheatedOnMe	memory		resolved	1	2	0	
+CheatedOnMeMood	memory		unknown	0	0	0	no-code-or-xml-reference
+ChemicalInterestVsTeetotaler	situational		partial	6	25	5	state-expression
+ChildInGrowthVat	situational		resolved	1	2	0	
+ChildLabor_Encouraged_ChildAssignedRecreation	situational		partial	1	4	2	external-type
+ChildLabor_Encouraged_ChildAssignedWork	situational		partial	1	4	2	external-type
+ChildlikePositivity	situational		partial	1	6	2	external-type
+Chimera	memory		unknown	1	0	0	conditions-in-callers
+Chitchat	memory		unknown	0	0	0	xml-granted
+ClosedTheVoid	memory		unknown	1	0	0	conditions-in-callers
+ClosedTheVoidOpinion	memory		resolved	1	1	0	
+ClothedNudist	situational		partial	3	11	9	external-type
+ColonistBanished	memory		resolved	1	4	0	
+ColonistBanishedToDie	memory		resolved	1	4	0	
+ColonistLeftUnburied	situational		partial	3	8	4	external-type
+ColonistLost	memory		resolved	1	5	0	
+ColonyPrisonerEscaped	memory		unknown	1	0	0	conditions-in-callers
+ConnectedTreeDied	memory		unknown	1	2	2	external-type
+CounselFailed	memory		unknown	0	0	0	xml-granted
+Counselled	memory		resolved	1	3	0	
+Counselled_MoodBoost	memory		resolved	1	3	0	
+CrashedTogether	memory		resolved	1	2	0	
+CreepyBreathing	situational		partial	5	22	4	state-expression
+CribQuality	situational		partial	3	8	2	state-expression
+CryingBaby	memory		resolved	1	4	0	
+CubeSculptures	situational		partial	3	8	5	state-expression
+CubeWithdrawl	situational		unknown	1	1	1	unsupported-syntax
+CutTree_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+CutTree_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+CutTree_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+CutTree_Know_Disapproved_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+CutTree_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+CutTree_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+CutTree_Know_Prohibited	memory		unknown	0	0	0	no-code-or-xml-reference
+CutTree_Know_Prohibited_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+Darklight_Preferred_BlindingLight	situational		partial	1	4	2	external-type
+Darklight_Preferred_Darklight	situational		partial	1	4	2	external-type
+Darklight_Preferred_IndoorLight	situational		partial	1	4	2	external-type
+DarknessLifted	memory		unknown	1	0	0	conditions-in-callers
+DeadMansApparel	situational	MaintainEquipment	resolved	2	4	0	
+DeadlifeDust	situational		resolved	3	14	0	
+DeathPall	memory		unknown	0	0	0	xml-granted
+DeathRefusalSickness	situational		unknown	1	1	1	unsupported-syntax
+DeathrestChamber	situational		partial	5	22	4	state-expression
+DeathrestExhaustion	situational		partial	1	4	1	unsupported-syntax
+DebugBad	memory		resolved	1	1	0	
+DebugGood	memory		partial	3	1	0	conditions-in-callers
+DecreeFailed	memory		unknown	0	0	0	xml-granted
+DecreeMet	memory		unknown	2	0	0	conditions-in-callers
+DecreeUnmet	situational		resolved	1	1	0	
+DeepTalk	memory		unknown	0	0	0	xml-granted
+DefeatedHostileFactionLeader	memory		partial	1	14	4	unresolved-symbol
+DefeatedHostileFactionLeaderOpinion	situational		partial	4	12	3	state-expression
+DefeatedInsectHive	memory		resolved	1	2	0	
+DefeatedMechCluster	memory		resolved	1	1	0	
+DeniedJoining	memory		resolved	1	2	0	
+DestroyedCubeSculpture	memory		partial	1	2	1	indexer
+DestroyedMechhive	memory		resolved	1	3	0	
+DestroyedMechhiveMainPawn	memory		resolved	1	3	0	
+Disfigured	situational		partial	7	42	6	state-expression
+Disinherited	memory		unknown	0	0	0	xml-granted
+DivorcedMe	memory		resolved	1	1	0	
+DivorcedMeMood	memory		unknown	0	0	0	no-code-or-xml-reference
+DoingPassionateWork	situational		resolved	2	11	0	
+DrainedMySkills	memory		resolved	1	1	0	
+DrugDesireFascination	situational		partial	3	7	2	state-expression
+DrugDesireFascinationSatisfied	situational		partial	3	7	2	state-expression
+DrugDesireInterest	situational		partial	3	7	2	state-expression
+DrugDesireInterestSatisfied	situational		partial	3	7	2	state-expression
+Drunk	situational		partial	6	26	5	state-expression
+DryadDied	memory		partial	1	4	2	external-type
+Eclipse_Beautiful	situational		partial	1	4	2	external-type
+EffectiveConversion	memory		unknown	0	0	0	xml-granted
+EmbracedTheVoid	memory		unknown	1	0	0	conditions-in-callers
+EncouragingSpeech	memory		unknown	0	0	0	xml-granted
+EnslavedChild	situational		resolved	1	3	0	
+EnslavedPrisoner_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Honorable	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Know_Disapproved_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Know_Honorable	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Know_Honorable_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+EnslavedPrisoner_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+EntityInRoom	situational		partial	1	3	1	state-expression
+EnvironmentCold	situational	EnsureTemperatureSafety	resolved	1	2	0	
+EnvironmentDark	situational	MaintainLighting	resolved	1	1	0	
+EnvironmentHot	situational	EnsureTemperatureSafety	resolved	1	2	0	
+ExecutedColonist_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedGuest_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisoner	situational		partial	4	12	3	state-expression
+ExecutedPrisonerGuilty_Know_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisonerGuilty_Know_Respected_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisonerGuilty_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisonerInnocent_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisonerInnocent_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisoner_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisoner_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisoner_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisoner_Know_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+ExecutedPrisoner_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+Execution_Know_Respected_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+Expectations	situational		resolved	1	2	0	
+ExpectationsSlave	situational		resolved	1	2	0	
+FailedConvertAbilityInitiator	memory		unknown	0	0	0	xml-granted
+FailedConvertAbilityRecipient	memory		unknown	0	0	0	xml-granted
+FailedConvertIdeoAttemptResentment	memory		resolved	1	5	0	
+FailedRomanceAttemptOnMe	memory		resolved	1	2	0	
+FailedRomanceAttemptOnMeLowOpinionMood	memory		resolved	1	3	0	
+FailedToRescueRelative	memory		resolved	1	3	0	
+FedBaby	memory		resolved	1	3	0	
+FedMe	memory		resolved	1	3	0	
+FedOn	memory		resolved	1	1	0	
+FedOn_Social	memory		resolved	1	1	0	
+FlakeHigh	situational		unknown	1	1	1	unsupported-syntax
+FleshTentacle	situational		unknown	1	1	1	unsupported-syntax
+FleshWhip	situational		unknown	1	1	1	unsupported-syntax
+ForcedMeToTakeDrugs	memory		partial	1	4	1	indexer
+ForcedMeToTakeDrugsMood	memory		unknown	0	0	0	no-code-or-xml-reference
+ForcedMeToTakeLuciferium	memory		partial	1	5	2	indexer
+ForcedMeToTakeLuciferiumMood	memory		unknown	0	0	0	no-code-or-xml-reference
+FreedFromSlavery	memory		unknown	1	1	1	switch
+FunFestival	memory		unknown	0	0	0	xml-granted
+FunParty	memory		unknown	0	0	0	xml-granted
+GainedTitle	memory		unknown	0	0	0	xml-granted
+GauranlenConnectionDesired	situational		partial	1	4	2	external-type
+GaveLesson	memory		partial	1	5	1	pattern
+GhoulNegative	situational		partial	4	13	3	state-expression
+GhoulPositive	situational		partial	4	13	3	state-expression
+GigglingBaby	memory		resolved	1	4	0	
+GoJuiceHigh	situational		unknown	1	1	1	unsupported-syntax
+GoJuiceWithdrawal	situational		unknown	1	1	1	unsupported-syntax
+GoodDuel	memory		unknown	0	0	0	xml-granted
+GoodFuneral	memory		unknown	0	0	0	xml-granted
+GotLovin_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+GotLovin_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+GotLovin_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+GotMarried	memory		resolved	1	1	0	
+GotSomeLovin	memory		resolved	1	1	0	
+GrandioseBestowingCeremony	memory		unknown	0	0	0	xml-granted
+GravNausea	situational		unknown	1	1	1	unsupported-syntax
+GrayPall	memory		unknown	0	0	0	xml-granted
+Greedy	situational		partial	3	7	2	indexer
+GroinChestHairOrFaceUncovered_Disapproved_Female	situational		partial	1	4	2	external-type
+GroinChestHairOrFaceUncovered_Disapproved_Male	situational		partial	1	4	2	external-type
+GroinChestHairOrFaceUncovered_Disapproved_Social_Female	situational		partial	1	4	2	external-type
+GroinChestHairOrFaceUncovered_Disapproved_Social_Male	situational		partial	1	4	2	external-type
+GroinChestOrHairUncovered_Disapproved_Female	situational		partial	1	4	2	external-type
+GroinChestOrHairUncovered_Disapproved_Male	situational		partial	1	4	2	external-type
+GroinChestOrHairUncovered_Disapproved_Social_Female	situational		partial	1	4	2	external-type
+GroinChestOrHairUncovered_Disapproved_Social_Male	situational		partial	1	4	2	external-type
+GroinOrChestUncovered_Disapproved_Female	situational		partial	1	4	2	external-type
+GroinOrChestUncovered_Disapproved_Male	situational		partial	1	4	2	external-type
+GroinOrChestUncovered_Disapproved_Social_Female	situational		partial	1	4	2	external-type
+GroinOrChestUncovered_Disapproved_Social_Male	situational		partial	1	4	2	external-type
+GroinUncovered_Disapproved_Female	situational		partial	1	4	2	external-type
+GroinUncovered_Disapproved_Male	situational		partial	1	4	2	external-type
+GroinUncovered_Disapproved_Social_Female	situational		partial	1	4	2	external-type
+GroinUncovered_Disapproved_Social_Male	situational		partial	1	4	2	external-type
+GrowthVat_Essential_ChildNotInGrowthVat	situational		partial	1	4	2	external-type
+GrowthVat_Essential_Pregnant	situational		partial	1	4	2	external-type
+GrowthVat_Prohibited_ChildInGrowthVat	situational		partial	1	4	2	external-type
+GrowthVat_Prohibited_ChildNotInGrowthVat	situational		partial	1	4	2	external-type
+GrowthVat_Prohibited_GrowthVatInColony	situational		partial	1	4	2	external-type
+GuiltyPrisonerDied_Know_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+GuiltyPrisonerDied_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+HadAngeringFight	memory		resolved	1	4	0	
+HadCatharticFight	memory		resolved	1	4	0	
+HappyNude	situational		partial	3	11	9	external-type
+HarbingerScream	memory		unknown	0	0	0	no-code-or-xml-reference
+HardWorkerVsLazy	situational		partial	6	25	5	state-expression
+HarmedMe	memory		resolved	1	7	0	
+HarvestedOrgan_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+HarvestedOrgan_Bloodlust	memory		partial	1	4	1	unsupported-syntax
+HarvestedOrgan_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+HarvestedOrgan_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+HarvestedOrgan_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+HarvestedOrgan_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+HarvestedOrgan_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+HasAutomatedTurrets_Disapproved	situational		partial	1	4	2	external-type
+HasAutomatedTurrets_Horrible	situational		partial	1	4	2	external-type
+HasAutomatedTurrets_Prohibited	situational		partial	1	4	2	external-type
+HasNoProsthetic_Disapproved	situational		partial	1	4	2	external-type
+HasNoProsthetic_Disapproved_Social	situational		partial	1	4	2	external-type
+HasProsthetic_Abhorrent	situational		partial	1	4	2	external-type
+HasProsthetic_Abhorrent_Social	situational		partial	1	4	2	external-type
+HasProsthetic_Approved	situational		partial	1	4	2	external-type
+HasProsthetic_Disapproved	situational		partial	1	4	2	external-type
+HasProsthetic_Disapproved_Social	situational		partial	1	4	2	external-type
+HateAura	situational		unknown	1	1	1	unsupported-syntax
+HateChantDrone	situational		partial	2	4	2	state-expression
+HealedMe	situational		partial	4	13	3	state-expression
+HeardInhumanRambling	memory		resolved	1	3	0	
+HeartwarmingFuneral	memory		unknown	0	0	0	xml-granted
+HeldConcert	memory		unknown	1	0	0	event-driven
+HemogenCraving	situational		unknown	1	1	1	unsupported-syntax
+HighLife	situational		partial	1	4	2	external-type
+HoldingMePrisoner	situational		resolved	1	1	0	
+HoneymoonPhase	memory		resolved	1	1	0	
+HonorableBestowingCeremony	memory		unknown	0	0	0	xml-granted
+HospitalPatientRoomStats	situational		partial	1	5	1	indexer
+HotSpring	memory		unknown	0	0	0	xml-granted
+HumanLeatherApparelHappy	situational		unknown	1	1	1	state-expression
+HumanLeatherApparelSad	situational		partial	1	4	2	external-type
+HumanLeatherApparel_Abhorrent	situational		partial	1	4	2	external-type
+HumanLeatherApparel_Disapproved	situational		partial	1	4	2	external-type
+HumanLeatherApparel_Horrible	situational		partial	1	4	2	external-type
+HumanLeatherApparel_Preferred	situational		partial	1	4	2	external-type
+HumanLeatherApparel_RequiredRavenous	situational		partial	1	4	2	external-type
+HumanLeatherApparel_RequiredStrong	situational		partial	1	4	2	external-type
+Hungover	situational		unknown	1	1	1	unsupported-syntax
+IRejectedTheirProposal	memory		resolved	1	1	0	
+IdeoBuildingDisrespected	memory		partial	1	6	1	external-type
+IdeoBuildingMissing	memory		partial	1	5	1	external-type
+IdeoDiverity_Abhorrent_AltarSharing	situational		partial	1	4	2	external-type
+IdeoDiverity_Disapproved_AltarSharing	situational		partial	1	4	2	external-type
+IdeoDiverity_Horrible_AltarSharing	situational		partial	1	4	2	external-type
+IdeoDiversity_Abhorrent	situational		partial	1	4	2	external-type
+IdeoDiversity_Abhorrent_ParticipatedInOthersRitual	memory		unknown	0	0	0	no-code-or-xml-reference
+IdeoDiversity_Abhorrent_Social	situational		partial	1	4	2	external-type
+IdeoDiversity_Abhorrent_StyleDominance	situational		partial	1	4	2	external-type
+IdeoDiversity_Abhorrent_Uniform	situational		partial	1	4	2	external-type
+IdeoDiversity_Approved	situational		partial	1	4	2	external-type
+IdeoDiversity_Approved_StyleDominance	situational		partial	1	4	2	external-type
+IdeoDiversity_Disapproved	situational		partial	1	4	2	external-type
+IdeoDiversity_Disapproved_ParticipatedInOthersRitual	memory		unknown	0	0	0	no-code-or-xml-reference
+IdeoDiversity_Disapproved_Social	situational		partial	1	4	2	external-type
+IdeoDiversity_Disapproved_StyleDominance	situational		partial	1	4	2	external-type
+IdeoDiversity_Disapproved_Uniform	situational		partial	1	4	2	external-type
+IdeoDiversity_Exalted	situational		partial	1	4	2	external-type
+IdeoDiversity_Exalted_StyleDominance	situational		partial	1	4	2	external-type
+IdeoDiversity_Horrible	situational		partial	1	4	2	external-type
+IdeoDiversity_Horrible_ParticipatedInOthersRitual	memory		unknown	0	0	0	no-code-or-xml-reference
+IdeoDiversity_Horrible_Social	situational		partial	1	4	2	external-type
+IdeoDiversity_Horrible_StyleDominance	situational		partial	1	4	2	external-type
+IdeoDiversity_Horrible_Uniform	situational		partial	1	4	2	external-type
+IdeoDiversity_Respected	situational		partial	1	4	2	external-type
+IdeoDiversity_Respected_StyleDominance	situational		partial	1	4	2	external-type
+IdeoDiversity_Standard_StyleDominance	situational		partial	1	4	2	external-type
+IdeoLeaderResentmentAbhorrent	situational		partial	1	4	2	external-type
+IdeoLeaderResentmentDisapproved	situational		partial	1	4	2	external-type
+IdeoLeaderResentmentHorrible	situational		partial	1	4	2	external-type
+IdeoLeaderResentmentStandard	situational		partial	1	4	2	external-type
+IdeoRoleApparelRequirementNotMet	memory		partial	1	8	3	external-type
+IdeoRoleEmpty	memory		partial	1	7	2	external-type
+IdeoRoleLost	memory		partial	2	4	1	virtual-call
+ImprisonedWithEntity	situational		partial	1	3	1	state-expression
+Incestuous	situational		partial	4	12	3	state-expression
+Inebriated	situational		unknown	1	1	1	unsupported-syntax
+IngestedDrug_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+IngestedDrug_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+IngestedHardDrug_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+IngestedHardDrug_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+IngestedHemogenPack	memory		unknown	0	0	0	xml-granted
+IngestedRecreationalDrug_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+IngestedRecreationalDrug_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+Inhumanizing_Required_Human	situational		partial	1	4	2	external-type
+InnocentPrisonerDied_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+InnocentPrisonerDied_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+InnocentPrisonerDied_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+InnocentPrisonerDied_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+InnocentPrisonerDied_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+InspirationalSpeech	memory		unknown	0	0	0	xml-granted
+InstalledOrgan_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+InstalledOrgan_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+InstalledOrgan_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+InstalledProsthetic_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+InstalledProsthetic_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+InstalledProsthetic_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+InstalledProsthetic_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+Insulted	memory		unknown	0	0	0	xml-granted
+InsultedMood	memory		unknown	0	0	0	no-code-or-xml-reference
+InvolvedInPsychicRitual_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+InvolvedInPsychicRitual_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+InvolvedInPsychicRitual_Exalted	memory		unknown	0	0	0	no-code-or-xml-reference
+InvolvedInPsychicRitual_Social_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+InvolvedInPsychicRitual_Social_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+InvolvedInPsychicRitual_Social_Exalted	memory		unknown	0	0	0	no-code-or-xml-reference
+IsApostate_Abhorrent_Social	situational		partial	1	4	2	external-type
+IsApostate_Disapproved_Social	situational		partial	1	4	2	external-type
+IsApostate_Horrible_Social	situational		partial	1	4	2	external-type
+Jealous	situational		partial	3	8	3	state-expression
+JealousRage	memory		resolved	1	3	0	
+JoyActivityInImpressiveRecRoom	memory		resolved	1	2	0	
+Joyfuzz	situational		unknown	1	1	1	unsupported-syntax
+Joyous	situational		partial	4	13	3	state-expression
+JoyousPresence	situational		partial	5	22	6	state-expression
+Joywire	situational		unknown	1	1	1	unsupported-syntax
+JuggernautSerum	situational		unknown	1	1	1	unsupported-syntax
+KillThirst	situational		partial	1	4	1	unsupported-syntax
+KillThirst_Weapon	situational		partial	1	4	2	external-type
+KillWithNobleWeapon	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledChild	memory		partial	1	13	4	unresolved-symbol
+KilledChild_Opinion	situational		partial	4	12	3	state-expression
+KilledColonist	situational		partial	4	12	3	state-expression
+KilledColonyAnimal	situational		partial	4	12	3	state-expression
+KilledHumanlikeBloodlust	memory		partial	1	10	4	unresolved-symbol
+KilledInnocentAnimal_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledInnocentAnimal_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledInnocentAnimal_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledInnocentAnimal_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledInnocentAnimal_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledInnocentAnimal_Know_Disapproved_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledInnocentAnimal_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledInnocentAnimal_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+KilledMyBirthMother	memory		unknown	0	0	0	xml-granted
+KilledMyBondedAnimal	memory		unknown	0	0	0	xml-granted
+KilledMyBrother	memory		unknown	0	0	0	xml-granted
+KilledMyDaughter	memory		unknown	0	0	0	xml-granted
+KilledMyFather	memory		unknown	0	0	0	xml-granted
+KilledMyFiance	memory		unknown	0	0	0	xml-granted
+KilledMyFriend	memory		partial	1	10	2	unresolved-symbol
+KilledMyKin	memory		unknown	0	0	0	xml-granted
+KilledMyLover	memory		unknown	0	0	0	xml-granted
+KilledMyMother	memory		unknown	0	0	0	xml-granted
+KilledMyRival	memory		partial	1	11	2	unresolved-symbol
+KilledMySister	memory		unknown	0	0	0	xml-granted
+KilledMySon	memory		unknown	0	0	0	xml-granted
+KilledMySpouse	memory		unknown	0	0	0	xml-granted
+KindWords	memory		unknown	0	0	0	xml-granted
+KindWordsMood	memory		unknown	0	0	0	no-code-or-xml-reference
+KnowBuriedInSarcophagus	memory		resolved	1	6	0	
+KnowButcheredHumanlikeCorpse	memory		unknown	0	0	0	xml-granted
+KnowColonistDied	memory		resolved	1	15	0	
+KnowColonistExecuted	memory		unknown	0	0	0	xml-granted
+KnowColonistOrganHarvested	memory		unknown	0	0	0	xml-granted
+KnowGuestExecuted	memory		unknown	0	0	0	xml-granted
+KnowGuestOrganHarvested	memory		unknown	0	0	0	xml-granted
+KnowPrisonerDiedInnocent	memory		unknown	0	0	0	xml-granted
+KnowPrisonerSold	memory		unknown	0	0	0	xml-granted
+LacklusterFuneral	memory		unknown	0	0	0	xml-granted
+ListeningToHarp	situational		partial	2	4	2	lambda
+ListeningToHarpsichord	situational		partial	2	4	2	lambda
+ListeningToPiano	situational		partial	2	4	2	lambda
+LookChangeDesired	situational		resolved	1	3	0	
+LostTitle	memory		unknown	0	0	0	xml-granted
+LoveReading	situational		partial	2	7	2	pattern
+Lovin_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+Lovin_Know_Approved	memory		unknown	0	0	0	no-code-or-xml-reference
+Lovin_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+Lovin_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+MadeStatueOfMe	memory		partial	2	2	0	conditions-in-callers
+Man	situational		partial	6	25	5	state-expression
+MasochistPain	situational		partial	1	2	1	state-expression
+MasochistWearingBodyStrap	situational		partial	1	3	2	external-type
+MasochistWearingCollar	situational		partial	1	3	2	external-type
+MasterfulConversion	memory		unknown	0	0	0	xml-granted
+MineableDestroyed_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+MineableDestroyed_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+MineableDestroyed_Prohibited	memory		unknown	0	0	0	no-code-or-xml-reference
+Mined_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+Mined_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+Mined_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+Mined_Know_Disapproved_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+Mined_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+Mined_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+Mined_Know_Prohibited	memory		unknown	0	0	0	no-code-or-xml-reference
+Mined_Know_Prohibited_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+MinifiedTreeDied_Know_Disapproved_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+MinifiedTreeDied_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+MinifiedTreeDied_Know_Prohibited_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+Miscarried	memory		unknown	1	0	0	conditions-in-callers
+MissingTongue	situational		partial	1	4	1	external-type
+MoodOffsetDepressive	situational		unknown	2	0	0	conditions-in-callers
+MoodOffsetHappy	situational		unknown	2	0	0	conditions-in-callers
+MoodOffsetOptimist	situational		unknown	2	0	0	conditions-in-callers
+MoodOffsetPessimist	situational		unknown	2	0	0	conditions-in-callers
+MoodOffsetSanguine	situational		unknown	2	0	0	conditions-in-callers
+MoodOffsetTorturedArtist	situational		unknown	2	0	0	conditions-in-callers
+MoodOffsetUnhappy	situational		unknown	2	0	0	conditions-in-callers
+MoodOffsetVeryHappy	situational		unknown	2	0	0	conditions-in-callers
+MoodOffsetVeryUnhappy	situational		unknown	2	0	0	conditions-in-callers
+MutatedMyArm	situational		partial	4	13	3	state-expression
+MyAuntDied	memory		unknown	0	0	0	xml-granted
+MyAuntLost	memory		unknown	0	0	0	xml-granted
+MyBirthMotherDied	memory		unknown	0	0	0	xml-granted
+MyBirthMotherLost	memory		unknown	0	0	0	xml-granted
+MyBrotherDied	memory		unknown	0	0	0	xml-granted
+MyBrotherLost	memory		unknown	0	0	0	xml-granted
+MyChildHappy	situational		partial	1	3	1	virtual-call
+MyChildSad	situational		partial	1	3	1	virtual-call
+MyChildrenHappy	situational		partial	1	3	1	virtual-call
+MyChildrenSad	situational		partial	1	3	1	virtual-call
+MyCousinDied	memory		unknown	0	0	0	xml-granted
+MyCousinLost	memory		unknown	0	0	0	xml-granted
+MyCryingBaby	memory		resolved	1	3	0	
+MyDaughterDied	memory		unknown	0	0	0	xml-granted
+MyDaughterLost	memory		unknown	0	0	0	xml-granted
+MyFatherDied	memory		unknown	0	0	0	xml-granted
+MyFatherLost	memory		unknown	0	0	0	xml-granted
+MyFianceDied	memory		unknown	0	0	0	xml-granted
+MyFianceLost	memory		unknown	0	0	0	xml-granted
+MyFianceeDied	memory		unknown	0	0	0	xml-granted
+MyFianceeLost	memory		unknown	0	0	0	xml-granted
+MyGigglingBaby	memory		resolved	1	3	0	
+MyGrandchildDied	memory		unknown	0	0	0	xml-granted
+MyGrandchildLost	memory		unknown	0	0	0	xml-granted
+MyGrandparentDied	memory		unknown	0	0	0	xml-granted
+MyGrandparentLost	memory		unknown	0	0	0	xml-granted
+MyHalfSiblingDied	memory		unknown	0	0	0	xml-granted
+MyHalfSiblingLost	memory		unknown	0	0	0	xml-granted
+MyHusbandDied	memory		unknown	0	0	0	xml-granted
+MyHusbandLost	memory		unknown	0	0	0	xml-granted
+MyKinDied	memory		unknown	0	0	0	xml-granted
+MyKinLost	memory		unknown	0	0	0	xml-granted
+MyLoverDied	memory		unknown	0	0	0	xml-granted
+MyLoverLost	memory		unknown	0	0	0	xml-granted
+MyMotherDied	memory		unknown	0	0	0	xml-granted
+MyMotherLost	memory		unknown	0	0	0	xml-granted
+MyNephewDied	memory		unknown	0	0	0	xml-granted
+MyNephewLost	memory		unknown	0	0	0	xml-granted
+MyNieceDied	memory		unknown	0	0	0	xml-granted
+MyNieceLost	memory		unknown	0	0	0	xml-granted
+MyOrganHarvested	memory		resolved	1	2	0	
+MyParentHappy	situational		partial	1	3	1	virtual-call
+MyParentsHappy	situational		partial	1	3	1	virtual-call
+MySisterDied	memory		unknown	0	0	0	xml-granted
+MySisterLost	memory		unknown	0	0	0	xml-granted
+MySonDied	memory		unknown	0	0	0	xml-granted
+MySonLost	memory		unknown	0	0	0	xml-granted
+MyUncleDied	memory		unknown	0	0	0	xml-granted
+MyUncleLost	memory		unknown	0	0	0	xml-granted
+MyWifeDied	memory		unknown	0	0	0	xml-granted
+MyWifeLost	memory		unknown	0	0	0	xml-granted
+Naked	situational		partial	2	4	1	state-expression
+NeedBeauty	situational		partial	1	2	1	unsupported-syntax
+NeedComfort	situational		partial	1	2	1	unsupported-syntax
+NeedFood	situational		partial	3	6	3	switch
+NeedIndoors	situational		partial	1	3	1	unsupported-syntax
+NeedJoy	situational	EnsureComfort	partial	1	2	1	unsupported-syntax
+NeedLearning	situational		partial	1	3	1	unsupported-syntax
+NeedNeuralSupercharge	situational		partial	1	4	2	external-type
+NeedOutdoors	situational		partial	1	3	1	unsupported-syntax
+NeedPlay	situational		partial	1	2	1	unsupported-syntax
+NeedRest	situational		partial	1	2	1	unsupported-syntax
+NeedRoomSize	situational	MaintainHousing	partial	1	6	2	external-type
+NeuroquakeEcho	memory		unknown	1	0	0	conditions-in-callers
+NeurosisPulse	situational		unknown	1	1	1	unsupported-syntax
+NewColonyHope	memory		unknown	0	0	0	no-code-or-xml-reference
+NewColonyOptimism	memory		partial	4	16	1	external-type
+NightOwlDuringTheDay	situational		resolved	1	1	0	
+NightOwlDuringTheNight	situational		resolved	1	1	0	
+NoPsychicRituals	situational		partial	1	4	2	external-type
+NoRecentExecution	situational		partial	1	4	2	external-type
+NoRecentHumanMeat_Preferred	situational		partial	1	4	2	external-type
+NoRecentHumanMeat_RequiredRavenous	situational		partial	1	4	2	external-type
+NoRecentHumanMeat_RequiredStrong	situational		partial	1	4	2	external-type
+NotBondedAnimalMaster	situational		unknown	3	6	6	external-type
+NoxiousHaze	situational		resolved	1	2	0	
+Nuzzled	memory		unknown	1	0	0	conditions-in-callers
+ObeliskAbduction	memory		resolved	1	1	0	
+ObservedGibbetCage	memory		resolved	1	1	0	
+ObservedLayingCorpse	memory		unknown	0	0	0	xml-granted
+ObservedLayingRottingCorpse	memory		unknown	0	0	0	xml-granted
+ObservedSkullspike	memory		resolved	1	2	0	
+ObservedTerror	memory		resolved	1	2	0	
+OnDuty	memory		unknown	0	0	0	xml-granted
+OnKill_BadThought	memory		unknown	0	0	0	no-code-or-xml-reference
+OnKill_GoodThought	memory		unknown	0	0	0	no-code-or-xml-reference
+OpinionOfMyLover	situational		partial	3	10	2	state-expression
+OtherTravelerArrested	memory		resolved	1	1	0	
+OtherTravelerDied	memory		resolved	1	1	0	
+OtherTravelerLeftBehind	memory		resolved	1	1	0	
+OtherTravelerSurgicallyViolated	memory		resolved	1	1	0	
+Pain	situational	MaintainMedicalReserves	partial	1	2	1	state-expression
+Pain_Idealized	situational		partial	1	4	2	external-type
+ParticipatedInRaid_Required	memory		unknown	0	0	0	xml-granted
+ParticipatedInRaid_Respected	memory		unknown	0	0	0	xml-granted
+PartnerMiscarried	memory		resolved	1	1	0	
+PawnWithBadOpinionDied	memory		resolved	1	3	0	
+PawnWithBadOpinionLost	memory		resolved	1	3	0	
+PawnWithGoodOpinionDied	memory		resolved	1	3	0	
+PawnWithGoodOpinionLost	memory		resolved	1	3	0	
+PlayedWithCube	memory		unknown	1	0	0	conditions-in-callers
+PlayedWithMe	memory		resolved	1	3	0	
+PleasurePulse	situational		unknown	1	1	1	unsupported-syntax
+PreferredXenotype	situational		partial	1	4	2	external-type
+PreferredXenotypeMakeup	situational		partial	1	4	2	external-type
+PregnancyAttitude	situational		partial	2	8	6	pattern
+PregnancyEnded	memory		partial	1	4	3	switch
+PregnancyMood_Collapse	situational		partial	2	6	1	state-expression
+PregnancyMood_Down	situational		partial	2	6	1	state-expression
+PregnancyMood_High	memory		unknown	0	0	0	xml-granted
+PregnancyMood_Up	situational		partial	2	6	1	state-expression
+PregnancyTerminated	memory		partial	1	4	3	switch
+Pretty	situational		partial	6	29	4	state-expression
+PrisonBarracks	situational		partial	1	4	1	state-expression
+PrisonCell	situational		partial	1	4	1	state-expression
+PrisonerBanishedToDie	memory		resolved	1	4	0	
+PrisonerDied_Know_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+PrisonerDied_Respected	memory		unknown	0	0	0	no-code-or-xml-reference
+ProsthophileHappy	situational		partial	2	3	1	state-expression
+ProsthophileNoProsthetic	situational		partial	2	3	1	state-expression
+ProsthophobeUnhappy	situational		partial	2	3	1	state-expression
+PsilocapHigh	situational		unknown	1	1	1	unsupported-syntax
+PsychicArchotechEmanator_Core	situational		partial	4	11	7	indexer
+PsychicArchotechEmanator_Grand	situational		partial	4	11	7	indexer
+PsychicArchotechEmanator_Major	situational		partial	4	11	7	indexer
+PsychicBond	situational		partial	1	3	1	virtual-call
+PsychicBondProximity	situational		partial	2	6	2	unsupported-syntax
+PsychicBondTorn	memory		partial	4	9	1	pattern
+PsychicDrone	situational		unknown	1	1	1	unsupported-syntax
+PsychicEmanatorSoothe	situational		partial	3	8	4	state-expression
+PsychicEntropyOverloaded	situational		unknown	1	1	1	unsupported-syntax
+PsychicHarmonization	memory		unknown	0	0	0	no-code-or-xml-reference
+PsychicLove	situational		partial	1	3	1	virtual-call
+PsychicRitualGuilt	memory		resolved	1	1	0	
+PsychicRitualPerformed_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+PsychicRitualPerformed_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+PsychicRitualVictim	memory		partial	4	2	0	conditions-in-callers
+PsychiteTeaHigh	situational		unknown	1	1	1	unsupported-syntax
+PsychiteWithdrawal	situational		unknown	1	1	1	unsupported-syntax
+PyroUsed	memory		resolved	1	6	0	
+PyromaniacHappy	situational		partial	4	11	4	indexer
+PyromaniacNearFire	situational		resolved	1	1	0	
+Pyrophobia	situational		resolved	1	4	0	
+Ranching_Central_AnimalMassPerCapita	situational		partial	1	4	2	external-type
+Ranching_SowedPlant	memory		unknown	0	0	0	no-code-or-xml-reference
+RapportBuilt	memory		unknown	0	0	0	xml-granted
+ReadingTome	situational		partial	3	8	2	state-expression
+RebuffedMyRomanceAttempt	memory		resolved	1	2	0	
+RebuffedMyRomanceAttemptMood	memory		unknown	0	0	0	no-code-or-xml-reference
+RecentConquest_Required	situational		partial	1	4	2	external-type
+RecentConquest_Respected	situational		partial	1	4	2	external-type
+Recluse	situational		resolved	4	19	0	
+RecruitedMe	memory		resolved	1	3	0	
+ReignedInThroneroom	memory		resolved	1	4	0	
+RejectedMyProposal	memory		resolved	1	1	0	
+RejectedMyProposalMood	memory		unknown	0	0	0	no-code-or-xml-reference
+ReleasedHealthyPrisoner	memory		resolved	1	4	0	
+RelicAtRitual	memory		partial	2	9	2	external-type
+RelicDestroyed	memory		partial	1	10	2	external-type
+RelicLost	memory		partial	1	10	2	external-type
+RelicsCollected	memory		resolved	1	7	0	
+Rescued	memory		partial	2	10	1	unsupported-syntax
+RescuedMe	memory		resolved	1	3	0	
+RescuedMeByOfferingHelp	memory		resolved	1	3	0	
+RescuedRelative	memory		resolved	1	3	0	
+ResettledRecently	situational		partial	1	4	1	external-type
+RotStink	situational		resolved	2	8	0	
+RotStinkLingering	situational		resolved	1	4	0	
+SatisfyingBlinding	memory		unknown	0	0	0	xml-granted
+SatisfyingExecution	memory		unknown	0	0	0	xml-granted
+SatisfyingSacrifice	memory		unknown	0	0	0	xml-granted
+SatisfyingScarification	memory		unknown	0	0	0	xml-granted
+ScanningSickness	situational		unknown	1	1	1	unsupported-syntax
+ScarificationCeremony_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+ScarificationCeremony_Self_Extreme	memory		unknown	0	0	0	no-code-or-xml-reference
+ScarificationCeremony_Self_Heavy	memory		unknown	0	0	0	no-code-or-xml-reference
+ScarificationCeremony_Self_Minor	memory		unknown	0	0	0	no-code-or-xml-reference
+Scarification_Extreme	situational		partial	1	4	2	external-type
+Scarification_Extreme_Opinion	situational		partial	1	4	2	external-type
+Scarification_Heavy	situational		partial	1	4	2	external-type
+Scarification_Heavy_Opinion	situational		partial	1	4	2	external-type
+Scarification_Minor	situational		partial	1	4	2	external-type
+Scarification_Minor_Opinion	situational		partial	1	4	2	external-type
+SelfDislikedXenotype	situational		partial	1	4	2	external-type
+SharedBed	situational		partial	2	4	1	state-expression
+Sick	situational	MaintainMedicalReserves	resolved	1	1	0	
+SkillBookPassion	situational		partial	2	8	2	pattern
+Skullspike_Desired	situational		partial	1	4	2	external-type
+Skullspike_Disapproved	situational		partial	1	4	2	external-type
+SlabBed_Preferred	situational		partial	1	4	2	external-type
+SlaughteredAnimal_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredAnimal_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredAnimal_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredAnimal_Know_Disapproved_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredAnimal_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredAnimal_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredAnimal_Know_Prohibited	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredAnimal_Know_Prohibited_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredFish_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredFish_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredFish_Know_Disapproved_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredFish_Know_Prohibited	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredFish_Know_Prohibited_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredFish_Sacred	memory		unknown	0	0	0	no-code-or-xml-reference
+SlaughteredFish_Sacred_NoFish	situational		partial	1	4	2	external-type
+Slavery_Abhorrent_SlavesInColony	situational		partial	1	4	2	external-type
+Slavery_Disapproved_SlavesInColony	situational		partial	1	4	2	external-type
+Slavery_Honorable_NoSlavesInColony	situational		partial	1	4	2	external-type
+Slavery_Honorable_SlavesInColony	situational		partial	1	4	2	external-type
+Slavery_Horrible_SlavesInColony	situational		partial	1	4	2	external-type
+SleepDisturbed	memory		partial	1	6	1	depth-limit
+SleepSuppressor	situational		partial	5	19	4	state-expression
+SleptInBarracks	memory	MaintainHousing	resolved	1	8	0	
+SleptInBedroom	memory		resolved	1	7	0	
+SleptInCold	memory		resolved	1	2	0	
+SleptInHeat	memory		resolved	1	2	0	
+SleptInRoomWithSlave	memory		resolved	1	13	0	
+SleptOnGround	memory	MaintainHousing	partial	1	3	1	external-type
+SleptOutside	memory	MaintainHousing	resolved	1	3	0	
+SleptUsingSleepAccelerator	memory		unknown	0	0	0	no-code-or-xml-reference
+Slighted	memory		unknown	0	0	0	xml-granted
+SmokeleafHigh	situational		unknown	1	1	1	unsupported-syntax
+SmokeleafWithdrawal	situational		unknown	1	1	1	unsupported-syntax
+SoakingWet	memory		resolved	1	2	0	
+SoldMyBondedAnimal	memory		unknown	0	0	0	xml-granted
+SoldMyBondedAnimalMood	memory		partial	1	8	3	indexer
+SoldMyLovedOne	memory		unknown	0	0	0	xml-granted
+SoldOrgan_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldOrgan_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldOrgan_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldPrisoner	situational		partial	4	12	3	state-expression
+SoldSlave_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Honorable	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Know_Disapproved_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Know_Honorable	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Know_Honorable_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
+SoldSlave_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+SpaceHabitat_Mood	situational		partial	1	4	2	external-type
+SpectacularBlinding	memory		unknown	0	0	0	xml-granted
+SpectacularExecution	memory		unknown	0	0	0	xml-granted
+SpectacularSacrifice	memory		unknown	0	0	0	xml-granted
+SpectacularScarification	memory		unknown	0	0	0	xml-granted
+SpokeToDisturbing	memory		unknown	0	0	0	xml-granted
+SpokeToDisturbingMood	memory		unknown	0	0	0	no-code-or-xml-reference
+Stillbirth	memory		resolved	1	1	0	
+SunlightSensitivity_Major	situational		resolved	1	3	0	
+SunlightSensitivity_Mild	situational		resolved	1	3	0	
+SwallowedByDarkness	situational		resolved	1	1	0	
+TameVeneratedAnimalDied	memory		partial	1	8	1	unsupported-syntax
+TeetotalerVsAddict	situational		partial	6	29	7	state-expression
+TeetotalerVsChemicalInterest	situational		partial	6	29	5	state-expression
+TendedByMedicalSpecialist	memory		unknown	0	0	0	xml-granted
+TerribleBestowingCeremony	memory		unknown	0	0	0	xml-granted
+TerribleBlinding	memory		unknown	0	0	0	xml-granted
+TerribleDuel	memory		unknown	0	0	0	xml-granted
+TerribleFestival	memory		unknown	0	0	0	xml-granted
+TerribleFuneral	memory		unknown	0	0	0	xml-granted
+TerribleParty	memory		unknown	0	0	0	xml-granted
+TerribleSacrifice	memory		unknown	0	0	0	xml-granted
+TerribleScarification	memory		unknown	0	0	0	xml-granted
+TerribleSkyLanterns	memory		unknown	0	0	0	xml-granted
+TerribleSpeech	memory		unknown	0	0	0	xml-granted
+TitleApparelMinQualityNotMet	situational		partial	2	4	2	state-expression
+TitleApparelRequirementNotMet	situational		resolved	1	1	0	
+TitleBedroomRequirementsNotMet	situational		resolved	1	1	0	
+TitleNoPersonalBedroom	situational		partial	2	8	1	state-expression
+TitleNoThroneRoom	situational		partial	2	8	1	state-expression
+TitleThroneroomRequirementsNotMet	situational		resolved	1	1	0	
+ToxWater	memory		unknown	0	0	0	xml-granted
+ToxicFallout	situational		resolved	1	3	0	
+TradedOrgan_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+TradedOrgan_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
+TradedOrgan_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
+TranshumanistAppreciation	situational		partial	6	25	5	state-expression
+TravelAnticipation	situational		resolved	2	10	0	
+TreeDensityReduced	situational		partial	1	4	2	external-type
+TreesDesired	situational		partial	1	4	2	external-type
+TrialConvicted	memory		resolved	1	1	0	
+TrialExonerated	memory		resolved	1	1	0	
+TrialFailed	memory		resolved	1	1	0	
+Ugly	situational		partial	6	29	4	state-expression
+UndergrounderIndoors	situational		resolved	1	1	0	
+UndergrounderOutdoors	situational		resolved	1	1	0	
+UndergrounderUnderground	situational		unknown	1	1	1	state-expression
+UnforgettableDuel	memory		unknown	0	0	0	xml-granted
+UnforgettableFestival	memory		unknown	0	0	0	xml-granted
+UnforgettableParty	memory		unknown	0	0	0	xml-granted
+UnforgettableSkyLanterns	memory		unknown	0	0	0	xml-granted
+UnimpressiveBestowingCeremony	memory		unknown	0	0	0	xml-granted
+UnimpressiveSkyLanterns	memory		unknown	0	0	0	xml-granted
+UninspiringSpeech	memory		unknown	0	0	0	xml-granted
+UnnaturalCorpse	situational		partial	3	7	4	state-expression
+UnnaturalCorpseDestroyed	memory		unknown	1	0	0	conditions-in-callers
+UnnaturalDarkness	situational		resolved	2	8	0	
+UsedDespisedWeapon	memory		unknown	0	0	0	no-code-or-xml-reference
+UsedMeForPsychicRitual	memory		partial	4	6	4	external-type
+VeneratedAnimalsOnMapOrCaravan	situational		partial	1	4	2	external-type
+VoidCatharsis	memory		unknown	0	0	0	xml-granted
+VoidClosed	memory		resolved	1	1	0	
+VoidCuriosity	memory		unknown	1	1	1	external-type
+VoidCuriositySatisfied	memory		resolved	1	2	0	
+VoidFascination	situational		partial	1	3	1	unsupported-syntax
+VoidPleasure	situational		unknown	1	1	1	unsupported-syntax
+Voidsight	situational		unknown	1	1	1	unsupported-syntax
+VolcanicAsh	situational		unknown	1	1	1	unsupported-syntax
+WakeUpWithdrawal	situational		unknown	1	1	1	unsupported-syntax
+WantToSleepWithSpouseOrLover	situational		partial	4	23	20	indexer
+WasEnslaved	memory		resolved	1	2	0	
+WasImprisoned	memory		resolved	1	2	0	
+WasTaught	memory		partial	1	5	1	pattern
+WearingColor_Favorite	situational		unknown	2	4	4	external-type
+WearingColor_Ideo	situational		unknown	2	4	4	external-type
+WearingDesiredApparel_Soft	situational		partial	1	4	2	external-type
+WearingDesiredApparel_Strong	situational		partial	1	4	2	external-type
+WearingDreadLeather	situational		partial	2	4	2	state-expression
+WieldingNobleOrDespisedWeapon	situational		partial	1	4	2	external-type
+WillDiminished	memory		unknown	0	0	0	xml-granted
+WitnessedDeathAlly	memory		resolved	1	12	0	
+WitnessedDeathBloodlust	memory		resolved	1	9	0	
+WitnessedDeathFamily	memory		partial	1	10	1	external-type
+WitnessedDeathNonAlly	memory		resolved	1	11	0	
+Woman	situational		partial	6	25	5	state-expression
+WrongApparelGender	situational	MaintainEquipment	unknown	2	3	3	external-type
+XenogermHarvested_Prisoner	memory		resolved	1	3	0	
+YayoHigh	situational		unknown	1	1	1	unsupported-syntax
+YoungstersHappy	situational		resolved	1	5	0	
+YoungstersSad	situational		resolved	1	5	0	

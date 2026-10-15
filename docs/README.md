@@ -46,6 +46,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
 | Assess autonomous development shortfalls and bounded resilience | [Essential services](developers/contracts/essential-services.md) |
 | Understand useful cooking development and its limits | [Productive skill learning](developers/contracts/skill-learning.md#productive-cooking-in-normal-selection) |
+| Judge whether game mechanics can be extracted into cards (Gate 0 spike, #3218; removable) | [Mechanic-card spike](developers/mechanic-card-spike.md) |
 | Plan and reconcile trade missions | [Controllable trade](developers/contracts/controllable-trade.md) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
 | Trace observed harvest through cooking and meal delivery | [Live food Method](developers/contracts/pawn-activities.md#live-one-iteration-cooking) |

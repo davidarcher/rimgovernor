@@ -20,6 +20,11 @@
     <UseSystemResourceKeys>true</UseSystemResourceKeys>
     <TieredPGO>false</TieredPGO>
   </PropertyGroup>
+  <!-- thoughtaudit -guards (#3218): Roslyn syntax analysis of the decompiled game. Dev tool only, no reference from brain/. tools/ sits
+       outside brain/Directory.Packages.props, so the version repeats that central pin (4.14.0); keep the two in step. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
+  </ItemGroup>
   <!-- The colonyreview run page's player script and style sheet. -->
   <ItemGroup>
     <EmbeddedResource Include="Commands\ColonyReview\player.js" LogicalName="colonyreview.player.js" />

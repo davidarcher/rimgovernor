@@ -5,13 +5,16 @@ using RimGovernor.Tools.Common;
 
 namespace RimGovernor.Tools.Commands.ThoughtAudit;
 
-/// <summary>One non-abstract ThoughtDef with its workerClass and hediff resolved through ParentName.</summary>
-internal sealed record ThoughtDef(string Name, string Worker, string Hediff);
+/// <summary>
+/// One non-abstract ThoughtDef with its workerClass and hediff resolved through ParentName. Fields holds every direct child
+/// element by name, the nearest definer in the ParentName chain winning (a list is replaced whole, not merged).
+/// </summary>
+internal sealed record ThoughtDef(string Name, string Worker, string Hediff, IReadOnlyDictionary<string, XElement> Fields);
 
 /// <summary>Reads the game's ThoughtDef XML (Go: <c>loadThoughtDefs</c>).</summary>
 internal static partial class ThoughtDefs
 {
-    private sealed record Raw(string Name, string Parent, string Abstract, string DefName, string Worker, string Hediff);
+    private sealed record Raw(string Name, string Parent, string Abstract, string DefName, string Worker, string Hediff, XElement Element);
 
     [GeneratedRegex(@">\s*([A-Za-z0-9_]+)\s*<", RegexOptions.ECMAScript | RegexOptions.CultureInvariant)]
     private static partial Regex XmlToken();
@@ -114,6 +117,7 @@ internal static partial class ThoughtDefs
     private static ThoughtDef Resolve(Raw t, Dictionary<string, Raw> byName)
     {
         var worker = "";
+        var fields = new Dictionary<string, XElement>(StringComparer.Ordinal);
         var hediff = "";
         var cur = t;
         for (var depth = 0; depth < 16; depth++)
@@ -126,13 +130,17 @@ internal static partial class ThoughtDefs
             {
                 hediff = cur.Hediff.Trim();
             }
+            foreach (var child in cur.Element.Elements())
+            {
+                fields.TryAdd(child.Name.LocalName, child);
+            }
             if (cur.Parent.Length == 0 || !byName.TryGetValue(cur.Parent, out var parent))
             {
                 break;
             }
             cur = parent;
         }
-        return new ThoughtDef(t.DefName, worker, hediff);
+        return new ThoughtDef(t.DefName, worker, hediff, fields);
     }
 
     private static List<Raw> Parse(string path, string data)
@@ -155,7 +163,8 @@ internal static partial class ThoughtDefs
                 (string?)e.Attribute("Abstract") ?? "",
                 (string?)e.Element("defName") ?? "",
                 (string?)e.Element("workerClass") ?? "",
-                (string?)e.Element("hediff") ?? ""));
+                (string?)e.Element("hediff") ?? "",
+                e));
         }
         return output;
     }
