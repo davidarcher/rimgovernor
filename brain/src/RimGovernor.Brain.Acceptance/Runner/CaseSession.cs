@@ -141,8 +141,6 @@ public sealed class CaseSession : ISession, IRingHost
         ArgumentNullException.ThrowIfNull(launch);
         var opened = Opened;
 
-        // The player's speed lives in the loaded game, so a relaunch keeps the one written before the first launch.
-        await ServiceProcess.WritePlayerSpeedAsync(opened.Harness, launch.PlayerSpeed, cancellationToken).ConfigureAwait(false);
         Release();
         var service = await ServiceProcess.LaunchServiceAsync(Config, launch, _report, cancellationToken, opened.Harness).ConfigureAwait(false);
         _services.Add(service);

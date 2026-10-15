@@ -44,7 +44,7 @@ public static class CombatLabResume
         NoCheckpoint = true,
 
         // Normal speed: the fight must outlast the kill-and-restart window.
-        Serve = new ServeSpec { Families = CombatServe.MetricsFamilies, Resume = true, PlayerSpeed = "Normal", Prefix = "combatlab-resume" },
+        Serve = new ServeSpec { Families = CombatServe.MetricsFamilies, Resume = true, ClockSpeed = "Normal", Prefix = "combatlab-resume" },
         Budget = AcceptanceCase.LabBudget,
         Crew = new Crew { Size = 3 },
         Run = RunAsync,

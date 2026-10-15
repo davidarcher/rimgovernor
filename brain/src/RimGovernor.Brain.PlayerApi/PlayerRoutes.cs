@@ -3,6 +3,7 @@ using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.HttpChannel;
 using RimGovernor.Brain.Store;
+using PbClock = RimGovernor.Contracts.Wire.Clock;
 
 namespace RimGovernor.Brain.PlayerApi;
 
@@ -25,10 +26,13 @@ public static class PlayerRoutes
 
     public const string AcknowledgePath = "/api/player/clock/acknowledge";
 
+    /// <summary>Sets the speed the brain requests while it owns the clock: body <c>{"speed":"Normal|Fast|Superfast|Ultrafast"}</c>.</summary>
+    public const string ClockSpeedPath = "/api/player/clock-speed";
+
     private static readonly RouteOptions Bounded = new() { MaxBodyBytes = StrictJson.Limit };
 
     /// <summary>Registers the session route and the routes of each provider given; dispose the result to remove them all.</summary>
-    public static IDisposable Register(RouteTable routes, IPlayerControl? player, IControlReader? controls, IClockReview? clock)
+    public static IDisposable Register(RouteTable routes, IPlayerControl? player, IControlReader? controls, IClockReview? clock, IClockSpeedControl? speed = null)
     {
         var registrations = new List<IDisposable>
         {
@@ -47,7 +51,41 @@ public static class PlayerRoutes
             registrations.Add(routes.Map("POST", AcknowledgePath, (request, ct) => ClockAsync(clock, request, request.Body, ct), Bounded));
         }
 
+        if (speed is not null)
+        {
+            registrations.Add(routes.Map("POST", ClockSpeedPath, (request, _) => Task.FromResult(NoQuery(request) ?? SetClockSpeed(speed, request.Body)), Bounded));
+        }
+
         return new Registrations(registrations);
+    }
+
+    internal static ChannelResponse SetClockSpeed(IClockSpeedControl control, byte[] body)
+    {
+        PbClock.Speed requested;
+        try
+        {
+            var fields = StrictJson.Object(body, "speed");
+            requested = StrictJson.String(fields["speed"]) switch
+            {
+                "Normal" => PbClock.Speed.Normal,
+                "Fast" => PbClock.Speed.Fast,
+                "Superfast" => PbClock.Speed.Superfast,
+                "Ultrafast" => PbClock.Speed.Ultrafast,
+                _ => throw new StrictJsonException("unknown speed"),
+            };
+        }
+        catch (StrictJsonException)
+        {
+            return ChannelResponse.Failure(400, "invalid_request", "Provide speed as Normal, Fast, Superfast or Ultrafast");
+        }
+
+        control.Change(requested);
+        return Json(w =>
+        {
+            w.WriteStartObject();
+            w.WriteString("speed", requested.ToString());
+            w.WriteEndObject();
+        });
     }
 
     private static ChannelResponse? NoQuery(ChannelRequest request) =>

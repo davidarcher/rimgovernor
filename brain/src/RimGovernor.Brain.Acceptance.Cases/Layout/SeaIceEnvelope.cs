@@ -70,7 +70,7 @@ internal static class LayoutSeaIceEnvelope
             NativeTimeout = TimeSpan.FromSeconds(30),
             StepStall = TimeSpan.FromSeconds(90),
             Prefix = "layout-envelope",
-            PlayerSpeed = "Ultrafast",
+            ClockSpeed = "Ultrafast",
         },
         Budget = Budget,
         Crew = new Crew { Size = DebugGame.DebugColonists },

@@ -43,7 +43,7 @@ internal static class AnomalyHorror
         Serve = new ServeSpec
         {
             Families = ["defense", "tend", "rescue"],
-            PlayerSpeed = "Fast",
+            ClockSpeed = "Fast",
             Prefix = "anomaly-horror-incident",
         },
         Budget = TimeSpan.FromMinutes(15),

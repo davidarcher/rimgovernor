@@ -64,7 +64,7 @@ internal sealed class CampaignRun
         NativeTimeout = TimeSpan.FromSeconds(15),
         StepStall = TimeSpan.FromSeconds(90),
         Prefix = prefix,
-        PlayerSpeed = "Ultrafast",
+        ClockSpeed = "Ultrafast",
     };
 
     /// <summary>

@@ -37,7 +37,7 @@ internal static class DefenseSiegeMortar
         QuietWorld = true,
         // A checkpoint capture pauses the served game mid-fight.
         NoCheckpoint = true,
-        Serve = new ServeSpec { Families = ["defense", "tend", "rescue"], PlayerSpeed = "Fast", Prefix = "defense-siege-mortar" },
+        Serve = new ServeSpec { Families = ["defense", "tend", "rescue"], ClockSpeed = "Fast", Prefix = "defense-siege-mortar" },
         Budget = AcceptanceCase.LabBudget * 2,
         Crew = new Crew { Size = 3 },
         Run = RunAsync,

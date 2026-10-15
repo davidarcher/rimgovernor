@@ -218,7 +218,8 @@ public sealed class BrainHost : IAsyncDisposable
                 routes,
                 new HostPlayerControl(player, journal, _steps, _log),
                 new HostControlReader(journal),
-                new HostClockReview(journal, options.ProfileDirectory)));
+                new HostClockReview(journal, options.ProfileDirectory),
+                planners.TargetSpeed is { } targetSpeed ? new HostClockSpeed(targetSpeed) : null));
             var natives = parts.Player;
             if (natives?.Source is { } source)
             {

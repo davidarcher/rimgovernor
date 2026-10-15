@@ -3,6 +3,7 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
+using PbClock = RimGovernor.Contracts.Wire.Clock;
 using RimGovernor.Contracts.Wire.Lifecycle;
 using RimGovernor.Contracts.Wire.Presentation;
 
@@ -37,6 +38,15 @@ public interface IClockReview
     Task<ClockReviewState> ReadAsync(CancellationToken cancellationToken);
 
     Task<ClockReviewState> AcknowledgeAsync(ClockAcknowledgement acknowledgement, CancellationToken cancellationToken);
+}
+
+/// <summary>The speed the brain requests while it owns the clock; a change applies from the next window.</summary>
+public interface IClockSpeedControl
+{
+    PbClock.Speed Speed { get; }
+
+    /// <summary>Sets the target speed (Normal through Ultrafast).</summary>
+    void Change(PbClock.Speed speed);
 }
 
 /// <summary>

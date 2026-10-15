@@ -14,6 +14,9 @@
     <ProjectReference Include="..\RimGovernor.Brain.Contracts\RimGovernor.Brain.Contracts.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- The wire messages share names with domain values (Identity, Failure); this project names the domain value and spells the wire message. -->
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
     <Using Include="RimGovernor.Brain.Observation.Identity" Alias="ObservedIdentity" />

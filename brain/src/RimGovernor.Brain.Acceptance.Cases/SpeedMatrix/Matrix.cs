@@ -379,7 +379,7 @@ internal sealed partial class SpeedmatrixRun
                 {
                     Families = ["work"],
                     Env = serveArgs.Count == 0 ? [] : ["serve_args=" + string.Join(' ', serveArgs)],
-                    PlayerSpeed = c.Speed,
+                    ClockSpeed = c.Speed,
                     Output = output,
                     Report = report,
                 },

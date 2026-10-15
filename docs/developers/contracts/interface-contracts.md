@@ -23,8 +23,12 @@ lists the routes the in-process host offers.
   supervisor's own; unset after a load); the host starts each window at it, Ultrafast when none was
   chosen. A speed change inside a running window is an
   `external_speed_changed` stop. `ClockTestAcceleration` pins every window to boosted Ultrafast
-  instead. Acceptance sets a slower speed as the player's choice (`rimgovernor/set_time_speed`, then a
-  pause) before the brain starts.
+  instead.
+- **Target speed.** `BrainCompositionOptions.TargetSpeed` (default Ultrafast) is the speed each window the brain
+  starts requests; player acceleration (`PACING_PLAYER_ACCELERATED`) applies only while it is Ultrafast.
+  `POST /api/player/clock-speed` (`{"speed":"Normal|Fast|Superfast|Ultrafast"}`) changes it live from the next
+  window; a running window keeps its speed. `ClockTestAcceleration` ignores it. Acceptance sets each launch's speed
+  (a speed-matrix row's) through that route once the brain is up; it writes no player speed.
 - **Blind-tick budget** (`BrainCompositionOptions.ClockBlindTicks`, `StartRequest.blind_tick_budget`). Blind ticks are
   those the brain has not observed: since its last status or bundle read, or since the oldest
   journal row it has not acknowledged with an events cursor, whichever is older (an events poll

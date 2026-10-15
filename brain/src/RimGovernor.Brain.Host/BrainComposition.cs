@@ -129,6 +129,9 @@ public sealed class PlannerParts
     /// </summary>
     public IClockWindowDriver? Windows { get; init; }
 
+    /// <summary>The live target speed behind <c>POST /api/player/clock-speed</c>; null registers no such route.</summary>
+    public ClockTargetSpeed? TargetSpeed { get; init; }
+
     /// <summary>The routine diagnostics behind <c>/api/routines</c> (Go <c>serviceRoundsDiagnostics</c>); null registers no such route.</summary>
     public IRoundsProvider? Rounds { get; init; }
 }

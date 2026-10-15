@@ -131,7 +131,7 @@ internal static class SoloSeaIce
             NativeTimeout = TimeSpan.FromSeconds(15),
             StepStall = TimeSpan.FromSeconds(90),
             Prefix = "solo-sea-ice",
-            PlayerSpeed = "Ultrafast",
+            ClockSpeed = "Ultrafast",
         },
         Reason = "a year of live needs under the scenario's own storyteller (Randy, the top difficulty) is the claim; the quiet swap would replace Randy "
             + "and a short window cannot show a cold year",

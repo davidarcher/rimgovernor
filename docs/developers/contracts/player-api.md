@@ -25,6 +25,7 @@ read-only service exposes none of these player routes.
 | POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
 | POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine concerns and clean up owned work |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
+| POST | `/api/player/clock-speed` | Set the speed the brain requests while it owns the clock (`{"speed":"Normal\|Fast\|Superfast\|Ultrafast"}`, else 400); applies from the next window, see [interface contracts](interface-contracts.md) |
 | GET | `/api/player/colony` | Live colony census (below) |
 
 `/api/player/colony` fields; unknown facts are null:

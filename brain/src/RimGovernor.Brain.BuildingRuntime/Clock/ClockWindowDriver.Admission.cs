@@ -453,6 +453,11 @@ public sealed partial class ClockWindowDriver
             work = true;
         }
         var start = _config.Start;
+        if (_config.TargetSpeed is { } target)
+        {
+            var speed = target.Speed;
+            start = start with { Speed = speed, PlayerAccelerated = !start.TestAcceleration && speed == PbClock.Speed.Ultrafast };
+        }
         if (_config.FollowPlayerSpeed)
         {
             start = ClockPlayerSpeed.Follow(start, status);

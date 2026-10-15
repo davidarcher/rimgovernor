@@ -36,8 +36,8 @@ public sealed record ServiceLaunch
 
     public Report? Report { get; init; }
 
-    /// <summary>The player's speed choice, as <see cref="ServeSpec.PlayerSpeed"/>.</summary>
-    public string PlayerSpeed { get; init; } = "";
+    /// <summary>The brain target speed, as <see cref="ServeSpec.ClockSpeed"/>.</summary>
+    public string ClockSpeed { get; init; } = "";
 }
 
 /// <summary>
@@ -134,7 +134,6 @@ public sealed partial class ServiceProcess : ICheckpointService
                 }
             }
 
-            await WritePlayerSpeedAsync(harness, spec.PlayerSpeed, cancellationToken).ConfigureAwait(false);
             launch = s_launches.AddOrUpdate(Path.GetFullPath(output), 1, (_, count) => count + 1);
         }
 
@@ -167,7 +166,7 @@ public sealed partial class ServiceProcess : ICheckpointService
         ArgumentNullException.ThrowIfNull(cfg);
         ArgumentNullException.ThrowIfNull(launch);
         report = launch.Report ?? report;
-        var spec = new ServeSpec { Families = launch.Families, Env = launch.Env, PlayerSpeed = launch.PlayerSpeed };
+        var spec = new ServeSpec { Families = launch.Families, Env = launch.Env, ClockSpeed = launch.ClockSpeed };
 
         // The harness names the directory the game's channel publishes its endpoint in (beside the game, not in the case's
         // output); without it the endpoint is looked for under the output and never found (#3123).
@@ -201,7 +200,7 @@ public sealed partial class ServiceProcess : ICheckpointService
             NativeTimeout = Spec.NativeTimeout,
             StepStall = Spec.StepStall,
             Prefix = Spec.Prefix,
-            PlayerSpeed = Spec.PlayerSpeed,
+            ClockSpeed = Spec.ClockSpeed,
         };
         var next = await ServeCoreAsync(_output, _harness, Identity, spec, Launch + 1, _report, cancellationToken, _configDir).ConfigureAwait(false);
         lock (next._gate)
@@ -286,6 +285,7 @@ public sealed partial class ServiceProcess : ICheckpointService
         entry["url"] = url;
         entry["state"] = "running";
         Volatile.Write(ref s_latest, p);
+        await p.SetClockSpeedAsync(spec.ClockSpeed, cancellationToken).ConfigureAwait(false);
         return p;
     }
 

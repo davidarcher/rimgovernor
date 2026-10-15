@@ -17,6 +17,9 @@ public sealed record ClockWindowConfig
     /// <summary>The window every admission starts from; the admission fills the policy, the tick budget and the speed.</summary>
     public required ClockStart Start { get; init; }
 
+    /// <summary>The live target speed each admission starts its window at (player acceleration only while it is Ultrafast); null keeps <see cref="Start"/>'s speed.</summary>
+    public ClockTargetSpeed? TargetSpeed { get; init; }
+
     /// <summary>Starts each window at the speed the player last chose (Ultrafast when native reports none).</summary>
     public bool FollowPlayerSpeed { get; init; }
 

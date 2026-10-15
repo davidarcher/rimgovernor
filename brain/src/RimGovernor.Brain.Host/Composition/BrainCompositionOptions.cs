@@ -21,6 +21,12 @@ public sealed record BrainCompositionOptions
     /// <summary>Acceptance only: asks native for its dev tick boost and runs every window at Ultrafast (Go <c>--clock-test-acceleration</c>, default off).</summary>
     public bool ClockTestAcceleration { get; init; }
 
+    /// <summary>
+    /// The speed the brain requests while it owns the clock, Normal through Ultrafast (default Ultrafast, the fastest the native clamp allows).
+    /// Only the first window's speed: <c>POST /api/player/clock-speed</c> changes it live from the next window. Ignored with <see cref="ClockTestAcceleration"/>, which pins boosted Ultrafast.
+    /// </summary>
+    public PbClock.Speed TargetSpeed { get; init; } = PbClock.Speed.Ultrafast;
+
     /// <summary>Runs each window at the speed the player last chose instead of always Ultrafast (Go <c>--follow-player-speed</c>, default off; ignored with <see cref="ClockTestAcceleration"/>).</summary>
     public bool FollowPlayerSpeed { get; init; }
 
@@ -53,6 +59,10 @@ public sealed record BrainCompositionOptions
             throw new ArgumentException("the profile must be an absolute directory", nameof(Profile));
         }
         ArgumentNullException.ThrowIfNull(Families);
+        if (TargetSpeed == PbClock.Speed.Unspecified || !Enum.IsDefined(TargetSpeed))
+        {
+            throw new ArgumentException("the clock target speed is Normal, Fast, Superfast or Ultrafast", nameof(TargetSpeed));
+        }
         if (ClockBlindTicks > MaxClockBlindTicks)
         {
             throw new ArgumentException($"the clock blind tick budget must be 0 through {MaxClockBlindTicks}", nameof(ClockBlindTicks));

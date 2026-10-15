@@ -331,27 +331,34 @@ public sealed partial class ServiceProcess
         Environment.GetEnvironmentVariable(ClockSpeedEnv) is { Length: > 0 } speed ? speed : "Ultrafast";
 
     /// <summary>
-    /// Sets the speed the service will follow as the player's own choice: the speed, then a pause, through the
-    /// ordinary time controls, so native records it as the player's pre-pause speed. A boosted run (Ultrafast, the
-    /// native test acceleration of the headless profile) ignores it and nothing is written. The identity read first
-    /// is a typed hop, which installs native's speed hook if nothing has yet.
+    /// Sets the speed the brain requests while it owns the clock (POST /api/player/clock-speed), taking effect from the
+    /// next window. The in-mod brain outlives a service handle, so every launch states its speed (the run's clock speed
+    /// when <paramref name="speed"/> is empty) and a row never inherits the previous row's. The route exists once the
+    /// brain has composed, which can trail the endpoint file, so a 404 or 503 is retried for a bounded time.
     /// </summary>
-    internal static async Task WritePlayerSpeedAsync(Harness harness, string playerSpeed, CancellationToken cancellationToken)
+    internal async Task SetClockSpeedAsync(string speed, CancellationToken cancellationToken)
     {
-        var speed = playerSpeed;
-        if (speed.Length == 0)
+        var name = speed.Length > 0 ? speed : ClockSpeed();
+        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(90);
+        while (true)
         {
-            speed = ClockSpeed();
-            if (speed == "Ultrafast")
+            var reply = await ApiAsync("POST", "/api/player/clock-speed", new JsonObject { ["speed"] = name }, "", cancellationToken).ConfigureAwait(false);
+            if (reply.Status == 200)
             {
+                lock (_gate)
+                {
+                    _entry["clock_speed"] = name;
+                }
+
                 return;
             }
-        }
 
-        await harness.WireAsync("player-speed-hook", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        foreach (var s in new[] { speed, "Paused" })
-        {
-            await harness.CallAsync("player-speed-" + s.ToLowerInvariant(), "rimgovernor/set_time_speed", new JsonObject { ["speed"] = s, ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
+            if (reply.Status is not (404 or 503) || DateTimeOffset.UtcNow > deadline)
+            {
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"POST /api/player/clock-speed {name}: status {reply.Status} body={reply.Body.ToJson()}"));
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken).ConfigureAwait(false);
         }
     }
 

@@ -566,6 +566,7 @@ public sealed partial class BrainComposition
             Placement = reviewer.NotePlacement,
             OpenFrames = client.OpenFramesAsync,
             Windows = windows,
+            TargetSpeed = TargetSpeed,
             Rounds = new RoundsDiagnostics(context.Journal, true, context.Session.RoundsMethodsEnabled(), _options.Families.Active(), context.Sections),
         };
     }
@@ -577,10 +578,11 @@ public sealed partial class BrainComposition
     {
         var testAcceleration = _options.ClockTestAcceleration;
         var lease = TimeSpan.FromTicks(Math.Min(Math.Min(_options.NativeTimeout.Ticks, TimeSpan.FromSeconds(10).Ticks), TimeSpan.FromSeconds(7).Ticks));
+        // The dev tick boost makes every window boosted Ultrafast; otherwise every window runs at the live target
+        // speed whatever the native speed controls say.
+        var speed = testAcceleration ? PbClock.Speed.Ultrafast : TargetSpeed.Speed;
         var start = new ClockStart(
-            PbClock.Speed.Ultrafast,
-            // Every window runs at Ultrafast whatever the native speed controls say; the dev tick boost makes every
-            // window boosted Ultrafast.
+            speed,
             BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
             {
                 Mode = PbClock.WatchMode.Colony,
@@ -593,11 +595,12 @@ public sealed partial class BrainComposition
             testAcceleration,
             _options.ClockBlindTicks,
             0,
-            !testAcceleration);
+            speed == PbClock.Speed.Ultrafast && !testAcceleration);
         var window = new ClockWindowConfig
         {
             Profile = _options.Profile,
             Start = start,
+            TargetSpeed = testAcceleration ? null : TargetSpeed,
             // serve --follow-player-speed opts back into the player's own speed; the dev tick boost wins.
             FollowPlayerSpeed = _options.FollowPlayerSpeed && !testAcceleration,
             PaceHorizonTicks = _options.ClockBlindTicks,

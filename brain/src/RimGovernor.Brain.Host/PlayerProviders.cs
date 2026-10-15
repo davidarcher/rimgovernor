@@ -71,6 +71,14 @@ internal sealed class HostControlReader(StoreJournal journal) : IControlReader
     public Task<ControlRecord> CurrentControlAsync(CancellationToken cancellationToken) => journal.CurrentControlAsync(cancellationToken);
 }
 
+/// <summary>The brain's live target speed, set through the player API.</summary>
+internal sealed class HostClockSpeed(ClockTargetSpeed target) : IClockSpeedControl
+{
+    public PbClock.Speed Speed => target.Speed;
+
+    public void Change(PbClock.Speed speed) => target.Set(speed);
+}
+
 /// <summary>The clock review: unreviewed clock events and the player's acknowledgement, from the journal and the profile.</summary>
 internal sealed class HostClockReview(StoreJournal journal, string profile) : IClockReview
 {

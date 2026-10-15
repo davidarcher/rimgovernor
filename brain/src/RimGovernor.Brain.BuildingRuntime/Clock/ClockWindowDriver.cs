@@ -79,7 +79,7 @@ public sealed partial class ClockWindowDriver : IClockWorkerStopper, IDisposable
         var start = Validated(config, scheduler.Config);
         var inbox = await player.Journal.BindClockInboxAsync(config.Profile, lifetime).ConfigureAwait(false);
         var driver = new ClockWindowDriver(player, session, scheduler, native, config with { Start = start, Profile = inbox.Profile }, clock, wake);
-        if (start.PlayerAccelerated || config.FollowPlayerSpeed)
+        if (start.PlayerAccelerated || config.FollowPlayerSpeed || config.TargetSpeed is not null)
         {
             scheduler.Backoff = new PaceBackoff(new Tick(config.PaceHorizonTicks), clock.Now, driver.RequestCeilingAsync);
         }

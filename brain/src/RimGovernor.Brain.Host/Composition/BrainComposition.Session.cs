@@ -21,6 +21,9 @@ public sealed partial class BrainComposition(BrainCompositionOptions options) : 
 {
     private readonly BrainCompositionOptions _options = Validated(options);
 
+    /// <summary>The live target speed the clock windows start at: <see cref="BrainCompositionOptions.TargetSpeed"/> until changed.</summary>
+    public ClockTargetSpeed TargetSpeed { get; } = new(options.TargetSpeed);
+
     // Set by ComposeSession (called once, before ComposePlanners) and read by ComposePlanners.
     private FacadeNativeClient? _client;
     private FacadeActionsWriter? _writer;

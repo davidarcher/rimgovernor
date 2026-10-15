@@ -45,7 +45,7 @@ internal static class CombatLabHunt
 
         // A checkpoint capture pauses the served game mid-hunt.
         NoCheckpoint = true,
-        Serve = new ServeSpec { Families = Families, PlayerSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt" },
+        Serve = new ServeSpec { Families = Families, ClockSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt" },
         Budget = Budget,
         Crew = new Crew { Size = 3 },
         Run = RunSquadAsync,
@@ -62,7 +62,7 @@ internal static class CombatLabHunt
         RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool, CombatServe.PauseModeTool],
         QuietWorld = true,
         NoCheckpoint = true,
-        Serve = new ServeSpec { Families = Families, PlayerSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt-door" },
+        Serve = new ServeSpec { Families = Families, ClockSpeed = CombatServe.MetricsSpeed, Prefix = "combatlab-hunt-door" },
         Budget = Budget,
         Crew = new Crew { Size = 3 },
         Run = RunDoorAsync,
