@@ -130,6 +130,11 @@ if (args.Contains("--request-check"))
     return RequestCheckMode.Run();
 }
 
+if (args.Contains("--hunt"))
+{
+    return HuntMode.Run();
+}
+
 if (args.Contains("--gear-check"))
 {
     return RequestCheckMode.RunGear();
@@ -200,7 +205,17 @@ internal static class RequestCheckMode
         var rejects = new (string Field, Func<RealFightRequest> Make)[]
         {
             ("Schema", () => Base with { Schema = 0 }),
-            ("Schema", () => Base with { Schema = 2 }),
+            ("Schema", () => Base with { Schema = 1 }),
+            ("Schema", () => Base with { Schema = RealFightRequest.CurrentSchema + 1 }),
+            ("Pawns[2].Side", () => Base with { Pawns = [Colonist, Raider, Deer("d0", "", 20) with { Kind = "Colonist", Age = 30, Xenotype = "Baseliner" }] }),
+            ("Pawns[2].Herd", () => Base with { Pawns = [Colonist, Raider, Deer("d0", "lone", 20)] }),
+            ("Pawns[3].Herd", () => Base with { Pawns = [Colonist, Raider, Deer("d0", "mixed", 20), Deer("d1", "mixed", 21) with { Kind = "WildBoar" }] }),
+            ("Pawns[0].Herd", () => With(Colonist with { Herd = "h" })),
+            ("Pawns[0].Hunt", () => With(Colonist with { Hunt = "host" })),
+            ("Pawns[0].Hunt", () => With(Colonist with { Hunt = "nobody" })),
+            ("Pawns[1].Hunt", () => Base with { Pawns = [Colonist, Raider with { Hunt = "col" }] }),
+            ("Pawns[2]", () => Base with { Pawns = [Colonist, Raider, Deer("d0", "", 20) with { Weapon = "Gun_BoltActionRifle" }] }),
+            ("Pawns[2].Hediffs[0].Part", () => Base with { Pawns = [Colonist, Raider, Deer("d0", "", 20) with { Hediffs = [new("Cut", "tail", 3)] }] }),
             ("Terrain", () => Base with { Terrain = "NoSuchTerrain" }),
             ("Pawns[0].Kind", () => With(Colonist with { Kind = "NoSuchKind" })),
             ("Pawns[0].Weapon", () => With(Colonist with { Weapon = "NoSuchGun" })),
@@ -249,7 +264,7 @@ internal static class RequestCheckMode
             }
         }
 
-        foreach (var (what, json) in new[] { ("unknown field", """{"schema":1,"bogus":1}"""), ("unknown pawn field", """{"schema":1,"pawns":[{"id":"a","tail":true}]}""") })
+        foreach (var (what, json) in new[] { ("unknown field", """{"schema":2,"bogus":1}"""), ("unknown pawn field", """{"schema":2,"pawns":[{"id":"a","tail":true}]}""") })
         {
             try
             {
@@ -367,6 +382,61 @@ internal static class RequestCheckMode
     private static string Summ(RealSeedOutcome o) => string.Join(" ", o.Pawns.Select(p => $"{p.Id}:shots={p.Shots},hits={p.HitsTaken},hp={p.HealthPercent:0.###}"));
 
     private static RealFightRequest With(RealPawn first) => Base with { Pawns = [first, Raider] };
+
+    private static RealPawn Deer(string id, string herd, int z) => new() { Id = id, Side = "wild", Kind = "Deer", Herd = herd, X = 40, Z = z };
+}
+
+// --hunt: one hunter with a rifle against a wild herd of three flee-only deer and one of three revenge-capable boars, each
+// run on its own through the game's Hunt job and animal AI (no scripting of the prey), twice per seed under Verify, with a
+// prey animal built carrying an existing injury that must read back. Exit 0 when the injury reads back and no seed
+// is nondeterministic.
+internal static class HuntMode
+{
+    internal static int Run()
+    {
+        var failures = 0;
+        foreach (var (kind, herd) in new[] { ("Deer", "deer"), ("WildBoar", "boar") })
+        {
+            var request = new RealFightRequest
+            {
+                Schema = RealFightRequest.CurrentSchema,
+                Name = "hunt-" + kind,
+                Terrain = "Soil",
+                Weather = "Clear",
+                Seeds = [1, 2, 3],
+                MaxTicks = 3000,
+                Verify = true,
+                Pawns =
+                [
+                    new RealPawn { Id = "hunter", Side = "colonist", Kind = "Colonist", Age = 30, Xenotype = "Baseliner", X = 15, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 }, Hunt = "p0" },
+                    new RealPawn { Id = "p0", Side = "wild", Kind = kind, Herd = herd, X = 38, Z = 29, Hediffs = [new("Cut", "front left leg", 2)] },
+                    new RealPawn { Id = "p1", Side = "wild", Kind = kind, Herd = herd, X = 40, Z = 31 },
+                    new RealPawn { Id = "p2", Side = "wild", Kind = kind, Herd = herd, X = 41, Z = 28 },
+                ],
+            };
+            var arena = new Arena(request);
+            foreach (var seed in request.Seeds)
+            {
+                var outcome = arena.Fight(seed);
+                var line = string.Join(" ", outcome.Pawns.Select(p => $"{p.Id}[down={p.Downed} dead={p.Dead} hp={p.HealthPercent:0.00} shots={p.Shots} hit={p.HitsTaken}]"));
+                Console.Error.WriteLine($"{kind} seed {seed}: winner='{outcome.Winner}' ticks={outcome.Ticks} nondeterministic={outcome.Nondeterministic} {line}");
+                if (outcome.Nondeterministic)
+                {
+                    failures++;
+                }
+            }
+
+            var read = arena.Readback.Pawns.First(p => p.Id == "p0");
+            Console.Error.WriteLine($"{kind} p0 read back: side={read.Side} hediffs=[{string.Join(", ", read.Hediffs)}]");
+            if (read.Side != "wild" || read.Hediffs.Count != 1 || read.Hediffs[0].Def != "Cut" || read.Hediffs[0].Part != "front left leg")
+            {
+                failures++;
+            }
+        }
+
+        Console.Error.WriteLine(failures == 0 ? "hunt: PASS" : $"hunt: FAIL ({failures})");
+        return failures == 0 ? 0 : 1;
+    }
 }
 
 internal sealed class SeatController : IFightController

@@ -74,6 +74,8 @@ public static class RequestCheck
             Pawn(errors, req, req.Pawns[i], $"Pawns[{i}]", ids);
         }
 
+        Herds(errors, req);
+
         var departing = new HashSet<string>();
         for (var i = 0; i < req.Departures.Count; i++)
         {
@@ -105,6 +107,24 @@ public static class RequestCheck
         }
     }
 
+    // A herd is two or more animals of one kind; a lone animal states no herd.
+    private static void Herds(List<string> errors, RealFightRequest req)
+    {
+        foreach (var herd in req.Pawns.Select((p, i) => (p, i)).Where(x => x.p.Herd.Length > 0).GroupBy(x => x.p.Herd))
+        {
+            var members = herd.ToList();
+            if (members.Count < 2)
+            {
+                errors.Add($"Pawns[{members[0].i}].Herd: '{herd.Key}' has one member; a lone animal states no herd");
+            }
+
+            foreach (var other in members.Where(m => m.p.Kind != members[0].p.Kind))
+            {
+                errors.Add($"Pawns[{other.i}].Herd: '{herd.Key}' mixes {members[0].p.Kind} and {other.p.Kind}; a herd is one kind");
+            }
+        }
+    }
+
     private static void Pawn(List<string> errors, RealFightRequest req, RealPawn p, string at, HashSet<string> ids)
     {
         if (p.Id.Length == 0 || !ids.Add(p.Id))
@@ -112,9 +132,9 @@ public static class RequestCheck
             errors.Add($"{at}.Id: '{p.Id}' is empty or repeats another pawn's");
         }
 
-        if (p.Side is not ("colonist" or "hostile"))
+        if (p.Side is not ("colonist" or "hostile" or "wild"))
         {
-            errors.Add($"{at}.Side: '{p.Side}' is neither colonist nor hostile");
+            errors.Add($"{at}.Side: '{p.Side}' is not colonist, hostile or wild");
         }
 
         Cell(errors, at, req, p.X, p.Z);
@@ -177,6 +197,29 @@ public static class RequestCheck
         if (kind is null)
         {
             return;
+        }
+
+        if (p.Side == "wild" && !kind.RaceProps.Animal)
+        {
+            errors.Add($"{at}.Side: wild pawns are animals; {p.Kind} is not");
+        }
+
+        if (p.Herd.Length > 0 && (p.Side != "wild" || !kind.RaceProps.Animal))
+        {
+            errors.Add($"{at}.Herd: only a wild animal belongs to a herd");
+        }
+
+        if (p.Hunt.Length > 0)
+        {
+            var prey = req.Pawns.FirstOrDefault(o => o.Id == p.Hunt);
+            if (p.Side != "colonist" || !kind.RaceProps.Humanlike)
+            {
+                errors.Add($"{at}.Hunt: only a humanlike colonist hunts");
+            }
+            else if (prey is null || prey.Side != "wild")
+            {
+                errors.Add($"{at}.Hunt: '{p.Hunt}' is not the id of a wild pawn");
+            }
         }
 
         if (kind.RaceProps.Humanlike)

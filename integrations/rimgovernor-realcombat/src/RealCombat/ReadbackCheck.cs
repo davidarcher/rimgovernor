@@ -90,7 +90,7 @@ internal static class ReadbackCheck
         var read = new RealPawnReadback
         {
             Id = spec.Id,
-            Side = pawn.Faction == Faction.OfPlayer ? "colonist" : "hostile",
+            Side = pawn.Faction == Faction.OfPlayer ? "colonist" : pawn.Faction is null ? "wild" : "hostile",
             Kind = pawn.kindDef.defName,
             X = pawn.Position.x,
             Z = pawn.Position.z,

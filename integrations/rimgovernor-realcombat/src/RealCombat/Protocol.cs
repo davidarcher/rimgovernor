@@ -7,7 +7,7 @@ namespace RimGovernor.RealCombat;
 public sealed record RealFightRequest
 {
     /// <summary>The request format version this host reads.</summary>
-    public const int CurrentSchema = 1;
+    public const int CurrentSchema = 2;
 
     /// <summary>The request format version; it must equal <see cref="CurrentSchema"/>. A request that omits it or states another is rejected.</summary>
     public int Schema { get; init; }
@@ -104,10 +104,16 @@ public sealed record RealPawn
 {
     public string Id { get; init; } = "";
 
-    /// <summary>"colonist" or "hostile".</summary>
+    /// <summary>"colonist", "hostile" or "wild" (a faction-less animal under the game's own animal AI: it flees or retaliates as its race does).</summary>
     public string Side { get; init; } = "";
 
     public string Kind { get; init; } = "";
+
+    /// <summary>Herd id of a wild animal; animals only, one kind per herd, two or more members (a lone animal states none). The game groups herd mates by race and proximity, so the id names the group the request means.</summary>
+    public string Herd { get; init; } = "";
+
+    /// <summary>Id of the wild pawn this colonist hunts under the game's Hunt job (JobDriver_Hunt); empty for none. The hunt is re-ordered whenever the job ends while the prey is still up.</summary>
+    public string Hunt { get; init; } = "";
 
     public int X { get; init; }
 
@@ -168,7 +174,7 @@ public sealed record RealSeedOutcome
 {
     public int Seed { get; init; }
 
-    /// <summary>"colonist" or "hostile" when one side was all down or dead; empty when the fight ran out of ticks.</summary>
+    /// <summary>"colonist" when the colonists stand and every hostile and wild pawn is down or dead; "hostile" when the colonists are all out and a hostile or wild pawn stands; empty when the fight ran out of ticks (prey that fled alive included).</summary>
     public string Winner { get; init; } = "";
 
     public int Ticks { get; init; }

@@ -14,7 +14,7 @@ no live-game integration.
 
 ## The request format
 
-`RealFightRequest` is the one request format, strict and versioned. `Schema` must equal `RealFightRequest.CurrentSchema` (1);
+`RealFightRequest` is the one request format, strict and versioned. `Schema` must equal `RealFightRequest.CurrentSchema` (2);
 a request that omits it or states another version is rejected. **Unsupported input rejects, it is never defaulted or
 regenerated.** The whole request is rejected before the arena is built (so no map and no pawn exists), and every problem
 names its field (`Pawns[0].Hediffs[1].Part: Human has no body part 'tail'`). A rejection exits the host with code 3 and no
@@ -24,6 +24,19 @@ is not apparel; a cell outside the map; a duplicate or empty pawn id; a hediff o
 (parts are named by `BodyPartRecord` label, "left arm"; a label that names two parts is rejected as ambiguous), a hediff on
 a part that is missing or inside one, an injury without a part, a severity outside `(0, maxSeverity]`; a humanlike pawn
 without `Age` or `Xenotype`; an animal or insect with an age, xenotype, gear, skills or traits.
+
+**Wild prey and hunters.** `Side = "wild"` is a faction-less animal under the game's own animal AI: nothing scripts it, so it
+flees or retaliates as its race's rules say (`Pawn_MindState.Notify_DamageTaken`), and herd mates react to damage to one
+another as in the game (`GetPackmates`: same race, same faction, within 24 cells, same district; the game needs no lord
+for this, so the arena builds none). `Herd` is a string id on wild animals only, two or more members of one kind (a lone
+animal states none); the game groups by race and proximity, so two herds of one race close together react as one.
+`Hunt` on a humanlike colonist names the wild pawn it hunts, driven by the game's Hunt job (`JobDriver_Hunt`, ordered with
+`ignoreDesignations` so the request stands in for the Hunt designation, and re-ordered each time it ends while the prey is
+up). Rejected by field name: a wild pawn that is not an animal, `Herd` on anything else, a herd of one or of mixed kinds,
+`Hunt` on a non-colonist or naming no wild pawn. The fight ends when the colonists are out or no hostile and no wild
+pawn stands (wild means not downed or dead: prey that fled and lives runs to `MaxTicks`); `Winner` stays
+colonist/hostile, prey that down or kill the hunters count as hostile. `--hunt` is the smoke test (a hunter, a deer
+herd and a boar herd, Verify, an injured prey that must read back).
 
 `Departures` (pawn `Id`, `Tick`, `Kind`) replay timed exits. At `Tick` (0 to `MaxTicks`; applied before that tick runs) a
 `leave` takes the pawn off the map at once (the game's `ExitMap`); a `flee` undrafts it and runs it (a goto job) to the nearest
@@ -111,7 +124,9 @@ never one of its fights.
 A seed fully determines a fight, within and across processes. The game's `Rand` is counter based, so pushing a seed
 fixes every draw, provided nothing else moves between fights: thing ids and the tick counter restart from fixed
 values, the world and map are generated under fixed seeds, the map is swept (things, roofs) and settled before the
-baseline, the fight's things are destroyed afterwards and the world pawns the generator parked are removed.
+baseline, the fight's things are destroyed afterwards and the world pawns the generator parked are removed. Snow
+(it melts on the tick and sets movement cost) and the weather's age are restored to the arena's values before every
+fight.
 `"verify": true` in a request plays every seed twice and flags a mismatch. A 1000-seed run is byte-identical across two
 processes. About 8–12 ms a fight after a ~7 s startup.
 

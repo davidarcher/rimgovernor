@@ -26,6 +26,8 @@ public sealed class Arena
     private readonly Action<Map>? _stage;
     private readonly Map _map;
     private readonly Faction _hostile;
+    private readonly WeatherDef _weather;
+
     // This fight's departures: the pawns whose departure has been applied (they no longer count as standing or as targets)
     // and the tick each was applied at, by pawn id.
     private readonly HashSet<Pawn> _departing = [];
@@ -50,6 +52,7 @@ public sealed class Arena
         _hostile.SetRelationDirect(Faction.OfPlayer, FactionRelationKind.Hostile, false);
         Sweep();
         Furnish();
+        _weather = _map.weatherManager.curWeather;
         _readback = ReadbackCheck.Arena(req, _map, _hostile);
         _baselineThings = [.. _map.listerThings.AllThings];
         _baselineWorldPawns = [.. Find.WorldPawns.AllPawnsAliveOrDead];
@@ -169,6 +172,11 @@ public sealed class Arena
 
         _tickField.SetValue(Find.TickManager, StartTick);
         RestoreSnow();
+
+        // The weather ages and rolls a new one on its own clock, so each fight starts it afresh.
+        _map.weatherManager.curWeather = _weather;
+        _map.weatherManager.lastWeather = _weather;
+        _map.weatherManager.curWeatherAge = 0;
         HostPatches.Shots.Clear();
         HostPatches.Hits.Clear();
         HostPatches.FirstShot.Clear();
@@ -247,15 +255,16 @@ public sealed class Arena
             Raid(fighters);
         }
 
-        while (ticks < _req.MaxTicks && Standing(fighters, "colonist") && Standing(fighters, "hostile"))
+        while (ticks < _req.MaxTicks && Standing(fighters, "colonist") && Opposed(fighters))
         {
             Depart(fighters, ticks);
-            if (!Standing(fighters, "colonist") || !Standing(fighters, "hostile"))
+            if (!Standing(fighters, "colonist") || !Opposed(fighters))
             {
                 break;
             }
 
             controller?.Decide(_map, ticks);
+            Hunt(fighters);
 
             // Projectiles launch from the caster's draw position, which only the render pass advances: headless, a pawn
             // that has walked would still shoot from the cell it spawned in.
@@ -380,14 +389,45 @@ public sealed class Arena
 
     private bool IsOut(Pawn p) => p.Dead || p.Downed || p.Destroyed || !p.Spawned || _departing.Contains(p);
 
+    // Wild prey is out only when downed or dead: prey that fled (even off the map) is alive and the fight runs on.
+    private bool IsOut(RealPawn spec, Pawn p) => spec.Side == "wild" ? p.Dead || p.Downed : IsOut(p);
+
     private bool Standing(List<(RealPawn Spec, Pawn Pawn)> fighters, string side) =>
-        fighters.Any(f => f.Spec.Side == side && !IsOut(f.Pawn));
+        fighters.Any(f => f.Spec.Side == side && !IsOut(f.Spec, f.Pawn));
+
+    // The colonists' opposition: the hostiles and the wild prey they hunt.
+    private bool Opposed(List<(RealPawn Spec, Pawn Pawn)> fighters) => Standing(fighters, "hostile") || Standing(fighters, "wild");
+
+    // A hunter acts through the game's own Hunt job against the prey it names, re-ordered whenever the job has ended
+    // (finished, failed on its 5000 tick cap) while the prey is still up. The prey itself is never ordered.
+    private void Hunt(List<(RealPawn Spec, Pawn Pawn)> fighters)
+    {
+        foreach (var hunter in fighters.Where(f => f.Spec.Hunt.Length > 0 && !IsOut(f.Spec, f.Pawn)))
+        {
+            var prey = fighters.First(f => f.Spec.Id == hunter.Spec.Hunt).Pawn;
+            if (prey.Dead || prey.Downed || !prey.Spawned)
+            {
+                continue;
+            }
+
+            var current = hunter.Pawn.CurJob;
+            if (current?.def == JobDefOf.Hunt && current.targetA.Thing == prey)
+            {
+                continue;
+            }
+
+            var job = JobMaker.MakeJob(JobDefOf.Hunt, prey);
+            job.ignoreDesignations = true; // the game's hunt job also requires a Hunt designation; the request is the order
+            hunter.Pawn.jobs.TryTakeOrderedJob(job);
+        }
+    }
 
     private void Retarget(List<(RealPawn Spec, Pawn Pawn)> fighters)
     {
         foreach (var me in fighters)
         {
-            if (IsOut(me.Pawn))
+            // Wild prey acts under the animal AI and a hunter under its Hunt job; neither is retargeted.
+            if (IsOut(me.Spec, me.Pawn) || me.Spec.Side == "wild" || me.Spec.Hunt.Length > 0)
             {
                 continue;
             }
@@ -396,7 +436,7 @@ public sealed class Arena
             var bestDistance = int.MaxValue;
             foreach (var other in fighters)
             {
-                if (other.Spec.Side == me.Spec.Side || IsOut(other.Pawn))
+                if (other.Spec.Side == me.Spec.Side || IsOut(other.Spec, other.Pawn) || (other.Spec.Side == "wild" && me.Spec.Side == "hostile"))
                 {
                     continue;
                 }
@@ -427,7 +467,7 @@ public sealed class Arena
     private RealSeedOutcome Outcome(int seed, int ticks, List<(RealPawn Spec, Pawn Pawn)> fighters)
     {
         var colonists = Standing(fighters, "colonist");
-        var hostiles = Standing(fighters, "hostile");
+        var hostiles = Opposed(fighters);
         return new RealSeedOutcome
         {
             Seed = seed,
@@ -485,7 +525,7 @@ public sealed class Arena
     private Pawn MakePawn(RealPawn spec)
     {
         var kind = DefDatabase<PawnKindDef>.GetNamed(spec.Kind);
-        var faction = spec.Side == "colonist" ? Faction.OfPlayer : _hostile;
+        var faction = spec.Side == "colonist" ? Faction.OfPlayer : spec.Side == "wild" ? null : _hostile;
         if (!kind.RaceProps.Humanlike)
         {
             // An animal or insect has no gear, traits or skills to strip.
