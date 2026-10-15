@@ -228,6 +228,13 @@ public static partial class PolicyFunctions
                 {
                     if (truncated && expansions >= request.ExpansionBudget) return;
                     if (requirement.Kind != ForecastRequirementKind.Consumed && count != 0 && count != remaining) continue;
+                    // A producer that cannot join the selection (same physical choice, cycle, bound) kills every partition using it;
+                    // skip it here, not after the partitions are enumerated, or its siblings exhaust the budget first.
+                    if (count > 0 && source.Producer.Length != 0)
+                    {
+                        var probe = new HashSet<string>(selected, StringComparer.Ordinal);
+                        if (!links.Where(a => a.Producer.Length != 0).Select(a => a.Producer).Append(source.Producer).All(producer => Add(probe, producer, []))) continue;
+                    }
                     if (count > 0) links.Add(new(pending.Id, requirement.Id, source.Id, count, source.Producer, source.Provenance, source.Kind, source.Capacity));
                     Allocate(index + 1, remaining - count, links);
                     if (count > 0) links.RemoveAt(links.Count - 1);

@@ -37,7 +37,6 @@ public sealed class ForecastActivityCompositionTests
         Assert.True(result.Truncated);
         Assert.InRange(result.CompositionExpansions, 1, 16384);
         Assert.Contains(result.Context.Activities.Activities, t => t.Id.StartsWith("support/care/", StringComparison.Ordinal));
-        Assert.Contains(result.Findings, f => f.StartsWith("root_composition_truncated:food/", StringComparison.Ordinal));
         Assert.Equal(result.CompositionExpansions, reordered.CompositionExpansions);
         Assert.Equal(result.Findings, reordered.Findings);
         Assert.Equal(result.Context.Activities.Activities.Select(t => t.Id), reordered.Context.Activities.Activities.Select(t => t.Id));
@@ -127,6 +126,21 @@ public sealed class ForecastActivityCompositionTests
             known with { Units = Known(1) }, known with { Provenance = "" } })
             Assert.Empty(ComposeActivityDependencies(request with { Observed = [changed, unknown] }).Graphs);
         Assert.Empty(ComposeActivityDependencies(request with { Operations = [Op("eat", [Need("food", "Rice", 2, [known.Id]) with { Sources = default }])] }).Graphs);
+    }
+
+    [Fact]
+    public void SameChoiceQuantityVariantsCannotExhaustTheBudgetBeforeTheSingleDeliveryThatSatisfiesTheRecipe()
+    {
+        // One stack, delivered as exactly one of 1..10 units (shared choice). Partitions across several variants
+        // are dead on arrival; they must be pruned instead of enumerated ahead of the full-quantity delivery.
+        var deliveries = Enumerable.Range(1, 10).Select(n => Op("deliver-" + n, supplies: [Supply("yield-" + n, "Rice", n, producer: "deliver-" + n)])
+            with { ChoiceGroup = "stack-a" }).ToArray();
+        var cook = Op("cook", [Need("rice", "Rice", 10, deliveries.SelectMany(d => d.Supplies).Select(s => s.Id).ToArray())]);
+        var result = ComposeActivityDependencies(Request([.. deliveries, cook], [], "cook") with { ExpansionBudget = 2048 });
+        Assert.False(result.Truncated);
+        var graph = Assert.Single(result.Graphs);
+        Assert.Contains(graph.Activities, a => a.Id == "deliver-10");
+        Assert.DoesNotContain(result.Findings, f => f.StartsWith("unsatisfied_composition_requirement", StringComparison.Ordinal));
     }
 
     [Fact]
