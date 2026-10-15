@@ -25,8 +25,12 @@ public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitment
 
 public static partial class PolicyFunctions
 {
+    private const int SeedShare = 4;
+
     /// <summary>One bounded subset search, evaluated by the same ColonyForecast trajectory as its baseline.
-    /// Empty/continue is evaluated first. Partial portfolios remain expandable regardless of isolated value.</summary>
+    /// Empty/continue is evaluated first. Partial portfolios remain expandable regardless of isolated value.
+    /// Order: single roots for up to a quarter of the budget; the leader plus each other root; then the
+    /// full cardinality sweep (singles, pairs, ...), skipping subsets already evaluated.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
         ForecastCoupledCandidates candidates, int budget = 16384)
     {
@@ -79,8 +83,11 @@ public static partial class PolicyFunctions
             && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown;
         var redundantPairs = alternatives.Where(GraphOnly).SelectMany(a => alternatives.Where(b => a.Id != b.Id
             && closures[a.Id].IsSubsetOf(closures[b.Id])).Select(b => (Contained: a.Id, Container: b.Id))).ToHashSet();
+        // The traversal reaches a subset by more than one phase; evaluating it again would only repeat its cost.
+        var evaluated = new HashSet<string>(StringComparer.Ordinal);
         bool Evaluate(ForecastCommitment[] additions)
         {
+            if (!evaluated.Add(string.Join('\n', additions.Select(c => c.Id)))) return true;
             if (expansions >= budget) { truncated = true; return false; }
             expansions++;
             var commitments = request.Commitments.Concat(additions).ToArray();
@@ -121,9 +128,15 @@ public static partial class PolicyFunctions
         }
         // Breadth by cardinality prevents one deep branch from hiding every independent source.
         // No value-based pruning: two individually useless contributions can remain complementary.
+        // The seed pass may stop starting evaluations once it has spent its share; that is a hand-off, not truncation.
+        var seedLimit = int.MaxValue; var seedSpent = false;
         bool Search(int start, int left, List<ForecastCommitment> partial)
         {
-            if (left == 0) return Evaluate(partial.ToArray());
+            if (left == 0)
+            {
+                if (expansions >= seedLimit) { seedSpent = true; return false; }
+                return Evaluate(partial.ToArray());
+            }
             for (var i = start; i <= alternatives.Length - left; i++)
             {
                 if (!CompatiblePortfolio(partial.Append(alternatives[i]))) continue;
@@ -136,7 +149,33 @@ public static partial class PolicyFunctions
             }
             return true;
         }
+        // Extend the best portfolio found so far with each other root, in root order, before the
+        // pairwise sweep: when single roots exhaust the budget, the only way to reach a second
+        // contribution is to add it to the leader rather than to enumerate every pair.
+        bool Extend(string[] leader)
+        {
+            var members = leader.ToHashSet(StringComparer.Ordinal);
+            var rank = alternatives.Select((c, i) => (c.Id, i)).ToDictionary(p => p.Id, p => p.i, StringComparer.Ordinal);
+            var seed = alternatives.Where(c => members.Contains(c.Id)).ToArray();
+            foreach (var root in alternatives.Where(c => !members.Contains(c.Id)))
+            {
+                var portfolio = seed.Append(root).OrderBy(c => rank[c.Id]).ToArray();
+                if (!CompatiblePortfolio(portfolio)) continue;
+                if (seed.Any(c => redundantPairs.Contains((c.Id, root.Id)) || redundantPairs.Contains((root.Id, c.Id)))) continue;
+                if (!Evaluate(portfolio)) return false;
+            }
+            return true;
+        }
         var continueSearch = candidates.Incumbents.Count == 0 || Evaluate([]);
+        if (continueSearch)
+        {
+            // Seed pass: single roots until a quarter of the budget is spent (every root if that is cheaper).
+            seedLimit = budget / SeedShare;
+            continueSearch = Search(0, 1, []) || seedSpent;
+            seedLimit = int.MaxValue;
+            if (!continueSearch) truncated = true;
+        }
+        if (continueSearch && !bestIsBaseline && !Extend(selected.ToArray())) { continueSearch = false; truncated = true; }
         for (var size = 1; continueSearch && size <= alternatives.Length; size++)
             if (!Search(0, size, [])) { truncated = true; break; }
         if (truncated) findings.Add("portfolio_search_truncated");

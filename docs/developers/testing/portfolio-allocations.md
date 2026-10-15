@@ -6,9 +6,12 @@
 `PortfolioAllocationTests` measures normal generation/composition and shared
 selection independently. The baseline policy revision is
 `3d130260b6bded4b5e24f48fead51d9caca34188` (#3164), with only the test harness and
-expectations added. It preserves the 16,384 default, traversal, scheduler bounds,
-all generated roots and options, and explicit unknowns. This is pure-policy
-allocation/choice evidence; it makes no native gameplay or completion claim.
+expectations added. It preserved the 16,384 default, plain cardinality traversal,
+scheduler bounds, all generated roots and options, and explicit unknowns. #3197
+then changed the traversal to be incumbent-seeded ([below](#incumbent-seeded-extension-3197));
+the default budget, scheduler bound, roots, options and unknowns are unchanged. The
+sections before it record the plain-cardinality measurements as history. This is
+pure-policy allocation/choice evidence; it makes no native gameplay or completion claim.
 
 ## Reproduce
 
@@ -80,7 +83,7 @@ normal recovery-before-production alternatives, supplies these measured sizes:
 | Original | 2 | 2 | 15 | 18 | 8 | 1,029 | false |
 | Larger | 4 | 4 | 88 | 194 | 62 | 8,234 | false |
 
-## Measured baseline
+## Measured baseline (plain cardinality order, before #3197)
 
 Recorded on DAVID-PC, AMD Ryzen 9 9950X (32 logical processors), 93.7 GiB RAM,
 Windows 10.0.26300, .NET 10.0.12 x64, Release, 2026-10-15. Tables report medians
@@ -109,12 +112,12 @@ Generation/composition costs 1.337 MB / 1.307 ms (original) and 12.069 MB /
 Every search row is **truncated**, including original rows that stop below the
 outer budget: the scheduler's per-portfolio bound also contributes truncation.
 These are reproducible incumbents, not exhaustive optima. In particular, the
-larger workload still serves only one of four demanded ingestions at all measured
+larger workload served only one of four demanded ingestions at all measured
 budgets; the last row removes unhelpful labor without improving hunger relief.
 Do not report that labor reduction as satisfying four meals.
-[Issue #3193](https://github.com/davidarcher/rimgovernor/issues/3193) tracks the
-separate feasibility/search-quality investigation; allocation work preserves
-these results.
+[Issue #3193](https://github.com/davidarcher/rimgovernor/issues/3193) tracked the
+feasibility/search-quality investigation; allocation work (#3186/#3192) preserved
+these results, and #3197 is where they intentionally changed.
 
 At budgets 1,024/4,096 the original picks the helper's 91-tick recipe (1–92) and
 pawn ingestion (240–250). At 8,192 it picks developing-pawn recipes (1–101,
@@ -226,14 +229,14 @@ no latency gate or broader benchmark claim is made.
 Focused regressions cover recovery saturation, declining levels, thresholds at
 0/.5/1 (including coincident cuts), interrupted intervening calls, and repeat
 results. Existing needs, conditional mood, survival, productive learning and
-both matrix fixtures pass. The larger fixture still serves only one of four
-ingestions; #3193 remains the separate quality investigation. Native execution
-is not needed for this representation/allocation claim.
+both matrix fixtures pass. At that change the larger fixture still served only one
+of four ingestions; #3197 later raised it to two at the default budget. Native
+execution is not needed for this representation/allocation claim.
 
 ## Independent four-meal reference (#3195)
 
-The larger fixture's measured incumbents serve one of four demanded ingestions at
-every budget. `PortfolioReferenceScheduleTests` establishes, independently of the
+The larger fixture's measured incumbents served one of four demanded ingestions at
+every budget (before #3197). `PortfolioReferenceScheduleTests` establishes, independently of the
 selector and scheduler, whether more is physically possible. **Result: 4 of 4 is
 feasible.** A hand-built schedule relieves every demanded ingestion; no constraint
 binds before the horizon. This shows feasibility, not proven global optimality: it
@@ -277,14 +280,16 @@ Negative tests show the checker rejects an overlapping worker, an overbooked sto
 a meal eaten before it is cooked and delivered, a conservation violation (two
 ingestions of one meal), wrong cook rates and a missed hunger window. The reference
 is compared read-only with the recorded incumbents (one ingestion at all six
-budgets). No production code, budget or traversal changed. The two quality baselines already carry the drift from other landed work (each Support object has `"Maintenance": []`; the top-level Findings include `assigned_capability_floor_unknown`, `practice_held_essential_emergency_or_unknown`, `practice_observation_unknown` and `unsupported_defensive_improvement_without_assignment:<pawn>`), and this change leaves them unchanged. No numeric, vector, physical or selection value changed.
+budgets then; at most two since #3197, so the reference still serves more). No production code, budget or traversal changed. The two quality baselines already carry the drift from other landed work (each Support object has `"Maintenance": []`; the top-level Findings include `assigned_capability_floor_unknown`, `practice_held_essential_emergency_or_unknown`, `practice_observation_unknown` and `unsupported_defensive_improvement_without_assignment:<pawn>`), and this change leaves them unchanged. No numeric, vector, physical or selection value changed.
 
 ## Why the search serves one of four (#3196)
 
-`PortfolioSearchDiagnosisTests` observes the production search and scheduler through
-their public API and changes no selection, budget, traversal or baseline. Its
-`TraversalReplica` mirrors the subset order of `CompareActivityOutcomes` for counting
-only; the tests tie it to the production search. **Measurements** below are
+This is the diagnosis of the plain cardinality order that production followed until
+#3197 (see [the remedy](#incumbent-seeded-extension-3197)); its numbers describe that
+order, not today's traversal. `PortfolioSearchDiagnosisTests` observes the production
+search and scheduler through their public API. Its
+`TraversalReplica` mirrors the plain subset order of `CompareActivityOutcomes` for counting
+only (`PlainCardinalityOrderNeverLeavesTheSingleRootSweep`). **Measurements** below are
 asserted by those tests unless marked *opt-in*; the opt-in run
 (`RIMGOVERNOR_PORTFOLIO_OUTPUT`, `-method '*WriteSearchDiagnosisMeasurements'`, about
 four minutes) writes `search-diagnosis.*.json` and also covers the budgets too slow
@@ -317,9 +322,9 @@ for the normal gate. **Hypotheses** are labeled as such.
    | 65,536 | 19 (18) | 1 | root 18 *(opt-in run agrees)* |
    | 262,144 | 62 (62) | 2 | sweep ends at 185,139; 77,005 left cover 20 of 1,698 pairs *(opt-in)* |
 
-   The first four rows are also run against production in the test; the last two rows
-   are the replica's count, confirmed by the opt-in production runs (last root and
-   pair position match).
+   The rows are the replica's count. Before #3197 production matched them (the first
+   four in the test, the last two in opt-in runs by last root and pair position); the
+   production comparison was removed with the traversal change.
 3. **Scheduler on the reference set (production bound).** Replaying the four roots
    through `ForecastColony` (the public route to `ForecastCoupledScenarioOf`) with the
    production per-portfolio bound: 4,096 expansions, truncated, 1,023 alternatives,
@@ -377,3 +382,112 @@ refused by the evaluator's exact-target ownership on the fixture's shared target
 remedy (#3197) can aim at two, not four, on this fixture. Generation and feasibility are
 not limiters; the per-portfolio bound is fixed at 4,096 and only matters through its cost
 per evaluation.
+
+## Incumbent-seeded extension (#3197)
+
+The #3196 diagnosis found a strictly better two-ingestion plan that plain cardinality
+order never reaches, because 43 of 62 single roots each spend the whole 4,096
+scheduler bound and the single-root sweep alone costs 185,139 expansions.
+`CompareActivityOutcomes` now traverses in three phases, all deterministic and all
+inside the same budget:
+
+1. **Seed pass.** Single roots in root-id order, but a new evaluation starts only
+   while less than a quarter of the budget (`budget / 4`) is spent. If every single
+   root fits under that, the pass is the whole cardinality-1 sweep. Stopping here is a
+   hand-off, not truncation.
+2. **Extension.** If a portfolio beat the baseline, it is extended with each other root
+   in root-id order (compatibility and graph-redundancy rules unchanged; the portfolio
+   keeps canonical root order, so the scheduler sees what the pairwise sweep would give
+   it). The ordinary evaluation decides: a retained incumbent is never released on a
+   consequence tie, and labor breaks ties between feasible plans. It runs once, from the
+   leader the seed pass found; it is not repeated for a new leader.
+3. **Cardinality sweep.** The original traversal (singles, pairs, ...) resumes and skips
+   every subset already evaluated.
+
+The default budget (16,384), the 4,096 per-portfolio bound, generation and the evaluator
+are unchanged. Truncation stays explicit (`portfolio_search_truncated`,
+`SearchTruncated`); every row below remains truncated. The price is that pairs of the
+leader are evaluated before the later single roots. This is a heuristic, not a
+guarantee: a better single root among the unevaluated ones can still be missed. The
+matrix and `ExtensionIsNeverWorseThanTheOneIngestionIncumbentAtAnyMatrixBudget` check
+the measured fixtures only. A seed share of a half also reaches the improvement at the
+default budget (on the last evaluation); a quarter leaves a margin of one more root.
+
+### Result on the four-worker fixture
+
+At the default budget the seed pass evaluates two single roots (root 0, then the
+one-ingestion incumbent, root 1, which costs the scheduler bound). The extension adds each
+later root to root 1 and reaches the 29th of the 62 roots, where the budget ends. The first
+two-ingestion plan arrives at root 28; root 29 (the same consumer's second event) ties its
+consequences and wins on labor, 354 against 355. The selected pair is root 1 plus
+`food/14/delivery/1/eat/diner/1`, so the diner eats at 240–250 and 490–500. This is
+equivalent in consequence to the issue's "incumbent plus one food/27 diner root" plan
+(urgent `[...,450,0]`, needs component 4 equal to 1) but is the first found in root order.
+Four of four stays unreachable: the evaluator allows one owner per exact target and both
+consumers share `cell/3/1` (#3202).
+
+| Budget | Incumbent before (ingestions, urgent, needs[4], labor) | After |
+| ---: | --- | --- |
+| 1,024 | 1, `[325,96.875,450,650,0]`, 2, 211 | unchanged |
+| 4,096 | 1, same, 2, 198 | unchanged |
+| 8,192 | 1, same, 2, 198 | unchanged |
+| 16,384 | 1, same, 2, 198 | **2, `[325,96.875,450,450,0]`, 1, 354** (ends tick 500) |
+| 65,536 | 1, same, 2, 198 | 2, same as 16,384 |
+| 262,144 | 1, same, 2, 103 | 2, same as 16,384 |
+
+The three smaller budgets cannot afford the extension: each full evaluation costs 4,097
+expansions and the first improving pair is the third full-cost pair after the leader. Those
+rows are unchanged, not regressions.
+
+### Original fixture
+
+Budgets of 16,384 and above are unchanged. At the three smaller budgets the extension
+finds the two-meal plan earlier than the plain order did; each result is at least as good:
+
+| Budget | Before (ingestions, urgent, labor, end tick) | After |
+| ---: | --- | --- |
+| 1,024 | 1, `[75,34.375,200,200,0]`, 103, 250 | 2, `[0,0,0,0,0]`, 218, 362 |
+| 4,096 | 1, same, 103, 250 | 2, `[0,0,0,0,0]`, 208, 342 |
+| 8,192 | 2, `[0,0,0,0,0]`, 208, 342 | 2, same urgent, 206, 500 (the 16,384 plan) |
+| 16,384 and above | 2, `[0,0,0,0,0]`, 206, 500 | unchanged |
+
+These changes are intentional: the lever applies to every bounded search, so a budget too
+small to finish the single roots now also reaches a second contribution. The production
+caller (`Rounds`) uses the default budget only.
+
+### Measured cost
+
+Same machine and protocol as above (DAVID-PC, Release, .NET 10.0.12, 2026-10-15, one
+warmup and three samples, medians). Allocation, expansions and wall time are descriptive,
+not gates; they vary with the runtime and machine load. The budget remains the ceiling on
+expansions, and the default did not rise, so there is no added latency from a larger
+budget. The extension adds one set lookup per evaluation.
+
+| Fixture | Budget | Allocated MB | Elapsed ms | Search expansions | Recipes / ingestions | Labor | End tick |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original | 1,024 | 30.711 | 36.239 | 1,024 | 2 / 2 | 218 | 362 |
+| Original | 4,096 | 119.869 | 200.905 | 4,096 | 2 / 2 | 208 | 342 |
+| Original | 8,192 | 260.684 | 261.656 | 8,192 | 2 / 2 | 206 | 500 |
+| Original | 16,384 | 509.401 | 303.024 | 16,384 | 2 / 2 | 206 | 500 |
+| Original | 65,536 | 1,641.251 | 911.117 | 52,654 | 2 / 2 | 206 | 500 |
+| Original | 262,144 | 1,641.249 | 844.133 | 52,654 | 2 / 2 | 206 | 500 |
+| Larger | 1,024 | 88.713 | 42.683 | 1,024 | 2 / 1 | 211 | 251 |
+| Larger | 4,096 | 363.466 | 195.728 | 4,096 | 2 / 1 | 198 | 251 |
+| Larger | 8,192 | 804.734 | 492.537 | 8,192 | 2 / 1 | 198 | 251 |
+| Larger | 16,384 | 1,366.145 | 810.000 | 16,384 | 3 / 2 | 354 | 500 |
+| Larger | 65,536 | 5,548.106 | 3,203.696 | 65,536 | 3 / 2 | 354 | 500 |
+| Larger | 262,144 | 23,383.424 | 13,758.467 | 262,144 | 3 / 2 | 354 | 500 |
+
+Rows can be compared with the [optimized timeline table](#optimized-timeline-representation)
+(same machine, earlier session): the larger default budget measured 1,454.295 MB /
+1,377.951 ms there and 1,366.145 MB / 810.000 ms here. Run-to-run variance on this shared
+machine is not characterized, so this is an observation and not a speed claim. Generation
+and composition cost is unchanged (12.746 MB / 10.424 ms larger; 1.350 MB / 1.278 ms
+original).
+
+`PortfolioSearchDiagnosisTests.IncumbentSeededExtensionServesBothEventsOfOneConsumerAtTheDefaultBudget`
+pins the exact selection, every food allocation's worker and interval, the consequence
+vector, labor, expansions, truncation and determinism. The re-recorded
+[original](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/productive.quality.json)
+and [larger](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/four-workers.quality.json)
+snapshots carry the rest.

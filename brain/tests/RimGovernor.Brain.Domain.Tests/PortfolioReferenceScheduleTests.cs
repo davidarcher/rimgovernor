@@ -137,7 +137,7 @@ public sealed class PortfolioReferenceScheduleTests
     }
 
     [Fact]
-    public void ReferenceBeatsEveryRecordedIncumbentWhichServeOneOfFour()
+    public void ReferenceBeatsEveryRecordedIncumbent()
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("RimGovernor.Brain.Domain.Tests.four-workers.quality.json");
         Assert.NotNull(stream);
@@ -148,7 +148,8 @@ public sealed class PortfolioReferenceScheduleTests
             var incumbent = row.GetProperty("Quality").GetProperty("Physical").EnumerateArray()
                 .Count(p => System.Text.RegularExpressions.Regex.IsMatch(p.GetProperty("Activity").GetString()!, @"/eat/\w+/\d+/composition/\d+$")
                     && !p.GetProperty("Activity").GetString()!.Contains("/after/", StringComparison.Ordinal)); // "after" tasks are deliveries gated on an ingestion
-            Assert.Equal(1, incumbent);
+            // One at the smallest budgets; two (one consumer's both events) once #3197's extension runs. Never all four.
+            Assert.InRange(incumbent, 1, 2);
             Assert.True(served > incumbent);
         }
     }

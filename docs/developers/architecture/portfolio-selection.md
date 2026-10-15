@@ -73,6 +73,14 @@ search and 32 selected activities. Stable ordering makes replay deterministic;
 the result is best found within bounds. Partial bundles remain expandable even
 when neither constituent has isolated benefit.
 
+Traversal is incumbent-seeded: single roots first, but only until a quarter of the
+budget is spent; then the best portfolio found so far is extended with each other
+root in root order; then the full cardinality sweep (singles, pairs, ...) resumes
+and skips every subset already evaluated. A budget that cannot finish the single
+roots therefore still reaches a second contribution, and truncation stays explicit
+(`portfolio_search_truncated`). See
+[the measured cost](../testing/portfolio-allocations.md#incumbent-seeded-extension-3197).
+
 Search skips an already visited exact scheduled prefix and omits a redundant
 graph-only root when another selected root already contains its entire task
 closure. Roots with direct consequences or claims retain separate evaluation.

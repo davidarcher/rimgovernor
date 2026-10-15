@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
@@ -152,8 +151,10 @@ public sealed class PortfolioSearchDiagnosisTests
     }
 
     [Fact]
-    public void BudgetsNeverLeaveTheSingleRootSweep()
+    public void PlainCardinalityOrderNeverLeavesTheSingleRootSweep()
     {
+        // The #3196 diagnosis of plain cardinality order, which production followed until #3197 seeded an extension
+        // of the leader after a quarter of the budget. The replica and these counts are that order, kept as the measurement.
         var s = Shared.Value;
         var replica = new TraversalReplica(s.Roots, s.Generated.Context);
         var counts = Enumerable.Range(1, 4).Select(size => replica.Subsets(size).LongCount()).ToArray();
@@ -182,16 +183,6 @@ public sealed class PortfolioSearchDiagnosisTests
         // Even at one expansion per evaluation the reference set (cardinality 4) is far beyond every budget; the improving pair is not.
         Assert.True(referenceRank > Budgets[^1], "enumeration rank of the reference set exceeds the largest budget");
         Assert.True(improvingRank > counts[0] + 0, "pairs follow the sweep");
-        // The model equals the production search on the budgets cheap enough to run here: all spend exactly the budget on
-        // singletons and stop inside the sweep, on the root the model predicts.
-        foreach (var (budget, expected) in Budgets.Zip(reach).Where(p => p.First <= 16384))
-        {
-            var selection = s.Select(s.Roots, budget);
-            Assert.Equal(budget, selection.Selection.Expansions);
-            Assert.True(selection.Selection.SearchTruncated);
-            Assert.All(selection.Rejected, r => Assert.Single(r.Commitments));
-            Assert.Equal(s.Roots[expected.Entered - 1].Id, Assert.Single(LastSubset(selection)));
-        }
     }
 
     [Fact]
@@ -237,13 +228,7 @@ public sealed class PortfolioSearchDiagnosisTests
     public void ProductionRanksATwoIngestionPortfolioAboveTheIncumbentItNeverReaches()
     {
         var s = Shared.Value;
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("RimGovernor.Brain.Domain.Tests.four-workers.quality.json");
-        using var document = JsonDocument.Parse(stream!);
-        var rows = document.RootElement.EnumerateArray().ToArray();
-        // The recorded incumbent is the same one-ingestion root at every budget up to 65,536.
-        foreach (var row in rows[..5])
-            Assert.Equal(IncumbentRoot, Assert.Single(row.GetProperty("Quality").GetProperty("Selected").EnumerateArray()).GetString());
-        var incumbentVector = rows[3].GetProperty("Quality").GetProperty("SelectedVector");
+        // The pre-#3197 incumbent (one ingestion, recorded at every budget up to 65,536) is the single root IncumbentRoot.
         var incumbentRoot = s.Roots.Single(r => r.Id == IncumbentRoot);
 
         // The same search, scheduler and ranking restricted to two roots: the incumbent and one more ingestion root.
@@ -259,13 +244,78 @@ public sealed class PortfolioSearchDiagnosisTests
         var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
         Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => food.Contains(a.Activity)));
         // Strictly less food exposure and one fewer need left at zero than the incumbent; the earlier components are equal.
-        Assert.Equal([325d, 96.875, 450d, 650d, 0d], incumbentVector.GetProperty("Urgent").EnumerateArray().Select(x => x.GetDouble()));
+        var single = s.Select([incumbentRoot], 16384);
+        Assert.Equal([325d, 96.875, 450d, 650d, 0d], single.SelectedVector.Urgent.Select(x => x.Value));
         Assert.Equal([325d, 96.875, 450d, 450d, 0d], selection.SelectedVector.Urgent.Select(x => x.Value));
-        Assert.Equal(2d, incumbentVector.GetProperty("Needs")[4].GetDouble());
+        Assert.Equal(2d, single.SelectedVector.Needs[4].Value);
+        Assert.Equal(198, single.Selected.Plan.LaborCost);
         Assert.Equal(1d, selection.SelectedVector.Needs[4].Value);
         // It costs more labor (355 vs 198) and the per-portfolio scheduler search is truncated at its bound, so it is not proven best.
         Assert.Equal(355, selection.Selected.Plan.LaborCost);
         Assert.True(selection.Selection.SearchTruncated);
+    }
+
+    [Fact]
+    public void IncumbentSeededExtensionServesBothEventsOfOneConsumerAtTheDefaultBudget()
+    {
+        var s = Shared.Value;
+        var selection = s.Select(s.Roots, 16384);
+
+        // Exact physical choice: the one-ingestion incumbent root plus one more ingestion root of the same consumer.
+        Assert.Equal([IncumbentRoot, "food/14/delivery/1/eat/diner/1/composition/11"], selection.Selection.Selected);
+        Assert.True(selection.Selected.Feasible == Known(true));
+        Assert.Equal(500, selection.Selected.Plan.CompletedAt);
+        Assert.Equal(354, selection.Selected.Plan.LaborCost);
+        var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
+        // Both of the diner's hunger events are relieved: 240-250 and 490-500, ending by the 250 and 500 thresholds.
+        Assert.Equal([("food/0/delivery/0/composition/2/after/food/14/delivery/0/eat/diner/0/composition/16", "porter", 250L, 251L),
+            ("food/14/delivery/0/eat/diner/0/composition/16", "diner", 240L, 250L),
+            ("food/14/delivery/1/eat/diner/1/composition/21", "diner", 490L, 500L)],
+            selection.Selected.Plan.Allocations.Where(a => food.Contains(a.Activity) || a.Activity == IncumbentRoot)
+                .Select(a => (a.Activity, a.Pawn, (long)a.Start, (long)a.End)).OrderBy(a => a.Item1, StringComparer.Ordinal));
+        Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal)));
+        Assert.Equal(11, selection.Selected.Plan.Allocations.Length);
+
+        // Consequences against the pre-#3197 incumbent [325,96.875,450,650,0] / needs component 4 = 2 / labor 198.
+        Assert.Equal([325d, 96.875, 450d, 450d, 0d], selection.SelectedVector.Urgent.Select(x => x.Value));
+        Assert.Equal([0d, 0d, 1d, 0d], selection.SelectedVector.Needs.Skip(2).Select(x => x.Value));
+
+        // The extension, not the pairwise sweep, found it: single roots stopped after a quarter of the budget, and every
+        // evaluated pair adds one root to the leader. The search is still bounded and says so.
+        Assert.Equal(16384, selection.Selection.Expansions);
+        Assert.True(selection.Selection.SearchTruncated);
+        Assert.Contains("portfolio_search_truncated", selection.Selection.Findings);
+        // Evidence is one row per rejected alternative, so count distinct root sets.
+        var singles = selection.Rejected.Where(r => r.Commitments.Count == 1).Select(r => r.Commitments[0]).Distinct().ToArray();
+        var pairs = selection.Rejected.Where(r => r.Commitments.Count == 2).ToArray();
+        Assert.True(singles.Length <= 3, "single roots are not swept to the budget: " + singles.Length);
+        Assert.NotEmpty(pairs);
+        Assert.All(pairs, p => Assert.Contains(IncumbentRoot, p.Commitments));
+
+        // Deterministic: a second run is identical.
+        var again = s.Select(s.Roots, 16384);
+        Assert.Equal(selection.Selection.Selected, again.Selection.Selected);
+        Assert.Equal(selection.Selection.Expansions, again.Selection.Expansions);
+        Assert.Equal(selection.Selected.Plan.Allocations.Select(a => (a.Activity, a.Pawn, a.Start, a.End)),
+            again.Selected.Plan.Allocations.Select(a => (a.Activity, a.Pawn, a.Start, a.End)));
+        Assert.Equal(selection.SelectedVector, again.SelectedVector);
+    }
+
+    [Fact]
+    public void ExtensionIsNeverWorseThanTheOneIngestionIncumbentAtAnyMatrixBudget()
+    {
+        var s = Shared.Value;
+        foreach (var budget in Budgets.Where(b => b <= 16384))
+        {
+            var selection = s.Select(s.Roots, budget);
+            var urgent = selection.SelectedVector.Urgent.Select(x => x.Value).ToArray();
+            double[] incumbent = [325, 96.875, 450, 650, 0];
+            // Lexicographic urgent order, then the number of needs left at zero; labor is not part of the comparison here.
+            var rank = urgent.Zip(incumbent).Select(p => p.First.CompareTo(p.Second)).FirstOrDefault(c => c != 0);
+            Assert.True(rank <= 0, "budget " + budget + " is worse than the one-ingestion incumbent");
+            if (rank == 0) Assert.True(selection.SelectedVector.Needs[4].Value <= 2);
+            Assert.True(selection.Selection.SearchTruncated, "budget " + budget + " is still bounded");
+        }
     }
 
     [Fact]
