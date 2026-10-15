@@ -1,10 +1,10 @@
 # Shot-level combat lab data
 
 `lab-ranged.jsonl` is the real game's shot-level record of `lab-ranged`
-(seeds 1..20, the baseline's seeds), recorded for calibrating `combatsim`
+(seeds 1..20, the baseline's seeds), recorded for calibrating the (since deleted) combat sim
 timing (#2917, epic #2830). One JSON object per line, in game order within a
 seed, seeds ascending. Every row has `seed` and a kind `k`; schema and strict
-parser are `shots.go` (`ParseShots`), pinned by `shots_test.go`.
+parser are `CombatLabShots` (`Shots.cs`).
 
 ## How it was recorded
 
@@ -21,7 +21,7 @@ seed's rows with the seed and joins impacts with the damage ledger
 | --- | --- |
 | Command | `acceptance sweep lab-ranged -n 20 -workers 1 -shots <file>` |
 | Revision | 4a1b8fe2b plus the #2917 change (fixture C#, `shots.go`, sweep `-shots`) |
-| Game | pinned `Assembly-CSharp.dll`, `combatsim.AssemblyCSharpSHA256` 5CF1B5BE... |
+| Game | pinned `Assembly-CSharp.dll` (SHA256 5CF1B5BE...) |
 | Workers | 1 (one game); 0 other RimWorld processes before dispatch |
 | Box | Windows 11 dev box, no peer RimWorld process; CPU load sampled at 76% before the sweep (other processes); ~45 s wall per seed (909 s for 20 seeds) |
 | Seeds | 1..20: each resumes the one staged checkpoint (stage digest 90aea800) and reseeds the game RNG (`-run-seed`) |

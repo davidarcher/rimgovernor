@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal sealed record CombatStep(CombatView View, IReadOnlyList<CombatOrder> Orders, IReadOnlyList<PawnId> Drafts, PbOperations.CombatOrders? Batch, CombatMemory Memory, IReadOnlyList<PbOperations.Action> Calls);
 
 /// <summary>
-/// The reads the defense round adds to a combat view after the frame: the burn-out census of the active burn, the remembered
+/// The reads the defense round adds to a combat view after the frame: the remembered
 /// royalty facts and the catalog's combat drugs. Unknown royalty is what the round holds without them.
 /// </summary>
 /// <param name="Drugs">The catalog's combat drug definitions in preference order.</param>

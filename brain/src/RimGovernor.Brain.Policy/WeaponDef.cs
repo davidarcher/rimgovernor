@@ -64,7 +64,7 @@ public sealed record WeaponDef
     /// </summary>
     public bool Hunts() => Ranged && !Explosive && !Incendiary;
 
-    /// <summary>An incendiary weapon a carrier aims at the ground: the burn-out's flame thrower (a molotov), which belongs to the burn-out alone.</summary>
+    /// <summary>An incendiary weapon a carrier aims at the ground: a molotov, which the infestation tactic never aims at an insect.</summary>
     public bool Burner() => Incendiary && Blast > 0;
 
     /// <summary>

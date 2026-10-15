@@ -1,8 +1,7 @@
 # Real combat host
 
-RimWorld's own combat code, run headless. The hand-ported combat sim (`go/internal/combatsim` (deleted),
-`brain/src/RimGovernor.Brain.Simulation/Combat`) re-implements game logic that can drift from every game update;
-this host runs the game's logic itself, in a bare `net10.0` process (Waylith has no Unity), so there is nothing to
+RimWorld's own combat code, run headless. A hand-ported combat sim would re-implement game logic that can drift
+from every game update; this host runs the game's logic itself, in a bare `net10.0` process (Waylith has no Unity), so there is nothing to
 port. Tracking issue: #3142. Nothing tunes policy at runtime, so the engine is offline only: one game per process,
 no live-game integration.
 
@@ -29,7 +28,7 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 planner's spike traps out of the compound so the raider reaches the firing line (otherwise it usually dies to the traps
 first; with them out the colonists fire and win in 2406 ticks). `--armor` puts both sides in a flak vest and
 helmet, `--melee` gives the raiders longswords, `--cover` lays sandbags in front of the colonists on open ground, `--psycast`
-gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks); `--permit` is described under Reads; `--burn` (with `--policy --open`) is the infestation described under Reads; `--doortest` (with `--policy --open --burn`) probes door mechanics, see Known harness facts.
+gives the first colonist the Stun psycast and moves the raider within the policy's 20 cell casting reach (`--policy --open --psycast`: colonist win, 734 ticks); `--permit` is described under Reads; `--hive` (with `--policy --open`) is the infestation described under Reads; `--doortest` (with `--policy --open --hive`) probes door mechanics, see Known harness facts.
 
 ## The native seat
 
@@ -88,7 +87,7 @@ The defense round adds three reads to the combat view after the frame; `PolicyCo
 `CombatReads`. **Drugs**: the catalog's combat drugs in preference order, from the facade's definition catalog (a pawn's
 carried drugs come from the mirror; `RealPawn.Carried` puts a drug in an inventory and `Hediffs` gives a starting hediff).
 In the compound with `--drugs --high`, both colonists are ordered go-juice at the first stop with the raider in range and
-no other order, and the handler applies it (one colonist is then overdosed and downed, the other rescues them to the bed and the fight stands off without a winner at 3000 ticks). **Infestation**: `--hive` starts one: `HiveStage` spawns a hive under thick rock roof at 44,30 with three player stone doors in series west of it (the door probe's ground), with the hive's own pawn spawning off, three staged megascarabs near it, and three riflemen west of the corridor. The infestation tactic fights them directly with guns (the colonists win in 929 ticks). There is no burn-out tactic: it was dropped as too much micro; an outmatched infestation instead waits and evacuates (`Outmatched`).
+no other order, and the handler applies it (one colonist is then overdosed and downed, the other rescues them to the bed and the fight stands off without a winner at 3000 ticks). **Infestation**: `--hive` starts one: `HiveStage` spawns a hive under thick rock roof at 44,30 with three player stone doors in series west of it (the door probe's ground), with the hive's own pawn spawning off, three staged megascarabs near it, and three riflemen west of the corridor. The infestation tactic fights them directly with guns (the colonists win in 929 ticks). An outmatched infestation waits and evacuates (`Outmatched`).
 The harness had to change for the throw to land at all: a projectile launches from the caster's draw position, which only the render pass
 advances, so a pawn that had walked shot from the cell it spawned in; `Arena.Play` now resets each pawn's tweened position every tick
 (this moved the numbers above: `--no-traps` 2406, `--permit` 1372). **Royalty**: built as the rounds build it, from the frame's colony royalty section and pawn rows against the catalog

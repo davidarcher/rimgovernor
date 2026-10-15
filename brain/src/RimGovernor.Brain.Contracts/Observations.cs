@@ -3690,7 +3690,7 @@ public sealed record DefenseCell
     public string? EdificeStuffDefName { get; init; }
 
     /// <summary>
-    /// The cell is under any roof (a burn-out's seal holds its heat).
+    /// The cell is under any roof.
     /// </summary>
     public bool? Roofed { get; init; }
 }
