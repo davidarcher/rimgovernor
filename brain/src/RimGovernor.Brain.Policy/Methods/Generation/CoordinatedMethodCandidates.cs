@@ -16,6 +16,8 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     public Cell? Destination { get; init; }
     public string Container { get; init; } = "";
     public string SiteDefinition { get; init; } = "";
+    public string SupportDemand { get; init; } = "";
+    public string Medicine { get; init; } = "";
     public bool CompletionMustBeObserved { get; init; }
     public int Capacity { get; init; }
     public RimGovernor.Contracts.Wire.Observations.FoodCookingEstimate? Cooking { get; init; }

@@ -39,7 +39,8 @@ public static partial class PolicyFunctions
         if (!protectedMaterials.TryGetValue(out var holds)) return default;
         var adjusted = new Dictionary<Resource, Fact<double>>(holds);
         var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
-        foreach (var bill in selected.Where(b => b.Kind == PawnActivityKind.Recipe && b.Recipe is { Bill.Length: > 0 }).GroupBy(b => b.Recipe!.Bill))
+        foreach (var bill in selected.Where(b => (b.Kind == PawnActivityKind.Recipe || b.Kind == PawnActivityKind.Work && b.Job == "DoBill")
+            && b.Recipe is { Bill.Length: > 0 }).GroupBy(b => b.Recipe!.Bill))
             foreach (var resource in bill.SelectMany(b => tasks[b.Id].Inputs).GroupBy(i => i.Resource))
             {
                 var promised = held.Values.SelectMany(c => c.MaterialClaims).Where(c => c.Resource == resource.Key && c.ReservationBill == Known(bill.Key)).ToArray();

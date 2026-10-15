@@ -1,5 +1,10 @@
 # ColonyForecast
 
+Supported cleaning and demand-driven delivery participate in the normal coupled
+portfolio through the same composition, forecast and Method binding. See the
+[support-work contract](../contracts/support-work.md) for native consequence
+limits, exact execution ownership and the replacement acceptance cases.
+
 [Architecture](overview.md) · [Forecast facts](../contracts/forecast-contracts.md)
 
 `PolicyFunctions.ForecastColony` is the pure owner of a baseline and a proposed

@@ -106,6 +106,12 @@ priorities are off (enabled or not, never the rank).
 
 ## Ongoing work and shared occupancy
 
+For supported [cleaning and deliveries](support-work.md), the shared portfolio
+chooses exact self-service or helper work before admission through the existing
+WorkAssignments Concern. It uses the same pawn and resource claims as production;
+the priority matrix is not a second support-work selector. Legacy bench-cleaning,
+refill-withholding and global chunk-haul policies are removed.
+
 The roster and ColonyForecast use `ForecastCurrentWorkOf` to interpret the current
 job. A known idle job has zero remaining productive work; an unread job has unknown
 occupancy. An observed non-idle job is occupied, with unknown remaining ticks unless

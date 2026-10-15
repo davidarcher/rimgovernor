@@ -7,9 +7,6 @@ public sealed record UpkeepObservation
 {
     public Fact<EquatableArray<ClearanceTarget>> Clearance { get; init; }
 
-    /// <summary>The same read's rock and slag stacks in Home; a pending one (no store will take it) is a clearance deficit until a dump exists.</summary>
-    public Fact<EquatableArray<ClearanceChunk>> Chunks { get; init; }
-
     /// <summary>The planned-ground clearance work of the same read (PlannedGroundWork): unplanned buildings and floors on the ground of planned rooms not yet standing.</summary>
     public Fact<EquatableArray<string>> Ground { get; init; }
 
@@ -226,22 +223,6 @@ public static partial class PolicyFunctions
                 if (ClearanceHoldReason(row).Length == 0)
                 {
                     selected.Add(row.EntityId);
-                }
-            }
-            if (v.Chunks.TryGetValue(out var chunks))
-            {
-                foreach (var row in chunks)
-                {
-                    if (!Valid(seen, row.EntityId))
-                    {
-                        throw new DomainException("invalid clearance chunk");
-                    }
-
-                    // A chunk a store takes still needs ordinary hauling to carry it, so only a stored or forbidden stack is off the deficit.
-                    if (!row.Stored && !row.Forbidden)
-                    {
-                        selected.Add(row.EntityId);
-                    }
                 }
             }
             if (v.Ground.TryGetValue(out var ground))

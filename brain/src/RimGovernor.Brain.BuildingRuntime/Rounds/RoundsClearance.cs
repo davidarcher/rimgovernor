@@ -109,7 +109,7 @@ public sealed partial class RoundsClearancePlanner
             var (planned, ok) = PlannedGroundStep(colony.Projection, StampPacking(player, colony.Projection), census.Floors, _reviewer.ClearFloors(colony.Projection));
             if (!ok)
             {
-                return Dump(census);
+                return new RoundsClearanceResult { Verdict = BuildingReasonNoDeficit };
             }
             step = PendingClearanceStep(planned);
             if (step.Roof.Count + step.Targets.Count + step.Floors.Count == 0)
@@ -135,14 +135,6 @@ public sealed partial class RoundsClearancePlanner
         return new RoundsClearanceResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 
-    private static RoundsClearanceResult Dump(ClearanceCensus census)
-    {
-        if (PolicyApi.PendingChunks(census.Chunks).Count == 0)
-        {
-            return new RoundsClearanceResult { Verdict = WaitFor(Cause.MethodUsed, "chunk_haul_chunks") };
-        }
-        return new RoundsClearanceResult { Verdict = NoSpace("chunk_dump_site") };
-    }
 }
 
 internal static partial class BuildingRuntimePackage

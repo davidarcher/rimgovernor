@@ -41,6 +41,12 @@ downed so the native watcher lets rescue and recovery take ticks.
 
 ## Maintained care
 
+[Support work](support-work.md#cleaning-consequences) compares optional cleaning
+and exact treatment work using native eligibility and existing medical demand.
+It does not choose surgical indications or invent an infection prognosis. Urgent
+care need not wait for cleaning; post-care cleaning cannot change a room factor
+already sampled by native treatment. There is no automatic cleaning finalizer.
+
 `MaintainMedicalReserves` (care phase) retains native visible condition
 identities, severity, immunity, retend timing, care policy and medical-rest state.
 It enables ordinary Patient and PatientBedRest work when available and not

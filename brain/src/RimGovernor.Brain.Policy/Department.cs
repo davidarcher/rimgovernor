@@ -38,13 +38,12 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The number of stockpile-zone creations one method of each Standard Concern that owns stores may carry.
-    /// ClearHomeObstructions keeps its chunk dump until that zone goes, and MaintainStockpiles applies every
+    /// MaintainStockpiles applies every
     /// declaration of the storage planner in one batch. A concern absent from the table owns no store.
     /// </summary>
     internal static readonly IReadOnlyDictionary<ConcernId, int> StockpileZoneLimits = new Dictionary<ConcernId, int>
     {
         [MaintainStockpiles] = 16,
-        [ClearHomeObstructions] = 1,
 
         // Food
         [EnsureFoodSupply] = 1,

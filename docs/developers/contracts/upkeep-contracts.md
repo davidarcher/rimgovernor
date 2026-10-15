@@ -206,11 +206,10 @@ Home at a time, nearest the colony center first.
   recovery queue (tier 1 room obstructions first, then nearest); the roof-first batch
   takes a roof off before its holders. Each held target and reason is a held
   `RecoveryQueue` entry.
-- Chunks are hauls: an allowed, unstored chunk stack in Home with no store cell
-  ordinary hauling would use is a clearance deficit; no stockpile is created for it.
-  Forbidden chunks are the supply safety policy's. Once a store takes a chunk, ordinary
-  hauling carries it: the native mod sets `alwaysHaulable` on the chunk defs at startup
-  (#2513), so no Haul designation is ordered and the clearance goal only waits.
+- Useful chunk acquisition follows actual material demand through the
+  [support portfolio](support-work.md#delivery-and-chunks). A store accepting chunks
+  does not prove a reason to haul every chunk. Native definitions retain their
+  normal haulability; forbidden items and native legality remain authoritative.
 - `ClearAncientShrine` (the `shrine` family) holds the clearance concern while it has work
   (see the breach concern in `controller-contracts.md`).
 - Unknown observations preserve the previous need. Recovery needs no eligible candidate
@@ -246,18 +245,12 @@ Home at a time, nearest the colony center first.
   review; stable IDs break ties. Medicine and rot deadlines rank hauling; native medical
   beds, temperature controls and generators lead repairs, then roof holders, beds and
   worktables; relative damage ranks within a category before cosmetic repairs.
-- Opportunistic bench cleaning is native and needs no the brain data (`BenchCleaningGuard`, #2515):
-  under `Supervisor.IsActive`, a Harmony postfix on `WorkGiver_DoBill.JobOnThing` replaces an
-  unforced bill job with one `Clean` job when home-area filth the clean WorkGiver accepts and
-  the pawn can reach lies within 6 cells of the bench, so a pawn cleans before starting a bill.
-  Caps: at most 5 filth per trip; never for a pawn whose Cleaning work type is disabled or at
-  priority 0; never for a drafted, downed, mentally broken, bleeding, tend-needy,
-  player-forced or priority-work pawn; forced bill orders are untouched. The same
-  `CleanJob` helper serves two more triggers (#2521): a surgery bill is the same
-  `WorkGiver_DoBill` with the patient as bill giver, so a doctor cleans within 6 cells of the
-  patient's bed before operating; and a `JobDriver_TendPatient` that ends `Succeeded` hands
-  the doctor a `Clean` job around the patient's bed through the driver's finalizer-job slot
-  (never when the doctor tends herself or the tend was player-forced). Acceptance: `clean/care`.
+- Bench and care cleaning are [evaluated support work](support-work.md#cleaning-consequences).
+  Native observations expose eligible filth, workers, durations and supported room
+  effects; shared policy compares cleaning against immediate service and no support.
+  No bill hook substitutes cleaning, and no tend finalizer selects cleanup. Native
+  legality and player ownership still veto exact orders. Post-care cleaning needs
+  remaining demand; it cannot retroactively improve completed treatment.
 - Butcher placements never share a room with a cooking bench. EnsureFoodSupply owns the
   butcher facility and owes it whatever the food runway: the planned butchery (beside the
   freezer) takes a `ButcherSpot` first, so hunts have a bench at once, then the real

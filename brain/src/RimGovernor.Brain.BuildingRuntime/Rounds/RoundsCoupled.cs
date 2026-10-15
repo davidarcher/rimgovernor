@@ -70,6 +70,16 @@ public sealed partial class Rounder
         ["mood_exposure"] = vector.MoodExposure.IsKnown ? vector.MoodExposure.Value : null,
         ["mood_pressure"] = vector.MoodDepth.IsKnown ? vector.MoodDepth.Value : null,
         ["thermal_occupancy"] = vector.ThermalOccupancy,
+        ["support_urgent_first_care_ticks"] = Number(vector.Support.UrgentFirstCareTicks),
+        ["support_pending_care_batches"] = vector.Support.PendingCareBatches,
+        ["support_first_care_ticks"] = vector.Support.FirstCareTicks,
+        ["support_unsupplied_demand"] = vector.Support.UnsuppliedDemand,
+        ["support_food_poison_exposure"] = Number(vector.Support.FoodPoisonExposure),
+        ["support_food_production"] = vector.Support.FoodProduction,
+        ["support_care_services"] = vector.Support.CareServices,
+        ["support_care_room_factor"] = Number(vector.Support.CareRoomFactor),
+        ["support_tend_quality"] = Number(vector.Support.TendQuality),
+        ["support_surgery_room_factor"] = Number(vector.Support.SurgeryRoomFactor),
         ["development"] = vector.Development, ["labor"] = vector.Labor, ["unknown"] = vector.Unknown.ToArray()
     };
 }

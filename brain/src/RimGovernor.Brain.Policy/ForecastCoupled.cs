@@ -21,6 +21,7 @@ public sealed record ForecastCoupledContext
     public required NeedsForecastRead Needs { get; init; }
     public required WorkResourceView Resources { get; init; }
     public ConstructionActivityRead Construction { get; init; } = new();
+    public SupportActivityRead Support { get; init; } = new();
     public CoupledThermalRead? Thermal { get; init; }
     public EquatableArray<ForecastShelterPlan> Shelters { get; init; }
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
@@ -40,6 +41,7 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     /// Unobserved transit/idle receive no benefit.</summary>
     public Fact<double> StationaryThermalRelief { get; init; }
     public string ThermalOccupancy { get; init; } = "";
+    public ForecastSupportConsequences Support { get; init; } = new();
 }
 public sealed record ForecastCoupledScenario(EquatableArray<ForecastCoupledOutcome> Alternatives,
     EquatableArray<string> Findings, bool Truncated)
@@ -161,6 +163,12 @@ public static partial class PolicyFunctions
         { if (feasible != Known(false)) feasible = default; Finding(reason, id, time); }
         void Refuse(string reason, string id, double time)
         { feasible = Known(false); Finding(reason, id, time); }
+        var supportChoices = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))).OfType<Methods.ActivityTaskCandidate>()
+            .Where(b => b.Kind == PawnActivityKind.Deliver && b.SupportDemand.Length != 0)
+            .Select(b => context.Support.Deliveries.FirstOrDefault(d => d.Demand == b.SupportDemand && d.Target == b.Target))
+            .Where(d => d is not null && d.Bill.Length != 0).Select(d => d!);
+        foreach (var choice in supportChoices.GroupBy(d => d.Bill).Where(g => g.Select(d => d.Resource).Distinct().Count() > 1))
+            Refuse("conflicting_bill_material_choices", choice.Key, 0);
         var external = commitments.Values.Where(c => c.ActivityCompletions.Count == 0)
             .SelectMany(c => c.StockChanges.Select(change => (Owner: c.Id, Change: change))).ToArray();
         foreach (var item in external.Where(e => !e.Change.Day.IsKnown || !e.Change.Units.IsKnown))
@@ -349,6 +357,7 @@ public static partial class PolicyFunctions
             .All(pair => pair.First.Pawn == pair.Second.Pawn && pair.First.AssessedTicks == pair.Second.AssessedTicks);
         return new(plan, feasible, inventory.Stocks, needs, EquatableArray.From(findings))
         {
+            Support = ForecastSupportConsequencesOf(context, plan, completed, horizon),
             Shelters = shelters, ThermalExposure = exposure,
             ThermalOccupancy = string.Join(";", context.NeedTasks.Where(n => allocations.ContainsKey(n.Task))
                 .Select(n => (Need: n, Allocation: allocations[n.Task]))

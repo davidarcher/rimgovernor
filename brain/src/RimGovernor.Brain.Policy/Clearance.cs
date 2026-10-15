@@ -58,7 +58,7 @@ public sealed record ClearanceTarget
 }
 
 /// <summary>
-/// One rock or slag chunk stack standing on a Home cell: a haul, never a deconstruction. Stored is vanilla's
+/// Diagnostic rock or slag stack observation. Material-demand acquisition is selected by the support portfolio. Stored is vanilla's
 /// own valid-storage test and Destination whether ordinary hauling already has a better store cell, so a
 /// chunk lacking both is one no stockpile will take.
 /// </summary>
@@ -122,26 +122,4 @@ public static partial class PolicyFunctions
         return "";
     }
 
-    /// <summary>
-    /// Names why a chunk is not a clearance deficit: forbidden stacks are the supply safety policy's (#336),
-    /// stored stacks are already cleared and a stack with a destination is ordinary hauling's to move.
-    /// </summary>
-    public static string ChunkHoldReason(ClearanceChunk row)
-    {
-        if (row.Forbidden)
-        {
-            return "forbidden";
-        }
-
-        if (row.Stored)
-        {
-            return "stored";
-        }
-
-        return row.Destination ? "hauling" : "";
-    }
-
-    /// <summary>The chunks no stockpile will take, stable by identity.</summary>
-    public static List<ClearanceChunk> PendingChunks(IEnumerable<ClearanceChunk> rows) =>
-        [.. rows.Where(row => ChunkHoldReason(row).Length == 0).OrderBy(r => r.EntityId, StringComparer.Ordinal)];
 }

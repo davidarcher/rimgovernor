@@ -42,6 +42,9 @@ public sealed class NativeActivityTasks
             {
                 if (--budget < 0) { truncated = true; break; }
                 var step = task.Step;
+                if (step.Kind == PawnActivityKind.Deliver && step.SupportDemand.Length != 0 && DefDatabase<ThingDef>.GetNamedSilentFail(task.Resource) is { } supportResource
+                    && NativeSupportActivities.Remaining(map, step, supportResource) == 0)
+                { satisfied.Add(task.Id); continue; }
                 var site = task.SiteDefinition.Length == 0 ? null : map.thingGrid.ThingsListAt(new(task.Location.X, 0, task.Location.Z))
                     .FirstOrDefault(t => t is IConstructible && t.def.entityDefToBuild?.defName == task.SiteDefinition);
                 if (task.SiteDefinition.Length != 0 && (map.thingGrid.ThingsListAt(new(task.Location.X, 0, task.Location.Z))
@@ -67,6 +70,7 @@ public sealed class NativeActivityTasks
                             || item.Destroyed || item.IsForbidden(pawn)
                             || carried == null && !pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)) continue;
                         var count = Math.Min(task.Step.Count, Math.Min(item.stackCount, pawn.carryTracker.MaxStackSpaceEver(item.def)));
+                        if (step.SupportDemand.Length != 0) count = Math.Min(count, NativeSupportActivities.Remaining(map, step, item.def));
                         if (count <= 0 || carried != null && count != carried.stackCount) continue;
                         var bound = step with { Target = item.GetUniqueLoadID(), Count = count };
                         if (step.Kind == PawnActivityKind.Supply)
@@ -79,7 +83,8 @@ public sealed class NativeActivityTasks
                         else
                         {
                             var destination = step.Destination!.Value;
-                            if (!JobDriver_GovernorDeliver.DestinationAvailable(pawn, new(destination.X, 0, destination.Z))
+                            if (!(step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationAllowed(pawn, item, new(destination.X, 0, destination.Z), count)
+                                : JobDriver_GovernorDeliver.DestinationAvailable(pawn, new(destination.X, 0, destination.Z)))
                                 || !pawn.CanReserveAndReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) continue;
                         }
                         bindings.Add(new(task.Id, bound) { RemainingCount = step.Kind == PawnActivityKind.Supply && site is IConstructible current
@@ -126,11 +131,18 @@ public sealed class NativeActivityTasks
                         ? map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target)
                         : map.thingGrid.ThingsListAt(new(task.Location.X, 0, task.Location.Z))
                             .FirstOrDefault(t => t is Frame && t.def.entityDefToBuild?.defName == task.SiteDefinition);
+                    if (step.Job == "TendPatient" && target is Pawn patient && !patient.health.HasHediffsNeedingTend()) { satisfied.Add(task.Id); continue; }
+                    if (step.Job == "Clean" && target == null) { satisfied.Add(task.Id); continue; }
                     if (target == null || target.IsForbidden(pawn) || !pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None)) continue;
                     if (DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is not WorkGiver_Scanner giver
                         || giver.MissingRequiredCapacity(pawn) != null || pawn.WorkTagIsDisabled(giver.def.workTags)
                         || giver.def.workType != null && pawn.WorkTypeIsDisabled(giver.def.workType)) continue;
-                    if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
+                    if (step.Job == "DoBill")
+                    {
+                        if (target is not Pawn surgeryPatient || !NativeSupportSurgery.Resolve(pawn, surgeryPatient, step, out var surgery)) continue;
+                        JobMaker.ReturnToPool(surgery!);
+                    }
+                    else if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
                     bindings.Add(new(task.Id, step with { Target = target.GetUniqueLoadID() }));
                 }
                 else if (step.Kind == PawnActivityKind.Recipe)

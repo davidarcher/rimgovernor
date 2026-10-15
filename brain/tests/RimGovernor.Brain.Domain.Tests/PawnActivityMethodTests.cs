@@ -11,6 +11,34 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class PawnActivityMethodTests
 {
+    [Theory]
+    [InlineData("delivery")]
+    [InlineData("tend")]
+    [InlineData("surgery")]
+    public void SupportIdentityAndSelectedMedicalInputsSurviveRealJournalAndHands(string kind)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-support-method-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        var owner = Owner(journal, ct);
+        var step = kind == "delivery"
+            ? new PawnActivityStep(PawnActivityKind.Deliver, "input", "", "", 1, 500)
+                { SupportDemand = "bill:bill:material", Container = "bench", Destination = new(1, 1) }
+            : new PawnActivityStep(PawnActivityKind.Work, "patient", "Doctor", kind == "tend" ? "TendPatient" : "DoBill", 0, 500)
+                { SupportDemand = kind + ":patient:bill", Medicine = "input", Recipe = kind == "surgery"
+                    ? new("bill", "operation", [new("input", 1)]) { Resource = "Rice" } : null };
+        var batch = new PawnActivities(1, [new("pawn", "assignment", "support-method", 0, 1, false, [step]) { Task = "service" }])
+        { Tasks = [new("service", "pawn", [], step, new(1, 1), 100)
+            { SupportDemand = step.SupportDemand, Inputs = [new("Rice", "input", 1, new(1, 1), "observed") { Observed = true }] }] };
+        var action = DomainAction.NewPawnActivitiesAction(new("support-action"), batch);
+        var plan = new PlanSpec(new("support-plan"), new(1), [action]);
+        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("support-method"), plan, ct);
+        BridgeFunctions.RegisterIntentKinds();
+        var stored = Assert.Single(journal.LoadPlan(plan.Id, ct).Spec.Actions);
+        var intent = BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
+        Assert.Equal(step, Assert.Single(Assert.Single(intent.Orders).Steps));
+        Assert.Equal(batch.Tasks, intent.Tasks);
+    }
+
     private static StandardState Owner(Journal journal, CancellationToken ct)
     {
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"),

@@ -16,8 +16,10 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
 {
     public Cell? Destination { get; init; }
     public PawnActivityRecipe? Recipe { get; init; }
+    public string Medicine { get; init; } = "";
     public long NotBefore { get; init; }
     public string Container { get; init; } = "";
+    public string SupportDemand { get; init; } = "";
 }
 
 /// <summary>Selected remaining intent owned by this Method. No forecast or mutable progress flags.</summary>
@@ -32,6 +34,7 @@ public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray
     public string Resource { get; init; } = "";
     public Cell? Source { get; init; }
     public string SiteDefinition { get; init; } = "";
+    public string SupportDemand { get; init; } = "";
     public string ProductStuff { get; init; } = "";
     public bool CompletionMustBeObserved { get; init; }
     public EquatableArray<SelectedActivityInput> Inputs { get; init; }
@@ -82,12 +85,15 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                         : step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof"
                             ? step.Destination is { X: >= 0, Z: >= 0 } : step.Destination is null)
                     && step.NotBefore >= 0 && step.NotBefore < step.Deadline
-                    && (step.Kind == PawnActivityKind.Supply ? Identity.IsValidText(step.Container) : step.Container.Length == 0), "invalid activity step");
-                if (step.Kind == PawnActivityKind.Recipe)
+                    && (step.Kind == PawnActivityKind.Supply || step.Kind == PawnActivityKind.Deliver && step.SupportDemand.Length != 0
+                        ? Identity.IsValidText(step.Container) : step.Container.Length == 0)
+                    && (step.SupportDemand.Length == 0 || (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Work) && Identity.IsValidText(step.SupportDemand))
+                    && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && (step.Job is "TendPatient" or "DoBill") && Identity.IsValidText(step.Medicine)), "invalid activity step");
+                if (step.Kind == PawnActivityKind.Recipe || step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
                 {
                     var cooking = step.Recipe;
                     DomainException.Require(cooking != null && (Identity.IsValidText(cooking.Bill) || Identity.IsValidText(cooking.Stuff)) && Identity.IsValidText(cooking.Recipe)
-                        && Identity.IsValidText(step.WorkGiver) && step.Job.Length == 0 && step.Count == 0
+                        && Identity.IsValidText(step.WorkGiver) && (step.Job.Length == 0 || step.Kind == PawnActivityKind.Work && step.Job == "DoBill") && step.Count == 0
                         && (cooking.Unfinished.Length != 0 ? cooking.Ingredients.Count == 0 : cooking.Ingredients.Count is > 0 and <= 16)
                         && cooking.Ingredients.All(i => i != null && Identity.IsValidText(i.Thing) && i.Count > 0)
                         && cooking.Ingredients.Select(i => i.Thing).Distinct(StringComparer.Ordinal).Count() == cooking.Ingredients.Count,

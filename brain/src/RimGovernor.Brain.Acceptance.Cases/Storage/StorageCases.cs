@@ -8,5 +8,6 @@ public static class StorageCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(StorageRefillHysteresis.Case());
+        registry.Register(StorageRefillHysteresis.CancellationCase());
     }
 }

@@ -8,6 +8,11 @@ the WorkAssignments Concern and existing Method journal. Hands remains the
 only order writer. The path is enabled for observed food, needs, existing
 construction sites, planned shelter completion and clothing production.
 
+[Support providers](../contracts/support-work.md) add cleaning and exact
+demand-driven delivery to that same composition and comparison. Native room
+effects and care timing stay separate from labor, with unknown effects explicit.
+They do not restore a local helper selector underneath the chosen portfolio.
+
 The comparison horizon is one game day. The ordering compares urgent food/rest
 exhaustion duration, deficit depth and threshold exposure before other unmet
 needs, supported mood target exposure/pressure and requested development.

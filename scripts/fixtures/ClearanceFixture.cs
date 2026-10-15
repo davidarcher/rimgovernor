@@ -13,12 +13,12 @@ namespace HomeBridge.BridgeTools
     // exercise the same fixture without relying on process-static references.
     public sealed class ClearanceFixture
     {
-        [Tool("test/clearance_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a disposable Home clearance wall or three chunks on the tribal baseline; never issues controller orders.")]
+        [Tool("test/clearance_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a disposable Home clearance wall on the tribal baseline; never issues controller orders.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused map required.");
-                if (!new[] { "ancient_wall", "roof_support_refused", "standing_designation", "chunk_dump" }.Contains(scenario))
+                if (!new[] { "ancient_wall", "roof_support_refused", "standing_designation" }.Contains(scenario))
                     throw new ArgumentException("Unknown clearance scenario.");
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
                 var worker = people.First(p => !p.Downed && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
@@ -47,24 +47,8 @@ namespace HomeBridge.BridgeTools
                 var ids = new System.Collections.Generic.List<string>();
                 var defs = new System.Collections.Generic.List<string>();
                 string target = "";
-                if (scenario == "chunk_dump") {
-                    var rocks = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.thingCategories?.Contains(ThingCategoryDefOf.StoneChunks) == true).OrderBy(d => d.defName).Take(2).ToList();
-                    if (rocks.Count != 2) throw new InvalidOperationException("Two stone chunk definitions required.");
-                    rocks.Add(DefDatabase<ThingDef>.GetNamed("ChunkSlagSteel"));
-                    // No store may take the fixture chunks, or the census reads them as
-                    // hauling rather than pending: every haul destination, shelves
-                    // and other storage buildings as well as stockpile zones.
-                    foreach (var store in map.haulDestinationManager.AllHaulDestinationsListForReading.OfType<IStoreSettingsParent>())
-                        foreach (var def in rocks) store.GetStoreSettings()?.filter.SetAllow(def, false);
-                    // A stray baseline chunk near the site joins the census once Home
-                    // grows around it; clear every chunk well past the staged square.
-                    foreach (var t in GenRadial.RadialDistinctThingsAround(site, map, 12, true).Where(t => t.def.category == ThingCategory.Item && t.def.IsWithinCategory(ThingCategoryDefOf.Chunks)).ToList())
-                        t.Destroy(DestroyMode.Vanish);
-                    for (int i = 0; i < rocks.Count; i++) {
-                        var chunk = GenSpawn.Spawn(ThingMaker.MakeThing(rocks[i]), site + IntVec3.East * (i - 1), map);
-                        chunk.SetForbidden(false, false); ids.Add(chunk.GetUniqueLoadID()); defs.Add(chunk.def.defName);
-                    }
-                } else {
+                {
+
                     var wall = (Building)GenSpawn.Spawn(ThingMaker.MakeThing(ThingDefOf.Wall, stone), site, map);
                     wall.SetForbidden(false, false); target = wall.GetUniqueLoadID();
                     if (wall.Faction != null || !wall.DeconstructibleBy(Faction.OfPlayer)) throw new InvalidOperationException("Wall must be unowned and deconstructible.");

@@ -6,9 +6,14 @@ windows and remaining obligations. It has no separate scheduler or workflow stor
 Food acquisition and material delivery/building use the same ColonyForecast search,
 binding, journal continuation and native ownership contract.
 
+[Evaluated support work](support-work.md) uses these same contracts for cleaning,
+care preparation and demand-driven delivery. It replaces native automatic
+bench-cleaning, refill withholding and global chunk hauling; voluntary needs
+writer retirement remains separate work.
+
 ## Live harvest and delivery
 
-The acquisition planner supplies the shared FoodPlan's selected plant demand.
+Normal review supplies the existing shared food demand to the coupled portfolio.
 Native reads enumerate capable harvesters and haulers separately, route estimates,
 carrying limits and allowed storage cells. Policy proposes self-service and delegated
 harvest/delivery combinations, including useful approach before harvest finishes.
@@ -20,23 +25,25 @@ Native route costs are estimates, not calibrated toil durations. Current live
 callers assume equal unit labor rates, zero recovery cost on Danger.None routes,
 and predictable prerequisite timing with divisible alternative work. Unknown
 routes/windows are not zero. Retaining/postponing wins when no affordable complete
-alternative is known. This establishes combination generation and execution, not
-expert play or a coupled colony economic forecast.
+alternative is known. These are bounded forecast assumptions, not evidence of
+expert play. The [portfolio contract](../architecture/portfolio-selection.md)
+defines coupled consequences, comparison and current search bounds.
 
-After observed harvest completion the Method reconsiders raw delivery versus
-eligible cooking. A still-approaching helper keeps that decision pending; it does
-not accidentally bypass reconsideration. A raw delivery can retain the helper;
-a recipe choice explicitly releases participants it no longer uses. Selected
-recipe, bench, bill, ingredient definition and counts remain policy decisions.
+Raw delivery and eligible cooking remain alternatives until shared comparison.
+After observed harvest completion the selected Method rebinds actual output;
+continuation does not locally choose another recipe. Selected recipe, bench,
+bill, ingredient definition and counts remain policy decisions.
 
 ## Live one-iteration cooking
 
-Observed eligible existing bills offer one-iteration supply/cook/output-delivery
+Observed eligible existing bills offer bounded repeated supply/cook/output-delivery
 alternatives through the same comparator and selected-task lifecycle. Native
 reports exact slot counts, pawn-adjusted work, nominal nutrition and routes; it
 neither chooses recipes nor creates bills. The current aggregate cooking route
-supports one observed cook for all three stages; delegated cooking needs separate
-observed route legs. Combining undersized ingredient stacks is not implemented.
+supports observed participant and route alternatives. Shared composition can
+combine partial native-certified stacks of the same ingredient definition.
+Heterogeneous ingredient substitution and hypothetical benches without observed
+bill intent remain unsupported.
 
 Supply completion permits fresh exact ingredient rebinding at the selected bench
 staging area. Recipe completion permits only observed matching output delivery.
@@ -80,12 +87,14 @@ failure can resume exact carried input with at most three retries under the orig
 deadline; consuming work cannot replay. Blocked selected destinations release for
 normal reconsideration. No hidden storage fallback changes the chosen destination.
 
-Reads bound participants/stacks/sites to 16 and route probes to 128; alternatives
-are bounded to 16 outcomes/32 tasks and the common search to 512 expansions.
-Truncation and unknown estimates remain explicit; omission never proves inferiority.
-No prospective output is credited as current inventory. Full material/equipment
-contention, coupled needs consequences and global portfolio choice remain separate
-work. Hauling/cleaning/eating helpers remain until the integrated retirement work.
+Native reads and family providers bound participants, stacks, sites and route
+probes. The [portfolio search limits](../architecture/portfolio-selection.md#dependencies-and-search)
+apply to shared composition and comparison. Truncation and unknown estimates
+remain explicit; omission never proves inferiority.
+No prospective output is credited as current inventory. Shared composition and
+portfolio comparison account for supported material, equipment and pawn claims
+and coupled needs consequences. Unsupported mechanics remain explicit; the
+bounded result is not a globally optimal colony plan.
 
 The registered `coordination/food-delegated`, `coordination/food-carried-recovery`
 and `coordination/construction-delegated` prepared cases use normal Rounds and

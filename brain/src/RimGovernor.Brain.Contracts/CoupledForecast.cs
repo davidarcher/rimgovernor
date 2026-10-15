@@ -7,6 +7,7 @@ namespace RimGovernor.Contracts.Wire.Observations;
 public sealed record CoupledForecastRead
 {
     public long Tick { get; init; }
+    public SupportActivityRead Support { get; init; } = new();
     public CoupledThermalRead? Thermal { get; init; }
     public FoodActivityRead Food { get; init; } = new();
     public ConstructionActivityRead Construction { get; init; } = new();

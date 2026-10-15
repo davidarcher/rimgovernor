@@ -15,7 +15,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             EquatableArray.From(t.GetProperty("Prerequisites").EnumerateArray().Select(p => p.GetString()!)),
             ReadStep(t.GetProperty("Step")),
             new(t.GetProperty("X").GetInt32(), t.GetProperty("Z").GetInt32()), t.GetProperty("DepartTick").GetInt64())
-            { Resource = t.Str("Resource"), ProductStuff = t.Str("ProductStuff"), SiteDefinition = t.Str("SiteDefinition"), CompletionMustBeObserved = t.GetProperty("CompletionMustBeObserved").GetBoolean(), AttemptsLeft = t.GetProperty("AttemptsLeft").GetInt32(),
+            { Resource = t.Str("Resource"), SupportDemand = t.Str("SupportDemand"), ProductStuff = t.Str("ProductStuff"), SiteDefinition = t.Str("SiteDefinition"), CompletionMustBeObserved = t.GetProperty("CompletionMustBeObserved").GetBoolean(), AttemptsLeft = t.GetProperty("AttemptsLeft").GetInt32(),
                 Inputs = EquatableArray.From(t.GetProperty("Inputs").EnumerateArray().Select(i => new SelectedActivityInput(
                     i.Str("Resource"), i.Str("Lot"), i.GetProperty("Count").GetInt32(),
                     new(i.GetProperty("X").GetInt32(), i.GetProperty("Z").GetInt32()), i.Str("Provenance"))
@@ -29,7 +29,8 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         s.GetProperty("Count").GetInt32(), s.GetProperty("Deadline").GetInt64(), s.Str("WaitForFilth"))
         { Destination = s.GetProperty("Destination") is var d && d.ValueKind != JsonValueKind.Null
             ? new Cell(d.GetProperty("X").GetInt32(), d.GetProperty("Z").GetInt32()) : null,
-          Recipe = ReadRecipe(s.GetProperty("Recipe")), NotBefore = s.GetProperty("NotBefore").GetInt64(), Container = s.Str("Container") };
+          Recipe = ReadRecipe(s.GetProperty("Recipe")), NotBefore = s.GetProperty("NotBefore").GetInt64(), Container = s.Str("Container"),
+          SupportDemand = s.Str("SupportDemand"), Medicine = s.Str("Medicine") };
     private static PawnActivityRecipe? ReadRecipe(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Bill"), e.Str("Recipe"), EquatableArray.From(e.GetProperty("Ingredients").EnumerateArray()
             .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32())))) { Resource = e.Str("Resource"), Stuff = e.Str("Stuff"), Unfinished = e.Str("Unfinished") };
@@ -52,6 +53,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             w.WriteNumber("X", task.Location.X); w.WriteNumber("Z", task.Location.Z); w.WriteNumber("DepartTick", task.DepartTick);
             w.WriteString("Resource", task.Resource); w.WriteString("SiteDefinition", task.SiteDefinition); w.WriteNumber("AttemptsLeft", task.AttemptsLeft);
             w.WriteString("ProductStuff", task.ProductStuff);
+            w.WriteString("SupportDemand", task.SupportDemand);
             w.WriteBoolean("CompletionMustBeObserved", task.CompletionMustBeObserved);
             w.WriteStartArray("Inputs");
             foreach (var input in task.Inputs)
@@ -104,6 +106,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         w.WriteStartObject(); w.WriteNumber("Kind", (int)s.Kind); w.WriteString("Target", s.Target); w.WriteString("WorkGiver", s.WorkGiver);
         w.WriteString("Job", s.Job); w.WriteNumber("Count", s.Count); w.WriteNumber("Deadline", s.Deadline); w.WriteString("WaitForFilth", s.WaitForFilth);
         w.WriteNumber("NotBefore", s.NotBefore); w.WriteString("Container", s.Container);
+        w.WriteString("SupportDemand", s.SupportDemand); w.WriteString("Medicine", s.Medicine);
         if (s.Destination is { } d)
         { w.WriteStartObject("Destination"); w.WriteNumber("X", d.X); w.WriteNumber("Z", d.Z); w.WriteEndObject(); }
         else w.WriteNull("Destination");

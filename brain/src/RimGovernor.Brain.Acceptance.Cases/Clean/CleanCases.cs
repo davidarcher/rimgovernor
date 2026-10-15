@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The native opportunistic-cleaning cases (Go <c>cases/clean</c>): the Harmony patches that make a pawn clean before a
-/// bill (<c>clean/bench</c>) and around a patient's bed (<c>clean/care</c>).
+/// Normal selected support cleaning around a
+/// bill (<c>clean/bench</c>) and a patient's bed (<c>clean/care</c>).
 /// </summary>
 public static class CleanCases
 {
@@ -12,5 +12,6 @@ public static class CleanCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(CleanBench.Case());
         registry.Register(CleanCare.Case());
+        registry.Register(CleanCare.RoutineCase());
     }
 }

@@ -6,6 +6,7 @@ public sealed record ForecastConsequenceVector(EquatableArray<Fact<double>> Urge
     EquatableArray<string> Unknown)
 {
     public string ThermalOccupancy { get; init; } = "";
+    public ForecastSupportConsequences Support { get; init; } = new();
 }
 
 public sealed record ForecastCoupledSelection(ForecastActivityOutcomeComparison Selection,
@@ -148,24 +149,44 @@ public static partial class PolicyFunctions
         var moodKnown = moods.Length > 0 && moods.All(m => m is not null && m.TargetExposureTicks.IsKnown && m.PressureTicks.IsKnown);
         if (!moodKnown) unknown.Add("unassessed_mood");
         unknown.Add("serious_harm_probability_unassessed");
+        unknown.UnionWith(outcome.Support.Findings);
         return new(EquatableArray.From(urgent), EquatableArray.From(needsVector), moodKnown ? Known(moods.Sum(m => m!.TargetExposureTicks.Value)) : default,
             moodKnown ? Known(moods.Sum(m => m!.PressureTicks.Value)) : default,
-            development, outcome.Plan.LaborCost, EquatableArray.From(unknown)) { ThermalOccupancy = outcome.ThermalOccupancy };
+            development, outcome.Plan.LaborCost, EquatableArray.From(unknown)) { ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support };
     }
 
     private static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
     {
+        if (a.Support.UrgentFirstCareTicks.IsKnown && b.Support.UrgentFirstCareTicks.IsKnown)
+        { var rank = a.Support.UrgentFirstCareTicks.Value.CompareTo(b.Support.UrgentFirstCareTicks.Value); if (rank != 0) return rank; }
         var sameThermalUse = a.ThermalOccupancy.Length != 0 && a.ThermalOccupancy == b.ThermalOccupancy;
         foreach (var pair in a.Urgent.Zip(b.Urgent).Concat(a.Needs.Zip(b.Needs).Skip(sameThermalUse ? 0 : 1)))
         {
             if (!pair.First.IsKnown || !pair.Second.IsKnown) continue;
             var rank = pair.First.Value.CompareTo(pair.Second.Value); if (rank != 0) return rank;
         }
+        var care = a.Support.PendingCareBatches.CompareTo(b.Support.PendingCareBatches); if (care != 0) return care;
+        if (a.Support.CareServices.Length != 0 && a.Support.CareServices == b.Support.CareServices)
+        {
+            if (a.Support.TendQuality.IsKnown && b.Support.TendQuality.IsKnown)
+            { var rank = b.Support.TendQuality.Value.CompareTo(a.Support.TendQuality.Value); if (rank != 0) return rank; }
+            if (a.Support.CareRoomFactor.IsKnown && b.Support.CareRoomFactor.IsKnown)
+            { var rank = a.Support.CareRoomFactor.Value.CompareTo(b.Support.CareRoomFactor.Value); if (rank != 0) return rank; }
+            if (a.Support.SurgeryRoomFactor.IsKnown && b.Support.SurgeryRoomFactor.IsKnown)
+            { var rank = b.Support.SurgeryRoomFactor.Value.CompareTo(a.Support.SurgeryRoomFactor.Value); if (rank != 0) return rank; }
+        }
+        // Compare room contamination only for the same completed production. Skipping meals is not
+        // credited as preventing illness, and unknown health effects do not become clean-room rewards.
+        if (a.Support.FoodProduction.Length != 0 && a.Support.FoodProduction == b.Support.FoodProduction
+            && a.Support.FoodPoisonExposure.IsKnown && b.Support.FoodPoisonExposure.IsKnown)
+        { var rank = a.Support.FoodPoisonExposure.Value.CompareTo(b.Support.FoodPoisonExposure.Value); if (rank != 0) return rank; }
         if (a.MoodExposure.IsKnown && b.MoodExposure.IsKnown)
         { var rank = a.MoodExposure.Value.CompareTo(b.MoodExposure.Value); if (rank != 0) return rank; }
         if (a.MoodDepth.IsKnown && b.MoodDepth.IsKnown)
         { var rank = a.MoodDepth.Value.CompareTo(b.MoodDepth.Value); if (rank != 0) return rank; }
-        return b.Development.CompareTo(a.Development);
+        var development = b.Development.CompareTo(a.Development); if (development != 0) return development;
+        var supply = a.Support.UnsuppliedDemand.CompareTo(b.Support.UnsuppliedDemand); if (supply != 0) return supply;
+        return a.Support.FirstCareTicks.CompareTo(b.Support.FirstCareTicks);
     }
 
     public static PawnActivities? StartCoupledActivity(ForecastCoupledSelection selection,

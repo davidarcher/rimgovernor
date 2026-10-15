@@ -40,6 +40,9 @@ public static partial class PolicyFunctions
         var lots = read.FoodSources.Select(o => new ForecastMaterialLot(o.Target, Location(o.Location), new(o.Resource), Known((double)o.Count)) { Perishable = true, FreshTicks = o.FreshTicks })
     .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => new ForecastMaterialLot(o.Input, Location(o.Origin), new(o.Resource), o.AvailableInput)))
     .Concat(read.Clothing.Options.SelectMany(o => o.Inputs).Select(i => new ForecastMaterialLot(i.Thing, Location(i.Location), new(i.Resource), Known((double)i.AvailableCount))))
+    .Concat(read.Support.Deliveries.Select(d => new ForecastMaterialLot(d.Target, Location(d.Source), new(d.Resource), Known((double)d.Available))))
+    .Concat(read.Support.Workers.Where(w => w.Medicine.Length != 0 && w.MedicineLocation is not null)
+        .Select(w => new ForecastMaterialLot(w.Medicine, Location(w.MedicineLocation!.Value), new(w.MedicineResource), Known((double)w.MedicineAvailable))))
     .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food" && t.Location is not null)
         .Select(t => new ForecastMaterialLot(t.Id, Location(t.Location!.Value), new(t.Resource), t.StockCount) { Perishable = true, FreshTicks = t.FreshTicks }))
     .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToArray();
@@ -63,23 +66,29 @@ public static partial class PolicyFunctions
         var shelter = Methods.Generation.CoupledShelterCandidates.Generate(facts.PlannedShelters.Select(r =>
             new ForecastShelterGeometry(r.Id, EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
             read.Thermal, construction.Operations, construction.Bindings, deadline, horizon);
-        var constructionRoots = construction.Outcomes.Select(outcome => new ForecastCommitment(outcome.Id, [])
+        foreach (var outcome in construction.Outcomes.Where(o => !construction.Bindings.Values.Any(b => b.Id == o.Completion)))
+            findings.Add("construction_outcome_unbound:" + outcome.Id);
+        var constructionRoots = construction.Outcomes.Where(o => construction.Bindings.Values.Any(b => b.Id == o.Completion))
+            .Select(outcome => new ForecastCommitment(outcome.Id, [])
         {
             ActivityCompletions = [outcome.Completion], Outcome = outcome,
             ExclusiveOutcome = "construction/" + construction.Bindings.Values.First(b => b.Id == outcome.Completion).Target
         });
         var templates = food.Bindings.Concat(construction.Bindings).Concat(shelter.Bindings).ToDictionary(b => b.Key, b => b.Value);
         var shelterRoots = shelter.Roots.Keys.Select(id => new ForecastCommitment(id, []) { ExclusiveOutcome = id });
-        var composed = ComposeCoupledCandidates(food.Operations.Concat(shelter.Operations), food.Observed.Concat(construction.Observed).Concat(shelter.Observed),
-            food.Alternatives.Concat(constructionRoots).Concat(shelterRoots), food.Options.Concat(construction.Problem?.Options ?? []).Concat(shelter.Options),
-            templates, food.Needs, horizon, shelter.Roots);
+        var support = Methods.Generation.SupportMethodCandidates.Generate(read.Support, food.Operations.Concat(shelter.Operations),
+            food.Options.Concat(construction.Problem?.Options ?? []).Concat(shelter.Options), templates, resources, read.Tick, deadline);
+        var composed = ComposeCoupledCandidates(support.Operations, food.Observed.Concat(construction.Observed).Concat(shelter.Observed).Concat(support.Observed),
+            food.Alternatives.Concat(constructionRoots).Concat(shelterRoots).Concat(support.Roots), support.Options,
+            support.Bindings, food.Needs, horizon, shelter.Roots);
         tasks.AddRange(composed.Tasks); options.AddRange(composed.Options); needTasks.AddRange(composed.Needs); alternatives.AddRange(composed.Alternatives);
         foreach (var binding in composed.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in food.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         foreach (var route in construction.Problem?.Routes ?? []) Route(route.Pawn, route.From, route.To, route.Ticks);
         foreach (var route in shelter.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
-        findings.UnionWith(food.Findings); findings.UnionWith(construction.Findings); findings.UnionWith(composed.Findings);
-        truncated |= food.Truncated || construction.Truncated || composed.Truncated;
+        foreach (var route in support.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
+        findings.UnionWith(food.Findings); findings.UnionWith(construction.Findings); findings.UnionWith(composed.Findings); findings.UnionWith(support.Findings);
+        truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
         if (Enabled(MaintainEquipment) && facts.Gear.TryGetValue(out var gear))
             AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
                 checked(read.Tick + (long)horizon), resources));
@@ -169,6 +178,7 @@ public static partial class PolicyFunctions
             Needs = needs,
             Resources = resources,
             Construction = read.Construction,
+            Support = read.Support,
             Thermal = read.Thermal,
             Shelters = EquatableArray.From(shelters),
             InitialLots = EquatableArray.From(lots),

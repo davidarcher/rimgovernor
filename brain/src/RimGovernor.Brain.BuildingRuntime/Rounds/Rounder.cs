@@ -667,7 +667,6 @@ public sealed partial class Rounder
                 var (others, player) = PolicyApi.SplitGroundRows(census.Targets);
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]) } });
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { RoomObstructions = PolicyApi.RoomObstructionIDs(others, ground) } });
-                reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Chunks = Known(census.Chunks) } });
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Ground = Known<EquatableArray<string>>([.. PlannedGroundWork(reading.Projection, player, census.Floors, ClearFloors(reading.Projection))]) } });
                 reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
                 reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });

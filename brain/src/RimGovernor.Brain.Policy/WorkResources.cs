@@ -145,6 +145,10 @@ public static partial class PolicyFunctions
                 foreach (var input in task.Inputs.Where(i => i.Observed && i.Lot.Length != 0)) targets.Add(input.Lot);
                 if (task.Step.Destination is { } destination) targets.Add("cell/" + destination.X + "/" + destination.Z);
                 if (task.Step.Container.Length != 0) targets.Add(task.Step.Container);
+                if (task.Step.Medicine.Length != 0 && !batch.Orders.Any(o => !o.Release && !o.Preparing && o.Task == task.Id))
+                    materials.Add(new("activity/selected-input/" + row.Action.Id.Value + "/" + task.Id, [])
+                    { MaterialClaims = EquatableArray.From(task.Inputs.Select(i => new ForecastMaterialClaim(new(i.Resource), Known((double)i.Count),
+                        Known(task.Step.Recipe?.Bill ?? "")))) });
                 if (task.SiteDefinition.Length != 0 && task.Step.Target.Length != 0) targets.Add(task.Step.Target);
                 if (task.Step.Recipe is { } recipe)
                 {
@@ -175,6 +179,13 @@ public static partial class PolicyFunctions
                 var claims = new List<ForecastMaterialClaim>();
                 foreach (var step in order.Steps)
                 {
+                    if (step.Medicine.Length != 0 && step.Recipe is null && observed?.State is not ("completed" or "failed"))
+                    {
+                        var task = batch.Tasks.SingleOrDefault(t => t.Id == order.Task);
+                        if (task is null || task.Inputs.Count == 0) findings.Add("unknown_selected_care_materials:" + row.Action.Id.Value);
+                        else claims.AddRange(task.Inputs.Select(i => new ForecastMaterialClaim(new(i.Resource),
+                            Known((double)Math.Max(0, i.Count - (observed?.CarriedResource == i.Resource ? observed.CarriedCount : 0))), Known(""))));
+                    }
                     if (step.Kind == PawnActivityKind.Deliver && order.OutputDelivery is { } output)
                     {
                         // Moving stock protects its use, not a second physical consumption. Carried units are outside loose stock.
