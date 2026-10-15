@@ -6,6 +6,12 @@ namespace RimGovernor.RealCombat;
 
 public sealed record RealFightRequest
 {
+    /// <summary>The request format version this host reads.</summary>
+    public const int CurrentSchema = 1;
+
+    /// <summary>The request format version; it must equal <see cref="CurrentSchema"/>. A request that omits it or states another is rejected.</summary>
+    public int Schema { get; init; }
+
     public string Name { get; init; } = "";
 
     /// <summary>The arena's width and height in cells. The map is generated square from the larger.</summary>
@@ -36,11 +42,36 @@ public sealed record RealFightRequest
     public bool Verify { get; init; }
 }
 
+/// <summary>Reads a request strictly: a JSON member the format does not have rejects the whole request, naming it.</summary>
+public static class RequestJson
+{
+    public static readonly System.Text.Json.JsonSerializerOptions Options = new(System.Text.Json.JsonSerializerDefaults.Web)
+    {
+        UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow,
+    };
+
+    public static RealFightRequest Read(string json)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<RealFightRequest>(json, Options) ?? throw new RealFightRejected(["request: empty"]);
+        }
+        catch (System.Text.Json.JsonException e)
+        {
+            throw new RealFightRejected([$"{e.Path}: {e.Message}"]);
+        }
+    }
+}
+
 public sealed record RealThing(string Def, string Stuff, int X, int Z);
 
 public sealed record RealWear(string Def, string Stuff);
 
 public sealed record RealTrait(string Def, int Degree);
+
+/// <param name="Part">The BodyPartRecord label the hediff sits on ("left arm"); empty for a whole-body hediff.</param>
+/// <param name="Severity">The hediff's severity; for an injury, its damage.</param>
+public sealed record RealHediff(string Def, string Part, double Severity);
 
 public sealed record RealPawn
 {
@@ -69,8 +100,17 @@ public sealed record RealPawn
     /// <summary>ThingDef names carried in the pawn's inventory (a combat drug the policy may order taken).</summary>
     public IReadOnlyList<string> Carried { get; init; } = [];
 
-    /// <summary>HediffDef names the pawn starts with (GoJuiceHigh).</summary>
-    public IReadOnlyList<string> Hediffs { get; init; } = [];
+    /// <summary>The pawn's whole health: every hediff it starts with. Nothing the generator rolled survives.</summary>
+    public IReadOnlyList<RealHediff> Hediffs { get; init; } = [];
+
+    /// <summary>BodyPartRecord labels of the parts the pawn is missing (a part's children are missing with it).</summary>
+    public IReadOnlyList<string> Missing { get; init; } = [];
+
+    /// <summary>Biological and chronological age in years. Required (above zero) for a humanlike pawn; unset for an animal or insect.</summary>
+    public double Age { get; init; }
+
+    /// <summary>XenotypeDef name (Baseliner). Required for a humanlike pawn; empty for an animal or insect.</summary>
+    public string Xenotype { get; init; } = "";
 
     /// <summary>AbilityDef names of psycasts the pawn knows (Stun); any gives it a psylink and full psyfocus. Needs Royalty.</summary>
     public IReadOnlyList<string> Psycasts { get; init; } = [];
@@ -114,6 +154,79 @@ public sealed record RealFightResult
 
     /// <summary>The wall time of the game's startup and the arena.</summary>
     public double StartupMilliseconds { get; init; }
+
+    /// <summary>What the game holds for the request's arena and pawns, read back before the first tick; it equals the request or the run fails.</summary>
+    public RealReadback Readback { get; init; } = new();
+}
+
+/// <summary>The request's imported fields as read from the game objects.</summary>
+public sealed record RealReadback
+{
+    public int Width { get; init; }
+
+    public int Height { get; init; }
+
+    /// <summary>The TerrainDef on every cell, or "mixed".</summary>
+    public string Terrain { get; init; } = "";
+
+    public string Weather { get; init; } = "";
+
+    public string HostileFaction { get; init; } = "";
+
+    public IReadOnlyList<RealThing> Things { get; init; } = [];
+
+    public IReadOnlyList<RealPawnReadback> Pawns { get; init; } = [];
+}
+
+/// <summary>One pawn as the game holds it after import. <see cref="Hediffs"/> is its whole hediff set, missing parts apart.</summary>
+public sealed record RealPawnReadback
+{
+    public string Id { get; init; } = "";
+
+    public string Side { get; init; } = "";
+
+    public string Kind { get; init; } = "";
+
+    public int X { get; init; }
+
+    public int Z { get; init; }
+
+    public double Age { get; init; }
+
+    public string Xenotype { get; init; } = "";
+
+    public string Weapon { get; init; } = "";
+
+    public string WeaponStuff { get; init; } = "";
+
+    public IReadOnlyList<RealWear> Worn { get; init; } = [];
+
+    /// <summary>The levels of the skills the request states.</summary>
+    public IReadOnlyDictionary<string, int> Skills { get; init; } = new Dictionary<string, int>();
+
+    public IReadOnlyList<RealTrait> Traits { get; init; } = [];
+
+    public IReadOnlyList<string> Carried { get; init; } = [];
+
+    public IReadOnlyList<RealHediff> Hediffs { get; init; } = [];
+
+    public IReadOnlyList<string> Missing { get; init; } = [];
+
+    public IReadOnlyList<string> Psycasts { get; init; } = [];
+
+    public string Title { get; init; } = "";
+
+    public int Favor { get; init; }
+
+    public IReadOnlyList<string> Permits { get; init; } = [];
+
+    public bool Dead { get; init; }
+}
+
+/// <summary>The request cannot be honored; every message names the request field it concerns.</summary>
+public sealed class RealFightRejected(IReadOnlyList<string> problems) : Exception("realcombat: request rejected: " + string.Join("; ", problems))
+{
+    public IReadOnlyList<string> Problems { get; } = problems;
 }
 
 /// <summary>Drives a fight's colonists instead of the built-in nearest-target retargeting (the policy in the loop).</summary>

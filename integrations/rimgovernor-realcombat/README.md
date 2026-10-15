@@ -12,6 +12,29 @@ no live-game integration.
 | `src/RealCombat.Native` | Library. `DefenseStage` raises a ring-walled compound and the planner's killbox in it. `NativeSeat` hosts the native mod's own `CombatMirror` (observation) and `NativeCombatOrders` (orders) over an arena map, so a controller sees and commands a simulated fight through the code it uses against the live game. Bridge exposes its internals to it (`InternalsVisibleTo`). `Arena.Controller` is the hook that plays the colonists instead of the built-in retargeting (the hostiles then act under an assault lord, as a raid does). `PolicyController` is the controller that decides with the live policy. |
 | `src/RealCombat.NativeSmoke` | Throwaway: a duel observed and commanded through the seat, or with `--policy` a 2v1 played by the live combat policy (`PolicyController`) inside a staged killbox compound (`DefenseStage`). |
 
+## The request format
+
+`RealFightRequest` is the one request format, strict and versioned. `Schema` must equal `RealFightRequest.CurrentSchema` (1);
+a request that omits it or states another version is rejected. **Unsupported input rejects, it is never defaulted or
+regenerated.** The whole request is rejected before the arena is built (so no map and no pawn exists), and every problem
+names its field (`Pawns[0].Hediffs[1].Part: Human has no body part 'tail'`). A rejection exits the host with code 3 and no
+result file. Rejected: a JSON member the format lacks; an unknown def name (kind, weapon, apparel, skill, trait and its
+degree, xenotype, hediff, terrain, weather, faction, ability, title, permit); a weapon that is not a weapon or apparel that
+is not apparel; a cell outside the map; a duplicate or empty pawn id; a hediff or missing part on a body part the race lacks
+(parts are named by `BodyPartRecord` label, "left arm"; a label that names two parts is rejected as ambiguous), a hediff on
+a part that is missing or inside one, an injury without a part, a severity outside `(0, maxSeverity]`; a humanlike pawn
+without `Age` or `Xenotype`; an animal or insect with an age, xenotype, gear, skills or traits.
+
+A pawn's `Hediffs` (def, part, severity) and `Missing` (part labels) are its whole health: nothing the generator rolled
+survives. `Age` (biological and chronological) and `Xenotype` are required for humanlike pawns.
+
+After the arena is built, before the first tick, the host reads every imported field back from the game objects (map size,
+terrain, weather, hostile faction, standing things, and per pawn side, kind, cell, age, xenotype, weapon, worn, stated
+skills, traits, carried items, hediffs, missing parts, psycasts, title, favor, permits) and compares it with the request. A
+mismatch fails the run by field name (`readback Pawns[0].Age: requested ...`). `RealFightResult.Readback` carries what
+the game holds. The generator's own inventory (a raider's medicine) is not stripped yet, so `Carried` is checked for
+presence, not equality; gear is #3152.
+
 ## Build and run
 
 The game copy must match the runtime's `Assembly-CSharp` (the private copy under `.rimgovernor/native-rimworld`, whose
@@ -21,6 +44,10 @@ The game copy must match the runtime's `Assembly-CSharp` (the private copy under
 dotnet build integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke -c Release -p:RimWorldDir=D:/rimgovernor/.rimgovernor/native-rimworld
 dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Release/RimGovernor.RealCombat.NativeSmoke.dll --game D:/rimgovernor/.rimgovernor/native-rimworld --policy
 ```
+
+`--request-check` is the request-format test: it runs every reject path (each must name its field and leave no map or pawn)
+and an accept case (age 41, Hussar, a missing hand, injuries on the right arm) that must read back equal and play
+deterministically; exit 0 is a pass.
 
 `--bare` plays both sides with the built-in retargeting, `--policy` plays the colonists with the live combat policy,
 `--drugs` gives each colonist go-juice (`--high` makes the raiders high on it, `--raiders N` adds raiders),

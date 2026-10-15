@@ -14,6 +14,7 @@ var bare = args.Contains("--bare");
 var policy = args.Contains("--policy");
 var request = new RealFightRequest
 {
+    Schema = RealFightRequest.CurrentSchema,
     Name = "native-smoke",
     Width = 60,
     Height = 60,
@@ -23,8 +24,8 @@ var request = new RealFightRequest
     MaxTicks = 3000,
     Pawns =
     [
-        new RealPawn { Id = "col", Side = "colonist", Kind = "Colonist", X = 20, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
-        new RealPawn { Id = "host", Side = "hostile", Kind = "Pirate", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+        new RealPawn { Id = "col", Side = "colonist", Age = 30, Xenotype = "Baseliner", Kind = "Colonist", X = 20, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+        new RealPawn { Id = "host", Side = "hostile", Age = 30, Xenotype = "Baseliner", Kind = "Pirate", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
     ],
 };
 // --policy fights inside a walled compound with the killbox the colony's planner lays out (DefenseStage); --open is
@@ -45,9 +46,9 @@ if (policy)
     {
         Pawns =
         [
-            new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = home.X, Z = home.Z - 1, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
-            new RealPawn { Id = "col1", Side = "colonist", Kind = "Colonist", X = home.X, Z = home.Z + 1, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
-            new RealPawn { Id = "host", Side = "hostile", Kind = "Pirate", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col0", Side = "colonist", Age = 30, Xenotype = "Baseliner", Kind = "Colonist", X = home.X, Z = home.Z - 1, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col1", Side = "colonist", Age = 30, Xenotype = "Baseliner", Kind = "Colonist", X = home.X, Z = home.Z + 1, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "host", Side = "hostile", Age = 30, Xenotype = "Baseliner", Kind = "Pirate", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
         ],
     };
 }
@@ -60,7 +61,7 @@ if (args.Contains("--drugs"))
     var raiders = Enumerable.Range(0, extra).Select(i => request.Pawns.Last(p => p.Side == "hostile") with { Id = "host" + (i + 1), Z = 28 + (i * 2) });
     request = request with
     {
-        Pawns = [.. request.Pawns.Concat(raiders).Select(p => p.Side == "colonist" ? p with { Carried = ["GoJuice"] } : args.Contains("--high") ? p with { Hediffs = ["GoJuiceHigh"] } : p)],
+        Pawns = [.. request.Pawns.Concat(raiders).Select(p => p.Side == "colonist" ? p with { Carried = ["GoJuice"] } : args.Contains("--high") ? p with { Hediffs = [new RealHediff("GoJuiceHigh", "", 0.5)] } : p)],
     };
 }
 
@@ -113,9 +114,9 @@ if (args.Contains("--hive"))
         MaxTicks = 20000,
         Pawns =
         [
-            new RealPawn { Id = "col0", Side = "colonist", Kind = "Colonist", X = 35, Z = 29, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
-            new RealPawn { Id = "col1", Side = "colonist", Kind = "Colonist", X = 35, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
-            new RealPawn { Id = "col2", Side = "colonist", Kind = "Colonist", X = 35, Z = 31, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col0", Side = "colonist", Age = 30, Xenotype = "Baseliner", Kind = "Colonist", X = 35, Z = 29, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col1", Side = "colonist", Age = 30, Xenotype = "Baseliner", Kind = "Colonist", X = 35, Z = 30, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
+            new RealPawn { Id = "col2", Side = "colonist", Age = 30, Xenotype = "Baseliner", Kind = "Colonist", X = 35, Z = 31, Weapon = "Gun_BoltActionRifle", Skills = new Dictionary<string, int> { ["Shooting"] = 8 } },
             new RealPawn { Id = "bug0", Side = "hostile", Kind = "Megascarab", X = 41, Z = 28 },
             new RealPawn { Id = "bug1", Side = "hostile", Kind = "Megascarab", X = 41, Z = 32 },
             new RealPawn { Id = "bug2", Side = "hostile", Kind = "Megascarab", X = 42, Z = 27 },
@@ -124,6 +125,11 @@ if (args.Contains("--hive"))
 }
 
 GameHost.Boot(game);
+if (args.Contains("--request-check"))
+{
+    return RequestCheckMode.Run();
+}
+
 var controller = new SeatController();
 var doorProbe = args.Contains("--doortest") ? new DoorProbe() : null;
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
@@ -157,6 +163,119 @@ if (policy)
 }
 
 return bare || controller.Applied == 2 && controller.Refused == 0 && controller.Events > 0 ? 0 : 1;
+
+// --request-check: the strict request format. Each reject case must throw RealFightRejected naming its field before a map
+// or pawn exists; the accept case (body-part hediff, missing part, non-30 age, non-Baseliner xenotype) must build and read
+// back equal. Exit 0 when every case behaves.
+internal static class RequestCheckMode
+{
+    private static readonly RealPawn Colonist = new() { Id = "col", Side = "colonist", Kind = "Colonist", Age = 30, Xenotype = "Baseliner", X = 20, Z = 30, Weapon = "Gun_BoltActionRifle" };
+
+    private static readonly RealPawn Raider = new() { Id = "host", Side = "hostile", Kind = "Pirate", Age = 30, Xenotype = "Baseliner", X = 45, Z = 30, Weapon = "Gun_BoltActionRifle" };
+
+    private static readonly RealFightRequest Base = new()
+    {
+        Schema = RealFightRequest.CurrentSchema,
+        Name = "request-check",
+        Terrain = "Soil",
+        Weather = "Clear",
+        Seeds = [1],
+        MaxTicks = 600,
+        Pawns = [Colonist, Raider],
+    };
+
+    internal static int Run()
+    {
+        var failures = 0;
+        var rejects = new (string Field, Func<RealFightRequest> Make)[]
+        {
+            ("Schema", () => Base with { Schema = 0 }),
+            ("Schema", () => Base with { Schema = 2 }),
+            ("Terrain", () => Base with { Terrain = "NoSuchTerrain" }),
+            ("Pawns[0].Kind", () => With(Colonist with { Kind = "NoSuchKind" })),
+            ("Pawns[0].Weapon", () => With(Colonist with { Weapon = "NoSuchGun" })),
+            ("Pawns[0].Weapon", () => With(Colonist with { Weapon = "Steel" })),
+            ("Pawns[0].Skills.NoSuchSkill", () => With(Colonist with { Skills = new Dictionary<string, int> { ["NoSuchSkill"] = 5 } })),
+            ("Pawns[0].Xenotype", () => With(Colonist with { Xenotype = "NoSuchXenotype" })),
+            ("Pawns[0].Age", () => With(Colonist with { Age = 0 })),
+            ("Pawns[0].Hediffs[0].Def", () => With(Colonist with { Hediffs = [new("NoSuchHediff", "", 1)] })),
+            ("Pawns[0].Hediffs[0].Part", () => With(Colonist with { Hediffs = [new("Cut", "tail", 3)] })),
+            ("Pawns[0].Hediffs[0].Part", () => With(Colonist with { Hediffs = [new("Cut", "", 3)] })),
+            ("Pawns[0].Hediffs[0].Part", () => With(Colonist with { Missing = ["left hand"], Hediffs = [new("Cut", "left hand", 3)] })),
+            ("Pawns[0].Hediffs[0].Severity", () => With(Colonist with { Hediffs = [new("Cut", "right arm", 0)] })),
+            ("Pawns[0].Missing[0]", () => With(Colonist with { Missing = ["tail"] })),
+            ("Pawns[1].Id", () => Base with { Pawns = [Colonist, Raider with { Id = "col" }] }),
+        };
+        var worldPawns = Verse.Find.WorldPawns.AllPawnsAliveOrDead.Count();
+        foreach (var (field, make) in rejects)
+        {
+            try
+            {
+                _ = new Arena(make());
+                Console.Error.WriteLine($"FAIL accepted a request that must reject on {field}");
+                failures++;
+            }
+            catch (RealFightRejected e) when (e.Problems.Any(p => p.StartsWith(field + ":", StringComparison.Ordinal)))
+            {
+                Console.Error.WriteLine($"ok   rejected {field}: {e.Problems.First(p => p.StartsWith(field + ":", StringComparison.Ordinal))}");
+            }
+            catch (RealFightRejected e)
+            {
+                Console.Error.WriteLine($"FAIL rejected without naming {field}: {e.Message}");
+                failures++;
+            }
+        }
+
+        foreach (var (what, json) in new[] { ("unknown field", """{"schema":1,"bogus":1}"""), ("unknown pawn field", """{"schema":1,"pawns":[{"id":"a","tail":true}]}""") })
+        {
+            try
+            {
+                RequestJson.Read(json);
+                Console.Error.WriteLine($"FAIL accepted JSON with an {what}");
+                failures++;
+            }
+            catch (RealFightRejected e)
+            {
+                Console.Error.WriteLine($"ok   rejected {what}: {e.Message}");
+            }
+        }
+
+        if (Verse.Find.Maps.Count != 0 || Verse.Find.WorldPawns.AllPawnsAliveOrDead.Count() != worldPawns)
+        {
+            Console.Error.WriteLine($"FAIL a rejected request built a map ({Verse.Find.Maps.Count}) or generated a pawn");
+            failures++;
+        }
+
+        var accept = With(Colonist with
+        {
+            Age = 41,
+            Xenotype = "Hussar",
+            Missing = ["left hand"],
+            Hediffs = [new("Cut", "right arm", 3), new("Cut", "right arm", 2.5), new("GoJuiceHigh", "", 0.5)],
+        });
+        var arena = new Arena(accept with { Verify = true });
+        var outcome = arena.Fight(1);
+        var read = arena.Readback.Pawns[0];
+        Console.Error.WriteLine($"accepted: age={read.Age:0.##} xenotype={read.Xenotype} missing=[{string.Join(",", read.Missing)}] hediffs=[{string.Join(", ", read.Hediffs)}] ticks={outcome.Ticks}");
+        if (read.Age < 40.9 || read.Xenotype != "Hussar" || read.Missing.Count != 1 || read.Hediffs.Count != 3)
+        {
+            Console.Error.WriteLine("FAIL the readback does not carry the request");
+            failures++;
+        }
+
+        // Determinism still holds with the new health: the same seed played twice gives one outcome.
+        if (outcome.Nondeterministic)
+        {
+            Console.Error.WriteLine("FAIL the accepted request is not deterministic");
+            failures++;
+        }
+
+        Console.Error.WriteLine(failures == 0 ? "request-check: PASS" : $"request-check: FAIL ({failures})");
+        return failures == 0 ? 0 : 1;
+    }
+
+    private static RealFightRequest With(RealPawn first) => Base with { Pawns = [first, Raider] };
+}
 
 internal sealed class SeatController : IFightController
 {

@@ -39,23 +39,36 @@ internal static class Program
             return Usage("--game, --request and --out are required");
         }
 
-        var request = JsonSerializer.Deserialize<RealFightRequest>(File.ReadAllText(requestPath), options)
-            ?? throw new InvalidOperationException("realcombat: empty request");
-        var startup = Stopwatch.StartNew();
-        GameHost.Boot(game);
-        var arena = new Arena(request);
-        var startupMs = startup.Elapsed.TotalMilliseconds;
-        var fights = Stopwatch.StartNew();
-        var outcomes = request.Seeds.Select(arena.Fight).ToList();
-        var result = new RealFightResult
+        try
         {
-            Name = request.Name,
-            Outcomes = outcomes,
-            FightMilliseconds = fights.Elapsed.TotalMilliseconds,
-            StartupMilliseconds = startupMs,
-        };
-        File.WriteAllText(outPath, JsonSerializer.Serialize(result, options));
-        return 0;
+            var request = RequestJson.Read(File.ReadAllText(requestPath));
+            var startup = Stopwatch.StartNew();
+            GameHost.Boot(game);
+            var arena = new Arena(request);
+            var startupMs = startup.Elapsed.TotalMilliseconds;
+            var fights = Stopwatch.StartNew();
+            var outcomes = request.Seeds.Select(arena.Fight).ToList();
+            var result = new RealFightResult
+            {
+                Name = request.Name,
+                Outcomes = outcomes,
+                FightMilliseconds = fights.Elapsed.TotalMilliseconds,
+                StartupMilliseconds = startupMs,
+                Readback = arena.Readback,
+            };
+            File.WriteAllText(outPath, JsonSerializer.Serialize(result, options));
+            return 0;
+        }
+        catch (RealFightRejected rejected)
+        {
+            // No result file: a rejected request has no outcomes. Each problem names its request field.
+            foreach (var problem in rejected.Problems)
+            {
+                Console.Error.WriteLine("realcombat: rejected: " + problem);
+            }
+
+            return 3;
+        }
     }
 
     private static int Usage(string problem)

@@ -35,6 +35,7 @@ public sealed class Arena
     /// <param name="stage">Builds standing structures on the map after the request's things, before the baseline (a defense compound the fight is played in); they are part of every fight's start.</param>
     public Arena(RealFightRequest req, Action<Map>? stage = null)
     {
+        RequestCheck.Validate(req);
         _req = req;
         _stage = stage;
         _map = GameHost.BuildMap(req.Width, req.Height);
@@ -43,6 +44,7 @@ public sealed class Arena
         _hostile.SetRelationDirect(Faction.OfPlayer, FactionRelationKind.Hostile, false);
         Sweep();
         Furnish();
+        _readback = ReadbackCheck.Arena(req, _map, _hostile);
         _baselineThings = [.. _map.listerThings.AllThings];
         _baselineWorldPawns = [.. Find.WorldPawns.AllPawnsAliveOrDead];
     }
@@ -125,6 +127,11 @@ public sealed class Arena
         }
     }
 
+    private RealReadback _readback;
+
+    /// <summary>What the game holds for the request, read back before the first tick; the pawns are those of the first fight played.</summary>
+    public RealReadback Readback => _readback;
+
     /// <summary>Plays the fight a seed fixes. Under Verify it plays it twice and reports a mismatch.</summary>
     public RealSeedOutcome Fight(int seed)
     {
@@ -166,6 +173,12 @@ public sealed class Arena
                 }
 
                 fighters.Add((spec, pawn));
+            }
+
+            var read = fighters.Select((f, i) => ReadbackCheck.Pawn(f.Spec, f.Pawn, i)).ToList();
+            if (_readback.Pawns.Count == 0)
+            {
+                _readback = _readback with { Pawns = read };
             }
 
             var ticks = Play(fighters);
@@ -319,8 +332,38 @@ public sealed class Arena
         };
     }
 
-    // A healthy adult of the kind, stripped of whatever the generator rolled (gear, hediffs, traits) and given what
-    // the request states. Unstated skills keep their rolled levels.
+    private static void ClearHealth(Pawn pawn)
+    {
+        foreach (var hediff in pawn.health.hediffSet.hediffs.ToList())
+        {
+            pawn.health.RemoveHediff(hediff);
+        }
+    }
+
+    // Missing parts first, then the hediffs on their parts. Parts resolve by label against the race's body.
+    private static void ApplyHealth(Pawn pawn, RealPawn spec)
+    {
+        var parts = pawn.RaceProps.body.AllParts;
+        foreach (var label in spec.Missing)
+        {
+            var part = parts.Single(r => r.Label == label);
+            var missing = (Hediff_MissingPart)HediffMaker.MakeHediff(HediffDefOf.MissingBodyPart, pawn, part);
+            missing.IsFresh = false;
+            pawn.health.AddHediff(missing, part);
+        }
+
+        foreach (var h in spec.Hediffs)
+        {
+            var part = h.Part.Length > 0 ? parts.Single(r => r.Label == h.Part) : null;
+            var hediff = HediffMaker.MakeHediff(DefDatabase<HediffDef>.GetNamed(h.Def), pawn, part);
+            hediff.Severity = (float)h.Severity;
+            pawn.health.AddHediff(hediff, part);
+        }
+    }
+
+    // A pawn of the kind at the requested age and xenotype, stripped of whatever the generator rolled (gear, hediffs,
+    // traits) and given what the request states: the request's hediffs and missing parts are its whole health. Unstated
+    // skills keep their rolled levels. The request was validated, so every def below exists.
     private Pawn MakePawn(RealPawn spec)
     {
         var kind = DefDatabase<PawnKindDef>.GetNamed(spec.Kind);
@@ -328,7 +371,10 @@ public sealed class Arena
         if (!kind.RaceProps.Humanlike)
         {
             // An animal or insect has no gear, traits or skills to strip.
-            return PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, PawnGenerationContext.NonPlayer, -1, forceGenerateNewPawn: true, canGeneratePawnRelations: false));
+            var animal = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, PawnGenerationContext.NonPlayer, -1, forceGenerateNewPawn: true, canGeneratePawnRelations: false));
+            ClearHealth(animal);
+            ApplyHealth(animal, spec);
+            return animal;
         }
 
         var pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
@@ -341,18 +387,14 @@ public sealed class Arena
             allowGay: false,
             allowFood: false,
             allowAddictions: false,
-            fixedBiologicalAge: 30f,
-            fixedChronologicalAge: 30f,
-            forcedXenotype: XenotypeDefOf.Baseliner,
+            fixedBiologicalAge: (float)spec.Age,
+            fixedChronologicalAge: (float)spec.Age,
+            forcedXenotype: DefDatabase<XenotypeDef>.GetNamed(spec.Xenotype),
             forceNoIdeo: true,
             forbidAnyTitle: true,
             mustBeCapableOfViolence: true));
         pawn.apparel.DestroyAll();
-        foreach (var hediff in pawn.health.hediffSet.hediffs.ToList())
-        {
-            pawn.health.RemoveHediff(hediff);
-        }
-
+        ClearHealth(pawn);
         foreach (var trait in pawn.story.traits.allTraits.ToList())
         {
             pawn.story.traits.RemoveTrait(trait);
@@ -377,10 +419,7 @@ public sealed class Arena
             pawn.apparel.Wear(apparel, false);
         }
 
-        foreach (var h in spec.Hediffs)
-        {
-            pawn.health.AddHediff(DefDatabase<HediffDef>.GetNamed(h));
-        }
+        ApplyHealth(pawn, spec);
 
         foreach (var c in spec.Carried)
         {
