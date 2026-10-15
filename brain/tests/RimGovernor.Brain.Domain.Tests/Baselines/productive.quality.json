@@ -1,0 +1,1525 @@
+[
+  {
+    "Budget": 1024,
+    "Quality": {
+      "Workers": 2,
+      "Tasks": 15,
+      "Options": 18,
+      "Roots": 8,
+      "CompositionExpansions": 1029,
+      "GenerationTruncated": false,
+      "Expansions": 1024,
+      "SearchTruncated": true,
+      "Selected": [
+        "food/0/delivery/0/eat/pawn/0/composition/1"
+      ],
+      "Feasible": true,
+      "CompletedAt": 250,
+      "LaborCost": 103,
+      "Physical": [
+        {
+          "Activity": "food/0/delivery/0/composition/2",
+          "Pawn": "helper",
+          "Depart": 92,
+          "Arrive": 92,
+          "Start": 92,
+          "End": 93,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/delivery/0/eat/pawn/0/composition/3",
+          "Pawn": "pawn",
+          "Depart": 240,
+          "Arrive": 240,
+          "Start": 240,
+          "End": 250,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 10,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/recipe/0/composition/1",
+          "Pawn": "helper",
+          "Depart": 1,
+          "Arrive": 1,
+          "Start": 1,
+          "End": 92,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 91,
+          "DisplacedLaborTicks": 91,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/supply/0/rice/4/composition/0",
+          "Pawn": "helper",
+          "Depart": 0,
+          "Arrive": 0,
+          "Start": 0,
+          "End": 1,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        }
+      ],
+      "BaselineVector": {
+        "Urgent": [
+          325,
+          96.875,
+          450,
+          450,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          1,
+          0
+        ],
+        "MoodExposure": 0,
+        "MoodDepth": 700,
+        "Development": 0,
+        "Labor": 0,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "SelectedVector": {
+        "Urgent": [
+          75,
+          34.375,
+          200,
+          200,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          1,
+          0
+        ],
+        "MoodExposure": null,
+        "MoodDepth": null,
+        "Development": 0,
+        "Labor": 103,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_mood",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "pawn|food|cell/3/1|240|250",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "Findings": [
+        "beyond_horizon_unassessed",
+        "conflicting_composition_choice:food/0/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/1/rice",
+        "cooking_poisoning_and_future_environment_unassessed",
+        "no_feasible_need_choice:food",
+        "no_feasible_need_choice:rest",
+        "physical_lot_quantity_shortfall:rice",
+        "portfolio_search_truncated",
+        "productive_learning_unassessed:helper:SimpleMeal",
+        "search_truncated",
+        "support_observation_unknown",
+        "unassessed_no_schedule_within_horizon",
+        "unknown_clothing_requirements"
+      ]
+    }
+  },
+  {
+    "Budget": 4096,
+    "Quality": {
+      "Workers": 2,
+      "Tasks": 15,
+      "Options": 18,
+      "Roots": 8,
+      "CompositionExpansions": 1029,
+      "GenerationTruncated": false,
+      "Expansions": 4096,
+      "SearchTruncated": true,
+      "Selected": [
+        "food/0/delivery/0/eat/pawn/0/composition/1"
+      ],
+      "Feasible": true,
+      "CompletedAt": 250,
+      "LaborCost": 103,
+      "Physical": [
+        {
+          "Activity": "food/0/delivery/0/composition/2",
+          "Pawn": "helper",
+          "Depart": 92,
+          "Arrive": 92,
+          "Start": 92,
+          "End": 93,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/delivery/0/eat/pawn/0/composition/3",
+          "Pawn": "pawn",
+          "Depart": 240,
+          "Arrive": 240,
+          "Start": 240,
+          "End": 250,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 10,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/recipe/0/composition/1",
+          "Pawn": "helper",
+          "Depart": 1,
+          "Arrive": 1,
+          "Start": 1,
+          "End": 92,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 91,
+          "DisplacedLaborTicks": 91,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/supply/0/rice/4/composition/0",
+          "Pawn": "helper",
+          "Depart": 0,
+          "Arrive": 0,
+          "Start": 0,
+          "End": 1,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        }
+      ],
+      "BaselineVector": {
+        "Urgent": [
+          325,
+          96.875,
+          450,
+          450,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          1,
+          0
+        ],
+        "MoodExposure": 0,
+        "MoodDepth": 700,
+        "Development": 0,
+        "Labor": 0,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "SelectedVector": {
+        "Urgent": [
+          75,
+          34.375,
+          200,
+          200,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          1,
+          0
+        ],
+        "MoodExposure": null,
+        "MoodDepth": null,
+        "Development": 0,
+        "Labor": 103,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_mood",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "pawn|food|cell/3/1|240|250",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "Findings": [
+        "beyond_horizon_unassessed",
+        "conflicting_composition_choice:food/0/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/1/rice",
+        "cooking_poisoning_and_future_environment_unassessed",
+        "equipment_occupied:food/0/recipe/0/composition/1:helper",
+        "equipment_occupied:food/0/recipe/0/composition/1:pawn",
+        "equipment_occupied:food/3/recipe/0/composition/6:helper",
+        "equipment_occupied:food/3/recipe/0/composition/6:pawn",
+        "no_feasible_need_choice:food",
+        "no_feasible_need_choice:rest",
+        "physical_lot_quantity_shortfall:rice",
+        "portfolio_search_truncated",
+        "productive_learning_unassessed:helper:SimpleMeal",
+        "search_truncated",
+        "support_observation_unknown",
+        "unknown_clothing_requirements"
+      ]
+    }
+  },
+  {
+    "Budget": 8192,
+    "Quality": {
+      "Workers": 2,
+      "Tasks": 15,
+      "Options": 18,
+      "Roots": 8,
+      "CompositionExpansions": 1029,
+      "GenerationTruncated": false,
+      "Expansions": 8192,
+      "SearchTruncated": true,
+      "Selected": [
+        "food/0/delivery/0/eat/pawn/0/composition/1",
+        "food/3/delivery/0/eat/pawn/0/composition/4"
+      ],
+      "Feasible": true,
+      "CompletedAt": 342,
+      "LaborCost": 208,
+      "Physical": [
+        {
+          "Activity": "food/0/delivery/0/composition/2",
+          "Pawn": "helper",
+          "Depart": 101,
+          "Arrive": 101,
+          "Start": 101,
+          "End": 102,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/delivery/0/eat/pawn/0/composition/3",
+          "Pawn": "pawn",
+          "Depart": 239,
+          "Arrive": 240,
+          "Start": 240,
+          "End": 250,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 11,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/recipe/0/composition/1",
+          "Pawn": "pawn",
+          "Depart": 1,
+          "Arrive": 1,
+          "Start": 1,
+          "End": 101,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 100,
+          "DisplacedLaborTicks": 100,
+          "RecoveryLaborTicks": 0,
+          "Learning": {
+            "Skill": "Cooking",
+            "Callback": {
+              "Id": "food/0/recipe/0/composition/1",
+              "Tick": 101,
+              "RawXp": 10,
+              "Path": 0,
+              "Practice": false
+            },
+            "Before": {
+              "Level": 1,
+              "StoredLevel": 1,
+              "Xp": 95,
+              "AppliedGain": 0,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "After": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 5,
+              "AppliedGain": 10,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "ObservedWorkTicks": 100,
+            "WorkTicks": 100,
+            "Provenance": "native-test"
+          }
+        },
+        {
+          "Activity": "food/0/supply/0/rice/4/composition/0",
+          "Pawn": "helper",
+          "Depart": 0,
+          "Arrive": 0,
+          "Start": 0,
+          "End": 1,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/delivery/0/composition/7",
+          "Pawn": "helper",
+          "Depart": 331,
+          "Arrive": 331,
+          "Start": 331,
+          "End": 332,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/delivery/0/eat/pawn/0/composition/11",
+          "Pawn": "pawn",
+          "Depart": 331,
+          "Arrive": 332,
+          "Start": 332,
+          "End": 342,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 11,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/recipe/0/composition/6",
+          "Pawn": "pawn",
+          "Depart": 250,
+          "Arrive": 251,
+          "Start": 251,
+          "End": 331,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 80,
+          "DisplacedLaborTicks": 81,
+          "RecoveryLaborTicks": 0,
+          "Learning": {
+            "Skill": "Cooking",
+            "Callback": {
+              "Id": "food/3/recipe/0/composition/6",
+              "Tick": 331,
+              "RawXp": 8,
+              "Path": 0,
+              "Practice": false
+            },
+            "Before": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 5,
+              "AppliedGain": 10,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "After": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 13,
+              "AppliedGain": 18,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "ObservedWorkTicks": 100,
+            "WorkTicks": 80,
+            "Provenance": "native-test"
+          }
+        },
+        {
+          "Activity": "food/3/supply/0/rice/4/composition/5",
+          "Pawn": "helper",
+          "Depart": 102,
+          "Arrive": 103,
+          "Start": 103,
+          "End": 104,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 2,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        }
+      ],
+      "BaselineVector": {
+        "Urgent": [
+          325,
+          96.875,
+          450,
+          450,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          1,
+          0
+        ],
+        "MoodExposure": 0,
+        "MoodDepth": 700,
+        "Development": 0,
+        "Labor": 0,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "SelectedVector": {
+        "Urgent": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          0,
+          0
+        ],
+        "MoodExposure": null,
+        "MoodDepth": null,
+        "Development": 0,
+        "Labor": 208,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_mood",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|332|342",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "Findings": [
+        "beyond_horizon_unassessed",
+        "conflicting_composition_choice:food/0/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/1/rice",
+        "cooking_poisoning_and_future_environment_unassessed",
+        "equipment_occupied:food/0/recipe/0/composition/1:helper",
+        "equipment_occupied:food/0/recipe/0/composition/1:pawn",
+        "equipment_occupied:food/3/recipe/0/composition/6:helper",
+        "equipment_occupied:food/3/recipe/0/composition/6:pawn",
+        "no_feasible_need_choice:food",
+        "no_feasible_need_choice:rest",
+        "physical_lot_quantity_shortfall:food/0/recipe/0",
+        "physical_lot_quantity_shortfall:rice",
+        "portfolio_search_truncated",
+        "productive_learning_unassessed:helper:SimpleMeal",
+        "search_truncated",
+        "support_observation_unknown",
+        "unknown_clothing_requirements"
+      ]
+    }
+  },
+  {
+    "Budget": 16384,
+    "Quality": {
+      "Workers": 2,
+      "Tasks": 15,
+      "Options": 18,
+      "Roots": 8,
+      "CompositionExpansions": 1029,
+      "GenerationTruncated": false,
+      "Expansions": 16384,
+      "SearchTruncated": true,
+      "Selected": [
+        "food/0/delivery/0/eat/pawn/0/composition/1",
+        "food/3/delivery/0/eat/pawn/1/composition/5"
+      ],
+      "Feasible": true,
+      "CompletedAt": 500,
+      "LaborCost": 206,
+      "Physical": [
+        {
+          "Activity": "food/0/delivery/0/composition/2",
+          "Pawn": "helper",
+          "Depart": 101,
+          "Arrive": 101,
+          "Start": 101,
+          "End": 102,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/delivery/0/eat/pawn/0/composition/3",
+          "Pawn": "pawn",
+          "Depart": 239,
+          "Arrive": 240,
+          "Start": 240,
+          "End": 250,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 11,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/recipe/0/composition/1",
+          "Pawn": "pawn",
+          "Depart": 1,
+          "Arrive": 1,
+          "Start": 1,
+          "End": 101,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 100,
+          "DisplacedLaborTicks": 100,
+          "RecoveryLaborTicks": 0,
+          "Learning": {
+            "Skill": "Cooking",
+            "Callback": {
+              "Id": "food/0/recipe/0/composition/1",
+              "Tick": 101,
+              "RawXp": 10,
+              "Path": 0,
+              "Practice": false
+            },
+            "Before": {
+              "Level": 1,
+              "StoredLevel": 1,
+              "Xp": 95,
+              "AppliedGain": 0,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "After": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 5,
+              "AppliedGain": 10,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "ObservedWorkTicks": 100,
+            "WorkTicks": 100,
+            "Provenance": "native-test"
+          }
+        },
+        {
+          "Activity": "food/0/supply/0/rice/4/composition/0",
+          "Pawn": "helper",
+          "Depart": 0,
+          "Arrive": 0,
+          "Start": 0,
+          "End": 1,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/delivery/0/composition/7",
+          "Pawn": "helper",
+          "Depart": 184,
+          "Arrive": 184,
+          "Start": 184,
+          "End": 185,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/delivery/0/eat/pawn/1/composition/12",
+          "Pawn": "pawn",
+          "Depart": 490,
+          "Arrive": 490,
+          "Start": 490,
+          "End": 500,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 10,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/recipe/0/composition/6",
+          "Pawn": "pawn",
+          "Depart": 104,
+          "Arrive": 104,
+          "Start": 104,
+          "End": 184,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 80,
+          "DisplacedLaborTicks": 80,
+          "RecoveryLaborTicks": 0,
+          "Learning": {
+            "Skill": "Cooking",
+            "Callback": {
+              "Id": "food/3/recipe/0/composition/6",
+              "Tick": 184,
+              "RawXp": 8,
+              "Path": 0,
+              "Practice": false
+            },
+            "Before": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 5,
+              "AppliedGain": 10,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "After": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 13,
+              "AppliedGain": 18,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "ObservedWorkTicks": 100,
+            "WorkTicks": 80,
+            "Provenance": "native-test"
+          }
+        },
+        {
+          "Activity": "food/3/supply/0/rice/4/composition/5",
+          "Pawn": "helper",
+          "Depart": 102,
+          "Arrive": 103,
+          "Start": 103,
+          "End": 104,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 2,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        }
+      ],
+      "BaselineVector": {
+        "Urgent": [
+          325,
+          96.875,
+          450,
+          450,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          1,
+          0
+        ],
+        "MoodExposure": 0,
+        "MoodDepth": 700,
+        "Development": 0,
+        "Labor": 0,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "SelectedVector": {
+        "Urgent": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          0,
+          0
+        ],
+        "MoodExposure": null,
+        "MoodDepth": null,
+        "Development": 0,
+        "Labor": 206,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_mood",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|490|500",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "Findings": [
+        "beyond_horizon_unassessed",
+        "conflicting_composition_choice:food/0/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/1/rice",
+        "cooking_poisoning_and_future_environment_unassessed",
+        "equipment_occupied:food/0/recipe/0/composition/1:helper",
+        "equipment_occupied:food/0/recipe/0/composition/1:pawn",
+        "equipment_occupied:food/3/recipe/0/composition/6:helper",
+        "equipment_occupied:food/3/recipe/0/composition/6:pawn",
+        "no_feasible_need_choice:food",
+        "no_feasible_need_choice:rest",
+        "physical_lot_quantity_shortfall:food/0/recipe/0",
+        "physical_lot_quantity_shortfall:rice",
+        "portfolio_search_truncated",
+        "productive_learning_unassessed:helper:SimpleMeal",
+        "search_truncated",
+        "support_observation_unknown",
+        "unknown_clothing_requirements"
+      ]
+    }
+  },
+  {
+    "Budget": 65536,
+    "Quality": {
+      "Workers": 2,
+      "Tasks": 15,
+      "Options": 18,
+      "Roots": 8,
+      "CompositionExpansions": 1029,
+      "GenerationTruncated": false,
+      "Expansions": 52654,
+      "SearchTruncated": true,
+      "Selected": [
+        "food/0/delivery/0/eat/pawn/0/composition/1",
+        "food/3/delivery/0/eat/pawn/1/composition/5"
+      ],
+      "Feasible": true,
+      "CompletedAt": 500,
+      "LaborCost": 206,
+      "Physical": [
+        {
+          "Activity": "food/0/delivery/0/composition/2",
+          "Pawn": "helper",
+          "Depart": 101,
+          "Arrive": 101,
+          "Start": 101,
+          "End": 102,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/delivery/0/eat/pawn/0/composition/3",
+          "Pawn": "pawn",
+          "Depart": 239,
+          "Arrive": 240,
+          "Start": 240,
+          "End": 250,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 11,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/recipe/0/composition/1",
+          "Pawn": "pawn",
+          "Depart": 1,
+          "Arrive": 1,
+          "Start": 1,
+          "End": 101,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 100,
+          "DisplacedLaborTicks": 100,
+          "RecoveryLaborTicks": 0,
+          "Learning": {
+            "Skill": "Cooking",
+            "Callback": {
+              "Id": "food/0/recipe/0/composition/1",
+              "Tick": 101,
+              "RawXp": 10,
+              "Path": 0,
+              "Practice": false
+            },
+            "Before": {
+              "Level": 1,
+              "StoredLevel": 1,
+              "Xp": 95,
+              "AppliedGain": 0,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "After": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 5,
+              "AppliedGain": 10,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "ObservedWorkTicks": 100,
+            "WorkTicks": 100,
+            "Provenance": "native-test"
+          }
+        },
+        {
+          "Activity": "food/0/supply/0/rice/4/composition/0",
+          "Pawn": "helper",
+          "Depart": 0,
+          "Arrive": 0,
+          "Start": 0,
+          "End": 1,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/delivery/0/composition/7",
+          "Pawn": "helper",
+          "Depart": 184,
+          "Arrive": 184,
+          "Start": 184,
+          "End": 185,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/delivery/0/eat/pawn/1/composition/12",
+          "Pawn": "pawn",
+          "Depart": 490,
+          "Arrive": 490,
+          "Start": 490,
+          "End": 500,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 10,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/recipe/0/composition/6",
+          "Pawn": "pawn",
+          "Depart": 104,
+          "Arrive": 104,
+          "Start": 104,
+          "End": 184,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 80,
+          "DisplacedLaborTicks": 80,
+          "RecoveryLaborTicks": 0,
+          "Learning": {
+            "Skill": "Cooking",
+            "Callback": {
+              "Id": "food/3/recipe/0/composition/6",
+              "Tick": 184,
+              "RawXp": 8,
+              "Path": 0,
+              "Practice": false
+            },
+            "Before": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 5,
+              "AppliedGain": 10,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "After": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 13,
+              "AppliedGain": 18,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "ObservedWorkTicks": 100,
+            "WorkTicks": 80,
+            "Provenance": "native-test"
+          }
+        },
+        {
+          "Activity": "food/3/supply/0/rice/4/composition/5",
+          "Pawn": "helper",
+          "Depart": 102,
+          "Arrive": 103,
+          "Start": 103,
+          "End": 104,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 2,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        }
+      ],
+      "BaselineVector": {
+        "Urgent": [
+          325,
+          96.875,
+          450,
+          450,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          1,
+          0
+        ],
+        "MoodExposure": 0,
+        "MoodDepth": 700,
+        "Development": 0,
+        "Labor": 0,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "SelectedVector": {
+        "Urgent": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          0,
+          0
+        ],
+        "MoodExposure": null,
+        "MoodDepth": null,
+        "Development": 0,
+        "Labor": 206,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_mood",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|490|500",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "Findings": [
+        "beyond_horizon_unassessed",
+        "conflicting_composition_choice:food/0/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/1/rice",
+        "cooking_poisoning_and_future_environment_unassessed",
+        "equipment_occupied:food/0/recipe/0/composition/1:helper",
+        "equipment_occupied:food/0/recipe/0/composition/1:pawn",
+        "equipment_occupied:food/3/recipe/0/composition/6:helper",
+        "equipment_occupied:food/3/recipe/0/composition/6:pawn",
+        "no_feasible_need_choice:food",
+        "no_feasible_need_choice:rest",
+        "physical_lot_quantity_shortfall:food/0/recipe/0",
+        "physical_lot_quantity_shortfall:food/3/recipe/0",
+        "physical_lot_quantity_shortfall:food/3/recipe/1",
+        "physical_lot_quantity_shortfall:rice",
+        "portfolio_search_truncated",
+        "productive_learning_unassessed:helper:SimpleMeal",
+        "search_truncated",
+        "support_observation_unknown",
+        "unknown_clothing_requirements"
+      ]
+    }
+  },
+  {
+    "Budget": 262144,
+    "Quality": {
+      "Workers": 2,
+      "Tasks": 15,
+      "Options": 18,
+      "Roots": 8,
+      "CompositionExpansions": 1029,
+      "GenerationTruncated": false,
+      "Expansions": 52654,
+      "SearchTruncated": true,
+      "Selected": [
+        "food/0/delivery/0/eat/pawn/0/composition/1",
+        "food/3/delivery/0/eat/pawn/1/composition/5"
+      ],
+      "Feasible": true,
+      "CompletedAt": 500,
+      "LaborCost": 206,
+      "Physical": [
+        {
+          "Activity": "food/0/delivery/0/composition/2",
+          "Pawn": "helper",
+          "Depart": 101,
+          "Arrive": 101,
+          "Start": 101,
+          "End": 102,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/delivery/0/eat/pawn/0/composition/3",
+          "Pawn": "pawn",
+          "Depart": 239,
+          "Arrive": 240,
+          "Start": 240,
+          "End": 250,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 11,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/0/recipe/0/composition/1",
+          "Pawn": "pawn",
+          "Depart": 1,
+          "Arrive": 1,
+          "Start": 1,
+          "End": 101,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 100,
+          "DisplacedLaborTicks": 100,
+          "RecoveryLaborTicks": 0,
+          "Learning": {
+            "Skill": "Cooking",
+            "Callback": {
+              "Id": "food/0/recipe/0/composition/1",
+              "Tick": 101,
+              "RawXp": 10,
+              "Path": 0,
+              "Practice": false
+            },
+            "Before": {
+              "Level": 1,
+              "StoredLevel": 1,
+              "Xp": 95,
+              "AppliedGain": 0,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "After": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 5,
+              "AppliedGain": 10,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "ObservedWorkTicks": 100,
+            "WorkTicks": 100,
+            "Provenance": "native-test"
+          }
+        },
+        {
+          "Activity": "food/0/supply/0/rice/4/composition/0",
+          "Pawn": "helper",
+          "Depart": 0,
+          "Arrive": 0,
+          "Start": 0,
+          "End": 1,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/delivery/0/composition/7",
+          "Pawn": "helper",
+          "Depart": 184,
+          "Arrive": 184,
+          "Start": 184,
+          "End": 185,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 1,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/delivery/0/eat/pawn/1/composition/12",
+          "Pawn": "pawn",
+          "Depart": 490,
+          "Arrive": 490,
+          "Start": 490,
+          "End": 500,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 10,
+          "DisplacedLaborTicks": 10,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        },
+        {
+          "Activity": "food/3/recipe/0/composition/6",
+          "Pawn": "pawn",
+          "Depart": 104,
+          "Arrive": 104,
+          "Start": 104,
+          "End": 184,
+          "TravelTicks": 0,
+          "WaitTicks": 0,
+          "WorkTicks": 80,
+          "DisplacedLaborTicks": 80,
+          "RecoveryLaborTicks": 0,
+          "Learning": {
+            "Skill": "Cooking",
+            "Callback": {
+              "Id": "food/3/recipe/0/composition/6",
+              "Tick": 184,
+              "RawXp": 8,
+              "Path": 0,
+              "Practice": false
+            },
+            "Before": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 5,
+              "AppliedGain": 10,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "After": {
+              "Level": 2,
+              "StoredLevel": 2,
+              "Xp": 13,
+              "AppliedGain": 18,
+              "DecayLoss": 0,
+              "RangeBudget": null,
+              "Findings": []
+            },
+            "ObservedWorkTicks": 100,
+            "WorkTicks": 80,
+            "Provenance": "native-test"
+          }
+        },
+        {
+          "Activity": "food/3/supply/0/rice/4/composition/5",
+          "Pawn": "helper",
+          "Depart": 102,
+          "Arrive": 103,
+          "Start": 103,
+          "End": 104,
+          "TravelTicks": 1,
+          "WaitTicks": 0,
+          "WorkTicks": 1,
+          "DisplacedLaborTicks": 2,
+          "RecoveryLaborTicks": 0,
+          "Learning": null
+        }
+      ],
+      "BaselineVector": {
+        "Urgent": [
+          325,
+          96.875,
+          450,
+          450,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          1,
+          0
+        ],
+        "MoodExposure": 0,
+        "MoodDepth": 700,
+        "Development": 0,
+        "Labor": 0,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "SelectedVector": {
+        "Urgent": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Needs": [
+          null,
+          null,
+          0,
+          0,
+          0,
+          0
+        ],
+        "MoodExposure": null,
+        "MoodDepth": null,
+        "Development": 0,
+        "Labor": 206,
+        "Unknown": [
+          "serious_harm_probability_unassessed",
+          "unassessed_mood",
+          "unassessed_thermal_exposure"
+        ],
+        "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|490|500",
+        "Support": {
+          "UrgentFirstCareTicks": 0,
+          "PendingCareBatches": 0,
+          "FirstCareTicks": 0,
+          "UnsuppliedDemand": 0,
+          "FoodPoisonExposure": 0,
+          "FoodProduction": "",
+          "CareRoomFactor": 0,
+          "TendQuality": 0,
+          "CareServices": "",
+          "SurgeryRoomFactor": 0,
+          "Findings": []
+        }
+      },
+      "Findings": [
+        "beyond_horizon_unassessed",
+        "conflicting_composition_choice:food/0/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/0/rice",
+        "conflicting_composition_choice:food/3/supply-choice/1/rice",
+        "cooking_poisoning_and_future_environment_unassessed",
+        "equipment_occupied:food/0/recipe/0/composition/1:helper",
+        "equipment_occupied:food/0/recipe/0/composition/1:pawn",
+        "equipment_occupied:food/3/recipe/0/composition/6:helper",
+        "equipment_occupied:food/3/recipe/0/composition/6:pawn",
+        "no_feasible_need_choice:food",
+        "no_feasible_need_choice:rest",
+        "physical_lot_quantity_shortfall:food/0/recipe/0",
+        "physical_lot_quantity_shortfall:food/3/recipe/0",
+        "physical_lot_quantity_shortfall:food/3/recipe/1",
+        "physical_lot_quantity_shortfall:rice",
+        "portfolio_search_truncated",
+        "productive_learning_unassessed:helper:SimpleMeal",
+        "search_truncated",
+        "support_observation_unknown",
+        "unknown_clothing_requirements"
+      ]
+    }
+  }
+]

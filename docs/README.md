@@ -52,6 +52,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Trace shared helper coordination through supply and finishing | [Live construction Method](developers/contracts/pawn-activities.md#live-material-delivery-and-building) |
 | Choose cleaning, demand-driven deliveries and useful chunk work | [Support work](developers/contracts/support-work.md), [case disposition](developers/contracts/support-work.md#execution-and-evidence) |
 | Change the native boundary | [Wire contracts](../contracts/README.md) |
+| Measure coupled portfolio allocations and bounded selection quality | [Portfolio allocation baseline](developers/testing/portfolio-allocations.md) |
 
 ## Gameplay and remote evidence
 

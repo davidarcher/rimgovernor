@@ -95,6 +95,20 @@ public sealed class ProductiveLearningTests
     [InlineData(.1, .5, "helper")]
     public void NormalFoodCompositionAndSharedSelectionValueLearningThroughLaterDemandedMeals(double learning, double speed, string chosen)
     {
+        var facts = NormalFoodFacts(learning, speed);
+        var generated = GenerateCoupledActivities(facts, 700)!;
+        var request = CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated }, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+        var selection = CompareActivityOutcomes(request, generated);
+        var batch = Assert.IsType<PawnActivities>(StartCoupledActivity(selection, generated, 1, "cooking", 100));
+        var recipes = batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Recipe).ToArray();
+        Assert.True(recipes.Length == 2, $"recipes={recipes.Length}; selected={string.Join(';', selection.Selection.Selected)}; expansions={selection.Selection.Expansions}; findings={string.Join(';', selection.Selection.Findings)}; alternatives={generated.Alternatives.Count}");
+        Assert.All(recipes, t => Assert.Equal(chosen, t.Pawn));
+        Assert.All(recipes, t => Assert.True(generated.Context.Activities.Activities.Single(a => a.Id == t.Id).RequiresFoodUse));
+        if (learning > 0 && speed == 1) Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => a.Learning is not null));
+    }
+    internal static RoundsFacts NormalFoodFacts(double learning = .1, double speed = 1)
+    {
         var novice = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "SimpleMeal", 100 / speed) with
             { AvailableInput = 8, SkillWork = Work(speed, learning), CanSupply = false, CanDeliver = false };
         var facts = ForecastPortfolioChoiceTests.Observed([novice, novice with { Pawn = "helper", WorkTicks = Known(91d), SkillWork = null, CanSupply = true, CanDeliver = true }],
@@ -108,15 +122,6 @@ public sealed class ProductiveLearningTests
             Coupled = read with { FoodUses = EquatableArray.From(read.FoodUses.Select(u => u with { Nutrition = Known(.5), FreshTicks = Known(2000d) })) }
         } };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        var generated = GenerateCoupledActivities(facts, 700)!;
-        var request = CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
-            facts with { CoupledAlternatives = generated }, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
-        var selection = CompareActivityOutcomes(request, generated);
-        var batch = Assert.IsType<PawnActivities>(StartCoupledActivity(selection, generated, 1, "cooking", 100));
-        var recipes = batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Recipe).ToArray();
-        Assert.True(recipes.Length == 2, $"recipes={recipes.Length}; selected={string.Join(';', selection.Selection.Selected)}; expansions={selection.Selection.Expansions}; findings={string.Join(';', selection.Selection.Findings)}; alternatives={generated.Alternatives.Count}");
-        Assert.All(recipes, t => Assert.Equal(chosen, t.Pawn));
-        Assert.All(recipes, t => Assert.True(generated.Context.Activities.Activities.Single(a => a.Id == t.Id).RequiresFoodUse));
-        if (learning > 0 && speed == 1) Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => a.Learning is not null));
+        return facts;
     }
 }

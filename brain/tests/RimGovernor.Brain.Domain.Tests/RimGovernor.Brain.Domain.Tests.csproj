@@ -31,4 +31,7 @@
     <ProjectReference Include="../../src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Baselines/*.quality.json" LogicalName="RimGovernor.Brain.Domain.Tests.%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>
