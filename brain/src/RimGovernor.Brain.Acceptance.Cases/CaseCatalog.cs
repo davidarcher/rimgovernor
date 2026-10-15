@@ -21,6 +21,7 @@ public static class CaseCatalog
         registry.Register(ProductiveCookingCase.Case());
         registry.Register(MaintenancePracticeCase.Case(false));
         registry.Register(MaintenancePracticeCase.Case(true));
+        registry.Register(ServiceInvestmentCase.Case());
         registry.Register(PawnControlCase.Case());
         registry.Register(PawnControlCase.LifecycleCase());
         registry.Register(PawnDeliveryCase.Case());

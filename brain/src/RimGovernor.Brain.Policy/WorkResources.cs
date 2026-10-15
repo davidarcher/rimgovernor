@@ -125,7 +125,7 @@ public static partial class PolicyFunctions
             }
             if (row.Action.Building is { } building && row.Action.ConstructionTarget.Length == 0)
             {
-                // Current sites already contribute their outstanding quantities through ConstructionDeficit.
+                // Placement has become an observed optional site. Its selected supply activity owns remaining materials.
                 if (evidence.Standing.TryGetValue(out var standing) && standing.Contains(building)) continue;
                 if (!progress.Unresolved && progress.Stage is Stage.Completed or Stage.Cancelled or Stage.Unsuccessful && progress.Tick < evidence.Tick
                     && evidence.Standing.IsKnown) continue;
@@ -143,6 +143,10 @@ public static partial class PolicyFunctions
             if (row.Action.PawnActivities is not { } batch) continue;
             foreach (var task in batch.Tasks)
             {
+                var owner = batch.Orders.FirstOrDefault(o => o.Pawn == task.Pawn && !o.Release);
+                if (owner is not null && progress.Attempt.Value > 0 && !progress.Unresolved && progress.Tick < evidence.Tick
+                    && evidence.WorkResources.TryGetValue(out var owners) && owners.Any(p => p.Pawn == owner.Pawn
+                        && (p.Assignment != owner.Assignment || p.Revision != owner.Revision))) continue;
                 // Preparation owns the selected future service too, not only its approach cell.
                 // Produced food keeps its unresolved identity until native output rebinding.
                 if (task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation

@@ -16,6 +16,7 @@ public sealed record ForecastCoupledSelection(ForecastActivityOutcomeComparison 
     EquatableArray<ForecastPortfolioEvidence> Rejected, double Horizon, bool GenerationTruncated)
 {
     public int CompositionExpansions { get; init; }
+    public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
     public EquatableArray<ForecastDeferredPawn> Deferred { get; init; }
 }
 public sealed record ForecastDeferredPawn(string Pawn, Cell Location, long Until);
@@ -100,6 +101,15 @@ public static partial class PolicyFunctions
             foreach (var outcome in feasible)
             {
                 var vector = CoupledConsequences(outcome, commitments);
+                // Physical feasibility does not certify optional investment. Partial shells retain
+                // unknown exposure; they cannot win by hiding it. Keep expanding complementary roots.
+                if (outcome.Plan.Allocations.Any(a => candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
+                    && (binding.SiteDefinition.Length != 0 || binding.Job == "BuildRoof"))
+                    && (!outcome.StationaryThermalRelief.IsKnown || outcome.StationaryThermalRelief.Value <= 0))
+                {
+                    evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "construction_without_supported_service_relief"));
+                    continue;
+                }
                 var rank = CompareConsequences(vector, bestVector);
                 // Consequence ties never release a retained incumbent to save nominal labor.
                 var retainsSelectedIncumbents = selected.Where(incumbentIds.Contains).All(id => additions.Any(c => c.Id == id));
@@ -137,7 +147,9 @@ public static partial class PolicyFunctions
         if (deferred.Count > deferredCapacity) findings.Add("deferred_pawn_limit");
         return new(new(selected, best.Plan, default, findings.ToArray(), expansions, truncated), baseline, best,
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
-        { CompositionExpansions = candidates.CompositionExpansions, Deferred = EquatableArray.From(deferred.Take(deferredCapacity)) };
+        { CompositionExpansions = candidates.CompositionExpansions,
+            ServiceInvestments = ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
+            Deferred = EquatableArray.From(deferred.Take(deferredCapacity)) };
     }
 
     private static bool CompatiblePortfolio(IEnumerable<ForecastCommitment> input)
@@ -175,8 +187,7 @@ public static partial class PolicyFunctions
             Metric("rest", n => n.FinalLevel.IsKnown ? Known(n.FinalLevel.Value == 0 ? 1.0 : 0.0) : default) };
         // Delivered clothing is development, not wearing or physiological thermal protection.
         var development = commitments.Where(c => c.Outcome?.Requirements is not null)
-            .SelectMany(c => c.Outcome!.Requirements!.Relief).GroupBy(r => r.Need).Sum(g => Math.Min(1, g.Sum(r => r.Fraction)))
-            + outcome.CompletedDevelopmentSites.Count;
+            .SelectMany(c => c.Outcome!.Requirements!.Relief).GroupBy(r => r.Need).Sum(g => Math.Min(1, g.Sum(r => r.Fraction)));
         var moods = outcome.Needs.Values.Select(n => n.Mood).ToArray();
         var moodKnown = moods.Length > 0 && moods.All(m => m is not null && m.TargetExposureTicks.IsKnown && m.PressureTicks.IsKnown);
         if (!moodKnown) unknown.Add("unassessed_mood");

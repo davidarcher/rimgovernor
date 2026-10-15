@@ -84,6 +84,10 @@ public sealed partial class Rounder
                         ["terminal"] = Number(mood.TerminalMood), ["unknown"] = mood.Findings.ToArray()
                     } : null
                 }).ToArray(),
+                ["service_investments"] = selection.ServiceInvestments.Select(i => new Dictionary<string, object?>
+                { ["owner"] = i.Target.Owner.Value, ["predicate"] = i.Target.Predicate, ["horizon_ticks"] = i.HorizonTicks,
+                    ["beneficiaries"] = i.Beneficiaries.ToArray(), ["tasks"] = i.Tasks.ToArray(),
+                    ["metric"] = i.Metric, ["avoided_exposure"] = Number(i.AvoidedExposure), ["retirement"] = i.Retirement }).ToArray(),
                 ["predicted_tasks"] = selection.Selected.Plan.Allocations.Select(a => new Dictionary<string, object?>
                 { ["task"] = a.Activity, ["pawn"] = a.Pawn, ["start"] = a.Start, ["end"] = a.End,
                     ["productive_learning"] = a.Learning is { } learning ? new Dictionary<string, object?>

@@ -23,7 +23,7 @@ public sealed class ProductionAdmissionTests
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "TestArt" },
             Skills = new Dictionary<string, ProfileSkill> { ["TestArt"] = new() { Name = "TestArt", Level = 8 } } }]),
-        Resources = Known<EquatableArray<Amount>>([new(Wood, 100), new(Other, 100)]),
+        Resources = Known<EquatableArray<Amount>>([new(Wood, 60), new(Other, 100)]),
         ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Wood] = 40 }),
         BillReservations = Known(default(EquatableArray<IngredientReservation>)),
         WorkAdmission = new()
@@ -46,7 +46,7 @@ public sealed class ProductionAdmissionTests
         Assert.True(Fits(e, [], Batch("first")));
         Assert.False(Fits(e, [Batch("first")], Batch("second")));
         Assert.False(Fits(e, [], Batch("first"), Batch("second")));
-        Assert.True(Fits(Evidence(Facts with { ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) }), [], Batch("first"), Batch("second")));
+        Assert.True(Fits(Evidence(Facts with { Resources = Known<EquatableArray<Amount>>([new(Wood, 100), new(Other, 100)]) }), [], Batch("first"), Batch("second")));
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class ProductionAdmissionTests
         var request = new RoundsRequest { Current = World, Tick = Facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = Facts };
         var full = journal.ReviewRounds(request, ct);
         var immediate = journal.ReviewRounds(request with { Revision = full.Review.Revision, Immediate = true, Tick = new Tick(101), Facts = new() }, ct);
-        Assert.Equal(100, journal.LoadRounds(ct).WorkEvidence!.Stock.Value[0].Count);
+        Assert.Equal(60, journal.LoadRounds(ct).WorkEvidence!.Stock.Value[0].Count);
         var unread = journal.ReviewRounds(request with { Revision = immediate.Review.Revision, Tick = new Tick(102), Facts = Facts with { Resources = default } }, ct);
         var owner = Assert.Single(unread.Standards, s => s.Standard.Kind == MaintainWorkLedger);
         Assert.Throws<ProductionMaterialException>(() => journal.CommitMethod(owner.Standard.Id, owner.Revision, new MethodId("unread"), Plan("unread"), ct));

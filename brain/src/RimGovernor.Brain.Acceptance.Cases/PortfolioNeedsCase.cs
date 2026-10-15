@@ -46,13 +46,16 @@ internal static class PortfolioNeedsCase
                         .Select(row => (row.Kind, Attrs: (IReadOnlyDictionary<string, object?>)row.Payload["attrs"]!)).ToArray();
                     var selectedEvidence = evidence.Any(row => row.Kind == "coupled_selection"
                         && row.Attrs.TryGetValue("selected_ids", out var ids) && ids is IReadOnlyCollection<object?> { Count: > 0 });
+                    var investmentEvidence = evidence.Any(row => row.Kind == "coupled_selection"
+                        && row.Attrs.TryGetValue("service_investments", out var investments) && investments is IReadOnlyCollection<object?> { Count: > 0 });
                     var observedEvidence = evidence.Any(row => row.Kind == "coupled_observed"
                         && (row.Attrs.TryGetValue("satisfied_tasks", out var satisfied) && satisfied is IReadOnlyCollection<object?> { Count: > 0 }
                             || row.Attrs.TryGetValue("native_states", out var states) && states is IReadOnlyCollection<object?> values
                                 && values.OfType<string>().Any(state => state.EndsWith(":completed", StringComparison.Ordinal))));
                     s.Report["selectionEvidence"] = selectedEvidence;
+                    s.Report["investmentEvidence"] = investmentEvidence;
                     s.Report["observedEvidence"] = observedEvidence;
-                    var complete = journaled && selectedEvidence && observedEvidence && read["rebound"].Flag() && read["ate"].Flag() && read["slept"].Flag() && read["woke"].Flag() && read["played"].Flag();
+                    var complete = investmentEvidence && journaled && selectedEvidence && observedEvidence && read["rebound"].Flag() && read["ate"].Flag() && read["slept"].Flag() && read["woke"].Flag() && read["played"].Flag();
                     if (complete && !repeated)
                     {
                         s.Report["firstCycle"] = read.DeepClone();

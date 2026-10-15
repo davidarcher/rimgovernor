@@ -12,7 +12,7 @@ public sealed record ForecastThermalExposure(string Pawn, double AssessedTicks, 
 public static partial class PolicyFunctions
 {
     public static EquatableArray<ForecastThermalExposure> ForecastThermalExposureOf(ForecastCoupledContext context,
-        ForecastActivityProblem problem, ForecastActivityPlan schedule, EquatableArray<ForecastShelterOutcome> shelters, double horizon)
+        ForecastActivityProblem problem, ForecastActivityPlan schedule, EquatableArray<ForecastShelterOutcome> shelters, double horizon, ForecastActivityPlan? physicalSchedule = null)
     {
         var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
         var physical = context.Thermal?.Cells.ToDictionary(c => Methods.Generation.ForecastLocations.Of(c.Cell)) ?? [];
@@ -32,7 +32,12 @@ public static partial class PolicyFunctions
                     var projection = room is null ? null : shelters.SingleOrDefault(s => s.Room == room.Room);
                     var from = allocation.Arrive; var end = Math.Min(horizon, allocation.End);
                     if (from >= end) continue;
-                    if (room is null && cell.Temperature.TryGetValue(out var ambient)) Integrate(from, end, ambient, ambient);
+                    // An untouched proposed room is still the observed physical location. Its absent
+                    // future prerequisites must not erase known exposure from the no-investment baseline.
+                    var untouched = room is not null && projection?.Findings.Contains("incomplete_shelter_prerequisites") == true
+                        && !(physicalSchedule ?? schedule).Allocations.Any(a => room.Prerequisites.Contains(a.Activity)
+                            || room.AlternativePrerequisites.Any(g => g.Contains(a.Activity)));
+                    if ((room is null || untouched) && cell.Temperature.TryGetValue(out var ambient)) Integrate(from, end, ambient, ambient);
                     else if (projection is { TemperatureAtHorizon.IsKnown: true, CompleteAt.IsKnown: true })
                     {
                         if (from < projection.CompleteAt.Value && room!.Outdoors.TryGetValue(out var before))

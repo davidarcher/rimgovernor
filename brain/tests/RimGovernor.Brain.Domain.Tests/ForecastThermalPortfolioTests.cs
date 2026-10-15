@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ForecastThermalPortfolioTests
 {
     private const double Horizon = 1000;
-    private static RoundsFacts Review(double ambient, bool demand = true, bool occupiedInside = true, bool restDemand = true)
+    internal static RoundsFacts Review(double ambient, bool demand = true, bool occupiedInside = true, bool restDemand = true)
     {
         var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
@@ -56,7 +56,7 @@ public sealed class ForecastThermalPortfolioTests
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         return facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
     }
-    private static ForecastCoupledSelection Select(RoundsFacts facts) => CompareActivityOutcomes(
+    internal static ForecastCoupledSelection Select(RoundsFacts facts) => CompareActivityOutcomes(
         CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, new(),
             new() { Work = ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
 
@@ -80,8 +80,10 @@ public sealed class ForecastThermalPortfolioTests
     {
         var warm = Select(Review(20));
         Assert.Equal(Known(0d), warm.Selected.StationaryThermalRelief);
+        Assert.Empty(warm.Selected.CompletedDevelopmentSites);
         var outside = Select(Review(-10, occupiedInside: false));
         Assert.Equal(Known(0d), outside.Selected.StationaryThermalRelief);
+        Assert.Empty(outside.Selected.CompletedDevelopmentSites);
         var noDemand = Select(Review(20, demand: false, restDemand: false));
         Assert.Empty(noDemand.Selection.Selected);
         Assert.Empty(noDemand.Selected.Plan.Allocations);

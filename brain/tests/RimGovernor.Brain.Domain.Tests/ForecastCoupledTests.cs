@@ -171,7 +171,7 @@ public sealed class ForecastCoupledTests
     public void ExactSelectedConstructionOwnsItsReservedMaterialOnce()
     {
         var facts = ConstructionReview();
-        Assert.Equal(0, facts.WorkView!.Materials.Value[new("Rice")].Value);
+        Assert.Equal(100, facts.WorkView!.Materials.Value[new("Rice")].Value); // Unselected sites do not reserve stock.
         var selected = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         Assert.Contains(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
     }

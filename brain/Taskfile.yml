@@ -12,6 +12,7 @@ tasks:
       - '**/*.props'
       - '**/*.editorconfig'
       - '**/packages.lock.json'
+      - 'tests/**/Baselines/*.json'
       - 'analyzers/baseline/*.txt'
       - 'analyzers/**/data/*.txt'
       - 'RimGovernor.Brain.sln'

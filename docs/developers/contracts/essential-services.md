@@ -79,3 +79,51 @@ assessments already provided by those service owners.
 All evidence is transient and attached to the full review. Existing Concern
 ownership and the Method journal remain the only owners of admitted attempts.
 No assessment assigns a value to XP or authorizes speculative spending.
+
+## Autonomous food and shelter investment
+
+Normal coupled selection compares supported harvest, delivery, cooking and ingestion
+chains and physical shelter completion against continuing/defer over one bounded
+horizon. `ForecastCoupledSelection.ServiceInvestments` explains selected work using
+existing Concern targets, actual beneficiaries, physical task identities, horizon,
+measured avoided exposure and retirement conditions. These transient explanations
+carry no extra demand or reservation and award no XP or construction-completion bonus.
+All unfinished blueprints/frames participate regardless of origin. Unknown benefits,
+unoccupied shelters, unavailable energy, missing materials or work finishing too late
+cannot certify service relief. The same observed stock, production promises, journal
+claims and native bill reservations constrain every family.
+
+A standing site is optional demand, not a blanket material reservation. Its full
+outstanding cost remains in construction diagnostics and acquisition demand; the
+shared admission budget reserves materials only for admitted work. Selected supply
+tasks publish exact remaining inputs through the existing journal claim owner, with
+carried/delivered material removed by fresh native evidence. Native bill holds and
+unresolved action claims remain protected. No site is cancelled or demolished when
+its investment loses value. Explicit control settings, forbidden targets and native
+player-job ownership remain authoritative.
+
+Food work retires at a physical task boundary when fresh beneficiary trajectories
+establish no hunger shortfall through the remaining selected horizon. This includes
+harvest and ordinary cooking without skill-learning evidence. Missing or truncated
+need evidence cannot establish recovery. Shelter work releases at a safe completed
+work boundary and ordinary review compares the remaining physical chain again. This
+release means reconsideration, not service satisfaction; busy participants keep their
+ownership until a safe boundary. Newly observed completion, alternate capacity,
+changed demand, costs and control can therefore revise the next choice without a
+second goal store. Existing ownership-loss and authority cleanup still apply.
+
+The supported shelter estimate remains conditional on observed weather/power and
+modeled stationary use. An untouched planned room retains the observed location's
+baseline temperature; absent future prerequisites do not erase present exposure.
+A partially changed or unsupported shell remains unknown. `CompletedDevelopmentSites`
+is physical forecast evidence only, never utility. Clothing delivery retains its
+independently used coverage diagnostic; food runway, building placement/layout,
+unsupported thermal equipment and medical/power stress diagnostics retain their
+existing owners. No speculative crop/animal trajectory or new remedy is inferred.
+
+`ServiceInvestmentTests` and the food/thermal portfolio tests cover paired benefit,
+scarcity, timing, control and retirement. Prepared `shelter/service-investment` uses
+ordinary review/journal/Hands and requires actual frame work, powered heat and warming
+while unrelated construction stays in place. `production/coupled-needs` supplies the
+corresponding normal harvest/ingestion evidence; `production/productive-cooking`
+covers useful cooking. Registration and compilation do not establish gameplay success.

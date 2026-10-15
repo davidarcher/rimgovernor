@@ -203,7 +203,6 @@ namespace HomeBridge.BridgeTools
             return site is IConstructible construction && site.Faction == Faction.OfPlayer
                 && !site.IsForbidden(pawn) && !target.IsForbidden(pawn) && target.stackCount >= step.Count
                 && construction.ThingCountNeeded(target.def) >= step.Count
-                && !ConstructionTierGate.Blocked(pawn, site, target.def)
                 && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) && !pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
                 && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
                 && (pawn.carryTracker.CarriedThing == null || pawn.carryTracker.CarriedThing == target && target.stackCount == step.Count)

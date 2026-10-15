@@ -99,6 +99,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -139,6 +140,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "pawn|food|cell/3/1|240|250",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -154,6 +156,7 @@
         }
       },
       "Findings": [
+        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/3/supply-choice/0/rice",
@@ -163,12 +166,16 @@
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
+        "practice_held_essential_emergency_or_unknown",
+        "practice_observation_unknown",
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
         "unassessed_no_schedule_within_horizon",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry"
+        "unknown_observed_shelter_geometry",
+        "unsupported_defensive_improvement_without_assignment:helper",
+        "unsupported_defensive_improvement_without_assignment:pawn"
       ]
     }
   },
@@ -272,6 +279,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -312,6 +320,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "pawn|food|cell/3/1|240|250",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -327,6 +336,7 @@
         }
       },
       "Findings": [
+        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/3/supply-choice/0/rice",
@@ -340,11 +350,15 @@
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
+        "practice_held_essential_emergency_or_unknown",
+        "practice_observation_unknown",
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry"
+        "unknown_observed_shelter_geometry",
+        "unsupported_defensive_improvement_without_assignment:helper",
+        "unsupported_defensive_improvement_without_assignment:pawn"
       ]
     }
   },
@@ -565,6 +579,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -605,6 +620,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|332|342",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -620,6 +636,7 @@
         }
       },
       "Findings": [
+        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/3/supply-choice/0/rice",
@@ -634,11 +651,15 @@
         "physical_lot_quantity_shortfall:food/0/recipe/0",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
+        "practice_held_essential_emergency_or_unknown",
+        "practice_observation_unknown",
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry"
+        "unknown_observed_shelter_geometry",
+        "unsupported_defensive_improvement_without_assignment:helper",
+        "unsupported_defensive_improvement_without_assignment:pawn"
       ]
     }
   },
@@ -859,6 +880,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -899,6 +921,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|490|500",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -914,6 +937,7 @@
         }
       },
       "Findings": [
+        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/3/supply-choice/0/rice",
@@ -928,11 +952,15 @@
         "physical_lot_quantity_shortfall:food/0/recipe/0",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
+        "practice_held_essential_emergency_or_unknown",
+        "practice_observation_unknown",
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry"
+        "unknown_observed_shelter_geometry",
+        "unsupported_defensive_improvement_without_assignment:helper",
+        "unsupported_defensive_improvement_without_assignment:pawn"
       ]
     }
   },
@@ -1153,6 +1181,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -1193,6 +1222,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|490|500",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -1208,6 +1238,7 @@
         }
       },
       "Findings": [
+        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/3/supply-choice/0/rice",
@@ -1224,11 +1255,15 @@
         "physical_lot_quantity_shortfall:food/3/recipe/1",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
+        "practice_held_essential_emergency_or_unknown",
+        "practice_observation_unknown",
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry"
+        "unknown_observed_shelter_geometry",
+        "unsupported_defensive_improvement_without_assignment:helper",
+        "unsupported_defensive_improvement_without_assignment:pawn"
       ]
     }
   },
@@ -1449,6 +1484,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -1489,6 +1525,7 @@
           "unassessed_thermal_exposure"
         ],
         "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|490|500",
+        "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
           "PendingCareBatches": 0,
@@ -1504,6 +1541,7 @@
         }
       },
       "Findings": [
+        "assigned_capability_floor_unknown",
         "beyond_horizon_unassessed",
         "conflicting_composition_choice:food/0/supply-choice/0/rice",
         "conflicting_composition_choice:food/3/supply-choice/0/rice",
@@ -1520,11 +1558,15 @@
         "physical_lot_quantity_shortfall:food/3/recipe/1",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
+        "practice_held_essential_emergency_or_unknown",
+        "practice_observation_unknown",
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry"
+        "unknown_observed_shelter_geometry",
+        "unsupported_defensive_improvement_without_assignment:helper",
+        "unsupported_defensive_improvement_without_assignment:pawn"
       ]
     }
   }

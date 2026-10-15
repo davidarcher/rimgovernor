@@ -56,9 +56,11 @@ an embedded-material ledger. The existing native production record's configurati
 fingerprint excludes mutable remaining count; no second tracker is added.
 
 Fixed-batch admission uses a replaceable material-evidence field in the existing
-Rounds record: observed stock, construction deficit, native ingredient holds,
+Rounds record: observed stock, known construction census, native ingredient holds,
 catalog recipe inputs and the reviewed batch claims. Journal actions remain the
-only commitment owner. Admission re-reads them inside the method transaction;
+only commitment owner. Standing sites retain demand diagnostics but reserve no stock;
+admitted construction supply tasks claim their remaining inputs once across revisions.
+Admission re-reads actions inside the method transaction;
 it never maintains a mutable remaining-stock ledger. Full reviews replace this
 evidence, immediate reviews retain it only in the same world, and world changes
 or rewinds discard it. Missing evidence refuses new fixed batches.

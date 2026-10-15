@@ -66,7 +66,7 @@ public sealed class NativeConstructionActivity
                     var count = owed.Length == 0 ? 0 : owed[0].Count;
                     var capacity = source == null ? 0 : pawn.carryTracker.MaxStackSpaceEver(source.def);
                     Fact<double> approach = default, delivery = default;
-                    if (source != null && capacity > 0 && !source.IsForbidden(pawn) && !ConstructionTierGate.Blocked(pawn, site, source.def)
+                    if (source != null && capacity > 0 && !source.IsForbidden(pawn)
                         && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) && !pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
                         && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
                         && pawn.CanReserveAndReach(source, PathEndMode.Touch, Danger.None))

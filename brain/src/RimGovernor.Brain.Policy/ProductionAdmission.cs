@@ -62,7 +62,11 @@ public static partial class PolicyFunctions
                         ? Known(target.Thing) : default)
                     { Schedule = p.Schedule, LocalHour = facts.WorkResources.TryGetValue(out var native)
                         && native.SingleOrDefault(n => n.Pawn == p.Id.Value)?.LocalHour is { } hour ? Known(hour) : default }))) : default,
-            Stock = facts.Resources, Construction = facts.ConstructionDeficit, Reservations = facts.BillReservations,
+            // Standing blueprints are optional work, not reservations. Admitted actions below own stock.
+            // Keep an absent census explicit; this does not establish a zero construction deficit.
+            Stock = facts.Resources, Construction = facts.ConstructionDeficit.IsKnown
+                ? Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()) : default,
+            Reservations = facts.BillReservations,
             Recipes = facts.WorkAdmission.Recipes,
             Promises = promises.TryGetValue(out var claims)
                 ? Known(EquatableArray.From(claims.Select(c => new ProductionMaterialPromise(c.Id, c.MaterialClaims)))) : default,

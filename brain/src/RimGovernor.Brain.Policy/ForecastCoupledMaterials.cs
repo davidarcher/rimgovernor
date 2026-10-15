@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Reproject the shared owner for this schedule, releasing only exact work it performs itself.
+    /// <summary>Reproject the shared owner for this schedule, with optional sites and exact admitted work claims.
     /// Native reservations for unrelated bills are retained even when a proposed commitment is removed.</summary>
     private static Fact<IReadOnlyDictionary<Resource, Fact<double>>> CoupledMaterialBudgetOf(ColonyForecastRequest request,
         IReadOnlyDictionary<string, ForecastCommitment> commitments, ForecastActivityProblem problem, ForecastActivityPlan plan)
@@ -15,11 +15,6 @@ public static partial class PolicyFunctions
         foreach (var commitment in commitments.Values.Where(c => c.ActivityCompletions.Count == 0 && c.MaterialClaims.Count != 0)) held[commitment.Id] = commitment;
         var selected = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))).OfType<Methods.ActivityTaskCandidate>().ToArray();
         var owed = construction.ToDictionary(p => p.Key, p => p.Value);
-        foreach (var resource in selected.Where(b => b.Kind == PawnActivityKind.Supply && b.Container.Length != 0 && context.Construction.Options.Any(o =>
-                o.Site == b.Container && o.Definition == b.SiteDefinition && o.Resource == b.Resource && o.Input == b.Target
-                && o.Location == b.Location && o.Count == b.Count))
-            .GroupBy(b => (b.Container, b.Resource)).Select(g => g.First()).GroupBy(b => new Resource(b.Resource)))
-            owed[resource.Key] = Math.Max(0, owed.GetValueOrDefault(resource.Key) - resource.Sum(b => (long)b.Count));
         var liveClaims = context.Resources.Claims.Materials;
         foreach (var claim in liveClaims) held[claim.Id] = claim; // A projected removal is not evidence of journal release.
         // The same owner's timed debit replaces only that debit's unlinked reservation, not another hold.

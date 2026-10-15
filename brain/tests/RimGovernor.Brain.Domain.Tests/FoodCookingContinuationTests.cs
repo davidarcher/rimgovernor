@@ -98,21 +98,29 @@ public sealed class FoodCookingContinuationTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void FreshDemandCanRetireProductiveWorkButUnknownDoesNotCertifyRecovery(bool known)
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void FreshDemandCanRetireProductiveWorkButUnknownDoesNotCertifyRecovery(bool known, bool deferred)
     {
         var supply = ActivityContinuationFixtures.Cooking();
         supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
             ? t with { ProductiveWorkTicks = Known(100d) } : t).Append(new("eat", "pawn", [],
                 new(PawnActivityKind.Eat, "meal", "", "", 1, 500), new(8, 9), 200))) };
+        if (deferred)
+        {
+            var idle = new SelectedActivityTask("defer/helper", "helper", [], new(PawnActivityKind.Idle, "", "", "", 0, 200), new(1, 1), 100);
+            supply = supply with { Tasks = [.. supply.Tasks, idle], Orders = [.. supply.Orders,
+                new("helper", "idle-owner", "coupled-test", 0, 1, false, [idle.Step]) { Task = idle.Id }] };
+        }
         var read = Done(supply) with { Needs = new() { Tick = 200, Pawns = [new() { Pawn = "pawn", State = "eligible",
             Needs = [new("food", known ? Known(1d) : default, Known(0d), Known(.3), Known(1d))] }] } };
-        var need = ReviewProductiveActivityNeed(supply, Known(true), read);
+        var need = ReviewServiceActivityNeed(supply, Known(true), read);
         Assert.Equal(Known(!known), need);
         if (known) Assert.True(ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);
         var active = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p with { Execution = p.Execution! with { State = "started" } })) };
-        Assert.Equal(Known(true), ReviewProductiveActivityNeed(supply, Known(true), active));
+        Assert.Equal(Known(true), ReviewServiceActivityNeed(supply, Known(true), active));
     }
 
     [Fact]

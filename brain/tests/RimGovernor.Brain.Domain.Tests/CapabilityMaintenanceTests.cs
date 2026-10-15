@@ -92,9 +92,9 @@ public sealed class CapabilityMaintenanceTests
         var postponed = GenerateCoupledActivities(emergency, 300)!;
         Assert.Empty(CompareActivityOutcomes(request with { Coupled = postponed.Context }, postponed).Selection.Selected);
         var revoked = new ActivityTaskRead { Practice = [new(batch.Tasks[0].Id, Known(false), [])] };
-        Assert.Equal(Known(false), ReviewProductiveActivityNeed(batch, Known(true), revoked));
+        Assert.Equal(Known(false), ReviewServiceActivityNeed(batch, Known(true), revoked));
         var absent = new ActivityTaskRead();
-        Assert.Equal(Known(true), ReviewProductiveActivityNeed(batch, Known(true), absent));
+        Assert.Equal(Known(true), ReviewServiceActivityNeed(batch, Known(true), absent));
         Assert.All(batch.Tasks, t => Assert.Equal("pawn", t.Step.Practice!.Beneficiary));
         Assert.All(batch.Tasks, t => Assert.Equal("role", t.Step.Practice!.Role));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with

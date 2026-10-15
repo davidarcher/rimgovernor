@@ -214,7 +214,7 @@ public sealed class NativeActivityTasks
         }
         return new() { Context = context, Known = true, Truncated = truncated, Food = food,
             Practice = EquatableArray.From(request.Batch.Tasks.Where(t => t.Step.Practice != null).Select(t => NativePracticeActivities.Mandate(map, t))),
-            Needs = request.Batch.Tasks.Any(t => t.ProductiveWorkTicks.IsKnown)
+            Needs = request.Batch.Tasks.Any(t => t.Step.Kind == PawnActivityKind.Eat)
                 ? NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.ToList()) : null,
             Pawns = EquatableArray.From(participants), Bindings = EquatableArray.From(bindings), SatisfiedTasks = EquatableArray.From(satisfied) };
     }

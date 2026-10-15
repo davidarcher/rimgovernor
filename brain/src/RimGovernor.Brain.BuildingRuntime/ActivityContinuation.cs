@@ -31,7 +31,7 @@ public sealed partial class Worker
                     _advanced = true;
                     continue;
                 }
-                var needed = PolicyFunctions.ReviewProductiveActivityNeed(method.Batch, method.Needed, read);
+                var needed = PolicyFunctions.ReviewServiceActivityNeed(method.Batch, method.Needed, read);
                 var next = PolicyFunctions.ContinueCoordinatedActivity(method.Batch, needed, read);
                 ActivityContinuationAdmission? admission = null;
                 if (next is not null)

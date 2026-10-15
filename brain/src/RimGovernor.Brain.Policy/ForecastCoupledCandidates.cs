@@ -33,8 +33,10 @@ public static partial class PolicyFunctions
         };
         if (!Enabled(EnsureFoodSupply) || OutdoorAcquisitionHeld(facts))
             read = read with { Food = read.Food with { Options = [] }, FoodConversions = [] };
-        if (!Enabled(MaintainHousing) && !Enabled(MaintainShelter) && !Enabled(EnsureTemperatureSafety))
-            read = read with { Construction = read.Construction with { Options = [] } };
+        var shelterEnabled = Enabled(MaintainHousing) || Enabled(MaintainShelter) || Enabled(EnsureTemperatureSafety);
+        if (!shelterEnabled)
+            read = read with { Construction = read.Construction with { Options = [] },
+                Thermal = read.Thermal is { } thermal ? thermal with { Cells = EquatableArray.From(thermal.Cells.Select(c => c with { BuildRoof = false })) } : null };
         var bindings = new Dictionary<(string, string), Methods.ActivityTaskCandidate>();
         var deadline = checked(read.Tick + (long)horizon);
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
@@ -67,7 +69,7 @@ public static partial class PolicyFunctions
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
         var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources);
-        var shelter = Methods.Generation.CoupledShelterCandidates.Generate(facts.PlannedShelters.OrderBy(r => r.Id).Select(r =>
+        var shelter = Methods.Generation.CoupledShelterCandidates.Generate((shelterEnabled ? facts.PlannedShelters : []).OrderBy(r => r.Id).Select(r =>
             new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
             facts.Upkeep.Rooms, read.Thermal, construction.Operations, construction.Bindings, deadline, horizon);
         findings.UnionWith(shelter.Findings); truncated |= shelter.Truncated;

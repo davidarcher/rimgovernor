@@ -121,8 +121,13 @@ the sequence reorder of #2230 stays.
 `ConstructionTierGate` (Harmony postfix on
 `WorkGiver_ConstructDeliverResources.ResourceDeliverJobFor`, installed with the
 other bridge guards) runs only under `Supervisor.IsActive`. It gates material
-delivery, not labor: a frame needs every material before work starts, so
+vanilla autonomous delivery, not labor: a frame needs every material before work starts, so
 withholding delivery withholds work.
+
+Explicit selected activity supply is governed by shared service consequences and
+material admission. Its observation and binding do not apply this historical tier
+ranking: an optional lower-tier site cannot veto admitted investment. Native
+forbidden, reservation, reachability and construction legality still apply.
 
 Rule, per resource: a tier-t site may receive material M only if no site of
 strictly lower tier on the map still needs M. A site needs M when its

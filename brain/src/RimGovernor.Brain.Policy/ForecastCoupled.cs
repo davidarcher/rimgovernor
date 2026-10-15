@@ -395,7 +395,7 @@ public static partial class PolicyFunctions
         var exposure = ForecastThermalExposureOf(context, problem, plan, shelters, horizon);
         var existingRooms = EquatableArray.From(context.Shelters.Where(r => r.Prerequisites.Count == 0 && r.AlternativePrerequisites.Count == 0));
         var use = plan with { Allocations = plan.Allocations.Where(a => context.NeedTasks.Any(n => n.Task == a.Activity)).ToArray() };
-        var changedUse = ForecastThermalExposureOf(context, problem, use, shelters, horizon);
+        var changedUse = ForecastThermalExposureOf(context, problem, use, shelters, horizon, plan);
         var unchanged = ForecastThermalExposureOf(context with { Shelters = existingRooms }, problem, use,
             ForecastShelters(existingRooms, plan, horizon), horizon);
         var reliefKnown = changedUse.Any(t => t.AssessedTicks > 0) && changedUse.Count == unchanged.Count && changedUse.Zip(unchanged)
@@ -409,6 +409,8 @@ public static partial class PolicyFunctions
                 && p.First.MissingXp.Value < p.Second.MissingXp.Value))
                 Refuse("practice_without_assigned_shortfall_improvement", group.Key, 0);
         }
+        var thermalRelief = reliefKnown ? Known(unchanged.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)
+            - changedUse.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)) : default;
         return new(plan, feasible, inventory.Stocks, needs, EquatableArray.From(findings))
         {
             Support = ForecastSupportConsequencesOf(context, plan, completed, horizon),
@@ -418,8 +420,7 @@ public static partial class PolicyFunctions
                 .Select(n => (Need: n, Allocation: allocations[n.Task]))
                 .OrderBy(p => p.Need.Pawn, StringComparer.Ordinal).ThenBy(p => p.Allocation.Arrive).ThenBy(p => p.Need.Kind, StringComparer.Ordinal)
                 .Select(p => FormattableString.Invariant($"{p.Need.Pawn}|{p.Need.Kind}|{tasks[p.Need.Task].Location}|{p.Allocation.Arrive:R}|{p.Allocation.End:R}"))),
-            StationaryThermalRelief = reliefKnown ? Known(unchanged.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)
-                - changedUse.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)) : default,
+            StationaryThermalRelief = thermalRelief,
             CompletedDevelopmentSites = EquatableArray.From(plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true))
                 .Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
                 .Where(b => b is { Kind: PawnActivityKind.Work } && b.Job is "FinishFrame" or "BuildRoof")

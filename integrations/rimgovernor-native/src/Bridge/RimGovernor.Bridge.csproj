@@ -78,6 +78,8 @@
     <Compile Include="../../../../scripts/fixtures/ConditionalMoodFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SupportPortfolioFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PortfolioNeedsFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ServiceInvestmentFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ProductiveCookingFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PortfolioThermalFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PawnControlFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PawnDeliveryFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
@@ -121,11 +123,10 @@
     <Compile Include="../../../../scripts/fixtures/LayoutGridFixture.cs" Condition="'$(LayoutGridFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SubdueFixture.cs" Condition="'$(SubdueFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MaintenancePracticeFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/ProductiveCookingFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TrainingFixture.cs" Condition="'$(TrainingFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringFixture.cs" Condition="'$(SparringFixture)' == 'true' Or '$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SparringWatchFixture.cs" Condition="'$(SparringWatchFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(SubdueFixture)' == 'true' Or '$(LayoutGridFixture)' == 'true' Or '$(UpkeepFixture)' == 'true' Or '$(ShelterFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(PawnControlFixture)' == 'true' Or '$(ProductionLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(SubdueFixture)' == 'true' Or '$(LayoutGridFixture)' == 'true' Or '$(UpkeepFixture)' == 'true' Or '$(ShelterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LightingFixture.cs" Condition="'$(LightingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FlooringFixture.cs" Condition="'$(FlooringFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RoutesFixture.cs" Condition="'$(RoutesFixture)' == 'true'" />

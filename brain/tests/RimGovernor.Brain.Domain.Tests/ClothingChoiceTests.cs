@@ -70,13 +70,13 @@ public sealed class ClothingChoiceTests
     private static PawnActivityRecipe Recipe(PawnActivities batch) => batch.Tasks.Single(t => t.Step.Recipe != null).Step.Recipe!;
 
     [Fact]
-    public void RequirementAndConstructionScarcityChangeStuffWithoutPinningIt()
+    public void OnlyCommittedConstructionScarcityChangesStuffWithoutPinningIt()
     {
         var census = Census(0); var read = Read(Option("Cloth"), Option("Wool"));
         Assert.Equal("Wool", Recipe(Start(census, read, Resources(), out _)!).Stuff);
         var facts = Facts() with { ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("Wool")] = 30 }) };
         var resources = WorkResourcesOf(WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
-        Assert.Equal("Cloth", Recipe(Start(census, read, resources, out _)!).Stuff);
+        Assert.Equal("Wool", Recipe(Start(census, read, resources, out _)!).Stuff); // A standing site is optional.
         var evidence = WorkAdmissionEvidenceOf(Facts(), Known(default(EquatableArray<ProductionBatch>))) with
         { Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Wool", Known<EquatableArray<Amount>>([new(new("Wool"), 30)]))]) };
         var wall = DomainAction.NewBuildingAction(new("competing-wall"), new("TestWall", new(3, 3), Rotation.North, "Wool"), ConstructionTier.Survive);
