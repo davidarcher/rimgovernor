@@ -46,7 +46,7 @@ internal static class PawnCookingCase
         {
             var paused = false;
             try { _ = await s.AdvanceAsync(30, null, ct).ConfigureAwait(false); }
-            catch (ScenarioInterruptedException e) when (e.Reason == "Unexpected native interruption: clock stopped on requested_pause") { paused = true; }
+            catch (ScenarioInterruptedException e) when (e.Reason == "Unexpected native interruption: clock held on unavailable") { paused = true; }
             var read = await s.Harness.CallAsync($"cook-{attempt}-{ticks}", "test/pawn_cooking_read", [], ct).ConfigureAwait(false);
             if (read["forced"].AsBool() == true) throw new AcceptanceException("Cooking became player-forced.");
             var state = read["execution"]?["State"].AsString();

@@ -38,7 +38,7 @@ internal static class PawnDeliveryCase
         {
             var paused = false;
             try { _ = await s.AdvanceAsync(30, null, ct).ConfigureAwait(false); }
-            catch (ScenarioInterruptedException e) when (e.Reason == "Unexpected native interruption: clock stopped on requested_pause")
+            catch (ScenarioInterruptedException e) when (e.Reason == "Unexpected native interruption: clock held on unavailable")
             {
                 // Activity completion/refusal deliberately stops the window for a new decision.
                 // Accept it only after the exact assignment's expected terminal state is read below.

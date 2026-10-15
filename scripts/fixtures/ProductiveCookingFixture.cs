@@ -34,7 +34,7 @@ public sealed partial class PawnControlFixture
             selectedBill.repeatCount = 6;
             firstIngredient.Destroy(); secondIngredient.Destroy();
             foreach (var food in map.listerThings.AllThings.Where(t => t.Spawned && t != unselectedIngredient && t.def.IsNutritionGivingIngestible).ToArray()) food.Destroy();
-            foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned.ToArray())
             {
                 pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 foreach (var type in DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(t => !pawn.WorkTypeIsDisabled(t))) pawn.workSettings.SetPriority(type, 0);

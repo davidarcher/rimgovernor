@@ -560,7 +560,7 @@ namespace HomeBridge.BridgeTools
         // Reuse the existing clock stop/journal/invalidation path, not a second event store.
         internal static void ActivityExecutionChanged(string detail)
         {
-            if (_state?.Active == true) Stop(_state, "requested_pause", "pawn_activity:" + detail, true, null);
+            if (_state?.Active == true) Stop(_state, "unavailable", "pawn_activity:" + detail, true, null);
             else Find.TickManager.Pause();
         }
     }
