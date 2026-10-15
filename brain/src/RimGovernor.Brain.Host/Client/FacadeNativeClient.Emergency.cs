@@ -322,7 +322,6 @@ internal sealed partial class FacadeNativeClient
             {
                 throw Contract("missing threat building");
             }
-            PawnReadChecks.PawnsEntity(row.Building, context);
             if (row.BuildingSnapshot is null || row.Building.DefName is null)
             {
                 throw Contract("threat building snapshot or definition missing");

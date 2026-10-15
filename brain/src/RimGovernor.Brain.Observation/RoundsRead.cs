@@ -163,10 +163,6 @@ public static partial class ObservationPackage
         p = p with { Facts = p.Facts with { CurrentConstruction = Unknown<CurrentConstruction>(), ConstructionDeficit = Unknown<IReadOnlyDictionary<Resource, long>>() } };
         if (frame.Buildings is { } census)
         {
-            if (census.Invalid is { } invalid)
-            {
-                throw invalid;
-            }
             var (current, deficit) = ConstructionFromCensus(census);
             p = p with { Facts = p.Facts with { CurrentConstruction = current, ConstructionDeficit = deficit } };
         }

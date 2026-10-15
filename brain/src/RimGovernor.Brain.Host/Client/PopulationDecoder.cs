@@ -204,7 +204,6 @@ internal static class PopulationDecoder
         }
         var (conditions, life) = BridgeFunctions.CareConditions(person.Conditions);
         f = f with { Conditions = conditions, LifeThreatening = life, Executing = person.Interaction == "Execution" };
-        FacadeNativeClient.PawnReadChecks.ValidatePolicyInputs(person.PolicyInputs);
         f = f with { PolicyInputs = BridgeFunctions.PawnPolicyInputs(person.PolicyInputs) };
         if (person.Withdrawal is { } withdrawal)
         {

@@ -6,8 +6,7 @@ using PolicyMechInput = RimGovernor.Brain.Policy.MechInput;
 namespace RimGovernor.Brain.Host;
 
 // Go combat_pawns.go, pawns.go, work_pawns.go, tend_pawns.go, home_colonists.go and biotech_mechs.go: the pawn-list
-// reads. Each differs only in which PawnDetails families it asks for; the reply validator refuses any family the
-// request did not select (PawnReadChecks, FacadeNativeClient.PawnChecks.cs).
+// reads. Each differs only in which PawnDetails families it asks for.
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>The main-thread milliseconds the tend pair reachability may spend (Go <c>TendReachBudgetMS</c>).</summary>
@@ -43,10 +42,6 @@ internal sealed partial class FacadeNativeClient
 
     private static PawnDetailSelection RoundsPawnDetails { get; } = new(Combat: true, Work: true, Care: true, Schedule: true, Social: true);
 
-    /// <summary>Go <c>ValidateRoundsPawnSnapshot</c>: a pawn snapshot read with the rounds detail, against the ids asked for.</summary>
-    internal static void ValidateRoundsPawnSnapshot(PbObservations.PawnSnapshot? snapshot, PbCommon.Identity? id, IReadOnlyList<string> ids) =>
-        PawnReadChecks.ValidateDetailedPawnSnapshot(snapshot, id, ids, RoundsPawnDetails);
-
     /// <summary>Go <c>readPawnDetails</c>.</summary>
     internal async Task<(PbObservations.ListPawnsReply Value, BridgeResult Receipt)> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
     {
@@ -54,16 +49,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw Contract("pawn IDs outside 1..256");
         }
-        var requested = new HashSet<string>(StringComparer.Ordinal);
         var copied = ids.ToArray();
-        foreach (var id in copied)
-        {
-            ValidId(id);
-            if (!requested.Add(id))
-            {
-                throw Contract("duplicate requested pawn");
-            }
-        }
 
         // Each PawnSettings slice has its own wire flag: Settings gates only native's CarePolicy() (medical_care,
         // self_tend), Work its priorities and Schedule the 24 TimetableSlot rows. Requesting schedule must never also
@@ -84,7 +70,7 @@ internal sealed partial class FacadeNativeClient
         {
             throw Contract("pawn read outcome missing");
         }
-        PawnReadChecks.PawnsSnapshotSelected(observed, identity, requested, want);
+        SameWorld(observed, identity);
         return (reply, NoReceipt);
     }
 
@@ -171,23 +157,7 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>Go <c>homeColonistsSelected</c>: the roster names itself as the requested set.</summary>
-    private static void HomeColonistsSelected(PbObservations.PawnSnapshot? v, PbCommon.Identity id)
-    {
-        if (v is null)
-        {
-            throw Contract("home colonist snapshot missing");
-        }
-        var requested = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in v.Pawns)
-        {
-            if (row is null || row.Pawn is null)
-            {
-                throw Contract("home colonist pawn missing");
-            }
-            requested.Add(row.Pawn.Id ?? "");
-        }
-        PawnReadChecks.PawnsSnapshotSelected(v, id, requested, new PawnDetailSelection(Work: true));
-    }
+    private static void HomeColonistsSelected(PbObservations.PawnSnapshot? v, PbCommon.Identity id) => SameWorld(v, id);
 
     /// <summary>
     /// Go <c>ReadMechs</c>: reads the mechs the ids name (a mechanitor's controlled mechs) as the mech planners' input

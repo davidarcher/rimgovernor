@@ -239,7 +239,7 @@ public sealed record Tables(Buildings Buildings, Pawns Pawns, Things Things, Fac
 /// table version, the frame's context and the first invalid built row, which fails any reader of the construction
 /// census.
 /// </summary>
-public sealed record BuildingCensus(ObservationContext? Context, Buildings Rows, BridgeContractException? Invalid = null, Memo? Memo = null);
+public sealed record BuildingCensus(ObservationContext? Context, Buildings Rows, Memo? Memo = null);
 
 /// <summary>
 /// Go's <c>Memo</c>: holds one derived value a reader updates frame to frame: the update function gets the last

@@ -10,69 +10,6 @@ using P =RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// What the frame path needs from decoders that live in other groups of the typed client (the emergency, pawn,
-/// population, research, trader, world progression, ideology, zone and lines-of-fire decoders and the definition
-/// catalog read). The frame readers call them exactly where Go's <c>frames.go</c>, <c>frame_sections.go</c>,
-/// <c>pawn_table.go</c> and <c>thing_table.go</c> called the package functions of the same names. The lead binds
-/// this interface to the sibling core methods in <c>FacadeNativeClient.Interfaces.cs</c> and assigns it to
-/// <see cref="FacadeNativeClient.FrameSections"/>. Every validator throws <see cref="BridgeContractException"/> for a
-/// malformed row and may throw <see cref="Refusal"/> where the Go decoder returned one.
-/// </summary>
-internal interface IFrameSections
-{
-    /// <summary>Go <c>checkPawnRow</c>: one pawn table row against the frame that carried it.</summary>
-    void CheckPawnRow(PbObservations.PawnState row, PbCommon.ObservationContext context);
-
-    /// <summary>Go <c>checkBuiltRow</c>: one building table row against the frame that carried it.</summary>
-    void CheckBuiltRow(PbObservations.BuildingState row, PbCommon.ObservationContext context);
-
-    /// <summary>Go <c>checkBuildingListRow</c>: a building row as the entity list read returns it.</summary>
-    void CheckBuildingListRow(PbObservations.BuildingState row);
-
-    /// <summary>Go <c>pawnsEntity</c>: an entity head (id, def, label, position) against the frame's context.</summary>
-    void CheckEntity(PbObservations.EntityRef? entity, PbCommon.ObservationContext context);
-
-    /// <summary>Go <c>PawnTable</c>: validates a whole pawn snapshot against the identity and indexes its rows.</summary>
-    Pawns PawnTable(PbObservations.PawnSnapshot? snapshot, PbCommon.Identity identity);
-
-    /// <summary>Go <c>DecodeEmergencyStatus</c>.</summary>
-    EmergencyObservation DecodeEmergencyStatus(PbObservations.StatusSnapshot snapshot, Pawns pawns, PbCommon.Identity identity);
-
-    /// <summary>Go <c>decodePopulation</c>.</summary>
-    PrisonerCensus DecodePopulation(PbObservations.PopulationSnapshot snapshot, Pawns pawns, DefinitionCatalog catalog);
-
-    /// <summary>Go <c>readResearchSnapshot</c>.</summary>
-    ResearchRead DecodeResearch(PbObservations.ResearchSnapshot snapshot, PbCommon.Identity identity, DefinitionCatalog catalog);
-
-    /// <summary>Go <c>decodeTraders</c>.</summary>
-    TradersRead DecodeTraders(PbObservations.TradersSnapshot snapshot, PbCommon.Identity identity);
-
-    /// <summary>Go <c>worldProgressionSelected</c>.</summary>
-    WorldProgressionRead DecodeWorldProgression(PbObservations.WorldProgressionSnapshot snapshot, PbCommon.Identity identity);
-
-    /// <summary>Go <c>DecodeIdeology</c>.</summary>
-    P.Ideoligion? DecodeIdeology(PbObservations.IdeologySnapshot snapshot, PbCommon.Identity identity, DefinitionCatalog catalog);
-
-    /// <summary>Go <c>decodeZones</c>.</summary>
-    ZonesRead DecodeZones(PbObservations.ZonesSnapshot snapshot, PbCommon.Identity identity);
-
-    /// <summary>Go <c>validateLinesOfFire</c>: the validated lines for the distinct firing and approach cells.</summary>
-    IReadOnlyList<Bridge.Contracts.LineOfFire> ValidateLinesOfFire(PbObservations.LinesOfFireSnapshot snapshot, PbCommon.Identity identity, IReadOnlyList<Cell> firing, IReadOnlyList<Cell> approach);
-
-    /// <summary>Go <c>Client.DefinitionCatalog</c>: the load's definition catalog, read when not yet held.</summary>
-    Task<DefinitionCatalog> DefinitionCatalogAsync(PbCommon.Identity identity, CancellationToken cancellationToken);
-
-    /// <summary>Go <c>emergencyRequest</c>: the status request the emergency census (and the frame's emergency section) is read under.</summary>
-    PbObservations.StatusRequest EmergencyRequest(PbCommon.Identity identity);
-
-    /// <summary>
-    /// Go <c>Client.ReadClockStatus</c> as <c>ReadStep</c> uses it: the owned clock status. An unavailable clock status
-    /// throws <see cref="BridgeUnavailableException"/> (the step then carries none); any other failure throws as it is.
-    /// </summary>
-    Task<PbClock.Status> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken);
-}
-
-/// <summary>
 /// One frame taken off the handoff channel: the frame, a sequence number the readers compare against, and what
 /// the readers derive from it once (the held tables and the emergency census).
 /// </summary>
@@ -81,11 +18,11 @@ internal sealed class FrameView
     private readonly Lazy<FramePrepared> _prepared;
     private readonly Lazy<FrameGridView> _grid;
 
-    internal FrameView(long number, NativeFrame frame, Func<IFrameSections> sections)
+    internal FrameView(long number, NativeFrame frame)
     {
         Number = number;
         Frame = frame;
-        _prepared = new Lazy<FramePrepared>(() => FramePrepared.Of(frame.Snapshot, sections()), LazyThreadSafetyMode.ExecutionAndPublication);
+        _prepared = new Lazy<FramePrepared>(() => FramePrepared.Of(frame.Snapshot), LazyThreadSafetyMode.ExecutionAndPublication);
         _grid = new Lazy<FrameGridView>(() => FrameGridView.Of(frame.Snapshot), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
@@ -163,7 +100,7 @@ internal sealed class FramePrepared
 
     internal EmergencyObservation Emergency { get; private init; } = new(null, new P.EmergencyFacts());
 
-    internal static FramePrepared Of(PbObservations.BundleSnapshot v, IFrameSections sections)
+    internal static FramePrepared Of(PbObservations.BundleSnapshot v)
     {
         if (v.Failure is { } failure)
         {
@@ -177,17 +114,13 @@ internal sealed class FramePrepared
             return new FramePrepared { Problem = problem };
         }
         var context = v.Context!;
-        var held = FrameHeld.Of(v, context, sections);
+        var held = FrameHeld.Of(v, context);
         var emergency = new EmergencyObservation(null, new P.EmergencyFacts());
         if (v.Emergency is not null)
         {
-            if (held.PawnError is not null)
-            {
-                return new FramePrepared { Problem = held.PawnError, World = context.Identity };
-            }
             try
             {
-                emergency = sections.DecodeEmergencyStatus(v.Emergency, held.Pawns, context.Identity!);
+                emergency = FacadeNativeClient.EmergencyDecode.DecodeEmergencyStatus(v.Emergency, held.Pawns, context.Identity!);
             }
             catch (Refusal refusal)
             {
@@ -204,8 +137,7 @@ internal sealed class FramePrepared
 
 /// <summary>
 /// Go's <c>heldTables</c> without the hold: because every handed-over frame is whole, the keyed tables are
-/// indexed straight from the frame's lists, each row checked once, and the envelopes are the frame's sections
-/// without their rows.
+/// indexed straight from the frame's lists and the envelopes are the frame's sections without their rows.
 /// </summary>
 internal sealed class FrameHeld
 {
@@ -215,46 +147,23 @@ internal sealed class FrameHeld
 
     internal PbObservations.PawnSnapshot? PawnMeta { get; private init; }
 
-    internal Exception? PawnError { get; private init; }
-
     internal Buildings Buildings { get; private init; }
 
     internal PbObservations.BuildingsSnapshot? BuildMeta { get; private init; }
-
-    internal Exception? BuildError { get; private init; }
-
-    /// <summary>The first row the building list read would refuse.</summary>
-    internal Exception? BuildListError { get; private init; }
 
     internal Things Things { get; private init; }
 
     internal PbObservations.ThingsSnapshot? ThingsMeta { get; private init; }
 
-    internal Exception? ThingError { get; private init; }
-
-    /// <summary>Go <c>heldTables.err</c>: the first invalid pawn or thing row.</summary>
-    internal Exception? Error => PawnError ?? ThingError;
-
-    internal static FrameHeld Of(PbObservations.BundleSnapshot v, PbCommon.ObservationContext context, IFrameSections sections)
+    internal static FrameHeld Of(PbObservations.BundleSnapshot v, PbCommon.ObservationContext context) => new()
     {
-        var held = new FrameHeld();
-        if (v.Pawns is { } pawns)
-        {
-            var (table, error, _) = HeldRows.Load(pawns.Pawns, row => row.Pawn?.Id ?? "", row => sections.CheckPawnRow(row, context), null);
-            held = held.With(pawnTable: new Pawns(table), pawnMeta: pawns with { Context = context, Pawns = default, Removed = default }, pawnError: error);
-        }
-        if (v.Buildings is { } buildings)
-        {
-            var (table, error, listError) = HeldRows.Load(buildings.Buildings, row => row.Building?.Id ?? "", row => sections.CheckBuiltRow(row, context), sections.CheckBuildingListRow);
-            held = held.With(buildingTable: new Buildings(table), buildMeta: buildings with { Context = context, Buildings = default, Removed = default }, buildError: error, buildListError: listError);
-        }
-        if (v.Things is { } things)
-        {
-            var (table, error, _) = HeldRows.Load(things.Things, row => row.Entity?.Id ?? "", row => FacadeNativeClient.CheckThingRow(row, context, sections), null);
-            held = held.With(thingTable: new Things(table), thingsMeta: new PbObservations.ThingsSnapshot { Context = context }, thingError: error);
-        }
-        return held;
-    }
+        Pawns = v.Pawns is { } pawns ? new Pawns(Index(pawns.Pawns, row => row.Pawn?.Id ?? "")) : default,
+        PawnMeta = v.Pawns is { } pawnMeta ? pawnMeta with { Context = context, Pawns = default, Removed = default } : null,
+        Buildings = v.Buildings is { } buildings ? new Buildings(Index(buildings.Buildings, row => row.Building?.Id ?? "")) : default,
+        BuildMeta = v.Buildings is { } buildMeta ? buildMeta with { Context = context, Buildings = default, Removed = default } : null,
+        Things = v.Things is { } things ? new Things(Index(things.Things, row => row.Entity?.Id ?? "")) : default,
+        ThingsMeta = v.Things is not null ? new PbObservations.ThingsSnapshot { Context = context } : null,
+    };
 
     /// <summary>Go <c>heldTables.pawnList</c>: the pawn table as a list snapshot in id order, null when the frame carries none.</summary>
     internal PbObservations.PawnSnapshot? PawnList() =>
@@ -264,97 +173,18 @@ internal sealed class FrameHeld
     internal PbObservations.BuildingsSnapshot? BuildingList() =>
         BuildMeta is null ? null : BuildMeta with { Buildings = [.. Buildings.Table.Sorted()] };
 
-    private FrameHeld With(
-        Pawns? pawnTable = null,
-        PbObservations.PawnSnapshot? pawnMeta = null,
-        Exception? pawnError = null,
-        Buildings? buildingTable = null,
-        PbObservations.BuildingsSnapshot? buildMeta = null,
-        Exception? buildError = null,
-        Exception? buildListError = null,
-        Things? thingTable = null,
-        PbObservations.ThingsSnapshot? thingsMeta = null,
-        Exception? thingError = null) =>
-        new()
-        {
-            Pawns = pawnTable ?? Pawns,
-            PawnMeta = pawnMeta ?? PawnMeta,
-            PawnError = pawnError ?? PawnError,
-            Buildings = buildingTable ?? Buildings,
-            BuildMeta = buildMeta ?? BuildMeta,
-            BuildError = buildError ?? BuildError,
-            BuildListError = buildListError ?? BuildListError,
-            Things = thingTable ?? Things,
-            ThingsMeta = thingsMeta ?? ThingsMeta,
-            ThingError = thingError ?? ThingError,
-        };
-}
-
-/// <summary>Go <c>heldRows</c>: a keyed row table loaded from a keyframe, with the rows that failed their check kept apart.</summary>
-internal static class HeldRows
-{
-    /// <summary>
-    /// Go <c>heldRows.load</c>. A row with no id is not addressable and never enters the table; a repeated id is a
-    /// bad row of its own. <paramref name="check"/> and <paramref name="listCheck"/> throw
-    /// <see cref="BridgeContractException"/>; the first failure in id order is returned for each.
-    /// </summary>
-    internal static (Table<TRow> Table, Exception? Error, Exception? ListError) Load<TRow>(
-        IEnumerable<TRow> rows,
-        Func<TRow, string> id,
-        Action<TRow> check,
-        Action<TRow>? listCheck)
+    /// <summary>A keyed table of the rows: a row with no id is not addressable and never enters it; a repeated id keeps the last row.</summary>
+    private static Table<TRow> Index<TRow>(IEnumerable<TRow> rows, Func<TRow, string> id)
     {
         var table = default(Table<TRow>);
-        var bad = new Dictionary<string, Exception>(StringComparer.Ordinal);
-        var listBad = new Dictionary<string, Exception>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
-            var key = id(row);
-            if (key.Length != 0 && table.Has(key))
-            {
-                bad["duplicate " + key] = BridgeFunctions.Contract("duplicate row \"" + key + "\"");
-            }
-            bad.Remove(key);
-            listBad.Remove(key);
-            try
-            {
-                check(row);
-            }
-            catch (BridgeContractException problem)
-            {
-                bad[key] = problem;
-            }
-            if (listCheck is not null)
-            {
-                try
-                {
-                    listCheck(row);
-                }
-                catch (BridgeContractException problem)
-                {
-                    listBad[key] = problem;
-                }
-            }
-            if (key.Length != 0)
+            if (id(row) is { Length: > 0 } key)
             {
                 table = table.Set(key, row);
             }
         }
-        return (table, First(bad), First(listBad));
-    }
-
-    private static Exception? First(Dictionary<string, Exception> bad)
-    {
-        string? first = null;
-        Exception? error = null;
-        foreach (var (key, problem) in bad)
-        {
-            if (error is null || string.CompareOrdinal(key, first) < 0)
-            {
-                (first, error) = (key, problem);
-            }
-        }
-        return error;
+        return table;
     }
 }
 
@@ -366,7 +196,7 @@ internal static class HeldRows
 /// cache. Two concurrent reads therefore both see every frame instead of stealing it from each other, and a frame
 /// is decoded at most once (<see cref="FrameView.Prepared"/>).
 /// </summary>
-internal sealed class FrameFeed(ChannelReader<NativeFrame> reader, Func<IFrameSections> sections) : IDisposable
+internal sealed class FrameFeed(ChannelReader<NativeFrame> reader) : IDisposable
 {
     public void Dispose() => _pump.Dispose();
 
@@ -471,7 +301,7 @@ internal sealed class FrameFeed(ChannelReader<NativeFrame> reader, Func<IFrameSe
         {
             lock (_gate)
             {
-                _latest = new FrameView(++_number, frame, sections);
+                _latest = new FrameView(++_number, frame);
             }
         }
     }
@@ -514,28 +344,6 @@ internal sealed partial class FacadeNativeClient : IDisposable
     private string _frameOpenError = "";
     private long _frameExpected;
 
-    /// <summary>The decoders owned by sibling groups the frame path calls (see <see cref="IFrameSections"/>); the lead binds them.</summary>
-    internal IFrameSections? FrameSections { get; init; }
-
-    /// <summary>
-    /// Go's <c>caller.timeout</c> for one frame read: how long a read waits for a frame that answers it before it is
-    /// unavailable.
-    /// </summary>
-    internal TimeSpan FrameReadTimeout { get; init; } = TimeSpan.FromSeconds(30);
-
-    /// <summary>Where a frame read that gave up writes its <c>native_frame</c> miss row; null for a bare client.</summary>
-    internal TelemetryEmitter? Telemetry { get; set; }
-
-    /// <summary>
-    /// Go's <c>caller.frames != nil</c>: whether reads are served from the snapshot stream. Off, the routine, combat,
-    /// planning-window and table reads are unavailable and the colony facts, status and entity lists are read live.
-    /// </summary>
-    internal bool UseFrames { get; init; } = true;
-
-    private FrameFeed Feed => LazyInitializer.EnsureInitialized(ref _frameFeed, () => new FrameFeed(Facade.Frames, RequireFrameSections))!;
-
-    private IFrameSections RequireFrameSections() =>
-        FrameSections ?? throw new InvalidOperationException("FacadeNativeClient.FrameSections is not bound: the frame path needs the decoders of the other client groups.");
 
     /// <summary>
     /// Go's <c>FrameSubscribe</c> side of <c>frameSubscribe</c>: a read of a resource's sources grows the subscription,
@@ -556,6 +364,23 @@ internal sealed partial class FacadeNativeClient : IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// Go's <c>caller.timeout</c> for one frame read: how long a read waits for a frame that answers it before it is
+    /// unavailable.
+    /// </summary>
+    internal TimeSpan FrameReadTimeout { get; init; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>Where a frame read that gave up writes its <c>native_frame</c> miss row; null for a bare client.</summary>
+    internal TelemetryEmitter? Telemetry { get; set; }
+
+    /// <summary>
+    /// Go's <c>caller.frames != nil</c>: whether reads are served from the snapshot stream. Off, the routine, combat,
+    /// planning-window and table reads are unavailable and the colony facts, status and entity lists are read live.
+    /// </summary>
+    internal bool UseFrames { get; init; } = true;
+
+    private FrameFeed Feed => LazyInitializer.EnsureInitialized(ref _frameFeed, () => new FrameFeed(Facade.Frames))!;
 
     /// <summary>
     /// Go's <c>noteFrameWrite</c>: records that an applied write returned, so later frame reads wait for a frame

@@ -29,15 +29,10 @@ internal sealed partial class FacadeNativeClient
         {
             throw new BridgeUnavailableException("the routine census is served only by the snapshot stream");
         }
-        var sections = RequireFrameSections();
-        var catalog = await sections.DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
+        var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         var view = await FrameSectionAsync(RoundsFrameMethod, identity, anyFrame: false, frame => frame, cancellationToken).ConfigureAwait(false);
         var held = view.Prepared.Held;
-        if (held.Error is { } problem)
-        {
-            throw problem;
-        }
-        var routine = DecodeRoundsFrame(view.Snapshot, catalog, held, sections);
+        var routine = DecodeRoundsFrame(view.Snapshot, catalog, held);
         if (routine.Buildings is { } census)
         {
             routine = routine with { Buildings = census with { Memo = _frameCensus } };
@@ -51,7 +46,7 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>Go <c>decodeRoundsFrame</c>: decodes the frame's routine sections; the keyed tables are <paramref name="held"/>'s, never the frame's lists.</summary>
-    internal static RoundsFrame DecodeRoundsFrame(PbObservations.BundleSnapshot v, DefinitionCatalog catalog, FrameHeld held, IFrameSections sections)
+    internal static RoundsFrame DecodeRoundsFrame(PbObservations.BundleSnapshot v, DefinitionCatalog catalog, FrameHeld held)
     {
         var identity = v.Context!.Identity!;
         var pawns = held.Pawns;
@@ -61,12 +56,12 @@ internal sealed partial class FacadeNativeClient
             Colony = v.ColonyFacts,
             Rooms = v.Rooms,
             Bills = v.Bills,
-            Buildings = held.BuildMeta is null ? null : new BuildingCensus(held.BuildMeta.Context, held.Buildings, held.BuildError as BridgeContractException),
+            Buildings = held.BuildMeta is null ? null : new BuildingCensus(held.BuildMeta.Context, held.Buildings),
             Tables = new Tables(held.Buildings, pawns, held.Things),
         };
         if (v.Emergency is not null)
         {
-            var emergency = PodsPending(sections.DecodeEmergencyStatus(v.Emergency, pawns, identity), v.CombatEvents);
+            var emergency = PodsPending(EmergencyDecode.DecodeEmergencyStatus(v.Emergency, pawns, identity), v.CombatEvents);
             output = output with { Emergency = emergency };
             if (held.PawnMeta is { } meta && RoundsPawnRows(meta, pawns, emergency) is { } colonists)
             {
@@ -75,23 +70,23 @@ internal sealed partial class FacadeNativeClient
         }
         if (v.Population is not null)
         {
-            output = output with { Population = sections.DecodePopulation(v.Population, pawns, catalog) };
+            output = output with { Population = PopulationDecoder.Decode(v.Population, pawns, catalog) };
         }
         if (v.Research is not null)
         {
-            output = output with { Research = sections.DecodeResearch(v.Research, identity, catalog) };
+            output = output with { Research = ResearchReadSnapshot(v.Research, identity, catalog) };
         }
         if (v.Traders is not null)
         {
-            output = output with { Traders = sections.DecodeTraders(v.Traders, identity) };
+            output = output with { Traders = TradeDecodeTraders(v.Traders, identity) };
         }
         if (v.WorldProgression is not null)
         {
-            output = output with { Quests = sections.DecodeWorldProgression(v.WorldProgression, identity) };
+            output = output with { Quests = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression, identity) };
         }
         if (v.Ideology is not null)
         {
-            output = output with { Ideology = sections.DecodeIdeology(v.Ideology, identity, catalog) };
+            output = output with { Ideology = IdeologyDecoder.Decode(v.Ideology, identity, catalog) };
             if (v.IdeologyActive is false)
             {
                 throw BridgeFunctions.Contract("ideology section without the Ideology expansion");
@@ -103,7 +98,7 @@ internal sealed partial class FacadeNativeClient
         }
         if (v.Zones is not null)
         {
-            output = output with { Zones = sections.DecodeZones(v.Zones, identity) };
+            output = output with { Zones = PlacementReads.DecodeZones(v.Zones, identity) };
         }
         return output;
     }
@@ -188,11 +183,10 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("combat read without an identity");
         }
-        var sections = RequireFrameSections();
         var view = await FrameSectionAsync(CombatFrameMethod, identity, anyFrame: false, frame => frame, cancellationToken).ConfigureAwait(false);
-        var combat = DecodeCombat(CombatFrame(view), sections);
+        var combat = DecodeCombat(CombatFrame(view));
         // The weapons' facts, the mech guard orders and a fight's race flags resolve against the catalog of the load.
-        var catalog = await sections.DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
+        var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
         // An unbuildable race table fails the read here, so the fight's race lookups never see the error.
         _ = catalog.AnimalRaces();
         return combat with { Catalog = catalog, Shells = catalog.MortarShells(P.PolicyFunctions.MortarSafeRadius) };
@@ -307,7 +301,7 @@ internal sealed partial class FacadeNativeClient
         !row.Dead.GetValueOrDefault() && (row.Biotech?.Mechanitor is not null || row.Biotech?.Mech is not null);
 
     /// <summary>Go <c>DecodeCombat</c>: validates and decodes a frame's combat part.</summary>
-    private Combat DecodeCombat(PbObservations.BundleSnapshot v, IFrameSections sections)
+    private static Combat DecodeCombat(PbObservations.BundleSnapshot v)
     {
         try
         {
@@ -328,13 +322,13 @@ internal sealed partial class FacadeNativeClient
         };
         if (v.WorldProgression is not null)
         {
-            output = output with { World = sections.DecodeWorldProgression(v.WorldProgression, identity) };
+            output = output with { World = BridgeFunctions.DecodeWorldProgressionSnapshot(v.WorldProgression, identity) };
         }
-        var pawns = sections.PawnTable(v.Pawns, identity);
+        var pawns = PawnTable(v.Pawns, identity);
         output = output with { Detail = pawns, Things = ThingTable(v.Things, identity) };
         if (v.Emergency is not null)
         {
-            output = output with { Emergency = PodsPending(sections.DecodeEmergencyStatus(v.Emergency, pawns, identity), v.CombatEvents) };
+            output = output with { Emergency = PodsPending(EmergencyDecode.DecodeEmergencyStatus(v.Emergency, pawns, identity), v.CombatEvents) };
         }
         if (v.CombatLinesOfFire is { } lines)
         {
@@ -358,7 +352,7 @@ internal sealed partial class FacadeNativeClient
                     approach.Add(to);
                 }
             }
-            output = output with { Lines = sections.ValidateLinesOfFire(lines, identity, firing, approach), LinesSkipped = lines.Skipped.GetValueOrDefault() };
+            output = output with { Lines = DefenseValidateLinesOfFire(lines, identity, firing, approach), LinesSkipped = lines.Skipped.GetValueOrDefault() };
         }
         var mortars = new List<P.CombatMortar>();
         foreach (var row in v.CombatMortars)

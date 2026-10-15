@@ -113,7 +113,6 @@ internal sealed partial class FacadeNativeClient :
         FacadeNativeClient? client = null;
         client = new FacadeNativeClient(new CountingNativeFacade(facade))
         {
-            FrameSections = new FrameSectionsAdapter(() => client!),
             CatalogFactory = catalogFactory,
         };
         return client;

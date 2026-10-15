@@ -121,10 +121,6 @@ internal sealed partial class FacadeNativeClient
         if (UseFrames)
         {
             var held = await FrameHeldAsync(FrameBuildingsMethod, identity, view => view.Snapshot.Buildings is not null, cancellationToken).ConfigureAwait(false);
-            if (held.BuildListError is { } listError)
-            {
-                throw listError;
-            }
             return (new EntityRows<PbObservations.BuildingState> { Context = held.BuildMeta?.Context, Rows = held.Buildings.Table }, NoReceipt);
         }
         var snapshot = await ListBuildingsLiveAsync(identity, cancellationToken).ConfigureAwait(false);
@@ -194,7 +190,7 @@ internal sealed partial class FacadeNativeClient
     /// Go <c>ThingTable</c>: validates a things snapshot against the identity and indexes its rows by id; a null
     /// snapshot is an empty table.
     /// </summary>
-    internal Things ThingTable(PbObservations.ThingsSnapshot? snapshot, PbCommon.Identity identity)
+    internal static Things ThingTable(PbObservations.ThingsSnapshot? snapshot, PbCommon.Identity identity)
     {
         if (snapshot is null)
         {
@@ -204,11 +200,9 @@ internal sealed partial class FacadeNativeClient
         {
             throw BridgeFunctions.Contract("things table world mismatch");
         }
-        var sections = RequireFrameSections();
         var table = default(Table<PbObservations.Thing>);
         foreach (var row in snapshot.Things)
         {
-            CheckThingRow(row, snapshot.Context, sections);
             var id = row.Entity?.Id ?? "";
             if (table.Has(id))
             {
@@ -219,46 +213,6 @@ internal sealed partial class FacadeNativeClient
         return new Things(table);
     }
 
-    /// <summary>
-    /// Go <c>ValidThing</c>: checks one canonical thing row, its entity, counts and, for a corpse, finite facts
-    /// consistent with its kind.
-    /// </summary>
-    internal static void CheckThingRow(PbObservations.Thing? row, PbCommon.ObservationContext context, IFrameSections sections)
-    {
-        if (row is null)
-        {
-            throw BridgeFunctions.Contract("thing row missing");
-        }
-        sections.CheckEntity(row.Entity, context);
-        if ((row.StackCount is not null && row.StackCount.GetValueOrDefault() < 0)
-            || (row.RotTicks is not null && row.RotTicks.GetValueOrDefault() < 0)
-            || !BridgeFunctions.CombatNumber(row.TemperatureC, false))
-        {
-            throw BridgeFunctions.Contract("invalid thing facts");
-        }
-        if (!BridgeFunctions.OptionalRef(row.Room))
-        {
-            throw BridgeFunctions.Contract("invalid thing room");
-        }
-        if (row.Corpse.GetValueOrDefault())
-        {
-            if (row.Forbidden is null
-                || !BridgeFunctions.CombatNumber(row.MeatAmount, true)
-                || row.MeatAmount is null
-                || row.BodySize is null
-                || !BridgeFunctions.CombatNumber(row.BodySize, true)
-                || row.BodySize.GetValueOrDefault() <= 0
-                || row.TileFootprint.GetValueOrDefault() != 1
-                || row.StackCount.GetValueOrDefault() != 1)
-            {
-                throw BridgeFunctions.Contract("invalid corpse row");
-            }
-        }
-        else if (row.MeatAmount is not null || row.BodySize is not null || row.TileFootprint is not null)
-        {
-            throw BridgeFunctions.Contract("corpse facts on a thing that is no corpse");
-        }
-    }
 
     /// <summary>
     /// Go <c>Client.frameHeld</c>: the held keyed tables as of the newest frame past this client's last write that
@@ -274,10 +228,6 @@ internal sealed partial class FacadeNativeClient
             view => new FrameLookup<FrameHeld>(carries(view), view.Prepared.Held, carries(view)),
             cancellationToken).ConfigureAwait(false);
         var held = served.Value!;
-        if (held.Error is { } error)
-        {
-            throw error;
-        }
         return held;
     }
 

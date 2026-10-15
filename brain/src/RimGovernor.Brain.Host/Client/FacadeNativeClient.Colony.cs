@@ -251,12 +251,11 @@ internal sealed partial class FacadeNativeClient
             throw new BridgeRefusedException("step identity changed");
         }
         var step = new PbObservations.BundleSnapshot { Context = loaded.Context, Paused = loaded.Paused };
-        var sections = RequireFrameSections();
         if (request.ClockStatus)
         {
             try
             {
-                step = step with { ClockStatus = await sections.ReadClockStatusAsync(identity, cancellationToken).ConfigureAwait(false) };
+                step = step with { ClockStatus = await ReadOwnedClockStatusAsync(identity, cancellationToken).ConfigureAwait(false) };
             }
             catch (BridgeUnavailableException)
             {
@@ -265,11 +264,11 @@ internal sealed partial class FacadeNativeClient
         }
         if (request.Emergency)
         {
-            var observed = await ReadEmergencyStatusAsync(sections, identity, cancellationToken).ConfigureAwait(false);
+            var observed = await ReadEmergencyStatusAsync(identity, cancellationToken).ConfigureAwait(false);
             // The census references resolve against the pawn table.
             var table = await FramePawnSnapshotAsync(identity, cancellationToken).ConfigureAwait(false);
-            var pawns = sections.PawnTable(table, identity);
-            sections.DecodeEmergencyStatus(observed, pawns, identity);
+            var pawns = PawnTable(table, identity);
+            EmergencyDecode.DecodeEmergencyStatus(observed, pawns, identity);
             step = step with { Emergency = observed, Pawns = table };
             // A drop-pod raid's raiders are in no census row until the pods open; the stream's arrival rows carry it.
             if (UseFrames)
@@ -282,9 +281,9 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>The emergency census read of a step: the frame's emergency section, else the live status read.</summary>
-    private async Task<PbObservations.StatusSnapshot> ReadEmergencyStatusAsync(IFrameSections sections, PbCommon.Identity identity, CancellationToken cancellationToken)
+    private async Task<PbObservations.StatusSnapshot> ReadEmergencyStatusAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        var request = sections.EmergencyRequest(identity);
+        var request = EmergencyRequest(identity);
         if (UseFrames)
         {
             var served = await FrameReadAsync(
