@@ -244,9 +244,13 @@ public static partial class PolicyFunctions
         };
     }
 
-    public static bool WorkResourcesFit(WorkResourceView view, PlanSpec proposed, IReadOnlySet<string>? retainedParticipants = null)
+    public static bool WorkResourcesFit(WorkResourceView view, PlanSpec proposed, IReadOnlySet<string>? retainedParticipants = null) =>
+        WorkResourcesRefusal(view, proposed, retainedParticipants) is null;
+
+    /// <summary>The first reason <paramref name="proposed"/> does not fit the committed work and observed evidence, or null when it fits.</summary>
+    public static string? WorkResourcesRefusal(WorkResourceView view, PlanSpec proposed, IReadOnlySet<string>? retainedParticipants = null)
     {
-        if (view.Claims.Truncated) return false;
+        if (view.Claims.Truncated) return "claims_truncated";
         var exclusive = new HashSet<string>(StringComparer.Ordinal);
         foreach (var action in proposed.Actions)
         {
@@ -255,37 +259,42 @@ public static partial class PolicyFunctions
             foreach (var part in parts)
             {
                 var claim = WorkClaimsOf(view.Evidence, [new(proposed.Id, part, new ProgressView { Action = part.Id, Stage = Stage.Pending })]);
-                if (claim.Targets.Any(t => !exclusive.Add(t))) return false;
+                // An order's cell is where its pawn walks or stands (approach, hold, a stockpile drop), not a thing
+                // only one pawn may use: orders of one batch may meet at a cell. Named things (stacks, containers,
+                // bills, benches, sites) and a building's own cell stay exclusive.
+                var exclusiveTargets = action.PawnActivities is null ? claim.Targets : claim.Targets.Where(t => !t.StartsWith("cell/", StringComparison.Ordinal));
+                if (exclusiveTargets.FirstOrDefault(t => !exclusive.Add(t)) is { } shared) return "shared_target:" + shared;
             }
         }
         var candidate = WorkClaimsOf(view.Evidence, proposed.Actions.Select(a => new WorkAction(proposed.Id, a,
             new ProgressView { Action = a.Id, Stage = Stage.Pending })));
-        if (candidate.Findings.Count != 0 || candidate.Pawns.Any(view.Claims.Pawns.Contains)
-            || candidate.Targets.Any(view.Claims.Targets.Contains)) return false;
+        if (candidate.Findings.Count != 0) return "unknown_claims:" + string.Join(",", candidate.Findings);
+        if (candidate.Pawns.FirstOrDefault(view.Claims.Pawns.Contains) is { } held) return "pawn_claimed:" + held;
+        if (candidate.Targets.FirstOrDefault(view.Claims.Targets.Contains) is { } taken) return "target_claimed:" + taken;
         var usesBench = proposed.Actions.Any(a => a.ProductionBill is { Mode: BillMode.GearBatch }
             || a.PawnActivities is { } activity && activity.Orders.Any(o => o.Steps.Any(s => s.Recipe is not null) || o.OutputDelivery?.Recipe is not null));
         if (usesBench && (!view.Evidence.WorkResources.IsKnown || !view.Evidence.Pawns.TryGetValue(out var benchPawns)
-            || benchPawns.Any(p => !p.Occupied.IsKnown || p.Occupied.Value && !p.Target.IsKnown))) return false;
+            || benchPawns.Any(p => !p.Occupied.IsKnown || p.Occupied.Value && !p.Target.IsKnown))) return "bench_evidence_unknown";
         foreach (var pawn in candidate.Pawns)
         {
-            if (!view.Evidence.Pawns.TryGetValue(out var roster)) return false;
+            if (!view.Evidence.Pawns.TryGetValue(out var roster)) return "pawn_roster_unknown";
             var observed = roster.SingleOrDefault(p => p.Pawn == pawn);
             if (observed is null || !observed.Available.TryGetValue(out var available) || !available
-                || !observed.Applies.TryGetValue(out var applies) || !applies) return false;
+                || !observed.Applies.TryGetValue(out var applies) || !applies) return "pawn_unavailable:" + pawn;
             if (retainedParticipants?.Contains(pawn) != true && proposed.Actions.SelectMany(a => a.PawnActivities?.Orders ?? []).Any(o => o.Pawn == pawn
                 && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Recipe or PawnActivityKind.Approach or PawnActivityKind.Supply))
                 && (!view.Capacity.TryGetValue(pawn, out var capacity) || !capacity.Capacity.Windows.TryGetValue(out var windows)
-                    || !windows.Any(w => w.Start == 0 && w.End > 0))) return false;
+                    || !windows.Any(w => w.Start == 0 && w.End > 0))) return "pawn_capacity_unavailable:" + pawn;
         }
         if (view.Evidence.Pawns.TryGetValue(out var nativePawns)
             && nativePawns.Any(p => p.Target.TryGetValue(out var target) && target.Length != 0
-                && candidate.Targets.Contains(target) && !candidate.Pawns.Contains(p.Pawn))) return false;
+                && candidate.Targets.Contains(target) && !candidate.Pawns.Contains(p.Pawn))) return "pawn_target_claimed";
         if (view.Evidence.WorkResources.TryGetValue(out var allPawns)
-            && allPawns.Any(p => p.Target.Length != 0 && candidate.Targets.Contains(p.Target) && !candidate.Pawns.Contains(p.Pawn))) return false;
+            && allPawns.Any(p => p.Target.Length != 0 && candidate.Targets.Contains(p.Target) && !candidate.Pawns.Contains(p.Pawn))) return "native_target_claimed";
         var bills = proposed.Actions.Where(a => a.ProductionBill is { Mode: BillMode.GearBatch })
             .Select(a => new ProductionBatch(a.ProductionBill!, new ProgressView { Action = a.Id, Stage = Stage.Pending }));
         var production = ProductionPromisesOf(PriceProductionBatches(Known(EquatableArray.From(bills)), view.Evidence.Recipes), default);
-        if (!production.TryGetValue(out var promises)) return false;
+        if (!production.TryGetValue(out var promises)) return "production_promises_unknown";
         var needed = candidate.Materials.Concat(promises).SelectMany(c => c.MaterialClaims).GroupBy(c => c.Resource);
         foreach (var group in needed)
         {
@@ -294,9 +303,9 @@ public static partial class PolicyFunctions
                     g.All(c => c.Units.IsKnown) ? g.Sum(c => c.Units.Value) : 0)).ToArray();
             if (group.Any(c => !c.Units.IsKnown) || credits.Any(c => !c.IsKnown) || !view.Materials.TryGetValue(out var budget)
                 || !budget.GetValueOrDefault(group.Key, Known(0.0)).TryGetValue(out var free)
-                || group.Sum(c => c.Units.Value) > free + credits.Sum(c => c.Value)) return false;
+                || group.Sum(c => c.Units.Value) > free + credits.Sum(c => c.Value)) return "materials_short:" + group.Key.Value;
         }
-        return true;
+        return null;
     }
 
     public static WorkAdmissionEvidence WorkContinuationEvidence(WorkAdmissionEvidence evidence, PawnActivities batch,

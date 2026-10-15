@@ -78,6 +78,20 @@ public sealed class WorkResourcesTests
         Assert.Equal(10, held.Evidence.Stock.Value.Single().Count);
     }
 
+    // #3187: a coupled batch stages several pawns at one location. A shared cell is not a shared thing, so the
+    // batch is admitted; two orders on one named stack still are refused, with the reason named.
+    [Fact]
+    public void OrdersOfOneBatchMayMeetAtACellButNotShareANamedTarget()
+    {
+        var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
+        var view = View(facts);
+        PawnActivityOrder Staged(string pawn, string target = "") => new(pawn, "m/" + pawn, "m", 0, 1, false,
+            [new(PawnActivityKind.Approach, target, "", "", 0, 500) { Destination = new(5, 5) }, new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Preparing = true };
+        PlanSpec Batch(string id, params PawnActivityOrder[] orders) => Plan(id, DomainAction.NewPawnActivitiesAction(new(id + "-0"), new(1, orders)));
+        Assert.Null(WorkResourcesRefusal(view, Batch("meet", Staged("cook-builder"), Staged("helper"))));
+        Assert.Equal("shared_target:stack", WorkResourcesRefusal(view, Batch("clash", Staged("cook-builder", "stack"), Staged("helper", "stack"))));
+    }
+
     [Fact]
     public void OneCookBuilderCannotPromiseTwoDaysAndDisjointPawnRemainsAvailable()
     {

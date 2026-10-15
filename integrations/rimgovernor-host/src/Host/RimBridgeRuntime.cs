@@ -133,6 +133,9 @@ internal static class RimBridgeMainThread
 
     public static void Pump()
     {
+        // The mod constructor may run on a loading thread (#3188), so the first caller of Initialize is only a guess;
+        // Root.Update, the one caller of Pump, is the game thread. A wrong id ran hops inline on the brain's thread.
+        _mainThreadId = Thread.CurrentThread.ManagedThreadId;
         while (true)
         {
             IMainThreadWorkItem workItem;

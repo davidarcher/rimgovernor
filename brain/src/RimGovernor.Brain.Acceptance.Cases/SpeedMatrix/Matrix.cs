@@ -388,7 +388,10 @@ internal sealed partial class SpeedmatrixRun
             var attached = await service.WaitAttachedAsync(identity, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
             report["service_state_attached"] = attached.DeepClone();
             var prefix = "speedmatrix-" + c.Name.ToLowerInvariant() + "-" + RandomSuffix();
-            journal = await ServiceJournal.OpenWithRetryAsync(Path.Combine(output, Checkpoints.CheckpointStoreFile), cancellationToken).ConfigureAwait(false);
+            journal = await ServiceJournal.OpenWithRetryAsync(_session.Config, cancellationToken).ConfigureAwait(false);
+
+            // The kept game's journal outlives a row, so the previous row's review (and its tick) is still in it.
+            var staleRevision = (await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false)).Revision;
             var planIds = await SubmitWallsAsync(journal, prefix, identity, report, cancellationToken).ConfigureAwait(false);
             var rootPlanId = await service.ResumeAsync(prefix, identity, token, report, cancellationToken).ConfigureAwait(false);
             report["root_plan"] = rootPlanId;
@@ -419,7 +422,7 @@ internal sealed partial class SpeedmatrixRun
                     async ct =>
                     {
                         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
-                        lastTick = (ulong)review.Tick.Value;
+                        lastTick = review.Revision > staleRevision ? (ulong)review.Tick.Value : startTick;
                         if (TryReadTimeline(logPath) is { } rows && PhaseSummary.Summarize(rows).Clock.LastTick is var observed && observed > (long)lastTick)
                         {
                             lastTick = (ulong)observed;

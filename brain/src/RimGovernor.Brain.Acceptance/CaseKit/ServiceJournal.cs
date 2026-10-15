@@ -148,7 +148,7 @@ public static class ServiceJournal
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    _ = e;
+                    entry["journal_error"] = e.Message;
                 }
 
                 return (Wait.Signature(mode, review.Revision), false);
@@ -160,7 +160,9 @@ public static class ServiceJournal
         }
         catch (WaitError e)
         {
-            throw new AcceptanceException($"service reached automate mode but the Rounds pass was never persisted (revision 0): {e.Message}", e);
+            var unreadable = diagnostics.LastOrDefault(d => d["journal_error"] is not null)?["journal_error"]?.ToString();
+            throw new AcceptanceException($"service reached automate mode but the Rounds pass was never persisted (revision 0): {e.Message}"
+                + (unreadable is null ? "" : $"; the journal read failed: {unreadable}"), e);
         }
 
         return (review, diagnostics);

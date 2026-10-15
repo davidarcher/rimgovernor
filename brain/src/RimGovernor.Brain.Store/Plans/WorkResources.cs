@@ -75,6 +75,6 @@ public sealed partial class Store
         if (proposed.Length != 0 && !PolicyFunctions.ProductionAdmissionFits(view.Evidence,
             committed, EquatableArray.From(proposed), view.Claims.Materials))
             throw new ProductionMaterialException();
-        if (!PolicyFunctions.WorkResourcesFit(view, plan)) throw new ConflictException("work_resource_conflict_or_unknown");
+        if (PolicyFunctions.WorkResourcesRefusal(view, plan) is { } refusal) throw new ConflictException("work_resource_conflict_or_unknown: " + refusal);
     }
 }
