@@ -8,8 +8,7 @@ namespace HomeBridge.BridgeTools
     //                 at once; recovery is one gradual step per ramp interval, after
     //                 a hold, and only while frames sit well under the budget, so the
     //                 rate does not oscillate across it.
-    //   heartbeat     brain contact (a status read, an events read, a start or a
-    //                 speed request) refreshes the beat; silence past the tolerance
+    //   heartbeat     brain contact (the explicit Heartbeat call, a Run) refreshes the beat; silence past the tolerance
     //                 drops the ceiling to Normal, and once the brain is heard again
     //                 the ceiling doubles back every ramp interval.
     // The brain asks for a speed; native never exceeds this ceiling. Pure state with

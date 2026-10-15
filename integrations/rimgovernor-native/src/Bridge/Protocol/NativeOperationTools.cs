@@ -14,28 +14,6 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    internal sealed class NativeOperationState
-    {
-        private static readonly ConditionalWeakTable<Game, NativeOperationState> States = new ConditionalWeakTable<Game, NativeOperationState>();
-        private readonly string colony;
-        private readonly string load;
-        internal readonly NativeAttemptLedger Ledger;
-        private NativeOperationState(Common.Identity identity)
-        { colony = identity.ColonyId ?? ""; load = identity.LoadToken ?? ""; Ledger = new NativeAttemptLedger(identity); }
-        internal static bool TryGet(Common.Identity identity, [NotNullWhen(true)] out NativeOperationState? state)
-        {
-            state = null;
-            return Current.Game != null && States.TryGetValue(Current.Game, out state)
-                && state.colony == (identity.ColonyId ?? "") && state.load == (identity.LoadToken ?? "");
-        }
-        internal static NativeOperationState ForAdmission(Common.Identity identity)
-        {
-            if (TryGet(identity, out var state)) return state;
-            States.Remove(Current.Game);
-            var created = new NativeOperationState(identity); States.Add(Current.Game, created); return created;
-        }
-    }
-
     public sealed class NativeOperationTools
     {
         public NativeOperationTools() { NativeDrugPolicy.Install(); NativeDesignationGuards.Install(); HomeCoverage.Install(); TreeLatticeSowing.Install(); WallLayerGuard.Install(); ConstructionTierGate.Install(); RemotePickupGuard.Install(); ConstructionSkillGuard.Install(); ConsumptionHooks.Install(); SpoilagePreference.Install(); TickProfile.Install(); NativePawnControlState.Initialize(); NativePawnActivities.Install(); }
@@ -77,9 +55,8 @@ namespace HomeBridge.BridgeTools
             if (!ValidAttempt(parsed.Attempt)) return new Receipts.LookupReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") };
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var invalid))
                 return new Receipts.LookupReply { Outcome = invalid };
-            return context.Identity is { } identity && NativeOperationState.TryGet(identity, out var state)
-                ? state.Ledger.Lookup(parsed.Attempt, context)
-                : new Receipts.LookupReply { Outcome = new Receipts.UnknownAttempt { Context = context } };
+            // Native keeps no attempt ledger; an unknown attempt proves no absence of effects.
+            return new Receipts.LookupReply { Outcome = new Receipts.UnknownAttempt { Context = context } };
         }
 
         private static bool ValidAttempt([NotNullWhen(true)] Common.AttemptKey? value) => value != null && value.ControllerSessionId is not null

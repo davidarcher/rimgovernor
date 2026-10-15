@@ -38,11 +38,6 @@ public interface IClockWindowNative : IZonesNative, IPlanningWindowNative, IEnti
 /// </summary>
 public sealed partial class ClockScheduler
 {
-    /// <summary>Consecutive no-work refusals before an idle colony is lent a window; the lend is about an hour.</summary>
-    internal const int IdleLendAfter = 3;
-
-    internal const uint IdleLendTicks = 2500;
-
     public static TimeSpan DefaultFullStepEvery => StepReasons.DefaultFullStepEvery;
 
     private readonly Player _player;
@@ -57,10 +52,6 @@ public sealed partial class ClockScheduler
     private long _lastTick;
     private bool _lastTickKnown;
     private DateTimeOffset _lastFull;
-    // Set by the window decision (Go clock_scheduler.go: s.noWork / s.idleRefusals after EvaluateClockWindow), which the window driver runs.
-    internal bool NoWork { get; set; }
-
-    internal int IdleRefusals { get; set; }
     private ReadValidity? _validity;
 
     // The latest step's clock-status context: its identity and scope are what the planner wave's section refreshes read under.
@@ -109,8 +100,8 @@ public sealed partial class ClockScheduler
     /// <summary>The protection actions the immediate planners own that are still being watched.</summary>
     internal List<ActionId> Protection { get; } = [];
 
-    /// <summary>Whether the latest step found a window running (the host reports it; always false while the host owns the clock).</summary>
-    public bool WindowRunning => _running;
+    /// <summary>Whether the latest step found the clock running.</summary>
+    public bool ClockRunning => _running;
 
     /// <summary>The read validity of the latest step whose scope was fixed: the scope and tick its facts describe. Null before any step fixed one.</summary>
     public ReadValidity? Validity
@@ -232,10 +223,6 @@ public sealed partial class ClockScheduler
     // releases its planner at the next step.
     private async Task<PlannerSelectionResult> SelectPlannersAsync(StepReason reason, long tick, CancellationToken ct)
     {
-        if (NoWork && !reason.TickAdvanced)
-        {
-            _queue.Stalled();
-        }
         Func<ActionId, bool>? stillOpen = null;
         if (_queue.Waits.Count > 0)
         {
@@ -260,8 +247,7 @@ public sealed partial class ClockScheduler
         using var span = Tel.StartSpan("buildingruntime", "scheduler.step", ("rimgovernor.step_cause", Wire.Name(reason.Cause)));
         var entered = Stopwatch.GetTimestamp();
         var stepBegan = _clock.Now();
-        // The poll records latched outcomes as it commits them; the reason repeats them for a step driven without it.
-        Latched.Remember(reason.Events);
+        result.StartedAt = stepBegan;
         using var entry = await _player.EnterAsync("clock_step", false, ct).ConfigureAwait(false);
         var call = entry.Call;
         var epoch = entry.Epoch;
@@ -318,14 +304,15 @@ public sealed partial class ClockScheduler
                     : await _player.Journal.LayoutPlanAsync(world, tick, c).ConfigureAwait(false);
             };
             _stepContext = loaded.ClockStatus?.Context;
-            var status = ClockCoordinator.ValidatedStatus(loaded.ClockStatus, id);
+            BridgeApi.ValidateClockStatus(loaded.ClockStatus, id);
+            var status = loaded.ClockStatus ?? throw new InvalidOperationException("clock status required");
             var statusTick = (long)(status.Context ?? throw new BridgeContractException("clock status carried no context")).Tick;
             if (statusTick < (long)loadedContext.Tick)
             {
                 ClockEvents.AuthorityLost("clock status is behind the scope tick");
                 throw new EvidenceException("clock status is behind the scope tick");
             }
-            _running = false;
+            _running = status.State == PbClock.ClockState.Running;
             StepStatus = status;
             reason = reason with { TickAdvanced = !_lastTickKnown || statusTick != _lastTick };
             (_lastTick, _lastTickKnown) = (statusTick, true);
@@ -362,7 +349,6 @@ public sealed partial class ClockScheduler
                 {
                     // A critical planner is still evaluating past the wall budget: hold, naming the planners; the
                     // next step evaluates again.
-                    Tel.Decide(WindowRefusedDecision(["critical_wave_budget"], new Dictionary<string, object?> { ["held_by"] = result.HeldBy, ["wall_budget_ms"] = Config.Budget.EffectiveWall.TotalMilliseconds }));
                     throw new HeldException("critical planners still evaluating");
                 }
                 if (sel.Pick is null && !result.Immediate)
@@ -371,7 +357,6 @@ public sealed partial class ClockScheduler
                 }
             }
             result.NativeWorkTicks = NativeWork(result);
-            result.Window = new ClockWindowSize(Math.Min(Config.MaxTicks, result.NativeWorkTicks == 0 ? Config.MaxTicks : result.NativeWorkTicks));
             return result;
         }
         catch (Exception e)
@@ -433,10 +418,6 @@ public sealed partial class ClockScheduler
                     row["stop_latency_ms"] = (stepBegan - stopAt).TotalMilliseconds;
                 }
             }
-            if (result.Window.Ticks != 0)
-            {
-                row["window_ticks"] = result.Window.Ticks;
-            }
             result.Pacing.Publish(row);
             var cause = result.Reason.Cause == default ? reason.Cause : result.Reason.Cause;
             var elapsed = Stopwatch.GetElapsedTime(entered);
@@ -468,27 +449,7 @@ public sealed partial class ClockScheduler
         }
         // A planner that failed on a native refusal produced neither work nor a wait; one window lets the world move.
         ticks = Math.Max(ticks, PlannerRefusalWait(r.PlannerFailures));
-        if (ticks == 0 && Config.RoundsMethods && IdleRefusals >= IdleLendAfter && r.HeldBy.Count == 0)
-        {
-            ticks = Math.Min(IdleLendTicks, NativeWorkBudget());
-            r.IdleLent = true;
-        }
         return ticks == 0 ? 0 : Math.Min(ticks, Math.Max(NativeWorkBudget(), ticks));
-    }
-
-    // The admission row of a window the step did not admit: target "window", reason the first refusal.
-    internal static Decision WindowRefusedDecision(IReadOnlyList<string> refused, Dictionary<string, object?> attrs)
-    {
-        attrs["refused"] = refused;
-        return new Decision
-        {
-            Kind = "admission",
-            Component = "clock-scheduler",
-            Verdict = "refused",
-            Reason = refused.Count > 0 ? refused[0] : "unspecified",
-            Target = "window",
-            Attrs = attrs,
-        };
     }
 
     /// <summary>

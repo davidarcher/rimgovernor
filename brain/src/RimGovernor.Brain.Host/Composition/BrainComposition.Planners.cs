@@ -555,7 +555,7 @@ public sealed partial class BrainComposition
             Workshop = cfgWorkshop,
         };
         var scheduler = new ClockScheduler(context.Player, client, config, SystemClock.Instance);
-        var windows = CreateWindows(context, client, scheduler);
+        var clock = CreateClock(context, client, scheduler, new FacadeClockWriter(client.Facade));
         return new PlannerParts
         {
             Scheduler = scheduler,
@@ -565,25 +565,26 @@ public sealed partial class BrainComposition
             Flush = client.FlushSnapshotAsync,
             Placement = reviewer.NotePlacement,
             OpenFrames = client.OpenFramesAsync,
-            Windows = windows,
+            Clock = clock,
             TargetSpeed = TargetSpeed,
             Rounds = new RoundsDiagnostics(context.Journal, true, context.Session.RoundsMethodsEnabled(), _options.Families.Active(), context.Sections),
         };
     }
 
-    // Go serviceClockConfig, serviceClockTimeouts and NewClockWorker's configuration: the window every admission
-    // starts from and the poll cadence. ComposePlanners is synchronous, so the driver's journal binding is waited on
-    // from a thread-pool thread (it holds no thread-affine state).
-    private ClockWindowHostDriver CreateWindows(PlannerContext context, FacadeNativeClient client, ClockScheduler scheduler)
+    // The run driver's configuration: the base colony watch policy every Run carries, the poll cadence and the
+    // autosave hold. ComposePlanners is synchronous, so the driver's journal binding is waited on from a thread-pool
+    // thread (it holds no thread-affine state).
+    private ClockRunHostDriver CreateClock(PlannerContext context, FacadeNativeClient client, ClockScheduler scheduler, IClockWriter clockWriter)
     {
         var testAcceleration = _options.ClockTestAcceleration;
         var lease = TimeSpan.FromTicks(Math.Min(Math.Min(_options.NativeTimeout.Ticks, TimeSpan.FromSeconds(10).Ticks), TimeSpan.FromSeconds(7).Ticks));
-        // The dev tick boost makes every window boosted Ultrafast; otherwise every window runs at the live target
+        // The dev tick boost runs Ultrafast at the one ceiling's rate; otherwise the clock runs at the live target
         // speed whatever the native speed controls say.
-        var speed = testAcceleration ? PbClock.Speed.Ultrafast : TargetSpeed.Speed;
-        var start = new ClockStart(
-            speed,
-            BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
+        var config = new ClockRunConfig
+        {
+            Profile = _options.Profile,
+            TargetSpeed = testAcceleration ? new ClockTargetSpeed(PbClock.Speed.Ultrafast) : TargetSpeed,
+            Policy = BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
             {
                 Mode = PbClock.WatchMode.Colony,
                 HealthDropFraction = .1f,
@@ -591,23 +592,16 @@ public sealed partial class BrainComposition
                 HostileWithin = 20f,
                 InjuryStopCooldownMs = 0,
             }),
-            DefaultClockWindowTicks,
-            testAcceleration);
-        var window = new ClockWindowConfig
-        {
-            Profile = _options.Profile,
-            Start = start,
-            TargetSpeed = testAcceleration ? null : TargetSpeed,
-            // The host's autosaver (Go newGoAutosaver(...).AtStop): saves at a paused window start, flushing governor state first.
+            // The host's autosaver (Go newGoAutosaver(...).AtStop): saves while the clock is held for it, flushing governor state first.
             Autosave = context.Autosave,
+            AutosaveEveryTicks = Autosaver.IntervalTicks,
             PageLimit = 128,
             PollInterval = TimeSpan.FromSeconds(1),
-            RunningPollInterval = TimeSpan.Zero,
             CallTimeout = lease,
         };
-        var driver = Task.Run(() => ClockWindowDriver.CreateAsync(context.Player, context.Session, scheduler, client, window, SystemClock.Instance, context.Wake, CancellationToken.None))
+        var driver = Task.Run(() => ClockRunDriver.CreateAsync(context.Player, context.Session, scheduler, client, clockWriter, config, SystemClock.Instance, context.Wake, CancellationToken.None))
             .GetAwaiter().GetResult();
-        return new ClockWindowHostDriver(driver);
+        return new ClockRunHostDriver(driver);
     }
 
     // Go roundsCapabilities: the routine policy thresholds and the method capabilities a composed serve declares from

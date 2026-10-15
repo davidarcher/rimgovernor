@@ -106,17 +106,15 @@ public interface INativeFacade
 
     // Clock.
 
-    Task<Clock.ControlReply> StartClockAsync(Clock.StartRequest request, CancellationToken cancellationToken);
+    Task<Clock.StatusReply> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken);
 
-    Task<Clock.ControlReply> ChangeClockSpeedAsync(Clock.SpeedRequest request, CancellationToken cancellationToken);
+    Task<Clock.StatusReply> HoldClockAsync(Clock.HoldRequest request, CancellationToken cancellationToken);
 
-    Task<Clock.StatusReply> PauseClockAsync(Clock.OwnedRequest request, CancellationToken cancellationToken);
+    Task<Clock.HeartbeatReply> HeartbeatClockAsync(Clock.HeartbeatRequest request, CancellationToken cancellationToken);
 
     Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken);
 
     Task<Clock.EventsReply> ReadClockEventsAsync(Clock.EventsRequest request, CancellationToken cancellationToken);
-
-    Task<Clock.AttemptReply> ReadClockAttemptAsync(Clock.AttemptRequest request, CancellationToken cancellationToken);
 
     // Presentation reads.
 

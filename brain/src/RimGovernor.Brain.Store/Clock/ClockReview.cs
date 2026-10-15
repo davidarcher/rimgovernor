@@ -38,36 +38,35 @@ public static partial class ClockJournal
     private static bool ReviewBoundary(ClockInbox inbox, long cursor) => cursor == inbox.Checkpoint.Cursor || inbox.Pages.Any(p => p.Page.NextCursor.GetValueOrDefault() == cursor);
 
     /// <summary>
-    /// Go <c>BenignStop</c>: whether a stop reason is the controller's own doing (a budget, a requested pause or a
-    /// latched watch, or an armed combat stop owned by an admitted fight plan) rather than an interruption that
-    /// needs review before time may resume.
+    /// Whether a hold reason is the controller's own doing (before any Run, a brain-requested hold, a latched watch,
+    /// or an armed combat stop owned by an admitted fight plan) rather than an interruption that needs review
+    /// before time may resume.
     /// </summary>
-    public static bool BenignStop(Pb.StopReason reason) =>
-        reason is Pb.StopReason.TickBudget or Pb.StopReason.RequestedPause or Pb.StopReason.WatchLatched or Pb.StopReason.CombatEvent;
+    public static bool BenignHold(Pb.HoldReason reason) =>
+        reason is Pb.HoldReason.NeverRun or Pb.HoldReason.CoupledOrder or Pb.HoldReason.Review or Pb.HoldReason.Autosave or Pb.HoldReason.GameForced or Pb.HoldReason.WatchLatched or Pb.HoldReason.CombatEvent;
 
-    /// <summary>Go <c>BenignStopEvent</c>: <see cref="BenignStop"/> with the stop's evidence; a letter pause for an informational letter is benign too.</summary>
-    public static bool BenignStopEvent(Pb.StopEvent? stop)
+    /// <summary><see cref="BenignHold"/> with the hold's evidence; a letter pause for an informational letter is benign too.</summary>
+    public static bool BenignHoldEvent(Pb.HoldEntered? hold)
     {
-        var reason = stop?.Reason ?? Pb.StopReason.Unspecified;
-        if (BenignStop(reason))
+        var reason = hold?.Reason ?? Pb.HoldReason.Unavailable;
+        if (BenignHold(reason))
         {
             return true;
         }
-        return reason == Pb.StopReason.LetterPause && InformationalLetterDefs.Contains(stop?.Evidence?.Pause?.Letter?.DefName ?? "");
+        return reason == Pb.HoldReason.LetterPause && hold?.Evidence is Pb.HoldEvidence.PauseCase { Value: var pause } && InformationalLetterDefs.Contains(pause.Letter?.DefName ?? "");
     }
 
     /// <summary>
     /// Go <c>EventInterrupts</c>: classifies one journal event. Operation outcomes, authority changes, native rule
     /// events, observation invalidations, game alerts, injury observations, notifications and force-pause waits
     /// are typed facts the controller reacts to, not holds: the native supervisor never stops play for them, and
-    /// anything that does stop arrives as its own stop event. Shared with the poll loop so both classifications
+    /// anything that does hold arrives as its own HoldEntered event. Shared with the poll loop so both classifications
     /// cannot drift.
     /// </summary>
     public static bool EventInterrupts(Pb.ClockEvent @event) =>
         @event.Event switch
         {
-            Pb.ClockEventEvent.StartedCase
-            or Pb.ClockEventEvent.SpeedChangedCase
+            Pb.ClockEventEvent.ResumedCase
             or Pb.ClockEventEvent.HostilesClearedCase
             or Pb.ClockEventEvent.ForcePauseClearedCase
             or Pb.ClockEventEvent.ForcePauseWaitingCase
@@ -77,12 +76,12 @@ public static partial class ClockJournal
             or Pb.ClockEventEvent.AlertCase
             or Pb.ClockEventEvent.InjuryObservedCase
             or Pb.ClockEventEvent.NotificationCase => false,
-            Pb.ClockEventEvent.StoppedCase stopped => !BenignStopEvent(stopped.Value),
+            Pb.ClockEventEvent.HoldEnteredCase held => !BenignHoldEvent(held.Value),
             _ => true,
         };
 
     /// <summary>
-    /// Go <c>PageInterrupts</c>: <see cref="EventInterrupts"/> for an event read on a page. A stop taken in another
+    /// Go <c>PageInterrupts</c>: <see cref="EventInterrupts"/> for an event read on a page. A hold taken in another
     /// world than the page's (a kept game's previous load) interrupts nothing in the world read now.
     /// </summary>
     public static bool PageInterrupts(Pb.ClockEvent @event, Pb.EventsPage page) => EventInterrupts(@event) && !OtherWorld(@event, page);

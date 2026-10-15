@@ -53,10 +53,6 @@ public sealed partial class Store
     /// <summary>Writes one action row: its identity, kind, combat fight and the JSON of its payload.</summary>
     internal static void InsertAction(StoreTransaction tx, PlanId plan, int ordinal, DomainAction a)
     {
-        if (tx.Scalar("SELECT count(*) FROM clock_attempts WHERE native_action_id=$id", ("$id", a.Id)) != 0)
-        {
-            throw new ConflictException($"action {a.Id} already reserved by a clock attempt");
-        }
         tx.ExecuteConflict(
             plan,
             "INSERT INTO actions(id,plan_id,ordinal,kind,fight,body) VALUES($id,$plan,$ordinal,$kind,$fight,$body)",

@@ -29,23 +29,24 @@ namespace HomeBridge.BridgeTools
             if (Journal != null) return Journal;
             var journal = Journal = new ClockEventJournal();
             _cursor = journal.Newest;
-            _epoch = Math.Max(_epoch, _cursor);
             return journal;
         }
         private static State? _state;
-        private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
-        private static long _epoch;
+        // The one ceiling outlives a hold: a Run resumes under the heartbeat and
+        // frame-budget state the previous run segment left, beaten at the Run.
+        private static ClockCeiling? _ceiling;
+        private static ClockCeiling SharedCeiling() => _ceiling ??= new ClockCeiling(NowMs());
         private static long _cursor;
         private static int _patched;
         private static string? _patchError;
-        // Injury stops are remembered across epochs on purpose. Restarting the
+        // Injury holds are remembered across run segments on purpose. Resuming the
         // clock re-baselines injuries, so without this a wound that keeps
-        // arriving reads as brand new every epoch and stops play forever.
+        // arriving reads as brand new at every Run and holds play forever.
         private static readonly Dictionary<int, InjuryStop> InjuryStops = new Dictionary<int, InjuryStop>();
         private static object? _injuryStopsSession;
-        // Conscious-hostile count at the last probe of the previous epoch. Like
-        // the injury-stop memory this survives Start on purpose: a guard stop
-        // and restart across the last kill must still raise the reminder.
+        // Conscious-hostile count at the last probe of the previous run segment. Like
+        // the injury-stop memory this survives Run on purpose: a guard hold
+        // and resume across the last kill must still raise the reminder.
         private static int _priorEpochConsciousHostiles;
 
         internal static bool IsActive { get { lock (Gate) return _state != null && _state.Active; } }
@@ -87,151 +88,6 @@ namespace HomeBridge.BridgeTools
                 throw;
             }
         }
-
-        internal static object Start(string owner, TimeSpeed speed,
-            string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
-            string ignoredHostiles, string ignoredDowned, string ignoredInjured,
-            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "")
-        {
-            lock (Gate)
-            {
-                EnsureJournal();
-                if (_state != null && _state.Active)
-                    return Failure("A supervisor is already active; pause it with its owner and epoch first.");
-                if (!GameWatchReads.CoreWatchersAvailable)
-                    return Failure("Alert or transient-message reflection watcher is unavailable; refusing blind play.");
-                if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
-                    return Failure("No playable map is loaded.");
-                if (testAcceleration && (BoostField == null || BoostField.FieldType != typeof(bool)))
-                    return Failure("Native boost support is unavailable.");
-                try { LetterPauseHook.EnsurePatched(); }
-                catch (Exception error) { return Failure("Pause source tracking unavailable: " + error.Message); }
-                if (LongEventHandler.AnyEventNowOrWaiting)
-                    return Retryable("A long event (autosave, map generation) is running or queued; nothing is "
-                        + "open to dismiss. An autosave clears in about a second -- the caller should retry, "
-                        + "not report a refusal.", "long_event");
-                // Only a window a human can close is a refusal. A merely paused
-                // clock is not: the speed set below unpauses it.
-                if (ColonyNamingTools.Pending() != null)
-                {
-                    try { ColonyNamingTools.ConfirmSuggested(); } catch (Exception) { }
-                }
-                if (ForcePausingWindows().Count > 0)
-                    return Failure(ForcePauseDetail());
-                var profile = (mode ?? "colony").Trim().ToLowerInvariant();
-                if (profile != "colony" && profile != "combat")
-                    return Failure("Unknown mode; use colony or combat.");
-                var s = new State(Current.Game, Find.CurrentMap) {
-                    Active = true, Epoch = ++_epoch, Owner = owner ?? "agent", RequestedSpeed = speed,
-                    Mode = profile, HostileWithin = ClampFloat(hostileWithin, 1f, 250f),
-                    HealthDropFraction = ClampFloat(healthDropFraction, 0.01f, 1f),
-                    MinHealthFraction = ClampFloat(minHealthFraction, 0.01f, 1f),
-                    StartTick = Find.TickManager.TicksGame,
-                    TickDeadline = maxTicks == 0 ? (long?)null : (long)Find.TickManager.TicksGame + maxTicks,
-                    LastTick = Find.TickManager.TicksGame,
-                    LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
-                    TestAcceleration = testAcceleration,
-                    Ceiling = new ClockCeiling(NowMs()),
-                    IgnoredHostiles = PawnIds(ignoredHostiles),
-                    IgnoredDowned = PawnIds(ignoredDowned),
-                    SurgicalRecovery = PawnIds(surgicalRecoveryIds),
-                    MedicalRest = PawnIds(medicalRestIds),
-                    IgnoredInjured = PawnIds(ignoredInjured),
-                    InjuryStopCooldownMs = Clamp(injuryStopCooldownMs, 0, 1800000)
-                };
-                AttachTypedEpoch(s);
-                // Pawn IDs belong to a save; another colony must not inherit
-                // this one's injury-stop memory.
-                if (!ReferenceEquals(_injuryStopsSession, Current.Game))
-                { InjuryStops.Clear(); _priorEpochConsciousHostiles = 0; _injuryStopsSession = Current.Game; }
-                // Alerts are baselined like letters and messages, by the stable
-                // key, so a count suffix moving cannot look like a new alert.
-                foreach (var a in GameWatchReads.ActiveAlertKeys(AlertPriority.High, null))
-                    if (s.AlertKeys.Add(a.Key)) s.BaselineAlerts.Add(AlertRow(a));
-                foreach (var l in GameWatchReads.Letters()) s.Letters.Add(GameWatchReads.SafeLetterId(l));
-                foreach (var m in GameWatchReads.LiveMessages()) s.Messages.Add(GameWatchReads.SafeMessageId(m));
-                foreach (var p in GameWatchReads.SpawnedPawns(Find.CurrentMap).Where(GameWatchReads.SafeIsColonist))
-                {
-                    s.Injuries[p.thingIDNumber] = InjurySnapshot.Capture(p);
-                    var owed = InjuryCooldownRemainingMs(p.thingIDNumber, s.InjuryStopCooldownMs);
-                    var acked = s.IgnoredInjured.Contains(p.thingIDNumber);
-                    if (owed <= 0 && !acked) continue;
-                    s.SuppressedInjuries.Add(new Dictionary<string, object?> {
-                        { "pawnId", p.thingIDNumber },
-                        { "pawnName", GameWatchReads.SafeName(p) },
-                        { "reason", owed > 0 ? "cooldown" : "acknowledged" },
-                        { "secondsRemaining", (int)((owed + 999) / 1000) } });
-                }
-                _state = s;
-                ClockPauseAccounting.Started(s.Session);
-                ClockProbeAccounting.Started(s.Session);
-                ResetHazardHooks(s);
-                DigestDirty = false;
-                var digestBegan = System.Diagnostics.Stopwatch.GetTimestamp();
-                PublishFactChanges(s);
-                var probeBegan = System.Diagnostics.Stopwatch.GetTimestamp();
-                s.Timing.DigestElapsed += probeBegan - digestBegan; s.Timing.Digests++;
-                ClockProbeAccounting.Digested(probeBegan - digestBegan);
-                var hit = Probe(s);
-                var probeTook = System.Diagnostics.Stopwatch.GetTimestamp() - probeBegan;
-                s.Timing.ProbeElapsed += probeTook;
-                ClockProbeAccounting.Probed(probeTook);
-                if (hit != null)
-                {
-                    // Starting a guard is itself a request for safety. If the
-                    // initial probe finds danger, do not leave a running game
-                    // unattended merely because no speed change was needed.
-                    Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
-                    return Snapshot(s, s.PauseVerified == true);
-                }
-                if (testAcceleration)
-                {
-                    s.PriorBoost = (bool)BoostField.GetValue(null)!;
-                    s.BoostOwned = true;
-                    BoostField.SetValue(null, true);
-                }
-                // Vanilla's forced slowdown (a danger signal holds the tick rate at 1x for
-                // 800 ticks) would cap every fight at 60 TPS whatever speed the epoch runs;
-                // the controller owns danger handling, so no epoch accepts it.
-                s.PriorNeverForceNormal = DebugViewSettings.neverForceNormalSpeed;
-                s.NeverForceNormalOwned = true;
-                DebugViewSettings.neverForceNormalSpeed = true;
-                SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
-                if (Find.TickManager.CurTimeSpeed != speed)
-                {
-                    Stop(s, "start_refused", "The requested speed did not take.", true, null);
-                    return Snapshot(s, s.PauseVerified == true);
-                }
-                Add("started", "Supervised play started.", s, null);
-                return Snapshot(s, true);
-            }
-        }
-
-        internal static object Speed(string owner, long epoch, TimeSpeed speed)
-        {
-            lock (Gate)
-            {
-                var s = _state;
-                if (!Owns(s, owner, epoch)) return Failure("Owner/epoch mismatch or no active supervisor.");
-                // Update expectation and game speed in the same main-thread
-                // critical section, so our own change cannot look external.
-                if (s.TestAcceleration && speed != TimeSpeed.Ultrafast)
-                    return Failure("Pause the accelerated epoch before changing its speed.");
-                s.Ceiling.Beat(NowMs());
-                var old = s.RequestedSpeed;
-                s.RequestedSpeed = speed;
-                SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
-                if (Find.TickManager.CurTimeSpeed != speed)
-                {
-                    s.RequestedSpeed = old;
-                    return Failure("The requested speed did not take; supervision remains active.");
-                }
-                Add("speed_changed", "Supervisor owner changed speed to " + speed + ".", s,
-                    new Dictionary<string, object?> { { "speed", speed.ToString() } });
-                return Snapshot(s, true);
-            }
-        }
-
 
         // TickManagerUpdate checks Paused after each DoSingleTick. Pausing here
         // stops its frame batch at the boundary, including accelerated frames.
@@ -275,12 +131,6 @@ namespace HomeBridge.BridgeTools
                     if (!RunProbeIfDue(s, tm)) return;
                     RunDigestIfDue(s, tm);
                 }
-                if (!s.TickDeadline.HasValue) return;
-                var deadline = s.TickDeadline.Value;
-                if (tm.TicksGame >= deadline)
-                    Stop(s, "tick_budget", "Native execution tick budget reached.", true,
-                        new Dictionary<string, object?> { { "startTick", s.StartTick },
-                            { "tickDeadline", deadline }, { "tick", tm.TicksGame } });
             }
         }
 
@@ -510,7 +360,7 @@ namespace HomeBridge.BridgeTools
                 new Dictionary<string, object?> { { "waitedMs", waited },
                     { "forcePauseKind", kind }, { "speedRestored", restored } });
             if (restored) return true;
-            Stop(s, "start_refused", "The requested speed did not take after a force pause cleared.", true, null);
+            Stop(s, "run_refused", "The requested speed did not take after a force pause cleared.", true, null);
             return false;
         }
 
@@ -1075,7 +925,7 @@ namespace HomeBridge.BridgeTools
             var drafted = pawns.Where(p => p != null && GameWatchReads.SafeIsColonist(p)
                 && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
                 && SafeDrafted(p)).ToList();
-            // Across a restart, only fire when there is something left to do.
+            // Across a resume, only fire when there is something left to do.
             if (first && downed.Count == 0 && drafted.Count == 0) return;
             s.HostilesCleared = true;
             var parts = new List<string>();
@@ -1098,7 +948,7 @@ namespace HomeBridge.BridgeTools
                     { "draftedColonists", drafted.Select(p => (object)new Dictionary<string, object?> {
                         { "thingId", p.thingIDNumber }, { "name", GameWatchReads.SafeName(p) } }).ToList() },
                     { "consciousHostilesBefore", before },
-                    { "acrossRestart", first } });
+                    { "acrossResume", first } });
         }
 
         private static bool SafeDrafted(Pawn pawn) { try { return pawn.Drafted; } catch { return false; } }
@@ -1226,7 +1076,8 @@ namespace HomeBridge.BridgeTools
             return ours || prey == null;
         }
         private static int Distance(Pawn a, Pawn b) { return Math.Max(Math.Abs(a.Position.x - b.Position.x), Math.Abs(a.Position.z - b.Position.z)); }
-        private static bool Owns([NotNullWhen(true)] State? s, string? owner, long epoch) { return s != null && s.Active && s.Epoch == epoch && string.Equals(s.Owner, owner ?? "agent", StringComparison.Ordinal); }
+        /// Enters a hold: pauses (when asked) and journals one HoldEntered. The
+        /// native clock then stays held until the brain sends Run.
         private static void Stop(State? s, string kind, string? detail, bool pause,
             Dictionary<string, object?>? payload)
         {
@@ -1276,7 +1127,7 @@ namespace HomeBridge.BridgeTools
         {
             var journal = EnsureJournal();
             var identity = (s.Session as Game)?.GetComponent<ColonyIdentity>();
-            var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 }, { "epoch", s.Epoch },
+            var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 },
                 { "kind", kind }, { "detail", detail }, { "event", payload },
                 { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", s.Map.uniqueID },
                 { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick }, { "atMs", NowMs() } };
@@ -1331,7 +1182,7 @@ namespace HomeBridge.BridgeTools
                     var journal = EnsureJournal();
                     if (Current.Game == null || Find.CurrentMap == null) return false;
                     var identity = Current.Game.GetComponent<ColonyIdentity>();
-                    var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 }, { "epoch", 0L },
+                    var row = new Dictionary<string, object?> { { "cursor", _cursor + 1 },
                         { "kind", kind }, { "detail", detail }, { "event", payload },
                         { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", Find.CurrentMap.uniqueID },
                         { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : 0 }, { "atMs", NowMs() } };
@@ -1342,46 +1193,6 @@ namespace HomeBridge.BridgeTools
                 catch (Exception error) { ModLog.Warn("clock", "clock publication of " + kind + " failed: " + error.GetType().Name); return false; }
             }
         }
-        private static object Snapshot(State? s, bool success)
-        {
-            EnsureJournal();
-            return new Dictionary<string, object?> { { "success", success }, { "active", s != null && s.Active },
-                { "durableEvents", true },
-                { "epoch", s != null ? s.Epoch : 0 }, { "owner", s != null ? s.Owner : null },
-                { "requestedSpeed", s != null ? s.RequestedSpeed.ToString() : null },
-                { "mode", s != null ? s.Mode : null },
-                { "hostileWithin", s != null ? s.HostileWithin : 0 },
-                { "healthDropFraction", s != null ? s.HealthDropFraction : 0 },
-                { "minHealthFraction", s != null ? s.MinHealthFraction : 0 },
-                { "lastTick", s != null ? s.LastTick : 0 },
-                { "nativeTickBoundary", true },
-                { "nativeTestAcceleration", BoostField != null && BoostField.FieldType == typeof(bool) },
-                { "testAcceleration", s != null && s.TestAcceleration },
-                { "boostOwned", s != null && s.BoostOwned },
-                { "maxProbeTickGap", s != null ? s.MaxProbeTickGap : 0 },
-                { "probeCount", s != null ? s.ProbeCount : 0 },
-                { "probeElapsedMs", s != null ? Ms(s.Timing.ProbeElapsed) : 0 }, { "digestElapsedMs", s != null ? Ms(s.Timing.DigestElapsed) : 0 },
-                { "digestCount", s != null ? s.Timing.Digests : 0 },
-                { "stopAtMs", s != null ? (object?)s.StopAtMs : null },
-                { "pausedMs", ClockPauseAccounting.PausedMs(Current.Game) }, { "runningMs", ClockPauseAccounting.RunningMs(Current.Game) },
-                { "probeTickLimit", ProbeIntervalTicks },
-                { "startTick", s != null ? (object)s.StartTick : null },
-                { "tickDeadline", s != null ? (object?)s.TickDeadline : null },
-                { "injuryStopCooldownMs", s != null ? s.InjuryStopCooldownMs : 0 },
-                { "suppressedInjuryPawns", s != null ? (object)s.SuppressedInjuries : null },
-                { "baselineAlerts", s != null ? (object)s.BaselineAlerts : null },
-                { "paused", s != null ? (object)s.PausedAtStop : null },
-                { "forcePauseWaitingMs", s != null && s.ForcePauseSinceMs != 0 ? (object)(NowMs() - s.ForcePauseSinceMs) : null },
-                { "forcePauseKind", s != null ? s.ForcePauseKind : null },
-                { "pauseVerified", s != null ? (object?)s.PauseVerified : null },
-                { "sessionChanged", s != null && s.StopReason == "session_changed" },
-                { "stopReason", s != null ? s.StopReason : null }, { "stopDetail", s != null ? s.StopDetail : null },
-                { "newestCursor", _cursor }, { "patchError", _patchError } };
-        }
-        private static object Failure(string message) { return new Dictionary<string, object?> { { "success", false }, { "message", message }, { "retryable", false }, { "refusal", null }, { "newestCursor", _cursor } }; }
-        /// A refusal the caller should retry rather than report: the condition
-        /// clears on its own within a second or two.
-        private static object Retryable(string message, string refusal) { return new Dictionary<string, object?> { { "success", false }, { "message", message }, { "retryable", true }, { "refusal", refusal }, { "newestCursor", _cursor } }; }
         private static HashSet<string> Csv(string value) { return new HashSet<string>((value ?? "").Split(',').Select(x => x.Trim()).Where(x => x.Length > 0), StringComparer.OrdinalIgnoreCase); }
         private static HashSet<int> PawnIds(string value) { var r = new HashSet<int>(); foreach (var x in Csv(value)) { int n; var digits = new string(x.Reverse().TakeWhile(char.IsDigit).Reverse().ToArray()); if (int.TryParse(digits, out n)) r.Add(n); } return r; }
         private static int Clamp(int x, int lo, int hi) { return Math.Max(lo, Math.Min(hi, x)); }
@@ -1408,12 +1219,12 @@ namespace HomeBridge.BridgeTools
             var wall = Ms(System.Diagnostics.Stopwatch.GetTimestamp() - t.StartedAt);
             var ticks = s.LastTick - s.StartTick;
             ModLog.Info("clock", string.Format(CultureInfo.InvariantCulture,
-                "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} probes={11} probeMs={12:F1} maxProbeTickGap={13} digests={14} digestMs={15:F1}",
-                s.Epoch, kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
+                "RimGovernor clock run segment timing{0}: hold={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} probes={11} probeMs={12:F1} maxProbeTickGap={13} digests={14} digestMs={15:F1}",
+                "", kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
                 t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,
                 t.Digests, Ms(t.DigestElapsed)));
             var prof = TickProfile.Take();
-            if (prof.Length > 0) ModLog.Info("clock", "RimGovernor clock epoch " + s.Epoch + " tick profile:" + prof);
+            if (prof.Length > 0) ModLog.Info("clock", "RimGovernor clock run segment tick profile:" + prof);
         }
 
         private sealed class Hit
@@ -1463,13 +1274,13 @@ namespace HomeBridge.BridgeTools
             /// The Go-authored policy this epoch runs under; every hazard threshold reads from it.
             public RimGovernor.Contracts.Wire.Clock.WatchPolicy? Policy => Typed?.Policy;
             public State(object session, Map map) { Session = session; Map = map; }
-            public bool Active; public long Epoch; public string? Owner; public readonly object Session; public readonly Map Map; public TimeSpeed RequestedSpeed;
+            public bool Active; public readonly object Session; public readonly Map Map; public TimeSpeed RequestedSpeed;
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LastProbeMs; public int LastTick; public bool PausedAtStop;
-            public int StartTick; public long? TickDeadline;
+            public int StartTick;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned; public bool PriorNeverForceNormal; public bool NeverForceNormalOwned;
             // The one ceiling (ClockCeiling.cs): frame budget plus brain heartbeat.
-            public ClockCeiling Ceiling = new ClockCeiling(0);
+            public ClockCeiling Ceiling = SharedCeiling();
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
             // The digest cadence and the probe requests direct game
             // hooks raised (hazard class -> tick), served at the next probe.

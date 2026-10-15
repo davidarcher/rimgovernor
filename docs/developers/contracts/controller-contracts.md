@@ -719,7 +719,7 @@ prey as the occurrence's payload (`store.HuntPrey`). The fight runs through
 `admitFight` with `CombatView.Hunt` set and the prey as its threats; the frame's
 detail rows cover the open hunt census rows. A hostile in the frame, or the plan no
 longer opening the hunt, ends the origin. An open hunt fight runs in combat windows
-with the live prey as the window's acknowledged ids (`ClockWindowFacts.HuntPrey`),
+with the live prey as the watch's acknowledged ids (`ClockWatchFacts.HuntPrey`),
 so the combat budget backstop wakes its next decision; no hostile exists to make
 the window a combat one otherwise.
 

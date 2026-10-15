@@ -46,10 +46,11 @@ through `FacadeActionsWriter` (`IActionsWriter`) and `FacadeClockWriter` (`ICloc
 the facade so every native round trip is counted into the attached `ReadTally` (`BridgeFunctions.CountNativeRead`, under
 the brain's `rimgovernor/*` tool names), which is how a scheduler step reports its reads.
 
-`ClockWindowDriver` (#3108) is the window side of the clock: after each planning step it admits and starts the window,
-settles owed epochs, re-takes the clock from the player and polls the native journal. The composition builds it with
-`ClockWindowDriver.CreateAsync` over a `ClockCapabilities` session and an `IClockDriverNative`, wraps it in
-`ClockWindowHostDriver` and returns it as `PlannerParts.Windows`. The composition (`startServiceClock` and
+`ClockRunDriver` (#3178) is the hold state machine of the clock: after each planning step it keeps the clock Running at the target
+speed under the watch policy the facts imply (`Run`), takes the brain's own holds (a coupled order, a review, an autosave),
+keeps the heartbeat and polls the native journal. The composition builds it with `ClockRunDriver.CreateAsync` over a
+`ClockCapabilities` session and an `IClockDriverNative`, wraps it in `ClockRunHostDriver` and returns it as
+`PlannerParts.Clock`. The composition (`startServiceClock` and
 `roundsCapabilities`) is `IBrainComposition`; its family flags are all on by default and
 `RIMGOVERNOR_ROUTINE_FAMILIES` narrows them.
 
@@ -60,7 +61,7 @@ plus `HostSnapshots` (the cached brain snapshot, polled every `RefreshInterval`)
 from `SessionParts.Player`. There is no Attention provider: the brain's acknowledgement had no facade method to port. The
 host wraps the lifecycle in `FlushedLifecycle` (the governor state is flushed before every save) and builds the
 `Autosaver` (one in-game day, five rotating `Autosave-N` slots, baseline on the first stop or a rewound tick), which
-the composition passes to the clock windows as `ClockWindowConfig.Autosave`.
+the composition passes to the clock run driver as `ClockRunConfig.Autosave`.
 
 The catalog reads need `CatalogFactory` and the `governor_ideoligion` resolver `StartingIdeoligion`; the mod's
 `BrainBootstrap` installs both (see below). Both live in the mod

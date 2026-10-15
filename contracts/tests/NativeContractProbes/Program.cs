@@ -34,12 +34,10 @@ internal static class NativeContractProbesDispatcher
                 case "native-authority": NativeAuthorityProbe.Invoke(); return 0;
                 case "native-authority-control": NativeAuthorityControlProbe.Invoke(); return 0;
                 case "native-authority-status": NativeAuthorityStatusProbe.Invoke(); return 0;
-                case "native-clock": NativeClockProbe.Invoke(); return 0;
                 case "native-observation-work": NativeObservationWorkProbe.Invoke(); return 0;
                 case "native-reply-encoder": NativeReplyEncoderProbe.Invoke(); return 0;
                 case "native-threat-classifier": NativeThreatClassifierProbe.Invoke(); return 0;
                 case "native-acquisition-token": NativeAcquisitionTokenProbe.Invoke(); return 0;
-                case "native-attempt-ledger": NativeAttemptLedgerProbe.Invoke(); return 0;
                 case "native-construction-causality": NativeConstructionCausalityProbe.Invoke(); return 0;
                 case "native-ref-index": NativeRefIndexProbe.Invoke(); return 0;
 
@@ -83,7 +81,7 @@ internal static class NativeContractProbesDispatcher
         Console.Error.WriteLine("Valid probe names:");
         foreach (var name in new[]
         {
-            "native-authority", "native-authority-control", "native-authority-status", "native-clock",
+            "native-authority", "native-authority-control", "native-authority-status",
             "native-threat-classifier", "native-reply-encoder", "native-acquisition-token",
             "native-proto-boundary",
             "native-movement-operations",

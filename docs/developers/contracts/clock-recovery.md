@@ -6,19 +6,10 @@ the brain bridge and store validate clock commands and recovered evidence agains
 canonical native producer. Autonomous play (the in-process host, see [brain host](../architecture/brain-host.md)) composes the scheduler and workers;
 validation never restores permission after restart.
 
-> **Superseded in part by the Run/Hold design (epic #3168).** The target is
-> continuous run with named holds, a minimal `Run(target speed)` / `Hold(reason)`
-> plus heartbeat wire contract, and no clock attempt, epoch or receipt persistence
-> (see [Execute under supervision](../architecture/control-loop.md#execute-under-supervision)).
-> Until the removal pieces land (#3177, #3178, #3183, #3184) this page describes
-> current behavior. Marked for removal: Original command correlation, Durable
-> attempts, Explicit command coordinator, Owned epochs and pause cleanup,
-> Finite window admission (its Stale, Unknown, InvalidLimits, NoWork and NotPaused
-> refusals vanish; Unsafe, Outstanding, Unreviewed and Interrupted become holds),
-> Dispatch binding, lease renewal in Independent clock workers, and Clock
-> history retirement for attempts and epochs. Kept in concept: Immediate
-> protection and ordinary review, event cursors and review, the planner wave,
-> step causes and the due queue.
+> The clock is continuous run with named holds (epic #3168): `Run(target speed, policy)`, `Hold(reason)` and an
+> explicit heartbeat. There is no clock attempt, epoch, lease, window or receipt, and no clock persistence in the store
+> (see [Execute under supervision](../architecture/control-loop.md#execute-under-supervision) and the
+> [clock wire contract](../../../contracts/wire/clock-lifecycle.md)).
 
 ## Immediate protection and ordinary review
 
@@ -50,118 +41,12 @@ Hazard reports separately identify native-supervisor detection. Missing phases
 remain null; an accepted order does not fill the native-effect field. These
 records supply evidence for later calibration, without numeric latency gates.
 
-## Original command correlation
-
-`bridge.ClockExpectation` retains the original world, attempt key, authority owner,
-native generation and exactly one start, renewal or speed command. A start retains
-its speed, watch policy, lease duration and tick budget. Renewal and speed commands
-retain the exact original epoch; their authority generation must match its origin.
-Requested durations and observed remaining lease time are evidence, not live lease
-tokens. Current authority must be acquired separately before any new command.
-
-`ValidateClockReceipt` checks the full attempt and authorizing owner, admission
-context and command-specific epoch facts. An immediately stopped start can be a
-valid applied receipt. An uncertain receipt remains uncertain, including when it
-contains a status observation; that observation cannot predate admission.
-
-`ValidateClockControlReply` also accepts explicit pre-admission failures and
-long-event deferrals. A refusal can describe a replacement world. Attempt conflict
-does not establish that the original attempt had no effect. A lookup failure or
-unknown result is not a control refusal and cannot authorize another dispatch.
-Recovered receipts must be correlated against the original expectation.
-
-`ValidateClockStatus` and `ValidateClockEpoch` check evidence shape and consistency,
-not freshness, current ownership or verified pause. `Stopping` can describe a failed
-pause that remains armed. Owned pause cleanup uses the original world and epoch owner
-and remains separate from start/renew/speed attempts.
-
-## Durable attempts
-
-Start, renewal and speed intents are stored through `Store.PrepareClock`. Exact
-request replay returns the existing native attempt. Each command gets a distinct
-action ID and attempt number one; allocation and ordinary plan insertion check each
-other's IDs in the same SQLite transaction because the native ledger shares one
-attempt-key namespace.
-
-`DispatchClock` persists dispatch once before the caller contacts native control.
-`MarkClockUncertain` retains missing replies without permitting another dispatch.
-`RecordClockReply` validates against the complete original expectation. Applied
-and refused results are immutable except for exact replay. A correlated admitted
-receipt cannot later be replaced by a pre-admission failure or deferral. A fully
-correlated recovered receipt can resolve an in-flight uncertain result.
-
-The catalog retains at most 4,096 attempts; capacity is checked before insertion
-(exact replay still works at the limit). Loading fails rather than returning an
-incomplete recovery set. Persisted values use bounded canonical encodings and are
-validated again on read. No live lease token is stored, and opening a database does
-not enable a coordinator.
-
-## Explicit command coordinator
-
-The runtime coordinator serializes commands and receipt recovery. It starts
-disabled, binds each command to the complete current authority snapshot and obtains
-a fresh lease immediately before dispatch. Authority changes cancel active and
-queued calls; shutdown joins journal completion. Renewal and speed changes require
-the original start's complete snapshot and a freshly observed matching running epoch.
-Only a prepared attempt can dispatch. Recovery reads the exact original attempt;
-unknown results never authorize replay or adoption from clock status.
-
-An unknown start is resolved only by two independent native facts under the
-original identity: the native attempt ledger (unsaved per load, so unknown under
-the same load token means never admitted) and a clock status whose latest epoch
-is not new (never started, owned by another session, or an epoch this journal
-already holds). Then the journal records a `NOT_FOUND` refusal, which frees the
-next start; the status is never adopted as an epoch. A status carrying a newer
-epoch owned by this session keeps the attempt uncertain: only its receipt can
-resolve it.
-
-## Owned epochs and pause cleanup
-
-An applied start and its required cleanup obligation are stored in one transaction.
-The obligation's original epoch is derived from the immutable start receipt.
-Uncertain status observations cannot establish ownership, and a missing obligation
-for an applied start is an error replay cannot repair.
-
-`BeginClockPause` increments a local sequence and records dispatch before a pause
-call; completion must match that sequence. After an uncertain call, fresh evidence
-must establish a running owned epoch before another pause can be dispatched. The
-sequence is not a native attempt key; owned pause has none.
-
-`AssessClockEpoch` compares immutable owner, origin, policy and tick bounds (speed,
-remaining lease and observed tick may change). It distinguishes:
-
-- **required:** the original epoch is still running;
-- **uncertain:** pause is still armed, or current state is unavailable or unknown;
-- **paused:** the original epoch is stopped and current pause is verified;
-- **retired:** the original epoch is explicitly inactive, without claiming current pause;
-- **superseded:** a positive world or epoch replacement ends the old obligation.
-
-An inactive epoch must not be paused again merely because the player resumed time.
-Retirement and supersession do not satisfy a save or dialog operation's separate
-fresh-pause prerequisite. `Stopping` retains an obligation even when it reports a
-temporarily paused game. Terminal cleanup evidence is immutable.
-
 ## Session lifecycle
 
-The optional complete clock capability shares Session authority and profile ownership.
-Startup stays disabled and leaves recovery to explicit cleanup or later worker
-composition. Pending starts or owned epochs cannot be opened without clock recovery
-capabilities. No constructor starts time or acquires native authority.
-
-Manual invalidates commands before joining them. Cleanup runs under the Control
-gate and cannot call Control or request a lease. It assesses each obligation from an
-identity read and, under the origin identity, a `clock_read_status`; the scheduler
-step that settles a stopped epoch passes the owned status its bundle just read
-(`CleanupObserved`), and both reads are skipped for the obligations it describes. A
-new acquire drains old owned effects before requesting authority. Close joins
-writers, joins the owed clock commands (drafted pawns stay drafted), and retains the
-profile, transport and store until cleanup succeeds. Lease-free cleanup remains
-usable after the command coordinator stops.
-
-A fresh positive replacement world can durably retire the scope of an unknown start.
-The attempt retains its original outcome uncertainty; retirement never means refusal
-or no effect. Its immutable proof prevents late replies from creating a new
-obligation. Same-world authority changes cannot retire that scope.
+The optional complete clock capability shares Session authority and profile ownership. Startup stays disabled and
+sends no `Run`; no constructor starts time or acquires native authority. Manual and Stop hold the clock for review
+(`HOLD_REASON_REVIEW`) once, under the Control gate; a hold of an already held clock keeps the first reason. Nothing
+about the clock is persisted: a restart finds native held (`NEVER_RUN` or the last reason) until the brain sends `Run`.
 
 ## Process event cursors
 
@@ -185,16 +70,13 @@ within the scanned window. An empty journal can report `oldest_cursor = 0` and
 requires a nonempty journal, and zero is invalid for a nonempty one.
 
 Reads are never held: `EventsRequest` has no wait field.
-The poll loop reads the page after its cursor unheld at `ClockWindowConfig.PollInterval`
-(`RunningPollInterval` while a window runs). Gap and loss evidence is the page's, as above.
+The poll loop reads the page after its cursor unheld at `ClockRunConfig.PollInterval`. Gap and loss evidence is the
+page's, as above.
 
-`Event.owner` is required for every event except an `AuthorityChanged` observed
-outside an epoch (`epoch = 0`, no owner). `OperationOutcome` rows carry an attempt
-key, the latching tick and exactly one receipts effect; one immediately precedes its
-`STOP_REASON_WATCH_LATCHED` stop on the same tick, and that stop's `WatchLatched`
-evidence repeats the outcome with the window's tick deadline.
+Native journal events are `HoldEntered` (reason, evidence, detected and occurrence tick) and `Resumed` (speed, from),
+plus the facts below. A brain-requested hold is not a decision event; a hold for a non-benign native hazard reason is.
 `ObservationInvalidated` rows name one to eight distinct `FactFamily` values (never
-unspecified) that changed under a running epoch without a brain write or a
+unspecified) that changed under a running clock without a brain write or a
 stop. A row may narrow the discard: `entity_ids` (at most 64 distinct) name the
 changed rows, and `cells` is one rectangle of inclusive, ordered, nonnegative cell
 bounds; past the id bound the family alone is named, and a native that cannot
@@ -248,15 +130,13 @@ retained operations and inbox provenance on every load. Capacity refusal leaves
 state unchanged. Compaction preserves exact acknowledgement results in an indexed
 archive, queried only by request ID; later events cannot change those results.
 
-## Finite window admission
+## Run decision
 
-`policy.EvaluateClockWindow` requires fresh same-authority status and emergency
-facts, a paused inactive clock, known remaining work and a complete catalog with
-no outstanding owned epoch or unknown start. Reviewed and captured cursors must
-match the native newest cursor, with no interruption or gap holds. Native tick
-boundaries and durable events must be known (a never-started clock may report
-durability as false). The admitted budget is finite and cannot overflow its tick
-deadline. Admission carries its snapshot and review revision for dispatch binding.
+`policy.EvaluateClockWatch` requires fresh same-authority status and emergency facts and a complete catalog. Reviewed
+and captured cursors must match the native newest cursor, with no interruption or gap holds. Native tick boundaries
+and durable events must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). The decision names the watch
+mode and the acknowledgements the next `Run` carries. There is no budget, window or admission: a refusal only keeps
+a held clock held.
 
 ### Threat and stock rules
 
@@ -264,26 +144,12 @@ deadline. Admission carries its snapshot and review revision for dispatch bindin
   unless the ActiveCombat concern holds an admitted plan with open work; unknown plan
   evidence refuses as `unknown_facts`.
 - A hostile building alone refuses only while the defense planner has not reported
-  `no_worker:squad` for this stop (`ClockWindowFacts.SquadUnanswered`); after that
+  `no_worker:squad` for this stop (`ClockWatchFacts.SquadUnanswered`); after that
   it is watched and the colony window admits.
 - A hostile or hunting animal, or hostile building, known to be at least
   `policy.DistantThreatCells` from every colonist is not an emergency (the native
   `hostile_within` radius stops a running window first). A humanlike or mechanoid
   threat, or one whose race or distance is unknown, holds at any distance.
-- A method refused only for insufficient stock lends the window a bounded
-  `stockWaitTicks` of native work (the census does not see a stack in a hauler's
-  hands; without ticks the clearing haul never lands and the window is refused
-  `no_work` for good). The same bounded window is lent when a planner's native
-  preview is refused or a planner fails on `bridge.ErrRefused`. A transport or
-  control failure lends nothing.
-- A cooler method that completed on the tick the supervisor latched the window still
-  reads `powerOn=false` until the power net ticks, so the refrigeration planner lends
-  its cooling allowance to `cooler_power_needed` as well as `cooling`; a cooler still
-  unpowered when it runs out is a genuine hold for the power family. The allowance
-  keys on the method's dispatch scope and world, not the native generation. A concern
-  epoch with no cooler method of its own lends the same allowance from the tick the
-  refrigeration latch engaged (`RoundsLatches.RefrigerationSince`) but never covers
-  `cooler_power_needed`. Either allowance is one game hour (2500 ticks) per window.
 - A skilled furniture or cooler build needs one available pawn with Construction
   enabled at the native skill minimum.
 - With an active-combat plan the decision is a combat watch: it names, sorted, every
@@ -292,40 +158,13 @@ deadline. Admission carries its snapshot and review revision for dispatch bindin
   acknowledging nothing. Colonist status, unknown threat status and every other hold
   apply in both modes.
 
-### Dispatch binding
-
-Window starts retain their exact profile, snapshot, tick, review revision, captured
-cursor and budget with the immutable clock intent. Durable dispatch checks the
-current review in the same transaction: revision and captured/reviewed cursors must
-still match, with no holds. Later review does not invalidate historical admission
-needed for receipt recovery.
-
-`CommandClockWindow` carries the policy facts through the serialized coordinator.
-It checks age and authority after waiting and before dispatch and native execution;
-the fresh status must still describe the admitted paused tick and cursor. That status
-is the admitting step's own second bundle (`ClockWindowRequest.Status`, stamped
-`StatusAt`) while within `MaxAge` (every game-host call is serial, so a
-`clock_read_status` after the bundle would report the same paused tick); otherwise
-the coordinator reads it natively. In either case the start policy must watch in the
-admitted mode with exactly the admitted hostiles acknowledged: colony mode
-acknowledges no pawn, combat mode only the decision's hostiles, and medical
-suppression lists are never accepted. The ordinary command entry point cannot
-dispatch a window-bearing intent without these checks. A dispatched attempt with
-uncertain effects is recovered by its original key, never by a replacement start.
-
 ## Scheduler step
 
-`ClockScheduler.Step` uses the player's cancellation and serialization scope for
-one decision. Its explicit start configuration is colony watch mode without
-acknowledgement or medical suppression lists; it derives a combat start (mode,
-acknowledged hostiles, combat budget) from the window decision when the current
-rounds binds an active ActiveCombat concern whose plan has open work, so a raid runs in
-short windows re-planned between them. It checks the shared profile, current plan
-work and complete attempt/epoch catalogs before collecting fresh native facts.
-Unchanged decision inputs retain the same request ID across repeated calls; an
-undispatched stale preparation cannot prevent a fresh decision. Disabled sessions
-perform owned cleanup and cannot start. A valid running window is left unchanged.
-The step has no polling loop; autonomous play attaches `ClockWorker`.
+`ClockScheduler.Step` uses the player's cancellation and serialization scope for one decision. It only plans: it
+reads the bundle with the clock status, runs the planner wave and returns a `ClockSchedulerResult`; it starts and
+stops nothing. `ClockRunDriver.AfterStepAsync` acts on the result (see Run driver). The step has no polling loop;
+autonomous play attaches `ClockRunDriver`.
+
 
 ### Planner wave
 
@@ -348,25 +187,15 @@ so a renew or stop never queues behind a burst of reads. The class rides beside
 queued control hops before observation hops within a frame (untyped tools bypass
 that ordering).
 
-**Critical and optional planners.** The admission cycle waits on the critical class
+**Critical and optional planners.** The wave waits on the critical class
 only. Each catalog entry is `critical` (combat, custody, medicine, recovery, fire safety and the like) or `optional` (the development reviews). The Rounder review completes first; `StepBudget.Wall` bounds the subsequent
 planner wave; past it, planners still
 evaluating are named on `ClockSchedulerResult.HeldBy` (`held_by` on the row) and the
-step admits nothing (an `admission` row, verdict `refused`, reason `critical_wave_budget`). Optional
+step does not complete (`HeldException`; the next step evaluates again). Optional
 planners run on the same snapshot, started after the critical ones, and are joined
 up to the same wall budget; those still evaluating are cancelled, listed under
 `missed_cutoff`, and their results discarded. Planners write into a private result
 merged only if they made the cutoff.
-
-**Latched-hold escape.** While a Worker is attached, admission defers a step on a
-latched terminal outcome the Worker has not reconciled, or on queued watched-kind
-work not yet dispatched. `clockLatchedHoldMax = 3` bounds those deferrals (per
-outcome, per queued action, and for a run of consecutive deferrals). It is a
-liveness escape, not a policy cap: a Worker that cannot reconcile or dispatch must
-not park the clock. When the bound lets a review through while work is still owed,
-the step journals one `admission` decision, verdict `admitted`, reason
-`latched_hold_escape`, attrs `actions` (the released action ids) and `hold_max`,
-once per action until it leaves the queue.
 
 **Wall-clock regulators.** These are kept sim-health tuning, not policy limits, and
 are deliberately not configurable:
@@ -426,78 +255,53 @@ the same load, map and native generation plans from it at any tick at or after t
 review until committed clock evidence invalidates it. There is no paused review
 bracket: CAS evidence on every write refuses a decision the world moved past.
 
-## Independent clock workers
+## Run driver
 
-`ClockWorker` runs event polling, renewal and scheduling separately. Scheduling waits
-for a successful initial poll. Polling never takes the Player gate: observed
-interruptions invalidate permission before persistence, and read or persistence
-failures also disable writes. Pages commit before review; no event is automatically
-acknowledged. Cleanup uses the original owned epoch independently of live authority.
+`ClockRunDriver` runs three loops separately: the native journal poll, the heartbeat and the step loop. The step loop
+calls `AfterStepAsync` after every scheduler step. Polling never takes the Player gate: observed interruptions
+invalidate permission before persistence, and read or persistence failures also disable writes. Pages commit before
+review; no event is automatically acknowledged.
 
-Renewal requires the exact retained epoch and complete current authority snapshot,
-unchanged deadline and speed, and caught-up reviewed event evidence. Uncertain
-renewals are read by their original attempt. All clock requests use a
-namespace-bound monotonic sequence allocated atomically with the intent. A retired
-epoch's historical uncertainty cannot authorize or block renewal in a replacement
-scope. Renewal waits without extending the lease when event capture or review is
-behind. A verified tick-budget stop defers to event review and scheduler cleanup,
-preserving permission for the next eligible window. If the window finishes during
-renewal preflight, the renewal stays prepared and undispatched. A fresh, matching
-native observation of normal budget completion preserves authority for that handoff;
-uncertainty or interruption does not.
+The driver is the hold state machine. Native is Running at the target speed or Held for a named reason, and only a
+`Run` ends a hold. After each step the driver diffs the watch policy the facts imply against the last one sent and
+resends `Run` when it differs (`Run` is idempotent and doubles as the speed and policy change). It holds the clock
+itself for a newly ready coupled order and for a due autosave, and resumes with `Run` when the decision allows it. A
+refused decision never stops a running clock: native holds on what it sees. A refused resume is a `HeldException`
+and is retried at the next step. The heartbeat loop beats every `HeartbeatInterval` (under the native tolerance of
+five seconds); losing the beat lowers the native ceiling to Normal and is neither journalled nor a hold. When
+authority ends under a `Run` this driver sent, the same loop holds the clock for review (`no_authority`).
 
-The session attaches one clock worker before its loops start. Close cancels and
-joins the loops and their cancellation handler before releasing native handles, the
-journal or profile owner. Concurrent Stop calls serialize, successful cleanup is
-cached, failed cleanup is retryable. Poll and renew intervals and call budgets are
-bounded below a quarter of the native lease duration so a late renew can never let
-the epoch lapse. The step budget is independent of the lease: a step holds the
-Player gate, never `renewGate`, so a slow planner census cannot delay renewal
-(the scheduler's `MaxAge` bounds the admission reads). Autonomous play attaches the worker; observe-only
-(`RIMGOVERNOR_OBSERVE`) does not.
+The session attaches one clock driver before its loops start. Close cancels and joins the loops before releasing
+native handles, the journal or profile owner. Concurrent Stop calls serialize, successful cleanup is cached, failed
+cleanup is retryable; Stop drops authority and holds the clock for review. Autonomous play attaches the driver;
+observe-only (`RIMGOVERNOR_OBSERVE`) does not.
 
 ### Wake, backoff and deferral
 
-Unchanged scheduling decisions back off, except while a combat window is admitted or
-running. A captured page wakes the step loop through `WakeSignal` and resets the
-backoff, carrying outcomes, invalidated families and the authority flag as the
-step's `StepReason`. The poll also wakes the routine `Worker` to reconcile actions
-named by `OperationOutcome` or `WatchLatched` evidence ahead of its rotation and
-without retry backoff (at most 64 focused actions).
-
-A wake's terminal outcome for an attempt the plan still shows dispatched defers the
-admission (`ClockSchedulerResult.Deferred`): at most three steps per outcome and
-three deferred steps in a row, and not while another watched attempt is in flight or
-a watched successor is queued but undispatched. The step loop steps again when a
-worker step advances any action (`WorkerConfig.Advanced`) or a `StepInterval` later,
-without backoff.
+Unchanged scheduling decisions back off, except while a combat watch is running. A captured page wakes the step
+loop through `WakeSignal` and resets the backoff, carrying invalidated families and the authority flag as the step's
+`StepReason`. The poll also wakes the routine `Worker` to reconcile actions named by `OperationOutcome` evidence ahead
+of its rotation and without retry backoff (at most 64 focused actions).
 
 No admission waits for the stop between windows: every routine kind the worker
 dispatches validates its preconditions natively at apply time (action-contracts.md
-"Apply-time preconditions") and dispatches under the running window. A dispatch the
 executor holds on `stale_facts` (`workerHeldStale`) is retried at once, off the
 worker's backoff and once per hold; the clock is not held for the retry.
 
-A routine window arms no watches: a completed order is not a reason to stop the
-clock, and the `OperationOutcome` row wakes the worker under the running window.
-An applied building on a plan not yet retired counts as clock work, so the window
-runs until the construction census retires the plan. Dispatched construction and
-haul attempts a running window does not watch are counted as evidence only
+A running clock arms no watches: a completed order is not a reason to hold the clock, and the `OperationOutcome` row
+wakes the worker. Dispatched construction and haul attempts are counted as evidence only
 (`ClockSchedulerResult.Unwatched`).
 
-A coupled order (`domain.ActionDependency.Coupled`, controller-contracts.md "Coupled
-orders") does not stop the window: when its prerequisite has completed at the epoch's
-current tick and the order is still undispatched (`PlanSpec.CoupledPending`), the
-step reports `Coupled`, plans live for it whatever the wave's cadence says, and
-leaves the epoch running.
+A coupled order (`domain.ActionDependency.Coupled`, controller-contracts.md "Coupled orders") whose prerequisite has
+completed and which is still undispatched (`PlanSpec.CoupledPending`) takes a brain hold (`HOLD_REASON_COUPLED_ORDER`):
+the step plans against the held world and the driver sends Run again once it has.
 
 ### Live planning
 
-A step that finds its own window running plans under it: planners read the bundle's
-snapshot (one main-thread hop) and commit plans the worker dispatches live; nothing
-is admitted, and the stop that ends the window reviews and admits as before. A
-`timer` step is promoted to `live` once `FullStepEvery` has passed; a `wake` or
-`full` step goes live at once.
+The clock is Running whenever the brain is not holding it, so every step plans live: planners read the bundle's
+snapshot (one main-thread hop) and commit plans the worker dispatches under the running clock. A `timer` step is
+promoted to `live` once `FullStepEvery` has passed; a `wake` or `full` step goes live at once.
+
 
 ### Step causes and the due queue
 
@@ -552,29 +356,11 @@ opt-out.
 
 ### Reopened state
 
-A fresh worker over reopened state remains disabled while recovering original
-attempts and pausing retained ownership; it acquires no authority and issues no new
-Start or Renew. A native reply that ignores cancellation keeps shutdown retryable and
-the profile locked until the call returns, its receipt is persisted and owned cleanup
-joins.
+A fresh driver over reopened state remains disabled: it acquires no authority and sends no `Run`. Native stays held
+(`NEVER_RUN`, or the last hold) until the brain sends `Run` under a fresh grant. A native reply that ignores
+cancellation keeps shutdown retryable and the profile locked until the call returns.
 
-## Clock history retirement
-
-Clock request IDs bind the journal namespace and a positive monotonic sequence. The
-scheduler stores its logical decision key separately and reuses retained exact
-intents. Retirement never resets allocation: removed requests return ErrRetired, and
-a missing retained row is corruption.
-
-`RetireClockHistory` atomically removes eligible attempts and terminal epochs while
-preserving unresolved writes, nonterminal ownership, retained commands' Start
-provenance, the latest scheduling window and a bounded recent tail. Its expected
-state checks namespace and allocation/retirement watermarks; the transaction
-recomputes eligibility from current rows. A bounded retained index detects missing
-pinned records without tombstones. Event polling invokes retirement after each 128
-newly allocated requests, retaining the latest 128 attempts besides pinned evidence;
-a concurrent allocation defers it to the next poll, and other maintenance failures
-disable control and invoke owned cleanup. Maintenance does not take the player gate,
-acknowledge events or restore authority.
+## Event and review maintenance
 
 Event/review maintenance checkpoints the validated review head and retires a
 contiguous reviewed prefix, retaining eight recent pages and every unreviewed or

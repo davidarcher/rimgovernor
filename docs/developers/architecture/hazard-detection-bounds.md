@@ -5,7 +5,7 @@ guards a running clock window with a hazard probe (`Probe`) and reports the
 facts that changed under it with a digest pass (`PublishFactChanges`). The two are separate: the probe is paced in game ticks so its detection
 gap holds at every production `TimeSpeed`, and the digests never run inside
 it. `SupervisedPlayHazards.cs` declares the constants and the per-class
-table below; the native contract probe (`native-clock`) drives the pure
+table below; the native contract probe (`native-clock-ceiling`) drives the pure
 cadence functions through every speed's tick pattern.
 
 > **Run/Hold (epic #3168).** The probe, bounds and stop kinds below survive as

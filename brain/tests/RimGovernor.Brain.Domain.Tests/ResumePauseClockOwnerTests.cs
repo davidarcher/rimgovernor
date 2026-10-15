@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
@@ -16,10 +15,10 @@ using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The player Resume and Pause routes own the game clock (#3172). Clock ownership is implicit: the bot holds the clock
-/// exactly while the player state is enabled, so Resume lets the coordinator admit an owned epoch and Pause pauses a
-/// running owned epoch once and releases the clock. Everything below the routes is the real player, coordinator and
-/// journal; the session and the native clock are fakes.
+/// The player Resume and Pause routes own the game clock (#3172). Clock ownership is implicit: the bot runs the clock
+/// exactly while the player state is enabled, so Resume lets the bot Run and Pause holds the clock once with the
+/// Review reason. Everything below the routes is the real player, clock holder and journal; the session and the
+/// native clock are fakes.
 /// </summary>
 public sealed class ResumePauseClockOwnerTests
 {
@@ -38,98 +37,63 @@ public sealed class ResumePauseClockOwnerTests
         public Task<World> ReadWorldAsync(CancellationToken ct) => Task.FromResult(new World(new ColonyId(Colony), new LoadId(Load), new MapId(Map)));
     }
 
-    /// <summary>The native clock: one game that is either paused by nobody, running under the bot's epoch, or paused by the bot.</summary>
+    /// <summary>The native clock: one game that is either held or running at the speed of the last Run; a hold of a held clock keeps its first reason.</summary>
     private sealed class FakeClock : IClockNative, IClockWriter
     {
-        private PbClock.Epoch? _epoch;
+        public int Runs { get; private set; }
 
-        /// <summary>The player unpauses by hand; the bot is not asked and does not act.</summary>
-        public void PlayerUnpauses() => Paused = false;
+        /// <summary>The holds that took effect: a hold of an already held clock does not count.</summary>
+        public int Holds { get; private set; }
 
-        public int Starts { get; private set; }
+        public PbClock.HoldReason Reason { get; private set; } = PbClock.HoldReason.NeverRun;
 
-        public int OwnedPauses { get; private set; }
-
-        public bool Paused { get; private set; } = true;
+        public bool Held { get; private set; } = true;
 
         public Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken ct) =>
-            Task.FromResult(new PbLifecycle.IdentityReply { Outcome = new PbLifecycle.IdentityReplyOutcome.LoadedCase(new PbLifecycle.LoadedIdentity { Context = Context, Paused = Paused }) });
+            Task.FromResult(new PbLifecycle.IdentityReply { Outcome = new PbLifecycle.IdentityReplyOutcome.LoadedCase(new PbLifecycle.LoadedIdentity { Context = Context, Paused = Held }) });
 
         public Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken ct) =>
             Task.FromResult(new PbClock.StatusReply { Outcome = new PbClock.StatusReplyOutcome.StatusCase(Status()) });
 
-        public Task<PbClock.AttemptReply> ReadClockAttemptAsync(PbClock.AttemptRequest request, CancellationToken ct) => throw new NotSupportedException();
-
-        public Task<PbClock.ControlReply> StartAsync(PbClock.StartRequest request, CancellationToken ct)
+        public Task<PbClock.Status> RunAsync(PbClock.RunRequest request, CancellationToken ct)
         {
-            Starts++;
-            Paused = false;
-            var attempt = request.Authority!.Attempt!;
-            _epoch = new PbClock.Epoch
-            {
-                Owner = new PbClock.EpochOwner { ControllerSessionId = attempt.ControllerSessionId!, Epoch = 1 },
-                Origin = Context,
-                RequestedSpeed = request.Speed!.Value,
-                Policy = request.Policy!,
-                StartTick = Tick,
-                TickDeadline = Tick + request.MaxTicks!.Value,
-                LastTick = Tick,
-            };
-            var receipt = new PbClock.ControlReceipt
-            {
-                Attempt = attempt,
-                AdmittedContext = Context,
-                Outcome = new PbClock.ControlReceiptOutcome.AppliedCase(new PbClock.AppliedControl { Status = Status() }),
-            };
-            return Task.FromResult(new PbClock.ControlReply { Outcome = new PbClock.ControlReplyOutcome.ReceiptCase(receipt) });
+            Runs++;
+            Held = false;
+            return Task.FromResult(Status());
         }
 
-        public Task<PbClock.StatusReply> OwnedPauseAsync(PbClock.OwnedRequest request, CancellationToken ct)
+        public Task<PbClock.Status> HoldAsync(PbClock.HoldRequest request, CancellationToken ct)
         {
-            OwnedPauses++;
-            Paused = true;
-            return ReadClockStatusAsync(WorldIdentity, ct);
-        }
-
-        public Task<PbClock.ControlReply> ChangeSpeedAsync(PbClock.SpeedRequest request, PbClock.Epoch original, CancellationToken ct) => throw new NotSupportedException();
-
-        private PbClock.Status Status()
-        {
-            var status = new PbClock.Status
+            if (!Held)
             {
-                Context = Context,
-                NativeTickBoundary = true,
-                DurableEvents = true,
-                NewestCursor = 0,
-                ObservedSpeed = Paused ? PbClock.ObservedSpeed.Paused : PbClock.ObservedSpeed.Fast,
-                ActualPaused = Paused,
-            };
-            if (_epoch is null)
-            {
-                return status with { State = new PbClock.StatusState.NeverStartedCase(new PbClock.NeverStarted()) };
+                Holds++;
+                Held = true;
+                Reason = request.Reason!.Value;
             }
-            if (!Paused)
-            {
-                return status with { State = new PbClock.StatusState.RunningCase(new PbClock.Running { Epoch = _epoch }) };
-            }
-            var stopped = new PbClock.Stopped
-            {
-                Epoch = _epoch,
-                Reason = PbClock.StopReason.RequestedPause,
-                ActualPaused = true,
-                PauseVerified = true,
-                PauseRequested = true,
-                StoppedAtUnixMs = 0,
-            };
-            return status with { State = new PbClock.StatusState.StoppedCase(stopped) };
+            return Task.FromResult(Status());
         }
+
+        public Task<PbClock.HeartbeatAck> HeartbeatAsync(PbClock.HeartbeatRequest request, CancellationToken ct) =>
+            Task.FromResult(new PbClock.HeartbeatAck { State = Held ? PbClock.ClockState.Held : PbClock.ClockState.Running, Reason = Held ? Reason : null });
+
+        private PbClock.Status Status() => new()
+        {
+            Context = Context,
+            State = Held ? PbClock.ClockState.Held : PbClock.ClockState.Running,
+            Reason = Held ? Reason : null,
+            NativeTickBoundary = true,
+            DurableEvents = true,
+            NewestCursor = 0,
+            ObservedSpeed = Held ? PbClock.ObservedSpeed.Paused : PbClock.ObservedSpeed.Fast,
+            ActualPaused = Held,
+        };
     }
 
     /// <summary>
-    /// The session the sink of the real one stands in for: an acquisition makes the clock coordinator's authority
-    /// the grant, a Disable withdraws it, and a Manual drains the owned clock (pausing a running epoch).
+    /// The session the sink of the real one stands in for: an acquisition makes the clock holder's authority the
+    /// grant, a Disable withdraws it, and a Manual holds the clock for review.
     /// </summary>
-    private sealed class FakeSession(ClockCoordinator clock) : IPlayerSession
+    private sealed class FakeSession(ClockHolder clock) : IPlayerSession
     {
         private ControlState _state;
 
@@ -144,7 +108,7 @@ public sealed class ResumePauseClockOwnerTests
         public Task ManualAsync(CancellationToken ct)
         {
             Disable();
-            return clock.Cleanup(ct);
+            return clock.HoldAsync(PbClock.HoldReason.Review, "bot_off", ct);
         }
 
         public Task ManualForResumeAsync(CancellationToken ct) => ManualAsync(ct);
@@ -193,8 +157,8 @@ public sealed class ResumePauseClockOwnerTests
             var path = Path.Combine(Path.GetTempPath(), "rg-resume-pause-clock-" + Guid.NewGuid().ToString("N") + ".db");
             Journal = JournalStore.Open(path, _lifetime.Token);
             var timeout = TimeSpan.FromSeconds(5);
-            Coordinator = ClockCoordinator.Create(Journal, Clock, Clock, SystemClock.Instance, new ClockCoordinatorConfig { CallTimeout = timeout, JournalTimeout = timeout });
-            var session = new FakeSession(Coordinator);
+            Holder = ClockHolder.Create(Clock, timeout);
+            var session = new FakeSession(Holder);
             _player = Player.Create(new PlayerConfig(timeout, timeout), Journal, session, new Worlds(), _lifetime.Token);
             var routes = new RouteTable();
             _ = PlayerRoutes.Register(routes, new PlayerControl(_player), new Reader(Journal), null);
@@ -205,7 +169,7 @@ public sealed class ResumePauseClockOwnerTests
 
         public FakeClock Clock { get; } = new();
 
-        public ClockCoordinator Coordinator { get; }
+        public ClockHolder Holder { get; }
 
         public async Task<JsonElement> PostAsync(string path, string requestId)
         {
@@ -216,10 +180,10 @@ public sealed class ResumePauseClockOwnerTests
             return JsonDocument.Parse(response.Body).RootElement.Clone();
         }
 
-        /// <summary>The bot's attempt to take the clock: a start the coordinator admits only under live authority.</summary>
-        public async Task<Exception?> TryStartOwnedEpochAsync()
+        /// <summary>The bot runs the clock the way the run driver does while authority is enabled.</summary>
+        public async Task RunClockAsync()
         {
-            var snapshot = _player.State().Snapshot;
+            Assert.True(_player.State().Enabled);
             var policy = BridgeFunctions.WithHazardThresholds(new PbClock.WatchPolicy
             {
                 Mode = PbClock.WatchMode.Colony,
@@ -228,21 +192,14 @@ public sealed class ResumePauseClockOwnerTests
                 HostileWithin = 20f,
                 InjuryStopCooldownMs = 0,
             });
-            var sequence = await Journal.ReadClockSequenceAsync(_lifetime.Token);
-            var intent = new ClockIntent(sequence.NextRequestId(), "", snapshot, new ClockCommand(Start: new ClockStart(PbClock.Speed.Ultrafast, policy, 600)));
-            var (attempt, error) = await Coordinator.Command(intent, _lifetime.Token);
-            if (error is null)
-            {
-                Assert.Equal(ClockPhase.Applied, attempt!.Phase);
-            }
-            return error;
+            _ = await Clock.RunAsync(new PbClock.RunRequest { Identity = WorldIdentity, ExpectedGeneration = Generation, Speed = PbClock.Speed.Ultrafast, Policy = policy }, _lifetime.Token);
         }
 
         public void Dispose()
         {
             _lifetime.Cancel();
-            Coordinator.Stop(CancellationToken.None).GetAwaiter().GetResult();
-            Coordinator.Dispose();
+            Holder.Stop(CancellationToken.None).GetAwaiter().GetResult();
+            Holder.Dispose();
             _player.Dispose();
             Journal.Dispose();
             _lifetime.Dispose();
@@ -250,54 +207,47 @@ public sealed class ResumePauseClockOwnerTests
     }
 
     [Fact]
-    public async Task ResumeGivesTheBotTheClockAndPausePausesItOnceAndReleasesIt()
+    public async Task ResumeLetsTheBotRunTheClockAndPauseHoldsItOnceForReview()
     {
         using var rig = new Rig();
 
-        // Before Resume nobody owns the clock for the bot: the coordinator admits nothing.
-        Assert.NotNull(await rig.TryStartOwnedEpochAsync());
-        Assert.Equal(0, rig.Clock.Starts);
+        // Before Resume the clock was never run and the bot has seen no world: a Pause holds nothing.
+        _ = await rig.PostAsync(PlayerRoutes.PausePath, "pause-0");
+        Assert.Equal(0, rig.Clock.Holds);
 
         var resumed = await rig.PostAsync(PlayerRoutes.ResumePath, "resume-1");
         Assert.Equal("running", resumed.GetProperty("record").GetProperty("phase").GetString());
         Assert.True(resumed.GetProperty("state").GetProperty("enabled").GetBoolean());
 
-        // After Resume the bot owns the clock: it starts an owned epoch and the game runs.
-        Assert.Null(await rig.TryStartOwnedEpochAsync());
-        Assert.Equal(1, rig.Clock.Starts);
-        Assert.False(rig.Clock.Paused);
+        // After Resume the bot runs the clock and the game runs.
+        await rig.RunClockAsync();
+        Assert.Equal(1, rig.Clock.Runs);
+        Assert.False(rig.Clock.Held);
 
         var paused = await rig.PostAsync(PlayerRoutes.PausePath, "pause-1");
         Assert.Equal("paused", paused.GetProperty("record").GetProperty("phase").GetString());
         Assert.False(paused.GetProperty("state").GetProperty("enabled").GetBoolean());
 
-        // Pause pauses the game exactly once and hands the clock back: the bot can no longer start an epoch.
-        Assert.Equal(1, rig.Clock.OwnedPauses);
-        Assert.True(rig.Clock.Paused);
-        Assert.NotNull(await rig.TryStartOwnedEpochAsync());
-        Assert.Equal(1, rig.Clock.Starts);
+        // Pause holds the clock exactly once, for review.
+        Assert.Equal(1, rig.Clock.Holds);
+        Assert.True(rig.Clock.Held);
+        Assert.Equal(PbClock.HoldReason.Review, rig.Clock.Reason);
 
-        // A second Pause finds no running owned epoch and pauses nothing more.
+        // A second Pause finds the clock held and keeps the first hold.
         _ = await rig.PostAsync(PlayerRoutes.PausePath, "pause-2");
-        Assert.Equal(1, rig.Clock.OwnedPauses);
+        Assert.Equal(1, rig.Clock.Holds);
     }
 
     [Fact]
-    public async Task ManualUnpauseAfterPauseLeavesTheClockAlone()
+    public async Task APauseWhileTheBotNeverRanTheClockLeavesItHeldForNeverRun()
     {
         using var rig = new Rig();
         _ = await rig.PostAsync(PlayerRoutes.ResumePath, "resume-1");
-        Assert.Null(await rig.TryStartOwnedEpochAsync());
-        _ = await rig.PostAsync(PlayerRoutes.PausePath, "pause-1");
-        Assert.Equal(1, rig.Clock.OwnedPauses);
 
-        // The player unpauses by hand. The bot has no authority, so nothing starts and nothing re-pauses the game.
-        rig.Clock.PlayerUnpauses();
-        var state = await rig.PostAsync(PlayerRoutes.PausePath, "pause-2");
-        Assert.False(state.GetProperty("state").GetProperty("enabled").GetBoolean());
-        Assert.False(rig.Clock.Paused);
-        Assert.NotNull(await rig.TryStartOwnedEpochAsync());
-        Assert.Equal(1, rig.Clock.Starts);
-        Assert.Equal(1, rig.Clock.OwnedPauses);
+        // Resume alone runs nothing: the game stays held until the bot sends Run, and a Pause keeps the first reason.
+        _ = await rig.PostAsync(PlayerRoutes.PausePath, "pause-1");
+        Assert.Equal(0, rig.Clock.Runs);
+        Assert.Equal(0, rig.Clock.Holds);
+        Assert.Equal(PbClock.HoldReason.NeverRun, rig.Clock.Reason);
     }
 }

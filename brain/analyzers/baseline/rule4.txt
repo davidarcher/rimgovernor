@@ -44,10 +44,7 @@ Acceptance/Suites/SweepCommand.cs|SweepCommand.RunSeedAsync
 Bridge/Catalog/CreepJoinerDisarm.cs|DefinitionCatalog.BuildCreepJoinerDisarm
 BuildingRuntime/ArrivalHold.cs|Worker.ResendMoveAsync
 BuildingRuntime/Authorize.cs|PlanAuthorizer.AuthorizeRoundsPlanAsync
-BuildingRuntime/Clock/ClockMaintenance.cs|ClockMaintenance.MaintainAsync
 BuildingRuntime/Clock/ClockScheduler.cs|ClockScheduler.RunPlannerWaveAsync
-BuildingRuntime/Clock/ClockWindowDriver.cs|ClockWindowDriver.StopAsync
-BuildingRuntime/Clock/ClockWindowDriver.cs|ClockWindowDriver.WakePoll
 BuildingRuntime/Colony/ColonyPlan.cs|Rounder.DrawLayoutOverlayAsync
 BuildingRuntime/Colony/ColonyStationAdvice.cs|StationFactsBuilder.StationFactsOf
 BuildingRuntime/Layout/LayoutFieldsShrink.cs|RoundsFieldPlanner.ShrinkAsync
@@ -132,8 +129,6 @@ Policy/QuestDecrees.cs|PolicyFunctions.PlanDecreeProduction
 Policy/QuestMonument.cs|PolicyFunctions.SelectQuestMonument
 Policy/StoreMedicine.cs|StoreView.MedicineStore
 Snapshot/SnapshotLater.cs|SnapshotPackage.Later
-Store/Clock/ClockAttempts.cs|ClockJournal.Prepare
-Store/Clock/ClockSequence.cs|ClockJournal.ClockRequestId
 Store/Core/StoreTransaction.cs|StoreTransaction.Dispose
 Store/Rounds/RoundsDependency.cs|Store.PriorAdmitted
 Telemetry/Otlp/OtlpFileWriter.cs|OtlpFileWriter.MetricLoopAsync

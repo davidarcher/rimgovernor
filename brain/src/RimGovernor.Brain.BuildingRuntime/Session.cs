@@ -28,10 +28,10 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     private readonly Control _control;
     private readonly Executor.Executor _executor;
     private readonly StoreJournal _journal;
-    private readonly ClockCoordinator? _clock;
+    private readonly ClockHolder? _clock;
     private readonly ClockWorkerSlot _clockWorkers;
 
-    private Session(bool roundsMethods, Control control, Executor.Executor executor, StoreJournal journal, ClockCoordinator? clock, ClockWorkerSlot clockWorkers)
+    private Session(bool roundsMethods, Control control, Executor.Executor executor, StoreJournal journal, ClockHolder? clock, ClockWorkerSlot clockWorkers)
     {
         _roundsMethods = roundsMethods;
         _control = control;
@@ -63,10 +63,6 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         {
             throw new ArgumentException("complete clock capabilities required");
         }
-        if (config.Clock is null)
-        {
-            await BuildingRuntimePackage.RequireNoClockObligationsAsync(journal, ct).ConfigureAwait(false);
-        }
         if (config.Telemetry is { } telemetry)
         {
             Tel.Emitter = telemetry;
@@ -77,7 +73,7 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         {
             StopWrites = sink.Stop,
             CleanupWrites = sink.Cleanup,
-            ResumeWrites = sink.Resume,
+            ResumeWrites = SessionSink.Resume,
             // The world source is the host's (a facade ReadTick), never derived from the clock capability: the clock
             // native client reads a clock status, not the loaded world's identity.
             Worlds = config.Control.Worlds,
@@ -130,24 +126,24 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
             {
                 worker.EnableHaul(new HaulBoundary(haul.Native, haul.Writer, clock));
             }
-            ClockCoordinator? coordinator = null;
+            ClockHolder? holder = null;
             if (config.Clock is { } clockCaps)
             {
-                coordinator = ClockCoordinator.Create(journal, clockCaps.Native, clockCaps.Writer, clock, new ClockCoordinatorConfig { CallTimeout = config.Control.CallTimeout, JournalTimeout = config.Executor.JournalTimeout });
+                holder = ClockHolder.Create(clockCaps.Writer, config.Control.CallTimeout);
             }
             try
             {
-                sink.Attach(worker, coordinator, ct);
+                sink.Attach(worker, holder, ct);
             }
             catch
             {
-                if (coordinator is not null)
+                if (holder is not null)
                 {
-                    await coordinator.Stop(CancellationToken.None).ConfigureAwait(false);
+                    await holder.Stop(CancellationToken.None).ConfigureAwait(false);
                 }
                 throw;
             }
-            return new Session(config.RoundsMethods, control, worker, journal, coordinator, sink.ClockWorkers);
+            return new Session(config.RoundsMethods, control, worker, journal, holder, sink.ClockWorkers);
         }
         catch
         {
@@ -223,31 +219,12 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
         _clockWorkers.Attach(worker);
     }
 
-    private ClockCoordinator Coordinator(string method) =>
-        _clock ?? throw new ControlException($"{method}: s.clock == nil");
-
     /// <summary>
-    /// Runs one trusted clock command (Go <c>CommandClock</c>). Current shared authority and the original complete
-    /// snapshot remain mandatory at dispatch.
+    /// Holds the native clock for <paramref name="reason"/> (the bot stops acting: Manual, a save, shutdown); a
+    /// session without the clock capability holds nothing.
     /// </summary>
-    public Task<(ClockAttempt? Attempt, Exception? Error)> CommandClock(ClockIntent intent, CancellationToken ct) =>
-        Coordinator("CommandClock").Command(intent, ct);
-
-    /// <summary>Go <c>CommandClockWindow</c>.</summary>
-    public Task<(ClockAttempt? Attempt, Exception? Error)> CommandClockWindow(ClockWindowRequest request, CancellationToken ct) =>
-        Coordinator("CommandClockWindow").CommandWindow(request, ct);
-
-    /// <summary>Go <c>ReconcileClock</c>.</summary>
-    public Task<(ClockAttempt? Attempt, Exception? Error)> ReconcileClock(string requestId, CancellationToken ct) =>
-        Coordinator("ReconcileClock").Reconcile(requestId, ct);
-
-    /// <summary>Go <c>CleanupClock</c>.</summary>
-    public Task CleanupClock(CancellationToken ct) => CleanupClockObserved(null, ct);
-
-    /// <summary><see cref="CleanupClock"/> given a clock status the caller just read (Go <c>CleanupClockObserved</c>).</summary>
-    public Task CleanupClockObserved(PbClock.Status? observed, CancellationToken ct) =>
-        _clock is null ? Task.CompletedTask : _clock.CleanupObserved(observed, ct);
-
+    public Task HoldClockAsync(PbClock.HoldReason reason, string detail, CancellationToken ct) =>
+        _clock is null ? Task.CompletedTask : _clock.HoldAsync(reason, detail, ct);
 
     public bool RoundsMethodsEnabled() => _roundsMethods;
 }
@@ -258,7 +235,7 @@ internal sealed partial class SessionSink : IAuthoritySink
     internal readonly object Mu = new();
     internal Executor.Executor? Executor;
     internal Control? Control;
-    internal ClockCoordinator? Clock;
+    internal ClockHolder? Clock;
     internal ClockWorkerSlot ClockWorkers = null!;
 
     public void UpdateAuthority(Executor.Authority value)
@@ -308,7 +285,7 @@ internal sealed partial class SessionSink : IAuthoritySink
     {
         var workerStopped = await ClockWorkers.Stop(ct).ConfigureAwait(false);
         Executor.Executor? e;
-        ClockCoordinator? clock;
+        ClockHolder? clock;
         lock (Mu)
         {
             e = Executor;
@@ -348,37 +325,35 @@ internal sealed partial class SessionSink : IAuthoritySink
         }
         if (clock is not null && !workerStopped)
         {
-            await clock.Cleanup(ct).ConfigureAwait(false);
+            await clock.HoldAsync(PbClock.HoldReason.Review, "stop", ct).ConfigureAwait(false);
         }
     }
 
     /// <summary>
-    /// Joins the owed clock commands: an explicit Manual, a checkpoint save and shutdown. Drafted pawns stay drafted;
-    /// with authority inactive the game's own auto-undraft applies again (Go sessionSink.cleanup).
+    /// Holds the clock for an explicit Manual, a checkpoint save and shutdown. Drafted pawns stay drafted; with
+    /// authority inactive the game's own auto-undraft applies again (Go sessionSink.cleanup).
     /// </summary>
-    internal Task Cleanup(CancellationToken ct) => DrainAsync(ct);
-
-    /// <summary>Cleanup before a resume in the same world (Go sessionSink.resume).</summary>
-    internal Task Resume(CancellationToken ct) => DrainAsync(ct);
-
-    private async Task DrainAsync(CancellationToken ct)
+    internal async Task Cleanup(CancellationToken ct)
     {
-        ClockCoordinator? clock;
+        ClockHolder? clock;
         lock (Mu)
         {
             clock = Clock;
         }
         if (clock is not null)
         {
-            await clock.Cleanup(ct).ConfigureAwait(false);
+            await clock.HoldAsync(PbClock.HoldReason.Review, "bot_off", ct).ConfigureAwait(false);
         }
     }
+
+    /// <summary>Before a resume in the same world: nothing is owed, the driver's Run resumes time once authority is back.</summary>
+    internal static Task Resume(CancellationToken ct) => Task.CompletedTask;
 
     /// <summary>
     /// Publish only after the final fallible construction check. Until publication, failure cleanup releases the
     /// owner without draining unrelated durable work.
     /// </summary>
-    internal void Attach(Executor.Executor worker, ClockCoordinator? clock, CancellationToken ct)
+    internal void Attach(Executor.Executor worker, ClockHolder? clock, CancellationToken ct)
     {
         lock (Mu)
         {
@@ -439,27 +414,6 @@ internal static partial class BuildingRuntimePackage
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return "";
-        }
-    }
-
-    /// <summary>Refuses a session without the clock capability while the journal still owes a clock command or cleanup (Go <c>requireNoClockObligations</c>).</summary>
-    internal static async Task RequireNoClockObligationsAsync(StoreJournal journal, CancellationToken ct)
-    {
-        var attempts = await journal.LoadClockAttemptsAsync(4096, ct).ConfigureAwait(false);
-        foreach (var v in attempts)
-        {
-            if (v.SupersededAt is null && v.Intent.Command.Start is not null && v.Phase is ClockPhase.Dispatched or ClockPhase.Uncertain)
-            {
-                throw new InvalidOperationException("clock recovery capability required for pending start");
-            }
-        }
-        var epochs = await journal.LoadClockEpochsAsync(4096, ct).ConfigureAwait(false);
-        foreach (var v in epochs)
-        {
-            if (v.Stage is not (ClockEpochStage.Paused or ClockEpochStage.Retired or ClockEpochStage.Superseded))
-            {
-                throw new InvalidOperationException("clock cleanup capability required for owned epoch");
-            }
         }
     }
 }

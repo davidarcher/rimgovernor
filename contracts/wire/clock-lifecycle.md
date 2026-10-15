@@ -2,10 +2,9 @@
 
 | Contract | Required behavior |
 | --- | --- |
-| `Start`, `Pause`, `ChangeSpeed` | Exact epoch ownership, bounded native tick budget, no automatic reacquisition. |
-| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` is an ordinary wire speed; the native tick boost behind it (`StartRequest.test_acceleration`) is admitted only by a game launched with `-rimgovernor-test-acceleration`, which the acceptance harness (`RimGovernor.cmd acceptance`) adds to its acceptance profiles alone (headless and rendered) (`Status.test_acceleration_available`), and an accelerated epoch pauses rather than changing speed. |
-| `clock.Event`, `EventsPage` | Immutable typed events, explicit gaps, journal failure holds play. |
-| `clock.ControlReceipt`, `ReadAttempt` | Shared attempt namespace and retained clock outcome; no retry inferred from missing receipt. |
+| `Run`, `Hold`, `Heartbeat` | Continuous run at a target speed; a named hold ends only with a `Run`; no attempt key, no epoch, no tick budget. |
+| `clock.Clock` | One supervised clock owner; autonomous execution never changes speed outside it. `SPEED_ULTRAFAST` is an ordinary wire speed (test acceleration via `-rimgovernor-test-acceleration`, `Status.test_acceleration_available`). |
+| `clock.Event`, `EventsPage` | Immutable typed events (`HoldEntered`, `Resumed`), explicit gaps, journal failure holds play. |
 | `lifecycle.Lifecycle.ReadIdentity` | Saved colony ID, fresh unsaved load token, current map/tick, explicit capability availability. Initialization belongs load hooks, not identity reads. |
 | `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
 | `lifecycle.Lifecycle.NewColony` | `NewColonySpec` is a required base `scenario` plus typed scenario parts (`starting_things`, `forced_traits`, `forced_hediffs`, `naked`, `set_need_levels`, `perma_game_conditions`, `disallowed_buildings`, `disabled_incidents`) and mandatory-part overrides (`player_faction`, `arrival_method`; the pawn count is `colonist_count`). Native builds game ScenParts from them (`NativeNewColonyScenarioParts`) and puts them on the copy of the scenario before the colonists are generated. Parts replace by kind: a non-empty list removes the base scenario's parts of that kind (all three `starting_things` placements are one kind) and a list left empty keeps the base's, so Crashlanded plus a full list yields exactly that list. It refuses, naming the field, an unknown defName, a trait degree the trait lacks, a hediff that is not `scenarioCanAdd` or above its editor cap, a non-major need, a part that cannot coexist with another, or a stuff/quality the thing does not take. `perma_game_conditions` accepts any condition def, not only `canBePermanent` ones (ColdSnap works); 1.6 has no map-scoped permanent part. |
@@ -14,68 +13,45 @@
 
 ## Clock validation
 
-`Start` requires current authority and one ordinary speed, a complete watch policy,
-and a tick budget 1–1800000. Policy fractions must be finite in
-0.01–1, hostile distance finite in 1–250, cooldown 0–1800000 ms. Each exact
-pawn ID set has at most 256 entries without duplicates. `watched_attempts` has at
-most 16 distinct complete attempt keys, each resolving to a tracked construction
-operation under the requesting identity (the only watchable family so far); an
-attempt already terminal at start is reported once as `OperationOutcome` and not
-armed, and the first armed attempt to reach a terminal outcome stops the epoch
-at that tick boundary as `STOP_REASON_WATCH_LATCHED`. Medical-rest exceptions
-require a budget at most 600 ticks. Native eligibility is checked on every sweep;
-acknowledgements cannot disable death or severe-health checks. Unknown numeric
-enum values, omitted required fields and unsupported policies are refusals.
+`Run` requires current authority (identity plus the expected native generation), one ordinary speed and a complete
+watch policy. Policy fractions must be finite in 0.01–1, hostile distance finite in 1–250, cooldown 0–1800000 ms.
+Each exact pawn ID set has at most 256 entries without duplicates. Medical-rest exceptions require their bounded
+ticks. Native eligibility is checked on every sweep; acknowledgements cannot disable death or severe-health checks.
+Unknown numeric enum values, omitted required fields and unsupported policies are refusals.
 
-Speed changes retain the original tick deadline. Pause is permitted
-for the exact identity/session/epoch even after automation revocation so cleanup
-can stop owned play. It cannot affect a replacement epoch or another owner.
-Epochs are positive signed 64-bit values; cursor zero is the initial position.
-Cursor arithmetic must not overflow. `ReadEvents` limits are 1–128 and rows are
-strictly after the requested cursor; reads are never held. An invalid or regressed cursor is an explicit
-failure; missing history reports loss. A complete page never silently drops rows.
+`Run` is idempotent and has no attempt key: sent while Running it changes the speed or the policy in place, sent while
+Held it resumes. There is no tick budget and no deadline: Running continues until a hold. `Hold` names a `HoldReason`;
+a `Hold` while already held keeps the first reason. After a native hazard hold, native stays held until the brain
+sends `Run`; a native never resumes by itself. `Run` is refused (`Unavailable`) while a game-forced pause (a letter,
+a dialog) is active.
 
-`Running`, `Stopping`, `Stopped`, `NeverStarted` and `Unavailable` are exclusive.
-A failed pause stays armed in `Stopping`; inactive does not prove paused.
-Top-level observed speed/pause describes the actual current clock even when no
-epoch has started or a running epoch is temporarily force-paused. Stop-specific
-`pause_verified` describes the original stop, not an everlasting pause guarantee.
-Consumers needing pause require fresh actual-paused and pause-verified facts for
-the same identity. A tick-budget/pause race is reconciled by exact epoch and stop
-reason plus a fresh clock observation. An uncertain transport response requires
-inspection, never blind start/speed replay. Clearing a modal does not authorize a
-new epoch. Acknowledgement belongs brain inspected-event handling; there is
-no native acknowledge/delete/resume alias.
+`Heartbeat` is explicit and carries the identity. Losing it is neither journalled nor a hold: it lowers the clock
+ceiling to Normal until the next beat. `SPEED_ULTRAFAST` uses the one ceiling's rate with no launch gate; the native
+tick boost behind it is `Status.test_acceleration_available`, set only by a game launched with
+`-rimgovernor-test-acceleration`, which the acceptance harness (`RimGovernor.cmd acceptance`) adds to its acceptance
+profiles alone.
 
-Typed journal payloads cover started/speed, notification/alert, injury/health,
-hostile/downed/predator/hunting/medical-rest, hostiles-cleared, tick budget,
-watch-latched with its operation outcome, authority changes (owner-less when
-observed outside an epoch), pause-failure, external pause/speed,
-unavailable/watcher/journal errors, force-pause waiting/cleared events and
-`STOP_REASON_DIALOG_PAUSE` with its `DialogPause` (window id/type/title) when a
-game-opened `Verse.Dialog_NodeTree` force-pauses a running epoch. Like a
-letter pause it is a non-benign stop the player acknowledges; the brain
-answers the dialog through a `DialogIntent` on Actions/Apply and starts a new epoch, and
-a start attempted while such a window is open is refused as unavailable rather
-than reported as a running epoch's pause. Source numeric pawn IDs must resolve to exact
-canonical IDs, never suffix matching. Every event carries its original native
-context, not whichever map happens to be selected during later reads.
+`HoldReason` is fine-grained: every native `StopReason` (health, hostile, downed, combat event, force-pause waits,
+dialog pause and the like) plus the brain's own `COUPLED_ORDER`, `REVIEW` and `AUTOSAVE`, the `GAME_FORCED` pause and
+`NEVER_RUN`. `Status` is flat: `Running`, `Held` and `Unavailable` are exclusive, the held reason and the observed
+speed and pause describe the actual current clock, and `Unavailable` carries a reason. Consumers needing pause
+require fresh actual-paused facts for the same identity. An uncertain transport response requires a status read,
+never a blind replay of anything but the idempotent `Run`. Clearing a modal does not resume the clock. Acknowledgement
+belongs to brain inspected-event handling; there is no native acknowledge/delete/resume alias.
 
-Durable event/stop timestamps are Unix milliseconds for diagnostic chronology. Stop
-snapshots retain original epoch identity; observed current context makes identity
-replacement explicit.
+The journal is read with `ReadEvents`: limits 1–128, rows strictly after the requested cursor, never held. An invalid
+or regressed cursor is an explicit failure; missing history reports loss. A complete page never silently drops rows.
+Typed payloads are `HoldEntered` (reason, evidence, detected tick, occurrence tick) and `Resumed` (speed, from), plus
+notification/alert, injury/health, hostile/downed/predator/hunting/medical-rest evidence, authority changes,
+unavailable/watcher/journal errors, observation invalidations and `DialogPause` (window id/type/title) when a
+game-opened `Verse.Dialog_NodeTree` force-pauses the clock. A dialog hold is non-benign; the brain answers the dialog
+through a `DialogIntent` on Actions/Apply and sends `Run`. Source numeric pawn IDs must resolve to exact canonical
+IDs, never suffix matching. Every event carries its original native context, not whichever map happens to be selected
+during later reads.
 
-Start/speed use the common attempt namespace and the same 4096-entry,
-unsaved, non-evicting ledger as ordinary guarded operations. Record admission
-before clock changes. Equality compares the complete typed request,
-including the method and immutable original preconditions. An identical attempt
-replays its receipt; changed reuse is conflict. The clock receipt contains original
-admission context, authorizing owner and applied or uncertain state. An applied
-start may immediately stop on a safety finding; inspect its actual status.
-Read-only attempt lookup survives authority revocation within that load and never
-grants authority. Unknown records require reconciliation. Pause uses exact epoch
-ownership and is idempotent only for the same already-stopped epoch; it never
-pauses an unrelated replacement. There is no new native resume or event-ack verb.
+Durable event timestamps are Unix milliseconds for diagnostic chronology. The native journal is an in-memory buffer
+of the game process; there is no clock attempt ledger, receipt or epoch, and the brain persists no clock state beyond
+its event inbox.
 
 ## Lifecycle validation
 

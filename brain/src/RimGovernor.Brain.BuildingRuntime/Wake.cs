@@ -144,10 +144,10 @@ internal static partial class Pkg
 {
     /// <summary>
     /// Reads the wake-relevant facts out of one committed page: the latched outcomes, the families its
-    /// ObservationInvalidated events named, whether authority changed, and whether the page carried a Stopped
-    /// event with the earliest such event's native stamp (null when the event carried none).
+    /// ObservationInvalidated events named, whether authority changed, and whether the page carried a native hold
+    /// with the earliest such event's native stamp (null when the event carried none).
     /// </summary>
-    internal static ClockPageWake ClockPageWakeStopped(ClockPb.EventsPage page)
+    internal static ClockPageWake PageWake(ClockPb.EventsPage page)
     {
         var outcomes = new List<WakeOutcome>();
         var families = new List<FactFamily>();
@@ -162,21 +162,25 @@ internal static partial class Pkg
                 case ClockPb.ClockEventEvent.OperationOutcomeCase { Value: var operationOutcome }:
                     outcomes.Add(WakeOutcomeOf(operationOutcome));
                     break;
-                case ClockPb.ClockEventEvent.StoppedCase { Value: var stoppedEvent }:
+                case ClockPb.ClockEventEvent.HoldEnteredCase { Value: var held }:
                     if (Sto.ClockJournal.OtherWorld(@event, page))
                     {
-                        continue; // a previous load's stop
+                        continue; // a previous load's hold
                     }
-                    stopped = true;
-                    if (@event.ObservedAtUnixMs is not null && @event.ObservedAtUnixMs.GetValueOrDefault() > 0)
+                    // The brain's own holds are not wakes: the driver that took them plans again itself.
+                    if (!BrainRequestedHold(held.Reason))
                     {
-                        var at = DateTimeOffset.FromUnixTimeMilliseconds(@event.ObservedAtUnixMs.GetValueOrDefault());
-                        if (stopAt is null || at < stopAt)
+                        stopped = true;
+                        if (@event.ObservedAtUnixMs is not null && @event.ObservedAtUnixMs.GetValueOrDefault() > 0)
                         {
-                            stopAt = at;
+                            var at = DateTimeOffset.FromUnixTimeMilliseconds(@event.ObservedAtUnixMs.GetValueOrDefault());
+                            if (stopAt is null || at < stopAt)
+                            {
+                                stopAt = at;
+                            }
                         }
                     }
-                    if (stoppedEvent.Evidence?.Watch is { Outcome: { } watchOutcome })
+                    if (held.Evidence?.Watch is { Outcome: { } watchOutcome })
                     {
                         outcomes.Add(WakeOutcomeOf(watchOutcome));
                     }
@@ -207,7 +211,7 @@ internal static partial class Pkg
     /// <summary>
     /// Names the store sections the page's ObservationInvalidated events made stale
     /// (Facts.Invalidation.Sections): the routing key for the planners a wake re-runs. An event whose family
-    /// the controller does not know names nothing here; the wake's authority flag (ClockPageWakeStopped)
+    /// the controller does not know names nothing here; the wake's authority flag (PageWake)
     /// already re-runs everything.
     /// </summary>
     internal static IReadOnlyList<Facts.Section> ClockPageSections(ClockPb.EventsPage page)
@@ -234,6 +238,10 @@ internal static partial class Pkg
         }
         return output;
     }
+
+    /// <summary>Whether the hold was the brain's own request (a coupled order, a review or an autosave) rather than native's.</summary>
+    internal static bool BrainRequestedHold(ClockPb.HoldReason? reason) =>
+        reason is ClockPb.HoldReason.CoupledOrder or ClockPb.HoldReason.Review or ClockPb.HoldReason.Autosave;
 
     internal static WakeOutcome WakeOutcomeOf(ClockPb.OperationOutcome o)
     {

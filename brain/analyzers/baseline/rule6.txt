@@ -1,10 +1,6 @@
 # Rule 6 (game data): file|Type.Member|"DefName" or file|Type.Member|number outside Acceptance. Delete a line when fixed; never add one.
-Bridge.Contracts/Clock/ClockEvents.cs|BridgeFunctions.ClockStopEvent|1800000
-Bridge.Contracts/Clock/ClockExpectation.cs|BridgeFunctions.ValidateClockExpectation|1800000
-Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockEpoch|1800000
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockPolicy|1800000
 Bridge.Contracts/Foundation/NewColonyValidation.cs|NewColonyBounds.MaxTimeoutMs|1800000
-BuildingRuntime/Clock/ClockScheduler.cs|ClockScheduler.IdleLendTicks|2500
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.HeatRedrawEvery|2500
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.OverlayRedrawEvery|60000
 BuildingRuntime/Colony/ColonyPlan.cs|LayoutPlanning.ReplanEvery|2500
@@ -141,7 +137,6 @@ Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"Pemmican"
 Domain/TradeMission.cs|TradeMission.Validate|"Silver"
 Executor/Flows.cs|Executor.CommsTradeRequestEffect|360000
 Host/Autosaver.cs|Autosaver.IntervalTicks|60000
-Host/Client/FacadeClockWriter.cs|FacadeClockWriter.StartAsync|1800000
 Host/Client/FacadeNativeClient.Defense.cs|FacadeNativeClient.DefenseSpatialAccessBudgetMs|2500
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"HiddenConduit"
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"PowerConduit"
@@ -183,7 +178,6 @@ Policy/ChildRooms.cs|FurnitureRole.DeathrestCasket|"DeathrestCasket"
 Policy/ClearanceGround.cs|PolicyFunctions.StandInBed|"SleepingSpot"
 Policy/Climate.cs|PolicyFunctions._climateTable|"Human"
 Policy/Climate.cs|PolicyFunctions._climateTable|"Vent"
-Policy/ClockWindow.cs|PolicyFunctions.EvaluateClockWindow|1800000
 Policy/Combat/CombatMortar.cs|HostileStructure.Hive|"Hive"
 Policy/Combat/CombatWait.cs|PolicyFunctions.RaidGiveUpTicks|38000
 Policy/Combat/CombatWait.cs|PolicyFunctions.WaitDoorStuff|"Plasteel"
@@ -324,7 +318,6 @@ Simulation/Supply/World.cs|SupplyConstants.FishLaborPerFisher|15000
 Simulation/Supply/World.cs|SupplyConstants.ForageWorkTicks|2500
 Simulation/Supply/World.cs|SupplyConstants.HuntWorkTicks|7500
 Simulation/Supply/World.cs|SupplyConstants.LaborPerWorkerDay|20000
-Store/Clock/ClockCodec.cs|ClockJournal.ValidateWindow|1800000
 Store/Codec/ActionPayloadConverters1.cs|CaptureConverter.Read|"Bed"
 Store/Codec/ActionPayloadConverters1.cs|CaptureConverter.WriteFields|"Bed"
 Store/Codec/ActionPayloadConverters1.cs|CombatCommandConverter.Read|"Door"

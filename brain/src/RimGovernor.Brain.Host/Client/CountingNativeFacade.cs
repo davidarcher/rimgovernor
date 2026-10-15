@@ -76,17 +76,15 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
 
     public Task<Receipts.LookupReply> LookupReceiptAsync(Receipts.LookupRequest request, CancellationToken cancellationToken) => Count("receipts_lookup", () => inner.LookupReceiptAsync(request, cancellationToken));
 
-    public Task<Clock.ControlReply> StartClockAsync(Clock.StartRequest request, CancellationToken cancellationToken) => Count("clock_start", () => inner.StartClockAsync(request, cancellationToken));
+    public Task<Clock.StatusReply> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken) => Count("clock_run", () => inner.RunClockAsync(request, cancellationToken));
 
-    public Task<Clock.ControlReply> ChangeClockSpeedAsync(Clock.SpeedRequest request, CancellationToken cancellationToken) => Count("clock_change_speed", () => inner.ChangeClockSpeedAsync(request, cancellationToken));
+    public Task<Clock.StatusReply> HoldClockAsync(Clock.HoldRequest request, CancellationToken cancellationToken) => Count("clock_hold", () => inner.HoldClockAsync(request, cancellationToken));
 
-    public Task<Clock.StatusReply> PauseClockAsync(Clock.OwnedRequest request, CancellationToken cancellationToken) => Count("clock_pause", () => inner.PauseClockAsync(request, cancellationToken));
+    public Task<Clock.HeartbeatReply> HeartbeatClockAsync(Clock.HeartbeatRequest request, CancellationToken cancellationToken) => Count("clock_heartbeat", () => inner.HeartbeatClockAsync(request, cancellationToken));
 
     public Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken) => Count("clock_read_status", () => inner.ReadClockStatusAsync(request, cancellationToken));
 
     public Task<Clock.EventsReply> ReadClockEventsAsync(Clock.EventsRequest request, CancellationToken cancellationToken) => Count("clock_read_events", () => inner.ReadClockEventsAsync(request, cancellationToken));
-
-    public Task<Clock.AttemptReply> ReadClockAttemptAsync(Clock.AttemptRequest request, CancellationToken cancellationToken) => Count("clock_read_attempt", () => inner.ReadClockAttemptAsync(request, cancellationToken));
 
     public Task<Presentation.CameraReply> ReadCameraAsync(Presentation.ReadRequest request, CancellationToken cancellationToken) => Count("presentation_camera", () => inner.ReadCameraAsync(request, cancellationToken));
 

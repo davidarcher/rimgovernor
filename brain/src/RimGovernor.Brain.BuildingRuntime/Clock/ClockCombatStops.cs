@@ -31,10 +31,10 @@ internal static class ClockCombatStops
     /// Names a stop for the metrics: the armed combat event, or the stop reason (<c>tick_budget</c> is the backstop)
     /// (Go <c>combatStopKind</c>). The wire enum's C# name, lower snake case, is Go's lowercased name without its prefix.
     /// </summary>
-    public static string Kind(PbClock.Stopped stopped) =>
-        stopped.CombatEvent is not null && stopped.CombatEvent.GetValueOrDefault() != PbClock.CombatEvent.Unspecified
-            ? Snake(stopped.CombatEvent.GetValueOrDefault().ToString())
-            : Snake(stopped.Reason.GetValueOrDefault().ToString());
+    public static string Kind(PbClock.Status held) =>
+        held.CombatEvent is not null && held.CombatEvent.GetValueOrDefault() != PbClock.CombatEvent.Unspecified
+            ? Snake(held.CombatEvent.GetValueOrDefault().ToString())
+            : Snake(held.Reason.GetValueOrDefault().ToString());
 
     private static string Snake(string pascal)
     {
@@ -85,24 +85,24 @@ internal sealed class CombatStopMetrics
     public bool Active => _active;
 
     /// <summary>
-    /// Records a window admission: <paramref name="stopped"/> is the status the window resumes from (null when the
-    /// clock was not stopped), <paramref name="tick"/> its tick, <paramref name="now"/> the admission's wall time and
-    /// <paramref name="combat"/> the admitted window's mode.
+    /// Records a run: <paramref name="held"/> is the held status the run resumes from (null when the clock was not
+    /// held), <paramref name="tick"/> its tick, <paramref name="now"/> the run's wall time and
+    /// <paramref name="combat"/> the run's watch mode.
     /// </summary>
-    public void Admitted(PbClock.Stopped? stopped, long tick, DateTimeOffset now, bool combat)
+    public void Admitted(PbClock.Status? held, long tick, DateTimeOffset now, bool combat)
     {
-        if (_active && stopped is not null)
+        if (_active && held is not null)
         {
-            var kind = ClockCombatStops.Kind(stopped);
+            var kind = ClockCombatStops.Kind(held);
             _byKind ??= new Dictionary<string, int>(StringComparer.Ordinal);
             _byKind[kind] = _byKind.GetValueOrDefault(kind) + 1;
             var attrs = new List<(string Key, object? Value)> { ("event", kind), ("tick", tick) };
 
             // The stop that ends the combat resumes into a colony window after the full review; its latency is
             // not a combat reaction.
-            if (stopped.StoppedAtUnixMs is not null && stopped.StoppedAtUnixMs.GetValueOrDefault() > 0 && combat)
+            if (held.HeldAtUnixMs is not null && held.HeldAtUnixMs.GetValueOrDefault() > 0 && combat)
             {
-                var latency = now - DateTimeOffset.FromUnixTimeMilliseconds(stopped.StoppedAtUnixMs.GetValueOrDefault());
+                var latency = now - DateTimeOffset.FromUnixTimeMilliseconds(held.HeldAtUnixMs.GetValueOrDefault());
                 _latencies.Add(latency);
                 attrs.Add(("resume_latency_ms", (long)latency.TotalMilliseconds));
             }

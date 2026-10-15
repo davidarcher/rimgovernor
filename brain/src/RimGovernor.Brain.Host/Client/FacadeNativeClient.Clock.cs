@@ -2,7 +2,7 @@ using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.Host;
 
-// Go clock.go (ReadClockStatus, ReadClockAttempt) and clock_events.go (ReadClockEvents): the clock reads.
+// Go clock.go (ReadClockStatus) and clock_events.go (ReadClockEvents): the clock reads.
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>Go <c>Client.ReadClockStatus</c>: the clock status of the identity's world, validated.</summary>
@@ -11,30 +11,6 @@ internal sealed partial class FacadeNativeClient
         BridgeFunctions.AuthorityIdentity(identity);
         var reply = await Facade.ReadClockStatusAsync(new PbClock.StatusRequest { Identity = identity }, cancellationToken).ConfigureAwait(false);
         FacadeWriteChecks.ClockStatusReply(reply, identity);
-        return (reply, NoReceipt);
-    }
-
-    /// <summary>
-    /// Go <c>Client.ReadClockAttempt</c>: never interprets Unknown as proof of no effect or permission to retry. The
-    /// caller retains the original request for reconciliation.
-    /// </summary>
-    internal async Task<(PbClock.AttemptReply Value, BridgeResult Receipt)> ReadClockAttemptAsync(PbClock.AttemptRequest request, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        BridgeFunctions.BuildingAttempt(request.Attempt);
-        var reply = await Facade.ReadClockAttemptAsync(request, cancellationToken).ConfigureAwait(false);
-        switch (reply.Outcome)
-        {
-            case PbClock.AttemptReplyOutcome.FailureCase { Value: var failure }:
-                throw Failure(failure);
-            case PbClock.AttemptReplyOutcome.UnknownCase:
-                break;
-            case PbClock.AttemptReplyOutcome.ReceiptCase { Value: var receipt }:
-                BridgeFunctions.ClockReceipt(receipt, request.Identity, request.Attempt, 0);
-                break;
-            default:
-                throw BridgeFunctions.Contract("missing clock attempt outcome");
-        }
         return (reply, NoReceipt);
     }
 

@@ -5,182 +5,57 @@ using RimGovernor.Brain.NativeFacade;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// Go <c>bridge.ClockControl</c> (clock.go): the explicit clock mutation capability over the facade, separate from the
-/// clock reads. The runtime owner must authorize its use. No operation retries or reacquires. A possibly applied
-/// operation throws <see cref="ClockUncertainException"/>; a typed refusal throws <see cref="NativeFailureException"/>.
+/// The clock's mutation capability over the facade, separate from the clock reads: Run, Hold and Heartbeat. Run and
+/// Hold are idempotent and carry no attempt key, so a call that fails is simply made again at the next decision.
+/// A typed refusal throws <see cref="NativeFailureException"/>; a status the clock could not read completely throws
+/// <see cref="NativeUnavailableException"/>.
 /// </summary>
 internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
 {
     private readonly INativeFacade _facade = facade ?? throw new ArgumentNullException(nameof(facade));
 
-    private static void Precondition(PbAuthority.WritePrecondition? pre)
-    {
-        if (pre is null)
-        {
-            throw BridgeFunctions.Contract("clock authority required");
-        }
-        BridgeFunctions.BuildingAttempt(pre.Attempt);
-        if (pre.ExpectedGeneration is null || pre.ExpectedGeneration.GetValueOrDefault() == 0)
-        {
-            throw BridgeFunctions.Contract("clock authority presence");
-        }
-    }
-
-    private static void Owned(PbClock.OwnedRequest? request)
-    {
-        if (request is null)
-        {
-            throw BridgeFunctions.Contract("owned clock request required");
-        }
-        BridgeFunctions.ClockOwner(request.Owner);
-    }
-
-    private static void Original(PbClock.OwnedRequest? request, PbAuthority.WritePrecondition pre, PbClock.Epoch? original)
-    {
-        Owned(request);
-        BridgeFunctions.ClockEpoch(original);
-        if (pre.ExpectedGeneration.GetValueOrDefault() != original!.Origin?.NativeGeneration.GetValueOrDefault()
-            || !BridgeFunctions.SameIdentity(request!.Identity, pre.Identity)
-            || !BridgeFunctions.SameIdentity(original.Origin?.Identity, request.Identity)
-            || !Equals(original.Owner, request.Owner)
-            || (request.Owner?.ControllerSessionId ?? "") != (pre.Attempt?.ControllerSessionId ?? ""))
-        {
-            throw BridgeFunctions.Contract("clock original epoch mismatch");
-        }
-    }
-
-    /// <summary>Go <c>ClockControl.Start</c>.</summary>
-    public async Task<PbClock.ControlReply> StartAsync(PbClock.StartRequest request, CancellationToken ct)
+    /// <inheritdoc />
+    public async Task<PbClock.Status> RunAsync(PbClock.RunRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        Precondition(request.Authority);
-        if (request.Speed is null
-            || (int)request.Speed.GetValueOrDefault() < 1
-            || (int)request.Speed.GetValueOrDefault() > 4
-            || request.MaxTicks is null
-            || request.MaxTicks.GetValueOrDefault() < 1
-            || request.MaxTicks.GetValueOrDefault() > 1800000)
+        BridgeFunctions.AuthorityIdentity(request.Identity);
+        if (request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0)
         {
-            throw BridgeFunctions.Contract("clock start speed or tick budget");
+            throw BridgeFunctions.Contract("clock run authority generation");
         }
-        if (request.TestAcceleration.GetValueOrDefault() && request.Speed.GetValueOrDefault() != PbClock.Speed.Ultrafast)
-        {
-            throw BridgeFunctions.Contract("clock test acceleration requires ultrafast");
-        }
-        BridgeFunctions.ClockPolicy(request.Policy, request.MaxTicks.GetValueOrDefault());
-        var pre = request.Authority!;
-        var expectation = new ClockExpectation(
-            pre.Identity,
-            pre.Attempt,
-            pre.ExpectedGeneration.GetValueOrDefault(),
-            new ClockCommand(Start: new ClockStart(
-                request.Speed.GetValueOrDefault(),
-                request.Policy,
-                request.MaxTicks.GetValueOrDefault(),
-                request.TestAcceleration.GetValueOrDefault())));
-        return await CallAsync(() => _facade.StartClockAsync(request, ct), pre, expectation, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>Go <c>ClockControl.ChangeSpeed</c>.</summary>
-    public async Task<PbClock.ControlReply> ChangeSpeedAsync(PbClock.SpeedRequest request, PbClock.Epoch original, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        Precondition(request.Authority);
         if (request.Speed is null || (int)request.Speed.GetValueOrDefault() < 1 || (int)request.Speed.GetValueOrDefault() > 4)
         {
-            throw BridgeFunctions.Contract("clock ordinary speed required");
+            throw BridgeFunctions.Contract("clock run speed");
         }
-        if ((original?.TestAcceleration).GetValueOrDefault() && request.Speed.GetValueOrDefault() != PbClock.Speed.Ultrafast)
-        {
-            throw BridgeFunctions.Contract("clock accelerated epoch cannot change speed");
-        }
-        var pre = request.Authority!;
-        Original(request.Epoch, pre, original);
-        var expectation = new ClockExpectation(
-            pre.Identity,
-            pre.Attempt,
-            pre.ExpectedGeneration.GetValueOrDefault(),
-            new ClockCommand(Speed: new ClockSpeed(original, request.Speed.GetValueOrDefault())));
-        return await CallAsync(() => _facade.ChangeClockSpeedAsync(request, ct), pre, expectation, ct).ConfigureAwait(false);
+        BridgeFunctions.ValidateClockPolicy(request.Policy);
+        var reply = await _facade.RunClockAsync(request, ct).ConfigureAwait(false);
+        return FacadeWriteChecks.ClockStatusReply(reply, request.Identity);
     }
 
-    /// <summary>
-    /// Go <c>ClockControl.OwnedPause</c>: remains usable after authority revocation. Its exact original epoch prevents
-    /// it from stopping a replacement owner. Inspect the returned pause facts; Stopping is an armed failed pause, not
-    /// proof that the game stopped.
-    /// </summary>
-    public async Task<PbClock.StatusReply> OwnedPauseAsync(PbClock.OwnedRequest request, CancellationToken ct)
+    /// <inheritdoc />
+    public async Task<PbClock.Status> HoldAsync(PbClock.HoldRequest request, CancellationToken ct)
     {
-        Owned(request);
-        ct.ThrowIfCancellationRequested();
-        PbClock.StatusReply reply;
-        try
+        ArgumentNullException.ThrowIfNull(request);
+        BridgeFunctions.AuthorityIdentity(request.Identity);
+        if (request.Reason is null)
         {
-            reply = await _facade.PauseClockAsync(request, ct).ConfigureAwait(false);
-            var status = FacadeWriteChecks.ClockStatusReply(reply, request.Identity);
-            var epoch = BridgeFunctions.ClockStatusEpoch(status);
-            if (epoch is null
-                || !Equals(epoch.Owner, request.Owner)
-                || !BridgeFunctions.SameIdentity(epoch.Origin?.Identity, request.Identity)
-                || status.State is PbClock.StatusState.RunningCase)
-            {
-                throw BridgeFunctions.Contract("owned pause epoch/state mismatch");
-            }
+            throw BridgeFunctions.Contract("clock hold reason");
         }
-        catch (BridgeRefusedException)
-        {
-            throw;
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ClockUncertainException(e, FacadeNativeClient.NoReceipt);
-        }
-        return reply;
+        var reply = await _facade.HoldClockAsync(request, ct).ConfigureAwait(false);
+        return FacadeWriteChecks.ClockStatusReply(reply, request.Identity);
     }
 
-    /// <summary>Go <c>ClockControl.clockCall</c>: the reply of a control call, after its outcome is checked against the expectation.</summary>
-    private static async Task<PbClock.ControlReply> CallAsync(
-        Func<Task<PbClock.ControlReply>> call,
-        PbAuthority.WritePrecondition pre,
-        ClockExpectation expectation,
-        CancellationToken ct)
+    /// <inheritdoc />
+    public async Task<PbClock.HeartbeatAck> HeartbeatAsync(PbClock.HeartbeatRequest request, CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested();
-        PbClock.ControlReply reply;
-        try
+        ArgumentNullException.ThrowIfNull(request);
+        BridgeFunctions.AuthorityIdentity(request.Identity);
+        var reply = await _facade.HeartbeatClockAsync(request, ct).ConfigureAwait(false);
+        return reply.Outcome switch
         {
-            reply = await call().ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ClockUncertainException(e, FacadeNativeClient.NoReceipt);
-        }
-        BridgeRefusedException? refused = null;
-        try
-        {
-            switch (reply.Outcome)
-            {
-                case PbClock.ControlReplyOutcome.FailureCase { Value: var failure }:
-                    refused = FacadeNativeClient.Failure(failure) as BridgeRefusedException;
-                    break;
-                case PbClock.ControlReplyOutcome.LongEventPendingCase { Value: var pending }:
-                    return reply;
-                case PbClock.ControlReplyOutcome.ReceiptCase { Value: var receipt }:
-                    BridgeFunctions.ClockReceipt(receipt, pre.Identity, pre.Attempt, pre.ExpectedGeneration.GetValueOrDefault());
-                    if (receipt.Outcome is PbClock.ControlReceiptOutcome.UncertainCase)
-                    {
-                        throw new InvalidOperationException("native reported uncertain clock control");
-                    }
-                    BridgeFunctions.ValidateClockReceipt(receipt, expectation);
-                    return reply;
-                default:
-                    throw BridgeFunctions.Contract("clock control outcome missing");
-            }
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ClockUncertainException(e, FacadeNativeClient.NoReceipt);
-        }
-        throw refused!;
+            PbClock.HeartbeatReplyOutcome.FailureCase { Value: var failure } => throw FacadeNativeClient.Failure(failure),
+            PbClock.HeartbeatReplyOutcome.AckCase { Value: var ack } => ack,
+            _ => throw BridgeFunctions.Contract("clock heartbeat outcome missing"),
+        };
     }
 }

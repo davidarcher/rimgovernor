@@ -72,43 +72,42 @@ namespace HomeBridge.BridgeTools
                 result = result with { Suppression = (string)value == "acknowledged" ? Clock.InjurySuppression.Acknowledged : (string)value == "cooldown" ? Clock.InjurySuppression.Cooldown : throw new InvalidOperationException("Unknown injury suppression") };
             return result;
         }
-        internal static Clock.StopReason StopReason(string? kind)
+        internal static Clock.HoldReason HoldReason(string? kind)
         {
             switch (kind)
             {
-                case "requested_pause": return Clock.StopReason.RequestedPause;
-                case "tick_budget": return Clock.StopReason.TickBudget;
-                case "session_changed": return Clock.StopReason.SessionChanged;
-                case "unavailable": return Clock.StopReason.Unavailable;
-                case "external_pause": return Clock.StopReason.ExternalPause;
-                case "letter_pause": return Clock.StopReason.LetterPause;
-                case "external_speed_changed": return Clock.StopReason.ExternalSpeedChanged;
-                case "watcher_error": return Clock.StopReason.WatcherError;
-                case "event_journal_error": return Clock.StopReason.EventJournalError;
-                case "force_paused": return Clock.StopReason.ForcePaused;
-                case "colony_naming": return Clock.StopReason.ColonyNaming;
-                case "dialog_pause": return Clock.StopReason.DialogPause;
-                case "start_refused": return Clock.StopReason.StartRefused;
-                case "notification_batch": return Clock.StopReason.NotificationBatch;
-                case "medical_rest_changed": return Clock.StopReason.MedicalRestChanged;
-                case "hostile": return Clock.StopReason.Hostile;
-                case "colonist_downed": return Clock.StopReason.ColonistDowned;
-                case "predator_hunt": return Clock.StopReason.PredatorHunt;
-                case "hunting_route_unsafe": return Clock.StopReason.HuntingRouteUnsafe;
-                case "colonist_health": return Clock.StopReason.ColonistHealth;
-                case "colonist_injury": return Clock.StopReason.ColonistInjury;
-                case "combat_event": return Clock.StopReason.CombatEvent;
-                default: throw new InvalidOperationException("Unknown native clock stop kind: " + kind);
+                case "never_run": return Clock.HoldReason.NeverRun;
+                case "coupled_order": return Clock.HoldReason.CoupledOrder;
+                case "review": return Clock.HoldReason.Review;
+                case "autosave": return Clock.HoldReason.Autosave;
+                case "session_changed": return Clock.HoldReason.SessionChanged;
+                case "unavailable": return Clock.HoldReason.Unavailable;
+                case "external_pause": return Clock.HoldReason.ExternalPause;
+                case "letter_pause": return Clock.HoldReason.LetterPause;
+                case "external_speed_changed": return Clock.HoldReason.ExternalSpeedChanged;
+                case "watcher_error": return Clock.HoldReason.WatcherError;
+                case "event_journal_error": return Clock.HoldReason.EventJournalError;
+                case "force_paused": return Clock.HoldReason.GameForced;
+                case "colony_naming": return Clock.HoldReason.ColonyNaming;
+                case "dialog_pause": return Clock.HoldReason.DialogPause;
+                case "run_refused": return Clock.HoldReason.RunRefused;
+                case "notification_batch": return Clock.HoldReason.NotificationBatch;
+                case "medical_rest_changed": return Clock.HoldReason.MedicalRestChanged;
+                case "hostile": return Clock.HoldReason.Hostile;
+                case "colonist_downed": return Clock.HoldReason.ColonistDowned;
+                case "predator_hunt": return Clock.HoldReason.PredatorHunt;
+                case "hunting_route_unsafe": return Clock.HoldReason.HuntingRouteUnsafe;
+                case "colonist_health": return Clock.HoldReason.ColonistHealth;
+                case "colonist_injury": return Clock.HoldReason.ColonistInjury;
+                case "combat_event": return Clock.HoldReason.CombatEvent;
+                default: throw new InvalidOperationException("Unknown native clock hold kind: " + kind);
             }
         }
         internal static Clock.ClockEvent Event(string kind, string? detail, Dictionary<string, object?>? payload, Common.ObservationContext context,
-            Clock.EpochOwner? owner, long cursor, long observedAt, Clock.Epoch? started, Func<int, string> resolvePawn)
+            long cursor, long observedAt, Func<int, string> resolvePawn)
         {
             Dictionary<string, object?> P() => payload ?? throw new InvalidOperationException("Missing clock evidence for " + kind);
             var result = new Clock.ClockEvent { Cursor = cursor, Context = context, ObservedAtUnixMs = observedAt, Detail = Text(detail) };
-            // Only an authority change observed outside an epoch has no owner.
-            if (owner != null) result = result with { Owner = owner };
-            else if (kind != "authority_changed") throw new InvalidOperationException("Clock event " + kind + " requires an epoch owner");
             switch (kind)
             {
                 case "authority_changed":
@@ -139,13 +138,9 @@ namespace HomeBridge.BridgeTools
                     result = result with { Event = invalidated };
                     break;
                 }
-                case "started": result = result with { Event = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))) } }; break;
-                case "speed_changed":
-                {
-                    var speed = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) };
-                    result = result with { Event = speed };
+                case "resumed":
+                    result = result with { Event = new Clock.Resumed { Speed = ParseSpeed(String(P(), "speed")), From = HoldReason(String(P(), "from")) } };
                     break;
-                }
                 case "notification_new":
                     result = result with { Event = P().ContainsKey("label")
                         ? new Clock.Notification { Source = new Clock.NotificationSource.LetterCase(Letter(P())) }
@@ -154,29 +149,29 @@ namespace HomeBridge.BridgeTools
                 case "alert_new": result = result with { Event = Alert(P()) }; break;
                 case "injury_observed": result = result with { Event = Injury(P(), resolvePawn) }; break;
                 case "hostiles_cleared":
-                    result = result with { Event = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")), AcrossEpochRestart = Bool(P(), "acrossRestart"),
+                    result = result with { Event = new Clock.HostilesCleared { ConsciousHostilesBefore = checked((int)Number(P(), "consciousHostilesBefore")), AcrossResume = Bool(P(), "acrossResume"),
                         DownedHostiles = EquatableArray.From(Rows(P(), "downedHostiles").Select(row => Pawn(row, resolvePawn, true)).ToList()),
                         DraftedColonists = EquatableArray.From(Rows(P(), "draftedColonists").Select(row => Pawn(row, resolvePawn, true)).ToList()) } };
                     break;
                 case "long_event": case "transient_force_pause":
                     result = result with { Event = new Clock.ForcePauseWaiting { Pause = new Clock.PauseEvidence { LongEventPending = Bool(P(), "longEvent"), RequestedSpeed = ParseSpeed(String(P(), "requestedSpeed")) }, WaitedMs = 0, GraceMs = checked((uint)Number(P(), "graceMs")) } }; break;
                 case "force_pause_cleared": result = result with { Event = new Clock.ForcePauseCleared { WaitedMs = checked((ulong)Number(P(), "waitedMs")), ForcePauseKind = NativeEnums.ForcePause(String(P(), "forcePauseKind")), SpeedRestored = Bool(P(), "speedRestored") } }; break;
-                case "pause_failed": result = result with { Event = new Clock.PauseFailed { Pending = new Clock.StopEvent { Evidence = new Clock.StopEventEvidence.UnavailableCase(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native pause did not take; epoch remains armed." }) } } }; break;
+                case "pause_failed": result = result with { Event = new Clock.PauseFailed { Pending = new Clock.HoldEntered { Evidence = new Clock.HoldEvidence.UnavailableCase(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native pause did not take; the hold stays armed." }) } } }; break;
                 default:
-                    var stop = new Clock.StopEvent { Reason = StopReason(kind) };
+                    var stop = new Clock.HoldEntered { Reason = HoldReason(kind) };
                     if (kind == "notification_batch")
-                        stop = stop with { Evidence = new Clock.StopEventEvidence.NotificationsCase(new Clock.NotificationBatch {
+                        stop = stop with { Evidence = new Clock.HoldEvidence.NotificationsCase(new Clock.NotificationBatch {
                             Letters = EquatableArray.From(Rows(P(), "letters").Select(Letter).ToList()), Messages = EquatableArray.From(Rows(P(), "messages").Select(Message).ToList()) }) };
                     else if (kind == "combat_event")
                     {
-                        var combat = new Clock.CombatEventStop { Event = (Clock.CombatEvent)checked((int)Number(P(), "combatEvent")), Reason = Text(String(P(), "reason")) };
+                        var combat = new Clock.CombatEventHold { Event = (Clock.CombatEvent)checked((int)Number(P(), "combatEvent")), Reason = Text(String(P(), "reason")) };
                         object? thing; if (P().TryGetValue("thingId", out thing) && thing != null) combat = combat with { ThingId = Id((string)thing) };
-                        stop = stop with { Evidence = new Clock.StopEventEvidence.CombatCase(combat) };
+                        stop = stop with { Evidence = new Clock.HoldEvidence.CombatCase(combat) };
                     }
-                    else if (kind == "colonist_injury") stop = stop with { Evidence = new Clock.StopEventEvidence.InjuryCase(Injury(P(), resolvePawn)) };
-                    else if (kind == "colonist_health") stop = stop with { Evidence = new Clock.StopEventEvidence.HealthCase(new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), HealthAtStart = Real(P(), "healthAtStart"), HealthNow = Real(P(), "healthNow"), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") }) };
-                    else if (payload != null && payload.ContainsKey("pawnId")) stop = stop with { Evidence = new Clock.StopEventEvidence.PawnCase(Pawn(P(), resolvePawn)) };
-                    else stop = stop with { Evidence = new Clock.StopEventEvidence.UnavailableCase(new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = "Stop reason and diagnostic were observed; additional structured evidence was not captured." }) };
+                    else if (kind == "colonist_injury") stop = stop with { Evidence = new Clock.HoldEvidence.InjuryCase(Injury(P(), resolvePawn)) };
+                    else if (kind == "colonist_health") stop = stop with { Evidence = new Clock.HoldEvidence.HealthCase(new Clock.HealthThreshold { Pawn = Pawn(P(), resolvePawn), HealthAtStart = Real(P(), "healthAtStart"), HealthNow = Real(P(), "healthNow"), MinHealthFraction = Real(P(), "minHealthFraction"), HealthDropFraction = Real(P(), "healthDropFraction") }) };
+                    else if (payload != null && payload.ContainsKey("pawnId")) stop = stop with { Evidence = new Clock.HoldEvidence.PawnCase(Pawn(P(), resolvePawn)) };
+                    else stop = stop with { Evidence = new Clock.HoldEvidence.UnavailableCase(new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = "Stop reason and diagnostic were observed; additional structured evidence was not captured." }) };
                     // Latency split: the tick the stop was raised at and,
                     // where the hazard carries one, the tick it arose.
                     object? detected, occurrence;

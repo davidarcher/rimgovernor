@@ -227,16 +227,16 @@ internal static class DialogPause
         {
             foreach (var clockEvent in page.Page.Events)
             {
-                if (clockEvent.Event?.Started is not null)
+                if (clockEvent.Event?.Resumed is not null)
                 {
                     trace.Starts++;
                     trace.StartCursor = clockEvent.Cursor ?? 0;
                 }
 
-                if (clockEvent.Event?.Stopped is { } stop)
+                if (clockEvent.Event?.HoldEntered is { } stop)
                 {
                     trace.Stops.Add(Wire.Name(stop.Reason ?? default));
-                    if (stop.Reason == RimGovernor.Contracts.Wire.Clock.StopReason.DialogPause)
+                    if (stop.Reason == RimGovernor.Contracts.Wire.Clock.HoldReason.DialogPause)
                     {
                         trace.DialogPauses.Add(stop.Evidence?.Pause?.Dialog?.WindowId ?? 0);
                         trace.DialogCursor = clockEvent.Cursor ?? 0;

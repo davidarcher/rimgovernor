@@ -10,85 +10,6 @@ namespace RimGovernor.Brain.Store;
 // separate package only to split build caching, so its exported types live in this namespace under the
 // names `internal/store` re-exported them by (ClockIntent, ClockAttempt, ...).
 
-/// <summary>
-/// Go <c>clock.ErrRetired</c> (re-exported as <c>store.ErrRetired</c>): the request was allocated but its row has
-/// since been retired, so it can never be dispatched again.
-/// </summary>
-public sealed class ClockRetiredException() : DomainException("clock request retired");
-
-/// <summary>Where a clock attempt stands (Go <c>Phase</c>).</summary>
-public enum ClockPhase
-{
-    /// <summary>Not a phase: the empty value Go rejected as an invalid phase.</summary>
-    [WireName("")]
-    None = 0,
-    Prepared,
-    Dispatched,
-    Uncertain,
-    Applied,
-    Refused,
-}
-
-/// <summary>
-/// Go <c>Intent</c>: the immutable, lease-free intent of one clock command plus, for a finite start, the reviewed
-/// profile evidence it was admitted against.
-/// </summary>
-public sealed record ClockIntent(string RequestId, string Key, GenerationSnapshot Snapshot, ClockCommand Command, ClockWindowAdmission? Window = null);
-
-/// <summary>
-/// Go <c>WindowAdmission</c>: binds a finite start to the reviewed profile evidence. It grants no authority and is
-/// rechecked atomically at durable dispatch.
-/// </summary>
-public sealed record ClockWindowAdmission(string Profile, GenerationSnapshot Snapshot, Tick Tick, ulong ReviewRevision, long CapturedCursor, uint MaxTicks);
-
-/// <summary>Go <c>Attempt</c>.</summary>
-/// <param name="Intent">The command and its admission evidence.</param>
-/// <param name="NativeAttempt">The native attempt key this command was issued under.</param>
-/// <param name="Phase">The journal phase.</param>
-/// <param name="Reply">The control reply, null until the call has an outcome.</param>
-/// <param name="SupersededAt">Retires only the original world scope; <paramref name="Phase"/> retains uncertainty.</param>
-public sealed record ClockAttempt(ClockIntent Intent, PbCommon.AttemptKey? NativeAttempt, ClockPhase Phase, Pb.ControlReply? Reply = null, PbCommon.ObservationContext? SupersededAt = null);
-
-/// <summary>Go <c>EpochStage</c>.</summary>
-public enum ClockEpochStage
-{
-    [WireName("")]
-    None = 0,
-    Required,
-    Pausing,
-    Uncertain,
-    Paused,
-    Retired,
-    Superseded,
-}
-
-/// <summary>
-/// Go <c>EpochObligation</c>: derives ownership from an immutable applied Start receipt. <see cref="Sequence"/> is
-/// a local pause-dispatch fence, not a native attempt or a live lease.
-/// </summary>
-public sealed record ClockEpochObligation(
-    string StartRequestId,
-    Pb.Epoch? Epoch,
-    ClockEpochStage Stage,
-    ulong Sequence,
-    PbCommon.ObservationContext? Context,
-    Pb.Status? Status
-);
-
-/// <summary>Go <c>SequenceState</c>: binds allocation and retirement to this journal namespace.</summary>
-public sealed record ClockSequenceState(ControllerSessionId Namespace, ulong LastAllocated, ulong RetiredThrough)
-{
-    /// <summary>Go <c>NextRequestID</c>.</summary>
-    public string NextRequestId()
-    {
-        DomainException.Require(RetiredThrough <= LastAllocated && LastAllocated != ulong.MaxValue, "invalid or exhausted clock sequence");
-        return ClockJournal.ClockRequestId(Namespace, LastAllocated + 1);
-    }
-}
-
-/// <summary>Go <c>Retirement</c>.</summary>
-public sealed record ClockRetirement(ClockSequenceState State, int RemovedAttempts, int RemovedEpochs, int RetainedAttempts);
-
 /// <summary>Go <c>HoldKind</c>.</summary>
 public enum ClockHoldKind
 {
@@ -145,13 +66,3 @@ internal sealed record ClockReviewEntry(ClockReviewKind Kind, long InboxCursor, 
 /// revisions never reset when the active log is compacted.
 /// </summary>
 internal readonly record struct ClockHistoryCheckpoint(long Pages, long Cursor, ulong LostCount, ClockReviewHead Review, long ReviewInboxCursor);
-
-/// <summary>Go <c>clockSequenceHead</c>.</summary>
-internal sealed class ClockSequenceHead
-{
-    public ulong LastAllocated { get; set; }
-
-    public ulong RetiredThrough { get; set; }
-
-    public List<ulong> Retained { get; set; } = [];
-}

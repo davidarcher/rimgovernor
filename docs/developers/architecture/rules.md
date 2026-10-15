@@ -46,7 +46,7 @@ the rule.
    and results merge in index order, so neither scheduling nor worker count can
    change the output (`EachIndex` in `LayoutSiteGround.cs`). The gate cannot
    check that; it is a review question. Baseline `file|ban Type`:
-   `ClockWindowTypes.cs` (`DateTimeOffset` fields).
+   `ClockTypes.cs` (`DateTimeOffset` fields).
 3. **One owner per exported type (`RGARCH003`).** A public type name declared in
    two or more of `Domain`, `Policy`, `Bridge.Contracts`/`Bridge` and
    `Observation` fails unless listed. These four form one reference chain, so

@@ -9,7 +9,7 @@ namespace HomeBridge.BridgeTools
     // per frame for the tick loop's per-frame cap and per-tick real time, so a
     // lower value is exactly a lower tick rate. The clamp lives in a postfix on
     // that getter, so the requested speed stays what it was and the external
-    // speed-change watcher never sees it. What it applies is the epoch's one
+    // speed-change watcher never sees it. What it applies is the run segment's one
     // ceiling (ClockCeiling.cs: frame budget plus brain heartbeat).
     internal static partial class Supervisor
     {
@@ -38,16 +38,5 @@ namespace HomeBridge.BridgeTools
             __result = ClockCeilingMultiplier(s, __result);
         }
 
-        // The brain made contact: a status, events or bundle read. It beats the
-        // ceiling's heartbeat. Caller holds Gate.
-        private static void NoteControllerRead(State? s)
-        {
-            if (s == null || !s.Active) return;
-            s.Ceiling.Beat(NowMs());
-        }
-        internal static void NoteControllerRead()
-        {
-            lock (Gate) NoteControllerRead(_state);
-        }
     }
 }

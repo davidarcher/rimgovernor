@@ -123,11 +123,11 @@ public sealed class PlannerParts
     public Func<CancellationToken, Task>? OpenFrames { get; init; }
 
     /// <summary>
-    /// Starts, renews and ends native-work windows from a step's result and runs the clock behaviours that belong
-    /// to the host (combat stops, window sizing, pace back-off, player speed, latched reconcile, epoch
-    /// maintenance). Owned by #3108; null steps the planners without ever lending a window.
+    /// Runs the native clock from a step's result: Run at the target speed, native hazard holds and the brain's own
+    /// (coupled order, review, autosave), the heartbeat and the journal poll. Null steps the planners without ever
+    /// running the clock.
     /// </summary>
-    public IClockWindowDriver? Windows { get; init; }
+    public IClockRunDriver? Clock { get; init; }
 
     /// <summary>The live target speed behind <c>POST /api/player/clock-speed</c>; null registers no such route.</summary>
     public ClockTargetSpeed? TargetSpeed { get; init; }
@@ -136,17 +136,17 @@ public sealed class PlannerParts
     public IRoundsProvider? Rounds { get; init; }
 }
 
-/// <summary>The window side of the clock, which stays in the mod and is driven from the host after each step (#3108).</summary>
-public interface IClockWindowDriver
+/// <summary>The clock's run state machine, driven from the host after each step.</summary>
+public interface IClockRunDriver
 {
     /// <summary>
-    /// Acts on one finished step: admit and start a window for <see cref="ClockSchedulerResult.Window"/>, arm its
-    /// stops, and reconcile what native latched. Returns true when it left the planners work to do at once (a window
-    /// that just ran, a dispatch it reconciled), so the next step is a settled one rather than a timer's.
+    /// Acts on one finished step: runs a held clock, changes its speed or policy in place, or takes a brain hold.
+    /// Returns true when it left the planners work to do at once (a hold it took, a resume after a review), so the
+    /// next step is a settled one rather than a timer's.
     /// </summary>
     Task<bool> AfterStepAsync(ClockSchedulerResult result, CancellationToken cancellationToken);
 
-    /// <summary>Retires the epochs the host owns and stops the poll loop; called on shutdown after the last step.</summary>
+    /// <summary>Stops the poll and heartbeat loops and holds the clock; called on shutdown after the last step.</summary>
     Task StopAsync(CancellationToken cancellationToken);
 }
 

@@ -168,9 +168,6 @@ internal sealed partial class FacadeNativeClient :
     Task<PbClock.StatusReply> IClockNative.ReadClockStatusAsync(C.Identity identity, CancellationToken ct) =>
         Only(ReadClockStatusAsync(identity, ct));
 
-    Task<PbClock.AttemptReply> IClockNative.ReadClockAttemptAsync(PbClock.AttemptRequest request, CancellationToken ct) =>
-        Only(ReadClockAttemptAsync(request, ct));
-
     Task<EntityRows<O.BuildingState>> IEntityNative.ReadBuildingsAsync(C.Identity identity, CancellationToken ct) =>
         Only(ReadBuildingsAsync(identity, ct));
 

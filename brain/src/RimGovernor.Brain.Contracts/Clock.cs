@@ -4,10 +4,8 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Contracts.Wire.Clock;
 
 /// <summary>
-/// Requested epoch speeds. Ultrafast is an ordinary speed on the wire; the
-/// native dev tick boost behind it is test acceleration
-/// (StartRequest.test_acceleration), which only a game launched with
-/// -rimgovernor-test-acceleration (acceptance profiles) admits.
+/// Requested speeds. Ultrafast is an ordinary wire speed: native drives the
+/// tick boost behind it up to the one ceiling, with no launch gate.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<Speed>))]
 public enum Speed
@@ -42,7 +40,7 @@ public enum ObservedSpeed
 }
 
 /// <summary>
-/// What bounds the running epoch's tick rate right now: the one ceiling
+/// What bounds the running clock's tick rate right now: the one ceiling
 /// (heartbeat or frame budget), else the speed's own rate (FIXED).
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<PacingReason>))]
@@ -56,7 +54,7 @@ public enum PacingReason
     FrameBudget = 3,
     /// <summary>
     /// The one ceiling is held at Normal (rising back) because the brain has not
-    /// made contact within the heartbeat tolerance.
+    /// sent a heartbeat within the tolerance.
     /// </summary>
     [WireName("PACING_REASON_HEARTBEAT")]
     Heartbeat = 7,
@@ -73,77 +71,91 @@ public enum WatchMode
     Combat = 2,
 }
 
-[JsonConverter(typeof(WireEnumConverter<StopReason>))]
-public enum StopReason
+/// <summary>The bot-on clock is Running (target speed) or Held (paused for a named reason).</summary>
+[JsonConverter(typeof(WireEnumConverter<ClockState>))]
+public enum ClockState
 {
-    [WireName("STOP_REASON_UNSPECIFIED")]
+    [WireName("CLOCK_STATE_UNSPECIFIED")]
     Unspecified = 0,
-    [WireName("STOP_REASON_REQUESTED_PAUSE")]
-    RequestedPause = 1,
-    [WireName("STOP_REASON_TICK_BUDGET")]
-    TickBudget = 2,
-    [WireName("STOP_REASON_SESSION_CHANGED")]
-    SessionChanged = 3,
-    [WireName("STOP_REASON_UNAVAILABLE")]
-    Unavailable = 4,
-    [WireName("STOP_REASON_EXTERNAL_PAUSE")]
-    ExternalPause = 5,
-    [WireName("STOP_REASON_LETTER_PAUSE")]
-    LetterPause = 6,
-    [WireName("STOP_REASON_EXTERNAL_SPEED_CHANGED")]
-    ExternalSpeedChanged = 7,
-    [WireName("STOP_REASON_WATCHER_ERROR")]
-    WatcherError = 9,
-    [WireName("STOP_REASON_EVENT_JOURNAL_ERROR")]
-    EventJournalError = 10,
-    [WireName("STOP_REASON_FORCE_PAUSED")]
-    ForcePaused = 11,
-    [WireName("STOP_REASON_COLONY_NAMING")]
-    ColonyNaming = 12,
-    [WireName("STOP_REASON_START_REFUSED")]
-    StartRefused = 13,
-    [WireName("STOP_REASON_NOTIFICATION_BATCH")]
-    NotificationBatch = 14,
-    [WireName("STOP_REASON_MEDICAL_REST_CHANGED")]
-    MedicalRestChanged = 15,
-    [WireName("STOP_REASON_HOSTILE")]
-    Hostile = 16,
-    [WireName("STOP_REASON_COLONIST_DOWNED")]
-    ColonistDowned = 17,
-    [WireName("STOP_REASON_PREDATOR_HUNT")]
-    PredatorHunt = 18,
-    [WireName("STOP_REASON_HUNTING_ROUTE_UNSAFE")]
-    HuntingRouteUnsafe = 19,
-    [WireName("STOP_REASON_COLONIST_HEALTH")]
-    ColonistHealth = 20,
-    [WireName("STOP_REASON_COLONIST_INJURY")]
-    ColonistInjury = 21,
-    /// <summary>
-    /// An armed watched attempt reached a terminal outcome; the epoch stopped at
-    /// the next tick boundary so the controller can react at once.
-    /// </summary>
-    [WireName("STOP_REASON_WATCH_LATCHED")]
-    WatchLatched = 22,
-    /// <summary>
-    /// A force-pausing Verse.Dialog_NodeTree the game opened by itself holds the
-    /// clock; PauseEvidence.dialog names it and ColonyFactsSnapshot.dialog lists
-    /// its options for Operations.AnswerDialog.
-    /// </summary>
-    [WireName("STOP_REASON_DIALOG_PAUSE")]
-    DialogPause = 23,
-    /// <summary>
-    /// An armed combat event (WatchPolicy.combat_stop_events) happened; the
-    /// epoch stopped at the boundary of the tick it happened on.
-    /// </summary>
-    [WireName("STOP_REASON_COMBAT_EVENT")]
-    CombatEvent = 24,
+    [WireName("CLOCK_STATE_RUNNING")]
+    Running = 1,
+    [WireName("CLOCK_STATE_HELD")]
+    Held = 2,
 }
 
 /// <summary>
-/// The combat events a WATCH_MODE_COMBAT epoch can be armed to stop on.
-/// Native hooks see each one on the tick it happens and stop the
-/// epoch at that tick's boundary. Aim warmup, shots and ordinary damage are
-/// never stops.
+/// Why the clock is held. Native raises the hazard, game and error reasons by
+/// itself and stays held until the brain sends Run; the brain asks for
+/// CoupledOrder, Review and Autosave through Hold. NeverRun is the state
+/// before any Run of the loaded game.
+/// </summary>
+[JsonConverter(typeof(WireEnumConverter<HoldReason>))]
+public enum HoldReason
+{
+    [WireName("HOLD_REASON_UNSPECIFIED")]
+    Unspecified = 0,
+    [WireName("HOLD_REASON_NEVER_RUN")]
+    NeverRun = 1,
+    [WireName("HOLD_REASON_COUPLED_ORDER")]
+    CoupledOrder = 2,
+    [WireName("HOLD_REASON_REVIEW")]
+    Review = 3,
+    [WireName("HOLD_REASON_AUTOSAVE")]
+    Autosave = 4,
+    /// <summary>The game holds the clock itself (a force-pausing window or a long event that outlived the grace).</summary>
+    [WireName("HOLD_REASON_GAME_FORCED")]
+    GameForced = 5,
+    [WireName("HOLD_REASON_SESSION_CHANGED")]
+    SessionChanged = 6,
+    [WireName("HOLD_REASON_UNAVAILABLE")]
+    Unavailable = 7,
+    [WireName("HOLD_REASON_EXTERNAL_PAUSE")]
+    ExternalPause = 8,
+    [WireName("HOLD_REASON_LETTER_PAUSE")]
+    LetterPause = 9,
+    [WireName("HOLD_REASON_EXTERNAL_SPEED_CHANGED")]
+    ExternalSpeedChanged = 10,
+    [WireName("HOLD_REASON_WATCHER_ERROR")]
+    WatcherError = 11,
+    [WireName("HOLD_REASON_EVENT_JOURNAL_ERROR")]
+    EventJournalError = 12,
+    [WireName("HOLD_REASON_COLONY_NAMING")]
+    ColonyNaming = 13,
+    /// <summary>A force-pausing Verse.Dialog_NodeTree the game opened by itself; PauseEvidence.dialog names it.</summary>
+    [WireName("HOLD_REASON_DIALOG_PAUSE")]
+    DialogPause = 14,
+    /// <summary>The requested speed did not take.</summary>
+    [WireName("HOLD_REASON_RUN_REFUSED")]
+    RunRefused = 15,
+    [WireName("HOLD_REASON_NOTIFICATION_BATCH")]
+    NotificationBatch = 16,
+    [WireName("HOLD_REASON_MEDICAL_REST_CHANGED")]
+    MedicalRestChanged = 17,
+    [WireName("HOLD_REASON_HOSTILE")]
+    Hostile = 18,
+    [WireName("HOLD_REASON_COLONIST_DOWNED")]
+    ColonistDowned = 19,
+    [WireName("HOLD_REASON_PREDATOR_HUNT")]
+    PredatorHunt = 20,
+    [WireName("HOLD_REASON_HUNTING_ROUTE_UNSAFE")]
+    HuntingRouteUnsafe = 21,
+    [WireName("HOLD_REASON_COLONIST_HEALTH")]
+    ColonistHealth = 22,
+    [WireName("HOLD_REASON_COLONIST_INJURY")]
+    ColonistInjury = 23,
+    /// <summary>An armed watched attempt reached a terminal outcome.</summary>
+    [WireName("HOLD_REASON_WATCH_LATCHED")]
+    WatchLatched = 24,
+    /// <summary>An armed combat event (WatchPolicy.combat_stop_events) happened; the clock held at the boundary of the tick it happened on.</summary>
+    [WireName("HOLD_REASON_COMBAT_EVENT")]
+    CombatEvent = 25,
+}
+
+/// <summary>
+/// The combat events a WATCH_MODE_COMBAT run can be armed to hold on.
+/// Native hooks see each one on the tick it happens and hold the
+/// clock at that tick's boundary. Aim warmup, shots and ordinary damage are
+/// never holds.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<CombatEvent>))]
 public enum CombatEvent
@@ -292,8 +304,8 @@ public sealed record WatchPolicy
     public EquatableArray<string> MedicalRestIds { get; init; }
 
     /// <summary>
-    /// WATCH_MODE_COMBAT only: the combat events that stop the epoch on the
-    /// tick they happen (STOP_REASON_COMBAT_EVENT). Distinct, specified;
+    /// WATCH_MODE_COMBAT only: the combat events that hold the clock on the
+    /// tick they happen (HOLD_REASON_COMBAT_EVENT). Distinct, specified;
     /// empty arms none. Refused outside combat mode.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CombatEvent>))]
@@ -308,7 +320,7 @@ public sealed record WatchPolicy
     /// of its health is a serious injury. An explosive landing within its blast
     /// radius plus explosive_near_margin_cells of a colonist is near them;
     /// melee_reach_cells is the range assumed for a pawn with no ranged weapon.
-    /// A new wound keeps the stop when it bleeds the colonist out within
+    /// A new wound keeps the hold when it bleeds the colonist out within
     /// injury_severity_floor_ticks or is life-threatening. A hunt is unsafe when
     /// its route passes within predator_margin_cells of a wild predator.
     /// </summary>
@@ -330,48 +342,41 @@ public sealed record WatchPolicy
 }
 
 /// <summary>
-/// Epoch ownership is distinct from automation authority and viewer/input leases.
+/// Run the clock at the target speed under the watch policy. Idempotent: while
+/// running it changes the speed and the policy in place, while held it resumes
+/// (and re-baselines the hazard watches). A game-forced pause refuses it.
 /// </summary>
-public sealed record EpochOwner
+public sealed record RunRequest
 {
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required string ControllerSessionId { get; init; }
+    public Common.Identity? Identity { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required long Epoch { get; init; }
-}
-
-public sealed record StartRequest
-{
-    public Authority.WritePrecondition? Authority { get; init; }
+    /// <summary>The native authority generation the brain holds; a stale one is refused.</summary>
+    public ulong? ExpectedGeneration { get; init; }
 
     public Speed? Speed { get; init; }
 
     public WatchPolicy? Policy { get; init; }
-
-    public uint? MaxTicks { get; init; }
-
-    /// <summary>
-    /// Enable the native tick boost for this epoch. Requires SPEED_ULTRAFAST and
-    /// a game launched with test acceleration (Status.test_acceleration_available);
-    /// refused otherwise. An accelerated epoch cannot change speed, only pause
-    /// or change its ceiling.
-    /// </summary>
-    public bool? TestAcceleration { get; init; }
 }
 
-public sealed record OwnedRequest
+/// <summary>
+/// Hold the clock for a brain reason (coupled order, review, autosave). Needs only
+/// the loaded identity, never current authority, so cleanup can always stop play.
+/// While already held the first reason stands.
+/// </summary>
+public sealed record HoldRequest
 {
     public Common.Identity? Identity { get; init; }
 
-    public EpochOwner? Owner { get; init; }
+    public HoldReason? Reason { get; init; }
+
+    /// <summary>Short free-text detail for the journal.</summary>
+    public string? Detail { get; init; }
 }
 
-public sealed record SpeedRequest
+/// <summary>Brain contact for the one ceiling's heartbeat input. Identity only; reads are not contact.</summary>
+public sealed record HeartbeatRequest
 {
-    public OwnedRequest? Epoch { get; init; }
-
-    public Authority.WritePrecondition? Authority { get; init; }
-
-    public Speed? Speed { get; init; }
+    public Common.Identity? Identity { get; init; }
 }
 
 public sealed record StatusRequest
@@ -379,89 +384,46 @@ public sealed record StatusRequest
     public Common.Identity? Identity { get; init; }
 }
 
-public sealed record Epoch
+public sealed record Status
 {
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required EpochOwner Owner { get; init; }
+    public Common.ObservationContext? Context { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required Common.ObservationContext Origin { get; init; }
+    /// <summary>Running or Held; unset only when <see cref="Unavailable"/> is set.</summary>
+    public ClockState? State { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required Speed RequestedSpeed { get; init; }
+    /// <summary>Why the clock is held; NeverRun before any Run of the loaded game.</summary>
+    public HoldReason? Reason { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required WatchPolicy Policy { get; init; }
+    public string? Detail { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required long StartTick { get; init; }
-
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required long TickDeadline { get; init; }
-
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)] public required long LastTick { get; init; }
-
-    public bool? TestAcceleration { get; init; }
+    /// <summary>The speed the last Run asked for.</summary>
+    public Speed? TargetSpeed { get; init; }
 
     /// <summary>
-    /// The tick rate the epoch holds right now (60 x the multiplier the game
-    /// ticks at), and what bounds it.
+    /// The tick rate the running clock holds right now (60 x the multiplier the
+    /// game ticks at), and what bounds it.
     /// </summary>
     public uint? PacedTicksPerSecond { get; init; }
 
     public PacingReason? PacingReason { get; init; }
 
     /// <summary>
-    /// The one ceiling on the epoch's tick rate (frame budget and brain
-    /// heartbeat, the lower of the two); zero when neither limits it. When it
-    /// bounds the rate, pacing_reason names the input that binds it
-    /// (PACING_REASON_FRAME_BUDGET or PACING_REASON_HEARTBEAT).
+    /// The one ceiling on the tick rate (frame budget and brain heartbeat, the
+    /// lower of the two); zero when neither limits it. When it bounds the rate,
+    /// pacing_reason names the input that binds it.
     /// </summary>
     public uint? CeilingTicksPerSecond { get; init; }
-}
 
-public sealed record Running
-{
-    public Epoch? Epoch { get; init; }
-}
-
-public sealed record Stopping
-{
-    public Epoch? Epoch { get; init; }
-
-    public StopReason? PendingReason { get; init; }
-
-    public string? Detail { get; init; }
-
-    /// <summary>
-    /// Failed pause stays armed. This state never grants permission to resume.
-    /// </summary>
-    public bool? ActualPaused { get; init; }
-}
-
-public sealed record Stopped
-{
-    public Epoch? Epoch { get; init; }
-
-    public StopReason? Reason { get; init; }
-
-    public string? Detail { get; init; }
-
-    public bool? ActualPaused { get; init; }
-
+    /// <summary>Held only: the hold's pause took (the original hold, not an everlasting guarantee).</summary>
     public bool? PauseVerified { get; init; }
 
-    public bool? PauseRequested { get; init; }
+    public long? HeldAtUnixMs { get; init; }
 
-    public long? StoppedAtUnixMs { get; init; }
-
-    /// <summary>
-    /// STOP_REASON_COMBAT_EVENT only: which armed event stopped the epoch.
-    /// </summary>
+    /// <summary>HOLD_REASON_COMBAT_EVENT only: which armed event held the clock.</summary>
     public CombatEvent? CombatEvent { get; init; }
-}
 
-public sealed record NeverStarted;
-
-public sealed record Status
-{
-    public Common.ObservationContext? Context { get; init; }
-
-    public StatusState? State { get; init; }
+    /// <summary>The status could not be read completely.</summary>
+    public Common.Unavailable? Unavailable { get; init; }
 
     public bool? NativeTickBoundary { get; init; }
 
@@ -490,15 +452,15 @@ public sealed record Status
     public bool? ActualPaused { get; init; }
 
     /// <summary>
-    /// The launch admits StartRequest.test_acceleration.
+    /// The game was launched with the acceptance test-acceleration flag; native
+    /// accounting only, Run(Ultrafast) is not gated by it.
     /// </summary>
     public bool? TestAccelerationAvailable { get; init; }
 
     /// <summary>
-    /// Wall time the supervisor's own stop/start transitions account for in
-    /// this game session, on a monotonic clock: paused_ms is the time from
-    /// each stop to the next start (the open gap included while stopped),
-    /// running_ms the time each epoch ran. Gaps no controller observed count.
+    /// Wall time the supervisor's own hold/run transitions account for in
+    /// this game session, on a monotonic clock: paused_ms is the time held
+    /// (the open gap included while held), running_ms the time run.
     /// Both reset when the loaded game changes.
     /// </summary>
     public ulong? PausedMs { get; init; }
@@ -510,7 +472,7 @@ public sealed record Status
     /// session like paused_ms: wall time the hazard probe (probe_elapsed_ms,
     /// probe_total passes) and the fact-change digests (digest_elapsed_ms,
     /// digest_total passes) took on the main thread, and the widest tick gap
-    /// between consecutive probes any epoch of the session saw.
+    /// between consecutive probes the session saw.
     /// </summary>
     public double? ProbeElapsedMs { get; init; }
 
@@ -536,8 +498,8 @@ public sealed record Status
     public double? EffectiveTicksPerSecond { get; init; }
 
     /// <summary>
-    /// The frame account, cumulative for the loaded game session: frames an
-    /// epoch ticked, those whose tick work exceeded the frame budget, and the
+    /// The frame account, cumulative for the loaded game session: frames that
+    /// ticked, those whose tick work exceeded the frame budget, and the
     /// widest frame's tick work. A command queued for the main thread waits at most one
     /// frame's tick work.
     /// </summary>
@@ -546,58 +508,6 @@ public sealed record Status
     public ulong? PacedFramesOverBudget { get; init; }
 
     public double? MaxPacedFrameMs { get; init; }
-}
-
-/// <summary>The <c>state</c> choice of <see cref="Status"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(StatusState.RunningCase), "running")]
-[JsonDerivedType(typeof(StatusState.StoppingCase), "stopping")]
-[JsonDerivedType(typeof(StatusState.StoppedCase), "stopped")]
-[JsonDerivedType(typeof(StatusState.NeverStartedCase), "neverStarted")]
-[JsonDerivedType(typeof(StatusState.UnavailableCase), "unavailable")]
-public abstract record StatusState
-{
-    private protected StatusState() { }
-
-    /// <summary>The <c>Running</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Running? Running => (this as RunningCase)?.Value;
-
-    public sealed record RunningCase(Running Value) : StatusState;
-
-    public static implicit operator StatusState(Running value) => new RunningCase(value);
-
-    /// <summary>The <c>Stopping</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Stopping? Stopping => (this as StoppingCase)?.Value;
-
-    public sealed record StoppingCase(Stopping Value) : StatusState;
-
-    public static implicit operator StatusState(Stopping value) => new StoppingCase(value);
-
-    /// <summary>The <c>Stopped</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Stopped? Stopped => (this as StoppedCase)?.Value;
-
-    public sealed record StoppedCase(Stopped Value) : StatusState;
-
-    public static implicit operator StatusState(Stopped value) => new StoppedCase(value);
-
-    /// <summary>The <c>NeverStarted</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public NeverStarted? NeverStarted => (this as NeverStartedCase)?.Value;
-
-    public sealed record NeverStartedCase(NeverStarted Value) : StatusState;
-
-    public static implicit operator StatusState(NeverStarted value) => new NeverStartedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : StatusState;
-
-    public static implicit operator StatusState(Common.Unavailable value) => new UnavailableCase(value);
 }
 
 /// <summary>
@@ -619,6 +529,7 @@ public sealed record HazardGap
     public bool Hooked { get; init; }
 }
 
+/// <summary>The reply of Status, Run and Hold: the clock status or a failure that had no clock effect.</summary>
 public sealed record StatusReply
 {
     public StatusReplyOutcome? Outcome { get; init; }
@@ -649,152 +560,44 @@ public abstract record StatusReplyOutcome
     public static implicit operator StatusReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-public sealed record LongEventPending
+/// <summary>What a heartbeat answers: the clock state, why it is held, and the ceiling.</summary>
+public sealed record HeartbeatAck
 {
-    public string? Detail { get; init; }
+    public ClockState? State { get; init; }
+
+    public HoldReason? Reason { get; init; }
+
+    public uint? CeilingTicksPerSecond { get; init; }
 }
 
-public sealed record AppliedControl
+public sealed record HeartbeatReply
 {
-    public Status? Status { get; init; }
+    public HeartbeatReplyOutcome? Outcome { get; init; }
 }
 
-public sealed record UncertainControl
-{
-    public Status? LastObserved { get; init; }
-
-    public string? Detail { get; init; }
-}
-
-/// <summary>
-/// authorizing_owner (rimgovernor.authority.v1.Owner) was removed: with a
-/// single bot process there is only ever one possible authorizing actor.
-/// </summary>
-public sealed record ControlReceipt
-{
-    public Common.AttemptKey? Attempt { get; init; }
-
-    public Common.ObservationContext? AdmittedContext { get; init; }
-
-    public ControlReceiptOutcome? Outcome { get; init; }
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ControlReceipt"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
+/// <summary>The <c>outcome</c> choice of <see cref="HeartbeatReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ControlReceiptOutcome.AppliedCase), "applied")]
-[JsonDerivedType(typeof(ControlReceiptOutcome.UncertainCase), "uncertain")]
-public abstract record ControlReceiptOutcome
+[JsonDerivedType(typeof(HeartbeatReplyOutcome.AckCase), "ack")]
+[JsonDerivedType(typeof(HeartbeatReplyOutcome.FailureCase), "failure")]
+public abstract record HeartbeatReplyOutcome
 {
-    private protected ControlReceiptOutcome() { }
+    private protected HeartbeatReplyOutcome() { }
 
-    /// <summary>The <c>Applied</c> case's payload, null when another case is set.</summary>
+    /// <summary>The <c>Ack</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
-    public AppliedControl? Applied => (this as AppliedCase)?.Value;
+    public HeartbeatAck? Ack => (this as AckCase)?.Value;
 
-    public sealed record AppliedCase(AppliedControl Value) : ControlReceiptOutcome;
+    public sealed record AckCase(HeartbeatAck Value) : HeartbeatReplyOutcome;
 
-    public static implicit operator ControlReceiptOutcome(AppliedControl value) => new AppliedCase(value);
-
-    /// <summary>The <c>Uncertain</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public UncertainControl? Uncertain => (this as UncertainCase)?.Value;
-
-    public sealed record UncertainCase(UncertainControl Value) : ControlReceiptOutcome;
-
-    public static implicit operator ControlReceiptOutcome(UncertainControl value) => new UncertainCase(value);
-}
-
-/// <summary>
-/// Admission failure has no clock effect. A changed or uncertain clock returns status.
-/// </summary>
-public sealed record ControlReply
-{
-    public ControlReplyOutcome? Outcome { get; init; }
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ControlReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ControlReplyOutcome.ReceiptCase), "receipt")]
-[JsonDerivedType(typeof(ControlReplyOutcome.FailureCase), "failure")]
-[JsonDerivedType(typeof(ControlReplyOutcome.LongEventPendingCase), "longEventPending")]
-public abstract record ControlReplyOutcome
-{
-    private protected ControlReplyOutcome() { }
-
-    /// <summary>The <c>Receipt</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ControlReceipt? Receipt => (this as ReceiptCase)?.Value;
-
-    public sealed record ReceiptCase(ControlReceipt Value) : ControlReplyOutcome;
-
-    public static implicit operator ControlReplyOutcome(ControlReceipt value) => new ReceiptCase(value);
+    public static implicit operator HeartbeatReplyOutcome(HeartbeatAck value) => new AckCase(value);
 
     /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public Common.Failure? Failure => (this as FailureCase)?.Value;
 
-    public sealed record FailureCase(Common.Failure Value) : ControlReplyOutcome;
+    public sealed record FailureCase(Common.Failure Value) : HeartbeatReplyOutcome;
 
-    public static implicit operator ControlReplyOutcome(Common.Failure value) => new FailureCase(value);
-
-    /// <summary>The <c>LongEventPending</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public LongEventPending? LongEventPending => (this as LongEventPendingCase)?.Value;
-
-    public sealed record LongEventPendingCase(LongEventPending Value) : ControlReplyOutcome;
-
-    public static implicit operator ControlReplyOutcome(LongEventPending value) => new LongEventPendingCase(value);
-}
-
-public sealed record AttemptRequest
-{
-    public Common.Identity? Identity { get; init; }
-
-    public Common.AttemptKey? Attempt { get; init; }
-}
-
-/// <summary>
-/// Missing records never prove that a lost request had no effect.
-/// </summary>
-public sealed record AttemptUnknown;
-
-public sealed record AttemptReply
-{
-    public AttemptReplyOutcome? Outcome { get; init; }
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="AttemptReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(AttemptReplyOutcome.ReceiptCase), "receipt")]
-[JsonDerivedType(typeof(AttemptReplyOutcome.UnknownCase), "unknown")]
-[JsonDerivedType(typeof(AttemptReplyOutcome.FailureCase), "failure")]
-public abstract record AttemptReplyOutcome
-{
-    private protected AttemptReplyOutcome() { }
-
-    /// <summary>The <c>Receipt</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ControlReceipt? Receipt => (this as ReceiptCase)?.Value;
-
-    public sealed record ReceiptCase(ControlReceipt Value) : AttemptReplyOutcome;
-
-    public static implicit operator AttemptReplyOutcome(ControlReceipt value) => new ReceiptCase(value);
-
-    /// <summary>The <c>Unknown</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public AttemptUnknown? Unknown => (this as UnknownCase)?.Value;
-
-    public sealed record UnknownCase(AttemptUnknown Value) : AttemptReplyOutcome;
-
-    public static implicit operator AttemptReplyOutcome(AttemptUnknown value) => new UnknownCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : AttemptReplyOutcome;
-
-    public static implicit operator AttemptReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public static implicit operator HeartbeatReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 public sealed record Letter
@@ -931,16 +734,8 @@ public sealed record HostilesCleared
 
     public int? ConsciousHostilesBefore { get; init; }
 
-    public bool? AcrossEpochRestart { get; init; }
-}
-
-public sealed record BudgetReached
-{
-    public long? StartTick { get; init; }
-
-    public long? TickDeadline { get; init; }
-
-    public long? ActualTick { get; init; }
+    /// <summary>The last hostile fell on the first probe after a resume, so the count before comes from before the hold.</summary>
+    public bool? AcrossResume { get; init; }
 }
 
 public sealed record PauseEvidence
@@ -1031,8 +826,7 @@ public abstract record OperationOutcomeOutcome
 }
 
 /// <summary>
-/// The native authority generation moved. Observed with or without an epoch;
-/// this is the only event whose Event.owner may be absent.
+/// The native authority generation moved. Observed whether the clock runs or is held.
 /// </summary>
 public sealed record AuthorityChanged
 {
@@ -1051,18 +845,21 @@ public sealed record AuthorityChanged
 public sealed record WatchLatched
 {
     public OperationOutcome? Outcome { get; init; }
-
-    public long? TickDeadline { get; init; }
 }
 
-public sealed record StopEvent
+/// <summary>
+/// The clock entered a hold: native raised a hazard, game or error reason, or
+/// the brain's Hold took. Journalled once per entry; a Hold while already held
+/// keeps the first reason and journals nothing.
+/// </summary>
+public sealed record HoldEntered
 {
-    public StopReason? Reason { get; init; }
+    public HoldReason? Reason { get; init; }
 
-    public StopEventEvidence? Evidence { get; init; }
+    public HoldEvidence? Evidence { get; init; }
 
     /// <summary>
-    /// The tick at which the supervisor first raised this stop; the event's
+    /// The tick at which the supervisor first raised this hold; the event's
     /// context tick is the tick it took (a failed pause retries per frame).
     /// </summary>
     public long? DetectedTick { get; init; }
@@ -1074,100 +871,91 @@ public sealed record StopEvent
     public long? OccurrenceTick { get; init; }
 }
 
-/// <summary>The <c>evidence</c> choice of <see cref="StopEvent"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
+/// <summary>The <c>evidence</c> choice of <see cref="HoldEntered"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(StopEventEvidence.NotificationsCase), "notifications")]
-[JsonDerivedType(typeof(StopEventEvidence.PawnCase), "pawn")]
-[JsonDerivedType(typeof(StopEventEvidence.InjuryCase), "injury")]
-[JsonDerivedType(typeof(StopEventEvidence.HealthCase), "health")]
-[JsonDerivedType(typeof(StopEventEvidence.BudgetCase), "budget")]
-[JsonDerivedType(typeof(StopEventEvidence.PauseCase), "pause")]
-[JsonDerivedType(typeof(StopEventEvidence.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(StopEventEvidence.WatchCase), "watch")]
-[JsonDerivedType(typeof(StopEventEvidence.CombatCase), "combat")]
-public abstract record StopEventEvidence
+[JsonDerivedType(typeof(HoldEvidence.NotificationsCase), "notifications")]
+[JsonDerivedType(typeof(HoldEvidence.PawnCase), "pawn")]
+[JsonDerivedType(typeof(HoldEvidence.InjuryCase), "injury")]
+[JsonDerivedType(typeof(HoldEvidence.HealthCase), "health")]
+[JsonDerivedType(typeof(HoldEvidence.PauseCase), "pause")]
+[JsonDerivedType(typeof(HoldEvidence.UnavailableCase), "unavailable")]
+[JsonDerivedType(typeof(HoldEvidence.WatchCase), "watch")]
+[JsonDerivedType(typeof(HoldEvidence.CombatCase), "combat")]
+public abstract record HoldEvidence
 {
-    private protected StopEventEvidence() { }
+    private protected HoldEvidence() { }
 
     /// <summary>The <c>Notifications</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public NotificationBatch? Notifications => (this as NotificationsCase)?.Value;
 
-    public sealed record NotificationsCase(NotificationBatch Value) : StopEventEvidence;
+    public sealed record NotificationsCase(NotificationBatch Value) : HoldEvidence;
 
-    public static implicit operator StopEventEvidence(NotificationBatch value) => new NotificationsCase(value);
+    public static implicit operator HoldEvidence(NotificationBatch value) => new NotificationsCase(value);
 
     /// <summary>The <c>Pawn</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public PawnEvent? Pawn => (this as PawnCase)?.Value;
 
-    public sealed record PawnCase(PawnEvent Value) : StopEventEvidence;
+    public sealed record PawnCase(PawnEvent Value) : HoldEvidence;
 
-    public static implicit operator StopEventEvidence(PawnEvent value) => new PawnCase(value);
+    public static implicit operator HoldEvidence(PawnEvent value) => new PawnCase(value);
 
     /// <summary>The <c>Injury</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public Injury? Injury => (this as InjuryCase)?.Value;
 
-    public sealed record InjuryCase(Injury Value) : StopEventEvidence;
+    public sealed record InjuryCase(Injury Value) : HoldEvidence;
 
-    public static implicit operator StopEventEvidence(Injury value) => new InjuryCase(value);
+    public static implicit operator HoldEvidence(Injury value) => new InjuryCase(value);
 
     /// <summary>The <c>Health</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public HealthThreshold? Health => (this as HealthCase)?.Value;
 
-    public sealed record HealthCase(HealthThreshold Value) : StopEventEvidence;
+    public sealed record HealthCase(HealthThreshold Value) : HoldEvidence;
 
-    public static implicit operator StopEventEvidence(HealthThreshold value) => new HealthCase(value);
-
-    /// <summary>The <c>Budget</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public BudgetReached? Budget => (this as BudgetCase)?.Value;
-
-    public sealed record BudgetCase(BudgetReached Value) : StopEventEvidence;
-
-    public static implicit operator StopEventEvidence(BudgetReached value) => new BudgetCase(value);
+    public static implicit operator HoldEvidence(HealthThreshold value) => new HealthCase(value);
 
     /// <summary>The <c>Pause</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public PauseEvidence? Pause => (this as PauseCase)?.Value;
 
-    public sealed record PauseCase(PauseEvidence Value) : StopEventEvidence;
+    public sealed record PauseCase(PauseEvidence Value) : HoldEvidence;
 
-    public static implicit operator StopEventEvidence(PauseEvidence value) => new PauseCase(value);
+    public static implicit operator HoldEvidence(PauseEvidence value) => new PauseCase(value);
 
     /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
 
-    public sealed record UnavailableCase(Common.Unavailable Value) : StopEventEvidence;
+    public sealed record UnavailableCase(Common.Unavailable Value) : HoldEvidence;
 
-    public static implicit operator StopEventEvidence(Common.Unavailable value) => new UnavailableCase(value);
+    public static implicit operator HoldEvidence(Common.Unavailable value) => new UnavailableCase(value);
 
     /// <summary>The <c>Watch</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
     public WatchLatched? Watch => (this as WatchCase)?.Value;
 
-    public sealed record WatchCase(WatchLatched Value) : StopEventEvidence;
+    public sealed record WatchCase(WatchLatched Value) : HoldEvidence;
 
-    public static implicit operator StopEventEvidence(WatchLatched value) => new WatchCase(value);
+    public static implicit operator HoldEvidence(WatchLatched value) => new WatchCase(value);
 
     /// <summary>The <c>Combat</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
-    public CombatEventStop? Combat => (this as CombatCase)?.Value;
+    public CombatEventHold? Combat => (this as CombatCase)?.Value;
 
-    public sealed record CombatCase(CombatEventStop Value) : StopEventEvidence;
+    public sealed record CombatCase(CombatEventHold Value) : HoldEvidence;
 
-    public static implicit operator StopEventEvidence(CombatEventStop value) => new CombatCase(value);
+    public static implicit operator HoldEvidence(CombatEventHold value) => new CombatCase(value);
 }
 
 /// <summary>
-/// STOP_REASON_COMBAT_EVENT evidence: the armed event, the thing it
+/// HOLD_REASON_COMBAT_EVENT evidence: the armed event, the thing it
 /// happened to or was raised by (a pawn, a building, a lord's first pawn),
 /// and a diagnostic. occurrence_tick is the tick it happened on.
 /// </summary>
-public sealed record CombatEventStop
+public sealed record CombatEventHold
 {
     public CombatEvent? Event { get; init; }
 
@@ -1176,14 +964,20 @@ public sealed record CombatEventStop
     public string? Reason { get; init; }
 }
 
-public sealed record EpochStarted
+/// <summary>
+/// The clock resumed: a Run took while held (the first Run of a loaded game included).
+/// </summary>
+public sealed record Resumed
 {
-    public Epoch? Epoch { get; init; }
+    public Speed? Speed { get; init; }
+
+    /// <summary>The reason the clock was held before this Run.</summary>
+    public HoldReason? From { get; init; }
 }
 
 /// <summary>
-/// Native noticed the named fact families change under a running epoch
-/// without a controller write or a stop (a research project finished, faction
+/// Native noticed the named fact families change under a running clock
+/// without a controller write or a hold (a research project finished, faction
 /// relations moved, a zone edited): a controller holding cached rows of those
 /// families discards them. Never empty. When native can attribute the change
 /// it narrows the discard: entity_ids (&lt;= 64) name the changed rows of the
@@ -1214,17 +1008,9 @@ public sealed record Rectangle
     public Common.Cell? Maximum { get; init; }
 }
 
-/// <summary>
-/// The epoch's speed changed; the epoch continues.
-/// </summary>
-public sealed record SpeedChanged
-{
-    public Speed? Speed { get; init; }
-}
-
 public sealed record PauseFailed
 {
-    public StopEvent? Pending { get; init; }
+    public HoldEntered? Pending { get; init; }
 }
 
 public sealed record ForcePauseWaiting
@@ -1249,12 +1035,6 @@ public sealed record ClockEvent
 {
     public long? Cursor { get; init; }
 
-    /// <summary>
-    /// Absent only for the epoch-less events: AuthorityChanged observed outside
-    /// any epoch.
-    /// </summary>
-    public EpochOwner? Owner { get; init; }
-
     public Common.ObservationContext? Context { get; init; }
 
     public long? ObservedAtUnixMs { get; init; }
@@ -1265,7 +1045,7 @@ public sealed record ClockEvent
 
     /// <summary>
     /// How long ago, on native's own clock, this event was observed when the
-    /// page carrying it was composed: the unobserved time a stop sat in native
+    /// page carrying it was composed: the unobserved time a hold sat in native
     /// before this reply, measured without comparing clocks across processes.
     /// </summary>
     public ulong? AgeAtReplyMs { get; init; }
@@ -1273,9 +1053,8 @@ public sealed record ClockEvent
 
 /// <summary>The <c>event</c> choice of <see cref="ClockEvent"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ClockEventEvent.StartedCase), "started")]
-[JsonDerivedType(typeof(ClockEventEvent.SpeedChangedCase), "speedChanged")]
-[JsonDerivedType(typeof(ClockEventEvent.StoppedCase), "stopped")]
+[JsonDerivedType(typeof(ClockEventEvent.ResumedCase), "resumed")]
+[JsonDerivedType(typeof(ClockEventEvent.HoldEnteredCase), "holdEntered")]
 [JsonDerivedType(typeof(ClockEventEvent.NotificationCase), "notification")]
 [JsonDerivedType(typeof(ClockEventEvent.AlertCase), "alert")]
 [JsonDerivedType(typeof(ClockEventEvent.InjuryObservedCase), "injuryObserved")]
@@ -1290,29 +1069,21 @@ public abstract record ClockEventEvent
 {
     private protected ClockEventEvent() { }
 
-    /// <summary>The <c>Started</c> case's payload, null when another case is set.</summary>
+    /// <summary>The <c>Resumed</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
-    public EpochStarted? Started => (this as StartedCase)?.Value;
+    public Resumed? Resumed => (this as ResumedCase)?.Value;
 
-    public sealed record StartedCase(EpochStarted Value) : ClockEventEvent;
+    public sealed record ResumedCase(Resumed Value) : ClockEventEvent;
 
-    public static implicit operator ClockEventEvent(EpochStarted value) => new StartedCase(value);
+    public static implicit operator ClockEventEvent(Resumed value) => new ResumedCase(value);
 
-    /// <summary>The <c>SpeedChanged</c> case's payload, null when another case is set.</summary>
+    /// <summary>The <c>HoldEntered</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
-    public SpeedChanged? SpeedChanged => (this as SpeedChangedCase)?.Value;
+    public HoldEntered? HoldEntered => (this as HoldEnteredCase)?.Value;
 
-    public sealed record SpeedChangedCase(SpeedChanged Value) : ClockEventEvent;
+    public sealed record HoldEnteredCase(HoldEntered Value) : ClockEventEvent;
 
-    public static implicit operator ClockEventEvent(SpeedChanged value) => new SpeedChangedCase(value);
-
-    /// <summary>The <c>Stopped</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public StopEvent? Stopped => (this as StoppedCase)?.Value;
-
-    public sealed record StoppedCase(StopEvent Value) : ClockEventEvent;
-
-    public static implicit operator ClockEventEvent(StopEvent value) => new StoppedCase(value);
+    public static implicit operator ClockEventEvent(HoldEntered value) => new HoldEnteredCase(value);
 
     /// <summary>The <c>Notification</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -1451,4 +1222,3 @@ public abstract record EventsReplyOutcome
 
     public static implicit operator EventsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
-

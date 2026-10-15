@@ -202,7 +202,7 @@ public sealed class BrainHost : IAsyncDisposable
                 Wake = wake,
                 Advanced = () => wake.Notify([], false),
                 Store = planners.Scheduler.Config.Store,
-                WindowRunning = () => planners.Scheduler.WindowRunning,
+                ClockRunning = () => planners.Scheduler.ClockRunning,
                 Validity = () => planners.Scheduler.Validity is { } validity ? (validity, true) : (default, false),
                 Flush = planners.Flush,
                 Placement = planners.Placement,
@@ -236,7 +236,7 @@ public sealed class BrainHost : IAsyncDisposable
             }
         }
 
-        var loop = new SchedulerLoop(player, session, planners.Scheduler, planners.Windows, wake, timings, options.Watchdog, _planners, _steps, _log, _lifetime.Token, () => snapshots?.GamePaused == true);
+        var loop = new SchedulerLoop(player, session, planners.Scheduler, planners.Clock, wake, timings, options.Watchdog, _planners, _steps, _log, _lifetime.Token, () => snapshots?.GamePaused == true);
         _loop = loop;
         loop.Start();
         _saveLoop = Task.Run(() => new SaveSignalLoop(facade, flusher, _log).RunAsync(_lifetime.Token), CancellationToken.None);
@@ -316,9 +316,9 @@ public sealed class BrainHost : IAsyncDisposable
                 errors.Add(e);
             }
         }
-        if (_plannerParts?.Windows is { } windows)
+        if (_plannerParts?.Clock is { } clock)
         {
-            await Attempt(errors, "window driver", ct => windows.StopAsync(ct)).ConfigureAwait(false);
+            await Attempt(errors, "clock driver", ct => clock.StopAsync(ct)).ConfigureAwait(false);
         }
         foreach (var registration in _routes)
         {

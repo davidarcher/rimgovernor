@@ -1,10 +1,9 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// The scheduler state the window driver shares with the planning step: the pace measurement, the latched outcomes
-// and the latest step's clock status. In Go these were fields of the one ClockScheduler that also
-// admitted windows; the step here only plans, so the driver reaches them through these internal members.
+// The scheduler state the run driver shares with the planning step: the pace measurement and the latest step's
+// clock status. The step only plans, so the driver reaches them through these internal members.
 
-/// <summary>The pace the running window is measured at (Go <c>paceTick</c>, <c>paceAt</c>, <c>pacePerSecond</c>, <c>livePaceTicks</c>); touched only under the player gate.</summary>
+/// <summary>The pace the running clock is measured at (Go <c>paceTick</c>, <c>paceAt</c>, <c>pacePerSecond</c>, <c>livePaceTicks</c>); touched only under the player gate.</summary>
 internal sealed class ClockPaceMeasure
 {
     public long Tick { get; set; }
@@ -13,18 +12,15 @@ internal sealed class ClockPaceMeasure
 
     public bool Known { get; set; }
 
-    /// <summary>The last pace measured under a running window, kept across stops so the next window starts with a pace.</summary>
+    /// <summary>The last pace measured under a running clock, kept across holds so the next run starts with a pace.</summary>
     public double PerSecond { get; set; }
 
-    /// <summary>The pace a step projects the tick by: <see cref="PerSecond"/> while a window runs, zero under a stopped clock.</summary>
+    /// <summary>The pace a step projects the tick by: <see cref="PerSecond"/> while the clock runs, zero while it is held.</summary>
     public double LiveTicks { get; set; }
 }
 
 public sealed partial class ClockScheduler
 {
-    /// <summary>The outcomes the native clock latched that the Worker has not reconciled; the poll writes them and the driver consults them.</summary>
-    internal ClockLatched Latched { get; } = new();
-
     internal ClockFacts Facts => _facts;
 
     internal ClockPaceMeasure Pace { get; } = new();
@@ -36,26 +32,19 @@ public sealed partial class ClockScheduler
 
     internal bool LastTickKnown => _lastTickKnown;
 
-    internal void SetLastTick(long tick) => (_lastTick, _lastTickKnown) = (tick, true);
-
-    internal void SetRunning(bool running) => _running = running;
-
-    /// <summary>Stamps the full-step safety net as just run (Go <c>s.lastFull = s.clock.Now()</c>).</summary>
-    internal void MarkFull() => _lastFull = _clock.Now();
-
-    /// <summary>The ticks the running window's pace covers in the step's wall: what a step expects the tick to have moved by since its predecessor (Go <c>drift</c>).</summary>
+    /// <summary>The ticks the running clock's pace covers in the step's wall: what a step expects the tick to have moved by since its predecessor (Go <c>drift</c>).</summary>
     private long Drift() => (long)(Pace.LiveTicks * Config.MaxAge.TotalSeconds);
 
     /// <summary>
-    /// Measures the running window's pace from the previous step's status tick: the pace the step's read validity
-    /// widens its bounds by. A stopped, stopping or never-started clock, or a pace not yet measured, leaves the pace
-    /// at zero so a paused step keeps the tick-exact bound (Go <c>livePace</c>).
+    /// Measures the running clock's pace from the previous step's status tick: the pace the step's read validity
+    /// widens its bounds by. A held or never-run clock, or a pace not yet measured, leaves the pace at zero so a
+    /// paused step keeps the tick-exact bound (Go <c>livePace</c>).
     /// </summary>
     internal void LivePace(PbClock.Status status, DateTimeOffset readAt)
     {
         var tick = (long)(status.Context?.Tick).GetValueOrDefault();
         var pace = 0.0;
-        if (status.State is PbClock.StatusState.RunningCase && Pace.Known && tick > Pace.Tick && readAt > Pace.At)
+        if (status.State == PbClock.ClockState.Running && Pace.Known && tick > Pace.Tick && readAt > Pace.At)
         {
             Pace.PerSecond = (tick - Pace.Tick) / (readAt - Pace.At).TotalSeconds;
             pace = Pace.PerSecond;
@@ -64,56 +53,15 @@ public sealed partial class ClockScheduler
         (Pace.Tick, Pace.At, Pace.Known) = (tick, readAt, true);
     }
 
-    /// <summary>
-    /// Sets the pace for the window this step just started from the last pace <see cref="LivePace"/> measured, and
-    /// restarts the pace measurement at the start tick: the step's own status read predates the start, and a pace
-    /// measured from it would count the stop as running time (Go <c>seedLiveDrift</c>).
-    /// </summary>
-    internal void SeedLiveDrift(long startTick)
-    {
-        (Pace.Tick, Pace.At, Pace.Known) = (startTick, _clock.Now(), true);
-        if (Pace.PerSecond <= 0)
-        {
-            return;
-        }
-        Pace.LiveTicks = Pace.PerSecond;
-    }
+    internal void SetRunning(bool running) => _running = running;
 
-    /// <summary>
-    /// The loud half of the idle lend: reaching it is a defect (a planner waits on game time without saying how many
-    /// ticks, so the stopped clock deadlocks), not routine. It logs at Warn an idle_stall row naming every goal's
-    /// standing planner refusal or wait: those are the planners to teach a NativeWorkTicks hint (Go <c>warnIdleStall</c>).
-    /// </summary>
-    internal void WarnIdleStall(long tick)
-    {
-        var standing = new List<string>();
-        foreach (var (goal, filed) in _plannerReasons.Standing)
-        {
-            var note = filed.Note;
-            if (note.Cause == Cause.None || note.Cause == Cause.HeldOptIn)
-            {
-                continue;
-            }
-            var kind = note.Cause.Waiting() ? "waiting" : "refused";
-            standing.Add($"{goal.Value} {kind}: {Wording(note.Cause, note.Subject)}");
-        }
-        standing.Sort(StringComparer.Ordinal);
-        Tel.Decide(new Decision
-        {
-            Kind = "idle_stall",
-            Component = "clock-scheduler",
-            Level = TelemetryLevel.Warn,
-            Verdict = "waiting",
-            Reason = "no_work",
-            Target = "colony",
-            Attrs = new Dictionary<string, object?> { ["tick"] = tick, ["refusals"] = IdleRefusals, ["lend_ticks"] = IdleLendTicks, ["standing"] = standing },
-        });
-    }
+    /// <summary>Stamps the full-step safety net as just run (Go <c>s.lastFull = s.clock.Now()</c>).</summary>
+    internal void MarkFull() => _lastFull = _clock.Now();
 
     /// <summary>
     /// The clock_step row of one step: target the cause the step acted on, dur the step's wall, verdict what the
-    /// step did (failed, deferred, idle) and reason why. The window driver files the admission verdicts (admitted,
-    /// refused) on its own rows (Go <c>stepDecision</c>).
+    /// step did (failed, deferred, idle) and reason why. The run driver files the clock_run verdicts on its own rows
+    /// (Go <c>stepDecision</c>).
     /// </summary>
     internal static Decision StepDecision(ClockSchedulerResult result, Exception? error, StepCause cause, TimeSpan elapsed, Dictionary<string, object?> attrs)
     {
@@ -123,6 +71,6 @@ public sealed partial class ClockScheduler
             attrs["error"] = error.Message;
             return d with { Verdict = "failed", Reason = "step_error" };
         }
-        return result.Deferred ? d with { Verdict = "deferred", Reason = "deferred" } : d with { Verdict = "idle", Reason = "no_window" };
+        return result.Deferred ? d with { Verdict = "deferred", Reason = "deferred" } : d with { Verdict = "planned", Reason = "step" };
     }
 }

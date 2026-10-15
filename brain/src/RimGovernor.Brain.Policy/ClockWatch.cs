@@ -1,21 +1,22 @@
 namespace RimGovernor.Brain.Policy;
 
-// Go: clock_window.go
+// Go: clock_window.go, reduced to the continuous Run/Hold clock.
 
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// Admits a finite window. Live hostiles refuse it unless the ActiveCombat goal holds an admitted plan;
-    /// then the window is a combat watch acknowledging exactly those hostile pawns under the combat budget (a
-    /// hostile building makes the window a combat one but is never acknowledged: the native watcher resolves
-    /// acknowledged ids as pawns), and it returns to colony mode once every hostile is dead, downed or, for a
-    /// building, destroyed. The returned snapshot and review revision must still match at runtime dispatch.
+    /// Decides the watch a Run carries. Live hostiles refuse it unless the ActiveCombat goal holds an admitted
+    /// plan; then the watch is a combat one acknowledging exactly those hostile pawns (a hostile building makes
+    /// the watch a combat one but is never acknowledged: the native watcher resolves acknowledged ids as pawns),
+    /// and it returns to colony mode once every hostile is dead, downed or, for a building, destroyed. A refused
+    /// decision leaves a held clock held; it never stops a running one (native holds on what it sees). The
+    /// decision is pure: the caller diffs the policy it implies against the last one it sent.
     /// </summary>
-    public static ClockWindowDecision EvaluateClockWindow(ClockWindowFacts f, ClockWindowLimits limits)
+    public static ClockWatchDecision EvaluateClockWatch(ClockWatchFacts f, ClockWatchLimits limits)
     {
-        var refused = new List<ClockWindowReason>();
+        var refused = new List<ClockWatchReason>();
 
-        void Hold(ClockWindowReason reason)
+        void Hold(ClockWatchReason reason)
         {
             if (!refused.Contains(reason))
             {
@@ -23,39 +24,29 @@ public static partial class PolicyFunctions
             }
         }
 
-        if (
-            limits.Now == default
-            || limits.MaxAge <= TimeSpan.Zero
-            || limits.MaxTicks == 0
-            || limits.MaxTicks > 1800000
-            || limits.CombatMaxTicks > limits.MaxTicks
-            || (f.Tick.Value >= 0 && f.Tick.Value > long.MaxValue - limits.MaxTicks)
-        )
+        if (limits.MaxAge <= TimeSpan.Zero)
         {
-            Hold(ClockWindowReason.InvalidLimits);
+            Hold(ClockWatchReason.Unknown);
         }
 
         if (!f.Current.IsValid || f.Current.Revision.Value == 0 || f.Current.Native.Value == 0 || f.Tick.Value < 0)
         {
-            Hold(ClockWindowReason.Unknown);
+            Hold(ClockWatchReason.Unknown);
         }
 
         if (f.Status.Snapshot != f.Current || f.Status.Tick != f.Tick)
         {
-            Hold(ClockWindowReason.Stale);
+            Hold(ClockWatchReason.Stale);
         }
 
         if (
-            f.StartedAt == default
-            || f.ObservedAt == default
-            || f.ObservedAt < f.StartedAt
-            || f.ObservedAt > limits.Now
-            || f.StartedAt > limits.Now
-            || limits.Now - f.StartedAt > limits.MaxAge
-            || limits.Now - f.ObservedAt > limits.MaxAge
+            f.SinceStarted < TimeSpan.Zero
+            || f.SinceObserved < TimeSpan.Zero
+            || f.SinceObserved > f.SinceStarted
+            || f.SinceStarted > limits.MaxAge
         )
         {
-            Hold(ClockWindowReason.Stale);
+            Hold(ClockWatchReason.Stale);
         }
 
         var combatKnown = f.CombatPlan.TryGetValue(out var combatPlan);
@@ -71,10 +62,10 @@ public static partial class PolicyFunctions
             switch (h.Reason)
             {
                 case EmergencyReason.StaleFacts:
-                    Hold(ClockWindowReason.Stale);
+                    Hold(ClockWatchReason.Stale);
                     break;
                 case EmergencyReason.UnknownFacts:
-                    Hold(ClockWindowReason.Unknown);
+                    Hold(ClockWatchReason.Unknown);
                     break;
                 case EmergencyReason.UnsafeThreat:
                     // An admitted combat plan needs ticks for defenders to fight; the native watcher only lets
@@ -83,12 +74,12 @@ public static partial class PolicyFunctions
                     var named = h.Pawn.Value.Length != 0;
                     if (!combatKnown)
                     {
-                        Hold(ClockWindowReason.Unknown);
+                        Hold(ClockWatchReason.Unknown);
                     }
                     else if (combatPlan && named && buildings.Contains(h.Pawn))
                     {
-                        // A hostile building makes the window a combat one but is never acknowledged: the
-                        // native watcher stops for unacknowledged hostile pawns only and resolves every
+                        // A hostile building makes the watch a combat one but is never acknowledged: the
+                        // native watcher holds for unacknowledged hostile pawns only and resolves every
                         // acknowledged id as a pawn.
                         combat = true;
                     }
@@ -96,7 +87,7 @@ public static partial class PolicyFunctions
                     {
                         // No squad can be assigned (every colonist downed or incapable of violence): the
                         // building goes nowhere, so it is watched rather than held. The planner reports again
-                        // at every stop and a plan it admits later makes the next window a combat one.
+                        // at every hold and a plan it admits later makes the next watch a combat one.
                     }
                     else if (combatPlan && named)
                     {
@@ -110,32 +101,31 @@ public static partial class PolicyFunctions
                     }
                     else
                     {
-                        Hold(ClockWindowReason.Unsafe);
+                        Hold(ClockWatchReason.Unsafe);
                     }
 
                     break;
                 case EmergencyReason.CriticalMedical:
-                    // Must NOT refuse the window here: RoundsTendPlanner dispatches the tend order regardless
-                    // of window admission, but the native side can only carry it out -- and NeedsTend can only
-                    // clear -- while ticks are actually passing. Refusing to admit a window while NeedsTend is
-                    // true deadlocks: the order times out unexecuted, the reviewer retries next poll, and the
-                    // colony is unsafe forever. Unlike a hostile threat, an untended patient is resolved BY
-                    // letting the clock run, not by holding it.
+                    // Must NOT refuse the Run here: RoundsTendPlanner dispatches the tend order regardless of
+                    // the clock, but the native side can only carry it out -- and NeedsTend can only clear --
+                    // while ticks are actually passing. Refusing to run while NeedsTend is true deadlocks: the
+                    // order times out unexecuted, the reviewer retries, and the colony is unsafe forever. Unlike a
+                    // hostile threat, an untended patient is resolved BY letting the clock run, not by holding it.
                     break;
                 default:
-                    Hold(ClockWindowReason.Unsafe);
+                    Hold(ClockWatchReason.Unsafe);
                     break;
             }
         }
 
         if (f.Emergency.PodsPending)
         {
-            // A drop-pod raid on its way down: with the fight's plan the window is a combat one with nothing
-            // to acknowledge until the pods open (the watcher stops on the raiders then); without it the raid
+            // A drop-pod raid on its way down: with the fight's plan the watch is a combat one with nothing
+            // to acknowledge until the pods open (the watcher holds on the raiders then); without it the raid
             // must not auto-advance.
             if (!combatKnown)
             {
-                Hold(ClockWindowReason.Unknown);
+                Hold(ClockWatchReason.Unknown);
             }
             else if (combatPlan)
             {
@@ -143,23 +133,23 @@ public static partial class PolicyFunctions
             }
             else
             {
-                Hold(ClockWindowReason.Unsafe);
+                Hold(ClockWatchReason.Unsafe);
             }
         }
 
         if (combatPlan && f.HuntPrey.Count > 0)
         {
-            // A hunt fight has no hostile to make the window a combat one, yet its decisions wait on combat
-            // stops: the prey are the watched ids.
+            // A hunt fight has no hostile to make the watch a combat one, yet its decisions wait on combat
+            // holds: the prey are the watched ids.
             combat = true;
             hostiles.AddRange(f.HuntPrey.Items);
         }
 
-        void Check(Fact<bool> fact, bool want, ClockWindowReason reason)
+        void Check(Fact<bool> fact, bool want, ClockWatchReason reason)
         {
             if (!fact.TryGetValue(out var value))
             {
-                Hold(ClockWindowReason.Unknown);
+                Hold(ClockWatchReason.Unknown);
             }
             else if (value != want)
             {
@@ -167,29 +157,16 @@ public static partial class PolicyFunctions
             }
         }
 
-        Check(f.Obligations.Complete, true, ClockWindowReason.Unknown);
-        Check(f.Obligations.OwnedEpochPending, false, ClockWindowReason.Outstanding);
-        Check(f.Obligations.UnknownStartPending, false, ClockWindowReason.Outstanding);
-        Check(f.WorkRemaining, true, ClockWindowReason.NoWork);
-        switch (f.Status.State)
+        if (f.Status.State is not (ClockWatchState.Running or ClockWatchState.Held))
         {
-            case ClockWindowState.NeverStarted:
-            case ClockWindowState.Stopped:
-                break;
-            case ClockWindowState.Running:
-            case ClockWindowState.Stopping:
-                Hold(ClockWindowReason.Outstanding);
-                break;
-            default:
-                Hold(ClockWindowReason.Unknown);
-                break;
+            Hold(ClockWatchReason.Unknown);
         }
 
-        Check(f.Status.NativeTickBoundary, true, ClockWindowReason.Unknown);
+        Check(f.Status.NativeTickBoundary, true, ClockWatchReason.Unknown);
         var known = f.Status.DurableEvents.TryGetValue(out var durable);
-        if (!known || (!durable && f.Status.State != ClockWindowState.NeverStarted))
+        if (!known || (!durable && !f.Status.NeverRun))
         {
-            Hold(ClockWindowReason.Unknown);
+            Hold(ClockWatchReason.Unknown);
         }
 
         var review = f.Review;
@@ -201,47 +178,42 @@ public static partial class PolicyFunctions
             || review.Reviewed != review.Captured
         )
         {
-            Hold(ClockWindowReason.Unreviewed);
+            Hold(ClockWatchReason.Unreviewed);
         }
 
         if (!f.Status.NewestCursor.TryGetValue(out var newest))
         {
-            Hold(ClockWindowReason.Unknown);
+            Hold(ClockWatchReason.Unknown);
         }
-        else if (newest < 0 || newest != review.Captured)
+        else if (newest < 0 || (f.Status.State == ClockWatchState.Held && newest > review.Captured))
         {
-            Hold(ClockWindowReason.Unreviewed);
+            // A held clock resumes only once the brain has captured the events up to the hold; a running one
+            // keeps capturing, so its cursor runs ahead of the review by design.
+            Hold(ClockWatchReason.Unreviewed);
         }
 
-        Check(review.HasHolds, false, ClockWindowReason.Interrupted);
+        Check(review.HasHolds, false, ClockWatchReason.Interrupted);
         if (refused.Count != 0)
         {
-            return new ClockWindowDecision { Refused = EquatableArray.From(refused) };
+            return new ClockWatchDecision { Refused = EquatableArray.From(refused) };
         }
 
-        var result = new ClockWindowDecision
+        var result = new ClockWatchDecision
         {
-            Admitted = true,
+            Run = true,
             Refused = EquatableArray.From(refused),
             Snapshot = f.Current,
             Tick = f.Tick,
-            ReviewRevision = review.Revision,
-            CapturedCursor = review.Captured,
-            MaxTicks = limits.MaxTicks,
-            Mode = ClockWindowMode.Colony,
+            Mode = ClockWatchMode.Colony,
             Downed = EquatableArray.From(KnownDownedPatients(f.Emergency)),
         };
         if (hostiles.Count > 0 || combat)
         {
             result = result with
             {
-                Mode = ClockWindowMode.Combat,
+                Mode = ClockWatchMode.Combat,
                 Hostiles = EquatableArray.From(hostiles.OrderBy(h => h.Value, StringComparer.Ordinal)),
             };
-            if (limits.CombatMaxTicks != 0)
-            {
-                result = result with { MaxTicks = limits.CombatMaxTicks };
-            }
         }
 
         return result;
@@ -263,8 +235,8 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Lists, sorted, the living colonists the emergency census knows to be downed. The window acknowledges
-    /// them so the native watcher lets ticks pass for their rescue instead of stopping at once on a casualty
+    /// Lists, sorted, the living colonists the emergency census knows to be downed. The watch acknowledges
+    /// them so the native watcher lets ticks pass for their rescue instead of holding at once on a casualty
     /// the service already holds a CriticalMedical goal for.
     /// </summary>
     private static List<PawnId> KnownDownedPatients(EmergencySnapshot snapshot)

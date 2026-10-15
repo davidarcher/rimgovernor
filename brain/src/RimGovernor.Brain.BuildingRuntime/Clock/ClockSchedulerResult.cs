@@ -1,22 +1,19 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The window a step asks for, in ticks.</summary>
-public readonly record struct ClockWindowSize(uint Ticks);
-
 /// <summary>
-/// What one scheduler step did: the review, each planner's result (null when it did not run), the proposals
-/// the coordinator decided and the native-work window the step asks the host for. Go merged planner results by
-/// reflection; <see cref="MergeFrom"/> copies each typed result explicitly. The Go attempt pointer is not carried:
-/// the host starts windows.
+/// What one scheduler step did: the review, each planner's result (null when it did not run) and the proposals
+/// the coordinator decided. Go merged planner results by reflection; <see cref="MergeFrom"/> copies each typed
+/// result explicitly.
 /// </summary>
 public sealed class ClockSchedulerResult
 {
     public bool Immediate { get; set; }
 
-    /// <summary>Whether a window was found running when the step read the clock (reported by the host).</summary>
-    public bool Running { get; set; }
+    /// <summary>When the step began: everything the event poll had reviewed before it is what the step planned against.</summary>
+    public DateTimeOffset StartedAt { get; set; }
 
-    public ClockWindowSize Window { get; set; }
+    /// <summary>Whether the clock was found running when the step read it (reported by the run driver).</summary>
+    public bool Running { get; set; }
 
     public RoundsResult? Rounds { get; set; }
 
@@ -174,9 +171,6 @@ public sealed class ClockSchedulerResult
     public Dictionary<string, double> PlannerMs { get; set; } = new(StringComparer.Ordinal);
 
     public uint NativeWorkTicks { get; set; }
-
-    /// <summary>Whether <see cref="NativeWorkTicks"/> is the idle lend rather than a planner's ask: the window driver warns of the idle stall when it spends it.</summary>
-    public bool IdleLent { get; set; }
 
     public StepReason Reason { get; set; } = new();
 

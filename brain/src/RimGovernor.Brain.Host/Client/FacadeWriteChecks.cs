@@ -59,7 +59,7 @@ internal static class FacadeWriteChecks
                 throw FacadeNativeClient.Failure(failure);
             case PbClock.StatusReplyOutcome.StatusCase { Value: var status }:
                 BridgeFunctions.ClockStatus(status, identity);
-                if (status.State is PbClock.StatusState.UnavailableCase { Value: var unavailable })
+                if (status.Unavailable is { } unavailable)
                 {
                     throw FacadeNativeClient.Unavailable(unavailable);
                 }

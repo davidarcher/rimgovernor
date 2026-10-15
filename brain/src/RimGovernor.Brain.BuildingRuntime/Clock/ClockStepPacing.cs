@@ -18,13 +18,13 @@ public sealed record StepPacing
     public static StepPacing Of(PbClock.Status status)
     {
         var pacing = new StepPacing { EffectiveTps = status.EffectiveTicksPerSecond is not null ? status.EffectiveTicksPerSecond.GetValueOrDefault() : 0 };
-        if (status.State is PbClock.StatusState.RunningCase { Value.Epoch: { } epoch })
+        if (status.State == PbClock.ClockState.Running)
         {
             pacing = pacing with
             {
-                PacedTps = epoch.PacedTicksPerSecond.GetValueOrDefault(),
-                Ceiling = epoch.CeilingTicksPerSecond.GetValueOrDefault(),
-                Reason = epoch.PacingReason is not null ? PacingReasonName(epoch.PacingReason.GetValueOrDefault()) : "",
+                PacedTps = status.PacedTicksPerSecond.GetValueOrDefault(),
+                Ceiling = status.CeilingTicksPerSecond.GetValueOrDefault(),
+                Reason = status.PacingReason is not null ? PacingReasonName(status.PacingReason.GetValueOrDefault()) : "",
             };
         }
         return pacing;

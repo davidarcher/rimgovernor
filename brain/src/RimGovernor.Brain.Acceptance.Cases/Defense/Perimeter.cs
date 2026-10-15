@@ -737,10 +737,10 @@ internal static class DefensePerimeter
     }
 
     /// <summary>
-    /// Polls the journal while the service fights the raid: it counts the combat watch windows the scheduler applied and
-    /// returns once the ActiveCombat goal has recovered (no live hostile) or is no longer bound. At least one combat window
-    /// must have run, and at least one defender must have been observed arriving on its firing cell (a completed movement
-    /// in the first hold plan or any hold plan the goal re-planned after it). The progress signature is the window counts,
+    /// Polls the journal while the service fights the raid: it counts the combat stops the fight recorded and
+    /// returns once the ActiveCombat goal has recovered (no live hostile) or is no longer bound. At least one combat stop
+    /// must have been recorded, and at least one defender must have been observed arriving on its firing cell (a completed movement
+    /// in the first hold plan or any hold plan the goal re-planned after it). The progress signature is the stop count,
     /// the goal's binding and the defenders on the line.
     /// </summary>
     private static async Task<bool> WaitRaidResolvedAsync(JournalStore s, PlanId first, Wait w, JsonObject output, CancellationToken cancellationToken)
@@ -751,34 +751,6 @@ internal static class DefensePerimeter
         {
             await w.WaitProgressAsync(async ct =>
             {
-                var attempts = await s.LoadClockAttemptsAsync(4096, ct).ConfigureAwait(false);
-                int combatWindows = 0, colonyWindows = 0;
-                var lastPhase = "";
-                var acknowledged = new List<string>();
-                foreach (var a in attempts)
-                {
-                    var start = a.Intent.Command.Start;
-                    if (start is null || a.Phase != ClockPhase.Applied)
-                    {
-                        continue;
-                    }
-
-                    lastPhase = "applied";
-                    if (start.Policy?.Mode == WatchMode.Combat)
-                    {
-                        combatWindows++;
-                        acknowledged = [.. start.Policy.AcknowledgedHostileIds];
-                    }
-                    else
-                    {
-                        colonyWindows++;
-                    }
-                }
-
-                output["combat_windows"] = combatWindows;
-                output["colony_windows"] = colonyWindows;
-                output["last_acknowledged_hostiles"] = StringsJson(acknowledged);
-                output["last_applied_phase"] = lastPhase;
                 var review = await s.LoadRoundsAsync(ct).ConfigureAwait(false);
                 var (incident, binding) = await CombatIncidentAsync(s, review, ct).ConfigureAwait(false);
                 var bound = incident is not null && binding is not null;
@@ -794,10 +766,12 @@ internal static class DefensePerimeter
                     }
                 }
 
+                var combatStops = 0;
                 foreach (var id in holdPlans)
                 {
                     foreach (var stop in s.CombatEvidence(id, ct))
                     {
+                        combatStops++;
                         foreach (var o in stop.Orders)
                         {
                             if (o.Order.Kind == CombatOrderKind.Move && o.Applied)
@@ -810,17 +784,18 @@ internal static class DefensePerimeter
 
                 var line = onLine.Select(p => p.Value).Order(StringComparer.Ordinal).ToList();
                 output["defenders_on_firing_cells"] = StringsJson(line);
+                output["combat_stops"] = combatStops;
                 output["combat_standard_bound"] = bound;
                 output["combat_standard_need"] = need;
                 output["resolved_tick"] = review.Tick.Value;
-                if (combatWindows > 0 && (!bound || need == "met"))
+                if (combatStops > 0 && (!bound || need == "met"))
                 {
                     return line.Count == 0
                         ? throw new AcceptanceException($"no defender completed its move to a firing cell during the raid: {output.ToJson()}")
                         : ("", true);
                 }
 
-                return (Wait.Signature(combatWindows, colonyWindows, bound, need, holdPlans.Count, string.Join(',', line)), false);
+                return (Wait.Signature(combatStops, bound, need, holdPlans.Count, string.Join(',', line)), false);
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (WaitError e)

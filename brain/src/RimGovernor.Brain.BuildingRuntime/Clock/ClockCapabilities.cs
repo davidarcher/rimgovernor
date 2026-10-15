@@ -1,39 +1,33 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of the interfaces and configuration of internal/buildingruntime/clock_coordinator.go and the
-// ClockCapabilities of clock_session.go. Go's (reply, bridge.Result, error) returns become the reply, with a
-// native refusal an exception.
+// The native clock boundary of a session: Run, Hold and Heartbeat writes and the status read. A native refusal is a
+// NativeFailureException; a Run or Hold the clock answered is its validated status.
 
-/// <summary>The native clock reads the coordinator makes (Go <c>ClockNative</c>).</summary>
+/// <summary>The native clock reads the session makes.</summary>
 public interface IClockNative
 {
     Task<PbLifecycle.IdentityReply> IdentityAsync(CancellationToken ct);
 
     Task<PbClock.StatusReply> ReadClockStatusAsync(PbCommon.Identity identity, CancellationToken ct);
-
-    Task<PbClock.AttemptReply> ReadClockAttemptAsync(PbClock.AttemptRequest request, CancellationToken ct);
 }
 
-/// <summary>The native clock writes the coordinator makes (Go <c>ClockWriter</c>).</summary>
+/// <summary>The native clock writes the session makes.</summary>
 public interface IClockWriter
 {
-    Task<PbClock.StatusReply> OwnedPauseAsync(PbClock.OwnedRequest request, CancellationToken ct);
+    /// <summary>
+    /// Runs the clock at the request's speed under its watch policy: resumes a held clock or changes speed and
+    /// policy in place. A refusal (a stale generation, a game-forced pause) is a <see cref="NativeFailureException"/>.
+    /// </summary>
+    Task<PbClock.Status> RunAsync(PbClock.RunRequest request, CancellationToken ct);
 
-    Task<PbClock.ControlReply> StartAsync(PbClock.StartRequest request, CancellationToken ct);
+    /// <summary>Holds the clock for a brain reason; a clock already held keeps its first reason.</summary>
+    Task<PbClock.Status> HoldAsync(PbClock.HoldRequest request, CancellationToken ct);
 
-    Task<PbClock.ControlReply> ChangeSpeedAsync(PbClock.SpeedRequest request, PbClock.Epoch original, CancellationToken ct);
+    /// <summary>The brain's contact for the clock ceiling's heartbeat.</summary>
+    Task<PbClock.HeartbeatAck> HeartbeatAsync(PbClock.HeartbeatRequest request, CancellationToken ct);
 }
 
 /// <summary>
-/// Gates the complete owned clock boundary (Go <c>ClockCapabilities</c>). Constructing a session never resumes time
-/// or recovers a live lease from durable evidence.
+/// Gates the complete clock boundary. Constructing a session never resumes time: only the clock driver's Run does.
 /// </summary>
 public sealed record ClockCapabilities(IClockNative Native, IClockWriter Writer);
-
-/// <summary>The bounds of one coordinator call and of one of its journal writes (Go <c>ClockCoordinatorConfig</c>).</summary>
-public sealed record ClockCoordinatorConfig
-{
-    public TimeSpan CallTimeout { get; init; }
-
-    public TimeSpan JournalTimeout { get; init; }
-}

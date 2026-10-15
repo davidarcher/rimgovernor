@@ -154,23 +154,20 @@ namespace HomeBridge.BridgeTools
 
         // Clock.
 
-        public Task<Clock.ControlReply> StartClockAsync(Clock.StartRequest request, CancellationToken cancellationToken)
-            => Write("clock_start", request, () => NativeClockTools.HandleStart(request), cancellationToken);
+        public Task<Clock.StatusReply> RunClockAsync(Clock.RunRequest request, CancellationToken cancellationToken)
+            => Write("clock_run", request, () => NativeClockTools.HandleRun(request), cancellationToken);
 
-        public Task<Clock.ControlReply> ChangeClockSpeedAsync(Clock.SpeedRequest request, CancellationToken cancellationToken)
-            => Write("clock_change_speed", request, () => NativeClockTools.HandleChangeSpeed(request), cancellationToken);
+        public Task<Clock.StatusReply> HoldClockAsync(Clock.HoldRequest request, CancellationToken cancellationToken)
+            => Write("clock_hold", request, () => NativeClockTools.HandleHold(request), cancellationToken);
 
-        public Task<Clock.StatusReply> PauseClockAsync(Clock.OwnedRequest request, CancellationToken cancellationToken)
-            => Write("clock_pause", request, () => NativeClockTools.HandlePause(request), cancellationToken);
+        public Task<Clock.HeartbeatReply> HeartbeatClockAsync(Clock.HeartbeatRequest request, CancellationToken cancellationToken)
+            => Write("clock_heartbeat", request, () => NativeClockTools.HandleHeartbeat(request), cancellationToken);
 
         public Task<Clock.StatusReply> ReadClockStatusAsync(Clock.StatusRequest request, CancellationToken cancellationToken)
             => Read("clock_read_status", request, () => NativeClockTools.HandleReadStatus(request), cancellationToken);
 
         public Task<Clock.EventsReply> ReadClockEventsAsync(Clock.EventsRequest request, CancellationToken cancellationToken)
             => Read("clock_read_events", request, () => NativeClockTools.HandleReadEvents(request), cancellationToken);
-
-        public Task<Clock.AttemptReply> ReadClockAttemptAsync(Clock.AttemptRequest request, CancellationToken cancellationToken)
-            => Read("clock_read_attempt", request, () => NativeClockTools.HandleReadAttempt(request), cancellationToken);
 
         // Presentation reads.
 

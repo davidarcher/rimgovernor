@@ -1,5 +1,6 @@
 using RimGovernor.Contracts.Wire.Clock;
 using RimGovernor.Contracts.Wire.Common;
+using ClockHoldEvidence = RimGovernor.Contracts.Wire.Clock.HoldEvidence;
 using RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
@@ -90,12 +91,6 @@ public static partial class BridgeFunctions
 
     private static void ClockJournalEvent(ClockEvent @event)
     {
-        // Only an authority change observed outside any epoch has no owner.
-        var ownerless = @event.Event is ClockEventEvent.AuthorityChangedCase;
-        if (@event.Owner is not null || !ownerless)
-        {
-            ClockOwner(@event.Owner);
-        }
         ValidateContext(@event.Context);
         if (@event.Cursor is null
             || @event.Cursor <= 0
@@ -106,21 +101,14 @@ public static partial class BridgeFunctions
         }
         switch (@event.Event)
         {
-            case ClockEventEvent.StartedCase { Value: var started }:
-                ClockEpoch(started.Epoch);
-                if (!Equals(started.Epoch?.Owner, @event.Owner) || !Equals(started.Epoch?.Origin, @event.Context))
+            case ClockEventEvent.ResumedCase { Value: var resumed }:
+                if (resumed.Speed is null || (int)resumed.Speed.GetValueOrDefault() < 1 || (int)resumed.Speed.GetValueOrDefault() > 4 || resumed.From is null)
                 {
-                    throw Contract("clock started origin mismatch");
+                    throw Contract("clock resumed evidence required");
                 }
                 break;
-            case ClockEventEvent.SpeedChangedCase { Value: var changed }:
-                if (changed.Speed is null)
-                {
-                    throw Contract("clock speed evidence required");
-                }
-                break;
-            case ClockEventEvent.StoppedCase { Value: var stopped }:
-                ClockStopEvent(stopped);
+            case ClockEventEvent.HoldEnteredCase { Value: var held }:
+                ClockHoldEntered(held);
                 break;
             case ClockEventEvent.NotificationCase { Value: var notification }:
                 ClockNotification(notification);
@@ -150,7 +138,7 @@ public static partial class BridgeFunctions
                 }
                 break;
             case ClockEventEvent.PauseFailedCase { Value: var pauseFailed }:
-                ClockStopEvent(pauseFailed.Pending);
+                ClockHoldEntered(pauseFailed.Pending);
                 break;
             case ClockEventEvent.ForcePauseWaitingCase { Value: var waiting }:
                 ClockPauseEvidence(waiting.Pause);
@@ -372,15 +360,15 @@ public static partial class BridgeFunctions
         }
     }
 
-    private static void ClockStopEvent(StopEvent? v)
+    private static void ClockHoldEntered(HoldEntered? v)
     {
         if (v is null || v.Reason is null)
         {
-            throw Contract("clock stop reason required");
+            throw Contract("clock hold reason required");
         }
         switch (v.Evidence)
         {
-            case StopEventEvidence.NotificationsCase { Value: var notifications }:
+            case ClockHoldEvidence.NotificationsCase { Value: var notifications }:
                 foreach (var letter in notifications.Letters)
                 {
                     ClockLetter(letter);
@@ -390,13 +378,13 @@ public static partial class BridgeFunctions
                     ClockMessage(message);
                 }
                 break;
-            case StopEventEvidence.PawnCase { Value: var pawn }:
+            case ClockHoldEvidence.PawnCase { Value: var pawn }:
                 ClockPawn(pawn);
                 break;
-            case StopEventEvidence.InjuryCase { Value: var injury }:
+            case ClockHoldEvidence.InjuryCase { Value: var injury }:
                 ClockInjury(injury);
                 break;
-            case StopEventEvidence.HealthCase { Value: var health }:
+            case ClockHoldEvidence.HealthCase { Value: var health }:
                 ClockPawn(health.Pawn);
                 foreach (var value in new[] { health.HealthAtStart, health.HealthNow, health.MinHealthFraction, health.HealthDropFraction })
                 {
@@ -406,32 +394,16 @@ public static partial class BridgeFunctions
                     }
                 }
                 break;
-            case StopEventEvidence.BudgetCase { Value: var b }:
-                if (b.StartTick is null
-                    || b.TickDeadline is null
-                    || b.ActualTick is null
-                    || b.StartTick.GetValueOrDefault() < 0
-                    || b.TickDeadline.GetValueOrDefault() <= b.StartTick.GetValueOrDefault()
-                    || b.TickDeadline.GetValueOrDefault() - b.StartTick.GetValueOrDefault() > 1800000
-                    || b.ActualTick.GetValueOrDefault() < b.TickDeadline.GetValueOrDefault())
-                {
-                    throw Contract("clock tick budget evidence");
-                }
-                break;
-            case StopEventEvidence.PauseCase { Value: var pause }:
+            case ClockHoldEvidence.PauseCase { Value: var pause }:
                 ClockPauseEvidence(pause);
                 break;
-            case StopEventEvidence.UnavailableCase { Value: var unavailable }:
+            case ClockHoldEvidence.UnavailableCase { Value: var unavailable }:
                 ValidateUnavailable(unavailable);
                 break;
-            case StopEventEvidence.WatchCase { Value: var watch }:
-                if (watch.TickDeadline is null || watch.TickDeadline <= 0)
-                {
-                    throw Contract("clock watch stop evidence");
-                }
+            case ClockHoldEvidence.WatchCase { Value: var watch }:
                 ClockOperationOutcome(watch.Outcome);
                 break;
-            case StopEventEvidence.CombatCase { Value: var combat }:
+            case ClockHoldEvidence.CombatCase { Value: var combat }:
                 // An armed combat event: the event is required, the thing and reason are descriptive.
                 if ((combat.Event ?? CombatEvent.Unspecified) == CombatEvent.Unspecified)
                 {
@@ -439,7 +411,7 @@ public static partial class BridgeFunctions
                 }
                 break;
             default:
-                throw Contract("clock stop evidence required");
+                throw Contract("clock hold evidence required");
         }
     }
 }

@@ -68,11 +68,9 @@
     <Compile Include="NativeContractProbes/Shared/FakeVerseStub.cs" />
     <Compile Include="NativeContractProbes/Shared/WireProbeAccessors.cs" />
   </ItemGroup>
-  <!-- Fake HarmonyLib surface (NativeClockRuntime.cs and the authority probes bind to it). This
-       project never references a real 0Harmony.dll: passing -p:HarmonyAssembly changes nothing here
-       and the fakes would collide with it. The real-Harmony check is NativeHookSetProbe. -->
+  <!-- This project never references a real 0Harmony.dll: passing -p:HarmonyAssembly changes nothing here.
+       The real-Harmony check is NativeHookSetProbe. -->
   <ItemGroup>
-    <Compile Include="NativeContractProbes/Shared/FakeHarmonyStub.cs" />
     <Compile Include="NativeContractProbes/Shared/FakeAuthorityHooksStub.cs" />
     <Compile Include="NativeContractProbes/native-authority-control/Program.cs" />
   </ItemGroup>
@@ -87,19 +85,10 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ReplyEncoder.cs" Link="Production/ReplyEncoder.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/ClockEventJournal.cs" Link="Production/ClockEventJournal.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/ClockPauseAccounting.cs" Link="Production/ClockPauseAccounting.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/ClockProbeAccounting.cs" Link="Production/ClockProbeAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ObservationWorkAccounting.cs" Link="Production/ObservationWorkAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeThreatClassifier.cs" Link="Production/NativeThreatClassifier.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/SupervisedPlayHazards.cs" Link="Production/SupervisedPlayHazards.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAttemptLedger.cs" Link="Production/NativeAttemptLedger.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockEventProjection.cs" Link="Production/NativeClockEventProjection.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockRuntime.cs" Link="Production/NativeClockRuntime.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeEnums.Clock.cs" Link="Production/NativeEnums.Clock.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeProductionBillSettings.cs" Link="Production/NativeProductionBillSettings.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeRecipeRoles.cs" Link="Production/NativeRecipeRoles.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockTools.cs" Link="Production/NativeClockTools.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionCausality.cs" Link="Production/NativeConstructionCausality.cs" />
   </ItemGroup>
 
@@ -107,14 +96,11 @@
   <ItemGroup>
     <Compile Include="NativeContractProbes/native-authority/Program.cs" />
     <Compile Include="NativeContractProbes/native-authority-status/Program.cs" />
-    <Compile Include="NativeContractProbes/native-clock/Program.cs" />
     <Compile Include="NativeContractProbes/native-observation-work/Program.cs" />
     <Compile Include="NativeContractProbes/native-reply-encoder/Program.cs" />
     <Compile Include="NativeContractProbes/native-threat-classifier/Program.cs" />
     <Compile Include="NativeContractProbes/native-acquisition-token/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAcquisitionToken.cs" Link="Production/NativeAcquisitionToken.cs" />
-    <Compile Include="NativeContractProbes/native-attempt-ledger/Program.cs" />
-    <Compile Include="NativeContractProbes/native-attempt-ledger/ClockLedgerChecks.cs" />
     <Compile Include="NativeContractProbes/native-construction-causality/Program.cs" />
     <Compile Include="NativeContractProbes/native-ref-index/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/LoadIdIndex.cs" Link="Production/LoadIdIndex.cs" />

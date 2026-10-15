@@ -22,7 +22,7 @@ internal sealed class SchedulerLoop
     private readonly Player _player;
     private readonly Session _session;
     private readonly ClockScheduler _scheduler;
-    private readonly IClockWindowDriver? _windows;
+    private readonly IClockRunDriver? _clock;
     private readonly WakeSignal _wake;
     private readonly BrainTimings _timings;
     private readonly BrainWatchdog _watchdog;
@@ -37,7 +37,7 @@ internal sealed class SchedulerLoop
         Player player,
         Session session,
         ClockScheduler scheduler,
-        IClockWindowDriver? windows,
+        IClockRunDriver? clock,
         WakeSignal wake,
         BrainTimings timings,
         BrainWatchdog watchdog,
@@ -51,7 +51,7 @@ internal sealed class SchedulerLoop
         _player = player;
         _session = session;
         _scheduler = scheduler;
-        _windows = windows;
+        _clock = clock;
         _wake = wake;
         _timings = timings;
         _watchdog = watchdog;
@@ -146,20 +146,20 @@ internal sealed class SchedulerLoop
             if (outcome == Outcome.Done && result is not null)
             {
                 _planners.Observe(result);
-                if (_windows is not null)
+                if (_clock is not null)
                 {
-                    bool? windowSettled = null;
-                    var windowOutcome = Guard("window", async ct => windowSettled = await _windows.AfterStepAsync(result, ct).ConfigureAwait(false), out var windowError);
-                    if (windowOutcome == Outcome.Cancelled)
+                    bool? clockSettled = null;
+                    var clockOutcome = Guard("clock", async ct => clockSettled = await _clock.AfterStepAsync(result, ct).ConfigureAwait(false), out var clockError);
+                    if (clockOutcome == Outcome.Cancelled)
                     {
                         return;
                     }
-                    if (windowOutcome != Outcome.Done)
+                    if (clockOutcome != Outcome.Done)
                     {
-                        outcome = windowOutcome;
-                        error = windowError;
+                        outcome = clockOutcome;
+                        error = clockError;
                     }
-                    settled = windowSettled == true;
+                    settled = clockSettled == true;
                 }
             }
 
@@ -197,9 +197,9 @@ internal sealed class SchedulerLoop
             delay = previous is { } p && p == key ? TimeSpan.FromTicks(Math.Min(_timings.WorkerMaxBackoff.Ticks, delay.Ticks * 2)) : _timings.StepInterval;
             previous = key;
 
-            // A window that just ran has left the planners for the next step: run it now rather than idle a
-            // step interval with the game paused. Never twice in a row: a window that keeps ending without
-            // settling is a back-off case, not a hot loop.
+            // A hold the driver took or a resume it just sent has left the planners for the next step: run it now
+            // rather than idle a step interval with the game held. Never twice in a row: a hold that keeps
+            // ending without settling is a back-off case, not a hot loop.
             if (settled && !settledOnce)
             {
                 settledOnce = true;
@@ -367,7 +367,7 @@ internal sealed class SchedulerLoop
     }
 
     /// <summary>What distinguishes one step's outcome from the last, so a sustained outcome logs and backs off once (Go <c>clockStepKey</c>).</summary>
-    private readonly record struct StepKey(bool Failed, string Failure, bool Running, bool Deferred, uint WindowTicks)
+    private readonly record struct StepKey(bool Failed, string Failure, bool Running, bool Deferred)
     {
         public static StepKey Of(bool done, Exception? error, ClockSchedulerResult? result)
         {
@@ -376,7 +376,7 @@ internal sealed class SchedulerLoop
             {
                 failure += "; " + string.Join("; ", result.PlannerFailures.Select(f => f.Message));
             }
-            return new StepKey(!done, failure, result?.Running ?? false, result?.Deferred ?? false, result?.Window.Ticks ?? 0);
+            return new StepKey(!done, failure, result?.Running ?? false, result?.Deferred ?? false);
         }
     }
 }

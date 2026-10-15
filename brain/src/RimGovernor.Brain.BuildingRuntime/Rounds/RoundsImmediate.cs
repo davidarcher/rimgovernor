@@ -235,7 +235,7 @@ public sealed partial class ClockScheduler
         }
 
         var (pending, awaitNative) = ProtectionPending(call);
-        if (pending || (status.State?.Running is null && (awaitNative || (immediate && ProtectionNeedsTicks(result)))))
+        if (pending || (status.State != PbClock.ClockState.Running && (awaitNative || (immediate && ProtectionNeedsTicks(result)))))
         {
             result.Immediate = true;
             return names;

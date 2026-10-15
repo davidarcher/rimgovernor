@@ -75,12 +75,3 @@ public sealed class Refusal : BridgeRefusedException
 
     public Result Result { get; }
 }
-
-/// <summary>
-/// Go's <c>ClockUncertain</c>: a possibly applied clock operation. A retained canonical uncertain receipt is
-/// carried alongside when available.
-/// </summary>
-public sealed class ClockUncertainException(Exception cause, Result receipt) : Exception("clock outcome uncertain: " + cause.Message, cause)
-{
-    public Result Receipt { get; } = receipt;
-}

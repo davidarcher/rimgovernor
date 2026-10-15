@@ -48,7 +48,7 @@ public sealed class WorkerConfig
     /// Reports the scheduler's hint that its window is running; each native call the worker issues is recorded
     /// with it as a "dispatch" row, so a run can count the dispatches made live and the fraction native refused.
     /// </summary>
-    public Func<bool>? WindowRunning { get; set; }
+    public Func<bool>? ClockRunning { get; set; }
 
     /// <summary>
     /// The span context of the scheduler's latest step (ClockWorker.Trace). Each worker step is a span under it
@@ -634,7 +634,7 @@ public sealed partial class Worker
                 }
                 var resultErrs = new Exception?[group.Count];
                 var dispatchStarted = Stopwatch.StartNew();
-                var running = _config.WindowRunning is { } wr && wr();
+                var running = _config.ClockRunning is { } wr && wr();
                 using var dispatch = Tel.StartSpan("buildingruntime", "hands.dispatch",
                     ("rimgovernor.action_kind", Wire.Name(lead.Kind)), ("rimgovernor.actions", group.Count));
                 var tally = new ReadTally();

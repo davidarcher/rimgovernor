@@ -19,41 +19,35 @@ namespace HomeBridge.BridgeTools
 {
     internal static partial class Supervisor
     {
+        /// What a run segment carries beyond the hazard state: the observation it
+        /// last journalled under, the authority generation Run named, the policy
+        /// it was last sent, and the hold's pause facts.
         private sealed class TypedEpoch
         {
-            internal Clock.EpochOwner Owner;
-            internal readonly Common.ObservationContext Origin;
             internal Common.ObservationContext LastObservation;
-            internal readonly Authority.WritePrecondition Authority;
-            internal readonly Clock.WatchPolicy Policy;
-            internal TypedEpoch(Clock.EpochOwner owner, Common.ObservationContext origin, Authority.WritePrecondition authority, Clock.WatchPolicy policy)
-            { Owner = owner; Origin = origin; LastObservation = origin; Authority = authority; Policy = policy; }
+            internal ulong ExpectedGeneration;
+            internal Clock.WatchPolicy Policy;
+            internal TypedEpoch(Common.ObservationContext origin, ulong expectedGeneration, Clock.WatchPolicy policy)
+            { LastObservation = origin; ExpectedGeneration = expectedGeneration; Policy = policy; }
             internal bool PauseRequested;
             internal bool StopPauseVerified;
-            // The armed combat event that stopped this epoch, else unset.
+            // The armed combat event that held this segment, else unset.
             internal Clock.CombatEvent CombatEvent { get; set; }
         }
-        private static TypedEpoch? pendingTyped;
-        // Test acceleration (the native dev tick boost behind an Ultrafast
-        // epoch) is admitted only for a game launched with this argument, which
-        // nativeaccept's Prepare and PrepareRendered add and no player launch
-        // does. Read once at startup; never toggled at runtime.
+        // The native dev tick boost behind a Run(Ultrafast) is driven up to the one
+        // ceiling with no launch gate. The acceptance launch flag only reports
+        // through Status.TestAccelerationAvailable and the timing log; it is
+        // read once at startup and never toggled at runtime.
         internal static readonly bool TestAccelerationLaunch = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0;
-        internal static bool TestAccelerationAvailable => TestAccelerationLaunch && BoostField != null && BoostField.FieldType == typeof(bool);
-        private static TypedEpoch TypedOf(State s) => s.Typed ?? throw new InvalidOperationException("Clock epoch is not typed.");
-        private static void AttachTypedEpoch(State s)
-        {
-            // Every epoch is typed: the untyped home/supervised_play start is gone (#661/#662).
-            if (pendingTyped == null) throw new InvalidOperationException("Clock epochs start only through the typed clock start.");
-            s.Typed = pendingTyped;
-            s.Typed.Owner = s.Typed.Owner with { Epoch = s.Epoch };
-        }
+        internal static bool TestAccelerationAvailable => TestAccelerationLaunch && BoostAvailable;
+        private static bool BoostAvailable => BoostField != null && BoostField.FieldType == typeof(bool);
+        private static TypedEpoch TypedOf(State s) => s.Typed ?? throw new InvalidOperationException("Clock run segment is not typed.");
         private static bool StopInvalidTypedAuthority(State s)
         {
-            var pre = TypedOf(s).Authority;
+            var generation = TypedOf(s).ExpectedGeneration;
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
             { Stop(s, "unavailable", "Authorizing native authority is unavailable.", true, null); return true; }
-            var result = authority.Check(pre.ExpectedGeneration.GetValueOrDefault());
+            var result = authority.Check(generation);
             if (result.Success && TypedHooksReadyThisFrame()) return false;
             var reason = result.Snapshot.Reason;
             // Shutdown is the old game unloading under a load: the session
@@ -73,148 +67,300 @@ namespace HomeBridge.BridgeTools
                 && ProtoBoundary.TryReadContext(s.Map, out var observed, out _)) TypedOf(s).LastObservation = observed;
         }
 
-        internal static Common.Failure? ValidateTypedStart(Clock.StartRequest request)
+        internal static Common.Failure? ValidateTypedRun(Clock.RunRequest request)
         {
-            if (request.Speed is null || !OrdinarySpeed(request.Speed.GetValueOrDefault())
-                || request.MaxTicks is null || request.MaxTicks.GetValueOrDefault() < 1 || request.MaxTicks.GetValueOrDefault() > 1800000 || request.Policy is null || request.Authority?.Attempt is null || request.Authority.Identity is null || !ValidPolicy(request.Policy, request.MaxTicks.GetValueOrDefault()))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Start requires an ordinary speed, tick budget1..1800000 and a complete bounded watch policy.");
-            if (request.TestAcceleration.GetValueOrDefault() && request.Speed.GetValueOrDefault() != Clock.Speed.Ultrafast)
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Test acceleration requires SPEED_ULTRAFAST.");
-            if (request.TestAcceleration.GetValueOrDefault() && !TestAccelerationAvailable)
-                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Test acceleration is admitted only for a game launched with -rimgovernor-test-acceleration.");
+            if (request.Speed is null || !OrdinarySpeed(request.Speed.GetValueOrDefault()) || request.Policy is null
+                || request.ExpectedGeneration is null || request.ExpectedGeneration.GetValueOrDefault() == 0 || !ValidPolicy(request.Policy))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Run requires an ordinary speed, the current authority generation and a complete bounded watch policy.");
+            if (request.Speed.GetValueOrDefault() == Clock.Speed.Ultrafast && !BoostAvailable)
+                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
             lock (Gate)
             {
-                if (_state != null && _state.Active) return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A clock epoch is already active.");
                 if (!GameWatchReads.CoreWatchersAvailable)
                     return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native safety watchers are unavailable.");
-                if (LongEventHandler.AnyEventNowOrWaiting || ForcePausingWindows().Count > 0)
-                    return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native long event or modal pause prevents starting owned play.");
                 try
                 {
                     EnsurePatched(); LetterPauseHook.EnsurePatched();
                     if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Exact native clock hooks are unavailable.");
                     EnsureJournal();
-                    if (_epoch == long.MaxValue || _cursor == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock epoch or cursor is exhausted.");
-                    foreach (var ids in PolicyIds(request.Policy ?? throw new InvalidOperationException("Missing policy"))) ResolveIds(ProtoBoundary.ResolveMap(request.Authority?.Identity ?? throw new InvalidOperationException("Missing identity")) ?? throw new InvalidOperationException("The requested map is not loaded."), ids);
+                    if (_cursor == long.MaxValue) return ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Native clock cursor is exhausted.");
+                    var map = ProtoBoundary.ResolveMap(request.Identity ?? throw new InvalidOperationException("Missing identity")) ?? throw new InvalidOperationException("The requested map is not loaded.");
+                    foreach (var ids in PolicyIds(request.Policy)) ResolveIds(map, ids);
                 }
-                catch (Exception error) { ModLog.Error("clock", "Clock start preconditions failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
+                catch (Exception error) { ModLog.Error("clock", "Clock run preconditions failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native watcher, journal or exact policy pawn identity is unavailable."); }
                 return null;
             }
         }
 
-        internal static Clock.Status TypedStart(Clock.StartRequest request, Common.ObservationContext context)
+        /// Run: resumes a held clock (the first Run of a loaded game included) at
+        /// the target speed, or, while running, changes the speed and the policy
+        /// in place. Idempotent. Refused while a long event or a force-pausing
+        /// window holds the game.
+        internal static Clock.StatusReply TypedRun(Clock.RunRequest request, Common.ObservationContext context)
         {
             lock (Gate)
             {
-                if (pendingTyped != null) throw new InvalidOperationException("Reentrant clock start");
-                var policy = request.Policy ?? throw new InvalidOperationException("Missing policy");
-                pendingTyped = new TypedEpoch(new Clock.EpochOwner { ControllerSessionId = (request.Authority?.Attempt ?? throw new InvalidOperationException("Missing attempt")).ControllerSessionId ?? "", Epoch = 0 },
-                    context, request.Authority ?? throw new InvalidOperationException("Missing authority"), policy);
-                var metadata = pendingTyped;
-                try
-                {
-                    Start((metadata.Owner.ControllerSessionId ?? ""), NativeSpeed(request.Speed.GetValueOrDefault()),
-                        policy.Mode.GetValueOrDefault() == Clock.WatchMode.Colony ? "colony" : "combat", policy.HealthDropFraction.GetValueOrDefault(),
-                        policy.MinHealthFraction.GetValueOrDefault(), policy.HostileWithin.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedHostileIds),
-                        ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
-                        (int)policy.InjuryStopCooldownMs.GetValueOrDefault(), (int)request.MaxTicks.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), request.TestAcceleration.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds));
-                    if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
-                    return TypedStatus(context);
-                }
-                finally { pendingTyped = null; }
+                var typed = new TypedEpoch(context, request.ExpectedGeneration.GetValueOrDefault(), request.Policy ?? throw new InvalidOperationException("Missing policy"));
+                var failure = RunClock(typed, NativeSpeed(request.Speed.GetValueOrDefault()));
+                return new Clock.StatusReply { Outcome = failure != null ? failure : (Clock.StatusReplyOutcome)TypedStatus(context) };
             }
         }
 
-        internal static Common.Failure? ValidateTypedOwner(Clock.OwnedRequest request, bool active)
+        private static Common.Failure? RunClock(TypedEpoch typed, TimeSpeed speed)
         {
-            lock (Gate)
+            EnsureJournal();
+            if (Current.Game == null || Find.TickManager == null || Find.CurrentMap == null)
+                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No playable map is loaded.");
+            var existing = _state;
+            if (existing != null && existing.Active)
             {
-                if (request?.Owner == null || !ProtoBoundary.IsIdentifier(request.Owner.ControllerSessionId)
-                    || request.Owner.Epoch <= 0)
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An exact controller and positive epoch are required.");
-                var s = _state;
-                if (s?.Typed == null || !Equals(request.Identity, s.Typed.Origin.Identity) || !request.Owner.Equals(s.Typed.Owner)
-                    || !ReferenceEquals(s.Session, Current.Game) || !ReferenceEquals(s.Map, Find.CurrentMap))
-                    return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "No matching canonical owned clock epoch exists.");
-                if (active && (!s.Active || s.PendingKind != null))
-                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The owned clock epoch is stopped or stopping.");
+                if (!ReferenceEquals(existing.Session, Current.Game) || !ReferenceEquals(existing.Map, Find.CurrentMap))
+                    Stop(existing, "session_changed", "Loaded game changed.", false, null);
+                else if (existing.PendingKind != null)
+                    return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The clock is entering a hold and its pause has not taken yet.");
+                else return ChangeRun(existing, typed, speed);
+            }
+            return ResumeRun(existing, typed, speed);
+        }
+
+        private static void SetBoost(State s, bool on)
+        {
+            if (on && !s.BoostOwned)
+            {
+                s.PriorBoost = (bool)BoostField.GetValue(null)!;
+                s.BoostOwned = true;
+                BoostField.SetValue(null, true);
+            }
+            else if (!on && s.BoostOwned)
+            {
+                BoostField.SetValue(null, s.PriorBoost);
+                s.BoostOwned = false;
+            }
+            s.TestAcceleration = on;
+        }
+
+        /// Every policy-derived field of a run segment; re-applied whenever Run
+        /// resends a changed policy.
+        private static void ApplyPolicy(State s, Clock.WatchPolicy p)
+        {
+            var map = s.Map;
+            s.Mode = p.Mode.GetValueOrDefault() == Clock.WatchMode.Colony ? "colony" : "combat";
+            s.HostileWithin = ClampFloat(p.HostileWithin.GetValueOrDefault(), 1f, 250f);
+            s.HealthDropFraction = ClampFloat(p.HealthDropFraction.GetValueOrDefault(), 0.01f, 1f);
+            s.MinHealthFraction = ClampFloat(p.MinHealthFraction.GetValueOrDefault(), 0.01f, 1f);
+            s.IgnoredHostiles = PawnIds(ResolveIds(map, p.AcknowledgedHostileIds));
+            s.IgnoredDowned = PawnIds(ResolveIds(map, p.AcknowledgedDownedColonistIds));
+            s.IgnoredInjured = PawnIds(ResolveIds(map, p.AcknowledgedInjuredColonistIds));
+            s.SurgicalRecovery = PawnIds(ResolveIds(map, p.SurgicalRecoveryIds));
+            s.MedicalRest = PawnIds(ResolveIds(map, p.MedicalRestIds));
+            s.InjuryStopCooldownMs = Clamp((int)p.InjuryStopCooldownMs.GetValueOrDefault(), 0, 1800000);
+        }
+
+        private static Common.Failure? ChangeRun(State s, TypedEpoch typed, TimeSpeed speed)
+        {
+            var boost = speed == TimeSpeed.Ultrafast;
+            if (boost && !BoostAvailable) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
+            var running = TypedOf(s);
+            running.ExpectedGeneration = typed.ExpectedGeneration;
+            s.Ceiling.Beat(NowMs());
+            if (!Equals(running.Policy, typed.Policy))
+            {
+                var modeChanged = running.Policy.Mode != typed.Policy.Mode;
+                running.Policy = typed.Policy;
+                ApplyPolicy(s, typed.Policy);
+                if (modeChanged) ResetCombatStops(s);
+            }
+            if (s.RequestedSpeed == speed && Find.TickManager.CurTimeSpeed == speed) return null;
+            var old = s.RequestedSpeed; var oldBoost = s.TestAcceleration;
+            // Update expectation and game speed in the same main-thread
+            // critical section, so our own change cannot look external.
+            SetBoost(s, boost);
+            s.RequestedSpeed = speed;
+            SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
+            if (Find.TickManager.CurTimeSpeed != speed)
+            {
+                s.RequestedSpeed = old; SetBoost(s, oldBoost);
+                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The requested speed did not take; the clock keeps its previous speed.");
+            }
+            return null;
+        }
+
+        private static Common.Failure? ResumeRun(State? previous, TypedEpoch typed, TimeSpeed speed)
+        {
+            if (!GameWatchReads.CoreWatchersAvailable)
+                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Alert or transient-message reflection watcher is unavailable; refusing blind play.");
+            var boost = speed == TimeSpeed.Ultrafast;
+            if (boost && !BoostAvailable) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "The native tick boost behind Ultrafast is unavailable.");
+            try { LetterPauseHook.EnsurePatched(); }
+            catch (Exception error) { return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Pause source tracking unavailable: " + error.Message); }
+            if (LongEventHandler.AnyEventNowOrWaiting)
+                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A long event (autosave, map generation) is running or queued; nothing is open to dismiss. An autosave clears in about a second, so retry.");
+            // Only a window a human can close refuses a Run. A merely paused
+            // clock does not: the speed set below unpauses it.
+            if (ColonyNamingTools.Pending() != null)
+            {
+                try { ColonyNamingTools.ConfirmSuggested(); } catch (Exception) { }
+            }
+            if (ForcePausingWindows().Count > 0)
+                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, ForcePauseDetail());
+            var from = previous != null && ReferenceEquals(previous.Session, Current.Game) ? previous.StopReason ?? "unavailable" : "never_run";
+            var tm = Find.TickManager;
+            var s = new State(Current.Game, Find.CurrentMap) {
+                Active = true, RequestedSpeed = speed, Typed = typed,
+                StartTick = tm.TicksGame, LastTick = tm.TicksGame,
+                LastProbeTick = tm.TicksGame, LastProbeMs = NowMs(), LastDigestTick = tm.TicksGame
+            };
+            ApplyPolicy(s, typed.Policy);
+            s.Ceiling.Beat(NowMs());
+            // Pawn IDs belong to a save; another colony must not inherit
+            // this one's injury-stop memory.
+            if (!ReferenceEquals(_injuryStopsSession, Current.Game))
+            { InjuryStops.Clear(); _priorEpochConsciousHostiles = 0; _injuryStopsSession = Current.Game; }
+            // Alerts are baselined like letters and messages, by the stable
+            // key, so a count suffix moving cannot look like a new alert.
+            foreach (var a in GameWatchReads.ActiveAlertKeys(AlertPriority.High, null))
+                if (s.AlertKeys.Add(a.Key)) s.BaselineAlerts.Add(AlertRow(a));
+            foreach (var l in GameWatchReads.Letters()) s.Letters.Add(GameWatchReads.SafeLetterId(l));
+            foreach (var m in GameWatchReads.LiveMessages()) s.Messages.Add(GameWatchReads.SafeMessageId(m));
+            foreach (var p in GameWatchReads.SpawnedPawns(Find.CurrentMap).Where(GameWatchReads.SafeIsColonist))
+            {
+                s.Injuries[p.thingIDNumber] = InjurySnapshot.Capture(p);
+                var owed = InjuryCooldownRemainingMs(p.thingIDNumber, s.InjuryStopCooldownMs);
+                var acked = s.IgnoredInjured.Contains(p.thingIDNumber);
+                if (owed <= 0 && !acked) continue;
+                s.SuppressedInjuries.Add(new Dictionary<string, object?> {
+                    { "pawnId", p.thingIDNumber },
+                    { "pawnName", GameWatchReads.SafeName(p) },
+                    { "reason", owed > 0 ? "cooldown" : "acknowledged" },
+                    { "secondsRemaining", (int)((owed + 999) / 1000) } });
+            }
+            _state = s;
+            ClockPauseAccounting.Started(s.Session);
+            ClockProbeAccounting.Started(s.Session);
+            ResetHazardHooks(s);
+            DigestDirty = false;
+            var digestBegan = System.Diagnostics.Stopwatch.GetTimestamp();
+            PublishFactChanges(s);
+            var probeBegan = System.Diagnostics.Stopwatch.GetTimestamp();
+            s.Timing.DigestElapsed += probeBegan - digestBegan; s.Timing.Digests++;
+            ClockProbeAccounting.Digested(probeBegan - digestBegan);
+            var hit = Probe(s);
+            var probeTook = System.Diagnostics.Stopwatch.GetTimestamp() - probeBegan;
+            s.Timing.ProbeElapsed += probeTook;
+            ClockProbeAccounting.Probed(probeTook);
+            if (hit != null)
+            {
+                // Running is itself a request for safety. If the initial probe
+                // finds danger, do not leave a running game unattended merely
+                // because no speed change was needed: the hold is the answer.
+                Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
                 return null;
             }
-        }
-        // An accelerated epoch owns the boost for its whole life: it pauses, it
-        // never changes speed.
-        internal static Common.Failure? ValidateTypedSpeedChange(Clock.SpeedRequest request)
-        {
-            lock (Gate)
+            SetBoost(s, boost);
+            // Vanilla's forced slowdown (a danger signal holds the tick rate at 1x for
+            // 800 ticks) would cap every fight at 60 TPS whatever speed the clock runs;
+            // the brain owns danger handling, so no run segment accepts it.
+            s.PriorNeverForceNormal = DebugViewSettings.neverForceNormalSpeed;
+            s.NeverForceNormalOwned = true;
+            DebugViewSettings.neverForceNormalSpeed = true;
+            SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
+            if (Find.TickManager.CurTimeSpeed != speed)
             {
-                var s = _state;
-                if (s != null && s.Active && s.TestAcceleration && request.Speed.GetValueOrDefault() != Clock.Speed.Ultrafast)
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An accelerated epoch cannot change speed; pause it instead.");
+                Stop(s, "run_refused", "The requested speed did not take.", true, null);
                 return null;
             }
+            Add("resumed", "Clock resumed at " + speed + ".", s,
+                new Dictionary<string, object?> { { "speed", speed.ToString() }, { "from", from } });
+            return null;
         }
-        internal static Clock.Status TypedSpeed(Clock.SpeedRequest request, Common.ObservationContext context)
+
+        internal static Common.Failure? ValidateTypedHold(Clock.HoldRequest request)
+        {
+            var reason = request.Reason.GetValueOrDefault();
+            if (reason != Clock.HoldReason.CoupledOrder && reason != Clock.HoldReason.Review
+                && reason != Clock.HoldReason.Autosave && reason != Clock.HoldReason.GameForced)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A brain hold names coupled order, review, autosave or game forced.");
+            if (request.Detail != null && request.Detail.Length > 512)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hold detail is at most 512 characters.");
+            return null;
+        }
+
+        /// Hold: pauses and journals one HoldEntered for the brain's reason. While
+        /// already held the first reason stands (nothing is journalled), but a
+        /// game someone un-paused is paused again. Needs only the loaded identity.
+        internal static Clock.Status TypedHold(Clock.HoldRequest request, Common.ObservationContext context)
         {
             lock (Gate)
             {
-                if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
-                if (ActiveState.TestAcceleration && request.Speed.GetValueOrDefault() != Clock.Speed.Ultrafast) throw new InvalidOperationException("An accelerated epoch cannot change speed; pause it instead.");
-                Speed(((request.Epoch?.Owner ?? throw new InvalidOperationException("Missing epoch")).ControllerSessionId ?? ""), request.Epoch.Owner.Epoch, NativeSpeed(request.Speed.GetValueOrDefault()));
-                if (ActiveState.RequestedSpeed != NativeSpeed(request.Speed.GetValueOrDefault()) || Find.TickManager.CurTimeSpeed != NativeSpeed(request.Speed.GetValueOrDefault()))
-                    throw new InvalidOperationException("Native speed did not match admitted change");
-                return TypedStatus(context);
-            }
-        }
-        // An epoch belongs to the grant which started it. Reacquisition, even by
-        // the same controller before the next watcher tick, cannot adopt old work.
-        internal static Common.Failure? ValidateTypedGrant(Authority.WritePrecondition? requested)
-        {
-            lock (Gate)
-            {
-                var state = _state; var original = state?.Typed?.Authority;
-                if (state == null || original == null || requested == null)
-                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The epoch has no matching authorizing grant.");
-                if (!state.Active || state.PendingKind != null)
-                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "The original epoch is stopped or stopping.");
-                try
-                {
-                    if (!TypedHooksReady()) return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Required native clock enforcement hooks are unavailable.");
-                }
-                catch (Exception error) { ModLog.Error("clock", "Clock hook verification failed: " + error); return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Native clock enforcement hooks could not be verified."); }
-                if (requested.ExpectedGeneration.GetValueOrDefault() != original.ExpectedGeneration.GetValueOrDefault())
-                    return ProtoBoundary.Fail(Common.FailureCode.StaleGeneration, "A replacement authority generation cannot adopt an existing epoch.");
-                if (requested.Attempt == null
-                    || (requested.Attempt.ControllerSessionId ?? "") != (original.Attempt?.ControllerSessionId ?? "")
-                    || !Equals(original.Identity, requested.Identity))
-                    return ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Clock control must retain the epoch's original authority grant.");
-                return null;
-            }
-        }
-        internal static Clock.Status TypedPause(Common.ObservationContext context)
-        {
-            lock (Gate)
-            {
+                EnsureJournal();
+                var kind = HoldKind(request.Reason.GetValueOrDefault());
+                var detail = Text(string.IsNullOrWhiteSpace(request.Detail) ? "Held by the brain: " + kind + "." : request.Detail);
                 var s = _state;
-                if (s != null && s.Active)
+                var sameSession = s != null && ReferenceEquals(s.Session, Current.Game) && ReferenceEquals(s.Map, Find.CurrentMap);
+                if (s != null && s.Active && sameSession && s.PendingKind == null)
                 {
                     TypedOf(s).PauseRequested = true;
-                    Stop(s, "requested_pause", "Paused by the canonical epoch owner.", true, null);
+                    Stop(s, kind, detail, true, null);
                 }
-                else if (s != null && s.Typed != null && ReferenceEquals(s.Session, Current.Game) && ReferenceEquals(s.Map, Find.CurrentMap)
-                    && Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
+                else if (s == null || !sameSession)
                 {
-                    // The epoch is stopped but the game runs: the player un-paused
-                    // after an external pause and drove the speed by hand. The
-                    // owner re-takes the clock before admitting the next window
-                    //: pause here, so the stopped status it reads next
-                    // verifies the pause a start needs.
+                    // Never run (or another game's state): the hold still pauses and journals.
+                    if (Current.Game != null && Find.TickManager != null && Find.CurrentMap != null)
+                    {
+                        var shell = new State(Current.Game, Find.CurrentMap) {
+                            Active = true, RequestedSpeed = TimeSpeed.Normal,
+                            Typed = new TypedEpoch(context, 0, new Clock.WatchPolicy()),
+                            StartTick = Find.TickManager.TicksGame, LastTick = Find.TickManager.TicksGame,
+                            LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
+                            Mode = "colony"
+                        };
+                        _state = shell;
+                        ClockPauseAccounting.Started(shell.Session);
+                        ClockProbeAccounting.Started(shell.Session);
+                        TypedOf(shell).PauseRequested = true;
+                        Stop(shell, kind, detail, true, null);
+                    }
+                }
+                else if (Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
+                {
+                    // Held but the game runs: someone resumed by hand. The first
+                    // reason stands; the pause is retaken so the hold is real.
                     Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
                     var paused = Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
-                    s.PauseVerified = paused;
-                    s.Typed.PauseRequested = true;
-                    s.Typed.StopPauseVerified = paused;
+                    s.PausedAtStop = paused; s.PauseVerified = paused;
+                    TypedOf(s).PauseRequested = true; TypedOf(s).StopPauseVerified = paused;
                 }
                 return TypedStatus(context);
+            }
+        }
+
+        private static string HoldKind(Clock.HoldReason reason)
+        {
+            switch (reason)
+            {
+                case Clock.HoldReason.CoupledOrder: return "coupled_order";
+                case Clock.HoldReason.Review: return "review";
+                case Clock.HoldReason.Autosave: return "autosave";
+                case Clock.HoldReason.GameForced: return "force_paused";
+                default: throw new ArgumentOutOfRangeException(nameof(reason));
+            }
+        }
+
+        /// Heartbeat: the brain's contact for the one ceiling. Not journalled and
+        /// not a hold; silence only lowers the ceiling. Reads are not contact.
+        internal static Clock.HeartbeatAck TypedHeartbeat()
+        {
+            lock (Gate)
+            {
+                var ceiling = SharedCeiling();
+                ceiling.Beat(NowMs());
+                var s = _state;
+                var live = s != null && ReferenceEquals(s.Session, Current.Game);
+                var running = live && s!.Active && s.PendingKind == null;
+                return new Clock.HeartbeatAck {
+                    State = running ? Clock.ClockState.Running : Clock.ClockState.Held,
+                    Reason = running ? null : live ? HoldReasonOf(s!.PendingKind ?? s.StopReason) : Clock.HoldReason.NeverRun,
+                    CeilingTicksPerSecond = checked((uint)ceiling.TicksPerSecond) };
             }
         }
 
@@ -223,26 +369,27 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 EnsurePatched();
-                NoteControllerRead(_state);
                 var result = new Clock.Status { Context = context, ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
                     TestAccelerationAvailable = TestAccelerationAvailable,
                     DurableEvents = Journal != null && _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error" };
                 if (Journal != null) result = result with { NewestCursor = Journal.Newest };
                 var s = _state;
-                if (s == null) result = result with { State = new Clock.StatusState.NeverStartedCase(new Clock.NeverStarted()) };
+                if (s == null || !ReferenceEquals(s.Session, Current.Game))
+                    result = result with { State = Clock.ClockState.Held, Reason = Clock.HoldReason.NeverRun };
                 else
                 {
-                    var epoch = Epoch(s);
-                    if (s.Active && s.PendingKind != null) result = result with { State = new Clock.StatusState.StoppingCase(new Clock.Stopping { Epoch = epoch, PendingReason = StopReason(s.PendingKind), Detail = Text(s.PendingDetail), ActualPaused = Find.TickManager.Paused }) };
-                    else if (s.Active) result = result with { State = new Clock.StatusState.RunningCase(new Clock.Running { Epoch = epoch }) };
+                    result = result with { TargetSpeed = WireSpeed(s.RequestedSpeed) };
+                    if (s.Active && s.PendingKind == null)
+                        result = result with { State = Clock.ClockState.Running, PacedTicksPerSecond = (uint)PacedTicksPerSecond(s),
+                            PacingReason = PacingReasonOf(s), CeilingTicksPerSecond = (uint)CeilingTicksPerSecond(s) };
                     else
                     {
-                        var stopped = new Clock.Stopped { Epoch = epoch, Reason = StopReason(s.StopReason), Detail = Text(s.StopDetail),
-                            ActualPaused = Find.TickManager.Paused, PauseRequested = TypedOf(s).PauseRequested, PauseVerified = TypedOf(s).StopPauseVerified };
-                        if (s.StopAtMs.HasValue) stopped = stopped with { StoppedAtUnixMs = s.StopAtMs.Value };
-                        if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) stopped = stopped with { CombatEvent = TypedOf(s).CombatEvent };
-                        result = result with { State = new Clock.StatusState.StoppedCase(stopped) };
+                        var reasonKind = s.PendingKind ?? s.StopReason;
+                        result = result with { State = Clock.ClockState.Held, Reason = HoldReasonOf(reasonKind),
+                            Detail = Text(s.PendingKind != null ? s.PendingDetail : s.StopDetail), PauseVerified = TypedOf(s).StopPauseVerified };
+                        if (s.StopAtMs.HasValue && s.PendingKind == null) result = result with { HeldAtUnixMs = s.StopAtMs.Value };
+                        if (TypedOf(s).CombatEvent != Clock.CombatEvent.Unspecified) result = result with { CombatEvent = TypedOf(s).CombatEvent };
                     }
                     result = result with { MaxProbeTickGap = s.MaxProbeTickGap }; result = result with { ProbeCount = checked((ulong)s.ProbeCount) };
                     if (s.ForcePauseSinceMs != 0) { result = result with { ForcePauseWaitingMs = checked((ulong)Math.Max(0, NowMs() - s.ForcePauseSinceMs)) }; result = result with { ForcePauseKind = NativeEnums.ForcePause(s.ForcePauseKind) }; }
@@ -261,28 +408,11 @@ namespace HomeBridge.BridgeTools
                 return result;
             }
         }
-        // Typed starts always carry a tick budget, so a typed epoch always has a deadline.
-        private static long Deadline(State s) => s.TickDeadline ?? throw new InvalidOperationException("Typed epoch has no tick deadline.");
-        // live adds what the pacing holds right now; the started row keeps
-        // only what the start fixed.
-        private static Clock.Epoch Epoch(State s, bool live = true)
-        {
-            var epoch = BaseEpoch(s);
-            if (live && s.Active) { epoch = epoch with { PacedTicksPerSecond = (uint)PacedTicksPerSecond(s) }; epoch = epoch with { PacingReason = PacingReasonOf(s) }; epoch = epoch with { CeilingTicksPerSecond = (uint)CeilingTicksPerSecond(s) }; }
-            return epoch;
-        }
-        private static Clock.Epoch BaseEpoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner, Origin = TypedOf(s).Origin,
-            RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = TypedOf(s).Policy, StartTick = s.StartTick,
-            TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration };
 
         // The read never waits: the controller polls the page.
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
         {
-            lock (Gate)
-            {
-                NoteControllerRead(_state);
-                return TypedEventsPage(request, context);
-            }
+            lock (Gate) return TypedEventsPage(request, context);
         }
         private static Clock.EventsReply TypedEventsPage(Clock.EventsRequest request, Common.ObservationContext context)
         {
@@ -347,14 +477,14 @@ namespace HomeBridge.BridgeTools
                         { "reason", snapshot.Reason.ToString() }, { "active", snapshot.Active } });
             }
         }
-        // Epoch-less rows carry no owner and take their context from the
+        // Rows published outside a run segment take their context from the
         // current map. False means no complete context exists to publish under.
         private static bool AttachOwnerlessEvent(Dictionary<string, object?> row, string kind, string? detail, Dictionary<string, object?>? payload)
         {
             if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var observed, out _)) return false;
-            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, null, checked(_cursor + 1), NowMs(), null,
-                number => throw new InvalidOperationException("Ownerless clock events carry no pawn evidence"));
-            if (!ValidStoredEvent(result)) throw new InvalidOperationException("Ownerless clock event is incomplete");
+            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, checked(_cursor + 1), NowMs(),
+                number => throw new InvalidOperationException("Context-only clock events carry no pawn evidence"));
+            if (!ValidStoredEvent(result)) throw new InvalidOperationException("Context-only clock event is incomplete");
             var encoded = WireJson.Serialize(result);
             row["canonicalClockEvent"] = encoded;
             return true;
@@ -364,20 +494,18 @@ namespace HomeBridge.BridgeTools
             var typed = s.Typed;
             if (typed == null) return;
             var observed = typed.LastObservation;
-            // The old epoch's last observed tick stays attached to its old identity during replacement.
+            // The old segment's last observed tick stays attached to its old identity during replacement.
             if (ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
             {
                 if (!ProtoBoundary.TryReadContext(s.Map, out var current, out _)) throw new InvalidOperationException("Clock event context unavailable");
                 observed = current;
             }
             typed.LastObservation = observed;
-            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, typed.Owner, checked(_cursor + 1), NowMs(),
-                kind == "started" ? Epoch(s, false) : null, number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
+            var result = NativeClockEventProjection.Event(kind, detail, payload, observed, checked(_cursor + 1), NowMs(),
+                number => s.Map.mapPawns.AllPawns.Single(p => p.thingIDNumber == number).GetUniqueLoadID());
             if (kind == "pause_failed" && result.Event?.PauseFailed?.Pending is { } pending)
-                result = result with { Event = new Clock.PauseFailed { Pending = pending with { Reason = StopReason(s.PendingKind) } } };
-            if (kind == "tick_budget" && result.Event?.Stopped is { } budgeted)
-                result = result with { Event = budgeted with { Evidence = new Clock.StopEventEvidence.BudgetCase(new Clock.BudgetReached { StartTick = s.StartTick, TickDeadline = Deadline(s), ActualTick = s.LastTick }) } };
-            if (result.Event?.Stopped is { Evidence: Clock.StopEventEvidence.UnavailableCase } stopped
+                result = result with { Event = new Clock.PauseFailed { Pending = pending with { Reason = HoldReasonOf(s.PendingKind) } } };
+            if (result.Event?.HoldEntered is { Evidence: Clock.HoldEvidence.UnavailableCase } entered
                 && ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map))
             {
                 var windows = ForcePausingWindows();
@@ -406,7 +534,7 @@ namespace HomeBridge.BridgeTools
                     }
                     pause = pause with { Letter = letterRow };
                 }
-                result = result with { Event = stopped with { Evidence = new Clock.StopEventEvidence.PauseCase(pause) } };
+                result = result with { Event = entered with { Evidence = new Clock.HoldEvidence.PauseCase(pause) } };
             }
             var encoded = WireJson.Serialize(result);
             row["canonicalClockEvent"] = encoded;
@@ -422,16 +550,13 @@ namespace HomeBridge.BridgeTools
                 || value.ObservedAtUnixMs is null || value.ObservedAtUnixMs < 0
                 || value.Event is null) return false;
             var body = value.Event;
-            if (value.Owner == null ? body.AuthorityChanged == null
-                : value.Owner.ControllerSessionId is null || !ProtoBoundary.IsIdentifier(value.Owner.ControllerSessionId) || value.Owner.Epoch <= 0) return false;
             if (body.AuthorityChanged != null) return body.AuthorityChanged.Generation is > 0
                 && (body.AuthorityChanged.PreviousGeneration is null || body.AuthorityChanged.PreviousGeneration < body.AuthorityChanged.Generation);
             if (body.OperationOutcome != null) return ValidStoredOutcome(body.OperationOutcome);
-            if (body.Stopped != null) return ValidStoredStop(body.Stopped);
-            if (body.PauseFailed != null) return body.PauseFailed.Pending != null && ValidStoredStop(body.PauseFailed.Pending);
-            if (body.Started != null) return body.Started.Epoch != null && body.Started.Epoch.Owner != null
-                && body.Started.Epoch.Owner.Equals(value.Owner) && body.Started.Epoch.Origin != null;
-            if (body.SpeedChanged != null) return body.SpeedChanged.Speed is { } speed && OrdinarySpeed(speed);
+            if (body.HoldEntered != null) return ValidStoredHold(body.HoldEntered);
+            if (body.PauseFailed != null) return body.PauseFailed.Pending != null && ValidStoredHold(body.PauseFailed.Pending);
+            if (body.Resumed != null) return body.Resumed.Speed is { } resumed && OrdinarySpeed(resumed)
+                && body.Resumed.From is { } from && Enum.IsDefined(from) && from != Clock.HoldReason.Unspecified;
             if (body.Notification != null) return body.Notification.Source is not null;
             if (body.ObservationInvalidated != null) return body.ObservationInvalidated.Families.Count > 0 && body.ObservationInvalidated.Families.Count <= 8
                 && body.ObservationInvalidated.Families.All(family => family != Clock.FactFamily.Unspecified && Enum.IsDefined(family))
@@ -451,16 +576,16 @@ namespace HomeBridge.BridgeTools
             return cells.Minimum != null && cells.Maximum != null && cells.Minimum.X is not null && cells.Minimum.Z is not null && cells.Maximum.X is not null && cells.Maximum.Z is not null
                 && cells.Minimum.X.GetValueOrDefault() >= 0 && cells.Minimum.Z.GetValueOrDefault() >= 0 && cells.Minimum.X.GetValueOrDefault() <= cells.Maximum.X.GetValueOrDefault() && cells.Minimum.Z.GetValueOrDefault() <= cells.Maximum.Z.GetValueOrDefault();
         }
-        private static bool ValidStoredStop(Clock.StopEvent value) => value.Reason is not null && value.Reason.GetValueOrDefault() != Clock.StopReason.Unspecified
+        private static bool ValidStoredHold(Clock.HoldEntered value) => value.Reason is not null && value.Reason.GetValueOrDefault() != Clock.HoldReason.Unspecified
             && Enum.IsDefined(value.Reason.GetValueOrDefault()) && value.Evidence is not null
-            && (value.Evidence.Watch is not { } watch || watch.Outcome != null && ValidStoredOutcome(watch.Outcome) && watch.TickDeadline is > 0);
+            && (value.Evidence.Watch is not { } watch || watch.Outcome != null && ValidStoredOutcome(watch.Outcome));
         private static bool ValidStoredOutcome(Clock.OperationOutcome value) => ValidWatchKey(value.Attempt) && value.LatchedTick is not null && value.LatchedTick.GetValueOrDefault() >= 0
             && value.Outcome is not null;
         private static bool ValidWatchKey([NotNullWhen(true)] Common.AttemptKey? key) => key != null && key.ControllerSessionId is not null && ProtoBoundary.IsIdentifier(key.ControllerSessionId)
             && key.ActionId is not null && ProtoBoundary.IsIdentifier(key.ActionId) && key.AttemptId is not null && key.AttemptId.GetValueOrDefault() > 0;
         internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast || speed == Clock.Speed.Ultrafast;
         private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : speed == Clock.Speed.Ultrafast ? TimeSpeed.Ultrafast : throw new ArgumentOutOfRangeException(nameof(speed));
-        private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary owned epoch");
+        private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary run speed");
         internal static Clock.ObservedSpeed ObservedSpeed(TimeSpeed speed) => speed == TimeSpeed.Paused ? Clock.ObservedSpeed.Paused : speed == TimeSpeed.Normal ? Clock.ObservedSpeed.Normal : speed == TimeSpeed.Fast ? Clock.ObservedSpeed.Fast : speed == TimeSpeed.Superfast ? Clock.ObservedSpeed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.ObservedSpeed.Ultrafast : throw new InvalidOperationException("Unknown native speed");
         // The tick-boundary hook runs StopInvalidTypedAuthority on every
         // tick, and TypedHooksReady is reflection plus a Harmony patch-info
@@ -487,7 +612,7 @@ namespace HomeBridge.BridgeTools
         private static IEnumerable<IEnumerable<string>> PolicyIds(Clock.WatchPolicy policy)
         { yield return policy.AcknowledgedHostileIds; yield return policy.AcknowledgedDownedColonistIds; yield return policy.AcknowledgedInjuredColonistIds; yield return policy.SurgicalRecoveryIds; yield return policy.MedicalRestIds; }
         private static string ResolveIds(Map map, IEnumerable<string> ids) => string.Join(",", ids.Select(id => map.mapPawns.AllPawns.Single(p => p.GetUniqueLoadID() == id).thingIDNumber.ToString(System.Globalization.CultureInfo.InvariantCulture)));
-        private static bool ValidPolicy(Clock.WatchPolicy policy, uint maxTicks)
+        private static bool ValidPolicy(Clock.WatchPolicy policy)
         {
             return policy != null && policy.Mode is not null && (policy.Mode.GetValueOrDefault() == Clock.WatchMode.Colony || policy.Mode.GetValueOrDefault() == Clock.WatchMode.Combat)
                 && policy.HealthDropFraction is not null && Fraction(policy.HealthDropFraction.GetValueOrDefault()) && policy.MinHealthFraction is not null && Fraction(policy.MinHealthFraction.GetValueOrDefault())
@@ -501,7 +626,6 @@ namespace HomeBridge.BridgeTools
                 && policy.MeleeReachCells is not null && Positive(policy.MeleeReachCells.GetValueOrDefault())
                 && policy.InjurySeverityFloorTicks is not null && policy.InjurySeverityFloorTicks.GetValueOrDefault() > 0 && policy.InjurySeverityFloorTicks.GetValueOrDefault() <= int.MaxValue
                 && policy.PredatorMarginCells is not null && Positive(policy.PredatorMarginCells.GetValueOrDefault())
-                && (policy.MedicalRestIds.Count == 0 || maxTicks <= 600)
                 && (policy.CombatStopEvents.Count == 0 || policy.Mode.GetValueOrDefault() == Clock.WatchMode.Combat)
                 && policy.CombatStopEvents.All(e => e != Clock.CombatEvent.Unspecified && Enum.IsDefined(typeof(Clock.CombatEvent), e))
                 && policy.CombatStopEvents.Distinct().Count() == policy.CombatStopEvents.Count
@@ -511,6 +635,6 @@ namespace HomeBridge.BridgeTools
         private static bool Fraction(float value) => !float.IsNaN(value) && value >= 0.01f && value <= 1;
         private static Common.Unavailable Unavailable(string detail) => new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = detail };
         private static string Text(string? text) => NativeClockEventProjection.Text(text ?? "");
-        private static Clock.StopReason StopReason(string? kind) => NativeClockEventProjection.StopReason(kind);
+        private static Clock.HoldReason HoldReasonOf(string? kind) => NativeClockEventProjection.HoldReason(kind);
     }
 }

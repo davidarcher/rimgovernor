@@ -53,18 +53,13 @@ internal static class AuthorityWarm
             phase1["identity"] = identity.DeepClone();
             phase1["generation"] = generation;
             var startReply = await h.WireAsync(
-                "p1-clock-start",
-                "clock_start",
+                "p1-clock-run",
+                "clock_run",
                 new JsonObject
                 {
-                    ["authority"] = new JsonObject
-                    {
-                        ["identity"] = identity.DeepClone(),
-                        ["expectedGeneration"] = generation,
-                        ["attempt"] = new JsonObject { ["controllerSessionId"] = WarmController, ["actionId"] = "clock-start", ["attemptId"] = 1 },
-                    },
+                    ["identity"] = identity.DeepClone(),
+                    ["expectedGeneration"] = generation,
                     ["speed"] = "SPEED_SUPERFAST",
-                    ["maxTicks"] = 600000,
                     ["policy"] = new JsonObject
                     {
                         ["mode"] = "WATCH_MODE_COLONY",
@@ -75,19 +70,19 @@ internal static class AuthorityWarm
                     },
                 },
                 cancellationToken).ConfigureAwait(false);
-            JsonObject receipt;
+            JsonObject status;
             try
             {
-                receipt = Harness.Outcome(startReply, "receipt").Value;
+                status = Harness.Outcome(startReply, "status").Value;
             }
             catch (AcceptanceException e)
             {
-                throw new AcceptanceException($"p1-clock-start: expected a receipt: {e.Message}", e);
+                throw new AcceptanceException($"p1-clock-run: expected a status: {e.Message}", e);
             }
 
-            if (receipt["applied"].AsMap() is { } applied && applied["status"].AsMap()?.ContainsKey("running") != true)
+            if (status["state"].AsString() != "CLOCK_STATE_RUNNING")
             {
-                throw new AcceptanceException($"p1-clock-start: expected a running epoch, got {receipt.ToJson()}");
+                throw new AcceptanceException($"p1-clock-run: expected a running clock, got {status.ToJson()}");
             }
 
             previousLoadToken = identity["loadToken"].AsString();
