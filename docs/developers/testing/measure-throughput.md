@@ -149,9 +149,8 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
   that resumed it (both events' stamps are on native's clock);
   `observe_latency_ms_*` is how long the controller took to see the hold.
 - `effective_speed` is `wall_tps` over the speed's own rate (Normal 60, Fast
-  180, Superfast 360; Ultrafast is 900 here, but native serves it with the 9000 ticks/s boost, so a
-  boosted run reads above 1), holds included: 1 means the clock never
-  lost pace. `native_effective_tps_mean` is native's ten-second account.
+  180, Superfast 360, Ultrafast 9000: the boost native serves it with under
+  the one ceiling), holds included: 1 means the clock never lost pace. `native_effective_tps_mean` is native's ten-second account.
 - `hold_latencies` correlate the two processes by cursor only (no Unix time of
   one is subtracted from the other's).
 - `run_verdicts` counts the brain's Run, Hold and refusal rows;

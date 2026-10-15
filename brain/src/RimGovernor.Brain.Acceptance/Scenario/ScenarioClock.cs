@@ -79,9 +79,9 @@ public sealed class ScenarioClock
     public Action<JsonObject>? PolicyEdit { get; set; }
 
     /// <summary>
-    /// Opts AdvanceGame into Ultrafast, the speed the native test tick boost serves. The boost itself needs a launch
-    /// with -rimgovernor-test-acceleration (<c>Status.test_acceleration_available</c>); without it Ultrafast runs at the
-    /// one ceiling's rate.
+    /// Opts AdvanceGame into Ultrafast. Native serves every Run(Ultrafast) with the 150x boost (9000 ticks/s) under the
+    /// one ceiling, with no launch gate; the acceptance launches' -rimgovernor-test-acceleration
+    /// (<c>Status.test_acceleration_available</c>) only gates the acceptance-only world patches.
     /// </summary>
     public bool TestAcceleration { get; set; }
 

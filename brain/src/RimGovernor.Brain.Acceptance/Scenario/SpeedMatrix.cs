@@ -8,11 +8,12 @@ namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
 /// One column of the speed matrix: the serve speed it runs at (the player's choice serve follows) and whether the test
-/// acceleration is on (Go <c>SpeedCase</c>). "uncapped" is Ultrafast with acceleration; both acceptance profiles
-/// (headless and rendered) admit it, a player launch does not. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
-/// same save and renderer; it builds nothing, so it is outside the outcome comparison. "player" is Ultrafast under
-/// player acceleration (any Ultrafast without test acceleration): no test acceleration, native paces ticks per frame
-/// against its frame budget and the controller backs off before its evidence goes stale, the mode a player launch runs.
+/// acceleration is on (Go <c>SpeedCase</c>). Every Run(Ultrafast) drives the 150x boost (9000 ticks/s) under the one
+/// ceiling; test acceleration only adds the acceptance-only world patches (both acceptance profiles admit it, a player
+/// launch does not). "uncapped" is Ultrafast with them. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
+/// same save and renderer; it builds nothing, so it is outside the outcome comparison. "player" is Ultrafast without
+/// the world patches, the mode a player launch runs: the one ceiling paces ticks per frame against its frame budget and
+/// the controller backs off before its evidence goes stale.
 /// </summary>
 public sealed record SpeedCase
 {
@@ -203,14 +204,14 @@ public static class SpeedMatrix
 
     /// <summary>
     /// The ticks per second a speed runs at when nothing slows it: the game's own rates (Normal 60, Fast 180, Superfast
-    /// 360, Ultrafast 900).
+    /// 360) and, for Ultrafast, the 150x boost native drives it at under the one ceiling (9000).
     /// </summary>
     public static double TargetTps(string speed) => speed switch
     {
         "Normal" => 60,
         "Fast" => 180,
         "Superfast" => 360,
-        "Ultrafast" => 900,
+        "Ultrafast" => 9000,
         _ => 0,
     };
 
