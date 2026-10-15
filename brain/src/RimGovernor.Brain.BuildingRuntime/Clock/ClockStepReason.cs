@@ -25,14 +25,6 @@ public enum StepCause
     /// safety net a timer step is promoted to.
     /// </summary>
     Full,
-
-    /// <summary>
-    /// A step that planned while its own window was running: the planners read the bundle's tick-consistent
-    /// snapshot and commit plans the Worker dispatches live; nothing is admitted. A timer step is promoted to it
-    /// when the full-step interval has passed, a wake or a full step at once; the selection is the underlying
-    /// cause's.
-    /// </summary>
-    Live,
 }
 
 public static class StepReasons
@@ -120,7 +112,6 @@ internal static class PlannerSelections
             case StepCause.Timer:
                 return copy.Selection(tick, false, false, null);
             case StepCause.Wake:
-            case StepCause.Live:
                 copy.Wake(reason);
                 return copy.Selection(tick, false, false, null);
             default:

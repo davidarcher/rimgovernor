@@ -10,7 +10,6 @@ namespace RimGovernor.Brain.Acceptance;
 /// </summary>
 public sealed class ResponseEvidence
 {
-    private readonly List<double> _controllerPauseMs = [];
     private readonly List<double> _reviewInclusiveMs = [];
 
     private ResponseEvidence(string fixture, string speed, long onset, string runner)
@@ -42,7 +41,6 @@ public sealed class ResponseEvidence
 
     public string Effect { get; private set; } = "";
 
-    public IReadOnlyList<double> ControllerPauseMs => _controllerPauseMs;
 
     public IReadOnlyList<double> ReviewInclusiveMs => _reviewInclusiveMs;
 
@@ -90,7 +88,6 @@ public sealed class ResponseEvidence
             {
                 if (fields.TryGetValue("controller_pause_ms", out var pause))
                 {
-                    _controllerPauseMs.Add(RowValue.Number(pause));
                 }
 
                 if (fields.TryGetValue("critical_wave_ms", out var wave))
@@ -141,7 +138,6 @@ public sealed class ResponseEvidence
         ["dispatchTick"] = DispatchTick,
         ["firstEffectTick"] = FirstEffectTick,
         ["effect"] = Effect,
-        ["controllerPauseMs"] = new JsonArray([.. _controllerPauseMs.Select(v => JsonValue.Create(v))]),
         ["reviewInclusiveMs"] = new JsonArray([.. _reviewInclusiveMs.Select(v => JsonValue.Create(v))]),
     };
 

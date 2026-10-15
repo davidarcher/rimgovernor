@@ -20,8 +20,6 @@ All names are prefixed `rimgovernor.`; durations are milliseconds.
 | `native.calls` | counter, `{call}` | `native_tool`, `outcome` (`ok`, `refused`, `error`) | each native call |
 | `scheduler.step.duration` | histogram, `ms` (scheduler buckets) | `step_cause` (`timer`, `wake`, `settled`, `full`) | end of every `ClockScheduler.StepWithReason` |
 | `scheduler.stop_latency` | histogram, `ms` | none | a step woken by a native hold: hold stamp to step start |
-| `scheduler.controller_pause` | histogram, `ms` | none | not recorded: no step pauses the game for a window any more (the instrument remains registered) |
-| `scheduler.stop_pause` | histogram, `ms` | none | not recorded, as `scheduler.controller_pause` |
 | `scheduler.critical_wave.duration` | histogram, `ms` | none | critical planner wave wall time |
 | `game.ticks_per_second` | gauge, `{tick}/s` | none | the clock status's effective ticks per wall second, set by each step that read one |
 | `action.outcomes` | counter, `{action}` | `action_kind`, `verdict` (`applied`, `refused`, `failed`), `reason` | each action in a Hands dispatch batch; one count per refusal reason |
@@ -81,19 +79,16 @@ sum over processes:
 | `native_calls` | sum of `native.calls` over all outcomes |
 | `native_errors` | `native.calls` with `outcome=error` (refusals are not errors) |
 | `native_queue_ms_mean`, `native_exec_ms_mean` | `native.phase.duration` sum / count for `phase=native_queue` and `native_execute` |
-| `paused_fraction` | `scheduler.controller_pause` sum / the run's `wall_ms` (reads zero: the instrument is no longer recorded) |
 
 The remaining keys come from the report and output directory, not telemetry:
 `wall_ms`, `boot_ms`, `ticks_advanced`, `wall_tps`, the wait statistics
 (`waits`, `waits_stalled`, `max_quiet_ms`), `service_launches`, `evidence_bytes`.
 Row format, flake rate (failures in a case's last 10 runs) and drift (value past a
 per-key ratio and floor against the trailing median of the last 10 passing runs) are
-unchanged. Differences from the earlier log-derived block: `paused_fraction` is now the
-brain-held pause share of wall time (it was the share of sampled clock statuses
-that were paused); `native_bytes`, `cache_hit_ratio` and `reads_per_step_mean` are
-gone because no instrument measures them, and they no longer drift-flag. A series
-recorded before this change keeps its old rows; `paused_fraction` medians mix the two
-meanings until ten new passing runs replace them. A run with no metric ring reads zero
+unchanged. Differences from the earlier log-derived block: `paused_fraction`,
+`native_bytes`, `cache_hit_ratio` and `reads_per_step_mean` are gone because no
+instrument measures them, and they no longer drift-flag. A series recorded before
+this change keeps its old rows. A run with no metric ring reads zero
 for the OTEL-derived keys.
 
 ## What remains of the hand-rolled aggregation

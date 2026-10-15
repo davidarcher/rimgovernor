@@ -23,7 +23,6 @@ public sealed class Metrics
         "waits", "waits_stalled", "max_quiet_ms",
         "native_calls", "native_errors",
         "native_queue_ms_mean", "native_exec_ms_mean",
-        "paused_fraction",
         "service_launches", "evidence_bytes",
     ];
 
@@ -64,7 +63,7 @@ public sealed class Metrics
         }
 
         m.Values["service_launches"] = launches;
-        OtelTotals.Read(output).Fill(m, m.Values["wall_ms"]);
+        OtelTotals.Read(output).Fill(m);
         m.Values["evidence_bytes"] = EvidenceBytes(output);
         return m;
     }

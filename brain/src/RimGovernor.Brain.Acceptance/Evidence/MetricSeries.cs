@@ -130,7 +130,6 @@ public static class MetricSeries
         ["native_errors"] = new(1, 0.5),
         ["native_queue_ms_mean"] = new(1.5, 20),
         ["native_exec_ms_mean"] = new(1.5, 20),
-        ["paused_fraction"] = new(1.5, 0.1),
         ["service_launches"] = new(1, 0.5),
         ["evidence_bytes"] = new(1.5, 1 << 20),
     };

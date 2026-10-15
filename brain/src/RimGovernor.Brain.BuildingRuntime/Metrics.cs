@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static class Metrics
 {
     private static readonly Vocabulary StepCauseVocabulary = Vocabulary.Words(
-        Wire.Name(StepCause.Timer), Wire.Name(StepCause.Wake), Wire.Name(StepCause.Settled), Wire.Name(StepCause.Full), Wire.Name(StepCause.Live));
+        Wire.Name(StepCause.Timer), Wire.Name(StepCause.Wake), Wire.Name(StepCause.Settled), Wire.Name(StepCause.Full));
 
     // Every policy Reason; a test keeps it equal to the constants declared in package policy.
     private static readonly Vocabulary RefusalReasonVocabulary = Vocabulary.Words(
@@ -70,14 +70,6 @@ internal static class Metrics
         if (row.GetValueOrDefault("stop_latency_ms") is double stopLatency)
         {
             Tel.StopLatency(stopLatency);
-        }
-        if (row.GetValueOrDefault("controller_pause_ms") is double pause)
-        {
-            Tel.ControllerPause(pause);
-        }
-        if (row.GetValueOrDefault("stop_pause_s") is double stopPause)
-        {
-            Tel.StopPause(stopPause * 1000);
         }
         if (row.GetValueOrDefault("effective_tps") is double tps)
         {

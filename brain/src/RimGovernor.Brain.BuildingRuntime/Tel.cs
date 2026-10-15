@@ -80,10 +80,6 @@ internal static class Tel
 
     public static void StopLatency(double ms) => TelemetryMetrics.StopLatency(ms);
 
-    public static void ControllerPause(double ms) => TelemetryMetrics.ControllerPause(ms);
-
-    public static void StopPause(double ms) => TelemetryMetrics.StopPause(ms);
-
     public static void CriticalWave(double ms) => TelemetryMetrics.CriticalWave(ms);
 
     public static void TicksPerSecond(double tps) => TelemetryMetrics.TicksPerSecond(tps);

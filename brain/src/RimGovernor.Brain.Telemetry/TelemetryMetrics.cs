@@ -58,8 +58,6 @@ public static class TelemetryMetrics
     public const string NativeCallsMetric = "rimgovernor.native.calls";
     public const string StepMetric = "rimgovernor.scheduler.step.duration";
     public const string StopLatencyMetric = "rimgovernor.scheduler.stop_latency";
-    public const string ControllerPauseMetric = "rimgovernor.scheduler.controller_pause";
-    public const string StopPauseMetric = "rimgovernor.scheduler.stop_pause";
     public const string CriticalWaveMetric = "rimgovernor.scheduler.critical_wave.duration";
     public const string TicksPerSecondMetric = "rimgovernor.game.ticks_per_second";
     public const string OutcomesMetric = "rimgovernor.action.outcomes";
@@ -88,8 +86,6 @@ public static class TelemetryMetrics
     private static readonly Histogram<double> s_nativePhase = Hist(NativePhaseMetric, "Native call time by phase and native tool.", NativeBuckets);
     private static readonly Histogram<double> s_step = Hist(StepMetric, "Scheduler step wall time by cause.", SchedulerBuckets);
     private static readonly Histogram<double> s_stopLatency = Hist(StopLatencyMetric, "Native clock stop to the step it woke.", SchedulerBuckets);
-    private static readonly Histogram<double> s_controllerPause = Hist(ControllerPauseMetric, "Wall time the controller held the game paused in a step.", SchedulerBuckets);
-    private static readonly Histogram<double> s_stopPause = Hist(StopPauseMetric, "Window stop to the admission that resumed the game.", SchedulerBuckets);
     private static readonly Histogram<double> s_criticalWave = Hist(CriticalWaveMetric, "Critical planner wave wall time, the controller's leg of hazard to protective order.", SchedulerBuckets);
     private static readonly Counter<long> s_nativeCalls = s_meter.CreateCounter<long>(NativeCallsMetric, "{call}", "Completed native calls by native tool and outcome.");
     private static readonly Gauge<double> s_ticksPerSecond = s_meter.CreateGauge<double>(TicksPerSecondMetric, "{tick}/s", "Game ticks per wall second the clock status last reported.");
@@ -114,12 +110,6 @@ public static class TelemetryMetrics
 
     /// <summary>Records the native stop stamp to the step it woke.</summary>
     public static void StopLatency(double ms) => s_stopLatency.Record(ms);
-
-    /// <summary>Records the wall time the controller held the game paused.</summary>
-    public static void ControllerPause(double ms) => s_controllerPause.Record(ms);
-
-    /// <summary>Records the window stop to readmit pause.</summary>
-    public static void StopPause(double ms) => s_stopPause.Record(ms);
 
     /// <summary>Records one critical planner wave's wall time.</summary>
     public static void CriticalWave(double ms) => s_criticalWave.Record(ms);

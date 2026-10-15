@@ -222,7 +222,7 @@ public sealed partial class ClockScheduler
         return reason.Cause switch
         {
             StepCause.Settled => _queue.Selection(tick, false, true, stillOpen),
-            StepCause.Timer or StepCause.Wake or StepCause.Live => _queue.Selection(tick, false, false, stillOpen),
+            StepCause.Timer or StepCause.Wake => _queue.Selection(tick, false, false, stillOpen),
             _ => _queue.Selection(tick, true, false, stillOpen),
         };
     }

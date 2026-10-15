@@ -19,7 +19,6 @@ internal sealed class OtelTotals
     private double _execSum;
     private double _queueCount;
     private double _execCount;
-    private double _controllerPauseMs;
 
     /// <summary>The run's metric rings: the first launch's under output and each restart's under its service-N directory.</summary>
     internal static IReadOnlyList<string> MetricsRings(string output)
@@ -99,9 +98,6 @@ internal sealed class OtelTotals
                     }
 
                     break;
-                case TelemetryMetrics.ControllerPauseMetric:
-                    totals._controllerPauseMs += point.Sum;
-                    break;
                 default:
                     break;
             }
@@ -110,8 +106,8 @@ internal sealed class OtelTotals
         return totals;
     }
 
-    /// <summary>Writes the OTEL-derived metrics into <paramref name="m"/>. <paramref name="wallMs"/> is the run's wall time.</summary>
-    internal void Fill(Metrics m, double wallMs)
+    /// <summary>Writes the OTEL-derived metrics into <paramref name="m"/>.</summary>
+    internal void Fill(Metrics m)
     {
         m.Values["native_calls"] = _calls;
         m.Values["native_errors"] = _errs;
@@ -123,11 +119,6 @@ internal sealed class OtelTotals
         if (_execCount > 0)
         {
             m.Values["native_exec_ms_mean"] = _execSum / _execCount;
-        }
-
-        if (wallMs > 0)
-        {
-            m.Values["paused_fraction"] = _controllerPauseMs / wallMs;
         }
     }
 

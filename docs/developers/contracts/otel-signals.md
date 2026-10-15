@@ -64,8 +64,7 @@ journal's native dispatch tick, including uncertain replies.
 `clock_step.critical_wave_ms`
 includes pre-wave review. The native acceptance `ResponseEvidence` reader uses
 it to separate controller activity from native outcomes and never treats an accepted dispatch as
-the first native protective effect. `clock_step.controller_pause_ms` and `stop_pause_s` are no longer
-written (the clock no longer pauses for a window); the readers that still name them read nothing.
+the first native protective effect.
 
 | Kind | Shape and fields |
 |---|---|
