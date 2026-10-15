@@ -16,18 +16,34 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ClothingChoiceTests
 {
     private static GearOption Garment(string product, string stuff, double cold = 5, string group = "Torso") => new()
-    { ID = product + stuff, Definition = new(product), Stuff = new(stuff), Slot = group == "Torso" ? GearSlot.SkinTorso : GearSlot.SkinLegs,
-        Layers = ["OnSkin"], Groups = [group], Source = GearSource.Bill, Quality = 2, Condition = 1, Cold = cold, Cost = 20, Sharp = 0.2 };
+    {
+        ID = product + stuff,
+        Definition = new(product),
+        Stuff = new(stuff),
+        Slot = group == "Torso" ? GearSlot.SkinTorso : GearSlot.SkinLegs,
+        Layers = ["OnSkin"],
+        Groups = [group],
+        Source = GearSource.Bill,
+        Quality = 2,
+        Condition = 1,
+        Cold = cold,
+        Cost = 20,
+        Sharp = 0.2
+    };
     private static GearObservation Census(double ambient = 20, params GearOption[] options) => new()
-    { Stored = Known(default(EquatableArray<GearStock>)), Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
+    {
+        Stored = Known(default(EquatableArray<GearStock>)),
+        Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
         Candidates = Known(default(EquatableArray<GearCandidate>)), Apparel = Known(default(EquatableArray<GearApparel>)),
         LoadoutModel = Known(new GearLoadoutInput { Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30,
-            Options = options.Length == 0 ? [Garment("Shirt", "Cloth"), Garment("Shirt", "Wool", 15)] : EquatableArray.From(options) }) }] };
+            Options = options.Length == 0 ? [Garment("Shirt", "Cloth"), Garment("Shirt", "Wool", 15)] : EquatableArray.From(options) }) }]
+    };
     private static RecipeIngredientObservation Input(string id, string stuff, int count = 10, double travel = 5) =>
-        new(id, stuff, count, new(5, 5), count) { Capacity = 75, ApproachTicks = Known(travel), CarryTicks = Known(5.0), ReturnTicks = Known(5.0) };
+        new(id, stuff, count, new(id == "a-far" ? 50 : id == "c-near" ? 6 : 5, 5), count) { Capacity = 75, ApproachTicks = Known(travel), CarryTicks = Known(5.0), ReturnTicks = Known(5.0) };
     private static RecipeActivityOption Option(string stuff, string product = "Shirt", double work = 100, string pawn = "tailor", string bench = "bench") =>
         new(product + stuff + pawn, pawn, bench, "Tailor", "Make" + product, product, stuff, "", "", new(10, 10),
-            [Input(stuff, stuff)], Known(0.0), Known(work), Known(5.0), new(15, 15)) { RequiredCount = 10 };
+            [Input(stuff, stuff)], Known(0.0), Known(work), Known(5.0), new(15, 15))
+        { RequiredCount = 10 };
     private static RecipeActivityRead Read(params RecipeActivityOption[] options) => new()
     { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) };
     private static RoundsFacts Facts(double cloth = 30, double wool = 30) => WorkResourceTestFacts.Create("tailor", "helper") with
@@ -100,15 +116,21 @@ public sealed class ClothingChoiceTests
     public void ExistingExactBillCanExecuteItsAlreadyHeldInputsButCannotFundAnotherRecipe()
     {
         var resources = Resources(0, 0);
-        resources = resources with { Evidence = resources.Evidence with
-        { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(10.0), Known("standing-bill"))])]) } };
+        resources = resources with
+        {
+            Evidence = resources.Evidence with
+            { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(10.0), Known("standing-bill"))])]) }
+        };
         var selected = Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }), resources, out _)!;
         Assert.Equal("standing-bill", Recipe(selected).Bill);
         Assert.Null(Start(Census(), Read(Option("Cloth")), resources, out _));
-        resources = resources with { Evidence = resources.Evidence with
-        { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(100.0), Known("standing-bill"))])]) } };
+        resources = resources with
+        {
+            Evidence = resources.Evidence with
+            { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(100.0), Known("standing-bill"))])]) }
+        };
         var other = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
-            { Inputs = [Input("other-stack", "Cloth")], Destination = new(16, 15) };
+        { Inputs = [Input("other-stack", "Cloth")], Destination = new(16, 15) };
         var bundle = Start(Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs")),
             Read(Option("Cloth") with { Bill = "standing-bill" }, other), resources, out _)!;
         Assert.Single(bundle.Tasks, t => t.Step.Recipe != null);
@@ -120,7 +142,7 @@ public sealed class ClothingChoiceTests
         var census = Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs"));
         var shirt = Option("Cloth") with { Inputs = [Input("shared", "Cloth", 20)] };
         var pants = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
-            { Inputs = [Input("shared", "Cloth", 20)], Destination = new(16, 15) };
+        { Inputs = [Input("shared", "Cloth", 20)], Destination = new(16, 15) };
         var together = Start(census, Read(shirt, pants), Resources(), out _)!;
         Assert.Equal(2, together.Tasks.Count(t => t.Step.Recipe != null));
         Assert.Equal(20, together.Tasks.Where(t => t.Step.Recipe != null).Sum(t => t.Step.Recipe!.Ingredients.Sum(i => i.Count)));
@@ -157,8 +179,14 @@ public sealed class ClothingChoiceTests
         var path = Path.Combine(Path.GetTempPath(), "rg-clothing-" + Guid.NewGuid().ToString("N") + ".db");
         BridgeFunctions.RegisterIntentKinds();
         using var journal = Journal.Open(path, ct);
-        var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = Facts() with { Gear = Known(Census()) } }, ct);
+        var review = journal.ReviewRounds(new RoundsRequest
+        {
+            Current = world,
+            Tick = new(100),
+            Enabled = true,
+            Policy = DefaultRoundsPolicy(),
+            Facts = Facts() with { Gear = Known(Census()) }
+        }, ct);
         var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainEquipment);
         var batch = Start(Census(), Read(Option("Cloth")), journal.WorkResources(world, ct), out _)!;
         Assert.NotNull(batch);
@@ -169,10 +197,14 @@ public sealed class ClothingChoiceTests
         Assert.Equal("Cloth", Recipe(intent).Stuff);
         Assert.Equal(batch.Tasks, intent.Tasks);
         var output = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
-        var execution = new ActivityTaskRead { Known = true, Context = Read().Context! with { Tick = 400 },
+        var execution = new ActivityTaskRead
+        {
+            Known = true,
+            Context = Read().Context! with { Tick = 400 },
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, "completed", "", null, 100)))),
-            Bindings = [new(output.Id, output.Step with { Target = "actual-cloth-product" })] };
+            Bindings = [new(output.Id, output.Step with { Target = "actual-cloth-product" })]
+        };
         var delivery = ContinueCoordinatedActivity(batch, Known(true), execution)!;
         Assert.Equal("actual-cloth-product", delivery.Orders.Single().Steps[0].Target);
         Assert.Null(delivery.Orders.Single().Steps[0].Recipe);

@@ -14,6 +14,7 @@ public static class CaseCatalog
         HostSeams.Install();
         registry.Register(PawnActivityCase.Case());
         registry.Register(NeedsForecastCase.Case());
+        registry.Register(CoupledForecastCase.Case());
         registry.Register(PawnControlCase.Case());
         registry.Register(PawnControlCase.LifecycleCase());
         registry.Register(PawnDeliveryCase.Case());

@@ -26,24 +26,42 @@ public static partial class PolicyFunctions
         Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>> observation)
     {
         if (!promises.TryGetValue(out var rows)) return default;
-        return Known(EquatableArray.From(rows.Select(c => c with { MaterialClaims = EquatableArray.From(c.MaterialClaims.Select(m =>
+        return Known(EquatableArray.From(rows.Select(c => c with
+        {
+            MaterialClaims = EquatableArray.From(c.MaterialClaims.Select(m =>
         {
             if (!m.ReservationBill.TryGetValue(out var bill) || bill.Length == 0 || !m.Units.TryGetValue(out var units)) return m;
-            return m with { Units = observation.TryGetValue(out var native)
-                ? Known(Math.Max(0, units - native.Where(n => n.Bill == bill && n.CarriedResource == m.Resource.Value).Sum(n => (double)n.CarriedCount))) : default };
-        })) })));
+            return m with
+            {
+                Units = observation.TryGetValue(out var native)
+                ? Known(Math.Max(0, units - native.Where(n => n.Bill == bill && n.CarriedResource == m.Resource.Value).Sum(n => (double)n.CarriedCount))) : default
+            };
+        }))
+        })));
     }
     public static ForecastCapacityResult WorkCapacityOf(WorkResourceView view, string pawn, double horizon, bool protectTimetable = true)
     {
         var observed = view.Evidence.Pawns.TryGetValue(out var rows) ? rows.SingleOrDefault(p => p.Pawn == pawn) : null;
-        var work = new WorkPawn { Id = new(pawn), Available = observed?.Available ?? default,
-            Applies = observed?.Applies ?? default, Schedule = observed?.Schedule ?? default };
-        return ForecastPawnCapacityOf(new() { Pawn = work, ProtectTimetable = protectTimetable, Location = "start", HorizonTicks = horizon,
-            LocalHour = observed?.LocalHour ?? default, OpportunityCostPerTick = Known(1.0),
+        var work = new WorkPawn
+        {
+            Id = new(pawn),
+            Available = observed?.Available ?? default,
+            Applies = observed?.Applies ?? default,
+            Schedule = observed?.Schedule ?? default
+        };
+        return ForecastPawnCapacityOf(new()
+        {
+            Pawn = work,
+            ProtectTimetable = protectTimetable,
+            Location = "start",
+            HorizonTicks = horizon,
+            LocalHour = observed?.LocalHour ?? default,
+            OpportunityCostPerTick = Known(1.0),
             CurrentWork = new(work.Id, observed?.Occupied ?? default, default,
                 observed is { Occupied.IsKnown: true, Occupied.Value: false } ? Known(0.0) : default),
             Occupancy = view.Claims.Truncated ? default : Known<EquatableArray<ForecastOccupancy>>(view.Claims.Pawns.Contains(pawn)
-                ? [new("journal", pawn, Known(0.0), default, ForecastOccupancyState.Active)] : []) });
+                ? [new("journal", pawn, Known(0.0), default, ForecastOccupancyState.Active)] : [])
+        });
     }
 
     public static RoundsFacts ReviewWorkResources(RoundsFacts facts, Fact<EquatableArray<ProductionBatch>> batches,
@@ -53,12 +71,14 @@ public static partial class PolicyFunctions
         var view = WorkResourcesOf(evidence, batches, actions.Actions, actions.Truncated);
         var claims = view.Claims;
         var production = evidence.ForecastPromises;
-        return facts with
+        var reviewed = facts with
         {
             ProductionPromises = !actions.Truncated && production.TryGetValue(out var rows) ? Known(MergeWorkMaterialPromises(rows.Concat(claims.Materials))) : default,
-            WorkClaims = claims, WorkView = view,
+            WorkClaims = claims,
+            WorkView = view,
             NeedsAlternatives = ReviewNeedsAlternatives(facts.ForecastObserved.Needs, view),
         };
+        return reviewed;
     }
 
     // A productive iteration is part of its owning fixed bill's remaining promise, not another batch.
@@ -66,12 +86,18 @@ public static partial class PolicyFunctions
     public static EquatableArray<ForecastCommitment> MergeWorkMaterialPromises(IEnumerable<ForecastCommitment> rows)
     {
         var commitments = rows.ToArray();
-        var result = commitments.Select(c => c with { MaterialClaims = EquatableArray.From(c.MaterialClaims
-            .Where(m => !m.ReservationBill.TryGetValue(out var bill) || bill.Length == 0)) }).ToList();
+        var result = commitments.Select(c => c with
+        {
+            MaterialClaims = EquatableArray.From(c.MaterialClaims
+            .Where(m => !m.ReservationBill.TryGetValue(out var bill) || bill.Length == 0))
+        }).ToList();
         foreach (var bill in commitments.SelectMany(c => c.MaterialClaims)
             .Where(c => c.ReservationBill.TryGetValue(out var id) && id.Length != 0).GroupBy(c => c.ReservationBill.Value))
-            result.Add(new("shared-bill/" + bill.Key, default) { MaterialClaims = EquatableArray.From(bill.GroupBy(c => c.Resource)
-                .Select(g => new ForecastMaterialClaim(g.Key, g.All(c => c.Units.IsKnown) ? Known(g.Max(c => c.Units.Value)) : default, Known(bill.Key)))) });
+            result.Add(new("shared-bill/" + bill.Key, default)
+            {
+                MaterialClaims = EquatableArray.From(bill.GroupBy(c => c.Resource)
+                .Select(g => new ForecastMaterialClaim(g.Key, g.All(c => c.Units.IsKnown) ? Known(g.Max(c => c.Units.Value)) : default, Known(bill.Key))))
+            });
         return EquatableArray.From(result);
     }
     /// <summary>Project commitments from the journal; no native writes and no independently mutable claims.</summary>
@@ -180,9 +206,11 @@ public static partial class PolicyFunctions
         }
         foreach (var (owner, claims) in activityMaterials)
             materials.Add(new("activity/" + owner.Assignment + "/" + owner.Pawn, default)
-            { MaterialClaims = EquatableArray.From(claims.GroupBy(c => c.Resource).Select(g => new ForecastMaterialClaim(g.Key,
+            {
+                MaterialClaims = EquatableArray.From(claims.GroupBy(c => c.Resource).Select(g => new ForecastMaterialClaim(g.Key,
                 g.All(c => c.Units.IsKnown) ? Known(g.Max(c => c.Units.Value)) : default,
-                g.Select(c => c.ReservationBill).Distinct().Count() == 1 ? g.First().ReservationBill : default))) });
+                g.Select(c => c.ReservationBill).Distinct().Count() == 1 ? g.First().ReservationBill : default)))
+            });
         return new(EquatableArray.From(materials), EquatableArray.From(pawns.Order(StringComparer.Ordinal)),
             EquatableArray.From(targets.Order(StringComparer.Ordinal)), EquatableArray.From(findings.Order(StringComparer.Ordinal)));
     }
@@ -197,8 +225,11 @@ public static partial class PolicyFunctions
         // An unpriced commitment can consume any material. Keep pawn/target accounting usable independently.
         if (claims.Findings.Count != 0 || truncated) materials = default;
         var view = new WorkResourceView(evidence, claims, materials);
-        return view with { Capacity = evidence.Pawns.TryGetValue(out var roster)
-            ? roster.ToDictionary(p => p.Pawn, p => WorkCapacityOf(view, p.Pawn, 7 * GameTime.TicksPerDay), StringComparer.Ordinal) : new Dictionary<string, ForecastCapacityResult>() };
+        return view with
+        {
+            Capacity = evidence.Pawns.TryGetValue(out var roster)
+            ? roster.ToDictionary(p => p.Pawn, p => WorkCapacityOf(view, p.Pawn, 7 * GameTime.TicksPerDay), StringComparer.Ordinal) : new Dictionary<string, ForecastCapacityResult>()
+        };
     }
 
     public static bool WorkResourcesFit(WorkResourceView view, PlanSpec proposed, IReadOnlySet<string>? retainedParticipants = null)
@@ -260,11 +291,14 @@ public static partial class PolicyFunctions
         IReadOnlyList<ActivityOwnership>? observed = null)
     {
         if (!evidence.Pawns.TryGetValue(out var pawns) || !evidence.WorkResources.TryGetValue(out var native)) return evidence;
-        return evidence with { Pawns = Known(EquatableArray.From(pawns.Select(p => batch.Orders.Any(o => o.Pawn == p.Pawn
+        return evidence with
+        {
+            Pawns = Known(EquatableArray.From(pawns.Select(p => batch.Orders.Any(o => o.Pawn == p.Pawn
             && (observed is not null ? observed.Any(n => MatchesActivityOwner(o, n)
                 && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))
                 : native.Any(n => n.Pawn == o.Pawn && n.Assignment == o.Assignment && n.Revision == o.Revision
                     && (n.State is "completed" or "failed" || o.Preparing && n.State == "holding"))))
-            ? p with { Occupied = Known(false) } : p))) };
+            ? p with { Occupied = Known(false) } : p)))
+        };
     }
 }

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Contracts.Wire.Common;
 using Identity = RimGovernor.Contracts.Wire.Common.Identity;
@@ -16,7 +17,7 @@ public sealed record RecipeIngredientObservation(string Thing, string Resource, 
 }
 public sealed record RecipeActivityOption(string Id, string Pawn, string Bench, string WorkGiver,
     string Recipe, string Product, string Stuff, string Bill, string Unfinished, Cell Location,
-    EquatableArray<RecipeIngredientObservation> Inputs, Fact<double> TravelTicks, Fact<double> WorkTicks,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<RecipeIngredientObservation>))] EquatableArray<RecipeIngredientObservation> Inputs, Fact<double> TravelTicks, Fact<double> WorkTicks,
     Fact<double> OutputTravelTicks, Cell Destination)
 {
     public int RequiredCount { get; init; }
@@ -27,7 +28,9 @@ public sealed record RecipeActivityRead
     public bool Known { get; init; }
     public bool Truncated { get; init; }
     public EquatableArray<string> Findings { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeActivityOption>))]
     public EquatableArray<RecipeActivityOption> Options { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeRetainedOutput>))]
     public EquatableArray<RecipeRetainedOutput> Retained { get; init; }
 }
 public sealed record RecipeRetainedOutput(string Id, string Product, string Stuff, int Count, Fact<double> CompletionTicks);

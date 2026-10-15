@@ -76,7 +76,10 @@ Method, reserve every resource or prove completed pawn work.
 
 This is the structure for the migrated path, not a claim that every planner uses
 one complete colony portfolio. The live food path includes one cooking iteration
-after observed harvest; the full survival food portfolio remains unintegrated.
+after observed harvest. The shared coupled forecast now evaluates food batches,
+needs recovery, later production and planned-room thermal consequences from one
+observed frame; choosing and dispatching that cross-family portfolio remains the
+next integration boundary.
 See [Method selection and binding](plans-and-hands.md#method-selection-and-binding)
 for the ownership boundaries and [live policy stages](colony-forecast.md#live-activity-policy-stages)
 for the implementation, enforced dependencies and current bounds.
@@ -120,4 +123,4 @@ Concern still waits for a finished building. Unknown facts never prove recovery.
 - [Expert-play roadmap](expert-play-assessment.md): proposed guarantees and their
   evaluation criteria.
 - [ColonyForecast](colony-forecast.md): baseline/delta inventory accounting,
-  current diagnostics and the migration to coupled production planning.
+  current diagnostics, coupled consequences and production selection boundaries.

@@ -1,0 +1,160 @@
+using RimGovernor.Contracts.Wire.Observations;
+
+namespace RimGovernor.Brain.Policy;
+
+/// <summary>Unselected alternatives for ColonyForecast; the existing Method selector consumes these.</summary>
+public sealed record ForecastCoupledCandidates(ForecastCoupledContext Context,
+    EquatableArray<ForecastCommitment> Alternatives, EquatableArray<string> Findings, bool Truncated);
+
+public static partial class PolicyFunctions
+{
+    public static RoundsFacts ReviewCoupledActivities(RoundsFacts facts) => facts with { CoupledAlternatives = GenerateCoupledActivities(facts) };
+
+    public static ForecastCoupledCandidates? GenerateCoupledActivities(RoundsFacts facts, double horizon = GameTime.TicksPerDay)
+    {
+        if (facts.ForecastObserved.Coupled is not { } read || facts.ForecastObserved.Needs is not { } needs
+            || facts.WorkView is not { } resources) return null;
+        if (read.Tick != facts.Tick.Value || needs.Tick != read.Tick || resources.Evidence.Tick.Value != read.Tick)
+            return null; // A mixed frame cannot certify a consequence; caller retains absence explicitly.
+        var bindings = new Dictionary<(string, string), Methods.ActivityTaskCandidate>();
+        var deadline = checked(read.Tick + (long)horizon);
+        var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
+        var routes = new Dictionary<(string, string, string), ForecastActivityRoute>();
+        var lots = read.FoodSources.Select(o => new ForecastMaterialLot(o.Target, Location(o.Location), new(o.Resource), Known((double)o.Count)) { Perishable = true, FreshTicks = o.FreshTicks })
+    .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => new ForecastMaterialLot(o.Input, Location(o.Origin), new(o.Resource), o.AvailableInput)))
+    .Concat(read.Clothing.Options.SelectMany(o => o.Inputs).Select(i => new ForecastMaterialLot(i.Thing, Location(i.Location), new(i.Resource), Known((double)i.AvailableCount))))
+    .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food" && t.Location is not null)
+        .Select(t => new ForecastMaterialLot(t.Id, Location(t.Location!.Value), new(t.Resource), t.StockCount) { Perishable = true, FreshTicks = t.FreshTicks }))
+    .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToArray();
+        var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>();
+        var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
+        var truncated = read.Truncated || facts.PlannedShelters.Count > 4; var expanded = 0;
+        string Location(Cell c) => "cell/" + c.X + "/" + c.Z;
+        bool Space(int count)
+        {
+            if (++expanded > 256 || tasks.Count + count > 256) { truncated = true; return false; }
+            return true;
+        }
+        void Route(string pawn, string from, string to, Fact<double> ticks)
+            => routes.TryAdd((pawn, from, to), new(pawn, from, to, ticks));
+        void Option(string id, string pawn, Fact<double> ticks, string? equipment = null)
+            => options.Add(new(id, pawn, ticks, Known(0.0)) { Equipment = equipment is null ? [] : [equipment] });
+        void Outcome(string id, params string[] completion)
+            => alternatives.Add(new(id, []) { ActivityCompletions = EquatableArray.From(completion), ExclusiveOutcome = id });
+        foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
+        var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
+        tasks.AddRange(food.Tasks); options.AddRange(food.Options); needTasks.AddRange(food.Needs); alternatives.AddRange(food.Alternatives);
+        foreach (var binding in food.Bindings) bindings.Add(binding.Key, binding.Value);
+        foreach (var route in food.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
+        truncated |= food.Truncated; AppendFamily(Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, checked(read.Tick + (long)horizon), resources));
+        if (facts.Gear.TryGetValue(out var gear))
+            AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
+                checked(read.Tick + (long)horizon), resources));
+        else findings.Add("unknown_clothing_requirements");
+        foreach (var pawn in needs.Pawns)
+        {
+            var capacity = NeedsWorkCapacity(resources, pawn.Pawn, horizon);
+            var generated = GenerateNeedsAlternatives(pawn, capacity, horizon, needs.Truncated, 32);
+            findings.UnionWith(generated.Findings); truncated |= generated.Truncated;
+            foreach (var choice in generated.Choices)
+            {
+                if (!Space(1)) break;
+                var id = choice.Id;
+                var target = pawn.Targets.Single(t => t.Id == choice.Target);
+                var location = target.Location is { } cell ? Location(cell) : choice.Target;
+                if (target.Location is null) findings.Add("unknown_need_target_location:" + target.Id);
+                tasks.Add(choice.Activity with
+                {
+                    NotBefore = choice.Start,
+                    Location = location,
+                    EndLocation = location,
+                    Inputs = choice.Kind == "food" ? [new(new(choice.Resource), Known((double)choice.Count)) { Lot = target.Id }] : []
+                });
+                Route(pawn.Pawn, "start", location, Known(choice.Start - choice.Depart));
+                if (target.Location is { } physical)
+                    bindings[(id, pawn.Pawn)] = new(id, pawn.Pawn, [], choice.Kind == "food" ? PawnActivityKind.Eat : choice.Kind == "rest" ? PawnActivityKind.Sleep : PawnActivityKind.Recreation,
+                        target.Id, "", "", choice.Count, deadline, physical)
+                    { Resource = choice.Resource, Source = physical };
+                Option(id, pawn.Pawn, Known(choice.End - choice.Start));
+                needTasks.Add(new(id, pawn.Pawn, choice.Kind, choice.Target, new(choice.Resource), choice.Count, Known(choice.Gain), choice.Thoughts)
+                { AvailableCount = pawn.Targets.Single(t => t.Id == choice.Target).StockCount, FreshTicks = pawn.Targets.Single(t => t.Id == choice.Target).FreshTicks });
+                Outcome(id, id);
+            }
+        }
+        var shelters = Methods.Generation.CoupledShelterCandidates.Append(facts.PlannedShelters.Select(r => new ForecastShelterGeometry(r.Id, EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)), read.Thermal, tasks, options, routes, bindings, alternatives, deadline);
+        // Recovery can unlock productive work which the earliest-only schedule would otherwise try too soon.
+        // Propose the dependency, rather than hoping weights invent a missing complementary combination.
+        var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1
+            && needTasks.All(n => n.Task != c.ActivityCompletions[0])).ToArray();
+        var delayed = 0;
+        foreach (var root in productiveRoots)
+            foreach (var recovery in needTasks.ToArray())
+            {
+                if (delayed >= 64) { truncated = true; break; }
+                var original = tasks.Single(t => t.Id == root.ActivityCompletions[0]);
+                if (!options.Any(o => o.Activity == original.Id && o.Pawn == recovery.Pawn)
+                    || Ancestor(recovery.Task, original.Id)) continue;
+                var id = original.Id + "/after/" + recovery.Task;
+                tasks.Add(original with { Id = id, Prerequisites = [.. original.Prerequisites, recovery.Task] });
+                foreach (var option in options.Where(o => o.Activity == original.Id).ToArray())
+                {
+                    options.Add(option with { Activity = id });
+                    if (bindings.TryGetValue((original.Id, option.Pawn), out var binding))
+                        bindings[(id, option.Pawn)] = binding with { Id = id, Prerequisites = EquatableArray.From(original.Prerequisites.Append(recovery.Task)) };
+                }
+                alternatives.Add(root with { Id = id, ActivityCompletions = [id] }); delayed++;
+            }
+        bool Ancestor(string task, string ancestor)
+        {
+            if (task == ancestor) return true;
+            return tasks.Single(t => t.Id == task).Prerequisites.Any(p => Ancestor(p, ancestor));
+        }
+        var equipment = options.SelectMany(o => o.Equipment).Distinct().Order(StringComparer.Ordinal)
+            .Select(id => new ForecastEquipmentCapacity(id, tasks.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity) is var equipmentTask && equipmentTask.EquipmentLocation.Length != 0 ? equipmentTask.EquipmentLocation : equipmentTask.Location, resources.Claims.Targets.Contains(id)
+                ? Known<EquatableArray<ForecastTimeWindow>>([]) : Known<EquatableArray<ForecastTimeWindow>>([new(0, horizon)]))).ToArray();
+        if (truncated) findings.Add("coupled_generation_truncated");
+        return new(new()
+        {
+            Activities = new()
+            {
+                Activities = tasks.ToArray(),
+                Options = options.ToArray(),
+                Routes = routes.Values.ToArray(),
+                Pawns = needs.Pawns.Select(p => NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity).ToArray(),
+                Equipment = equipment,
+                Deadline = Known(horizon),
+                AlternativeLaborCost = Known(horizon * Math.Max(1, needs.Pawns.Count)),
+                ExpansionBudget = 4096
+            },
+            Truncated = truncated,
+            Needs = needs,
+            Resources = resources,
+            Construction = read.Construction,
+            Thermal = read.Thermal,
+            Shelters = EquatableArray.From(shelters),
+            InitialLots = EquatableArray.From(lots),
+            Bindings = bindings,
+            NeedTasks = EquatableArray.From(needTasks),
+            Findings = EquatableArray.From(findings)
+        },
+            EquatableArray.From(alternatives), EquatableArray.From(findings), truncated);
+
+        void AppendFamily(Methods.CoordinatedMethodCandidates family)
+        {
+            findings.UnionWith(family.Findings); truncated |= family.Truncated;
+            if (family.Problem is null) return;
+            foreach (var task in family.Problem.Activities) tasks.Add(task);
+            options.AddRange(family.Problem.Options);
+            foreach (var binding in family.Bindings) bindings.Add(binding.Key, binding.Value);
+            foreach (var route in family.Problem.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
+            foreach (var outcome in family.Outcomes)
+                alternatives.Add(new(outcome.Id, [])
+                {
+                    ActivityCompletions = outcome.Completion.Length == 0 ? [] : [outcome.Completion],
+                    ExclusiveOutcome = outcome.Need == "construction-method"
+                        ? "construction/" + family.Bindings.Values.First(b => b.Id == outcome.Completion).Target : outcome.Need,
+                    Outcome = outcome
+                });
+        }
+    }
+}

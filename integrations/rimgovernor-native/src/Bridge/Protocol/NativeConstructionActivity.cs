@@ -83,7 +83,7 @@ public sealed class NativeConstructionActivity
                     }
                     options.Add(new(site.GetUniqueLoadID(), definition.defName, new(site.Position.x, site.Position.z), pawn.GetUniqueLoadID(),
                         source?.def.defName ?? "", source?.GetUniqueLoadID() ?? "", new(source?.Position.x ?? site.Position.x, source?.Position.z ?? site.Position.z),
-                        count, capacity, finishGiver?.defName ?? "", approach, delivery, finishTicks) { SiteApproachTicks = Fact.Known((double)siteRoute.TotalCost) });
+                        count, capacity, finishGiver?.defName ?? "", approach, delivery, finishTicks) { SiteApproachTicks = Fact.Known((double)siteRoute.TotalCost), AvailableInput = Fact.Known((double)(source?.stackCount ?? 0)) });
                 }
             }
         }

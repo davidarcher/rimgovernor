@@ -70,7 +70,8 @@ public sealed class NativeFoodActivity
                 var harvestAllowed = plant is not null && !(giver?.Worker is not WorkGiver_Scanner scanner || !plant.HarvestableNow
                     || pawn.WorkTagIsDisabled(giver.workTags) || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))
                     || scanner.MissingRequiredCapacity(pawn) != null || !scanner.HasJobOnCell(pawn, plant.Position, false));
-                var count = Math.Min(plant is null ? source.stackCount : plant.YieldNow(), pawn.carryTracker.MaxStackSpaceEver(product));
+                var sourceCount = plant is null ? source.stackCount : plant.YieldNow();
+                var count = Math.Min(sourceCount, pawn.carryTracker.MaxStackSpaceEver(product));
                 if (existing?.OutputDelivery is { } obligation) count = Math.Min(count, obligation.Count);
                 if (count <= 0) continue;
                 var work = plant is null ? 0 : plant.def.plant.harvestWork / Math.Max(0.01f, pawn.GetStatValue(StatDefOf.PlantWorkSpeed));
@@ -98,7 +99,7 @@ public sealed class NativeFoodActivity
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
                         new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count,
                         approach.TotalCost + route.TotalCost, work) { NutritionPerUnit = Fact.Known((double)product.GetStatValueAbstract(StatDefOf.Nutrition)),
-                            ApproachTicks = Fact.Known((double)approach.TotalCost), DeliveryTicks = Fact.Known((double)route.TotalCost), HarvestAllowed = Fact.Known(harvestAllowed) });
+                            ApproachTicks = Fact.Known((double)approach.TotalCost), DeliveryTicks = Fact.Known((double)route.TotalCost), HarvestAllowed = Fact.Known(harvestAllowed), SourceCount = Fact.Known((double)sourceCount) });
                 }
                 // Preserve raw alternatives before recipe expansion can spend the remaining route budget.
                 if (plant is null && existing is not null && (request.AllowCooking || existing.Steps[0].Kind == PawnActivityKind.Work))

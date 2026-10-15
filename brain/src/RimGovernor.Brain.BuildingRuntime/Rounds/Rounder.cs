@@ -370,13 +370,16 @@ public sealed partial class Rounder
         PlanFood(ref foodProjection);
         reading = reading.WithProjection(foodProjection);
         reading = reading.WithFacts(rf => rf with { ConstructionClaims = claims });
-        reading = reading.WithFacts(rf => rf with { WorkAdmission = new()
+        reading = reading.WithFacts(rf => rf with
         {
-            Buildings = reading.Catalog is { } buildingCatalog ? Known(buildingCatalog.WorkBuildingCosts()) : default,
-            Recipes = reading.Catalog is { } batchCatalog ? Known(batchCatalog.ProductionRecipeInputs(
+            WorkAdmission = new()
+            {
+                Buildings = reading.Catalog is { } buildingCatalog ? Known(buildingCatalog.WorkBuildingCosts()) : default,
+                Recipes = reading.Catalog is { } batchCatalog ? Known(batchCatalog.ProductionRecipeInputs(
                 reading.Frame.Tables.Buildings.Table.Values().Select(b => b.Building?.DefName ?? ""))) : default,
-            Bills = ObservationApi.ProductionBatchStates(reading.Frame.Bills),
-        } });
+                Bills = ObservationApi.ProductionBatchStates(reading.Frame.Bills),
+            }
+        });
         var batches = await p.Journal.ProductionBatchesAsync(state.Snapshot, reading.Projection.Identity.Tick, ct).ConfigureAwait(false);
         var workActions = p.Journal.WorkActions(state.Snapshot, ct);
         reading = reading.WithFacts(rf => PolicyApi.ReviewWorkResources(rf, batches, workActions));
@@ -472,7 +475,11 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Flooring = TrafficFlooringFacts(reading.Projection, Policy.Flooring) } });
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { Upkeep = c.Facts.Upkeep with { Flooring = reading.Projection.Facts.Upkeep.Flooring } } });
         }
-        reading = reading.WithFacts(rf => rf with { PlannedConstruction = PlannedConstructionOf(reading.Projection, Policy.Flooring) });
+        reading = reading.WithFacts(rf => rf with
+        {
+            PlannedConstruction = PlannedConstructionOf(reading.Projection, Policy.Flooring),
+            PlannedShelters = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? EquatableArray.From(layout.Rooms.Where(r => !r.Outdoor)) : []
+        });
         if (Firebreak is not null)
         {
             var vFirebreakOwed = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
@@ -526,7 +533,7 @@ public sealed partial class Rounder
         reading.Projection.Facts.DangerSeeds.TryGetValue(out var seeds);
         reading = reading.WithFacts(rf => rf with { DangerWindow = SafeArea.DangerWindow(StockpileWorld(state.Snapshot), reading.Projection.Facts.Hostiles, seeds, expected.Tick) });
         reading = reading.WithFacts(rf => rf with { DangerHaulers = PolicyApi.DangerHaulers(reading.Projection.WorkPawns) });
-        reading = reading.WithFacts(rf => rf with { Tick = expected.Tick });
+        reading = reading.WithFacts(PolicyApi.ReviewCoupledActivities);
         reading = reading.WithFacts(rf => rf with { Dash = PolicyApi.ReviewDash(previous.Latches.Dash, reading.Projection.Facts, reading.Projection.WorkPawns, expected.Tick, PolicyApi.PublishedHypothermiaTuning) });
         reading = reading.WithFacts(rf => rf with { UrgentPatients = PolicyApi.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
         var (amputationCritical, amputationUrgent) = PolicyApi.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients);

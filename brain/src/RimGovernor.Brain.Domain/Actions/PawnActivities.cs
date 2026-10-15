@@ -73,7 +73,8 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                     && (step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Deliver or PawnActivityKind.Supply) || step.Count > 0)
                     && (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
                         ? step.Destination is { X: >= 0, Z: >= 0 } && step.WorkGiver.Length == 0 && step.Job.Length == 0
-                        : step.Destination is null)
+                        : step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof"
+                            ? step.Destination is { X: >= 0, Z: >= 0 } : step.Destination is null)
                     && step.NotBefore >= 0 && step.NotBefore < step.Deadline
                     && (step.Kind == PawnActivityKind.Supply ? Identity.IsValidText(step.Container) : step.Container.Length == 0), "invalid activity step");
                 if (step.Kind == PawnActivityKind.Recipe)

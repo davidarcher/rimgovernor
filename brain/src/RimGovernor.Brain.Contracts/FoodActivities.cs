@@ -14,6 +14,7 @@ public sealed record FoodActivityOption(string Pawn, string Target, string Resou
     string WorkGiver, int Count, double TravelTicks, double WorkTicks)
 {
     public Fact<double> NutritionPerUnit { get; init; }
+    public Fact<double> SourceCount { get; init; }
     public FoodCookingEstimate? Cooking { get; init; }
     public Fact<double> ApproachTicks { get; init; }
     public Fact<double> DeliveryTicks { get; init; }

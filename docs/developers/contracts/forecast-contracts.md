@@ -114,6 +114,36 @@ recovery requires readable current networks.
 
 Forecast validation and pawn outcomes are different evidence levels.
 
+## Coherent coupled observation frame
+
+The routine forecast read includes `CoupledForecastRead` alongside needs in one
+main-thread observation frame. It carries bounded harvest/delivery, recipe,
+construction and clothing options; physical routes and food lots; product counts,
+ingestion eligibility/rates and freshness; and thermal cell/source facts. It
+reports its actual native observation tick. Decoding does not relabel an older
+census with the caller's requested tick. Policy requires agreement with needs,
+shared work-resource evidence and demand before constructing a coupled request.
+
+These are mechanics and current observations, not selected colony policy. Native
+does not spawn hypothetical food to estimate a future meal. Definition-based
+future ingestion facts do not claim ingredient-dependent memories or poisoning
+outcomes. Physical thermal facts do not contain another copy of planned-room
+intent: pure policy joins them to the existing saved layout. Unsupported or
+truncated reads retain findings and unknown estimates, including missing route
+pairs and unpowered heaters.
+
+The [coupled trajectory](../architecture/colony-forecast.md#coupled-food-needs-and-production-trajectory)
+consumes this frame with shared resource ownership. It distinguishes loose stock,
+reserved inputs, carried/delivered lots and future yields; accepted orders are
+never observed production. Existing inventory-only diagnostics remain conditional
+accounting. Coupled consumers must inspect each schedule's feasibility, timings
+and uncertainty rather than treating a final balance as proof of execution.
+
+The prepared `observations/coupled-forecast` case checks native tick/stock capture,
+recipe batch counts and unpowered-source evidence. These native reads cannot be
+proved by a policy-only unit test. It does not dispatch a colony portfolio or
+establish prediction accuracy from registration/compilation alone.
+
 ## Food reserve components
 
 Native reports forbidden stacks (the thing row's `forbidden`) with their

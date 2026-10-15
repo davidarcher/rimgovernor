@@ -104,6 +104,15 @@ namespace HomeBridge.BridgeTools
                         if (!pawn.CanReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) return Refuse("Approach unavailable.");
                         continue;
                     }
+                    if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
+                    {
+                        var cell = new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z);
+                        var roofGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
+                        if (roofGiver?.Worker is not WorkGiver_BuildRoof || !cell.InBounds(pawn.Map)
+                            || !pawn.Map.areaManager.BuildRoof[cell] || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
+                            || !pawn.CanReach(cell, PathEndMode.Touch, Danger.None)) return Refuse("Selected roof work unavailable.");
+                        continue;
+                    }
                     var target = Thing(step.Target) ?? (pawn.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? pawn.carryTracker.CarriedThing : null);
                     if (target == null || target.Destroyed || (!target.Spawned && pawn.carryTracker.CarriedThing != target)
                         || target.Spawned && target.Map != pawn.Map) return Refuse("Activity target unavailable.");
@@ -229,6 +238,22 @@ namespace HomeBridge.BridgeTools
             var p = e.Pawn;
             if (step.Kind == PawnActivityKind.Approach)
                 return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z));
+            if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
+            {
+                var cell = new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z);
+                if (cell.GetRoof(p.Map) != null)
+                {
+                    e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
+                    e.Reason = "roof_observed"; e.Tick = Find.TickManager.TicksGame; Emit(e);
+                    return OfferJob(e);
+                }
+                var roofGiver = DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver);
+                if (roofGiver.Worker is not WorkGiver_BuildRoof roof || roof.MissingRequiredCapacity(p) != null
+                    || p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || !roof.HasJobOnCell(p, cell, false))
+                    throw new InvalidOperationException("roof_work_refused");
+                var roofJob = roof.JobOnCell(p, cell, false) ?? throw new InvalidOperationException("roof_work_refused");
+                roofJob.workGiverDef = roofGiver; return roofJob;
+            }
             var target = Thing(step.Target) ?? (p.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? p.carryTracker.CarriedThing : null)
                 ?? throw new InvalidOperationException("target_missing");
             if (p.carryTracker.CarriedThing != target && (target.IsForbidden(p) || !p.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some))) throw new InvalidOperationException("target_unreachable_or_reserved");

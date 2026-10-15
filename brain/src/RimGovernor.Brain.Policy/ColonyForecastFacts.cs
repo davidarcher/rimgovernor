@@ -6,6 +6,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ColonyForecastObserved
 {
     public RimGovernor.Contracts.Wire.Observations.NeedsForecastRead? Needs { get; init; }
+    public RimGovernor.Contracts.Wire.Observations.CoupledForecastRead? Coupled { get; init; }
     public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
     public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];
 

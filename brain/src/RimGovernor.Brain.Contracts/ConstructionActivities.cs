@@ -13,6 +13,7 @@ public sealed record ConstructionActivityOption(string Site, string Definition, 
     Fact<double> ApproachTicks, Fact<double> DeliveryTicks, Fact<double> FinishTicks)
 {
     public Fact<double> SiteApproachTicks { get; init; }
+    public Fact<double> AvailableInput { get; init; }
 }
 public sealed record ConstructionActivityRead
 {

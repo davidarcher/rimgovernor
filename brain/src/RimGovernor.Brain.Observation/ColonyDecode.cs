@@ -166,6 +166,7 @@ public static partial class ObservationPackage
         };
         var f = new RoundsFacts
         {
+            Tick = identity.Tick,
             WorkResources = v.WorkResources is { } workResources ? Known(workResources) : default,
             Colonists = CountFact(v.ColonistCount is not null, v.ColonistCount.GetValueOrDefault()),
             BedCapacity = CountFact(v.BedCapacity is not null, v.BedCapacity.GetValueOrDefault()),

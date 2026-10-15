@@ -69,11 +69,12 @@ internal static class NativeNeedsForecast
                             var thoughts = FoodUtility.ThoughtsFromIngesting(pawn, target, target.def)
                                 .Select(t => MealMemory(pawn, t)).ToArray();
                             targets.Add(new(target.GetUniqueLoadID(), "food", target.def.defName, target.def.ingestible.maxNumToIngestAtOnce > 0 ? Math.Min(target.stackCount, target.def.ingestible.maxNumToIngestAtOnce) : target.stackCount,
-                                travel, K(service), K(nutrition), default) { MealThoughts = EquatableArray.From(thoughts),
+                                travel, K(service), K(nutrition), default) { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount),
+                                FreshTicks = K(target.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay),
                                 Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                         }
                         else if (group.Key == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel, default, default,
-                            K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))));
+                            K(Need_Rest.BaseRestGainPerTick * target.GetStatValue(StatDefOf.BedRestEffectiveness) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z) });
                         else
                         {
                             var job = DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef;
@@ -81,7 +82,7 @@ internal static class NativeNeedsForecast
                             var gain = job.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour * target.GetStatValue(StatDefOf.JoyGainFactor)
                                 * pawn.needs!.joy.tolerances.JoyFactorFromTolerance(job.joyKind);
                             targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, default, default, K(gain))
-                                { Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
+                                { Location = new(target.Position.x,target.Position.z), Unsupported = ["horseshoes_position_travel", "future_tolerance_changes"] });
                         }
                     }
                 }
@@ -92,7 +93,8 @@ internal static class NativeNeedsForecast
             var unsupported = pawn.needs?.AllNeeds.Where(n => n is not Need_Food && n is not Need_Rest && n is not Need_Joy && n is not Need_Mood)
                 .Select(n => "unsupported_need:" + n.def.defName).ToList() ?? new List<string>();
             unsupported.Add("disease_and_relationship_changes");
-            rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state, Needs = EquatableArray.From(needs),
+            rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state,
+                ComfortableMin = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)), ComfortableMax = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)), Needs = EquatableArray.From(needs),
                 Mood = pawn.needs?.mood is { } mood ? K(mood.CurLevelPercentage) : default,
                 MoodTarget = pawn.needs?.mood is { } targetMood ? K(targetMood.CurInstantLevel) : default,
                 BreakThreshold = pawn.mindState?.mentalBreaker is { } breaker ? K(breaker.BreakThresholdMinor) : default,

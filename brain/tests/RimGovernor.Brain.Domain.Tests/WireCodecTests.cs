@@ -86,6 +86,25 @@ public sealed class WireCodecTests
         }
     }
 
+    [Fact]
+    public void CoupledObservationsRoundTripKnownZeroFalseAndUnknownWithNonemptyRecipeInputs()
+    {
+        var read = new RimGovernor.Contracts.Wire.Observations.CoupledForecastRead
+        {
+            Tick = 100,
+            FoodUses = [new("pawn", "Rice", new(1, 1), RimGovernor.Brain.Domain.Fact.Known(false),
+                RimGovernor.Brain.Domain.Fact.Known(0.0), default, 1, default)],
+            Clothing = new() { Known = true, Options = [new("option", "pawn", "bench", "Tailor", "Shirt", "Shirt", "Cloth", "bill", "", new(1, 1),
+                [new("stack", "Cloth", 10, new(2, 1), 20)], RimGovernor.Brain.Domain.Fact.Known(0.0), default,
+                RimGovernor.Brain.Domain.Fact.Known(10.0), new(3, 1))], Retained = [new("retained", "Shirt", "Cloth", 1, default)] },
+        };
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.CoupledForecastRead>(WireJson.Serialize(read));
+        Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(false), decoded.FoodUses[0].Eligible);
+        Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(0.0), decoded.FoodUses[0].Nutrition);
+        Assert.False(decoded.FoodUses[0].ChewTicks.IsKnown);
+        Assert.Equal("stack", Assert.Single(Assert.Single(decoded.Clothing.Options).Inputs).Thing);
+        Assert.False(Assert.Single(decoded.Clothing.Retained).CompletionTicks.IsKnown);
+    }
     // The largest case count of any choice reachable from the type: how many documents cover every case.
     private static IEnumerable<int> Choices(Type type, int depth, HashSet<Type> seen)
     {
@@ -195,6 +214,9 @@ public sealed class WireCodecTests
         }
 
         var info = WireJsonContext.Default.GetTypeInfo(type) ?? throw new InvalidOperationException($"{type} is not registered");
+        // Global fact converters also encode nullable values; their CLR type metadata has no object properties.
+        if (info.Converter.GetType().IsGenericType && info.Converter.GetType().GetGenericTypeDefinition() == typeof(FactJsonConverter<>))
+            return Fill(type.GetGenericArguments()[0], depth, variant);
         var obj = new JsonObject();
         foreach (var property in info.Properties)
         {

@@ -9,8 +9,9 @@ inventory component accounts for supplied timed changes. The construction slice
 below generates delivery/finish dependencies from observed standing sites and
 shares pawn/material capacity across commitments. A bounded food Method caller
 uses the shared outcome comparator and normal journal/Hands dispatch for harvest
-and delivery. Full production portfolio dispatch and coupled pawn dynamics remain
-unintegrated.
+and delivery. The coupled component below composes food, needs, construction and
+clothing consequences on one timeline. Cross-family production portfolio selection
+and dispatch remain the next integration boundary.
 
 Forecasting is part of choosing and advancing a Method in the
 [Concern/Method/action model](plans-and-hands.md#method-selection-and-binding).
@@ -22,12 +23,16 @@ and its compiler-enforced boundaries.
 
 ## Input and accounting
 
+This section describes the inventory-only conditional accounting component.
+The coupled trajectory below additionally validates task feasibility and yields.
+
 `ColonyForecastRequest` identifies the observed world/load scope and tick, an
 explicit horizon in game days, current facts, existing commitments, a delta,
 and the caller's assumptions. The world string must identify the loaded
 timeline; it is provenance, not a replacement for native dispatch validation.
 `ColonyForecastFactsOf` assembles the available diagnostic facts from
-`RoundsFacts`. Runtime selection is connected in #3135.
+`RoundsFacts`. Coupled review inputs are described below; production portfolio
+selection belongs to #3134 and the full control cutover to #3135.
 
 A commitment identifies a Method's supplied inventory effects by stable ID.
 Each effect has an exact resource, relative day and signed units, each numeric
@@ -75,19 +80,19 @@ one on day 0.5 removes the inventory deficit while leaving observed stock at
 constant still serves existing supply targets; renaming it does not change
 their behavior. Proposed inventory changes do not rewrite these observations.
 
-| Domain | Current component and meaning | Next consumer/model |
+| Domain | Observed diagnostic and meaning | Coupled coverage or remaining boundary |
 | --- | --- | --- |
-| Inventory | Timed conditional balances and shortfall findings | #3127 activities; #3133 coupled transitions |
-| Food | Existing eligibility/rot-aware stock runway; no future delivery credit | #3133 food production, preparation and eating |
-| Power | Current network reserves at observed drain | Future infrastructure/activity effects |
-| Temperature | Current sleeping extremes; current breach held over maintenance horizon | Future climate transitions |
+| Inventory | Timed conditional balances and shortfall findings | Timed task inputs/yields in the coupled trajectory |
+| Food | Existing eligibility/rot-aware stock runway; no future delivery credit | Bounded acquisition, batches, delivery and recurring human ingestion |
+| Power | Current network reserves at observed drain | Current-network heater supply; future generation changes unassessed |
+| Temperature | Current sleeping extremes; current breach held over maintenance horizon | Conditional planned-room heat balance; future weather unassessed |
 | Defense | Current usable turret DPS and explicit gaps | #3129 qualified encounter estimates |
-| Construction | Exact-resource stock/need/shortfall in units; no fabricated ETA or interchangeable stone pools | #3127 dependencies and work capacity |
+| Construction | Exact-resource stock/need/shortfall in units; no fabricated ETA or interchangeable stone pools | Shared construction/material/needs timeline |
 | Fuel | Existing consumer burn and refill-demand diagnostic | Future scheduled supply/consumption |
 | Drugs/materials/medicine | Existing realized-use runway diagnostics | Future timed activity effects |
-| Animal feed | Existing herd/pasture/feed runway diagnostic | #3133 shared food accounting |
-| Pawn time, mood and needs | Explicitly unsupported by this component | #3132 individual transitions; #3125 observed calibration |
-| Infrastructure and dependencies | Explicitly unsupported; supplied effects are conditional | #3133 coupled model |
+| Animal feed | Existing herd/pasture/feed runway diagnostic | Future animal feeding behavior remains outside the coupled human-needs model |
+| Pawn time, mood and needs | Explicitly unsupported by this component | Current-rate needs and future capacity; calibration through #3125 |
+| Infrastructure and dependencies | Explicitly unsupported; supplied effects are conditional | Supported planned-room prerequisites; general infrastructure unassessed |
 
 No diagnostic is a calibrated whole-colony trajectory. The returned unsupported
 list makes the omitted effects visible even when all inventory balances are
@@ -106,11 +111,119 @@ The observation collector's additional facts now use `ForecastObserved`.
 Independent maintenance functions remain because production supply consumes
 them. No second projector exists.
 
-#3127 and #3132 provide activity and pawn state, #3133 composes the first
-feedback loop, #3134 compares Method bundles and #3135 connects the result to
-normal production selection through existing Rounds/Hands. The foundation
+Activity and needs forecasts now compose in the coupled trajectory below.
+#3134 compares and binds Method bundles in normal production; #3135 establishes
+full voluntary control through existing Rounds/Hands. The foundation
 is callable and tested; it is not yet a replacement for live meal/supply
 selection. No compatibility or permanent shadow layer is required.
+
+## Coupled food, needs and production trajectory
+
+The coupled component of `ForecastColony` evaluates baseline and proposed
+commitments against one world, observation tick and horizon. Normal Rounds
+assembles `CoupledAlternatives` from the native forecast census, existing shared
+work-resource view, needs and saved planned-room intent. `CoupledForecastRequestOf`
+requires these ticks to agree; a mixed frame cannot certify a consequence.
+The supported horizon is at most one game day, matching the current-rate needs
+model. This extends the existing forecast owner; it adds no scheduler, durable
+graph, material ledger or order writer.
+
+Family generation retains food batch, construction and clothing alternatives
+with exact task bindings. Composition uses physical cell identities and directed
+native route estimates so a pawn's next approach starts where its previous task
+ended. Approach travel is separate from service travel such as carrying between
+source and destination. Missing cross-cell routes remain unknown. Selected
+commitment completions pull in their prerequisite closure; the existing bounded
+activity search supplies complete schedules with shared pawn and bench occupancy.
+Generation also proposes recovery-before-production dependencies: a comparator
+cannot discover this combination if generation never supplies it.
+
+Each evaluated schedule has its own timed stock trajectory, needs results,
+shelter trajectory, thermal exposure and feasibility findings. These dimensions
+retain their units: resource counts, need levels and deficit/exposure durations,
+memory-adjusted mood target, available work intervals, temperatures and degree-ticks.
+They are not summed into one price for food, mood, injury or development. An
+empty selected set retains the baseline; missing capacity for other commitments
+is an explicit gap. This component evaluates consequences; #3134 owns selecting
+and binding the production portfolio. Existing family selection remains until
+that cutover.
+
+### Conservation and recovery
+
+Task inputs are charged at service start and yields become available at successful
+completion. Failed or unknown prerequisites cannot finance dependent output.
+Recipe batches contain individual iterations with their own ingredient debit,
+bench occupancy and complete product yields. A harvest yields its observed source
+quantity; one carrier's load does not redefine that yield. Supply and delivery
+move physical lots rather than creating stock. Current food lots and future
+production stay distinct, including their locations and freshness clocks.
+
+Shared material availability reuses `WorkResourceView` and its existing promise,
+construction and native-reservation evidence. A selected construction supply or
+bill iteration receives only its exact owned input credit, capped by what that
+selection consumes. Unrelated native holds remain protected; removing a proposed
+commitment does not prove that an existing journal claim has been released.
+Timed consumption from an existing non-activity commitment enters the same event timeline; it cannot be hidden until a final inventory report. Only its exact unlinked owner claim receives capped reservation credit. Unbound prospective output and ambiguous source consumption remain resource/lot-local unknowns.
+Resource availability and local lot availability must both permit the task.
+A positive final colony balance cannot pay for a missing earlier input or food
+at a different ingestion location.
+
+Eating requires eligible, delivered, unexpired food and sufficient remaining lot
+quantity. Recurring ingestion alternatives spend that same stock; hunger continues
+falling between meals. Need recovery occurs at its modeled service time, and the
+resulting physiological work windows must actually contain later productive work.
+If they do not, that work and its dependent yields are refused and consequences
+are recomputed. Freed idle capacity alone never produces goods. Existing memory
+expiry remains modeled; ingredient- and instance-dependent thoughts from future
+food remain unassessed. The needs model's current-rate and mood limitations below
+still apply.
+
+### Planned shelter and occupancy
+
+The concrete shelter alternative joins saved planned-room geometry to native
+shell, roof, standing construction and electric-heater facts. Missing shell or
+source work uses the same construction prerequisites and shared materials;
+missing designated roof cells add bounded roof labor. Protection starts only after
+enclosure, roof and heat-source prerequisites complete, followed by room warmup.
+A placed heater or roof alone earns no thermal benefit.
+
+The supported estimate is a closed rectangular room with thin roof, under current
+outdoor temperature and current network supply. It uses observed native heat
+output and wall/roof/door exchange in a spatial-mean projection, limited to the
+electric heater's full-efficiency regime at or below 20 C. Additional demand from
+selected heaters shares each network's observed surplus. The supply assumption
+holds that current network state constant for the horizon; future weather,
+generator fuel changes, outages and other heat-source mechanics are not predicted.
+Missing geometry, unsupported roofing or insufficiently known energy supply keeps
+the affected shelter estimate unknown. Per-cell roof labor is conservative because
+native roof jobs may cover neighboring cells.
+
+A room's capability is separate from a pawn's exposure. Only modeled stationary
+work/need occupancy at observed physical cells receives the corresponding ambient
+or completed-room temperature. An outdoor worker gains no protection merely
+because a shelter finishes elsewhere. Approach routes, moving services and idle
+intervals lack a temperature trace and remain unassessed. Degree-ticks are exposure,
+not injury probability, hypothermia onset or a physiological capacity model.
+Similarly, clothing recipe and delivery completion supplies a garment; it does
+not prove that a pawn wears it or gains physiological protection.
+
+### Bounds and evidence
+
+The native census, family generation, recovery combinations and shared schedule
+search are deterministic and bounded. Truncation exposes omitted candidates or
+routes rather than certifying optimality. A schedule that cannot complete within
+the horizon has unassessed later benefit, not zero value. Unknowns retain their
+affected resource, task or consequence scope; they do not erase independently
+known results.
+
+`ForecastCoupledTests` uses ordinary review inputs to exercise conservation,
+recovery-dependent production and changing food, labor, material and thermal
+consequences. The prepared `observations/coupled-forecast` case checks native tick,
+stock, batch-count and unpowered-heater observations. Case registration and
+compilation are distinct from execution; neither is measured timing calibration
+or evidence of autonomous portfolio dispatch. The conditional estimates need
+observed prediction/outcome evidence through #3125 and the operational acceptance
+of #3135.
 
 ## Bounded activity coordination proof
 
@@ -144,7 +257,7 @@ by the supplied baseline labor rate; travel/work/wait are its decomposition,
 not additional charges. Recovery is added once in the same labor-tick unit.
 It is an explicit caller estimate, not a combat probability model, and does
 not extend the pawn's occupancy or predict injury onset/needs. Such coupling
-belongs to #3132/#3133. All participants' costs count. Finishing after the
+is outside this supplied-estimate activity proof. All participants' costs count. Finishing after the
 supplied deadline or availability end refuses that combination. Known zero is
 valid; unknown route, capacity, service or recovery excludes only the affected
 branch with a finding. Unknown deadline prevents evaluation; unknown alternative
@@ -1037,9 +1150,8 @@ orders prove completed work.
 
 Remaining consumers outside this admission coverage include terrain work,
 indefinite production, trade/export and non-activity legacy support jobs. Their
-planner-local accounting is still an architecture-rule-8 exception. Timed
-coupled consequences (#3133), portfolio choice (#3134), needs-derived occupancy
-(#3132), and helper retirement (#3149) remain separate work. The supplied-estimate
+planner-local accounting is still an architecture-rule-8 exception. Coupled consequences and needs-derived capacity use this owner as described below.
+Portfolio choice (#3134) and helper retirement (#3149) remain separate work. The supplied-estimate
 forecast APIs remain useful for tests, but are not evidence of live capacity.
 
 ## Needs alternatives and future capacity
@@ -1117,4 +1229,5 @@ relief and total labor under shared resource claims; binding emits only selected
 exact recipes and observed-output delivery tasks. A retained running output is
 an outcome with known completion and no newly allocated activity. Conflicting
 wearables exclude one another, including retained output. This is a family
-consumer, not the cross-family portfolio/coupled-needs milestone (#3133/#3134).
+consumer. Its alternatives also feed the coupled trajectory above; cross-family
+portfolio selection remains #3134.

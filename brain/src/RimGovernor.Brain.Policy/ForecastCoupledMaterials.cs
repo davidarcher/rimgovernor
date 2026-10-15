@@ -1,0 +1,55 @@
+namespace RimGovernor.Brain.Policy;
+
+public static partial class PolicyFunctions
+{
+    /// <summary>Reproject the shared owner for this schedule, releasing only exact work it performs itself.
+    /// Native reservations for unrelated bills are retained even when a proposed commitment is removed.</summary>
+    private static Fact<IReadOnlyDictionary<Resource, Fact<double>>> CoupledMaterialBudgetOf(ColonyForecastRequest request,
+        IReadOnlyDictionary<string, ForecastCommitment> commitments, ForecastActivityProblem problem, ForecastActivityPlan plan)
+    {
+        var context = request.Coupled!; var evidence = context.Resources.Evidence;
+        if (!evidence.Construction.TryGetValue(out var construction) || !evidence.ForecastPromises.TryGetValue(out var production)) return default;
+        var held = MergeWorkMaterialPromises(production).ToDictionary(c => c.Id, StringComparer.Ordinal);
+        // The delta addresses declared identities. Native holds still enter through the shared owner's reservations.
+        foreach (var original in request.Commitments.Where(c => !commitments.ContainsKey(c.Id))) held.Remove(original.Id);
+        foreach (var commitment in commitments.Values.Where(c => c.ActivityCompletions.Count == 0 && c.MaterialClaims.Count != 0)) held[commitment.Id] = commitment;
+        var selected = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))).OfType<Methods.ActivityTaskCandidate>().ToArray();
+        var owed = construction.ToDictionary(p => p.Key, p => p.Value);
+        foreach (var resource in selected.Where(b => b.Kind == PawnActivityKind.Supply && b.Container.Length != 0 && context.Construction.Options.Any(o =>
+                o.Site == b.Container && o.Definition == b.SiteDefinition && o.Resource == b.Resource && o.Input == b.Target
+                && o.Location == b.Location && o.Count == b.Count))
+            .GroupBy(b => (b.Container, b.Resource)).Select(g => g.First()).GroupBy(b => new Resource(b.Resource)))
+            owed[resource.Key] = Math.Max(0, owed.GetValueOrDefault(resource.Key) - resource.Sum(b => (long)b.Count));
+        var liveClaims = context.Resources.Claims.Materials;
+        foreach (var claim in liveClaims) held[claim.Id] = claim; // A projected removal is not evidence of journal release.
+        // The same owner's timed debit replaces only that debit's unlinked reservation, not another hold.
+        foreach (var commitment in commitments.Values.Where(c => c.ActivityCompletions.Count == 0 && held.ContainsKey(c.Id)))
+        {
+            var debit = commitment.StockChanges.Where(s => s.Day.IsKnown && s.Day.Value <= request.HorizonDays && s.Units.IsKnown && s.Units.Value < 0)
+                .GroupBy(s => s.Resource).ToDictionary(g => g.Key, g => -g.Sum(s => s.Units.Value));
+            var owner = held[commitment.Id];
+            held[commitment.Id] = owner with
+            {
+                MaterialClaims = EquatableArray.From(owner.MaterialClaims.Select(m =>
+                m.ReservationBill == Known("") && m.Units.IsKnown && debit.TryGetValue(m.Resource, out var units)
+                    ? m with { Units = Known(Math.Max(0, m.Units.Value - units)) } : m))
+            };
+        }
+        var protectedMaterials = ProductionMaterialHoldsOf(Known(MergeWorkMaterialPromises(held.Values)), evidence.Reservations);
+        if (!protectedMaterials.TryGetValue(out var holds)) return default;
+        var adjusted = new Dictionary<Resource, Fact<double>>(holds);
+        var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        foreach (var bill in selected.Where(b => b.Kind == PawnActivityKind.Recipe && b.Recipe is { Bill.Length: > 0 }).GroupBy(b => b.Recipe!.Bill))
+            foreach (var resource in bill.SelectMany(b => tasks[b.Id].Inputs).GroupBy(i => i.Resource))
+            {
+                var promised = held.Values.SelectMany(c => c.MaterialClaims).Where(c => c.Resource == resource.Key && c.ReservationBill == Known(bill.Key)).ToArray();
+                var native = evidence.Reservations.TryGetValue(out var reservations)
+                    ? reservations.Where(r => r.Bill == Known(bill.Key)).SelectMany(r => r.Items).Where(i => i.Resource == resource.Key).Sum(i => (double)i.Count) : 0;
+                var before = adjusted.GetValueOrDefault(resource.Key, Known(0.0));
+                if (!before.IsKnown || resource.Any(i => !i.Units.IsKnown) || promised.Any(p => !p.Units.IsKnown)) continue;
+                var credit = Math.Min(resource.Sum(i => i.Units.Value), Math.Max(native, promised.Select(p => p.Units.Value).DefaultIfEmpty(0).Max()));
+                adjusted[resource.Key] = Known(Math.Max(0, before.Value - credit));
+            }
+        return SharedMaterialBudgetOf(evidence.Stock, Known<IReadOnlyDictionary<Resource, long>>(owed), Known<IReadOnlyDictionary<Resource, Fact<double>>>(adjusted));
+    }
+}

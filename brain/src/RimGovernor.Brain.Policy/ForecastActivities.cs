@@ -10,9 +10,18 @@ public sealed record ForecastPawnCapacity(string Pawn, string Location, Fact<Equ
     Fact<double> OpportunityCostPerTick);
 
 /// <summary>Dependencies gate service, not preparatory travel. Each task and its output are counted once.</summary>
-public sealed record ForecastActivityYield(Resource Resource, Fact<double> Units);
+public sealed record ForecastActivityYield(Resource Resource, Fact<double> Units)
+{
+    public string Lot { get; init; } = "";
+    public string LotLocation { get; init; } = "";
+    public bool Perishable { get; init; }
+    public Fact<double> FreshTicks { get; init; }
+}
 public sealed record ForecastActivity(string Id, string Location, string EndLocation, string[] Prerequisites)
 {
+    /// <summary>Relative earliest service time; dependencies may require a later start.</summary>
+    public double NotBefore { get; init; }
+    public string EquipmentLocation { get; init; } = "";
     /// <summary>One physical output per resource at completion; support activities normally have none.</summary>
     public EquatableArray<ForecastActivityYield> Outputs { get; init; }
     /// <summary>Exact resources consumed at service start; delivery-only movement must not consume them again.</summary>
@@ -101,7 +110,7 @@ public static partial class PolicyFunctions
             var done = assigned.ToDictionary(a => a.Activity, StringComparer.Ordinal);
             foreach (var task in tasks.Where(t => !done.ContainsKey(t.Id) && t.Prerequisites.All(done.ContainsKey)))
             {
-                var ready = task.Prerequisites.Select(id => done[id].End).DefaultIfEmpty(0).Max();
+                var ready = Math.Max(task.NotBefore, task.Prerequisites.Select(id => done[id].End).DefaultIfEmpty(0).Max());
                 foreach (var option in problem.Options.Where(o => o.Activity == task.Id).OrderBy(o => o.Pawn, StringComparer.Ordinal))
                 {
                     // Unknown/refused options also consume the deterministic search budget.
@@ -113,7 +122,7 @@ public static partial class PolicyFunctions
                     { findings.Add("unknown_capacity_or_cost:" + task.Id + ":" + pawn.Pawn); continue; }
                     if (option.Equipment.Any(id => !equipment.TryGetValue(id, out var e) || !e.Windows.IsKnown))
                     { findings.Add("unknown_equipment:" + task.Id + ":" + pawn.Pawn); continue; }
-                    if (option.Equipment.Any(id => equipment[id].Location != task.Location))
+                    if (option.Equipment.Any(id => equipment[id].Location != (task.EquipmentLocation.Length == 0 ? task.Location : task.EquipmentLocation)))
                     { findings.Add("equipment_location_mismatch:" + task.Id + ":" + pawn.Pawn); continue; }
                     var shared = assigned.Where(a => options[(a.Activity, a.Pawn)].Equipment.Intersect(option.Equipment).Any()).ToArray();
                     var serviceTimes = option.Equipment.SelectMany(id => equipment[id].Windows.Value.Select(w => w.Start))
@@ -135,25 +144,25 @@ public static partial class PolicyFunctions
                         { if (!SpendExpansion()) return; findings.Add("unknown_route:" + pawn.Pawn + ":" + origin + ":" + task.Location); continue; }
                         var free = Math.Max(released, window.Start);
                         foreach (var serviceReady in serviceTimes)
-                        foreach (var depart in new[] { free, Math.Max(free, serviceReady - travel) }.Distinct())
-                        {
-                            if (!SpendExpansion()) return;
-                            var arrive = depart + travel;
-                            var start = Math.Max(arrive, serviceReady);
-                            var end = start + work;
-                            var cost = (end - depart) * rate + recovery;
-                            if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
-                            if (end > window.End || end > deadline)
-                            { findings.Add("capacity_or_deadline:" + task.Id + ":" + pawn.Pawn); continue; }
-                            if (option.Equipment.Any(id => !equipment[id].Windows.Value.Any(w => start >= w.Start && end <= w.End))
-                                || shared.Any(a => start < a.End && a.Start < end && end > start && a.End > a.Start))
-                            { findings.Add("equipment_occupied:" + task.Id + ":" + pawn.Pawn); continue; }
-                            assigned.Add(new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
-                                (end - depart) * rate, recovery));
-                            Search(assigned);
-                            assigned.RemoveAt(assigned.Count - 1);
-                            if (truncated) return;
-                        }
+                            foreach (var depart in new[] { free, Math.Max(free, serviceReady - travel) }.Distinct())
+                            {
+                                if (!SpendExpansion()) return;
+                                var arrive = depart + travel;
+                                var start = Math.Max(arrive, serviceReady);
+                                var end = start + work;
+                                var cost = (end - depart) * rate + recovery;
+                                if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
+                                if (end > window.End || end > deadline)
+                                { findings.Add("capacity_or_deadline:" + task.Id + ":" + pawn.Pawn); continue; }
+                                if (option.Equipment.Any(id => !equipment[id].Windows.Value.Any(w => start >= w.Start && end <= w.End))
+                                    || shared.Any(a => start < a.End && a.Start < end && end > start && a.End > a.Start))
+                                { findings.Add("equipment_occupied:" + task.Id + ":" + pawn.Pawn); continue; }
+                                assigned.Add(new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
+                                    (end - depart) * rate, recovery));
+                                Search(assigned);
+                                assigned.RemoveAt(assigned.Count - 1);
+                                if (truncated) return;
+                            }
                     }
                 }
             }
@@ -199,10 +208,11 @@ public static partial class PolicyFunctions
         var pawns = p.Pawns.Select(a => a.Pawn).ToHashSet();
         foreach (var task in p.Activities)
         {
+            if (!double.IsFinite(task.NotBefore) || task.NotBefore < 0) throw new DomainException("invalid earliest activity time");
             if (task.Prerequisites.Distinct().Count() != task.Prerequisites.Length || task.Prerequisites.Any(id => !tasks.ContainsKey(id)))
                 throw new DomainException("invalid activity dependency");
             if (task.Outputs.Select(o => o.Resource).Distinct().Count() != task.Outputs.Count
-                || task.Inputs.Select(o => o.Resource).Distinct().Count() != task.Inputs.Count)
+                || task.Inputs.Select(o => (o.Resource, o.Lot, o.LotLocation)).Distinct().Count() != task.Inputs.Count)
                 throw new DomainException("duplicate activity output");
             foreach (var output in task.Outputs.Concat(task.Inputs))
             {

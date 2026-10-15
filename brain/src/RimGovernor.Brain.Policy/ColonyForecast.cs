@@ -9,6 +9,9 @@ public sealed record ForecastStockChange(Resource Resource, Fact<double> Day, Fa
 /// <summary>Supplied Method effects, not a promise of native completion.</summary>
 public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockChange> StockChanges)
 {
+    public EquatableArray<string> ActivityCompletions { get; init; }
+    public string ExclusiveOutcome { get; init; } = "";
+    public ForecastActivityOutcome? Outcome { get; init; }
     public EquatableArray<ForecastMaterialClaim> MaterialClaims { get; init; }
     public EquatableArray<ForecastEquipmentClaim> EquipmentClaims { get; init; }
     public EquatableArray<string> UnsupportedEffects { get; init; }
@@ -34,6 +37,7 @@ public sealed record ColonyForecastRequest
     public ColonyForecastDelta Proposed { get; init; } = new();
     public EquatableArray<string> Assumptions { get; init; }
     public ForecastConstructionContext Construction { get; init; } = new();
+    public ForecastCoupledContext? Coupled { get; init; }
 }
 
 /// <summary>Negative balance denotes unmet units, not spendable inventory.</summary>
@@ -43,6 +47,7 @@ public sealed record ForecastFinding(string Reason, string Commitment, Resource 
 
 public sealed record ColonyForecastScenario
 {
+    public ForecastCoupledScenario? Coupled { get; init; }
     /// <summary>Free for new declared claims, not an inventory trajectory or native reservation.</summary>
     public Fact<IReadOnlyDictionary<Resource, Fact<double>>> MaterialAvailability { get; init; }
     public EquatableArray<ForecastEquipmentCapacity> EquipmentAvailability { get; init; }
@@ -62,7 +67,7 @@ public sealed record ColonyForecast
     public required ColonyDiagnostics Observed { get; init; }
     public required ColonyForecastScenario Baseline { get; init; }
     public required ColonyForecastScenario Proposed { get; init; }
-    private static readonly EquatableArray<string> UnsupportedDomains = EquatableArray.From(new[]
+    internal static readonly EquatableArray<string> UnsupportedDomains = EquatableArray.From(new[]
     {
         "pawn_capacity", "needs_and_mood", "activity_dependencies", "infrastructure_effects", "combat_outcomes",
     });
@@ -101,9 +106,10 @@ public static partial class PolicyFunctions
             Origin = request.Origin,
             HorizonDays = request.HorizonDays,
             Assumptions = request.Assumptions,
+            Unsupported = request.Coupled is null ? ColonyForecast.UnsupportedDomains : ["combat_outcomes", "future_weather", "unmodeled_thermal_geometry", "future_meal_thoughts"],
             Observed = DiagnoseColony(request.Facts),
-            Baseline = ForecastConstructionScenario(request, baseline),
-            Proposed = ForecastConstructionScenario(request, proposed),
+            Baseline = request.Coupled is null ? ForecastConstructionScenario(request, baseline) : ForecastCoupledScenarioOf(request, baseline),
+            Proposed = request.Coupled is null ? ForecastConstructionScenario(request, proposed) : ForecastCoupledScenarioOf(request, proposed),
         };
     }
 
@@ -217,7 +223,9 @@ public static partial class PolicyFunctions
         }
         return new ColonyForecastScenario
         {
-            Commitments = EquatableArray.From(ordered), Stocks = EquatableArray.From(trajectories), Findings = EquatableArray.From(findings),
+            Commitments = EquatableArray.From(ordered),
+            Stocks = EquatableArray.From(trajectories),
+            Findings = EquatableArray.From(findings),
         };
     }
 }

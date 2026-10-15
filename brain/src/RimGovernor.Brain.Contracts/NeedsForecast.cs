@@ -28,6 +28,8 @@ public sealed record NeedsForecastPawn
 {
     public string Pawn { get; init; } = "";
     public string State { get; init; } = "unknown";
+    public Fact<double> ComfortableMin { get; init; }
+    public Fact<double> ComfortableMax { get; init; }
     [JsonConverter(typeof(ObservedNumberJsonConverter))]
     public Fact<double> Mood { get; init; }
     [JsonConverter(typeof(ObservedNumberJsonConverter))]
@@ -52,6 +54,9 @@ public sealed record NeedTarget(string Id, string Kind, string Resource, int Ava
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
     public EquatableArray<NeedMemory> MealThoughts { get; init; }
+    public Cell? Location { get; init; }
+    public Fact<double> StockCount { get; init; }
+    public Fact<double> FreshTicks { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Unsupported { get; init; }
 }

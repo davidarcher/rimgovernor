@@ -6767,6 +6767,7 @@ public sealed record PatientForecast
 public sealed record ForecastFacts
 {
     public NeedsForecastRead? Needs { get; init; }
+    public CoupledForecastRead? Coupled { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> AnimalIds { get; init; }
@@ -11399,4 +11400,3 @@ public sealed record ApparelPolicyState
 
     public bool? Nude { get; init; }
 }
-
