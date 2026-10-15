@@ -87,6 +87,6 @@ internal static class ClockRunWork
         return (false, false, default);
     }
 
-    /// <summary>The combat stop events a combat window arms: every stop event while an admitted fight plan owns the combat, none otherwise (Go <c>armedCombatStops</c>).</summary>
-    public static IReadOnlyList<PbClock.CombatEvent> ArmedStops(bool fightOpen) => fightOpen ? ClockCombatStops.Events : [];
+    /// <summary>The combat events a combat watch arms: the decision events while an admitted fight plan owns the combat, none otherwise (Go <c>armedCombatStops</c>).</summary>
+    public static IReadOnlyList<PbClock.CombatEvent> ArmedStops(bool fightOpen) => fightOpen ? ClockCombatStops.DecisionEvents : [];
 }

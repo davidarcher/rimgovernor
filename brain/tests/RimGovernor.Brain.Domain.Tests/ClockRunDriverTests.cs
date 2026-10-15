@@ -938,4 +938,71 @@ public sealed class ClockRunDriverTests
         Assert.True(rig.Session.State().Enabled);
         await UntilAsync(() => rig.Game.Heartbeats > 0);
     }
+
+    [Fact]
+    public void AnOpenFightArmsOnlyTheDecisionEvents()
+    {
+        Assert.Equivalent(
+            new[] { PbClock.CombatEvent.HostileArrived, PbClock.CombatEvent.Downed, PbClock.CombatEvent.SeriousInjury },
+            ClockRunWork.ArmedStops(true));
+        Assert.Empty(ClockRunWork.ArmedStops(false));
+    }
+
+    [Fact]
+    public void TheFallbackSpeedLowersTheTargetOnlyWhileTheGateIsTripped()
+    {
+        Assert.Equal(PbClock.Speed.Ultrafast, ClockCombatStops.SpeedFor(PbClock.Speed.Ultrafast, PbClock.Speed.Normal, false));
+        Assert.Equal(PbClock.Speed.Normal, ClockCombatStops.SpeedFor(PbClock.Speed.Ultrafast, PbClock.Speed.Normal, true));
+        Assert.Equal(PbClock.Speed.Normal, ClockCombatStops.SpeedFor(PbClock.Speed.Normal, PbClock.Speed.Fast, true));
+    }
+
+    private static PbClock.Status HeldAt(DateTimeOffset at) =>
+        new() { State = PbClock.ClockState.Held, Reason = PbClock.HoldReason.CombatEvent, CombatEvent = PbClock.CombatEvent.Downed, HeldAtUnixMs = at.ToUnixTimeMilliseconds() };
+
+    [Fact]
+    public void TheResumeLatencyGateTripsOnASlowCombatResumeAndClearsWhenTheCombatEnds()
+    {
+        var metrics = new CombatStopMetrics(TimeSpan.FromSeconds(1));
+        var t0 = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        Assert.False(metrics.Tripped);
+        metrics.Admitted(null, 100, t0, true);
+        Assert.False(metrics.Tripped);
+
+        // A resume inside the budget leaves the gate open.
+        metrics.Admitted(HeldAt(t0), 110, t0 + TimeSpan.FromMilliseconds(400), true);
+        Assert.False(metrics.Tripped);
+
+        // One over the budget trips it for the rest of the combat.
+        metrics.Admitted(HeldAt(t0), 120, t0 + TimeSpan.FromMilliseconds(1200), true);
+        Assert.True(metrics.Tripped);
+        metrics.Admitted(HeldAt(t0), 130, t0 + TimeSpan.FromMilliseconds(50), true);
+        Assert.True(metrics.Tripped);
+
+        // The colony run that ends the combat clears it.
+        metrics.Admitted(HeldAt(t0), 140, t0 + TimeSpan.FromMilliseconds(50), false);
+        Assert.False(metrics.Tripped);
+        Assert.False(metrics.Active);
+    }
+
+    [Fact]
+    public async Task ASlowCombatResumeWithNoOpenFightKeepsTheTargetSpeed()
+    {
+        using var rig = await Rig.StartAsync();
+        await rig.PolledAsync();
+        Assert.True(await rig.StepAsync());
+
+        var metrics = (CombatStopMetrics)typeof(ClockRunDriver).GetField("_combatStops", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(rig.Driver)!;
+        metrics.Admitted(null, rig.Game.Tick, rig.Time.Now(), true);
+        rig.Game.Hazard(PbClock.HoldReason.CombatEvent, new PbClock.HoldEvidence.CombatCase(new PbClock.CombatEventHold { Event = PbClock.CombatEvent.Downed }));
+        await rig.PolledAsync();
+        Assert.True(await rig.StepAsync());
+        Assert.True(await rig.StepAsync());
+        Assert.False(rig.Game.Held);
+
+        // The fake stamps its holds in 1970, so the resume is far over any budget; with no fight open the fallback
+        // does not apply (and the colony Run closes the combat) and the Run keeps the target speed.
+        Assert.False(metrics.Tripped);
+        Assert.Equal(PbClock.Speed.Ultrafast, rig.Game.TargetSpeed);
+    }
 }

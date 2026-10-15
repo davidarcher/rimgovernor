@@ -161,12 +161,25 @@ reasons below; the new model replaces each as listed.
 | Unreviewed, Interrupted | A review hold, scoped to decision events only |
 
 **Combat.** The brain holds on decision events (a hostile appears, a downing,
-an injury crossing the severity threshold), not on every combat event. Resume
-latency from hold to dispatch is a measured gate. If its budget cannot be
-met, the brain falls back to a slower speed target while a fight is open
-rather than holding more often. The numeric budget comes from the baseline
-piece (#3169; see the [live clock baseline](brain-host.md#live-clock-baseline)):
-it is undecided until that table is filled, as is the heartbeat tolerance.
+an injury crossing the severity threshold), not on every combat event. The
+brain arms exactly those three native combat events (`HostileArrived`,
+`Downed`, `SeriousInjury`), and only while an admitted fight plan owns the
+combat; the other native events (range, melee, shield, explosive, raid phase,
+breach, mental break, prison break) are never armed. Each hold marks the
+defense planner, the immediate review answers it, and Run resumes as soon as
+that dispatches.
+
+Resume latency from hold to the resuming Run is a gate
+(`ClockCombatStops.ResumeBudget`, logged per hold as `resume_latency_ms` on
+`clock_stop` and as p50/p95 on `combat_summary`). When a resume in the current
+combat exceeds the budget the gate trips, and for the rest of that fight the
+brain asks for the slower `ClockCombatStops.FallbackSpeed` (never above the
+target speed) instead of holding more often; the gate clears when the combat
+closes. The budget (2 s) and the fallback speed (Normal) are conservative
+placeholders and **unmeasured**: the baseline numbers are deferred (#3199; see
+the [live clock baseline](brain-host.md#live-clock-baseline)), as is the
+heartbeat tolerance. Replace them with the measured budget when the table is
+filled.
 
 **Autosave.** A periodic hold flushes governor state, saves, and resumes.
 

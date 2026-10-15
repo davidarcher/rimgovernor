@@ -25,6 +25,8 @@ public sealed partial class ClockRunDriver
 
         public bool Combat { get; set; }
 
+        public bool Fallback { get; set; }
+
         public int Live { get; set; }
 
         public int CoupledOrders { get; set; }
@@ -95,6 +97,10 @@ public sealed partial class ClockRunDriver
         if (note.Combat)
         {
             attrs["combat"] = true;
+        }
+        if (note.Fallback)
+        {
+            attrs["combat_fallback_speed"] = true;
         }
         var decision = new Decision { Kind = "clock_run", Component = "clock-scheduler", Target = "clock", Dur = elapsed, Attrs = attrs };
         if (failure is not null)
@@ -358,7 +364,7 @@ public sealed partial class ClockRunDriver
                 CombatStopEvents = [.. ClockRunWork.ArmedStops(fightOpen)],
             };
         }
-        var speed = _config.TargetSpeed.Speed;
+        var speed = FightSpeed(fightOpen);
         if (running && _sentPolicy == policy && _sentSpeed == speed && status.TargetSpeed == speed)
         {
             note.Action = "";
@@ -366,6 +372,9 @@ public sealed partial class ClockRunDriver
         }
         var resumed = !running;
         _combatStops.Admitted(resumed ? status : null, statusTick, _clock.Now(), note.Combat);
+        // This resume's own latency may have tripped the gate: the Run that ends the slow hold already carries the fallback.
+        speed = FightSpeed(fightOpen);
+        note.Fallback = speed != _config.TargetSpeed.Speed;
         _player.Current(call, epoch);
         var current = _session.State();
         if (!current.Enabled || !current.ObservationKnown || current.Snapshot != state.Snapshot)
@@ -394,6 +403,11 @@ public sealed partial class ClockRunDriver
         note.Reason = resumed ? "resumed" : (status.TargetSpeed == speed ? "watch_changed" : "speed_changed");
         return true;
     }
+
+    // The speed to ask for: the target, lowered to the fallback while a fight is open and the resume-latency gate has
+    // tripped (holds are never added to make up for a slow resume; the fight just runs slower).
+    private PbClock.Speed FightSpeed(bool fightOpen) =>
+        ClockCombatStops.SpeedFor(_config.TargetSpeed.Speed, _config.CombatFallbackSpeed, fightOpen && _combatStops.Tripped);
 
     // Takes a brain hold and tells the loop to plan again against the held world.
     private async Task<bool> HoldAsync(RunNote note, PbClock.HoldReason reason, string detail, CancellationToken call)

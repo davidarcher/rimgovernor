@@ -22,6 +22,12 @@ public sealed record ClockRunConfig
     /// <summary>The game ticks between the autosave holds: the autosaver's own interval, so a hold is never spent on a save it would skip.</summary>
     public long AutosaveEveryTicks { get; init; }
 
+    /// <summary>The longest a combat hold may take to resume before the gate trips (unmeasured default, #3180).</summary>
+    public TimeSpan CombatResumeBudget { get; init; } = ClockCombatStops.ResumeBudget;
+
+    /// <summary>The speed ceiling while a fight is open once the gate has tripped (unmeasured default, #3180).</summary>
+    public PbClock.Speed CombatFallbackSpeed { get; init; } = ClockCombatStops.FallbackSpeed;
+
     /// <summary>The most events one poll reads; 1 through 128.</summary>
     public uint PageLimit { get; init; } = 128;
 

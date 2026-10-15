@@ -137,6 +137,11 @@ speedmatrix row.
 
 ## Armed combat stops
 
+The native side implements every event below, but the brain arms only the
+decision-class ones (Downed, Serious injury, Hostile arrived) while a fight
+plan is open (`ClockCombatStops.DecisionEvents`, #3180); the rest are
+available to a policy that arms them and are never armed today.
+
 A `WATCH_MODE_COMBAT` epoch also stops on the armed events in
 `WatchPolicy.combat_stop_events` with a bound of **0 ticks**: the stop
 lands on the boundary of the tick the event happened on

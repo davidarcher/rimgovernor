@@ -31,7 +31,7 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
     private readonly IClock _clock;
     private readonly WakeSignal? _wake;
     private readonly ClockEventPoll _poll;
-    private readonly CombatStopMetrics _combatStops = new();
+    private readonly CombatStopMetrics _combatStops;
     private readonly CancellationTokenSource _cancel = new();
     private readonly SemaphoreSlim _pollWake = new(0);
     private readonly SemaphoreSlim _stopGate = new(1, 1);
@@ -59,6 +59,7 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
         _config = config;
         _clock = clock;
         _wake = wake;
+        _combatStops = new CombatStopMetrics(config.CombatResumeBudget);
         _poll = new ClockEventPoll(player, session, native, clock, config);
     }
 
@@ -110,6 +111,10 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
             throw new ControlException("NewClockRunDriver: the base policy is not a plain colony watch");
         }
         BridgeApi.ValidateClockPolicy(p);
+        if (config.CombatResumeBudget <= TimeSpan.Zero || !Enum.IsDefined(config.CombatFallbackSpeed) || config.CombatFallbackSpeed == PbClock.Speed.Unspecified)
+        {
+            throw new ControlException("NewClockRunDriver: the combat resume budget must be positive and the fallback speed a real speed");
+        }
         if (config.HeartbeatInterval <= TimeSpan.Zero || config.HeartbeatInterval >= TimeSpan.FromSeconds(5))
         {
             throw new ControlException("NewClockRunDriver: the heartbeat interval must be under the native tolerance of five seconds");
