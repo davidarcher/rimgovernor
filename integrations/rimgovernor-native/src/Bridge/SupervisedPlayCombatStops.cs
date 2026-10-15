@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     /// range and melee contact have no single game call to hook: a per-tick
     /// scan, run only while one of them is armed, sees them on their tick.
     /// Aim warmup, shots and ordinary damage are never stops. The backstop
-    /// when nothing fires is the combat window's own tick budget
+    /// when nothing fires is the combat run's own tick budget
     /// (combatBackstopTicks in go/cmd/rimgovernor/serve_clock.go).
     internal static partial class Supervisor
     {
@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools
         // Per-combat scan memory: hostiles that have been in range, melee
         // pairs that have fought. It spans the combat's consecutive combat
         // epochs (a melee raider stepping in and out of reach is not news
-        // at every window) and is seeded at the combat's first scan, so a
+        // at every run) and is seeded at the combat's first scan, so a
         // fight already in progress when it is armed is not news either.
         private static readonly HashSet<int> _inRange = new HashSet<int>(), _inOurRange = new HashSet<int>();
         private static readonly HashSet<long> _meleePairs = new HashSet<long>();

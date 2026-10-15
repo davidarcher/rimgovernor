@@ -17,7 +17,7 @@ public enum StepCause
     /// </summary>
     Wake,
 
-    /// <summary>A step that follows a window that just ran: every planner re-plans.</summary>
+    /// <summary>A step that follows a run that just ended: every planner re-plans.</summary>
     Settled,
 
     /// <summary>
@@ -94,8 +94,8 @@ internal static class PlannerSelections
 {
     /// <summary>
     /// Decides which catalog planners a step for <paramref name="reason"/> runs at <paramref name="tick"/>, over
-    /// a copy of the due queue <paramref name="q"/>: a full step runs every planner; a settled step (a window
-    /// just ran) marks every planner and runs those not waiting on a dependency; a timer step runs the planners
+    /// a copy of the due queue <paramref name="q"/>: a full step runs every planner; a settled step (a run
+    /// just ended) marks every planner and runs those not waiting on a dependency; a timer step runs the planners
     /// dirty or due at the tick; a wake or live step folds its evidence first (the consumers of the dirty
     /// sections, everything on an authority change, everything on a wake carrying nothing selectable). The
     /// result's pick is null when every planner runs.

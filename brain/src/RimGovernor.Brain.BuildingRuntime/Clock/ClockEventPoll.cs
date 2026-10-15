@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Port of internal/buildingruntime/clock_poll.go (PollEvents and its page predicates). The lease and its renewal are
+// Port of internal/buildingruntime/clock_poll.go (PollEvents and its page predicates). The Go lease and its renewal are
 // not carried (Boundary.cs documents the lease as dropped). The poll captures the native journal page into the
 // controller's inbox and marks it reviewed; it never disables authority for a hold and never acknowledges one: native
 // holds itself on a hazard and stays held until the run driver, having planned against the held world and

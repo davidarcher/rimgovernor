@@ -229,7 +229,7 @@ public sealed partial class ClockScheduler
 
     /// <summary>
     /// Performs one planning step for <paramref name="reason"/>: reads the world once, fixes the step's read
-    /// validity, and runs the planners the reason selects. It never acquires authority, starts a window or runs a
+    /// validity, and runs the planners the reason selects. It never acquires authority, sends Run or runs a
     /// background loop. The result carries what the planners did.
     /// </summary>
     public async Task<ClockSchedulerResult> StepWithReasonAsync(StepReason reason, CancellationToken ct)
@@ -310,7 +310,7 @@ public sealed partial class ClockScheduler
             LivePace(status, started);
             result.Pacing = StepPacing.Of(status);
             // The step's scope and tick are fixed: every read and decision below, and the Worker's dispatches under
-            // the window this step may admit, judge their facts against this validity.
+            // the run this step may start, judge their facts against this validity.
             using var validity = ReadValidityScope.With(FixValidity(state.Snapshot, statusTick));
             Tel.ObserveTick(statusTick);
             if (reason.Cause == StepCause.Timer && FullStepDue())

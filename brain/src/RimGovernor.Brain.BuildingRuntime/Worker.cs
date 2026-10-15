@@ -45,7 +45,7 @@ public sealed class WorkerConfig
     public FactStore? Store { get; set; }
 
     /// <summary>
-    /// Reports the scheduler's hint that its window is running; each native call the worker issues is recorded
+    /// Reports the scheduler's hint that its run is in progress; each native call the worker issues is recorded
     /// with it as a "dispatch" row, so a run can count the dispatches made live and the fraction native refused.
     /// </summary>
     public Func<bool>? ClockRunning { get; set; }
@@ -327,7 +327,7 @@ public sealed partial class Worker
             burst++;
             // A wake steps at once; while focused actions remain, keep stepping so each of them is reconciled
             // without waiting a StepInterval, and a step that advanced an action steps again so the successor
-            // it unblocked dispatches before the clock readmits a window rather than a StepInterval or its own
+            // it unblocked dispatches before the clock runs again rather than a StepInterval or its own
             // backoff later.
             if ((_focus.Count > 0 || _advanced) && burst < BurstMax)
             {
@@ -685,7 +685,7 @@ public sealed partial class Worker
                     // A dispatch held on stale facts (the authority or tick moved under its inspection)
                     // clears on the next observation, so it is retried at once, off its backoff, before the
                     // game's own work scanner takes the order's target; the clock is not held for it, since
-                    // every routine kind dispatches under the running window. One retry per hold: a hold that
+                    // every routine kind dispatches under the running clock. One retry per hold: a hold that
                     // survives it backs off as usual.
                     if (stale && !wait.Stale)
                     {
@@ -851,7 +851,7 @@ public sealed partial class Worker
     /// <summary>
     /// Publishes the action's dispatch row: one per run that reached native or whose outcome changed. A native
     /// run carries the receipt the run left (accepted, refused, unknown; "-" when the write was not a
-    /// dispatch), whether the scheduler's window was running when the run began and the read tally
+    /// dispatch), whether the scheduler's run was in progress when the run began and the read tally
     /// (`rimgovernor phases` sums those rows, Bridge.DispatchSample); an outcome change carries `changed` and
     /// how many unrecorded runs restated the previous outcome, so a refusal that repeats verbatim on every
     /// retry writes once. An action waiting on a prerequisite that has not completed is the plan sequencing

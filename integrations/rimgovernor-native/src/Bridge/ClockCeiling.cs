@@ -31,8 +31,8 @@ namespace HomeBridge.BridgeTools
         // After a drop, hold this long before the first raise.
         internal const long FrameHoldMs = 1000;
         // The brain's clock poll runs about every second and backs off to 2 s, and its
-        // lease is 7 s; five seconds tolerates a planning wave (1.5-2.5 s) plus a slow
-        // poll and stays inside the lease.
+        // call timeout is 7 s; five seconds tolerates a planning wave (1.5-2.5 s) plus a slow
+        // poll and stays inside the timeout.
         internal const long HeartbeatToleranceMs = 5000;
         internal const long HeartbeatRampMs = 100;
 

@@ -25,9 +25,9 @@ namespace HomeBridge.BridgeTools
     {
         /// The stop tier's severity floor for a new wound: a colonist
         /// whose blood loss kills them within this many game ticks, or who
-        /// carries a life-threatening hediff stage, still stops the window;
+        /// carries a life-threatening hediff stage, still stops the run;
         /// any lighter new wound is journaled and the medical planner reviews
-        /// it under the running window. Two in-game hours -- long enough for
+        /// it under the running clock. Two in-game hours -- long enough for
         /// a controller running at Ultrafast to reach a doctor's order, short
         /// enough that a bleed-out is never left to a review cadence.
         /// Go authors the floor (WatchPolicy.injury_severity_floor_ticks).

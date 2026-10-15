@@ -151,7 +151,7 @@ public sealed class ClockSchedulerResult
 
     public RoundsTradeResult? Trade { get; set; }
 
-    /// <summary>Whether the step deferred its window to the Worker's turn.</summary>
+    /// <summary>Whether the step deferred its run to the Worker's turn.</summary>
     public bool Deferred { get; set; }
 
     public TimeSpan Journal { get; set; }

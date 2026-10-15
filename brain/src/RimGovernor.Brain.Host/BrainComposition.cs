@@ -90,7 +90,7 @@ public sealed class PlannerContext
     public required Action Nudge { get; init; }
 
     /// <summary>
-    /// The autosave a window start at a paused tick calls with the loaded world's identity and tick (Go
+    /// The autosave a run start at a paused tick calls with the loaded world's identity and tick (Go
     /// <c>goAutosaver.AtStop</c>); it flushes the governor state before it saves. Null saves nothing.
     /// </summary>
     public Func<RimGovernor.Contracts.Wire.Common.Identity, long, CancellationToken, Task>? Autosave { get; init; }

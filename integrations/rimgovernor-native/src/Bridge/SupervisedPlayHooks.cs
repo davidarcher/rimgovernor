@@ -116,8 +116,8 @@ namespace HomeBridge.BridgeTools
         }
 
         /// A prisoner joined a prison break: it is hostile from now
-        /// on (GenHostility), with no spawn to see it by. The colony window
-        /// probes for it and a combat window stops on it.
+        /// on (GenHostility), with no spawn to see it by. The colony run
+        /// probes for it and a combat run stops on it.
         private static void OnPrisonBreakout(Pawn __instance)
         {
             try

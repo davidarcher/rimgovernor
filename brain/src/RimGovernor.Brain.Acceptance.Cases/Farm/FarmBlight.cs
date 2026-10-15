@@ -265,8 +265,8 @@ internal static class FarmBlight
         _ = await h.CallAsync("pause-after", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
 
         // Ordinary growers must sow the new zone; its creation receipt is not proof of planting. Advance a bounded window
-        // before the native audit, in steps: an advance never renews its lease, and a Superfast window under box load
-        // (338 tps) outran the 30 s lease on 12000 ticks.
+        // before the native audit, in steps: a Superfast advance under box load
+        // (338 tps) outran a 30 s call budget on 12000 ticks.
         for (var i = 0; i < 4; i++)
         {
             _ = await s.AdvanceAsync(3000, null, cancellationToken).ConfigureAwait(false);

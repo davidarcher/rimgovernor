@@ -39,7 +39,7 @@ public sealed record EmergencyPawn
 /// its own right (an insect hive, a crashed ship part): a squad target once no hostile pawn remains and, within
 /// <see cref="EmergencyThreat.DistantThreatCells"/> of a colonist, a deficit for ActiveCombat and an
 /// unsafe-threat hold like a hostile pawn, so the fight is planned under a stopped clock and run under watched
-/// combat windows. A building further out is watched like a distant animal.
+/// combat runs. A building further out is watched like a distant animal.
 /// </summary>
 public enum ThreatKind : byte
 {
@@ -61,7 +61,7 @@ public sealed record EmergencyThreat
 {
     /// <summary>
     /// The nearest-colonist distance from which a hostile or hunting animal is watched rather than held: the
-    /// native supervisor stops a running window for a hostile within the watch policy's hostile_within (20 cells
+    /// native supervisor stops a running clock for a hostile within the watch policy's hostile_within (20 cells
     /// in serve) and for a predator hunt within 40 cells, both inside this band, so the approach re-enters the
     /// emergency before it can reach anyone. A humanlike or mechanoid threat holds at any distance. A hostile
     /// building goes nowhere, so the same band applies to it.
@@ -266,7 +266,7 @@ public sealed record EmergencySnapshot
 
     /// <summary>
     /// Go <c>PodsPending</c>: a drop-pod raid on its way down: an arrival whose pods have not opened by the
-    /// census tick. It is a threat for the ActiveCombat goal and a combat window with nothing to acknowledge
+    /// census tick. It is a threat for the ActiveCombat goal and a combat run with nothing to acknowledge
     /// until the open, so the fight forms on the arrival.
     /// </summary>
     public bool PodsPending => IsValid && Facts.PodsOpen.Value > 0 && Facts.PodsOpen >= Tick;

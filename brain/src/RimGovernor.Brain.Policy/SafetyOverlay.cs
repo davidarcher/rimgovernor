@@ -7,7 +7,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The drawn reach around a holding threat: the serve watch policy's hostile_within, the distance at which
-    /// the native supervisor stops a running window for a hostile (DistantThreatCells).
+    /// the native supervisor stops a running clock for a hostile (DistantThreatCells).
     /// </summary>
     public const int ThreatReachCells = 20;
 

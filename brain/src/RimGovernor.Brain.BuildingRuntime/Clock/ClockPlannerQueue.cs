@@ -41,7 +41,7 @@ internal sealed class PlannerQueue
     // armed): the next planner wave runs everything, waits included.
     private bool _all;
 
-    /// <summary>Whether every planner is owed a run (an authority change or a settled window).</summary>
+    /// <summary>Whether every planner is owed a run (an authority change or a settled run).</summary>
     public bool All
     {
         get => _all;
@@ -87,7 +87,7 @@ internal sealed class PlannerQueue
 
     /// <summary>
     /// Folds one wake reason into the queue: the consumers of the dirty sections are marked and authority
-    /// marks everything. A wake carrying nothing selectable is a settled window: every planner is
+    /// marks everything. A wake carrying nothing selectable is a settled run: every planner is
     /// marked. Families without sections on the reason are widened to their sections; a sectionless family
     /// (world) matches by name.
     /// </summary>
@@ -143,7 +143,7 @@ internal sealed class PlannerQueue
         _dirty[name] = _seq;
     }
 
-    /// <summary>Marks every catalog planner dirty: the settled-window wake.</summary>
+    /// <summary>Marks every catalog planner dirty: the settled-run wake.</summary>
     private void MarkAll()
     {
         foreach (var entry in Entries())
@@ -155,7 +155,7 @@ internal sealed class PlannerQueue
     /// <summary>
     /// Decides the planners a step at <paramref name="tick"/> runs. <paramref name="full"/> runs every planner
     /// (a full step, or pending all-evidence) and clears the waits; <paramref name="settled"/> marks every planner
-    /// first (a window just ran). Otherwise the dirty and due planners run, less those whose wait
+    /// first (a run just ended). Otherwise the dirty and due planners run, less those whose wait
     /// <paramref name="stillOpen"/> confirms (every attempt waited on still open) and whose deadline is ahead of
     /// the tick; null <paramref name="stillOpen"/> confirms every wait. A wait whose attempt is no longer open is
     /// released here.
@@ -250,7 +250,7 @@ internal sealed class PlannerQueue
     }
 
     /// <summary>
-    /// The step on a stopped clock (the last window refused no_work and the tick did not move): no tick
+    /// The step on a stopped clock (the last Run refused no_work and the tick did not move): no tick
     /// deadline or cadence can pass, so the waits are dropped and the refused planners marked, each
     /// re-examining its own work instead of parking the colony for good.
     /// </summary>
@@ -264,7 +264,7 @@ internal sealed class PlannerQueue
     }
 
     /// <summary>
-    /// The step on a stopped combat window: the stop is the open fight's next decision, so the defense planner
+    /// The step on a stopped combat run: the stop is the open fight's next decision, so the defense planner
     /// runs even though it waits on its own fight's open drafts, which stay open for the whole fight and would
     /// otherwise park it until the fight is over.
     /// </summary>

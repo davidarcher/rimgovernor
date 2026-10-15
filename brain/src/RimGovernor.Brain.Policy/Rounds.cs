@@ -38,7 +38,7 @@ public sealed record RoundsPolicy
     /// hunter's route stays unsafe; that guard stays fully authoritative, but without this grace the stuck
     /// action reads as open work forever and blocks the planner from ever trying a different prey or a
     /// non-hunt source. It counts from the last observation, and a live hunt (travel, chase, the hunter's
-    /// sleep and meals, a clock window between observations) outlasts 6000 ticks: that bound withdrew
+    /// sleep and meals, a clock run between observations) outlasts 6000 ticks: that bound withdrew
     /// working hunts as "cancelled" and cooled their prey, so it is half a day.
     /// </summary>
     public long HuntStallTicks { get; init; }

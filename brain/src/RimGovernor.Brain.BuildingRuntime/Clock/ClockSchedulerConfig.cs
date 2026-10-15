@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
 /// What a scheduler needs: the rounder, the planners it queues and the step bounds. The native clock stays in the
-/// mod, so the profile, window-start parameters, pace horizon, player-speed following and player-quiet bounds of
+/// mod, so the profile, run-start parameters, pace horizon, player-speed following and player-quiet bounds of
 /// the Go configuration are not carried.
 /// </summary>
 public sealed class ClockSchedulerConfig

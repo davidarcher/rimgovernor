@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Port of the poll side of internal/buildingruntime/clock_worker.go (the poll loop and Stop). The Go scheduler planned
-// and admitted windows in one step; the C# step only plans (ClockScheduler), and this driver runs after each step.
+// and sent Run in one step; the C# step only plans (ClockScheduler), and this driver runs after each step.
 // The clock is Running at the target speed or Held; the driver is the hold state machine that keeps it so.
 
 /// <summary>What the run driver reads natively beyond the scheduler's own reads: the journal page and the emergency census.</summary>

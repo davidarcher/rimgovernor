@@ -15,5 +15,5 @@ internal sealed class ClockFacts
     public FactStore Store { get; }
 }
 
-/// <summary>One action of the plan a window watches.</summary>
+/// <summary>One action of the plan a run watches.</summary>
 internal sealed record ClockWorkItem(ActionId Action, ActionKind Kind, Stage Stage, AttemptId Attempt, bool Unresolved);

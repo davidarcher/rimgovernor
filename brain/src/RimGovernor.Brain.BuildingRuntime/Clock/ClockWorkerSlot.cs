@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // Port of the clockWorkerSlot of internal/buildingruntime/clock_worker_session.go. The worker itself (the poll,
-// renew and step goroutines) is the brain host's scheduler thread and the window driver; what stays is the slot
+// renew and step goroutines) is the brain host's scheduler thread and the run driver; what stays is the slot
 // the session stops before it stops its clock coordinator.
 
-/// <summary>Whatever drives the clock windows of a session and must be joined before the session's clock stops (Go <c>clockWorkerStopper</c>).</summary>
+/// <summary>Whatever drives the clock runs of a session and must be joined before the session's clock stops (Go <c>clockWorkerStopper</c>).</summary>
 public interface IClockWorkerStopper
 {
     Task StopAsync(CancellationToken ct);

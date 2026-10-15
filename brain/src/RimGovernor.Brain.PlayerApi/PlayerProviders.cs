@@ -40,7 +40,7 @@ public interface IClockReview
     Task<ClockReviewState> AcknowledgeAsync(ClockAcknowledgement acknowledgement, CancellationToken cancellationToken);
 }
 
-/// <summary>The speed the brain requests while it owns the clock; a change applies from the next window.</summary>
+/// <summary>The speed the brain requests while it owns the clock; a change applies from the next run.</summary>
 public interface IClockSpeedControl
 {
     PbClock.Speed Speed { get; }

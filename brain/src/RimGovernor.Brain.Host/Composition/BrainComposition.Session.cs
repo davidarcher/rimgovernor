@@ -14,14 +14,14 @@ namespace RimGovernor.Brain.Host;
 /// <c>startServiceClock</c>.
 /// </summary>
 /// <remarks>
-/// The autosave at a window's paused start (Go <c>newGoAutosaver</c>) is the host's: it arrives as
+/// The autosave at a run's paused start (Go <c>newGoAutosaver</c>) is the host's: it arrives as
 /// <see cref="PlannerContext.Autosave"/> because it must flush the governor state the host owns before it saves.
 /// </remarks>
 public sealed partial class BrainComposition(BrainCompositionOptions options) : IBrainComposition
 {
     private readonly BrainCompositionOptions _options = Validated(options);
 
-    /// <summary>The live target speed the clock windows start at: <see cref="BrainCompositionOptions.TargetSpeed"/> until changed.</summary>
+    /// <summary>The live target speed the clock runs start at: <see cref="BrainCompositionOptions.TargetSpeed"/> until changed.</summary>
     public ClockTargetSpeed TargetSpeed { get; } = new(options.TargetSpeed);
 
     // Set by ComposeSession (called once, before ComposePlanners) and read by ComposePlanners.

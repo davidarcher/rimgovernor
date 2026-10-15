@@ -311,7 +311,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Whether a threat's sheltering response is complete: a threat triggers sheltering and every living,
-    /// undowned, undrafted, sane colonist (at least one) is restricted to the Safe area. The clock window then
+    /// undowned, undrafted, sane colonist (at least one) is restricted to the Safe area. The clock run then
     /// watches the threat instead of refusing it: sheltered colonists wait it out on game time.
     /// </summary>
     public static bool ShelterHeld(RoundsFacts f)

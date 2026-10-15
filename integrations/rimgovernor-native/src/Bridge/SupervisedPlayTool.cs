@@ -259,7 +259,7 @@ namespace HomeBridge.BridgeTools
         /// vanilla (only a LetterWithTimeout with an active timeout does), so
         /// an autopiloted colony piled them up on the right edge. A letter is
         /// processed once this epoch's census published it (s.Letters) and a
-        /// in-game hour has passed: its pause, if any, stopped a window
+        /// in-game hour has passed: its pause, if any, stopped a run
         /// the controller reviewed. Only exact StandardLetter is removed --
         /// choice letters (quests, joiners, ransoms) keep their own handling
         /// or run out through the game's timeout.
@@ -710,7 +710,7 @@ namespace HomeBridge.BridgeTools
             // A resting patient who is no longer eligible needs a fresh
             // medical review, not a stopped clock: the watch is
             // discharged, the medical facts are invalidated and the planner
-            // reviews under the running window.
+            // reviews under the running clock.
             foreach (var identity in s.MedicalRest.ToList())
             {
                 var patient = colonists.FirstOrDefault(p => p.thingIDNumber == identity);
@@ -725,7 +725,7 @@ namespace HomeBridge.BridgeTools
                 string why;
                 // A hostile in fog is undiscovered, as the emergency view
                 // reads it: a sealed shrine's dormant guard stopped
-                // every window at zero ticks, so the breach never ran.
+                // every run at zero ticks, so the breach never ran.
                 if (!GameWatchReads.SafeIsColonist(p)
                     && !GameWatchReads.SafeDowned(p) && !GameWatchReads.SafeDead(p)
                     && !(p.Spawned && p.Map != null && p.Position.Fogged(p.Map))
@@ -750,7 +750,7 @@ namespace HomeBridge.BridgeTools
                         var prey = p.CurJob.targetA.Thing as Pawn;
                         // An unsafe hunt is withdrawn, not a stopped clock:
                         // a stop left the job and designation in place, so
-                        // every window re-fired it until the player forced
+                        // every run re-fired it until the player forced
                         // speed and the hunter shot anyway. The vanished
                         // designation settles the controller's hunt action
                         // and the invalidated colony facts replan at once.
@@ -775,7 +775,7 @@ namespace HomeBridge.BridgeTools
                     // baseline. A colonist already under minHealthFraction
                     // when the epoch started is not news: the stop that put
                     // them there was already reported, and re-stopping every
-                    // window at zero ticks would pin the clock while the
+                    // run at zero ticks would pin the clock while the
                     // raider who hurt them still stands.
                     // A combat epoch an open fight owns (SeriousInjury and
                     // Downed armed/#852) stops on those benign events
@@ -835,11 +835,11 @@ namespace HomeBridge.BridgeTools
                         payload["newWound"] = newWound;
                         if (after.Count > before.Count && after.NewestWoundAgeTicks != int.MaxValue && Find.TickManager != null)
                             payload["occurrenceTick"] = Find.TickManager.TicksGame - after.NewestWoundAgeTicks;
-                        // A new wound stops the window only past the native
+                        // A new wound stops the run only past the native
                         // severity floor: bleeding out inside the policy's
                         // injury_severity_floor_ticks, or a life-threatening
                         // hediff stage. Anything lighter is a journal row and a
-                        // medical review under the running window, which is
+                        // medical review under the running clock, which is
                         // what every stop bought anyway at the price of a
                         // stop-to-readmit pause. A combat threshold crossing
                         // still stops.
@@ -963,10 +963,10 @@ namespace HomeBridge.BridgeTools
         }
 
         /// Journals the medical facts as stale so the medical planner
-        /// reviews under the running window, at most once per pawn per
+        /// reviews under the running clock, at most once per pawn per
         /// MedicalWakeIntervalTicks unless the caller forces it. This is the
         /// wake the demoted health tiers are worth: every reader of the pawn
-        /// and emergency families replans, and no window is spent.
+        /// and emergency families replans, and no run is spent.
         private static void InvalidateMedicalFacts(State s, int pawnId, string reason, bool force = false)
         {
             var tick = Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick;

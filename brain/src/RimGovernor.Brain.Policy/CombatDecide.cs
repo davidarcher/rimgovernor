@@ -1019,7 +1019,7 @@ public static partial class PolicyFunctions
                 if (next.Roles.Count == 0)
                 {
                     // With no armed defender the pack is sheltered from as a squadless fight is; that plan
-                    // admits the combat window instead of parking the clock.
+                    // starts a combat run instead of parking the clock.
                     next.Tactic = CombatTactic.Shelter;
                     next.Roles = EquatableArray.From(ShelterRoles(view, geometry, next.Unreachable));
                 }

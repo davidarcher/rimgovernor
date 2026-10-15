@@ -80,8 +80,8 @@ internal static class ClockCombatStops
 
 /// <summary>
 /// Measures one combat's stops for the OTLP log ring: stops by event kind (the tick budget is the backstop), the
-/// wall latency from a stop to the next window's admission, and the ticks between stops. A combat is the run of
-/// consecutive combat windows; its summary is logged when a colony window follows. Touched only under the player
+/// wall latency from a stop to the next Run, and the ticks between stops. A combat is the run of
+/// consecutive combat runs; its summary is logged when a colony run follows. Touched only under the player
 /// gate (Go <c>combatStopMetrics</c>).
 /// </summary>
 internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
@@ -94,7 +94,7 @@ internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
     private long _lastStopTick;
     private bool _lastKnown;
 
-    /// <summary>Whether a combat is in progress: the run of consecutive combat windows has not yet been closed by a colony window.</summary>
+    /// <summary>Whether a combat is in progress: the run of consecutive combat runs has not yet been closed by a colony run.</summary>
     public bool Active => _active;
 
     /// <summary>
@@ -117,7 +117,7 @@ internal sealed class CombatStopMetrics(TimeSpan resumeBudget)
             _byKind[kind] = _byKind.GetValueOrDefault(kind) + 1;
             var attrs = new List<(string Key, object? Value)> { ("event", kind), ("tick", tick) };
 
-            // The stop that ends the combat resumes into a colony window after the full review; its latency is
+            // The stop that ends the combat resumes into a colony run after the full review; its latency is
             // not a combat reaction.
             if (held.HeldAtUnixMs is not null && held.HeldAtUnixMs.GetValueOrDefault() > 0 && combat)
             {

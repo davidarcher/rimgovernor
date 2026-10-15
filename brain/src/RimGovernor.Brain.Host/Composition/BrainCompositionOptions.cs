@@ -9,18 +9,18 @@ namespace RimGovernor.Brain.Host;
 /// </summary>
 public sealed record BrainCompositionOptions
 {
-    /// <summary>The shared game profile directory whose native journal the clock window driver polls (Go <c>--profile</c>); must exist.</summary>
+    /// <summary>The shared game profile directory whose native journal the clock run driver polls (Go <c>--profile</c>); must exist.</summary>
     public required string Profile { get; init; }
 
     /// <summary>The routine planner families (Go <c>RIMGOVERNOR_ROUTINE_FAMILIES</c>, every family on by default).</summary>
     public BrainFamilies Families { get; init; } = BrainFamilies.All;
 
-    /// <summary>Acceptance only: asks native for its dev tick boost and runs every window at Ultrafast (Go <c>--clock-test-acceleration</c>, default off).</summary>
+    /// <summary>Acceptance only: asks native for its dev tick boost and runs every run at Ultrafast (Go <c>--clock-test-acceleration</c>, default off).</summary>
     public bool ClockTestAcceleration { get; init; }
 
     /// <summary>
     /// The speed the brain requests while it owns the clock, Normal through Ultrafast (default Ultrafast, the fastest the native clamp allows).
-    /// Only the first window's speed: <c>POST /api/player/clock-speed</c> changes it live from the next window. Ignored with <see cref="ClockTestAcceleration"/>, which pins boosted Ultrafast.
+    /// Only the first run's speed: <c>POST /api/player/clock-speed</c> changes it live from the next run. Ignored with <see cref="ClockTestAcceleration"/>, which pins boosted Ultrafast.
     /// </summary>
     public PbClock.Speed TargetSpeed { get; init; } = PbClock.Speed.Ultrafast;
 
