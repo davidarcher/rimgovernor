@@ -1,0 +1,323 @@
+using System.Reflection;
+using System.Text.Json;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
+using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
+using static RimGovernor.Brain.Policy.PolicyFunctions;
+
+namespace RimGovernor.Brain.Domain.Tests;
+
+/// <summary>
+/// Diagnosis for the four-worker fixture (#3196): why the bounded portfolio search serves one of four demanded meals.
+/// It observes the production search and scheduler through their public API only and changes no selection, budget or
+/// traversal. <c>TraversalReplica</c> mirrors the subset order of CompareActivityOutcomes so that coverage can be counted;
+/// a test ties it to the production search. Findings: docs/developers/testing/portfolio-allocations.md.
+/// </summary>
+[Collection("Portfolio allocation baseline")]
+public sealed class PortfolioSearchDiagnosisTests
+{
+    private static readonly int[] Budgets = [1024, 4096, 8192, 16384, 65536, 262144];
+    private const string IncumbentRoot = "food/0/delivery/0/composition/2/after/food/14/delivery/0/eat/diner/0/composition/16";
+    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
+    private static readonly Lazy<Subject> Shared = new(() => new Subject());
+
+    private sealed class Subject
+    {
+        public readonly ForecastCoupledCandidates Generated;
+        public readonly ColonyForecastRequest Request;
+        public readonly ForecastCommitment[] Roots; // in the order the search visits them
+        public readonly ForecastCommitment[] ReferenceRoots; // one ingestion each: diner/0, pawn/0, diner/1, pawn/1
+        public readonly Lazy<(int Baseline, int[] Costs)> SingletonCosts;
+
+        public Subject()
+        {
+            var facts = PortfolioAllocationTests.LargerFacts();
+            Generated = GenerateCoupledActivities(facts, 700)!;
+            Request = PortfolioAllocationTests.Request(facts, Generated);
+            Roots = [.. Generated.Alternatives.Concat(Generated.Incumbents).OrderBy(c => c.Id, StringComparer.Ordinal)];
+            var eats = PortfolioReferenceScheduleTests.Reference().Select(s => s.Activity).Where(a => a.Contains("/eat/", StringComparison.Ordinal)).ToHashSet();
+            ReferenceRoots = [.. Roots.Where(r => r.ActivityCompletions.Any(eats.Contains))];
+            SingletonCosts = new(() =>
+            {
+                // A one-root universe is exactly one production Evaluate: expansions = baseline + 1 + scheduler expansions.
+                var baseline = Select([], 262144).Selection.Expansions;
+                return (baseline, [.. Roots.Select(r => Select([r], 262144).Selection.Expansions - baseline)]);
+            });
+        }
+
+        public ForecastCoupledSelection Select(ForecastCommitment[] universe, int budget) =>
+            CompareActivityOutcomes(Request, Generated with { Alternatives = EquatableArray.From(universe) }, budget);
+    }
+
+    /// <summary>Subset order and pruning of the production search, rebuilt from public data for counting only.</summary>
+    private sealed class TraversalReplica(ForecastCommitment[] roots, ForecastCoupledContext context)
+    {
+        private readonly HashSet<(string Contained, string Container)> redundant = Redundant(roots, context);
+
+        private static HashSet<(string, string)> Redundant(ForecastCommitment[] roots, ForecastCoupledContext context)
+        {
+            var activities = context.Activities.Activities.ToDictionary(a => a.Id, StringComparer.Ordinal);
+            var closures = roots.ToDictionary(r => r.Id, r =>
+            {
+                var closure = new HashSet<string>(StringComparer.Ordinal);
+                void Include(string id)
+                {
+                    if (!closure.Add(id)) return;
+                    foreach (var prerequisite in activities[id].Prerequisites) Include(prerequisite);
+                }
+                foreach (var completion in r.ActivityCompletions) Include(completion);
+                return closure;
+            }, StringComparer.Ordinal);
+            static bool GraphOnly(ForecastCommitment c) => c.ActivityCompletions.Count > 0 && c.Outcome is null
+                && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
+                && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown;
+            return roots.Where(GraphOnly).SelectMany(a => roots.Where(b => a.Id != b.Id && closures[a.Id].IsSubsetOf(closures[b.Id]))
+                .Select(b => (a.Id, b.Id))).ToHashSet();
+        }
+
+        private static bool Compatible(IEnumerable<ForecastCommitment> input)
+        {
+            var rows = input.ToArray();
+            return !rows.Where(c => c.ExclusiveOutcome.Length != 0).GroupBy(c => c.ExclusiveOutcome).Any(g => g.Count() > 1)
+                && !rows.Any(c => c.Outcome is { } effect && rows.Any(other => c.Id != other.Id
+                    && (effect.Excludes.Contains(other.Outcome?.Id ?? other.Id) || effect.ExclusiveOutput.Length != 0 && effect.ExclusiveOutput == other.Outcome?.ExclusiveOutput)));
+        }
+
+        /// <summary>The subsets of one cardinality, in the order the search evaluates them.</summary>
+        public IEnumerable<int[]> Subsets(int size)
+        {
+            var partial = new List<int>();
+            IEnumerable<int[]> Walk(int start, int left)
+            {
+                if (left == 0) { yield return [.. partial]; yield break; }
+                for (var i = start; i <= roots.Length - left; i++)
+                {
+                    if (!Compatible(partial.Select(p => roots[p]).Append(roots[i]))) continue;
+                    if (partial.Any(p => redundant.Contains((roots[p].Id, roots[i].Id)) || redundant.Contains((roots[i].Id, roots[p].Id)))) continue;
+                    partial.Add(i);
+                    foreach (var subset in Walk(i + 1, left - 1)) yield return subset;
+                    partial.RemoveAt(partial.Count - 1);
+                }
+            }
+            return Walk(0, size);
+        }
+    }
+
+    /// <summary>Expansions the production loop spends on the cardinality-1 sweep: one evaluation per root, in order.</summary>
+    private static (int Entered, int Completed, int Spent) SingletonReach((int Baseline, int[] Costs) sweep, int budget)
+    {
+        int spent = sweep.Baseline, entered = 0, completed = 0;
+        foreach (var cost in sweep.Costs)
+        {
+            if (spent >= budget) break;
+            entered++;
+            spent++;
+            var remaining = budget - spent;
+            if (remaining == 0) break;
+            var scheduler = Math.Min(cost - 1, remaining);
+            spent += scheduler;
+            if (scheduler < cost - 1) break;
+            completed++;
+        }
+        return (entered, completed, spent);
+    }
+
+    private static double[] Flat(IEnumerable<Fact<double>> facts) => [.. facts.Select(x => x.IsKnown ? x.Value : -1)];
+
+    private static string[] LastSubset(ForecastCoupledSelection selection) => [.. selection.Rejected[^1].Commitments];
+
+    [Fact]
+    public void ReferenceRootSetIsGeneratedWithItsClosureAndOptions()
+    {
+        var s = Shared.Value;
+        Assert.Equal(62, s.Roots.Length);
+        Assert.False(s.Generated.Truncated);
+        Assert.Equal(88, s.Generated.Context.Activities.Activities.Length);
+        Assert.Equal(194, s.Generated.Context.Activities.Options.Length);
+        // The four ingestions are four roots with one completion each, so four is the smallest portfolio that serves four.
+        Assert.Equal(["food/27/delivery/0/eat/diner/0/composition/19", "food/27/delivery/1/eat/pawn/0/composition/25",
+            "food/27/delivery/2/eat/diner/1/composition/28", "food/27/delivery/3/eat/pawn/1/composition/34"], s.ReferenceRoots.Select(r => r.Id));
+        Assert.All(s.ReferenceRoots, r => Assert.Single(r.ActivityCompletions));
+        Assert.Contains(s.Roots, r => r.Id == "food/27/composition/18" && r.ActivityCompletions.Count == 4);
+        // The closure of the four roots is exactly the reference schedule's sixteen activities, each with the reference worker as an option.
+        var activities = s.Generated.Context.Activities.Activities.ToDictionary(a => a.Id, StringComparer.Ordinal);
+        var closure = new HashSet<string>(StringComparer.Ordinal);
+        void Include(string id) { if (closure.Add(id)) foreach (var p in activities[id].Prerequisites) Include(p); }
+        foreach (var completion in s.ReferenceRoots.SelectMany(r => r.ActivityCompletions)) Include(completion);
+        var reference = PortfolioReferenceScheduleTests.Reference();
+        Assert.Equal(reference.Select(r => r.Activity).Order(StringComparer.Ordinal), closure.Order(StringComparer.Ordinal));
+        var options = s.Generated.Context.Activities.Options.Select(o => (o.Activity, o.Pawn)).ToHashSet();
+        Assert.All(reference, step => Assert.Contains((step.Activity, step.Worker), options));
+    }
+
+    [Fact]
+    public void BudgetsNeverLeaveTheSingleRootSweep()
+    {
+        var s = Shared.Value;
+        var replica = new TraversalReplica(s.Roots, s.Generated.Context);
+        var counts = Enumerable.Range(1, 4).Select(size => replica.Subsets(size).LongCount()).ToArray();
+        var referenceIndexes = s.ReferenceRoots.Select(r => Array.IndexOf(s.Roots, r)).Order().ToArray();
+        var referenceRank = counts[..3].Sum() + replica.Subsets(4).TakeWhile(x => !x.SequenceEqual(referenceIndexes)).LongCount() + 1;
+        var sweep = s.SingletonCosts.Value;
+        var total = sweep.Costs.Sum(c => (long)c);
+        var reach = Budgets.Select(b => SingletonReach(sweep, b)).ToArray();
+        // The two-ingestion portfolio production ranks above the incumbent (see the last test): its position among the pairs.
+        var improving = new[] { Array.IndexOf(s.Roots, s.Roots.Single(r => r.Id == IncumbentRoot)), Array.IndexOf(s.Roots, s.ReferenceRoots[0]) };
+        var improvingRank = counts[0] + replica.Subsets(2).TakeWhile(x => !x.SequenceEqual(improving)).LongCount() + 1;
+        MaybeWrite("traversal", new
+        {
+            Counts = counts, ReferenceIndexes = referenceIndexes, ReferenceRank = referenceRank, ImprovingPair = improving,
+            ImprovingRank = improvingRank, sweep.Baseline, SingletonCosts = sweep.Costs,
+            SingletonSweepExpansions = total, Reach = Budgets.Zip(reach, (b, r) => new { Budget = b, r.Entered, r.Completed, r.Spent })
+        });
+        // 62 singletons; the larger sizes count only subsets that survive exclusive-outcome and graph-redundancy pruning.
+        Assert.Equal([62L, 1698L, 28580L, 339189L], counts);
+        Assert.Equal(185139L, total);
+        Assert.Equal(43, sweep.Costs.Count(c => c == 4097)); // The scheduler's bound (4096) plus the evaluation itself.
+        // Only the largest budget completes the sweep; it then has 77,005 expansions left for pairs. Smaller budgets end inside it.
+        Assert.Equal([1, 1, 2, 4, 18, 62], reach.Select(r => r.Completed));
+        Assert.Equal([2, 2, 3, 5, 19, 62], reach.Select(r => r.Entered));
+        Assert.Equal([1024, 4096, 8192, 16384, 65536, 185139], reach.Select(r => r.Spent));
+        // Even at one expansion per evaluation the reference set (cardinality 4) is far beyond every budget; the improving pair is not.
+        Assert.True(referenceRank > Budgets[^1], "enumeration rank of the reference set exceeds the largest budget");
+        Assert.True(improvingRank > counts[0] + 0, "pairs follow the sweep");
+        // The model equals the production search on the budgets cheap enough to run here: all spend exactly the budget on
+        // singletons and stop inside the sweep, on the root the model predicts.
+        foreach (var (budget, expected) in Budgets.Zip(reach).Where(p => p.First <= 16384))
+        {
+            var selection = s.Select(s.Roots, budget);
+            Assert.Equal(budget, selection.Selection.Expansions);
+            Assert.True(selection.Selection.SearchTruncated);
+            Assert.All(selection.Rejected, r => Assert.Single(r.Commitments));
+            Assert.Equal(s.Roots[expected.Entered - 1].Id, Assert.Single(LastSubset(selection)));
+        }
+    }
+
+    [Fact]
+    public void ProductionRefusesTheFourIngestionReferenceOnASharedTarget()
+    {
+        var s = Shared.Value;
+        // Both consumers' ingestion tasks name the same observed target; Hands owns an exact target for one pawn only.
+        var context = s.Generated.Context;
+        var targets = context.NeedTasks.Where(n => n.Kind == "food" && s.ReferenceRoots.SelectMany(r => r.ActivityCompletions).Contains(n.Task))
+            .GroupBy(n => n.Pawn).ToDictionary(g => g.Key, g => g.Select(n => n.Target).Distinct().ToArray());
+        Assert.Equal(["diner", "pawn"], targets.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(["cell/3/1"], targets["diner"]);
+        Assert.Equal(["cell/3/1"], targets["pawn"]);
+
+        // The per-portfolio bound is 4096 and cannot be raised: a larger bound is rejected, not searched.
+        Assert.Throws<DomainException>(() => ForecastColony(Replay(s, s.ReferenceRoots, 4097)));
+        var production = ForecastColony(Replay(s, s.ReferenceRoots, 4096)).Baseline.Coupled!;
+        Assert.True(production.Truncated);
+        Assert.Equal(4096, production.Expansions);
+        Assert.Equal(1023, production.Alternatives.Count);
+        Assert.DoesNotContain(production.Alternatives, a => a.Feasible == Known(true));
+        Assert.All(production.Alternatives, a => Assert.Contains(a.Findings, f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "cell/3/1"));
+
+        // Pinning every activity to its reference worker leaves nothing to assign differently; the owner conflict remains.
+        var pairs = PortfolioReferenceScheduleTests.Reference().Select(r => (r.Activity, r.Worker)).ToHashSet();
+        var pinned = ForecastColony(Replay(s, s.ReferenceRoots, 4096, o => pairs.Contains((o.Activity, o.Pawn)))).Baseline.Coupled!;
+        Assert.DoesNotContain(pinned.Alternatives, a => a.Feasible == Known(true));
+        Assert.All(pinned.Alternatives, a => Assert.Contains(a.Findings, f => f.Reason == "conflicting_selected_target_owners"));
+
+        // One diner and one pawn ingestion already conflict; one consumer's ingestions do not.
+        var mixed = ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[1]], 4096)).Baseline.Coupled!;
+        Assert.DoesNotContain(mixed.Alternatives, a => a.Feasible == Known(true));
+        var diner = ForecastColony(Replay(s, [s.ReferenceRoots[0], s.ReferenceRoots[2]], 4096)).Baseline.Coupled!;
+        Assert.Contains(diner.Alternatives, a => a.Feasible == Known(true));
+        MaybeWrite("replay", new
+        {
+            Reference = Describe(production, s.ReferenceRoots), Pinned = Describe(pinned, s.ReferenceRoots),
+            Mixed = Describe(mixed, [s.ReferenceRoots[0], s.ReferenceRoots[1]]), Diner = Describe(diner, [s.ReferenceRoots[0], s.ReferenceRoots[2]])
+        });
+    }
+
+    [Fact]
+    public void ProductionRanksATwoIngestionPortfolioAboveTheIncumbentItNeverReaches()
+    {
+        var s = Shared.Value;
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("RimGovernor.Brain.Domain.Tests.four-workers.quality.json");
+        using var document = JsonDocument.Parse(stream!);
+        var rows = document.RootElement.EnumerateArray().ToArray();
+        // The recorded incumbent is the same one-ingestion root at every budget up to 65,536.
+        foreach (var row in rows[..5])
+            Assert.Equal(IncumbentRoot, Assert.Single(row.GetProperty("Quality").GetProperty("Selected").EnumerateArray()).GetString());
+        var incumbentVector = rows[3].GetProperty("Quality").GetProperty("SelectedVector");
+        var incumbentRoot = s.Roots.Single(r => r.Id == IncumbentRoot);
+
+        // The same search, scheduler and ranking restricted to two roots: the incumbent and one more ingestion root.
+        var universe = new[] { incumbentRoot, s.ReferenceRoots[0] };
+        var selection = s.Select(universe, 16384);
+        MaybeWrite("pair", new
+        {
+            selection.Selection.Selected, selection.Selection.Expansions, selection.Selection.SearchTruncated,
+            Baseline = Flat(selection.BaselineVector.Urgent), Vector = Flat(selection.SelectedVector.Urgent), Needs = Flat(selection.SelectedVector.Needs),
+            selection.Selected.Plan.LaborCost
+        });
+        Assert.Equal(universe.Select(u => u.Id).Order(StringComparer.Ordinal), selection.Selection.Selected.Order(StringComparer.Ordinal));
+        var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
+        Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => food.Contains(a.Activity)));
+        // Strictly less food exposure and one fewer need left at zero than the incumbent; the earlier components are equal.
+        Assert.Equal([325d, 96.875, 450d, 650d, 0d], incumbentVector.GetProperty("Urgent").EnumerateArray().Select(x => x.GetDouble()));
+        Assert.Equal([325d, 96.875, 450d, 450d, 0d], selection.SelectedVector.Urgent.Select(x => x.Value));
+        Assert.Equal(2d, incumbentVector.GetProperty("Needs")[4].GetDouble());
+        Assert.Equal(1d, selection.SelectedVector.Needs[4].Value);
+        // It costs more labor (355 vs 198) and the per-portfolio scheduler search is truncated at its bound, so it is not proven best.
+        Assert.Equal(355, selection.Selected.Plan.LaborCost);
+        Assert.True(selection.Selection.SearchTruncated);
+    }
+
+    [Fact]
+    public void WriteSearchDiagnosisMeasurements()
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RIMGOVERNOR_PORTFOLIO_OUTPUT"))) return;
+        var s = Shared.Value;
+        var replica = new TraversalReplica(s.Roots, s.Generated.Context);
+        var pairs = replica.Subsets(2).Select(x => string.Join("+", x)).ToList();
+        var ids = s.Roots.Select(r => r.Id).ToList();
+        // The three budgets beyond the matrix are diagnostic only: they show where the search starts to improve, not a proposal.
+        var rows = Budgets.Concat([393216, 524288, 1048576]).Select(budget =>
+        {
+            var selection = s.Select(s.Roots, budget);
+            var last = LastSubset(selection);
+            var lastIndexes = last.Select(id => ids.IndexOf(id)).ToArray();
+            return new
+            {
+                Budget = budget, selection.Selection.Expansions, selection.Selection.SearchTruncated,
+                Cardinalities = selection.Rejected.GroupBy(r => r.Commitments.Count).OrderBy(g => g.Key).Select(g => new { Size = g.Key, Evidence = g.Count() }).ToArray(),
+                LastRoot = last, LastRootIndexes = lastIndexes,
+                LastPairPosition = last.Length == 2 ? pairs.IndexOf(string.Join("+", lastIndexes)) + 1 : 0,
+                Selected = selection.Selection.Selected, Vector = Flat(selection.SelectedVector.Urgent), Needs = Flat(selection.SelectedVector.Needs),
+                selection.Selected.Plan.LaborCost
+            };
+        }).ToArray();
+        MaybeWrite("production", rows);
+    }
+
+    private static ColonyForecastRequest Replay(Subject s, ForecastCommitment[] roots, int bound, Func<ForecastActivityOption, bool>? keep = null)
+    {
+        var problem = s.Generated.Context.Activities with { ExpansionBudget = bound };
+        if (keep is not null) problem = problem with { Options = [.. problem.Options.Where(keep)] };
+        return s.Request with { Coupled = s.Generated.Context with { Activities = problem }, Commitments = EquatableArray.From(roots), Proposed = new() };
+    }
+
+    private static object Describe(ForecastCoupledScenario scenario, ForecastCommitment[] roots) => new
+    {
+        scenario.Expansions, scenario.Truncated, Alternatives = scenario.Alternatives.Count,
+        Feasible = scenario.Alternatives.Count(a => a.Feasible == Known(true)),
+        Reasons = scenario.Alternatives.SelectMany(a => a.Findings.Select(f => f.Reason)).GroupBy(x => x).OrderBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => g.Key + "=" + g.Count()).ToArray(),
+        Best = scenario.Alternatives.Where(a => a.Feasible == Known(true)).Select(a => CoupledConsequences(a, roots))
+            .Select(v => new { Urgent = v.Urgent.Select(x => x.IsKnown ? x.Value : -1).ToArray(), Needs = v.Needs.Select(x => x.IsKnown ? x.Value : -1).ToArray(), v.Labor })
+            .OrderBy(v => v.Urgent[0]).ThenBy(v => v.Urgent[1]).ThenBy(v => v.Urgent[2]).ThenBy(v => v.Urgent[3]).ThenBy(v => v.Needs[4]).Take(1).ToArray()
+    };
+
+    // Explicit opt-in output, like PortfolioAllocationTests: never read back as an expectation.
+    private static void MaybeWrite(string name, object value)
+    {
+        var output = Environment.GetEnvironmentVariable("RIMGOVERNOR_PORTFOLIO_OUTPUT");
+        if (string.IsNullOrEmpty(output)) return;
+        File.WriteAllText(Path.Combine(output, "search-diagnosis." + name + ".json"), JsonSerializer.Serialize(value, Indented));
+    }
+}

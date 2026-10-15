@@ -278,3 +278,102 @@ a meal eaten before it is cooked and delivered, a conservation violation (two
 ingestions of one meal), wrong cook rates and a missed hunger window. The reference
 is compared read-only with the recorded incumbents (one ingestion at all six
 budgets). No production code, budget or traversal changed. The two quality baselines already carry the drift from other landed work (each Support object has `"Maintenance": []`; the top-level Findings include `assigned_capability_floor_unknown`, `practice_held_essential_emergency_or_unknown`, `practice_observation_unknown` and `unsupported_defensive_improvement_without_assignment:<pawn>`), and this change leaves them unchanged. No numeric, vector, physical or selection value changed.
+
+## Why the search serves one of four (#3196)
+
+`PortfolioSearchDiagnosisTests` observes the production search and scheduler through
+their public API and changes no selection, budget, traversal or baseline. Its
+`TraversalReplica` mirrors the subset order of `CompareActivityOutcomes` for counting
+only; the tests tie it to the production search. **Measurements** below are
+asserted by those tests unless marked *opt-in*; the opt-in run
+(`RIMGOVERNOR_PORTFOLIO_OUTPUT`, `-method '*WriteSearchDiagnosisMeasurements'`, about
+four minutes) writes `search-diagnosis.*.json` and also covers the budgets too slow
+for the normal gate. **Hypotheses** are labeled as such.
+
+### Measurements
+
+1. **Generation is not the limiter.** 88 tasks, 194 options and 62 roots; generation
+   is not truncated. The reference's four ingestions are four single-completion roots
+   (`food/27/delivery/{0..3}/eat/...`, at indexes 37, 43, 46 and 52 of the 62 in id order). Their
+   prerequisite closure is exactly the sixteen reference activities, and every
+   reference (activity, worker) pair is a generated option. The production chain root
+   `food/27/composition/18` is also present. The smallest portfolio that serves four
+   ingestions has four roots.
+2. **Traversal never reaches cardinality 4, nor most of 2.** After exclusive-outcome and
+   graph-redundancy pruning, the search enumerates 62 / 1,698 / 28,580 / 339,189 subsets
+   at cardinality 1 / 2 / 3 / 4. The reference set is the 357,973rd evaluation, which is
+   beyond the largest budget even at one expansion per evaluation. Each evaluation
+   spends 1 plus the scheduler's expansions, and the scheduler is bounded at 4,096:
+   43 of the 62 single roots spend the full bound (4,097 each, truncated), 16 spend 547,
+   two spend 1 and one spends 214. The cardinality-1 sweep alone therefore costs
+   **185,139** expansions.
+
+   | Budget | Roots entered (completed) | Cardinality reached | Notes |
+   | ---: | ---: | ---: | --- |
+   | 1,024 | 2 (1) | 1 | root 1 of 62 |
+   | 4,096 | 2 (1) | 1 | root 1 truncated |
+   | 8,192 | 3 (2) | 1 | root 2 |
+   | 16,384 (default) | 5 (4) | 1 | root 4 |
+   | 65,536 | 19 (18) | 1 | root 18 *(opt-in run agrees)* |
+   | 262,144 | 62 (62) | 2 | sweep ends at 185,139; 77,005 left cover 20 of 1,698 pairs *(opt-in)* |
+
+   The first four rows are also run against production in the test; the last two rows
+   are the replica's count, confirmed by the opt-in production runs (last root and
+   pair position match).
+3. **Scheduler on the reference set (production bound).** Replaying the four roots
+   through `ForecastColony` (the public route to `ForecastCoupledScenarioOf`) with the
+   production per-portfolio bound: 4,096 expansions, truncated, 1,023 alternatives,
+   **0 feasible**; every alternative carries `conflicting_selected_target_owners` on
+   `cell/3/1`. Pinning each activity to its reference worker leaves 420 alternatives,
+   still 0 feasible and all with the same finding, so the refusal does not depend on
+   assignment or on the truncation. A diner ingestion plus a pawn ingestion
+   (1,018 alternatives) is already refused. The scheduler cannot be given a larger
+   bound: `ExpansionBudget` above 4,096 is rejected as an invalid activity graph or
+   budget (asserted), so a larger-bound replay is not possible without a production
+   change and was not made.
+4. **Why the reference is refused (true infeasibility under production rules).** Both
+   consumers' ingestion tasks name the same observed target `cell/3/1` (the fixture
+   copies the first pawn's need targets to `diner`); the evaluator allows one pawn to
+   own an exact target across a portfolio. The #3195 checker validates physical
+   constraints and does not model target ownership, so "4 of 4 feasible" there is a
+   physical statement, not one the production evaluator accepts for this fixture.
+   One consumer's two ingestions are accepted: the diner pair
+   (`food/27/delivery/0/.../diner/0` + `delivery/2/.../diner/1`) gives 1,646
+   alternatives, 1,190 feasible, best consequence urgent
+   `[325, 96.875, 450, 450, 0]`, needs component 4 equal to 1, labor 446.
+5. **A feasible, better plan exists and is missed.** The incumbent (one ingestion,
+   `food/0/.../after/food/14/.../diner/0`) has urgent `[325, 96.875, 450, 650, 0]`,
+   needs component 4 equal to 2, labor 198. Restricted to the incumbent root plus
+   `food/27/.../diner/0`, the production search selects both: two ingestions, urgent
+   `[325, 96.875, 450, 450, 0]`, needs component 4 equal to 1, labor 355, with the
+   per-portfolio scheduler still truncated. That pair is the 119th evaluation overall
+   (57th pair).
+   *Opt-in* production runs beyond the matrix: 393,216 and 524,288 select a
+   two-ingestion portfolio (urgent `[..., 450, 0]`, labor 354; last pair evaluated 64th
+   and 120th); 1,048,576 selects another (labor 328; 438th pair). Cardinality 3 is never
+   entered. No budget improves the consequence beyond two ingestions.
+
+### Hypotheses (not measured)
+
+- The ceiling for this fixture under the current evaluator is two of four ingestions:
+  the worst-pawn components of the urgent vector cannot improve while the second
+  consumer is unfed, and a two-consumer portfolio is refused by the shared target.
+  Two ingestions is the best vector observed in every run; it is not proven optimal.
+- A remedy that reaches the pair stage sooner (a cheaper single-root sweep, pair-first
+  ordering, or a larger budget) would find the two-ingestion plan; the observed
+  crossover is between 262,144 and 393,216 expansions. Choosing the lever is #3197.
+- Whether the shared target in `LargerFacts` represents a real colony (two pawns using
+  one dining target) or a fixture artifact is a separate question; if distinct targets
+  were intended, the four-ingestion reference would also need a feasibility run.
+
+### Verdict
+
+**Feasible plan missed, limiter = subset traversal exhausting the budget inside the
+cardinality-1 sweep** (43 of 62 single roots each spend the whole 4,096 scheduler bound;
+the sweep costs 185,139 expansions, so every budget up to 65,536 never leaves the first
+18 roots and 262,144 reaches 20 pairs). The missed plan serves two of four ingestions
+(one consumer's both events) and is strictly better than the incumbent; four of four is
+refused by the evaluator's exact-target ownership on the fixture's shared target, so the
+remedy (#3197) can aim at two, not four, on this fixture. Generation and feasibility are
+not limiters; the per-portfolio bound is fixed at 4,096 and only matters through its cost
+per evaluation.

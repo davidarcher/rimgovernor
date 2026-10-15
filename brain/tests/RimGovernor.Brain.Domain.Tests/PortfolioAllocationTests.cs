@@ -56,7 +56,7 @@ public sealed class PortfolioAllocationTests
         return ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
     }
 
-    private static ColonyForecastRequest Request(RoundsFacts facts, ForecastCoupledCandidates generated) =>
+    internal static ColonyForecastRequest Request(RoundsFacts facts, ForecastCoupledCandidates generated) =>
         CoupledForecastRequestOf(new("world/map/load", 100), 700d / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated }, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
 
