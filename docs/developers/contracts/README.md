@@ -39,6 +39,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Colony extent contract](colony-extent.md)
 - [Colony upkeep contracts](upkeep-contracts.md)
 - [Work assignment contracts](work-assignment.md)
+- [Essential-service development evidence](essential-services.md)
 - [Kept constants](kept-constants.md): the surviving caps and fixed values, each with its reason or follow-up issue
 - [Waste census contract](waste-management.md)
 

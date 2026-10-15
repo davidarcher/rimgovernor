@@ -43,6 +43,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Plan colony rooms and containment | [Facilities](developers/architecture/facilities.md) |
 | Understand territory and Home margins | [Colony extent](developers/contracts/colony-extent.md), [Home coverage](developers/contracts/upkeep-contracts.md#home-coverage) |
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
+| Assess autonomous development shortfalls and bounded resilience | [Essential services](developers/contracts/essential-services.md) |
 | Plan and reconcile trade missions | [Controllable trade](developers/contracts/controllable-trade.md) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
 | Trace observed harvest through cooking and meal delivery | [Live food Method](developers/contracts/pawn-activities.md#live-one-iteration-cooking) |

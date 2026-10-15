@@ -309,3 +309,9 @@ Needs candidates and projected timelines are derived from the current Rounds
 frame and selected forecast inputs, in memory only; `RoundsFacts.NeedsAlternatives`
 is not admitted intent. It adds no persistence owner or second progress record.
 The existing Method/Plan journal owns any subsequently selected execution.
+
+Essential-service coverage, bounded stress checks and development proposals in
+`RoundsFindings.EssentialServices` are likewise transient full-review evidence.
+They reference existing Concern-owned predicates and shared demand, never own a
+second stock target, saved goal queue or progress journal. Missing/partial review
+evidence cannot establish satisfaction. See [essential services](essential-services.md).

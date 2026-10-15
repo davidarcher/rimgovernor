@@ -530,6 +530,7 @@ public sealed record RoundsFacts
     /// <summary>Observed ColonyForecast diagnostics not carried by the facts above.</summary>
     public ColonyForecastObserved ForecastObserved { get; init; } = new();
     public ForecastNeedsReview? NeedsAlternatives { get; init; }
+    public EssentialServiceInputs EssentialInputs { get; init; } = new();
 
     public Fact<long> Wood { get; init; }
 
@@ -706,6 +707,7 @@ public sealed record RoundsFindings
 
     /// <summary>The review's one resource-demand value (Needs are the effective MaintainResource stock targets the review held the census to; the stock overlay tints stockpiles by them).</summary>
     public DerivedDemand ResourceDemand { get; set; } = new();
+    public EssentialServiceReview? EssentialServices { get; set; }
 
     /// <summary>The pawns whose gear loadout search spent GearSearchBudget and kept the best ensemble found (journaled as gear_search).</summary>
     public List<PawnId> GearBudgetPawns { get; set; } = [];
@@ -1118,6 +1120,7 @@ public static partial class PolicyFunctions
                 r.Assessments.Add(a);
             }
         }
+        r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, r.All());
         return r;
     }
 
