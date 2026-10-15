@@ -246,6 +246,7 @@ public static partial class NewColony
             new("Tundra", "Tundra"),
             new("ColdBog", "Cold bog"),
             new("IceSheet", "Ice sheet"),
+            new("SeaIce", "Sea ice"),
             new("TropicalRainforest", "Tropical rainforest"),
             new("TropicalSwamp", "Tropical swamp"),
             new("AridShrubland", "Arid shrubland"),
@@ -396,7 +397,7 @@ public static partial class NewColony
         ForcedTraitPart Trait(string def, int degree) => new() { Trait = def, Degree = degree, Chance = 1, Context = "player_starter" };
         return new NewColonySpec
         {
-            Scenario = "Crashlanded", ColonistCount = 1, Seed = "SeaIce", Biomes = ["IceSheet"], Difficulty = "Extreme",
+            Scenario = "Crashlanded", ColonistCount = 1, Seed = "SeaIce", Biomes = ["SeaIce"], Difficulty = "Extreme",
             Storyteller = "Randy", WorldTemperature = "VeryCold", MapSize = 250, PlanetCoverage = 0.3f,
             StartingThings =
             [

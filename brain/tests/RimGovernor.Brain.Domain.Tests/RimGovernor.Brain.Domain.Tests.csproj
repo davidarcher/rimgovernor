@@ -31,6 +31,11 @@
     <ProjectReference Include="../../src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
+  <!-- The launcher is a WinExe outside this solution; its new-colony form (no WinForms dependency) is compiled in to pin the presets. -->
+  <ItemGroup>
+    <Compile Include="../../../tools/launcher/NewColony.cs" Link="Launcher/NewColony.cs" />
+    <Compile Include="../../../tools/launcher/LauncherException.cs" Link="Launcher/LauncherException.cs" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Baselines/*.quality.json" LogicalName="RimGovernor.Brain.Domain.Tests.%(Filename)%(Extension)" />
   </ItemGroup>

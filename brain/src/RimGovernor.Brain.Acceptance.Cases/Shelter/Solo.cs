@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>shelter/solo-cold</c> (Go <c>shelter/solo.go</c>): epic #2745's colony of one. The capability logic is proven by the
-/// policy snapshot tests; this case keeps what needs a real world: a one-colonist ice-sheet start whose recorded plan
+/// policy snapshot tests; this case keeps what needs a real world: a one-colonist sea-ice start whose recorded plan
 /// latches Cold, holds the shelter, plans no laboratory, and whose shelter campfire the native accepts on the planned interior.
 /// </summary>
 internal static class ShelterSolo
@@ -14,7 +14,7 @@ internal static class ShelterSolo
     internal static AcceptanceCase Case() => new()
     {
         Name = "shelter/solo-cold",
-        Scope = "Issue #2762: from a one-colonist ice-sheet start the plan latches Cold, plans the shelter and no laboratory " +
+        Scope = "Issue #2762: from a one-colonist sea-ice start the plan latches Cold, plans the shelter and no laboratory " +
             "(research is the shelter's capability), and the shelter's campfire stands on its planned interior. " +
             "A snapshot test covers the capability logic; only a real cold world reads the temperature curve and accepts the placement.",
         Start = new FixtureStart
@@ -28,7 +28,7 @@ internal static class ShelterSolo
                     Count = 1,
                     Seed = "shelter-solo-2762",
                     Difficulty = DebugGame.DebugDifficulty,
-                    Biome = "IceSheet",
+                    Biome = "SeaIce",
                     WorldTemperature = "VeryCold",
                     Size = new DebugStartSize { MapSize = 150, PlanetCoverage = 0.05 },
                     SaveName = "shelter-solo-2762",

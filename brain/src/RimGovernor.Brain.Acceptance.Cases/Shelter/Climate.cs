@@ -41,7 +41,7 @@ internal static class ShelterClimate
                 "shelter/climate-cold",
                 "the plan latches Cold, the shelter template holds two campfire slots and the cooking campfire is placed on the planned shelter's interior, any crafting spot with it",
                 [.. ClimateFamilies, "armory"],
-                QuietStart(new DebugStartSize { MapSize = 150, PlanetCoverage = 0.05, Biomes = "Tundra,BorealForest,ColdBog,IceSheet", Seed = "shelter-cold-2076" }),
+                QuietStart(new DebugStartSize { MapSize = 150, PlanetCoverage = 0.05, Biomes = "Tundra,BorealForest,ColdBog,SeaIce", Seed = "shelter-cold-2076" }),
                 true,
                 false,
                 "Campfire",
