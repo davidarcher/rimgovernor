@@ -381,12 +381,14 @@ for the normal gate. **Hypotheses** are labeled as such.
 cardinality-1 sweep** (43 of 62 single roots each spend the whole 4,096 scheduler bound;
 the sweep costs 185,139 expansions, so every budget up to 65,536 never leaves the first
 18 roots and 262,144 reaches 20 pairs). The missed plan serves two of four ingestions
-(one consumer's both events) and is strictly better than the incumbent; four of four is
-was refused by the evaluator's exact-target ownership on the fixture's shared target when
-this was written, so the remedy (#3197) aimed at two, not four, on this fixture; #3210 later
-replaced that rule with a capacity check and the scheduler accepts the four-root set. Generation and feasibility are
-not limiters; the per-portfolio bound is fixed at 4,096 and only matters through its cost
-per evaluation.
+(one consumer's both events) and is strictly better than the incumbent. *History
+(superseded 2026-10-15, #3210/#3212):* when this was written the evaluator refused four of
+four on the fixture's shared target (exact-target ownership), so the remedy (#3197) aimed at
+two, not four. #3210 replaced that rule with a capacity check and the scheduler now accepts
+the four-root set; the limiter for four of four is the search's reach, measured
+[below](#re-measurement-after-the-capacity-rule-3212). Generation and feasibility are not
+limiters; the per-portfolio bound is fixed at 4,096 and only matters through its cost per
+evaluation.
 
 ## Incumbent-seeded extension (#3197)
 
@@ -428,8 +430,10 @@ consequences and wins on labor, 354 against 355. The selected pair is root 1 plu
 `food/14/delivery/1/eat/diner/1`, so the diner eats at 240–250 and 490–500. This is
 equivalent in consequence to the issue's "incumbent plus one food/27 diner root" plan
 (urgent `[...,450,0]`, needs component 4 equal to 1) but is the first found in root order.
-When #3197 landed, four of four stayed unreachable because the evaluator allowed one owner
-per exact target and both consumers share `cell/3/1`. #3210 lifted that: the larger
+*History (superseded 2026-10-15):* when #3197 landed, four of four was unreachable because
+the evaluator allowed one owner per exact target and both consumers share `cell/3/1`.
+#3210 lifted that (the current numbers are in the
+[re-measurement](#re-measurement-after-the-capacity-rule-3212)): the larger
 fixture's selection at 65,536 and 262,144 expansions is now the incumbent plus
 `food/14/delivery/1/eat/pawn/0` (the pawn eats at 305-315 from the stack the diner also
 uses), urgent `[75, 38.6, 265, 465, 0]`, needs component 4 equal to 2, labor 354, ending tick
@@ -502,3 +506,93 @@ vector, labor, expansions, truncation and determinism. The re-recorded
 [original](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/productive.quality.json)
 and [larger](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/four-workers.quality.json)
 snapshots carry the rest.
+
+## Re-measurement after the capacity rule (#3212)
+
+Recorded 2026-10-15 on main after #3211 (same machine and Release build as above), with
+the opt-in `WriteSearchDiagnosisMeasurements` run (`search-diagnosis.production.json` and
+`.narrow.json`). It changes no production code, budget or baseline: the evaluator now
+checks need-target capacity (`MaxPawns`, summed stack counts; #3210) and Hands and the
+native bind use the same model (#3211); the search is the #3197 incumbent-seeded
+traversal. Statements in the #3195, #3196 and #3197 sections that four of four is
+unreachable, refused, or limited by one owner per target are history as of this date;
+their measurements stand.
+
+### Scheduler verdict on the `food/27` set
+
+Unchanged from [#3196 item 3](#measurements) and pinned by
+`ProductionAcceptsTheFourIngestionReferenceOnASharedStack`: the four reference ingestion
+roots, replayed at the production per-portfolio bound (4,096), give 1,023 alternatives,
+all feasible, none refused for `conflicting_selected_target_owners` or
+`target_stack_quantity_exceeded`; pinning each activity to its reference worker leaves 420,
+all feasible, the best serving four ingestions with urgent `[0, 0, 0, 0, 0]` and labor 841.
+Four of four is accepted by the scheduler.
+
+### Production incumbent per budget (four-worker fixture, 62 roots)
+
+Ingestions count food ingestion allocations. Urgent is the five-component vector, needs
+component 4 the needs-vector entry quoted in the tables above. Every
+search is truncated.
+
+| Budget | Expansions | Ingestions | Urgent | Needs[4] | Labor | End tick | Cardinalities entered |
+| ---: | ---: | ---: | --- | ---: | ---: | ---: | --- |
+| 1,024 | 1,024 | 1 | `[325, 96.875, 450, 650, 0]` | 2 | 211 | 251 | 1 |
+| 4,096 | 4,096 | 1 | same | 2 | 198 | 251 | 1 |
+| 8,192 | 8,192 | 1 | same | 2 | 198 | 251 | 1, 2 |
+| 16,384 (default) | 16,384 | 2 | `[325, 96.875, 450, 450, 0]` | 1 | 354 | 500 | 1, 2 |
+| 65,536 | 65,536 | 2 | `[75, 38.6, 265, 465, 0]` | 2 | 354 | 315 | 1, 2 |
+| 262,144 | 262,144 | 2 | same | 2 | 354 | 315 | 1, 2 |
+| 393,216 *(opt-in)* | 393,216 | 2 | `[75, 34.375, 200, 400, 0]` | 2 | 220 | 250 | 1, 2 |
+| 524,288 / 1,048,576 *(opt-in)* | same as above | 2 | same | 2 | 220 | 250 | 1, 2 |
+
+This matches the embedded `four-workers.quality.json` expectations at the six matrix
+budgets, which the gate pins, so the baselines are not stale. The 65,536 and 262,144
+selections (the incumbent plus `food/14/delivery/1/eat/pawn/0`) beat the default's
+second diner meal lexicographically (`75 < 325`) with `Needs[4]` 2 against 1, as recorded
+in the #3197 section. Both budgets above the default serve the same two ingestions; the opt-in budgets drop the one-ingestion
+incumbent root altogether (the pair is `food/0/.../eat/diner/0` plus
+`food/14/.../eat/pawn/0`, two ingestions with labor 220), and no budget up to 1,048,576
+selects three or four.
+
+### How far the search is from four of four
+
+- **Cardinality reached:** 1 at 1,024-4,096, 2 from 8,192 up (8,192 enters pairs but its
+  selection is still one ingestion). No budget measured, up to 1,048,576, evaluates a
+  portfolio of three or four roots in the full universe.
+- **Where the reference set sits:** the plain cardinality order enumerates 62 / 1,698 /
+  28,580 / 339,189 subsets at cardinality 1 / 2 / 3 / 4 (unchanged from #3196), putting the
+  reference set at evaluation 357,973. The seed pass and extension skip at most the roughly
+  hundred subsets they already evaluated, so the position is unchanged, and an evaluation
+  of a multi-root set typically spends the 4,096 scheduler bound. It is out of reach of
+  every budget measured, up to the opt-in 1,048,576.
+- **The extension is one level:** the #3197 extension adds each other root to the seed
+  leader once and never extends the pair it finds, so it cannot form a triple.
+- **Reachable in a small universe:** the same search over only the four reference
+  ingestion roots (`PortfolioSearchDiagnosisTests`, opt-in `narrow` rows) reaches
+  cardinality 4 once the budget allows:
+
+  | Universe | Budget | Expansions | Ingestions | Urgent | Needs[4] | Labor |
+  | --- | ---: | ---: | ---: | --- | ---: | ---: |
+  | 4 reference roots | 16,384 | 16,384 | 2 | `[75, 34.375, 200, 400, 0]` | 2 | 220 |
+  | 4 reference roots | 65,536 and 262,144 | 57,905 (exhausted) | **4** | `[0, 18.413, 185, 185, 0]` | 0 | 947 |
+  | incumbent + 4 reference roots | 16,384 | 16,384 | 2 | `[75, 50, 325, 525, 0]` | 2 | 448 |
+  | incumbent + 4 reference roots | 65,536 | 65,536 | 3 | `[75, 34.375, 200, 371, 0]` | 1 | 922 |
+  | incumbent + 4 reference roots | 262,144 | 74,305 (exhausted) | **4** | `[0, 18.413, 185, 185, 0]` | 0 | 947 |
+
+  The four-ingestion plan is strictly the best on every urgent component, so the selector
+  prefers it whenever it is evaluated. Even with five candidate roots the exhaustive
+  search needs 57,905-74,305 expansions, about 3.5-4.5 times the default; the 62-root
+  universe is far larger.
+- **What blocks it:** (1) the universe (62 roots) against a 16,384 budget; (2) the cost of
+  an evaluation, since 43 of the 62 single roots and most multi-root sets spend the whole
+  4,096 per-portfolio bound, so one level of extension from one leader costs up to about
+  61 x 4,097 expansions (an upper-bound estimate, not a measurement); (3) the extension
+  stopping at cardinality 2. Generation, feasibility and the evaluator are not limiters.
+
+**Verdict:** four of four is accepted by the scheduler but not reached by the search at
+the default budget (nor at any budget below the cardinality-4 position). The default serves
+two of four demanded ingestions. The follow-up search work, with candidate levers
+(iterating the extension, restricting candidates, cheaper extension evaluations,
+composite roots, a larger budget), is tracked in
+[#3215](https://github.com/davidarcher/rimgovernor/issues/3215); no search change is made
+here.

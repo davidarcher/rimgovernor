@@ -330,6 +330,7 @@ public sealed class PortfolioSearchDiagnosisTests
         var pairs = replica.Subsets(2).Select(x => string.Join("+", x)).ToList();
         var ids = s.Roots.Select(r => r.Id).ToList();
         // The three budgets beyond the matrix are diagnostic only: they show where the search starts to improve, not a proposal.
+        var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
         var rows = Budgets.Concat([393216, 524288, 1048576]).Select(budget =>
         {
             var selection = s.Select(s.Roots, budget);
@@ -342,10 +343,28 @@ public sealed class PortfolioSearchDiagnosisTests
                 LastRoot = last, LastRootIndexes = lastIndexes,
                 LastPairPosition = last.Length == 2 ? pairs.IndexOf(string.Join("+", lastIndexes)) + 1 : 0,
                 Selected = selection.Selection.Selected, Vector = Flat(selection.SelectedVector.Urgent), Needs = Flat(selection.SelectedVector.Needs),
-                selection.Selected.Plan.LaborCost
+                selection.Selected.Plan.LaborCost, EndTick = selection.Selected.Plan.CompletedAt,
+                Ingestions = selection.Selected.Plan.Allocations.Count(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal))
             };
         }).ToArray();
         MaybeWrite("production", rows);
+
+        // Diagnostic only (#3212): the same search over a universe that holds just the reference ingestion roots, with and
+        // without the incumbent, shows whether cardinality 4 is reachable when the other roots do not spend the budget.
+        var incumbentRoot = s.Roots.Single(r => r.Id == IncumbentRoot);
+        var narrow = new (string Name, ForecastCommitment[] Universe)[] { ("reference-4", s.ReferenceRoots), ("incumbent+reference-4", [incumbentRoot, .. s.ReferenceRoots]) }
+            .SelectMany(u => Budgets.Where(b => b >= 16384).Select(budget =>
+            {
+                var selection = s.Select(u.Universe, budget);
+                return new
+                {
+                    u.Name, Budget = budget, selection.Selection.Expansions, selection.Selection.SearchTruncated, Selected = selection.Selection.Selected,
+                    Ingestions = selection.Selected.Plan.Allocations.Count(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal)),
+                    Vector = Flat(selection.SelectedVector.Urgent), Needs = Flat(selection.SelectedVector.Needs), selection.Selected.Plan.LaborCost,
+                    Cardinalities = selection.Rejected.GroupBy(r => r.Commitments.Count).OrderBy(g => g.Key).Select(g => new { Size = g.Key, Evidence = g.Count() }).ToArray()
+                };
+            })).ToArray();
+        MaybeWrite("narrow", narrow);
     }
 
     private static ColonyForecastRequest Replay(Subject s, ForecastCommitment[] roots, int bound, Func<ForecastActivityOption, bool>? keep = null)
