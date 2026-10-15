@@ -196,6 +196,11 @@ internal static partial class BuildingRuntimePackage
             var (observed, _) = await native.ReadEmergencyAsync(identity, ct).ConfigureAwait(false);
             colonists = [.. observed.Facts.Colonists.Select(p => p.Id.Value)];
         }
+        if (colonists.Count == 0)
+        {
+            // No colonists is a valid roster (all lost, or before spawn), and the id-scoped read refuses an empty set.
+            return [];
+        }
         var (pawns, _) = await native.ReadCombatPawnsAsync(identity, colonists, ct).ConfigureAwait(false);
         var arms = await ReadArmamentAsync(native, identity, ct).ConfigureAwait(false);
         var squad = new List<Pol.ShrineDefenderFacts>();
