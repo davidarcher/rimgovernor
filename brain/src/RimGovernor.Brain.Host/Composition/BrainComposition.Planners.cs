@@ -231,7 +231,7 @@ public sealed partial class BrainComposition
         }
         if (equip)
         {
-            cfgEquip = new RoundsEquipPlanner(reviewer, client);
+            cfgEquip = new RoundsEquipPlanner(reviewer);
         }
         if (fireSafety)
         {

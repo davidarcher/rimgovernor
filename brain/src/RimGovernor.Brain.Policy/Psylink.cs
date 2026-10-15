@@ -6,12 +6,12 @@ namespace RimGovernor.Brain.Policy;
 public static partial class PolicyConstants
 {
     /// <summary>
-    /// MaintainPsylink gives willing colonists a psylink and raises untitled psycasters below MaxPsylinkLevel
-    /// from neuroformers already in stock (PsylinkLevelUps; Deserter route excluded): the psylink neuroformer
-    /// is used by the colonist on itself (UseItem with the pawn as its own target). Acquiring the neuroformer
+    /// MaintainPsylink observes unmet psylink and level-up requirements for willing colonists below MaxPsylinkLevel
+    /// (PsylinkLevelUps; Deserter route excluded). Ordinary item use remains unsupported until shared forecast
+    /// admission owns its labor and consequences. Acquiring the neuroformer
     /// is MaintainResource's: NeuroformerNeeds raises a stock floor of one, which the resource ladder meets
     /// with a production bill when the recipe is available and a trade buy when a trader sells it. Psyfocus is
-    /// kept at target by the meditation schedule (PlanSchedulesHeld), not by this goal.
+    /// an explicit unsupported ordinary-control state until a shared meditation Method exists.
     /// </summary>
     public static readonly ConcernId MaintainPsylink = new("MaintainPsylink");
 
@@ -27,9 +27,6 @@ public static partial class PolicyConstants
     /// </summary>
     public const int MaxPsylinkLevel = 6;
 }
-
-/// <summary>One colonist using one neuroformer item on itself.</summary>
-public sealed record PsylinkUse(PawnId Pawn, string Item);
 
 public static partial class PolicyFunctions
 {
@@ -133,30 +130,6 @@ public static partial class PolicyFunctions
             return needs;
         }
         return ResourceConcernTargets(needs, new Dictionary<Resource, long> { [new Resource(PolicyConstants.PsylinkNeuroformer)] = 1 });
-    }
-
-    /// <summary>
-    /// The use the colony owes now: the first candidate (a colonist with no psylink yet) with the first held
-    /// neuroformer item, else the first level-up colonist. items are the unforbidden item ids a live read
-    /// found; the stock count in the royalty read lags it. One use per call: a second colonist is served once
-    /// the first one's psylink read catches up. Null when nothing is owed.
-    /// </summary>
-    public static PsylinkUse? NextPsylinkUse(IReadOnlyList<PawnId> candidates, IReadOnlyList<PawnId> levelUps, IReadOnlyList<string> items)
-    {
-        if (items.Count == 0)
-        {
-            return null;
-        }
-        var item = items.Min(StringComparer.Ordinal)!;
-        if (candidates.Count > 0)
-        {
-            return new PsylinkUse(candidates.Min(), item);
-        }
-        if (levelUps.Count > 0)
-        {
-            return new PsylinkUse(levelUps.Min(), item);
-        }
-        return null;
     }
 
     /// <summary>

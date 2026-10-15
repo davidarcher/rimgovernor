@@ -6,9 +6,8 @@ internal static class PawnDrugAddiction
     internal static AcceptanceCase Case() => new()
     {
         Name = "pawn/drug-addiction",
-        Scope = "A colonist addicted to luciferium, with luciferium in stock, gets a drug policy that schedules luciferium and allows it for the addiction (#1538). Native contract: the colony item census feeding the planner, the chemical state read and the written scheduled entry; maintain-or-wean choices are policy/drug_policy_test.go.",
+        Scope = "Explicitly configure a luciferium policy on the prepared addicted pawn, verify native assignment and scheduled/addiction permissions, and observe unsupported voluntary-state evidence. This preserves native operation/readback coverage without an automatic dose scheduler or a claim of successful treatment.",
         Start = new FixtureStart { Op = "test/luciferium_addict", On = new LabStart() },
-        Serve = PawnSupport.WorkSpec,
         Budget = TimeSpan.FromMinutes(4),
         Crew = new Crew { Size = 3 },
         Run = RunAsync,
@@ -19,14 +18,9 @@ internal static class PawnDrugAddiction
         var pawn = PawnSupport.Fixture(s, "pawn", "pawn");
         s.Report["pawn"] = pawn;
         var h = s.Harness;
-        await PawnSupport.SettleAsync(
-            s,
-            async ct =>
-            {
-                var facts = await PawnSupport.PolicyFactsAsync(h, s, "drug-addiction-wait", ct).ConfigureAwait(false);
-                return PawnSupport.HoldsAssigned(facts, "drug", pawn) ? ("drug policy assigned", true) : ("waiting for the drug policy assignment", false);
-            },
-            cancellationToken).ConfigureAwait(false);
+        _ = await Authority.GrantAutoAsync(h.WireFunc(), "drug-addiction-authority", s.Identity, cancellationToken).ConfigureAwait(false);
+        await ExplicitDrugPolicy.AssignAsync(s, pawn, "Explicit addiction", [new() { DrugDef = "Luciferium", AllowScheduled = true, AllowedForAddiction = true, DaysFrequency = 4, OnlyIfMoodBelow = 1, OnlyIfJoyBelow = 1 }], cancellationToken).ConfigureAwait(false);
+        await ExplicitDrugPolicy.RequireUnsupportedAsync(s, pawn, "Luciferium", cancellationToken).ConfigureAwait(false);
         h = s.Harness;
         var final = await PawnSupport.PolicyFactsAsync(h, s, "drug-addiction", cancellationToken).ConfigureAwait(false);
         foreach (var policy in PawnSupport.Policies(final, "drug"))

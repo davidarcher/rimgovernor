@@ -32,6 +32,46 @@ public sealed class ForecastNeedsTests
         start, start + 20, end, (end - start - 20) * .002, []);
 
     [Theory]
+    [InlineData(97.325204571088, 1088.325204571088)]
+    [InlineData(30016.1164428265, 36127.1164428265)]
+    [InlineData(56907.1164428265, 60000)]
+    public void UnrelatedJoyTimingCannotChangeFoodOrRestConsequencesEvenByOneBit(double start, double end)
+    {
+        // The native portfolio selected materially worse rest trajectories because
+        // irrelevant joy breakpoints changed earlier food metrics below log precision.
+        var pawn = Pawn() with { Needs =
+            [new("food", Known(.257004916667938), Known(.0000166666676249588), Known(.3), Known(1d)),
+             new("rest", Known(.875153124332428), Known(.0000169642857142857), Known(.3), Known(1d)),
+             new("joy", Known(.1), Known(.00000833333376795053), Known(.3), Known(1d))] };
+        var input = Input(60000);
+        var baseline = ForecastNeedsTimeline(pawn, input, []);
+        var joy = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, start, start, end, .5, []);
+        var serviced = ForecastNeedsTimeline(pawn, input, [joy]);
+        Assert.Equal(Assert.Single(baseline.Needs, n => n.Kind == "food"), Assert.Single(serviced.Needs, n => n.Kind == "food"));
+        Assert.Equal(Assert.Single(baseline.Needs, n => n.Kind == "rest"), Assert.Single(serviced.Needs, n => n.Kind == "rest"));
+        Assert.NotEqual(Assert.Single(baseline.Needs, n => n.Kind == "joy"), Assert.Single(serviced.Needs, n => n.Kind == "joy"));
+    }
+
+    [Fact]
+    public void SleepAndItsNativeWakeBreakpointCannotPerturbUnchangedFoodTrajectory()
+    {
+        var pawn = Pawn() with { SleepWhileStarving = Known(false), Needs =
+            [new("food", Known(.528273165225983), Known(.0000166666676249588), Known(.3), Known(1d)),
+             new("rest", Known(.25), Known(.0000169642857142857), Known(.3), Known(1d)),
+             new("joy", Known(.1), Known(.00000833333376795053), Known(.3), Known(1d))] };
+        var input = Input(60000);
+        var baseline = ForecastNeedsTimeline(pawn, input, []);
+        var sleep = Sleep(97.325204571088, 1280.2626);
+        var rested = ForecastNeedsTimeline(pawn, input, [sleep]);
+        Assert.Equal(Assert.Single(baseline.Needs, n => n.Kind == "food"), Assert.Single(rested.Needs, n => n.Kind == "food"));
+        Assert.NotEqual(Assert.Single(baseline.Needs, n => n.Kind == "rest"), Assert.Single(rested.Needs, n => n.Kind == "rest"));
+        var joy = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, 7096, 7096, 8184.32520457109, .5, []);
+        var combined = ForecastNeedsTimeline(pawn, input, [sleep, joy]);
+        Assert.Equal(Assert.Single(rested.Needs, n => n.Kind == "food"), Assert.Single(combined.Needs, n => n.Kind == "food"));
+        Assert.Equal(Assert.Single(rested.Needs, n => n.Kind == "rest"), Assert.Single(combined.Needs, n => n.Kind == "rest"));
+    }
+
+    [Theory]
     [InlineData(0, 0, 0)]
     [InlineData(.5, 65, 14.75)]
     [InlineData(1, 140, 66)]
@@ -171,7 +211,7 @@ public sealed class ForecastNeedsTests
     public void NativeNeedsWireRoundTripsKnownUnknownAndPermanentFacts()
     {
         var source = new NeedsForecastRead { Tick = 100, Pawns = [Pawn() with
-        { Memories = Known<EquatableArray<NeedMemory>>([new("permanent", 3, default, false) { Permanent = true }]) }] };
+        { VoluntaryControlBlockers = ["unsupported_psyfocus"], Memories = Known<EquatableArray<NeedMemory>>([new("permanent", 3, default, false) { Permanent = true }]) }] };
         var text = RimGovernor.Contracts.Wire.WireJson.Serialize(source);
         var copy = RimGovernor.Contracts.Wire.WireJson.Deserialize<NeedsForecastRead>(text);
         Assert.Equal(source, copy);

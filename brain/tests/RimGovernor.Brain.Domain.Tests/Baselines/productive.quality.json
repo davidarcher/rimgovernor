@@ -167,7 +167,8 @@
         "search_truncated",
         "support_observation_unknown",
         "unassessed_no_schedule_within_horizon",
-        "unknown_clothing_requirements"
+        "unknown_clothing_requirements",
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -342,7 +343,8 @@
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
-        "unknown_clothing_requirements"
+        "unknown_clothing_requirements",
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -635,7 +637,8 @@
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
-        "unknown_clothing_requirements"
+        "unknown_clothing_requirements",
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -928,7 +931,8 @@
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
-        "unknown_clothing_requirements"
+        "unknown_clothing_requirements",
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -1223,7 +1227,8 @@
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
-        "unknown_clothing_requirements"
+        "unknown_clothing_requirements",
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -1518,7 +1523,8 @@
         "productive_learning_unassessed:helper:SimpleMeal",
         "search_truncated",
         "support_observation_unknown",
-        "unknown_clothing_requirements"
+        "unknown_clothing_requirements",
+        "unknown_observed_shelter_geometry"
       ]
     }
   }

@@ -347,6 +347,7 @@ namespace HomeBridge.BridgeTools
                     success = true,
                     lords = jobs.Count,
                     organizer = jobs.Count > 0 ? jobs[0].Organizer?.GetUniqueLoadID() : null,
+                    eligibleOrganizer = colonists.FirstOrDefault(p => GatheringsUtility.PawnCanStartOrContinueGathering(p) && gathering.CanExecute(map,p))?.GetUniqueLoadID(),
                     spotX = jobs.Count > 0 ? jobs[0].Spot.x : -1,
                     spotZ = jobs.Count > 0 ? jobs[0].Spot.z : -1,
                     colonists = colonists.Count,

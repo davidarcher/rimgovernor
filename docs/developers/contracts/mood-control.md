@@ -168,32 +168,17 @@ levels (empty while the level is unobserved). `RimGovernor.cmd colonyreview` cop
 frame and the hourly panel renders the two tables, saying "Expectation level not
 observed" rather than assuming one. Unowned thoughts ranked by mood lost choose the next gap-fill.
 
-## Relief jobs
+## Supported need relief
 
-A `GiveJobIntent` with `relieve_need` on Actions/Apply offers one ordinary food, rest
-or recreation job. Native checks only that the exact pawn is a spawned,
-living, undowned, undrafted colonist outside a mental break, then takes the job and
-reservations the installed native job giver returns; the game's refusal, not a native
-pre-veto on medical rest, interruptibility, need level, timetable, priority, cargo,
-fire, forbidden targets or reach danger, is the answer when no job comes. It never
-changes schedules, policies, traits, ideology or needs. The brain decides whether relief is
-worth asking for from the observed facts.
-Recreation excludes ingestible joy; food relief requires an ordinary ingestion job
-and leaves acquisition to its own concern. Preview checks admission only: it does not
-run a job giver or reserve a target, and dispatch can still refuse when no eligible
-target exists. Jobs remain ordinary AI work, interruptible by player direction and
-timetable changes.
+Food, rest and recreation use exact candidates in the shared portfolio. Selected
+targets, timing and quantities pass through the existing Method journal and Hands.
+The former MoodRelief action and native need-giver wire arm are deleted; the mood
+incident cannot dispatch a second local need choice. Preventative psycast relief reports unsupported_forecast_mood_cast until caster occupancy, psyfocus and mood outcomes have shared alternatives. The Incident admission boundary rejects that bypass; active mental-state containment and combat retain their existing protection ownership.
 
-Hands records intent before dispatch. `need_recovered` requires a fresh native need
-level of at least 0.5; an accepted job is only a receipt. Readback is scoped to the
-persisted load and plan identities. A lost receipt can be resolved by observed
-recovery without replaying the order or fabricating a receipt. Active breaks and
-player orders interrupt recovery. Missing reads remain unverified, and the shared
-no-progress watchdog bounds issued work using per-pawn need high-water marks, so
-unrelated observations or falling needs cannot keep stalled work alive. Each need
-method is attempted once per concern activation; changed conditions can reopen admission
-blockers, and unchanged blockers are rechecked at most once per 2,500-tick window.
-
+An accepted activity is not recovered mood or completed ingestion. Fresh native
+observations and exact assignment identity govern completion, interrupted needs,
+release and reconsideration. Unknown inputs do not certify recovery. See
+[pawn activities](pawn-activities.md) and [voluntary control](voluntary-control.md).
 ## Mental breaks and containment
 
 An active mental break keeps its pawn's mood incident in deficit and releases its
@@ -246,15 +231,12 @@ are access blockers, not reasons to duplicate them.
 
 After Brewing research, ordinary resource production targets twelve Beer and twelve
 SmokeleafJoint, with small hops and smokeleaf plots when climate permits. Each
-colonist holds its own drug policy (the [`drug_policy` action](action-contracts.md)):
-beer, smokeleaf and psychite tea for joy unless addiction risk or a trait rules them
-out. Every addiction, a child's included, gets a scheduled dose and is never left cold
-turkey: weaned at an interval widening as severity falls when the colony's stock of
-the drug covers the weaning doses, otherwise maintained at the drug's addiction
-interval and allowed for the need; luciferium is always maintained. Each colony
-prisoner holds its own policy too (inputs on its population row): no recreation, only
-that maintenance. Recreation relief itself excludes ingestible joy; RimWorld chooses
-ordinary drug use.
+colonist's existing drug policy is observed for inventory/runway demand; the work
+routine does not create a policy or select prevention, maintenance or weaning doses.
+The [`drug_policy` action](action-contracts.md) remains an explicit native operation.
+Scheduled drugs, active dependencies and unsupported chemical needs remain visible
+unsupported control states; this does not establish successful addiction treatment
+or safe autonomous drug use. Shared recreation currently excludes ingestible joy.
 
 ## Gatherings
 
@@ -319,60 +301,27 @@ placement per room) all drop the deficit. Mood relief for `AteWithoutTable` and
 `NeedJoy` defers to `EnsureComfort` while it is active, so it defers during that window
 too.
 
-### Holding a party
+### Gathering ownership
 
-`HoldGatherings` (People; routine family `gathering`) holds a vanilla `Party` when the
-colony as a whole is losing mood the party would repay. It is a mood source with a cost
-(colonist time), never a repair, and it never places the spot: with no built `PartySpot`
-(a blueprint or frame does not count) it waits for `EnsureComfort`. No number in
-`Gathering.cs` is a tuning choice; each is read from the game:
+`HoldGatherings` retains observed mood demand and the existing native gathering
+mechanics. Ordinary automatic participation is unsupported: its runtime returns
+`unsupported_forecast_gathering`, and Standard Method admission rejects a direct
+`gathering` action. Starting a lord cannot bypass shared participant availability,
+need timing and displaced work. Gathering support requires those alternatives in
+the existing shared forecast and Method path.
 
-| Gate | Source |
-| --- | --- |
-| Def `Party` | the `GatheringDef` whose `gatherSpotDefs` is `PartySpot` |
-| Pressure | a colonist is pressed when its ledger loss (`MoodLedger.Pawns`) is at least the `AttendedParty` `baseMoodEffect` (8 in Core; catalog `ThoughtFacts.WorstOffset`, unknown without it) |
-| Share | at least 0.65 of the ledger's colonists are pressed: the guest fraction `AcceptableGameConditionsToStartGathering` sizes the party to |
-| Colonists | at least 4 not dead (the game's own floor) |
-| Cooldown | no colonist carries the `AttendedParty` memory (`durationDays` 10): nothing is stored |
-| Calm | `RitualCalm`: no hostile threat, no critical patient; any colonist in a mental state vetoes |
-| Running | a party's lord job runs 5000 to 15000 ticks (`LordJob_Joinable_Party`) and the game refuses a second; the planner waits `gathering_running` for `GatheringMaxTicks` after the last completed gathering action of the Episode, and while a plan is open |
-
-Unknown inputs never start a party; a known veto wins over an unknown input. Colonists
-whose thoughts are unreadable count as neither pressed nor carrying the memory. The
-organizer is the able colonist (known undowned, undrafted, out of a mental state) with the
-highest mood, then the lowest id; the game's `PawnCanStartOrContinueGathering` decides the
-rest. `RoundsFacts.GatheringPlan` / `GatheringOwed` hold the concern open; the planner
-commits one `gathering` action per Episode attempt. Recovery: the memory, the veto or the
-trigger lapsing. Weddings, concerts and schedule writes are out of scope.
-
-The `gathering` family is in the default composition (every family is on unless
-`RIMGOVERNOR_ROUTINE_FAMILIES` narrows it), so `HoldGatherings` is eligible beside
-the `mood` family and `EnsureComfort` in a normal run. Ideology does not change this: it
-neither removes nor gates the Core `Party` `GatheringDef` (ilspycmd on `GatheringDef`,
-`GatheringWorker_Party`, `LordJob_Joinable_Party` and `VoluntarilyJoinableLordsStarter`
-shows no Ideology check, and the Ideology defs add no `GatheringDef`), so a party starts
-the same with or without precepts. Ideology rituals (`ritual begin`, `MaintainRituals`)
-are a separate additive system; a running ritual lord job blocks a new gathering through
-`AllowStartNewGatherings`, which native refuses and the brain replans.
-
-`GatheringEffect` records `gathering_def`, `organizer_id` and the `spot` the game
-chose. `NativeGathering` is an immediate write with no native job: it refuses an
-unknown def, a non-colonist organizer, `PawnCanStartOrContinueGathering`, unacceptable
-game conditions or a failing `CanExecute`, then runs `GatheringWorker.TryExecute`.
-A repeated start applies again without a second party when a joinable gathering lord
-job of the def is already running on any map; the effect then reports that job's
-organizer and spot. Applied means the lord was created, not that guests attended. A refusal is
-final for the attempt; the owning routine replans from live state.
-
-The brain dispatches `gathering` as a plain intent (`executor.plainIntents`, bridge
-encoder `Gathering.cs`), persists it as an `actions` row (`pawn` =
-organizer, `definition` = gathering def) and admits it in routine execution
-(`roundsExecutableKind`, `roundsActionsSupported`, the clock window kind switch);
-tests fail if one registration is missing. The native handler is #2546.
+The independent native operation still checks the exact `GatheringDef`, organizer,
+`PawnCanStartOrContinueGathering`, game conditions and `CanExecute`, then calls
+`GatheringWorker.TryExecute`. `GatheringEffect` reports the organizer and selected
+spot. Applied means a lord was created, not that guests attended. Repeating the
+operation while that gathering already runs reports the existing lord. Native
+participation outside Governor control remains game-owned; this is not evidence
+of planner-owned coordination. Ideology rituals use their distinct native operation
+and have the same unsupported ordinary participation boundary.
 
 ### Native cases for the margins, ledger and party
 
-Three nightly-tier cases in `mood/` prove the epic end to end, each observing the layer its
+The nightly-tier cases in `mood/` observe separate mechanics, each at the layer its
 claim lives in. They use the test-only `MoodFixture` ops `test/mood_headroom` (holds a
 colonist's mood a given distance above its native minor-break threshold with a calibrating
 memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/party_spot` and
@@ -384,10 +333,9 @@ memory), `test/mood_thoughts` (a named memory scaled to a mood size), `test/part
   covered by this case.
 - `mood/ledger` reads `moodLedger` from `GET /api/player/colony`: an owned thought carries its
   owner, an unowned one is alone in `unowned`. Native only confirms the memories exist.
-- `mood/gathering` reads the journal for exactly one completed `gathering` action and native
-  for exactly one running `Party` lord job on the `PartySpot`, read right after the first
-  completed action because the lord job ends on its own duration. It needs at least four
-  colonists, runs on the lab profile (Ideology active) and is in the nightly tier.
+- mood/gathering requires migration from its obsolete automatic-party assertion
+  to explicit native gathering mechanics and the unsupported planner outcome.
+  It is not current evidence of planner-owned attendance.
 
 ## Observations
 

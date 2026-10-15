@@ -88,7 +88,7 @@ public sealed partial class RoundsArmoryPlanner
             return new RoundsArmoryResult { Verdict = BuildingReasonNoWeaponBench };
         }
         var result = await _spot.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-        if (result.Decision.Admitted)
+        if (result.Decision?.Admitted == true)
         {
             return new RoundsArmoryResult { Verdict = BuildingReasonAdmitted };
         }

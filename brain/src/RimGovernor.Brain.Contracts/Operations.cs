@@ -206,19 +206,6 @@ public enum FilterPreset
     IndoorOnly = 7,
 }
 
-[JsonConverter(typeof(WireEnumConverter<Need>))]
-public enum Need
-{
-    [WireName("NEED_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("NEED_FOOD")]
-    Food = 1,
-    [WireName("NEED_REST")]
-    Rest = 2,
-    [WireName("NEED_JOY")]
-    Joy = 3,
-}
-
 /// <summary>
 /// Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
 /// Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
@@ -1727,11 +1714,6 @@ public sealed record AbilityNoTarget;
 /// Native refuses an entity whose platform has an attached bioferrite harvester
 /// (the game forces the flag false) and a true flag before BioferriteExtraction
 /// is researched.
-/// eat_trigger is the food-bar level (0 to 1) below which a humanlike colony
-/// pawn starts seeking food, read by a postfix on JobGiver_GetFood.GetPriority
-/// (vanilla 0.30). A value at or above 0.30 clears the pawn's override and
-/// restores vanilla; below it the pawn eats later. Native keeps it per pawn in
-/// the save and reads it back; UNCHANGED when the effective trigger already held.
 /// </summary>
 public sealed record PawnSettingsIntent
 {
@@ -1754,7 +1736,6 @@ public sealed record PawnSettingsIntent
 [JsonDerivedType(typeof(PawnSettingsIntentSetting.MechControlGroupCase), "mechControlGroup")]
 [JsonDerivedType(typeof(PawnSettingsIntentSetting.ChoosePermitCase), "choosePermit")]
 [JsonDerivedType(typeof(PawnSettingsIntentSetting.ExtractBioferriteCase), "extractBioferrite")]
-[JsonDerivedType(typeof(PawnSettingsIntentSetting.EatTriggerCase), "eatTrigger")]
 public abstract record PawnSettingsIntentSetting
 {
     private protected PawnSettingsIntentSetting() { }
@@ -1831,11 +1812,6 @@ public abstract record PawnSettingsIntentSetting
 
     public sealed record ExtractBioferriteCase(bool Value) : PawnSettingsIntentSetting;
 
-    /// <summary>The <c>EatTrigger</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public float? EatTrigger => (this as EatTriggerCase)?.Value;
-
-    public sealed record EatTriggerCase(float Value) : PawnSettingsIntentSetting;
 }
 
 /// <summary>
@@ -2005,9 +1981,6 @@ public sealed record DraftIntent
 /// colonist services it with the game's own WorkGiver job (the turret
 /// rearm giver included for Refuel), refused once it is fixed or holds a
 /// quarter of its target fuel.
-/// options.relieve_need with no job offers an undrafted colonist the job its
-/// own need giver issues for that deficient need (food, rest, recreation);
-/// the giver picks the target, a timetable or medical rest refuses it.
 /// options.prioritized is the vanilla "Prioritize" order for any other job
 /// (FinishFrame, HaulToContainer to a blueprint or frame, Deconstruct, ...):
 /// the first work giver the pawn may do that builds exactly this JobDef on
@@ -2018,7 +1991,6 @@ public sealed record GiveJobOptions
 {
     public bool? Prioritized { get; init; }
 
-    public Need? RelieveNeed { get; init; }
 }
 
 public sealed record GiveJobIntent
@@ -2384,8 +2356,18 @@ public sealed record ApparelPolicyIntent
 /// caravan is applied again. Applied says formation started, not that the
 /// caravan left.
 /// </summary>
+[JsonConverter(typeof(WireEnumConverter<CaravanMode>))]
+public enum CaravanMode
+{
+    Formation = 0,
+    ExistingRoute = 1,
+    SiteReform = 2,
+}
+
 public sealed record FormCaravanIntent
 {
+    public CaravanMode Mode { get; init; }
+
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> PawnIds { get; init; }
 

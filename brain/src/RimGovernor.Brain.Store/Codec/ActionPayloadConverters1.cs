@@ -238,13 +238,14 @@ public sealed class CargoItemConverter : ObjectCodec<CargoItem>
 public sealed class CaravanDepartureConverter : ObjectCodec<CaravanDeparture>
 {
     protected override CaravanDeparture Read(JsonElement e, Codecs o) =>
-        new(e.Get<EquatableArray<PawnId>>("Crew", o), e.Get<EquatableArray<CargoItem>>("Cargo", o), e.I32("DestinationTile"));
+        new(e.Get<EquatableArray<PawnId>>("Crew", o), e.Get<EquatableArray<CargoItem>>("Cargo", o), e.I32("DestinationTile"), e.Get<CaravanDepartureMode>("Mode", o));
 
     protected override void WriteFields(Utf8JsonWriter w, CaravanDeparture v, Codecs o)
     {
         w.Put("Crew", v.Crew, o);
         w.Put("Cargo", v.Cargo, o);
         w.WriteNumber("DestinationTile", v.DestinationTile);
+        w.Put("Mode", v.Mode, o);
     }
 }
 

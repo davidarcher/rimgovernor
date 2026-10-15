@@ -13,7 +13,6 @@ public sealed partial class RoundsMoodReliefPlanner
             throw new ControlException("NewRoundsMoodReliefPlanner: reviewer == null");
         }
 
-        reviewer.MoodCasts = true;
         return new RoundsMoodReliefPlanner(reviewer);
     }
 
@@ -60,7 +59,7 @@ public sealed partial class RoundsMoodReliefPlanner
             activeOwner[binding.Concern] = goal.Standard.Status == StandardStatus.Open && goal.Standard.Finding == Finding.Unmet;
         }
 
-        var started = reviewer.Clock.Now();
+
         foreach (var binding in review.SubjectIncidents(PolicyFunctions.EnsureMood))
         {
             if (binding.Situation != Situation.Active)
@@ -85,8 +84,8 @@ public sealed partial class RoundsMoodReliefPlanner
             }
 
             var policyState = MoodReliefPolicyState(moodState);
-            var used = MoodReliefUsedNeeds(p.Journal, incident.Methods, moodState.Pawn.Id, sessionState.Snapshot, call);
-            var proposal = PolicyFunctions.SelectMoodMethod(policyState, used);
+            // Supported needs are selected by the shared portfolio, never a native need giver.
+            var proposal = PolicyFunctions.SelectMoodMethod(policyState, []);
             var provisioning = false;
             foreach (var owner in policyState.Provision)
             {
@@ -95,49 +94,18 @@ public sealed partial class RoundsMoodReliefPlanner
 
             if (proposal.Reason == MoodMethodReason.Provisioned && !provisioning)
             {
-                proposal = PolicyFunctions.SelectMoodMethod(policyState.WithoutProvision(), used);
+                proposal = PolicyFunctions.SelectMoodMethod(policyState.WithoutProvision(), []);
             }
 
             if (proposal.Reason != MoodMethodReason.Relief)
             {
-                if (BuildingRuntimePackage.MoodCastReason(proposal.Reason))
-                {
-                    var (castId, cast) = CastMoodRelief(arbiter, incident, moodState.Pawn.Id, sessionState.Snapshot, call, epoch);
-                    if (cast)
-                    {
-                        return new RoundsMoodReliefResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = castId };
-                    }
-                }
-
+                if (proposal.Reason is MoodMethodReason.NoCause or MoodMethodReason.Exhausted or MoodMethodReason.Unowned)
+                    return new RoundsMoodReliefResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_mood_cast",
+                        "Preventative mood casts require shared caster time, psyfocus and mood-outcome alternatives.") };
                 continue;
             }
 
-            var (need, ok) = DomainMoodReliefNeed(proposal.Need);
-            if (!ok)
-            {
-                throw new ControlException("step: unmapped mood need");
-            }
-
-            var prefix = $"mood-{Wire.Name(proposal.Need)}-{moodState.Pawn.Id}-";
-            if (!arbiter.TryClaim([moodState.Pawn.Id]))
-            {
-                continue;
-            }
-
-            var relief = new MoodRelief((Domain.PawnId)moodState.Pawn.Id, need);
-            var method = BuildingRuntimePackage.NextMethodId(prefix, BuildingRuntimePackage.IncidentMethodIds(incident.Methods));
-            var id = PlanIds.MintPlanId();
-            var action = DomainAction.NewMoodReliefAction(new ActionId($"{id}-0"), relief);
-            var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-            p.Current(call, epoch);
-            var elapsed = reviewer.Clock.Now() - started;
-            if (p.Session.State() != sessionState || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
-            {
-                throw new ControlException("step: session state changed or the read took too long");
-            }
-
-            await p.Journal.CommitIncidentMethodAsync(incident.Incident.Id, method, "", plan, call).ConfigureAwait(false);
-            return new RoundsMoodReliefResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
+            // No parallel food/rest/recreation order. The shared portfolio owns these causes.
         }
 
         return new RoundsMoodReliefResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "mood_relief_method") };
@@ -176,29 +144,6 @@ public sealed partial class RoundsMoodReliefPlanner
         };
     }
 
-    internal static (MoodReliefNeed Need, bool Ok) DomainMoodReliefNeed(MoodNeed need) => need switch
-    {
-        MoodNeed.Food => (MoodReliefNeed.Food, true),
-        MoodNeed.Rest => (MoodReliefNeed.Rest, true),
-        MoodNeed.Joy => (MoodReliefNeed.Joy, true),
-        _ => (default, false),
-    };
-
-    internal static IReadOnlyList<MoodNeed> MoodReliefUsedNeeds(StoreJournal journal, IReadOnlyList<IncidentMethod> methods, PawnId pawn, GenerationSnapshot world, CancellationToken ct)
-    {
-        var used = new List<MoodNeed>();
-        foreach (var need in new[] { MoodNeed.Food, MoodNeed.Rest, MoodNeed.Joy })
-        {
-            var prefix = $"mood-{Wire.Name(need)}-{pawn}-";
-            var (_, ok) = BuildingRuntimePackage.AdmitSubject(journal, prefix, BuildingRuntimePackage.IncidentPlans(methods, prefix), world, ct);
-            if (!ok)
-            {
-                used.Add(need);
-            }
-        }
-
-        return used;
-    }
 }
 
 public readonly record struct RoundsMoodReliefResult : IPlannerMethod

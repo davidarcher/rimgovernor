@@ -12,7 +12,7 @@ or persistent Method store.
 | Stable prerequisites and useful issued work | Continue without replacing commands. |
 | Required observations unknown | Hold useful work; neither infer completion nor admit its replacement. |
 | Known danger, refusal or lost prerequisite | Reconsider. Unknown unrelated facts cannot erase known invalidation. |
-| A newly available useful alternative | Reconsider; replace only when the family selector establishes the alternative. |
+| A newly available useful alternative | Reconsider; replace only when shared forecast comparison establishes the alternative. |
 | Game-tick progress horizon reached | Reobserve and reassess; never cancel or certify completion solely from elapsed ticks. |
 | Expected result observed | Release this responsibility; independently inspect the Concern's complete outcome. |
 
@@ -51,8 +51,8 @@ its installed predecessor's cleanup obligation; unknown receipts remain unknown.
 The same caller can select one cooking iteration after observed harvest, supply
 its bench, rebind the exact recipe to fresh ingredients, then deliver observed
 meals. Failed supply or cooking releases rather than replaying consumption.
-Carried ingredients and coupled survival portfolio selection remain outside this
-caller; see [cooking limits](pawn-activities.md#live-one-iteration-cooking).
+The normal coupled portfolio supplies these selected tasks. Carried ingredients
+remain bounded by the exact native adapter; see [cooking limits](pawn-activities.md#live-one-iteration-cooking).
 
 Productive alternatives for this caller are transient Method proposals: family
 generation supplies forecast outcomes and exact target bindings, ColonyForecast's
@@ -133,3 +133,36 @@ release. Hands cleans up only its own provisioned bill when no UFT exists; it
 never removes a user bill or unsuspends an orphan after failure. Concern recovery
 still does not erase participant release or observed-output obligations. See
 [exact tailoring execution](pawn-activities.md#exact-tailoring-recipes).
+
+A finished participant releases in a separate revision before another participant
+binds new productive work. Retained orders and selected obligations stay exact;
+the cleanup delta removes only the released participant's tasks and their
+satisfied prerequisite edges. Store validates that no labor, target or input is
+added before bypassing productive readmission for this cleanup-only delta.
+A temporarily claimed output stack therefore cannot strand a completed Idle
+participant. Productive rebinding still requires ordinary shared admission,
+fresh native evidence and the original finite deadline; cleanup grants no right
+to take another Method's target.
+
+Expected productive resource contention returns a typed ResourcesUnavailable
+admission result without replacing the installed Method or advancing its owner
+revision. Worker continues the remaining Methods and ordinary dispatch/review,
+so an unrelated unowned pawn can receive its bounded activity and existing
+native work can finish. Fresh observations retry through that same path; no
+claim is relaxed. Stale identity, ownership, revision and other invariant failures
+still throw. The existing coupled_observed signal reports deferred admission
+after the result, rather than describing a rejected proposal as a transition.
+
+Native authority generation rollover ends PawnActivities ownership. The current
+shared action census excludes both pending and installed activity intent from
+older generations, including predecessor cleanup history. It issues no release
+against the new authority and grants no inventory credit: current native stock
+still determines availability. Building and standing-bill commitments survive
+authority changes and retain their existing accounting.
+
+A selected future sleep, recreation or exact observed-food service reserves its
+native target for the whole Method, including Approach/Hold preparation. The
+shared claim census feeds both candidate filtering and admission; another pawn
+cannot propose the same bed or recreation object while only its destination cell
+appears occupied. Symbolic produced-food targets remain unresolved and continue
+to use the existing physical input frontier until native output rebinding.

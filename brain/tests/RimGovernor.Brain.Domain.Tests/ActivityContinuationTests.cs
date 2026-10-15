@@ -35,6 +35,50 @@ public sealed class ActivityContinuationTests
         "rg-continuation-" + Guid.NewGuid().ToString("N") + ".db"), ct);
 
     [Fact]
+    public void TerminalIdleCleanupDoesNotReadmitDeliveryAgainstAnotherMethodsResidualMeal()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Open(ct);
+        var delivery = new SelectedActivityTask("delivery", "helper", [],
+            new(PawnActivityKind.Deliver, "observed-output", "", "", 6, 500) { Destination = new(2, 2) },
+            new(1, 1), 100)
+        {
+            Resource = "Rice", Source = new(1, 1),
+            Inputs = [new("Rice", "harvest", 6, new(1, 1), "observed harvest") { Producers = ["completed-harvest"] }]
+        };
+        var waiting = Order with { Pawn = "helper", Assignment = "helper-assignment", Task = delivery.Id, Preparing = true };
+        var idleStep = new PawnActivityStep(PawnActivityKind.Idle, "", "", "", 0, 110);
+        var idle = Order with { Steps = [idleStep], Task = "idle" };
+        var batch = new PawnActivities(1, [waiting, idle])
+        { Tasks = [delivery, new("idle", "pawn", [], idleStep, new(3, 3), 100)] };
+        var initial = Plan("cleanup-original", batch);
+        var owner = Admit(journal, initial, ct);
+        var meal = new PawnActivities(1, [new("producer", "meal-assignment", "meal", 0, 1, false,
+            [new(PawnActivityKind.Eat, "rice-stack", "", "", 1, 500)])
+            { Task = "meal" }])
+        { Tasks = [new("meal", "producer", [], new(PawnActivityKind.Eat, "rice-stack", "", "", 1, 500), new(1, 1), 100)
+            { Inputs = [new("Rice", "rice-stack", 1, new(1, 1), "observed rice") { Observed = true }] }] };
+        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("meal"), Plan("residual-meal", meal), ct);
+        var observed = new[] { Row("completed"), new ActivityOwnership("helper", waiting.Assignment, "method", 1, "holding") };
+        var bound = waiting with { ExpectedRevision = 1, Revision = 2, Preparing = false,
+            Steps = [delivery.Step with { Target = "rice-stack" }] };
+        var released = idle with { ExpectedRevision = 1, Revision = 2, Release = true, Task = "", Steps = [] };
+        var mixed = Plan("mixed", batch with { Orders = [bound, released], Tasks = [delivery] });
+        var before = journal.LoadStandard(owner.Standard.Id, ct);
+        Assert.Equal(ActivityContinuationAdmission.ResourcesUnavailable,
+            journal.ContinueActivityMethod(initial.Id, Root, new(110), observed, mixed, ct));
+        Assert.False(journal.LoadPlan(initial.Id, ct).Retired);
+        Assert.Equal(before.Revision, journal.LoadStandard(owner.Standard.Id, ct).Revision);
+        Assert.DoesNotContain(journal.LoadOwnerMethods(before, ct), m => m.Plan == mixed.Id);
+        var cleanup = Plan("cleanup", batch with { Orders = [waiting, released], Tasks = [delivery] });
+        Assert.Equal(ActivityContinuationAdmission.Admitted,
+            journal.ContinueActivityMethod(initial.Id, Root, new(110), observed, cleanup, ct));
+        var persisted = journal.LoadPlan(cleanup.Id, ct).Spec.Actions[0].PawnActivities!;
+        Assert.True(PawnActivities.SameOrder(waiting, persisted.Orders[0]));
+        Assert.Equal(delivery, Assert.Single(persisted.Tasks));
+        Assert.False(journal.LoadPlan(new("residual-meal"), ct).Retired);
+    }
+    [Fact]
     public void PartialParticipantRevisionRetainsRunningOwnerAndRejectsStaleEvidenceAtomically()
     {
         var ct = TestContext.Current.CancellationToken;

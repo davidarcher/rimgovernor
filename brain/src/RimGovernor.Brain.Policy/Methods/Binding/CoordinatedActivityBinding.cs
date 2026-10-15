@@ -2,6 +2,22 @@ namespace RimGovernor.Brain.Policy.Methods.Binding;
 
 internal static partial class CoordinatedActivityBinding
 {
+    private static PawnActivityStep[] PreparationSteps(SelectedActivityTask task) =>
+        [new(PawnActivityKind.Approach, "", "", "", 0, task.Step.Deadline)
+            { Destination = task.Step.Kind == PawnActivityKind.Supply ? task.Source ?? task.Location : task.Location,
+                NotBefore = task.DepartTick },
+         new(PawnActivityKind.Hold, "", "", "", 0, task.Step.Deadline)];
+    internal static PawnActivities? StartWithDeferred(ForecastCoupledSelection selection,
+        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick)
+    {
+        var active = Start(selection.Selection, bindings, authority, method, tick);
+        var deferred = selection.Deferred.Where(t => t.Until > tick).Select(t => new SelectedActivityTask(
+            "defer/" + t.Pawn, t.Pawn, [], new(PawnActivityKind.Idle, "", "", "", 0, t.Until), t.Location, tick)).ToArray();
+        if (deferred.Length == 0) return active;
+        return new(authority, [.. active?.Orders ?? [], .. deferred.Select(t => new PawnActivityOrder(t.Pawn,
+            method + "/" + t.Pawn, method, 0, 1, false, [t.Step]) { Task = t.Id })])
+        { Tasks = EquatableArray.From((active?.Tasks ?? []).Concat(deferred)) };
+    }
     internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick)
     {
@@ -24,8 +40,7 @@ internal static partial class CoordinatedActivityBinding
             var task = group.OrderBy(t => t.DepartTick).ThenBy(t => t.Id, StringComparer.Ordinal).First();
             var preparing = task.Prerequisites.Count != 0 || task.DepartTick > tick;
             var steps = preparing
-                ? new[] { new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, task.Step.Deadline)
-                    { Destination = task.Step.Kind == PawnActivityKind.Supply ? task.Source ?? task.Location : task.Location, NotBefore = task.DepartTick }, new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, task.Step.Deadline) }
+                ? PreparationSteps(task)
                 : new[] { task.Step.Kind == PawnActivityKind.Supply ? task.Step with { Count = Math.Min(task.Step.Count, bindings[(task.Id, task.Pawn)].Capacity) } : task.Step };
             return new PawnActivityOrder(task.Pawn, method + "/" + task.Pawn, method, 0, 1, false, steps)
             { Task = task.Id, Preparing = preparing, OutputDelivery = !preparing && task.Resource.Length != 0 && task.Step.Count > 0

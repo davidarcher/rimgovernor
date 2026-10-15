@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The native reads of the equip planner.</summary>
@@ -22,23 +20,19 @@ public sealed class RoundsEquipResult : IPlannerMethod
     public PlanId Plan { get; init; }
 }
 
-/// <summary>Arms the colonists without a weapon with the best weapon lying on the map, one wave at a time.</summary>
+/// <summary>Reports ordinary arming demand until the shared forecast has an equipment adapter.</summary>
 public sealed class RoundsEquipPlanner
 {
     private readonly Rounder _reviewer;
-    private readonly IRoundsEquipSource _native;
 
-    public RoundsEquipPlanner(Rounder reviewer, IRoundsEquipSource native)
+    public RoundsEquipPlanner(Rounder reviewer)
     {
-        if (reviewer is null || native is null)
+        if (reviewer is null)
         {
-            throw new ControlException("NewRoundsEquipPlanner: reviewer == nil || native == nil");
+            throw new ControlException("NewRoundsEquipPlanner: reviewer == nil");
         }
         _reviewer = reviewer;
-        _native = native;
     }
-
-    internal static MethodId NextEquipWaveMethod(StandardState goal) => NextWaveMethod(goal, "equip-wave-");
 
     internal async Task<RoundsEquipResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
@@ -52,12 +46,12 @@ public sealed class RoundsEquipPlanner
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
         }
-        var review = p.Journal.LoadRounds(call);
+        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
             return new RoundsEquipResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(review, PolicyApi.EnsureBasicDefense, call);
+        var (goal, workable) = await p.Journal.WorkableAsync(review, PolicyApi.EnsureBasicDefense, call).ConfigureAwait(false);
         if (!workable || goal is null)
         {
             return new RoundsEquipResult { Verdict = BuildingReasonNoDeficit };
@@ -70,172 +64,8 @@ public sealed class RoundsEquipPlanner
                 return new RoundsEquipResult { Verdict = BuildingReasonExistingWork };
             }
         }
-        var wavePlans = goal.History.Where(m => m.Episode == goal.Standard.Episode).Select(m => m.Plan).ToList();
-        var refusals = RefusalLedger(p.Journal, wavePlans, progress => progress.Action.Equip is { } equip ? "equip-" + equip.Pawn.Value : "", call);
-        var started = _reviewer.Clock.Now();
-        var identity = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = await _native.ReadEmergencyAsync(identity, call).ConfigureAwait(false);
-        try
-        {
-            Boundary.Context(emergency.Context, state.Snapshot);
-        }
-        catch (ControlException)
-        {
-            throw new ControlException("step: err != nil || emergency.Context.GetTick() < int64(review.Tick)");
-        }
-        if ((emergency.Context?.Tick ?? 0) < review.Tick.Value)
-        {
-            throw new ControlException("step: err != nil || emergency.Context.GetTick() < int64(review.Tick)");
-        }
-        if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete || emergency.Facts.Colonists.Count == 0)
-        {
-            return new RoundsEquipResult { Verdict = WaitFor(Cause.MethodUsed, "colonist_census_incomplete") };
-        }
-        var ids = emergency.Facts.Colonists.Select(c => c.Id.Value).ToList();
-        var (reply, _) = await _native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
-        var observed = reply.Outcome?.Observed;
-        if (observed is null)
-        {
-            throw new ControlException("step: observed == nil");
-        }
-        try
-        {
-            Boundary.Context(observed.Context, state.Snapshot);
-        }
-        catch (ControlException)
-        {
-            throw new ControlException("step: err != nil");
-        }
-        if (observed.Pawns.Count != ids.Count)
-        {
-            throw new ControlException("step: len(observed.Pawns) != len(ids)");
-        }
-        var things = await FrameThingsOfAsync(_native, identity, call).ConfigureAwait(false);
-        var catalog = await _native.DefinitionCatalogAsync(identity, call).ConfigureAwait(false) ?? throw new ControlException("step: no definition catalog");
-        var pawns = new List<EquipCandidatePawn>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in observed.Pawns)
-        {
-            if (row is null || row.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
-            {
-                throw new ControlException("step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]");
-            }
-            var facts = EquipCandidatePawnFacts(row, catalog, things);
-            var current = row.Equipment?.PrimaryId ?? "";
-            if (current != "")
-            {
-                foreach (var item in row.Equipment!.Equipped)
-                {
-                    if ((item.Thing?.Id ?? "") == current)
-                    {
-                        var def = GearDef(things, item.Thing);
-                        var rows = catalog.WeaponOf(def);
-                        facts = facts with
-                        {
-                            Current = new EquipCandidateWeapon
-                            {
-                                Thing = current,
-                                Definition = def,
-                                Class = PolicyApi.ClassifyWeapon(true, rows.Ranged, rows.Melee),
-                                BiocodedTo = new Domain.PawnId((item.BiocodedTo ?? "")),
-                                Biocoded = item.Biocoded.GetValueOrDefault(),
-                                Facts = rows,
-                            },
-                        };
-                    }
-                }
-            }
-            pawns.Add(facts);
-        }
-        var (bounds, _) = await _native.ReadMapBoundsAsync(identity, new Cell(0, 0), call).ConfigureAwait(false);
-        try
-        {
-            Boundary.Context(bounds.Context, state.Snapshot);
-        }
-        catch (ControlException)
-        {
-            throw new ControlException("step: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0");
-        }
-        if (bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0)
-        {
-            throw new ControlException("step: err != nil || bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0");
-        }
-        var (weapons, _) = await _native.ReadEquipWeaponsAsync(identity, new Cell(0, 0), new Cell(bounds.Bounds.Width - 1, bounds.Bounds.Height - 1), call).ConfigureAwait(false);
-        try
-        {
-            Boundary.Context(weapons.Context, state.Snapshot);
-        }
-        catch (ControlException)
-        {
-            throw new ControlException("step: err != nil");
-        }
-        var candidates = weapons.Targets.Select(w => EquipCandidateWeaponOf(catalog, w)).ToList();
-        List<EquipCandidatePawn> pool;
-        Verdict refused = default;
-        var held = new List<Domain.PawnId>();
-        List<EquipAssignment> assignments;
-        lock (arbiter.Mu)
-        {
-            pool = new List<EquipCandidatePawn>(pawns.Count);
-            foreach (var pawn in pawns)
-            {
-                if (pawn.NoArms != "")
-                {
-                    held.Add(pawn.Pawn);
-                    continue;
-                }
-                var (verdict, ok) = BudgetVerdict(refusals, "equip-" + pawn.Pawn.Value, state.Snapshot);
-                if (!ok)
-                {
-                    if (refused.IsZero)
-                    {
-                        refused = verdict;
-                    }
-                    continue;
-                }
-                if (!arbiter.Pawns.Contains((PawnId)pawn.Pawn))
-                {
-                    pool.Add(pawn);
-                }
-            }
-            var available = candidates.Where(w => !arbiter.Resources.Contains("equip-weapon:" + w.Thing)).ToList();
-            assignments = PolicyApi.AssignEquip(pool, available).ToList();
-            foreach (var pair in assignments)
-            {
-                arbiter.Pawns.Add(pair.Pawn);
-                arbiter.Resources.Add("equip-weapon:" + pair.Weapon.Thing);
-            }
-        }
-        if (assignments.Count == 0)
-        {
-            if (!refused.IsZero)
-            {
-                return new RoundsEquipResult { Verdict = refused };
-            }
-            if (held.Count > 0 && pool.Count == 0)
-            {
-                return new RoundsEquipResult { Verdict = Refuse(Cause.NoWorker, "creepjoiner_downside_unrevealed", held[0].Value) };
-            }
-            return new RoundsEquipResult { Verdict = WaitFor(Cause.MethodUsed, "armory_crafts_weapon") };
-        }
-        var methodId = NextEquipWaveMethod(goal);
-        var id = PlanIds.MintPlanId();
-        var actions = new List<DomainAction>(assignments.Count);
-        for (var i = 0; i < assignments.Count; i++)
-        {
-            var pair = assignments[i];
-            var equip = new Equip((Domain.PawnId)pair.Pawn, pair.Weapon.Thing, pair.Weapon.Definition, pair.Weapon.Cell);
-            actions.Add(DomainAction.NewEquipAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), equip));
-        }
-        var spec = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
-        var elapsed = _reviewer.Clock.Now() - started;
-        if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
-        {
-            throw new ControlException("step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
-        }
-        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, methodId, spec, call);
-        return new RoundsEquipResult { Verdict = BuildingReasonAdmitted, Plan = id };
+        return new RoundsEquipResult { Verdict = AwaitingPlan("unsupported_forecast_equipment",
+            "Observed equipment demand requires shared forecast worker, timing and outcome alternatives.") };
     }
 
     internal static EquipCandidateWeapon EquipCandidateWeaponOf(DefinitionCatalog catalog, BridgeEquipCandidate w)

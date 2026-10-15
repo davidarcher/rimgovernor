@@ -6,11 +6,44 @@ internal sealed record CoupledShelterCandidatesResult(
     ForecastActivity[] Tasks, ForecastActivityOption[] Options, ForecastActivityRoute[] Routes,
     Dictionary<(string, string), ActivityTaskCandidate> Bindings,
     ForecastCompositionOperation[] Operations, ForecastCompositionSupply[] Observed,
-    Dictionary<string, EquatableArray<ForecastCompositionRequirement>> Roots, ForecastShelterPlan[] Plans);
+    Dictionary<string, EquatableArray<ForecastCompositionRequirement>> Roots, ForecastShelterPlan[] Plans, EquatableArray<string> Findings, bool Truncated);
 
 internal static class CoupledShelterCandidates
 {
-    internal static CoupledShelterCandidatesResult Generate(IEnumerable<ForecastShelterGeometry> rooms, CoupledThermalRead? read,
+    // Native rooms are current physical opportunities, not reservations of strategic layout intent.
+    // Prefer observed heated rooms within the same finite bound; omitted rooms remain explicit.
+    private static (ForecastShelterGeometry[] Rooms, EquatableArray<string> Findings, bool Truncated) SelectGeometry(
+        IEnumerable<ForecastShelterGeometry> planned, Fact<RoomObservation> physical, CoupledThermalRead? read)
+    {
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var candidates = new List<ForecastShelterGeometry>();
+        if (!physical.TryGetValue(out var census)) findings.Add("unknown_observed_shelter_geometry");
+        else foreach (var room in census.Rooms
+            .OrderByDescending(r => read?.Sources.Any(s => r.Cells.Contains(s.Cell)) == true)
+            .ThenByDescending(r => r.Beds.Count > 0 || r.Pawns.Count > 0).ThenBy(r => r.Id, StringComparer.Ordinal))
+        {
+            if (room.Id.Length == 0 || room.Cells.Count == 0 || room.Cells.Distinct().Count() != room.Cells.Count)
+            { findings.Add("unknown_observed_shelter_geometry:" + room.Id); continue; }
+            var x = room.Cells.Min(c => c.X); var z = room.Cells.Min(c => c.Z);
+            var bounds = new Rectangle(x, z, room.Cells.Max(c => c.X) - x + 1, room.Cells.Max(c => c.Z) - z + 1);
+            // Enclosed includes a complete roof; requiring it would erase roof-repair opportunities.
+            candidates.Add(new(new(ForecastShelterSource.Observed, room.Id), room.Cells, bounds, default, false));
+        }
+        candidates.AddRange(planned);
+        var unique = new List<ForecastShelterGeometry>();
+        foreach (var room in candidates)
+        {
+            var same = unique.FirstOrDefault(r => r.Interior.Count == room.Interior.Count && r.Interior.All(room.Interior.Contains));
+            if (same is not null) continue;
+            if (unique.Any(r => r.Interior.Any(room.Interior.Contains)))
+            { findings.Add("overlapping_shelter_geometry:" + room.Id); continue; }
+            unique.Add(room);
+        }
+        var truncated = unique.Count > 4;
+        if (truncated) findings.Add("shelter_geometry_truncated");
+        return (unique.Take(4).ToArray(), EquatableArray.From(findings), truncated);
+    }
+    internal static CoupledShelterCandidatesResult Generate(IEnumerable<ForecastShelterGeometry> rooms, Fact<RoomObservation> physicalRooms, CoupledThermalRead? read,
         IEnumerable<ForecastCompositionOperation> constructionOperations,
         IReadOnlyDictionary<(string, string), ActivityTaskCandidate> constructionBindings, long deadline, double horizon)
     {
@@ -30,7 +63,8 @@ internal static class CoupledShelterCandidates
                     operations[id] = operation with { Supplies = [.. operation.Supplies,
                         new("completed-site/" + id, capability, Known(1), operation.Activity.EndLocation, Known(0d), Known(horizon))
                         { Producer = id, Lot = site, Kind = ForecastRequirementKind.Reusable, Provenance = "native-finish-site:" + site }] };
-        foreach (var room in rooms.OrderBy(r => r.Id).Take(4))
+        var geometry = SelectGeometry(rooms, physicalRooms, read);
+        foreach (var room in geometry.Rooms)
         {
             var notes = new List<string>(); var demands = new List<ForecastCompositionRequirement>();
             var groups = new List<EquatableArray<string>>();
@@ -104,6 +138,6 @@ internal static class CoupledShelterCandidates
                     AdditionalWatts = source?.AdditionalWatts ?? default, SurplusWatts = source?.SurplusWatts ?? default });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));
         }
-        return new(tasks.ToArray(), options.ToArray(), routes.Values.ToArray(), bindings, operations.Values.ToArray(), [], roots, plans.ToArray());
+        return new(tasks.ToArray(), options.ToArray(), routes.Values.ToArray(), bindings, operations.Values.ToArray(), [], roots, plans.ToArray(), geometry.Findings, geometry.Truncated);
     }
 }

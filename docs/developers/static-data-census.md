@@ -248,7 +248,6 @@ Kept, reason recorded:
 | NativeMechBills.cs | 100 | mixed | Bill_Mech write on a Building_MechGestator and the mech-recipe to PawnKind mapping. | Kind(RecipeDef) mapping mechResurrection/gestationCycles/ProducedThingDef.race.IsMechanoid to AnyPawnKind defName; Handles() | RecipeDef.mechResurrection, RecipeDef.gestationCycles, RecipeDef.products then ThingDef.race (RaceProperties) then PawnKindDef via Go rule over rows |
 | NativeMineAcquisition.cs | 69 | state | Mine acquisition: CAS token, miner eligibility, apply-time preconditions and acquisition guard for a rock. |  |  |
 | NativeMonolithOperations.cs | 56 | state | Orders a colonist to investigate or activate the void monolith. |  |  |
-| NativeMoodReliefOperations.cs | 91 | code | Need relief: runs the game's food, rest or joy JobGiver and starts the resulting job. |  |  |
 | NativeMoveBuilding.cs | 121 | state | RelocateIntent: places reinstall or install blueprints for a building or packed item. |  |  |
 | NativeMovementOperations.cs | 69 | state | MoveIntent: Goto order for a drafted pawn with standable and reachable checks. |  |  |
 | NativeNotificationReadTools.cs | 278 | state | Reads letter stack, live messages and active alerts into the Notifications reply. |  | Limits (40/12/40, ceiling 256) are tool constants, not game constants |

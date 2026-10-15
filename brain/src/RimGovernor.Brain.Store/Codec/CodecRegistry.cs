@@ -148,7 +148,6 @@ internal static class CodecRegistry
         codecs.Register(new MoodHistoryConverter());
         codecs.Register(new MoodPawnConverter());
         codecs.Register(new MoodProvisionConverter());
-        codecs.Register(new MoodReliefConverter());
         codecs.Register(new MoodStateConverter());
         codecs.Register(new MoodThoughtConverter());
         codecs.Register(new MoveBuildingConverter());

@@ -29,6 +29,8 @@ public sealed record ForecastCoupledContext
     public EquatableArray<ForecastShelterPlan> Shelters { get; init; }
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
     public EquatableArray<ForecastNeedTask> NeedTasks { get; init; }
+    /// <summary>Observed retained waiting occupies time but is not productive labor or a need service.</summary>
+    public EquatableArray<string> NonproductiveOccupancy { get; init; }
     internal IReadOnlyDictionary<(string Task, string Pawn), Methods.ActivityTaskCandidate> Bindings { get; init; } = new Dictionary<(string, string), Methods.ActivityTaskCandidate>();
     public EquatableArray<string> Findings { get; init; }
 }
@@ -96,6 +98,11 @@ public static partial class PolicyFunctions
             || context.Resources.Evidence.Tick.Value != request.Origin.ObservedTick)
             throw new DomainException("coupled forecast needs one observed tick and at most one day");
         var all = context.Activities.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        foreach (var id in context.NonproductiveOccupancy)
+            if (!all.TryGetValue(id, out var wait) || wait.Inputs.Count != 0 || wait.Outputs.Count != 0
+                || wait.Location != wait.EndLocation || wait.NotBefore != 0 || wait.LatestStart != 0
+                || context.NeedTasks.Any(n => n.Task == id) || context.Bindings.Keys.Any(k => k.Task == id))
+                throw new DomainException("retained waiting cannot carry productive or need effects");
         var included = new HashSet<string>(StringComparer.Ordinal);
         void Include(string id)
         {
@@ -178,6 +185,17 @@ public static partial class PolicyFunctions
         { if (feasible != Known(false)) feasible = default; Finding(reason, id, time); }
         void Refuse(string reason, string id, double time)
         { feasible = Known(false); Finding(reason, id, time); }
+        // Hands owns exact targets for the whole Method, including future services.
+        // Temporal non-overlap cannot authorize a second participant on that target.
+        var observedNeedTargets = context.Needs.Pawns.SelectMany(p => p.Targets).Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
+        var selectedNeedOwners = context.NeedTasks.Where(n => allocations.ContainsKey(n.Task) && n.Target.Length != 0)
+            .Select(n => (n.Target, n.Pawn));
+        var boundNeedOwners = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
+            .OfType<Methods.ActivityTaskCandidate>().Where(b => observedNeedTargets.Contains(b.Target))
+            .Select(b => (b.Target, b.Pawn));
+        foreach (var shared in selectedNeedOwners.Concat(boundNeedOwners).Distinct()
+            .GroupBy(b => b.Target).Where(g => g.Select(b => b.Pawn).Distinct().Count() > 1))
+            Refuse("conflicting_selected_target_owners", shared.Key, 0);
         var supportChoices = plan.Allocations.Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn))).OfType<Methods.ActivityTaskCandidate>()
             .Where(b => b.Kind == PawnActivityKind.Deliver && b.SupportDemand.Length != 0)
             .Select(b => context.Support.Deliveries.FirstOrDefault(d => d.Demand == b.SupportDemand && d.Target == b.Target))
@@ -314,8 +332,9 @@ public static partial class PolicyFunctions
                 choices.Add(new(task.Task, pawn.Pawn, task.Kind, task.Target, task.Resource.Value, task.Count,
                     a.Depart, Math.Min(a.End, a.Start + task.ServiceDelay), a.End, gain, task.Thoughts));
             }
-            var productive = plan.Allocations.Where(a => a.Pawn == pawn.Pawn && context.NeedTasks.All(n => n.Task != a.Activity)).ToArray();
-            var protectedTime = productive.Select(a => new ForecastOccupancy(a.Activity, pawn.Pawn, Known(a.Depart), Known(a.End), ForecastOccupancyState.Active)).ToList();
+            var occupiedWork = plan.Allocations.Where(a => a.Pawn == pawn.Pawn && context.NeedTasks.All(n => n.Task != a.Activity)).ToArray();
+            var productive = occupiedWork.Where(a => !context.NonproductiveOccupancy.Contains(a.Activity)).ToArray();
+            var protectedTime = occupiedWork.Select(a => new ForecastOccupancy(a.Activity, pawn.Pawn, Known(a.Depart), Known(a.End), ForecastOccupancyState.Active)).ToList();
             if (context.Resources.Claims.Pawns.Contains(pawn.Pawn))
                 protectedTime.Add(new("journal", pawn.Pawn, Known(0.0), default, ForecastOccupancyState.Active));
             var input = new ForecastCapacityInput

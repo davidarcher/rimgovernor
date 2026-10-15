@@ -10,20 +10,8 @@ using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only. On the blank lab with two colonists
-    // it builds two walled, roofed bedrooms north of the centre. Room A, the
-    // one artist's (colonist 0, Artistic 8, the other at 3), holds a jade
-    // bed, a plant pot, an end table, a dresser and an unpowered lamp, so
-    // no lever before the sculpture has anything to add; it stands below the
-    // tech tier's impressiveness target with beauty its weakest stat. Room
-    // B, a plain 3x3 with a granite bed, belongs to an Ascetic neighbour: no
-    // target, and already the plainest room, so no bedroom swap moves anyone.
-    // Jade (a stuff no floor, pot or bed upgrade beats) and a little silver
-    // lie in a stockpile, a sculpting table stands south of the centre, the
-    // colony holds no medicine (a purchase need the art may pay for), both
-    // colonists carry revolvers (defense capacity, so wealth headroom is
-    // positive) and every need is frozen. action=trader brings an exotic
-    // goods caravan (a trader that buys art) beside the colonists.
+    // Prepared native art/trade mechanics: two rooms, loose jade and two finished
+    // packed sculptures. Manufacture and installation are not exercised.
     public sealed class ArtFixture
     {
         private const int JadeCount = 260, SilverCount = 60, TraderSilver = 4000, MealCount = 80;
@@ -35,7 +23,7 @@ namespace HomeBridge.BridgeTools
             return artist ? new CellRect(c.x - 7, c.z + 4, 5, 5) : new CellRect(c.x + 3, c.z + 4, 3, 3);
         }
 
-        [Tool("test/art", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab fixture (#1195): action=prepare builds an artist's bedroom below its tier target beside an ascetic's plain one, a sculpting table, jade and silver in a stockpile and no medicine; action=trader brings an exotic caravan beside the colonists; action=audit reads both rooms' impressiveness and sculptures, the colony's packed sculptures, silver and the traders' sculptures.")]
+        [Tool("test/art", Description = "UNSAFE FOR MODEL EXECUTION. Disposable lab fixture (#1195): action=prepare builds an artist's bedroom below its tier target beside an ascetic's plain one, a sculpting table, jade, two finished packed sculptures and silver in a stockpile and no medicine; action=trader brings an exotic caravan beside the colonists; action=audit reads both rooms' impressiveness and sculptures, the colony's packed sculptures, silver and the traders' sculptures.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "prepare")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -105,6 +93,18 @@ namespace HomeBridge.BridgeTools
             Stack(map, ThingDefOf.MealSurvivalPack, MealCount, zoneRect.CenterCell);
             var table = DefDatabase<ThingDef>.GetNamed("TableSculpting");
             Place(map, table, table.MadeFromStuff ? granite : null, new IntVec3(center.x + 6, 0, center.z - 4), Rot4.North);
+            // Prepared finished goods: this case does not manufacture or install art.
+            // Different qualities keep their native trade rows independently identifiable.
+            foreach (var quality in new[] { QualityCategory.Normal, QualityCategory.Good })
+            {
+                var sculpture = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("SculptureSmall"), jade);
+                sculpture.SetFaction(Faction.OfPlayer);
+                sculpture.TryGetComp<CompQuality>()?.SetQuality(quality, ArtGenerationContext.Colony);
+                var packed = sculpture.MakeMinified();
+                if (!GenPlace.TryPlaceThing(packed, zoneRect.CenterCell, map, ThingPlaceMode.Near))
+                    throw new InvalidOperationException("Prepared packed sculpture placement failed.");
+                packed.SetForbidden(false, false);
+            }
             var frozen = FrozenNeeds.Apply(new string[0]);
             return new {
                 success = true,

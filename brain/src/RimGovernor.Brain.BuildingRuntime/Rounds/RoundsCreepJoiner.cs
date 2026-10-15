@@ -145,16 +145,9 @@ public sealed class RoundsCreepJoinerPlanner
         var actions = new List<DomainAction>();
         var claimed = new List<PawnId>();
         ActionId Next() => new(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}"));
-        foreach (var drop in work.Drops)
-        {
-            var pawn = drop.Pawn;
-            if (!arbiter.TryClaim([pawn]))
-            {
-                continue;
-            }
-            claimed.Add(pawn);
-            actions.Add(DomainAction.NewDropEquipmentAction(Next(), new DropEquipment((Domain.PawnId)pawn, drop.Weapon)));
-        }
+        if (work.Drops.Count > 0)
+            return new RoundsCreepJoinerResult { Verdict = AwaitingPlan("unsupported_forecast_precautionary_disarm",
+                "Precautionary disarming requires shared participant admission; immediate combat protection remains separately owned.") };
         foreach (var move in work.Isolation)
         {
             var pawn = move.Pawn;

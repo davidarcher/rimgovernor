@@ -16,7 +16,9 @@ public sealed record ForecastCoupledSelection(ForecastActivityOutcomeComparison 
     EquatableArray<ForecastPortfolioEvidence> Rejected, double Horizon, bool GenerationTruncated)
 {
     public int CompositionExpansions { get; init; }
+    public EquatableArray<ForecastDeferredPawn> Deferred { get; init; }
 }
+public sealed record ForecastDeferredPawn(string Pawn, Cell Location, long Until);
 public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitments,
     ForecastConsequenceVector? Consequences, string Reason);
 
@@ -29,26 +31,29 @@ public static partial class PolicyFunctions
     {
         if (budget < 0) throw new DomainException("negative portfolio budget");
         request = request with { Coupled = candidates.Context, Proposed = new() };
-        var baselineScenario = ForecastCoupledScenarioOf(request, ForecastCommitmentsById(request.Commitments)).Coupled!;
+        var baselineCommitments = request.Commitments.Concat(candidates.Incumbents).ToArray();
+        var incumbentIds = candidates.Incumbents.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+        var baselineScenario = ForecastCoupledScenarioOf(request, ForecastCommitmentsById(baselineCommitments)).Coupled!;
         var baseline = baselineScenario.Alternatives.Count > 0 ? baselineScenario.Alternatives[0]
             : new ForecastCoupledOutcome(new([], 0, 0), default, [], new Dictionary<string, ForecastNeedsResult>(), []);
         foreach (var candidate in baselineScenario.Alternatives.Where(a => a.Feasible == Known(true)))
         {
-            var rank = CompareConsequences(CoupledConsequences(candidate, request.Commitments), CoupledConsequences(baseline, request.Commitments));
+            var rank = CompareConsequences(CoupledConsequences(candidate, baselineCommitments), CoupledConsequences(baseline, baselineCommitments));
             if (baseline.Feasible != Known(true) || rank < 0 || rank == 0 && candidate.Plan.LaborCost < baseline.Plan.LaborCost)
                 baseline = candidate;
         }
         var best = baseline;
-        var baselineVector = CoupledConsequences(baseline, request.Commitments);
+        var baselineVector = CoupledConsequences(baseline, baselineCommitments);
         var bestVector = baselineVector;
-        var selected = Array.Empty<string>();
+        var selected = incumbentIds.Order(StringComparer.Ordinal).ToArray();
+        var bestIsBaseline = true;
         var findings = new SortedSet<string>(candidates.Findings, StringComparer.Ordinal);
         findings.UnionWith(baselineScenario.Findings);
         if (baseline.Feasible != Known(true)) findings.Add("baseline_unassessed_or_infeasible");
         var evidence = new List<ForecastPortfolioEvidence>();
         // Establish the incumbent before spending optional search; report that mandatory work as well.
         var expansions = baselineScenario.Expansions; var truncated = baselineScenario.Truncated;
-        var alternatives = candidates.Alternatives.OrderBy(c => c.Id, StringComparer.Ordinal).ToArray();
+        var alternatives = candidates.Alternatives.Concat(candidates.Incumbents).OrderBy(c => c.Id, StringComparer.Ordinal).ToArray();
         if (alternatives.Select(c => c.Id).Distinct().Count() != alternatives.Length)
             throw new DomainException("duplicate portfolio candidate");
         // A graph-only root adds nothing when another selected root already includes all its
@@ -96,9 +101,10 @@ public static partial class PolicyFunctions
             {
                 var vector = CoupledConsequences(outcome, commitments);
                 var rank = CompareConsequences(vector, bestVector);
-                // Keeping current work wins true ties; labor breaks ties between new feasible plans.
-                if (best.Feasible != Known(true) || rank < 0 || rank == 0 && selected.Length > 0 && vector.Labor < bestVector.Labor)
-                { best = outcome; bestVector = vector; selected = additions.Select(c => c.Id).ToArray(); }
+                // Consequence ties never release a retained incumbent to save nominal labor.
+                var retainsSelectedIncumbents = selected.Where(incumbentIds.Contains).All(id => additions.Any(c => c.Id == id));
+                if (best.Feasible != Known(true) || rank < 0 || rank == 0 && !bestIsBaseline && retainsSelectedIncumbents && vector.Labor < bestVector.Labor)
+                { best = outcome; bestVector = vector; selected = additions.Select(c => c.Id).ToArray(); bestIsBaseline = false; }
                 else evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "consequence_or_incumbent"));
             }
             return expansions < budget;
@@ -120,14 +126,18 @@ public static partial class PolicyFunctions
             }
             return true;
         }
-        for (var size = 1; size <= alternatives.Length; size++)
+        var continueSearch = candidates.Incumbents.Count == 0 || Evaluate([]);
+        for (var size = 1; continueSearch && size <= alternatives.Length; size++)
             if (!Search(0, size, [])) { truncated = true; break; }
         if (truncated) findings.Add("portfolio_search_truncated");
         if (candidates.Truncated) findings.Add("portfolio_generation_truncated");
         findings.Add("beyond_horizon_unassessed");
+        var deferred = DeferUnselectedPawns(candidates.Context, best.Plan, request.Origin.ObservedTick);
+        var deferredCapacity = Math.Max(0, 32 - best.Plan.Allocations.Length);
+        if (deferred.Count > deferredCapacity) findings.Add("deferred_pawn_limit");
         return new(new(selected, best.Plan, default, findings.ToArray(), expansions, truncated), baseline, best,
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
-        { CompositionExpansions = candidates.CompositionExpansions };
+        { CompositionExpansions = candidates.CompositionExpansions, Deferred = EquatableArray.From(deferred.Take(deferredCapacity)) };
     }
 
     private static bool CompatiblePortfolio(IEnumerable<ForecastCommitment> input)
@@ -218,5 +228,39 @@ public static partial class PolicyFunctions
 
     public static PawnActivities? StartCoupledActivity(ForecastCoupledSelection selection,
         ForecastCoupledCandidates candidates, ulong authority, string method, long tick)
-        => Methods.Binding.CoordinatedActivityBinding.Start(selection.Selection, candidates.Context.Bindings, authority, method, tick);
+    {
+        if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
+            throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
+        return Methods.Binding.CoordinatedActivityBinding.StartWithDeferred(selection, candidates.Context.Bindings, authority, method, tick);
+    }
+
+    /// <summary>The no-change choice has a finite observed safe interval, not permission for a native selector.
+    /// Reconsider at most every 600 ticks and before the first supported need threshold.</summary>
+    private static EquatableArray<ForecastDeferredPawn> DeferUnselectedPawns(ForecastCoupledContext context, ForecastActivityPlan plan, long tick)
+    {
+        if (context.Resources.Claims.Truncated || context.Needs.Truncated
+            || !context.Activities.Deadline.TryGetValue(out var horizon) || !double.IsFinite(horizon) || horizon <= 0) return [];
+        var limit = Math.Min(600d, horizon);
+        var selected = plan.Allocations.Select(a => a.Pawn).ToHashSet(StringComparer.Ordinal);
+        var result = new List<ForecastDeferredPawn>();
+        foreach (var pawn in context.Needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal))
+        {
+            if (pawn.State != "eligible" || pawn.VoluntaryControlBlockers.Count != 0 || pawn.Location is not { } location || selected.Contains(pawn.Pawn)
+                || context.Resources.Claims.Pawns.Contains(pawn.Pawn) || pawn.Needs.Count == 0) continue;
+            var capacity = NeedsWorkCapacity(context.Resources, pawn.Pawn, limit).Capacity;
+            if (!capacity.Windows.TryGetValue(out var windows) || !windows.Any(w => w.Start <= 0 && w.End > 0)) continue;
+            var duration = Math.Min(limit, windows.Where(w => w.Start <= 0).Max(w => w.End));
+            foreach (var need in pawn.Needs)
+            {
+                if (!need.Level.TryGetValue(out var level) || !need.FallPerTick.TryGetValue(out var fall)
+                    || !need.Threshold.TryGetValue(out var threshold) || !double.IsFinite(level)
+                    || !double.IsFinite(fall) || !double.IsFinite(threshold) || threshold < 0 || threshold > 1 || fall < 0 || level <= threshold)
+                { duration = 0; break; }
+                if (fall > 0) duration = Math.Min(duration, (level - threshold) / fall);
+            }
+            if (duration < 1) continue;
+            result.Add(new(pawn.Pawn, location, checked(tick + (long)Math.Floor(duration))));
+        }
+        return EquatableArray.From(result);
+    }
 }

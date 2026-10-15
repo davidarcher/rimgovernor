@@ -32,6 +32,9 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return (default, false);
         }
 
+        if (work.Shuttle is { Loading: ShuttleLoading.ExplicitPawns } or { Loading: ShuttleLoading.Autoload, Autoload: true })
+            return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_shuttle_loading",
+                "Shuttle loading requires shared forecast participation and completion admission.") }, true);
         if (!arbiter.TryClaim(work.Shuttle.Pawns.ToPolicyIds(), $"quest:{work.Quest}"))
         {
             return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_departure") }, true);

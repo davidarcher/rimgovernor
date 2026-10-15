@@ -170,9 +170,6 @@ public sealed record WorkPawn
     /// <summary>The per-pawn policy planner inputs.</summary>
     public Fact<PawnPolicyInputs> PolicyInputs { get; init; }
 
-    /// <summary>The pawn's effective eat trigger (food level, 0.30 vanilla); unknown where the read did not carry it.</summary>
-    public Fact<double> EatTrigger { get; init; }
-
     /// <summary>The native body stats block (temperatures, move speed, hediff severities); unknown where the read did not carry it.</summary>
     public Fact<PawnBody> Body { get; init; }
 

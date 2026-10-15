@@ -6,9 +6,8 @@ internal static class PawnDrugPolicy
     internal static AcceptanceCase Case() => new()
     {
         Name = "pawn/drug-policy",
-        Scope = "An adult with no chemical trait, tolerance or addiction and an eight-year-old child each get the drug policy labelled with their short name through a DrugPolicyIntent and PawnSettingsIntent.drug_policy (#1537): the adult's allows beer for joy, the child's allows nothing. Native contract: the policy write, the assignment and the policy facts' drug entries; the choice of entries itself is policy/drug_policy_test.go.",
+        Scope = "Explicit native drug-policy writes and assignments preserve distinct adult joy permission and empty child policy. A separately configured preventive schedule remains an observed unsupported voluntary state. No automatic drug-policy generator runs; pure tests cannot prove native assignment/readback or blockers.",
         Start = new FixtureStart { Op = "test/drinker_and_child", On = new LabStart() },
-        Serve = PawnSupport.WorkSpec,
         Budget = TimeSpan.FromMinutes(4),
         Crew = new Crew { Size = 3 },
         Run = RunAsync,
@@ -21,16 +20,9 @@ internal static class PawnDrugPolicy
         s.Report["adult"] = adult;
         s.Report["child"] = child;
         var h = s.Harness;
-        await PawnSupport.SettleAsync(
-            s,
-            async ct =>
-            {
-                var facts = await PawnSupport.PolicyFactsAsync(h, s, "drug-policy-wait", ct).ConfigureAwait(false);
-                return PawnSupport.HoldsAssigned(facts, "drug", adult) && PawnSupport.HoldsAssigned(facts, "drug", child)
-                    ? ("drug policies assigned", true)
-                    : ("waiting for both drug policy assignments", false);
-            },
-            cancellationToken).ConfigureAwait(false);
+        _ = await Authority.GrantAutoAsync(h.WireFunc(), "drug-policy-authority", s.Identity, cancellationToken).ConfigureAwait(false);
+        await ExplicitDrugPolicy.AssignAsync(s, adult, "Explicit adult", [new() { DrugDef = "Beer", AllowedForJoy = true, DaysFrequency = 1, OnlyIfMoodBelow = 1, OnlyIfJoyBelow = 1 }], cancellationToken).ConfigureAwait(false);
+        await ExplicitDrugPolicy.AssignAsync(s, child, "Explicit child", [], cancellationToken).ConfigureAwait(false);
         h = s.Harness;
         var final = await PawnSupport.PolicyFactsAsync(h, s, "drug-policy", cancellationToken).ConfigureAwait(false);
         var joy = new Dictionary<string, List<string>>(StringComparer.Ordinal);
@@ -77,5 +69,7 @@ internal static class PawnDrugPolicy
         {
             throw new AcceptanceException($"child's drug policy allows [{string.Join(',', childJoy)}] for joy, want none");
         }
+        await ExplicitDrugPolicy.AssignAsync(s, adult, "Explicit prevention", [new() { DrugDef = "Penoxycyline", AllowScheduled = true, DaysFrequency = 5, OnlyIfMoodBelow = 1, OnlyIfJoyBelow = 1 }], cancellationToken).ConfigureAwait(false);
+        await ExplicitDrugPolicy.RequireUnsupportedAsync(s, adult, "Penoxycyline", cancellationToken).ConfigureAwait(false);
     }
 }

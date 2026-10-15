@@ -159,25 +159,6 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    /// <summary>The remembered royalty facts and the work pawns of the retained reading; unknown when the reading is stale.</summary>
-    internal (Fact<RoyaltyFacts> Royalty, Fact<EquatableArray<WorkPawn>> Pawns) Psycasters()
-    {
-        RoundsCensus? census;
-        ulong generation;
-        Fact<RoyaltyFacts> royalty;
-        lock (Mu)
-        {
-            census = Latest;
-            generation = Generation;
-            royalty = Royalty;
-        }
-        if (census is null || census.Generation != generation)
-        {
-            return (Unknown<RoyaltyFacts>(), Unknown<EquatableArray<WorkPawn>>());
-        }
-        return (royalty, census.Reading.Projection.WorkPawns);
-    }
-
     internal void Invalidate()
     {
         lock (Mu)

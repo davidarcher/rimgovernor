@@ -408,7 +408,7 @@ public sealed partial class ClockWindowDriver
             _scheduler.Facts.Store,
             ClockScheduler.FactScope(loadedContext),
             FactSection.Emergency,
-            new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick, Complete = colonistsKnown && colonistsComplete, Source = "rimgovernor/observations_read_status" });
+            new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick, Complete = colonistsKnown && colonistsComplete && emergency.Facts.DependentPatients.IsKnown, Source = "rimgovernor/observations_read_status" });
         var review = await journal.ReadClockReviewAsync(_config.Profile, call).ConfigureAwait(false);
         var plan = await journal.LoadPlanAsync(state.Snapshot.Plan, call).ConfigureAwait(false);
         var (work, fingerprint) = ClockWindowWork.Census(plan, state.Snapshot);

@@ -175,30 +175,6 @@ public static partial class BridgeFunctions
         return GiveJobTo(v.Pawn, JobUseItem, v.SelfUse, v.Item, v.Target.Value);
     }
 
-    /// <summary>
-    /// Go's <c>moodReliefAction</c>: offers the pawn the job its own need giver issues for one deficient need, checked
-    /// live; the giver picks the target.
-    /// </summary>
-    private static Op.Action MoodReliefAction(DomainAction action)
-    {
-        var v = action.MoodRelief ?? throw Contract("not a mood relief action");
-        var need = v.Need switch
-        {
-            MoodReliefNeed.Food => Op.Need.Food,
-            MoodReliefNeed.Rest => Op.Need.Rest,
-            MoodReliefNeed.Joy => Op.Need.Joy,
-            _ => throw Contract("invalid mood relief need"),
-        };
-        if (!IsValidId(v.Pawn.Value))
-        {
-            throw Contract("mood relief intent requires a valid pawn");
-        }
-        return new Op.Action
-        {
-            Intent = new Op.GiveJobIntent { Pawn = NewRef(v.Pawn.Value), Options = new Op.GiveJobOptions { RelieveNeed = need } },
-        };
-    }
-
     // Go recoveryServiceJobs.
     private static string RecoveryServiceJob(RecoveryMethod method) =>
         method switch

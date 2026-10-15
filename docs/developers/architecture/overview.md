@@ -74,12 +74,13 @@ binding constructs exact actions. The existing Method journal owns progress and
 revisions, and Hands remains the order writer. A forecast result does not admit a
 Method, reserve every resource or prove completed pawn work.
 
-This is the structure for the migrated path, not a claim that every planner uses
-one complete colony portfolio. The live food path includes one cooking iteration
-after observed harvest. The shared coupled forecast now evaluates food batches,
-needs recovery, later production and planned-room thermal consequences from one
-observed frame; choosing and dispatching that cross-family portfolio remains the
-next integration boundary.
+Normal review compares supported food, needs, construction, shelter, clothing and
+support alternatives together. It binds selected tasks and bounded no-change
+intervals through the WorkAssignments Concern. Native routine priorities and
+timetable templates do not choose voluntary jobs for controlled colonists.
+An eligible pawn without an authorized activity stops the supervised clock with
+an explicit unavailable-control reason. Unsupported states and remaining
+independent owners are listed in [voluntary control](../contracts/voluntary-control.md).
 See [Method selection and binding](plans-and-hands.md#method-selection-and-binding)
 for the ownership boundaries and [live policy stages](colony-forecast.md#live-activity-policy-stages)
 for the implementation, enforced dependencies and current bounds.

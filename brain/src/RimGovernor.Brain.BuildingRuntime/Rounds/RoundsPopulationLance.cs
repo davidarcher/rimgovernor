@@ -84,21 +84,12 @@ public sealed partial class RoundsPopulationCustodyPlanner
         }
 
         var things = await BuildingRuntimePackage.FrameThingsOfAsync(native, identityCtx, call).ConfigureAwait(false);
-        if (PolicyFunctions.SelectLanceUse(target, BuildingRuntimePackage.LanceUsers(observed.Pawns, things)) is not { } choice || !arbiter.TryClaim([choice.User, choice.Target]))
+        if (PolicyFunctions.SelectLanceUse(target, BuildingRuntimePackage.LanceUsers(observed.Pawns, things)) is not { })
         {
             return (default, false);
         }
 
-        var prefix = $"population-lance-{choice.Target}-";
-        var (method, _, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
-        if (!admitted)
-        {
-            return (default, false);
-        }
-
-        var use = new UseItem(choice.User, choice.Item, choice.Target);
-        var id = PlanIds.MintPlanId();
-        var action = DomainAction.NewUseItemAction(new ActionId($"{id}-0"), use);
-        return (Commit(p, state, started, goal, method, id, action, call, epoch), true);
+        return (new RoundsPopulationCustodyResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_population_lance",
+            "Population acquisition through lance use requires shared participant and outcome comparison.") }, true);
     }
 }

@@ -5,35 +5,23 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>
-/// waste/incineration proves MaintainIncineration: corpse disposal end to end on the tribal baseline colony. The fixture
-/// lays a rotten animal corpse, a rotten and a fresh stranger corpse and a worn apparel in the open, plus stone blocks
-/// for the walls. MaintainStockpiles creates the waste yard's one dump zone from the plan (a declared Sanitation store)
-/// and MaintainIncineration shells the planned incinerator in the waste yard (first window), whose declared Sanitation
-/// zone takes burnable waste at Preferred priority; the case fills the incinerator with worn apparel and a loose molotov
-/// and MaintainIncineration burns it and has the ash cleaned (second window) (Go <c>incineration.go</c>).
-/// </summary>
+/// <summary>Prepared disposal mechanics and explicit unsupported automatic labor; normal layout and zone policy remain exercised.</summary>
 internal static class WasteIncineration
 {
     private const string Stage = "test/disposal_stage";
-    private const string Seed = "test/disposal_seed";
+    private const string Seed = "test/disposal_room";
     private const string Read = "test/disposal_read";
 
-    private static readonly TimeSpan Window = TimeSpan.FromMinutes(25);
 
-    /// <summary>Seeded worn apparel in the interior: with the two rotten corpses the room reaches <c>BurnStoredCells</c>.</summary>
-    private const int Seeded = 4;
+
+
+
 
     internal static AcceptanceCase Case() => new()
     {
         Name = "waste/incineration",
-        Scope = "Issues #1817 and #2197 on the tribal " + Baselines.BaselineName + " colony: rotten animal and rotten stranger corpses are burned in the incinerator " +
-            "and a fresh stranger is never put there; the waste yard holds one Low dump zone over the yard interior outside the incinerator outline, " +
-            "allowing corpses and apparel (the not-burnable special is refused) and unroofed; a full incinerator (6+ cells) is burned once by a molotov-equipped burner with a standby and its ash cleaned; " +
-            "the enclosed unroofed incinerator interior is its own room (cell.GetRoom) walled and doored with non-flammable edifices, " +
-            "and its stockpile zone is the declared Preferred store over the whole interior. " +
-            "A native end-to-end signal (vanilla fire, rot, rooms and hauling); no Go snapshot covers it.",
-        Start = new FixtureStart { Op = Stage, On = new SaveStart { Name = Baselines.BaselineName } },
+        Scope = "LabStart normal layout and stockpile policy, with its incinerator shell and six burnable cells prepared. Normal review exposes unsupported ignition and admits no burner. Explicit native equip/draft/ignite and ash-cleaning operations prove actual disposal, nonflammable room containment, zone filters/priorities, ash removal and fresh-corpse retention. No automatic labor or construction claim.",
+        Start = new FixtureStart { Op = Stage, On = new LabStart() },
         RequiredOps = [Stage, Seed, Read],
         Keep = [NeedDef.Food.Value],
         Serve = new ServeSpec
@@ -42,9 +30,9 @@ internal static class WasteIncineration
             NativeTimeout = TimeSpan.FromSeconds(30),
             Prefix = "waste-incineration",
         },
-        Budget = (2 * Window) + TimeSpan.FromMinutes(10),
+        Budget = TimeSpan.FromMinutes(10),
         Crew = new Crew { Size = 3 },
-        Reason = "two serve windows: the incinerator is shelled by colonists, then burned and cleaned",
+        Reason = "prepared disposal mechanics after explicit unsupported normal review",
         Run = RunAsync,
     };
 
@@ -66,103 +54,91 @@ internal static class WasteIncineration
         }
 
         var animalDef = prepared["animalDef"].AsString();
-        var ids = new List<string> { staged["animal"], staged["rottenStranger"], staged["freshStranger"], staged["worn"] };
-        var observed = ObservedSession.Of(s);
-        var concern = PolicyConstants.MaintainIncineration.Value;
 
-        // Window one: the layout plan reserves the incinerator and MaintainIncineration shells it.
-        PlannedRoom? room = null;
-        PlannedRoom? yard = null;
+
+
+        // Layout decisions remain normal policy; only the expensive construction precondition is prepared.
+        var initial = await RoutineService.StartAsync(s, "disposal-layout", ["incineration", "stockpiles"], cancellationToken).ConfigureAwait(false);
+        PlannedRoom room;
+        PlannedRoom yard;
         try
         {
-            _ = await SustainedFood.ObserveAsync(
-                observed,
-                new SustainedObservation
-                {
-                    Watch = new WatchConfig { Watch = Window, Concern = concern, Until = sample => MethodCompleted(sample, "incinerator-shell-") },
-                    Audit = async (h, rep, ct) =>
-                    {
-                        (room, yard) = await PlannedWasteYardAsync(s, ct).ConfigureAwait(false);
-                        rep["incinerator"] = room.ToString();
-                        await CheckDumpAsync(s, h, rep, animalDef, yard.Region.Bounds(), room.Region.Bounds(), ct).ConfigureAwait(false);
-                        var read = await ReadDisposalAsync(h, ids, room, ct).ConfigureAwait(false);
-                        await CheckIncineratorZoneAsync(s, h, rep, room.Region.Bounds(), ct).ConfigureAwait(false);
-                        CheckFreshStranger(read, staged["freshStranger"], rep, "shelled");
-                    },
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("incinerator window: " + e.Message, e);
-        }
-
-        // Window two: a full room with a molotov on the ground and a standby.
-        var seeded = new List<string>();
-        try
-        {
-            _ = await SustainedFood.ObserveAsync(
-                observed,
-                new SustainedObservation
-                {
-                    Watch = new WatchConfig { Watch = Window, Concern = concern, Until = sample => MethodCompleted(sample, "burn-ash-") },
-                    Prepare = async (h, rep, ct) =>
-                    {
-                        var cells = PolicyFunctions.RectangleCells(room!.Region.Bounds());
-                        if (cells.Count < Seeded)
-                        {
-                            throw new AcceptanceException($"incinerator interior {room.Region.Bounds()} holds fewer than {Seeded} cells");
-                        }
-
-                        var spots = cells.Take(Seeded).Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.X},{c.Z}"));
-                        var reply = await h.CallAsync("disposal-seed", Seed, new JsonObject { ["cells"] = string.Join(';', spots), ["molotovs"] = 1 }, ct).ConfigureAwait(false);
-                        foreach (var raw in reply["ids"].AsSlice())
-                        {
-                            seeded.Add(raw.AsString());
-                        }
-
-                        if (seeded.Count != Seeded + 1)
-                        {
-                            throw new AcceptanceException($"disposal seed: want {Seeded + 1} things, got {reply.ToJson()}");
-                        }
-
-                        rep["seeded"] = new JsonArray([.. seeded.Select(id => (JsonNode?)id)]);
-                    },
-                    Audit = async (h, rep, ct) =>
-                    {
-                        var read = await ReadDisposalAsync(h, [.. ids, .. seeded.Take(Seeded)], room!, ct).ConfigureAwait(false);
-                        rep["disposal_read"] = read.ToJson();
-                        await CheckBurnedAsync(s, read, staged, [.. seeded.Take(Seeded)], room!, rep, ct).ConfigureAwait(false);
-                    },
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (AcceptanceException e)
-        {
-            throw new AcceptanceException("burn window: " + e.Message, e);
-        }
-    }
-
-    /// <summary>Reports a plan of the sampled goal, active or retired, whose method has the prefix and whose actions all completed.</summary>
-    private static bool MethodCompleted(JsonObject sample, string prefix)
-    {
-        foreach (var plan in Plans(sample))
-        {
-            var method = plan["method"].AsString();
-            var actions = (int)plan["actions"].AsNumber();
-            var completed = (int)plan["stages"].AsMap()?["completed"].AsNumber()!;
-            if (method.StartsWith(prefix, StringComparison.Ordinal) && actions > 0 && completed == actions)
+            await new Wait { Ceiling = TimeSpan.FromMinutes(2), Terminal = initial.Service.Exited }.WaitProgressAsync(async ct =>
             {
-                return true;
-            }
+                var (_, layout) = await ObservedSession.ReadLayoutPlanAsync(s.Config, ct).ConfigureAwait(false);
+                return (Wait.Signature(layout?.Rooms.Count), layout?.IncineratorRooms().Count == 1 && layout.WasteYardRooms().Count == 1);
+            }, cancellationToken).ConfigureAwait(false);
+            (room, yard) = await PlannedWasteYardAsync(s, cancellationToken).ConfigureAwait(false);
         }
-
-        return false;
+        finally { _ = await initial.ReleaseAsync(s, cancellationToken).ConfigureAwait(false); }
+        var h = s.Harness;
+        var inner = room.Region.Bounds();
+        var preparedRoom = await h.CallAsync("disposal-room", "test/disposal_room", new JsonObject {
+            ["minX"] = inner.X, ["minZ"] = inner.Z, ["maxX"] = inner.X + inner.Width - 1, ["maxZ"] = inner.Z + inner.Height - 1,
+            ["doorX"] = room.Door.X, ["doorZ"] = room.Door.Z,
+            ["freshId"] = staged["freshStranger"],
+            ["ids"] = string.Join(',', new[] { staged["animal"], staged["rottenStranger"], staged["worn"] }) }, cancellationToken).ConfigureAwait(false);
+        var burnIds = preparedRoom["ids"].AsSlice().Select(x => x.AsString()).ToArray();
+        if (preparedRoom["success"].AsBool() != true || burnIds.Length != 6) throw new AcceptanceException("Disposal room preparation failed.");
+        report["prepared_room"] = preparedRoom.DeepClone();
+        h = await UnsupportedLabor.ReviewAsync(s, "unsupported_forecast_incinerator_ignition", ActionKind.Ignite, cancellationToken).ConfigureAwait(false);
+        await CheckDumpAsync(s, h, report, animalDef, yard.Region.Bounds(), inner, cancellationToken).ConfigureAwait(false);
+        await CheckIncineratorZoneAsync(s, h, report, inner, cancellationToken).ConfigureAwait(false);
+        var burner = preparedRoom["burner"].AsString();
+        var weapon = preparedRoom["weapon"].AsString();
+        var allIds = burnIds.Append(staged["freshStranger"]).ToArray();
+        var equip = await ApplyIntents.ApplyOneAsync(h, "disposal-equip", s.Identity, "disposal-equip", ApplyIntents.GiveJob(burner, "Equip", weapon), cancellationToken).ConfigureAwait(false);
+        _ = ApplyIntents.AppliedJob("equip", equip);
+        _ = await Authority.ReleaseAuthorityAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        _ = await RunAt.RunUntilAsync(h, "disposal-equipped", 2000, new Wait { Ceiling = TimeSpan.FromMinutes(1) }, async ct => {
+            var read = await ReadDisposalAsync(h, allIds, room, ct).ConfigureAwait(false);
+            return (Wait.Signature(read.Tick), read.Pawns.Any(p => p["id"].AsString() == burner && p["weapon"].AsString() == weapon));
+        }, cancellationToken).ConfigureAwait(false);
+        await NativeReads.PauseAsync(h, "disposal-draft-pause", cancellationToken).ConfigureAwait(false);
+        _ = await ApplyIntents.ApplyDraftAsync(h, "disposal-draft", s.Identity, "disposal-draft", burner, true, cancellationToken).ConfigureAwait(false);
+        var ignite = await ApplyIntents.ApplyOneAsync(h, "disposal-ignite", s.Identity, "disposal-ignite",
+            new JsonObject { ["ignite"] = new JsonObject { ["pawnId"] = burner, ["cell"] = new JsonObject { ["x"] = inner.X + 1, ["z"] = inner.Z + 1 } } }, cancellationToken).ConfigureAwait(false);
+        if (ignite["refused"] is not null) throw new AcceptanceException("Explicit ignition refused: " + ignite.ToJson());
+        report["ignite_receipt"] = ignite.DeepClone();
+        _ = await Authority.ReleaseAuthorityAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        _ = await RunAt.RunUntilAsync(h, "disposal-fire", 2000, new Wait { Ceiling = TimeSpan.FromMinutes(1) }, async ct => {
+            var read = await ReadDisposalAsync(h, allIds, room, ct).ConfigureAwait(false);
+            return (Wait.Signature(read.Tick, read.Fires), read.Fires > 0);
+        }, cancellationToken).ConfigureAwait(false);
+        await NativeReads.PauseAsync(h, "disposal-undraft-pause", cancellationToken).ConfigureAwait(false);
+        _ = await ApplyIntents.ApplyDraftAsync(h, "disposal-undraft", s.Identity, "disposal-undraft", burner, false, cancellationToken).ConfigureAwait(false);
+        _ = await Authority.ReleaseAuthorityAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+        _ = await RunAt.RunUntilAsync(h, "disposal-burned", 15000, new Wait { Ceiling = TimeSpan.FromMinutes(3) }, async ct => {
+            var read = await ReadDisposalAsync(h, allIds, room, ct).ConfigureAwait(false);
+            return (Wait.Signature(read.Tick, read.Fires), read.Fires == 0 && burnIds.All(read.Gone));
+        }, cancellationToken).ConfigureAwait(false);
+        await NativeReads.PauseAsync(h, "disposal-clean-pause", cancellationToken).ConfigureAwait(false);
+        var dirty = await ReadDisposalAsync(h, allIds, room, cancellationToken).ConfigureAwait(false);
+        if (dirty.AshIds.Count == 0) throw new AcceptanceException("Actual burning produced no ash to exercise cleaning.");
+        var cleanCount = 0;
+        foreach (var target in dirty.AshIds)
+        {
+            var now = await ReadDisposalAsync(h, allIds, room, cancellationToken).ConfigureAwait(false);
+            if (!now.AshIds.Contains(target)) continue;
+            var clean = await ApplyIntents.ApplyOneAsync(h, "disposal-clean-" + cleanCount, s.Identity, "disposal-clean-" + cleanCount,
+                ApplyIntents.GiveJob(burner, "Clean", target), cancellationToken).ConfigureAwait(false);
+            _ = ApplyIntents.AppliedJob("clean", clean); cleanCount++;
+            _ = await Authority.ReleaseAuthorityAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
+            _ = await RunAt.RunUntilAsync(h, "disposal-cleaned-" + cleanCount, 2000, new Wait { Ceiling = TimeSpan.FromMinutes(1) }, async ct => {
+                var read = await ReadDisposalAsync(h, allIds, room, ct).ConfigureAwait(false);
+                return (Wait.Signature(read.Tick, read.Ash), !read.AshIds.Contains(target));
+            }, cancellationToken).ConfigureAwait(false);
+            await NativeReads.PauseAsync(h, "disposal-clean-next", cancellationToken).ConfigureAwait(false);
+        }
+        var final = await ReadDisposalAsync(h, allIds, room, cancellationToken).ConfigureAwait(false);
+        report["disposal_read"] = final.ToJson(); report["explicit_cleans"] = cleanCount;
+        if (!burnIds.All(final.Gone) || final.Ash != 0 || final.Fires != 0 || cleanCount == 0)
+            throw new AcceptanceException("Disposal or physical ash removal incomplete.");
+        if (!final.Things.TryGetValue(staged["freshStranger"], out var fresh) || fresh["spawned"].AsBool() != true || fresh["inside"].AsBool() == true)
+            throw new AcceptanceException("Fresh corpse was not retained outside disposal.");
+        CheckFreshStranger(final, staged["freshStranger"], report, "burned");
+        CheckRoom(final, room);
     }
-
-    private static IEnumerable<JsonObject> Plans(JsonObject sample) =>
-        sample["plans"].AsSlice().Concat(sample["retired_plans"].AsSlice()).Select(p => p.AsMap() ?? []);
-
     /// <summary>The layout plan's incinerator room and the waste yard that holds it.</summary>
     private static async Task<(PlannedRoom Room, PlannedRoom Yard)> PlannedWasteYardAsync(ISession s, CancellationToken cancellationToken)
     {
@@ -313,6 +289,9 @@ internal static class WasteIncineration
     /// <summary>The native read of the staged things and the incinerator.</summary>
     private sealed class DisposalReading
     {
+        internal long Tick { get; set; }
+        internal List<string> AshIds { get; } = [];
+        internal List<JsonObject> Pawns { get; } = [];
         internal Dictionary<string, JsonObject> Things { get; } = new(StringComparer.Ordinal);
 
         internal List<JsonObject> Interior { get; } = [];
@@ -377,12 +356,15 @@ internal static class WasteIncineration
 
         var read = new DisposalReading
         {
+            Tick = (long)reply["tick"].AsNumber(),
             Ash = (int)reply["ash"].AsNumber(),
             Fires = (int)reply["fires"].AsNumber(),
             Beyond = (int)reply["beyondDoorRoom"].AsNumber(),
             Door = (int)reply["doorRoom"].AsNumber(),
             Room = reply["room"].AsMap() ?? [],
         };
+        read.AshIds.AddRange(reply["ashIds"].AsSlice().Select(x => x.AsString()));
+        read.Pawns.AddRange(reply["pawns"].Rows());
         foreach (var raw in reply["things"].AsSlice())
         {
             var row = raw.AsMap() ?? [];
@@ -413,45 +395,6 @@ internal static class WasteIncineration
         }
     }
 
-    /// <summary>
-    /// Proves the burn window: the rotten corpses and the seeded apparel burned, the journal's burn was one ignite by a
-    /// drafted burner, the ash is cleaned, and the room is its own walled, doored, unroofed room.
-    /// </summary>
-    private static async Task CheckBurnedAsync(ISession s, DisposalReading read, Dictionary<string, string> staged, IReadOnlyList<string> seeded, PlannedRoom room, Report report, CancellationToken cancellationToken)
-    {
-        foreach (var id in new[] { staged["animal"], staged["rottenStranger"] }.Concat(seeded))
-        {
-            if (!read.Gone(id))
-            {
-                throw new AcceptanceException($"thing {id} survived the burn: {read.Things.GetValueOrDefault(id).ToJson()}");
-            }
-        }
-
-        CheckFreshStranger(read, staged["freshStranger"], report, "burned");
-        if (read.Ash != 0 || read.Fires != 0)
-        {
-            throw new AcceptanceException($"the burn left {read.Ash} ash and {read.Fires} fires");
-        }
-
-        var burn = await BurnPlansAsync(s, cancellationToken).ConfigureAwait(false);
-        report["burn_plans"] = new JsonObject { ["ignites"] = burn.Ignites, ["drafts"] = burn.Drafts, ["cleans"] = burn.Cleans, ["equips"] = burn.Equips };
-        if (burn.Ignites != 1 || burn.Drafts < 1)
-        {
-            throw new AcceptanceException($"want one completed ignite behind a draft, got {burn}");
-        }
-
-        if (burn.Cleans < 1)
-        {
-            throw new AcceptanceException($"no completed ash cleaning: {burn}");
-        }
-
-        CheckRoom(read, room);
-    }
-
-    /// <summary>
-    /// Proves the incinerator interior resolves to one unroofed room of its own (cell.GetRoom) and every wall and the
-    /// door are non-flammable.
-    /// </summary>
     private static void CheckRoom(DisposalReading read, PlannedRoom room)
     {
         var id = (int)read.Room["id"].AsNumber();
@@ -518,44 +461,4 @@ internal static class WasteIncineration
         }
     }
 
-    /// <summary>The completed action kinds of the burn and ash plans.</summary>
-    private readonly record struct BurnCounts(int Ignites, int Drafts, int Cleans, int Equips);
-
-    /// <summary>Counts the completed actions of the journal's MaintainIncineration burn-wave and burn-ash plans by kind.</summary>
-    private static async Task<BurnCounts> BurnPlansAsync(ISession s, CancellationToken cancellationToken)
-    {
-        var store = await ObservedSession.OpenStoreAsync(s.Config, cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var goal = await store.SampleStandardAsync(PolicyConstants.MaintainIncineration.Value, cancellationToken).ConfigureAwait(false);
-            int ignites = 0, drafts = 0, cleans = 0, equips = 0;
-            foreach (var plan in Plans(goal))
-            {
-                var method = plan["method"].AsString();
-                var kinds = plan["kinds"].AsMap() ?? [];
-                var actions = (int)plan["actions"].AsNumber();
-                var completed = (int)(plan["stages"].AsMap()?["completed"]).AsNumber();
-                if (!method.StartsWith("burn-", StringComparison.Ordinal) || actions == 0 || completed != actions)
-                {
-                    continue;
-                }
-
-                ignites += Count(kinds, Wire.Name(ActionKind.Ignite));
-                drafts += Count(kinds, Wire.Name(ActionKind.OwnedDraft));
-                cleans += Count(kinds, Wire.Name(ActionKind.Clean));
-                equips += Count(kinds, Wire.Name(ActionKind.Equip));
-            }
-
-            return new BurnCounts(ignites, drafts, cleans, equips);
-        }
-        finally
-        {
-            if (store is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-        }
-    }
-
-    private static int Count(JsonObject kinds, string kind) => kinds.ContainsKey(kind) ? (int)kinds[kind].AsNumber() : 0;
 }

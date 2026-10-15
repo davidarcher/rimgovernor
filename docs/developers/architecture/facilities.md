@@ -919,9 +919,9 @@ spot, attendees). While one is accepted:
 
 - the throne room owed is the bestowed title's (`CeremonyThroneNeed`
   outranks the favor-driven need), so the room stands ready;
-- the colonist and the lord's attendees are held off the Sleep timetable
-  (`CeremonyHold`, `PlanSchedulesHeld`), which keeps them able to join the
-  ritual; rest below the sleep band still sends them to bed.
+- native ceremony mechanics validate attendance. The retired timetable writer
+  does not keep participants awake; planner-owned ceremony attendance and
+  psyfocus service remain outside the supported voluntary scope.
 
 An offered quest is how a title is claimed: when `NextTitleClaim` says claim
 (favor, the next rung's bedroom and throne room met), the review lists the

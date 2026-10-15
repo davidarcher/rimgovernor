@@ -27,10 +27,27 @@ public sealed record NeedMemory(string Id, double Offset,
 /// <summary>Native mood-point contribution in a half-open local-hour window; EndHour less than StartHour wraps midnight. CurrentOffset is already present in MoodUnclampedTarget.</summary>
 public sealed record NeedConditionalThought(string Id, double StartHour, double EndHour, bool AwakeOnly,
     double Offset, double CurrentOffset, string Provenance);
+/// <summary>Exact observed continuous service. RemainingTicks is a current-mechanics projection,
+/// not a release guarantee; journal ownership still requires observed continuation/release.</summary>
+public sealed record NeedCurrentService(string Assignment, string Method, long Revision, string Target,
+    string Kind, Cell Location,
+    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> RemainingTicks,
+    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> GainPerTick)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Unsupported { get; init; }
+}
 public sealed record NeedsForecastPawn
 {
     public string Pawn { get; init; } = "";
     public string State { get; init; } = "unknown";
+    public Cell? Location { get; init; }
+    /// <summary>Null means no supported observed continuous incumbent, not a free pawn.</summary>
+    public NeedCurrentService? CurrentService { get; init; }
+    /// <summary>Observed requirements outside supported voluntary control. Empty means none observed;
+    /// a missing need census has an explicit blocker. Passive consequence uncertainty stays in Unsupported.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> VoluntaryControlBlockers { get; init; }
     [JsonConverter(typeof(ObservedConditionalThoughtsJsonConverter))]
     public Fact<EquatableArray<NeedConditionalThought>> ConditionalThoughts { get; init; }
     public Fact<double> LocalHour { get; init; }

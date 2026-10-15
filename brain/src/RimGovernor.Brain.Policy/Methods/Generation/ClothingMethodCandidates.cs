@@ -90,8 +90,13 @@ internal static class ClothingMethodCandidates
         var alternativesWithConflicts = outcomes.Select(o => o with
         {
             Excludes = EquatableArray.From(garmentNeeds
-            .Where(n => n.Key != o.Id && n.Value.Wearer == garmentNeeds[o.Id].Wearer
-                && n.Value.Layers.Intersect(garmentNeeds[o.Id].Layers).Any() && n.Value.Groups.Intersect(garmentNeeds[o.Id].Groups).Any()).Select(n => n.Key))
+            .Where(n => n.Key != o.Id && (n.Value.Wearer == garmentNeeds[o.Id].Wearer
+                && n.Value.Layers.Intersect(garmentNeeds[o.Id].Layers).Any() && n.Value.Groups.Intersect(garmentNeeds[o.Id].Groups).Any()
+                // A selected output occupies its exact destination beyond the delivery job.
+                // Different garments cannot both claim that cell without an observed onward move.
+                || bindings.Values.Any(a => a.Id == o.Id && a.Destination is not null
+                    && bindings.Values.Any(b => b.Id == n.Key && b.Destination == a.Destination))))
+                .Select(n => n.Key))
         }).ToArray();
         return new(new()
         {

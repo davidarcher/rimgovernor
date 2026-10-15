@@ -94,7 +94,7 @@ public static partial class ObservationPackage
         var known = emergency.ColonistsComplete.TryGetValue(out var complete);
         output = output with
         {
-            Emergency = new Held<EmergencyFacts> { Value = emergency, AsOf = tick, Complete = known && complete, Source = "rimgovernor/observations_read_status" },
+            Emergency = new Held<EmergencyFacts> { Value = emergency, AsOf = tick, Complete = known && complete && emergency.DependentPatients.IsKnown, Source = "rimgovernor/observations_read_status" },
         };
         if (projection.WorkPawns.TryGetValue(out var work))
         {

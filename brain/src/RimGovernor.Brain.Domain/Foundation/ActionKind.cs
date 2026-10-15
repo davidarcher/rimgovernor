@@ -45,7 +45,6 @@ public enum ActionKind
     IdeoligionReform,
     Ignite,
     MineAcquisition,
-    MoodRelief,
     MoveBuilding,
     Movement,
     OpenCasket,

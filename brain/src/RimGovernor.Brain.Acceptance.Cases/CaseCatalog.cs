@@ -17,6 +17,7 @@ public static class CaseCatalog
         registry.Register(CoupledForecastCase.Case());
         registry.Register(ConditionalMoodCase.Case());
         registry.Register(PortfolioNeedsCase.Case());
+        registry.Register(PortfolioThermalCase.Case());
         registry.Register(ProductiveCookingCase.Case());
         registry.Register(MaintenancePracticeCase.Case(false));
         registry.Register(MaintenancePracticeCase.Case(true));
@@ -79,7 +80,6 @@ public static class CaseCatalog
         RoomsCases.Register(registry);
         ShelterCases.Register(registry);
         RouteCases.Register(registry);
-        ScheduleCases.Register(registry);
         ServiceCases.Register(registry);
         SleepingCases.Register(registry);
         SmokeCases.Register(registry);

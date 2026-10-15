@@ -199,11 +199,7 @@ public static partial class PolicyFunctions
         var sleepEnds = SleepServiceEnds(pawn, selected, interruptedAt, findings);
         var metrics = new List<ForecastNeedMetric>();
         var usefulFood = new Dictionary<string, double>(StringComparer.Ordinal);
-        // All needs share the same activity boundaries. Only the saturation cuts vary by need.
-        var events = new SortedSet<double> { 0, input.HorizonTicks };
-        foreach (var row in intervals) { events.Add(row.Choice.Start); events.Add(row.End); }
-        if (sleepEnds is not null) foreach (var end in sleepEnds.Values) events.Add(end);
-        var points = events.Where(t => t <= input.HorizonTicks).ToArray();
+
         Span<double> split = stackalloc double[5];
         foreach (var need in pawn.Needs)
         {
@@ -224,6 +220,14 @@ public static partial class PolicyFunctions
             if (!double.IsFinite(level) || level < 0 || level > 1 || !double.IsFinite(fall) || fall < 0
                 || !double.IsFinite(threshold) || threshold < 0 || threshold > 1) throw new DomainException("invalid need mechanics");
             double deficit = 0, exposure = 0, waste = 0, zero = 0, depth = 0;
+            var events = new SortedSet<double> { 0, input.HorizonTicks };
+            // Unrelated service boundaries cannot change this need trajectory. Splitting there
+            // introduces rounding differences that can incorrectly dominate later consequences.
+            foreach (var row in intervals.Where(r => r.Choice.Kind == need.Kind))
+            { events.Add(row.Choice.Start); events.Add(row.End); }
+            if (need.Kind == "rest" && sleepEnds is not null)
+                foreach (var end in sleepEnds.Values) events.Add(end);
+            var points = events.Where(t => t <= input.HorizonTicks).ToArray();
             for (var i = 0; i < points.Length - 1; i++)
             {
                 var from = points[i]; var to = points[i + 1];

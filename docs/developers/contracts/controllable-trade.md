@@ -24,6 +24,14 @@ catalog; this read supplies no estimated stock or prices. Settlement rows expose
 native `CanTradeNow` and trader kind. Existing WorldRoute and CaravanState reads
 own routes, caravan crew, mass, food, rot and inventory.
 
+
+Normal TradeWithCaravan review reports unsupported_shared_trade_labor before
+opening map or orbital trade: negotiator travel and comms work require shared
+participant and opportunity alternatives. The Incident admission boundary rejects
+those Open actions as well. Already-open session operations and visiting-caravan
+settlement sessions remain available; explicit native operations still exercise
+map/orbital legality. Incident classification alone does not make a trade
+opportunity emergency labor.
 An optional existing FormCaravanIntent is a read-only packing calculation input:
 the exact crew/cargo are selected using the same native formation calculation.
 The reply contains mass, food/rot and crew-sensitive outbound/home WorldRoutes.

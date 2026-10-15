@@ -21,6 +21,32 @@ public sealed partial class Store
     /// </summary>
     internal static void AdmitOwnerMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
     {
+        // Ordinary controlled labor uses the shared forecast's exact activity Method.
+        // Incident protection and explicit native operations retain their existing authority.
+        if (owner is StandardState && owner.OwnerSnapshot.Native.Value != 0)
+            foreach (var action in plan.Actions)
+                if (action.Kind is ActionKind.Repair or ActionKind.Clean or ActionKind.Haul
+                    or ActionKind.RecoveryService or ActionKind.Ritual or ActionKind.Ignite
+                    or ActionKind.Equip or ActionKind.GearReplace or ActionKind.Gathering
+                    or ActionKind.UseItem or ActionKind.DropEquipment or ActionKind.Movement
+                    or ActionKind.OpenCasket or ActionKind.Capture or ActionKind.GiveItem or ActionKind.CommsTradeRequest
+                    or ActionKind.Rescue or ActionKind.Tend
+                    || action.Deconstruction is { ReplacesWithWall: true }
+                    || action.CaravanDeparture is { Mode: CaravanDepartureMode.Formation }
+                    || action.QuestShuttle is { Loading: ShuttleLoading.ExplicitPawns } or { Loading: ShuttleLoading.Autoload, Autoload: true })
+                    throw new NotAdmittedException("unsupported_voluntary_method:" + Wire.Name(action.Kind));
+        // Self-treatment is an observed permission, not a local assignment winner.
+        if (owner is StandardState assignments && assignments.Standard.Kind == EnsureWorkAssignments
+            && plan.Actions.Any(a => a.PawnSettings is { Kind: SettingKind.SelfTend }))
+            throw new NotAdmittedException("unsupported_assignment_self_tend_policy");
+        if (owner is IncidentState incident)
+        {
+            if (incident.Incident.Kind == TradeWithCaravan && plan.Actions.Any(a => a.Trade is
+                { Kind: TradeOperationKind.Open, Participant.Kind: not TradeParticipantKind.Settlement }))
+                throw new NotAdmittedException("unsupported_shared_trade_labor");
+            if (incident.Incident.Kind == EnsureMood && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
+                throw new NotAdmittedException("unsupported_forecast_mood_cast");
+        }
         AdmitBillMethod(tx, owner, plan);
         AdmitZoneMethod(tx, owner, plan);
         AdmitAcquisitionMethod(tx, owner, plan);

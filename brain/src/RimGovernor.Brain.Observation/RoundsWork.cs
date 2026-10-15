@@ -160,10 +160,6 @@ public static partial class ObservationPackage
                 w = w with { FoodRestriction = Known(new FoodRestriction { PolicyId = (food.PolicyId ?? ""), Allowed = [.. food.AllowedDefs] }) };
             }
             w = w with { PolicyInputs = PawnPolicyInputs(s.PolicyInputs) };
-            if (s.EatTrigger is not null)
-            {
-                w = w with { EatTrigger = Known((double)s.EatTrigger.GetValueOrDefault()) };
-            }
             if (s.Body is { } b && !HasIssue(s.Issues, "body"))
             {
                 w = w with

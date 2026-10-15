@@ -41,69 +41,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return (default, false);
         }
 
-        var able = new List<PawnId>();
-        var target = advance.Monolith;
-        var method = Domain.RecoveryMethod.ActivateMonolith;
-        var job = $"activate-{advance.Level}";
-        switch (advance.Order)
-        {
-            case MonolithOrder.Investigate:
-                method = Domain.RecoveryMethod.InvestigateMonolith;
-                job = $"investigate-{advance.Level}";
-                break;
-            case MonolithOrder.Interact:
-                target = advance.Target;
-                method = Domain.RecoveryMethod.Interact;
-                job = "interact-" + target;
-                break;
-        }
-
-        if (advance.Performers.Count > 0)
-        {
-            able.AddRange(advance.Performers.Select(id => new PawnId(id)));
-        }
-        else
-        {
-            if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete)
-            {
-                return (new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "colonists_complete") }, true);
-            }
-
-            foreach (var pawn in emergency.Facts.Colonists)
-            {
-                var dk = pawn.Dead.TryGetValue(out var dead);
-                var wk = pawn.Downed.TryGetValue(out var downed);
-                var inMental = pawn.MentalState.IsKnown;
-                if (dk && !dead && wk && !downed && !inMental)
-                {
-                    able.Add(pawn.Id);
-                }
-            }
-
-            able.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
-        }
-
-        var prefix = $"population-monolith-{job}-";
-        var (attemptMethod, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
-        if (!admitted)
-        {
-            return (new RoundsPopulationCustodyResult { Verdict = verdict }, true);
-        }
-
-        if (able.Count == 0)
-        {
-            return (new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "monolith_performer") }, true);
-        }
-
-        var pawnId = able[BuildingRuntimePackage.StandardMethodPlans(goal.History, goal.Standard.Episode, prefix).Count % able.Count];
-        if (!arbiter.TryClaim([pawnId]))
-        {
-            return (new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "pawn_claim") }, true);
-        }
-
-        var service = new RecoveryService(pawnId, target, method);
-        var planId = PlanIds.MintPlanId();
-        var action = DomainAction.NewRecoveryServiceAction(new ActionId($"{planId}-0"), service);
-        return (Commit(p, state, started, goal, attemptMethod, planId, action, call, epoch), true);
+        return (new RoundsPopulationCustodyResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_monolith",
+            "Monolith interaction requires shared forecast worker, duration and outcome admission.") }, true);
     }
 }

@@ -114,6 +114,10 @@ public enum LedgerBillKind
     /// <summary>A recipe making food a baby can ingest.</summary>
     [WireName("baby_food")]
     BabyFood,
+
+    /// <summary>A private native anchor for an admitted activity, not a standing production request.</summary>
+    [WireName("activity_execution")]
+    ActivityExecution,
 }
 
 /// <summary>A bill read back from a bench.</summary>
@@ -265,6 +269,12 @@ public static partial class PolicyFunctions
         var excluded = new List<ActualBill>();
         foreach (var b in actual.OrderBy(b => wanted.ContainsKey(b.Spec.Key()) ? 0 : 1).ThenBy(b => b.Id, StringComparer.Ordinal))
         {
+            if (b.Kind == LedgerBillKind.ActivityExecution)
+            {
+                keep.Add(b);
+                excluded.Add(b);
+                continue;
+            }
             var k = b.Spec.Key();
             if (!wanted.ContainsKey(k))
                 k = wanted.Where(p => IsMaterialSpecialization(p.Value, b.Spec) && matched.GetValueOrDefault(p.Key) < WantedCopies(copies, p.Key))

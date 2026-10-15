@@ -36,6 +36,9 @@ public sealed record SupportWorker(string Demand, string Pawn, string Target, st
     public Cell? MedicineLocation { get; init; }
     public int MedicineAvailable { get; init; }
     public Fact<double> TendQuality { get; init; }
+    public Fact<bool> InfectionRoomEffectApplies { get; init; }
+    /// <summary>Earliest pending native infection check in the selected treatment batch, relative to this observation.</summary>
+    public Fact<double> InfectionCheckTicks { get; init; }
     public PawnActivityRecipe? Recipe { get; init; }
 }
 public sealed record SupportDelivery(string Demand, string Pawn, string Target, string Resource, string Container, string Bill,

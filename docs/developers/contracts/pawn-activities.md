@@ -8,8 +8,8 @@ binding, journal continuation and native ownership contract.
 
 [Evaluated support work](support-work.md) uses these same contracts for cleaning,
 care preparation and demand-driven delivery. It replaces native automatic
-bench-cleaning, refill withholding and global chunk hauling; voluntary needs
-writer retirement remains separate work.
+bench-cleaning, refill withholding and global chunk hauling. Supported voluntary needs
+share this same owner; legacy timetable and mood need-giver writers are removed.
 
 ## Live harvest and delivery
 
@@ -123,7 +123,7 @@ before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
 The initial step families are exact thing-target work (Clean, Repair, Harvest and BeatFire through a named native WorkGiver), selected food/count,
-selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, material Supply, FinishFrame, Approach and Hold. Unsupported families are refused, not sent to a
+selected bed/rest, selected horseshoes recreation, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold and bounded Idle. Unsupported families are refused, not sent to a
 native economic selector. Other recreation adapters remain outside this
 initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
@@ -200,6 +200,13 @@ exact known filth reference: its destruction makes the authorized continuation
 eligible; a missing/unspawned dependency is not guessed complete. More complex
 dependencies require policy revisions. A deadline without release fails visibly.
 Sleep and recreation are bounded by their deadlines and may finish earlier through native recovery.
+An exact admitted recreation job ignores the legacy timetable's joy permission:
+the Method owns its service window. Native joy gain, tolerance, target legality,
+player authority and the absolute deadline still apply.
+Native exhaustion sleep and the exact Vomit job may interrupt an assignment; the
+interruption records failure and releases ownership before native physiology runs.
+Completed or failed assignments awaiting continuation stop the existing Supervisor;
+retained ownership does not authorize indefinite idle time.
 Work deadline exhaustion is a failure. Native food/rest levels and physiological
 consequences are not modified by execution.
 
@@ -278,9 +285,7 @@ does not reserve a pawn or authorize native fallback.
 | Unknown mechanics / occupied job duration | Unknown capacity, never free time. |
 | Other recreation, DLC/mod needs, babies or special ingestion | Explicit unsupported effects/targets; no inferred adapter or hidden fallback. Full-control enabling must handle the visible unsupported state under #3135. |
 
-The exact action execution and ownership contract above remains unchanged. Needs
-candidate generation does not install a second controller or remove eat-trigger,
-cleaning, hauling or scheduling helpers prematurely.
+Needs choices use the same Method journal and Hands ownership as productive work. Ingestion timing belongs to selected activities; there is no separate food-bar override or native food-seeking threshold writer.
 
 ## Exact tailoring recipes
 
@@ -288,11 +293,18 @@ The generic `Recipe` activity carries a `PawnActivityRecipe`: exact recipe, bill
 (if already present), stuff, input identities/counts, or exact unfinished item.
 The ordinary textile/leather path is described in
 [equipment upkeep](equipment-upkeep.md#live-clothing-requirement-selection).
-Hands validates the entire batch before installing it. A new recipe's suspended
+Hands validates the entire batch before installing it. A new recipe's private
 `Bill_GovernorRecipe` is provisioned only at verified job start; it cannot be
-selected by native priority scanning. Existing player bills are never deleted.
-Owned bills without unfinished work are cleaned up on job termination; actual
+selected by native priority scanning (`ShouldDoNow` is false). It remains unsuspended
+because native recipe work treats suspension as an interruption. Existing player
+bills are never deleted.
+Provisioning and cleanup use the existing admitted-write attribution scope so these
+operations do not masquerade as player bill edits. Owned bills without unfinished
+work are cleaned up on job termination; actual
 unfinished work retains its native bill, creator, stuff, ingredients and work.
+The native bill class identifies this activity execution anchor to the standing
+production ledger. It neither satisfies a standing bill declaration nor becomes
+an orphan for ledger removal; exact explicit player/native removal remains legal.
 
 Selected task output matching requires both product definition and selected
 stuff. A completed job is not product evidence: delivery binds an actually
@@ -302,5 +314,34 @@ new Method. It never replays a consuming operation based on a missing receipt.
 Observed native UFT conversion removes the loose-input claim while preserving
 pawn/bench ownership. The session journal records only the selected attempt;
 all rejected alternatives and forecast graphs are transient.
+
+## Voluntary ownership and bounded no-change
+
+Active authority intercepts voluntary selection for eligible controlled colonists,
+including constant think-tree checks, opportunistic work and finalizers. Existing
+exact orders may finish; player work, drafted pawns, involuntary states and
+burning retain their native or protective owner. Changing authority interrupts
+unowned voluntary work so it cannot silently continue under the new policy.
+
+When comparison retains no change for an available pawn, policy can bind Idle
+through the same Method. Its observed interval ends within 600 ticks or at the
+first supported need threshold, whichever comes first. Unknown needs, unmet
+needs, explicit unsupported-state blockers and shared claims cannot authorize
+that interval. Idle completion wakes review and release; it creates no inventory
+or recovery benefit. Hold remains solely an already-authorized task dependency.
+
+An eligible pawn without an authorized activity returns no native voluntary job
+and stops the existing clock as unavailable, naming that pawn. It does not
+silently start native work or represent an unsupported condition as a successful
+indefinite wait. See [supported scope and remaining owners](voluntary-control.md).
+Native disorientation and the native imposed-sleep/force-job ability effects retain
+their direct job authority through exact source-method scopes. The scope applies only
+to the affected pawn, restores on exceptions, and records interruption/release of any
+voluntary assignment. It does not authorize arbitrary LayDown or Goto jobs.
+
+Early native completion before the next selected task's departure installs that
+task's bounded preparation under a new journal revision. The terminal old order
+does not grant clock progress; preparation preserves the original deadline and
+waits for the selected departure and observed prerequisites.
 
 Selected range/sparring use the existing Work step with a typed practice mandate and reciprocal exact participants. See [assigned capability maintenance](capability-maintenance.md) for floor ownership, bounded execution and uncertainty. Native autonomous roster/skill selection is disabled under active bot authority for the current map; uncontrolled behavior remains native.

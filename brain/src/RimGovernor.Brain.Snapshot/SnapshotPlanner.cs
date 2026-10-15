@@ -33,13 +33,10 @@ public sealed class SnapshotPlanner
     /// <summary>Every SelectWorkshopBench request: the recipe catalog and bench census a workshop bench is chosen from.</summary>
     public List<WorkshopRequest> Workshops { get; } = [];
 
-    /// <summary>Every SelectGearMethod request.</summary>
-    public List<GearPlanningRequest> GearMethods { get; } = [];
-
     /// <summary>Every research selection's fresh census.</summary>
     public List<ResearchCall> Research { get; } = [];
 
-    internal bool IsEmpty => Excavation.Count + Sites.Count + ShrineSquads.Count + ShrineReadiness.Count + ResourceMethods.Count + Workshops.Count + GearMethods.Count + Research.Count == 0;
+    internal bool IsEmpty => Excavation.Count + Sites.Count + ShrineSquads.Count + ShrineReadiness.Count + ResourceMethods.Count + Workshops.Count + Research.Count == 0;
 }
 
 /// <summary>One research selection's inputs: the staged policy (armor rungs applied), the recorded research needs and the native research read without its observation context.</summary>
@@ -166,9 +163,6 @@ public static partial class SnapshotPackage
 
     /// <summary>Records a workshop bench selection's request.</summary>
     public static void NoteWorkshop(WorkshopRequest r) => Add(p => p.Workshops.Add(r));
-
-    /// <summary>Records a gear method selection's request.</summary>
-    public static void NoteGearMethod(GearPlanningRequest r) => Add(p => p.GearMethods.Add(r));
 
     /// <summary>Records a research selection's inputs.</summary>
     public static void NoteResearch(ResearchCall c)

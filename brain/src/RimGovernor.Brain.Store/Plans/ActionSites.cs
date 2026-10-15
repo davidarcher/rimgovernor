@@ -66,7 +66,6 @@ internal static class ActionSites
             ZoneDelete p => Site(default, p.Zone, null),
             ZoneCellEdit p => Site(default, p.Zone, null),
             StockpilePatch p => Site(default, p.Target, null),
-            MoodRelief p => Site(p.Pawn, "", null),
             PawnSettings p => Site(p.Pawn, "", null),
             WorkAssignment p => Site(p.Pawn, "", null),
             Surgery p => Site(p.Pawn, "", null),

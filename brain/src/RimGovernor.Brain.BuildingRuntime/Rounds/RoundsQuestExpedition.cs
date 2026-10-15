@@ -65,6 +65,9 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, false);
         }
 
+        if (work.Departure.Mode == CaravanDepartureMode.Formation)
+            return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
+                "Caravan packing and departure require shared forecast labor admission.") }, true);
         if (!arbiter.TryClaim(work.Departure.Crew.ToPolicyIds(), $"quest:{work.Quest}"))
         {
             return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_expedition") }, true);

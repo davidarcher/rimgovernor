@@ -296,6 +296,9 @@ public sealed partial class RoundsTradePlanner
     /// </summary>
     private async Task<RoundsTradeResult> OpenAsync(ControlState state, Sto.IncidentState incident, string trader, NegotiatorRead negotiator, int attempt, StepArbiter arbiter, DateTimeOffset started, TradeParticipant participant, CancellationToken call, CancellationToken epoch)
     {
+        if (participant.Kind != TradeParticipantKind.Settlement)
+            return new RoundsTradeResult { Verdict = Verdict.AwaitingPlan("unsupported_shared_trade_labor",
+                "Negotiator travel and comms work require shared participant and opportunity alternatives.") };
         if (!arbiter.TryClaim([], "pawn:" + negotiator.Id))
         {
             return new RoundsTradeResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "negotiator_claim") };

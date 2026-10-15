@@ -9,6 +9,8 @@ internal static partial class CoordinatedActivityBinding
     internal static ActivityTaskTransition Continue(PawnActivities batch, ActivityTaskRead read,
         IReadOnlyDictionary<string, ActivityOwnership> rows, long tick)
     {
+        if (batch.Orders.Any(o => !o.Release && o.Preparing && rows[o.Pawn].State == "failed"))
+            return new(null, true);
         var remaining = batch.Tasks.ToList();
         var completed = new HashSet<string>(StringComparer.Ordinal);
         foreach (var order in batch.Orders.Where(o => !o.Release && !o.Preparing && o.Task.Length != 0))
@@ -34,6 +36,25 @@ internal static partial class CoordinatedActivityBinding
                 remaining[remaining.IndexOf(task)] = task with { AttemptsLeft = task.AttemptsLeft - 1 };
             }
         }
+        // Release finished participants before attempting any new productive binding.
+        // A temporarily claimed output stack must not strand an unrelated terminal pawn.
+        var cleanup = batch.Orders.Where(o => !o.Release && rows[o.Pawn].State is "completed" or "failed"
+            && !remaining.Any(t => t.Pawn == o.Pawn)).ToArray();
+        if (cleanup.Length != 0)
+        {
+            if (cleanup.Any(o => o.Revision == long.MaxValue)) return new(null, false);
+            var releasedPawns = cleanup.Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
+            var removed = batch.Tasks.Where(t => releasedPawns.Contains(t.Pawn)).Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
+            return new(new(batch.AuthorityGeneration, batch.Orders.Where(o => !o.Release).Select(o =>
+                releasedPawns.Contains(o.Pawn)
+                    ? o with { ExpectedRevision = o.Revision, Revision = o.Revision + 1, Release = true,
+                        Steps = [], Task = "", Preparing = false, OutputDelivery = null }
+                    : o).ToArray())
+            {
+                Tasks = EquatableArray.From(batch.Tasks.Where(t => !removed.Contains(t.Id)).Select(t =>
+                    t with { Prerequisites = EquatableArray.From(t.Prerequisites.Where(p => !removed.Contains(p))) }))
+            }, false);
+        }
         remaining = remaining.Select(t => t with { Prerequisites = EquatableArray.From(t.Prerequisites.Where(p => !completed.Contains(p))) }).ToList();
         var orders = new List<PawnActivityOrder>();
         var changed = completed.Count > 0;
@@ -52,7 +73,15 @@ internal static partial class CoordinatedActivityBinding
                 changed = true; continue;
             }
             if (next.Prerequisites.Count != 0 || next.DepartTick > tick)
-            { orders.Add(order); continue; }
+            {
+                if (order.Preparing) { orders.Add(order); continue; }
+                if (order.Revision == long.MaxValue) return new(null, false);
+                // Completion stops native time. Install the next task's bounded preparation
+                // rather than retaining a terminal order until a future departure tick.
+                orders.Add(order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1,
+                    Task = next.Id, Preparing = true, Steps = PreparationSteps(next), OutputDelivery = null });
+                changed = true; continue;
+            }
             var binding = read.Bindings.Where(b => b.Task == next.Id && CompatibleActivityBinding(next, b.Step)
                     && (!next.ProductiveWorkTicks.IsKnown || b.ProductiveWorkTicks.IsKnown && b.ProductiveWorkTicks.Value <= Math.Ceiling(next.ProductiveWorkTicks.Value)))
                 .OrderBy(b => b.Step.Target, StringComparer.Ordinal).FirstOrDefault();

@@ -7,6 +7,8 @@ public sealed record ForecastCoupledCandidates(ForecastCoupledContext Context,
     EquatableArray<ForecastCommitment> Alternatives, EquatableArray<string> Findings, bool Truncated)
 {
     public int CompositionExpansions { get; init; }
+    /// <summary>Exactly observed current services eligible for retain/release comparison, not fresh orders.</summary>
+    public EquatableArray<ForecastCommitment> Incumbents { get; init; }
 }
 
 public static partial class PolicyFunctions
@@ -48,8 +50,10 @@ public static partial class PolicyFunctions
     .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToArray();
         var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>();
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
+        foreach (var pawn in needs.Pawns) foreach (var blocker in pawn.VoluntaryControlBlockers)
+            findings.Add("unsupported_voluntary_state:" + pawn.Pawn + ":" + blocker);
         if (facts.CoupledWorkActive) findings.Add("protected_current_method_remaining_time_unassessed");
-        var truncated = read.Truncated || facts.PlannedShelters.Count > 4; var expanded = 0;
+        var truncated = read.Truncated; var expanded = 0;
         string Location(Cell c) => "cell/" + c.X + "/" + c.Z;
         bool Space(int count)
         {
@@ -63,9 +67,10 @@ public static partial class PolicyFunctions
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
         var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources);
-        var shelter = Methods.Generation.CoupledShelterCandidates.Generate(facts.PlannedShelters.Select(r =>
-            new ForecastShelterGeometry(r.Id, EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
-            read.Thermal, construction.Operations, construction.Bindings, deadline, horizon);
+        var shelter = Methods.Generation.CoupledShelterCandidates.Generate(facts.PlannedShelters.OrderBy(r => r.Id).Select(r =>
+            new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
+            facts.Upkeep.Rooms, read.Thermal, construction.Operations, construction.Bindings, deadline, horizon);
+        findings.UnionWith(shelter.Findings); truncated |= shelter.Truncated;
         foreach (var outcome in construction.Outcomes.Where(o => !construction.Bindings.Values.Any(b => b.Id == o.Completion)))
             findings.Add("construction_outcome_unbound:" + outcome.Id);
         var constructionRoots = construction.Outcomes.Where(o => construction.Bindings.Values.Any(b => b.Id == o.Completion))
@@ -128,7 +133,9 @@ public static partial class PolicyFunctions
                 if (target.Location is { } physical)
                     bindings[(id, pawn.Pawn)] = new(id, pawn.Pawn, [], choice.Kind == "food" ? PawnActivityKind.Eat : choice.Kind == "rest" ? PawnActivityKind.Sleep : PawnActivityKind.Recreation,
                         target.Id, "", "", choice.Count, deadline, physical)
-                    { Resource = choice.Resource, Source = physical };
+                    { Resource = choice.Resource, Source = physical,
+                        SelectedInputs = choice.Kind == "food"
+                            ? [new(choice.Resource, target.Id, choice.Count, physical, "observed need target") { Observed = true }] : [] };
                 Option(id, pawn.Pawn, Known(choice.End - choice.Start));
                 needTasks.Add(new(id, pawn.Pawn, choice.Kind, choice.Target, new(choice.Resource), choice.Count, Known(choice.Gain), choice.Thoughts)
                 { AvailableCount = pawn.Targets.Single(t => t.Id == choice.Target).StockCount, FreshTicks = pawn.Targets.Single(t => t.Id == choice.Target).FreshTicks });
@@ -180,7 +187,9 @@ public static partial class PolicyFunctions
                 Activities = tasks.ToArray(),
                 Options = options.ToArray(),
                 Routes = routes.Values.ToArray(),
-                Pawns = needs.Pawns.Select(p => NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity).ToArray(),
+                Pawns = needs.Pawns.Select(p => p.VoluntaryControlBlockers.Count == 0
+                    ? NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity
+                    : new ForecastPawnCapacity(p.Pawn, "start", Known<EquatableArray<ForecastTimeWindow>>([]), Known(1d))).ToArray(),
                 Equipment = equipment,
                 Deadline = Known(horizon),
                 AlternativeLaborCost = Known(horizon * Math.Max(1, needs.Pawns.Count)),

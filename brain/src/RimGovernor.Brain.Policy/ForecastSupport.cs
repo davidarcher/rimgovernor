@@ -51,15 +51,18 @@ public static partial class PolicyFunctions
                 var cleaned = demand.CleaningComplete && read.Filth.Where(f => f.Demand == demand.Id).All(f =>
                     tasks.Any(t => t.Binding.Job == "Clean" && t.Binding.Target == f.Target && t.Allocation.End <= task.Allocation.Start));
                 var factor = cleaned ? demand.InfectionChanceFactorClean : demand.InfectionChanceFactor;
+                var worker = read.Workers.FirstOrDefault(w => w.Demand == demand.Id && w.Pawn == task.Binding.Pawn && w.Medicine == task.Binding.Medicine);
                 if (demand.Kind == "surgery")
                 {
                     var success = cleaned ? demand.SurgerySuccessFactorClean : demand.SurgerySuccessFactor;
                     if (success.TryGetValue(out var multiplier)) surgery += multiplier;
                     else { surgeryKnown = false; findings.Add("surgery_room_effect_unknown:" + demand.Id); }
                 }
-                else if (factor.TryGetValue(out var value)) careFactor += value;
+                else if (worker?.InfectionRoomEffectApplies == Known(false)) { }
+                else if (worker?.InfectionRoomEffectApplies == Known(true)
+                    && worker.InfectionCheckTicks.TryGetValue(out var check) && double.IsFinite(check) && check > task.Allocation.End
+                    && factor.TryGetValue(out var value)) careFactor += value;
                 else { careKnown = false; findings.Add("care_room_effect_unknown:" + demand.Id); }
-                var worker = read.Workers.FirstOrDefault(w => w.Demand == demand.Id && w.Pawn == task.Binding.Pawn && w.Medicine == task.Binding.Medicine);
                 if (worker?.TendQuality.TryGetValue(out var tendQuality) == true) quality += tendQuality;
                 else qualityKnown = false;
             }

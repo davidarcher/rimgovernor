@@ -307,7 +307,7 @@ internal sealed partial class FacadeNativeClient
                     Worker = BridgeFunctions.OptionalRef(bill.Worker) ? Fact.Known(bill.Worker?.Id ?? "") : Fact.Unknown<string>(),
                     Products = billProducts,
                     Spent = bill.Finished.GetValueOrDefault(),
-                    Kind = billKind,
+                    Kind = bill.BillClass == "Bill_GovernorRecipe" ? P.LedgerBillKind.ActivityExecution : billKind,
                     Spec = GearBillOrderSpec(bill, recipeName, benchDef),
                 }
             );

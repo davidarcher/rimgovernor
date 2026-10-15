@@ -2,8 +2,13 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-internal sealed record ForecastShelterGeometry(int Id, EquatableArray<Cell> Interior, Rectangle Bounds, Cell Door, bool Outdoor);
-public sealed record ForecastShelterPlan(int Room, EquatableArray<Cell> Interior,
+public enum ForecastShelterSource { Planned, Observed }
+public readonly record struct ForecastShelterId(ForecastShelterSource Source, string Value)
+{
+    public override string ToString() => (Source == ForecastShelterSource.Observed ? "observed/" : "planned/") + Value;
+}
+internal sealed record ForecastShelterGeometry(ForecastShelterId Id, EquatableArray<Cell> Interior, Rectangle Bounds, Cell Door, bool Outdoor);
+public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<Cell> Interior,
     EquatableArray<string> Prerequisites, Fact<double> InitialTemperature,
     Fact<double> Outdoors, Fact<double> ExchangePerTick, Fact<double> HeatPerTick,
     Fact<double> TargetTemperature, Fact<double> SupplyTicks, EquatableArray<string> Findings)
@@ -15,7 +20,7 @@ public sealed record ForecastShelterPlan(int Room, EquatableArray<Cell> Interior
     /// <summary>Each physical prerequisite needs one selected realization; distinct sites remain additive.</summary>
     public EquatableArray<EquatableArray<string>> AlternativePrerequisites { get; init; }
 }
-public sealed record ForecastShelterOutcome(int Room, Fact<double> CompleteAt,
+public sealed record ForecastShelterOutcome(ForecastShelterId Room, Fact<double> CompleteAt,
     Fact<double> TemperatureAtHorizon, EquatableArray<ForecastTemperaturePoint> Trajectory,
     EquatableArray<string> Findings);
 public sealed record ForecastTemperaturePoint(double Tick, double Temperature);

@@ -132,6 +132,22 @@ public sealed class MaterialChoiceTests
         Assert.False(IsMaterialSpecialization(Flexible.Spec, actual[0].Spec with { Worker = "different-worker" }));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ActivityBillAnchorIsNeitherStandingDemandNorAnOrphan(bool declared)
+    {
+        var anchor = new ActualBill { Id = "private-execution", Bench = "tailoring", Spec = Flexible.Spec, Kind = LedgerBillKind.ActivityExecution };
+        var ordinary = anchor with { Id = "ordinary-orphan", Spec = Machine.Spec, Kind = LedgerBillKind.Production };
+        var plan = ReconcileLedger(declared ? [new Declared { Orders = [Flexible.Spec] }] : [],
+            [anchor, ordinary], new Dictionary<string, int> { [anchor.Id] = OrphanGraceRounds, [ordinary.Id] = OrphanGraceRounds }, new Dictionary<string, int>());
+        Assert.Equal(anchor, Assert.Single(plan.Excluded));
+        Assert.Equal(anchor, Assert.Single(plan.Keep));
+        Assert.Equal(ordinary, Assert.Single(plan.Remove));
+        Assert.Empty(plan.Matched);
+        Assert.Empty(plan.Orphans);
+        Assert.Equal(declared ? 1 : 0, plan.Place.Count);
+    }
     [Fact]
     public void SelectedFiltersCommitTogetherAndBecomeExactSharedJournalClaims()
     {

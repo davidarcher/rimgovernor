@@ -81,7 +81,12 @@ public sealed class RoundsTendPlanner
         {
             return new RoundsTendResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "colonist_census") };
         }
-        var ids = emergency.Facts.Colonists.Select(pawn => pawn.Id.Value).ToList();
+        if (!emergency.Facts.DependentPatients.TryGetValue(out var dependents)
+            || dependents.Any(p => !p.Rescue.IsKnown || !p.Tend.IsKnown))
+            return new RoundsTendResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "dependent_patient_census") };
+        var workers = emergency.Facts.Colonists.Select(pawn => pawn.Id).ToHashSet();
+        var eligiblePatients = EmergencyTendPatients(emergency.Facts).ToHashSet();
+        var ids = workers.Union(eligiblePatients).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
         var (reply, _) = await _native.ReadTendPawnsAsync(identity, ids, call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed;
         if (observed is null)
@@ -106,14 +111,14 @@ public sealed class RoundsTendPlanner
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in observed.Pawns)
         {
-            if (row is null || row.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
+            if (row is null || row.Pawn is null || !ids.Contains(row.Pawn.Id ?? "") || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("step: row == nil || row.Pawn == nil || seen[row.Pawn.GetId()]");
             }
             var pawn = new PawnId((row.Pawn.Id ?? ""));
-            doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, ""));
+            if (workers.Contains(pawn)) doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, ""));
             var patientFacts = TendFacts.NewTendPatientFacts(pawn, row, "") with { Threatened = threatened.Contains(pawn) };
-            patients.Add(patientFacts);
+            if (eligiblePatients.Contains(pawn)) patients.Add(patientFacts);
         }
         var (doctor, patient, ok) = SelectTend(doctors, patients, TendFacts.TendReachabilityOf(observed.Pawns));
         if (ok && !arbiter.TryClaim([doctor, patient]))

@@ -149,6 +149,31 @@ public sealed class SupportMethodTests
         Assert.Equal(19d, result.Selected.Stocks.Single(s => s.Resource.Value == "Chunk").Points[^1].BalanceUnits.Value);
     }
 
+    [Theory]
+    [InlineData(false, 100, false)]
+    [InlineData(null, 100, false)]
+    [InlineData(true, 10, false)]
+    [InlineData(true, 100, true)]
+    public void CleaningCareBenefitRequiresApplicableNativeBatchAndAnUnexpiredCheck(bool? applicable, double checkTicks, bool clean)
+    {
+        var read = Cleaning() with
+        {
+            Demands = [new("care", "care", "patient", new(1, 1), Known(-2d), default, Known(0d), default)
+                { InfectionChanceFactor = Known(2d), InfectionChanceFactorClean = Known(.5), CleaningComplete = true }],
+            Filth = [new("care", "filth", new(1, 1), Known(2d))],
+            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
+                { InfectionRoomEffectApplies = applicable is { } value ? Known(value) : default,
+                    InfectionCheckTicks = Known(checkTicks), TendQuality = Known(.5) },
+                new("care", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(5d))]
+        };
+        var facts = Facts(read); var selection = Select(facts); var tasks = Tasks(facts, selection);
+        Assert.Contains(tasks, t => t.Step.Job == "TendPatient");
+        Assert.Equal(clean, tasks.Any(t => t.Step.Job == "Clean"));
+        if (applicable == false) Assert.Equal(Known(0d), selection.SelectedVector.Support.CareRoomFactor);
+        else if (!clean) Assert.False(selection.SelectedVector.Support.CareRoomFactor.IsKnown);
+        else Assert.Equal(Known(.5), selection.SelectedVector.Support.CareRoomFactor);
+    }
+
     [Fact]
     public void SurgeryUsesItsOwnQueuedServiceAndNativeRoomMultiplier()
     {

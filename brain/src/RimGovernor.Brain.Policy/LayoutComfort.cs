@@ -28,7 +28,7 @@ namespace RimGovernor.Brain.Policy;
 //     building (an end table, a dresser). Quality is the crafter's, not the planner's; it is priced at Normal
 //     (factor 1).
 //
-// The day is the schedule template's (pawn_schedule): the sleep block on the bed, the Anything hours spent at
+// The day is the fixed layout occupancy assumption's (pawn_schedule): the sleep block on the bed, the Anything hours spent at
 // the spots in order, then idle at an instant level of 0 (nothing is used), and the Joy hour idle: the order
 // matters little (comfort falls 4% an hour) and is fixed. The pawn repeats it until the level at its start
 // stops changing; the day read is that steady one.
@@ -362,13 +362,13 @@ public static partial class PolicyFunctions
     internal static int EnvDaySteps() => (int)Math.Round((double)GameTime.TicksPerDay / SeekerGameTable.IntervalTicks, MidpointRounding.AwayFromZero);
 
     /// <summary>
-    /// Lays a colonist's day out from the schedule template: the sleep block on the bed (sleepTarget), the
+    /// Lays a colonist's day out from the fixed layout occupancy assumption: the sleep block on the bed (sleepTarget), the
     /// spots in order over the Anything hours (scaled down together when they ask for more than the day has),
     /// the rest idle. It starts at waking, so the day is one cycle.
     /// </summary>
     internal static IReadOnlyList<EnvSegment> EnvDay(double sleepTarget, IReadOnlyList<EnvSpot> spots)
     {
-        var slots = ScheduleTemplate(new TraitEffects());
+        var slots = EnvironmentOccupancyBaseline();
         var wake = 0;
         for (var h = 0; h < slots.Length; h++)
         {

@@ -101,6 +101,10 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return new RoundsPopulationCustodyResult { Verdict = Verdict.FieldUnavailable("custody") };
         }
 
+        if (arrestTarget.Value == "" && choice.Decision == CustodyDecision.Rescue)
+            return new RoundsPopulationCustodyResult { Verdict = Verdict.AwaitingPlan("dependent_rescue_incident_owner",
+                "Critical eligible dependent rescue belongs to CriticalMedicine; other custody transport requires shared forecast support.") };
+
         var identityCtx = Boundary.Identity(state.Snapshot);
         var (emergency, _) = await native.ReadEmergencyAsync(identityCtx, call).ConfigureAwait(false);
         try
@@ -154,7 +158,6 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var arms = await BuildingRuntimePackage.ReadArmamentAsync(native, identityCtx, call).ConfigureAwait(false);
         var catalog = arms.Catalog;
         var squad = new List<ShrineDefenderFacts>();
-        var performers = new List<RescuerFacts>();
         var profiles = new List<PawnProfile>();
         O.PawnState? patient = null;
         var seen = new HashSet<string>();
@@ -174,7 +177,6 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
             var ranged = BuildingRuntimePackage.RangedWeaponEquipped(row.Equipment, arms);
             squad.Add((ShrineDefenderFacts)BuildingRuntimePackage.SquadDefenderFactsFrom(new ShrineDefenderFacts(), row, needed, ranged));
-            performers.Add(RescueFacts.NewRescuerFacts(pawn, row, ""));
             var work = ObservationPackage.WorkPawnRow(row, catalog, arms.Things);
             profiles.Add(PolicyFunctions.BuildProfile(work));
         }
@@ -191,56 +193,9 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
         switch (choice.Decision)
         {
-            case CustodyDecision.Rescue:
-            {
-                var patients = new List<RescuePatientFacts> { RescueFacts.NewRescuePatientFacts(choice.Pawn, patient, "") };
-                var (performer, target, ok) = PolicyFunctions.SelectRescue(performers, patients);
-                if (ok && !arbiter.TryClaim([performer, target]))
-                {
-                    ok = false;
-                }
-
-                if (!ok)
-                {
-                    return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "rescue_claim") };
-                }
-
-                var value = new Domain.Rescue(performer, target);
-                var prefix = $"population-rescue-{target}-";
-                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
-                if (!admitted)
-                {
-                    return new RoundsPopulationCustodyResult { Verdict = verdict };
-                }
-
-                var id = PlanIds.MintPlanId();
-                var action = DomainAction.NewRescueAction(new ActionId($"{id}-0"), value);
-                return Commit(p, state, started, goal, method, id, action, call, epoch);
-            }
-
             case CustodyDecision.Capture:
-            {
-                var patients = new List<CapturePatientFacts> { CaptureFacts.NewCapturePatientFacts(choice.Pawn, patient, "") };
-                var warden = PolicyFunctions.WardenFor(profiles, false) ?? default;
-                if (PolicyFunctions.SelectCapture(performers, patients, warden) is not { } pair || !arbiter.TryClaim([pair.Capturer, pair.Patient]))
-                {
-                    return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "capture_claim") };
-                }
-
-                var (performer, target) = pair;
-
-                var value = new Domain.Capture(performer, target);
-                var prefix = $"population-capture-{target}-";
-                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
-                if (!admitted)
-                {
-                    return new RoundsPopulationCustodyResult { Verdict = verdict };
-                }
-
-                var id = PlanIds.MintPlanId();
-                var action = DomainAction.NewCaptureAction(new ActionId($"{id}-0"), value);
-                return Commit(p, state, started, goal, method, id, action, call, epoch);
-            }
+                return new RoundsPopulationCustodyResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_population_capture",
+                    "Population acquisition requires shared participant and custody outcome alternatives.") };
 
             default:
                 throw new ControlException("step: unknown custody decision");

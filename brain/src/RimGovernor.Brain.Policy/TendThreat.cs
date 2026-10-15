@@ -28,7 +28,7 @@ public static partial class PolicyFunctions
             }
         }
         var output = new HashSet<PawnId>();
-        foreach (var p in facts.Colonists)
+        foreach (var p in EmergencyPatients(facts))
         {
             if (!p.Position.TryGetValue(out var at))
             {

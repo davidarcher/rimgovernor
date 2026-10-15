@@ -253,30 +253,16 @@ hunter on a known roster.
 
 ## Schedules
 
-`policy.PlanSchedules` (`PawnSchedule.cs`) gives each available pawn a
-role-based timetable from the same profile: the native day sleeps 22h-5h; a NightOwl sleeps 10h-17h and is free overnight; a QuickSleeper's
-Sleep block shrinks to six hours. Joy is the hour right before sleep and
-every other hour is Anything. The planner never writes Work: Work blocks
-ignore rest and recreation and wake sleeping pawns. Every
-known timetable is planned, whoever wrote it: a timetable edited under Manual
-is replanned like any other once Auto holds (control-loop.md, Manual control); an unknown timetable (issue `schedule`) is skipped.
+Supported rest and recreation timing comes from the shared needs trajectory and
+portfolio comparison, followed by exact PawnActivities through Hands. The old
+role, trait and need-band timetable writer is deleted. A timetable is observed
+native state, not a competing instruction to a controlled pawn.
 
-`policy.PawnProfile.WorkHours` is the pawn's work hours per day: the count of
-timetable hours assigned to `Work` or `Anything` (`WorkPawn.WorkHoursPerDay`,
-the same count the quest capacity forecast uses). It adds no wire field; it is
-derived from the `schedule` the work read already carries. An unread, non-24-hour
-or unclassifiable timetable leaves it unknown, never a default. Nothing acts on
-it yet; the production rate model (#2590) reads it as worker-hours.
-
-The work review sends a mismatching timetable in the pawn's
-`WorkSettingsIntent` (`domain.NewScheduleAssignment`, `Schedule.assignment_defs`
-all 24 hours, `SettingsField.Schedule` in the applied result) together with the
-priorities. Native (`WorkSettingsActionHandler`) requires every
-`TimeAssignmentDef` and a 24-slot tracker when it applies, writes through
-`Pawn_TimetableTracker.SetAssignment`, and reads the timetable back into
-`Matches`. `RoundsFacts.WorkCoverage` is false while any planned timetable
-differs from the readback.
-
+The existing WorkSettings schedule operation remains for explicit operations and
+player-authority mechanics. Independent quest/rate consumers still read observed
+work hours and preserve unknown timetables; these observations do not schedule
+supported colony work. The layout comfort estimate has a fixed occupancy
+assumption, explicitly separate from the selected needs timeline.
 ## Mech control
 
 `policy.PlanMechControl` (`MechControl.cs`) puts each mechanitor's
@@ -593,22 +579,29 @@ gestation at a time.
 ## Acceptance
 
 Planner behaviour covers trait flags, floors, growth secondaries, forbidden roles,
-decay, twelve-pawn coverage, three-review stability, timetable templates and
+decay, twelve-pawn coverage, three-review stability and
 construction helpers (helper restrictions, withheld and unknown work, hold and
 restoration). The three debug-start colonists' pawn reads are replayed recorded from native runs, with seeded sheet and written readback: a major passion owns a tied
 kitchen with the other cook backing it at 2; Pyromaniac/Brawler/Abrasive
 never fight fires, hunt or warden while Industrious wins a tied Construction
 sheet; every core role is owned once and the written matrix replans
-unchanged; a NightOwl's day sleep, a QuickSleeper's six-hour sleep and a
-hand-edited timetable replanned; two pawns under the Construction floor
-help at 4 beside six walls. `takeover/schedule` still writes a timetable
-through a real `WorkSettingsIntent` and reads it back natively.
+unchanged; two pawns under the Construction floor help at 4 beside six walls.
+Generated NightOwl/QuickSleeper timetable templates are not an acceptance oracle
+for ordinary needs. Shared forecast tests cover needs choices and actual occupied
+time; native activity cases cover selected sleep/recreation completion and
+protection. Explicit schedule writes remain a native operation, not an automatic
+ordinary-pawn scheduler. See the [case disposition](voluntary-control.md#acceptance-disposition).
 
 ## Drug policy
 
-The work routine gives each colonist its own drug policy, labelled with its
-short name, through a `DrugPolicyIntent` and `PawnSettingsIntent.drug_policy`;
-the [`drug_policy` action](action-contracts.md) states the contents.
+The work routine does not create or assign drug policies. Automatic prevention,
+dependency, addiction and recreation dosing would delegate voluntary selection
+to a native scheduler without a supported shared Method. Existing configured
+policies are observed, not rewritten; scheduled use and unsupported needs remain
+explicit control blockers. The [`drug_policy` action](action-contracts.md) and
+assignment operation remain available for explicit operations and native readback.
+Undispatched drug writes belonging to an old work-assignment Method are cancelled
+under that exact owner; completed operations and player policies are not undone.
 
 After Brewing finishes, MaintainResource requests 12 beer and 12 smokeleaf joints.
 Once food fields are sufficient, the field planner adds at most nine cells each
@@ -617,8 +610,11 @@ sowing availability. These crops never contribute food coverage. The workshop
 ladder builds a fermenting barrel and a discovered wort-recipe bench. A saved
 `SocialBeerBill` counts loose wort, barrel contents and finished beer against its
 reserve, so fermentation does not cause continuous wort production. Native recipe
-batch size can overshoot the target. Hauling, brewing, fermentation and consumption
-remain ordinary game work; actual mood/recreation recovery is a separate check.
+batch size can overshoot the target. These provisioning operations do not establish
+controlled-pawn hauling, brewing or consumption. Each voluntary service needs a
+supported shared Method; unsupported scheduled-drug requirements are explicit
+control blockers. Native fermentation remains simulation. Actual mood/recreation
+recovery is a separate check.
 
 The 24-hour timetable length (`domain.ScheduleHours`) and the 0-4 priority range
 (`domain.MaxPriority`: 0 disabled, 1 first to 4 last) are fixed by the game and
@@ -638,5 +634,6 @@ uses the same work-resource view and occupancy union. Its explicit
 `ProtectTimetable = false` ignores legacy generated timetable slots for strategic
 comparison, but never actual current work, player authority or journal claims.
 Selected need effects return productive windows to the existing activity search;
-there is no independent needs labor budget. Existing routine assignment callers
-remain timetable-aware until #3135 replaces those writers.
+there is no independent needs labor budget. Existing routine assignment consumers
+may still inspect timetable availability, but the automatic timetable writer is
+removed and those observations cannot start a competing voluntary job.

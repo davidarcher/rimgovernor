@@ -1,3 +1,5 @@
+using RimGovernor.Brain.Store;
+
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Worker
@@ -31,20 +33,24 @@ public sealed partial class Worker
                 }
                 var needed = PolicyFunctions.ReviewProductiveActivityNeed(method.Batch, method.Needed, read);
                 var next = PolicyFunctions.ContinueCoordinatedActivity(method.Batch, needed, read);
+                ActivityContinuationAdmission? admission = null;
+                if (next is not null)
+                {
+                    var id = PlanIds.MintPlanId();
+                    admission = _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(taskTick), participants,
+                        new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), next)]), ct);
+                    _advanced |= admission == ActivityContinuationAdmission.Admitted;
+                }
                 if (method.Batch.Orders.Any(o => o.Method.StartsWith("coupled-", StringComparison.Ordinal)))
                     Tel.Decide(new Decision { Kind = "coupled_observed", Component = "worker", Target = method.Method.Value,
-                        Verdict = next is null ? "continue" : "transition", Reason = "native_task_evidence",
+                        Verdict = admission == ActivityContinuationAdmission.ResourcesUnavailable ? "deferred"
+                            : admission == ActivityContinuationAdmission.Admitted ? "transition" : "continue",
+                        Reason = admission == ActivityContinuationAdmission.ResourcesUnavailable
+                            ? "work_resource_conflict_or_unknown" : "native_task_evidence",
                         Attrs = new Dictionary<string, object?> { ["observed_tick"] = taskTick,
                             ["satisfied_tasks"] = read.SatisfiedTasks.ToArray(),
                             ["remaining_tasks"] = method.Batch.Tasks.Select(t => t.Id).ToArray(),
                             ["native_states"] = participants.Select(p => p.Pawn + ":" + p.State).ToArray() } });
-                if (next is not null)
-                {
-                    var id = PlanIds.MintPlanId();
-                    _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(taskTick), participants,
-                        new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), next)]), ct);
-                    _advanced = true;
-                }
                 continue;
             }
             var decision = PolicyFunctions.ReviewActivityOwnership(method.Batch, method.Needed, tick, ownership);
@@ -57,9 +63,9 @@ public sealed partial class Worker
             {
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), release);
-                _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(tick), ownership,
+                var admission = _player.Journal.ContinueActivityMethod(method.Plan, current, new Tick(tick), ownership,
                     new PlanSpec(id, new PlanRevision(1), [action]), ct);
-                _advanced = true;
+                _advanced |= admission == ActivityContinuationAdmission.Admitted;
             }
         }
     }

@@ -150,8 +150,38 @@ namespace HomeBridge.BridgeTools
                     success = true, tick = Find.TickManager.TicksGame, running = NativeRitualBegin.Running(ritual),
                     lordJobs = jobs.Count, participants = jobs.Sum(lord => lord.ownedPawns.Count),
                     lastFinishedTick = ritual.lastFinishedTick, activeObligations = ritual.activeObligations?.Count ?? 0,
+                    explicitIntent = ExplicitIntent(ritual),
                 };
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static string ExplicitIntent(Precept_Ritual ritual)
+        {
+            var map=Find.CurrentMap;
+            var organizer=map.mapPawns.FreeColonistsSpawned.OrderBy(p=>p.thingIDNumber).First();
+            foreach(var building in map.listerBuildings.allBuildingsColonist)
+            {
+                var target=new TargetInfo(building);
+                foreach(var command in ritual.GetGizmoFor(target)?.OfType<Command_Ritual>() ?? Enumerable.Empty<Command_Ritual>())
+                {
+                    Traverse.Create(command).Method("ValidateDisabledState").GetValue();
+                    if(command.Disabled) continue;
+                    var forced=Traverse.Create(command).Field("forcedForRole").GetValue<Dictionary<string,Pawn>>();
+                    var obligation=Traverse.Create(command).Field("obligation").GetValue<RitualObligation>();
+                    var dialog=ritual.GetRitualBeginWindow(target,obligation,null,organizer,forced,organizer) as Dialog_BeginRitual;
+                    if(dialog==null) continue;
+                    var assignments=Traverse.Create(dialog).Field("assignments").GetValue<RitualRoleAssignments>();
+                    if(assignments==null || (Traverse.Create(dialog).Method("BlockingIssues").GetValue<IEnumerable<string>>()?.Any() ?? false)) continue;
+                    var intent=new RimGovernor.Contracts.Wire.Operations.RitualIntent {
+                        PawnId=organizer.GetUniqueLoadID(), Ritual=ritual.GetUniqueLoadID(), Verb="begin",
+                        Spot=new() {X=building.Position.x,Z=building.Position.z},
+                        Roles=[.. ritual.behavior.def.roles.Select(role=>new RimGovernor.Contracts.Wire.Operations.RitualRoleAssignment {
+                            Slot=role.id, PawnIds=[.. assignments.AssignedPawns(role).Select(p=>p.GetUniqueLoadID())] })],
+                        SpectatorPawnIds=[.. assignments.AllCandidatePawns.Where(assignments.PawnSpectating).Select(p=>p.GetUniqueLoadID())] };
+                    return RimGovernor.Contracts.Wire.WireJson.Serialize(intent);
+                }
+            }
+            return "";
         }
 
         // A ritual precept the game's def offers, added the way ideoligion

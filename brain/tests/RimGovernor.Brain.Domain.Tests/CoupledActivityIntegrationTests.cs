@@ -56,8 +56,8 @@ public sealed class CoupledActivityIntegrationTests
     private static PlanSpec Continue(Journal journal, PlanSpec old, PawnActivities batch, PawnActivities next, long tick, string id, CancellationToken ct, string state = "completed")
     {
         var plan = new PlanSpec(new(id), new(1), [DomainAction.NewPawnActivitiesAction(new(id + "-action"), next)]);
-        journal.ContinueActivityMethod(old.Id, Root, new(tick), EquatableArray.From(batch.Orders.Select(o =>
-            new ActivityOwnership(o.Pawn, o.Assignment, o.Method, o.Revision, state))), plan, ct);
+        Assert.Equal(ActivityContinuationAdmission.Admitted, journal.ContinueActivityMethod(old.Id, Root, new(tick), EquatableArray.From(batch.Orders.Select(o =>
+            new ActivityOwnership(o.Pawn, o.Assignment, o.Method, o.Revision, state))), plan, ct));
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = plan.Id }, ct);
         return plan;
     }
@@ -140,6 +140,7 @@ public sealed class CoupledActivityIntegrationTests
     {
         var ct = TestContext.Current.CancellationToken;
         var (facts, batch) = SelectObserved();
+        Assert.Contains(batch.Tasks.SelectMany(t => t.Inputs), input => input.Producers.Count > 0);
         BridgeFunctions.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-coupled-integration-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var reviewed = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
@@ -155,7 +156,11 @@ public sealed class CoupledActivityIntegrationTests
         var next = ContinueCoordinatedActivity(batch, Known(true), Observe(batch, "completed", completedAt,
             new ActivityTaskBinding(delivery.Id, delivery.Step with { Target = "merged-real-stack", Count = 2 })))!;
         Assert.NotNull(next);
-        Assert.Throws<ConflictException>(() => Continue(journal, plan, batch, next, completedAt, "delivery", ct));
+        var unavailable = new PlanSpec(new("delivery"), new(1),
+            [DomainAction.NewPawnActivitiesAction(new("delivery-action"), next)]);
+        Assert.Equal(ActivityContinuationAdmission.ResourcesUnavailable,
+            journal.ContinueActivityMethod(plan.Id, Root, new(completedAt), EquatableArray.From(batch.Orders.Select(o =>
+                new ActivityOwnership(o.Pawn, o.Assignment, o.Method, o.Revision, "completed"))), unavailable, ct));
         // The ordinary observed review, not predicted harvest output, makes the two real units spendable.
         var active = Assert.Single(batch.Orders);
         facts = facts with { Tick = new(completedAt), Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 2)]),

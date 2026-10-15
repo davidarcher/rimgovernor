@@ -113,9 +113,6 @@ public static partial class BridgeFunctions
             case SettingKind.ExtractBioferrite:
                 intent = intent with { Setting = new Op.PawnSettingsIntentSetting.ExtractBioferriteCase(v.ExtractBioferrite ?? false) };
                 break;
-            case SettingKind.EatTrigger:
-                intent = intent with { Setting = new Op.PawnSettingsIntentSetting.EatTriggerCase((float)(v.EatTrigger ?? 0)) };
-                break;
             default:
                 throw Contract("unknown pawn setting");
         }

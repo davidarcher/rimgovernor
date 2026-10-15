@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
                 // flags, master, allowed area) that home/pawn_config's own
                 // PawnSettingsRead.SettingsBlock reports instead.
                 if(d.Settings.GetValueOrDefault()) settings = CarePolicy(pawn,settings);
-                if(d.Work.GetValueOrDefault()) { settings = Work(pawn,settings); settings = AllowedArea(pawn,settings); settings = settings with { FoodRestriction = NativeFoodPolicy.Read(pawn), PolicyInputs = NativePolicyFacts.Inputs(pawn) }; if(pawn.RaceProps.Humanlike && pawn.needs?.food!=null && pawn.Faction==Faction.OfPlayerSilentFail) settings = settings with { EatTrigger = EatTriggerGuard.Effective(pawn) }; settings = BodyStats(pawn,settings); }
+                if(d.Work.GetValueOrDefault()) { settings = Work(pawn,settings); settings = AllowedArea(pawn,settings); settings = settings with { FoodRestriction = NativeFoodPolicy.Read(pawn), PolicyInputs = NativePolicyFacts.Inputs(pawn) }; settings = BodyStats(pawn,settings); }
                 if(d.Schedule.GetValueOrDefault()) settings = Schedule(pawn,settings);
                 row = row with { Settings = settings };
             } else row = row with { Issues = [.. row.Issues, Skipped("settings")] };
@@ -595,7 +595,7 @@ namespace HomeBridge.BridgeTools
         // Projects the pawn's 24-hour timetable as one TimetableSlot per hour
         // (hour 0 first), the exact list RimWorld's Pawn_TimetableTracker
         // resolves CurrentAssignment from, so the Go side can mirror the
-        // schedule fence NativeMoodReliefOperations applies
+        // schedule observation used by independent timetable-aware consumers
         // (boundary.ExpectedScheduleDef). Pawns without a timetable tracker
         // (animals, other factions) or with an unreadable/odd-length one
         // report a "schedule" issue rather than a partial list.

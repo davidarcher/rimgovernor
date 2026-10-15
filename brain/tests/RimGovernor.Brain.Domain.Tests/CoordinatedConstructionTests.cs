@@ -11,16 +11,30 @@ public sealed class CoordinatedConstructionTests
 {
     private static ConstructionActivityOption Option(string pawn, double approach, double delivery, double finish) =>
         new("blueprint", "Wall", new(30, 30), pawn, "WoodLog", "wood", new(10, 10), 20, 10, "FinishFrames",
-            Known(approach), Known(delivery), Known(finish)) { SiteApproachTicks = Known(approach) };
+            Known(approach), Known(delivery), Known(finish)) { SiteApproachTicks = Known(approach), AvailableInput = Known(20d) };
     private static WorkResourceView Resources()
     {
-        var facts = WorkResourceTestFacts.Create("producer", "helper");
+        var facts = WorkResourceTestFacts.Create("producer", "helper") with
+        { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 20)]) };
         return WorkResourcesOf(WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))),
             Known(default(EquatableArray<ProductionBatch>)), []);
     }
-    private static PawnActivities? Start(out ForecastActivityOutcomeComparison? comparison, params ConstructionActivityOption[] options) =>
-        StartConstructionActivity(new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) },
-            1, "construction", 2000, Resources(), out comparison);
+    private static PawnActivities? Start(out ForecastActivityOutcomeComparison? comparison, params ConstructionActivityOption[] options)
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
+        var template = facts.ForecastObserved.Needs!.Pawns[0];
+        facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
+        {
+            Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
+            Coupled = new() { Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) } }
+        } };
+        var generated = GenerateCoupledActivities(facts, 1900)!;
+        var request = CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+        var selected = CompareActivityOutcomes(request, generated);
+        comparison = selected.Selection;
+        return StartCoupledActivity(selected, generated, 1, "construction", 100);
+    }
 
     [Fact]
     public void SharedSearchChoosesDeliverySpecialistAndBuilderThenDistanceFlipsChoice()

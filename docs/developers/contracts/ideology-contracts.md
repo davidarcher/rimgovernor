@@ -201,10 +201,9 @@ in the brain.
 - **Calm**: nothing is planned unless the emergency census reads no hostile
   threat and no critical patient (`policy.RitualCalm`); an unread census plans
   nothing. A fight therefore holds the ritual and releases its attendees.
-- **Hold**: the attendees of every plan are kept off the Sleep timetable
-  (`policy.HeldOffSleep` merges them with the bestowing ceremony's
-  `CeremonyHold` for `PlanSchedulesHeld`), so they are awake when the begin
-  lands.
+- **Attendance**: the native ritual validates attendance when begin applies.
+  The retired timetable writer does not keep participants awake. Planner-owned
+  ritual attendance and its needs obligations are outside the supported voluntary scope.
 
 The planner commits one Ritual `begin` per step: the plan's organizer, the
 site, the slot fills and the spectators. A refused begin follows the shared refusal budget

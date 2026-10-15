@@ -52,9 +52,6 @@ public enum SettingKind
 
     /// <summary>Sets a held entity's CompHoldingPlatformTarget extractBioferrite flag, which the game's Doctor work giver reads.</summary>
     ExtractBioferrite,
-
-    /// <summary>The food level (0..1) under which a humanlike colonist starts seeking food; 0.30 is vanilla.</summary>
-    EatTrigger,
 }
 
 /// <summary>A vanilla MedicalCareCategory name: the best medicine a doctor may use on the pawn. Members run lowest tier first.</summary>
@@ -133,9 +130,6 @@ public sealed record PawnSettings : IActionPayload
 
     /// <summary>The flag value when this is the extract bioferrite arm.</summary>
     public bool? ExtractBioferrite { get; private init; }
-
-    /// <summary>The food level when this is the eat trigger arm.</summary>
-    public double? EatTrigger { get; private init; }
 
     private string? PermitFaction { get; init; }
 
@@ -234,13 +228,6 @@ public sealed record PawnSettings : IActionPayload
     {
         DomainException.Require(pawn.IsValid && care.IsValid(), "a medical care setting requires a pawn and a MedicalCareCategory");
         return new PawnSettings(pawn, SettingKind.MedicalCare) { MedicalCare = care };
-    }
-
-    /// <summary>The food level, 0 to 1, under which the humanlike colonist starts seeking food. Native clears its override at 0.30 or more.</summary>
-    public static PawnSettings NewEatTriggerSetting(PawnId pawn, double level)
-    {
-        DomainException.Require(pawn.IsValid && !double.IsNaN(level) && level >= 0 && level <= 1, "an eat trigger setting requires a pawn and a food level of 0-1");
-        return new PawnSettings(pawn, SettingKind.EatTrigger) { EatTrigger = level };
     }
 
     private static int ByteLength(string s) => Encoding.UTF8.GetByteCount(s);

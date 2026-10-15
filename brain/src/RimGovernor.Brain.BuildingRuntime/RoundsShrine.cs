@@ -199,7 +199,7 @@ public sealed class RoundsShrinePlanner
                     held.Value = held.Value.Pass(shrine.Id, lockRow.Reason);
                     continue;
                 }
-                return Open(state, goal, shrine, caskets, lockRow, started, arbiter, call, epoch);
+                return new RoundsShrineResult { Verdict = AwaitingPlan("unsupported_forecast_shrine_open", "Shrine opening requires shared participant and protection obligations."), Shrine = shrine.Id };
             }
         }
         if (!colony.Projection.Center().TryGetValue(out var center))
@@ -216,7 +216,7 @@ public sealed class RoundsShrinePlanner
                 held.Value = held.Value.Pass(shrine.Id, reason);
                 continue;
             }
-            return Breach(state, goal, shrine, reports[i], colony.Projection, started, arbiter, call, epoch);
+            return new RoundsShrineResult { Verdict = AwaitingPlan("unsupported_forecast_shrine_breach", "A planned breach requires shared participant and protection obligations."), Shrine = shrine.Id };
         }
         return held.Value;
     }
@@ -258,115 +258,6 @@ public sealed class RoundsShrinePlanner
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
             throw new ControlException("claim: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
-        }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
-        return new RoundsShrineResult { Verdict = BuildingReasonAdmitted, Plan = id, Shrine = shrine.Id };
-    }
-
-    /// <summary>
-    /// Commits one sealed shrine's method: an owned draft and a move to a standing cell behind the trap line
-    /// for each drafted defender, and the breach deconstruction of the chosen wall. One colonist is always left
-    /// undrafted for the deconstruct job. The shared refusal budget decides whether the wall may be tried again.
-    /// </summary>
-    private RoundsShrineResult Breach(ControlState state, Sto.StandardState goal, Pol.AncientShrine shrine, ShrineReadinessReport report, Observation.ColonyProjection projection, DateTimeOffset started, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
-    {
-        var p = _reviewer.Player;
-        var wall = report.Readiness.Wall;
-        if (!projection.Facts.Colonists.TryGetValue(out var colonists))
-        {
-            return new RoundsShrineResult { Verdict = FieldUnavailable("colonists") };
-        }
-        var drafted = ShrineBreachDrafts(report.Readiness.Squad, (int)colonists);
-        if (!arbiter.TryClaim([.. drafted.Select(d => (PawnId)d)]))
-        {
-            return new RoundsShrineResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "breach_defenders") };
-        }
-        var positions = ShrineBreachPositions(wall, drafted, report.Standing, report.Traps);
-        var prefix = $"breach-{shrine.Id}-{wall.EntityId}-";
-        var (method, verdict, ok) = AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
-        if (!ok)
-        {
-            return new RoundsShrineResult { Verdict = verdict, Shrine = shrine.Id };
-        }
-        var id = PlanIds.MintPlanId();
-        var actions = new List<DomainAction>();
-        foreach (var defender in drafted)
-        {
-            var draftId = new ActionId($"{id}-draft-{defender}");
-            actions.Add(DomainAction.NewOwnedDraftAction(draftId, new OwnedDraft(defender)));
-            if (!positions.TryGetValue(defender, out var cell))
-            {
-                continue;
-            }
-            var movement = new Movement(defender, cell, draftId);
-            actions.Add(DomainAction.NewMovementAction(new ActionId($"{id}-move-{defender}"), movement));
-        }
-        var definition = wall.DefName == "" ? "Wall" : wall.DefName;
-        var breachId = new ActionId($"{id}-breach");
-        actions.Add(DomainAction.NewDeconstructionAction(breachId, new Deconstruction(wall.EntityId, definition, wall.Cell)));
-        // The wall goes only once every drafted defender stands: the breach waits on each draft (and each move when a cell was found).
-        var dependencies = actions.Take(actions.Count - 1).Select(a => new ActionDependency(breachId, a.Id)).ToList();
-        var plan = new PlanSpec(id, new PlanRevision(1), actions, dependencies);
-        p.Current(call, epoch);
-        var elapsed = _reviewer.Clock.Now() - started;
-        if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
-        {
-            throw new ControlException("breach: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
-        }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
-        return new RoundsShrineResult { Verdict = BuildingReasonAdmitted, Plan = id, Shrine = shrine.Id };
-    }
-
-    /// <summary>
-    /// Commits one open, guard-free shrine's melee lock: an owned draft and a move to the casket's interaction
-    /// cell for each locker, then one OpenCasket by the opener on the lowest casket, which ejects every casket
-    /// of the group. The lockers stand where the ancients drop and their drafted auto-attack answers a waking
-    /// hostile; the plan has no further work, so the worker keeps the drafts until the opening resolves and
-    /// ActiveCombat and the custody planner take the occupants from there.
-    /// </summary>
-    private RoundsShrineResult Open(ControlState state, Sto.StandardState goal, Pol.AncientShrine shrine, IReadOnlyList<Pol.ShrineCasket> caskets, Pol.ShrineLock lockRow, DateTimeOffset started, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
-    {
-        var p = _reviewer.Player;
-        var lockers = caskets.Select(c => lockRow.Lockers[c.EntityId]).ToList();
-        if (!arbiter.TryClaim([.. lockers.Select(d => (PawnId)d)]))
-        {
-            return new RoundsShrineResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "casket_lockers") };
-        }
-        var prefix = $"open-{shrine.Id}-";
-        var (method, verdict, ok) = AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
-        if (!ok)
-        {
-            return new RoundsShrineResult { Verdict = verdict, Shrine = shrine.Id };
-        }
-        var id = PlanIds.MintPlanId();
-        var actions = new List<DomainAction>();
-        Pol.ShrineCasket? target = null;
-        foreach (var casket in caskets)
-        {
-            if (casket.EntityId == lockRow.Casket)
-            {
-                target = casket;
-            }
-            var locker = lockRow.Lockers[casket.EntityId];
-            var draftId = new ActionId($"{id}-draft-{locker}");
-            actions.Add(DomainAction.NewOwnedDraftAction(draftId, new OwnedDraft(locker)));
-            var movement = new Movement(locker, casket.InteractionCell, draftId);
-            actions.Add(DomainAction.NewMovementAction(new ActionId($"{id}-move-{locker}"), movement));
-        }
-        if (target is null || target.EntityId == "")
-        {
-            throw new ControlException("open: target.EntityID == \"\"");
-        }
-        var openId = new ActionId($"{id}-open");
-        actions.Add(DomainAction.NewOpenCasketAction(openId, new OpenCasket(lockRow.Opener, target.EntityId, target.Cell)));
-        // The casket opens only once every locker stands at a casket.
-        var dependencies = actions.Take(actions.Count - 1).Select(a => new ActionDependency(openId, a.Id)).ToList();
-        var plan = new PlanSpec(id, new PlanRevision(1), actions, dependencies);
-        p.Current(call, epoch);
-        var elapsed = _reviewer.Clock.Now() - started;
-        if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
-        {
-            throw new ControlException("open: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
         p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
         return new RoundsShrineResult { Verdict = BuildingReasonAdmitted, Plan = id, Shrine = shrine.Id };

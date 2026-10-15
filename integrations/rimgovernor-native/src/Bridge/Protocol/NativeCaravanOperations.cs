@@ -24,6 +24,7 @@ namespace HomeBridge.BridgeTools
     internal static class NativeCaravanOperations
     {
         private static bool Valid(Operations.FormCaravanIntent? command) => command != null
+            && Enum.IsDefined(typeof(Operations.CaravanMode), command.Mode)
             && command.PawnIds.Count > 0
             && command.PawnIds.All(ProtoBoundary.IsIdentifier)
             && command.PawnIds.Distinct().Count() == command.PawnIds.Count
@@ -115,6 +116,8 @@ namespace HomeBridge.BridgeTools
             var destinationFailure = Arrival(command, out _);
             if (destinationFailure != null) return destinationFailure;
             var reform = !map.IsPlayerHome;
+            if (command.Mode == Operations.CaravanMode.ExistingRoute || (command.Mode == Operations.CaravanMode.SiteReform) != reform)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Caravan mode does not match the observed map; routing cannot create a formation.");
             if (reform && !(map.Parent.GetComponent<FormCaravanComp>()?.CanReformNow() ?? false))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Vanilla caravan reform is unavailable while site threats remain.");
             var built = NativeCaravanCatalog.BuildDialog(map, reform);
@@ -203,12 +206,17 @@ namespace HomeBridge.BridgeTools
         {
             if (!Valid(command))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Formation requires a unique crew, unique cargo definitions and a valid destination.");
-            if (Formed(command!, out var caravan)) return caravan == null ? null : RouteFailure(command!, caravan);
+            if (Formed(command!, out var caravan))
+                return caravan != null ? RouteFailure(command!, caravan)
+                    : command!.Mode == Operations.CaravanMode.Formation ? null
+                    : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Requested route requires a formed world caravan.");
             return Prepare(command!, context, out _);
         }
 
         internal static Receipts.EffectEvidence Apply(Operations.FormCaravanIntent command, Common.ObservationContext context)
         {
+            var currentFailure = Validate(command, context);
+            if (currentFailure != null) throw new InvalidOperationException(currentFailure.Detail);
             if (Formed(command, out var existing))
             {
                 if (existing != null) Route(command, existing);

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Domain;
 
-public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Recipe, Approach, Supply }
+public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Recipe, Approach, Supply, Idle }
 
 public sealed record PawnActivityPractice(string Skill, string Role, int RequirementIndex, string Partner, string PartnerTarget, int DurationTicks)
 { public string Beneficiary { get; init; } = ""; }
@@ -30,6 +30,7 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
 public sealed record SelectedActivityInput(string Resource, string Lot, int Count, Cell Location, string Provenance)
 {
     public bool Observed { get; init; }
+    public EquatableArray<string> Producers { get; init; }
 }
 
 public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray<string> Prerequisites,
@@ -93,7 +94,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
             foreach (var step in order.Steps)
             {
                 DomainException.Require(step != null && Enum.IsDefined(step.Kind) && step.Deadline > 0
-                    && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Approach || Identity.IsValidText(step.Target))
+                    && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Idle or PawnActivityKind.Approach || Identity.IsValidText(step.Target))
                     && (step.Kind != PawnActivityKind.Work || Identity.IsValidText(step.WorkGiver) && Identity.IsValidText(step.Job))
                     && (step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Deliver or PawnActivityKind.Supply) || step.Count > 0)
                     && (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
@@ -138,7 +139,8 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 && (!task.ProductiveWorkTicks.IsKnown || task.Step.Kind == PawnActivityKind.Recipe
                     && double.IsFinite(task.ProductiveWorkTicks.Value) && task.ProductiveWorkTicks.Value > 0)
                 && task.Inputs.All(i => Identity.IsValidText(i.Resource) && Identity.IsValidText(i.Lot) && i.Count > 0
-                    && i.Location is { X: >= 0, Z: >= 0 } && Identity.IsValidText(i.Provenance))
+                    && i.Location is { X: >= 0, Z: >= 0 } && Identity.IsValidText(i.Provenance)
+                    && i.Producers.All(p => p != task.Id && Identity.IsValidText(p)))
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
         foreach (var task in Tasks) ValidatePractice(task.Step);
         foreach (var task in Tasks.Where(t => t.Step.Practice?.Skill == "Melee"))

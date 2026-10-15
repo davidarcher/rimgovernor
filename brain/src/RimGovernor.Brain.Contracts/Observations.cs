@@ -1441,13 +1441,6 @@ public sealed record PawnSettings
     public PawnPolicyInputs? PolicyInputs { get; init; }
 
     /// <summary>
-    /// The pawn's effective eat trigger (food level 0..1 under which it seeks food;
-    /// 0.30 vanilla when no override), read with work detail. Absent when the
-    /// pawn has none (not a humanlike colony pawn with a food need).
-    /// </summary>
-    public float? EatTrigger { get; init; }
-
-    /// <summary>
     /// Body stats for outdoor dash planning and nearby hazard planners, read
     /// with work detail.
     /// </summary>
@@ -10181,11 +10174,27 @@ public sealed record ThreatsSnapshot
 }
 
 /// <summary>
-/// colonists references every spawned free colonist's pawn table row
-/// complete unless issues name "colonists".
+/// One supported dependent patient and its observed care applicability.
 /// </summary>
+public sealed record DependentPatientObservation
+{
+    public Common.Ref? Pawn { get; init; }
+    public DependentPatientGroup? Group { get; init; }
+    public bool? Rescue { get; init; }
+    public bool? Tend { get; init; }
+}
+
+/// <summary>Present means a complete census, including a known empty set.</summary>
+public sealed record DependentPatientCensus
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DependentPatientObservation>))]
+    public EquatableArray<DependentPatientObservation> Patients { get; init; }
+}
+/// <summary>Colonists and dependent patients are separate complete pawn-table censuses.</summary>
 public sealed record StatusSnapshot
 {
+    public DependentPatientCensus? DependentPatients { get; init; }
+
     public Common.ObservationContext? Context { get; init; }
 
     public ThreatsSnapshot? Threats { get; init; }

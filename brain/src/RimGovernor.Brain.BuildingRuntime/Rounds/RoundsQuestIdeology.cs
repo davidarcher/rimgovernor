@@ -14,7 +14,6 @@ public sealed partial class RoundsPopulationJoinerPlanner
         QuestId quest;
         string target;
         string kind;
-        IReadOnlyList<PawnId> crew = [];
         if (hack.Reason != "")
         {
             reviewer.LogQuestSkip(new QuestSkip(hack.Quest, "", hack.Reason, ""), call);
@@ -32,18 +31,12 @@ public sealed partial class RoundsPopulationJoinerPlanner
         }
         else if (gift.Gift is not null)
         {
-            action = DomainAction.NewGiveItemAction(actionId, gift.Gift);
-            (quest, target, kind) = (gift.Quest, gift.Gift.Recipient.Value, "gift");
-            crew = [(PawnId)gift.Gift.Hauler];
+            return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_quest_gift",
+                "Quest item delivery requires shared participant, material and destination alternatives.") }, true);
         }
         else
         {
             return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, false);
-        }
-
-        if (crew.Count > 0 && !arbiter.TryClaim(crew, "quest:" + quest))
-        {
-            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_ideology") }, true);
         }
 
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);

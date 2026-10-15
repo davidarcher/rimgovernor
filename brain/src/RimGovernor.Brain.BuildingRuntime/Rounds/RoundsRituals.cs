@@ -92,55 +92,10 @@ public sealed class RoundsRitualsPlanner
             return new RoundsRitualsResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "ritual_plans") };
         }
 
-        Verdict held = default;
-        var blocked = false;
-        foreach (var plan in plans)
-        {
-            foreach (var site in plan.Sites)
-            {
-                var prefix = $"ritual-{plan.Ritual}-{site.X}-{site.Z}-";
-                var (method, verdict, ok) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
-                if (!ok)
-                {
-                    held = verdict;
-                    blocked = true;
-                    continue;
-                }
-
-                var attendees = plan.Attendees();
-                if (!arbiter.TryClaim(attendees))
-                {
-                    return new RoundsRitualsResult { Verdict = Verdict.ClaimHeld("attendees") };
-                }
-
-                var slots = plan.Slots.Select(slot => new RitualSlot(slot.Slot, [.. slot.Pawns.Select(pawn => (Domain.PawnId)pawn)])).ToList();
-                var spectators = plan.Spectators.Select(pawn => (Domain.PawnId)pawn).ToList();
-                var ritual = Ritual.NewRitualBegin((Domain.PawnId)plan.Organizer, plan.Ritual, site, slots, spectators);
-                var id = PlanIds.MintPlanId();
-                var action = DomainAction.NewRitualAction(new ActionId($"{id}-0"), ritual);
-                var spec = new PlanSpec(id, new PlanRevision(1), [action]);
-                p.Current(call, epoch);
-                var elapsed = reviewer.Clock.Now() - started;
-                if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
-                {
-                    throw new ControlException("step: session state changed or the read took too long");
-                }
-
-                var reason = $"ideology: {plan.Organizer.Value} leads {plan.Def} at ({site.X},{site.Z}) with {attendees.Count} attending";
-                p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, reason, spec, call);
-                return new RoundsRitualsResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
-            }
-        }
-
-        if (blocked)
-        {
-            return new RoundsRitualsResult { Verdict = held };
-        }
-
-        return new RoundsRitualsResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "ritual_sites") };
+        return new RoundsRitualsResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_ritual",
+            "Ritual participants, duration and outcome require shared forecast admission.") };
     }
 }
-
 public readonly record struct RoundsRitualsResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }

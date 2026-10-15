@@ -94,7 +94,6 @@ BuildingRuntime/RoundsShelter.cs|RoundsBuildingPlanner.NewRoundsExpansionPlanner
 BuildingRuntime/RoundsShelter.cs|RoundsBuildingPlanner.NewRoundsShelterPlanner|"Wall"
 BuildingRuntime/RoundsShelterBunks.cs|BuildingRuntimePackage.ShelterBedDefinition|"Bed"
 BuildingRuntime/RoundsShelterBunks.cs|RoundsBuildingPlanner.StepShelterBunksAsync|"SleepingSpot"
-BuildingRuntime/RoundsShrine.cs|RoundsShrinePlanner.Breach|"Wall"
 BuildingRuntime/RoundsSleeping.cs|RoundsBuildingPlanner.PreviewSearchAsync|"Campfire"
 BuildingRuntime/RoundsSleeping.cs|RoundsBuildingPlanner.PreviewSearchAsync|"PassiveCooler"
 BuildingRuntime/RoundsSleeping.cs|RoundsBuildingPlanner.PreviewSearchAsync|"SleepingSpot"
@@ -126,7 +125,6 @@ BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureNativeWor
 BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureNativeWorkTicks|"Cooler"
 BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureNativeWorkTicks|"PassiveCooler"
 BuildingRuntime/RoundsTemperature.cs|RoundsBuildingPlanner.SelectTemperature|"Campfire"
-BuildingRuntime/RoundsThroneRefuel.cs|BuildingRuntimePackage.ThroneRefuelSpacingTicks|2500
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"Door"
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"Wall"
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"WoodLog"

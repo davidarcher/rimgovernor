@@ -4,10 +4,7 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>
-/// <c>mood/gathering</c> (Go <c>gathering.go</c>): HoldGatherings starts exactly one party after a colony-wide mood dip
-/// (#2549, #2548). Native because only RimWorld's lord manager shows that a gathering exists.
-/// </summary>
+/// <summary>Explicit native Party mechanics after normal review declines unsupported gathering labor.</summary>
 internal static class Gathering
 {
     private const string PartySpotOp = "test/party_spot";
@@ -17,11 +14,7 @@ internal static class Gathering
     internal static AcceptanceCase Case() => new()
     {
         Name = "mood/gathering",
-        Scope = "HoldGatherings starts exactly one party after a colony-wide mood dip (#2549, #2548): five Core-only colonists "
-            + "each carrying a 9-point negative memory (at least the 8 points AttendedParty repays) and a built PartySpot, no "
-            + "AttendedParty memory anywhere. The journal records one completed gathering action and no second; a native read "
-            + "counts exactly one running lord job of the Party GatheringDef whose spot is the PartySpot, read while the party runs. "
-            + "Native because only RimWorld's lord manager shows that a gathering exists.",
+        Scope = "Normal review explicitly leaves gathering labor unsupported and admits no gathering action. An explicit native gathering intent starts exactly one Party at the prepared spot with a legal organizer; this proves native mechanics, not automatic participant choice.",
         Start = new LabStart { Colonists = 5 },
         Serve = new ServeSpec { Families = [.. MoodDrive.EpicFamilies("gathering")], Prefix = "mood-gathering" },
         RequiredOps = [Ledger.ThoughtsOp, PartySpotOp, LordsOp],
@@ -67,65 +60,18 @@ internal static class Gathering
             throw new AcceptanceException($"the game cannot hold a Party now (hour {before["hour"].ToText()}, game conditions ok: {before["acceptable"].ToText()}): {before.ToJson()}");
         }
 
-        var d = new MoodDrive(s);
-        await d.StartAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            // gatherings are the gathering plans the journal holds, by completion.
-            async Task<(int Completed, int Other)> GatheringsAsync(CancellationToken ct)
-            {
-                var store = await d.JournalAsync(ct).ConfigureAwait(false);
-                var plans = await store.PlanHistoryAsync(256, "gathering-*", ct).ConfigureAwait(false);
-                var completed = 0;
-                var other = 0;
-                foreach (var plan in plans)
-                {
-                    foreach (var progress in plan["progress"].Rows())
-                    {
-                        if (!string.Equals(progress["kind"].AsString(), "gathering", StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
-
-                        if (progress["stage"].AsString() == "completed")
-                        {
-                            completed++;
-                        }
-                        else
-                        {
-                            other++;
-                        }
-                    }
-                }
-
-                return (completed, other);
-            }
-
-            await d.WaitAsync(
-                TimeSpan.FromMinutes(5),
-                async ct =>
-                {
-                    var (completed, other) = await GatheringsAsync(ct).ConfigureAwait(false);
-                    return (string.Create(CultureInfo.InvariantCulture, $"{completed} {other}"), completed > 0);
-                },
-                cancellationToken).ConfigureAwait(false);
-
-            // The journal holds one gathering action and no second. The native read follows at once, while the party
-            // runs: its lord job ends on its own duration, so a later read finds none, and stopping the service closes
-            // the journal.
-            var (doneCount, otherCount) = await GatheringsAsync(cancellationToken).ConfigureAwait(false);
-            if (doneCount + otherCount != 1)
-            {
-                throw new AcceptanceException($"{doneCount} completed and {otherCount} other gathering actions, want exactly one");
-            }
-        }
-        finally
-        {
-            await d.StopAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-
-        // One lord job of the Party def, on the PartySpot.
-        h = await d.NativeAsync("lords", cancellationToken).ConfigureAwait(false);
+        h = await UnsupportedLabor.ReviewAsync(s, "unsupported_forecast_gathering",
+            RimGovernor.Brain.Domain.ActionKind.Gathering, cancellationToken).ConfigureAwait(false);
+        var nativeBefore = await MoodDrive.FixtureCallAsync(h, "explicit-organizer", LordsOp,
+            new JsonObject { ["def"] = PolicyFunctions.PartyGatheringDef }, cancellationToken).ConfigureAwait(false);
+        var organizer = nativeBefore["eligibleOrganizer"].AsString();
+        if (organizer.Length == 0) throw new AcceptanceException("No native legal explicit gathering organizer.");
+        var receipt = await ApplyIntents.ApplyOneAsync(h, "explicit-party", s.Identity, "explicit-party",
+            new JsonObject { ["gathering"] = new JsonObject { ["gatheringDef"] = PolicyFunctions.PartyGatheringDef,
+                ["organizer"] = new JsonObject { ["id"] = organizer } } }, cancellationToken).ConfigureAwait(false);
+        if (receipt["refused"] is not null) throw new AcceptanceException("Explicit gathering refused: " + receipt.ToJson());
+        report["explicit_receipt"] = receipt.DeepClone();
+        _ = await Authority.ReleaseAuthorityAsync(h, s.Identity, cancellationToken).ConfigureAwait(false);
         var after = await MoodDrive.FixtureCallAsync(h, "lords-after", LordsOp, new JsonObject { ["def"] = PolicyFunctions.PartyGatheringDef }, cancellationToken).ConfigureAwait(false);
         report["lords_after"] = after.DeepClone();
         if (after["lords"].AsNumber() != 1)

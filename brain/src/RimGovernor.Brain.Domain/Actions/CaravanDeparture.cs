@@ -11,16 +11,20 @@ public readonly record struct CargoItem(string Definition, ulong Count);
 /// native checks the crew, cargo, home staffing, route, mass and a day of food when it applies. Crew and cargo
 /// are canonical: sorted ordinally and free of duplicates.
 /// </summary>
+public enum CaravanDepartureMode { Formation, ExistingRoute, SiteReform }
+
 public sealed record CaravanDeparture : IActionPayload
 {
     /// <summary>Go <c>NewCaravanDeparture</c>; throws <see cref="DomainException"/> when invalid.</summary>
-    public CaravanDeparture(IEnumerable<PawnId> crew, IEnumerable<CargoItem> cargo, int destinationTile)
+    public CaravanDeparture(IEnumerable<PawnId> crew, IEnumerable<CargoItem> cargo, int destinationTile, CaravanDepartureMode mode = CaravanDepartureMode.Formation)
     {
         var error = Build(crew, cargo, destinationTile, out var crewRows, out var cargoRows);
         if (error is not null)
         {
             throw new DomainException(error);
         }
+        DomainException.Require(Enum.IsDefined(mode), "invalid caravan departure mode");
+        Mode = mode;
         Crew = crewRows;
         Cargo = cargoRows;
         DestinationTile = destinationTile;
@@ -33,6 +37,8 @@ public sealed record CaravanDeparture : IActionPayload
     public EquatableArray<CargoItem> Cargo { get; }
 
     public int DestinationTile { get; }
+
+    public CaravanDepartureMode Mode { get; init; }
 
     /// <summary>The non-throwing form of the constructor (Go's <c>err != nil</c> as a predicate).</summary>
     public static bool TryCreate(IEnumerable<PawnId> crew, IEnumerable<CargoItem> cargo, int destinationTile, [NotNullWhen(true)] out CaravanDeparture? departure)

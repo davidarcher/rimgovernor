@@ -47,7 +47,7 @@ namespace HomeBridge.BridgeTools
         private static string? Id(Common.Ref? r) => r != null && r.Id is not null && ProtoBoundary.IsIdentifier(r.Id) ? (r.Id ?? "") : null;
 
         // The intent's shape, before any live check: which arm applies it.
-        internal enum Arm { Invalid, Order, Need, Use, Prioritized }
+        internal enum Arm { Invalid, Order, Use, Prioritized }
 
         internal static Arm Classify(Operations.GiveJobIntent? intent, out JobOrder? order, out string? refusal)
         {
@@ -59,12 +59,6 @@ namespace HomeBridge.BridgeTools
             var selfOk = (intent.Job ?? "") == UseItem;
             if (targets.Any(t => t == null || t == pawn && !selfOk)) { refusal = "Give job targets must be exact and distinct from the pawn."; return Arm.Invalid; }
             var options = intent.Options;
-            if (options != null && options.RelieveNeed is not null)
-            {
-                if (intent.Job is not null || targets.Count > 0 || options.Prioritized.GetValueOrDefault() || options.RelieveNeed.GetValueOrDefault() == Operations.Need.Unspecified)
-                { refusal = "Need relief names a need and no job or targets: the need giver picks them."; return Arm.Invalid; }
-                return Arm.Need;
-            }
             if (intent.Job is null || !ProtoBoundary.IsIdentifier(intent.Job)) { refusal = "Give job requires a JobDef name."; return Arm.Invalid; }
             if ((intent.Job ?? "") == UseItem)
             {
@@ -233,7 +227,6 @@ namespace HomeBridge.BridgeTools
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
             {
                 case NativeGiveJob.Arm.Order: return NativeGiveJob.ValidateOrder(order!, context);
-                case NativeGiveJob.Arm.Need: return NativeMoodReliefOperations.Validate(intent!.Pawn!.Id ?? "", intent.Options!.RelieveNeed.GetValueOrDefault(), context);
                 case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Validate(intent!.Pawn!.Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
                 case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Validate(intent!, context);
                 default: return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refusal ?? "Invalid give job intent.");
@@ -246,7 +239,6 @@ namespace HomeBridge.BridgeTools
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
             {
                 case NativeGiveJob.Arm.Order: return NativeGiveJob.ApplyOrder(order!, context);
-                case NativeGiveJob.Arm.Need: return NativeMoodReliefOperations.Apply(intent!.Pawn!.Id ?? "", intent.Options!.RelieveNeed.GetValueOrDefault(), context);
                 case NativeGiveJob.Arm.Use: return NativeUseItemOperations.Apply(intent!.Pawn!.Id ?? "", intent.Targets[0].Id ?? "", intent.Targets[1].Id ?? "", context);
                 case NativeGiveJob.Arm.Prioritized: return NativePrioritizedJob.Apply(intent!, context);
                 default: throw new InvalidOperationException(refusal ?? "Invalid give job intent.");

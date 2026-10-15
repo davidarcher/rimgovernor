@@ -1,161 +1,80 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>
-/// <c>trade/routine</c> (Go <c>rounds.go</c>): native negotiation and acceptance with a medicine deficit, silver and an
-/// arriving caravan. The live service keeps the Concern open during arrival, negotiates, stages an affordable purchase
-/// and accepts it; the native resource census must show gained medicine and spent silver.
-/// </summary>
+/// <summary>Normal unsupported trade labor and explicit paid native trade are separate claims.</summary>
 internal static class TradeRounds
 {
-    /// <summary>Bounds the watch: the caravan's walk in, the negotiator's walk and the three session phases each land in the stop between windows.</summary>
-    internal static readonly TimeSpan Window = TimeSpan.FromMinutes(10);
-
-    /// <summary>The silver stack the fixture spawns (under the 500 stack limit); the medicine buy must come out of it.</summary>
     internal const int Silver = 400;
-
-    private static readonly string[] Medicines = ["MedicineUltratech", "MedicineIndustrial", "MedicineHerbal"];
-
-    /// <summary>The fixture both serve-driven trade cases start from.</summary>
     internal static FixtureStart RoutineFixture() => new()
     {
-        On = new LabStart(),
-        Op = "test/trade_fixture",
-        Args = new JsonObject { ["action"] = "routine_setup", ["silver"] = Silver, ["medicine"] = 30 },
+        On = new LabStart(), Op = "test/trade_fixture",
+        Args = new JsonObject { ["action"] = "routine_setup", ["silver"] = Silver, ["medicine"] = 30 }
     };
-
-    /// <summary>
-    /// The watch's early exit shared by browse and routine: the goal recovering after a measured deficit is the trade
-    /// settling (an accept, or the need gone); the audit says which.
-    /// </summary>
-    internal static Func<JsonObject, bool> SettledAfterDeficit(Action markDeficit, Func<bool> deficit) => sample =>
-    {
-        if (!Flag(sample["concern_bound"]))
-        {
-            return false;
-        }
-
-        var need = sample["need"].AsString();
-        if (need == "unmet")
-        {
-            markDeficit();
-            return false;
-        }
-
-        return deficit() && need == "met";
-    };
-
-    /// <summary>The native resource census by definition name, units summed (an item the census holds none of has no row at all).</summary>
-    internal static async Task<Dictionary<string, double>> ResourceCensusAsync(Harness h, CancellationToken cancellationToken)
-    {
-        var identity = await Session.ReadIdentityAsync(h, "audit-identity", cancellationToken).ConfigureAwait(false);
-        var facts = await TradeKit.ObserveAsync(h, "audit-colony-facts", "observations_read_colony_facts", identity, null, cancellationToken).ConfigureAwait(false);
-        var resources = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var raw in facts["resources"].AsSlice())
-        {
-            var row = raw.AsMap() ?? [];
-            var name = row["defName"].AsString();
-            resources[name] = resources.GetValueOrDefault(name) + Num(row["units"]);
-        }
-
-        return resources;
-    }
 
     internal static AcceptanceCase Case() => new()
     {
         Name = "trade/routine",
-        Scope = "TradeWithCaravan (#234): an arriving caravan sells the observed medicine shortfall " +
-            "from observed silver through the routine trade family alone -- walked open, staged lines, " +
-            "accept -- proven by the native resource census after the service stops.",
+        Scope = "Prepared medicine deficit remains unsupported for automatic negotiator labor; explicit native opening, priced medicine purchase and closed session prove actual goods and silver transfer, not autonomous selection.",
         Start = RoutineFixture(),
-
-        // Every need frozen: the negotiator's walks are the only pawn time the case is about.
         Serve = new ServeSpec { Families = ["trade"], NativeTimeout = TimeSpan.FromSeconds(15), Prefix = "trade-routine" },
-        Budget = TimeSpan.FromMinutes(15),
-        Crew = new Crew { Size = 3 },
-        Run = RunAsync,
+        Budget = TimeSpan.FromMinutes(5), Crew = new Crew { Size = 3 },
+        Run = (s, ct) => RunPreparedAsync(s, true, ct)
     };
 
-    private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
+    internal static async Task RunPreparedAsync(ISession s, bool purchase, CancellationToken ct)
     {
         var prepared = s.Prepared ?? [];
-        s.Report["trade_prepared"] = prepared.DeepClone();
-        if (!Flag(prepared["success"]))
+        if (!Flag(prepared["success"]) || Num(prepared["colonyMedicine"]) != 0)
+            throw new AcceptanceException("Invalid medicine-deficit fixture: " + prepared.ToJson());
+        s.Report["prepared"] = prepared.DeepClone();
+        var h = await UnsupportedLabor.ReviewAsync(s, "unsupported_shared_trade_labor", ActionKind.Trade, ct).ConfigureAwait(false);
+        var seller = Rows(prepared["stocked"]).First(r => Flag(r["listed"]))["traderId"].AsString();
+        var snapshot = await h.CallAsync("negotiator", "test/trade_fixture", new JsonObject { ["action"] = "snapshot" }, ct).ConfigureAwait(false);
+        var pawn = Rows(snapshot["colonists"]).First(r => Num(r["social"]) >= 0)["id"].AsString();
+        var moved = await h.CallAsync("adjacent", "test/trade_fixture",
+            new JsonObject { ["action"] = "teleport_adjacent", ["traderId"] = seller, ["pawnId"] = pawn }, ct).ConfigureAwait(false);
+        if (!Flag(moved["success"])) throw new AcceptanceException("No adjacent native negotiator.");
+        _ = await Authority.GrantAutoAsync(h.WireFunc(), "explicit-trade-authority", s.Identity, ct).ConfigureAwait(false);
+        async Task<JsonObject> Apply(string label, string operation, JsonObject fields)
         {
-            throw new AcceptanceException($"routine_setup: no trader caravan spawned: {prepared.ToJson()}");
+            var receipt = await ApplyIntents.ApplyOneAsync(h, label, s.Identity, label,
+                new JsonObject { ["trade"] = new JsonObject { ["traderId"] = seller, ["negotiatorId"] = pawn, [operation] = fields } }, ct).ConfigureAwait(false);
+            return TradeKit.AppliedTrade(label, receipt);
         }
-
-        if (Num(prepared["colonyMedicine"]) != 0)
+        Task<JsonObject> Sheet(string label, string session) => TradeKit.ObserveAsync(h, label,
+            "observations_read_trade_sheet", s.Identity, new JsonObject { ["sessionId"] = session }, ct);
+        var opened = await Apply("explicit-open", "open", new JsonObject { ["giftMode"] = false }).ConfigureAwait(false);
+        var session = opened["sessionId"].AsString();
+        var before = await Sheet("priced-before", session).ConfigureAwait(false);
+        var medicine = Rows(before["lines"]).FirstOrDefault(r => r["definition"].AsMap()?["defName"].AsString() == "MedicineHerbal"
+            && Num(r["maximumCount"]) >= 1 && Num(r["buyPrice"]) > 0)
+            ?? throw new AcceptanceException("No priced herbal medicine: " + before.ToJson());
+        s.Report["priced_medicine"] = medicine.DeepClone();
+        _ = await Apply("explicit-stage", "setLines", new JsonObject { ["lines"] = new JsonArray(
+            new JsonObject { ["lineId"] = medicine["lineId"].AsString(), ["absoluteCount"] = 1 }) }).ConfigureAwait(false);
+        var staged = await Sheet("priced-staged", session).ConfigureAwait(false);
+        if (purchase)
         {
-            throw new AcceptanceException($"routine_setup: colony medicine remains: {prepared.ToJson()}");
+            var result = await Apply("explicit-accept", "accept",
+                new JsonObject { ["expectedDealSignature"] = staged["dealSignature"].AsString() }).ConfigureAwait(false);
+            if (!Flag(result["executed"]) || !Flag(result["actuallyTraded"]) || !Flag(result["closed"])
+                || Num(result["afterSilver"]) >= Num(result["beforeSilver"]))
+                throw new AcceptanceException("No paid native purchase: " + result.ToJson());
+            s.Report["purchase"] = result.DeepClone();
         }
-
-        foreach (var row in prepared["stocked"].AsSlice())
-        {
-            var stock = row.AsMap() ?? throw new AcceptanceException($"routine_setup: unreadable stock row: {row.ToJson()}");
-            if (!Flag(stock["listed"]))
-            {
-                throw new AcceptanceException($"routine_setup: the caravan does not list the stocked medicine: {row.ToJson()}");
-            }
-        }
-
-        var deficit = false;
-        _ = await SustainedFood.ObserveAsync(
-            ObservedSession.Of(s),
-            new SustainedObservation
-            {
-                Watch = new WatchConfig
-                {
-                    Watch = Window,
-                    Concern = PolicyFunctions.TradeWithCaravan.Value,
-                    Until = SettledAfterDeficit(() => deficit = true, () => deficit),
-                },
-                Audit = async (h, report, ct) =>
-                {
-                    var store = await ObservedSession.OpenStoreAsync(s.Config, ct).ConfigureAwait(false);
-                    try
-                    {
-                        report["trade_final"] = await store.SampleStandardAsync(PolicyFunctions.TradeWithCaravan.Value, ct).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        if (store is IDisposable disposable)
-                        {
-                            disposable.Dispose();
-                        }
-                    }
-
-                    var resources = await ResourceCensusAsync(h, ct).ConfigureAwait(false);
-
-                    // The Core medicines the lab's trader carries.
-                    var medicine = 0.0;
-                    foreach (var name in Medicines)
-                    {
-                        medicine += resources.GetValueOrDefault(name);
-                    }
-
-                    var silver = resources.GetValueOrDefault("Silver");
-                    report["trade_census"] = new JsonObject { ["medicine"] = medicine, ["silver"] = silver, ["silver_spawned"] = Silver };
-                    if (!deficit)
-                    {
-                        throw new AcceptanceException("TradeWithCaravan never measured a deficit with the caravan present");
-                    }
-
-                    if (medicine <= 0)
-                    {
-                        throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"no medicine was bought: census medicine {medicine}, silver {silver} of {Silver}"));
-                    }
-
-                    if (silver >= Silver)
-                    {
-                        throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"medicine appeared without silver leaving: census medicine {medicine}, silver {silver} of {Silver}"));
-                    }
-                },
-            },
-            cancellationToken).ConfigureAwait(false);
+        else
+            _ = await Apply("explicit-cancel", "end", new JsonObject { ["kind"] = "END_TRADE_KIND_CANCEL" }).ConfigureAwait(false);
+        var state = await TradeKit.ObserveAsync(h, "closed", "observations_read_trade_session", s.Identity, null, ct).ConfigureAwait(false);
+        if (Flag(state["open"])) throw new AcceptanceException("Native session remained open.");
+        var facts = await TradeKit.ObserveAsync(h, "inventory", "observations_read_colony_facts", s.Identity, null, ct).ConfigureAwait(false);
+        var rows = Rows(facts["resources"]).ToArray();
+        var silver = rows.Where(r => r["defName"].AsString() == "Silver").Sum(r => Num(r["units"]));
+        var medicineUnits = rows.Where(r => r["defName"].AsString() == "MedicineHerbal").Sum(r => Num(r["units"]));
+        s.Report["inventory"] = new JsonObject { ["silver"] = silver, ["medicine"] = medicineUnits };
+        if (purchase ? medicineUnits != 1 || silver >= Silver : medicineUnits != 0 || silver != Silver)
+            throw new AcceptanceException("Native inventory disagrees with explicit purchase/cancel: " + s.Report["inventory"].ToJson());
     }
 }

@@ -31,11 +31,11 @@ internal static class TradeWorldSession
         }
     }
 
-    private static async Task RunAsync(ISession s, string channel, CancellationToken cancellationToken)
+    internal static async Task RunAsync(ISession s, string channel, CancellationToken cancellationToken, JsonObject? preparation = null, Harness? harness = null)
     {
-        var h = s.Harness;
+        var h = harness ?? s.Harness;
         var identity = s.Identity;
-        var prepared = s.Prepared ?? [];
+        var prepared = preparation ?? s.Prepared ?? [];
         if (!Flag(prepared["success"]))
         {
             throw new AcceptanceException($"session_setup: {prepared.ToJson()}");

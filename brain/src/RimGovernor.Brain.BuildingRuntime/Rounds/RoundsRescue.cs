@@ -82,7 +82,12 @@ public sealed class RoundsRescuePlanner
             return new RoundsRescueResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "colonist_census") };
         }
 
-        var ids = emergency.Facts.Colonists.Select(c => c.Id.Value).ToList();
+        if (!emergency.Facts.DependentPatients.TryGetValue(out var dependents)
+            || dependents.Any(p => !p.Rescue.IsKnown || !p.Tend.IsKnown))
+            return new RoundsRescueResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "dependent_patient_census") };
+        var workers = emergency.Facts.Colonists.Select(pawn => pawn.Id).ToHashSet();
+        var eligiblePatients = PolicyFunctions.EmergencyRescuePatients(emergency.Facts).ToHashSet();
+        var ids = workers.Union(eligiblePatients).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
         var (reply, _) = await native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == null");
         try
@@ -104,14 +109,14 @@ public sealed class RoundsRescuePlanner
         var seen = new HashSet<string>();
         foreach (var row in observed.Pawns)
         {
-            if (row?.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
+            if (row?.Pawn is null || !ids.Contains(row.Pawn.Id ?? "") || !seen.Add((row.Pawn.Id ?? "")))
             {
                 throw new ControlException("step: missing or duplicate pawn row");
             }
 
             var pawn = new PawnId((row.Pawn.Id ?? ""));
-            rescuers.Add(RescueFacts.NewRescuerFacts(pawn, row, ""));
-            patients.Add(RescueFacts.NewRescuePatientFacts(pawn, row, ""));
+            if (workers.Contains(pawn)) rescuers.Add(RescueFacts.NewRescuerFacts(pawn, row, ""));
+            if (eligiblePatients.Contains(pawn)) patients.Add(RescueFacts.NewRescuePatientFacts(pawn, row, ""));
         }
 
         var (rescuer, patient, ok) = PolicyFunctions.SelectRescue(rescuers, patients);

@@ -76,6 +76,28 @@ public sealed class ForecastCoupledTests
         Assert.DoesNotContain(compared.Baseline.Coupled.Alternatives.Single().Stocks, s => s.Resource.Value == "TestWall");
     }
 
+    [Theory]
+    [InlineData(300d, false)]
+    [InlineData(690d, false)]
+    [InlineData(700d, true)]
+    public void ShortHorizonDoesNotCreateReversedMealUseWindows(double horizon, bool firstMealInWindow)
+    {
+        // Full food reaches the .3 threshold after 700 ticks, with 10 ticks of chewing.
+        // A meal starting at 690 is usable only when its completion at 700 fits.
+        // Recurring meals occur later still; they must not poison an otherwise valid request.
+        var generated = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(Review(foodLevel: 1), horizon));
+        Assert.All(generated.Context.Activities.Activities, task => Assert.True(task.NotBefore <= horizon));
+        Assert.Equal(firstMealInWindow, generated.Context.NeedTasks.Any(n => n.Kind == "food"));
+        Assert.All(generated.Context.NeedTasks.Where(need => need.Kind == "food"), need =>
+        {
+            var task = Assert.Single(generated.Context.Activities.Activities, task => task.Id == need.Task);
+            var option = Assert.Single(generated.Context.Activities.Options,
+                option => option.Activity == need.Task && option.Pawn == need.Pawn);
+            Assert.True(option.WorkTicks.IsKnown);
+            Assert.True(task.NotBefore + option.WorkTicks.Value <= horizon);
+        });
+        Assert.Contains(generated.Context.Activities.Activities, task => task.Id.StartsWith("harvest/", StringComparison.Ordinal));
+    }
     [Fact]
     public void LateOrSpoiledFoodCannotFinanceARecoveryChain()
     {
@@ -178,7 +200,7 @@ public sealed class ForecastCoupledTests
     [InlineData(15, 18)]
     public void HeaterTargetNeverProvidesArtificialCooling(double initial, double outdoors)
     {
-        var room = new ForecastShelterPlan(1, [new(1, 1)], [], Known(initial), Known(outdoors), Known(.001), Known(.35), Known(15.0), Known(1000.0), []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(initial), Known(outdoors), Known(.001), Known(.35), Known(15.0), Known(1000.0), []);
         var result = ForecastShelter(room, new([], 0, 0), 300);
         Assert.True(result.TemperatureAtHorizon.Value >= Math.Min(initial, outdoors));
         Assert.True(result.TemperatureAtHorizon.Value > 15);
@@ -187,10 +209,10 @@ public sealed class ForecastCoupledTests
     [Fact]
     public void TwoHeatersCannotIndependentlySpendOneObservedNetworkSurplus()
     {
-        var first = new ForecastShelterPlan(1, [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), [])
+        var first = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), [])
         { PowerNetwork = "net", Source = "heater1", AdditionalWatts = Known(100.0), SurplusWatts = Known(150.0) };
         Assert.True(ForecastShelters([first], new([], 0, 0), 300).Single().TemperatureAtHorizon.IsKnown);
-        var result = ForecastShelters([first, first with { Room = 2, Source = "heater2" }], new([], 0, 0), 300);
+        var result = ForecastShelters([first, first with { Room = new(ForecastShelterSource.Planned, "2"), Source = "heater2" }], new([], 0, 0), 300);
         Assert.All(result, r => Assert.False(r.TemperatureAtHorizon.IsKnown));
         Assert.All(result, r => Assert.Contains("shared_power_capacity_shortfall", r.Findings));
     }
@@ -232,7 +254,7 @@ public sealed class ForecastCoupledTests
             }
         };
         facts = ReviewCoupledActivities(ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
-        var shelter = facts.CoupledAlternatives!.Alternatives.Single(c => c.ExclusiveOutcome == "shelter/1");
+        var shelter = facts.CoupledAlternatives!.Alternatives.Single(c => c.ExclusiveOutcome == "shelter/planned/1");
         Assert.Equal(10, shelter.ActivityCompletions.Count);
         var request = CoupledForecastRequestOf(new("world", 100), 1000.0 / GameTime.TicksPerDay, facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = [shelter] });
         var forecast = ForecastColony(request);
@@ -280,7 +302,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review();
         var context = facts.CoupledAlternatives!.Context;
-        var room = new ForecastShelterPlan(1, [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), []);
         context = context with
         {
             Shelters = [room],

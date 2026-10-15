@@ -44,15 +44,13 @@ public sealed class ActivityStagesTests
             namespace RimGovernor.Brain.Domain { public class PawnActivities {} }
             namespace RimGovernor.Brain.Policy { public record ForecastActivityOutcomeComparison; public static class PolicyFunctions {
                 public static void CompareActivityPlans() {} public static void CompareActivityOutcomes() {}
-                public static void StartFoodActivity() { {{body}} }
+                public static void StartCoupledActivity() { {{body}} }
             } }
             """, true);
     }
 
     [Theory]
-    [InlineData("StartConstructionActivity")]
     [InlineData("StartCoupledActivity")]
-    [InlineData("ReconsiderObservedFood")]
     [InlineData("ContinueCoordinatedActivity")]
     public async Task CoordinatedEntrypointsCannotConstructActionsOrLocalScores(string entry)
     {
@@ -70,7 +68,7 @@ public sealed class ActivityStagesTests
         await Check("""
             namespace RimGovernor.Brain.Policy { public static class PolicyFunctions {
                 public static void CompareActivityOutcomes() {}
-                public static void StartFoodActivity() { CompareActivityOutcomes(); }
+                public static void StartCoupledActivity() { CompareActivityOutcomes(); }
             } }
             """, false);
     }

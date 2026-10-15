@@ -33,7 +33,7 @@ internal static class ClockWindowWork
         ActionKind.Repair, ActionKind.Clean, ActionKind.MineAcquisition, ActionKind.Deconstruction,
         ActionKind.RemoveRoof, ActionKind.BuildRoof, ActionKind.AreaPlantCut, ActionKind.CutPlant, ActionKind.Strip,
         ActionKind.MoveBuilding, ActionKind.UninstallBuilding, ActionKind.CoverClearance,
-        ActionKind.WastepackHaul, ActionKind.MoodRelief, ActionKind.Excavation, ActionKind.DialogAnswer,
+        ActionKind.WastepackHaul, ActionKind.Excavation, ActionKind.DialogAnswer,
         ActionKind.Trade, ActionKind.CommsTradeRequest, ActionKind.QuestAccept, ActionKind.QuestShuttle,
         ActionKind.HackDesignation, ActionKind.GiveItem, ActionKind.Ritual, ActionKind.IdeoligionReform,
         ActionKind.Ability, ActionKind.Ignite, ActionKind.Gathering, ActionKind.RemoveProductionBill,

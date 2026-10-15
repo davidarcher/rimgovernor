@@ -352,6 +352,42 @@ namespace HomeBridge.BridgeTools
                     freshStranger = freshStranger.GetUniqueLoadID(), worn = worn.GetUniqueLoadID(), wornDef = worn.def.defName };
             }, cancellationToken);
 
+        [Tool("test/disposal_room", Description = "UNSAFE FOR MODEL EXECUTION. Finish the normally generated disposal room and place six burnable items; no pawn plan or orders.")]
+        public async Task<object> DisposalRoom(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            int minX,int minZ,int maxX,int maxZ,int doorX,int doorZ,string ids,string freshId)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map=Find.CurrentMap;
+                if(!Find.TickManager.Paused || map.Size.x!=100) throw new System.InvalidOperationException("Paused LabStart required.");
+                var rect=CellRect.FromLimits(minX,minZ,maxX,maxZ);
+                var door=new IntVec3(doorX,0,doorZ);
+                var items=ids.Split(',').Select(id=>map.listerThings.AllThings.Single(t=>t.GetUniqueLoadID()==id)).ToList();
+                var fresh=map.listerThings.AllThings.Single(t=>t.GetUniqueLoadID()==freshId);
+                fresh.DeSpawn();
+                foreach(var item in items) item.DeSpawn();
+                foreach(var cell in rect.ExpandedBy(1).Cells) {
+                    foreach(var thing in cell.GetThingList(map).Where(t=>t is not Pawn).ToArray()) thing.Destroy();
+                    map.terrainGrid.SetTerrain(cell,TerrainDefOf.Concrete); map.roofGrid.SetRoof(cell,null);
+                    map.areaManager.Home[cell]=true;
+                }
+                foreach(var cell in rect.ExpandedBy(1).EdgeCells) {
+                    var wall=ThingMaker.MakeThing(cell==door?ThingDefOf.Door:ThingDefOf.Wall,ThingDef.Named("BlocksGranite"));
+                    wall.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(wall,cell,map);
+                }
+                var pants=ThingDef.Named("Apparel_Pants");
+                while(items.Count<6) {var item=ThingMaker.MakeThing(pants,GenStuff.DefaultStuffFor(pants)); item.HitPoints=item.MaxHitPoints/5; items.Add(item);}
+                var cells=rect.Cells.ToArray();
+                for(var i=0;i<items.Count;i++) GenSpawn.Spawn(items[i],cells[i],map);
+                var pawns=map.mapPawns.FreeColonistsSpawned.OrderBy(p=>p.thingIDNumber).ToArray();
+                var outside=door+new IntVec3(System.Math.Sign(door.x-rect.CenterCell.x),0,System.Math.Sign(door.z-rect.CenterCell.z))*3;
+                GenPlace.TryPlaceThing(fresh,outside+IntVec3.East*2,map,ThingPlaceMode.Near);
+                foreach(var pawn in pawns) {
+                    pawn.jobs.StopAll(); pawn.Position=outside; pawn.Notify_Teleported(true,true);
+                    foreach(var type in DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(t=>!pawn.WorkTypeIsDisabled(t))) pawn.workSettings.SetPriority(type,0);
+                }
+                var weapon=ThingMaker.MakeThing(ThingDef.Named("Weapon_GrenadeMolotov")); GenPlace.TryPlaceThing(weapon,outside,map,ThingPlaceMode.Near);
+                return new {success=true,ids=items.Select(t=>t.GetUniqueLoadID()).ToArray(),weapon=weapon.GetUniqueLoadID(),burner=pawns[0].GetUniqueLoadID(),standby=pawns[1].GetUniqueLoadID()};
+            },cancellationToken);
+
         // Worn apparel (a fifth of its hit points) on each cell ("x,z;x,z"):
         // what the incinerator zone takes, enough to fill a batch.
         [Tool("test/disposal_seed", Description = "Disposable fixture (#1817): spawn one worn apparel on each listed free cell and molotovs loose near the first colonist. Test builds only.")]
@@ -423,6 +459,8 @@ namespace HomeBridge.BridgeTools
                 var ash = rect.Cells.SelectMany(c => c.GetThingList(map)).Count(t => t.def.defName == "Filth_Ash");
                 var fires = map.listerThings.ThingsOfDef(ThingDefOf.Fire).Count;
                 return (object)new { success = true, tick = Find.TickManager.TicksGame, things, interior, ring, ash, fires,
+                    ashIds=rect.Cells.SelectMany(c=>c.GetThingList(map)).Where(t=>t.def.defName=="Filth_Ash").Select(t=>t.GetUniqueLoadID()).ToArray(),
+                    pawns=map.mapPawns.FreeColonistsSpawned.Select(p=>new {id=p.GetUniqueLoadID(),weapon=p.equipment?.Primary?.GetUniqueLoadID(),job=p.CurJobDef?.defName}).ToArray(),
                     room = new { id = first?.ID ?? -1, cellCount = first?.CellCount ?? 0, outdoorTemperature = first?.UsesOutdoorTemperature ?? false, properRoom = first?.ProperRoom ?? false },
                     beyondDoorRoom = beyond.InBounds(map) ? (beyond.GetRoom(map)?.ID ?? -1) : -1, doorRoom = door.GetRoom(map)?.ID ?? -1 };
             }, cancellationToken);

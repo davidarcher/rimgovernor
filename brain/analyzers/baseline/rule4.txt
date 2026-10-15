@@ -120,7 +120,6 @@ Observation/RoundsRead.cs|ObservationPackage.FrameQuests
 Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept
 PlayerApi/PlayerRoutes.cs|PlayerRoutes.ReadControlAsync
 Policy/DefenseTiers.cs|PolicyFunctions.PlanDefenseTiers
-Policy/EatTrigger.cs|PolicyFunctions.EatTriggerChanges
 Policy/Hostility.cs|PolicyFunctions.HostilityChanges
 Policy/LayoutCapability.cs|PolicyFunctions.DeriveRoleCapabilities
 Policy/LayoutMining.cs|PolicyFunctions.RoomRock
@@ -131,7 +130,6 @@ Policy/PawnNames.cs|PolicyFunctions.NicknameChanges
 Policy/QuestCoreSite.cs|PolicyFunctions.CoreSiteJoiner
 Policy/QuestDecrees.cs|PolicyFunctions.PlanDecreeProduction
 Policy/QuestMonument.cs|PolicyFunctions.SelectQuestMonument
-Policy/SelfTend.cs|PolicyFunctions.SelfTendChanges
 Policy/StoreMedicine.cs|StoreView.MedicineStore
 Snapshot/SnapshotLater.cs|SnapshotPackage.Later
 Store/Clock/ClockAttempts.cs|ClockJournal.Prepare

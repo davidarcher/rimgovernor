@@ -75,7 +75,7 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
             // are not. This also catches aliases, method groups and helper/extension calls.
             allowed = type.Name != "PolicyFunctions" || target is INamedTypeSymbol
                 // These helpers only inspect exact ownership or invoke the shared comparator.
-                || (lifecycle && target.Name is "MatchesActivityOwner" or "ReviewActivityOwnership" or "FoodReconsideration" or "CompareActivityOutcomes");
+                || (lifecycle && target.Name is "MatchesActivityOwner" or "ReviewActivityOwnership" or "CompareActivityOutcomes");
             if (type.Name != "PolicyFunctions" && target is IMethodSymbol { MethodKind: not MethodKind.Constructor }) allowed = false;
             if (type.Name == "ForecastActivityOutcomeComparison" && target is IMethodSymbol) allowed = false;
         }
@@ -90,7 +90,7 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
     {
         // Local functions/lambdas must not evade the entry-point fence.
         for (var symbol = owner; symbol is not null; symbol = symbol.ContainingSymbol)
-            if (symbol is IMethodSymbol { Name: "StartCoupledActivity" or "StartFoodActivity" or "StartConstructionActivity" or "StartClothingActivity" or "ReconsiderObservedFood" or "ContinueCoordinatedActivity",
+            if (symbol is IMethodSymbol { Name: "StartCoupledActivity" or "ContinueCoordinatedActivity",
                 ContainingType.Name: "PolicyFunctions" }
                 && symbol.ContainingNamespace.ToDisplayString() == "RimGovernor.Brain.Policy") return true;
         return false;

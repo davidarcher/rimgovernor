@@ -17,6 +17,9 @@ namespace HomeBridge.BridgeTools;
 public sealed class SupportPortfolioFixture
 {
     private const int CareServiceBudgetTicks = 2500;
+    private const int ConditionedBurnSeed = 312735;
+    private static int initialInfectionCheckTicks;
+    private static string routineTendGiver = "";
     private static Map map = null!;
     private static Pawn patient = null!;
     private static Building_WorkTable? bench;
@@ -55,6 +58,8 @@ public sealed class SupportPortfolioFixture
             active=false; map=Find.CurrentMap;
             if(map==null || !Find.TickManager.Paused || map.Size.x!=100) throw new InvalidOperationException("Paused disposable LabStart required.");
             scenario=kind; start=lastTick=Find.TickManager.TicksGame; cancelledAt=tendAt=-1; cleanTick=recipeTick=careTick=-10000;
+            initialInfectionCheckTicks=0;
+            routineTendGiver="";
             bench=null; bill=null; source=null; product=null; delivered=0; required=0;
             pickedUp=usefulPickedUp=produced=cleaned=released=false;
             filth.Clear(); unrelated.Clear(); methods.Clear(); criticalJobs.Clear(); participantTicks.Clear(); obligations.Clear(); deliveryCells.Clear();
@@ -98,7 +103,28 @@ public sealed class SupportPortfolioFixture
                 patient.playerSettings.medCare=MedicalCareCategory.NoMeds;
                 patient.Position=bed.Position; patient.Notify_Teleported(true,true);
                 var torso=patient.health.hediffSet.GetNotMissingParts().First(p=>p.def.defName=="Torso");
-                patient.TakeDamage(new DamageInfo(kind=="routine"?DamageDefOf.Blunt:DamageDefOf.Cut,5f,999f,-1,null,torso));
+                if(kind=="routine")
+                {
+                    // One conditioned native burn, not a claim about infection incidence.
+                    // Restore the surrounding simulation RNG; never edit its pending timer.
+                    var burn=HediffMaker.MakeHediff(DefDatabase<HediffDef>.GetNamed("Burn"),patient,torso); burn.Severity=5f;
+                    Rand.PushState(ConditionedBurnSeed);
+                    try { patient.health.AddHediff(burn,torso); }
+                    finally { Rand.PopState(); }
+                    var infecter=burn.TryGetComp<HediffComp_Infecter>();
+                    initialInfectionCheckTicks=infecter==null?0:Traverse.Create(infecter).Field("ticksUntilInfect").GetValue<int>();
+                    if(initialInfectionCheckTicks<=CareServiceBudgetTicks || patient.health.hediffSet.BleedRateTotal>0)
+                        throw new InvalidOperationException("Conditioned native burn must be nonbleeding with a pending infection check after the care budget.");
+                    patient.playerSettings.selfTend=true;
+                    // Regression: the first registered tend giver is urgent-other care and
+                    // cannot represent this nonurgent self-service capability.
+                    var firstTend=DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d=>d.Worker is WorkGiver_Tend);
+                    var legalTend=NativeSupportActivities.TendGiver(patient,patient);
+                    if(((WorkGiver_Tend)firstTend.Worker).HasJobOnThing(patient,patient,false) || legalTend==null)
+                        throw new InvalidOperationException("Routine care requires a legal native self-tend giver beyond the first registered urgent-other giver.");
+                    routineTendGiver=legalTend.defName;
+                }
+                else patient.TakeDamage(new DamageInfo(DamageDefOf.Cut,5f,999f,-1,null,torso));
                 patient.jobs.StartJob(JobMaker.MakeJob(JobDefOf.LayDown,bed),JobCondition.InterruptForced);
                 if(!patient.health.HasHediffsNeedingTend()) throw new InvalidOperationException("Fixture injury requires tending.");
             }
@@ -198,7 +224,8 @@ public sealed class SupportPortfolioFixture
             obligations[id]=critical?"critical_tend_active":execution!.State+":"+execution.Reason;
             if(___pawn.CurJobDef==JobDefOf.Clean) cleanTick=Find.TickManager.TicksGame;
             if(___pawn.CurJobDef==JobDefOf.DoBill) recipeTick=Find.TickManager.TicksGame;
-            if(___pawn.CurJobDef==JobDefOf.TendPatient && ___pawn.CurJob?.targetA.Thing==patient) careTick=Find.TickManager.TicksGame;
+            if((___pawn.CurJobDef==JobDefOf.TendPatient || ___pawn.jobs.curDriver is JobDriver_GovernorTend)
+                && ___pawn.CurJob?.targetA.Thing==patient) careTick=Find.TickManager.TicksGame;
             if(___pawn.carryTracker.CarriedThing?.def==source?.def)
             { pickedUp=true; if(scenario=="chunks") usefulPickedUp=true; }
         }
@@ -232,6 +259,7 @@ public sealed class SupportPortfolioFixture
         participantAccounting=participantTicks.Count>0 && participantTicks.Values.All(v=>v>=0) && participantTicks.Values.Any(v=>v>0),
         cleaned=cleaned && (bench?.GetRoom()?.GetStat(RoomStatDefOf.Cleanliness) ?? initialCleanliness)>initialCleanliness,initialCleanliness,currentCleanliness=bench?.GetRoom()?.GetStat(RoomStatDefOf.Cleanliness),produced,pickedUp,inTransit=InTransit(),usefulPickedUp,delivered=delivered>0,deliveredCount=delivered,required,quantityBounded=delivered<=required,
         tended=tendAt>=0,tendTick=tendAt,careWithinServiceBudget=tendAt>=0 && tendAt-start<=CareServiceBudgetTicks,careServiceBudgetTicks=CareServiceBudgetTicks,
+        conditionedBurnSeed=scenario=="routine"?ConditionedBurnSeed:0,initialInfectionCheckTicks,selfTendEnabled=patient.playerSettings.selfTend,routineTendGiver,
         unrelatedUnmoved=unrelated.All(x=>!x.Key.Destroyed && x.Key.Spawned && x.Key.Position==x.Value),
         cancelled=cancelledAt>=0,released=cancelledAt>=0 && released && !map.mapPawns.FreeColonistsSpawned.Any(p=>NativePawnActivities.Read(p)?.Method is string m && methods.Contains(m)),
         liveOwnedWorkers=map.mapPawns.FreeColonistsSpawned.Where(p=>NativePawnActivities.Read(p)?.Method is string m && methods.Contains(m)).Select(p=>new{pawn=p.GetUniqueLoadID(),drafted=p.Drafted,dead=p.Dead}).ToArray(),

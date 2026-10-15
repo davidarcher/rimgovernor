@@ -55,17 +55,24 @@ public static partial class PolicyFunctions
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
         var roots = new List<ForecastCommitment>(); var findings = new SortedSet<string>(StringComparer.Ordinal);
         var truncated = operationRows.Length > operations.Length || stockRows.Length > stock.Length; var remaining = 16384;
-        foreach (var root in suppliedRoots.OrderBy(r => r.Id, StringComparer.Ordinal))
+        var orderedRoots = suppliedRoots.OrderBy(r => r.Id, StringComparer.Ordinal).ToArray();
+        for (var rootIndex = 0; rootIndex < orderedRoots.Length; rootIndex++)
         {
-            if (remaining == 0) { truncated = true; break; }
+            if (remaining == 0)
+            { truncated = true; findings.Add("unvisited_composition_roots:" + (orderedRoots.Length - rootIndex)); break; }
+            var root = orderedRoots[rootIndex];
+            // Reserve an opportunity for later independent roots. An expensive first
+            // branch must not consume the entire census before any other root is tried.
+            var allowance = Math.Min(2048, Math.Max(1, remaining / (orderedRoots.Length - rootIndex)));
             var composed = ComposeActivityDependencies(new()
             {
                 Operations = EquatableArray.From(operations), Observed = EquatableArray.From(stock),
                 Roots = root.ActivityCompletions, Horizon = horizon,
                 RootRequirements = EquatableArray.From((rootRequirements?.GetValueOrDefault(root.Id) ?? []).Select(Canonical)),
-                ExpansionBudget = Math.Min(2048, remaining), ResultLimit = 32
+                ExpansionBudget = allowance, ResultLimit = 32
             });
             remaining -= composed.Expansions; truncated |= composed.Truncated; findings.UnionWith(composed.Findings);
+            if (composed.Truncated) findings.Add("root_composition_truncated:" + root.Id);
             foreach (var graph in composed.Graphs)
             {
                 // Reserve generation room for current needs; omitted realizations remain explicitly unassessed.
@@ -102,7 +109,9 @@ public static partial class PolicyFunctions
                                             && source.Resource == input.Resource && (source.Lot.Length == 0 ? source.Id : source.Lot) == input.Lot).ToArray();
                                         return new SelectedActivityInput(input.Resource.Value, input.Lot, checked((int)input.Units.Value),
                                             binding.Source ?? binding.Location, string.Join(";", links.Select(a => a.Provenance)))
-                                        { Observed = links.Length > 0 && links.All(a => a.Producer.Length == 0) };
+                                        { Observed = links.Length > 0 && links.All(a => a.Producer.Length == 0),
+                                            Producers = EquatableArray.From(links.Where(a => a.Producer.Length != 0)
+                                                .Select(a => Intern(a.Producer)).Distinct().Order(StringComparer.Ordinal)) };
                                     })) };
                         }
                         mapped[id] = mappedId;

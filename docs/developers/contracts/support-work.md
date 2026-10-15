@@ -19,13 +19,31 @@ cannot acquire an invented requirement to finish cleaning first.
 Native room mechanics bound the supported consequences. Food production samples
 the room's food-poison chance when the recipe produces its output. Tending can
 sample the room's infection factor into the wound's later infection calculation;
-that factor is conditional on other native state. It is not an absolute infection
-probability, prognosis or guaranteed health improvement. Cleaning afterward cannot
+that factor is conditional on other native state. Each worker/medicine alternative
+observes the native single-treatment batch, whether its infection component still
+has an applicable pending check, and the earliest check window. A bruise or an
+already-resolved check gains no cleanliness benefit. Unsupported component state
+and treatment finishing outside the observed window remain unknown. Comparison
+uses the room factor only for applicable treatment completed before that window.
+It is not an absolute infection probability, prognosis or guaranteed health improvement. Cleaning afterward cannot
 change a factor already sampled by a completed service. Post-care work needs a
 remaining room or service demand, rather than retroactive credit for treatment.
 Surgery uses the native room cleanliness success factor for the same supported
 operation. That factor is distinct from an overall surgical success probability;
 other native success conditions still apply.
+
+External doctors require the humanlike patient to be in bed under native rules.
+The current graph does not own a joint patient-bed retention obligation. When the
+patient is standing, the census reports
+`care_patient_not_in_bed_external_doctor_unavailable`; it does not invent an
+external-doctor candidate. Legal self-tending remains an alternative. The routine
+fixture does not establish coordinated patient positioning or bed retention.
+Tend eligibility checks every installed native tending subclass for each observed
+worker/patient pair; an urgent-only giver cannot stand in for routine or self care.
+Equivalent legal givers are deduplicated by stable definition name, and the chosen
+legal giver identity travels with the exact treatment operation. The routine fixture
+asserts that its self-service capability exists beyond the first registered urgent
+giver before exercising normal selection and completed work.
 
 Missing room effects, routes, eligible workers or service timing remain explicit
 unknowns. An unknown cleanliness benefit never becomes a free health guarantee.
@@ -92,7 +110,7 @@ The affected acceptance inventory is:
 | --- | --- |
 | `clean/bench` | Rewrite: selected cleaning and actual bench output; remove the five-filth job-substitution assertion. |
 | `clean/care` | Rewrite: observed critical-owner treatment within the fixture service budget and separately journaled useful cleanup; remove surgery job substitution and tend-finalizer assertions. The budget is not a health prognosis. |
-| `clean/care-routine` | Add: observed selected treatment for a nonbleeding injury through the coupled Method and Hands. |
+| `clean/care-routine` | Observed selected treatment and useful cleaning for a nonbleeding burn through the coupled Method and Hands. One native burn is initialized under fixture-only seed `312735`, with surrounding RNG restored; setup asserts a real pending infection check beyond the care budget. This conditioned mechanics case makes no incidence claim. Self-tending is enabled as a legal alternative; external doctors remain available when native patient positioning permits. |
 | `storage/refill-hysteresis` | Rewrite: demand-bounded delivery and production; remove full-stack withholding assertions. The name remains for case continuity. |
 | `storage/changed-demand` | Add: withdraw a bill after selected pickup and observe release of the obsolete obligation. |
 | `clearance/chunk-dump` | Rewrite: demanded chunk pickup and bounded delivery while unrelated chunks stay untouched; remove global hauling expectations. Stonecutting output is diagnostic, not proof of a new exact recipe adapter. |

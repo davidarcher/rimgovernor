@@ -4,7 +4,7 @@
 
 `CriticalMedical` selects native-approved doctor/patient pairs by bleeding deadline,
 native life-threatening state and stable identity. It preserves `NoCare`, player
-work overrides and self-tend policy. A completed treatment permits a later tend in
+work overrides and self-tend policy. Assignment review preserves the observed self-tend permission; it does not disable self-treatment because another doctor has a higher nominal quality. Shared care selection compares native-legal treatment options. Explicit native self-tend setting operations and their readback remain available. A completed treatment permits a later tend in
 the same concern episode; a later confirmed, completed autonomous treatment can admit
 a new step after fresh native eligibility. Pending and uncertain work cannot.
 Actions and receipts stay retained across persistence and method archival. The
@@ -38,6 +38,28 @@ unknown health fact, holds every action. A colonist who only needs tending is th
 tend planner's patient, one downed with nothing to tend is the rescue planner's,
 and neither holds anything. The clock window acknowledges every colonist known
 downed so the native watcher lets rescue and recovery take ticks.
+
+## Dependent patients
+
+The same `CriticalMedicine` Incident owns eligible tending and rescue for the
+native dependent-patient census. It includes nonhostile humanlike hosted guests,
+spawned subjects of active refugee-pod rescue objectives, and entities currently
+held on a player holding platform. Free colonists remain in their original census;
+ordinary prisoners, hostile acquisition targets and slaves are not added by this
+adapter. An active rescue objective may retain a housed prisoner as a tend patient.
+
+Each dependent carries explicit rescue and tend applicability. Held entities are
+tend-only. An unhoused nonhostile rescue objective is rescue-eligible; tending
+becomes applicable when hosted. Native health, bed, care, reachability and threat
+checks still decide whether an exact order is legal. Existing urgency thresholds
+are unchanged. The patient union does not enlarge the colonist doctor, rescuer or
+combat roster. Downed patient acknowledgements use the same observed identities.
+
+A missing census, unresolved pawn reference, or unknown capability/health fact is
+unknown care evidence, never an empty or recovered need. Duplicate membership and
+unknown population groups are contract errors. The native frame adds health detail
+for these patients through the existing pawn table; no patient store is introduced.
+MaintainPopulation no longer dispatches a parallel rescue or tend Method for these patients. Capability-approved critical care uses the existing Incident owner; noncritical dependent care and unsupported custody transport remain unmet pending shared forecast support.
 
 ## Maintained care
 

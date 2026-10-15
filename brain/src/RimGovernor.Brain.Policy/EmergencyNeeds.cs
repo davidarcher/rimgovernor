@@ -54,7 +54,7 @@ public static partial class PolicyFunctions
     private static long CountPatients(EmergencySnapshot snapshot, bool tending)
     {
         long patients = 0;
-        foreach (var pawn in snapshot.Facts.Colonists)
+        foreach (var pawn in EmergencyPatients(snapshot.Facts))
         {
             if (pawn.Dead.TryGetValue(out var dead) && dead)
             {
@@ -89,7 +89,7 @@ public static partial class PolicyFunctions
             return (patients, urgent);
         }
         var byId = new Dictionary<PawnId, EmergencyPawn>();
-        foreach (var pawn in snapshot.Facts.Colonists)
+        foreach (var pawn in EmergencyPatients(snapshot.Facts))
         {
             byId[pawn.Id] = pawn;
         }

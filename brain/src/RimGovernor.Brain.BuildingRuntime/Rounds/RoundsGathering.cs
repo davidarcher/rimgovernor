@@ -25,7 +25,7 @@ public sealed partial class Rounder
     }
 }
 
-/// <summary>Composes HoldGatherings' rounds step: one organizer throws a gathering on a colony-wide mood dip.</summary>
+/// <summary>Reports gathering demand until shared forecast participation is supported.</summary>
 public sealed partial class RoundsGatheringPlanner
 {
     internal Rounder Reviewer { get; init; } = null!;
@@ -46,11 +46,6 @@ public readonly record struct RoundsGatheringResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 
     public PlanId Plan { get; init; }
-}
-
-internal static partial class BuildingRuntimePackage
-{
-    internal const string GatheringMethodPrefix = "gathering-";
 }
 
 public sealed partial class RoundsGatheringPlanner
@@ -118,30 +113,7 @@ public sealed partial class RoundsGatheringPlanner
             return new RoundsGatheringResult { Verdict = WaitFor(Cause.MethodUsed, "gathering_plan") };
         }
 
-        var (method2, verdict, ok) = AdmitStandardMethod(p.Journal, goal, GatheringMethodPrefix, state.Snapshot, call);
-        if (!ok)
-        {
-            return new RoundsGatheringResult { Verdict = verdict };
-        }
-
-        if (!arbiter.TryClaim([party.Organizer]))
-        {
-            return new RoundsGatheringResult { Verdict = ClaimHeld("organizer") };
-        }
-
-        var gathering = new Gathering(party.Def, (Domain.PawnId)party.Organizer);
-        var id = PlanIds.MintPlanId();
-        var action = DomainAction.NewGatheringAction(new ActionId($"{id}-0"), gathering);
-        var spec = new PlanSpec(id, new PlanRevision(1), [action]);
-        p.Current(call, epoch);
-        var elapsed = Reviewer.Clock.Now() - started;
-        if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge)
-        {
-            throw new ControlException("step: session state changed or the read took too long");
-        }
-
-        var reason = $"gathering: {party.Organizer} organizes a {party.Def} on a colony-wide mood dip";
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method2, reason, spec, call);
-        return new RoundsGatheringResult { Verdict = BuildingReasonAdmitted, Plan = id };
+        return new RoundsGatheringResult { Verdict = AwaitingPlan("unsupported_forecast_gathering",
+            "Gathering participation requires shared forecast occupancy and need effects.") };
     }
 }

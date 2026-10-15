@@ -65,7 +65,7 @@ public sealed partial class RoundsStockpilePlanner
                 {
                     var outcome = new RoundsStockpileResult { Verdict = dug.Verdict };
                     PlanId plan = default;
-                    foreach (var m in dug.Decision.Standard.Methods)
+                    foreach (var m in dug.Decision?.Standard.Methods ?? [])
                     {
                         if (m.MethodId == rockMethod)
                         {

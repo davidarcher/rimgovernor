@@ -14,7 +14,12 @@ namespace HomeBridge.BridgeTools
         internal static void Cleanup(Bill? bill)
         {
             if (bill is Bill_GovernorRecipe owned && owned.BoundUft == null && !owned.DeletedOrDereferenced)
+            {
+                // Cleanup of this exact admitted intent is not a player bill edit.
+                using var attribution = NativeControlAuthority.TryGetForGame(Current.Game, out var authority)
+                    && authority?.Status().Active == true ? authority.Owned() : null;
                 owned.billStack.Delete(owned);
+            }
         }
         internal static bool ResolveRecipe(Pawn pawn, Thing target, string workGiver, string billId, string recipeId,
             out Bill_Production? bill, out string reason)
@@ -130,9 +135,11 @@ namespace HomeBridge.BridgeTools
             if (create && bill == null)
             {
                 bill = new Bill_GovernorRecipe(recipe);
-                bill.suspended = true; // Only this exact Hands assignment executes it; native priority scans cannot.
                 bill.SetStoreMode(BillStoreModeDefOf.DropOnFloor);
                 bill.ingredientFilter.SetDisallowAll(); bill.ingredientFilter.SetAllow(stuff, true);
+                // This exact recipe was already journaled and installed by Hands. Provisioning
+                // occurs when its native job starts, after the dispatch scope has ended.
+                using var attribution = NativeControlAuthority.ForGame(Current.Game).Owned();
                 bench.BillStack.AddBill(bill);
             }
             reason = ""; return true;
@@ -143,7 +150,10 @@ namespace HomeBridge.BridgeTools
     public sealed class Bill_GovernorRecipe : Bill_ProductionWithUft
     {
         public Bill_GovernorRecipe() { }
-        public Bill_GovernorRecipe(RecipeDef recipe) : base(recipe) { suspended = true; }
+        public Bill_GovernorRecipe(RecipeDef recipe) : base(recipe) { }
+        // Native recipe work refuses suspended bills. Keep priority scanning ineligible
+        // without suspending the exact job already authorized by Hands.
+        public override bool ShouldDoNow() => false;
     }
 
     /// <summary>Exact queued ingredients and one native recipe iteration. Product delivery is a separate assignment.</summary>

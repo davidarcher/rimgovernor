@@ -7,7 +7,7 @@ internal static class ClothingActivityCase
     internal static AcceptanceCase Case(bool interrupted = false) => new()
     {
         Name = "production/clothing-activity" + (interrupted ? "-unfinished" : ""),
-        Scope = "Prepared clothing deficit enters normal RoundsGear, shared comparison, Method journal and Hands without fixture-selected bill or material. Observe selected-stuff garment creation and exact input conservation, participant release, and optionally resumption of observed unfinished work. Unit tests cannot prove native recipe conversion or unfinished-item conservation.",
+        Scope = "Prepared clothing deficit enters normal RoundsGear, shared comparison, Method journal and Hands without fixture-selected bill or material. Observe selected-stuff garment creation and exact input conservation, participant release, and optionally resumption of observed unfinished work. The interrupted case supplies only one native-minimum garment quantity of one material; the normal case retains competing materials and split stacks. Unit tests cannot prove native recipe conversion or unfinished-item conservation.",
         Start = new FixtureStart { Op = "test/clothing_activity_prepare", On = new LabStart(), Args = new JsonObject { ["interrupt"] = interrupted } },
         RequiredOps = ["test/clothing_activity_prepare", "test/clothing_activity_read"], QuietWorld = true,
         Crew = new Crew { Size = 3 }, Service = true, NoCheckpoint = true, Budget = TimeSpan.FromMinutes(5), Stall = TimeSpan.FromSeconds(45),

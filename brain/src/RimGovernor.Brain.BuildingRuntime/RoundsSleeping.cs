@@ -10,7 +10,8 @@ public sealed record RoundsBuildingResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
 
-    public Sto.BuildingMethodDecision Decision { get; init; } = default!;
+    /// <summary>Absent when the building planner abstains before an admission decision.</summary>
+    public Sto.BuildingMethodDecision? Decision { get; init; }
 
     /// <summary>
     /// Bounds ordinary roofing or comfort use after observed construction. It neither asserts recovery nor grants

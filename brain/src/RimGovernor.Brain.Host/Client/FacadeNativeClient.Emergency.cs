@@ -188,7 +188,7 @@ internal sealed partial class FacadeNativeClient
             {
                 throw Contract("requested emergency section missing");
             }
-            EmergencyIssues(v.Issues, field => (field == "colonists" && v.Colonists.Count > 0) || field == "threats");
+            EmergencyIssues(v.Issues, field => (field == "colonists" && v.Colonists.Count > 0) || field == "threats" || (field == "dependent_patients" && v.DependentPatients is not null));
             var complete = Known(true);
             foreach (var issue in v.Issues)
             {
@@ -237,6 +237,21 @@ internal sealed partial class FacadeNativeClient
                 colonists.Add(pawn);
             }
 
+            Fact<EquatableArray<Policy.EmergencyDependentPatient>> dependentPatients = default;
+            if (v.DependentPatients is { } census)
+            {
+                var patients = new List<Policy.EmergencyDependentPatient>();
+                foreach (var reference in census.Patients)
+                {
+                    if (reference.Group is not { } group || !Enum.IsDefined(group))
+                        throw Contract("dependent patient group missing or invalid");
+                    var (pawn, _) = EmergencyPawn(reference.Pawn, pawns);
+                    if (!seen.Add(pawn.Id)) throw Contract("duplicate dependent patient or colonist");
+                    Observe(pawn);
+                    patients.Add(new(pawn, group, EmergencyBool(reference.Rescue), EmergencyBool(reference.Tend)));
+                }
+                dependentPatients = Known(EquatableArray.From(patients));
+            }
             // Go classifies the native's threat fact rows; the threats are listed kind by kind in ThreatKind order,
             // each kind in row order.
             var byKind = new Dictionary<PolicyThreatKind, List<PolicyEmergencyThreat>>();
@@ -308,7 +323,7 @@ internal sealed partial class FacadeNativeClient
                 seen.Add(threat.Id);
                 threats.Add(threat);
             }
-            return new Bridge.Contracts.EmergencyObservation(context, new PolicyEmergencyFacts { ColonistsComplete = complete, Colonists = colonists, Threats = threats });
+            return new Bridge.Contracts.EmergencyObservation(context, new PolicyEmergencyFacts { ColonistsComplete = complete, Colonists = colonists, DependentPatients = dependentPatients, Threats = threats });
         }
 
         /// <summary>

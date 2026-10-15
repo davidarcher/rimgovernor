@@ -20,7 +20,8 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 Inputs = EquatableArray.From(t.GetProperty("Inputs").EnumerateArray().Select(i => new SelectedActivityInput(
                     i.Str("Resource"), i.Str("Lot"), i.GetProperty("Count").GetInt32(),
                     new(i.GetProperty("X").GetInt32(), i.GetProperty("Z").GetInt32()), i.Str("Provenance"))
-                    { Observed = i.GetProperty("Observed").GetBoolean() })),
+                    { Observed = i.GetProperty("Observed").GetBoolean(),
+                        Producers = EquatableArray.From(i.GetProperty("Producers").EnumerateArray().Select(p => p.GetString()!)) })),
                 Source = t.GetProperty("Source") is var source && source.ValueKind != JsonValueKind.Null
                     ? new(source.GetProperty("X").GetInt32(), source.GetProperty("Z").GetInt32()) : null })) };
         value.Validate(); return value;
@@ -64,7 +65,8 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             {
                 w.WriteStartObject(); w.WriteString("Resource", input.Resource); w.WriteString("Lot", input.Lot);
                 w.WriteNumber("Count", input.Count); w.WriteNumber("X", input.Location.X); w.WriteNumber("Z", input.Location.Z);
-                w.WriteString("Provenance", input.Provenance); w.WriteBoolean("Observed", input.Observed); w.WriteEndObject();
+                w.WriteString("Provenance", input.Provenance); w.WriteBoolean("Observed", input.Observed);
+                w.WritePropertyName("Producers"); w.WriteStartArray(); foreach (var producer in input.Producers) w.WriteStringValue(producer); w.WriteEndArray(); w.WriteEndObject();
             }
             w.WriteEndArray();
             w.WriteStartArray("Prerequisites"); foreach (var dependency in task.Prerequisites) w.WriteStringValue(dependency); w.WriteEndArray();

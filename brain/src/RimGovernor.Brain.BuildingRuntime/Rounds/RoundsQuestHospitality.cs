@@ -25,6 +25,9 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "quest_hosting"), NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, false);
         }
 
+        if (work.Shuttle is { Loading: ShuttleLoading.ExplicitPawns } or { Loading: ShuttleLoading.Autoload, Autoload: true })
+            return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_shuttle_loading",
+                "Shuttle loading requires shared forecast participation and completion admission.") }, true);
         var id = PlanIds.MintPlanId();
         DomainAction? action = null;
         var methodBase = "";

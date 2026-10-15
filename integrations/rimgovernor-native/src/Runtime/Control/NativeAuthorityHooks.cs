@@ -61,6 +61,8 @@ namespace HomeBridge.BridgeTools
         private static readonly List<Spec> Specs = new List<Spec>
         {
             new Spec("Pawn_JobTracker.TryTakeOrderedJob", () => AccessTools.Method(typeof(Pawn_JobTracker), "TryTakeOrderedJob", new[] { typeof(Job), typeof(JobTag?), typeof(bool) }), null, nameof(OrderedJob)),
+            new Spec("FloatMenuOption.Chosen", () => AccessTools.Method(typeof(FloatMenuOption), "Chosen", new[] { typeof(bool), typeof(FloatMenu) }), nameof(PlayerMenuChoice), null),
+            new Spec("Targeter.BeginTargeting.Immediate", () => AccessTools.Method(typeof(Targeter), "BeginTargeting", new[] { typeof(ITargetingSource), typeof(ITargetingSource), typeof(bool), typeof(Func<LocalTargetInfo, ITargetingSource>), typeof(Action), typeof(bool) }), nameof(PlayerImmediateTarget), null),
             new Spec("Pawn_WorkSettings.SetPriority", () => AccessTools.Method(typeof(Pawn_WorkSettings), "SetPriority", new[] { typeof(WorkTypeDef), typeof(int) }), nameof(BeforeWork), nameof(AfterWork)),
             new Spec("Zone_Growing.SetPlantDefToGrow", () => AccessTools.Method(typeof(Zone_Growing), "SetPlantDefToGrow", new[] { typeof(ThingDef) }), nameof(BeforeCrop), nameof(AfterCrop)),
             new Spec("Zone.AddCell", () => AccessTools.Method(typeof(Zone), "AddCell", new[] { typeof(IntVec3) }), nameof(BeforeZoneCell), nameof(AfterZoneCell)),
@@ -250,6 +252,17 @@ namespace HomeBridge.BridgeTools
         { if (__instance.Initialized && __state != __instance.GetPriority(__0)) Revoke(NativeControlRevocationReason.PlayerControl); }
         // Gizmo toggles express player direction, including direct sow/cut field writes.
         private static void PlayerToggle() => Revoke(NativeControlRevocationReason.PlayerControl);
+        // Revoke before actual UI callbacks: some native commands directly StartJob without
+        // marking playerForced or passing through TryTakeOrderedJob.
+        private static void PlayerMenuChoice(FloatMenuOption __instance, bool colonistOrdering)
+        {
+            if (colonistOrdering && !__instance.Disabled && __instance.action != null)
+                Revoke(NativeControlRevocationReason.PlayerControl);
+        }
+        private static void PlayerImmediateTarget(ITargetingSource source)
+        {
+            if (!source.Targetable) Revoke(NativeControlRevocationReason.PlayerControl);
+        }
         private static readonly FieldInfo CropField = AccessTools.Field(typeof(Zone_Growing), "plantDefToGrow");
         private static void BeforeCrop(Zone_Growing __instance, out object? __state) => __state = CropField.GetValue(__instance);
         private static void AfterCrop(Zone_Growing __instance, object? __state)

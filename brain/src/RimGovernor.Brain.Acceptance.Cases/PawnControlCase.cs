@@ -21,10 +21,13 @@ internal static class PawnControlCase
             _ = await s.Harness.CallAsync("install", "test/pawn_control_install", [], ct).ConfigureAwait(false);
             var facts = await NativeReads.ColonyFactsAsync(s, "work-resource-observation", false, ct).ConfigureAwait(false);
             var resources = facts["workResources"].Rows().ToArray();
-            if (resources.Length < 3 || !resources.Any(r => r["assignment"].AsString().Length > 0)
-                || resources.Any(r => r["localHour"].AsNumber() is < 0 or >= 24 || r["carriedCount"].AsNumber() < 0))
-                throw new AcceptanceException("Missing native work ownership, carried-input or local-hour observations.");
             s.Report["workResources"] = facts["workResources"]?.DeepClone();
+            if (resources.Length < 3 || !resources.Any(r => r["assignment"].AsString().Length > 0)
+                || resources.Any(r => r["localHour"].AsNumber() is < 0 or >= 24
+                    // Nonnullable zero CarriedCount is omitted by the native wire serializer.
+                    || (r["carriedCount"]?.AsNumber() ?? 0) < 0
+                    || (r["carriedThing"].AsString().Length > 0) != ((r["carriedCount"]?.AsNumber() ?? 0) > 0)))
+                throw new AcceptanceException("Missing native work ownership, carried-input or local-hour observations.");
             s.Report["lifecycle"] = await s.Harness.CallAsync("lifecycle", "test/pawn_control_lifecycle", [], ct).ConfigureAwait(false);
         },
     };

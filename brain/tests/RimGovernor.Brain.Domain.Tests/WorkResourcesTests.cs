@@ -49,6 +49,95 @@ public sealed class WorkResourcesTests
     private static WorkAction Pending(DomainAction action) => new(new("owner"), action, new() { Action = action.Id, Stage = Stage.Pending });
 
     [Fact]
+    public void ProducedFoodRetainsItsPendingDeliveryShareWithoutCreatingStock()
+    {
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, "output", "", "", 6, 500) { Destination = new(2, 2) };
+        var task = new SelectedActivityTask("deliver", "helper", [], step, new(1, 1), 100)
+        { Resource = "Rice", Inputs = [new("Rice", "harvest-output", 6, new(1, 1), "harvest") { Producers = ["harvest"] }] };
+        var action = DomainAction.NewPawnActivitiesAction(new("pending-output"), new(1,
+            [new("helper", "helper-assignment", "harvest-method", 0, 1, false,
+                [new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Task = "deliver", Preparing = true }]) { Tasks = [task] });
+        var facts = WorkResourceTestFacts.Create("helper", "eater") with
+        { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 7)]) };
+        var held = View(facts, Pending(action));
+        Assert.Equal(1, held.Materials.Value[new("Rice")].Value);
+        Assert.False(WorkResourcesFit(held, Plan("hungry", Eat(7))));
+        Assert.True(WorkResourcesFit(held, Plan("spare", Eat(1))));
+        var producer = new SelectedActivityTask("harvest", "helper", [],
+            new(PawnActivityKind.Work, "plant", "Harvest", "Harvest", 0, 500), new(1, 1), 100);
+        var beforeHarvest = DomainAction.NewPawnActivitiesAction(action.Id, action.PawnActivities! with { Tasks = [producer, task] });
+        Assert.Equal(7, View(facts, Pending(beforeHarvest)).Materials.Value[new("Rice")].Value);
+        var noStock = facts with { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 0)]) };
+        Assert.True(View(noStock, Pending(action)).Materials.Value[new("Rice")].Value <= 0);
+
+        static DomainAction Eat(int count)
+        {
+            var eat = new PawnActivityStep(PawnActivityKind.Eat, "rice", "", "", count, 500);
+            return DomainAction.NewPawnActivitiesAction(new("eat"), new(1,
+                [new("eater", "eat-assignment", "eat-method", 0, 1, false, [eat]) { Task = "eat-task" }])
+            { Tasks = [new("eat-task", "eater", [], eat, new(1, 1), 100)
+                { Resource = "Rice", Inputs = [new("Rice", "rice", count, new(1, 1), "observed") { Observed = true }] }] });
+        }
+    }
+
+    [Fact]
+    public void FutureConsumingCommitmentReservesQuantityButKeepsItsWholeObservedLotExclusive()
+    {
+        // Native repeat-needs exposed this conservative boundary (#3194): nineteen
+        // actual units remain, fifteen promised to future eating, four numerically
+        // spare. Another pawn cannot borrow those four through the same exact target.
+        var step = new PawnActivityStep(PawnActivityKind.Eat, "shared-rice", "", "", 15, 2000);
+        var task = new SelectedActivityTask("future-eat", "helper", [], step, new(2, 2), 1000)
+        { Inputs = [new("Rice", "shared-rice", 15, new(2, 2), "observed need target") { Observed = true }] };
+        var heldAction = DomainAction.NewPawnActivitiesAction(new("future-eat-action"), new(1,
+            [new("helper", "helper-assignment", "helper-method", 1, 2, false,
+                [new(PawnActivityKind.Approach, "", "", "", 0, 2000) { Destination = new(2, 2), NotBefore = 1000 },
+                 new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Task = task.Id, Preparing = true }]) { Tasks = [task] });
+        var facts = WorkResourceTestFacts.Create("helper", "eater") with
+        {
+            Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 19)]),
+            WorkResources = Known<EquatableArray<WorkResourcePawn>>([
+                new("helper", "helper-assignment", 2, "holding", "", "", 0),
+                new("eater", "", 0, "", "", "", 0)])
+        };
+        var row = Pending(heldAction) with { Progress = new() { Action = heldAction.Id, Stage = Stage.Completed,
+            Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(99) } };
+        var held = View(facts, row);
+        Assert.Equal(19, Assert.Single(held.Evidence.Stock.Value).Count);
+        Assert.Equal(4d, held.Materials.Value[new("Rice")].Value);
+        Assert.Contains("shared-rice", held.Claims.Targets);
+        var eat = step with { Count = 4 };
+        var borrow = DomainAction.NewPawnActivitiesAction(new("borrow"), new(1,
+            [new("eater", "eater-assignment", "eater-method", 0, 1, false, [eat]) { Task = "eat-four" }])
+            { Tasks = [new("eat-four", "eater", [], eat, new(2, 2), 100)
+                { Inputs = [new("Rice", "shared-rice", 4, new(2, 2), "observed need target") { Observed = true }] }] });
+        Assert.False(WorkResourcesFit(held, Plan("borrow-plan", borrow)));
+    }
+
+    [Fact]
+    public void SelectedInputFrontierCountsBranchesButNotDownstreamHandoffs()
+    {
+        var delivery = new SelectedActivityTask("delivery", "helper", [],
+            new(PawnActivityKind.Deliver, "rice", "", "", 6, 500) { Destination = new(2, 2) }, new(1, 1), 100)
+        { Inputs = [new("Rice", "rice", 6, new(1, 1), "physical") { Observed = true }] };
+        var consume = delivery with { Id = "consume", Inputs = [new("Rice", "delivered", 6, new(1, 1), "transfer") { Producers = ["delivery"] }] };
+        var branch = delivery with { Id = "branch", Inputs = [new("Rice", "rice", 1, new(1, 1), "physical") { Observed = true }] };
+        var action = DomainAction.NewPawnActivitiesAction(new("frontier"), new(1,
+            [new("helper", "assignment", "method", 0, 1, false, [delivery.Step]) { Task = "delivery" }])
+        { Tasks = [delivery, consume, branch] });
+        var facts = WorkResourceTestFacts.Create("helper");
+        Assert.Equal(3, View(facts, Pending(action)).Materials.Value[new("Rice")].Value);
+        Assert.Equal(3, View(facts, Pending(action), Pending(DomainAction.NewPawnActivitiesAction(new("revision"), action.PawnActivities!)))
+            .Materials.Value[new("Rice")].Value);
+        facts = facts with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
+            new("helper", "assignment", 1, "started", "carried", "Rice", 4)]) };
+        Assert.Equal(7, View(facts, Pending(action)).Materials.Value[new("Rice")].Value);
+        facts = facts with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
+            new("helper", "assignment", 1, "completed", "", "", 0)]) };
+        Assert.Equal(3, View(facts, Pending(action)).Materials.Value[new("Rice")].Value);
+    }
+
+    [Fact]
     public void ActualUnfinishedRecipeOwnsConsumedInputsOutsideLooseStock()
     {
         var action = DomainAction.NewPawnActivitiesAction(new("tailor"), new(1, [new("tailor", "garment", "method", 0, 1, false,
@@ -149,6 +238,26 @@ public sealed class WorkResourcesTests
         Assert.Equal(4, journal.ProductionMaterials(World, ct).Availability.Value[new("Rice")].Value);
         journal.Cancel(new("food"), new("food"), ct);
         journal.CommitMethod(craftOwner.Standard.Id, craftOwner.Revision, new("craft"), Plan("craft", Craft("bill")), ct);
+    }
+    [Fact]
+    public void ContestedNewActivityIsAnAdmissionRefusalAndPreservesExistingWork()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-contested-proposal-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
+        var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
+        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainArt);
+        journal.CommitMethod(existing.Standard.Id, existing.Revision, new("method"), Plan("held", Delivery("held")), ct);
+        var proposed = Delivery("proposed", "helper").PawnActivities!;
+        proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };
+        var refusal = Assert.Throws<NotAdmittedException>(() => journal.CommitMethod(proposer.Standard.Id,
+            proposer.Revision, new("proposal"), Plan("proposed", DomainAction.NewPawnActivitiesAction(new("proposed"), proposed)), ct));
+        Assert.Contains("work_resource_conflict_or_unknown", refusal.Message);
+        Assert.Empty(journal.LoadOwnerMethods(proposer, ct));
+        Assert.Equal(proposer.Revision, journal.LoadStandard(proposer.Standard.Id, ct).Revision);
+        Assert.False(journal.LoadPlan(new("held"), ct).Retired);
+        Assert.Equal(4, journal.WorkResources(World, ct).Materials.Value[new("Rice")].Value);
     }
     [Fact]
     public void UnknownQuantityOnlyBlocksItsResourceAndExhaustedCensusIsExplicit()

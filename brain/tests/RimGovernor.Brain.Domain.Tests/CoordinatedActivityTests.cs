@@ -9,11 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class CoordinatedActivityTests
 {
-    private static FoodActivityOption Food(string pawn, double approach, double work, double delivery, int count = 8, bool harvest = true) =>
-        new(pawn, "crop", "Rice", new(10, 10), new(30, 10), "Harvest", count, approach + delivery, work)
-        { ApproachTicks = Known(approach), DeliveryTicks = Known(delivery), NutritionPerUnit = Known(1.0), HarvestAllowed = Known(harvest) };
-    private static PawnActivities Start(params FoodActivityOption[] options) => StartFoodActivity(new()
-        { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) }, 1, "method", 2000, out _)!;
+    private static PawnActivities Start(bool helper = true) => ActivityContinuationFixtures.Harvest("producer", helper ? "helper" : null, 2000);
     private static ActivityTaskRead Read(PawnActivities batch, string producer = "completed", string helper = "holding", long tick = 300,
         params ActivityTaskBinding[] bindings) => new()
         {
@@ -23,55 +19,70 @@ public sealed class CoordinatedActivityTests
         };
 
     [Fact]
-    public void JointGenerationProposesHaulOnlyHelperAndSelfServiceAndCapacityAlternatives()
+    public void CompletedIdleReleasesBeforeReadyDeliveryRebindWithoutChangingItsObligation()
     {
-        var producer = Food("producer", 0, 20, 400);
-        var helper = Food("helper", 5, 500, 10, harvest: false);
-        var delegated = Start(producer, helper);
-        Assert.Equal("producer", delegated.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Work).Pawn);
-        Assert.Equal("helper", delegated.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver).Pawn);
-        Assert.True(delegated.Orders.Single(o => o.Pawn == "helper").Preparing);
-        Assert.Single(Start(producer, helper with { ApproachTicks = Known(800.0) }).Orders);
-        // Adding a tiny-capacity helper cannot reduce the self-service outcome to one item.
-        var smallHelper = Start(producer, helper with { Count = 1, DeliveryTicks = Known(100.0) });
-        Assert.Equal(8, smallHelper.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver).Step.Count);
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, "observed-output", "", "", 6, 2000)
+            { Destination = new(2, 2) };
+        var delivery = new SelectedActivityTask("delivery", "helper", [], step, new(1, 1), 100) { Resource = "Rice" };
+        var idleStep = new PawnActivityStep(PawnActivityKind.Idle, "", "", "", 0, 300);
+        var idle = new PawnActivityOrder("producer", "m/idle", "m", 0, 1, false, [idleStep]) { Task = "idle" };
+        var waiting = new PawnActivityOrder("helper", "m/helper", "m", 0, 1, false,
+            [new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Task = "delivery", Preparing = true };
+        var batch = new PawnActivities(1, [idle, waiting])
+            { Tasks = [new("idle", "producer", [], idleStep, new(3, 3), 0), delivery] };
+        var cleanup = ContinueCoordinatedActivity(batch, Known(true), Read(batch, bindings:
+            [new("delivery", step with { Target = "shared-stack" })]))!;
+        Assert.True(cleanup.Orders[0].Release);
+        Assert.True(PawnActivities.SameOrder(waiting, cleanup.Orders[1]));
+        Assert.Equal(delivery, Assert.Single(cleanup.Tasks));
+        var rebound = ContinueCoordinatedActivity(cleanup, Known(true), Read(cleanup, bindings:
+            [new("delivery", step with { Target = "shared-stack" })]))!;
+        Assert.Equal("shared-stack", Assert.Single(rebound.Orders).Steps[0].Target);
+        Assert.Equal(6, rebound.Tasks[0].Step.Count);
+        Assert.All(ContinueCoordinatedActivity(cleanup, Known(true), Read(cleanup, tick: 2000))!.Orders,
+            o => Assert.True(o.Release));
     }
-
-    [Fact]
-    public void UnknownRoutesCannotAcquireAndTruncationIsVisible()
-    {
-        var read = new FoodActivityRead { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = [Food("producer", 0, 20, 10) with { ApproachTicks = default }] };
-        Assert.Null(StartFoodActivity(read, 1, "m", 2000, out var comparison));
-        Assert.Contains(comparison!.Findings, f => f.Contains("unknown_route", StringComparison.Ordinal));
-        StartFoodActivity(read with { Truncated = true }, 1, "m", 2000, out comparison);
-        Assert.Contains("generation_truncated", comparison!.Findings);
-    }
-
-    [Fact]
-    public void HarvestCompletionKeepsFoodReconsiderationPendingWhileHelperApproaches()
-    {
-        var batch = Start(Food("producer", 0, 20, 400), Food("helper", 5, 500, 10, harvest: false));
-        var approaching = Read(batch, helper: "started");
-        Assert.NotNull(FoodReconsideration(batch, approaching));
-        Assert.Null(ReconsiderObservedFood(batch, Known(true), approaching,
-            new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 } }, out _));
-        Assert.NotNull(FoodReconsideration(batch, Read(batch, helper: "holding")));
-    }
-
     [Fact]
     public void NoProgressDoesNotRestartParticipantsAndObservedOutputBindsExactHelper()
     {
-        var batch = Start(Food("producer", 0, 20, 400), Food("helper", 5, 500, 10, harvest: false));
+        var batch = Start();
         Assert.Null(ContinueCoordinatedActivity(batch, Known(true), Read(batch, "started")));
         var delivery = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
         var next = ContinueCoordinatedActivity(batch, Known(true), Read(batch, bindings:
             [new(delivery.Id, delivery.Step with { Target = "merged-observed-stack", Count = 3 })]))!;
         Assert.True(next.Orders.Single(o => o.Pawn == "producer").Release);
+        Assert.True(PawnActivities.SameOrder(batch.Orders.Single(o => o.Pawn == "helper"),
+            next.Orders.Single(o => o.Pawn == "helper")));
+        next = ContinueCoordinatedActivity(next, Known(true), Read(next, bindings:
+            [new(delivery.Id, delivery.Step with { Target = "merged-observed-stack", Count = 3 })]))!;
         Assert.Equal("merged-observed-stack", next.Orders.Single(o => o.Pawn == "helper").Steps[0].Target);
         Assert.Equal(8, next.Tasks.Single().Step.Count); // Partial binding is not eight units delivered.
         Assert.Equal(2000, next.Tasks.Single().Step.Deadline);
     }
 
+    [Fact]
+    public void EarlyCompletionInstallsBoundedPreparationUntilNextDeparture()
+    {
+        var batch = Start(false);
+        var delivery = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver) with { DepartTick = 500 };
+        batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == delivery.Id ? delivery : t)) };
+        var waiting = ContinueCoordinatedActivity(batch, Known(true), Read(batch, tick: 300))!;
+        var order = Assert.Single(waiting.Orders);
+        Assert.True(order.Preparing);
+        Assert.Equal(delivery.Id, order.Task);
+        Assert.Equal(batch.Orders[0].Revision + 1, order.Revision);
+        Assert.Equal(PawnActivityKind.Approach, order.Steps[0].Kind);
+        Assert.Equal(500, order.Steps[0].NotBefore);
+        Assert.Equal(PawnActivityKind.Hold, order.Steps[1].Kind);
+        Assert.All(order.Steps, step => Assert.Equal(2000, step.Deadline));
+        Assert.Null(ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "holding", tick: 400)));
+        Assert.True(ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "failed", tick: 400))!.Orders[0].Release);
+        var resumed = ContinueCoordinatedActivity(waiting, Known(true), Read(waiting, "holding", tick: 500,
+            bindings: [new(delivery.Id, delivery.Step with { Target = "actual-output" })]))!;
+        Assert.False(resumed.Orders[0].Preparing);
+        Assert.Equal("actual-output", resumed.Orders[0].Steps[0].Target);
+        Assert.Equal(order.Revision + 1, resumed.Orders[0].Revision);
+    }
     [Fact]
     public void PartialDeliveryAndCarriedRecoveryRetainRemainingQuantityAndOriginalDeadline()
     {
@@ -93,7 +104,7 @@ public sealed class CoordinatedActivityTests
     [Fact]
     public void KnownTimeoutAndTakeoverReleaseRemainingOwnersDespiteUnknownConcern()
     {
-        var batch = Start(Food("producer", 0, 20, 400), Food("helper", 5, 500, 10, harvest: false));
+        var batch = Start();
         Assert.All(ContinueCoordinatedActivity(batch, default, Read(batch, "started", tick: 2000))!.Orders, o => Assert.True(o.Release));
         var read = Read(batch, "started");
         read = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p.Pawn == "helper" ? p with { Execution = null } : p)) };
@@ -105,7 +116,7 @@ public sealed class CoordinatedActivityTests
     [Fact]
     public void FailedConsumingWorkNeverReplaysAndUnknownExecutionNeverCompletes()
     {
-        var batch = Start(Food("producer", 0, 20, 400));
+        var batch = Start(false);
         Assert.True(ContinueCoordinatedActivity(batch, Known(true), Read(batch, "failed"))!.Orders.Single().Release);
         Assert.Null(ContinueCoordinatedActivity(batch, Known(true), Read(batch) with { Known = false }));
         Assert.Null(ContinueCoordinatedActivity(batch, Known(true), Read(batch) with { Pawns = [] }));

@@ -13,6 +13,12 @@ loadout planner consumes. The role apparel policies are the
 
 ## Native observations and selection
 
+Automatic wearing and weapon equipping currently report explicit unsupported
+labor under the [voluntary-control boundary](voluntary-control.md). The loadout
+model below supplies requirements and diagnostics. Its physical-item ranking
+does not authorize a separate pawn job; explicit native operations retain their
+legality and completion contracts. Shared tailoring produces and delivers clothing.
+
 Planning `rimgovernor/observations_read_colony_facts` includes `planning.gear`. The separate typed
 `Observations.ReadGear` read reports current-map pawn identities, outfit/loadout
 signatures, worn and primary item identities, condition, quality, armor and thermal
@@ -27,8 +33,7 @@ policy the [apparel-policy operation](apparel-policy.md) assigns) and do not
 create forced entries. A loadout carries at most 8 candidates, the
 best by gain then thing id; the eligible items past that bound count as
 `filtered` in the loadout's completeness, so the routine colony facts do not
-grow with pawns x loose items. MaintainEquipment only wears the best funded
-candidate, and the wear order's own census applies the same bound. The census
+grow with pawns x loose items. The native wear operation's own census applies the same bound. The census
 candidates are apparel only; loose weapons are the equip family's. A
 `gear_replace` whose candidate the fresh census no longer offers as apparel, or
 whose wear preview refuses `NOT_FOUND`, is cancelled rather than held, so the
@@ -41,7 +46,7 @@ production families. Ordinary clothing instead uses the exact native recipe's
 stuff-adjusted work, worker speed, bench speed and routes in the shared activity
 comparison described below. Missing estimates remain explicit unknowns.
 
-Available eligible replacements precede production. Clothing demand generates
+Observed eligible replacements inform loadout requirements. Clothing demand generates
 competing garment recipes, stuffs, quantities and exact input allocations; only
 the selected alternative becomes a Method and Hands recipe intent. Existing
 supported bills and unfinished garments can be selected for execution. When a
@@ -184,8 +189,7 @@ bill gaps by definition and stuff; quality does not split demand. These are
 product quantities, not ingredient reservations or promises of crafted quality.
 
 `ReviewGear` exposes targets and demand when every pawn has a complete model.
-The existing method planner projects those gaps into replacement or demand-sized
-production methods. Loose/stored targets must still occur in the native eligible
+Shared clothing candidates project those gaps into production alternatives. Loose/stored targets must still occur in the native eligible
 candidate list; native gain admits the item, while model gain orders it. An
 unavailable admission stays blocked. Existing production resource checks and
 shared Hands execution remain authoritative.
@@ -197,7 +201,7 @@ and a signature covering load, map, outfit/filter, primary weapon, worn identiti
 and forced/locked state. It rechecks eligibility at dispatch and starts ordinary
 `Wear` or `Equip` work. Drafted, incapacitated, quest and player-ordered pawns are
 preserved. Selected tailoring rechecks native recipe legality and exact inputs;
-the normal equipment review owns the wearer need and physical replacement choice.
+the equipment model owns wearer requirements; automatic physical replacement remains unsupported.
 
 On Actions/Apply the apparel order is a `GiveJobIntent` with job `Wear`
 (`NativeGearOperations`). Native checks the pawn and the apparel
@@ -254,10 +258,10 @@ stockpile space before the standing stock bill. Spares default to disabled.
 ## Live clothing requirement selection
 
 Ordinary textile/leather garments use the normal `MaintainEquipment` review,
-`RoundsGearPlanner`, shared activity comparison, Method journal and Hands.
+normal shared candidate generation, ColonyForecast comparison, Method journal and Hands.
 The equipment loadout model owns demand. Generation reads every eligible
 `GearLoadoutInput.Options` garment/stuff option, not only the loadout winner's
-`Replacements`. Physical eligible replacements still precede new production.
+`Replacements`. Physical replacement execution needs a shared activity adapter.
 Nudist, taint, outfit, coverage and climate constraints remain equipment policy.
 
 `ClothingMethodCandidates` exposes transient recipe/delivery candidates to the
@@ -304,8 +308,8 @@ outcomes/32 tasks. Truncation is reported, never an optimum claim. A bundle uses
 one recipe per bench and distinct output cells; missing between-job routes can
 exclude sequential jobs on one worker. Route duration is a native path-cost
 estimate, not a simulation of pickup animations or future congestion. Relief uses
-observed Normal-quality stats; future crafted quality, future weather, coupled
-needs and colony-wide portfolio opportunity costs remain unassessed. Material
+observed Normal-quality stats; future crafted quality and future weather remain unassessed. Supported needs
+and participant commitments enter the shared portfolio comparison. Material
 scarcity is a hard shared budget, not a calibrated market-price valuation.
 
 `ClothingChoiceTests` covers shape/stuff/distance/scarcity reversals, stack splits,

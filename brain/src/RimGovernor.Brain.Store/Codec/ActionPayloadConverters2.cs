@@ -43,17 +43,6 @@ public sealed class IgniteConverter : ObjectCodec<Ignite>
     }
 }
 
-public sealed class MoodReliefConverter : ObjectCodec<MoodRelief>
-{
-    protected override MoodRelief Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Pawn", o), e.Get<MoodReliefNeed>("Need", o));
-
-    protected override void WriteFields(Utf8JsonWriter w, MoodRelief v, Codecs o)
-    {
-        w.Put("Pawn", v.Pawn, o);
-        w.Put("Need", v.Need, o);
-    }
-}
-
 public sealed class MoveBuildingConverter : ObjectCodec<MoveBuilding>
 {
     protected override MoveBuilding Read(JsonElement e, Codecs o) =>
@@ -119,7 +108,6 @@ public sealed class PawnSettingsConverter : ObjectCodec<PawnSettings>
             SettingKind.MechControlGroup => PawnSettings.NewMechControlGroupSetting(pawn, e.I32("MechControlGroup")),
             SettingKind.ChoosePermit => PawnSettings.NewChoosePermitSetting(pawn, e.Str("PermitFaction"), e.Str("PermitDef")),
             SettingKind.ExtractBioferrite => PawnSettings.NewExtractBioferriteSetting(pawn, e.Bool("ExtractBioferrite")),
-            SettingKind.EatTrigger => PawnSettings.NewEatTriggerSetting(pawn, e.Dbl("EatTrigger")),
             _ => throw new StoreCorruptException("unknown pawn setting kind"),
         };
     }
@@ -166,9 +154,6 @@ public sealed class PawnSettingsConverter : ObjectCodec<PawnSettings>
                 break;
             case SettingKind.ExtractBioferrite:
                 w.WriteBoolean("ExtractBioferrite", v.ExtractBioferrite!.Value);
-                break;
-            case SettingKind.EatTrigger:
-                w.WriteNumber("EatTrigger", v.EatTrigger!.Value);
                 break;
             default:
                 throw new StoreCorruptException("unknown pawn setting kind");

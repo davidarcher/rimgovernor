@@ -63,7 +63,7 @@ public static partial class PolicyFunctions
             }
             if (CaravanDeparture.TryCreate(trip.PawnIds.Select(p => (Domain.PawnId)p), [], route.Tile, out var departure))
             {
-                return departure;
+                return departure with { Mode = CaravanDepartureMode.ExistingRoute };
             }
         }
         return null;
@@ -162,7 +162,7 @@ public static partial class PolicyFunctions
         {
             return Fail("cargo_invalid");
         }
-        return result with { Departure = departure };
+        return result with { Departure = departure with { Mode = CaravanDepartureMode.SiteReform } };
     }
 
     private static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) SiteReturnCargo(SiteExtraction extraction, double days, bool loot)

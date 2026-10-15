@@ -71,7 +71,8 @@ end-to-end latency gate.
 
 ### Routine work admission
 
-Vanilla work priorities schedule queued pawn jobs. Concerns do not reserve
+Policy selects supported controlled-pawn work and needs. Native priorities do not
+choose their voluntary jobs. Concerns do not reserve
 exclusive development slots. Method ownership, open work, Safeguards,
 dependencies and per-planner bounds prevent duplicate or unsafe admission.
 

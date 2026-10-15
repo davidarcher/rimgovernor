@@ -409,37 +409,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit };
     }
 
-    internal static string DefenseRearmPrefix(string turret) => "defense-rearm-" + turret + "-";
-
-    internal RoundsDefenseLayoutResult Rearm(StandardState goal, RoundsReview review, ControlState state, RoundsReading read, DefenseRearm order, StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
-    {
-        var p = _reviewer.Player;
-        var tick = read.Projection.Identity.Tick;
-        var (verdict, ok) = AdmitStandardSubject(p.Journal, goal, DefenseRearmPrefix(order.Turret), state.Snapshot, call);
-        if (!ok)
-        {
-            return new RoundsDefenseLayoutResult { Verdict = verdict, Tier = PolicyApi.TierTurrets.Value };
-        }
-        if (arbiter is null || !arbiter.TryClaim([order.Pawn], "defense-rearm:" + order.Turret))
-        {
-            return new RoundsDefenseLayoutResult { Verdict = WaitFor(Cause.MethodUsed, "defense_rearm_claim"), Tier = PolicyApi.TierTurrets.Value };
-        }
-        var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"{DefenseRearmPrefix(order.Turret)}{tick.Value}"));
-        var id = PlanIds.MintPlanId();
-        var service = new RecoveryService((Domain.PawnId)order.Pawn, order.Turret, Domain.RecoveryMethod.Refuel);
-        var action = DomainAction.NewRecoveryServiceAction(new ActionId($"{id}-0"), service);
-        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-        p.Current(call, epoch);
-        var now = _reviewer.Clock.Now();
-        if (p.Session.State() != state || now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
-        {
-            throw DefenseControlErr(360);
-        }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "", plan, call);
-        DefenseAction("defense-layout", TelemetryLevel.Info, "applied", "rearm", order.Turret, new Dictionary<string, object?> { ["pawn"] = order.Pawn, ["fuel"] = order.Fuel, ["x"] = order.Cell.X, ["z"] = order.Cell.Z, ["method"] = method.Value }, call);
-        return new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = PolicyApi.TierTurrets.Value };
-    }
-
+    internal static RoundsDefenseLayoutResult Rearm(StandardState goal, RoundsReview review, ControlState state,
+        RoundsReading read, DefenseRearm order, StepArbiter? arbiter, CancellationToken call, CancellationToken epoch) =>
+        new() { Verdict = Verdict.AwaitingPlan("unsupported_forecast_turret_refuel",
+            "Routine turret refuel requires exact fuel, worker and outcome alternatives."), Tier = PolicyApi.TierTurrets.Value };
     internal static List<DefenseTurretFacts> DefenseTurretFactsOf(DefenseLayoutRecord record, DefenseCensus? census)
     {
         var output = new List<DefenseTurretFacts>();

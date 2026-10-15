@@ -62,7 +62,6 @@ public sealed partial class Rounder
     internal CreepJoinerMemory? CreepJoiners;
 
     /// <summary>Set when the mood relief planner is composed: it casts mood psycasts, so the review reads the royalty facts.</summary>
-    internal bool MoodCasts;
 
     /// <summary>The acceptance fault that pins the food plan's gap to zero (Faults.FoodGapZero); the scheduler sets it.</summary>
     internal bool FoodGapZero;
@@ -549,7 +548,6 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { CleanupPawns = Known(stray.Count > 0) });
         reading = reading.WithFacts(rf => rf with { HostilityOwed = PolicyApi.HostilityOwed(HostilityPawns(reading.Projection.WorkPawns), reading.Emergency.Threats) });
         reading = reading.WithFacts(rf => rf with { MedicalCareOwed = PolicyApi.MedicalCareOwed(reading.Projection.Facts, Policy.MedicalReserve) });
-        reading = reading.WithFacts(rf => rf with { SelfTendOwed = PolicyApi.SelfTendOwed(SelfTendPawns(reading.Projection.WorkPawns)) });
         reading = reading.WithFacts(rf => rf with { NamesOwed = PolicyApi.NamesOwed(reading.Projection.Facts.OwnedNames) });
         reading.Projection.ApplyFieldBudget(Seasonal(reading.Projection.Facts).FoodTargetDays);
         // The workshop ladder's recorded research rung is the derived EnsureResearch target; it is journal
@@ -560,7 +558,6 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { DefensiveLayoutStanding = RoundsDefensiveLayoutStanding(p.Journal, Policy, state.Snapshot, ct) });
         var medicine = PolicyApi.ReviewMedicalReserve(reading.Projection.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, Policy.MedicalReserve);
         reading = reading.WithFacts(rf => rf with { MedicineCarryOwed = PolicyApi.MedicineCarryOwed(reading.Projection.WorkPawns, medicine) });
-        reading = reading.WithFacts(rf => rf with { EatTriggerOwed = PolicyApi.EatTriggerOwed(reading.Projection.WorkPawns, EatTriggerColony(reading.Projection.Facts, Seasonal(reading.Projection.Facts))) });
         // A prisoner surgery blocked only by the herbal care limit.
         reading = reading.WithFacts(rf => rf with { ResourceNeeds = PolicyApi.PrisonerHerbalNeeds(reading.Projection.Facts.ResourceNeeds, reading.Projection.Facts, PolicyApi.RoundsSilverShort(reading.Projection.Facts, Policy, medicine.Active)) });
         // A willing colonist's psylink neuroformer, bought or made by the resource ladder.
@@ -610,18 +607,6 @@ public sealed partial class Rounder
                     if (PolicyApi.ConstructionSkillChoices(reading.Projection.Facts.CurrentConstruction, reading.Projection.WorkPawns).Count > 0)
                     {
                         reading = reading.WithFacts(rf => rf with { WorkCoverage = Known(false) });
-                    }
-                    // A timetable behind its role template is a work deficit the same review corrects.
-                    if (work.Matches.TryGetValue(out var matches) && matches)
-                    {
-                        reading.Projection.MeditateAvailable.TryGetValue(out var meditate);
-                        foreach (var row in PolicyApi.PlanSchedulesHeld(pawns, reading.Projection.Facts.Comfort, meditate, PolicyApi.HeldOffSleep(reading.Projection.Facts).ToDictionary(id => id, _ => true)).Schedules)
-                        {
-                            if (!row.Matches)
-                            {
-                                reading = reading.WithFacts(rf => rf with { WorkCoverage = Known(false) });
-                            }
-                        }
                     }
                     if (work.Capacity.IsKnown)
                     {
@@ -701,13 +686,14 @@ public sealed partial class Rounder
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
         reading = reading.WithFacts(rf => rf with { UnmetThroughput = [.. LedgerUnmet()] });
-        reading = reading.WithFacts(PolicyApi.ReviewCoupledActivities);
+        var reconsideration = PolicyApi.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
+        reading = reading.WithFacts(_ => reconsideration.Facts);
         // Acquisition uses the review's completed home staffing and defense facts.
         Census.Retain(reading, RoomsEnabled(), claims);
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
-        AdmitCoupledSelection(result, reading.Projection.Facts, state.Snapshot, ct, epoch);
+        AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
         ClockEvents.Event("routine", "rounds_review", "rounds ran", [.. attrs]);

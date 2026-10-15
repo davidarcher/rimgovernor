@@ -44,6 +44,8 @@ namespace HomeBridge.BridgeTools
         private static JobDef recipeDef = null!;
         private static JobDef tendDef = null!;
         private static bool replacing;
+        // Ephemeral native call context, never assignment ownership or a retained permission.
+        [ThreadStatic] private static Pawn? imposedEffectPawn;
         internal static bool IsHold(Job job) => job.def == holdDef;
         internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
         internal static PawnActivityStep? ActiveStep(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Step < e.Order.Steps.Length ? e.Order.Steps[e.Step] : null;
@@ -88,6 +90,14 @@ namespace HomeBridge.BridgeTools
             Patch(typeof(JobDriver), "GetFinalizerJob", nameof(Finalizer));
             Patch(typeof(Pawn), "DeSpawn", nameof(Despawn));
             h.Patch(AccessTools.PropertySetter(typeof(Current), "Game"), prefix: new HarmonyMethod(typeof(NativePawnActivities), nameof(WorldChanging)));
+            h.Patch(AccessTools.Method(typeof(HediffComp_Disorientation), nameof(HediffComp_Disorientation.CompPostTickInterval),
+                    new[] { typeof(float).MakeByRefType(), typeof(int) }),
+                prefix: new HarmonyMethod(typeof(NativePawnActivities), nameof(DisorientationStarting)),
+                finalizer: new HarmonyMethod(typeof(NativePawnActivities), nameof(ImposedEffectEnded)));
+            foreach (var type in new[] { typeof(CompAbilityEffect_PutToSleep), typeof(CompAbilityEffect_ForceJob) })
+                h.Patch(AccessTools.Method(type, "Apply", new[] { typeof(LocalTargetInfo), typeof(LocalTargetInfo) }),
+                    prefix: new HarmonyMethod(typeof(NativePawnActivities), nameof(ImposedAbilityStarting)),
+                    finalizer: new HarmonyMethod(typeof(NativePawnActivities), nameof(ImposedEffectEnded)));
             NativeControlAuthority.GenerationChanged += AuthorityChanged;
             installed = true;
         }
@@ -96,7 +106,8 @@ namespace HomeBridge.BridgeTools
         {
             try { batch?.Validate(); } catch (Exception ex) { return Refuse(ex.Message); }
             if (batch == null || !installed || context.NativeGeneration != batch.AuthorityGeneration) return Refuse("Missing/stale activity authority.");
-            var status = NativeControlAuthority.ForGame(Current.Game).Status();
+            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null) return Refuse("Activity authority is unavailable.");
+            var status = authority.Status();
             if (!status.Active || status.Identity == null || status.Generation != batch.AuthorityGeneration
                 || context.Identity?.ColonyId != status.Identity.ColonyId || context.Identity.LoadToken != status.Identity.LoadToken || context.Identity.MapId != status.Identity.MapId) return Refuse("Activity authority is inactive.");
             foreach (var order in batch.Orders)
@@ -113,7 +124,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (step.Deadline <= Find.TickManager.TicksGame) return Refuse("Activity deadline already passed.");
                     if (step.WaitForFilth.Length != 0 && !(Thing(step.WaitForFilth) is Filth)) return Refuse("Unknown filth dependency.");
-                    if (step.Kind == PawnActivityKind.Hold) continue;
+                    if (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Idle) continue;
                     if (step.Kind == PawnActivityKind.Approach)
                     {
                         var destination = step.Destination!.Value;
@@ -239,14 +250,43 @@ namespace HomeBridge.BridgeTools
         private static bool TryOwned(Pawn pawn, out Entry e)
         {
             if (!Entries.TryGetValue(pawn, out e!) || e.Order.Release) return false;
+            if (pawn.Downed || pawn.InMentalState || pawn.Drafted || pawn.IsBurning())
+            { Fault(e, "involuntary_or_emergency_state"); Release(e); return false; }
             var s = NativeControlAuthority.ForGame(Current.Game).Status();
             if (!s.Active || s.Generation != e.Generation || !ReferenceEquals(e.Identity.Game, Current.Game) || pawn.Map != e.Identity.Map)
             { Release(e); return false; }
             return true;
         }
+        // Authority owns voluntary choice on its map. Exact Hands jobs may finish; native
+        // physiology, combat, involuntary states and explicit player work remain effective.
+        private static bool Controlled(Pawn pawn)
+        {
+            // Construction/load callbacks can run under a long event's worker thread, before
+            // InitializeForCurrentGame establishes the main-thread authority. They must not
+            // create an owner. Unexpected off-thread live play is a failure, not AI fallback.
+            if (!UnityData.IsInMainThread)
+            {
+                if (Current.ProgramState == ProgramState.Playing && !LongEventHandler.AnyEventNowOrWaiting)
+                    throw new InvalidOperationException("Voluntary job selection ran off the game thread outside loading.");
+                return false;
+            }
+            if (Current.Game == null || !pawn.Spawned || pawn.Dead || pawn.Downed || pawn.Drafted
+                || pawn.InMentalState || !pawn.IsColonistPlayerControlled || pawn.IsBurning()
+                || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0) return false;
+            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null) return false;
+            var status = authority.Status();
+            return status.Active && ReferenceEquals(status.Identity?.Map, pawn.Map);
+        }
         private static bool Select(Pawn ___pawn, ref ThinkResult __result, ref ThinkTreeDef thinkTree)
         {
-            if (!TryOwned(___pawn, out var e)) return true;
+            if (!TryOwned(___pawn, out var e))
+            {
+                if (!Controlled(___pawn)) return true;
+                __result = ThinkResult.NoJob;
+                Supervisor.ActivityUnavailable("unassigned_voluntary_pawn:" + ___pawn.GetUniqueLoadID()
+                    + ":" + string.Join(",", NativeNeedsForecast.VoluntaryControlBlockers(___pawn)));
+                return false;
+            }
             thinkTree = ___pawn.thinker.MainThinkTree;
             __result = ThinkResult.NoJob;
             if (e.Running != null && ReferenceEquals(e.Running, ___pawn.CurJob)) return false;
@@ -264,10 +304,10 @@ namespace HomeBridge.BridgeTools
         private static Job OfferJob(Entry e)
         {
             if (e.Step >= e.Order.Steps.Length || e.State == "failed")
-            { if (e.Order.Task.Length == 0) Find.TickManager.Pause(); return JobMaker.MakeJob(holdDef); }
+            { Supervisor.ActivityExecutionChanged(e.Order.Assignment + ":awaiting_continuation"); return JobMaker.MakeJob(holdDef); }
             var step = e.Order.Steps[e.Step];
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "deadline"); return JobMaker.MakeJob(holdDef); }
-            if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return JobMaker.MakeJob(holdDef);
+            if (!Ready(e) || step.Kind is PawnActivityKind.Hold or PawnActivityKind.Idle) return JobMaker.MakeJob(holdDef);
             var p = e.Pawn;
             if (step.Kind == PawnActivityKind.Approach)
                 return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z));
@@ -356,6 +396,8 @@ namespace HomeBridge.BridgeTools
                 job = new ExactRecreation { def = DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes") }.At(p, target);
             }
             if (job == null) throw new InvalidOperationException("job_unavailable");
+            // The admitted Method owns this service window; native joy and tolerance still end it.
+            if (step.Kind == PawnActivityKind.Recreation) job.ignoreJoyTimeAssignment = true;
             job.playerForced = false;
             return job;
         }
@@ -370,15 +412,43 @@ namespace HomeBridge.BridgeTools
             return false;
         }
         private static bool Constant(Pawn ___pawn, ref ThinkResult __result)
-        { if (!TryOwned(___pawn, out _)) return true; __result = ThinkResult.NoJob; return false; }
-        private static bool Override(Pawn ___pawn) => !TryOwned(___pawn, out _);
+        { if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = ThinkResult.NoJob; return false; }
+        private static bool Override(Pawn ___pawn) => !TryOwned(___pawn, out _) && !Controlled(___pawn);
         private static bool Opportunistic(Pawn ___pawn, ref Job? __result)
-        { if (!Owned(___pawn)) return true; __result = null; return false; }
+        { if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = null; return false; }
         private static bool Finalizer(JobDriver __instance, ref Job? __result)
-        { if (!Owned(__instance.pawn)) return true; __result = null; return false; }
+        { if (!TryOwned(__instance.pawn, out _) && !Controlled(__instance.pawn)) return true; __result = null; return false; }
+        private static void DisorientationStarting(HediffComp_Disorientation __instance, out Pawn? __state)
+        { __state = imposedEffectPawn; imposedEffectPawn = __instance.Pawn; }
+        private static void ImposedAbilityStarting(LocalTargetInfo target, out Pawn? __state)
+        { __state = imposedEffectPawn; imposedEffectPawn = target.Pawn; }
+        private static Exception? ImposedEffectEnded(Exception? __exception, Pawn? __state)
+        { imposedEffectPawn = __state; return __exception; }
         private static bool Starting(Pawn ___pawn, Job newJob, ref bool preToilReservationsCanFail)
         {
-            if (!TryOwned(___pawn, out var e)) return true;
+            // Exhaustion starts LayDown directly from Need_Rest, before the pawn becomes downed.
+            // Hediff symptoms likewise start the exact Vomit job directly. Neither is voluntary.
+            // Player jobs likewise
+            // take ownership before TryTakeOrderedJob's authority-revocation postfix runs.
+            if (newJob.startInvoluntarySleep || newJob.def == JobDefOf.Vomit || newJob.playerForced || ReferenceEquals(imposedEffectPawn, ___pawn))
+            {
+                if (Entries.TryGetValue(___pawn, out var interrupted) && !interrupted.Order.Release)
+                {
+                    interrupted.State = "failed";
+                    interrupted.Reason = newJob.startInvoluntarySleep ? "involuntary_sleep"
+                        : newJob.def == JobDefOf.Vomit ? "involuntary_vomit" : newJob.playerForced ? "player_order" : "imposed_native_effect";
+                    interrupted.Tick = Find.TickManager.TicksGame;
+                    Emit(interrupted);
+                    Release(interrupted);
+                }
+                return true;
+            }
+            if (!TryOwned(___pawn, out var e))
+            {
+                if (!Controlled(___pawn) || NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority?.IsOwned == true) return true;
+                Supervisor.ActivityUnavailable("unauthorized_direct_job:" + ___pawn.GetUniqueLoadID() + ":" + newJob.def.defName);
+                return false;
+            }
             if (___pawn.Downed || ___pawn.InMentalState || ___pawn.Drafted) { Fault(e, "involuntary_or_combat_state"); Release(e); return true; }
             if (!Offers.TryGetValue(newJob, out var offer) || offer.Entry != e || offer.Step != e.Step || offer.JobId != newJob.loadID)
             { Fault(e, "unauthorized_job_substitution"); return false; }
@@ -425,8 +495,15 @@ namespace HomeBridge.BridgeTools
         internal static void WaitTick(Pawn pawn)
         {
             if (!TryOwned(pawn, out var e)) { pawn.jobs.EndCurrentJob(JobCondition.InterruptForced); return; }
-            if (e.State == "failed" || e.Step >= e.Order.Steps.Length) { if (e.Order.Task.Length == 0) Find.TickManager.Pause(); return; }
+            // A terminal assignment retains ownership for continuation, not permission to advance time.
+            if (e.State == "failed" || e.Step >= e.Order.Steps.Length) { Supervisor.ActivityExecutionChanged(e.Order.Assignment + ":awaiting_continuation"); return; }
             var step = e.Order.Steps[e.Step];
+            if (step.Kind == PawnActivityKind.Idle)
+            {
+                if (Find.TickManager.TicksGame < step.Deadline) return;
+                e.Step++; e.State = "completed"; e.Reason = "reconsider_due"; e.Tick = Find.TickManager.TicksGame;
+                Emit(e); pawn.jobs.EndCurrentJob(JobCondition.Succeeded); return;
+            }
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "hold_deadline"); return; }
             if (!Ready(e)) return;
             if (step.Kind == PawnActivityKind.Hold && step.WaitForFilth.Length == 0) return;
@@ -459,7 +536,13 @@ namespace HomeBridge.BridgeTools
                 e.Pawn.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
         }
         private static void AuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong old)
-        { foreach (var e in Entries.Values.ToArray()) if (!snapshot.Active || snapshot.Generation != e.Generation) Release(e); }
+        {
+            foreach (var e in Entries.Values.ToArray()) if (!snapshot.Active || snapshot.Generation != e.Generation) Release(e);
+            if (snapshot.Active && snapshot.Identity?.Map is { } map)
+                foreach (var pawn in map.mapPawns.FreeColonistsSpawned.ToArray())
+                    if (Controlled(pawn) && !Owned(pawn) && pawn.CurJob != null)
+                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+        }
         private static void WorldChanging() { foreach (var e in Entries.Values.ToArray()) Release(e); }
         private static void Despawn(Pawn __instance) { if (Entries.TryGetValue(__instance, out var e)) Release(e); }
         private static void Emit(Entry e)
@@ -470,6 +553,11 @@ namespace HomeBridge.BridgeTools
     }
     internal static partial class Supervisor
     {
+        internal static void ActivityUnavailable(string detail)
+        {
+            if (_state?.Active == true) Stop(_state, "unavailable", "voluntary_control:" + detail, true, null);
+            else Find.TickManager.Pause();
+        }
         // Reuse the existing clock stop/journal/invalidation path, not a second event store.
         internal static void ActivityExecutionChanged(string detail)
         {

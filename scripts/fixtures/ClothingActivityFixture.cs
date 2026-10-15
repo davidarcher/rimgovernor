@@ -48,13 +48,34 @@ public sealed partial class PawnControlFixture
                 && GenAdj.OccupiedRect(c, Rot4.North, new IntVec2(5, 5)).Cells.All(x => x.InBounds(map) && x.Standable(map) && x.GetEdifice(map) == null));
             var bench = (Building_WorkTable)GenSpawn.Spawn(DefDatabase<ThingDef>.GetNamed("HandTailoringBench"), center, map);
             bench.SetFaction(Faction.OfPlayer);
-            foreach (var stuff in new[] { ThingDefOf.Cloth, ThingDefOf.Leather_Plain })
-                for (var i = 0; i < 4; i++)
+            if (interrupt)
+            {
+                // Scarcity is a world precondition, not a selected recipe: exactly one
+                // cheapest supported garment this wearer can wear consumes this sole supply.
+                var stuff = ThingDefOf.Leather_Plain;
+                var quantities = bench.def.AllRecipes.Where(r => NativeActivityRecipe.TailoringRecipe(bench, r)
+                    && r.products[0].thingDef.apparel.bodyPartGroups.Any(g => g == BodyPartGroupDefOf.Torso || g == BodyPartGroupDefOf.Legs)
+                    && r.products[0].thingDef.apparel.developmentalStageFilter.Has(tailor.DevelopmentalStage)
+                    && r.products[0].thingDef.apparel.CorrectGenderForWearing(tailor.gender)
+                    && ApparelUtility.HasPartsToWear(tailor, r.products[0].thingDef)
+                    && r.products[0].thingDef.stuffCategories.Any(c => stuff.stuffProps.categories.Contains(c))
+                    && r.ingredients.All(i => i.filter.Allows(stuff)))
+                    .Select(r => r.ingredients.Sum(i => i.CountRequiredOfFor(stuff, r, null))).Where(n => n > 1).ToArray();
+                if (quantities.Length == 0) throw new InvalidOperationException("No supported finite garment input quantity for unfinished fixture.");
+                var required = quantities.Min();
+                for (var i = 0; i < 2; i++)
                 {
-                    var stack = GenSpawn.Spawn(stuff, center + new IntVec3(i - 2, 0, stuff == ThingDefOf.Cloth ? 3 : -3), map);
-                    stack.stackCount = 30;
+                    var stack = GenSpawn.Spawn(stuff, center + new IntVec3(i - 2, 0, -3), map);
+                    stack.stackCount = i == 0 ? required / 2 : required - required / 2;
                 }
-            var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+            }
+            else
+                foreach (var stuff in new[] { ThingDefOf.Cloth, ThingDefOf.Leather_Plain })
+                    for (var i = 0; i < 4; i++)
+                    {
+                        var stack = GenSpawn.Spawn(stuff, center + new IntVec3(i - 2, 0, stuff == ThingDefOf.Cloth ? 3 : -3), map);
+                        stack.stackCount = 30;
+                    }            var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
             map.zoneManager.RegisterZone(zone); zone.GetStoreSettings().filter.SetDisallowAll();
             foreach (var recipe in bench.def.AllRecipes.Where(r => r.products.Any(p => p.thingDef.IsApparel)))
                 foreach (var product in recipe.products) zone.GetStoreSettings().filter.SetAllow(product.thingDef, true);
@@ -125,8 +146,15 @@ public sealed partial class PawnControlFixture
             clothingInterruptedUft = uft.GetUniqueLoadID();
             clothingInterrupted = true; ___pawn.jobs.EndCurrentJob(JobCondition.Incompletable, startNewJob: false); return;
         }
-        var map = ___pawn.Map;
-        var products = map.listerThings.AllThings.OfType<Apparel>().Concat(map.mapPawns.FreeColonistsSpawned.SelectMany(p => p.apparel.WornApparel))
+        ObserveClothingOutput(___pawn.Map);
+    }
+
+    private static void ObserveClothingOutput(Map map)
+    {
+        if (!clothingActive || clothingMethod.Length == 0) return;
+        var products = map.listerThings.AllThings.OfType<Apparel>()
+            .Concat(map.mapPawns.FreeColonistsSpawned.SelectMany(p => p.apparel.WornApparel))
+            .Concat(map.mapPawns.FreeColonistsSpawned.Select(p => p.carryTracker.CarriedThing).OfType<Apparel>())
             .Where(a => a.def.defName == clothingProduct && a.Stuff?.defName == clothingStuff).Distinct().Count();
         if (!clothingProductObserved && products > 0)
         {
@@ -141,9 +169,39 @@ public sealed partial class PawnControlFixture
     }
 
     [Tool("test/clothing_activity_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe normal-planner exact garment output, input conservation and interrupted unfinished-work recovery.")]
-    public async Task<object> ReadClothingActivity(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
+    public async Task<object> ReadClothingActivity(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>    {
+        ObserveClothingOutput(Find.CurrentMap);
+        // The ordinary ledger must never orphan the exact interrupted execution anchor.
+        // Read the native forward link; BoundWorker can mutate it when priorities are zero.
+        var interrupted = Find.CurrentMap.listerThings.AllThings.OfType<UnfinishedThing>()
+            .FirstOrDefault(t => t.GetUniqueLoadID() == clothingInterruptedUft);
+        if (interrupted != null)
+        {
+            var anchor = Find.CurrentMap.listerThings.AllThings.OfType<Building_WorkTable>()
+                .SelectMany(b => b.BillStack.Bills).OfType<Bill_GovernorRecipe>()
+                .SingleOrDefault(b => b.BoundUft == interrupted);
+            if (anchor == null || anchor.ShouldDoNow() || anchor.suspended
+                || NativeProductionBills.BillRow(anchor, 0).BillClass != nameof(Bill_GovernorRecipe))
+                throw new InvalidOperationException("Interrupted garment lost its private nonautonomous activity bill anchor.");
+        }
+        return
         new { tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - clothingStart, method = clothingMethod,
             product = clothingProduct, stuff = clothingStuff, produced = clothingProductObserved, conserved = clothingConserved,
             interrupted = clothingInterrupted, resumed = clothingResumed.Count, released = clothingReleased.Count,
-            participants = clothingParticipants.Count }, ct).ConfigureAwait(false);
+            participants = clothingParticipants.Count,
+            authorityActive = NativeControlAuthority.ForGame(Current.Game).Status().Active,
+            workers = Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p => new
+            { pawn = p.GetUniqueLoadID(), job = p.CurJobDef?.defName, execution = NativePawnActivities.Read(p) }).ToArray(),
+            actualMatchingApparel = Find.CurrentMap.listerThings.AllThings.OfType<Apparel>()
+                .Concat(Find.CurrentMap.mapPawns.FreeColonistsSpawned.SelectMany(p => p.apparel.WornApparel))
+                .Concat(Find.CurrentMap.mapPawns.FreeColonistsSpawned.Select(p => p.carryTracker.CarriedThing).OfType<Apparel>())
+                .Where(a => a.def.defName == clothingProduct && a.Stuff?.defName == clothingStuff).Distinct()
+                .Select(a => new { thing = a.GetUniqueLoadID(), product = a.def.defName, stuff = a.Stuff?.defName }).ToArray(),
+            unfinished = Find.CurrentMap.listerThings.AllThings.OfType<UnfinishedThing>().Select(t => new
+            { thing = t.GetUniqueLoadID(), recipe = t.Recipe?.defName, stuff = t.Stuff?.defName, workLeft = t.workLeft, creator = t.Creator?.GetUniqueLoadID(),
+                bill = t.BoundBill?.GetUniqueLoadID(), bench = t.BoundWorkTable?.GetUniqueLoadID(),
+                inputs = t.ingredients.Select(i => new { resource = i.def.defName, count = i.stackCount }).ToArray(),
+                creatorCanReserve = t.Creator?.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None),
+                creatorCanUseBench = t.Creator != null && t.BoundWorkTable != null && t.Creator.CanReserveAndReach(t.BoundWorkTable, PathEndMode.InteractionCell, Danger.None) }).ToArray() };
+    }, ct).ConfigureAwait(false);
 }

@@ -350,7 +350,7 @@ namespace HomeBridge.BridgeTools
                 if (!ReferenceEquals(CaravanVisitUtility.SettlementVisitedNow(caravan), settlement) || !settlement.CanTradeNow)
                     throw new InvalidOperationException("Prepared caravan is not visiting its settlement.");
                 return new { success = true, traderId = settlement.GetUniqueLoadID(), caravanId = caravan.GetUniqueLoadID(),
-                    pawnId = negotiator.GetUniqueLoadID(), channel, silver = 2000, medicine = 6, components = 0 };
+                    pawnId = negotiator.GetUniqueLoadID(), homeTile = map.Tile.tileId, channel, silver = 2000, medicine = 6, components = 0 };
             }
             Thing Spawn(string name, int x, int z)
             {

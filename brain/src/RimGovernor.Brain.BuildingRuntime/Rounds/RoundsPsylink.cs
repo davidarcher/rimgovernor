@@ -82,7 +82,6 @@ public sealed partial class Rounder
 /// <summary>Composes MaintainPsylink: use a neuroformer on a candidate colonist.</summary>
 public sealed class RoundsPsylinkPlanner
 {
-    internal const string PsylinkPrefix = "psylink-";
 
     private readonly Rounder reviewer;
     private readonly PsylinkMemory memory;
@@ -145,57 +144,8 @@ public sealed class RoundsPsylinkPlanner
             return new RoundsPsylinkResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        Verdict barred = default;
-        List<PawnId> WillingOf(IReadOnlyList<PawnId> who)
-        {
-            var output = new List<PawnId>();
-            foreach (var pawn in who)
-            {
-                var willingPrefix = $"{PsylinkPrefix}{pawn.Value}-";
-                var (verdict, admitted) = BuildingRuntimePackage.AdmitSubject(p.Journal, willingPrefix, BuildingRuntimePackage.StandardMethodPlans(goal.History, goal.Standard.Episode, willingPrefix), state.Snapshot, call);
-                if (admitted)
-                {
-                    output.Add(pawn);
-                }
-                else
-                {
-                    barred = verdict;
-                }
-            }
-
-            return output;
-        }
-
-        var choice = PolicyFunctions.NextPsylinkUse(WillingOf(candidates), WillingOf(levelUps), items);
-        if (choice is null)
-        {
-            if (barred != default)
-            {
-                return new RoundsPsylinkResult { Verdict = barred };
-            }
-
-            return new RoundsPsylinkResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "psylink_item") };
-        }
-
-        if (!arbiter.TryClaim([choice.Pawn]))
-        {
-            return new RoundsPsylinkResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "psylink_pawn_claim") };
-        }
-
-        var prefix = $"{PsylinkPrefix}{choice.Pawn.Value}-";
-        var use = new UseItem((Domain.PawnId)choice.Pawn, choice.Item, (Domain.PawnId)choice.Pawn);
-        var id = PlanIds.MintPlanId();
-        var action = DomainAction.NewUseItemAction(new ActionId($"{id}-0"), use);
-        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-        p.Current(call, epoch);
-        if (p.Session.State() != state)
-        {
-            throw new ControlException("step: session state changed");
-        }
-
-        var method = BuildingRuntimePackage.NextMethodId(prefix, BuildingRuntimePackage.HistoryMethodIds(goal.History, goal.Standard.Episode));
-        await p.Journal.CommitMethodReasonAsync(goal.Standard.Id, goal.Revision, method, $"psylink: {choice.Pawn.Value} uses neuroformer {choice.Item}", plan, call).ConfigureAwait(false);
-        return new RoundsPsylinkResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
+        return new RoundsPsylinkResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_neuroformer",
+            "Neuroformer use requires shared forecast participant, timing and need effects.") };
     }
 }
 

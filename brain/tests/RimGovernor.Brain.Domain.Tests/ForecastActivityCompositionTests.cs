@@ -10,6 +10,38 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ForecastActivityCompositionTests
 {
+    [Fact]
+    public void ExpensiveEarlierRootsCannotStarveAnIndependentLaterRoot()
+    {
+        var facts = ForecastCoupledSelectionTests.Review();
+        // Eligibility alone is not physical inventory. Earlier recipe roots have
+        // many quantity combinations but their observed ingredient stock is empty.
+        var conversions = Enumerable.Range(0, 12).Select(i => new CoupledFoodConversion("empty-source", "pawn", "bench-" + i,
+            "recipe-" + i, "Rice", 10, "Meal", 1, new(1, 1), new(2, 1), new(3, 1),
+            Known(0d), Known(1d), Known(10d), Known(1d), 10, 10)
+            { RequiresHarvest = false, Bill = "bill-" + i, WorkGiver = "Cook" }).ToArray();
+        var read = facts.ForecastObserved.Coupled! with
+        {
+            Food = facts.ForecastObserved.Coupled!.Food with { Options = [] },
+            FoodSources = [new("empty-source", "Rice", new(1, 1), 0, Known(1000d))],
+            FoodConversions = EquatableArray.From(conversions),
+            FoodUses = [new("pawn", "Meal", new(3, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d))],
+            Support = new() { Known = true,
+                Demands = [new("patient-care", "care", "patient", new(1, 1), Known(0d), default, Known(0d), default)],
+                Workers = [new("patient-care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(10d))] }
+        };
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read } };
+        var result = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(facts, 300));
+        var reordered = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(facts with
+        { ForecastObserved = facts.ForecastObserved with { Coupled = read with { FoodConversions = EquatableArray.From(conversions.Reverse()) } } }, 300));
+        Assert.True(result.Truncated);
+        Assert.InRange(result.CompositionExpansions, 1, 16384);
+        Assert.Contains(result.Context.Activities.Activities, t => t.Id.StartsWith("support/care/", StringComparison.Ordinal));
+        Assert.Contains(result.Findings, f => f.StartsWith("root_composition_truncated:food/", StringComparison.Ordinal));
+        Assert.Equal(result.CompositionExpansions, reordered.CompositionExpansions);
+        Assert.Equal(result.Findings, reordered.Findings);
+        Assert.Equal(result.Context.Activities.Activities.Select(t => t.Id), reordered.Context.Activities.Activities.Select(t => t.Id));
+    }
     private static readonly string[] CookingPrerequisites = ["build", "carry-a", "carry-b"];
     private static readonly string[] Consumers = ["first", "second"];
     private static readonly string[] IngredientLots = ["a", "b"];
@@ -285,7 +317,7 @@ public sealed class ForecastActivityCompositionTests
         };
         facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var generated = Assert.IsType<ForecastCoupledCandidates>(GenerateCoupledActivities(facts, 300));
-        Assert.Equal(2, generated.Alternatives.Count(c => c.ExclusiveOutcome == "shelter/1"));
+        Assert.Equal(2, generated.Alternatives.Count(c => c.ExclusiveOutcome == "shelter/planned/1"));
         var roof = generated.Context.Activities.Activities.Where(a => a.Id.StartsWith("roof/", StringComparison.Ordinal)).ToArray();
         Assert.Equal(2, roof.Length);
         Assert.All(roof, task => Assert.Single(task.Prerequisites));

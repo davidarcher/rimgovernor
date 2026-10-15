@@ -57,15 +57,8 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
                 break;
             case "haul":
-                var haul = choice.Haul ?? throw new ControlException("admitMonument: haul choice without a haul");
-                action = DomainAction.NewHaulAction(aid, haul);
-                target = haul.Thing;
-                if (!arbiter.TryClaim([(PawnId)haul.Pawn], "haul-item:" + haul.Thing))
-                {
-                    return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "monument_haul") }, true);
-                }
-
-                break;
+                return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_monument_delivery",
+                    "Monument delivery requires exact destination, quantity and shared worker alternatives.") }, true);
             case "build":
             {
                 var build = choice.Build ?? throw new ControlException("admitMonument: build choice without a building");

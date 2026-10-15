@@ -230,7 +230,7 @@ public static partial class PolicyFunctions
             CapturedCursor = review.Captured,
             MaxTicks = limits.MaxTicks,
             Mode = ClockWindowMode.Colony,
-            Downed = EquatableArray.From(KnownDownedColonists(f.Emergency)),
+            Downed = EquatableArray.From(KnownDownedPatients(f.Emergency)),
         };
         if (hostiles.Count > 0 || combat)
         {
@@ -268,10 +268,10 @@ public static partial class PolicyFunctions
     /// them so the native watcher lets ticks pass for their rescue instead of stopping at once on a casualty
     /// the service already holds a CriticalMedical goal for.
     /// </summary>
-    private static List<PawnId> KnownDownedColonists(EmergencySnapshot snapshot)
+    private static List<PawnId> KnownDownedPatients(EmergencySnapshot snapshot)
     {
         var downed = new List<PawnId>();
-        foreach (var pawn in snapshot.Facts.Colonists)
+        foreach (var pawn in EmergencyPatients(snapshot.Facts))
         {
             var deadKnown = pawn.Dead.TryGetValue(out var dead);
             var downKnown = pawn.Downed.TryGetValue(out var down);

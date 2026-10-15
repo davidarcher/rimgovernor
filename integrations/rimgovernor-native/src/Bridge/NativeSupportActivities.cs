@@ -22,7 +22,6 @@ internal static class NativeSupportActivities
         var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
         truncated |= roster.Length > 16;
         var clean = NativeCleanOperations.Giver();
-        var tend = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_Tend);
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer
             && b.BillStack.Bills.OfType<Bill_Production>().Any(bill => bill.ShouldDoNow())).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(9).ToArray();
         truncated |= benches.Length > 8;
@@ -67,10 +66,12 @@ internal static class NativeSupportActivities
         foreach (var patient in patients.Take(8))
         {
             var id = AddRoom(patient, patient.Position, "care");
+            if (patient.RaceProps.Humanlike && !patient.InBed()) findings.Add("care_patient_not_in_bed_external_doctor_unavailable:" + id);
             foreach (var pawn in roster.Take(16))
             {
-                if (!Available(pawn) || tend?.Worker is not WorkGiver_Tend giver || !CanWork(pawn, giver)
-                    || !giver.HasJobOnThing(pawn, patient, false) || !pawn.CanReserveAndReach(patient, PathEndMode.Touch, Danger.None)) continue;
+                if (!Available(pawn)) continue;
+                var tend = TendGiver(pawn, patient);
+                if (tend == null || !pawn.CanReserveAndReach(patient, PathEndMode.Touch, Danger.None)) continue;
                 var medicines = NoMedicine(patient) ? new Thing?[] { null } : map.listerThings.AllThings
                     .Where(t => t.Spawned && t.def.IsMedicine && patient.playerSettings != null && patient.playerSettings.medCare.AllowsMedicine(t.def)
                         && !t.IsForbidden(pawn) && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None))
@@ -80,11 +81,15 @@ internal static class NativeSupportActivities
                 // One selected native treatment batch. Remaining wounds need fresh observation and selection.
                 var count = patient.health.hediffSet.hediffs.Count(h => h.TendableNow());
                 foreach (var medicine in medicines)
+                {
+                var infection = InfectionEffect(patient, medicine != null);
                 workers.Add(new(id, pawn.GetUniqueLoadID(), patient.GetUniqueLoadID(), "TendPatient", tend.defName,
                     At(patient.Position), medicine == null ? Route(pawn, pawn.Position, patient.Position, PathEndMode.Touch)
                         : Add(Route(pawn, pawn.Position, medicine.Position, PathEndMode.Touch), Route(pawn, medicine.Position, patient.Position, PathEndMode.Touch)),
                     speed > 0 && count > 0 ? Fact.Known(Math.Ceiling(600d / speed)) : default) { Medicine = medicine?.GetUniqueLoadID() ?? "", MedicineResource = medicine?.def.defName ?? "", MedicineCount = medicine == null ? 0 : 1, MedicineLocation = medicine == null ? null : At(medicine.Position), MedicineAvailable = medicine?.stackCount ?? 0,
-                        TendQuality = Fact.Known((double)TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def)) });
+                        TendQuality = Fact.Known((double)TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def)),
+                        InfectionRoomEffectApplies = infection.Applies, InfectionCheckTicks = infection.Ticks });
+                }
             }
         }
         findings.Add("routes_and_cleaning_are_conditional_duration_estimates");
@@ -178,8 +183,37 @@ internal static class NativeSupportActivities
     private static Cell At(IntVec3 cell) => new(cell.x, cell.z);
     private static bool Available(Pawn pawn) => !pawn.Downed && !pawn.Drafted && !pawn.InMentalState && NativeFoodActivity.Available(pawn)
         && !NativePawnActivities.Owned(pawn) && pawn.CurJob?.playerForced != true && pawn.jobs.jobQueue.Count == 0 && pawn.carryTracker.CarriedThing == null;
+    private static (Fact<bool> Applies, Fact<double> Ticks) InfectionEffect(Pawn patient, bool medicine)
+    {
+        var batch = new List<Hediff>();
+        TendUtility.GetOptimalHediffsToTendWithSingleTreatment(patient, medicine, batch);
+        if (batch.Count == 0) return default;
+        var pending = new List<int>();
+        var timer = HarmonyLib.AccessTools.Field(typeof(HediffComp_Infecter), "ticksUntilInfect");
+        foreach (var wound in batch)
+        {
+            var infecter = wound.TryGetComp<HediffComp_Infecter>();
+            if (infecter == null) continue;
+            if (infecter.GetType() != typeof(HediffComp_Infecter) || timer?.GetValue(infecter) is not int ticks)
+                return default;
+            if (ticks == -1) return default;
+            if (ticks <= 0 || patient.health.hediffSet.HasRegeneration
+                || patient.health.immunity.DiseaseContractChanceFactor(HediffDefOf.WoundInfection, wound.Part) <= .001f
+                || patient.Faction == Faction.OfPlayer && Find.Storyteller.difficulty.playerPawnInfectionChanceFactor <= 0) continue;
+            if (wound.TryGetComp<HediffComp_TendDuration>() == null) continue;
+            pending.Add(ticks);
+        }
+        return pending.Count == 0 ? (Fact.Known(false), Fact.Known(0d)) : (Fact.Known(true), Fact.Known((double)pending.Min()));
+    }
+
     private static bool CanWork(Pawn pawn, WorkGiver giver) => giver.MissingRequiredCapacity(pawn) == null
         && !pawn.WorkTagIsDisabled(giver.def.workTags) && (giver.def.workType == null || !pawn.WorkTypeIsDisabled(giver.def.workType));
+    // Native tend subclasses have different patient/urgency predicates. The first registered
+    // subclass is not a general tending capability. Equivalent legal givers execute the same
+    // exact treatment batch; retain one stable legal identity per worker/patient pair.
+    internal static WorkGiverDef? TendGiver(Pawn pawn, Pawn patient) => DefDatabase<WorkGiverDef>.AllDefsListForReading
+        .Where(d => d.Worker is WorkGiver_Tend giver && CanWork(pawn, giver) && giver.HasJobOnThing(pawn, patient, false))
+        .OrderBy(d => d.defName, StringComparer.Ordinal).FirstOrDefault();
     internal static bool NoMedicine(Pawn patient) => patient.playerSettings?.medCare == MedicalCareCategory.NoMeds;
     private static int Required(Bill_Production bill, ThingDef def) => (int)Math.Ceiling(bill.recipe.ingredients.Sum(i => (double)i.CountRequiredOfFor(def, bill.recipe, bill)));
     private static int Staged(Map map, IntVec3 destination, ThingDef def) => destination.GetThingList(map).Where(t => t.def == def).Sum(t => t.stackCount);

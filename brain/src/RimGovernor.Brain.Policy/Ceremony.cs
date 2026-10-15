@@ -4,8 +4,8 @@ namespace RimGovernor.Brain.Policy;
 // The bestowing ceremony. Accepting the Empire's bestowing-ceremony quest sends a bestower, who waits at the
 // throne spot until the player starts the ritual; the ceremony then fails if the bestower or the colonist is
 // lost, drafted out of it or in a mental state. While one is pending the colony keeps the throne room of the
-// title being bestowed (CeremonyThroneNeed outranks the favor-driven NextThroneNeed) and holds the colonist and
-// the attendees off the Sleep timetable (CeremonyHold, PlanSchedulesHeld). Once the bestower waits for the
+// title being bestowed (CeremonyThroneNeed outranks the favor-driven NextThroneNeed). Attendance has no
+// shared voluntary Method yet. Once the bestower waits for the
 // player's command (his Wait toil gizmo) CeremonyStart picks the ceremony the colony starts through the
 // generic Ritual action.
 
@@ -98,26 +98,6 @@ public static partial class PolicyFunctions
         }
 
         return null;
-    }
-
-    /// <summary>CeremonyHold of a royalty read that may be unknown (no hold).</summary>
-    public static HashSet<PawnId> CeremonyHoldOf(Fact<RoyaltyFacts> royalty) =>
-        royalty.TryGetValue(out var f) ? CeremonyHold(f) : [];
-
-    /// <summary>The colonists a pending ceremony needs off the Sleep timetable: the one bestowed and the attendees the ritual lord holds.</summary>
-    public static HashSet<PawnId> CeremonyHold(RoyaltyFacts f)
-    {
-        var hold = new HashSet<PawnId>();
-        foreach (var c in PendingCeremonies(f))
-        {
-            hold.Add(c.Pawn);
-            foreach (var a in c.Attendees.Items)
-            {
-                hold.Add(a);
-            }
-        }
-
-        return hold;
     }
 
     /// <summary>

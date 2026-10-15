@@ -105,6 +105,7 @@ public static partial class PolicyFunctions
     {
         var materials = new List<ForecastCommitment>();
         var activityMaterials = new Dictionary<(string Pawn, string Assignment), List<ForecastMaterialClaim>>();
+        var selectedMaterials = new Dictionary<(string Owner, string Task, Resource Resource, string Bill), double>();
         var pawns = new HashSet<string>(StringComparer.Ordinal);
         var targets = new HashSet<string>(StringComparer.Ordinal);
         var findings = new HashSet<string>(StringComparer.Ordinal);
@@ -142,13 +143,51 @@ public static partial class PolicyFunctions
             if (row.Action.PawnActivities is not { } batch) continue;
             foreach (var task in batch.Tasks)
             {
+                // Preparation owns the selected future service too, not only its approach cell.
+                // Produced food keeps its unresolved identity until native output rebinding.
+                if (task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation
+                    || task.Step.Kind == PawnActivityKind.Eat && task.Step.Target.Length != 0 && task.Step.Target != "observed-output")
+                    targets.Add(task.Step.Target);
                 foreach (var input in task.Inputs.Where(i => i.Observed && i.Lot.Length != 0)) targets.Add(input.Lot);
                 if (task.Step.Destination is { } destination) targets.Add("cell/" + destination.X + "/" + destination.Z);
                 if (task.Step.Container.Length != 0) targets.Add(task.Step.Container);
-                if (task.Step.Medicine.Length != 0 && !batch.Orders.Any(o => !o.Release && !o.Preparing && o.Task == task.Id))
-                    materials.Add(new("activity/selected-input/" + row.Action.Id.Value + "/" + task.Id, [])
-                    { MaterialClaims = EquatableArray.From(task.Inputs.Select(i => new ForecastMaterialClaim(new(i.Resource), Known((double)i.Count),
-                        Known(task.Step.Recipe?.Bill ?? "")))) });
+                var executing = batch.Orders.FirstOrDefault(o => !o.Release && !o.Preparing && o.Task == task.Id);
+                var actual = executing is not null && evidence.WorkResources.TryGetValue(out var actualWorkers)
+                    ? actualWorkers.SingleOrDefault(p => p.Pawn == executing.Pawn && p.Assignment == executing.Assignment && p.Revision == executing.Revision) : null;
+                var partial = actual?.State == "completed" && task.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply
+                    && executing!.Steps[0].Count < task.Step.Count;
+                if ((actual?.State is not ("completed" or "failed") || partial) && actual is not { Unfinished.Length: > 0 })
+                {
+                    // Reserve the physical input frontier, not every downstream handoff. Producer
+                    // completion makes an obligation claimable; it never adds predicted stock.
+                    bool Resolved(string producer)
+                    {
+                        var source = batch.Tasks.SingleOrDefault(t => t.Id == producer);
+                        if (source is null) return true;
+                        if (source.CompletionMustBeObserved) return false;
+                        var order = batch.Orders.FirstOrDefault(o => !o.Release && !o.Preparing && o.Task == producer);
+                        if (order is not null && source.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply
+                            && order.Steps[0].Count < source.Step.Count) return false;
+                        return order is not null && evidence.WorkResources.TryGetValue(out var workers)
+                            && workers.Any(p => p.Pawn == order.Pawn && p.Assignment == order.Assignment
+                                && p.Revision == order.Revision && p.State == "completed");
+                    }
+                    foreach (var group in task.Inputs.Where(i => i.Observed || i.Producers.Count > 0 && i.Producers.All(Resolved)).GroupBy(i => i.Resource))
+                    {
+                        var required = group.Sum(i => i.Count);
+                        if (task.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply)
+                            required = Math.Min(required, task.Step.Count) - (partial ? executing!.Steps[0].Count : 0);
+                        var carried = actual;
+                        if (carried is null && executing is not null && progress.Attempt.Value == 0
+                            && evidence.WorkResources.TryGetValue(out var previousWorkers))
+                            carried = previousWorkers.SingleOrDefault(p => p.Pawn == executing.Pawn && p.Assignment == executing.Assignment
+                                && p.Revision == executing.ExpectedRevision && p.State is "completed" or "failed"
+                                && p.CarriedThing == executing.Steps[0].Target);
+                        var count = Math.Max(0, required - (carried?.CarriedResource == group.Key ? carried.CarriedCount : 0));
+                        var key = (batch.Orders.FirstOrDefault()?.Method ?? row.Plan.Value, task.Id, new Resource(group.Key), task.Step.Recipe?.Bill ?? "");
+                        selectedMaterials[key] = Math.Max(selectedMaterials.GetValueOrDefault(key), count);
+                    }
+                }
                 if (task.SiteDefinition.Length != 0 && task.Step.Target.Length != 0) targets.Add(task.Step.Target);
                 if (task.Step.Recipe is { } recipe)
                 {
@@ -177,6 +216,7 @@ public static partial class PolicyFunctions
                 if (order.OutputDelivery?.Recipe is { } continuation)
                 { targets.Add(continuation.Bench); targets.Add(continuation.Bill); }
                 var claims = new List<ForecastMaterialClaim>();
+                if (batch.Tasks.Any(t => t.Id == order.Task && t.Inputs.Count > 0)) continue;
                 foreach (var step in order.Steps)
                 {
                     if (step.Medicine.Length != 0 && step.Recipe is null && observed?.State is not ("completed" or "failed"))
@@ -216,6 +256,9 @@ public static partial class PolicyFunctions
                 }
             }
         }
+        foreach (var group in selectedMaterials.GroupBy(p => (p.Key.Owner, p.Key.Task)))
+            materials.Add(new("activity/selected-input/" + group.Key.Owner + "/" + group.Key.Task, [])
+            { MaterialClaims = EquatableArray.From(group.Select(p => new ForecastMaterialClaim(p.Key.Resource, Known(p.Value), Known(p.Key.Bill)))) });
         foreach (var (owner, claims) in activityMaterials)
             materials.Add(new("activity/" + owner.Assignment + "/" + owner.Pawn, default)
             {

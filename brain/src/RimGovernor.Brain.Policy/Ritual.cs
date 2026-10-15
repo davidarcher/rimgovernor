@@ -61,8 +61,8 @@ public static partial class PolicyFunctions
 {
     /// <summary>
     /// MaintainRituals holds each of the ideoligion's ritual precepts when it is due: it picks the spot, the
-    /// organizer and the attendees, holds the attendees off the Sleep timetable (HeldOffSleep, the way the
-    /// bestowing ceremony does) and begins the ritual through the Ritual <c>begin</c> verb. Cadence, cooldown,
+    /// organizer and the attendees, and begins the ritual through the Ritual <c>begin</c> verb. This does not
+    /// supply a shared voluntary attendance Method. Cadence, cooldown,
     /// required buildings and role slots are the catalog's ritual defs (IdeologyDefs.Rituals); no ritual,
     /// building or role name is listed here.
     /// </summary>
@@ -263,17 +263,4 @@ public static partial class PolicyFunctions
         return Known(rows.Count > 0);
     }
 
-    /// <summary>
-    /// The colonists a pending bestowing ceremony (CeremonyHold) or a ritual about to begin (the attendees of
-    /// every plan) needs awake: the schedule planners keep them off the Sleep timetable (PlanSchedulesHeld).
-    /// </summary>
-    public static HashSet<PawnId> HeldOffSleep(RoundsFacts f)
-    {
-        var hold = new HashSet<PawnId>(CeremonyHoldOf(f.Royalty));
-        foreach (var plan in f.RitualPlans.ValueOrDefault)
-        {
-            hold.UnionWith(plan.Attendees());
-        }
-        return hold;
-    }
 }

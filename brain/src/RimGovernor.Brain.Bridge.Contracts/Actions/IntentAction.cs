@@ -91,7 +91,6 @@ public static partial class BridgeFunctions
         [ActionKind.DropEquipment] = DropEquipmentAction,
         [ActionKind.Rescue] = RescueAction,
         [ActionKind.Capture] = CaptureAction,
-        [ActionKind.MoodRelief] = MoodReliefAction,
         [ActionKind.GearReplace] = WearAction,
         [ActionKind.UseItem] = UseItemAction,
         [ActionKind.Strip] = StripAction,

@@ -94,7 +94,6 @@ public sealed class RoundsWorkPlanner
         {
             construction = construction[..8];
         }
-        var squad = ReviewSoldierSquad(p.Journal, state.Snapshot, pawns, call);
         if (!RoundsProjectWork(definitions, read.Projection.Definitions).TryGetValue(out var required))
         {
             return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("project_work") });
@@ -125,15 +124,6 @@ public sealed class RoundsWorkPlanner
             return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("work_capacity") });
         }
         var byId = pawns.ToDictionary(pawn => pawn.Id);
-        var schedules = new Dictionary<PawnId, IReadOnlyList<string>>();
-        read.Projection.MeditateAvailable.TryGetValue(out var meditate);
-        foreach (var row in PolicyApi.PlanSchedulesHeld(pawns, read.Projection.Facts.Comfort, meditate, PolicyApi.HeldOffSleep(read.Projection.Facts).ToDictionary(id => id, _ => true)).Schedules)
-        {
-            if (!row.Matches)
-            {
-                schedules[row.Pawn] = row.Slots;
-            }
-        }
         var work = new List<WorkAssignment>();
         foreach (var assignment in decision.Assignments)
         {
@@ -149,20 +139,11 @@ public sealed class RoundsWorkPlanner
             {
                 throw new ControlException("step: !ok");
             }
-            schedules.TryGetValue(assignment.Pawn, out var schedule);
-            if (changed.Count == 0 && (schedule is null || schedule.Count == 0))
-            {
-                continue;
-            }
-            work.Add(schedule is null || schedule.Count == 0
-                ? WorkAssignment.NewWorkAssignment(assignment.Pawn, changed)
-                : WorkAssignment.NewScheduleAssignment(assignment.Pawn, changed, schedule));
+            if (changed.Count > 0) work.Add(WorkAssignment.NewWorkAssignment(assignment.Pawn, changed));
         }
         var settings = new List<PawnSettings>(PolicyApi.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
-        settings.AddRange(PolicyApi.SelfTendChanges(SelfTendRows(pawns)));
         var reserve = PolicyApi.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
         settings.AddRange(PolicyApi.MedicineCarryChanges(PolicyApi.MedicineCarryRows(pawns), reserve.Stock, reserve.Target));
-        settings.AddRange(PolicyApi.EatTriggerChanges(PolicyApi.EatTriggerRows(pawns), EatTriggerColony(read.Projection.Facts, _reviewer.Seasonal(read.Projection.Facts))));
         if (read.Projection.Facts.OwnedNames.TryGetValue(out var ownedNames))
         {
             settings.AddRange(PolicyApi.NicknameChanges(ownedNames));
@@ -190,22 +171,6 @@ public sealed class RoundsWorkPlanner
                 }
             }
         }
-        var drugs = new List<DrugPolicy>();
-        var drugChanges = RoundsDrugChanges(read.Projection.Facts.Items, read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.Prisoners, read.Projection.Facts.Resources, squad);
-        if (drugChanges.Count > 0)
-        {
-            foreach (var c in drugChanges.Take(8))
-            {
-                if (c.Write is not null)
-                {
-                    drugs.Add(c.Write);
-                }
-                if (c.Assign is not null)
-                {
-                    settings.Add(c.Assign);
-                }
-            }
-        }
         var food = new List<FoodPolicy>();
         var dietChanges = RoundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve);
         if (dietChanges.Count > 0)
@@ -224,13 +189,13 @@ public sealed class RoundsWorkPlanner
         }
         foreach (var openPlan in open)
         {
-            CancelStaleWorkActions(p.Journal, openPlan, work, settings, call);
+            CancelStaleWorkActions(p.Journal, goal, openPlan, work, settings, call);
             if (StorePackage.PlanOpen(p.Journal.LoadPlan(openPlan.Spec.Id, call)))
             {
                 return new RoundsWorkResult { Verdict = BuildingReasonExistingWork };
             }
         }
-        if (work.Count == 0 && settings.Count == 0 && reading.Count == 0 && drugs.Count == 0 && food.Count == 0 && construction.Count == 0)
+        if (work.Count == 0 && settings.Count == 0 && reading.Count == 0 && food.Count == 0 && construction.Count == 0)
         {
             return new RoundsWorkResult { Verdict = FieldUnavailable("work_assignments") };
         }
@@ -254,11 +219,7 @@ public sealed class RoundsWorkPlanner
         }
         foreach (var s in settings)
         {
-            hash.Append(inv, $"{s.Kind}/{s.Pawn}/{s.Hostility}/{s.SelfTend}/{GoQuote(s.LeaveName)}/{s.MedicineCarry ?? 0}/{s.MedicalCare}/{GoQuote(s.ReadingPolicy ?? "")}/{GoQuote(s.DrugPolicy ?? "")}/{GoQuote(s.FoodPolicy ?? "")}/{GoQuote(s.MechWorkMode ?? "")}/{s.MechControlGroup ?? 0}/{s.EatTrigger ?? 0}/{goal.Methods.Count}\n");
-        }
-        foreach (var d in drugs)
-        {
-            hash.Append(inv, $"drugs/{GoQuote(d.Name)}/{string.Join(',', d.Entries.Select(e => e.ToString()))}/{goal.Methods.Count}\n");
+            hash.Append(inv, $"{s.Kind}/{s.Pawn}/{s.Hostility}/{s.SelfTend}/{GoQuote(s.LeaveName)}/{s.MedicineCarry ?? 0}/{s.MedicalCare}/{GoQuote(s.ReadingPolicy ?? "")}/{GoQuote(s.DrugPolicy ?? "")}/{GoQuote(s.FoodPolicy ?? "")}/{GoQuote(s.MechWorkMode ?? "")}/{s.MechControlGroup ?? 0}/{goal.Methods.Count}\n");
         }
         foreach (var r in reading)
         {
@@ -287,10 +248,6 @@ public sealed class RoundsWorkPlanner
         {
             actions.Add(DomainAction.NewReadingPolicyAction(new ActionId($"{id}-{actions.Count}"), r));
         }
-        foreach (var d in drugs)
-        {
-            actions.Add(DomainAction.NewDrugPolicyAction(new ActionId($"{id}-{actions.Count}"), d));
-        }
         foreach (var f in food)
         {
             actions.Add(DomainAction.NewFoodPolicyAction(new ActionId($"{id}-{actions.Count}"), f));
@@ -311,14 +268,6 @@ public sealed class RoundsWorkPlanner
             throw new ControlException("step: p.session.State() != state");
         }
         p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, methodId, "", spec, call);
-        read.Projection.Facts.FoodDays.TryGetValue(out var runway);
-        foreach (var s in settings)
-        {
-            if (s.EatTrigger is { } level)
-            {
-                Tel.Decide(EatTriggerDecision(s.Pawn, level, runway));
-            }
-        }
         return new RoundsWorkResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }
@@ -326,8 +275,10 @@ public sealed class RoundsWorkPlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>Cancels the not-yet-dispatched work and settings actions of an open plan that the fresh review no longer wants.</summary>
-    internal static void CancelStaleWorkActions(StoreJournal journal, PlanState plan, IReadOnlyList<WorkAssignment> fresh, IReadOnlyList<PawnSettings> settings, CancellationToken ct)
+    internal static void CancelStaleWorkActions(StoreJournal journal, RimGovernor.Brain.Store.StandardState owner, PlanState plan, IReadOnlyList<WorkAssignment> fresh, IReadOnlyList<PawnSettings> settings, CancellationToken ct)
     {
+        var routineOwned = owner.Standard.Kind == PolicyApi.EnsureWorkAssignments
+            && owner.Methods.Any(m => m.Plan == plan.Spec.Id && m.MethodId == plan.Method);
         var wantedSettings = new HashSet<PawnSettings>(settings);
         var wanted = new Dictionary<Domain.PawnId, WorkAssignment>();
         foreach (var w in fresh)
@@ -346,6 +297,7 @@ internal static partial class BuildingRuntimePackage
             {
                 staleSettings[action.Id] = !wantedSettings.Contains(s);
             }
+            if (routineOwned && action.DrugPolicy is not null) staleSettings[action.Id] = true;
         }
         foreach (var progress in plan.Progress)
         {
@@ -393,30 +345,7 @@ internal static partial class BuildingRuntimePackage
         return false;
     }
 
-    /// <summary>The eat_trigger decision row of an admitted trigger setting.</summary>
-    internal static Decision EatTriggerDecision(Domain.PawnId pawn, double level, double runwayDays)
-    {
-        var reason = level < PolicyApi.EatTriggerVanilla ? "lowered" : "vanilla";
-        return new Decision
-        {
-            Kind = "eat_trigger",
-            Component = "routine-work",
-            Verdict = "admitted",
-            Reason = reason,
-            Target = pawn.Value,
-            Attrs = new Dictionary<string, object?> { ["trigger"] = level, ["food_days"] = runwayDays, ["days_saved"] = PolicyApi.EatTriggerDaysSaved(runwayDays, level) },
-        };
-    }
-
-    internal static EatTriggerColony EatTriggerColony(RoundsFacts facts, RoundsPolicy seasonal) =>
-        new(facts.FoodDays, facts.Colonists, seasonal.FootholdFoodDays, seasonal.FoodMinDays);
-
     internal static List<HostilityPawn> HostilityRows(IReadOnlyList<WorkPawn> pawns) => [.. pawns.Select(p => p.HostilityPawn())];
-
-    internal static List<SelfTendPawn> SelfTendRows(IReadOnlyList<WorkPawn> pawns) => [.. pawns.Select(p => p.SelfTendPawn())];
-
-    internal static Fact<EquatableArray<SelfTendPawn>> SelfTendPawns(Fact<EquatableArray<WorkPawn>> pawns) =>
-        pawns.TryGetValue(out var rows) ? Known<EquatableArray<SelfTendPawn>>([.. SelfTendRows(rows)]) : Unknown<EquatableArray<SelfTendPawn>>();
 
     internal static Fact<EquatableArray<HostilityPawn>> HostilityPawns(Fact<EquatableArray<WorkPawn>> pawns) =>
         pawns.TryGetValue(out var rows) ? Known<EquatableArray<HostilityPawn>>([.. HostilityRows(rows)]) : Unknown<EquatableArray<HostilityPawn>>();
@@ -432,20 +361,6 @@ internal static partial class BuildingRuntimePackage
         }
         var entries = p.Reading.Select(e => new ReadingPolicyEntry { Id = e.ID, Label = e.Label, Pawns = e.Pawns, Allowed = e.Allowed }).ToList();
         return PolicyApi.ReadingPolicyChanges(pawns, owned, entries, p.Books);
-    }
-
-    /// <summary>The drug-policy writes and assignments the review's policies, stock and squad call for.</summary>
-    internal static IReadOnlyList<DrugPolicyChange> RoundsDrugChanges(ItemFacts items, Fact<ObservationPolicies> policies, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, Fact<EquatableArray<PrisonerFacts>> prisoners, Fact<EquatableArray<Amount>> stock, SoldierSquad squad)
-    {
-        var ok = policies.TryGetValue(out var p);
-        var named = names.TryGetValue(out var owned);
-        if (!ok || !named)
-        {
-            return [];
-        }
-        var entries = p!.Drug.Select(e => new OwnedDrugPolicy(e.ID, e.Label, [.. e.Pawns], [.. e.Drugs])).ToList();
-        prisoners.TryGetValue(out var held);
-        return PolicyApi.DrugPolicyChanges(items, pawns, held, owned, entries, stock, p.BiomeDiseases, squad);
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>

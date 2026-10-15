@@ -118,6 +118,9 @@ public sealed partial class RoundsClearancePlanner
             }
             (prefix, actions) = GroundStepMethod(id, step);
         }
+        if (actions.Any(a => a.Deconstruction is { ReplacesWithWall: true }))
+            return new RoundsClearanceResult { Verdict = AwaitingPlan("unsupported_forecast_wall_replacement",
+                "Door-to-wall labor requires shared observed worker and construction obligations.") };
         var (verdict, admitted) = AdmitSubject(p.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
         if (!admitted)
         {

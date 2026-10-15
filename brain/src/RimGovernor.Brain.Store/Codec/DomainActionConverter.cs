@@ -83,7 +83,6 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
             ActionKind.Husbandry => DomainAction.NewHusbandryAction(id, Payload<Husbandry>()),
             ActionKind.IdeoligionReform => DomainAction.NewIdeoligionReformAction(id, Payload<IdeoligionReform>()),
             ActionKind.Ignite => DomainAction.NewIgniteAction(id, Payload<Ignite>()),
-            ActionKind.MoodRelief => DomainAction.NewMoodReliefAction(id, Payload<MoodRelief>()),
             ActionKind.MoveBuilding => DomainAction.NewMoveBuildingAction(id, Payload<MoveBuilding>()),
             ActionKind.UninstallBuilding => DomainAction.NewUninstallBuildingAction(id, Payload<MoveBuilding>()),
             ActionKind.Movement => DomainAction.NewMovementAction(id, Payload<Movement>()),

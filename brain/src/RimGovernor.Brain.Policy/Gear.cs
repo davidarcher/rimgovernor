@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 
 namespace RimGovernor.Brain.Policy;
@@ -196,36 +195,23 @@ public sealed record GearReview
     public Fact<double> Uncovered { get; init; }
 }
 
-/// <summary>The way a gear method resolved. Wire strings are the method id's kind words.</summary>
+/// <summary>Observed or proposed production supply for a loadout requirement; not a pawn labor winner.</summary>
 public enum GearMethodKind
 {
     [WireName("unknown")]
     Unknown = 0,
-
-    [WireName("recovered")]
-    Recovered,
-
-    [WireName("replace")]
-    Replace,
 
     [WireName("produce")]
     Produce,
 
     [WireName("wait_for_existing_work")]
     WaitForExistingWork,
-
-    [WireName("no_eligible_method")]
-    Blocked,
 }
 
 public sealed record GearMethod
 {
     public int Count { get; init; }
     public GearMethodKind Kind { get; init; }
-    public MethodId Id { get; init; }
-    public PawnId Pawn { get; init; }
-    public string Loadout { get; init; } = "";
-    public string Target { get; init; } = "";
     public GearReplacement Need { get; init; } = new();
     public string Bench { get; init; } = "";
     public string Recipe { get; init; } = "";
@@ -325,7 +311,6 @@ public sealed record GearPlanningRequest
 {
     public IReadOnlyDictionary<Resource, double> MaterialPrices { get; init; } = new Dictionary<Resource, double>();
     public Fact<GearObservation> Observation { get; init; }
-    public IReadOnlyList<MethodId> Seen { get; init; } = [];
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
 
     /// <summary>Each stuff's catalog categories (ItemFacts): the stuffs a bill's filter admits beside the loadout's own (GearFilter).</summary>
@@ -451,20 +436,6 @@ public static partial class PolicyFunctions
         return @out.OrderBy(r => r.Value, StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>Stable typed identity; retired methods stay seen for this Episode. The hash input is Go's JSON encoding of the identity.</summary>
-    internal static MethodId GearMethodId(GearMethodKind kind, GearPawn p, string target, GearReplacement need)
-    {
-        var json =
-            "{\"Pawn\":" + GoJsonString(p.Pawn.Value)
-            + ",\"Loadout\":" + GoJsonString(p.Loadout)
-            + ",\"Target\":" + GoJsonString(target)
-            + ",\"Need\":{\"Definition\":" + GoJsonString(need.Definition.Value ?? "")
-            + ",\"Stuff\":" + GoJsonString(need.Stuff.Value ?? "")
-            + ",\"Reason\":" + GoJsonString(need.Reason) + "}}";
-        var sum = SHA256.HashData(Encoding.UTF8.GetBytes(json));
-        return new MethodId("gear-" + Wire.Name(kind) + "-" + Convert.ToHexStringLower(sum.AsSpan(0, 16)));
-    }
-
     /// <summary>Encodes a string as Go's encoding/json does: short escapes for quote, backslash and common controls, \u00XX for other controls, HTML-safe escapes for &lt;, &gt;, &amp;, and U+2028/2029.</summary>
     internal static string GoJsonString(string s)
     {
@@ -511,71 +482,6 @@ public static partial class PolicyFunctions
     }
 
     internal static bool ContainsResource(IReadOnlyList<Resource> values, Resource want) => values.Any(v => v == want);
-
-    /// <summary>Proposes one exact replacement: wearing an item already observed. Crafting is the ledger's (DeclareGearOrders).</summary>
-    public static GearMethod SelectGearMethod(GearPlanningRequest r)
-    {
-        var review = ReviewGear(r.Observation);
-        if (!review.Recovered.IsKnown)
-        {
-            return new GearMethod { Kind = GearMethodKind.Unknown };
-        }
-        if (Positive(review.Recovered))
-        {
-            return new GearMethod { Kind = GearMethodKind.Recovered };
-        }
-        r.Observation.TryGetValue(out var v);
-        return SelectGear(r, ModeledGearObservation(v!, review.Loadouts));
-    }
-
-    /// <summary>Chooses the method for a census already projected from the loadout model (ModeledGearObservation).</summary>
-    private static GearMethod SelectGear(GearPlanningRequest r, GearObservation v)
-    {
-        var seen = GearSeen(r.Seen);
-        var choices = new List<(GearPawn Pawn, GearCandidate Candidate)>();
-        foreach (var p in v.Pawns)
-        {
-            if (p.Blocked)
-            {
-                continue;
-            }
-            foreach (var c in p.Candidates.ValueOrDefault)
-            {
-                choices.Add((p, c));
-            }
-        }
-        var ordered = choices
-            .OrderByDescending(c => c.Candidate.Gain)
-            .ThenBy(c => c.Pawn.Pawn.Value, StringComparer.Ordinal)
-            .ThenBy(c => c.Candidate.Target, StringComparer.Ordinal);
-        foreach (var (pawn, candidate) in ordered)
-        {
-            var id = GearMethodId(GearMethodKind.Replace, pawn, candidate.Target, new GearReplacement());
-            if (!seen.Contains(id))
-            {
-                return new GearMethod
-                {
-                    Kind = GearMethodKind.Replace,
-                    Id = id,
-                    Pawn = pawn.Pawn,
-                    Loadout = pawn.Loadout,
-                    Target = candidate.Target,
-                };
-            }
-        }
-        return new GearMethod { Kind = GearMethodKind.Blocked };
-    }
-
-    /// <summary>Indexes a goal's method history, refusing a malformed one.</summary>
-    private static HashSet<MethodId> GearSeen(IReadOnlyList<MethodId> ids)
-    {
-        var seen = new HashSet<MethodId>();
-        foreach (var id in ids)
-        {
-            DomainException.Require(FoodId(id.Value) && seen.Add(id), "invalid gear method history");
-        }
-        return seen;
-    }
 
     /// <summary>
     /// The bench census sorted by id and, per definition and stuff, how many items the needs still lack after

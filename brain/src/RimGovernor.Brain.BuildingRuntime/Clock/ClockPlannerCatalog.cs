@@ -261,7 +261,7 @@ internal static class ClockPlannerCatalog
             c => c.Envelope is not null, (s, ct, e, a) => s.Config.Envelope!.StepAsync(a, ct, e), (o, m) => o.Envelope = m, MaintainClimateEnvelope),
         E("incineration", O, [ActionKind.Building, ActionKind.Equip, ActionKind.OwnedDraft, ActionKind.Ignite, ActionKind.Clean], SectionsBuilding,
             c => c.Incineration is not null, (s, ct, e, a) => s.Config.Incineration!.StepAsync(a, ct, e), (o, m) => o.Incineration = m, MaintainIncineration, families: FamiliesEmergency),
-        E("moodRelief", O, [ActionKind.MoodRelief, ActionKind.Ability], SectionsPawns,
+        E("moodRelief", O, [ActionKind.Ability], SectionsPawns,
             c => c.MoodRelief is not null, (s, ct, e, a) => s.Config.MoodRelief!.StepAsync(a, ct, e), (o, m) => o.MoodRelief = m),
         E("gear", O, [ActionKind.GearReplace, ActionKind.ApparelPolicy, ActionKind.PolicyPrune], SectionsMedical,
             c => c.Gear is not null, (s, ct, e, a) => s.Config.Gear!.StepAsync(a, ct, e), (o, m) => o.Gear = m, MaintainEquipment),

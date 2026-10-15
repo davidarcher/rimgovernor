@@ -8,6 +8,9 @@ namespace RimGovernor.Brain.Store;
 public sealed record ActivityMethod(PlanId Plan, MethodId Method, GenerationSnapshot Snapshot,
     Fact<bool> Needed, PawnActivities Batch);
 
+/// <summary>Expected shared-resource contention preserves the installed Method for a later observed review.</summary>
+public enum ActivityContinuationAdmission { Admitted, ResourcesUnavailable }
+
 public sealed partial class Store
 {
     private static bool ActivityReleasePlan(PlanSpec plan) => plan.Actions.Count > 0
@@ -36,7 +39,7 @@ public sealed partial class Store
 
     /// <summary>Replace one installed activity batch under the same Method. The prior plan is retained as
     /// superseded history. Productive continuation still requires an unmet Concern; release does not.</summary>
-    public void ContinueActivityMethod(PlanId previous, GenerationSnapshot current, Tick observedTick,
+    public ActivityContinuationAdmission ContinueActivityMethod(PlanId previous, GenerationSnapshot current, Tick observedTick,
         IReadOnlyList<ActivityOwnership> observed, PlanSpec next, CancellationToken ct) => Run(tx =>
     {
         next.Validate();
@@ -78,7 +81,7 @@ public sealed partial class Store
         }
         batch.Validate();
         var release = batch.Orders.All(o => o.Release);
-        if (!release)
+        if (!release && !ActivityCleanupDelta(old, batch))
         {
             if (installed.Spec.Id != prior.Spec.Id) throw new ConflictException("refused continuation permits cleanup only");
             if (!owner.Deficit) throw new ConflictException("recovered Concern permits release only");
@@ -87,7 +90,7 @@ public sealed partial class Store
             var retained = batch.Orders.Where(o => old.Orders.Any(p => PawnActivities.SameOrder(p, o)))
                 .Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
             if (!WorkResourcesFit(WorkResourcesIn(tx, current, previous, observed), next, retained))
-                throw new ConflictException("work_resource_conflict_or_unknown");
+                return ActivityContinuationAdmission.ResourcesUnavailable;
         }
         CreatePlanIn(tx, next);
         InsertPlanOwner(tx, next.Id, "standard");
@@ -96,8 +99,21 @@ public sealed partial class Store
         _ = tx.Execute("UPDATE plans SET method_id=$method WHERE id=$next", ("$method", prior.Method), ("$next", next.Id));
         _ = tx.Execute("UPDATE plans SET retired=1,superseded_by=$next WHERE id=$previous", ("$next", next.Id), ("$previous", previous));
         BumpRevision(tx, owner);
+        return ActivityContinuationAdmission.Admitted;
     }, ct);
 
+    // Cleanup acquires no labor, targets or inputs. Exact ownership/revision checks
+    // still apply; retained obligations must not prevent an unrelated participant release.
+    private static bool ActivityCleanupDelta(PawnActivities previous, PawnActivities next)
+    {
+        var released = next.Orders.Where(o => o.Release).Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
+        if (released.Count == 0 || next.Orders.Any(o => !o.Release
+            && !previous.Orders.Any(p => PawnActivities.SameOrder(p, o)))) return false;
+        var removed = previous.Tasks.Where(t => released.Contains(t.Pawn)).Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
+        var expected = previous.Tasks.Where(t => !removed.Contains(t.Id)).Select(t =>
+            t with { Prerequisites = EquatableArray.From(t.Prerequisites.Where(p => !removed.Contains(p))) });
+        return next.Tasks.SequenceEqual(expected);
+    }
     public void ResolveActivityMethod(PlanId previous, GenerationSnapshot current, Tick observedTick,
         IReadOnlyList<ActivityOwnership> observed, CancellationToken ct) => Run(tx =>
     {

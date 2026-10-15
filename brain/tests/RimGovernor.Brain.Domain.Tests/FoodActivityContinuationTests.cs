@@ -18,48 +18,9 @@ public sealed class FoodActivityContinuationTests
         new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", count, travel, 30) { NutritionPerUnit = Known(1.0), ApproachTicks = Known(travel), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new()
     { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 110 }, Options = EquatableArray.From(options) };
-    private static PawnActivities Harvest() => StartFoodActivity(Read(Option()), 1, "method", 500, out _)!;
+    private static PawnActivities Harvest() => ActivityContinuationFixtures.Harvest();
     private static FoodActivityRead Terminal(PawnActivities batch, string state, params FoodActivityOption[] options) => Read(options) with
     { Execution = new("method/pawn", "method", batch.Orders[0].Revision, 0, state, "", null, 110) };
-
-    [Fact]
-    public void NativeRouteCostChangesChoiceAndUnknownOrLateOptionsDoNotAcquire()
-    {
-        var slow = Option("slow", travel: 200);
-        var fast = Option("fast", travel: 10);
-        Assert.Equal("fast", StartFoodActivity(Read(slow, fast), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
-        Assert.Equal("slow", StartFoodActivity(Read(slow, fast with { TravelTicks = 300, ApproachTicks = Known(300.0) }), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
-        Assert.Null(StartFoodActivity(Read(fast) with { Known = false }, 1, "m", 500, out _));
-        Assert.Null(StartFoodActivity(Read(fast with { TravelTicks = double.NaN, ApproachTicks = default }), 1, "m", 500, out _));
-        Assert.Null(StartFoodActivity(Read(slow), 1, "m", 120, out _));
-    }
-
-    [Fact]
-    public void FoodMethodUsesSharedOutcomeSelectionAndReportsOmittedAlternatives()
-    {
-        var options = Enumerable.Range(0, 17).Select(i => Option("crop-" + i.ToString("D2"), travel: i == 16 ? 0 : 20)).ToArray();
-        var result = StartFoodActivity(Read(options), 1, "method", 500, out var comparison)!;
-        Assert.NotNull(comparison);
-        Assert.Single(comparison.Selected);
-        Assert.Contains("generation_truncated", comparison.Findings);
-        Assert.False(comparison.SearchTruncated);
-        Assert.False(comparison.NetBenefit.IsKnown); // Efficiency is not fabricated avoided hunger loss.
-        Assert.Equal("crop-00", result.Orders[0].Steps[0].Target);
-        Assert.Contains(comparison.Plan!.Allocations, a => a.Activity == comparison.Selected[0]);
-        StartFoodActivity(Read(Option()) with { Truncated = true }, 1, "m", 500, out comparison);
-        Assert.Contains("generation_truncated", comparison!.Findings);
-    }
-
-    [Fact]
-    public void ComparisonRetainsQuantityValuationStableTiesAndPostponement()
-    {
-        var small = Option("a-small", count: 1, travel: 10);
-        var large = Option("b-large", count: 8, travel: 30);
-        Assert.Equal("b-large", StartFoodActivity(Read(small, large), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
-        Assert.Equal("a-small", StartFoodActivity(Read(large with { Count = 1 }, small), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
-        Assert.Equal("a-small", StartFoodActivity(Read(small with { Target = "z-tie" }, small), 1, "m", 500, out _)!.Orders[0].Steps[0].Target);
-        Assert.Null(StartFoodActivity(Read(large with { WorkTicks = 500 }), 1, "m", 500, out _));
-    }
 
     [Theory]
     [InlineData(false)]
@@ -84,7 +45,7 @@ public sealed class FoodActivityContinuationTests
         var dispatched = journal.Dispatch(plan.Id, stored.Id, scope, new(100), ct);
         journal.RecordReceipt(plan.Id, stored.Id, dispatched.View.Attempt, Receipt.Accepted, ct);
         var read = Terminal(harvest, "completed", Option("observed-food", 4));
-        var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), ReconsiderObservedFood(harvest, Known(true), TaskRead(harvest, read), read, out _)!)]);
+        var next = new PlanSpec(new("delivery"), new(1), [DomainAction.NewPawnActivitiesAction(new("deliver-action"), ContinueCoordinatedActivity(harvest, Known(true), TaskRead(harvest, read))!)]);
         journal.ContinueActivityMethod(plan.Id, Root, new(110), [new("pawn", "method/pawn", "method", 1, "completed")], next, ct);
         journal.AuthorizeRoundsPlan(Root, Root with { Plan = next.Id }, ct);
         var intent = BridgeFunctions.IntentAction(next.Actions[0].Id.Value, journal.LoadPlan(next.Id, ct).Spec.Actions[0]).Intent!.PawnActivities!.Batch!;
@@ -116,6 +77,9 @@ public sealed class FoodActivityContinuationTests
     {
         Context = food.Context, Known = food.Known, Food = food,
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn, food.Execution))),
+        Bindings = EquatableArray.From(batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Deliver)
+            .SelectMany(t => food.Options.Where(o => o.Pawn == t.Pawn && o.Resource == t.Resource)
+                .Select(o => new ActivityTaskBinding(t.Id, t.Step with { Target = o.Target, Count = Math.Min(t.Step.Count, o.Count) })))),
     };
     private sealed class Worlds : IWorldSource
     {

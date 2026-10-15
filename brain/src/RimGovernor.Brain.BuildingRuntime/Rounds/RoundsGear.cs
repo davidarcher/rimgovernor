@@ -10,7 +10,7 @@ public interface IRoundsGearSource : Observation.IColonySource, IColonyFactsRead
     Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
-/// <summary>Composes MaintainEquipment's rounds step: apparel policy, outfit pruning and gear replacement orders.</summary>
+/// <summary>Composes MaintainEquipment's rounds step: apparel policy, outfit pruning and explicit replacement support status.</summary>
 public sealed partial class RoundsGearPlanner
 {
     internal Rounder Reviewer { get; init; } = null!;
@@ -51,32 +51,6 @@ internal static partial class BuildingRuntimePackage
     }
 
     internal static async Task<GearDefinitions> GearDefinitionsOfAsync(object source, C.Identity identity, CancellationToken call) => await ObservationPackage.ReadGearDefinitions(source, identity, call).ConfigureAwait(false);
-
-    internal static (string Definition, bool Found) GearCandidateDefinition(GearObservation census, PawnId pawn, string target)
-    {
-        foreach (var p in census.Pawns)
-        {
-            if (p.Pawn != pawn)
-            {
-                continue;
-            }
-
-            if (!p.Candidates.TryGetValue(out var candidates))
-            {
-                return ("", false);
-            }
-
-            foreach (var c in candidates)
-            {
-                if (c.Target == target)
-                {
-                    return (c.Definition.Value, true);
-                }
-            }
-        }
-
-        return ("", false);
-    }
 
     /// <summary>
     /// Go <c>ApparelPolicy.Encoded</c>: the policy's JSON spec (Go field names, definitions sorted), the seed of its
@@ -343,48 +317,8 @@ public sealed partial class RoundsGearPlanner
             }
         }
 
-        var seen = goal.Methods.Select(m => m.MethodId).ToList();
-        var request = new GearPlanningRequest { Observation = Known(census), Seen = seen, Benches = Unknown<EquatableArray<GearBench>>() };
-        SnapshotPackage.NoteGearMethod(request);
-        var choice = PolicyFunctions.SelectGearMethod(request);
-        var planId = PlanIds.MintPlanId();
-        DomainAction action2;
-        switch (choice.Kind)
-        {
-            case GearMethodKind.Replace:
-                var (definition, ok) = GearCandidateDefinition(census, choice.Pawn, choice.Target);
-                if (!ok)
-                {
-                    throw new ControlException("stepOne: no candidate definition for the chosen target");
-                }
-
-                if (!arbiter.TryClaim([choice.Pawn]))
-                {
-                    return new RoundsGearResult { Verdict = ClaimHeld("colonist") };
-                }
-
-                var replace = new GearReplace(choice.Pawn, choice.Target, definition);
-                action2 = DomainAction.NewGearReplaceAction(new ActionId($"{planId}-0"), replace);
-                break;
-            default:
-                if (busy.Count > 0)
-                {
-                    return new RoundsGearResult { Verdict = BuildingReasonExistingWork };
-                }
-
-                return new RoundsGearResult { Verdict = WaitFor(Cause.MethodUsed, "gear_bill") };
-        }
-
-        var spec = new PlanSpec(planId, new PlanRevision(1), [action2]);
-        p.Current(call, epoch);
-        var elapsed = Reviewer.Clock.Now() - started;
-        if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge)
-        {
-            throw new ControlException("stepOne: session state changed or the read took too long");
-        }
-
-        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, choice.Id, spec, call);
-        return new RoundsGearResult { Verdict = BuildingReasonAdmitted, Plan = planId };
+        return new RoundsGearResult { Verdict = AwaitingPlan("unsupported_forecast_apparel_replacement",
+            "Observed apparel replacement demand requires shared forecast worker, timing and outcome alternatives.") };
     }
 
     /// <summary>Commits one single-action policy plan under a method id derived from the goal and the value; a method already seen is a no-op.</summary>

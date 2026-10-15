@@ -18,7 +18,6 @@ public static class MoodCases
         registry.Register(Gathering.Case());
         registry.Register(Headroom.Case());
         registry.Register(Ledger.Case());
-        registry.Register(Relief.Case());
         registry.Register(Subdue.Case());
     }
 }

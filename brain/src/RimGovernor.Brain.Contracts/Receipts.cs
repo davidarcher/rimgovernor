@@ -106,8 +106,6 @@ public enum SettingsField
     Permit = 31,
     [WireName("SETTINGS_FIELD_EXTRACT_BIOFERRITE")]
     ExtractBioferrite = 33,
-    [WireName("SETTINGS_FIELD_EAT_TRIGGER")]
-    EatTrigger = 34,
 }
 
 [JsonConverter(typeof(WireEnumConverter<FieldOutcome>))]

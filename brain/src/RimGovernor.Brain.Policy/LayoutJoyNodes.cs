@@ -147,10 +147,10 @@ public static partial class PolicyFunctions
     /// <summary>The table the bridge reads the joy givers with.</summary>
     public static JoyTable JoyGame() => PolicyConstants.JoyJudgment;
 
-    /// <summary>The share of the day a colonist is not on the Sleep block of the schedule template.</summary>
+    /// <summary>The share of the day a colonist is not on the Sleep block of the fixed layout occupancy assumption.</summary>
     internal static double AwakeShare()
     {
-        var slots = ScheduleTemplate(new TraitEffects());
+        var slots = EnvironmentOccupancyBaseline();
         var awake = slots.Count(s => s != PolicyConstants.ScheduleSleep);
         return (double)awake / slots.Length;
     }

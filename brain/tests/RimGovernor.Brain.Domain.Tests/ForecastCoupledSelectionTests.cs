@@ -65,6 +65,36 @@ public sealed class ForecastCoupledSelectionTests
     }
     private static string SourceTask(RoundsFacts facts, string target) => facts.CoupledAlternatives!.Context.Activities.Activities
         .Single(t => t.Inputs.Count == 0 && t.Outputs.Any(o => o.Lot == "harvest/" + target)).Id;
+
+    [Fact]
+    public void TwoParticipantsCannotSelectTheSameObservedServiceTarget()
+    {
+        var facts = Review();
+        var roster = WorkResourceTestFacts.Create("pawn", "helper");
+        var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
+        {
+            Location = new(1, 1),
+            Needs = [new("joy", Known(.2), Known(.003), Known(.3), Known(1d))],
+            Targets = [new("shared-service", "joy", "", 1, Known(0d), Known(10d), Known(0d), Known(.01))
+                { Location = new(1, 1) }]
+        };
+        facts = facts with { WorkResources = roster.WorkResources, ForecastObserved = facts.ForecastObserved with
+        {
+            WorkPawns = roster.ForecastObserved.WorkPawns,
+            Needs = facts.ForecastObserved.Needs with { Pawns = [pawn, pawn with { Pawn = "helper" }] },
+            Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
+        } };
+        facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+        var selected = Select(facts);
+        Assert.NotEmpty(selected.Selected.Plan.Allocations);
+        Assert.Single(selected.Selected.Plan.Allocations.Select(a => a.Pawn).Distinct());
+        Assert.Contains(selected.Selection.Findings, f => f.StartsWith("conflicting_selected_target_owners:", StringComparison.Ordinal));
+        var batch = StartCoupledActivity(selected, facts.CoupledAlternatives!, 1, "service-method", 100);
+        Assert.NotNull(batch);
+        Assert.True(WorkResourcesFit(facts.WorkView!, new(new("selected-service"), new(1),
+            [DomainAction.NewPawnActivitiesAction(new("service-action"), batch)])));
+    }
     private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384, params ForecastCommitment[] incumbent)
     {
         var request = CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
@@ -95,6 +125,66 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Empty(result.Selection.Selected);
         Assert.Empty(result.Selected.Plan.Allocations);
         Assert.Equal(result.BaselineVector, result.SelectedVector);
+    }
+
+    [Theory]
+    [InlineData(1, 0, 300)]
+    [InlineData(.5, .001, 200)]
+    [InlineData(.2, 0, 0)]
+    public void NoChangeOwnsOnlyAFiniteIntervalBeforeNeedPressure(double level, double fall, long duration)
+    {
+        var facts = Review(level, fall);
+        var candidates = facts.CoupledAlternatives!;
+        var pawn = candidates.Context.Needs.Pawns[0] with { Location = new(8, 9) };
+        candidates = candidates with { Alternatives = [], Context = candidates.Context with
+        { Needs = candidates.Context.Needs with { Pawns = [pawn] } } };
+        facts = facts with { CoupledAlternatives = candidates };
+        var choice = Select(facts);
+        if (duration == 0) { Assert.Empty(choice.Deferred); return; }
+        var deferred = Assert.Single(choice.Deferred);
+
+        Assert.InRange(deferred.Until, 100 + duration - 1, 100 + duration);
+        var batch = Assert.IsType<PawnActivities>(StartCoupledActivity(choice, candidates, 1, "method", 100));
+        batch.Validate();
+        Assert.Equal("defer/" + deferred.Pawn, Assert.Single(batch.Orders).Task);
+        Assert.Equal(PawnActivityKind.Idle, Assert.Single(batch.Tasks).Step.Kind);
+        Assert.Empty(batch.Tasks.SelectMany(t => t.Inputs));
+    }
+
+    [Fact]
+    public void UnknownNeedsAndExistingClaimsNeverBecomeIdlePermission()
+    {
+        var facts = Review(1, 0);
+        var candidates = facts.CoupledAlternatives!;
+        var pawn = candidates.Context.Needs.Pawns[0] with { Location = new(8, 9), Needs = [new("food", default, Known(0d), Known(.3), Known(1d))] };
+        facts = facts with { CoupledAlternatives = candidates with { Alternatives = [], Context = candidates.Context with
+        { Needs = candidates.Context.Needs with { Pawns = [pawn] } } } };
+        Assert.Empty(Select(facts).Deferred);
+        pawn = pawn with { Needs = [new("food", Known(1d), Known(0d), Known(.3), Known(1d))] };
+        facts = facts with { CoupledAlternatives = candidates with { Alternatives = [], Context = candidates.Context with
+        { Needs = candidates.Context.Needs with { Pawns = [pawn] }, Resources = candidates.Context.Resources with
+        { Claims = candidates.Context.Resources.Claims with { Pawns = ["pawn"] } } } } };
+        Assert.Empty(Select(facts).Deferred);
+    }
+    [Fact]
+    public void UnsupportedServiceAndNonfiniteNeedEstimatesNeverAuthorizeIdle()
+    {
+        var facts = Review(1, 0);
+        var original = facts.CoupledAlternatives!;
+        var pawn = original.Context.Needs.Pawns[0] with { Location = new(8, 9) };
+        foreach (var blocked in new[]
+        {
+            pawn with { VoluntaryControlBlockers = ["unsupported_psyfocus"] },
+            pawn with { Needs = [new("food", Known(1d), Known(double.NaN), Known(.3), Known(1d))] },
+            pawn with { Needs = [new("food", Known(1d), Known(0d), Known(double.PositiveInfinity), Known(1d))] },
+        })
+        {
+            var candidates = original with { Alternatives = [], Context = original.Context with
+                { Needs = original.Context.Needs with { Pawns = [blocked] } } };
+            if (blocked.VoluntaryControlBlockers.Count > 0)
+                Assert.Empty(Select(facts with { CoupledAlternatives = candidates }).Deferred);
+            else Assert.Throws<DomainException>(() => Select(facts with { CoupledAlternatives = candidates }));
+        }
     }
 
     [Theory]

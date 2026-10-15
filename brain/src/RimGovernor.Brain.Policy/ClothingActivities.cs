@@ -1,6 +1,4 @@
 using RimGovernor.Contracts.Wire.Observations;
-using RimGovernor.Brain.Policy.Methods.Generation;
-using RimGovernor.Brain.Policy.Methods.Binding;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -37,16 +35,4 @@ public static partial class PolicyFunctions
         return new(EquatableArray.From(result.Distinct()), EquatableArray.From(findings));
     }
 
-    public static PawnActivities? StartClothingActivity(RecipeActivityRead read, ClothingActivityDemand requirements,
-        ulong authority, string method, long deadline, WorkResourceView resources,
-        out ForecastActivityOutcomeComparison? comparison)
-    {
-        var candidates = ClothingMethodCandidates.Generate(read, requirements.Alternatives, deadline, resources);
-        comparison = null;
-        if (candidates.Problem is null || read.Context?.Tick is not { } tick) return null;
-        comparison = CompareActivityOutcomes(candidates.Problem, candidates.Outcomes,
-            ForecastOutcomeObjective.RequirementRelief, (selected, plan) => Methods.Evaluation.ClothingActivityEvaluation.MaterialsFit(selected, candidates.Bindings, resources),
-            candidates.Truncated, generationFindings: requirements.Findings.Concat(read.Findings).Concat(candidates.Findings));
-        return CoordinatedActivityBinding.Start(comparison, candidates.Bindings, authority, method, tick);
-    }
 }

@@ -23,12 +23,8 @@ public sealed partial class RoundsFoodStorageUpkeepPlanner
                 action = DomainAction.NewSupplyAllowAction(actionId, SupplyAllow.NewSupplyForbid(stock.Id, stock.DefName.Value, handling.Cell));
                 break;
             case "haul":
-                if (!arbiter.TryClaim([handling.Hauler], "haul-item:" + stock.Id))
-                {
-                    return new RoundsFoodStorageUpkeepResult { Verdict = WaitFor(Cause.MethodUsed, "haul_item_claim") };
-                }
-                action = DomainAction.NewHaulAction(actionId, new Haul((Domain.PawnId)handling.Hauler, stock.Id, stock.DefName.Value, handling.Cell));
-                break;
+                return new RoundsFoodStorageUpkeepResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_corpse_delivery",
+                    "Corpse delivery requires exact destination, quantity and shared worker alternatives.") };
             default:
                 throw new ControlException($"admitCorpseLarder: kind \"{choice.Kind}\"");
         }

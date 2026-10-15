@@ -175,9 +175,6 @@ internal sealed partial class FacadeNativeClient
     Task<(EmergencyObservation Observation, BridgeResult Result)> IRoundsTendSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
-    Task<(EmergencyObservation Emergency, BridgeResult Result)> IRoundsCustodySource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
-
     Task<(EmergencyObservation Observed, BridgeResult Result)> IShrineReadinessNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 

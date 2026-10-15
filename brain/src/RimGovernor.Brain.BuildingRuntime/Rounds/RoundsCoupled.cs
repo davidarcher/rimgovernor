@@ -4,40 +4,68 @@ public sealed partial class Rounder
 {
     /// <summary>Normal review sequencing only. Policy selected the graph; the existing assignment
     /// Concern, Method journal and Hands retain admission, claims, execution and observed continuation.</summary>
-    private void AdmitCoupledSelection(RoundsResult review, RoundsFacts facts, GenerationSnapshot snapshot,
+    private void AdmitCoupledSelection(RoundsResult review, RoundsFacts facts, EquatableArray<ForecastObservedIncumbent> incumbents, GenerationSnapshot snapshot,
         CancellationToken call, CancellationToken epoch)
     {
         if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return;
-        if (selection.Selection.Selected.Length == 0)
+        var execution = PolicyFunctions.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value);
+        if (execution.Releases.Count > 0)
+        {
+            Player.Current(call, epoch);
+            if (Player.Session.State().Snapshot != snapshot) throw new ControlException("coupled activity scope changed");
+            foreach (var release in execution.Releases)
+            {
+                var next = PlanIds.MintPlanId();
+                Player.Journal.ContinueActivityMethod(release.Incumbent.Plan, snapshot, facts.Tick,
+                    [release.Incumbent.Ownership, .. release.Incumbent.ReleasedOwnership], new PlanSpec(next, new PlanRevision(1),
+                        [DomainAction.NewPawnActivitiesAction(new ActionId($"{next}-0"), release.Batch)]), call);
+            }
+            RecordCoupledSelection(selection, facts.Tick.Value, "release_for_reconsideration");
+            return; // Fresh native ownership evidence precedes replacement admission.
+        }
+        if (execution.Dispatch is not { } dispatch)
+        { RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return; }
+        selection = dispatch;
+        if (selection.Selection.Selected.Length == 0 && selection.Deferred.Count == 0)
         { RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return; }
         var (owner, workable) = Player.Journal.Workable(review.Review, PolicyApi.EnsureWorkAssignments, call);
         if (owner is null || !workable) return;
         var id = PlanIds.MintPlanId();
         var method = new MethodId($"coupled-{id}");
-        RecordCoupledSelection(selection, facts.Tick.Value, method.Value);
         var activity = PolicyFunctions.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
         if (activity is null) return;
         Player.Current(call, epoch);
         if (Player.Session.State().Snapshot != snapshot) throw new ControlException("coupled activity scope changed");
-        Player.Journal.CommitMethodReason(owner.Standard.Id, owner.Revision, method, "shared colony consequence portfolio",
-            new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]), call);
+        try
+        {
+            Player.Journal.CommitMethodReason(owner.Standard.Id, owner.Revision, method, "shared colony consequence portfolio",
+                new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]), call);
+            RecordCoupledSelection(selection, facts.Tick.Value, method.Value);
+        }
+        catch (NotAdmittedException refusal)
+        {
+            // A proposal owns nothing until admitted. Refusal must not revoke authority
+            // or interrupt the useful Methods whose current claims prevented it.
+            RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: refusal.Message);
+        }
     }
 
-    private static void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false)
+    private static void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false, string? admissionFailure = null)
         => Tel.Decide(new Decision
         {
             Kind = "coupled_selection", Component = "rounds", Target = method,
-            Verdict = protectedContinuation || selection.Selection.Selected.Length == 0 ? "continue" : "selected",
-            Reason = protectedContinuation ? "protected_method_ownership" : selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences",
+            Verdict = admissionFailure is not null ? "deferred" : protectedContinuation || selection.Selection.Selected.Length == 0 ? "continue" : "selected",
+            Reason = admissionFailure is not null ? "method_not_admitted" : protectedContinuation ? "protected_method_ownership" : selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences",
             Attrs = new Dictionary<string, object?>
             {
                 ["observed_tick"] = tick, ["horizon_ticks"] = selection.Horizon,
-                ["protected_continuation"] = protectedContinuation,
+                ["protected_continuation"] = protectedContinuation, ["admission_failure"] = admissionFailure,
                 ["selected_ids"] = selection.Selection.Selected,
+                ["deferred_pawns"] = selection.Deferred.Select(t => t.Pawn).ToArray(),
                 ["baseline"] = ConsequenceAttrs(selection.BaselineVector), ["selected"] = ConsequenceAttrs(selection.SelectedVector),
-                ["rejected"] = selection.Rejected.Take(128).Select(r => new Dictionary<string, object?>
+                ["rejected"] = selection.Rejected.Take(16).Select(r => new Dictionary<string, object?>
                 { ["ids"] = r.Commitments.ToArray(), ["reason"] = r.Reason, ["vector"] = r.Consequences is { } v ? ConsequenceAttrs(v) : null }).ToArray(),
-                ["explanation_truncated"] = selection.Rejected.Count > 128,
+                ["explanation_truncated"] = selection.Rejected.Count > 16,
                 ["generation_truncated"] = selection.GenerationTruncated, ["search_truncated"] = selection.Selection.SearchTruncated,
                 ["composition_expansions"] = selection.CompositionExpansions, ["search_expansions"] = selection.Selection.Expansions,
                 ["uncertainty"] = selection.Selection.Findings,

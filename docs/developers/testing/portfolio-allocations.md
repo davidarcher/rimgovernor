@@ -111,7 +111,7 @@ outer budget: the scheduler's per-portfolio bound also contributes truncation.
 These are reproducible incumbents, not exhaustive optima. In particular, the
 larger workload still serves only one of four demanded ingestions at all measured
 budgets; the last row removes unhelpful labor without improving hunger relief.
-Do not report that labor reduction as satisfying four meals. 
+Do not report that labor reduction as satisfying four meals.
 [Issue #3193](https://github.com/davidarcher/rimgovernor/issues/3193) tracks the
 separate feasibility/search-quality investigation; allocation work preserves
 these results.

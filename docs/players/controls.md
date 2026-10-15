@@ -51,3 +51,17 @@ review, not a history.
 
 Save before ending a session you want to keep. **Stop** ends the brain;
 **Close game** ends its RimWorld process. See [save and resume](save-and-resume.md).
+
+### Planned work and needs
+
+In Auto, the governor compares supported food, sleep, recreation, building,
+clothing and support work before assigning exact tasks. A short planned idle
+interval means the next review is due within 600 game ticks or sooner when a
+need reaches its observed threshold. Native timetable templates do not override
+these choices.
+
+A controlled colonist with no supported assignment stops supervised play with
+an explicit unavailable-control reason. This can indicate unsupported needs or
+missing facts/resources; it is not a claim that the colony has nothing to do.
+Manual restores native voluntary behavior. Player orders and involuntary or
+emergency states retain their existing protection.

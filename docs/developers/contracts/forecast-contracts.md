@@ -139,7 +139,18 @@ These are mechanics and current observations, not selected colony policy. Native
 does not spawn hypothetical food to estimate a future meal. Definition-based
 future ingestion facts do not claim ingredient-dependent memories or poisoning
 outcomes. Physical thermal facts do not contain another copy of planned-room
-intent: pure policy joins them to the existing saved layout. Unsupported or
+intent: pure policy joins them to the current native room census and the existing
+saved layout. Observed physical rooms remain roof-repair alternatives when strategic
+layout moves future rooms elsewhere. Observed and planned identities are typed and
+separate; matching footprints produce one candidate, while overlapping incompatible
+footprints produce an explicit finding. Generation considers at most four distinct
+rooms, taking observed heated rooms first, then other observed rooms (occupied or
+bed-bearing first), then planned rooms in layout ID order. Omission is reported as
+`shelter_geometry_truncated`; this bound does not establish that omitted rooms are
+less valuable. Missing physical geometry remains unknown. A complete-roof `Enclosed`
+flag is not required for roof repair: the existing per-cell shell, source and route
+checks still determine whether the thermal estimate is supported. Nonrectangular
+rooms and missing thermal observations retain explicit unsupported/unknown findings. Unsupported or
 truncated reads retain findings and unknown estimates, including missing route
 pairs and unpowered heaters.
 

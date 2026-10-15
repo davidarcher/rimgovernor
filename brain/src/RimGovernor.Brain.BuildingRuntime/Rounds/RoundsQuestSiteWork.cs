@@ -84,12 +84,8 @@ public sealed partial class RoundsPopulationJoinerPlanner
                             target = mine.Thing;
                             break;
                         case "help":
-                            var help = work.Help ?? throw new ControlException("questSiteWork: help work without a service");
-                            action = DomainAction.NewRecoveryServiceAction(actionId, help);
-                            crew = [(PawnId)help.Pawn];
-                            kind = "help";
-                            target = help.Thing;
-                            break;
+                            return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_site_help",
+                                "Site help requires shared forecast worker, duration and outcome admission.") }, true);
                         case "recruit":
                             var recruit = work.Recruit ?? throw new ControlException("questSiteWork: recruit work without an interaction");
                             action = DomainAction.NewPrisonerInteractionAction(actionId, recruit);
@@ -131,6 +127,9 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     kind = "return";
                 }
 
+                if (action?.CaravanDeparture is { Mode: CaravanDepartureMode.Formation })
+                    return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
+                        "Caravan packing and departure require shared forecast labor admission.") }, true);
                 if (crew.Count > 0 && !arbiter.TryClaim(crew, "quest:" + offer.Quest))
                 {
                     return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_site") }, true);

@@ -148,8 +148,10 @@ public sealed partial class RoundsTradePlanner
         var caravan = MissionCaravan(m, world);
         if (m.Phase == TradeMissionPhase.Planned)
         {
-            var id = Reviewer.AdmitTradeMissionDeparture(state, project, world, arbiter, call, epoch);
-            return (new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, NativeWorkTicks = TradeWalkTicks }, true);
+            var (observedPhase, _, observed) = TradeMissions.TradeMissionDepartureEvidence(m, world);
+            if (observed) return MissionRecord(project, m with { Phase = observedPhase }, call);
+            return (new RoundsTradeResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
+                "Caravan packing and departure require shared forecast labor admission.") }, true);
         }
         if (m.Phase is TradeMissionPhase.Departing or TradeMissionPhase.Outbound)
         {
@@ -255,7 +257,7 @@ public sealed partial class RoundsTradePlanner
                 throw new DomainException("invalid caravan departure");
             }
             var id = PlanIds.MintPlanId();
-            var action = DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-home"), departure!);
+            var action = DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-home"), departure! with { Mode = CaravanDepartureMode.ExistingRoute });
             return MissionCommit(state, project, m, id, action, "trade-return", call, epoch);
         }
         return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);

@@ -92,12 +92,6 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return inspection;
         }
 
-        var (refugee, refugeeHandled) = await AdmitRefugeeTendAsync(state, goal, review, read, arbiter, started, call, epoch).ConfigureAwait(false);
-        if (refugeeHandled)
-        {
-            return refugee;
-        }
-
         var (monument, monumentHandled) = await AdmitMonumentAsync(state, goal, review, read, arbiter, started, call, epoch).ConfigureAwait(false);
         if (monumentHandled)
         {
@@ -156,11 +150,6 @@ public sealed partial class RoundsPopulationJoinerPlanner
                     return departure;
                 }
 
-                if (refugee.NativeWorkTicks > 0)
-                {
-                    return refugee;
-                }
-
                 if (hosting.NativeWorkTicks > 0)
                 {
                     return hosting;
@@ -199,22 +188,11 @@ public sealed partial class RoundsPopulationJoinerPlanner
         return new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
     }
 
-    internal RoundsPopulationJoinerResult AdmitCeremonyStart(ControlState state, StandardState goal, BestowingCeremony ceremony, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal static RoundsPopulationJoinerResult AdmitCeremonyStart(ControlState state, StandardState goal, BestowingCeremony ceremony, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
-        var p = reviewer.Player;
-        var prefix = $"ritual-start-{ceremony.Pawn}-";
-        var (method, verdict, ok) = BuildingRuntimePackage.AdmitStandardMethod(p.Journal, goal, prefix, state.Snapshot, call);
-        if (!ok)
-        {
-            return new RoundsPopulationJoinerResult { Verdict = verdict };
-        }
-
-        var ritual = new Ritual(ceremony.Pawn, RitualKind.Bestowing, RitualVerb.Start);
-        var id = PlanIds.MintPlanId();
-        var action = DomainAction.NewRitualAction(new ActionId($"{id}-0"), ritual);
-        return CommitSingle(state, started, goal, method, id, action, call, epoch);
+        return new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_bestowing",
+            "Ceremony participation requires shared forecast occupancy and outcome admission.") };
     }
-
     internal RoundsPopulationJoinerResult AdmitLetter(ControlState state, StandardState goal, JoinerLetterOffer letter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;

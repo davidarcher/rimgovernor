@@ -94,11 +94,12 @@ namespace HomeBridge.BridgeTools
             if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
             var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
             var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(source.Count), MeditateAssignmentAvailable = DefDatabase<TimeAssignmentDef>.GetNamedSilentFail("Meditate") != null };
+            var dependentPatients = NativeDependentPatients.Read(map).Select(p => p.Pawn).ToHashSet();
             double? raidArmor = null; var armorRead = false;
             using var surgery = new NativePawnDetails.SurgeryScope();
             foreach (var pawn in source.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
                 var details = !pawn.Dead && pawn.IsFreeColonist ? ColonistDetail : combat.Contains(Id(pawn.GetUniqueLoadID())) ? CombatDetail
-                    : pawn.RaceProps.Animal ? AnimalDetail : CoreDetail;
+                    : dependentPatients.Contains(pawn) ? PatientDetail : pawn.RaceProps.Animal ? AnimalDetail : CoreDetail;
                 if (details.Equipment.GetValueOrDefault() && !armorRead) { raidArmor = NativeGearFacts.RaidArmor(map); armorRead = true; }
                 result = result with { Pawns = [.. result.Pawns, Detail(pawn, colonists, Core(pawn, colonists, context), details, raidArmor, context)] };
             }
@@ -111,6 +112,7 @@ namespace HomeBridge.BridgeTools
         private static readonly Obs.PawnDetails ColonistDetail = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = true, Social = true, Animals = true, Work = true, Schedule = true, Tend = false };
         private static readonly Obs.PawnDetails CombatDetail = new Obs.PawnDetails { Needs = false, Health = true, Equipment = true, Biography = true, Settings = false, Social = false, Animals = true };
         private static readonly Obs.PawnDetails AnimalDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = true };
+        private static readonly Obs.PawnDetails PatientDetail = new Obs.PawnDetails { Needs = false, Health = true, Equipment = false, Biography = false, Settings = false, Social = false, Animals = false };
         private static readonly Obs.PawnDetails CoreDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = false };
 
         // Detail is the one pawn row builder: the core row with the

@@ -1031,7 +1031,7 @@ transient forecast inputs and concrete target bindings, not persistent Methods.
 | Normal Rounder | Read native options and sequence admission of the policy-selected portfolio through the existing journal |
 | `FoodMethodCandidates` / `ConstructionMethodCandidates` / `ClothingMethodCandidates` in `Methods.Generation` | Generate operation/provider alternatives and task/pawn binding templates without selecting sources or participants |
 | `PolicyFunctions.CompareActivityOutcomes` | Shared ColonyForecast alternative search, scheduling, deadlines, labor ceiling, postponement and selection |
-| `CoordinatedActivityBinding` / `FoodActivityBinding` in `Methods.Binding` | Resolve selected allocations into exact activity actions; no independent ranking |
+| `CoordinatedActivityBinding` in `Methods.Binding` | Resolve shared selected allocations into exact activity actions and advance observed obligations; no independent ranking or food-family rebinding selector |
 | `StartCoupledActivity` / `ContinueCoordinatedActivity` | Bind the shared selection, then apply pure ownership/lifecycle checks and observed continuation |
 | Existing Method journal and Hands | Admission, progress/revision ownership, dispatch and release |
 
@@ -1224,8 +1224,7 @@ interruption, unknowns, protected work, distance and bounded generation.
 uses these same stages. Generation retains garment/recipe/stuff/stack/worker and
 destination alternatives. Evaluation compares capped equipment-owned requirement
 relief and total labor under shared resource claims; binding emits only selected
-exact recipes and observed-output delivery tasks. A retained running output is
-an outcome with known completion and no newly allocated activity. Conflicting
-wearables exclude one another, including retained output. This is a family
-consumer retained for isolated tests. Normal clothing alternatives feed the
-coupled trajectory and shared portfolio comparison above.
+exact recipes and observed-output delivery tasks. Conflicting wearables and
+shared destinations exclude one another. Normal clothing alternatives feed the
+coupled trajectory and shared portfolio comparison; the retired family-local
+winner and continuation wrappers are not executable selection paths.

@@ -21,30 +21,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, false);
         }
 
-        var service = work.Service!;
-        if (!arbiter.TryClaim([(PawnId)service.Pawn], $"service:{service.Thing}"))
-        {
-            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "grav_inspection") }, true);
-        }
-
-        var id = PlanIds.MintPlanId();
-        var action = DomainAction.NewRecoveryServiceAction(new ActionId(id.Value + "-0"), service);
-        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-        var prefix = $"grav-inspection-{work.Quest}-{service.Thing}-";
-        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
-        if (!admitted)
-        {
-            return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
-        }
-
-        reviewer.Player.Current(call, epoch);
-        var elapsed = reviewer.Clock.Now() - started;
-        if (reviewer.Player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
-        {
-            throw new ControlException("admitGravInspection: session state changed or the read took too long");
-        }
-
-        reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
+        return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_grav_inspection",
+            "Grav inspection requires shared forecast worker, duration and outcome admission.") }, true);
     }
 }

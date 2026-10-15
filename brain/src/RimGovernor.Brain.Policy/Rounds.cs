@@ -281,7 +281,7 @@ public sealed record RoundsFacts
     /// <summary>The finished buildings the held rituals' patterns require (observation, from the frame's building census).</summary>
     public Fact<EquatableArray<RitualSite>> RitualSites { get; init; }
 
-    /// <summary>The rituals to begin now (PlanRituals), whose attendees the schedule planners hold off Sleep (HeldOffSleep).</summary>
+    /// <summary>The rituals to begin now (PlanRituals); this observation does not schedule voluntary attendance.</summary>
     public Fact<EquatableArray<RitualPlan>> RitualPlans { get; init; }
 
     /// <summary>Holds MaintainRituals open. Unknown unless the method is composed.</summary>
@@ -607,12 +607,6 @@ public sealed record RoundsFacts
     /// <summary>A colonist whose medicine carry count differs from the planned one; EnsureWorkAssignments writes it.</summary>
     public Fact<bool> MedicineCarryOwed { get; init; }
 
-    /// <summary>A colonist whose eat trigger differs from the one the food runway calls for; EnsureWorkAssignments writes it.</summary>
-    public Fact<bool> EatTriggerOwed { get; init; }
-
-    /// <summary>A colonist whose self-tend setting differs from the one it should hold; EnsureWorkAssignments writes it.</summary>
-    public Fact<bool> SelfTendOwed { get; init; }
-
     /// <summary>An owned pawn whose short name an older owned pawn holds; EnsureWorkAssignments renames it.</summary>
     public Fact<bool> NamesOwed { get; init; }
 
@@ -732,7 +726,6 @@ public sealed record RoundsAssessment
 
     /// <summary>The pawn a per-pawn Response (EnsureMood) is assessed for; empty otherwise. (Id, Subject) keys its incident.</summary>
     public PawnId Subject { get; set; }
-
 
     public Finding Finding { get; set; }
 

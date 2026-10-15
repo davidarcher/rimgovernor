@@ -40,6 +40,8 @@ internal static class NativeNeedsForecast
             var state = pawn.Dead ? "dead" : pawn.Downed ? "downed" : pawn.InMentalState ? "mental_state"
                 : pawn.Drafted ? "drafted" : !pawn.IsColonistPlayerControlled ? "player_authority"
                 : pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 ? "player_work" : "eligible";
+            var blockers = VoluntaryControlBlockers(pawn);
+            if (state == "eligible" && blockers.Count != 0) state = "unsupported_voluntary_state";
             var targets = new List<Obs.NeedTarget>();
             if (state == "eligible")
             {
@@ -94,15 +96,79 @@ internal static class NativeNeedsForecast
                 .Select(n => "unsupported_need:" + n.def.defName).ToList() ?? new List<string>();
             unsupported.Add("disease_and_relationship_changes");
             var conditionalMood = NativeConditionalMood.Read(pawn, unsupported);
-            rows.Add(conditionalMood with { Pawn = pawn.GetUniqueLoadID(), State = state,
+            rows.Add(conditionalMood with { Pawn = pawn.GetUniqueLoadID(), State = state, Location = new(pawn.Position.x, pawn.Position.z),
+                CurrentService = state == "eligible" ? CurrentService(pawn) : null,
                 ComfortableMin = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)), ComfortableMax = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)), Needs = EquatableArray.From(needs),
                 Mood = pawn.needs?.mood is { } mood ? K(mood.CurLevelPercentage) : default,
                 MoodTarget = pawn.needs?.mood is { } targetMood ? K(targetMood.CurInstantLevel) : default,
                 BreakThreshold = pawn.mindState?.mentalBreaker is { } breaker ? K(breaker.BreakThresholdMinor) : default,
                 Memories = memories is null ? default : Fact.Known(EquatableArray.From(memories)),
-                Targets = EquatableArray.From(targets), Unsupported = EquatableArray.From(unsupported) });
+                Targets = EquatableArray.From(targets), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers });
         }
         return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows), Truncated = truncated };
+    }
+    private static Obs.NeedCurrentService? CurrentService(Pawn pawn)
+    {
+        var execution = NativePawnActivities.Read(pawn);
+        var step = NativePawnActivities.ActiveStep(pawn);
+        var job = pawn.CurJob;
+        var driver = pawn.jobs?.curDriver;
+        if (execution == null || execution.State != "started" || step == null || job == null
+            || execution.JobId != job.loadID || job.playerForced || pawn.jobs!.jobQueue.Count != 0
+            || pawn.pather.Moving || step.Deadline <= Find.TickManager.TicksGame) return null;
+        // Exact native horseshoes is a stationary final Delay toil; other recreation drivers
+        // and sleep's dynamic wake/medical/other-job conditions remain unassessed.
+        if (step.Kind != PawnActivityKind.Recreation || driver?.GetType() != typeof(JobDriver_PlayHorseshoes)
+            || !driver.OnLastToil || driver.ticksLeftThisToil <= 0 || job.doUntilGatheringEnded
+            || job.def != DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef
+            || !job.ignoreJoyTimeAssignment && !pawn.GetTimeAssignment().allowJoy
+            || job.targetA.Thing is not Verse.Building target || target.GetUniqueLoadID() != step.Target
+            || pawn.needs?.joy is not { } joy || joy.GetType() != typeof(Need_Joy)) return null;
+        var gain = job.def.joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour
+            * target.GetStatValue(StatDefOf.JoyGainFactor) * joy.tolerances.JoyFactorFromTolerance(job.def.joyKind);
+        if (!double.IsFinite(gain) || gain <= 0) return null;
+        // JoyTickCheckEnd ends strictly above 0.9999, not at the need threshold.
+        var full = Math.Max(1, Math.Floor((0.9999 - joy.CurLevel) / gain) + 1);
+        var remaining = Math.Min(driver.ticksLeftThisToil, Math.Min(step.Deadline - Find.TickManager.TicksGame, full));
+        return new(execution.Assignment, execution.Method, execution.Revision, step.Target, "joy",
+            new(pawn.Position.x, pawn.Position.z), K(remaining), K(gain))
+        { Unsupported = ["current_rate_completion_projection", "future_tolerance_changes", "ownership_release_requires_observation"] };
+    }
+    /// <summary>Supported-state observation, not a job selector. Exact types prevent a mod subclass with
+    /// different mechanics from inheriting a support claim. Additional services have no forecasted onset.</summary>
+    internal static EquatableArray<string> VoluntaryControlBlockers(Pawn pawn)
+    {
+        var blockers = new SortedSet<string>(StringComparer.Ordinal);
+        if (pawn.needs == null) blockers.Add("unknown_need_census");
+        else foreach (var need in pawn.needs.AllNeeds)
+        {
+            var type = need.GetType();
+            if (type == typeof(Need_Food) || type == typeof(Need_Rest) || type == typeof(Need_Joy)
+                || type == typeof(Need_Mood) || type == typeof(Need_Comfort) || type == typeof(Need_Beauty)
+                || type == typeof(Need_Outdoors) || type == typeof(Need_Indoors) || type == typeof(Need_RoomSize)) continue;
+            // Native Chemical_Any.Disabled is exposed by ShowOnNeedList; ordinary pawns carry this
+            // inactive need too. Visibility is not a support test for any other need class.
+            if (type == typeof(Need_Chemical_Any) && !need.ShowOnNeedList) continue;
+            blockers.Add("unsupported_need:" + need.def.defName);
+        }
+        if (pawn.HasPsylink) blockers.Add("unsupported_psyfocus");
+        if (pawn.genes?.GenesListForReading.Any(g => g is Gene_Hemogen && g.Active) == true)
+            blockers.Add("unsupported_hemogen");
+        if (pawn.genes?.GenesListForReading.Any(g => g is Gene_ChemicalDependency && g.Active) == true)
+            blockers.Add("unsupported_genetic_chemical_dependency");
+        if (pawn.health?.hediffSet.hediffs.OfType<Hediff_ChemicalDependency>().Any(h => !h.ShouldRemove) == true)
+            blockers.Add("unsupported_genetic_chemical_dependency");
+        var drugs = pawn.drugs;
+        if (drugs?.CurrentPolicy is { } policy)
+            for (var i = 0; i < policy.Count; i++)
+            {
+                var drug = policy[i].drug;
+                if (drug == null) { blockers.Add("unknown_scheduled_drug"); continue; }
+                if (!drugs.AllowedToTakeScheduledEver(drug)) continue;
+                blockers.Add((drugs.ShouldTryToTakeScheduledNow(drug)
+                    ? "scheduled_drug_due:" : "scheduled_drug_onset_unassessed:") + drug.defName);
+            }
+        return EquatableArray.From(blockers);
     }
     private static Obs.NeedMemory MealMemory(Pawn pawn, FoodUtility.ThoughtFromIngesting source)
     {

@@ -51,7 +51,22 @@ public sealed class ClothingChoiceTests
     private static WorkResourceView Resources(double cloth = 30, double wool = 30) => WorkResourcesOf(
         WorkAdmissionEvidenceOf(Facts(cloth, wool), Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
     private static PawnActivities? Start(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
-        out ForecastActivityOutcomeComparison? comparison) => StartClothingActivity(read, ClothingActivityRequirements(census), 1, "clothing", 2000, resources, out comparison);
+        out ForecastActivityOutcomeComparison? comparison)
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
+        var template = facts.ForecastObserved.Needs!.Pawns[0];
+        facts = facts with { Gear = Known(census), WorkView = resources, ForecastObserved = facts.ForecastObserved with
+        {
+            Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" }] },
+            Coupled = new() { Tick = 100, Clothing = read }
+        } };
+        var generated = GenerateCoupledActivities(facts, 1900)!;
+        var request = CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
+        var selected = CompareActivityOutcomes(request, generated);
+        comparison = selected.Selection;
+        return StartCoupledActivity(selected, generated, 1, "clothing", 100);
+    }
     private static PawnActivityRecipe Recipe(PawnActivities batch) => batch.Tasks.Single(t => t.Step.Recipe != null).Step.Recipe!;
 
     [Fact]
@@ -115,20 +130,20 @@ public sealed class ClothingChoiceTests
     [Fact]
     public void ExistingExactBillCanExecuteItsAlreadyHeldInputsButCannotFundAnotherRecipe()
     {
-        var resources = Resources(0, 0);
-        resources = resources with
-        {
-            Evidence = resources.Evidence with
-            { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(10.0), Known("standing-bill"))])]) }
-        };
+        // Stock is physical total; a reservation removes availability, not the actual items.
+        // The former local selector incorrectly accepted a promise even with zero physical stock.
+        var empty = Resources(0, 0).Evidence with
+        { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(10.0), Known("standing-bill"))])]) };
+        Assert.Null(Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }),
+            WorkResourcesOf(empty, Known(default(EquatableArray<ProductionBatch>)), []), out _));
+        var evidence = Resources(10, 0).Evidence with { Promises = empty.Promises };
+        var resources = WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)), []);
         var selected = Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }), resources, out _)!;
         Assert.Equal("standing-bill", Recipe(selected).Bill);
         Assert.Null(Start(Census(), Read(Option("Cloth")), resources, out _));
-        resources = resources with
-        {
-            Evidence = resources.Evidence with
-            { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(100.0), Known("standing-bill"))])]) }
-        };
+        evidence = Resources(100, 0).Evidence with
+        { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(100.0), Known("standing-bill"))])]) };
+        resources = WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)), []);
         var other = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
         { Inputs = [Input("other-stack", "Cloth")], Destination = new(16, 15) };
         var bundle = Start(Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs")),
@@ -168,7 +183,7 @@ public sealed class ClothingChoiceTests
         var physical = census with { Pawns = [census.Pawns[0] with { Candidates = Known<EquatableArray<GearCandidate>>([new("stored-shirt", 1, new("Shirt"))]) }] };
         Assert.Empty(ClothingActivityRequirements(physical).Alternatives);
         Start(census, Read(Option("Cloth")) with { Truncated = true }, Resources(), out var bounded);
-        Assert.Contains("generation_truncated", bounded!.Findings);
+        Assert.Contains("coupled_generation_truncated", bounded!.Findings);
     }
 
     [Fact]

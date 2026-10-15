@@ -15,24 +15,13 @@ public sealed class FoodCookingContinuationTests
 {
     private static FoodActivityOption Raw(string target = "raw") => new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", 10, 20, 0)
         { NutritionPerUnit = Known(0.05), ApproachTicks = Known(20.0), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
-    private static FoodActivityOption Cook(double work = 10) => Raw() with
-    {
-        Destination = new(5, 6), Cooking = new(new("bench", "bill", "recipe", "cook-giver", new(5, 5), "Meal", 1, new(8, 9)),
-            10, work, 5, Known(0.9), false)
-    };
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) };
-    private static PawnActivities Harvest() => StartFoodActivity(Read(Raw("crop")), 1, "method", 500, out _)!;
     private static ActivityTaskRead Done(PawnActivities batch, string state = "completed", params ActivityTaskBinding[] bindings) => new()
     {
         Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 200 }, Bindings = EquatableArray.From(bindings),
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
             new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 200)))),
     };
-    private static PawnActivities Select(params FoodActivityOption[] options)
-    {
-        var harvest = Harvest();
-        return ReconsiderObservedFood(harvest, Known(true), Done(harvest), Read(options), out _)!;
-    }
     private static PawnActivities Cooking(PawnActivities supply, string ingredient = "changed-stack")
     {
         var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
@@ -41,24 +30,9 @@ public sealed class FoodCookingContinuationTests
     }
 
     [Fact]
-    public void RawAndCookingCompeteBeforeRecipeAndIngredientsAreBound()
-    {
-        var cooked = Select(Raw(), Cook());
-        Assert.Equal(3, cooked.Tasks.Count);
-        Assert.Equal(PawnActivityKind.Deliver, cooked.Orders[0].Steps[0].Kind);
-        Assert.Equal(10, cooked.Orders[0].Steps[0].Count);
-        var other = Cook() with { Cooking = Cook().Cooking! with { ProductNutrition = Known(2.0),
-            Continuation = Cook().Cooking!.Continuation with { Bill = "other-bill", Recipe = "other-recipe" } } };
-        Assert.Equal("other-recipe", Select(Raw(), Cook(), other).Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe).Step.Recipe!.Recipe);
-        foreach (var expensive in new[] { Cook(200), Cook() with { TravelTicks = 250 }, Cook() with { Count = 9 },
-            Cook() with { Cooking = Cook().Cooking! with { ProductNutrition = default } } })
-            Assert.DoesNotContain(Select(Raw(), expensive).Tasks, t => t.Step.Kind == PawnActivityKind.Recipe);
-    }
-
-    [Fact]
     public void SupplyRebindsChangedIngredientThenCookingRequiresObservedMealForDelivery()
     {
-        var supply = Select(Cook());
+        var supply = ActivityContinuationFixtures.Cooking();
         var cooking = Cooking(supply);
         foreach (var batch in new[] { supply, cooking })
         {
@@ -89,7 +63,7 @@ public sealed class FoodCookingContinuationTests
     [Fact]
     public void InterruptedCookingLostBenchAndChangedRecipeCannotReplayConsumption()
     {
-        var supply = Select(Cook());
+        var supply = ActivityContinuationFixtures.Cooking();
         Assert.True(ContinueCoordinatedActivity(supply, Known(true), Done(supply))!.Orders[0].Release);
         var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         var wrong = task.Step with { Recipe = task.Step.Recipe! with { Bill = "other-bill" } };
@@ -103,7 +77,7 @@ public sealed class FoodCookingContinuationTests
     [Fact]
     public void ProductiveDurationSurvivesJournalAndFreshMechanicsMustStillSupportNextWork()
     {
-        var supply = Select(Cook());
+        var supply = ActivityContinuationFixtures.Cooking();
         supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
             ? t with { ProductiveWorkTicks = Known(100d) } : t)) };
         BridgeFunctions.RegisterIntentKinds();
@@ -128,7 +102,7 @@ public sealed class FoodCookingContinuationTests
     [InlineData(false)]
     public void FreshDemandCanRetireProductiveWorkButUnknownDoesNotCertifyRecovery(bool known)
     {
-        var supply = Select(Cook());
+        var supply = ActivityContinuationFixtures.Cooking();
         supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
             ? t with { ProductiveWorkTicks = Known(100d) } : t).Append(new("eat", "pawn", [],
                 new(PawnActivityKind.Eat, "meal", "", "", 1, 500), new(8, 9), 200))) };
@@ -139,24 +113,6 @@ public sealed class FoodCookingContinuationTests
         if (known) Assert.True(ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);
         var active = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p with { Execution = p.Execution! with { State = "started" } })) };
         Assert.Equal(Known(true), ReviewProductiveActivityNeed(supply, Known(true), active));
-    }
-
-    [Fact]
-    public void CookingChoiceReleasesPreparedHelperButExpensiveRecipeKeepsRawHelper()
-    {
-        var batch = Harvest();
-        var helper = batch.Orders[0] with { Pawn = "helper", Assignment = "method/helper", Preparing = true,
-            Steps = [new(PawnActivityKind.Hold, "", "", "", 0, 500)] };
-        batch = batch with { Orders = [batch.Orders[0], helper] };
-        var done = Done(batch) with { Pawns = EquatableArray.From(Done(batch).Pawns.Select(p => p.Pawn == "helper"
-            ? p with { Execution = p.Execution! with { State = "holding" } } : p)) };
-        var helperFood = Raw() with { Pawn = "helper", TravelTicks = 25, ApproachTicks = Known(0.0), DeliveryTicks = Known(25.0) };
-        var cooking = ReconsiderObservedFood(batch, Known(true), done, Read(helperFood, Cook()), out _)!;
-        Assert.True(cooking.Orders.Single(o => o.Pawn == "helper").Release);
-        Assert.Contains(cooking.Tasks, t => t.Step.Kind == PawnActivityKind.Recipe);
-        var raw = ReconsiderObservedFood(batch, Known(true), done, Read(helperFood, Cook(300)), out _)!;
-        Assert.True(raw.Orders.Single(o => o.Pawn == "pawn").Release);
-        Assert.Equal("helper", raw.Tasks.Single().Pawn);
     }
 
     [Fact]

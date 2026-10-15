@@ -23,30 +23,12 @@ public sealed partial class RoundsBuildingPlanner
                 continue;
             }
             change.Door.HoldOpen.TryGetValue(out var held);
-            PawnId opener = default;
             if (change.Heat && change.Passage)
             {
-                if (facts.WorkPawns.TryGetValue(out var known))
-                {
-                    var pawns = known.ToList();
-                    pawns.Sort((a, b) => string.CompareOrdinal(a.Id.Value, b.Id.Value));
-                    foreach (var pawn in pawns)
-                    {
-                        var ak = pawn.Available.TryGetValue(out var available);
-                        var jk = pawn.Job.TryGetValue(out var job);
-                        if (ak && available && jk && job!.Work != WorkType.Doctor && job.Work != WorkType.Firefighter && job.Def != "Rescue" && job.Def != "LayDown" && change.Occupants.Contains(pawn.Id))
-                        {
-                            opener = pawn.Id;
-                            break;
-                        }
-                    }
-                }
-                if (opener.IsEmpty)
-                {
-                    continue;
-                }
+                return (new RoundsBuildingResult { Verdict = AwaitingPlan("unsupported_forecast_door_passage",
+                    "Thermal door passage requires shared forecast participant and movement alternatives.") }, true);
             }
-            if (held == change.HoldOpen && opener.IsEmpty)
+            if (held == change.HoldOpen)
             {
                 return (new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "door_passage_pending"), NativeWorkTicks = StockWaitTicks }, true);
             }
@@ -56,15 +38,6 @@ public sealed partial class RoundsBuildingPlanner
             {
                 var control = new DoorControl(change.Door.Cell, change.HoldOpen);
                 actions.Add(DomainAction.NewDoorControlAction(new ActionId($"{id}-0"), control));
-            }
-            if (!opener.IsEmpty)
-            {
-                var draft = new OwnedDraft((Domain.PawnId)opener);
-                var draftAction = DomainAction.NewOwnedDraftAction(new ActionId($"{id}-1"), draft);
-                var movement = new Movement((Domain.PawnId)opener, change.To, draftAction.Id);
-                var moveAction = DomainAction.NewMovementAction(new ActionId($"{id}-2"), movement);
-                actions.Add(draftAction);
-                actions.Add(moveAction);
             }
             var plan = new PlanSpec(id, new PlanRevision(1), actions);
             p.Current(call, epoch);

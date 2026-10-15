@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
         }
         private static Obs.StatusSnapshot Status(Map map, Obs.StatusRequest request, Common.ObservationContext context)
         {
-            var result = new Obs.StatusSnapshot { Context = context };
+            var result = new Obs.StatusSnapshot { Context = context, DependentPatients = NativeDependentPatients.Observe(map) };
             var wantColonists = request.Colonists is null || request.Colonists.GetValueOrDefault();
             var wantThreats = request.Threats is null || request.Threats.GetValueOrDefault();
             if (!wantColonists && !wantThreats) {

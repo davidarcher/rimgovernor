@@ -274,7 +274,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("caravan departure requires a crew and a destination");
         }
-        var intent = new Op.FormCaravanIntent { DestinationTile = departure.DestinationTile };
+        var intent = new Op.FormCaravanIntent { DestinationTile = departure.DestinationTile, Mode = (Op.CaravanMode)departure.Mode };
         foreach (var pawn in departure.Crew)
         {
             if (!IsValidId(pawn.Value))

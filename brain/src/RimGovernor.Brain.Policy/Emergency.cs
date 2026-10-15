@@ -157,9 +157,13 @@ public sealed record EmergencyThreat
     }
 }
 
+public sealed record EmergencyDependentPatient(EmergencyPawn Pawn, DependentPatientGroup Group, Fact<bool> Rescue, Fact<bool> Tend);
+
 public sealed record EmergencyFacts
 {
     public Fact<bool> ColonistsComplete { get; init; }
+
+    public Fact<EquatableArray<EmergencyDependentPatient>> DependentPatients { get; init; }
 
     public IReadOnlyList<EmergencyPawn> Colonists { get; init; } = [];
 
@@ -229,6 +233,9 @@ public sealed record EmergencySnapshot
         {
             DomainException.Require(ValidId(pawn.Id) && people.Add(pawn.Id), "invalid or duplicate emergency pawn");
         }
+        foreach (var patient in facts.DependentPatients.ValueOrDefault)
+            DomainException.Require(ValidId(patient.Pawn.Id) && people.Add(patient.Pawn.Id)
+                && Enum.IsDefined(patient.Group), "invalid or duplicate dependent patient");
         var seen = new HashSet<(PawnId, ThreatKind)>();
         foreach (var threat in facts.Threats)
         {
@@ -283,6 +290,9 @@ public static partial class PolicyFunctions
         {
             Hold(EmergencyReason.UnknownFacts, default);
         }
+        if (!snapshot.Facts.DependentPatients.TryGetValue(out var dependents)
+            || dependents.Any(p => !p.Rescue.IsKnown || !p.Tend.IsKnown))
+            Hold(EmergencyReason.UnknownFacts, default);
         // A pawn may occur in several native categories; disagreeing known status is uncertainty, not permission
         // to choose whichever category appears safest.
         var statuses = new Dictionary<PawnId, (Fact<bool> Dead, Fact<bool> Downed)>();
@@ -301,7 +311,7 @@ public static partial class PolicyFunctions
             }
             statuses[id] = (Combine(prior.Dead, dead), Combine(prior.Downed, downed));
         }
-        foreach (var pawn in snapshot.Facts.Colonists)
+        foreach (var pawn in EmergencyPatients(snapshot.Facts))
         {
             Merge(pawn.Id, pawn.Dead, pawn.Downed);
             if (AggressiveBreak(pawn))

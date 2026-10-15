@@ -131,36 +131,8 @@ public sealed partial class RoundsTradePlanner
             {
                 continue;
             }
-            var option = proposal.Option;
-            if (!Reviewer.ClaimTradeAcquisition(owner.Name, option.ID))
-            {
-                continue;
-            }
-            void Release() => Reviewer.ReleaseTradeAcquisition(owner.Name, option.ID);
-            try
-            {
-                var kind = option.Kind == Pol.TradeAcquisitionKind.Orbital ? TradeRequestKind.Orbital : TradeRequestKind.Caravan;
-                var request = new CommsTradeRequest(kind, option.Faction, option.TraderKind, option.Console, option.Negotiator, option.LastRequestTick);
-                var id = PlanIds.MintPlanId();
-                var action = DomainAction.NewCommsTradeRequestAction(new ActionId(id + "-request"), request);
-                var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-                Reviewer.Player.Current(call, epoch);
-                if (Reviewer.Player.Session.State() != state)
-                {
-                    throw new ControlException("request: session moved");
-                }
-                var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"trade-request-{goal.Admitted}"));
-                var record = "{\"comms_trade_request\":" + global::RimGovernor.Brain.Store.Codec.StoreJson.Serialize(request) + "}";
-                journal.CommitMethodRecord(goal.Standard.Id, goal.Revision, method, "", plan, record, call);
-                // Keep the derived admission claim until this shared method reconciles. The saved method and native
-                // facts own recovery after restart.
-                return (new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, NativeWorkTicks = TradeWalkTicks }, true);
-            }
-            catch
-            {
-                Release();
-                throw;
-            }
+            return (new RoundsTradeResult { Verdict = AwaitingPlan("unsupported_forecast_trade_request",
+                "Comms negotiation requires shared participant, travel and service alternatives.") }, true);
         }
         return (new RoundsTradeResult(), false);
     }
