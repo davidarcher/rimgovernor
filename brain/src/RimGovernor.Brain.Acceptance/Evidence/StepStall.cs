@@ -4,8 +4,8 @@ using System.Text;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// The fail-fast verdict when a run's step-stall budget elapsed without any scheduler step admitting a clock
-/// window. It names the family selection the service ran with and the last step failure the clock worker recorded,
+/// The fail-fast verdict when a run's step-stall budget elapsed without any scheduler step running a clock
+/// step. It names the family selection the service ran with and the last step failure the clock worker recorded,
 /// so a starved step budget reads as such instead of as twenty minutes of an unchanged EnsureFoodSupply timeline.
 /// </summary>
 public sealed class StepStallException : AcceptanceException
@@ -28,7 +28,7 @@ public sealed class StepStallException : AcceptanceException
     private static string Describe(TimeSpan stall, string families, string lastFailure)
     {
         var b = new StringBuilder();
-        b.Append(CultureInfo.InvariantCulture, $"no scheduler step admitted a clock window within {WaitError.FormatDuration(stall)} of the watch starting (RIMGOVERNOR_ROUTINE_FAMILIES=\"{families}\")");
+        b.Append(CultureInfo.InvariantCulture, $"no scheduler step ran within {WaitError.FormatDuration(stall)} of the watch starting (RIMGOVERNOR_ROUTINE_FAMILIES=\"{families}\")");
         if (lastFailure.Length > 0)
         {
             b.Append(": ").Append(lastFailure);

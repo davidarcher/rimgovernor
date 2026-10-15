@@ -302,8 +302,8 @@ public sealed partial class CheckpointRing
         {
             if (declined)
             {
-                // The next call may find the window over (or the game held again); ask again in a moment, not on
-                // every call of a running window.
+                // The next call may find the run over (or the game held again); ask again in a moment, not on
+                // every call of a running clock.
                 _nextCheck = Now() + ToTimestamp(TimeSpan.FromSeconds(5));
                 return took;
             }

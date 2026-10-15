@@ -115,7 +115,7 @@ internal sealed partial class SpeedmatrixRun
                 ["gomaxprocs"] = Environment.ProcessorCount,
             },
             ["speeds"] = _profile.Speeds,
-            ["tick_budget"] = _profile.Ticks,
+            ["tick_target"] = _profile.Ticks,
             ["stage"] = new JsonObject { ["save"] = _profile.Save, ["items"] = _profile.Items, ["wall_segments"] = _profile.Segments },
 
             // The rows' fixed requirements: the same clock speed and the same useful work, so only the observation load differs.

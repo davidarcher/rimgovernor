@@ -123,7 +123,6 @@ internal static class ReviewColonyWeek
 
                     // A review records whatever happens; nothing ends it early but a stalled clock.
                     FailFast = new FailFast { Disabled = true },
-                    IdleGrace = TimeSpan.FromTicks(-1),
                 },
                 Prepare = async (h, report, ct) =>
                 {

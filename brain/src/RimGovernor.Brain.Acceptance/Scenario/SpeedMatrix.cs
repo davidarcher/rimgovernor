@@ -94,15 +94,11 @@ public sealed record PlayerRow
 {
     public IReadOnlyList<HazardGap> HazardGaps { get; init; } = [];
 
-    public int SpeedChanges { get; init; }
-
-    public ulong Ticks { get; init; }
-
     public ulong PacedFrames { get; init; }
 
     public ulong OverBudget { get; init; }
 
-    /// <summary>The pacing reason of the last step that found a window running.</summary>
+    /// <summary>The pacing reason of the last step that found the clock running.</summary>
     public string LastPacingReason { get; init; } = "";
 
     /// <summary>
@@ -155,12 +151,6 @@ public static class SpeedMatrix
     /// </summary>
     public const double MaxPlayerOverBudgetShare = 0.05;
 
-    /// <summary>
-    /// The one ceiling holds its rate across a stop rather than oscillating, so tick-rate
-    /// changes stay at most this many per 6000 ticks.
-    /// </summary>
-    public const int MaxPlayerSpeedChangesPer6000 = 6;
-
     /// <summary>Native's default frame budget, the one the player row runs under.</summary>
     public const int PlayerFrameBudgetMs = 30;
 
@@ -211,6 +201,25 @@ public static class SpeedMatrix
         return cases.Count == 0 ? throw new AcceptanceException("no speeds selected") : cases;
     }
 
+    /// <summary>
+    /// The ticks per second a speed runs at when nothing slows it: the game's own rates (Normal 60, Fast 180, Superfast
+    /// 360, Ultrafast 900).
+    /// </summary>
+    public static double TargetTps(string speed) => speed switch
+    {
+        "Normal" => 60,
+        "Fast" => 180,
+        "Superfast" => 360,
+        "Ultrafast" => 900,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// The share of the speed's own rate a run achieved (wall TPS over <see cref="TargetTps"/>), or 0 for an unknown
+    /// speed: 1 means the clock kept the speed's pace through every hold, below 1 is the cost of holds and slow frames.
+    /// </summary>
+    public static double EffectiveSpeed(double wallTps, string speed) => TargetTps(speed) is > 0 and var target ? wallTps / target : 0;
+
     /// <summary>Lists every player-row bound the run broke.</summary>
     public static IReadOnlyList<string> PlayerRowProblems(PlayerRow row)
     {
@@ -246,15 +255,6 @@ public static class SpeedMatrix
             problems.Add(string.Create(CultureInfo.InvariantCulture, $"queued commands waited {row.Dispatch.P95:F1}ms (p95 over {row.Dispatch.Samples}) for dispatch, past the {PlayerFrameBudgetMs}ms frame budget"));
         }
 
-        if (row.Ticks > 0)
-        {
-            var per = row.SpeedChanges * 6000.0 / row.Ticks;
-            if (per > MaxPlayerSpeedChangesPer6000)
-            {
-                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{per:F1} tick-rate changes per 6000 ticks ({row.SpeedChanges} over {row.Ticks} ticks) oscillate past {MaxPlayerSpeedChangesPer6000}"));
-            }
-        }
-
         switch (row.LastPacingReason)
         {
             case "fixed" or "frame_budget":
@@ -263,7 +263,7 @@ public static class SpeedMatrix
                 problems.Add("no running step reported a pacing reason");
                 break;
             default:
-                problems.Add($"the last running window was held at \"{row.LastPacingReason}\", not the speed's own rate");
+                problems.Add($"the last running step was held at \"{row.LastPacingReason}\", not the speed's own rate");
                 break;
         }
 
@@ -413,7 +413,7 @@ public static class SpeedMatrix
 
     /// <summary>
     /// Lists the rows whose costliest live step issued more than <paramref name="maxReads"/> native round trips, the
-    /// step-cost bound: a live step plans under a running window off the facts its one review bundle carries, so its
+    /// step-cost bound: a live step plans under a running clock off the facts its one review bundle carries, so its
     /// round trips are the bundle plus what an event within the step made stale. Rows that ran no live step are
     /// skipped, and a maxReads of 0 disables the check. The step's wall time is reported beside it (live_step_ms_mean)
     /// but not bounded: wall measures the box and the transport floor, the call count measures this repository.
@@ -447,7 +447,7 @@ public static class SpeedMatrix
 
     /// <summary>
     /// Lists the clock-throughput expectations the matrix missed. <paramref name="maxPausedFraction"/>, when positive,
-    /// bounds the paused fraction of every case at Superfast or faster (the speeds whose windows the wall-time sizing
+    /// bounds the paused fraction of every case at Superfast or faster (the speeds whose runs the wall-time sizing
     /// must widen). <paramref name="minUltrafastRatio"/>, when positive, requires the Ultrafast case's wall TPS to be
     /// at least that multiple of the Fast case's; it is skipped unless both ran. An empty result means the matrix met
     /// every enabled expectation.
@@ -557,7 +557,7 @@ public sealed record CeilingRatio
 /// <summary>
 /// The per-case row a speed matrix reports (caseMetrics in cases/speedmatrix): the fields CheckSpeedMetrics and
 /// SpeedRowProblems read, decoded from the report's metrics rows. PausedFraction is the status-sample ratio (a sampling
-/// diagnostic); PausedFractionNative is native's own account of its stop/start transitions, the paused share the
+/// diagnostic); PausedFractionNative is native's own account of its hold/run time, the paused share the
 /// thresholds bound where the row carries it.
 /// </summary>
 public sealed record SpeedMetrics
@@ -578,7 +578,7 @@ public sealed record SpeedMetrics
 
     /// <summary>
     /// The live steps: how many the row ran, the native round trips the costliest issued and the mean wall of one. A
-    /// row without a live step (no running window was planned under) leaves LiveSteps at 0 and CheckLiveStepCost skips it.
+    /// row without a live step (no running clock was planned under) leaves LiveSteps at 0 and CheckLiveStepCost skips it.
     /// </summary>
     public double LiveSteps { get; init; }
 
@@ -586,12 +586,20 @@ public sealed record SpeedMetrics
 
     public double LiveStepMs { get; init; }
 
+    /// <summary>The holds the row's journal carried, the mean native time a Run took to resume one, and wall TPS as a share of the speed's own rate.</summary>
+    public double Holds { get; init; }
+
+    public double MeanResumeMs { get; init; }
+
+    public double EffectiveSpeed { get; init; }
+
     /// <summary>The paused fraction a threshold bounds: native's account when the row sampled it, else the sample ratio.</summary>
     public double PausedShare => NativePauseSamples > 0 ? PausedFractionNative : PausedFraction;
 
     /// <summary>
     /// Decodes the "case", "speed", "wall_tps", "ticks_advanced", "paused_fraction", "paused_fraction_native",
-    /// "native_pause_samples", "live_steps", "max_live_step_reads" and "live_step_ms_mean" fields of each metrics row.
+    /// "native_pause_samples", "live_steps", "max_live_step_reads", "live_step_ms_mean", "holds",
+    /// "resume_latency_ms_mean" and "effective_speed" fields of each metrics row.
     /// </summary>
     public static IReadOnlyList<SpeedMetrics> FromRows(IEnumerable<JsonObject> rows)
     {
@@ -608,6 +616,9 @@ public sealed record SpeedMetrics
             LiveSteps = row["live_steps"].AsNumber(),
             MaxLiveStepReads = row["max_live_step_reads"].AsNumber(),
             LiveStepMs = row["live_step_ms_mean"].AsNumber(),
+            Holds = row["holds"].AsNumber(),
+            MeanResumeMs = row["resume_latency_ms_mean"].AsNumber(),
+            EffectiveSpeed = row["effective_speed"].AsNumber(),
         })];
     }
 }

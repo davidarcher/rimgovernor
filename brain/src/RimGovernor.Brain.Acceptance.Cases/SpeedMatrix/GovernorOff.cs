@@ -92,7 +92,7 @@ internal sealed partial class SpeedmatrixRun
         report["wait"] = new JsonObject { ["start_tick"] = startTick, ["last_tick"] = lastTick, ["wall_seconds"] = wallSeconds, ["tick_reads"] = reads };
         if (waitErr is not null)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick budget wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
         }
 
         var after = await ControlAsync(h, identity, "control-after", cancellationToken).ConfigureAwait(false);
@@ -115,8 +115,8 @@ internal sealed partial class SpeedmatrixRun
             ["governor_off"] = true,
             ["ticks_advanced"] = lastTick - startTick,
             ["wall_seconds"] = wallSeconds,
-            ["budget_wall_tps"] = wallTps,
             ["wall_tps"] = wallTps,
+            ["effective_speed"] = SpeedMatrix.EffectiveSpeed(wallTps, c.Speed),
             ["paused_ms"] = 0,
             ["running_ms"] = (ulong)(wallSeconds * 1000),
             ["paused_fraction_native"] = 0.0,
@@ -127,9 +127,8 @@ internal sealed partial class SpeedmatrixRun
             ["paused_sampled_seconds"] = 0.0,
             ["steps"] = 0,
             ["reads_per_step"] = 0.0,
-            ["stops"] = 0,
-            ["budget_stops"] = 0,
-            ["reactive_stops"] = 0,
+            ["holds"] = 0,
+            ["resume_latency_ms_mean"] = 0.0,
             ["tick_reads"] = reads,
         };
         foreach (var (key, value) in ObservationRow(account.Observation(), account.Frames()))

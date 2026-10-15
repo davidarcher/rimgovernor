@@ -60,7 +60,7 @@ public sealed class ResponseEvidence
         return new ResponseEvidence(fixture, speed, onset, runner);
     }
 
-    /// <summary>Accepts only the native postcondition the fixture has checked; a receipt or a clock-window admission must never be passed as an effect.</summary>
+    /// <summary>Accepts only the native postcondition the fixture has checked; a receipt or a clock-run admission must never be passed as an effect.</summary>
     public void ObserveEffect(long tick, string effect)
     {
         if (OnsetTick is { } onset && tick < onset)

@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// What the matrix cases differ by (Go <c>speedmatrix.profile</c>): the stage the fixture prepares, the save it is kept
-/// in, the tick budget each row runs and the rows compared. <c>speedmatrix/plain</c> is the whole speed sweep on a quiet
+/// in, the tick target each row runs to and the rows compared. <c>speedmatrix/plain</c> is the whole speed sweep on a quiet
 /// flat debug colony; <c>speedmatrix/observations</c> is the rendered observation baseline on the tribal8 colony.
 /// </summary>
 internal sealed record SpeedmatrixProfile
@@ -32,7 +32,7 @@ internal sealed record SpeedmatrixProfile
 /// <summary>
 /// Runs identical staged work at each clock speed and checks equal game outcomes (Go <c>cases/speedmatrix</c>).
 /// Governor-off measures the simulation ceiling outside that outcome comparison. Governed rows report wall TPS
-/// including pauses, native paused fraction and stop latency; sampled pause ratios are diagnostic only. The throughput
+/// including holds, native paused fraction, hold counts by reason, resume latency and effective speed; sampled pause ratios are diagnostic only. The throughput
 /// fixture provides construction and hauling work in a quiet colony with frozen needs.
 /// </summary>
 internal sealed partial class SpeedmatrixRun
@@ -41,7 +41,7 @@ internal sealed partial class SpeedmatrixRun
     internal const string ControlTool = "test/throughput_control";
     internal const string StageSave = "RimGovernor-speedmatrix-stage";
 
-    // Ticks is the game-tick budget each speed runs after resume (the serve-side tick must advance by this much) unless
+    // Ticks is the game-tick target each speed runs to after resume (the serve-side tick must advance by this much) unless
     // the stage runs out of work first, which every speed does: the controller's cadence is wall-bound, so the ticks the
     // stage's work takes grow with the pace, from ~2,300 at Normal to ~20,000 at boosted Ultrafast.
     internal const ulong Ticks = 30000;
@@ -58,7 +58,7 @@ internal sealed partial class SpeedmatrixRun
     private const double MaxPausedFraction = 0;
     private const double MinUltrafastTpsRatio = 0;
 
-    // MaxLiveStepReads is the step-cost bound: a step planning under a running window reads its one review bundle plus
+    // MaxLiveStepReads is the step-cost bound: a step planning under a running clock reads its one review bundle plus
     // at most the families an event within the step made stale. The step's wall time is reported, not bounded.
     private const double MaxLiveStepReads = 5;
 
@@ -96,8 +96,8 @@ internal sealed partial class SpeedmatrixRun
     {
         Name = "speedmatrix/plain",
         Scope = "Speed matrix (#111): one staged colony reloaded per clock speed under rimgovernor serve with an "
-            + "identical tick budget; wall TPS, paused fraction, steps, reads/step, parent hits, stop latency and "
-            + "budget-vs-reactive stops per speed; pawn outcomes equal within a tolerance.",
+            + "identical tick target; wall TPS, paused fraction, steps, reads/step, parent hits, hold counts by reason, resume latency and "
+            + "effective speed per speed; pawn outcomes equal within a tolerance.",
         Start = new FixtureStart
         {
             Op = PrepareTool,
@@ -132,7 +132,7 @@ internal sealed partial class SpeedmatrixRun
         var m = new SpeedmatrixRun(p, s, speedCases);
         m._report["speeds_spec"] = spec;
         m._report["speeds"] = new JsonArray([.. speedCases.Select(c => (JsonNode?)c.ToJson())]);
-        m._report["tick_budget"] = p.Ticks;
+        m._report["tick_target"] = p.Ticks;
 
         // What the baseline was measured on: the revision, the world and mod set, the host, the launch's resolution and
         // the measured interval's bounds. A row's own wall_seconds and frames block complete it.
@@ -224,7 +224,7 @@ internal sealed partial class SpeedmatrixRun
         {
             if (o.StoredUnits == 0 && o.WallsBuilt == 0)
             {
-                throw new AcceptanceException($"{o.Case}: nothing was hauled or built within the tick budget; raise ticks or check the stage");
+                throw new AcceptanceException($"{o.Case}: nothing was hauled or built within the tick target; raise ticks or check the stage");
             }
         }
 
@@ -319,7 +319,7 @@ internal sealed partial class SpeedmatrixRun
             (await service.ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false)).Status;
     }
 
-    // Reloads the stage, hands the game to one serve process at the case's speed, waits out the tick budget and reads
+    // Reloads the stage, hands the game to one serve process at the case's speed, waits out the tick target and reads
     // the outcome back.
     private async Task<SpeedOutcome> RunCaseAsync(SpeedCase c, CancellationToken cancellationToken)
     {
@@ -408,9 +408,9 @@ internal sealed partial class SpeedmatrixRun
 
             _ = await ServiceJournal.WaitRoundsAsync(service, journal, TimeSpan.FromSeconds(90), cancellationToken).ConfigureAwait(false);
 
-            // The budget is game time: the wait ends once the tick the service last observed (its OTLP log ring's newest
-            // clock sample; the routine review's tick only moves once per full step under a day-long window) has
-            // advanced by the budget past the reload tick, or earlier once the stage has no work left for the clock to
+            // The target is game time: the wait ends once the tick the service last observed (its OTLP log ring's newest
+            // clock sample; the routine review's tick only moves once per full step) has
+            // advanced by the target past the reload tick, or earlier once the stage has no work left for the clock to
             // admit. The signature is the tick itself, so a clock that stops advancing with work pending stalls the wait.
             ulong lastTick = 0;
             var workDone = false;
@@ -457,7 +457,7 @@ internal sealed partial class SpeedmatrixRun
                     _ = e;
                 }
 
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick budget wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"tick target wait (start {startTick}, last {lastTick}, want +{_profile.Ticks}): {waitErr.Message}"), waitErr);
             }
 
             var (unsuccessful, planCount) = await CountUnsuccessfulAsync(journal, planIds, cancellationToken).ConfigureAwait(false);
@@ -477,9 +477,9 @@ internal sealed partial class SpeedmatrixRun
             _ = await service.StopAsync().ConfigureAwait(false);
             var timeline = OtlpTimeline.Read(ServiceLogs.ServiceLogsPath(output));
             var phases = PhaseSummary.Summarize(timeline);
-            var stops = StopSummaries.SummarizeStops(timeline, resumedAt.ToUnixTimeMilliseconds());
-            report["stops"] = stops.ToJson();
-            var metrics = CaseMetrics(c, phases, stops, startTick, lastTick, wallSeconds);
+            var holds = StopSummaries.SummarizeHolds(timeline, resumedAt.ToUnixTimeMilliseconds());
+            report["holds"] = holds.ToJson();
+            var metrics = CaseMetrics(c, phases, holds, startTick, lastTick, wallSeconds);
 
             // The observation capture account and the frame recorder, from the same recording the clock and step phases come from.
             foreach (var (key, value) in ObservationRow(phases.Observation, phases.Frames))
@@ -505,7 +505,7 @@ internal sealed partial class SpeedmatrixRun
             h = HarnessFor(output);
             _ = await h.CallAsync("pause-after", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
 
-            // The service was stopped, not shut down: its authority grant lingers until the tick budget lapses, and the
+            // The service was stopped, not shut down: its authority grant lingers until its authority is released, and the
             // next reload would carry it.
             if (await Authority.ReleaseAuthorityAsync(h, identity, cancellationToken).ConfigureAwait(false) is { } revoked)
             {
@@ -533,8 +533,6 @@ internal sealed partial class SpeedmatrixRun
                 var problems = SpeedMatrix.PlayerRowProblems(new PlayerRow
                 {
                     HazardGaps = phases.Clock.NativeHazardGaps,
-                    SpeedChanges = stops.SpeedChanges,
-                    Ticks = lastTick - startTick,
                     PacedFrames = phases.Clock.NativePacedFrames,
                     OverBudget = phases.Clock.NativePacedOverBudget,
                     LastPacingReason = SpeedMatrix.LastPacingReason(timeline),
@@ -644,7 +642,7 @@ internal sealed partial class SpeedmatrixRun
     }
 
     // Whether the stage has run out of work: every wall plan has observed its building completed. After that the clock
-    // scheduler refuses every window as no_work and the review tick no longer advances.
+    // scheduler refuses every run as no_work and the review tick no longer advances.
     private static async Task<bool> StageWorkDoneAsync(Journal journal, IReadOnlyList<PlanId> walls, CancellationToken cancellationToken)
     {
         foreach (var id in walls)
@@ -748,7 +746,7 @@ internal sealed partial class SpeedmatrixRun
     }
 
     // The per-speed row the issue asks for.
-    private static JsonObject CaseMetrics(SpeedCase c, PhaseSummary phases, StopSummary stops, ulong startTick, ulong lastTick, double wallSeconds)
+    private static JsonObject CaseMetrics(SpeedCase c, PhaseSummary phases, HoldSummary holds, ulong startTick, ulong lastTick, double wallSeconds)
     {
         var steps = phases.Steps;
         var clock = phases.Clock;
@@ -761,38 +759,27 @@ internal sealed partial class SpeedmatrixRun
         }
 
         // Time-weighted (ClockSample.PausedFraction): the count ratio over-represents pauses, when the service issues
-        // most of its reads. A sampling diagnostic; native's own account of its stop/start transitions
+        // most of its reads. A sampling diagnostic; native's own account of its hold and run time
         // (paused_fraction_native) is the headline.
         var pausedFraction = clock.PausedFraction();
-        double budgetTps = 0;
-        double budgetStopsPer6000 = 0;
-        if (wallSeconds > 0 && lastTick > startTick)
-        {
-            budgetTps = (double)(lastTick - startTick) / wallSeconds;
-        }
 
+        // Holds per 6000 ticks: how often the clock was held, however the row's length differs across speeds.
+        double holdsPer6000 = 0;
         if (lastTick > startTick)
         {
-            budgetStopsPer6000 = (double)stops.BudgetStops * 6000 / (lastTick - startTick);
-        }
-
-        // The colony windows the service sized by wall time and the stop-to-readmit pauses its admissions closed.
-        double windowMean = 0;
-        double pauseMean = 0;
-        if (steps.Windows > 0)
-        {
-            windowMean = (double)steps.WindowTicks / steps.Windows;
-        }
-
-        if (steps.Pauses > 0)
-        {
-            pauseMean = steps.PauseSecs / steps.Pauses;
+            holdsPer6000 = (double)holds.Holds * 6000 / (lastTick - startTick);
         }
 
         var reasons = new JsonObject();
-        foreach (var (reason, count) in stops.Reasons.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        foreach (var (reason, count) in holds.Reasons.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             reasons[reason] = count;
+        }
+
+        var runVerdicts = new JsonObject();
+        foreach (var (verdict, count) in steps.RunVerdicts)
+        {
+            runVerdicts[verdict] = count;
         }
 
         var stepReasons = new JsonObject();
@@ -808,7 +795,7 @@ internal sealed partial class SpeedmatrixRun
             ["max_tick_gap"] = g.MaxTickGap,
             ["hooked"] = g.Hooked,
         })]);
-        var latencies = new JsonArray([.. stops.Latencies.Select(l => (JsonNode?)l.ToJson())]);
+        var latencies = new JsonArray([.. holds.Latencies.Select(l => (JsonNode?)l.ToJson())]);
         return new JsonObject
         {
             ["case"] = c.Name,
@@ -821,12 +808,16 @@ internal sealed partial class SpeedmatrixRun
             ["paced_frames_over_budget"] = clock.NativePacedOverBudget,
             ["max_paced_frame_ms"] = clock.NativeMaxPacedFrameMs,
 
-            // SpeedChanged rows: an owner's ceiling or speed change.
-            ["speed_changes"] = stops.SpeedChanges,
             ["ticks_advanced"] = lastTick - startTick,
             ["wall_seconds"] = wallSeconds,
-            ["budget_wall_tps"] = budgetTps,
             ["wall_tps"] = clock.WallTps,
+
+            // Effective speed: the share of the speed's own rate the row achieved, holds included (1 is a clock that was
+            // never held and never slowed); native's own effective ticks per second, averaged over the status samples
+            // that reported one, stands beside it.
+            ["effective_speed"] = SpeedMatrix.EffectiveSpeed(clock.WallTps, c.Speed),
+            ["target_tps"] = SpeedMatrix.TargetTps(c.Speed),
+            ["native_effective_tps_mean"] = clock.EffectiveTpsMean(),
             ["paused_ms"] = clock.NativePausedMs,
             ["running_ms"] = clock.NativeRunningMs,
             ["paused_fraction_native"] = clock.PausedFractionNative(),
@@ -860,29 +851,32 @@ internal sealed partial class SpeedmatrixRun
             ["step_ms_max"] = steps.MaxElapsedMs,
             ["gate_wait_ms_mean"] = gateWaitMean,
             ["gate_wait_ms_max"] = steps.MaxGateWaitMs,
-            ["window_ticks_mean"] = windowMean,
-            ["window_ticks_max"] = steps.MaxWindowTicks,
-            ["stops"] = stops.Stops,
-            ["budget_stops"] = stops.BudgetStops,
-            ["budget_stops_per_6000_ticks"] = budgetStopsPer6000,
-            ["reactive_stops"] = stops.ReactiveStops,
-            ["stop_reasons"] = reasons,
 
-            // The controller's own coupled-order stops: native journals them as its cleanup, so they are counted from
-            // the step rows and stand beside the native reason breakdown.
-            ["coupled_stops"] = steps.StopsCoupled,
-            ["coupled_orders"] = steps.StopsOrders,
-            ["stop_latency_mean_ms"] = stops.MeanLatencyMs,
-            ["stop_latency_max_ms"] = stops.MaxLatencyMs,
+            // Hold metrics, from the native journal: holds by reason (letter_pause, review, coupled_order, ...), the
+            // native time each hold lasted before a Run resumed it, and how long the controller took to see it.
+            ["holds"] = holds.Holds,
+            ["holds_per_6000_ticks"] = holdsPer6000,
+            ["hold_reasons"] = reasons,
+            ["resume_latency_ms_mean"] = holds.MeanResumeMs,
+            ["resume_latency_ms_max"] = holds.MaxResumeMs,
+            ["resume_samples"] = holds.ResumeCount,
+            ["observe_latency_ms_mean"] = holds.MeanObserveMs,
+            ["observe_latency_ms_max"] = holds.MaxObserveMs,
 
-            // Per stop: detect_ticks, stop_ticks, observe_ms, readmit_ms.
-            ["stop_latencies"] = latencies,
-            ["readmit_pause_count"] = steps.Pauses,
-            ["readmit_pause_mean_s"] = pauseMean,
-            ["readmit_pause_max_s"] = steps.MaxPauseSecs,
+            // Per hold: detect_ticks, hold_ticks, observe_ms, resume_ms.
+            ["hold_latencies"] = latencies,
 
-            // Live dispatch: steps by reason ("live" plans under a running window), the worker's native runs made under
-            // a running window and the fraction native refused.
+            // The steps a hold woke and how long the wake took; the brain's own Run, Hold and refusal rows, and the
+            // coupled orders that rode on them.
+            ["hold_woken_steps"] = steps.HoldWoken,
+            ["hold_wake_ms_mean"] = phases.MeanHoldWakeMs,
+            ["hold_wake_ms_max"] = phases.MaxHoldWakeMs,
+            ["run_verdicts"] = runVerdicts,
+            ["coupled_runs"] = steps.CoupledRuns,
+            ["coupled_orders"] = steps.CoupledOrders,
+
+            // Live dispatch: steps by reason ("live" plans under a running clock), the worker's native runs made under
+            // a running clock and the fraction native refused.
             ["step_reasons"] = stepReasons,
             ["dispatches"] = phases.Dispatch.Calls,
             ["live_dispatches"] = phases.Dispatch.Live,

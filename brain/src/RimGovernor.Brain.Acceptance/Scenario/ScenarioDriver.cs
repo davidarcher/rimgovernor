@@ -13,7 +13,7 @@ public sealed class ScenarioDriver : IScenarioDriver
     public async Task<IScenarioRuntime> CreateRuntimeAsync(Harness harness, JsonObject identity, Report report, IReadOnlyList<string> tools, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
-        var clock = new ScenarioClock(harness.WireFunc(), identity, Draft.Controller, report);
+        var clock = new ScenarioClock(harness.WireFunc(), identity, report);
         _ = await clock.AcquireAsync("acquire", cancellationToken).ConfigureAwait(false);
         return new ScenarioRuntime(harness.CallAsync, clock, report, tools);
     }

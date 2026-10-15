@@ -147,10 +147,10 @@ internal static class LetterPause
             }
         }
 
-        var supervisor = new ScenarioClock(h.WireFunc(), identity, Draft.Controller, report);
+        var supervisor = new ScenarioClock(h.WireFunc(), identity, report);
         _ = await supervisor.AcquireAsync("acquire", cancellationToken).ConfigureAwait(false);
         var rt = new ScenarioRuntime(h.CallAsync, supervisor, report, names);
-        var window = TimeSpan.FromSeconds(120);
+        var timeout = TimeSpan.FromSeconds(120);
 
         async Task<string> Deliver(string label, string definition)
         {
@@ -194,8 +194,8 @@ internal static class LetterPause
             }
         }
 
-        // The strict-mode and unexpected-threat windows leave the letter on the stack and the clock paused; clear the
-        // letter before the next window.
+        // The strict-mode and unexpected-threat advances leave the letter on the stack and the clock paused; clear the
+        // letter before the next advance.
         async Task Dismiss(string label, string letterId)
         {
             var reply = await h.CallAsync(label, ScenarioRuntime.DismissLetterTool, new JsonObject { ["letterId"] = letterId }, cancellationToken).ConfigureAwait(false);
@@ -221,17 +221,17 @@ internal static class LetterPause
             var quietId = await Deliver("quiet-positive", "PositiveEvent").ConfigureAwait(false);
             try
             {
-                _ = await AdvanceGame.RunAsync(rt, 300, [AdvanceOptions.WithTimeout(window)], cancellationToken).ConfigureAwait(false);
+                _ = await AdvanceGame.RunAsync(rt, 300, [AdvanceOptions.WithTimeout(timeout)], cancellationToken).ConfigureAwait(false);
             }
             catch (AcceptanceException e)
             {
-                throw new AcceptanceException($"non-pausing informational window: {e.Message}", e);
+                throw new AcceptanceException($"non-pausing informational advance: {e.Message}", e);
             }
 
             var interruptions = NotesSince(before).Count;
             if (interruptions != 0)
             {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"non-pausing informational letter interrupted the window {interruptions} times"));
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"non-pausing informational letter interrupted the advance {interruptions} times"));
             }
 
             if (!await OnStack("quiet-stack", quietId).ConfigureAwait(false))
@@ -243,18 +243,18 @@ internal static class LetterPause
             summary["non_pausing"] = new JsonObject { ["letterId"] = quietId, ["interruptions"] = 0 };
 
             // 2. Pausing on any letter: the informational letter pauses the clock, AdvanceGame acknowledges and
-            // dismisses it and the window completes.
+            // dismisses it and the advance completes.
             await SetPauseMode("AnyLetter", cancellationToken).ConfigureAwait(false);
             before = report["notes"].AsSlice().Count;
             var ackId = await Deliver("acknowledged-positive", "PositiveEvent").ConfigureAwait(false);
             JsonObject final;
             try
             {
-                final = await AdvanceGame.RunAsync(rt, 300, [AdvanceOptions.WithTimeout(window)], cancellationToken).ConfigureAwait(false);
+                final = await AdvanceGame.RunAsync(rt, 300, [AdvanceOptions.WithTimeout(timeout)], cancellationToken).ConfigureAwait(false);
             }
             catch (AcceptanceException e)
             {
-                throw new AcceptanceException($"acknowledged informational window: {e.Message}", e);
+                throw new AcceptanceException($"acknowledged informational advance: {e.Message}", e);
             }
 
             var acks = NotesSince(before);
@@ -274,25 +274,25 @@ internal static class LetterPause
                 throw new AcceptanceException($"acknowledged letter {ackId} is still on the stack");
             }
 
-            if (final["stopReason"].AsString() != "tick_budget")
+            if (final["stopReason"].AsString() != "review")
             {
-                throw new AcceptanceException($"acknowledged window did not run to its budget: {final.ToJson()}");
+                throw new AcceptanceException($"acknowledged advance did not reach its tick target: {final.ToJson()}");
             }
 
             summary["acknowledged"] = new JsonObject { ["letterId"] = ackId, ["dismissed"] = dismissed.DeepClone() };
 
             // 3. An unexpected threat letter still interrupts, even with acknowledgement on.
             var threatId = await Deliver("unexpected-threat", "ThreatBig").ConfigureAwait(false);
-            var threat = await Interrupted(rt, [AdvanceOptions.WithTimeout(window)], "unexpected threat letter should interrupt the window", cancellationToken).ConfigureAwait(false);
+            var threat = await Interrupted(rt, [AdvanceOptions.WithTimeout(timeout)], "unexpected threat letter should interrupt the advance", cancellationToken).ConfigureAwait(false);
             await Dismiss("threat-dismiss", threatId).ConfigureAwait(false);
             summary["unexpected_threat"] = new JsonObject { ["letterId"] = threatId, ["reason"] = threat.Reason };
 
-            // 4. A strict window (interruption harnesses) refuses the informational letter too.
+            // 4. A strict advance (interruption harnesses) refuses the informational letter too.
             var strictId = await Deliver("strict-positive", "PositiveEvent").ConfigureAwait(false);
-            var strict = await Interrupted(rt, [AdvanceOptions.WithTimeout(window), AdvanceOptions.WithExpectedLetters()], "strict window should interrupt on an informational letter", cancellationToken).ConfigureAwait(false);
+            var strict = await Interrupted(rt, [AdvanceOptions.WithTimeout(timeout), AdvanceOptions.WithExpectedLetters()], "strict advance should interrupt on an informational letter", cancellationToken).ConfigureAwait(false);
             if (!await OnStack("strict-stack", strictId).ConfigureAwait(false))
             {
-                throw new AcceptanceException($"strict window dismissed letter {strictId}");
+                throw new AcceptanceException($"strict advance dismissed letter {strictId}");
             }
 
             // 5. The typed notifications read lists the letter under test and answers every section; an explicit

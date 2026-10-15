@@ -5,19 +5,15 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary><c>combatlab/stops</c> (Go <c>stops.go</c>).</summary>
 internal static class CombatLabStops
 {
-    // stopsFirstWindow bounds the window the raiders close in: 20 cells of walking is well under this at Superfast.
-    private const int FirstWindow = 2000;
+    // The longest the raiders may take to close in and be fought, in holds: each armed event holds the clock once.
+    private const int MaxHolds = 20;
 
-    // stopsBackstop is the combat backstop: a window with no armed event stops on its budget.
-    private const int Backstop = 300;
-
-    // stopsWindows bounds the fight after contact: 20 backstops.
-    private const int Windows = 20;
+    private static readonly TimeSpan HoldTimeout = TimeSpan.FromSeconds(90);
 
     internal static AcceptanceCase Case() => new()
     {
         Name = "combatlab/stops",
-        Scope = "Event-triggered combat stops (#849): on lab-open a combat window armed with downed and entered-range stops on the exact tick a raider's weapon reaches a colonist or a colonist's reaches a raider (the stop event's tick equals its occurrence tick), once per raider and direction per combat, later windows without an event stop on the 300-tick backstop, and a colonist going down stops on its tick.",
+        Scope = "Event-triggered combat holds (#849): on lab-open a combat run armed with downed and entered-range holds the clock on the exact tick a raider's weapon reaches a colonist or a colonist's reaches a raider (the hold event's tick equals its occurrence tick), once per raider and direction per combat, and a colonist going down holds on its tick.",
         Start = new LabStart { Colonists = 3 },
         RequiredOps = [DebugGame.LabStartTool, CombatFixtures.StageTool],
         QuietWorld = true,
@@ -33,12 +29,12 @@ internal static class CombatLabStops
         var staged = await CombatStage.StageAsync(h, "lab-open", cancellationToken).ConfigureAwait(false);
         var grant = await Authority.GrantAutoAsync(h.WireFunc(), "combat-stops-acquire", identity, cancellationToken).ConfigureAwait(false);
         var report = s.Report;
-        var clock = new ScenarioClock(h.WireFunc(), identity, Draft.Controller, new Report())
+        var clock = new ScenarioClock(h.WireFunc(), identity, new Report())
         {
             Grant = grant,
 
-            // Acknowledged, the raiders' approach is not a hostile stop; the health thresholds are off so only armed
-            // events and the budget stop.
+            // Acknowledged, the raiders' approach is not a hostile hold; the health thresholds are off so only armed
+            // events hold the clock.
             CombatTargets = staged.Hostiles(),
             PolicyEdit = policy =>
             {
@@ -49,145 +45,106 @@ internal static class CombatLabStops
         };
         var stops = new JsonArray();
         var sawRange = false;
-        var sawBackstop = false;
         var sawDowned = false;
         var entered = new HashSet<string>(StringComparer.Ordinal);
-        for (var window = 0; window <= Windows && !sawDowned; window++)
+        for (var index = 0; index <= MaxHolds && !sawDowned; index++)
         {
-            ulong budget = Backstop;
-            if (window == 0)
-            {
-                budget = FirstWindow;
-            }
-
-            JsonObject started;
             try
             {
-                started = await clock.ChangeAsync("Superfast", budget, cancellationToken).ConfigureAwait(false);
+                _ = await clock.RunAsync("Superfast", cancellationToken).ConfigureAwait(false);
             }
             catch (AcceptanceException e)
             {
-                throw new AcceptanceException($"window {CaseSupport.Tag(window)} start: {e.Message}", e);
+                throw new AcceptanceException($"hold {CaseSupport.Tag(index)} run: {e.Message}", e);
             }
 
-            clock.SeekEvents(started);
             JsonObject stop;
             try
             {
-                stop = await AwaitStopAsync(clock, cancellationToken).ConfigureAwait(false);
+                stop = await AwaitHoldAsync(clock, cancellationToken).ConfigureAwait(false);
             }
             catch (AcceptanceException e)
             {
-                throw new AcceptanceException($"window {CaseSupport.Tag(window)}: {e.Message}", e);
+                throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: {e.Message}", e);
             }
 
-            var startTick = started["startTick"].AsUInt64() ?? 0;
-            stop["window"] = window;
-            stop["startTick"] = startTick;
+            stop["hold"] = index;
             stops.Add(stop.DeepClone());
             report["stops"] = stops;
             var tick = stop["tick"].AsUInt64() ?? 0;
-            switch (stop["kind"].AsString())
+            if (stop["kind"].AsString() != "combat_event")
             {
-                case "combat_event":
-                    if (tick != (stop["occurrenceTick"].AsUInt64() ?? 0) || tick != (stop["detectedTick"].AsUInt64() ?? 0))
-                    {
-                        throw new AcceptanceException($"window {CaseSupport.Tag(window)}: combat stop off its event's tick: {stop.ToJson()}");
-                    }
-
-                    switch (stop["event"].AsString())
-                    {
-                        case "COMBAT_EVENT_ENTERED_RANGE":
-                            // First time only: the combat remembers a raider across windows. Keyed by hostile and
-                            // direction ("reaches" or "reached by").
-                            var key = stop["thingId"].AsString() + (stop["detail"].AsString().Contains("reached by", StringComparison.Ordinal) ? "true" : "false");
-                            if (!entered.Add(key))
-                            {
-                                throw new AcceptanceException($"window {CaseSupport.Tag(window)}: {key} entered range a second time: {stop.ToJson()}");
-                            }
-
-                            sawRange = true;
-                            break;
-                        case "COMBAT_EVENT_DOWNED":
-                            sawDowned = true;
-                            break;
-                        default:
-                            throw new AcceptanceException($"window {CaseSupport.Tag(window)}: unarmed combat event stopped the clock: {stop.ToJson()}");
-                    }
-
-                    break;
-                case "tick_budget":
-                    if (window == 0)
-                    {
-                        throw new AcceptanceException($"raiders never came within weapon range in {CaseSupport.Tag(FirstWindow)} ticks: {stop.ToJson()}");
-                    }
-
-                    if (tick - startTick != Backstop)
-                    {
-                        throw new AcceptanceException($"window {CaseSupport.Tag(window)}: backstop at {CaseSupport.Tag((long)(tick - startTick))} ticks, want {CaseSupport.Tag(Backstop)}: {stop.ToJson()}");
-                    }
-
-                    sawBackstop = true;
-                    break;
-                default:
-                    throw new AcceptanceException($"window {CaseSupport.Tag(window)}: unexpected stop: {stop.ToJson()}");
+                throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: unexpected hold: {stop.ToJson()}");
             }
 
-            if (window == 0 && !sawRange)
+            if (tick != (stop["occurrenceTick"].AsUInt64() ?? 0) || tick != (stop["detectedTick"].AsUInt64() ?? 0))
             {
-                throw new AcceptanceException($"first window stopped on {stop.ToJson()} before entered range");
+                throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: combat hold off its event's tick: {stop.ToJson()}");
+            }
+
+            switch (stop["event"].AsString())
+            {
+                case "COMBAT_EVENT_ENTERED_RANGE":
+                    // First time only: the combat remembers a raider across holds. Keyed by hostile and direction
+                    // ("reaches" or "reached by").
+                    var key = stop["thingId"].AsString() + (stop["detail"].AsString().Contains("reached by", StringComparison.Ordinal) ? "true" : "false");
+                    if (!entered.Add(key))
+                    {
+                        throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: {key} entered range a second time: {stop.ToJson()}");
+                    }
+
+                    sawRange = true;
+                    break;
+                case "COMBAT_EVENT_DOWNED":
+                    sawDowned = true;
+                    break;
+                default:
+                    throw new AcceptanceException($"hold {CaseSupport.Tag(index)}: unarmed combat event held the clock: {stop.ToJson()}");
+            }
+
+            if (index == 0 && !sawRange)
+            {
+                throw new AcceptanceException($"first hold was {stop.ToJson()} before entered range");
             }
         }
 
         report["enteredRange"] = sawRange;
-        report["backstop"] = sawBackstop;
         report["downed"] = sawDowned;
-        if (!sawBackstop && !sawDowned)
+        if (!sawDowned)
         {
-            throw new AcceptanceException($"neither a backstop nor a downed stop after contact: {stops.ToJson()}");
+            throw new AcceptanceException($"no downed hold after contact: {stops.ToJson()}");
         }
     }
 
-    // awaitStop polls until the running window stops, then returns its stop event: kind, the armed event, and the
-    // event's context, detected and occurrence ticks.
-    private static async Task<JsonObject> AwaitStopAsync(ScenarioClock clock, CancellationToken cancellationToken)
+    // awaitHold waits (beating) until the running clock is held, then returns its hold event: kind, the armed event, and
+    // the event's context, detected and occurrence ticks.
+    private static async Task<JsonObject> AwaitHoldAsync(ScenarioClock clock, CancellationToken cancellationToken)
     {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(90);
-        while (DateTime.UtcNow < deadline)
+        var status = await clock.AwaitHeldAsync(HoldTimeout, "the combat hold", cancellationToken).ConfigureAwait(false);
+        var events = await clock.PollAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var e in events)
         {
-            var status = await clock.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
-            if (status["stopReason"].AsString().Length != 0)
+            var row = e.AsMap() ?? [];
+            var native = row["native"].AsMap() ?? [];
+            if (native["holdEntered"].AsMap() is not { } held)
             {
-                var events = await clock.PollAsync(cancellationToken).ConfigureAwait(false);
-                foreach (var e in events)
-                {
-                    var row = e.AsMap() ?? [];
-                    var native = row["native"].AsMap() ?? [];
-                    if (native["stopped"].AsMap() is not { } stopped)
-                    {
-                        continue;
-                    }
-
-                    var output = new JsonObject { ["kind"] = row["kind"]?.DeepClone(), ["detail"] = native["detail"]?.DeepClone() };
-                    var contextRow = native["context"].AsMap() ?? [];
-                    output["tick"] = contextRow["tick"].AsUInt64() ?? 0;
-                    output["detectedTick"] = stopped["detectedTick"].AsUInt64() ?? 0;
-                    output["occurrenceTick"] = stopped["occurrenceTick"].AsUInt64() ?? 0;
-                    if (stopped["combat"].AsMap() is { } combat)
-                    {
-                        output["event"] = combat["event"].AsString();
-                        output["thingId"] = combat["thingId"].AsString();
-                    }
-
-                    return output;
-                }
-
-                throw new AcceptanceException($"stopped ({status["stopReason"].ToJson()}) with no stop event");
+                continue;
             }
 
-            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+            var output = new JsonObject { ["kind"] = row["kind"]?.DeepClone(), ["detail"] = native["detail"]?.DeepClone() };
+            var contextRow = native["context"].AsMap() ?? [];
+            output["tick"] = contextRow["tick"].AsUInt64() ?? 0;
+            output["detectedTick"] = held["detectedTick"].AsUInt64() ?? 0;
+            output["occurrenceTick"] = held["occurrenceTick"].AsUInt64() ?? 0;
+            if (held["combat"].AsMap() is { } combat)
+            {
+                output["event"] = combat["event"].AsString();
+                output["thingId"] = combat["thingId"].AsString();
+            }
+
+            return output;
         }
 
-        throw new AcceptanceException("window did not stop in 90 s");
+        throw new AcceptanceException($"held ({status["stopReason"].ToJson()}) with no hold event");
     }
 }

@@ -17,7 +17,7 @@ internal static class NeedsFreeze
     {
         Name = "needs/freeze",
         Scope = "test/freeze_needs pins every free colonist need but the kept ones at maximum across "
-            + "an advance window and releases them on request.",
+            + "an advance and releases them on request.",
         Start = new LabStart(),
         Keep = [Kept],
         Budget = TimeSpan.FromMinutes(5),
@@ -32,7 +32,7 @@ internal static class NeedsFreeze
         var identity = s.Identity;
         var names = s.Names;
         report["frozen"] = report["frozen_needs"];
-        var supervisor = new ScenarioClock(h.WireFunc(), identity, Draft.Controller, report) { TestAcceleration = true };
+        var supervisor = new ScenarioClock(h.WireFunc(), identity, report) { TestAcceleration = true };
         _ = await supervisor.AcquireAsync("acquire", cancellationToken).ConfigureAwait(false);
         var rt = new ScenarioRuntime(h.CallAsync, supervisor, report, names);
 
@@ -68,7 +68,7 @@ internal static class NeedsFreeze
         }
         catch (AcceptanceException e)
         {
-            throw new AcceptanceException($"frozen window: {e.Message}", e);
+            throw new AcceptanceException($"frozen advance: {e.Message}", e);
         }
 
         var after = await Levels("needs-after").ConfigureAwait(false);
@@ -115,7 +115,7 @@ internal static class NeedsFreeze
         }
         catch (AcceptanceException e)
         {
-            throw new AcceptanceException($"released window: {e.Message}", e);
+            throw new AcceptanceException($"released advance: {e.Message}", e);
         }
 
         var final = await Levels("needs-released").ConfigureAwait(false);

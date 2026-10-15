@@ -273,25 +273,18 @@ public sealed class StepSample
 
     public ulong MaxReads { get; set; }
 
-    public ulong Windows { get; set; }
-
-    public ulong WindowTicks { get; set; }
-
-    public ulong MaxWindowTicks { get; set; }
-
-    public ulong Pauses { get; set; }
-
-    public double PauseSecs { get; set; }
-
-    public double MaxPauseSecs { get; set; }
-
     public SortedDictionary<string, ulong> Reasons { get; } = new(StringComparer.Ordinal);
 
-    public ulong StopCount { get; set; }
+    /// <summary>Steps a hold woke (the step row carries the hold's stop flag).</summary>
+    public ulong HoldWoken { get; set; }
 
-    public ulong StopsCoupled { get; set; }
+    /// <summary>Runs the brain made carrying coupled orders, and the orders they carried (the clock_run rows).</summary>
+    public ulong CoupledRuns { get; set; }
 
-    public ulong StopsOrders { get; set; }
+    public ulong CoupledOrders { get; set; }
+
+    /// <summary>The clock_run rows by verdict (resumed, held, refused, ...).</summary>
+    public SortedDictionary<string, ulong> RunVerdicts { get; } = new(StringComparer.Ordinal);
 
     public double ElapsedMs { get; set; }
 
@@ -385,6 +378,17 @@ public sealed class ClockSample
 
     public double NativeMaxPacedFrameMs { get; set; }
 
+    /// <summary>
+    /// Native's effective ticks per wall second (paused time included, over its last ten seconds of frames) across the
+    /// status samples that reported a positive one: what the player got while the clock was on.
+    /// </summary>
+    public ulong EffectiveTpsSamples { get; set; }
+
+    public double EffectiveTpsSum { get; set; }
+
+    /// <summary>The mean positive effective ticks per second, or 0 without a sample.</summary>
+    public double EffectiveTpsMean() => EffectiveTpsSamples == 0 ? 0 : EffectiveTpsSum / EffectiveTpsSamples;
+
     /// <summary>The digests' share of the supervisor's probe-path time, or 0 with nothing accounted.</summary>
     public double DigestShare()
     {
@@ -432,8 +436,8 @@ public sealed class PhaseSummary
         double pausedWall = 0;
         var lastPaused = false;
         var havePaused = false;
-        double stopLatencyMs = 0;
-        double maxStopLatencyMs = 0;
+        double holdWakeMs = 0;
+        double maxHoldWakeMs = 0;
         ulong latencySamples = 0;
         NativePause first = default;
         NativePause last = default;
@@ -487,6 +491,11 @@ public sealed class PhaseSummary
                         }
 
                         last = pause;
+                        if (pause.EffectiveTps > 0)
+                        {
+                            clock.EffectiveTpsSamples++;
+                            clock.EffectiveTpsSum += pause.EffectiveTps;
+                        }
                     }
 
                     if (hasPaused)
@@ -538,7 +547,11 @@ public sealed class PhaseSummary
                     break;
 
                 case "clock_step":
-                    StepRow(summary.Steps, SpeedMatrix.StepFields(row), ref stopLatencyMs, ref maxStopLatencyMs, ref latencySamples);
+                    StepRow(summary.Steps, SpeedMatrix.StepFields(row), ref holdWakeMs, ref maxHoldWakeMs, ref latencySamples);
+                    break;
+
+                case "clock_run":
+                    RunRow(summary.Steps, LogRow.From(row, 0).Fields());
                     break;
 
                 case "dispatch":
@@ -611,9 +624,9 @@ public sealed class PhaseSummary
 
         summary.Observation = observation.Result();
         summary.Frames = frames.Result();
-        summary.StopLatencySamples = latencySamples;
-        summary.MeanStopLatencyMs = latencySamples > 0 ? stopLatencyMs / latencySamples : 0;
-        summary.MaxStopLatencyMs = maxStopLatencyMs;
+        summary.HoldWakeSamples = latencySamples;
+        summary.MeanHoldWakeMs = latencySamples > 0 ? holdWakeMs / latencySamples : 0;
+        summary.MaxHoldWakeMs = maxHoldWakeMs;
         if (clock.WallSecs > 0)
         {
             clock.WallTps = (double)clock.TicksAdvanced / clock.WallSecs;
@@ -622,33 +635,35 @@ public sealed class PhaseSummary
         return summary;
     }
 
-    /// <summary>The steps' stop-latency samples (the stop-to-step wall time of the stops that carried one).</summary>
-    public ulong StopLatencySamples { get; private set; }
+    /// <summary>The steps' hold-wake samples (the hold-to-step wall time of the holds that woke a step).</summary>
+    public ulong HoldWakeSamples { get; private set; }
 
-    public double MeanStopLatencyMs { get; private set; }
+    public double MeanHoldWakeMs { get; private set; }
 
-    public double MaxStopLatencyMs { get; private set; }
+    public double MaxHoldWakeMs { get; private set; }
 
-    private static void StepRow(StepSample steps, IReadOnlyDictionary<string, object?> payload, ref double stopLatencyMs, ref double maxStopLatencyMs, ref ulong latencySamples)
+    // One clock_run decision row: the brain's Run, Hold or refusal. Its verdict names what it did; coupled orders ride on it.
+    private static void RunRow(StepSample steps, IReadOnlyDictionary<string, object?> payload)
+    {
+        var verdict = Text(payload.GetValueOrDefault(Decision.VerdictKey));
+        if (verdict.Length > 0)
+        {
+            steps.RunVerdicts[verdict] = steps.RunVerdicts.GetValueOrDefault(verdict) + 1;
+        }
+
+        if (Count(payload.GetValueOrDefault("coupled_orders")) is var orders and > 0)
+        {
+            steps.CoupledRuns++;
+            steps.CoupledOrders += orders;
+        }
+    }
+
+    private static void StepRow(StepSample steps, IReadOnlyDictionary<string, object?> payload, ref double holdWakeMs, ref double maxHoldWakeMs, ref ulong latencySamples)
     {
         steps.Steps++;
         var reads = Count(payload.GetValueOrDefault("reads"));
         steps.Reads += reads;
         steps.MaxReads = Math.Max(steps.MaxReads, reads);
-        if (Count(payload.GetValueOrDefault("window_ticks")) is var ticks and > 0)
-        {
-            steps.Windows++;
-            steps.WindowTicks += ticks;
-            steps.MaxWindowTicks = Math.Max(steps.MaxWindowTicks, ticks);
-        }
-
-        if (Field(payload, "stop_pause_s") is var pause and > 0)
-        {
-            steps.Pauses++;
-            steps.PauseSecs += pause;
-            steps.MaxPauseSecs = Math.Max(steps.MaxPauseSecs, pause);
-        }
-
         var elapsed = Field(payload, "elapsed_ms");
         steps.ElapsedMs += elapsed;
         steps.MaxElapsedMs = Math.Max(steps.MaxElapsedMs, elapsed);
@@ -674,23 +689,14 @@ public sealed class PhaseSummary
             }
         }
 
-        if (Count(payload.GetValueOrDefault("coupled_orders")) is var orders and > 0)
-        {
-            steps.StopsOrders += orders;
-            if (payload.GetValueOrDefault("coupled_stop") is true)
-            {
-                steps.StopsCoupled++;
-            }
-        }
-
         if (payload.GetValueOrDefault("stop") is true)
         {
-            steps.StopCount++;
+            steps.HoldWoken++;
             if (Number(payload.GetValueOrDefault("stop_latency_ms")) is { } latency and >= 0)
             {
                 latencySamples++;
-                stopLatencyMs += latency;
-                maxStopLatencyMs = Math.Max(maxStopLatencyMs, latency);
+                holdWakeMs += latency;
+                maxHoldWakeMs = Math.Max(maxHoldWakeMs, latency);
             }
         }
     }
@@ -803,15 +809,10 @@ public sealed class PhaseSummary
 
             Status(body);
 
-            // A bundle carries the clock status as a section; a control receipt's applied outcome carries the status it applied.
+            // A bundle carries the clock status as a section.
             if (body["clockStatus"] is JsonObject section)
             {
                 Status(section);
-            }
-
-            if (body["applied"] is JsonObject applied && applied["status"] is JsonObject appliedStatus)
-            {
-                Status(appliedStatus);
             }
         }
 
@@ -823,7 +824,7 @@ public sealed class PhaseSummary
         hasPause = hasPauseOut;
     }
 
-    // Whether a recorded clock status shows the clock paused: its actual-paused flag when present, else its running/stopped state.
+    // Whether a recorded clock status shows the clock paused: its actual-paused flag when present, else its Run/Held state.
     private static bool? StatusPaused(JsonObject status)
     {
         if (status["actualPaused"] is JsonValue flag && flag.TryGetValue<bool>(out var actual))
@@ -831,12 +832,12 @@ public sealed class PhaseSummary
             return actual;
         }
 
-        if (status["running"] is JsonObject)
+        return status["state"]?.ToString() switch
         {
-            return false;
-        }
-
-        return status["stopped"] is JsonObject ? true : null;
+            "CLOCK_STATE_RUNNING" => false,
+            "CLOCK_STATE_HELD" => true,
+            _ => null,
+        };
     }
 
     // A recorded clock status's native pause account (pausedMs / runningMs), absent on a status from a native build without it.
@@ -879,6 +880,7 @@ public sealed class PhaseSummary
         }
 
         sample.MaxFrameMs = JsonNumber(status["maxPacedFrameMs"]) ?? 0;
+        sample.EffectiveTps = JsonNumber(status["effectiveTicksPerSecond"]) ?? 0;
         if (status["hazardGaps"] is JsonArray gaps)
         {
             var list = new List<HazardGap>();
@@ -919,6 +921,7 @@ public sealed class PhaseSummary
         public ulong PacedFrames;
         public ulong OverBudget;
         public double MaxFrameMs;
+        public double EffectiveTps;
     }
 
     // ---- the companion's observation and frame accounts ----

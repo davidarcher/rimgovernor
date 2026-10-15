@@ -610,7 +610,7 @@ public sealed partial class ServiceProcess : ICheckpointService
         ServiceWaits.WaitPlanTerminalCoreAsync(ApiAsync, Defaults(new Wait { Interval = TimeSpan.FromSeconds(1) }), planId, cancellationToken);
 
     /// <summary>
-    /// Reports whether the scheduler has admitted a clock window since the service started, recording when the first
+    /// Reports whether the scheduler has run a clock step since the service started, recording when the first
     /// one was seen. The journaled clock attempts the Go version counted are not on the player API, so a window is
     /// admitted once the brain is automating and the game's tick has moved past the first one this handle read. Once
     /// <see cref="ServeSpec.StepStall"/> has elapsed since <paramref name="since"/> with none, it throws a

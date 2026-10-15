@@ -170,7 +170,7 @@ public sealed record ServeSpec
     /// <summary>The service's native-call timeout; zero means 15s.</summary>
     public TimeSpan NativeTimeout { get; init; }
 
-    /// <summary>How long the scheduler may go without admitting a clock window before a step stall is reported; zero disables.</summary>
+    /// <summary>How long the scheduler may go without running a clock step before a step stall is reported; zero disables.</summary>
     public TimeSpan StepStall { get; init; }
 
     /// <summary>Disambiguates the requestIds the handle issues; empty means "serve".</summary>

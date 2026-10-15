@@ -41,7 +41,7 @@ internal static class SustainedFoodCase
     /// The serve spec every food-pipeline observation launches: EnsureFoodSupply's own families only (field growing,
     /// food storage, harvest/wood acquisition, cooking bills, starting supplies), so the food outcome under diagnosis
     /// is not confounded by other families and every family shares one step budget. StepStall fails fast when no
-    /// scheduler step admits a clock window.
+    /// scheduler step runs.
     /// </summary>
     internal static ServeSpec Spec(string prefix) => new()
     {

@@ -74,7 +74,7 @@ public sealed record AcceptanceCase
 
     /// <summary>
     /// The interruption letters the case expects, as {label, letterDef} pairs in AdvanceGame's order. Null leaves the
-    /// lenient default; a non-null list, even empty, makes every advance a strict window over exactly these letters.
+    /// lenient default; a non-null list, even empty, makes every advance a strict advance over exactly these letters.
     /// </summary>
     public IReadOnlyList<(string Label, string LetterDef)>? Letters { get; init; }
 

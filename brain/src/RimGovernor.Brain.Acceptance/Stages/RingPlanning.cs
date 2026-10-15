@@ -13,7 +13,7 @@ public static class RingPlanning
 {
     /// <summary>
     /// Says why c never checkpoints, or "" when it may: a case that owns its process, opts out (NoCheckpoint), or
-    /// measures the paused fraction the capture would perturb (speedmatrix, tickbudget).
+    /// measures the paused fraction the capture would perturb (speedmatrix).
     /// </summary>
     public static string RingExcluded(AcceptanceCase c)
     {
@@ -28,7 +28,7 @@ public static class RingPlanning
             return "the case opts out (NoCheckpoint)";
         }
 
-        foreach (string area in new[] { "speedmatrix/", "tickbudget/" })
+        foreach (string area in new[] { "speedmatrix/" })
         {
             if (c.Name.StartsWith(area, StringComparison.Ordinal))
             {

@@ -20,7 +20,7 @@ internal static class ZoneDelete
             "unresolvable selector refused), one corner cell is removed and then re-added by ZoneIntent cell edits, and the " +
             "exact zone is deleted by a ZoneIntent delete, with a stale census token and a missing zone refused, real " +
             "applied evidence and ListZones readbacks, and resends of effects that already hold applying again. The " +
-            "re-add runs under a playing clock window and the journal's observation_invalidated names the zone id and " +
+            "re-add runs under a playing clock and the journal's observation_invalidated names the zone id and " +
             "its cell rectangle (#359).",
         Start = new FixtureStart { On = new LabStart(), Op = "test/zone_delete_prepare" },
         Budget = TimeSpan.FromMinutes(5),
@@ -410,11 +410,11 @@ internal static class ZoneDelete
 
         report["zone_cells_after_edit_remove"] = cells.Count - 1;
 
-        // The add runs under a playing clock window so the native probe sees the zone change and journals an
+        // The add runs under a playing clock so the native probe sees the zone change and journals an
         // observation_invalidated narrowed to this zone and its rectangle; the window is paused again before the
         // readbacks below.
         JsonObject? addEffect = null;
-        _ = await ZoneInvalidation.EditUnderEpochAsync(
+        _ = await ZoneInvalidation.EditUnderRunAsync(
             h,
             identity,
             report,

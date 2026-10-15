@@ -123,7 +123,13 @@ JSON-looking values decode as JSON; other values are strings.
 - Use `WaitProgress` with a progress signature that ends on service exit
   for service-driven waits. Existing `WaitReview`, `WaitPlan` and `WaitRounds`
   helpers cover common cases. No sleep loops.
-- Advance gameplay by ticks with `RunUntil`/tick waits.
+- Advance gameplay by ticks with `RunUntil`/tick waits. `AdvanceGame` plays the
+  harness as the brain: `clock_run`, a heartbeat about every second, and a
+  `REVIEW` hold at the tick target. It guarantees at least N ticks (the clock
+  may run a few past the target before the hold lands; `overshootTicks` records
+  how many), not exactly N. The speed matrix reports hold counts by reason,
+  resume latency and effective speed instead of window counts
+  ([measure-throughput](measure-throughput.md#across-clock-speeds)).
   Wall time is a hang guard. Fail immediately on terminal refusals or service exit.
 - Declare budgets in minutes. The default timeout is 20 minutes and cannot be
   less than budget plus five; it is separate from the case budget.

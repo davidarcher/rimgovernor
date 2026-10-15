@@ -6,15 +6,18 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// The Loud <c>combat/*</c> acceptance cases (Go <c>cases/combat</c>, the former combataccept): a colonist drafted by a
 /// DraftIntent attacks through one combat_orders intent, native picking melee or ranged from its weapon; the same key
-/// replays the receipt; the scenario clock's WATCH_MODE_COMBAT policy runs bounded windows until the target is down, and
+/// replays the receipt; the scenario clock's WATCH_MODE_COMBAT policy advances the clock a step at a time until the target is down, and
 /// the undraft intent releases the attacker. No damage or completion injection. <see cref="Register"/> replaces the Go
 /// package's <c>init()</c>.
 /// </summary>
 public static class CombatCases
 {
-    private const int CombatWindows = 20;
-    private const int TicksPerWindow = 240;
-    private const int CombatTickBudget = CombatWindows * TicksPerWindow;
+    private const int CombatAdvances = 20;
+    private const int TicksPerAdvance = 240;
+    private const int CombatTickBudget = CombatAdvances * TicksPerAdvance;
+
+    // Each advance holds the clock after the tick the harness polled past its target; the game runs a few ticks in between.
+    private const int OvershootSlack = 120;
 
     /// <summary>
     /// Why every combat case keeps the storyteller: the fixture spawns hostile animals and the WATCH_MODE_COMBAT clock
@@ -230,25 +233,25 @@ public static class CombatCases
             throw new AcceptanceException("replay-unchanged: job changed unexpectedly");
         }
 
-        var supervisor = new ScenarioClock(h.WireFunc(), identity, Draft.Controller, report)
+        var supervisor = new ScenarioClock(h.WireFunc(), identity, report)
         {
             Grant = grant,
             CombatTargets = targets,
         };
         var rt = new ScenarioRuntime(h.CallAsync, supervisor, report, names) { CombatTargets = targets };
 
-        var window = 0;
+        var advance = 0;
         var ended = false;
-        for (; window < CombatWindows && !ended; window++)
+        for (; advance < CombatAdvances && !ended; advance++)
         {
             await supervisor.RenewAuthorityAsync(cancellationToken).ConfigureAwait(false);
             _ = await AdvanceGame.RunAsync(
                 rt,
-                TicksPerWindow,
+                TicksPerAdvance,
                 [AdvanceOptions.WithTimeout(TimeSpan.FromSeconds(180)), AdvanceOptions.WithCombatTargets([.. targets])],
                 cancellationToken).ConfigureAwait(false);
             var targetStateReply = await Query(
-                string.Create(CultureInfo.InvariantCulture, $"target-state-{window}"),
+                string.Create(CultureInfo.InvariantCulture, $"target-state-{advance}"),
                 new JsonObject { ["ids"] = new JsonArray(targets[0]), ["includeDead"] = true }).ConfigureAwait(false);
             var victims = ObservedRows(targetStateReply, identity);
             if (victims.Count != 1)
@@ -260,7 +263,7 @@ public static class CombatCases
             ended = victims[0]["dead"].AsBool() == true || victims[0]["downed"].AsBool() == true;
         }
 
-        report["combat_windows_used"] = window;
+        report["combat_advances_used"] = advance;
         if (!ended)
         {
             throw new AcceptanceException($"combat budget exhausted after {CombatTickBudget} ticks with the target standing");
@@ -293,7 +296,7 @@ public static class CombatCases
         }
 
         var ticks = finalContext!["tick"].AsNumber() - (initialContext?["tick"].AsNumber() ?? 0);
-        if (ticks <= 0 || ticks > CombatTickBudget)
+        if (ticks <= 0 || ticks > CombatTickBudget + (CombatAdvances * OvershootSlack))
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"unexpected tick delta: {ticks}"));
         }

@@ -6,23 +6,15 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>The zone edit's observation_invalidated check (Go <c>invalidation.go</c>).</summary>
 internal static class ZoneInvalidation
 {
-    internal const string SessionOwner = "native-zone-acceptance";
-
-    /// <summary>
-    /// Bounds the clock window an edit runs under; the window is paused as soon as the journal carries the
-    /// invalidation, so the budget only matters when it never arrives.
-    /// </summary>
-    private const int WindowTicks = 1800;
-
     /// <summary>Bounds the polling spent waiting for the journal row.</summary>
     private static readonly TimeSpan Wait = TimeSpan.FromSeconds(20);
 
     /// <summary>
-    /// Runs <paramref name="execute"/> while a supervised clock window plays and returns the observation_invalidated
+    /// Runs <paramref name="execute"/> while a supervised clock runs and returns the observation_invalidated
     /// row the native probe journals for the zone: the colony family narrowed to the zone's id and one rectangle
-    /// covering cells. The window is paused afterwards; the caller's later dispatch runs on a paused game as before.
+    /// covering cells. The clock is held afterwards; the caller's later dispatch runs on a held game as before.
     /// </summary>
-    internal static async Task<JsonObject> EditUnderEpochAsync(
+    internal static async Task<JsonObject> EditUnderRunAsync(
         Harness h,
         JsonObject identity,
         Report report,
@@ -31,7 +23,7 @@ internal static class ZoneInvalidation
         Func<Task> execute,
         CancellationToken cancellationToken)
     {
-        var supervisor = new ScenarioClock(h.WireFunc(), identity, SessionOwner, report);
+        var supervisor = new ScenarioClock(h.WireFunc(), identity, report);
         _ = await supervisor.AcquireAsync("invalidation-acquire", cancellationToken).ConfigureAwait(false);
 
         // The native journal opens lazily; an events read opens it so the status below reports the retained
@@ -53,34 +45,7 @@ internal static class ZoneInvalidation
         }
 
         var cursor = ScenarioProjection.ScenarioInteger(status["newestCursor"]);
-        var started = await supervisor.ControlAsync(
-            "start",
-            new JsonObject
-            {
-                ["authority"] = new JsonObject
-                {
-                    ["identity"] = identity.DeepClone(),
-                    ["expectedGeneration"] = Authority.GrantGeneration(supervisor.Grant ?? []),
-                    ["attempt"] = new JsonObject
-                    {
-                        ["controllerSessionId"] = SessionOwner,
-                        ["actionId"] = "zone-invalidation-start",
-                        ["attemptId"] = 1,
-                    },
-                },
-                ["speed"] = "SPEED_NORMAL",
-                ["policy"] = new JsonObject
-                {
-                    ["mode"] = "WATCH_MODE_COLONY",
-                    ["healthDropFraction"] = 0.1,
-                    ["minHealthFraction"] = 0.5,
-                    ["hostileWithin"] = 40,
-                    ["injuryStopCooldownMs"] = 0,
-                },
-                ["maxTicks"] = WindowTicks,
-            },
-            cancellationToken).ConfigureAwait(false);
-        var epoch = started["epoch"]?.DeepClone();
+        _ = await supervisor.RunAsync("Normal", cancellationToken).ConfigureAwait(false);
         await execute().ConfigureAwait(false);
 
         var deadline = DateTime.UtcNow + Wait;
@@ -92,6 +57,7 @@ internal static class ZoneInvalidation
                 throw new AcceptanceException($"no observation_invalidated naming zone {zoneId} within {Wait} of the edit");
             }
 
+            await supervisor.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
             var reply = await h.WireAsync(
                 "invalidation-events",
                 "clock_read_events",
@@ -112,9 +78,9 @@ internal static class ZoneInvalidation
             foreach (var raw in page["events"].AsSlice())
             {
                 var evt = raw.AsMap() ?? [];
-                if (evt["stopped"].AsMap() is { } stop)
+                if (evt["holdEntered"].AsMap() is { } stop)
                 {
-                    throw new AcceptanceException($"the window stopped ({stop["reason"].AsString()}) before the journal named the zone edit: {stop.ToJson()}");
+                    throw new AcceptanceException($"the clock was held ({stop["reason"].AsString()}) before the journal named the zone edit: {stop.ToJson()}");
                 }
 
                 if (evt["observationInvalidated"].AsMap() is not { } row)
@@ -134,10 +100,7 @@ internal static class ZoneInvalidation
             }
         }
 
-        _ = await supervisor.CallAsync(
-            "pause",
-            new JsonObject { ["owner"] = SessionOwner, ["epoch"] = epoch },
-            cancellationToken).ConfigureAwait(false);
+        _ = await supervisor.HoldAsync("REVIEW", "zone invalidation observed", cancellationToken).ConfigureAwait(false);
         CheckInvalidation(invalidated, zoneId, cells);
         report["zone_invalidation"] = invalidated.DeepClone();
         Console.WriteLine($"PASS observation_invalidated names zone {zoneId} over {invalidated["cells"].ToJson()}");

@@ -20,12 +20,14 @@ public sealed class ScenarioInterruptedException : AcceptanceException
 }
 
 /// <summary>
-/// The adapters from the native clock replies to the shape <see cref="ScenarioAdvance.AdvanceGameAsync"/> reads (Go
-/// <c>projectStatus</c>, <c>projectEvents</c> and their validation). Projected tick, epoch and cursor values are JSON
-/// numbers that were validated as non-negative integers; read them back with <see cref="Dyn.AsUInt64"/>.
+/// The adapters from the native clock replies (Run/Hold/Heartbeat, Status, the event journal) to the shape
+/// <see cref="ScenarioAdvance.AdvanceGameAsync"/> reads. Projected tick and cursor values are JSON numbers that were
+/// validated as non-negative integers; read them back with <see cref="Dyn.AsUInt64"/>.
 /// </summary>
 public static class ScenarioProjection
 {
+    private const string HoldReasonPrefix = "HOLD_REASON_";
+
     /// <summary>
     /// A clock stopReason as it belongs in an error message. The native reply omits the field entirely when it has no
     /// reason to report, and an empty quotation reads as a missing message rather than a missing reason.
@@ -76,121 +78,77 @@ public static class ScenarioProjection
         }
     }
 
+    /// <summary>The lowercase name of a wire hold reason ("HOLD_REASON_LETTER_PAUSE" is "letter_pause"); a missing or unspecified reason is refused.</summary>
+    public static string HoldKind(JsonNode? reason, string what)
+    {
+        var text = reason.AsString();
+        return !text.StartsWith(HoldReasonPrefix, StringComparison.Ordinal) || text == HoldReasonPrefix + "UNSPECIFIED"
+            ? throw new AcceptanceException($"invalid {what} hold reason: {reason.ToJson()}")
+            : text[HoldReasonPrefix.Length..].ToLowerInvariant();
+    }
+
     /// <summary>
-    /// Adapts a decoded clock_read_status/clock_pause/receipt status into advance_game's protocol: {native, owner,
-    /// epoch, active, startTick, lastTick, tickDeadline, newestCursor, paused, nativeTickBoundary} and, for a stopped
-    /// clock, {stopReason (lowercase, without STOP_REASON_), pauseVerified}.
+    /// Adapts a decoded clock_read_status/clock_run/clock_hold status into advance_game's protocol: {native, active
+    /// (Running), held, lastTick (the status context's tick), newestCursor, paused, nativeTickBoundary} and, for a
+    /// held clock, {stopReason (lowercase, without HOLD_REASON_), pauseVerified}.
     /// </summary>
     public static JsonObject ProjectStatus(JsonObject status)
     {
         ArgumentNullException.ThrowIfNull(status);
         var contextValue = status["context"].AsMap() ?? throw new AcceptanceException($"clock status missing context: {status.ToJson()}");
         ValidateContext(contextValue);
-        var caseName = "";
-        foreach (var key in new[] { "running", "stopping", "stopped", "neverStarted", "unavailable" })
+        if (status.ContainsKey("unavailable"))
         {
-            if (status.ContainsKey(key))
-            {
-                if (caseName.Length > 0)
-                {
-                    throw new AcceptanceException($"multiple clock status cases: {status.ToJson()}");
-                }
-
-                caseName = key;
-            }
+            throw new AcceptanceException($"clock status unavailable: {status.ToJson()}");
         }
 
-        if (caseName is not ("running" or "stopping" or "stopped"))
+        var state = status["state"].AsString();
+        if (state is not ("CLOCK_STATE_RUNNING" or "CLOCK_STATE_HELD"))
         {
-            throw new AcceptanceException($"unsupported clock status case \"{caseName}\": {status.ToJson()}");
-        }
-
-        var body = status[caseName].AsMap() ?? [];
-        var epoch = body["epoch"].AsMap() ?? throw new AcceptanceException($"clock status missing epoch: {body.ToJson()}");
-        var origin = epoch["origin"].AsMap() ?? throw new AcceptanceException($"clock epoch missing origin: {epoch.ToJson()}");
-        ValidateContext(origin);
-        var owner = epoch["owner"].AsMap() ?? throw new AcceptanceException($"clock epoch missing owner: {epoch.ToJson()}");
-        var ownerSession = owner["controllerSessionId"].AsString();
-        if (ownerSession.Length == 0)
-        {
-            throw new AcceptanceException($"clock epoch owner missing controllerSessionId: {owner.ToJson()}");
-        }
-
-        ulong epochId;
-        try
-        {
-            epochId = ScenarioInteger(owner["epoch"]);
-        }
-        catch (AcceptanceException)
-        {
-            epochId = 0;
-        }
-
-        if (epochId == 0)
-        {
-            throw new AcceptanceException($"clock epoch owner epoch: {owner.ToJson()}");
+            throw new AcceptanceException($"unsupported clock state \"{state}\": {status.ToJson()}");
         }
 
         var paused = status["actualPaused"].AsBool() ?? throw new AcceptanceException($"clock status missing actualPaused: {status.ToJson()}");
         var nativeBoundary = status["nativeTickBoundary"].AsBool() ?? throw new AcceptanceException($"clock status missing nativeTickBoundary: {status.ToJson()}");
-        ulong startTick;
         ulong lastTick;
-        ulong tickDeadline;
-        ulong newestCursor;
+        ulong newestCursor = 0;
         try
         {
-            startTick = ScenarioInteger(epoch["startTick"]);
-            lastTick = ScenarioInteger(epoch["lastTick"]);
-            tickDeadline = ScenarioInteger(epoch["tickDeadline"]);
-            newestCursor = ScenarioInteger(status["newestCursor"]);
+            lastTick = ScenarioInteger(contextValue["tick"]);
+            if (status["newestCursor"] is not null)
+            {
+                newestCursor = ScenarioInteger(status["newestCursor"]);
+            }
         }
         catch (AcceptanceException e)
         {
-            throw new AcceptanceException("clock epoch tick fields: " + e.Message, e);
+            throw new AcceptanceException("clock status tick fields: " + e.Message, e);
         }
 
-        if (!(startTick <= lastTick && lastTick <= tickDeadline))
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"clock epoch tick ordering violated: start={startTick} last={lastTick} deadline={tickDeadline}"));
-        }
-
+        var running = state == "CLOCK_STATE_RUNNING";
         var result = new JsonObject
         {
             ["native"] = status.DeepClone(),
-            ["owner"] = ownerSession,
-            ["epoch"] = epochId,
-            ["active"] = caseName != "stopped",
-            ["startTick"] = startTick,
+            ["active"] = running,
+            ["held"] = !running,
             ["lastTick"] = lastTick,
-            ["tickDeadline"] = tickDeadline,
             ["newestCursor"] = newestCursor,
             ["paused"] = paused,
             ["nativeTickBoundary"] = nativeBoundary,
         };
-        if (caseName == "stopped")
+        if (!running)
         {
-            var reason = body["reason"].AsString();
-            if (!reason.StartsWith("STOP_REASON_", StringComparison.Ordinal) || reason == "STOP_REASON_UNSPECIFIED")
-            {
-                throw new AcceptanceException($"invalid stopped reason: {body.ToJson()}");
-            }
-
-            var pauseVerified = body["pauseVerified"].AsBool() ?? throw new AcceptanceException($"stopped clock missing pauseVerified: {body.ToJson()}");
-            if (body["actualPaused"].AsBool() is not { } actualPaused || actualPaused != paused)
-            {
-                throw new AcceptanceException($"stopped clock actualPaused mismatch: {body.ToJson()}");
-            }
-
-            result["stopReason"] = reason["STOP_REASON_".Length..].ToLowerInvariant();
-            result["pauseVerified"] = pauseVerified;
+            result["stopReason"] = HoldKind(status["reason"], "clock status");
+            result["pauseVerified"] = status["pauseVerified"].AsBool() == true;
         }
 
         return result;
     }
 
     /// <summary>
-    /// Adapts a decoded clock_read_events page: {native, events: [{native, cursor, owner, epoch, kind, event?}],
-    /// nextCursor, gap: false}. Any gap, lost event, cursor discontinuity or ownerless event is refused.
+    /// Adapts a decoded clock_read_events page: {native, events: [{native, cursor, kind, event?}], nextCursor, gap:
+    /// false}. Any gap, lost event or cursor discontinuity is refused. A hold row's kind is its lowercase hold reason
+    /// (letter_pause, combat_event, hostile, ...); every other row's kind is its case name (resumed, notification, ...).
     /// </summary>
     public static JsonObject ProjectEvents(JsonObject page, ulong after)
     {
@@ -250,38 +208,18 @@ public static class ScenarioProjection
             previous = cursor;
             var eventContext = evt["context"].AsMap() ?? throw new AcceptanceException($"event missing context: {evt.ToJson()}");
             ValidateContext(eventContext);
-            var owner = evt["owner"].AsMap() ?? throw new AcceptanceException($"event missing owner: {evt.ToJson()}");
-            var ownerSession = owner["controllerSessionId"].AsString();
-            if (ownerSession.Length == 0)
-            {
-                throw new AcceptanceException($"event owner missing controllerSessionId: {owner.ToJson()}");
-            }
-
-            if (!TryInteger(owner["epoch"], out var epochId) || epochId == 0)
-            {
-                throw new AcceptanceException($"event owner epoch: {owner.ToJson()}");
-            }
-
             var row = new JsonObject
             {
                 ["native"] = evt.DeepClone(),
                 ["cursor"] = cursor,
-                ["owner"] = ownerSession,
-                ["epoch"] = epochId,
             };
-            if (evt["stopped"].AsMap() is { } stopped)
+            if (evt["holdEntered"].AsMap() is { } hold)
             {
-                var reason = stopped["reason"].AsString();
-                if (!reason.StartsWith("STOP_REASON_", StringComparison.Ordinal) || reason == "STOP_REASON_UNSPECIFIED")
-                {
-                    throw new AcceptanceException($"invalid event stop reason: {evt.ToJson()}");
-                }
-
-                var kind = reason["STOP_REASON_".Length..].ToLowerInvariant();
+                var kind = HoldKind(hold["reason"], "event");
                 row["kind"] = kind;
                 if (kind == "letter_pause")
                 {
-                    var letter = stopped["pause"].AsMap()?["letter"].AsMap();
+                    var letter = hold["pause"].AsMap()?["letter"].AsMap();
                     var letterId = letter?["id"].AsString() ?? "";
                     if (letter is null || letterId.Length == 0)
                     {
@@ -293,7 +231,7 @@ public static class ScenarioProjection
 
                 if (kind == "dialog_pause")
                 {
-                    var dialog = stopped["pause"].AsMap()?["dialog"].AsMap();
+                    var dialog = hold["pause"].AsMap()?["dialog"].AsMap();
                     if (dialog is null || dialog["windowId"] is null)
                     {
                         throw new AcceptanceException($"dialog_pause event missing window id: {evt.ToJson()}");
@@ -312,8 +250,8 @@ public static class ScenarioProjection
                 var cases = new List<string>();
                 foreach (var key in new[]
                 {
-                    "started", "speedChanged", "notification", "alert", "injuryObserved",
-                    "observationInvalidated", "hostilesCleared", "pauseFailed", "forcePauseWaiting", "forcePauseCleared",
+                    "resumed", "notification", "alert", "injuryObserved", "hostilesCleared", "pauseFailed",
+                    "forcePauseWaiting", "forcePauseCleared", "operationOutcome", "authorityChanged", "observationInvalidated",
                 })
                 {
                     if (evt.ContainsKey(key))

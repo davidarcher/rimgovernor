@@ -75,13 +75,6 @@ public sealed record WatchConfig
     /// relaunched sits at the main menu with no map, so without this the case waits out its whole Watch ceiling.
     /// </summary>
     public TimeSpan TickStall { get; init; }
-
-    /// <summary>
-    /// Ends the window (without error) once the scheduler has refused a clock window for no_work and the tick has not
-    /// moved for this long (default <see cref="SustainedFood.DefaultIdleGrace"/>; negative disables): a parked game
-    /// cannot change, so waiting out Watch only burns wall time.
-    /// </summary>
-    public TimeSpan IdleGrace { get; init; }
 }
 
 /// <summary>
@@ -156,7 +149,7 @@ public interface IWatchedService : ICheckpointService
     void KeepAuthority(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Whether a scheduler step has admitted a clock window since <paramref name="since"/>; throws
+    /// Whether a scheduler step has run a clock step since <paramref name="since"/>; throws
     /// <see cref="StepStallException"/> once the service's step-stall budget elapsed without one.
     /// </summary>
     Task<bool> StepAdmittedAsync(DateTimeOffset since, CancellationToken cancellationToken);
@@ -213,8 +206,6 @@ public static partial class SustainedFood
 
     public static readonly TimeSpan DefaultTickStall = TimeSpan.FromMinutes(3);
 
-    public static readonly TimeSpan DefaultIdleGrace = TimeSpan.FromSeconds(30);
-
     private static string Now() => SampleJson.Stamp(DateTimeOffset.UtcNow);
 
     /// <summary>
@@ -237,7 +228,6 @@ public static partial class SustainedFood
         var poll = cfg.Poll > TimeSpan.Zero ? cfg.Poll : DefaultPoll;
         var pollTicks = cfg.PollTicks == 0 ? DefaultPollTicks : cfg.PollTicks;
         var tickStallLimit = cfg.TickStall > TimeSpan.Zero ? cfg.TickStall : DefaultTickStall;
-        var idleGrace = cfg.IdleGrace == TimeSpan.Zero ? DefaultIdleGrace : cfg.IdleGrace;
         var wake = cfg.Wake ?? RowKinds.WorkerOutcome;
         ServiceApiCall apiCall = service.ApiAsync;
 
@@ -394,12 +384,6 @@ public static partial class SustainedFood
                     break;
                 }
 
-                if (stall.Idle(DateTimeOffset.UtcNow, idleGrace))
-                {
-                    report["watch_ended_idle"] = sample["tick"]?.DeepClone();
-                    break;
-                }
-
                 // The failed checkpoint bundle is still taken: the runner captures it on the error path like any
                 // other watch failure.
                 if (sampled)
@@ -496,27 +480,6 @@ public static partial class SustainedFood
         return WaitError.FormatDuration(rounded);
     }
 
-    /// <summary>
-    /// Reports a scheduler admission row refusing the window with no_work among its refusals: the governor declined to
-    /// run the clock because nothing needs game time.
-    /// </summary>
-    public static bool NoWorkRefusal(LogRow row)
-    {
-        ArgumentNullException.ThrowIfNull(row);
-        if (row.Kind != "admission" || RowValue.Text(row.Payload.GetValueOrDefault("target")) != "window")
-        {
-            return false;
-        }
-
-        if (row.Payload.GetValueOrDefault("attrs") is not IReadOnlyDictionary<string, object?> attrs
-            || attrs.GetValueOrDefault("refused") is not IEnumerable<object?> refused)
-        {
-            return false;
-        }
-
-        return refused.Any(reason => RowValue.Text(reason) == "no_work");
-    }
-
     // Pauses between two samples until one of the cadence's conditions holds and names it for the report: a journal row
     // satisfying Wake ("wakes"), PollTicks of game time past the previous sample's tick ("tick_polls"), or the Poll
     // wall-clock ceiling ("wall_polls"). The live tick and the journal are probed every RunInterval. The watch deadline
@@ -541,11 +504,6 @@ public static partial class SustainedFood
             await Task.Delay(wait, cancellationToken).ConfigureAwait(false);
             foreach (var row in tail.Next())
             {
-                if (NoWorkRefusal(row))
-                {
-                    stall.RefusedNoWork();
-                }
-
                 if (wake(row))
                 {
                     return "wakes";

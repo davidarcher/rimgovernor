@@ -14,8 +14,6 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class WallRemoval
 {
-    private const string SessionOwner = "native-wall-removal-acceptance";
-
     internal static AcceptanceCase Case() => new()
     {
         Name = "wall/removal",
@@ -100,7 +98,7 @@ internal static class WallRemoval
             }
         }
 
-        var clock = new ScenarioClock(h.WireFunc(), identity, SessionOwner, report);
+        var clock = new ScenarioClock(h.WireFunc(), identity, report);
         _ = await h.CallAsync("initial-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
         var scope = WallCensus.Scope(identity);
 
@@ -174,7 +172,7 @@ internal static class WallRemoval
         report["site_backup_cells"] = string.Join(';', site.Cells);
 
         // Acquire sets Auto mode at the current generation (no lease handshake); it is repeated before every dispatch that follows a supervised
-        // run, since player-visible activity may bump the generation. The clock keeps the grant, so its windows start at the same generation.
+        // run, since player-visible activity may bump the generation. The clock keeps the grant, so its runs start at the same generation.
         Task Acquire(string label) => clock.AcquireAsync(label, cancellationToken);
 
         // Apply sends one wall_upgrade-guarded Designate for the wall at cell under key and returns its ActionResult.
@@ -236,13 +234,12 @@ internal static class WallRemoval
             return result;
         }
 
-        // RunUntilGone drives the supervised native clock, heartbeating it and restarting bounded windows, until the building census no longer
+        // RunUntilGone drives the supervised native clock, heartbeating it and running it again after each hold, until the building census no longer
         // lists wall within ticks of game time. The signature carries the game tick, so a game that stops ticking stalls and one that keeps
-        // ticking without the demolition spends the tick budget.
+        // ticking without the demolition spends the tick allowance.
         async Task RunUntilGone(string label, string wall, ulong ticks)
         {
-            const ulong maxTicks = 6000;
-            _ = await clock.ChangeAsync("Fast", maxTicks, cancellationToken).ConfigureAwait(false);
+            _ = await clock.RunAsync("Fast", cancellationToken).ConfigureAwait(false);
             JsonObject state = [];
             var polls = 0;
             ulong latest = 0;
@@ -261,6 +258,7 @@ internal static class WallRemoval
                     async ct =>
                     {
                         polls++;
+                        await clock.BeatIfDueAsync(ct).ConfigureAwait(false);
                         state = await clock.CallAsync("status", null, ct).ConfigureAwait(false);
                         var current = await WallCensus.ColonistWallsAsync(h, scope, $"{label}-walls-{CaseSupport.Tag(polls)}", ct).ConfigureAwait(false);
                         if (!current.Contains(wall, StringComparer.Ordinal))
@@ -271,10 +269,10 @@ internal static class WallRemoval
                         if (state["active"].AsBool() != true)
                         {
                             clock.Hold = string.Empty;
-                            _ = await clock.ChangeAsync("Fast", maxTicks, ct).ConfigureAwait(false);
+                            _ = await clock.RunAsync("Fast", ct).ConfigureAwait(false);
                         }
 
-                        return (Wait.Signature(latest, state["epoch"].ToJson()), false);
+                        return (Wait.Signature(latest, state["stopReason"].ToJson()), false);
                     },
                     cancellationToken).ConfigureAwait(false);
             }
@@ -285,7 +283,7 @@ internal static class WallRemoval
 
             if (state["active"].AsBool() == true)
             {
-                _ = await clock.CallAsync("pause", new JsonObject { ["owner"] = clock.Owner, ["epoch"] = state["epoch"]?.DeepClone() }, cancellationToken).ConfigureAwait(false);
+                _ = await clock.HoldAsync("REVIEW", "removal run finished", cancellationToken).ConfigureAwait(false);
             }
         }
 

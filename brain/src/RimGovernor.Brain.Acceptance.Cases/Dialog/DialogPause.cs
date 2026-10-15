@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// finished research project's completion dialog or a caravan demand) no longer strands the native clock. Two dialogs are
 /// staged through the DialogFixture before the service attaches: one already open when the service acquires authority
 /// (the clock cannot start at all until it is answered), and one scheduled to open on a later game tick while a
-/// supervised window is running (the STOP_REASON_DIALOG_PAUSE hold, acknowledged like a letter pause). For each, the
+/// supervised clock is running (the HOLD_REASON_DIALOG_PAUSE hold, acknowledged like a letter pause). For each, the
 /// rounds raises AnswerDialog, the dialog planner picks the policy-preferred option ("OK" over "Research screen"), the
 /// executor activates it through a DialogIntent on Actions/Apply, and the clock runs again.
 /// </summary>
@@ -21,7 +21,7 @@ internal static class DialogPause
     private const string FixtureTool = "test/open_choice_dialog";
 
     // How many ticks after the case's setup the second dialog opens: far enough that the service has answered the first
-    // one and admitted a running window, short enough for a Normal-speed run.
+    // one and started a run, short enough for a Normal-speed run.
     private const int ScheduledDelay = 600;
 
     // Bounds each dialog's wait to be answered and the clock to run again; the stall budget ends it earlier when nothing moves.
@@ -32,12 +32,12 @@ internal static class DialogPause
         Name = "dialog/pause",
         Scope = "Issue #156: a force-pausing Dialog_NodeTree the game opens by itself is read as the colony "
             + "facts dialog section, answered with the policy-preferred option through a DialogIntent on Actions/Apply under the "
-            + "AnswerDialog incident, its STOP_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the "
-            + "native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-window.",
+            + "AnswerDialog incident, its HOLD_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the "
+            + "native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-run.",
         Start = new LabStart(),
         RequiredOps = [FixtureTool],
 
-        // The building families keep supervised windows running so the scheduled dialog opens mid-window.
+        // The building families keep the supervised clock running so the scheduled dialog opens mid-run.
         Serve = new ServeSpec
         {
             Families = ["dialog", "supply", "shelter", "sleeping"],
@@ -186,7 +186,7 @@ internal static class DialogPause
         return output;
     }
 
-    /// <summary>What the durable clock inbox shows: every stop reason in order, the dialog-pause stops with their window, and the cursor of the latest epoch start.</summary>
+    /// <summary>What the durable clock inbox shows: every hold reason in order, the dialog-pause holds with their dialog window, and the cursor of the latest run.</summary>
     private sealed class ClockTrace
     {
         internal List<string> Stops { get; } = [];
@@ -313,7 +313,7 @@ internal static class DialogPause
             }
 
             // Phase 1: the dialog open at acquire is answered with "OK". The clock could not start while it was up (an
-            // Unavailable start, retried), so no epoch ever reports that window as its dialog pause.
+            // Unavailable start, retried), so no run ever reports that dialog as its pause.
             _ = await WaitForAsync("phase1", (a, _) =>
             {
                 if (!a.TryGetValue(staged.ImmediateWindow, out var first))
@@ -334,8 +334,8 @@ internal static class DialogPause
                 return first.Stage == Stage.Completed;
             }).ConfigureAwait(false);
 
-            // Phase 2: the scheduled dialog opens while a window runs, stops the epoch with STOP_REASON_DIALOG_PAUSE naming
-            // its window, is answered under a new occurrence, and a later epoch starts again.
+            // Phase 2: the scheduled dialog opens while the clock runs, holds it with HOLD_REASON_DIALOG_PAUSE naming
+            // its dialog, is answered under a new occurrence, and a later run starts again.
             var trace2 = await WaitForAsync("phase2", (a, t) =>
             {
                 if (t.DialogPauses.Count == 0)
@@ -366,7 +366,7 @@ internal static class DialogPause
             {
                 if (window == staged.ImmediateWindow)
                 {
-                    throw new AcceptanceException($"phase2: a running epoch reported the dialog open at acquire (window {window}) as its pause: {trace2.ToJson().ToJsonString()}");
+                    throw new AcceptanceException($"phase2: a running clock reported the dialog open at acquire (window {window}) as its pause: {trace2.ToJson().ToJsonString()}");
                 }
             }
         }

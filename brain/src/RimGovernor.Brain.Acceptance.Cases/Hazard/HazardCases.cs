@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// The <c>hazard/*</c> cases (Go <c>hazard/hazard.go</c>) prove the supervisor's declared detection bounds
-/// (docs/developers/architecture/hazard-detection-bounds.md): each injects one hazard class into a clock window running
+/// (docs/developers/architecture/hazard-detection-bounds.md): each injects one hazard class into a clock run running
 /// at Ultrafast, the speed that carries the most ticks per frame, and asserts the stop's detect_ticks (detected_tick less
 /// occurrence_tick) and the gap from the injection tick to the detection both lie within the class's bound. The letter
 /// case delivers through the real LetterStack callback (test/deliver_letter); the others use test/hazard_inject.
@@ -16,14 +16,12 @@ public static class HazardCases
     private const int ProbeIntervalTicks = 30;
     private const int HookedBoundTicks = 1;
 
-    // The clock budget: long enough for the injection to land mid-window at Ultrafast, short enough that a missed stop fails fast.
-    private const ulong WindowTicks = 6000;
 
-    // How far the window runs before the injection, so the detection is measured under a moving clock, never at the start baseline.
+    // How far the run goes before the injection, so the detection is measured under a moving clock, never at the start baseline.
     private const ulong SettleTicks = 300;
 
-    // Mirrors policy.InjurySeverityFloorTicks, the floor sent: a wound whose bleed-out lands inside it still stops the
-    // window, so the demoted case fails if its injection ever grows into one. 0 on the wire means the pawn is not bleeding out at all.
+    // Mirrors policy.InjurySeverityFloorTicks, the floor sent: a wound whose bleed-out lands inside it still holds the
+    // hold, so the demoted case fails if its injection ever grows into one. 0 on the wire means the pawn is not bleeding out at all.
     private const long InjurySeverityFloorTicks = 5000;
 
     private static readonly string[] RequiredTools = ["test/hazard_inject", "test/deliver_letter", "test/letter_pause_mode"];
@@ -49,25 +47,25 @@ public static class HazardCases
     }
 
     // One class: how it is injected and the stop it must raise, or -- for a demoted tier -- the journal wake it must raise
-    // instead while the window runs on.
+    // instead while the run goes on.
     private sealed record HazardCase(string Name, string Class, long Bound, string Scope, bool Demoted, Func<ISession, CancellationToken, Task<(long Tick, JsonObject Reply)>> Inject);
 
     private static HazardCase[] Classes() =>
     [
         new("hazard/letter", "notification_batch", ProbeIntervalTicks,
-            "A letter received mid-window at Ultrafast stops the clock as notification_batch within the 30-tick bound (the letter hook lands it next tick).",
+            "A letter received mid-run at Ultrafast stops the clock as notification_batch within the 30-tick bound (the letter hook lands it next tick).",
             false, InjectLetterAsync),
         new("hazard/hostile", "hostile", ProbeIntervalTicks,
-            "A hostile pawn spawned near a colonist mid-window at Ultrafast stops the clock as hostile within the 30-tick bound (the spawn hook lands it next tick).",
+            "A hostile pawn spawned near a colonist mid-run at Ultrafast stops the clock as hostile within the 30-tick bound (the spawn hook lands it next tick).",
             false, InjectOp("hostile")),
         new("hazard/downed", "colonist_downed", HookedBoundTicks,
-            "A colonist downed mid-window at Ultrafast stops the clock as colonist_downed within the hooked 1-tick bound.",
+            "A colonist downed mid-run at Ultrafast stops the clock as colonist_downed within the hooked 1-tick bound.",
             false, InjectOp("downed")),
         new("hazard/injury", "colonist_injury", ProbeIntervalTicks,
-            "A colonist wounded under the severity floor mid-window at Ultrafast keeps the window running and invalidates the medical facts within the 30-tick probe bound (#584).",
+            "A colonist wounded under the severity floor mid-run at Ultrafast keeps the clock running and invalidates the medical facts within the 30-tick probe bound (#584).",
             true, InjectOp("injury")),
         new("hazard/predator", "predator_hunt", ProbeIntervalTicks,
-            "A predator hunting a colonist mid-window at Ultrafast stops the clock as predator_hunt within the 30-tick probe bound.",
+            "A predator hunting a colonist mid-run at Ultrafast stops the clock as predator_hunt within the 30-tick probe bound.",
             false, InjectOp("predator")),
     ];
 
@@ -121,7 +119,7 @@ public static class HazardCases
         await SetPauseMode("Never", cancellationToken).ConfigureAwait(false);
         try
         {
-            await RunWindowAsync(s, hc, cancellationToken).ConfigureAwait(false);
+            await RunHazardAsync(s, hc, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -147,33 +145,33 @@ public static class HazardCases
         }
     }
 
-    private static async Task RunWindowAsync(ISession s, HazardCase hc, CancellationToken cancellationToken)
+    private static async Task RunHazardAsync(ISession s, HazardCase hc, CancellationToken cancellationToken)
     {
         var h = s.Harness;
         var report = s.Report;
-        var clock = new ScenarioClock(h.WireFunc(), s.Identity, Draft.Controller, report);
+        var clock = new ScenarioClock(h.WireFunc(), s.Identity, report);
         _ = await clock.AcquireAsync("acquire", cancellationToken).ConfigureAwait(false);
         JsonObject started;
         try
         {
-            started = await clock.ChangeAsync("Ultrafast", WindowTicks, cancellationToken).ConfigureAwait(false);
+            started = await clock.RunAsync("Ultrafast", cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
-            throw new AcceptanceException("ultrafast window: " + e.Message, e);
+            throw new AcceptanceException("ultrafast run: " + e.Message, e);
         }
 
         var startTick = started["startTick"].AsUInt64() ?? 0;
-        clock.SeekEvents(started);
 
-        // Let the window run before injecting; a stop before then is a hazard the colony raised on its own and fails the case.
+        // Let the run go on before injecting; a stop before then is a hazard the colony raised on its own and fails the case.
         var deadline = DateTime.UtcNow.AddSeconds(60);
         while (true)
         {
+            await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
             var status = await clock.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
             if (status["active"].AsBool() != true)
             {
-                throw new AcceptanceException("window stopped before the injection: " + status["stopReason"].AsString());
+                throw new AcceptanceException("clock held before the injection: " + status["stopReason"].AsString());
             }
 
             if ((status["lastTick"].AsUInt64() ?? 0) >= startTick + SettleTicks)
@@ -183,7 +181,7 @@ public static class HazardCases
 
             if (DateTime.UtcNow > deadline)
             {
-                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"window did not reach {SettleTicks} ticks in 60 s: {status.ToJson()}"));
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"run did not reach {SettleTicks} ticks in 60 s: {status.ToJson()}"));
             }
 
             await Task.Delay(TimeSpan.FromMilliseconds(200), cancellationToken).ConfigureAwait(false);
@@ -196,18 +194,19 @@ public static class HazardCases
             return;
         }
 
-        // Poll the events until the stop; the window's tick budget bounds the wait at Ultrafast.
+        // Poll the events until the stop; the 90 s deadline bounds the wait.
         JsonObject? stopped = null;
         long stopTick = 0;
         deadline = DateTime.UtcNow.AddSeconds(90);
         while (stopped is null)
         {
+            await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
             var events = await clock.PollAsync(cancellationToken).ConfigureAwait(false);
             foreach (var raw in events)
             {
                 var row = raw.AsMap();
                 var native = row?["native"].AsMap();
-                if (native?["stopped"].AsMap() is { } body)
+                if (native?["holdEntered"].AsMap() is { } body)
                 {
                     stopped = body;
                     stopTick = Int64Of(native["context"].AsMap()?["tick"]) ?? 0;
@@ -327,7 +326,7 @@ public static class HazardCases
     }
 
     // Proves a tier the supervisor no longer stops for: the hazard is detected within the class's bound and published as an
-    // observation_invalidated wake naming the pawn families, and the window keeps running -- the review the stop used to
+    // observation_invalidated wake naming the pawn families, and the clock keeps running -- the review the stop used to
     // buy, without the stop-to-readmit pause.
     private static async Task RunDemotedAsync(ScenarioClock clock, HazardCase hc, Report report, long injectTick, JsonObject injected, CancellationToken cancellationToken)
     {
@@ -354,13 +353,14 @@ public static class HazardCases
         var deadline = DateTime.UtcNow.AddSeconds(90);
         while (wake is null)
         {
+            await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
             var events = await clock.PollAsync(cancellationToken).ConfigureAwait(false);
             foreach (var raw in events)
             {
                 var native = raw.AsMap()?["native"].AsMap();
-                if (native?["stopped"].AsMap() is { } stopped)
+                if (native?["holdEntered"].AsMap() is { } stopped)
                 {
-                    throw new AcceptanceException($"the window stopped ({stopped["reason"].AsString()}) for a wound under the severity floor: {stopped.ToJson()}");
+                    throw new AcceptanceException($"the clock was held ({stopped["reason"].AsString()}) for a wound under the severity floor: {stopped.ToJson()}");
                 }
 
                 if (native?["observationInvalidated"].AsMap() is not { } invalidated || !HasFamily(invalidated, "PAWNS"))
@@ -397,11 +397,12 @@ public static class HazardCases
             throw new AcceptanceException($"the medical wake does not invalidate the emergency family: {wake.ToJson()}");
         }
 
-        // The window survives the wake: the readmit the stop used to cost is exactly what this tier no longer spends.
+        // The run survives the wake: the readmit the hold used to cost is exactly what this tier no longer spends.
+        await clock.BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
         var status = await clock.CallAsync("status", null, cancellationToken).ConfigureAwait(false);
         if (status["active"].AsBool() != true)
         {
-            throw new AcceptanceException("the window is no longer running after the wake: " + status["stopReason"].AsString());
+            throw new AcceptanceException("the clock is no longer running after the wake: " + status["stopReason"].AsString());
         }
     }
 

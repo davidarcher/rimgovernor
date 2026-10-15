@@ -13,7 +13,6 @@ internal sealed class TickStall
     private ulong _last;
     private bool _seen;
     private DateTimeOffset _advanced;
-    private bool _noWork;
 
     internal TickStall(TimeSpan limit, DateTimeOffset now)
     {
@@ -28,19 +27,8 @@ internal sealed class TickStall
             _last = tick;
             _seen = true;
             _advanced = now;
-            _noWork = false;
         }
     }
-
-    /// <summary>Records a scheduler admission refusal naming no_work.</summary>
-    internal void RefusedNoWork() => _noWork = true;
-
-    /// <summary>
-    /// Reports a parked game: the scheduler refused to run the clock for lack of work and the tick has not moved for
-    /// <paramref name="grace"/>. Nothing can change in a paused game the governor will not resume, so the window ends
-    /// and the case's audit judges the frozen state instead of waiting out the watch.
-    /// </summary>
-    internal bool Idle(DateTimeOffset now, TimeSpan grace) => _noWork && _seen && grace > TimeSpan.Zero && now - _advanced >= grace;
 
     /// <summary>Restarts the clock after a deliberate pause (a checkpoint save).</summary>
     internal void Reset(DateTimeOffset now) => _advanced = now;

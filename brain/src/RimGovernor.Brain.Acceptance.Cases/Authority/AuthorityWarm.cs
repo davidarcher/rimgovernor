@@ -6,10 +6,10 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>authority/warm</c> (Go <c>warm.go</c>) verifies authority and clock-journal continuity when a controller dies with
-/// Auto granted and a typed epoch running. It releases the first session, unloads its game, prepares the profile again and
-/// loads another save into the same process. The next controller must read the first epoch's journal from cursor zero and
-/// retain Auto throughout the hold window. This catches profile preparation deleting a kept process's journal and native
-/// epoch state retaining a disposed game.
+/// Auto granted and a typed run going. It releases the first session, unloads its game, prepares the profile again and
+/// loads another save into the same process. The next controller must read the first run's journal from cursor zero and
+/// retain Auto throughout the hold. This catches profile preparation deleting a kept process's journal and native
+/// run state retaining a disposed game.
 /// </summary>
 internal static class AuthorityWarm
 {
@@ -23,7 +23,7 @@ internal static class AuthorityWarm
     internal static AcceptanceCase Case() => new()
     {
         Name = "authority/warm",
-        Scope = "A process that hosted a controller killed mid-epoch (authority Auto, typed clock epoch running, session "
+        Scope = "A process that hosted a controller killed mid-run (authority Auto, typed clock run going, session "
             + "dropped) keeps the next controller's Auto grant after unload and reload of another save into the same process (#119).",
         Start = new OwnedStart(),
         NoKeep = true,
@@ -96,7 +96,7 @@ internal static class AuthorityWarm
             }
         }
 
-        // The controller vanishes: the session drops with the epoch running and the grant active. Close returns the game to
+        // The controller vanishes: the session drops with the run going and the grant active. Close returns the game to
         // the main menu and keeps the process.
         killed.Keep = true;
         await CloseAsync(killed, report).ConfigureAwait(false);
@@ -179,7 +179,7 @@ internal static class AuthorityWarm
 
             if (newest < 1)
             {
-                throw new AcceptanceException($"phase 2 found no journal rows from phase 1's epoch: {page.ToJson()}");
+                throw new AcceptanceException($"phase 2 found no journal rows from phase 1's run: {page.ToJson()}");
             }
 
             var (statusBefore, before) = await Authority.AuthorityStatusAsync(h.WireFunc(), "p2-status", identity, cancellationToken).ConfigureAwait(false);

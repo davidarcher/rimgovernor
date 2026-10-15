@@ -1,38 +1,26 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Acceptance;
 
-// This file is the typed scenario clock, so the combat and movement acceptance cases can advance real game ticks in a
-// bounded, letter-acknowledging way (Go scenario.go). It intentionally omits a medical-rest wait mode: only the
-// combat-target mode is exercised through the typed clock adapter.
-
-/// <summary>One owned clock control call, so AdvanceGame's caller can replay it after a stop or revocation (Go <c>ScenarioControl</c>).</summary>
-public sealed class ScenarioControl
-{
-    public ScenarioControl(string method, JsonObject request, JsonObject receipt)
-    {
-        Method = method;
-        Request = request;
-        Receipt = receipt;
-    }
-
-    public string Method { get; }
-
-    public JsonObject Request { get; }
-
-    public JsonObject Receipt { get; }
-}
+// This file is the typed scenario clock, so the combat and movement acceptance cases can run and hold the real game
+// clock through the native Run/Hold/Heartbeat surface. It stands in for the brain's ClockRunDriver: it sends Run, keeps
+// the heartbeat that holds the one ceiling above Normal while it waits, and holds the clock itself when a case's tick
+// target is reached. It intentionally omits a medical-rest wait mode: only the combat-target mode is exercised.
 
 /// <summary>
 /// The typed clock/authority transport adapter AdvanceGame drives. Every native call goes through <see cref="Wire"/>
-/// (ordinarily <see cref="Harness.WireFunc"/>), so this type owns only the owner-side bookkeeping (grant, attempt
-/// counter, event cursor, replay log) AdvanceGame needs to safely resume, replay and detect drift (Go <c>ScenarioClock</c>).
+/// (ordinarily <see cref="Harness.WireFunc"/>), so this type owns only the owner-side bookkeeping (grant, event cursor,
+/// heartbeat cadence, the tick the last Run began at) AdvanceGame needs to resume and detect drift (Go <c>ScenarioClock</c>).
 /// </summary>
 public sealed class ScenarioClock
 {
-    /// <summary>The fixed watch policy every acceptance clock window starts with (Go <c>scenarioPolicy</c>).</summary>
+    /// <summary>The longest gap between heartbeats while this clock waits; the native tolerance is five seconds.</summary>
+    private static readonly TimeSpan HeartbeatEvery = TimeSpan.FromSeconds(1);
+
+    /// <summary>The fixed watch policy every acceptance Run starts with (Go <c>scenarioPolicy</c>).</summary>
     private static JsonObject ScenarioPolicy() => new()
     {
         ["mode"] = "WATCH_MODE_COLONY",
@@ -52,7 +40,7 @@ public sealed class ScenarioClock
         ["predatorMarginCells"] = (double)PolicyFunctions.HuntPredatorMarginCells,
     };
 
-    /// <summary>The stop reasons that mean an external actor now owns the clock's fate (Go <c>scenarioHoldReasons</c>).</summary>
+    /// <summary>The hold reasons that mean an external actor now owns the clock's fate (Go <c>scenarioHoldReasons</c>).</summary>
     private static readonly HashSet<string> HoldReasons = new(StringComparer.Ordinal)
     {
         "external_pause",
@@ -60,23 +48,20 @@ public sealed class ScenarioClock
         "session_changed",
         "unavailable",
         "watcher_error",
-        "start_refused",
-        "force_paused",
+        "run_refused",
         "event_journal_error",
         "hunting_route_unsafe",
     };
 
-    private readonly List<ScenarioControl> _controls = [];
-    private int _counter;
+    private readonly Stopwatch _sinceBeat = Stopwatch.StartNew();
     private ulong _cursor;
 
-    public ScenarioClock(WireFunc wire, JsonObject identity, string owner, Report? report)
+    public ScenarioClock(WireFunc wire, JsonObject identity, Report? report)
     {
         ArgumentNullException.ThrowIfNull(wire);
         ArgumentNullException.ThrowIfNull(identity);
         Wire = wire;
         Identity = identity;
-        Owner = owner;
         Report = report;
     }
 
@@ -85,56 +70,33 @@ public sealed class ScenarioClock
 
     public JsonObject Identity { get; }
 
-    public string Owner { get; }
-
     public Report? Report { get; }
 
-    /// <summary>When non-empty, switches every clock_start this clock issues to WATCH_MODE_COMBAT with these acknowledged hostiles.</summary>
+    /// <summary>When non-empty, switches every clock_run this clock issues to WATCH_MODE_COMBAT with these acknowledged hostiles.</summary>
     public IReadOnlyList<string> CombatTargets { get; set; } = [];
 
-    /// <summary>When set, edits every clock_start's watch policy after the combat-target injection (a case arming combat stop events).</summary>
+    /// <summary>When set, edits every clock_run's watch policy after the combat-target injection (a case arming combat stop events).</summary>
     public Action<JsonObject>? PolicyEdit { get; set; }
 
     /// <summary>
-    /// Opts AdvanceGame into Ultrafast with the native test tick boost. Requires a launch with
-    /// -rimgovernor-test-acceleration; false preserves Superfast and all native stop boundaries.
+    /// Opts AdvanceGame into Ultrafast, the speed the native test tick boost serves. The boost itself needs a launch
+    /// with -rimgovernor-test-acceleration (<c>Status.test_acceleration_available</c>); without it Ultrafast runs at the
+    /// one ceiling's rate.
     /// </summary>
     public bool TestAcceleration { get; set; }
 
     /// <summary>
     /// The current authority grant (SetMode(Auto)'s "granted" body: {context, authority}); its
-    /// context.nativeGeneration is the generation every owned write below is admitted against. Settable so callers
+    /// context.nativeGeneration is the generation every Run below is admitted against. Settable so callers
     /// can seed or recover it.
     /// </summary>
     public JsonObject? Grant { get; set; }
 
-    /// <summary>Runs after Change admits a fresh clock_start receipt but before AdvanceGame observes it, e.g. to revoke authority mid-window.</summary>
-    public Func<JsonObject, CancellationToken, Task>? OnStarted { get; set; }
-
-    /// <summary>The last observed external-hold stop reason; AdvanceGame refuses to proceed once set, mirroring supervisor.hold.</summary>
+    /// <summary>The last observed external-hold reason; AdvanceGame refuses to proceed once set, mirroring supervisor.hold.</summary>
     public string Hold { get; set; } = "";
 
-    /// <summary>The replay log of every owned control call issued so far.</summary>
-    public IReadOnlyList<ScenarioControl> Controls => _controls;
-
-    /// <summary>The epoch of the latest admitted control.</summary>
-    public ulong Epoch { get; private set; }
-
-    private JsonObject Precondition()
-    {
-        _counter++;
-        return new JsonObject
-        {
-            ["identity"] = Identity.DeepClone(),
-            ["expectedGeneration"] = Dig(Grant, "context", "nativeGeneration")?.DeepClone(),
-            ["attempt"] = new JsonObject
-            {
-                ["controllerSessionId"] = Owner,
-                ["actionId"] = "typed-clock-" + _counter.ToString(CultureInfo.InvariantCulture),
-                ["attemptId"] = 1,
-            },
-        };
-    }
+    /// <summary>The game tick the latest Run began at (the status context's tick in its reply).</summary>
+    public ulong RunStartTick { get; private set; }
 
     private static JsonNode? Dig(JsonNode? root, params string[] path)
     {
@@ -163,8 +125,8 @@ public sealed class ScenarioClock
     /// <summary>
     /// Proves <see cref="Grant"/> is still the live authority: Active(Auto) at exactly Grant's generation. Authority
     /// no longer lapses on its own, so "renewing" means confirming generation continuity rather than extending a
-    /// lease; it deliberately does not re-issue SetMode, which would advance the generation and interrupt every
-    /// attempt admitted under the current one. Callers that need authority back after it moved re-acquire.
+    /// lease; it deliberately does not re-issue SetMode, which would advance the generation. Callers that need
+    /// authority back after it moved re-acquire.
     /// </summary>
     public async Task RenewAuthorityAsync(CancellationToken cancellationToken)
     {
@@ -186,93 +148,13 @@ public sealed class ScenarioClock
         }
     }
 
-    /// <summary>Issues one owned clock control call (start/change_speed) and projects its admitted status, mirroring TypedScenarioClock.control().</summary>
-    public async Task<JsonObject> ControlAsync(string method, JsonObject request, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        if (method == "start" && CombatTargets.Count > 0)
-        {
-            request = (JsonObject)request.DeepClone();
-            var watch = request["policy"].AsMap() ?? throw new AcceptanceException($"combat start request missing policy: {request.ToJson()}");
-            var targets = new JsonArray();
-            foreach (var target in CombatTargets)
-            {
-                targets.Add(target);
-            }
-
-            watch["mode"] = "WATCH_MODE_COMBAT";
-            watch["acknowledgedHostileIds"] = targets;
-        }
-
-        if (method == "start" && PolicyEdit is not null)
-        {
-            request = (JsonObject)request.DeepClone();
-            var watch = request["policy"].AsMap() ?? throw new AcceptanceException($"start request missing policy: {request.ToJson()}");
-            PolicyEdit(watch);
-        }
-
-        var reply = await Wire(method, "clock_" + method, request, cancellationToken).ConfigureAwait(false);
-        var (_, receipt) = Harness.Outcome(reply, "receipt");
-        if (!Dyn.DeepEqual(receipt["attempt"], Dig(request, "authority", "attempt")))
-        {
-            throw new AcceptanceException($"clock receipt attempt mismatch: {receipt.ToJson()}");
-        }
-
-        if (!Dyn.DeepEqual(Dig(receipt, "admittedContext", "identity"), Identity))
-        {
-            throw new AcceptanceException($"clock receipt identity mismatch: {receipt.ToJson()}");
-        }
-
-        JsonObject appliedCase;
-        if (receipt["applied"] is { } appliedNode)
-        {
-            appliedCase = new JsonObject { ["applied"] = appliedNode.DeepClone() };
-        }
-        else if (receipt["uncertain"] is { } uncertainNode)
-        {
-            appliedCase = new JsonObject { ["uncertain"] = uncertainNode.DeepClone() };
-        }
-        else
-        {
-            throw new AcceptanceException($"clock receipt carries neither applied nor uncertain: {receipt.ToJson()}");
-        }
-
-        var (_, applied) = Harness.Outcome(appliedCase, "applied");
-        var statusValue = applied["status"].AsMap() ?? throw new AcceptanceException($"applied clock control missing status: {applied.ToJson()}");
-        var projected = ScenarioProjection.ProjectStatus(statusValue);
-        if (projected["owner"].AsString() != Owner)
-        {
-            throw new AcceptanceException($"clock control admitted a different owner: {projected.ToJson()}");
-        }
-
-        if (!Dyn.DeepEqual(Dig(statusValue, "context", "identity"), Identity))
-        {
-            throw new AcceptanceException($"clock control status identity mismatch: {statusValue.ToJson()}");
-        }
-
-        _controls.Add(new ScenarioControl(method, (JsonObject)request.DeepClone(), (JsonObject)receipt.DeepClone()));
-        if (Report is not null)
-        {
-            var log = new JsonArray();
-            foreach (var control in _controls)
-            {
-                log.Add(new JsonObject
-                {
-                    ["Method"] = control.Method,
-                    ["Request"] = control.Request.DeepClone(),
-                    ["Receipt"] = control.Receipt.DeepClone(),
-                });
-            }
-
-            Report["controls"] = log;
-        }
-
-        Epoch = ScenarioProjection.ScenarioInteger(projected["epoch"]);
-        return projected;
-    }
-
-    /// <summary>Starts a bounded native clock window. TestAcceleration requires Ultrafast; native admission enforces the test-only launch gate.</summary>
-    public async Task<JsonObject> ChangeAsync(string speed, ulong maxTicks, CancellationToken cancellationToken)
+    /// <summary>
+    /// Runs the clock at <paramref name="speed"/> under the scenario watch policy: resumes a held clock, or changes the
+    /// speed or policy in place while running (Run is idempotent). There is no tick budget; the clock runs until a hold.
+    /// The event cursor is seeded to just before this Run so a case that polls reads this run's own events, never the
+    /// retained history before it.
+    /// </summary>
+    public async Task<JsonObject> RunAsync(string speed, CancellationToken cancellationToken)
     {
         if (speed is not ("Normal" or "Fast" or "Superfast" or "Ultrafast"))
         {
@@ -284,87 +166,103 @@ public sealed class ScenarioClock
             throw new AcceptanceException("test acceleration requires Ultrafast");
         }
 
-        if (maxTicks == 0)
-        {
-            throw new AcceptanceException("maxTicks must be positive");
-        }
-
         if (Hold.Length != 0)
         {
             throw new AcceptanceException("external clock hold: " + Hold);
         }
 
-        var before = await Wire("clock-before-start", "clock_read_status", new JsonObject { ["identity"] = Identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
+        var before = await Wire("clock-before-run", "clock_read_status", new JsonObject { ["identity"] = Identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
         var (_, beforeStatus) = Harness.Outcome(before, "status");
         if (!Dyn.DeepEqual(Dig(beforeStatus, "context", "identity"), Identity))
         {
-            throw new AcceptanceException($"pre-start status identity mismatch: {beforeStatus.ToJson()}");
+            throw new AcceptanceException($"pre-run status identity mismatch: {beforeStatus.ToJson()}");
         }
 
-        ulong watermark = 0;
-        var freshEpoch = false;
-        if (beforeStatus["newestCursor"] is { } cursorNode)
-        {
-            watermark = ScenarioProjection.ScenarioInteger(cursorNode);
-        }
-        else
-        {
-            if (!beforeStatus.ContainsKey("neverStarted") || _controls.Count != 0)
-            {
-                throw new AcceptanceException($"expected a fresh profile with no owned epoch: {beforeStatus.ToJson()}");
-            }
-
-            freshEpoch = true;
-        }
-
+        var watermark = beforeStatus["newestCursor"] is { } cursorNode ? ScenarioProjection.ScenarioInteger(cursorNode) : 0;
         var request = new JsonObject
         {
-            ["authority"] = Precondition(),
+            ["identity"] = Identity.DeepClone(),
+            ["expectedGeneration"] = Dig(Grant, "context", "nativeGeneration")?.DeepClone(),
             ["speed"] = "SPEED_" + speed.ToUpperInvariant(),
-            ["policy"] = ScenarioPolicy(),
-            ["maxTicks"] = maxTicks,
+            ["policy"] = Policy(),
         };
-        if (TestAcceleration)
+        var reply = await Wire("clock-run", "clock_run", request, cancellationToken).ConfigureAwait(false);
+        var projected = ProjectReply(reply, "clock run");
+        if (projected["active"].AsBool() != true)
         {
-            request["testAcceleration"] = true;
+            throw new AcceptanceException($"clock run left the clock held ({ScenarioProjection.NamedStopReason(projected["stopReason"].AsString())}): {projected.ToJson()}");
         }
 
-        var status = await ControlAsync("start", request, cancellationToken).ConfigureAwait(false);
-        var boundary = status["nativeTickBoundary"].AsBool() == true;
-        var tickDeadline = status["tickDeadline"].AsUInt64() ?? 0;
-        var startTick = status["startTick"].AsUInt64() ?? 0;
-        if (!boundary || tickDeadline - startTick != maxTicks)
-        {
-            throw new AcceptanceException($"clock start did not admit the requested tick budget: {status.ToJson()}");
-        }
-
-        if (OnStarted is not null)
-        {
-            await OnStarted(status, cancellationToken).ConfigureAwait(false);
-        }
-
-        var newest = status["newestCursor"].AsUInt64() ?? 0;
-        if (freshEpoch && newest > 0)
-        {
-            // A fresh profile can still hold retained events: a journal restored from a checkpoint bundle replays the
-            // epochs of earlier runs, and an authority shutdown among them has no canonical owner. The receipt's
-            // newestCursor is this window's own started event, so a stop diagnosis (letter_pause) reads from just
-            // before it, never across that history.
-            watermark = newest - 1;
-        }
-
-        status["newestCursor"] = watermark;
-
-        // freshEpoch marks a window whose pre-start status reported neverStarted (durableEvents=false is a legitimate,
-        // native-acknowledged state in that case, mirroring the policy clock window's own admission check).
-        // AdvanceGame must not poll clock_read_events for such a window: with no prior owned epoch, cursor 0 can still
-        // land on retained events from unrelated activity (e.g. authority acquire/revoke churn) that the native clock
-        // reader refuses as lacking canonical ownership, rather than an empty page.
-        status["freshEpoch"] = freshEpoch;
-        return status;
+        _sinceBeat.Restart();
+        RunStartTick = projected["lastTick"].AsUInt64() ?? 0;
+        projected["startTick"] = RunStartTick;
+        projected["newestCursor"] = watermark;
+        SeekEvents(watermark);
+        return projected;
     }
 
-    /// <summary>Issues a read-only clock op ("status" or "events") or an owned "pause", mirroring TypedScenarioClock.call().</summary>
+    /// <summary>
+    /// Holds the clock for a brain reason ("REVIEW": the harness is the reviewer) and returns its projected status.
+    /// Native keeps the first reason when the clock is already held, so check <c>stopReason</c> for who won.
+    /// </summary>
+    public async Task<JsonObject> HoldAsync(string reason, string detail, CancellationToken cancellationToken)
+    {
+        var reply = await Wire(
+            "clock-hold",
+            "clock_hold",
+            new JsonObject
+            {
+                ["identity"] = Identity.DeepClone(),
+                ["reason"] = "HOLD_REASON_" + reason.ToUpperInvariant(),
+                ["detail"] = detail,
+            },
+            cancellationToken).ConfigureAwait(false);
+        return ProjectReply(reply, "clock hold");
+    }
+
+    /// <summary>One heartbeat: the contact that keeps the native ceiling from dropping to Normal.</summary>
+    public async Task BeatAsync(CancellationToken cancellationToken)
+    {
+        var reply = await Wire("clock-heartbeat", "clock_heartbeat", new JsonObject { ["identity"] = Identity.DeepClone() }, cancellationToken).ConfigureAwait(false);
+        _ = Harness.Outcome(reply, "ack");
+        _sinceBeat.Restart();
+    }
+
+    /// <summary>Beats when the last beat is older than the cadence; a wait loop calls this every pass.</summary>
+    public Task BeatIfDueAsync(CancellationToken cancellationToken) =>
+        _sinceBeat.Elapsed >= HeartbeatEvery ? BeatAsync(cancellationToken) : Task.CompletedTask;
+
+    /// <summary>
+    /// Polls the clock status (beating as due) every 100 ms until <paramref name="done"/> accepts it, returning that
+    /// status; throws when <paramref name="timeout"/> passes first.
+    /// </summary>
+    public async Task<JsonObject> WaitAsync(Func<JsonObject, bool> done, TimeSpan timeout, string what, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(done);
+        var deadline = DateTime.UtcNow + timeout;
+        while (true)
+        {
+            await BeatIfDueAsync(cancellationToken).ConfigureAwait(false);
+            var status = await CallAsync("status", null, cancellationToken).ConfigureAwait(false);
+            if (done(status))
+            {
+                return status;
+            }
+
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new AcceptanceException($"timed out after {timeout} waiting for {what}: {status.ToJson()}");
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Waits until the clock is held (by native or by a brain reason) and returns its status.</summary>
+    public Task<JsonObject> AwaitHeldAsync(TimeSpan timeout, string what, CancellationToken cancellationToken) =>
+        WaitAsync(status => status["held"].AsBool() == true, timeout, what, cancellationToken);
+
+    /// <summary>Issues a read-only clock op ("status" or "events"), mirroring TypedScenarioClock.call().</summary>
     public async Task<JsonObject> CallAsync(string op, JsonObject? arguments, CancellationToken cancellationToken)
     {
         switch (op)
@@ -393,34 +291,40 @@ public sealed class ScenarioClock
                 return FinishStatus(status);
             }
 
-            case "pause":
-            {
-                var owner = arguments?["owner"].AsString() ?? "";
-                if (owner != Owner)
-                {
-                    throw new AcceptanceException($"pause owner mismatch: {arguments?["owner"].ToJson()}");
-                }
-
-                var reply = await Wire(
-                    "clock-pause",
-                    "clock_pause",
-                    new JsonObject
-                    {
-                        ["identity"] = Identity.DeepClone(),
-                        ["owner"] = new JsonObject
-                        {
-                            ["controllerSessionId"] = owner,
-                            ["epoch"] = arguments?["epoch"].AsUInt64() ?? 0,
-                        },
-                    },
-                    cancellationToken).ConfigureAwait(false);
-                var (_, status) = Harness.Outcome(reply, "status");
-                return FinishStatus(status);
-            }
-
             default:
                 throw new AcceptanceException($"unsupported scenario clock op \"{op}\"");
         }
+    }
+
+    private JsonObject Policy()
+    {
+        var policy = ScenarioPolicy();
+        if (CombatTargets.Count > 0)
+        {
+            var targets = new JsonArray();
+            foreach (var target in CombatTargets)
+            {
+                targets.Add(target);
+            }
+
+            policy["mode"] = "WATCH_MODE_COMBAT";
+            policy["acknowledgedHostileIds"] = targets;
+        }
+
+        PolicyEdit?.Invoke(policy);
+        return policy;
+    }
+
+    // A Run or Hold reply is a Status or a Failure; a failure names the refusal.
+    private JsonObject ProjectReply(JsonObject reply, string what)
+    {
+        if (reply["failure"] is JsonObject failure)
+        {
+            throw new AcceptanceException($"{what} refused: {failure.ToJson()}");
+        }
+
+        var (_, status) = Harness.Outcome(reply, "status");
+        return FinishStatus(status);
     }
 
     private JsonObject FinishStatus(JsonObject status)
@@ -441,17 +345,9 @@ public sealed class ScenarioClock
     }
 
     /// <summary>
-    /// Moves the Poll cursor forward to Change()'s newestCursor (the exclusive pre-dispatch watermark) so a case that
-    /// polls the events of a window it started itself reads from that window, never from the retained authority churn
-    /// before it (see AdvanceGame). Never regresses.
+    /// Moves the Poll cursor forward to <paramref name="cursor"/> so a case that polls the events of a run it started
+    /// itself reads from that run, never from the retained history before it. Never regresses.
     /// </summary>
-    public void SeekEvents(JsonObject started)
-    {
-        ArgumentNullException.ThrowIfNull(started);
-        SeekEvents(started["newestCursor"].AsUInt64() ?? 0);
-    }
-
-    /// <summary>Moves the Poll cursor forward to <paramref name="cursor"/>; never regresses.</summary>
     public void SeekEvents(ulong cursor)
     {
         if (cursor > _cursor)

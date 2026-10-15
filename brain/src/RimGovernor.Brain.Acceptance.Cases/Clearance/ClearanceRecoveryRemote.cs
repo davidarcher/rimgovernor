@@ -165,7 +165,7 @@ internal static class ClearanceRecoveryRemote
         var cell = staged["plantCell"].AsMap() ?? throw new AcceptanceException($"probe fixture reported no plant cell: {staged.ToJson()}");
         var h = s.Harness;
         _ = await h.CallAsync("initial-pause", "rimgovernor/set_time_speed", new JsonObject { ["speed"] = "Paused", ["ultraSpeedBoost"] = false }, cancellationToken).ConfigureAwait(false);
-        var clock = new ScenarioClock(h.WireFunc(), s.Identity, "recovery-foreign-ids-acceptance", s.Report);
+        var clock = new ScenarioClock(h.WireFunc(), s.Identity, s.Report);
         _ = await clock.AcquireAsync("acquire", cancellationToken).ConfigureAwait(false);
 
         async Task Apply(string key, JsonObject action)
