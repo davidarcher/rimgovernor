@@ -143,9 +143,6 @@ public enum HoldReason
     ColonistHealth = 22,
     [WireName("HOLD_REASON_COLONIST_INJURY")]
     ColonistInjury = 23,
-    /// <summary>An armed watched attempt reached a terminal outcome.</summary>
-    [WireName("HOLD_REASON_WATCH_LATCHED")]
-    WatchLatched = 24,
     /// <summary>An armed combat event (WatchPolicy.combat_stop_events) happened; the clock held at the boundary of the tick it happened on.</summary>
     [WireName("HOLD_REASON_COMBAT_EVENT")]
     CombatEvent = 25,
@@ -768,63 +765,6 @@ public sealed record DialogPause
 
     public string? Title { get; init; }
 }
-
-/// <summary>
-/// Terminal progress of an armed watched attempt, latched at a tick boundary.
-/// The outcome mirrors receipts.v1.Progress.
-/// </summary>
-public sealed record OperationOutcome
-{
-    public Common.AttemptKey? Attempt { get; init; }
-
-    public long? LatchedTick { get; init; }
-
-    public OperationOutcomeOutcome? Outcome { get; init; }
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="OperationOutcome"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(OperationOutcomeOutcome.CompletedCase), "completed")]
-[JsonDerivedType(typeof(OperationOutcomeOutcome.UnsuccessfulCase), "unsuccessful")]
-[JsonDerivedType(typeof(OperationOutcomeOutcome.AbsentCase), "absent")]
-[JsonDerivedType(typeof(OperationOutcomeOutcome.UnknownCase), "unknown")]
-public abstract record OperationOutcomeOutcome
-{
-    private protected OperationOutcomeOutcome() { }
-
-    /// <summary>The <c>Completed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Receipts.CompletedEffect? Completed => (this as CompletedCase)?.Value;
-
-    public sealed record CompletedCase(Receipts.CompletedEffect Value) : OperationOutcomeOutcome;
-
-    public static implicit operator OperationOutcomeOutcome(Receipts.CompletedEffect value) => new CompletedCase(value);
-
-    /// <summary>The <c>Unsuccessful</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Receipts.UnsuccessfulEffect? Unsuccessful => (this as UnsuccessfulCase)?.Value;
-
-    public sealed record UnsuccessfulCase(Receipts.UnsuccessfulEffect Value) : OperationOutcomeOutcome;
-
-    public static implicit operator OperationOutcomeOutcome(Receipts.UnsuccessfulEffect value) => new UnsuccessfulCase(value);
-
-    /// <summary>The <c>Absent</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Receipts.AbsentEffect? Absent => (this as AbsentCase)?.Value;
-
-    public sealed record AbsentCase(Receipts.AbsentEffect Value) : OperationOutcomeOutcome;
-
-    public static implicit operator OperationOutcomeOutcome(Receipts.AbsentEffect value) => new AbsentCase(value);
-
-    /// <summary>The <c>Unknown</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Receipts.UnknownEffect? Unknown => (this as UnknownCase)?.Value;
-
-    public sealed record UnknownCase(Receipts.UnknownEffect Value) : OperationOutcomeOutcome;
-
-    public static implicit operator OperationOutcomeOutcome(Receipts.UnknownEffect value) => new UnknownCase(value);
-}
-
 /// <summary>
 /// The native authority generation moved. Observed whether the clock runs or is held.
 /// </summary>
@@ -840,11 +780,6 @@ public sealed record AuthorityChanged
     public string? Reason { get; init; }
 
     public bool? Active { get; init; }
-}
-
-public sealed record WatchLatched
-{
-    public OperationOutcome? Outcome { get; init; }
 }
 
 /// <summary>
@@ -879,7 +814,6 @@ public sealed record HoldEntered
 [JsonDerivedType(typeof(HoldEvidence.HealthCase), "health")]
 [JsonDerivedType(typeof(HoldEvidence.PauseCase), "pause")]
 [JsonDerivedType(typeof(HoldEvidence.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(HoldEvidence.WatchCase), "watch")]
 [JsonDerivedType(typeof(HoldEvidence.CombatCase), "combat")]
 public abstract record HoldEvidence
 {
@@ -932,14 +866,6 @@ public abstract record HoldEvidence
     public sealed record UnavailableCase(Common.Unavailable Value) : HoldEvidence;
 
     public static implicit operator HoldEvidence(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Watch</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public WatchLatched? Watch => (this as WatchCase)?.Value;
-
-    public sealed record WatchCase(WatchLatched Value) : HoldEvidence;
-
-    public static implicit operator HoldEvidence(WatchLatched value) => new WatchCase(value);
 
     /// <summary>The <c>Combat</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -1062,7 +988,6 @@ public sealed record ClockEvent
 [JsonDerivedType(typeof(ClockEventEvent.PauseFailedCase), "pauseFailed")]
 [JsonDerivedType(typeof(ClockEventEvent.ForcePauseWaitingCase), "forcePauseWaiting")]
 [JsonDerivedType(typeof(ClockEventEvent.ForcePauseClearedCase), "forcePauseCleared")]
-[JsonDerivedType(typeof(ClockEventEvent.OperationOutcomeCase), "operationOutcome")]
 [JsonDerivedType(typeof(ClockEventEvent.AuthorityChangedCase), "authorityChanged")]
 [JsonDerivedType(typeof(ClockEventEvent.ObservationInvalidatedCase), "observationInvalidated")]
 public abstract record ClockEventEvent
@@ -1140,14 +1065,6 @@ public abstract record ClockEventEvent
     public sealed record ForcePauseClearedCase(ForcePauseCleared Value) : ClockEventEvent;
 
     public static implicit operator ClockEventEvent(ForcePauseCleared value) => new ForcePauseClearedCase(value);
-
-    /// <summary>The <c>OperationOutcome</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public OperationOutcome? OperationOutcome => (this as OperationOutcomeCase)?.Value;
-
-    public sealed record OperationOutcomeCase(OperationOutcome Value) : ClockEventEvent;
-
-    public static implicit operator ClockEventEvent(OperationOutcome value) => new OperationOutcomeCase(value);
 
     /// <summary>The <c>AuthorityChanged</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]

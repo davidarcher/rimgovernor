@@ -18,7 +18,7 @@ store `unclear`/`active`/`clear`); governor-state blobs version 6. Databases and
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 11 and the same `application_id`.
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 13 and the same `application_id`.
 Domain payloads (actions, admissions, transitions, Standards, Incidents, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`

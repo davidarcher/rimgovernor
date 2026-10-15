@@ -206,7 +206,7 @@ public sealed partial class ClockScheduler
         {
             reason = reason with { Cause = StepCause.Full };
         }
-        return PlannerSelections.Of(reason, _facts.KindOf, _queue.Clone(), _lastTick + Drift());
+        return PlannerSelections.Of(reason, _queue.Clone(), _lastTick + Drift());
     }
 
     // The step's selection over the due queue at tick: a wake's evidence was folded when the step began. The waits
@@ -253,7 +253,7 @@ public sealed partial class ClockScheduler
             // A wake's evidence lands on the due queue once, here, so it outlives a step that runs no planners.
             if (reason.Cause == StepCause.Wake)
             {
-                _queue.Wake(reason, _facts.KindOf);
+                _queue.Wake(reason);
             }
             var reviews = StepReviews(reason);
             var zones = new ZoneRefresher(_native, _facts.Store);

@@ -1,7 +1,6 @@
 using RimGovernor.Contracts.Wire.Clock;
 using RimGovernor.Contracts.Wire.Common;
 using ClockHoldEvidence = RimGovernor.Contracts.Wire.Clock.HoldEvidence;
-using RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -145,9 +144,6 @@ public static partial class BridgeFunctions
                 break;
             case ClockEventEvent.ForcePauseClearedCase:
                 break;
-            case ClockEventEvent.OperationOutcomeCase { Value: var outcome }:
-                ClockOperationOutcome(outcome);
-                break;
             case ClockEventEvent.AuthorityChangedCase { Value: var authority }:
                 if (authority.Generation is null or 0
                     || (authority.PreviousGeneration is not null && authority.PreviousGeneration >= authority.Generation))
@@ -206,63 +202,6 @@ public static partial class BridgeFunctions
         if (cell is null || cell.X is null || cell.Z is null || cell.X.GetValueOrDefault() < 0 || cell.Z.GetValueOrDefault() < 0)
         {
             throw Contract("invalid cell");
-        }
-    }
-
-    // Go's clockAttemptKey: a complete attempt key; unknown members are rejected by the JSON decoder.
-    private static void ClockAttemptKey(AttemptKey? attempt)
-    {
-        if (attempt is null
-            || attempt.ControllerSessionId is null
-            || attempt.ActionId is null
-            || attempt.AttemptId is null
-            || attempt.AttemptId.GetValueOrDefault() == 0
-            || !IsValidId((attempt.ControllerSessionId ?? ""))
-            || !IsValidId((attempt.ActionId ?? "")))
-        {
-            throw Contract("clock attempt key presence");
-        }
-    }
-
-    // Go's clockOperationOutcome: accepts a terminal outcome of a watched attempt. The effect evidence itself is
-    // family specific, so only the shape is checked.
-    private static void ClockOperationOutcome(OperationOutcome? v)
-    {
-        if (v is null)
-        {
-            throw Contract("clock operation outcome required");
-        }
-        ClockAttemptKey(v.Attempt);
-        if (v.LatchedTick is null || v.LatchedTick.GetValueOrDefault() < 0)
-        {
-            throw Contract("clock operation outcome tick");
-        }
-        switch (v.Outcome)
-        {
-            case OperationOutcomeOutcome.CompletedCase { Value: var completed }:
-                if (completed.Evidence?.Effect is null)
-                {
-                    throw Contract("clock completed outcome evidence");
-                }
-                break;
-            case OperationOutcomeOutcome.UnsuccessfulCase { Value: var unsuccessful }:
-                if (unsuccessful.Reason is null
-                    || (int)unsuccessful.Reason.GetValueOrDefault() < 1
-                    || unsuccessful.Reason.GetValueOrDefault() > UnsuccessfulReason.OutcomeNotAchieved)
-                {
-                    throw Contract("clock unsuccessful outcome evidence");
-                }
-                break;
-            case OperationOutcomeOutcome.AbsentCase { Value: var absent }:
-                if (absent.InspectionToken is null || !IsValidId(absent.InspectionToken))
-                {
-                    throw Contract("clock absent outcome evidence");
-                }
-                break;
-            case OperationOutcomeOutcome.UnknownCase { Value: var unknown }:
-                break;
-            default:
-                throw Contract("clock operation outcome variant missing");
         }
     }
 
@@ -399,9 +338,6 @@ public static partial class BridgeFunctions
                 break;
             case ClockHoldEvidence.UnavailableCase { Value: var unavailable }:
                 ValidateUnavailable(unavailable);
-                break;
-            case ClockHoldEvidence.WatchCase { Value: var watch }:
-                ClockOperationOutcome(watch.Outcome);
                 break;
             case ClockHoldEvidence.CombatCase { Value: var combat }:
                 // An armed combat event: the event is required, the thing and reason are descriptive.

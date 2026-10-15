@@ -86,31 +86,16 @@ internal sealed class PlannerQueue
     }
 
     /// <summary>
-    /// Folds one wake reason into the queue: the planners of the outcomes' kinds and the consumers of the dirty
-    /// sections are marked, an outcome releases the waits naming its attempt, and authority (or an outcome of
-    /// unknown kind) marks everything. A wake carrying nothing selectable is a settled window: every planner is
+    /// Folds one wake reason into the queue: the consumers of the dirty sections are marked and authority
+    /// marks everything. A wake carrying nothing selectable is a settled window: every planner is
     /// marked. Families without sections on the reason are widened to their sections; a sectionless family
     /// (world) matches by name.
     /// </summary>
-    public void Wake(StepReason reason, Func<ActionId, ActionKind?> kindOf)
+    public void Wake(StepReason reason)
     {
         if (reason.Authority)
         {
             _all = true;
-        }
-        var kinds = new HashSet<ActionKind>();
-        foreach (var evt in reason.Events)
-        {
-            if (evt.Terminal)
-            {
-                Release(evt.Action);
-            }
-            if (kindOf(evt.Action) is not { } kind)
-            {
-                _all = true;
-                continue;
-            }
-            kinds.Add(kind);
         }
         var sections = new HashSet<FactSection>(reason.Sections);
         var families = new HashSet<FactFamily>();
@@ -125,14 +110,14 @@ internal sealed class PlannerQueue
                 }
             }
         }
-        if (kinds.Count == 0 && sections.Count == 0 && families.Count == 0 && !reason.Authority)
+        if (sections.Count == 0 && families.Count == 0 && !reason.Authority)
         {
             MarkAll();
             return;
         }
         foreach (var entry in Entries())
         {
-            if (Matches(entry, kinds, sections, families))
+            if (Matches(entry, sections, families))
             {
                 // Protective waits describe the prior safety facts. A relevant observation must reconsider
                 // them even while issued work is open; family policy decides whether that work should continue.
@@ -145,8 +130,8 @@ internal sealed class PlannerQueue
         }
     }
 
-    private static bool Matches(PlannerEntry entry, HashSet<ActionKind> kinds, HashSet<FactSection> sections, HashSet<FactFamily> families) =>
-        entry.Kinds.Any(kinds.Contains) || entry.Sections.Any(sections.Contains) || entry.Families.Any(families.Contains);
+    private static bool Matches(PlannerEntry entry, HashSet<FactSection> sections, HashSet<FactFamily> families) =>
+        entry.Sections.Any(sections.Contains) || entry.Families.Any(families.Contains);
 
     /// <summary>The planners held on open work of their kinds.</summary>
     public IReadOnlyDictionary<string, PlannerWait> Waits => _waits;
@@ -164,18 +149,6 @@ internal sealed class PlannerQueue
         foreach (var entry in Entries())
         {
             Mark(entry.Name);
-        }
-    }
-
-    /// <summary>Drops every wait naming <paramref name="action"/>: its outcome row landed.</summary>
-    private void Release(ActionId action)
-    {
-        foreach (var (name, wait) in _waits.ToList())
-        {
-            if (wait.On.Contains(action))
-            {
-                _waits.Remove(name);
-            }
         }
     }
 

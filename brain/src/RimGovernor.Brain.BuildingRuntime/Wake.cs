@@ -17,7 +17,6 @@ public sealed class WakeSignal
 {
     private readonly object _mu = new();
     private readonly Channel<bool> _ch = Channel.CreateBounded<bool>(new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite });
-    private Dictionary<ActionId, WakeOutcome> _pending = [];
     private readonly HashSet<FactFamily> _families = [];
 
     // The store sections the pages' invalidations made stale, as narrowed as native attributed them; the
@@ -34,39 +33,30 @@ public sealed class WakeSignal
     // natively at apply time and dispatches under a running window as readily as between windows.
     private ulong _stops;
 
-    /// <summary>Merges outcomes into the pending set and signals without blocking.</summary>
-    public void Notify(IReadOnlyList<WakeOutcome> outcomes, bool authority) =>
-        NotifyInvalidated(outcomes, [], authority);
+    /// <summary>Signals without blocking.</summary>
+    public void Notify(bool authority) =>
+        NotifyInvalidated([], authority);
 
     /// <summary>Notify carrying the fact families the committed page's ObservationInvalidated events named as well.</summary>
-    public void NotifyInvalidated(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<FactFamily> families, bool authority) =>
-        NotifyStopped(outcomes, families, authority, false);
+    public void NotifyInvalidated(IReadOnlyList<FactFamily> families, bool authority) =>
+        NotifyStopped(families, authority, false);
 
     /// <summary>NotifyInvalidated that also records whether the page stopped the clock.</summary>
-    public void NotifyStopped(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<FactFamily> families, bool authority, bool stopped) =>
-        NotifyStopAt(outcomes, families, authority, stopped, null);
+    public void NotifyStopped(IReadOnlyList<FactFamily> families, bool authority, bool stopped) =>
+        NotifyStopAt(families, authority, stopped, null);
 
     /// <summary>NotifyStopped carrying the native stamp of the stop (the Stopped event's observed_at), null when unknown.</summary>
-    public void NotifyStopAt(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<FactFamily> families, bool authority, bool stopped, DateTimeOffset? stopAt) =>
-        NotifySections(outcomes, families, [], authority, stopped, stopAt);
+    public void NotifyStopAt(IReadOnlyList<FactFamily> families, bool authority, bool stopped, DateTimeOffset? stopAt) =>
+        NotifySections(families, [], authority, stopped, stopAt);
 
     /// <summary>
     /// NotifyStopAt carrying the sections the page's invalidations narrowed to (ClockPageSections).
-    /// Invalidations coalesce into one set; a terminal outcome is never replaced by a later non-terminal one of
-    /// the same attempt, and authority stays set until taken.
+    /// Invalidations coalesce into one set; authority stays set until taken.
     /// </summary>
-    public void NotifySections(IReadOnlyList<WakeOutcome> outcomes, IReadOnlyList<FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt)
+    public void NotifySections(IReadOnlyList<FactFamily> families, IReadOnlyList<Facts.Section> sections, bool authority, bool stopped, DateTimeOffset? stopAt)
     {
         lock (_mu)
         {
-            foreach (var o in outcomes)
-            {
-                if (_pending.TryGetValue(o.Action, out var held) && held.Terminal && !o.Terminal)
-                {
-                    continue;
-                }
-                _pending[o.Action] = o;
-            }
             foreach (var family in families)
             {
                 _families.Add(family);
@@ -102,20 +92,7 @@ public sealed class WakeSignal
         await signal._ch.Reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>Drains the pending outcomes and the authority flag; the invalidated families are left for <see cref="TakeInvalidated"/>.</summary>
-    public (IReadOnlyDictionary<ActionId, WakeOutcome> Outcomes, bool Authority) Take()
-    {
-        lock (_mu)
-        {
-            var outcomes = _pending;
-            var authority = _authority;
-            _pending = [];
-            _authority = false;
-            return (outcomes, authority);
-        }
-    }
-
-    /// <summary>Drains the pending outcomes, invalidated families, the authority flag and the pending stop into one step reason.</summary>
+    /// <summary>Drains the invalidated families, the authority flag and the pending stop into one step reason.</summary>
     public StepReason TakeInvalidated()
     {
         lock (_mu)
@@ -123,12 +100,10 @@ public sealed class WakeSignal
             var reason = new StepReason
             {
                 Cause = StepCause.Wake,
-                Events = [.. _pending.Values.OrderBy(o => o.Action)],
                 Families = [.. _families.Order()],
                 Sections = [.. _sections.Order()],
                 Authority = _authority,
             };
-            _pending = [];
             _families.Clear();
             _sections.Clear();
             _authority = false;
@@ -138,18 +113,17 @@ public sealed class WakeSignal
 }
 
 /// <summary>What one committed clock page says that should wake the step loop (Go's five return values of clockPageWakeStopped).</summary>
-internal sealed record ClockPageWake(IReadOnlyList<WakeOutcome> Outcomes, IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
+internal sealed record ClockPageWake(IReadOnlyList<FactFamily> Families, bool Authority, bool Stopped, DateTimeOffset? StopAt);
 
 internal static partial class Pkg
 {
     /// <summary>
-    /// Reads the wake-relevant facts out of one committed page: the latched outcomes, the families its
+    /// Reads the wake-relevant facts out of one committed page: the families its
     /// ObservationInvalidated events named, whether authority changed, and whether the page carried a native hold
     /// with the earliest such event's native stamp (null when the event carried none).
     /// </summary>
     internal static ClockPageWake PageWake(ClockPb.EventsPage page)
     {
-        var outcomes = new List<WakeOutcome>();
         var families = new List<FactFamily>();
         var seen = new HashSet<FactFamily>();
         var authority = false;
@@ -159,9 +133,6 @@ internal static partial class Pkg
         {
             switch (@event.Event)
             {
-                case ClockPb.ClockEventEvent.OperationOutcomeCase { Value: var operationOutcome }:
-                    outcomes.Add(WakeOutcomeOf(operationOutcome));
-                    break;
                 case ClockPb.ClockEventEvent.HoldEnteredCase { Value: var held }:
                     if (Sto.ClockJournal.OtherWorld(@event, page))
                     {
@@ -179,10 +150,6 @@ internal static partial class Pkg
                                 stopAt = at;
                             }
                         }
-                    }
-                    if (held.Evidence?.Watch is { Outcome: { } watchOutcome })
-                    {
-                        outcomes.Add(WakeOutcomeOf(watchOutcome));
                     }
                     break;
                 case ClockPb.ClockEventEvent.AuthorityChangedCase:
@@ -205,7 +172,7 @@ internal static partial class Pkg
                     break;
             }
         }
-        return new ClockPageWake(outcomes, families, authority, stopped, stopAt);
+        return new ClockPageWake(families, authority, stopped, stopAt);
     }
 
     /// <summary>
@@ -242,10 +209,4 @@ internal static partial class Pkg
     /// <summary>Whether the hold was the brain's own request (a coupled order, a review or an autosave) rather than native's.</summary>
     internal static bool BrainRequestedHold(ClockPb.HoldReason? reason) =>
         reason is ClockPb.HoldReason.CoupledOrder or ClockPb.HoldReason.Review or ClockPb.HoldReason.Autosave;
-
-    internal static WakeOutcome WakeOutcomeOf(ClockPb.OperationOutcome o)
-    {
-        var unknown = o.Outcome is ClockPb.OperationOutcomeOutcome.UnknownCase;
-        return new WakeOutcome(new ActionId(o.Attempt?.ActionId ?? ""), new AttemptId(o.Attempt?.AttemptId ?? 0), !unknown);
-    }
 }

@@ -178,7 +178,7 @@ public sealed class BrainHost : IAsyncDisposable
             Autosave = autosave,
             WorldReady = rebuild.SchedulerGate(),
             // The Worker's advance steps the scheduler at once (Go ClockWorker.Nudge): a wake without evidence.
-            Nudge = () => wake.Notify([], false),
+            Nudge = () => wake.Notify(false),
         });
         _plannerParts = planners;
         if (planners.OpenFrames is { } openFrames)
@@ -200,7 +200,7 @@ public sealed class BrainHost : IAsyncDisposable
                 RenewInterval = timings.WorkerRenewInterval,
                 RenewTimeout = timings.WorkerRenewTimeout,
                 Wake = wake,
-                Advanced = () => wake.Notify([], false),
+                Advanced = () => wake.Notify(false),
                 Store = planners.Scheduler.Config.Store,
                 ClockRunning = () => planners.Scheduler.ClockRunning,
                 Validity = () => planners.Scheduler.Validity is { } validity ? (validity, true) : (default, false),

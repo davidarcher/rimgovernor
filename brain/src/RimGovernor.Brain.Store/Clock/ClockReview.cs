@@ -43,7 +43,7 @@ public static partial class ClockJournal
     /// before time may resume.
     /// </summary>
     public static bool BenignHold(Pb.HoldReason reason) =>
-        reason is Pb.HoldReason.NeverRun or Pb.HoldReason.CoupledOrder or Pb.HoldReason.Review or Pb.HoldReason.Autosave or Pb.HoldReason.GameForced or Pb.HoldReason.WatchLatched or Pb.HoldReason.CombatEvent;
+        reason is Pb.HoldReason.NeverRun or Pb.HoldReason.CoupledOrder or Pb.HoldReason.Review or Pb.HoldReason.Autosave or Pb.HoldReason.GameForced or Pb.HoldReason.CombatEvent;
 
     /// <summary><see cref="BenignHold"/> with the hold's evidence; a letter pause for an informational letter is benign too.</summary>
     public static bool BenignHoldEvent(Pb.HoldEntered? hold)
@@ -57,7 +57,7 @@ public static partial class ClockJournal
     }
 
     /// <summary>
-    /// Go <c>EventInterrupts</c>: classifies one journal event. Operation outcomes, authority changes, native rule
+    /// Go <c>EventInterrupts</c>: classifies one journal event. Authority changes, native rule
     /// events, observation invalidations, game alerts, injury observations, notifications and force-pause waits
     /// are typed facts the controller reacts to, not holds: the native supervisor never stops play for them, and
     /// anything that does hold arrives as its own HoldEntered event. Shared with the poll loop so both classifications
@@ -70,7 +70,6 @@ public static partial class ClockJournal
             or Pb.ClockEventEvent.HostilesClearedCase
             or Pb.ClockEventEvent.ForcePauseClearedCase
             or Pb.ClockEventEvent.ForcePauseWaitingCase
-            or Pb.ClockEventEvent.OperationOutcomeCase
             or Pb.ClockEventEvent.AuthorityChangedCase
             or Pb.ClockEventEvent.ObservationInvalidatedCase
             or Pb.ClockEventEvent.AlertCase

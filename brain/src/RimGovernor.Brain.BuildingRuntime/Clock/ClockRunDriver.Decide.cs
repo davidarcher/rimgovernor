@@ -289,11 +289,6 @@ public sealed partial class ClockRunDriver
             FactSection.Emergency,
             new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick, Complete = colonistsKnown && colonistsComplete && emergency.Facts.DependentPatients.IsKnown, Source = "rimgovernor/observations_read_status" });
 
-        var plan = await journal.LoadPlanAsync(state.Snapshot.Plan, call).ConfigureAwait(false);
-        var fingerprint = ClockRunWork.Census(plan, state.Snapshot);
-        var plans = await journal.LoadPlansAsync(call).ConfigureAwait(false);
-        fingerprint.AddRange(await ClockRunWork.RoundsItemsAsync(journal, _scheduler.Config.RoundsMethods, state.Snapshot, plans, call).ConfigureAwait(false));
-        _scheduler.Facts.Remember(fingerprint);
         var (combatPlan, fightOpen, huntPrey) = await ClockRunWork.CombatPlanAsync(journal, state.Snapshot, call).ConfigureAwait(false);
         // The defense planner's verdict at this step: only a reported no-squad answer lets a hostile building be
         // watched instead of held; any other outcome, or no planner, keeps the hold.

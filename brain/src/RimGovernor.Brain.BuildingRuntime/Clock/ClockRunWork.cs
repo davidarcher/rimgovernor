@@ -23,31 +23,6 @@ internal static class ClockRunWork
         return items;
     }
 
-    /// <summary><see cref="Census"/> over the authorized routine plans of the catalog: every plan but the root's own (Go <c>roundsWork</c>).</summary>
-    public static async Task<List<ClockWorkItem>> RoundsItemsAsync(StoreJournal journal, bool roundsMethods, GenerationSnapshot root, IReadOnlyList<PlanState> plans, CancellationToken ct)
-    {
-        var fingerprint = new List<ClockWorkItem>();
-        var authorizer = new PlanAuthorizer(journal, roundsMethods);
-        foreach (var method in plans)
-        {
-            if (method.Spec.Id == root.Plan)
-            {
-                continue;
-            }
-            var target = root with { Plan = method.Spec.Id, Revision = method.Spec.Revision };
-            try
-            {
-                await authorizer.AuthorizeRoundsPlanAsync(root, target, ct).ConfigureAwait(false);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                continue;
-            }
-            fingerprint.AddRange(Census(method, target));
-        }
-        return fingerprint;
-    }
-
     /// <summary>
     /// The dispatched or awaiting-observation watched actions of the root plan the running clock carries (<c>Live</c>)
     /// and the coupled orders ready under it (Go <c>runningWork</c>). A plan the census cannot read counts none.

@@ -279,7 +279,7 @@ rechecks stock and player resource policies; changed or unknown costs need valid
 Native bill ingredient selection and consumption enforce persisted player resource
 floors and stopped inputs; bill filters and suspension settings are untouched. Exact
 ingredient alternatives include quantity conversion and are not truncated. Transient
-unissued construction commitments apply only during a supervised clock lease.
+unissued construction commitments apply only while the brain holds the clock in Run.
 
 Dispatch ingests buffered and fresh native clock events before using a captured load
 token/tick and again after preparation, so a busy writer cannot defer a known player

@@ -5,10 +5,8 @@ using PbCommon = RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Store;
 
-// Go internal/store/clock/types.go and the store-level alias files clock_types.go, clock_epoch_types.go,
-// clock_retention_types.go, clock_review_types.go and clock_window_types.go. The Go `clock` package was a
-// separate package only to split build caching, so its exported types live in this namespace under the
-// names `internal/store` re-exported them by (ClockIntent, ClockAttempt, ...).
+// Go internal/store/clock/types.go and the store-level alias files for the clock inbox and review. The Go `clock`
+// package was a separate package only to split build caching, so its exported types live in this namespace.
 
 /// <summary>Go <c>HoldKind</c>.</summary>
 public enum ClockHoldKind

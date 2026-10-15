@@ -151,11 +151,11 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
             {
                 failure = e;
             }
-            if (result is not null && (result.Captured || result.Wake.Count > 0 || result.Invalidated.Count > 0 || result.AuthorityChanged))
+            if (result is not null && (result.Captured || result.Invalidated.Count > 0 || result.AuthorityChanged))
             {
                 // The step loop reacts to the page: a hold native took wakes it, and the hold itself is not a decision
                 // input beyond the review the poll just recorded.
-                _wake?.NotifySections(result.Wake, result.Invalidated, result.InvalidatedSections, result.AuthorityChanged, result.Held, result.HeldAt);
+                _wake?.NotifySections(result.Invalidated, result.InvalidatedSections, result.AuthorityChanged, result.Held, result.HeldAt);
             }
             if (result is not null && result.Captured)
             {

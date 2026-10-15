@@ -55,9 +55,6 @@ public sealed record StepReason
 {
     public StepCause Cause { get; init; }
 
-    /// <summary>The terminal outcomes a wake carried.</summary>
-    public IReadOnlyList<WakeOutcome> Events { get; init; } = [];
-
     /// <summary>
     /// The fact families a wake's observation invalidations named; <see cref="Sections"/> the store sections the
     /// same events narrowed to. A reason carrying families alone is taken to dirty every section of theirs.
@@ -89,10 +86,6 @@ public sealed record StepReason
         {
             b.Append(" authority");
         }
-        foreach (var evt in Events)
-        {
-            b.Append(' ').Append(evt.Action.Value);
-        }
         foreach (var family in Families)
         {
             b.Append(' ').Append(Wire.Name(family));
@@ -111,12 +104,11 @@ internal static class PlannerSelections
     /// Decides which catalog planners a step for <paramref name="reason"/> runs at <paramref name="tick"/>, over
     /// a copy of the due queue <paramref name="q"/>: a full step runs every planner; a settled step (a window
     /// just ran) marks every planner and runs those not waiting on a dependency; a timer step runs the planners
-    /// dirty or due at the tick; a wake or live step folds its evidence first (the planners of the outcomes'
-    /// kinds, the consumers of the dirty sections, everything on an authority change or an outcome whose kind
-    /// <paramref name="kindOf"/> does not remember, everything on a wake carrying nothing selectable). The
+    /// dirty or due at the tick; a wake or live step folds its evidence first (the consumers of the dirty
+    /// sections, everything on an authority change, everything on a wake carrying nothing selectable). The
     /// result's pick is null when every planner runs.
     /// </summary>
-    public static PlannerSelectionResult Of(StepReason reason, Func<ActionId, ActionKind?> kindOf, PlannerQueue? q, long tick)
+    public static PlannerSelectionResult Of(StepReason reason, PlannerQueue? q, long tick)
     {
         var copy = q.CloneOrNew();
         switch (reason.Cause)
@@ -129,7 +121,7 @@ internal static class PlannerSelections
                 return copy.Selection(tick, false, false, null);
             case StepCause.Wake:
             case StepCause.Live:
-                copy.Wake(reason, kindOf);
+                copy.Wake(reason);
                 return copy.Selection(tick, false, false, null);
             default:
                 return copy.Selection(tick, true, false, null);

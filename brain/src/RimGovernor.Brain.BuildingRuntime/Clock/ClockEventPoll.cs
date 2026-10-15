@@ -21,8 +21,6 @@ internal sealed record ClockPollResult
 {
     public bool Captured { get; init; }
 
-    public IReadOnlyList<WakeOutcome> Wake { get; init; } = [];
-
     public IReadOnlyList<FactFamily> Invalidated { get; init; } = [];
 
     public IReadOnlyList<Facts.Section> InvalidatedSections { get; init; } = [];
@@ -166,7 +164,7 @@ internal sealed class ClockEventPoll(
             _historyKnown = true;
             call.ThrowIfCancellationRequested();
             var (_, captured) = await journal.AppendClockEventsAsync(config.Profile, request, page, call).ConfigureAwait(false);
-            ClockPageWake wake = new([], [], false, false, null);
+            ClockPageWake wake = new([], false, false, null);
             IReadOnlyList<Facts.Section> sections = [];
             if (captured)
             {
@@ -186,7 +184,6 @@ internal sealed class ClockEventPoll(
             return new ClockPollResult
             {
                 Captured = captured,
-                Wake = wake.Outcomes,
                 Invalidated = wake.Families,
                 InvalidatedSections = sections,
                 AuthorityChanged = wake.Authority,

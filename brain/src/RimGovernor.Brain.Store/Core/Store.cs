@@ -13,10 +13,10 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
 {
     /// <summary>
     /// The <c>PRAGMA user_version</c> <see cref="Open"/> requires; a database from another version is not
-    /// migrated (see <see cref="OpenOrReplace"/>). Version 4 is the C# journal (clock attempts carry no lease column): JSON payloads written by the
+    /// migrated (see <see cref="OpenOrReplace"/>). Version 13 drops the clock attempt, epoch, receipt and retirement tables: JSON payloads written by the
     /// hand-written codecs, with no per-kind column checks; the Standard payload gained the planner's Record text.
     /// </summary>
-    public const int SchemaVersion = 12;
+    public const int SchemaVersion = 13;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

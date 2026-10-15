@@ -22,9 +22,9 @@ ordinary fact. Ordinary review retains its own inspection tick.
 Protective actions yield the scheduler gate to the existing Worker before
 unrelated development reads. Pending actions remain ahead of ordinary review
 until dispatch or an explicit current hold; a hold does not permanently veto
-ordinary work. Native window admission continues through its existing safety,
-authority, journal and lease checks. Ordinary review can run while that window
-advances. Relevant invalidations select planners through catalog dependencies;
+ordinary work. Native Run continues through its existing safety,
+authority and journal checks. Ordinary review can run while the clock
+runs. Relevant invalidations select planners through catalog dependencies;
 unrelated section changes do not invalidate a protective decision.
 The independent event poll cancels an in-flight ordinary review when it captures
 a native stop, releasing the same gate for fresh protection. It does not cancel
@@ -54,7 +54,7 @@ The native clock journal is an in-memory buffer of the game process (the durable
 copy is the brain's clock inbox). Its cursors start past the process's start time in Unix
 milliseconds, so a relaunched game's cursors exceed every cursor an older store
 holds. A page's observation context matches the requested current world; each event
-retains its original world and epoch. A load or map change does not reset the cursor
+retains its original world. A load or map change does not reset the cursor
 or rewrite old event contexts. Event reads initialize the journal before any owned
 start; status reads initialize the tick watchers. Neither advances time or acquires
 authority.
@@ -106,10 +106,10 @@ Captured and reviewed cursors are distinct. Review consumes only committed pages
 and derives interruption and gap holds from that evidence. These never create
 interruption holds:
 
-- ordinary epoch starts, speed changes, hostiles-cleared, force-pause-cleared,
+- speed changes, hostiles-cleared, force-pause-cleared,
   force-pause waits (an autosave or transient pause native says is not a stop; one that
   outlasts its grace becomes a `FORCE_PAUSED` stop),
-  operation outcomes and authority changes;
+  authority changes;
 - game alerts (`Event_Alert`): planning evidence and an `alert` row;
 - injury observations (`Event_InjuryObserved`): sub-threshold damage native coalesces;
 - notifications (`Event_Notification`): only classes native never stops play for;
@@ -178,8 +178,8 @@ at a time, so a tight budget is spent on the highest priorities first. Native re
 still execute one at a time on the game's main thread.
 
 **Admission classes.** The bridge hands call slots out by `AdmissionClass`: `control`
-(clock, authority, operations, receipts, lifecycle, placement previews),
-`observation` (`observations_*`, presentation state, leases) or `mirror` (the clock
+(clock, authority, operations, lifecycle, placement previews),
+`observation` (`observations_*`, presentation state) or `mirror` (the clock
 events read: one call at a time, outside the shared slots). One slot is
 reserved for control and a waiting control call is admitted before any waiting read,
 so a renew or stop never queues behind a burst of reads. The class rides beside
@@ -233,8 +233,8 @@ The scheduler keeps one decoded `facts.Store` (`Facts/Store.cs`): state per
 section (see `Section`), each with the tick its reply described (`AsOf`),
 whether it covers the whole section and the producing method. The store's scope is
 the load, map and native generation (a new one empties it). It drops sections on a
-write, a scope change, `AuthorityChanged`, `EpochStarted`, a stop and the families
-an `OperationOutcome` or `ObservationInvalidated` names (`Store.Apply`); a
+write, a scope change, `AuthorityChanged`, a stop and the families
+an `ObservationInvalidated` names (`Store.Apply`); a
 narrowed rectangle that misses the held planning window leaves it held.
 `/api/routines` lists the held sections.
 
@@ -280,16 +280,14 @@ observe-only (`RIMGOVERNOR_OBSERVE`) does not.
 
 Unchanged scheduling decisions back off, except while a combat watch is running. A captured page wakes the step
 loop through `WakeSignal` and resets the backoff, carrying invalidated families and the authority flag as the step's
-`StepReason`. The poll also wakes the routine `Worker` to reconcile actions named by `OperationOutcome` evidence ahead
-of its rotation and without retry backoff (at most 64 focused actions).
+`StepReason`. The Worker also steps on that signal.
 
 No admission waits for the stop between windows: every routine kind the worker
 dispatches validates its preconditions natively at apply time (action-contracts.md
 executor holds on `stale_facts` (`workerHeldStale`) is retried at once, off the
 worker's backoff and once per hold; the clock is not held for the retry.
 
-A running clock arms no watches: a completed order is not a reason to hold the clock, and the `OperationOutcome` row
-wakes the worker. Dispatched construction and haul attempts are counted as evidence only
+A running clock arms no watches: a completed order is not a reason to hold the clock. Dispatched construction and haul attempts are counted as evidence only
 (`ClockSchedulerResult.Unwatched`).
 
 A coupled order (`domain.ActionDependency.Coupled`, controller-contracts.md "Coupled orders") whose prerequisite has

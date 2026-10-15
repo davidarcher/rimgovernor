@@ -91,9 +91,6 @@ public sealed partial class Worker
     /// <summary>Bounds the steps one wake or advance runs back to back.</summary>
     private const int BurstMax = 16;
 
-    /// <summary>Bounds the woken set a single step carries forward.</summary>
-    private const int FocusMax = 64;
-
     /// <summary>The end-of-step flush runs even when the step's own budget is spent.</summary>
     private static readonly TimeSpan FlushTimeout = TimeSpan.FromSeconds(5);
 
@@ -353,31 +350,6 @@ public sealed partial class Worker
         }
     }
 
-    private void TakeWake()
-    {
-        if (_config.Wake is not { } wake)
-        {
-            return;
-        }
-        var (woken, _) = wake.Take();
-        if (woken.Count == 0)
-        {
-            return;
-        }
-        // Latched outcomes change what every other action in their plans is waiting on: drop the backoffs so
-        // successors are reconsidered at once.
-        _waits.Clear();
-        foreach (var (id, outcome) in woken)
-        {
-            if (_focus.Count >= FocusMax)
-            {
-                break;
-            }
-            _focus[id] = outcome;
-            _waits.Remove(id);
-        }
-    }
-
     private bool FocusNamed(ActionId id) => _focus.ContainsKey(id);
 
     /// <summary>One Worker step as a span under the scheduler's latest step (a trace root of its own when there is none).</summary>
@@ -400,7 +372,6 @@ public sealed partial class Worker
     private async Task RunStep(DateTimeOffset now, CancellationToken ct)
     {
         _advanced = false;
-        TakeWake();
         // StepTimeout budgets the dispatches, not the wait for the player gate: a scheduler step holds the gate
         // for its whole planner wave, and a budget that started before the wait left the step 0-3 s for its
         // actions and killed the last one at the deadline.

@@ -3,7 +3,6 @@ using RimGovernor.Host.Sdk;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using System.Linq;
 using HarmonyLib;
@@ -552,7 +551,6 @@ namespace HomeBridge.BridgeTools
             var body = value.Event;
             if (body.AuthorityChanged != null) return body.AuthorityChanged.Generation is > 0
                 && (body.AuthorityChanged.PreviousGeneration is null || body.AuthorityChanged.PreviousGeneration < body.AuthorityChanged.Generation);
-            if (body.OperationOutcome != null) return ValidStoredOutcome(body.OperationOutcome);
             if (body.HoldEntered != null) return ValidStoredHold(body.HoldEntered);
             if (body.PauseFailed != null) return body.PauseFailed.Pending != null && ValidStoredHold(body.PauseFailed.Pending);
             if (body.Resumed != null) return body.Resumed.Speed is { } resumed && OrdinarySpeed(resumed)
@@ -577,12 +575,7 @@ namespace HomeBridge.BridgeTools
                 && cells.Minimum.X.GetValueOrDefault() >= 0 && cells.Minimum.Z.GetValueOrDefault() >= 0 && cells.Minimum.X.GetValueOrDefault() <= cells.Maximum.X.GetValueOrDefault() && cells.Minimum.Z.GetValueOrDefault() <= cells.Maximum.Z.GetValueOrDefault();
         }
         private static bool ValidStoredHold(Clock.HoldEntered value) => value.Reason is not null && value.Reason.GetValueOrDefault() != Clock.HoldReason.Unspecified
-            && Enum.IsDefined(value.Reason.GetValueOrDefault()) && value.Evidence is not null
-            && (value.Evidence.Watch is not { } watch || watch.Outcome != null && ValidStoredOutcome(watch.Outcome));
-        private static bool ValidStoredOutcome(Clock.OperationOutcome value) => ValidWatchKey(value.Attempt) && value.LatchedTick is not null && value.LatchedTick.GetValueOrDefault() >= 0
-            && value.Outcome is not null;
-        private static bool ValidWatchKey([NotNullWhen(true)] Common.AttemptKey? key) => key != null && key.ControllerSessionId is not null && ProtoBoundary.IsIdentifier(key.ControllerSessionId)
-            && key.ActionId is not null && ProtoBoundary.IsIdentifier(key.ActionId) && key.AttemptId is not null && key.AttemptId.GetValueOrDefault() > 0;
+            && Enum.IsDefined(value.Reason.GetValueOrDefault()) && value.Evidence is not null;
         internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast || speed == Clock.Speed.Ultrafast;
         private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : speed == Clock.Speed.Ultrafast ? TimeSpeed.Ultrafast : throw new ArgumentOutOfRangeException(nameof(speed));
         private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary run speed");
