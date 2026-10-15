@@ -400,10 +400,13 @@ keeps vanilla's default. `ReservationManager.CanReserve` refuses a claim whose `
 differs from an existing one's, which is why the default of 1 refused a stack another pawn
 already held with 10, and it sums stack counts, so two pawns bind one stack while their
 counts fit and the next is refused. The observation-time legality filter in
-`NativeNeedsForecast` still uses the default single claimant. Tests:
+`NativeNeedsForecast` makes the same check through `ServiceReservation`, so an observed
+target is one bind-time accepts; with no step yet, an Eat target's count is what the
+ingest job asks for, `FoodUtility.WillIngestStackCountOf` (the pawn's wanted nutrition
+capped by `maxNumToIngestAtOnce`) clamped to the stack. Tests:
 `WorkTargetCapacityClaimsTests` (stack within and beyond quantity, a one-slot bed, observed
 capacity, unknown as 1, a whole-taken target). There is no native unit-test harness for the
-bind-time path; it is verified by compile and the decompiled vanilla drivers, not by a run.
+bind-time path; it is verified by compile and the decompiled vanilla drivers, and natively by the `needs/target-capacity` nightly case (#3213).
 
 Exclusivity is still real for a one-slot bed and for recreation objects with a single
 participant (pawn-owned for the whole service); it is now a capacity of 1 rather than a

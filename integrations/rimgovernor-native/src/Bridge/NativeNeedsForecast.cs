@@ -54,11 +54,17 @@ internal static class NativeNeedsForecast
                     foreach (var target in group.Take(8))
                     {
                         if (budget <= 0) { truncated = true; break; }
-                        if (target.IsForbidden(pawn) || !pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None)) continue;
+                        if (target.IsForbidden(pawn)) continue;
                         if (group.Key == "food" && (pawn.needs?.food == null || !target.IngestibleNow
                             || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
                         if (group.Key == "rest" && (pawn.needs?.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
                         if (group.Key == "joy" && (pawn.needs?.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) continue;
+                        // Reserve with the claim the service job makes, as bind-time does: a stack or slot another pawn
+                        // holds under the same maxPawns stays observable while its capacity lasts.
+                        var (kind, count) = group.Key == "food" ? (PawnActivityKind.Eat, IngestWantedCount(pawn, target))
+                            : group.Key == "rest" ? (PawnActivityKind.Sleep, 0) : (PawnActivityKind.Recreation, 0);
+                        var (maxPawns, stackCount) = ServiceReservation(kind, target, count);
+                        if (!pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None, maxPawns, stackCount)) continue;
                         using var route = map.pathFinder.FindPathNow(pawn.Position, target, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.Touch);
                         budget--;
                         if (!route.Found) continue;
@@ -181,6 +187,10 @@ internal static class NativeNeedsForecast
     internal const int IngestMaxPawns = 10;
     /// <summary>Vanilla claimant capacity; a non-positive read is unknown, never a guess.</summary>
     internal static Fact<int> Capacity(int maxPawns) => maxPawns > 0 ? Fact.Known(maxPawns) : default;
+    /// <summary>The count a vanilla ingest job asks for before it has a step: FoodUtility.WillIngestStackCountOf (the nutrition the
+    /// pawn wants, capped by maxNumToIngestAtOnce), which JobDriver_Ingest then clamps to the stack via GetMaxAmountToPickup.</summary>
+    private static int IngestWantedCount(Pawn pawn, Thing food) =>
+        Math.Min(food.stackCount, FoodUtility.WillIngestStackCountOf(pawn, food.def, FoodUtility.NutritionForEater(pawn, food)));
     /// <summary>The (maxPawns, stackCount) the vanilla job driver of a service step reserves its target with
     /// (Ingest: stack, 10, amount; LayDown: bed, SleepingSlotsCount, 0; Play_Horseshoes: pin, joyMaxParticipants, 0). ReservationManager.CanReserve
     /// refuses a claim whose maxPawns differs from an existing one's and sums stack counts, so bind-time checks must pass exactly these.</summary>
