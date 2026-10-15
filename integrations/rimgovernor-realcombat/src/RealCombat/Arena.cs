@@ -160,8 +160,10 @@ public sealed class Arena
         return second with { Nondeterministic = !SameOutcome(first, second) };
     }
 
-    private static bool SameOutcome(RealSeedOutcome a, RealSeedOutcome b) =>
-        a.Winner == b.Winner && a.Ticks == b.Ticks && a.Pawns.SequenceEqual(b.Pawns);
+    // Outcomes carry lists, which records compare by reference: compare their wire form, every exported value.
+    private static bool SameOutcome(RealSeedOutcome a, RealSeedOutcome b) => Wire(a) == Wire(b);
+
+    private static string Wire(RealSeedOutcome o) => System.Text.Json.JsonSerializer.Serialize(o with { Nondeterministic = false });
 
     private RealSeedOutcome FightOnce(int seed)
     {
@@ -181,6 +183,10 @@ public sealed class Arena
         HostPatches.Hits.Clear();
         HostPatches.FirstShot.Clear();
         HostPatches.LastShot.Clear();
+        HostPatches.FirstAttack.Clear();
+        HostPatches.Exits.Clear();
+        HostPatches.KilledBy.Clear();
+        HostPatches.Deaths.Clear();
         _departing.Clear();
         _applied.Clear();
         _fleeing.Clear();
@@ -207,6 +213,7 @@ public sealed class Arena
             }
 
             var ticks = Play(fighters);
+            Inspect?.Invoke(fighters.Select(f => (f.Spec.Id, f.Pawn)).ToList());
             return Outcome(seed, ticks, fighters);
         }
         finally
@@ -240,6 +247,9 @@ public sealed class Arena
     // Every pawn attacks the nearest opponent still standing and keeps at it until the side is done.
     /// <summary>Decides in place of the built-in nearest-target retargeting; null keeps the built-in.</summary>
     public IFightController? Controller { get; set; }
+
+    /// <summary>Called with the fight's game pawns (by request id) once it has ended and before they are destroyed: a test reads the game objects directly to check the outcome against.</summary>
+    public Action<IReadOnlyList<(string Id, Pawn Pawn)>>? Inspect { get; set; }
 
     private int Play(List<(RealPawn Spec, Pawn Pawn)> fighters)
     {
@@ -485,10 +495,47 @@ public sealed class Arena
                     HostPatches.FirstShot.TryGetValue(f.Pawn.thingIDNumber, out var first) ? first - StartTick : -1,
                     HostPatches.LastShot.TryGetValue(f.Pawn.thingIDNumber, out var last) ? last - StartTick : -1,
                     _applied.GetValueOrDefault(f.Spec.Id, -1),
-                    _applied.ContainsKey(f.Spec.Id) && !f.Pawn.Dead && !f.Pawn.Spawned)),
+                    _applied.ContainsKey(f.Spec.Id) && !f.Pawn.Dead && !f.Pawn.Spawned,
+                    HostPatches.FirstAttack.TryGetValue(f.Pawn.thingIDNumber, out var attack) ? attack - StartTick : -1,
+                    HostPatches.Exits.TryGetValue(f.Pawn.thingIDNumber, out var exit) ? exit - StartTick : -1,
+                    HostPatches.Exits.ContainsKey(f.Pawn.thingIDNumber) && !f.Pawn.Dead,
+                    f.Pawn.health.hediffSet.BleedRateTotal,
+                    f.Pawn.health.HasHediffsNeedingTend(),
+                    Injuries(f.Pawn),
+                    MissingParts(f.Pawn),
+                    Kills(f.Pawn, fighters),
+                    f.Pawn.Dead ? Products(f.Pawn) : null)),
             ],
         };
     }
+
+    private static List<RealInjury> Injuries(Pawn pawn) =>
+    [
+        .. pawn.health.hediffSet.hediffs
+            .Where(h => h is not Hediff_MissingPart)
+            .Select(h => new RealInjury(h.def.defName, h.Part?.Label ?? "", h.Severity, h.BleedRate, h.TendableNow(), h.IsTended(), h.IsPermanent())),
+    ];
+
+    private static List<string> MissingParts(Pawn pawn) =>
+    [
+        .. pawn.health.hediffSet.hediffs.OfType<Hediff_MissingPart>()
+            .Where(h => h.Part.parent is null || !pawn.health.hediffSet.PartIsMissing(h.Part.parent))
+            .Select(h => h.Part.Label),
+    ];
+
+    private static List<string> Kills(Pawn killer, List<(RealPawn Spec, Pawn Pawn)> fighters) =>
+    [
+        .. HostPatches.Deaths
+            .Where(v => HostPatches.KilledBy.GetValueOrDefault(v, -1) == killer.thingIDNumber)
+            .Select(v => fighters.FirstOrDefault(f => f.Pawn.thingIDNumber == v).Spec?.Id)
+            .OfType<string>(),
+    ];
+
+    private static RealProducts Products(Pawn pawn) => new(
+        pawn.RaceProps.meatDef?.defName ?? "",
+        pawn.GetStatValue(StatDefOf.MeatAmount),
+        pawn.RaceProps.leatherDef?.defName ?? "",
+        pawn.GetStatValue(StatDefOf.LeatherAmount));
 
     private static void ClearHealth(Pawn pawn)
     {

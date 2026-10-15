@@ -34,6 +34,18 @@ internal static class HostPatches
     /// <summary>The game tick of each shooter last shot, by thing id.</summary>
     internal static readonly Dictionary<int, int> LastShot = [];
 
+    /// <summary>The game tick of each pawn first attack (a ranged shot or a melee attack), by thing id.</summary>
+    internal static readonly Dictionary<int, int> FirstAttack = [];
+
+    /// <summary>The game tick each living pawn left the map, by thing id.</summary>
+    internal static readonly Dictionary<int, int> Exits = [];
+
+    /// <summary>Who killed each pawn (the death's instigator), by victim thing id; pawns the cause is not a pawn for are absent.</summary>
+    internal static readonly Dictionary<int, int> KilledBy = [];
+
+    /// <summary>Victim thing ids in death order.</summary>
+    internal static readonly List<int> Deaths = [];
+
     internal static void Install(Harmony harmony, AssetPack pack)
     {
         s_pack = pack;
@@ -66,6 +78,15 @@ internal static class HostPatches
         harmony.Patch(
             typeof(Pawn).GetMethod("PostApplyDamage", Declared)!,
             postfix: new HarmonyMethod(typeof(HostPatches).GetMethod(nameof(CountHit))!));
+        harmony.Patch(
+            typeof(Verb_MeleeAttack).GetMethod("TryCastShot", Declared)!,
+            postfix: new HarmonyMethod(typeof(HostPatches).GetMethod(nameof(CountMelee))!));
+        harmony.Patch(
+            typeof(Pawn).GetMethod(nameof(Pawn.ExitMap), Declared)!,
+            postfix: new HarmonyMethod(typeof(HostPatches).GetMethod(nameof(CountExit))!));
+        harmony.Patch(
+            typeof(Pawn).GetMethod(nameof(Pawn.Kill), Declared)!,
+            prefix: new HarmonyMethod(typeof(HostPatches).GetMethod(nameof(CountDeath))!));
     }
 
     private static IEnumerable<string> ReadSkips()
@@ -118,6 +139,37 @@ internal static class HostPatches
             Shots[p.thingIDNumber] = Shots.GetValueOrDefault(p.thingIDNumber) + 1;
             FirstShot.TryAdd(p.thingIDNumber, Find.TickManager.TicksGame);
             LastShot[p.thingIDNumber] = Find.TickManager.TicksGame;
+            FirstAttack.TryAdd(p.thingIDNumber, Find.TickManager.TicksGame);
+        }
+    }
+
+    public static void CountMelee(Verb __instance, bool __result)
+    {
+        if (__result && __instance.CasterPawn is { } p)
+        {
+            FirstAttack.TryAdd(p.thingIDNumber, Find.TickManager.TicksGame);
+        }
+    }
+
+    public static void CountExit(Pawn __instance)
+    {
+        if (!__instance.Dead && !__instance.Spawned)
+        {
+            Exits.TryAdd(__instance.thingIDNumber, Find.TickManager.TicksGame);
+        }
+    }
+
+    public static void CountDeath(Pawn __instance, DamageInfo? dinfo)
+    {
+        if (__instance.Dead || Deaths.Contains(__instance.thingIDNumber))
+        {
+            return;
+        }
+
+        Deaths.Add(__instance.thingIDNumber);
+        if (dinfo?.Instigator is Pawn killer)
+        {
+            KilledBy[__instance.thingIDNumber] = killer.thingIDNumber;
         }
     }
 

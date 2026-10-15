@@ -7,7 +7,7 @@ namespace RimGovernor.RealCombat;
 public sealed record RealFightRequest
 {
     /// <summary>The request format version this host reads.</summary>
-    public const int CurrentSchema = 2;
+    public const int CurrentSchema = 3;
 
     /// <summary>The request format version; it must equal <see cref="CurrentSchema"/>. A request that omits it or states another is rejected.</summary>
     public int Schema { get; init; }
@@ -168,7 +168,47 @@ public sealed record RealPawn
 /// <param name="LastShotTick">Ticks from the fight start to the pawn last shot; -1 when it never fired.</param>
 /// <param name="DepartureTick">The tick the pawn's departure was applied at; -1 when it had none, or when the pawn was already out (or the fight over) when it came due.</param>
 /// <param name="GotAway">True when a departure was applied and the pawn is off the map alive (it left, or its flight reached the edge).</param>
-public sealed record RealPawnOutcome(string Id, bool Downed, bool Dead, double HealthPercent, int Shots, int HitsTaken, int FirstShotTick, int LastShotTick, int DepartureTick, bool GotAway);
+/// <param name="FirstAttackTick">Ticks from the fight start to the pawn first attack, a ranged shot or a melee attack; -1 when it never attacked.</param>
+/// <param name="WithdrawalTick">Ticks from the fight start to the tick the pawn left the map alive, by any cause (a replayed departure, or the animal AI's own flight to the edge); -1 when it did not.</param>
+/// <param name="Withdrew">True when the pawn left the map alive (the withdrawal succeeded): <see cref="WithdrawalTick"/> is set.</param>
+/// <param name="BleedRate">The pawn's total bleed rate at the fight's end (the game's BleedRateTotal).</param>
+/// <param name="NeedsTend">True when the pawn holds a hediff that needs tending (the game's HasHediffsNeedingTend).</param>
+/// <param name="Injuries">Every hediff the pawn holds at the fight's end except missing parts, in the game's order.</param>
+/// <param name="Missing">BodyPartRecord labels of the missing parts at the fight's end (a part's children are missing with it).</param>
+/// <param name="Kills">Ids of the request's pawns this pawn killed (the death's instigator), in death order.</param>
+/// <param name="Products">What the pawn's corpse yields when it is dead; null when it is alive.</param>
+public sealed record RealPawnOutcome(
+    string Id,
+    bool Downed,
+    bool Dead,
+    double HealthPercent,
+    int Shots,
+    int HitsTaken,
+    int FirstShotTick,
+    int LastShotTick,
+    int DepartureTick,
+    bool GotAway,
+    int FirstAttackTick,
+    int WithdrawalTick,
+    bool Withdrew,
+    double BleedRate,
+    bool NeedsTend,
+    IReadOnlyList<RealInjury> Injuries,
+    IReadOnlyList<string> Missing,
+    IReadOnlyList<string> Kills,
+    RealProducts? Products);
+
+/// <summary>One hediff as the game holds it at the fight's end. Values are the game's own, not derived.</summary>
+/// <param name="Part">The BodyPartRecord label; empty for a whole-body hediff.</param>
+/// <param name="Severity">The hediff's Severity; for an injury, its damage.</param>
+/// <param name="BleedRate">The hediff's BleedRate as the game reports it (0 when it does not bleed).</param>
+/// <param name="TendableNow">The game's TendableNow: the hediff can be tended at this moment.</param>
+/// <param name="Tended">The game's IsTended.</param>
+/// <param name="Permanent">The game's IsPermanent: a scar that never heals.</param>
+public sealed record RealInjury(string Def, string Part, double Severity, double BleedRate, bool TendableNow, bool Tended, bool Permanent);
+
+/// <summary>The meat and leather a dead pawn's body yields: the race's meat and leather defs and the pawn's MeatAmount and LeatherAmount stats (before butcher efficiency and rounding). A def is empty when the race has none.</summary>
+public sealed record RealProducts(string MeatDef, double Meat, string LeatherDef, double Leather);
 
 public sealed record RealSeedOutcome
 {
@@ -187,6 +227,9 @@ public sealed record RealSeedOutcome
 
 public sealed record RealFightResult
 {
+    /// <summary>The format version of the request and of this result (<see cref="RealFightRequest.CurrentSchema"/>); the two change together.</summary>
+    public int Schema { get; init; } = RealFightRequest.CurrentSchema;
+
     public string Name { get; init; } = "";
 
     public IReadOnlyList<RealSeedOutcome> Outcomes { get; init; } = [];

@@ -264,7 +264,7 @@ internal static class RequestCheckMode
             }
         }
 
-        foreach (var (what, json) in new[] { ("unknown field", """{"schema":2,"bogus":1}"""), ("unknown pawn field", """{"schema":2,"pawns":[{"id":"a","tail":true}]}""") })
+        foreach (var (what, json) in new[] { ("unknown field", """{"schema":3,"bogus":1}"""), ("unknown pawn field", """{"schema":3,"pawns":[{"id":"a","tail":true}]}""") })
         {
             try
             {
@@ -392,6 +392,54 @@ internal static class RequestCheckMode
 // is nondeterministic.
 internal static class HuntMode
 {
+    private static int s_prey;
+
+    private static int s_wounds;
+
+    // The outcome against the game objects read directly after the fight: every injury (def, part, severity, bleed, tend and
+    // permanence), the missing parts, the bleed rate, and the dead pawn's meat and leather; event ticks must be ordered.
+    private static int CompareWithGame(string kind, int seed, RealSeedOutcome outcome, Dictionary<string, Direct> direct)
+    {
+        var bad = 0;
+        foreach (var p in outcome.Pawns)
+        {
+            var d = direct[p.Id];
+            var injuries = p.Injuries.Select(i => $"{i.Def}|{i.Part}|{i.Severity}|{i.BleedRate}|{i.TendableNow}|{i.Tended}|{i.Permanent}").ToList();
+            var products = p.Products is null ? "alive" : $"{p.Products.MeatDef}|{p.Products.Meat}|{p.Products.LeatherDef}|{p.Products.Leather}";
+            var ok = injuries.SequenceEqual(d.Injuries) && p.Missing.Order().SequenceEqual(d.Missing.Order()) && p.BleedRate == d.BleedRate
+                && p.NeedsTend == d.NeedsTend && products == d.Products && p.Dead == d.Dead
+                && (p.FirstShotTick < 0 || p.FirstAttackTick is >= 0 && p.FirstAttackTick <= p.FirstShotTick)
+                && p.Withdrew == (p.WithdrawalTick >= 0) && p.Kills.All(k => outcome.Pawns.Single(o => o.Id == k).Dead);
+            s_wounds += p.Injuries.Count;
+            s_prey += p.Products is { Meat: > 0 } ? 1 : 0;
+            if (!ok)
+            {
+                Console.Error.WriteLine($"FAIL {kind} seed {seed} {p.Id}: outcome differs from the game objects\n  outcome: {string.Join(";", injuries)} missing=[{string.Join(",", p.Missing)}] bleed={p.BleedRate} {products}\n  game:    {string.Join(";", d.Injuries)} missing=[{string.Join(",", d.Missing)}] bleed={d.BleedRate} {d.Products}");
+                bad++;
+            }
+        }
+
+        var line = string.Join(" ", outcome.Pawns.Select(p => $"{p.Id}[injuries={p.Injuries.Count} missing={p.Missing.Count} bleed={p.BleedRate:0.###} tend={p.NeedsTend} attack={p.FirstAttackTick} withdrew={p.Withdrew}@{p.WithdrawalTick} kills=[{string.Join(",", p.Kills)}] products={(p.Products is null ? "-" : $"{p.Products.Meat:0.#} {p.Products.MeatDef} {p.Products.Leather:0.#} {p.Products.LeatherDef}")}]"));
+        Console.Error.WriteLine($"  detail: {line}");
+        return bad;
+    }
+
+    internal sealed record Direct(IReadOnlyList<string> Injuries, IReadOnlyList<string> Missing, double BleedRate, bool NeedsTend, string Products, bool Dead)
+    {
+        internal static Direct Of(Verse.Pawn pawn)
+        {
+            var set = pawn.health.hediffSet;
+            var corpse = pawn.Corpse?.InnerPawn ?? pawn;
+            return new Direct(
+                [.. set.hediffs.Where(h => h is not Verse.Hediff_MissingPart).Select(h => $"{h.def.defName}|{h.Part?.Label ?? ""}|{(double)h.Severity}|{(double)h.BleedRate}|{h.TendableNow()}|{h.IsTended()}|{h.IsPermanent()}")],
+                [.. set.GetMissingPartsCommonAncestors().Select(m => m.Part.Label)],
+                set.BleedRateTotal,
+                pawn.health.HasHediffsNeedingTend(),
+                pawn.Dead ? $"{corpse.RaceProps.meatDef?.defName}|{(double)RimWorld.StatExtension.GetStatValue(corpse, RimWorld.StatDefOf.MeatAmount)}|{corpse.RaceProps.leatherDef?.defName}|{(double)RimWorld.StatExtension.GetStatValue(corpse, RimWorld.StatDefOf.LeatherAmount)}" : "alive",
+                pawn.Dead);
+        }
+    }
+
     internal static int Run()
     {
         var failures = 0;
@@ -415,9 +463,19 @@ internal static class HuntMode
                 ],
             };
             var arena = new Arena(request);
+            var direct = new Dictionary<string, Direct>();
+            arena.Inspect = pawns =>
+            {
+                direct.Clear();
+                foreach (var (id, pawn) in pawns)
+                {
+                    direct[id] = Direct.Of(pawn);
+                }
+            };
             foreach (var seed in request.Seeds)
             {
                 var outcome = arena.Fight(seed);
+                failures += CompareWithGame(kind, seed, outcome, direct);
                 var line = string.Join(" ", outcome.Pawns.Select(p => $"{p.Id}[down={p.Downed} dead={p.Dead} hp={p.HealthPercent:0.00} shots={p.Shots} hit={p.HitsTaken}]"));
                 Console.Error.WriteLine($"{kind} seed {seed}: winner='{outcome.Winner}' ticks={outcome.Ticks} nondeterministic={outcome.Nondeterministic} {line}");
                 if (outcome.Nondeterministic)
@@ -432,6 +490,13 @@ internal static class HuntMode
             {
                 failures++;
             }
+        }
+
+        // The check must have seen a wounded pawn and a killed animal's products, or it proved nothing.
+        Console.Error.WriteLine($"hunt: {s_wounds} injuries and {s_prey} corpses with meat compared");
+        if (s_wounds == 0 || s_prey == 0)
+        {
+            failures++;
         }
 
         Console.Error.WriteLine(failures == 0 ? "hunt: PASS" : $"hunt: FAIL ({failures})");

@@ -14,7 +14,7 @@ no live-game integration.
 
 ## The request format
 
-`RealFightRequest` is the one request format, strict and versioned. `Schema` must equal `RealFightRequest.CurrentSchema` (2);
+`RealFightRequest` is the one request format, strict and versioned. `Schema` must equal `RealFightRequest.CurrentSchema` (3);
 a request that omits it or states another version is rejected. **Unsupported input rejects, it is never defaulted or
 regenerated.** The whole request is rejected before the arena is built (so no map and no pawn exists), and every problem
 names its field (`Pawns[0].Hediffs[1].Part: Human has no body part 'tail'`). A rejection exits the host with code 3 and no
@@ -45,6 +45,17 @@ id, a repeated id, a tick outside `0-MaxTicks` or another kind rejects by field 
 reports `DepartureTick` (-1 when none applied, e.g. the pawn was already down), `GotAway` (off the map alive) and `LastShotTick`
 (no shot after the departure). Each fight restarts the map's snow depth from the baseline, so later seeds and `Verify` replays
 start from the same ground.
+
+**The result** carries the same `Schema` as the request (the shape changes with the version). Per pawn it exports game facts
+and no derived scores, read from the game objects after the fight: `Injuries` (every hediff but missing parts: def, part
+label, `Severity`, `BleedRate`, `TendableNow`, `Tended`, `Permanent`), `Missing` (part labels), `BleedRate` (the
+game's `BleedRateTotal`) and `NeedsTend` (`HasHediffsNeedingTend`); `Kills` (ids of the pawns it killed, by the death's
+instigator, in death order; a bleed-out has no killer) and, for a dead pawn, `Products` (race meat and leather defs with
+the pawn's `MeatAmount` and `LeatherAmount` stats, before butcher efficiency and rounding); and event ticks from the
+fight start: `FirstAttackTick` (a shot or a melee attack; `FirstShotTick` stays ranged only), `DepartureTick` (a replayed
+departure applied) and `WithdrawalTick`/`Withdrew` (the tick the pawn left the map alive by any cause, a replayed
+departure or the animal AI's own flight to the edge; -1 and false otherwise). `Verify` compares every exported value.
+`--hunt` checks the outcome against a direct read of the game objects.
 
 A pawn's `Hediffs` (def, part, severity) and `Missing` (part labels) are its whole health: nothing the generator rolled
 survives. `Age` (biological and chronological) and `Xenotype` are required for humanlike pawns.
