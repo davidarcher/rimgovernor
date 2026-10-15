@@ -220,8 +220,6 @@ switch ($Phase) {
                 $seconds = [int]($deadline - [DateTime]::UtcNow).TotalSeconds
                 if ($seconds -le 0) { throw 'Shard suite allowance exhausted' }
                 $names = @($rows | Where-Object mod_role -CEQ $job.role | ForEach-Object name) -join ','
-                # Colony snapshot streams ride the public diagnostics (remoteaccept.SnapshotDir).
-                $env:RIMGOVERNOR_SNAPSHOT_DIR = Join-Path $job.output 'snapshots'
                 Push-Location $Repo
                 try {
                     # The fixture factory keeps its checkpoint ring: without -resume the suite runs each case with checkpointing off.

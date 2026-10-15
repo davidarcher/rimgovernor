@@ -130,9 +130,6 @@ fetch-fixture -root <dir>` to print the newest downloaded bundle directory for s
 tests; both `gh run download` the newest completed (success or failure) run once into
 `<root>/ci-fixtures/<run id>`.
 
-`remote_workflow.ps1` sets `RIMGOVERNOR_SNAPSHOT_DIR=<job output>\snapshots`, but no
-[colony snapshot](colony-snapshots.md) sink is installed, so no stream is written.
-
 `.github/workflows/snapshot-perf.yml` runs nightly: it fetches that bundle,
 bootstraps a fixture-role layout (`remote_workflow.ps1 -Phase profile`) and
 runs `profile-capture -n 50 -json`; a Linux job then runs `acceptance

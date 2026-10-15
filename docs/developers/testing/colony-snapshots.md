@@ -11,8 +11,9 @@ The recorder types live in `brain/src/RimGovernor.Brain.Snapshot`
 (`SnapshotRounds`, `SnapshotPlanner`, `SnapshotStep`, `SnapshotDefense`,
 `SnapshotLayout`, `SnapshotCombatStop`, `SnapshotFirebreak`, and the background
 queue `SnapshotLater`). Writing goes through `ISnapshotSink`
-(`SnapshotPackage.Sink`), which the host supplies; none is installed, so with
-`RIMGOVERNOR_SNAPSHOT_DIR` set or not, nothing is written today. There is no
+(`SnapshotPackage.Sink`), which the host supplies; none is installed, so nothing
+is written today, and the remote workflow and fixture factory do not collect
+snapshot streams (the observe SQLite feed and Grafana dashboards were dropped, #3144). There is no
 file format, trim or re-record tool, and no committed recording. Recording is
 evidence for replay and is never part of a decision.
 
