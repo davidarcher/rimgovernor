@@ -48,7 +48,7 @@ internal static class Program
             var request = RequestJson.Read(File.ReadAllText(requestPath));
             var startup = Stopwatch.StartNew();
             GameHost.Boot(game);
-            var arena = new Arena(request);
+            using var arena = new Arena(request);
             var startupMs = startup.Elapsed.TotalMilliseconds;
             var fights = Stopwatch.StartNew();
             var outcomes = request.Seeds.Select(arena.Fight).ToList();
@@ -60,6 +60,7 @@ internal static class Program
                 StartupMilliseconds = startupMs,
                 Readback = arena.Readback,
             };
+            arena.Dispose(); // Publish success only after owned native cleanup succeeds.
             File.WriteAllText(outPath, JsonSerializer.Serialize(result, options));
             return 0;
         }
@@ -105,7 +106,7 @@ internal static class Program
                     request.Width is < 1 or > 128 || request.Height is < 1 or > 128 || request.Pawns.Count > 32)
                     throw new RealFightRejected(["worker: effort budget exceeded"]);
                 var watch = Stopwatch.StartNew();
-                var arena = new Arena(request);
+                using var arena = new Arena(request);
                 var construction = watch.Elapsed.TotalMilliseconds;
                 watch.Restart();
                 var outcomes = request.Seeds.Select(arena.Fight).ToArray();
@@ -114,6 +115,7 @@ internal static class Program
                     Name = name, Outcomes = outcomes, StartupMilliseconds = construction,
                     FightMilliseconds = watch.Elapsed.TotalMilliseconds, Readback = arena.Readback,
                 };
+                arena.Dispose(); // A cleanup failure emits one failed frame, never a result followed by a failure.
                 var frame = JsonSerializer.Serialize(new { kind = "result", name, result }, options);
                 if (frame.Length > 1024 * 1024) throw new InvalidDataException("worker_result_frame_budget");
                 protocol.WriteLine(frame);

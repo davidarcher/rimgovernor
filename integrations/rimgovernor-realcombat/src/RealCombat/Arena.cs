@@ -12,7 +12,7 @@ namespace RimGovernor.RealCombat;
 /// and the tick counter restart from fixed values, the fight's things are destroyed afterwards and the world pawns the
 /// generator parked are removed.
 /// </summary>
-public sealed class Arena
+public sealed class Arena : IDisposable
 {
     private const int FirstThingId = 100000;
     private const int FirstStandingId = 1000;
@@ -22,6 +22,7 @@ public sealed class Arena
 
     private static readonly BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
 
+    private bool _disposed;
     private readonly RealFightRequest _req;
     private readonly Action<Map>? _stage;
     private readonly Map _map;
@@ -47,16 +48,24 @@ public sealed class Arena
         _req = req;
         _stage = stage;
         _map = GameHost.BuildMap(req.Width, req.Height);
-        _hostile = Find.FactionManager.AllFactionsListForReading.FirstOrDefault(f => f.def.defName == req.HostileFaction)
-            ?? throw new InvalidOperationException($"realcombat: the generated world has no faction {req.HostileFaction}");
-        _hostile.SetRelationDirect(Faction.OfPlayer, FactionRelationKind.Hostile, false);
-        Sweep();
-        Furnish();
-        _weather = _map.weatherManager.curWeather;
-        _readback = ReadbackCheck.Arena(req, _map, _hostile);
-        _baselineThings = [.. _map.listerThings.AllThings];
-        _baselineWorldPawns = [.. Find.WorldPawns.AllPawnsAliveOrDead];
-        _baselineSnow = _map.AllCells.Select(c => _map.snowGrid.GetDepth(c)).ToArray();
+        try
+        {
+            _hostile = Find.FactionManager.AllFactionsListForReading.FirstOrDefault(f => f.def.defName == req.HostileFaction)
+                ?? throw new InvalidOperationException($"realcombat: the generated world has no faction {req.HostileFaction}");
+            _hostile.SetRelationDirect(Faction.OfPlayer, FactionRelationKind.Hostile, false);
+            Sweep();
+            Furnish();
+            _weather = _map.weatherManager.curWeather;
+            _readback = ReadbackCheck.Arena(req, _map, _hostile);
+            _baselineThings = [.. _map.listerThings.AllThings];
+            _baselineWorldPawns = [.. Find.WorldPawns.AllPawnsAliveOrDead];
+            _baselineSnow = _map.AllCells.Select(c => _map.snowGrid.GetDepth(c)).ToArray();
+        }
+        catch
+        {
+            GameHost.ReleaseMap(_map);
+            throw;
+        }
     }
 
     // Everything the map generator scattered goes, the roofs come off (a collapse in the first ticks moves the stream),
@@ -111,6 +120,8 @@ public sealed class Arena
             var (terrain, roof) = RequestCheck.GroundAt(_req, cell.x, cell.z);
             if (terrain.Length > 0)
             {
+                // Generated ice is a separate layer: SetTerrain alone leaves it above the requested ground.
+                _map.terrainGrid.RemoveTempTerrain(cell, doLeavings: false, preventDestroyEffects: true);
                 _map.terrainGrid.SetTerrain(cell, DefDatabase<TerrainDef>.GetNamed(terrain));
             }
 
@@ -150,6 +161,7 @@ public sealed class Arena
     /// <summary>Plays the fight a seed fixes. Under Verify it plays it twice and reports a mismatch.</summary>
     public RealSeedOutcome Fight(int seed)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         var first = FightOnce(seed);
         if (!_req.Verify)
         {
@@ -158,6 +170,14 @@ public sealed class Arena
 
         var second = FightOnce(seed);
         return second with { Nondeterministic = !SameOutcome(first, second) };
+    }
+
+    /// <summary>Releases the arena's native map and settlement before another arena may be constructed.</summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true; // A failed cleanup still makes this arena unusable; the worker reports failure and exits.
+        GameHost.ReleaseMap(_map);
     }
 
     // Outcomes carry lists, which records compare by reference: compare their wire form, every exported value.

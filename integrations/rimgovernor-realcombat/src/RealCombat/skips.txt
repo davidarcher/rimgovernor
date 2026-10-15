@@ -27,3 +27,6 @@ RimWorld.Autosaver::AutosaverTick
 RimWorld.TransportShipManager::ShipObjectsTick
 # Filth (blood, dirt) never touches a fight, and where it spawns varies from process to process.
 RimWorld.FilthMaker::TryMakeFilth
+
+# No rendering sections are created by the headless host; native map disposal still frees simulation resources.
+Verse.MapDrawer::Dispose

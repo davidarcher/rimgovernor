@@ -12,7 +12,7 @@ emits a content-identified ready frame, then accepts strict schema-3 requests as
 JSON lines. Stdout carries protocol frames; game logs go to stderr. One request
 runs at a time. Frames are at most 1 MiB, one request has at most 64 seeds/32 actors,
 128 cells per side and 60000 ticks, and a process accepts at most eight requests.
-The arena-count bound limits retained native state; it does not hide earlier
+Every request disposes its native map and settlement; the arena-count bound limits other retained process state. It does not hide earlier
 reconstruction failures. A failed arena ends the worker; an unsupported request
 returns an explicit rejection. No automatic retries, fallback or colony orders.
 
@@ -129,11 +129,37 @@ Known caveats, kept honest:
 - **Boar retaliation is unverified.** The `--hunt` smoke never had the hunter hit, and the fixture's closer-range boars
   (placed 23, 18 and 15 cells from the hunter, the last two with a weaker shot) were killed or wounded without ever hitting a hunter in the one seed
   played, so the fixture does not show a retaliation. The retaliation path is the game's own, not scripted here.
-- **A third arena in one process once showed `ThinIce` over requested terrain** (923 cells). The hypothesis is water
-  terrain freezing at the map temperature, possibly tied to the snow and weather restores added with departures and wild
-  prey; it is not investigated. The fixture builds one arena and requests no water, so it is not exposed; any caller
-  building several arenas per process should compare `Readback` (the gate fails the run by field name on a mismatch).
 - The hunters do not eat, rest or tend: injuries are read at the fight's end, never healed.
+
+## Arena lifetime and repeatability
+
+`Arena` owns one native map and its settlement. Use `using`; constructing another
+arena while one is active is rejected. Disposal runs native map deinitialization,
+releases simulation resources, and removes the settlement. Once map generation
+has returned, failed reconstruction also releases ownership. A map-generation or
+cleanup failure ends the worker; in-process recovery is not provided. The headless host skips only the rendering-section
+cleanup that cannot run because rendering sections were never created.
+
+Construction starts at tick zero before selecting and generating the seeded map;
+fights retain their existing fixed start tick. Keeping a preceding settlement
+occupied changed the next selected tile, snow and temperature. Clearing the map
+and settlement, and restoring construction time, removes that cross-request state.
+Explicit requested terrain also removes generated temporary terrain first:
+RimWorld's `SetTerrain` leaves an ice overlay intact. This is reconstruction,
+not suppression of ice changes during a fight.
+
+`RealCombat.NativeSmoke --game <private game> --arena-isolation --fixture
+<absolute fixture directory> --out <absolute JSON>` runs four independent arenas
+with the committed hunting fixture's single seed. It requires identical cell terrain,
+environment, readback and full physical outcomes, including the boar kill and timed
+hunter departure. It also checks overlapping ownership, use after disposal, failed
+construction cleanup, and reconstruction over injected native ice. Run it in two
+fresh processes and compare the JSON bytes for cross-process repeatability.
+A fake engine cannot establish native map lifetime or terrain-layer behavior.
+
+This bounded regression covers the reported repeated-arena failure, not statistical
+prediction accuracy, revenge calibration, arbitrary mod caches or live-colony
+reconstruction. #3129 remains unqualified until its separate gates are met.
 
 ## Build and run
 
@@ -149,8 +175,7 @@ dotnet integrations/rimgovernor-realcombat/src/RealCombat.NativeSmoke/bin/Releas
 and an accept case (age 41, Hussar, a missing hand, injuries on the right arm) that must read back equal and play
 deterministically, with a second hunter who leaves at tick 450 (`--flee`: flees instead) and must fire nothing after it;
 exit 0 is a pass. `--gear-check` plays a poor, half-hit-point rifle and worn flak vest against new gear
-(the fights differ) and reads a two-terrain map with two roofed patches back cell for cell. It builds two arenas: a third
-map in one process came up with ice over terrain the request had set.
+(the fights differ) and reads a two-terrain map with two roofed patches back cell for cell.
 
 `--bare` plays both sides with the built-in retargeting, `--policy` plays the colonists with the live combat policy,
 `--drugs` gives each colonist go-juice (`--high` makes the raiders high on it, `--raiders N` adds raiders),

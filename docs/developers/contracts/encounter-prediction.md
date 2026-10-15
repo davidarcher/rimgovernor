@@ -103,9 +103,12 @@ consequences, unsupported/unavailable replies and qualification scope.
 useful at bounded runtime. #3130 remains blocked on that result, not on mere
 engine startup or interface compilation.
 
-Using the same committed hunting fixture and seed, cold startup was 8.856s,
-first request 1.903s, warm request 0.535s and active cancellation 275.7ms. The first
-run killed the boar; the warm run left it alive and untouched, despite both
-internal replay checks passing. Hunting prediction remains unqualified pending
-investigation of repeated-arena behavior. This does not establish the same cause
-as the terrain drift already tracked in #3159.
+The local engine owns one arena map and settlement per request and disposes them
+before accepting the next request. Construction restarts at the same world tick;
+explicit ground reconstruction clears generated temporary terrain layers. The
+[real-engine lifetime regression](../../../integrations/rimgovernor-realcombat/README.md#arena-lifetime-and-repeatability)
+requires four identical native hunting outcomes and terrain/readback results in
+each process, plus byte-identical results across two processes. It covers the
+reported repeated-arena defect, not qualification of prediction error or runtime.
+The earlier 1.903-second first request missed the proposed one-second research
+gate; this fix does not remeasure or relax that gate. #3129 remains open.

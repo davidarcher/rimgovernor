@@ -15,7 +15,7 @@ internal static class PredictorCheck
         GameHost.Boot(game);
         var mods = EngineIdentity.Mods();
         var build = EngineIdentity.GameBuild;
-        var arena = new Arena(source);
+        using var arena = new Arena(source);
         var baseline = arena.Fight(source.Seeds.Single());
         var readback = arena.Readback;
         var request = new EncounterRequest

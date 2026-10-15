@@ -10,6 +10,11 @@ using Operations = RimGovernor.Contracts.Wire.Operations;
 // With --policy the live combat policy (PolicyController) plays the colonist.
 //   RimGovernor.RealCombat.NativeSmoke --game <dir> [--bare|--policy]
 var game = args[Array.IndexOf(args, "--game") + 1];
+if (args.Contains("--arena-isolation"))
+{
+    return RimGovernor.RealCombat.NativeSmoke.ArenaIsolation.Run(game,
+        args[Array.IndexOf(args, "--fixture") + 1], args[Array.IndexOf(args, "--out") + 1]);
+}
 if (args.Contains("--predictor"))
 {
     return await RimGovernor.RealCombat.NativeSmoke.PredictorCheck.RunAsync(game,
@@ -159,7 +164,7 @@ if (policy && !open)
     stage = new DefenseStage(RimGovernor.Brain.Domain.Rotation.West, 2, range) { Traps = !args.Contains("--no-traps") };
 }
 
-var arena = new Arena(request, hive is not null ? hive.Raise : stage is null ? null : stage.Raise) { Controller = bare ? null : doorProbe is not null ? doorProbe : policy ? live : controller };
+using var arena = new Arena(request, hive is not null ? hive.Raise : stage is null ? null : stage.Raise) { Controller = bare ? null : doorProbe is not null ? doorProbe : policy ? live : controller };
 if (stage is not null)
 {
     live.Layout = stage.Layout;
@@ -259,7 +264,7 @@ internal static class RequestCheckMode
         {
             try
             {
-                _ = new Arena(make());
+                using var rejectedArena = new Arena(make());
                 Console.Error.WriteLine($"FAIL accepted a request that must reject on {field}");
                 failures++;
             }
@@ -302,7 +307,7 @@ internal static class RequestCheckMode
             Hediffs = [new("Cut", "right arm", 3), new("Cut", "right arm", 2.5), new("GoJuiceHigh", "", 0.5)],
         };
         var accept = Base with { MaxTicks = 900, Departures = [new("col2", DepartAt, DepartKind)], Pawns = [accepted, Colonist with { Id = "col2", Z = 34 }, Raider] };
-        var arena = new Arena(accept with { Verify = true });
+        using var arena = new Arena(accept with { Verify = true });
         var outcome = arena.Fight(1);
         var read = arena.Readback.Pawns[0];
         Console.Error.WriteLine($"accepted: age={read.Age:0.##} xenotype={read.Xenotype} missing=[{string.Join(",", read.Missing)}] hediffs=[{string.Join(", ", read.Hediffs)}] ticks={outcome.Ticks}");
@@ -355,7 +360,7 @@ internal static class RequestCheckMode
         var oldGear = Colonist with { WeaponQuality = "Poor", WeaponHitPoints = rifle.BaseMaxHitPoints / 2, Worn = worn };
         RealSeedOutcome Play(RealPawn colonist, out RealPawnReadback read, out RealReadback world)
         {
-            var arena = new Arena(Base with { Terrain = "Soil", Ground = [new("Sand", "", 10, 10, 30, 40), new("", "RoofRockThick", 15, 15, 20, 20), new("", "RoofConstructed", 40, 40, 44, 44)], Pawns = [colonist, Raider with { Worn = fresh, WeaponQuality = "Normal" }] });
+            using var arena = new Arena(Base with { Terrain = "Soil", Ground = [new("Sand", "", 10, 10, 30, 40), new("", "RoofRockThick", 15, 15, 20, 20), new("", "RoofConstructed", 40, 40, 44, 44)], Pawns = [colonist, Raider with { Worn = fresh, WeaponQuality = "Normal" }] });
             var o = arena.Fight(1);
             read = arena.Readback.Pawns[0];
             world = arena.Readback;
@@ -426,7 +431,7 @@ internal static class FixtureMode
         }
 
         var request = RequestJson.Read(json);
-        var arena = new Arena(request);
+        using var arena = new Arena(request);
         var outcome = arena.Fight(request.Seeds[0]);
         var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
         var actual = System.Text.Json.JsonSerializer.Serialize(arena.Readback, options);
@@ -534,7 +539,7 @@ internal static class HuntMode
                     new RealPawn { Id = "p2", Side = "wild", Kind = kind, Herd = herd, X = 41, Z = 28 },
                 ],
             };
-            var arena = new Arena(request);
+            using var arena = new Arena(request);
             var direct = new Dictionary<string, Direct>();
             arena.Inspect = pawns =>
             {

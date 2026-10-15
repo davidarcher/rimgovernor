@@ -69,6 +69,10 @@ public static class GameHost
     /// <summary>Generates the arena map on a settlement tile. Seeded, so two processes build the same map.</summary>
     internal static Map BuildMap(int width, int height)
     {
+        if (Find.Maps.Count != 0)
+            throw new InvalidOperationException("realcombat: dispose the active arena before constructing another");
+        // Construction must not inherit the preceding fight's season/time of day.
+        typeof(TickManager).GetField("ticksGameInt", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(Find.TickManager, 0);
         using var scope = new RandScope(222);
         Current.ProgramState = ProgramState.MapInitializing;
         var tile = TileFinder.RandomSettlementTileFor(Faction.OfPlayer, true);
@@ -79,6 +83,13 @@ public static class GameHost
         var map = MapGenerator.GenerateMap(new IntVec3(width, 1, height), parent, parent.MapGeneratorDef, parent.ExtraGenStepDefs, null);
         Current.ProgramState = ProgramState.Playing;
         return map;
+    }
+
+    internal static void ReleaseMap(Map map)
+    {
+        var parent = map.Parent;
+        Current.Game.DeinitAndRemoveMap(map, false);
+        Find.WorldObjects.Remove(parent);
     }
 
     private static void SetStatic(Type type, string field, object value) =>
