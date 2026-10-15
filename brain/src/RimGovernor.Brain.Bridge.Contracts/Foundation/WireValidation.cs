@@ -1,4 +1,3 @@
-using System.Text;
 using RimGovernor.Contracts.Wire.Common;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
@@ -12,10 +11,10 @@ public static partial class BridgeFunctions
     /// <summary>Go's <c>contract(format, ...)</c>: the error every validator returns, thrown here.</summary>
     internal static BridgeContractException Contract(string message) => new(message);
 
-    /// <summary>Go's <c>validID</c>: a native identifier is non-blank text of at most 256 bytes with no NUL.</summary>
+    /// <summary>Go's <c>validID</c>: a native identifier is non-blank text.</summary>
     internal static void ValidId(string value)
     {
-        if (string.IsNullOrWhiteSpace(value) || Encoding.UTF8.GetByteCount(value) > 256 || value.Contains('\0', StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(value))
         {
             throw Contract("invalid native identifier");
         }
@@ -24,26 +23,7 @@ public static partial class BridgeFunctions
     /// <summary>Whether <see cref="ValidId"/> accepts <paramref name="value"/>.</summary>
     public static bool IsValidId(string value)
     {
-        return !string.IsNullOrWhiteSpace(value) && Encoding.UTF8.GetByteCount(value) <= 256 && !value.Contains('\0', StringComparison.Ordinal);
-    }
-
-    /// <summary>Go's <c>diagnostic</c>: an absent diagnostic string, or one of at most 4096 runes.</summary>
-    internal static bool Diagnostic(bool present, string value)
-    {
-        if (!present)
-        {
-            return true;
-        }
-        var runes = 0;
-        foreach (var unused in value.EnumerateRunes())
-        {
-            _ = unused;
-            if (++runes > 4096)
-            {
-                return false;
-            }
-        }
-        return true;
+        return !string.IsNullOrWhiteSpace(value);
     }
 
     /// <summary>Go's <c>ValidateIdentity</c>.</summary>
@@ -79,8 +59,7 @@ public static partial class BridgeFunctions
         if (value is null
             || value.Reason is null
             || value.Reason.GetValueOrDefault() == UnavailableReason.Unspecified
-            || !Enum.IsDefined(value.Reason.GetValueOrDefault())
-            || !Diagnostic(value.Detail is not null, (value.Detail ?? "")))
+            || !Enum.IsDefined(value.Reason.GetValueOrDefault()))
         {
             throw Contract("invalid unavailable");
         }
@@ -92,7 +71,7 @@ public static partial class BridgeFunctions
     /// </summary>
     internal static void ValidateFailure(Failure? value)
     {
-        if (value is null || value.Code is null || (int)value.Code.GetValueOrDefault() < 1 || (int)value.Code.GetValueOrDefault() > 14 || !Diagnostic(value.Detail is not null, (value.Detail ?? "")))
+        if (value is null || value.Code is null || (int)value.Code.GetValueOrDefault() < 1 || (int)value.Code.GetValueOrDefault() > 14)
         {
             throw Contract("invalid failure");
         }

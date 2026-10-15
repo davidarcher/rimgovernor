@@ -114,8 +114,7 @@ internal sealed partial class FacadeNativeClient
                 break;
             case PbLifecycle.SaveReplyOutcome.UncertainCase { Value: var uncertain }:
                 if (uncertain.RequestId is null
-                    || (requestId is not null && uncertain.RequestId != requestId)
-                    || !BridgeFunctions.Diagnostic(uncertain.Detail is not null, uncertain.Detail ?? ""))
+                    || (requestId is not null && uncertain.RequestId != requestId))
                 {
                     throw BridgeFunctions.Contract("invalid save uncertain");
                 }

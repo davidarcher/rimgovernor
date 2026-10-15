@@ -29,7 +29,7 @@ internal sealed partial class FacadeNativeClient
             {
                 var support = capability.Support is { } value ? (int)value : 0;
                 var name = capability.FullMethodName ?? "";
-                if (support < 1 || support > 3 || !BridgeFunctions.IsValidId(name) || !BridgeFunctions.Diagnostic(capability.Detail is not null, capability.Detail ?? "") || !seen.Add(name))
+                if (support < 1 || support > 3 || !BridgeFunctions.IsValidId(name) || !seen.Add(name))
                 {
                     throw BridgeFunctions.Contract("invalid capability");
                 }

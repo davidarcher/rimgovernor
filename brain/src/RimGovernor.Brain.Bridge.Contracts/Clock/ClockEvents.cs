@@ -100,8 +100,7 @@ public static partial class BridgeFunctions
         if (@event.Cursor is null
             || @event.Cursor <= 0
             || @event.ObservedAtUnixMs is null
-            || @event.ObservedAtUnixMs < 0
-            || !Diagnostic(@event.Detail is not null, @event.Detail ?? ""))
+            || @event.ObservedAtUnixMs < 0)
         {
             throw Contract("clock event header");
         }
@@ -163,16 +162,14 @@ public static partial class BridgeFunctions
                 break;
             case ClockEventEvent.AuthorityChangedCase { Value: var authority }:
                 if (authority.Generation is null or 0
-                    || (authority.PreviousGeneration is not null && authority.PreviousGeneration >= authority.Generation)
-                    || !Diagnostic(authority.Reason is not null, authority.Reason ?? ""))
+                    || (authority.PreviousGeneration is not null && authority.PreviousGeneration >= authority.Generation))
                 {
                     throw Contract("clock authority change evidence");
                 }
                 break;
             case ClockEventEvent.ObservationInvalidatedCase { Value: var invalidated }:
                 if (invalidated.Families.Count == 0
-                    || invalidated.Families.Count > FactFamilies().Count
-                    || !Diagnostic(invalidated.Reason is not null, invalidated.Reason ?? ""))
+                    || invalidated.Families.Count > FactFamilies().Count)
                 {
                     throw Contract("clock observation invalidation evidence");
                 }
@@ -263,8 +260,7 @@ public static partial class BridgeFunctions
             case OperationOutcomeOutcome.UnsuccessfulCase { Value: var unsuccessful }:
                 if (unsuccessful.Reason is null
                     || (int)unsuccessful.Reason.GetValueOrDefault() < 1
-                    || unsuccessful.Reason.GetValueOrDefault() > UnsuccessfulReason.OutcomeNotAchieved
-                    || !Diagnostic(unsuccessful.Detail is not null, (unsuccessful.Detail ?? "")))
+                    || unsuccessful.Reason.GetValueOrDefault() > UnsuccessfulReason.OutcomeNotAchieved)
                 {
                     throw Contract("clock unsuccessful outcome evidence");
                 }
@@ -276,10 +272,6 @@ public static partial class BridgeFunctions
                 }
                 break;
             case OperationOutcomeOutcome.UnknownCase { Value: var unknown }:
-                if (!Diagnostic(unknown.Reason is not null, unknown.Reason ?? ""))
-                {
-                    throw Contract("clock unknown outcome evidence");
-                }
                 break;
             default:
                 throw Contract("clock operation outcome variant missing");
@@ -288,7 +280,7 @@ public static partial class BridgeFunctions
 
     private static void ClockPawn(PawnEvent? pawn)
     {
-        if (pawn is null || !IsValidId((pawn.PawnId ?? "")) || !Diagnostic(pawn.Name is not null, (pawn.Name ?? "")) || !Diagnostic(pawn.Reason is not null, (pawn.Reason ?? "")))
+        if (pawn is null || !IsValidId((pawn.PawnId ?? "")))
         {
             throw Contract("clock pawn evidence");
         }
@@ -300,7 +292,7 @@ public static partial class BridgeFunctions
 
     private static void ClockAlert(Alert? v)
     {
-        if (v is null || !IsValidId((v.Key ?? "")) || !Diagnostic(v.Label is not null, (v.Label ?? "")) || !Diagnostic(v.Priority is not null, (v.Priority ?? "")))
+        if (v is null || !IsValidId((v.Key ?? "")))
         {
             throw Contract("clock alert evidence");
         }
@@ -308,7 +300,7 @@ public static partial class BridgeFunctions
 
     private static void ClockLetter(Letter? v)
     {
-        if (v is null || !IsValidId((v.Id ?? "")) || !Diagnostic(v.Label is not null, (v.Label ?? "")) || (v.DefName is not null && !IsValidId((v.DefName ?? ""))))
+        if (v is null || !IsValidId((v.Id ?? "")) || (v.DefName is not null && !IsValidId((v.DefName ?? ""))))
         {
             throw Contract("clock letter evidence");
         }
@@ -337,7 +329,6 @@ public static partial class BridgeFunctions
     {
         if (v is null
             || !IsValidId((v.Id ?? ""))
-            || !Diagnostic(v.Text is not null, (v.Text ?? ""))
             || (v.TypeDef is not null && !IsValidId((v.TypeDef ?? "")))
             || (v.StartingTick is not null && v.StartingTick.GetValueOrDefault() < 0))
         {

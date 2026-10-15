@@ -327,8 +327,7 @@ internal sealed partial class FacadeNativeClient
                     || rotation.Accepted is null
                     || rotation.Rotation.GetValueOrDefault() < PbPlacement.Rotation.North
                     || rotation.Rotation.GetValueOrDefault() > PbPlacement.Rotation.West
-                    || !rotations.Add(rotation.Rotation.GetValueOrDefault())
-                    || !BridgeFunctions.Diagnostic(rotation.Reason is not null, rotation.Reason ?? ""))
+                    || !rotations.Add(rotation.Rotation.GetValueOrDefault()))
                 {
                     throw BridgeFunctions.Contract("rotation facts invalid");
                 }

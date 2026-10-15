@@ -163,7 +163,7 @@ public static partial class BridgeFunctions
                     var defaults = 0;
                     foreach (var row in databases[i])
                     {
-                        if (row is null || !IsValidId((row.Id ?? "")) || ids.Contains((row.Id ?? "")) || row.Label is null || !Diagnostic(row.Label is not null, (row.Label ?? "")) || row.Default is null)
+                        if (row is null || !IsValidId((row.Id ?? "")) || ids.Contains((row.Id ?? "")) || row.Label is null || row.Default is null)
                         {
                             throw Contract("invalid policy entry");
                         }
@@ -213,7 +213,7 @@ public static partial class BridgeFunctions
                 var areaPawns = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var row in f.AllowedAreas)
                 {
-                    if (row is null || !IsValidId((row.Id ?? "")) || areaIds.Contains((row.Id ?? "")) || row.Label is null || !Diagnostic(row.Label is not null, (row.Label ?? "")))
+                    if (row is null || !IsValidId((row.Id ?? "")) || areaIds.Contains((row.Id ?? "")) || row.Label is null)
                     {
                         throw Contract("invalid allowed area");
                     }

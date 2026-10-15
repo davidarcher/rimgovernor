@@ -189,7 +189,6 @@ public static partial class BridgeFunctions
                 || seen.Contains((row.Id ?? ""))
                 || row.Snapshot is not null
                 || (row.ShapeToken is not null && !IsValidId((row.ShapeToken ?? "")))
-                || !Diagnostic(row.Blocker is not null, (row.Blocker ?? ""))
                 || (row.ExcludedCells is not null && row.MissingCells is not null && row.ExcludedCells.GetValueOrDefault() > row.MissingCells.GetValueOrDefault()))
             {
                 throw Contract("invalid Home coverage target");

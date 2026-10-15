@@ -58,8 +58,7 @@ internal sealed class FacadeActionsWriter(INativeFacade facade) : IActionsWriter
                     ActionReceipt(receipt, identity);
                     break;
                 case PbOperations.ActionResultOutcome.RefusedCase { Value: var refused }:
-                    if (!BridgeFunctions.Diagnostic(refused.Reason is not null, refused.Reason ?? "")
-                        || (int)refused.RefusalClass.GetValueOrDefault() < (int)PbCommon.RefusalClass.Unspecified
+                    if ((int)refused.RefusalClass.GetValueOrDefault() < (int)PbCommon.RefusalClass.Unspecified
                         || (int)refused.RefusalClass.GetValueOrDefault() > (int)PbCommon.RefusalClass.Unknown)
                     {
                         throw BridgeFunctions.Contract("action refusal invalid");

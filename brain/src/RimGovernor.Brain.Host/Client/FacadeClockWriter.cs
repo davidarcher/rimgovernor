@@ -177,10 +177,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
                     refused = FacadeNativeClient.Failure(failure) as BridgeRefusedException;
                     break;
                 case PbClock.ControlReplyOutcome.LongEventPendingCase { Value: var pending }:
-                    if (!BridgeFunctions.Diagnostic(pending.Detail is not null, pending.Detail ?? ""))
-                    {
-                        throw BridgeFunctions.Contract("invalid clock pending result");
-                    }
                     return reply;
                 case PbClock.ControlReplyOutcome.ReceiptCase { Value: var receipt }:
                     BridgeFunctions.ClockReceipt(receipt, pre.Identity, pre.Attempt, pre.ExpectedGeneration.GetValueOrDefault());

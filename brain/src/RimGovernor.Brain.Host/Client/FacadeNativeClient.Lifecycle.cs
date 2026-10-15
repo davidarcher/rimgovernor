@@ -86,8 +86,7 @@ internal sealed partial class FacadeNativeClient
                 break;
             case PbLifecycle.LoadReplyOutcome.PendingCase { Value: var pending }:
                 if (pending.RequestId is null
-                    || (requestId is not null && pending.RequestId != requestId)
-                    || !Diagnostic(pending.Detail is not null, pending.Detail ?? ""))
+                    || (requestId is not null && pending.RequestId != requestId))
                 {
                     throw Contract("invalid load pending");
                 }
@@ -95,8 +94,7 @@ internal sealed partial class FacadeNativeClient
                 break;
             case PbLifecycle.LoadReplyOutcome.SupersededCase { Value: var superseded }:
                 if (superseded.RequestId is null
-                    || (requestId is not null && superseded.RequestId != requestId)
-                    || !Diagnostic(superseded.Detail is not null, superseded.Detail ?? ""))
+                    || (requestId is not null && superseded.RequestId != requestId))
                 {
                     throw Contract("invalid load superseded");
                 }
@@ -195,7 +193,6 @@ internal sealed partial class FacadeNativeClient
             case PbLifecycle.NewColonyReplyOutcome.PendingCase { Value: var pending }:
                 if (pending.RequestId is null
                     || (requestId is not null && pending.RequestId != requestId)
-                    || !Diagnostic(pending.Detail is not null, pending.Detail ?? "")
                     || pending.Phase is not { } phase
                     || phase == PbLifecycle.NewColonyPhase.Unspecified
                     || !Enum.IsDefined(phase))
@@ -206,8 +203,7 @@ internal sealed partial class FacadeNativeClient
                 break;
             case PbLifecycle.NewColonyReplyOutcome.SupersededCase { Value: var superseded }:
                 if (superseded.RequestId is null
-                    || (requestId is not null && superseded.RequestId != requestId)
-                    || !Diagnostic(superseded.Detail is not null, superseded.Detail ?? ""))
+                    || (requestId is not null && superseded.RequestId != requestId))
                 {
                     throw Contract("invalid new colony superseded");
                 }

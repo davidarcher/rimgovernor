@@ -119,7 +119,7 @@ public static partial class BridgeFunctions
                 ValidateFailure(reply.Outcome?.Failure);
                 return;
             case ControlReplyOutcome.LongEventPendingCase:
-                if (reply.Outcome?.LongEventPending is { } pending && Diagnostic(pending.Detail is not null, (pending.Detail ?? "")))
+                if (reply.Outcome?.LongEventPending is { } pending)
                 {
                     return;
                 }

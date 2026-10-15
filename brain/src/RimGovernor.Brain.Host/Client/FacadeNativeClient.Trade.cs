@@ -71,7 +71,6 @@ internal sealed partial class FacadeNativeClient
         foreach (var row in v.PassingShips)
         {
             if (row is null || !IsValidId(row.Id ?? "") || seen.Contains(row.Id!) || row.Trader is null
-                || !Diagnostic(row.TraderKind is not null, row.TraderKind ?? "") || !Diagnostic(row.FactionId is not null, row.FactionId ?? "")
                 || (row.DepartureTick is { } departure && departure < v.Context.Tick))
             {
                 throw Contract("invalid passing ship");
@@ -312,11 +311,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("trade sheet world or token mismatch");
         }
 
-        if (!Diagnostic(v.DealSignature is not null, v.DealSignature ?? ""))
-        {
-            throw Contract("trade sheet deal signature invalid");
-        }
-
         TradeValidateTarget(v.Target, identity);
         var header = new TradeSheetRead
         {
@@ -358,11 +352,6 @@ internal sealed partial class FacadeNativeClient
             throw Contract("invalid trade sheet line");
         }
 
-        if (!Diagnostic(v.Stuff is not null, v.Stuff ?? ""))
-        {
-            throw Contract("trade sheet line text invalid");
-        }
-
         if ((v.ColonyCount ?? 0) < 0 || (v.TraderCount ?? 0) < 0)
         {
             throw Contract("trade sheet line count negative");
@@ -375,15 +364,14 @@ internal sealed partial class FacadeNativeClient
             throw Contract("pawn facts on a non-pawn trade line");
         }
 
-        if ((pawn && (v.ThingId is not null || v.Quality is not null)) || !Diagnostic(v.ThingId is not null, v.ThingId ?? "")
-            || (v.Quality is { } quality && !ValidQuality(quality)) || !Diagnostic(v.ZoneId is not null, v.ZoneId ?? "")
+        if ((pawn && (v.ThingId is not null || v.Quality is not null))
+            || (v.Quality is { } quality && !ValidQuality(quality))
             || (v.HitPointsFraction is { } hitPoints && !(hitPoints >= 0 && hitPoints <= 1)))
         {
             throw Contract("invalid trade sheet thing facts");
         }
 
-        if (!Diagnostic(v.PawnId is not null, v.PawnId ?? "") || !Diagnostic(v.PawnGender is not null, v.PawnGender ?? "") || !Diagnostic(v.GuestStatus is not null, v.GuestStatus ?? "")
-            || (v.ExtraHomeFaction is not null && !IsValidId(v.ExtraHomeFaction.Id ?? "")) || (v.ExtraHostFaction is not null && !IsValidId(v.ExtraHostFaction.Id ?? "")))
+        if ((v.ExtraHomeFaction is not null && !IsValidId(v.ExtraHomeFaction.Id ?? "")) || (v.ExtraHostFaction is not null && !IsValidId(v.ExtraHostFaction.Id ?? "")))
         {
             throw Contract("trade sheet pawn id invalid");
         }
@@ -495,7 +483,7 @@ internal sealed partial class FacadeNativeClient
                 throw Contract("invalid trader row");
             }
 
-            if (!Diagnostic(row.Kind is not null, row.Kind ?? "") || !OptionalRef(row.Faction) || !Diagnostic(row.Reason is not null, row.Reason ?? "")
+            if (!OptionalRef(row.Faction)
                 || row.CanTrade is null || row.Travelling is null)
             {
                 throw Contract("invalid trader row text");

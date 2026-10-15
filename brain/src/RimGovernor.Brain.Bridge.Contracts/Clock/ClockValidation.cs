@@ -191,7 +191,7 @@ public static partial class BridgeFunctions
         {
             throw Contract("clock status facts missing");
         }
-        if (!Diagnostic(s.WatcherError is not null, (s.WatcherError ?? "")) || (s.MaxProbeTickGap is not null && s.MaxProbeTickGap.GetValueOrDefault() < 0))
+        if ((s.MaxProbeTickGap is not null && s.MaxProbeTickGap.GetValueOrDefault() < 0))
         {
             throw Contract("clock status diagnostics");
         }
@@ -200,14 +200,13 @@ public static partial class BridgeFunctions
             case StatusState.RunningCase:
                 break;
             case StatusState.StoppingCase { Value: var stopping }:
-                if (stopping.PendingReason is null || !Diagnostic(stopping.Detail is not null, (stopping.Detail ?? "")) || stopping.ActualPaused is null)
+                if (stopping.PendingReason is null || stopping.ActualPaused is null)
                 {
                     throw Contract("missing stopping facts");
                 }
                 break;
             case StatusState.StoppedCase { Value: var stopped }:
                 if (stopped.Reason is null
-                    || !Diagnostic(stopped.Detail is not null, (stopped.Detail ?? ""))
                     || stopped.ActualPaused is null
                     || stopped.PauseVerified is null
                     || stopped.PauseRequested is null
@@ -233,7 +232,7 @@ public static partial class BridgeFunctions
         }
         foreach (var v in s.BaselineAlerts)
         {
-            if (!IsValidId((v.Key ?? "")) || !Diagnostic(v.Label is not null, (v.Label ?? "")) || !Diagnostic(v.Priority is not null, (v.Priority ?? "")))
+            if (!IsValidId((v.Key ?? "")))
             {
                 throw Contract("clock alert evidence");
             }
@@ -242,8 +241,6 @@ public static partial class BridgeFunctions
         {
             if (v.Pawn is null
                 || !IsValidId((v.Pawn.PawnId ?? ""))
-                || !Diagnostic(v.Pawn.Name is not null, (v.Pawn.Name ?? ""))
-                || !Diagnostic(v.Pawn.Reason is not null, (v.Pawn.Reason ?? ""))
                 || v.Suppression is null
                 || v.NewWound is null)
             {
@@ -298,10 +295,6 @@ public static partial class BridgeFunctions
                 }
                 break;
             case ControlReceiptOutcome.UncertainCase { Value: var uncertain }:
-                if (!Diagnostic(uncertain.Detail is not null, (uncertain.Detail ?? "")))
-                {
-                    throw Contract("missing uncertain clock");
-                }
                 if (uncertain.LastObserved is not null)
                 {
                     ClockStatus(uncertain.LastObserved, identity);
