@@ -198,7 +198,9 @@ public static partial class PolicyFunctions
                     // Reuse the existing fixed-batch material feasibility owner, including alternatives within slots.
                     var material = SelectLedgerMaterials([new(bench.Id, new OrderSpec { Recipe = recipe.Name, Mode = BillMode.GearBatch, Target = 1 })],
                         new(facts.WorkAdmission.Recipes, demand.MaterialAvailability));
-                    if (material.Selected.Count > 0) return (ServiceCoverage.Adequate, []);
+                    if (material.Selected.Count > 0) return excluded.Length == 0
+                        ? (ServiceCoverage.Adequate, [])
+                        : (ServiceCoverage.Unknown, ["replacement_throughput_not_established_by_recipe_eligibility"]);
                     if (material.GenerationTruncated || material.Comparison.SearchTruncated || material.Comparison.Findings.Count > 0
                         || !demand.MaterialAvailability.IsKnown) unknown = true;
                 }

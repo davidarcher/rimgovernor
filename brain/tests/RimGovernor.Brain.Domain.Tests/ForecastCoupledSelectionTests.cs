@@ -97,6 +97,25 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal(result.BaselineVector, result.SelectedVector);
     }
 
+    [Theory]
+    [InlineData("graph", false)]
+    [InlineData("cost", true)]
+    [InlineData("claim", true)]
+    public void RedundantGraphRootsAreSkippedButDirectEffectsAndClaimsAreEvaluated(string effect, bool evaluatePair)
+    {
+        var facts = Review();
+        var candidates = facts.CoupledAlternatives!;
+        var root = candidates.Alternatives.First(c => c.ActivityCompletions.Count == 1
+            && candidates.Context.NeedTasks.Any(n => n.Task == c.ActivityCompletions[0]));
+        root = root with { Outcome = null, ExclusiveOutcome = "",
+            AlternativeLaborCost = effect == "cost" ? Known(0d) : default,
+            MaterialClaims = effect == "claim" ? [new(new("Rice"), Known(0d), default)] : [] };
+        facts = facts with { CoupledAlternatives = candidates with { Alternatives = [root with { Id = "a" }, root with { Id = "b" }] } };
+        var selected = Select(facts);
+        Assert.Equal(evaluatePair, selected.Rejected.Any(e => e.Commitments.Count == 2));
+        Assert.Contains(selected.Selected.Plan.Allocations, a => a.Activity == root.ActivityCompletions[0]);
+    }
+
     [Fact]
     public void DelayedRealizationsRetainPhysicalOutcomeExclusions()
     {

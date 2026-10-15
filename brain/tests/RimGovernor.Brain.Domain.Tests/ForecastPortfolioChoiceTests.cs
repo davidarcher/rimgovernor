@@ -26,7 +26,7 @@ public sealed class ForecastPortfolioChoiceTests
         Assert.True(selected.SelectedVector.Urgent[1].Value < selected.BaselineVector.Urgent[1].Value);
         return (selected, Assert.IsType<PawnActivities>(StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100)));
     }
-    private static RoundsFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
+    internal static RoundsFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: .1, fall: .001);
         var roster = helper ? WorkResourceTestFacts.Create("pawn", "helper") : WorkResourceTestFacts.Create("pawn");
@@ -53,7 +53,7 @@ public sealed class ForecastPortfolioChoiceTests
         };
         return ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
     }
-    private static CoupledFoodConversion Conversion(string source, string resource, string recipe, double work) =>
+    internal static CoupledFoodConversion Conversion(string source, string resource, string recipe, double work) =>
         new(source, "pawn", "bench", recipe, resource, 4, "Meal", 1, Source, Bench, Destination,
             Known(0d), Known(1d), Known(work), Known(1d), 4, 4)
         { RequiresHarvest = false, Bill = "bill/" + recipe, WorkGiver = "Cook" };
@@ -97,7 +97,7 @@ public sealed class ForecastPortfolioChoiceTests
         var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
         var roots = generated.Alternatives.Where(c => c.ActivityCompletions.Count == 1
                 && generated.Context.NeedTasks.Any(n => n.Task == c.ActivityCompletions[0] && n.Kind == "food"))
-            .GroupBy(c => c.ExclusiveOutcome).OrderBy(g => g.Key, StringComparer.Ordinal)
+            .GroupBy(c => generated.Context.NeedTasks.Single(n => n.Task == c.ActivityCompletions[0]).FreshFrom).OrderBy(g => g.Key, StringComparer.Ordinal)
             .Select(g => g.OrderBy(c => c.Id, StringComparer.Ordinal).First()).Take(2).ToArray();
         Assert.Equal(2, roots.Length);
         generated = generated with { Alternatives = EquatableArray.From(roots) };
@@ -123,7 +123,7 @@ public sealed class ForecastPortfolioChoiceTests
         }
         Assert.NotNull(best);
         Assert.Equal(best.Urgent, selected.SelectedVector.Urgent);
-        Assert.Equal(2, selected.Selection.Selected.Length);
+        Assert.Equal(2, selected.Selected.Plan.Allocations.Count(a => generated.Context.NeedTasks.Any(n => n.Task == a.Activity)));
     }
 
     private static int Lexicographic(EquatableArray<Fact<double>> left, EquatableArray<Fact<double>> right)

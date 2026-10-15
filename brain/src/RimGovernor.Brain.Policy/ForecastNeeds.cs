@@ -15,7 +15,10 @@ public sealed record ForecastNeedMetric(string Kind, Fact<double> FinalLevel, Fa
 public sealed record ForecastNeedsResult(EquatableArray<ForecastNeedMetric> Needs,
     Fact<double> ThoughtOffsetAtHorizon, Fact<double> MemoryAdjustedMoodTarget,
     ForecastCapacityResult Capacity, EquatableArray<string> Findings)
-{ public ForecastMoodResult? Mood { get; init; } }
+{
+    public ForecastMoodResult? Mood { get; init; }
+    public IReadOnlyDictionary<string, double> UsefulFoodGain { get; init; } = new Dictionary<string, double>();
+}
 public sealed record ForecastNeedsCandidates(EquatableArray<ForecastNeedChoice> Choices,
     EquatableArray<string> Findings, bool Truncated);
 public sealed record ForecastNeedsReview(NeedsForecastRead Observation,
@@ -195,6 +198,7 @@ public static partial class PolicyFunctions
         occupied.AddRange(intervals.Select(c => c.Choice.Occupancy with { End = Known(c.End) }));
         var sleepEnds = SleepServiceEnds(pawn, selected, interruptedAt, findings);
         var metrics = new List<ForecastNeedMetric>();
+        var usefulFood = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var need in pawn.Needs)
         {
             findings.UnionWith(need.Unsupported);
@@ -249,7 +253,10 @@ public static partial class PolicyFunctions
                 level = next;
                 foreach (var eat in intervals.Where(r => r.Choice.Kind == need.Kind && need.Kind == "food"
                     && r.End == to && r.End == r.Choice.End))
-                { waste += Math.Max(0, level + eat.Choice.Gain - 1); level = Math.Min(1, level + eat.Choice.Gain); }
+                {
+                    usefulFood[eat.Choice.Id] = Math.Min(1 - level, eat.Choice.Gain);
+                    waste += Math.Max(0, level + eat.Choice.Gain - 1); level = Math.Min(1, level + eat.Choice.Gain);
+                }
             }
             metrics.Add(new(need.Kind, Known(level), Known(deficit), Known(exposure), Known(waste))
             { ZeroTicks = Known(zero), ThresholdDepthTicks = Known(depth) });
@@ -281,7 +288,7 @@ public static partial class PolicyFunctions
         findings.Add("mental_break_probability_unassessed");
         findings.Add("need_category_and_room_mood_changes_unassessed");
         return new(EquatableArray.From(metrics), thoughtDelta, target, capacity, EquatableArray.From(findings))
-        { Mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt) };
+        { Mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt), UsefulFoodGain = usefulFood };
     }
     /// <summary>One physiological sleep-service projection shared by rest recovery and conditional mood.
     /// Remaining assigned bed time after native waking stays occupied, but is not counted as sleep.</summary>

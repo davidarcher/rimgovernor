@@ -59,4 +59,59 @@ native learning callbacks: quoted recipe work XP and sparring verb XP must match
 the callback amount, and projected level/progress must match post-callback native
 state. The test-only observer never changes callback arguments or issues work.
 Registration/compilation is distinct from an executed native pass; nightly runs
-supply that evidence. No selector, target-floor policy or training writer changes.
+supply that evidence.
+
+## Productive cooking in normal selection
+
+Normal food alternatives attach `ProductiveSkillWork` to supported recipe/pawn/station
+options. `CompareActivityPlans` calls `ForecastProductiveWork` before admitting a
+schedule interval: previous completed callbacks and native decay determine the
+stored level and the native work rate for subsequent work. Decay boundaries split
+work into segments. Completion-only recipe learning counts actual work ticks once;
+travel and waiting earn no XP. Changed durations therefore affect pawn and station
+occupancy, deadlines, ingredient use and the downstream needs trajectory. XP and
+terminal skill have no utility score. A small efficiency improvement can break a
+labor tie only after the existing higher-tier consequences are compared.
+
+Native `CookSpeed` currently depends on a Cooking skill offset before a native
+postprocessing curve. The read substitutes native `SkillNeed_BaseBonus.ValueAtLevel`
+values and invokes native `StatWorker.FinalizeValue`; it copies neither curve nor
+skill-speed formula. It changes no pawn, definition or skill and does not populate
+counterfactual stat-cache entries. This qualification requires exact base worker and
+skill-need types, neutral prefinal multipliers and inspected skill-independent
+postprocessing parts. Hediffs, nonneutral multipliers, conditional modifier hooks,
+custom stat pipelines and unsupported recipes yield absent learning-dependent rates.
+Ordinary observed-rate options remain available, with explicit findings.
+
+Rates hold observed health, equipment, station and environment fixed. In particular,
+observed pawn-cell lighting is not a forecast of future bench lighting. Poisoning,
+future condition changes and causal skill effects on meal mood are unassessed; speed
+is not a safety qualification. The native learning window ends before midnight and
+never exceeds a day. Work outside that window cannot claim learning-dependent
+capacity; later reviews refresh evidence.
+
+The supported investment demand is scheduled ingestion. Every preceding recipe
+whose learning is used to claim a later speedup must have output that actually
+supplies food gain in the shared needs trajectory. Unavoidable native batch remainder
+stays inventory. Ordinary production and terminal incidental learning need no separate
+mandate; speculative reserve learning receives no additional value. Each produced
+lot can serve bounded early/later hunger events, with shared conservation preventing
+double consumption. No recipe unlock or current essential-service failure is required.
+
+The Method retains only selected work-time bounds alongside its existing task intent.
+Fresh recipe bindings must still support those bounds; missing/slower mechanics,
+lost inputs and failed work release the attempt for normal reconsideration. Fresh
+needs can retire an ingestion-only investment at a physical work boundary. Unknown
+observations do not certify recovery, and in-progress work is not cancelled solely
+because hunger temporarily improved. Actual skills and output remain native-owned;
+there is no XP ledger or durable training goal.
+
+`productive_learning` in `coupled_selection.predicted_tasks` explains observed-rate
+versus conditional duration, callback XP, projected before/after levels, accumulated
+gain/decay and native provenance. It is prediction, not completion. Registered
+`production/productive-cooking` starts from prepared demand, verifies native per-level
+rates against actual stat calls, then observes normal journal-owned cooking, real
+learning/output and subsequent work without installing a chosen worker. Pure tests
+cover beneficial/costly no-unlock allocations, deadlines, decay, interruption,
+fresh-demand retirement and journal/wire preservation. Native execution remains
+separate from registration and compilation.

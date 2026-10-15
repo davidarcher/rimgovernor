@@ -36,6 +36,8 @@ public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray
     public string SiteDefinition { get; init; } = "";
     public string SupportDemand { get; init; } = "";
     public string ProductStuff { get; init; } = "";
+    /// <summary>Selected service-time bound; fresh native mechanics must still support it before a later recipe.</summary>
+    public Fact<double> ProductiveWorkTicks { get; init; }
     public bool CompletionMustBeObserved { get; init; }
     public EquatableArray<SelectedActivityInput> Inputs { get; init; }
     public int AttemptsLeft { get; init; } = 3;
@@ -118,6 +120,8 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         foreach (var task in Tasks)
             DomainException.Require(Identity.IsValidText(task.Id) && Orders.Any(o => o.Pawn == task.Pawn && !o.Release)
                 && task.Prerequisites.All(p => p != task.Id && taskIds.Contains(p)) && task.AttemptsLeft is >= 0 and <= 3
+                && (!task.ProductiveWorkTicks.IsKnown || task.Step.Kind == PawnActivityKind.Recipe
+                    && double.IsFinite(task.ProductiveWorkTicks.Value) && task.ProductiveWorkTicks.Value > 0)
                 && task.Inputs.All(i => Identity.IsValidText(i.Resource) && Identity.IsValidText(i.Lot) && i.Count > 0
                     && i.Location is { X: >= 0, Z: >= 0 } && Identity.IsValidText(i.Provenance))
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");

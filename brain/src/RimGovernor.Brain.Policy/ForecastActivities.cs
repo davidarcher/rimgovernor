@@ -28,6 +28,9 @@ public sealed record ForecastActivity(string Id, string Location, string EndLoca
     /// <summary>Alternative realizations of one physical operation cannot execute together.</summary>
     public string ChoiceIdentity { get; init; } = "";
     public string EquipmentLocation { get; init; } = "";
+    /// <summary>Ingestion-owned production: at least some output must satisfy an actual selected food use.
+    /// Native indivisible batch remainder remains inventory, not additional practice value.</summary>
+    public bool RequiresFoodUse { get; init; }
     /// <summary>One physical output per resource at completion; support activities normally have none.</summary>
     public EquatableArray<ForecastActivityYield> Outputs { get; init; }
     /// <summary>Exact resources consumed at service start; delivery-only movement must not consume them again.</summary>
@@ -35,6 +38,7 @@ public sealed record ForecastActivity(string Id, string Location, string EndLoca
 }
 public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks)
 {
+    public RimGovernor.Contracts.Wire.Observations.ProductiveSkillWork? SkillWork { get; init; }
     /// <summary>Exclusive equipment needed throughout service; travel does not transport this equipment.</summary>
     public EquatableArray<string> Equipment { get; init; }
 }
@@ -58,6 +62,7 @@ public sealed record ForecastActivityAllocation(string Activity, string Pawn, do
     double Start, double End, double TravelTicks, double WaitTicks, double WorkTicks,
     double DisplacedLaborTicks, double RecoveryLaborTicks)
 {
+    public ForecastProductiveLearning? Learning { get; init; }
     public double LaborCost => DisplacedLaborTicks + RecoveryLaborTicks;
 }
 public sealed record ForecastActivityPlan(ForecastActivityAllocation[] Allocations, double CompletedAt, double LaborCost)
@@ -81,6 +86,7 @@ public static partial class PolicyFunctions
         var options = problem.Options.ToDictionary(o => (o.Activity, o.Pawn));
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var plans = new Dictionary<string, ForecastActivityPlan>(StringComparer.Ordinal);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
         var expansions = 0;
         var truncated = false;
         if (!problem.Deadline.TryGetValue(out var deadline))
@@ -95,6 +101,11 @@ public static partial class PolicyFunctions
 
         void Search(List<ForecastActivityAllocation> assigned)
         {
+            // Independent DAG traversal orders can reach exactly the same scheduled prefix.
+            // Retain every distinct assignment/time; do not spend the budget expanding identical state twice.
+            var prefix = string.Join(";", assigned.OrderBy(a => a.Activity, StringComparer.Ordinal).Select(a =>
+                FormattableString.Invariant($"{a.Activity}:{a.Pawn}:{a.Depart:R}:{a.Start:R}:{a.End:R}")));
+            if (!visited.Add(prefix)) return;
             if (assigned.Count == tasks.Length)
             {
                 var rows = assigned.OrderBy(a => a.Activity, StringComparer.Ordinal).ToArray();
@@ -155,6 +166,10 @@ public static partial class PolicyFunctions
                                 if (!SpendExpansion()) return;
                                 var arrive = depart + travel;
                                 var start = Math.Max(arrive, serviceReady);
+                                var learning = ForecastProductiveWork(option, assigned, start);
+                                if (!learning.WorkTicks.TryGetValue(out var duration))
+                                { findings.Add("productive_work_unassessed:" + task.Id + ":" + learning.Reason); continue; }
+                                work = duration;
                                 var end = start + work;
                                 var cost = (end - depart) * rate + recovery;
                                 if (!double.IsFinite(end) || !double.IsFinite(cost)) throw new DomainException("activity estimate overflow");
@@ -165,7 +180,7 @@ public static partial class PolicyFunctions
                                     || shared.Any(a => start < a.End && a.Start < end && end > start && a.End > a.Start))
                                 { findings.Add("equipment_occupied:" + task.Id + ":" + pawn.Pawn); continue; }
                                 assigned.Add(new(task.Id, pawn.Pawn, depart, arrive, start, end, travel, start - arrive, work,
-                                    (end - depart) * rate, recovery));
+                                    (end - depart) * rate, recovery) { Learning = learning.Evidence });
                                 Search(assigned);
                                 assigned.RemoveAt(assigned.Count - 1);
                                 if (truncated) return;

@@ -29,7 +29,8 @@ public sealed partial class Worker
                     _advanced = true;
                     continue;
                 }
-                var next = PolicyFunctions.ContinueCoordinatedActivity(method.Batch, method.Needed, read);
+                var needed = PolicyFunctions.ReviewProductiveActivityNeed(method.Batch, method.Needed, read);
+                var next = PolicyFunctions.ContinueCoordinatedActivity(method.Batch, needed, read);
                 if (method.Batch.Orders.Any(o => o.Method.StartsWith("coupled-", StringComparison.Ordinal)))
                     Tel.Decide(new Decision { Kind = "coupled_observed", Component = "worker", Target = method.Method.Value,
                         Verdict = next is null ? "continue" : "transition", Reason = "native_task_evidence",

@@ -101,6 +101,47 @@ public sealed class FoodCookingContinuationTests
     }
 
     [Fact]
+    public void ProductiveDurationSurvivesJournalAndFreshMechanicsMustStillSupportNextWork()
+    {
+        var supply = Select(Cook());
+        supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
+            ? t with { ProductiveWorkTicks = Known(100d) } : t)) };
+        BridgeFunctions.RegisterIntentKinds();
+        var action = DomainAction.NewPawnActivitiesAction(new("productive-action"), supply);
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
+        using var json = JsonDocument.Parse(stream.ToArray());
+        var decoded = Codecs.Default.Read<DomainAction>(json.RootElement);
+        var intent = BridgeFunctions.IntentAction("productive-action", decoded).Intent!.PawnActivities!.Batch!;
+        Assert.Equal(supply.Tasks, intent.Tasks);
+        var recipe = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
+        var binding = new ActivityTaskBinding(recipe.Id, recipe.Step with { Recipe = recipe.Step.Recipe! with { Ingredients = [new("observed-rice", 10)] } });
+        foreach (var estimate in new[] { Unknown<double>(), Known(101d) })
+            Assert.True(ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding with { ProductiveWorkTicks = estimate }]))!.Orders[0].Release);
+        Assert.False(ContinueCoordinatedActivity(intent, Known(true), Done(intent, bindings: [binding with { ProductiveWorkTicks = Known(100d) }]))!.Orders[0].Release);
+        var wire = WireJson.Deserialize<ActivityTaskRequest>(WireJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, intent)));
+        Assert.Equal(intent.Tasks, wire.Batch.Tasks);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void FreshDemandCanRetireProductiveWorkButUnknownDoesNotCertifyRecovery(bool known)
+    {
+        var supply = Select(Cook());
+        supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
+            ? t with { ProductiveWorkTicks = Known(100d) } : t).Append(new("eat", "pawn", [],
+                new(PawnActivityKind.Eat, "meal", "", "", 1, 500), new(8, 9), 200))) };
+        var read = Done(supply) with { Needs = new() { Tick = 200, Pawns = [new() { Pawn = "pawn", State = "eligible",
+            Needs = [new("food", known ? Known(1d) : default, Known(0d), Known(.3), Known(1d))] }] } };
+        var need = ReviewProductiveActivityNeed(supply, Known(true), read);
+        Assert.Equal(Known(!known), need);
+        if (known) Assert.True(ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);
+        var active = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p with { Execution = p.Execution! with { State = "started" } })) };
+        Assert.Equal(Known(true), ReviewProductiveActivityNeed(supply, Known(true), active));
+    }
+
+    [Fact]
     public void CookingChoiceReleasesPreparedHelperButExpensiveRecipeKeepsRawHelper()
     {
         var batch = Harvest();

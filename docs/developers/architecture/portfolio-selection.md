@@ -8,6 +8,13 @@ the WorkAssignments Concern and existing Method journal. Hands remains the
 only order writer. The path is enabled for observed food, needs, existing
 construction sites, planned shelter completion and clothing production.
 
+Supported cooking alternatives carry native learning and per-level work-rate
+evidence into the shared allocator. Subsequent demanded meals can take less time
+after learning, without a skill target or recipe unlock. The scheduler charges
+work once and the comparator values changed consequences, never XP itself. See
+[productive learning](../contracts/skill-learning.md#productive-cooking-in-normal-selection)
+for qualified native mechanics, demand limits and observed continuation.
+
 [Support providers](../contracts/support-work.md) add cleaning and exact
 demand-driven delivery to that same composition and comparison. Native room
 effects and care timing stay separate from labor, with unknown effects explicit.
@@ -65,6 +72,14 @@ expansions including scheduled evaluations, with at most 4,096 per schedule
 search and 32 selected activities. Stable ordering makes replay deterministic;
 the result is best found within bounds. Partial bundles remain expandable even
 when neither constituent has isolated benefit.
+
+Search skips an already visited exact scheduled prefix and omits a redundant
+graph-only root when another selected root already contains its entire task
+closure. Roots with direct consequences or claims retain separate evaluation.
+An optimistic physical-lot quantity check rejects impossible bundles before
+assignment search; timed consumption, expiry and reservations still use the
+shared trajectory. These reductions preserve physical choices without a second
+planner or a persistent forecast cache.
 
 Physical demand, explicit alternative choices and physical effects have separate
 identities. Different sources may contribute to the same hunger demand.

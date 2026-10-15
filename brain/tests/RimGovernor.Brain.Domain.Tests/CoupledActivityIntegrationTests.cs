@@ -147,8 +147,7 @@ public sealed class CoupledActivityIntegrationTests
         var owner = Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainWorkLedger);
         var plan = new PlanSpec(new("selected"), new(1), [DomainAction.NewPawnActivitiesAction(new("selected-action"), batch)]);
         journal.CommitMethod(owner.Standard.Id, owner.Revision, new("coupled-observed"), plan, ct);
-        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(batch.Tasks),
-            System.Text.Json.JsonSerializer.Serialize(Send(journal, plan, 100, ct).Tasks));
+        Assert.Equal(batch.Tasks.ToArray(), Send(journal, plan, 100, ct).Tasks.ToArray());
         // Acceptance is not completion. Without observed progress the selected graph is unchanged.
         Assert.Null(ContinueCoordinatedActivity(batch, Known(true), Observe(batch, "started", 101)));
         var delivery = Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver);

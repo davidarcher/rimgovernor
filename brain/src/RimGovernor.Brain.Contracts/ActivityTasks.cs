@@ -10,6 +10,7 @@ public sealed record ActivityTaskRequest(Identity Identity, PawnActivities Batch
 public sealed record ActivityTaskBinding(string Task, PawnActivityStep Step)
 {
     public Fact<int> RemainingCount { get; init; }
+    public Fact<double> ProductiveWorkTicks { get; init; }
 }
 public sealed record ActivityTaskObservation(string Pawn, Operations.PawnActivityExecution? Execution);
 public sealed record ActivityTaskRead
@@ -23,4 +24,5 @@ public sealed record ActivityTaskRead
     public EquatableArray<ActivityTaskObservation> Pawns { get; init; }
     public EquatableArray<string> SatisfiedTasks { get; init; }
     public FoodActivityRead? Food { get; init; }
+    public NeedsForecastRead? Needs { get; init; }
 }

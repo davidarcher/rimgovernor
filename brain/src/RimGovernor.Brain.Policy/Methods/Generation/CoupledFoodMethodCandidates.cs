@@ -113,12 +113,17 @@ internal static partial class FoodMethodCandidates
                 var products = group.GroupBy(c => c.Product).Select(g => new ForecastActivityYield(new(g.Key), Known((double)g.First().ProductCount))
                     { Lot = cook, Perishable = true, FreshTicks = Fresh(g.Key) }).ToArray();
                 tasks.Add(new(cook, Location(first.BenchCell), Location(first.BenchCell), previous is null ? [] : [previous])
-                    { Outputs = EquatableArray.From(products) });
+                    { Outputs = EquatableArray.From(products), RequiresFoodUse = true });
                 tasks.Add(new(deliver, Location(first.BenchCell), Location(first.Destination), [])
                     { Inputs = EquatableArray.From(products), Outputs = EquatableArray.From(products) });
                 foreach (var row in group.GroupBy(c => c.Pawn).Select(g => g.First()))
                 {
-                    if (row.CanCook) Option(cook, row.Pawn, row.WorkTicks, row.Bench);
+                    if (row.CanCook)
+                    {
+                        options.Add(new(cook, row.Pawn, row.WorkTicks, Known(0d)) { Equipment = [row.Bench], SkillWork = row.SkillWork });
+                        if (row.SkillWork is null) findings.Add("productive_learning_unassessed:" + row.Pawn + ":" + row.Recipe);
+                        findings.Add("cooking_poisoning_and_future_environment_unassessed");
+                    }
                     if (row.CanDeliver) Option(deliver, row.Pawn, row.DeliveryTicks);
                     bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.BenchCell)
                     { Resource = row.Ingredient, Source = row.BenchCell, Recipe = new(row.Bill, row.Recipe, [new("observed-output", row.IngredientCount)]) { Resource = row.Ingredient } };
@@ -200,21 +205,23 @@ internal static partial class FoodMethodCandidates
                 var food = pawn?.Needs.SingleOrDefault(n => n.Kind == "food");
                 if (food is null || !food.Level.IsKnown || !food.FallPerTick.IsKnown || !food.Threshold.IsKnown) continue;
                 var serving = Math.Min((int)units, use.MaxCount > 0 ? use.MaxCount : (int)Math.Ceiling(1 / gain));
-                var previous = supply; var left = (int)units;
-                // Recurring consumption remains a dependency chain, with quantities and food shared by all eaters.
-                for (var meal = 0; meal < 3 && left > 0; meal++)
+                // Each produced lot can serve an early or later demand event. Pinning every single-meal
+                // recipe to event zero hid productive multi-session allocations and forced overfeeding.
+                // Shared stock conservation limits how many choices can consume this physical lot.
+                for (var meal = 0; meal < 3; meal++)
                 {
                     if (!Space(1)) break;
-                    var count = Math.Min(left, serving); var id = supply + "/eat/" + use.Pawn + "/" + meal;
+                    var count = Math.Min((int)units, serving); var id = supply + "/eat/" + use.Pawn + "/" + meal;
                     var earliest = food.FallPerTick.Value > 0 ? Math.Max(0,
                         (food.Level.Value - food.Threshold.Value + meal * serving * gain) / food.FallPerTick.Value - use.ChewTicks.Value) : 0;
-                    tasks.Add(new(id, Location(cell), Location(cell), [previous])
+                    if (earliest + use.ChewTicks.Value > horizon) continue;
+                    tasks.Add(new(id, Location(cell), Location(cell), [supply])
                     { Inputs = [new(resource, Known((double)count)) { Lot = freshFrom }], NotBefore = earliest });
                     Option(id, use.Pawn, use.ChewTicks);
-                    bindings[(id, use.Pawn)] = new(id, use.Pawn, [previous], PawnActivityKind.Eat, "observed-output", "", "", count, deadline, cell) { Resource = resource.Value, Source = cell };
+                    bindings[(id, use.Pawn)] = new(id, use.Pawn, [supply], PawnActivityKind.Eat, "observed-output", "", "", count, deadline, cell) { Resource = resource.Value, Source = cell };
                     needTasks.Add(new(id, use.Pawn, "food", Location(cell), resource, count, Known(count * gain), [])
                     { FoodReady = supply, FreshFrom = freshFrom, FreshTicks = use.FreshTicks, AvailableCount = quantity, ThoughtsComplete = false });
-                    Outcome(id, id); previous = id; left -= count;
+                    Outcome(id, id);
                 }
             }
         }

@@ -26,6 +26,14 @@ again as soon as the bot is off.
 
 ## Watch the governor
 
+Auto can account for learning while assigning useful cooking. A slower cook may
+be worth using when the experience makes later needed meals cheaper to prepare;
+urgent meals or a better alternative can favor the experienced cook instead.
+There is no automatic Cooking target or reward for producing unwanted meals.
+This currently uses qualified native cooking-speed and learning observations
+within a short horizon. Missing mechanics remain visible limitations, and
+predicted improvement is not proof that the pawn completed the work.
+
 The Observe tab reads the running game and needs nothing else installed. Its header shows
 whether the brain answers, the game tick and pause state, and running counts of warnings and
 errors. Play first; before the game is up the tab says so. Rows come from the brain's log, so

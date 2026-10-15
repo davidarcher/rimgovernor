@@ -265,7 +265,7 @@ public sealed class ForecastCoupledTests
         var generated = facts.CoupledAlternatives!;
         Assert.DoesNotContain(generated.Context.Activities.Activities, t => t.Id.StartsWith("harvest/", StringComparison.Ordinal));
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);
-        var firstMeal = generated.Context.NeedTasks.Single(n => n.FoodReady == batch.ActivityCompletions[0]);
+        var firstMeal = generated.Context.NeedTasks.First(n => n.FoodReady == batch.ActivityCompletions[0]);
         var meal = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(firstMeal.Task));
         var result = Evaluate(facts, batch, meal).Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)).ToArray();
         Assert.NotEmpty(result);

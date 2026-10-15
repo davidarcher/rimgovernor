@@ -66,6 +66,7 @@ internal static class NativeCoupledFood
                     if (recipe.workTableSpeedStat != null) speed *= bench.GetStatValue(recipe.workTableSpeedStat);
                     canCook &= speed > 0;
                     if (!canCook && !canHaul) continue;
+                    var skillWork = canCook ? NativeProductiveSkill.Read(pawn, recipe, bench) : null;
                     foreach (var product in recipe.products)
                     {
                         var destinations = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => g.Settings.filter.Allows(product.thingDef))
@@ -90,7 +91,8 @@ internal static class NativeCoupledFood
                                 raw.defName, (int)required, product.thingDef.defName, product.count,
                                 new(source.Position.x, source.Position.z), new(bench.InteractionCell.x, bench.InteractionCell.z), new(destination.x, destination.z),
                                 Fact.Known((double)approach.TotalCost), Fact.Known((double)supply.TotalCost),
-                                speed > 0 ? Fact.Known(recipe.WorkAmountTotal(null) / (double)speed) : default, deliveryTicks, capacity, availableInput) { WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanCook = canCook, CanSupply = canHaul, CanDeliver = canHaul && productCapacity > 0 });
+                                speed > 0 ? Fact.Known(recipe.WorkAmountTotal(null) / (double)speed) : default, deliveryTicks, capacity, availableInput) { WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanCook = canCook, CanSupply = canHaul, CanDeliver = canHaul && productCapacity > 0,
+                                    SkillWork = skillWork });
                             AddUses(product.thingDef, new(destination.x, destination.z));
                         }
                     }

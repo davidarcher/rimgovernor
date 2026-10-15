@@ -16,6 +16,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             ReadStep(t.GetProperty("Step")),
             new(t.GetProperty("X").GetInt32(), t.GetProperty("Z").GetInt32()), t.GetProperty("DepartTick").GetInt64())
             { Resource = t.Str("Resource"), SupportDemand = t.Str("SupportDemand"), ProductStuff = t.Str("ProductStuff"), SiteDefinition = t.Str("SiteDefinition"), CompletionMustBeObserved = t.GetProperty("CompletionMustBeObserved").GetBoolean(), AttemptsLeft = t.GetProperty("AttemptsLeft").GetInt32(),
+                ProductiveWorkTicks = t.GetProperty("ProductiveWorkTicks") is var work && work.ValueKind != JsonValueKind.Null ? Fact.Known(work.GetDouble()) : default,
                 Inputs = EquatableArray.From(t.GetProperty("Inputs").EnumerateArray().Select(i => new SelectedActivityInput(
                     i.Str("Resource"), i.Str("Lot"), i.GetProperty("Count").GetInt32(),
                     new(i.GetProperty("X").GetInt32(), i.GetProperty("Z").GetInt32()), i.Str("Provenance"))
@@ -53,6 +54,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             w.WriteNumber("X", task.Location.X); w.WriteNumber("Z", task.Location.Z); w.WriteNumber("DepartTick", task.DepartTick);
             w.WriteString("Resource", task.Resource); w.WriteString("SiteDefinition", task.SiteDefinition); w.WriteNumber("AttemptsLeft", task.AttemptsLeft);
             w.WriteString("ProductStuff", task.ProductStuff);
+            if (task.ProductiveWorkTicks.TryGetValue(out var work)) w.WriteNumber("ProductiveWorkTicks", work); else w.WriteNull("ProductiveWorkTicks");
             w.WriteString("SupportDemand", task.SupportDemand);
             w.WriteBoolean("CompletionMustBeObserved", task.CompletionMustBeObserved);
             w.WriteStartArray("Inputs");

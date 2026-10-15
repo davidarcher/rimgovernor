@@ -57,7 +57,16 @@ public sealed partial class Rounder
                     } : null
                 }).ToArray(),
                 ["predicted_tasks"] = selection.Selected.Plan.Allocations.Select(a => new Dictionary<string, object?>
-                { ["task"] = a.Activity, ["pawn"] = a.Pawn, ["start"] = a.Start, ["end"] = a.End }).ToArray()
+                { ["task"] = a.Activity, ["pawn"] = a.Pawn, ["start"] = a.Start, ["end"] = a.End,
+                    ["productive_learning"] = a.Learning is { } learning ? new Dictionary<string, object?>
+                    {
+                        ["skill"] = learning.Skill, ["observed_rate_work_ticks"] = learning.ObservedWorkTicks,
+                        ["conditional_work_ticks"] = learning.WorkTicks, ["raw_xp"] = Number(learning.Callback.RawXp),
+                        ["before_level"] = learning.Before.Level.IsKnown ? learning.Before.Level.Value : null,
+                        ["after_level"] = learning.After.Level.IsKnown ? learning.After.Level.Value : null,
+                        ["applied_gain"] = Number(learning.After.AppliedGain), ["decay_loss"] = Number(learning.After.DecayLoss),
+                        ["provenance"] = learning.Provenance
+                    } : null }).ToArray()
             }
         });
 

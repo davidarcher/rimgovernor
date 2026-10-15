@@ -30,7 +30,11 @@ Single-dependency checks remove one procedure doctor, cooking worker/bench,
 reachable logistics worker or power generator at a time. Procedure alternatives
 use the existing surgery acceptance rule; meal recipes use native skill floors
 and the existing fixed-batch material feasibility owner. Multiple recipes or
-workers can resolve a capability gap. Journal pawn claims are unavailable to
+workers can resolve recipe eligibility. Eligibility alone does not certify replacement
+throughput: successful alternate eligibility retains an explicit unknown stress
+result until service capacity is established. Normal productive cooking comparison
+uses [native skill-dependent durations](skill-learning.md#productive-cooking-in-normal-selection)
+for actual scheduled meals. Journal pawn claims are unavailable to
 cooking capability checks. Quest-protected patients produce no surgery goals.
 Checks have a deterministic scenario budget (128 by default), expose truncation,
 and never enumerate combinations or assign failure probabilities.

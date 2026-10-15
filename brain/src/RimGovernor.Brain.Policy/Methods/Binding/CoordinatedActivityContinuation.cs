@@ -53,7 +53,8 @@ internal static partial class CoordinatedActivityBinding
             }
             if (next.Prerequisites.Count != 0 || next.DepartTick > tick)
             { orders.Add(order); continue; }
-            var binding = read.Bindings.Where(b => b.Task == next.Id && CompatibleActivityBinding(next, b.Step))
+            var binding = read.Bindings.Where(b => b.Task == next.Id && CompatibleActivityBinding(next, b.Step)
+                    && (!next.ProductiveWorkTicks.IsKnown || b.ProductiveWorkTicks.IsKnown && b.ProductiveWorkTicks.Value <= Math.Ceiling(next.ProductiveWorkTicks.Value)))
                 .OrderBy(b => b.Step.Target, StringComparer.Ordinal).FirstOrDefault();
             if (binding is null)
             {

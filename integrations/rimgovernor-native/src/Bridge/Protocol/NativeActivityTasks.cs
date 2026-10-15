@@ -184,7 +184,15 @@ public sealed class NativeActivityTasks
                         exactIngredients.Add(new(ingredient.GetUniqueLoadID(), take)); remainingIngredients -= take;
                     }
                     var bound = step with { Recipe = recipe with { Ingredients = EquatableArray.From(exactIngredients) } };
-                    if (remainingIngredients == 0 && NativeActivityRecipe.Resolve(pawn, bench, bound, out _, out _, out _)) bindings.Add(new(task.Id, bound));
+                    if (remainingIngredients == 0 && NativeActivityRecipe.Resolve(pawn, bench, bound, out _, out _, out _))
+                    {
+                        var productive = task.ProductiveWorkTicks.IsKnown && bench is Building_WorkTable table
+                            && DefDatabase<RecipeDef>.GetNamedSilentFail(recipe.Recipe) is { } definition
+                            ? NativeProductiveSkill.Read(pawn, definition, table) : null;
+                        var rate = productive?.Rates.SingleOrDefault(r => productive.Learning.StoredLevel == Fact.Known(r.StoredLevel))?.WorkPerTick ?? default;
+                        bindings.Add(new(task.Id, bound) { ProductiveWorkTicks = productive?.WorkAmount.IsKnown == true && rate.IsKnown && rate.Value > 0
+                            ? Fact.Known(Math.Ceiling(productive.WorkAmount.Value / rate.Value)) : default });
+                    }
                 }
             }
         }
@@ -199,6 +207,8 @@ public sealed class NativeActivityTasks
                 Options = EquatableArray.From(reads.SelectMany(r => r.Options)) };
         }
         return new() { Context = context, Known = true, Truncated = truncated, Food = food,
+            Needs = request.Batch.Tasks.Any(t => t.ProductiveWorkTicks.IsKnown)
+                ? NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.ToList()) : null,
             Pawns = EquatableArray.From(participants), Bindings = EquatableArray.From(bindings), SatisfiedTasks = EquatableArray.From(satisfied) };
     }
 }

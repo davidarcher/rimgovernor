@@ -105,12 +105,13 @@ public sealed class EssentialServicesTests
     private static ProductionRecipe Recipe(string id, int floor) => new() { Name = id, Role = RecipeRole.OrdinaryMeal, Available = Known(true), CookSkillFloor = Known(floor) };
 
     [Fact]
-    public void FoodAlternateRecipeResolvesWorkerGapWithoutInventingTrainingTarget()
+    public void FoodAlternateRecipeResolvesEligibilityButDoesNotCertifyReplacementThroughput()
     {
         var fragile = Review(Kitchen());
         Assert.Contains(fragile.Stress, s => s.Unavailable == "pawn/expert" && s.Coverage == ServiceCoverage.Shortfall);
         var alternate = Review(Kitchen(true));
-        Assert.Contains(alternate.Stress, s => s.Unavailable == "pawn/expert" && s.Coverage == ServiceCoverage.Adequate);
+        Assert.Contains(alternate.Stress, s => s.Unavailable == "pawn/expert" && s.Coverage == ServiceCoverage.Unknown
+            && s.MissingEvidence.Contains("replacement_throughput_not_established_by_recipe_eligibility"));
         Assert.DoesNotContain(alternate.Proposals.SelectMany(p => p.StressEvidence), s => s.Unavailable == "pawn/expert");
         Assert.Contains(alternate.Stress, s => s.Unavailable == "facility/stove" && s.Coverage == ServiceCoverage.Shortfall);
     }

@@ -50,11 +50,30 @@ public static partial class PolicyFunctions
         var alternatives = candidates.Alternatives.OrderBy(c => c.Id, StringComparer.Ordinal).ToArray();
         if (alternatives.Select(c => c.Id).Distinct().Count() != alternatives.Length)
             throw new DomainException("duplicate portfolio candidate");
-        var visited = new HashSet<string>(StringComparer.Ordinal);
+        // A graph-only root adds nothing when another selected root already includes all its
+        // physical work. Drop that redundant subset before scheduling; keep all provider tasks
+        // in the containing root's prerequisite closure. Roots with direct effects/claims stay.
+        var activities = candidates.Context.Activities.Activities.ToDictionary(a => a.Id, StringComparer.Ordinal);
+        var closures = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var alternative in alternatives)
+        {
+            var closure = new HashSet<string>(StringComparer.Ordinal);
+            void Include(string id)
+            {
+                if (!closure.Add(id)) return;
+                if (!activities.TryGetValue(id, out var activity)) throw new DomainException("unknown commitment activity: " + id);
+                foreach (var prerequisite in activity.Prerequisites) Include(prerequisite);
+            }
+            foreach (var completion in alternative.ActivityCompletions) Include(completion);
+            closures.Add(alternative.Id, closure);
+        }
+        static bool GraphOnly(ForecastCommitment c) => c.ActivityCompletions.Count > 0 && c.Outcome is null
+            && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
+            && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown;
+        var redundantPairs = alternatives.Where(GraphOnly).SelectMany(a => alternatives.Where(b => a.Id != b.Id
+            && closures[a.Id].IsSubsetOf(closures[b.Id])).Select(b => (Contained: a.Id, Container: b.Id))).ToHashSet();
         bool Evaluate(ForecastCommitment[] additions)
         {
-            var key = string.Join(";", additions.Select(c => c.Id).Order(StringComparer.Ordinal));
-            if (!visited.Add(key)) return true;
             if (expansions >= budget) { truncated = true; return false; }
             expansions++;
             var commitments = request.Commitments.Concat(additions).ToArray();
@@ -91,6 +110,8 @@ public static partial class PolicyFunctions
             for (var i = start; i <= alternatives.Length - left; i++)
             {
                 if (!CompatiblePortfolio(partial.Append(alternatives[i]))) continue;
+                if (partial.Any(c => redundantPairs.Contains((c.Id, alternatives[i].Id))
+                    || redundantPairs.Contains((alternatives[i].Id, c.Id)))) continue;
                 partial.Add(alternatives[i]);
                 var more = Search(i + 1, left - 1, partial);
                 partial.RemoveAt(partial.Count - 1);

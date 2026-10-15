@@ -123,6 +123,17 @@ public static partial class PolicyFunctions
             { Coupled = new([], ["exclusive_operation_conflict"], false) };
         if (included.Count > 32) return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         { Coupled = new([], [.. findings, "selected_activity_budget_truncated"], true) };
+        // Necessary physical-lot conservation before expensive assignment search. Ignoring time,
+        // expiry and reservations only overestimates supply; their authoritative checks remain below.
+        foreach (var input in problem.Activities.SelectMany(t => t.Inputs).Where(i => i.Lot.Length != 0).GroupBy(i => (i.Lot, i.Resource)))
+        {
+            var output = problem.Activities.SelectMany(t => t.Outputs).Where(o => o.Lot == input.Key.Lot && o.Resource == input.Key.Resource).ToArray();
+            var observed = context.InitialLots.Where(l => l.Lot == input.Key.Lot && l.Resource == input.Key.Resource).ToArray();
+            if (input.Any(i => !i.Units.IsKnown) || output.Any(o => !o.Units.IsKnown) || observed.Any(l => !l.Count.IsKnown)) continue;
+            if (input.Sum(i => i.Units.Value) > output.Sum(o => o.Units.Value) + observed.Sum(l => l.Count.Value))
+                return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
+                { Coupled = new([], [.. findings, "physical_lot_quantity_shortfall:" + input.Key.Lot], false) };
+        }
         var compared = included.Count == 0 ? null : CompareActivityPlans(problem);
         if (compared is not null)
         {
@@ -341,6 +352,17 @@ public static partial class PolicyFunctions
         // Removing impossible work may invalidate its meals and therefore later work. Each pass removes at least one task.
         if (rejectedWork.Count > unavailableWork.Count)
             return EvaluateCoupledSchedule(request, commitments, problem, plan, rejectedWork);
+        // Ordinary production needs no training mandate. Only a claimed learning-dependent later
+        // speedup requires evidence that its prerequisite practice produced useful food in this slice.
+        // A terminal native batch can retain remainder; XP itself never improves the consequence vector.
+        foreach (var allocation in plan.Allocations.Where(a => tasks[a.Activity].RequiresFoodUse && a.Learning is { } prior
+            && prior.After.AppliedGain.IsKnown && prior.Before.AppliedGain.IsKnown
+            && prior.After.AppliedGain.Value > prior.Before.AppliedGain.Value
+            && plan.Allocations.Any(later => later.Pawn == a.Pawn && later.Start >= a.End && later.Learning is { } learned
+                && learned.WorkTicks < learned.ObservedWorkTicks)))
+            if (!context.NeedTasks.Any(n => n.Kind == "food" && n.FreshFrom == allocation.Activity
+                && needs.TryGetValue(n.Pawn, out var result) && result.UsefulFoodGain.GetValueOrDefault(n.Task) > 0))
+                Refuse("productive_output_without_useful_demand", allocation.Activity, allocation.Start);
         var accounting = new Dictionary<string, ForecastCommitment>(commitments, StringComparer.Ordinal)
         { ["coupled/timed-effects"] = new("coupled/timed-effects", EquatableArray.From(effects)) };
         var inventory = ForecastInventory(request.Facts.Stock, accounting, request.HorizonDays);

@@ -13,6 +13,7 @@ public sealed record CoupledFoodConversion(string Source, string Pawn, string Be
     public bool CanDeliver { get; init; } = true;
     public bool RequiresHarvest { get; init; } = true;
     public string WorkGiver { get; init; } = ""; public string Bill { get; init; } = "";
+    public ProductiveSkillWork? SkillWork { get; init; }
 }
 public sealed record CoupledFoodUse(string Pawn, string Resource, Cell Location, Fact<bool> Eligible,
     Fact<double> Nutrition, Fact<double> ChewTicks, int MaxCount, Fact<double> FreshTicks);

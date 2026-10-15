@@ -14,7 +14,8 @@ internal static partial class CoordinatedActivityBinding
                         ? new(cooking.Continuation.Bill, cooking.Continuation.Recipe, [new(task.Ingredient, cooking.IngredientCount)]) { Resource = task.Resource } : null) },
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
-                        Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand } : null).ToArray();
+                        Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
+                        ProductiveWorkTicks = a.Learning is null ? default : Known(a.WorkTicks) } : null).ToArray();
         if (tasks.Any(t => t is null)) return null;
         var selected = tasks.Select(t => t!).ToArray();
         if (selected.Length == 0) return null; // Retaining observed baseline work requires no new orders.

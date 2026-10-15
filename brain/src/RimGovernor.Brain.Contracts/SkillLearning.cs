@@ -36,3 +36,9 @@ public sealed record SkillLevelMechanics(int Level, double RequiredXp, double De
 
 /// <summary>Ordinary Toils_Recipe learning: unfinished recipes pay during work; others pay at completion.</summary>
 public sealed record RecipeLearning(string Skill, Fact<double> RawXpPerWorkTick, bool DuringWork, string Provenance);
+
+/// <summary>Native work amounts and per-stored-level rates for this pawn, recipe and station at one frame.
+/// Rates retain other observed conditions; no prediction of future health, equipment or facility changes.</summary>
+public sealed record ProductiveSkillWork(SkillLearning Learning, RecipeLearning Recipe, Fact<double> WorkAmount,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SkillWorkRate>))] EquatableArray<SkillWorkRate> Rates, string Provenance);
+public sealed record SkillWorkRate(int StoredLevel, Fact<double> WorkPerTick);
