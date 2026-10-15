@@ -199,6 +199,12 @@ public static partial class PolicyFunctions
         var sleepEnds = SleepServiceEnds(pawn, selected, interruptedAt, findings);
         var metrics = new List<ForecastNeedMetric>();
         var usefulFood = new Dictionary<string, double>(StringComparer.Ordinal);
+        // All needs share the same activity boundaries. Only the saturation cuts vary by need.
+        var events = new SortedSet<double> { 0, input.HorizonTicks };
+        foreach (var row in intervals) { events.Add(row.Choice.Start); events.Add(row.End); }
+        if (sleepEnds is not null) foreach (var end in sleepEnds.Values) events.Add(end);
+        var points = events.Where(t => t <= input.HorizonTicks).ToArray();
+        Span<double> split = stackalloc double[5];
         foreach (var need in pawn.Needs)
         {
             findings.UnionWith(need.Unsupported);
@@ -218,25 +224,30 @@ public static partial class PolicyFunctions
             if (!double.IsFinite(level) || level < 0 || level > 1 || !double.IsFinite(fall) || fall < 0
                 || !double.IsFinite(threshold) || threshold < 0 || threshold > 1) throw new DomainException("invalid need mechanics");
             double deficit = 0, exposure = 0, waste = 0, zero = 0, depth = 0;
-            var events = new SortedSet<double> { 0, input.HorizonTicks };
-            foreach (var row in intervals) { events.Add(row.Choice.Start); events.Add(row.End); }
-            if (sleepEnds is not null) foreach (var end in sleepEnds.Values) events.Add(end);
-            var points = events.Where(t => t <= input.HorizonTicks).ToArray();
             for (var i = 0; i < points.Length - 1; i++)
             {
                 var from = points[i]; var to = points[i + 1];
-                var active = intervals.FirstOrDefault(r => r.Choice.Kind == need.Kind && r.Choice.Start <= from && r.End > from
-                    && (need.Kind != "rest" || sleepEnds![r.Choice.Id] > from));
-                var gain = active.Choice is not null && need.Kind != "food"
-                    ? active.Choice.Gain / (active.Choice.End - active.Choice.Start) : -fall;
+                ForecastNeedChoice? active = null;
+                foreach (var row in intervals)
+                    if (row.Choice.Kind == need.Kind && row.Choice.Start <= from && row.End > from
+                        && (need.Kind != "rest" || sleepEnds![row.Choice.Id] > from))
+                    { active = row.Choice; break; }
+                var gain = active is not null && need.Kind != "food"
+                    ? active.Gain / (active.End - active.Start) : -fall;
                 var raw = level + gain * (to - from);
                 var next = Math.Clamp(raw, 0, 1);
                 // Integrate clipped piecewise linear deficit exactly at saturation and threshold crossings.
-                var cuts = new SortedSet<double> { 0, to - from };
-                if (gain != 0) foreach (var bound in new[] { 0.0, threshold, 1.0 })
-                { var t = (bound - level) / gain; if (t > 0 && t < to - from) cuts.Add(t); }
-                var split = cuts.ToArray();
-                for (var k = 0; k < split.Length - 1; k++)
+                split[0] = 0; split[1] = to - from;
+                var cutCount = 2;
+                if (gain != 0)
+                    for (var boundary = 0; boundary < 3; boundary++)
+                    {
+                        var bound = boundary == 0 ? 0.0 : boundary == 1 ? threshold : 1.0;
+                        var t = (bound - level) / gain;
+                        if (t > 0 && t < to - from && !split[..cutCount].Contains(t)) split[cutCount++] = t;
+                    }
+                split[..cutCount].Sort();
+                for (var k = 0; k < cutCount - 1; k++)
                 {
                     var a = split[k]; var b = split[k + 1];
                     var lo = Math.Clamp(level + gain * a, 0, 1); var hi = Math.Clamp(level + gain * b, 0, 1);
@@ -251,9 +262,9 @@ public static partial class PolicyFunctions
                 }
                 waste += Math.Max(0, raw - 1);
                 level = next;
-                foreach (var eat in intervals.Where(r => r.Choice.Kind == need.Kind && need.Kind == "food"
-                    && r.End == to && r.End == r.Choice.End))
+                foreach (var eat in intervals)
                 {
+                    if (eat.Choice.Kind != need.Kind || need.Kind != "food" || eat.End != to || eat.End != eat.Choice.End) continue;
                     usefulFood[eat.Choice.Id] = Math.Min(1 - level, eat.Choice.Gain);
                     waste += Math.Max(0, level + eat.Choice.Gain - 1); level = Math.Min(1, level + eat.Choice.Gain);
                 }

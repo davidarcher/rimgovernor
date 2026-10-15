@@ -60,14 +60,24 @@ public static partial class PolicyFunctions
         var points = events.Where(t => t >= 0 && t <= horizon).ToArray();
         double Memory(NeedMemory m, double elapsed) => m.Permanent ? m.Offset : elapsed >= m.RemainingTicks.Value ? 0
             : m.Fades ? m.Offset * (1 - elapsed / m.RemainingTicks.Value) : m.Offset;
-        bool Asleep(double time) => intervals.Any(r => r.Choice.Kind == "rest" && r.Choice.Start <= time && time < sleepEnds[r.Choice.Id]);
+        bool Asleep(double time)
+        {
+            foreach (var row in intervals)
+                if (row.Choice.Kind == "rest" && row.Choice.Start <= time && time < sleepEnds[row.Choice.Id]) return true;
+            return false;
+        }
+        var currentConditionalOffset = effects.Sum(e => e.CurrentOffset);
         double Target(double time, bool asleep)
         {
             var hour = (pawn.LocalHour.Value + time / GameTime.TicksPerHour) % 24;
-            var conditional = effects.Sum(e => (!e.AwakeOnly || !asleep) && InHours(hour, e.StartHour, e.EndHour) ? e.Offset : 0);
-            var changedMemories = memories.Sum(m => Memory(m, time) - m.Offset)
-                + meals.Where(m => m.Start <= time).Sum(m => Memory(m.Thought, time - m.Start));
-            return Math.Clamp(pawn.MoodUnclampedTarget.Value + (conditional - effects.Sum(e => e.CurrentOffset) + changedMemories) / 100, 0, 1);
+            double conditional = 0, changedMemories = 0, mealMemories = 0;
+            foreach (var effect in effects)
+                conditional += (!effect.AwakeOnly || !asleep) && InHours(hour, effect.StartHour, effect.EndHour) ? effect.Offset : 0;
+            foreach (var memory in memories) changedMemories += Memory(memory, time) - memory.Offset;
+            foreach (var meal in meals)
+                if (meal.Start <= time) mealMemories += Memory(meal.Thought, time - meal.Start);
+            changedMemories += mealMemories;
+            return Math.Clamp(pawn.MoodUnclampedTarget.Value + (conditional - currentConditionalOffset + changedMemories) / 100, 0, 1);
         }
         for (var i = 0; i < points.Length; i++)
         {

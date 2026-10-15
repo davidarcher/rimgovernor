@@ -31,6 +31,26 @@ public sealed class ForecastNeedsTests
     private static ForecastNeedChoice Sleep(double start = 0, double end = 400) => new("sleep", "pawn", "rest", "bed", "", 0,
         start, start + 20, end, (end - start - 20) * .002, []);
 
+    [Theory]
+    [InlineData(0, 0, 0)]
+    [InlineData(.5, 65, 14.75)]
+    [InlineData(1, 140, 66)]
+    public void SaturationCutsRemainDistinctAcrossRecoveryDecayAndRepeatedCalls(double threshold, double exposure, double depth)
+    {
+        var pawn = Pawn() with { Needs = [new("joy", Known(.2), Known(.01), Known(threshold), Known(1d))] };
+        var recovery = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, 0, 0, 100, 2, []);
+        var first = ForecastNeedsTimeline(pawn, Input(200), [recovery]);
+        var metric = Assert.Single(first.Needs);
+        Assert.Equal(0, metric.FinalLevel.Value, 8);
+        Assert.Equal(66, metric.DeficitTicks.Value, 8);
+        Assert.Equal(exposure, metric.ThresholdExposureTicks.Value, 8);
+        Assert.Equal(depth, metric.ThresholdDepthTicks.Value, 8);
+        Assert.Equal(1.2, metric.WastedGain.Value, 8);
+        // A different branch's cuts and interrupted activity must not survive the call.
+        ForecastNeedsTimeline(pawn, Input(200), [recovery], new Dictionary<string, double> { [recovery.Id] = 20 });
+        Assert.Equal(first.Needs, ForecastNeedsTimeline(pawn, Input(200), [recovery]).Needs);
+    }
+
     [Fact]
     public void OrdinaryReviewGeneratesFoodQuantityRestTimingAndRecreationBeforeSelection()
     {

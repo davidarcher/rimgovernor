@@ -170,3 +170,62 @@ string-key entries. General strings/arrays cannot be assigned to a method from a
 type-only sample. Profile and measure each proposed change, retaining the same
 quality snapshots and search semantics. There is no approved percentage target,
 new cache, persistent state, selector or scheduler in this baseline.
+
+## Optimized timeline representation
+
+The #3192 candidate is based on `957bda7be` with the `ForecastNeeds` and
+`ForecastMood` edits in that change (the pre-commit assembly reports
+`1.0.0+957bda7be25b4a5afb6edfeec91c7c9c2f6feb83`). The same Release/runtime/machine
+and one-warmup/three-sample protocol above produced these isolated measurements
+on 2026-10-15. Both complete six-budget quality snapshots match byte-for-byte
+in the regression tests, and the measurement JSON quality objects match them too.
+No budgets, generated candidates, search ordering or scheduler code changed.
+
+Needs now builds its shared activity breakpoints once per timeline. Its at most
+five integration cuts use a stack buffer instead of a tree, retaining sorted
+unique values and exact cut ordinals. Ordered scans remove per-interval needs
+predicates and per-point mood predicates; the current conditional offset is
+constant within a call. Memory and meal sums retain their separate accumulation
+order. There is no result cache or scratch state shared between calls/branches.
+
+| Fixture | Budget | Baseline MB | Candidate MB | Reduction | Candidate elapsed ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Original | 1,024 | 40.913 | 35.803 | 12.49% | 63.960 |
+| Original | 4,096 | 142.415 | 124.452 | 12.61% | 231.291 |
+| Original | 8,192 | 267.091 | 231.327 | 13.39% | 251.636 |
+| Original | 16,384 | 578.082 | 492.192 | 14.86% | 360.563 |
+| Original | 65,536 | 1,866.388 | 1,586.721 | 14.98% | 1,127.647 |
+| Original | 262,144 | 1,866.390 | 1,586.722 | 14.98% | 1,227.699 |
+| Larger | 1,024 | 104.041 | 84.990 | 18.31% | 62.131 |
+| Larger | 4,096 | 426.148 | 348.295 | 18.27% | 307.402 |
+| Larger | 8,192 | 856.888 | 700.565 | 18.24% | 607.765 |
+| Larger | 16,384 | 1,763.820 | 1,454.295 | 17.55% | 1,377.951 |
+| Larger | 65,536 | 8,197.480 | 6,757.113 | 17.57% | 6,164.352 |
+| Larger | 262,144 | 26,611.990 | 21,917.542 | 17.64% | 25,091.099 |
+
+At the default, the original drops from 578,082,392 to 492,191,880 bytes
+(**14.86%**); larger drops from approximately 1,763,820,000 (historical baseline
+rounded to 0.001 MB) to 1,454,294,808 bytes (**17.55%**). All rows reduce selector
+allocation. The post-change sampled profile still contains timeline allocations,
+but need-memory-to-double delegates are only about 0.12%/0.26% of selection
+samples, versus the earlier prominent per-point memory closures. Sampled type
+shares are attribution, not exact savings estimates.
+
+Generation/composition is unchanged: candidate medians are 1,336,664 bytes /
+1.932 ms (original) and 12,666,440 bytes / 14.161 ms (larger). The latter is about
+5% above the historical 12.069 MB. Neither changed timeline function is called
+by generation. This protocol warms each stage once and leaves tiered compilation
+active; measured byte counts vary between process runs even at unchanged source
+(the candidate default original measured 490.570 MB in an earlier run). Runtime
+compilation state is a possible explanation, not established causal attribution;
+there is no claimed generation improvement. The larger 262,144-budget time also
+rose from 20,325.560 to 25,091.099 ms despite lower allocations. These descriptive
+shared-machine timings do not establish a throughput improvement or regression;
+no latency gate or broader benchmark claim is made.
+
+Focused regressions cover recovery saturation, declining levels, thresholds at
+0/.5/1 (including coincident cuts), interrupted intervening calls, and repeat
+results. Existing needs, conditional mood, survival, productive learning and
+both matrix fixtures pass. The larger fixture still serves only one of four
+ingestions; #3193 remains the separate quality investigation. Native execution
+is not needed for this representation/allocation claim.

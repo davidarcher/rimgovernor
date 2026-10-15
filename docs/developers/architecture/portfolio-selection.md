@@ -87,6 +87,16 @@ Different walls may combine; variants of one wall, physical operation, garment
 choice or exclusive output cannot execute twice. Lot consumption and native
 bill credits use the existing shared resource owner.
 
+Needs projection constructs activity breakpoints once per pawn timeline and
+uses a fixed five-value stack buffer for interval saturation/threshold cuts.
+The cuts remain sorted and distinct, preserving both arithmetic order and
+physiological occupancy identities. Mood projection scans the observed effects
+and memories in their original order without creating per-point predicates;
+only the unchanged current conditional offset is computed once per call. No
+scratch state survives a forecast call or is shared across search branches.
+The [allocation measurements](../testing/portfolio-allocations.md) pin the same
+bounded-search choices and consequences across both generated fixtures.
+
 ## Needs and observed execution
 
 Sleep candidates derive from native conditional-thought windows, physiological
