@@ -4,6 +4,8 @@ namespace RimGovernor.RealCombat;
 // seed; the host prints one RealFightResult. Pawns, gear and skills are named by the game's own def names and
 // built by the game's own generators, so there is nothing to derive: the game computes every stat itself.
 
+public sealed record RealEnvironment(double OutdoorTemperature, double SkyGlow);
+
 public sealed record RealFightRequest
 {
     /// <summary>The request format version this host reads.</summary>
@@ -27,6 +29,7 @@ public sealed record RealFightRequest
 
     /// <summary>The WeatherDef in force; empty keeps the generated weather.</summary>
     public string Weather { get; init; } = "";
+    public RealEnvironment? Environment { get; init; }
 
     /// <summary>The FactionDef the hostile side belongs to; it must be permanently hostile to the player.</summary>
     public string HostileFaction { get; init; } = "PirateWaster";
@@ -145,7 +148,7 @@ public sealed record RealPawn
     /// <summary>BodyPartRecord labels of the parts the pawn is missing (a part's children are missing with it).</summary>
     public IReadOnlyList<string> Missing { get; init; } = [];
 
-    /// <summary>Biological and chronological age in years. Required (above zero) for a humanlike pawn; unset for an animal or insect.</summary>
+    /// <summary>Biological and chronological age in years. Required (above zero) for a humanlike pawn; optional for offline animal/insect scenarios; positive observed ages are imported and checked.</summary>
     public double Age { get; init; }
 
     /// <summary>XenotypeDef name (Baseliner). Required for a humanlike pawn; empty for an animal or insect.</summary>
@@ -261,6 +264,7 @@ public sealed record RealReadback
     public IReadOnlyDictionary<string, int> RoofCells { get; init; } = new Dictionary<string, int>();
 
     public string Weather { get; init; } = "";
+    public RealEnvironment? Environment { get; init; }
 
     public string HostileFaction { get; init; } = "";
 

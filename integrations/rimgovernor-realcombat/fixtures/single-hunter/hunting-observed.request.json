@@ -1,0 +1,59 @@
+{
+  "schema": 3,
+  "name": "independent-native-pilot",
+  "width": 100,
+  "height": 100,
+  "terrain": "Soil",
+  "weather": "Clear",
+  "maxTicks": 6000,
+  "verify": true,
+  "seeds": [
+    1000001
+  ],
+  "pawns": [
+    {
+      "id": "h0",
+      "side": "colonist",
+      "kind": "Colonist",
+      "x": 45,
+      "z": 40,
+      "age": 30.0,
+      "xenotype": "Baseliner",
+      "herd": "",
+      "hunt": "p0",
+      "skills": {
+        "Shooting": 8,
+        "Melee": 8,
+        "Construction": 8,
+        "Mining": 8,
+        "Cooking": 8,
+        "Plants": 8,
+        "Animals": 8,
+        "Crafting": 8,
+        "Artistic": 8,
+        "Medicine": 8,
+        "Social": 8,
+        "Intellectual": 8
+      },
+      "weapon": "Gun_BoltActionRifle",
+      "weaponQuality": "Normal",
+      "weaponHitPoints": 100
+    },
+    {
+      "id": "p0",
+      "side": "wild",
+      "kind": "WildBoar",
+      "x": 45,
+      "z": 52,
+      "age": 3.0,
+      "xenotype": "",
+      "herd": "",
+      "hunt": "",
+      "skills": {}
+    }
+  ],
+  "environment": {
+    "skyGlow": 0.4487397372722626,
+    "outdoorTemperature": 21
+  }
+}

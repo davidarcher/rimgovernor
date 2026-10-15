@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <!-- Reachable from the acceptance tool published for win-x64; keep the locked restore graph stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <RootNamespace>RimGovernor.Brain.BuildingRuntime</RootNamespace>
     <AssemblyName>RimGovernor.Brain.BuildingRuntime</AssemblyName>
   </PropertyGroup>

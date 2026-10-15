@@ -22,6 +22,7 @@ internal static class PredictorCheck
         {
             Identity = new("prepared-fixture", 0, build, mods, "native-hunt/timed-departure"),
             Width = source.Width, Height = source.Height, Terrain = source.Terrain, Weather = source.Weather,
+            Environment = source.Environment is { } environment ? new(environment.OutdoorTemperature, environment.SkyGlow) : null,
             Ground = source.Ground.Select(g => new EncounterCellRegion(g.MinX, g.MinZ, g.MaxX, g.MaxZ, g.Terrain, g.Roof)).ToArray(),
             Obstacles = source.Things.Select(t => new EncounterObstacle(t.Def, t.Stuff, t.X, t.Z)).ToArray(),
             HorizonTicks = source.MaxTicks, Seeds = source.Seeds, SamplingReason = "paired fixture lifecycle smoke; not statistical qualification",
@@ -41,8 +42,8 @@ internal static class PredictorCheck
                 };
             }).ToArray(),
         };
-        var settings = new LocalEncounterOptions("dotnet", Path.GetFullPath(worker), Path.GetFullPath(game), Path.GetDirectoryName(Path.GetFullPath(output))!, build, mods,
-            TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(2), 1, source.MaxTicks, 60, 16, 1048576);
+        var settings = new LocalEncounterOptions("dotnet", Path.GetFullPath(worker), Path.GetFullPath(game), Path.GetDirectoryName(Path.GetFullPath(output))!, build, mods, mods,
+            TimeSpan.FromSeconds(60), TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(2), 1, source.MaxTicks, 100, 16, 1048576);
         await using var predictor = new LocalEncounterPredictor(settings);
         var consumer = new EncounterPredictionConsumer(predictor, TimeSpan.FromSeconds(95));
         var cold = await consumer.PredictAsync(request, () => request, CancellationToken.None);

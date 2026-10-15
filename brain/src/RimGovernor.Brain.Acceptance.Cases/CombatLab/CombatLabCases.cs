@@ -29,6 +29,7 @@ public static class CombatLabCases
         registry.Register(CombatLabEmp.Case());
         registry.Register(CombatLabHiveTemperature.Case());
         registry.Register(CombatLabHoldFire.Case());
+        foreach (var prediction in CombatLabHuntingPrediction.Cases()) registry.Register(prediction);
         registry.Register(CombatLabHunt.SquadCase());
         registry.Register(CombatLabHunt.DoorCase());
         registry.Register(CombatLabLance.Case());

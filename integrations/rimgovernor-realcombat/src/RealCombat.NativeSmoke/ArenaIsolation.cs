@@ -45,8 +45,12 @@ internal static class ArenaIsolation
             catch (InvalidOperationException error) when (error.Message.Contains("dispose the active arena", StringComparison.Ordinal)) { }
             var outcome = arena.Fight(request.Seeds.Single());
             Require(!outcome.Nondeterministic, "within-arena replay");
-            Require(outcome.Pawns.Single(p => p.Id == "b0").Dead, "native Hunt killed the observed boar");
-            Require(outcome.Pawns.Single(p => p.Id == "h2").WithdrawalTick == 400, "native timed departure");
+            var hunter = request.Pawns.First(p => p.Hunt.Length > 0);
+            var target = outcome.Pawns.Single(p => p.Id == hunter.Hunt);
+            Require((target.Dead || target.Downed || target.Withdrew) && outcome.Pawns.Single(p => p.Id == hunter.Id).Shots > 0,
+                "native Hunt produced a physical encounter outcome");
+            foreach (var departure in request.Departures.Where(d => d.Kind == "leave" && d.Tick < outcome.Ticks))
+                Require(outcome.Pawns.Single(p => p.Id == departure.Id).WithdrawalTick == departure.Tick, "native timed departure");
             var row = new { environment, outcome, readback = arena.Readback };
             var wire = JsonSerializer.Serialize(row, options);
             baseline ??= wire;

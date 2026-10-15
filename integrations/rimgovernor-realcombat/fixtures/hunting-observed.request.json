@@ -29,12 +29,12 @@
       "skills": { "Shooting": 5 },
       "hediffs": [ { "def": "Cut", "part": "left leg", "severity": 2 } ]
     },
-    { "id": "b0", "side": "wild", "kind": "WildBoar", "herd": "boar", "x": 15, "z": 30 },
-    { "id": "b1", "side": "wild", "kind": "WildBoar", "herd": "boar", "x": 16, "z": 32 },
-    { "id": "b2", "side": "wild", "kind": "WildBoar", "herd": "boar", "x": 16, "z": 28 },
-    { "id": "d0", "side": "wild", "kind": "Deer", "herd": "deer", "x": 44, "z": 34 },
-    { "id": "d1", "side": "wild", "kind": "Deer", "herd": "deer", "x": 46, "z": 36 },
-    { "id": "d2", "side": "wild", "kind": "Deer", "herd": "deer", "x": 46, "z": 32 }
+    { "id": "b0", "side": "wild", "kind": "WildBoar", "age": 3, "herd": "boar", "x": 15, "z": 30 },
+    { "id": "b1", "side": "wild", "kind": "WildBoar", "age": 3, "herd": "boar", "x": 16, "z": 32 },
+    { "id": "b2", "side": "wild", "kind": "WildBoar", "age": 3, "herd": "boar", "x": 16, "z": 28 },
+    { "id": "d0", "side": "wild", "kind": "Deer", "age": 3, "herd": "deer", "x": 44, "z": 34 },
+    { "id": "d1", "side": "wild", "kind": "Deer", "age": 3, "herd": "deer", "x": 46, "z": 36 },
+    { "id": "d2", "side": "wild", "kind": "Deer", "age": 3, "herd": "deer", "x": 46, "z": 32 }
   ],
   "departures": [ { "id": "h2", "tick": 400, "kind": "leave" } ],
   "seeds": [1],

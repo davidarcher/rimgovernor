@@ -3,6 +3,8 @@
        brain inside the mod behind -rimgovernor-inproc. It composes the other projects and adds the process-level
        concerns they leave out; it references no game assembly. -->
   <PropertyGroup>
+    <!-- Reachable from the acceptance tool published for win-x64; keep the locked restore graph stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <RootNamespace>RimGovernor.Brain.Host</RootNamespace>
     <AssemblyName>RimGovernor.Brain.Host</AssemblyName>
   </PropertyGroup>

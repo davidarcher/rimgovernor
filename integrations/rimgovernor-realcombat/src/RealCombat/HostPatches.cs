@@ -49,6 +49,8 @@ internal static class HostPatches
     internal static void Install(Harmony harmony, AssetPack pack)
     {
         s_pack = pack;
+        harmony.Patch(AccessTools.PropertyGetter(typeof(MapTemperature), nameof(MapTemperature.OutdoorTemp)),
+            prefix: new HarmonyMethod(typeof(HostPatches), nameof(ObservedTemperature)));
         var skip = new HarmonyMethod(typeof(HostPatches).GetMethod(nameof(Skip))!);
         var uninit = new HarmonyMethod(typeof(HostPatches).GetMethod(nameof(UninitGetter))!);
         foreach (var raw in ReadSkips())
@@ -87,6 +89,13 @@ internal static class HostPatches
         harmony.Patch(
             typeof(Pawn).GetMethod(nameof(Pawn.Kill), Declared)!,
             prefix: new HarmonyMethod(typeof(HostPatches).GetMethod(nameof(CountDeath))!));
+    }
+
+    public static bool ObservedTemperature(Map ___map, ref float __result)
+    {
+        if (!ReferenceEquals(___map, GameHost.EnvironmentMap) || GameHost.ObservedEnvironment is not { } environment) return true;
+        __result = (float)environment.OutdoorTemperature;
+        return false;
     }
 
     private static IEnumerable<string> ReadSkips()

@@ -64,6 +64,7 @@ internal static class ReadbackCheck
             TerrainCells = terrainCells,
             RoofCells = roofCells,
             Weather = map.weatherManager.curWeather.defName,
+            Environment = req.Environment is null ? null : new(map.mapTemperature.OutdoorTemp, map.skyManager.CurSkyGlow),
             HostileFaction = hostile.def.defName,
             Things = things,
         };
@@ -74,6 +75,9 @@ internal static class ReadbackCheck
             Same(errors, "Weather", req.Weather, readback.Weather);
         }
 
+        if (req.Environment is { } environment && readback.Environment is { } heldEnvironment &&
+            (Math.Abs(environment.OutdoorTemperature - heldEnvironment.OutdoorTemperature) > .0001 || Math.Abs(environment.SkyGlow - heldEnvironment.SkyGlow) > .0001))
+            errors.Add("Environment: observed temperature/sky glow did not reconstruct");
         Same(errors, "HostileFaction", req.HostileFaction, readback.HostileFaction);
         Throw(errors);
         return readback;
@@ -123,13 +127,16 @@ internal static class ReadbackCheck
         Same(errors, at + ".Kind", spec.Kind, read.Kind);
         Same(errors, at + ".X", spec.X, read.X);
         Same(errors, at + ".Z", spec.Z, read.Z);
-        if (humanlike)
+        if (humanlike || spec.Age > 0)
         {
             if (!RequestCheck.SameAge(spec.Age, read.Age) || !RequestCheck.SameAge(spec.Age, pawn.ageTracker.AgeChronologicalYearsFloat))
             {
                 errors.Add($"{at}.Age: requested {spec.Age}, the game holds {read.Age} biological and {pawn.ageTracker.AgeChronologicalYearsFloat} chronological");
             }
 
+        }
+        if (humanlike)
+        {
             Same(errors, at + ".Xenotype", spec.Xenotype, read.Xenotype);
             Same(errors, at + ".Weapon", spec.Weapon, read.Weapon);
             Same(errors, at + ".WeaponStuff", spec.WeaponStuff, read.WeaponStuff);

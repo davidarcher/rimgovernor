@@ -47,7 +47,7 @@ degree, xenotype, hediff, terrain, weather, faction, ability, title, permit); a 
 is not apparel; a cell outside the map; a duplicate or empty pawn id; a hediff or missing part on a body part the race lacks
 (parts are named by `BodyPartRecord` label, "left arm"; a label that names two parts is rejected as ambiguous), a hediff on
 a part that is missing or inside one, an injury without a part, a severity outside `(0, maxSeverity]`; a humanlike pawn
-without `Age` or `Xenotype`; an animal or insect with an age, xenotype, gear, skills or traits.
+without `Age` or `Xenotype`; an animal or insect with xenotype, gear, skills or traits. Positive observed animal ages are reconstructed and read back.
 
 **Wild prey and hunters.** `Side = "wild"` is a faction-less animal under the game's own animal AI: nothing scripts it, so it
 flees or retaliates as its race's rules say (`Pawn_MindState.Notify_DamageTaken`), and herd mates react to damage to one
@@ -117,7 +117,7 @@ and standing things; colonist and hostile humanlikes and animals/insects with st
 weapon and apparel (quality, hit points), carried items, hediffs, missing parts, psycasts and Empire title; wild
 faction-less animals in herds under the game's animal AI; colonists hunting a named wild animal; timed departures.
 Unsupported (rejects, never approximated): anything in the rejection list above, plus everything the format has no
-field for (time of day, temperature, food and rest needs, mood, bonds, mental breaks, dynamic events, other maps).
+field for (time of day, changing environment, food and rest needs, mood, bonds, mental breaks, dynamic events, other maps).
 
 Result shape: per seed `Winner`, `Ticks` and per pawn the facts under "The result" above; `Readback` once per request.
 
@@ -253,3 +253,14 @@ named psycasts and full psyfocus. The step's cast and permit orders leave the ba
 `NativeSeat.ApplyAbility` runs them through the mod's `NativeAbilityOperations`. They go after the batch: a combat order issued after a cast replaces the cast job. The caster is not left idle: it stands in `Wait_Combat` and fires at will (same shot count as its partner). `RealPawn.Title`, `Favor` and `Permits` make an Empire title holder; with `--permit` the first colonist is an acolyte with the trooper squad permit against four raiders, the policy calls the aid at the first stop (outmatched) and the colonists win in 1372 ticks, the same in every process. The four Empire troopers land beside the caster about 330 ticks in and march to the raiders; `--permit --no-aid` withholds the permit and the raiders win at 919 ticks. The headless game has no UI root, so the seat stands a `Targeter` in for `Find.Targeter`, which the permit call goes through.
 
 The compound has a bed behind the back wall (`DefenseStage`): the rescue order carries a downed colonist to one and is refused `no_bed` without.
+
+
+Observed hunting requests may supply fixed outdoor temperature and sky illumination.
+These are reconstructed and read back; omitted offline environment remains explicitly
+outside qualification. Every sample and Verify replay now disposes and regenerates
+its native map, while definitions and the worker stay warm. Clearing pawns and snow
+alone failed the independent single-hunter replay. Preparation uses its own RNG stream; future sampling begins only after reconstruction. Reserved prediction-owned pawn IDs keep native hash-interval ticks stable when warm generation consumes a different number of temporary gear IDs. No live IDs or future RNG enter this process. Hunt actors are undrafted; calm
+herd bystanders do not extend the encounter after its target and actual retaliators
+are out. A prey's observed map exit ends its participation without crediting products.
+See the [independent CombatLab protocol](../../docs/developers/testing/hunting-prediction-qualification.md)
+for source/predictor provenance, calibration and retained failures.

@@ -10,6 +10,10 @@ namespace RimGovernor.RealCombat;
 /// <summary>Starts the game's own data and world in a bare process: no window, no Unity, no colony.</summary>
 public static class GameHost
 {
+    internal static Map? EnvironmentMap { get; private set; }
+    internal static RealEnvironment? ObservedEnvironment { get; private set; }
+    internal static void SetEnvironment(Map map, RealEnvironment? environment) { EnvironmentMap = map; ObservedEnvironment = environment; }
+
     private const BindingFlags StaticAny = BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static;
 
     /// <summary>Loads every def, language and a generated world. Seeded, so two processes build the same world.</summary>
@@ -87,6 +91,7 @@ public static class GameHost
 
     internal static void ReleaseMap(Map map)
     {
+        if (ReferenceEquals(EnvironmentMap, map)) { EnvironmentMap = null; ObservedEnvironment = null; }
         var parent = map.Parent;
         Current.Game.DeinitAndRemoveMap(map, false);
         Find.WorldObjects.Remove(parent);

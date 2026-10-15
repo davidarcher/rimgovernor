@@ -26,6 +26,8 @@ public static class RequestCheck
             errors.Add($"Width/Height: {req.Width}x{req.Height} is not a map size");
         }
 
+        if (req.Environment is { } environment && (!double.IsFinite(environment.OutdoorTemperature) || !double.IsFinite(environment.SkyGlow) || environment.SkyGlow is < 0 or > 1))
+            errors.Add("Environment: temperature and sky glow must be finite, glow within0..1");
         if (req.MaxTicks <= 0)
         {
             errors.Add($"MaxTicks: {req.MaxTicks} is not positive");
@@ -233,9 +235,9 @@ public static class RequestCheck
         }
         else
         {
-            if (p.Age != 0 || p.Xenotype.Length > 0)
+            if (!double.IsFinite(p.Age) || p.Age < 0 || p.Xenotype.Length > 0)
             {
-                errors.Add($"{at}.Age/Xenotype: {p.Kind} is not humanlike; age and xenotype are not imported for it");
+                errors.Add($"{at}.Age/Xenotype: {p.Kind} is not humanlike; age must be finite/nonnegative and xenotype is unsupported");
             }
 
             if (p.Weapon.Length > 0 || p.Worn.Count > 0 || p.Skills.Count > 0 || p.Traits.Count > 0 || p.Carried.Count > 0 || p.Psycasts.Count > 0 || p.Title.Length > 0 || p.Permits.Count > 0 || p.Favor != 0)

@@ -32,7 +32,13 @@ public sealed class CoordinatedConstructionTests
         var request = CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
             facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new());
         var selected = CompareActivityOutcomes(request, generated);
-        comparison = selected.Selection;
+        // This fixture tests assignment and execution of an already requested physical job.
+        // A bare wall has no automatic colony value after service-based admission (#3166).
+        Assert.Empty(selected.Selection.Selected);
+        var physical = CompareActivityPlans(generated.Context.Activities);
+        comparison = new(physical.Selected is null ? [] : generated.Alternatives.Select(c => c.Id).ToArray(),
+            physical.Selected, default, physical.Findings, physical.Expansions, physical.SearchTruncated);
+        selected = selected with { Selection = comparison, Deferred = [] };
         return StartCoupledActivity(selected, generated, 1, "construction", 100);
     }
 

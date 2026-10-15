@@ -148,7 +148,20 @@ public sealed class EncounterPredictionTests
         Assert.False((await consumer.PredictAsync(changed, () => changed, TestContext.Current.CancellationToken)).QualifiedForSelection);
     }
 
-    private static LocalEncounterOptions Options() => new("missing-predictor-executable", "missing", "missing", ".", "build", "mods",
+    [Fact]
+    public async Task ReviewedReportQualifiesMatchingEvidenceWithoutProviderSelfCertification()
+    {
+        var request = Request();
+        var evidence = Evidence(request) with { EngineFingerprint = "engine:mods=official" };
+        var accepted = new EncounterQualification("reviewed-v1", "reviewed-report", "tested-domain", "build", "mods",
+            request.Identity.Tactic, evidence.EngineFingerprint, [EncounterPredictionConsumer.Fingerprint(request)]);
+        var fake = new Predictor((_, _) => Task.FromResult(evidence));
+        var consumer = new EncounterPredictionConsumer(fake, TimeSpan.FromSeconds(30), [accepted]);
+        Assert.True((await consumer.PredictAsync(request, () => request, TestContext.Current.CancellationToken)).QualifiedForSelection);
+        evidence = evidence with { EngineFingerprint = "engine:mods=changed" };
+        Assert.False((await consumer.PredictAsync(request, () => request, TestContext.Current.CancellationToken)).QualifiedForSelection);
+    }
+    private static LocalEncounterOptions Options() => new("missing-predictor-executable", "missing", "missing", ".", "build", "mods", "predictor-mods",
         TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), 1, 100, 60, 10, 65536);
 
     private static EncounterRequest Request() => new()

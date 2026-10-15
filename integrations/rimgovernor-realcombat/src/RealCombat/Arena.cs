@@ -1,5 +1,6 @@
 using System.Reflection;
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 using Verse.AI;
 using Verse.AI.Group;
@@ -7,10 +8,8 @@ using Verse.AI.Group;
 namespace RimGovernor.RealCombat;
 
 /// <summary>
-/// One arena: a generated map swept clean, then fought once per seed. A seed fully determines a fight. The game's
-/// Rand is counter based, so pushing the seed fixes every draw, provided nothing else moves between fights: thing ids
-/// and the tick counter restart from fixed values, the fight's things are destroyed afterwards and the world pawns the
-/// generator parked are removed.
+/// One owned native map at a time. Every sample and Verify replay reconstructs the map through native disposal
+/// and generation; partial pawn/snow resets cannot reset all native map caches. Definition loading stays warm.
 /// </summary>
 public sealed class Arena : IDisposable
 {
@@ -23,20 +22,19 @@ public sealed class Arena : IDisposable
     private static readonly BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
 
     private bool _disposed;
+    private bool _played;
     private readonly RealFightRequest _req;
     private readonly Action<Map>? _stage;
-    private readonly Map _map;
-    private readonly Faction _hostile;
-    private readonly WeatherDef _weather;
+    private Map _map = null!;
+    private Faction _hostile = null!;
+    private WeatherDef _weather = null!;
 
     // This fight's departures: the pawns whose departure has been applied (they no longer count as standing or as targets)
     // and the tick each was applied at, by pawn id.
     private readonly HashSet<Pawn> _departing = [];
     private readonly Dictionary<string, int> _applied = [];
     private readonly Dictionary<Pawn, IntVec3> _fleeing = [];
-    private readonly HashSet<Thing> _baselineThings;
-    private readonly HashSet<Pawn> _baselineWorldPawns;
-    private readonly float[] _baselineSnow;
+    private HashSet<Pawn> _baselineWorldPawns = null!;
     private readonly FieldInfo[] _idFields = typeof(UniqueIDsManager).GetFields(Private).Where(f => f.FieldType == typeof(int)).ToArray();
     private readonly FieldInfo _tickField = typeof(TickManager).GetField("ticksGameInt", Private)!;
 
@@ -47,6 +45,12 @@ public sealed class Arena : IDisposable
         RequestCheck.Validate(req);
         _req = req;
         _stage = stage;
+        Build();
+    }
+
+    private void Build()
+    {
+        var req = _req;
         _map = GameHost.BuildMap(req.Width, req.Height);
         try
         {
@@ -55,11 +59,11 @@ public sealed class Arena : IDisposable
             _hostile.SetRelationDirect(Faction.OfPlayer, FactionRelationKind.Hostile, false);
             Sweep();
             Furnish();
+            GameHost.SetEnvironment(_map, req.Environment);
+            if (req.Environment is { } environment) _map.skyManager.ForceSetCurSkyGlow((float)environment.SkyGlow);
             _weather = _map.weatherManager.curWeather;
             _readback = ReadbackCheck.Arena(req, _map, _hostile);
-            _baselineThings = [.. _map.listerThings.AllThings];
             _baselineWorldPawns = [.. Find.WorldPawns.AllPawnsAliveOrDead];
-            _baselineSnow = _map.AllCells.Select(c => _map.snowGrid.GetDepth(c)).ToArray();
         }
         catch
         {
@@ -153,7 +157,7 @@ public sealed class Arena : IDisposable
         }
     }
 
-    private RealReadback _readback;
+    private RealReadback _readback = null!;
 
     /// <summary>What the game holds for the request, read back before the first tick; the pawns are those of the first fight played.</summary>
     public RealReadback Readback => _readback;
@@ -162,14 +166,28 @@ public sealed class Arena : IDisposable
     public RealSeedOutcome Fight(int seed)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_played) Rebuild();
+        _played = true;
         var first = FightOnce(seed);
         if (!_req.Verify)
         {
             return first;
         }
 
+        Rebuild();
         var second = FightOnce(seed);
+        if (!SameOutcome(first, second)) Console.Error.WriteLine("realcombat replay mismatch: " + Wire(first) + " != " + Wire(second));
         return second with { Nondeterministic = !SameOutcome(first, second) };
+    }
+
+    private void Rebuild()
+    {
+        _disposed = true;
+        foreach (var thing in _map.listerThings.AllThings.ToList())
+            if (!thing.Destroyed) thing.Destroy(DestroyMode.Vanish);
+        GameHost.ReleaseMap(_map);
+        Build();
+        _disposed = false;
     }
 
     /// <summary>Releases the arena's native map and settlement before another arena may be constructed.</summary>
@@ -193,7 +211,6 @@ public sealed class Arena : IDisposable
         }
 
         _tickField.SetValue(Find.TickManager, StartTick);
-        RestoreSnow();
 
         // The weather ages and rolls a new one on its own clock, so each fight starts it afresh.
         _map.weatherManager.curWeather = _weather;
@@ -210,57 +227,45 @@ public sealed class Arena : IDisposable
         _departing.Clear();
         _applied.Clear();
         _fleeing.Clear();
-        using var scope = new RandScope(seed);
+        using var preparation = new RandScope(SettleSeed);
         var fighters = new List<(RealPawn Spec, Pawn Pawn)>();
         try
         {
             foreach (var spec in _req.Pawns)
             {
                 var pawn = MakePawn(spec);
+                // Native hash-interval ticks depend on pawn identity. Generated throwaway gear can
+                // consume different IDs after lazy caches warm, so reserve distinct owned actor IDs.
+                pawn.thingIDNumber = FirstThingId * 2 + fighters.Count;
                 GenSpawn.Spawn(pawn, new IntVec3(spec.X, 0, spec.Z), _map);
                 if (pawn.drafter != null)
                 {
-                    pawn.drafter.Drafted = true; // the policy orders only drafted colonists
+                    pawn.drafter.Drafted = spec.Hunt.Length == 0; // native Hunt is an undrafted job; combat controllers own drafted actors
                 }
 
                 fighters.Add((spec, pawn));
             }
 
+            foreach (var field in _idFields) field.SetValue(Find.UniqueIDsManager, FirstThingId * 3);
             var read = fighters.Select((f, i) => ReadbackCheck.Pawn(f.Spec, f.Pawn, i)).ToList();
             if (_readback.Pawns.Count == 0)
             {
                 _readback = _readback with { Pawns = read };
             }
 
+            // Preparation must not consume the future encounter stream. Lazy native generation caches can
+            // consume different draws even when the observed reconstruction is equal.
+            using var future = new RandScope(seed);
             var ticks = Play(fighters);
             Inspect?.Invoke(fighters.Select(f => (f.Spec.Id, f.Pawn)).ToList());
             return Outcome(seed, ticks, fighters);
         }
         finally
         {
-            foreach (var thing in _map.listerThings.AllThings.ToList())
-            {
-                if (!_baselineThings.Contains(thing) && !thing.Destroyed)
-                {
-                    thing.Destroy(DestroyMode.Vanish);
-                }
-            }
-
             foreach (var parked in Find.WorldPawns.AllPawnsAliveOrDead.Where(p => !_baselineWorldPawns.Contains(p)).ToList())
             {
                 Find.WorldPawns.RemovePawn(parked);
             }
-        }
-    }
-
-    // Snow depth drifts as a fight runs (it melts a little each tick), and a pawn walking through snow is slowed by it, so a
-    // later fight in the arena would start from a different ground than the first. Every fight starts from the baseline's.
-    private void RestoreSnow()
-    {
-        var i = 0;
-        foreach (var cell in _map.AllCells)
-        {
-            _map.snowGrid.SetDepth(cell, _baselineSnow[i++]);
         }
     }
 
@@ -419,20 +424,20 @@ public sealed class Arena : IDisposable
 
     private bool IsOut(Pawn p) => p.Dead || p.Downed || p.Destroyed || !p.Spawned || _departing.Contains(p);
 
-    // Wild prey is out only when downed or dead: prey that fled (even off the map) is alive and the fight runs on.
-    private bool IsOut(RealPawn spec, Pawn p) => spec.Side == "wild" ? p.Dead || p.Downed : IsOut(p);
 
     private bool Standing(List<(RealPawn Spec, Pawn Pawn)> fighters, string side) =>
-        fighters.Any(f => f.Spec.Side == side && !IsOut(f.Spec, f.Pawn));
+        fighters.Any(f => f.Spec.Side == side && !IsOut(f.Pawn));
 
     // The colonists' opposition: the hostiles and the wild prey they hunt.
-    private bool Opposed(List<(RealPawn Spec, Pawn Pawn)> fighters) => Standing(fighters, "hostile") || Standing(fighters, "wild");
+    private bool Opposed(List<(RealPawn Spec, Pawn Pawn)> fighters) => Standing(fighters, "hostile") ||
+        fighters.Any(f => f.Spec.Side == "wild" && !IsOut(f.Pawn) &&
+            (fighters.Any(h => h.Spec.Hunt == f.Spec.Id && !IsOut(h.Pawn)) || f.Pawn.HostileTo(Faction.OfPlayer)));
 
     // A hunter acts through the game's own Hunt job against the prey it names, re-ordered whenever the job has ended
     // (finished, failed on its 5000 tick cap) while the prey is still up. The prey itself is never ordered.
     private void Hunt(List<(RealPawn Spec, Pawn Pawn)> fighters)
     {
-        foreach (var hunter in fighters.Where(f => f.Spec.Hunt.Length > 0 && !IsOut(f.Spec, f.Pawn)))
+        foreach (var hunter in fighters.Where(f => f.Spec.Hunt.Length > 0 && !IsOut(f.Pawn)))
         {
             var prey = fighters.First(f => f.Spec.Id == hunter.Spec.Hunt).Pawn;
             if (prey.Dead || prey.Downed || !prey.Spawned)
@@ -457,7 +462,7 @@ public sealed class Arena : IDisposable
         foreach (var me in fighters)
         {
             // Wild prey acts under the animal AI and a hunter under its Hunt job; neither is retargeted.
-            if (IsOut(me.Spec, me.Pawn) || me.Spec.Side == "wild" || me.Spec.Hunt.Length > 0)
+            if (IsOut(me.Pawn) || me.Spec.Side == "wild" || me.Spec.Hunt.Length > 0)
             {
                 continue;
             }
@@ -466,7 +471,7 @@ public sealed class Arena : IDisposable
             var bestDistance = int.MaxValue;
             foreach (var other in fighters)
             {
-                if (other.Spec.Side == me.Spec.Side || IsOut(other.Spec, other.Pawn) || (other.Spec.Side == "wild" && me.Spec.Side == "hostile"))
+                if (other.Spec.Side == me.Spec.Side || IsOut(other.Pawn) || (other.Spec.Side == "wild" && me.Spec.Side == "hostile"))
                 {
                     continue;
                 }
@@ -596,28 +601,37 @@ public sealed class Arena : IDisposable
         if (!kind.RaceProps.Humanlike)
         {
             // An animal or insect has no gear, traits or skills to strip.
-            var animal = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, PawnGenerationContext.NonPlayer, -1, forceGenerateNewPawn: true, canGeneratePawnRelations: false));
+            var animal = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, PawnGenerationContext.NonPlayer, -1, forceGenerateNewPawn: true, canGeneratePawnRelations: false,
+                fixedBiologicalAge: spec.Age > 0 ? (float)spec.Age : null, fixedChronologicalAge: spec.Age > 0 ? (float)spec.Age : null));
             ClearHealth(animal);
             ApplyHealth(animal, spec);
             return animal;
         }
 
-        var pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
-            kind,
-            faction,
-            PawnGenerationContext.NonPlayer,
-            -1,
-            forceGenerateNewPawn: true,
-            canGeneratePawnRelations: false,
-            allowGay: false,
-            allowFood: false,
-            allowAddictions: false,
-            fixedBiologicalAge: (float)spec.Age,
-            fixedChronologicalAge: (float)spec.Age,
-            forcedXenotype: DefDatabase<XenotypeDef>.GetNamed(spec.Xenotype),
-            forceNoIdeo: true,
-            forbidAnyTitle: true,
-            mustBeCapableOfViolence: true));
+        Pawn pawn = null!;
+        for (var attempt = 0; attempt < 50; attempt++)
+        {
+            pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
+                kind,
+                faction,
+                PawnGenerationContext.NonPlayer,
+                -1,
+                forceGenerateNewPawn: true,
+                canGeneratePawnRelations: false,
+                allowGay: false,
+                allowFood: false,
+                allowAddictions: false,
+                fixedBiologicalAge: (float)spec.Age,
+                fixedChronologicalAge: (float)spec.Age,
+                forcedXenotype: DefDatabase<XenotypeDef>.GetNamed(spec.Xenotype),
+                forceNoIdeo: true,
+                forbidAnyTitle: true,
+                mustBeCapableOfViolence: true));
+                if (!spec.Skills.Any(s => s.Value > 0 && pawn.skills.GetSkill(DefDatabase<SkillDef>.GetNamed(s.Key)).TotallyDisabled)) break;
+            Find.WorldPawns.PassToWorld(pawn, PawnDiscardDecideMode.Discard);
+            pawn = null!;
+        }
+        if (pawn is null) throw new RealFightRejected(["Pawns: native generation could not satisfy observed skill capabilities within 50 attempts"]);
         pawn.apparel.DestroyAll();
         ClearHealth(pawn);
         foreach (var trait in pawn.story.traits.allTraits.ToList())

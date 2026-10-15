@@ -9,6 +9,7 @@ public interface IEncounterPredictor
 public enum EncounterStatus { Evidence, Unsupported, Unavailable, Malformed, Cancelled, TimedOut, Busy, Stale }
 public enum EncounterDepartureKind { Leave, Flee }
 public sealed record EncounterIdentity(string World, long ObservationTick, string GameBuild, string Mods, string Tactic);
+public sealed record EncounterEnvironment(double OutdoorTemperature, double SkyGlow);
 public sealed record EncounterGear(string Definition, string Stuff, string Quality, int HitPoints);
 public sealed record EncounterHediff(string Definition, string Part, double Severity);
 public sealed record EncounterTrait(string Definition, int Degree);
@@ -45,6 +46,7 @@ public sealed record EncounterRequest
     public required int Height { get; init; }
     public required string Terrain { get; init; }
     public required string Weather { get; init; }
+    public EncounterEnvironment? Environment { get; init; }
     public required IReadOnlyList<EncounterActor> Actors { get; init; }
     public IReadOnlyList<EncounterCellRegion> Ground { get; init; } = [];
     public IReadOnlyList<EncounterObstacle> Obstacles { get; init; } = [];

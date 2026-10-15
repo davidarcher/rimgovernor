@@ -74,7 +74,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
 
     private static LocalEncounterOptions CheckOptions(LocalEncounterOptions value)
     {
-        if (value.ColdStartBudget <= TimeSpan.Zero || value.ColdStartBudget > TimeSpan.FromMinutes(1) ||
+        if (string.IsNullOrWhiteSpace(value.Mods) || string.IsNullOrWhiteSpace(value.PredictorMods) || value.ColdStartBudget <= TimeSpan.Zero || value.ColdStartBudget > TimeSpan.FromMinutes(1) ||
             value.RequestBudget <= TimeSpan.Zero || value.RequestBudget > TimeSpan.FromMinutes(1) ||
             value.CleanupBudget <= TimeSpan.Zero || value.CleanupBudget > TimeSpan.FromSeconds(5) ||
             value.MaximumSamples is < 1 or > 64 || value.MaximumTicks is < 1 or > GameTime.TicksPerDay ||
@@ -92,6 +92,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
         if (r.UnsupportedObservations.Count != 0) return "unrepresented_observation:" + string.Join(',', r.UnsupportedObservations);
         if (r.HorizonTicks <= 0 || r.HorizonTicks > _settings.MaximumTicks || r.Seeds.Count == 0 || r.Seeds.Count > _settings.MaximumSamples || r.Seeds.Distinct().Count() != r.Seeds.Count || string.IsNullOrWhiteSpace(r.SamplingReason)) return "sample_or_tick_budget";
         if (r.Width <= 0 || r.Height <= 0 || r.Width > _settings.MaximumMapSize || r.Height > _settings.MaximumMapSize || r.Terrain.Length == 0 || r.Weather.Length == 0) return "map_or_environment";
+        if (r.Environment is { } environment && (!double.IsFinite(environment.OutdoorTemperature) || !double.IsFinite(environment.SkyGlow) || environment.SkyGlow is < 0 or > 1)) return "environment_malformed";
         if (r.Actors.Count == 0 || r.Actors.Count > _settings.MaximumActors || r.Actors.Select(a => a.Id).Distinct(StringComparer.Ordinal).Count() != r.Actors.Count) return "participants";
         foreach (var a in r.Actors)
         {
@@ -120,10 +121,10 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
         _drain = DrainAsync(_process.StandardError);
         using var ready = JsonDocument.Parse(await ReadFrameAsync(_process.StandardOutput, _settings.MaximumFrameCharacters, ct).ConfigureAwait(false));
         var root = ready.RootElement;
-        if (root.GetProperty("kind").GetString() != "ready" || root.GetProperty("gameBuild").GetString() != _settings.GameBuild || root.GetProperty("mods").GetString() != _settings.Mods)
+        if (root.GetProperty("kind").GetString() != "ready" || root.GetProperty("gameBuild").GetString() != _settings.GameBuild || root.GetProperty("mods").GetString() != _settings.PredictorMods)
             throw new IOException("worker_build_or_mods_mismatch");
         using var adapterAssembly = File.OpenRead(typeof(LocalEncounterPredictor).Assembly.Location);
-        _engine = (root.GetProperty("engine").GetString() ?? throw new JsonException("engine identity missing")) + ":" + Convert.ToHexString(SHA256.HashData(adapterAssembly));
+        _engine = (root.GetProperty("engine").GetString() ?? throw new JsonException("engine identity missing")) + ":mods=" + _settings.PredictorMods + ":" + Convert.ToHexString(SHA256.HashData(adapterAssembly));
     }
 
     private static async Task DrainAsync(StreamReader reader)
@@ -179,7 +180,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
 
     private static string Encode(EncounterRequest r, string key) => JsonSerializer.Serialize(new
     {
-        schema = 3, name = key, width = r.Width, height = r.Height, terrain = r.Terrain, weather = r.Weather,
+        schema = 3, name = key, width = r.Width, height = r.Height, terrain = r.Terrain, weather = r.Weather, environment = r.Environment,
         ground = r.Ground.Select(g => new { g.MinX, g.MinZ, g.MaxX, g.MaxZ, g.Terrain, g.Roof }),
         things = r.Obstacles.Select(t => new { def = t.Definition, t.Stuff, t.X, t.Z }),
         pawns = r.Actors.Select(a => new
@@ -191,7 +192,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
             hediffs = a.Health.Select(h => new { def = h.Definition, h.Part, h.Severity }), missing = a.MissingParts,
         }),
         departures = r.Actors.Where(a => a.Departure is not null).Select(a => new { a.Id, a.Departure!.Tick, kind = a.Departure.Kind == EncounterDepartureKind.Leave ? "leave" : "flee" }),
-        seeds = r.Seeds, maxTicks = r.HorizonTicks, verify = true,
+        seeds = r.Seeds, maxTicks = r.HorizonTicks, verify = false, // replay is the separate retained native qualification check
     }, Json);
 
     private static EncounterPrediction Decode(string line, EncounterRequest request, string key)
@@ -228,7 +229,7 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
         return new EncounterPrediction
         {
             Status = EncounterStatus.Evidence, RequestFingerprint = key, Reason = "unqualified_empirical_samples", Samples = samples,
-            ModelUncertainty = ["held_out_accuracy_unqualified", "false_safe_frequency_unknown", "cross_arena_outcome_drift_3159", "revenge_and_withdrawal_coverage_unqualified", "needs_temperature_time_of_day_unrepresented", "injury_recovery_and_downstream_work_not_estimated"],
+            ModelUncertainty = ["held_out_accuracy_unqualified", "false_safe_frequency_unknown", "revenge_and_withdrawal_coverage_unqualified", "needs_time_of_day_and_environment_changes_unrepresented", "injury_recovery_and_downstream_work_not_estimated"],
         };
     }
 
@@ -237,5 +238,5 @@ public sealed class LocalEncounterPredictor(LocalEncounterOptions options) : IEn
 }
 
 public sealed record LocalEncounterOptions(string DotnetExecutable, string WorkerAssembly, string PrivateGameDirectory,
-    string WorkingDirectory, string GameBuild, string Mods, TimeSpan ColdStartBudget, TimeSpan RequestBudget, TimeSpan CleanupBudget,
+    string WorkingDirectory, string GameBuild, string Mods, string PredictorMods, TimeSpan ColdStartBudget, TimeSpan RequestBudget, TimeSpan CleanupBudget,
     int MaximumSamples, int MaximumTicks, int MaximumMapSize, int MaximumActors, int MaximumFrameCharacters);

@@ -3,6 +3,8 @@
        handoff and the facade registry. Referenced by both sides, so it depends on Domain (the stat source) and Contracts (the request and
        reply messages it carries) and on no game assembly. Wire is replaced by plain records in #3100. -->
   <PropertyGroup>
+    <!-- Reachable from the acceptance tool published for win-x64; keep the locked restore graph stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <RootNamespace>RimGovernor.Brain.NativeFacade</RootNamespace>
     <AssemblyName>RimGovernor.Brain.NativeFacade</AssemblyName>
   </PropertyGroup>

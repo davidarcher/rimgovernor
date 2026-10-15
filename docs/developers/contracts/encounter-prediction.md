@@ -25,11 +25,7 @@ sample, tick, map, actor and frame budgets. The hard ceilings are one minute for
 each startup/request, five seconds for cleanup, 64 seeds, one day of simulated
 ticks, a 128-cell map side, 32 actors and 1 MiB frames. A worker accepts at most
 eight requests to bound retained native arena state; exhaustion is explicit and
-does not skip earlier reconstruction failures. Each seed is run twice
-(`Verify`) to detect replay disagreement: a sample budget of N means up to 2N
-engine fights, not N. The initial measurement uses one seed. Additional samples
-need a decision-relevant request reason and remain within the supplied cap;
-this service does not invent confidence from a fixed sample count.
+does not skip earlier reconstruction failures. Each online seed executes once. Identical-seed `Verify` replay is an offline native qualification regression across fresh arenas and processes; it is not duplicated inside the latency-sensitive request. The initial measurement uses one seed. Additional samples require a decision-relevant reason within the declared budget; this service does not invent confidence from a fixed sample count.
 
 The worker has no colony endpoint or save input. Only its owned process tree may
 be killed. Timeout/cancellation kills that worker and waits within one cleanup
@@ -46,6 +42,8 @@ tactics or a helper's departure invalidates the reply. It validates sample IDs,
 participants, duration, finite consequences and departure/event bounds. A stale,
 malformed, missing, unsupported or late reply cannot authorize hunting.
 
+Source and hypothetical-worker mod fingerprints are explicitly pinned separately. The worker does not load the live Governor controller. Its content fingerprint participates in engine identity; a reviewed report must qualify the exact source-to-predictor pair, never infer equivalence from equal package names.
+
 Game build identity hashes the actual loaded game assembly. Mod identity hashes
 loaded mods' XML and assembly content with relative names and package IDs. Engine
 identity hashes private runtime DLLs and the engine/host/adapter assemblies. Same package
@@ -59,7 +57,7 @@ request, never corrected terrain or an alternative engine. The adapter requires
 explicit positive equipment hit points/quality; native unknown definitions reject.
 The supported tactic is native Hunt with timed leave/flee departures; later
 arrivals, colony tactics, custom action sequences and unstated mechanics are
-unsupported. Current schema does not represent time of day, temperature,
+unsupported. The observed-environment input carries outdoor temperature and sky glow, held constant for the bounded encounter. Current schema does not represent changing weather/light or time of day,
 food/rest/mood, bonds, mental breaks, arbitrary gene/hediff runtime state or dynamic
 events. The observation producer must list such unrepresented effects in
 `UnsupportedObservations`, which rejects before worker launch. No live observation
@@ -68,9 +66,9 @@ producer or hunting selector cutover is claimed here; #3130 owns integration.
 A result's model uncertainty is separate from its empirical samples. A replay
 check is not sampling calibration. `EncounterQualification` can reference a
 reviewed report, criteria revision, supported domain, engine/build/mod/tactic
-and covered request. The consumer retains it only against a caller-supplied
+and covered request. The consumer attaches it only against a caller-supplied
 reviewed report record with trusted build/mod/tactic/engine/domain/request scope;
-the provider cannot expand the scope by echoing new inputs. There are currently **no accepted reports**;
+the provider need not self-certify and cannot expand the scope by echoing new inputs. There are currently **no accepted reports**;
 the real worker supplies no qualification. A fake qualified implementation can
 exercise the independent consumer contract, but does not qualify the real engine.
 
@@ -97,8 +95,7 @@ and retained bundle/report lifecycle. Before a broader run, freeze the supported
 scenario class, prediction interval construction, serious-harm/false-safe event
 classification, held-out split and seed schedule. Retain rejected and unresolved
 scenarios as well as successful predictions so abstention cannot masquerade as
-accuracy. The present worker exports samples, not calibrated predictive intervals;
-interval construction and independent native comparisons remain unfinished.
+accuracy. The worker exports samples; the [CombatLab qualification protocol](../testing/hunting-prediction-qualification.md) supplies independent native comparisons and split-conformal duration scoring. Collection and acceptance remain outstanding.
 
 The required evidence is:
 

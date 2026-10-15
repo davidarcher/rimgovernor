@@ -28,15 +28,16 @@ public sealed class EncounterPredictionConsumer(IEncounterPredictor predictor, T
                 return Refused(EncounterStatus.Malformed, fingerprint, "invalid_result_status");
             if (reply.Status == EncounterStatus.Evidence && !ValidSamples(request, reply))
                 return Refused(EncounterStatus.Malformed, fingerprint, "invalid_sample_payload");
-            if (reply.Qualification is { } qualification)
+            if (reply.Status == EncounterStatus.Evidence)
             {
-                var approved = _accepted.FirstOrDefault(q => q.CriteriaRevision == qualification.CriteriaRevision && q.ReportReference == qualification.ReportReference &&
-                    q.GameBuild == request.Identity.GameBuild && q.Mods == request.Identity.Mods && q.Tactic == request.Identity.Tactic &&
+                // Qualification belongs to the reviewing consumer, never to the provider's self-assertion.
+                var approved = _accepted.FirstOrDefault(q => q.GameBuild == request.Identity.GameBuild &&
+                    q.Mods == request.Identity.Mods && q.Tactic == request.Identity.Tactic &&
                     q.EngineFingerprint == reply.EngineFingerprint && q.SupportedDomain.Length != 0 &&
+                    q.CriteriaRevision.Length != 0 && q.ReportReference.Length != 0 &&
                     q.CoveredRequestFingerprints.Contains(fingerprint, StringComparer.Ordinal));
-                return approved is null
-                    ? reply with { Qualification = null, Reason = "qualification_not_accepted_for_scenario" }
-                    : reply with { Qualification = approved };
+                return approved is not null ? reply with { Qualification = approved } :
+                    reply.Qualification is null ? reply : reply with { Qualification = null, Reason = "qualification_not_accepted_for_scenario" };
             }
             return reply;
         }

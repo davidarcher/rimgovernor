@@ -86,7 +86,7 @@ internal sealed partial class SweepJsonContext : JsonSerializerContext
 /// deaths and downs first; <c>-against</c> pairs the seeds with an earlier sweep and the exit code is 1 on a survival
 /// regression.
 /// </summary>
-public static class SweepCommand
+public static partial class SweepCommand
 {
     /// <summary>The seed count a baseline sweep records (seeds 1..N): Go <c>combatlab.BaselineSeeds</c>.</summary>
     public const int BaselineSeeds = 20;
@@ -121,6 +121,7 @@ public static class SweepCommand
         ArgumentNullException.ThrowIfNull(lab);
         ArgumentNullException.ThrowIfNull(stdout);
         ArgumentNullException.ThrowIfNull(stderr);
+        if (args.Count > 0 && args[0] == "-hunting-report") return HuntingReport(args.Skip(1).ToArray(), stdout, stderr);
         SweepOptions opts;
         try
         {
@@ -137,7 +138,7 @@ public static class SweepCommand
         var selected = new List<AcceptanceCase>();
         foreach (var f in opts.Fixtures)
         {
-            var c = registry.Lookup(CasePrefix + f);
+            var c = registry.Lookup(f.StartsWith("hunting-prediction-", StringComparison.Ordinal) ? "combatlab/" + f : CasePrefix + f);
             if (c is null)
             {
                 await stderr.WriteLineAsync($"unknown fixture \"{f}\" (no case {CasePrefix}{f})").ConfigureAwait(false);
@@ -179,6 +180,11 @@ public static class SweepCommand
         {
             foreach (var c in selected)
             {
+                if (c.Name.StartsWith("combatlab/hunting-prediction-", StringComparison.Ordinal))
+                {
+                    exit = Math.Max(exit, await SweepHuntingAsync(c, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false));
+                    continue;
+                }
                 var fixture = c.Name[CasePrefix.Length..];
                 var code = await SweepFixtureAsync(c, fixture, opts, lab, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
                 exit = Math.Max(exit, code);
