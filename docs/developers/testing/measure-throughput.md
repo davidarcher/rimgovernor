@@ -205,6 +205,22 @@ worst-interval ring and the session reset):
 dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-observation-work
 ```
 
+## Clock baseline run
+
+Fills the table in [brain host](../architecture/brain-host.md#live-clock-baseline). Needs a live game with the bot on,
+run on the shared-machine rules in `AGENTS.md`. Record machine (CPU, GPU, RAM), revision and the run's `service.instance.id`
+with the numbers.
+
+1. Run `speedmatrix/observations` (above) for frame time at each pace: read `frames` p50/p95/p99 per row and the
+   `pace` rows (`ceiling`, `reason`) in `otlp/logs.jsonl` for the effective ticks/s as the pace backs off and ramps.
+2. Critical wave and review scope: take `critical_wave_ms` from the `clock_step` rows and `dur_ms` from `rounds_review` /
+   `planner_step` rows of the same run; report p50/p95/max.
+3. Hazard stop to resume: take `stop_latency_ms` from `clock_step` rows that follow a `clock_stop`; stage a combat hold
+   (a raid fixture) so the hazard class is the one the combat budget covers.
+4. Heartbeat: sort the timestamps of all `clock_step` and `planner_step` rows of one `run` and report the p50/p99/max
+   gap between consecutive rows, once idle and once during a long step.
+5. Write the values, machine and run into the brain-host table and mark each recommended budget measured or guess.
+
 Rerun the native check when the clock scheduler, step cache or
 Ultrafast/acceleration path changes; the observation baseline when the capture, encoding or main-thread admission
 path changes.

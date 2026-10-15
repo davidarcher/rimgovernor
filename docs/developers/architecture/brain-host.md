@@ -82,7 +82,31 @@ from the sources.
 | `FaultBackoff` | 5 s | Half the worker's maximum idle delay (10 s), so a fault does not spin and recovery stays prompt. |
 | `PlannerMissLimit` | 3 | Consecutive missed wave cutoffs before a planner is reported stalled in `BrainHost.Status()`. |
 
-They are unmeasured against a live game; tune them from the clock-step telemetry once the acceptance run (#3085) exists.
+They have not been measured against a live game; see [Live clock baseline](#live-clock-baseline).
+
+## Live clock baseline
+
+Not yet measured (#3169): no live game run has been recorded, so every value below is a guess taken from the
+current constants, not an observation. The recording procedure is in
+[Measure brain throughput](../testing/measure-throughput.md#clock-baseline-run). Fill the Measured column from one
+run and name the machine and run under the tables.
+
+| Quantity | Measured | Current constant | Source row |
+| --- | --- | --- | --- |
+| Frame time at each pace level (p50/p95/p99) | not measured | 30 ms budget (`SupervisedPlayPacing.DefaultFrameBudgetMs`) | native call `timing` / `native_frames` |
+| Effective ticks/s from the 15x floor to the 150x ceiling | not measured | 0.7 down, 1.25 up per 250 ms | `pace`, `clock_step` pacing |
+| Critical planner wave wall time | not measured | none | `clock_step.critical_wave_ms` |
+| Immediate review scope wall time | not measured | none | `rounds_review`, `planner_step` `dur_ms` |
+| Hazard stop to resume latency | not measured | none | `clock_step.stop_latency_ms`, `clock_stop` |
+| Gap between brain activity (heartbeat) | not measured | none | gaps between consecutive `clock_step` / `planner_step` rows |
+
+| Recommended budget | Value | Status |
+| --- | --- | --- |
+| Native frame budget | 30 ms | guess (the existing constant) |
+| Brain heartbeat interval and tolerance | undecided | guess; derive from the p99 heartbeat gap |
+| Resume-latency budget for combat holds | undecided | guess; derive from the p95 `stop_latency_ms` |
+
+Machine: not recorded. Run: none.
 
 ## Hosting in the mod (#3115)
 
