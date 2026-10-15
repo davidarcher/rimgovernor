@@ -15,7 +15,8 @@ public sealed partial class Store
             ON g.id=m.owner_id AND g.kind=m.kind
             WHERE json_extract(g.payload,'$.Snapshot.Colony')=$colony
               AND json_extract(g.payload,'$.Snapshot.Load')=$load AND json_extract(g.payload,'$.Snapshot.Map')=$map
-              AND EXISTS(SELECT 1 FROM actions a WHERE a.plan_id=m.plan_id AND a.kind IN ('building','pawn_activities','production_bill'))
+              AND EXISTS(SELECT 1 FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.plan_id=m.plan_id
+                  AND (a.kind IN ('building','production_bill') OR a.kind='pawn_activities' AND p.retired=0))
             ORDER BY m.plan_id LIMIT 1025
             """, current);
         if (links.Count > MaxWorkActions) return new([], true);
