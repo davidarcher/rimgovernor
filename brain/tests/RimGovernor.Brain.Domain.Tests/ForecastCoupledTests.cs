@@ -94,6 +94,26 @@ public sealed class ForecastCoupledTests
             { Coupled = facts.ForecastObserved.Coupled! with { Tick = 101 } }
         }));
     }
+    [Fact]
+    public void ConstructionSiteWithUnknownFinishTimeIsNotAnAlternativeAndDoesNotThrow()
+    {
+        var facts = Review();
+        var coupled = facts.ForecastObserved.Coupled!;
+        var generated = GenerateCoupledActivities(facts with
+        {
+            ForecastObserved = facts.ForecastObserved with
+            {
+                Coupled = coupled with
+                {
+                    Construction = coupled.Construction with { Options = EquatableArray.From(coupled.Construction.Options.Select(o => o with { FinishTicks = default })) }
+                }
+            }
+        });
+        Assert.NotNull(generated);
+        Assert.DoesNotContain(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal));
+        Assert.Contains(generated.Findings, f => f.StartsWith("construction_outcome_unbound:", StringComparison.Ordinal));
+    }
+
     private static RoundsFacts ConstructionReview(int sites = 1, int stock = 100, int reserved = 0)
     {
         var facts = Review(foodLevel: 1);

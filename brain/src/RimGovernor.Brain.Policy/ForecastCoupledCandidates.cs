@@ -148,13 +148,22 @@ public static partial class PolicyFunctions
             foreach (var binding in family.Bindings) bindings.Add(binding.Key, binding.Value);
             foreach (var route in family.Problem.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
             foreach (var outcome in family.Outcomes)
+            {
+                var exclusive = outcome.Need;
+                if (outcome.Need == "construction-method")
+                {
+                    // A site whose finish work has no known pawn option has no binding to execute, so it is not an alternative.
+                    var finish = family.Bindings.Values.FirstOrDefault(b => b.Id == outcome.Completion);
+                    if (finish is null) { findings.Add("construction_outcome_unbound:" + outcome.Id); continue; }
+                    exclusive = "construction/" + finish.Target;
+                }
                 alternatives.Add(new(outcome.Id, [])
                 {
                     ActivityCompletions = outcome.Completion.Length == 0 ? [] : [outcome.Completion],
-                    ExclusiveOutcome = outcome.Need == "construction-method"
-                        ? "construction/" + family.Bindings.Values.First(b => b.Id == outcome.Completion).Target : outcome.Need,
+                    ExclusiveOutcome = exclusive,
                     Outcome = outcome
                 });
+            }
         }
     }
 }
