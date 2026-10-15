@@ -11,9 +11,6 @@ public sealed class RoundsTendResult : IPlannerMethod
 {
     public Verdict Verdict { get; init; }
     public PlanId Plan { get; init; }
-
-    /// <summary>A bounded window the step may lend when the CriticalMedical deficit stands but no tend method can run (MedicalWaitTicks).</summary>
-    public uint NativeWorkTicks { get; init; }
 }
 
 public sealed class RoundsTendPlanner
@@ -130,7 +127,7 @@ public sealed class RoundsTendPlanner
             // No pair to order: the patient is up and out of bed, or every doctor is ineligible, busy or walled
             // off from the patients. Only game time changes that, so the step lends a window rather than
             // reporting no work.
-            return new RoundsTendResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "medical_pair"), NativeWorkTicks = checked((uint)MedicalWaitTicks) };
+            return new RoundsTendResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "medical_pair") };
         }
         var tend = new Domain.Tend(doctor, patient);
         // Keyed by patient and attempt count, not doctor: a fresh attempt after an interrupted or failed try
@@ -141,7 +138,7 @@ public sealed class RoundsTendPlanner
         {
             // Native refused this patient's treatment and the refusal still stands; the deficit stays visible
             // and the clock must still advance under it.
-            return new RoundsTendResult { Verdict = verdict, NativeWorkTicks = checked((uint)MedicalWaitTicks) };
+            return new RoundsTendResult { Verdict = verdict };
         }
         var method = NextMethodId(prefix, IncidentMethodIds(incident.Methods));
         var id = PlanIds.MintPlanId();

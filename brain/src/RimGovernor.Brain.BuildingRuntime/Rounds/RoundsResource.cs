@@ -16,8 +16,6 @@ public readonly record struct RoundsResourceResult : IPlannerMethod
 
     public PlanId Plan { get; init; }
 
-    public uint NativeWorkTicks { get; init; }
-
     public IReadOnlyList<ResourceSource> Sources { get; init; }
 
     /// <summary>True when the resource went nowhere that would consume its turn: claimed, used, held without a source, or awaiting a source.</summary>
@@ -212,7 +210,7 @@ public sealed partial class RoundsResourcePlanner
                 result = await DispatchSuppliedAsync(state, goal, review.Tick, identity, supply, row.Resource, stock, started, call, epoch).ConfigureAwait(false);
             }
 
-            if (!result.Undispatched() || result.Plan != default || result.NativeWorkTicks != 0)
+            if (!result.Undispatched() || result.Plan != default)
             {
                 return result;
             }
@@ -273,7 +271,7 @@ public sealed partial class RoundsResourcePlanner
         {
             case ResourceMethodKind.Produce:
             case ResourceMethodKind.Wait:
-                return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks };
+                return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
         }
 
         var (result, _) = await AcquireFromSourcesAsync(state, goal, reviewTick, identity, resource, target, stock, started, null, call, epoch).ConfigureAwait(false);
@@ -298,7 +296,7 @@ public sealed partial class RoundsResourcePlanner
             switch (e.Candidate.Kind)
             {
                 case CandidateKind.Produce:
-                    return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks };
+                    return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
                 case CandidateKind.Mining:
                 {
                     var selection = row.Sel;
@@ -321,7 +319,7 @@ public sealed partial class RoundsResourcePlanner
 
         if (row.Busy)
         {
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks };
+            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
         }
 
         var tail = row.Sel;
@@ -365,7 +363,7 @@ public sealed partial class RoundsResourcePlanner
 
         if (selection.Designated)
         {
-            return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks, Sources = selected }, false);
+            return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, Sources = selected }, false);
         }
 
         if (selection.None)

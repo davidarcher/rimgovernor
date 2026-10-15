@@ -18,7 +18,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
         if (work.Waiting)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, false);
+            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, false);
         }
 
         return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_grav_inspection",

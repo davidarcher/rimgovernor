@@ -10,12 +10,6 @@ namespace RimGovernor.Brain.Host;
 
 public sealed partial class BrainComposition
 {
-    // Routine windows run for up to one game day; native events or player input stop them earlier. Combat events
-    // stop raid windows immediately; the backstop keeps uneventful fights within roughly one shot cycle of their
-    // last decision (Go defaultClockWindowTicks, combatBackstopTicks).
-    private const uint DefaultClockWindowTicks = 60000;
-    private const uint CombatBackstopTicks = 300;
-
     // Budgets census and composed planner reads independently of epoch renewal (Go serviceClockStepTimeout).
     private static readonly TimeSpan StepTimeout = TimeSpan.FromMinutes(1);
 
@@ -478,8 +472,6 @@ public sealed partial class BrainComposition
         {
             // MaxAge bounds admission-read staleness; planner facts use FactsTick.
             MaxAge = StepTimeout,
-            MaxTicks = DefaultClockWindowTicks,
-            CombatMaxTicks = Math.Min(CombatBackstopTicks, DefaultClockWindowTicks),
             Worker = true,
             WorldReady = context.WorldReady,
             RoundsMethods = context.Session.RoundsMethodsEnabled(),

@@ -12,8 +12,6 @@ internal readonly record struct PurposeReport
 {
     public Verdict Order { get; init; }
 
-    public uint WorkTicks { get; init; }
-
     public Func<StoreJournal, StandardState, CancellationToken, bool>? OpenWork { get; init; }
 }
 
@@ -325,12 +323,12 @@ public sealed class RoundsLedgerPlanner
             return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        var (reports, ticks) = PurposeReports(state.Snapshot, review, call);
+        var reports = PurposeReports(state.Snapshot, review, call);
         var result = await CommitAsync(arbiter, state, review, call, epoch).ConfigureAwait(false);
-        return result with { Reports = reports, NativeWorkTicks = ticks };
+        return result with { Reports = reports };
     }
 
-    private (IReadOnlyList<LedgerReport> Reports, uint Ticks) PurposeReports(GenerationSnapshot snapshot, Rounds review, CancellationToken call)
+    private List<LedgerReport> PurposeReports(GenerationSnapshot snapshot, Rounds review, CancellationToken call)
     {
         List<LedgerPurpose> purposes;
         lock (reviewer.Ledger.Mu)
@@ -339,18 +337,15 @@ public sealed class RoundsLedgerPlanner
         }
 
         var reports = new List<LedgerReport>();
-        uint ticks = 0;
         foreach (var purpose in purposes)
         {
-            var (verdict, lent) = PurposeVerdict(review, purpose, call);
-            reports.Add(new LedgerReport(purpose.Key, verdict));
-            ticks = Math.Max(ticks, lent);
+            reports.Add(new LedgerReport(purpose.Key, PurposeVerdict(review, purpose, call)));
         }
 
-        return (reports, ticks);
+        return reports;
     }
 
-    private (Verdict Verdict, uint Ticks) PurposeVerdict(Rounds review, LedgerPurpose purpose, CancellationToken call)
+    private Verdict PurposeVerdict(Rounds review, LedgerPurpose purpose, CancellationToken call)
     {
         var journal = reviewer.Player.Journal;
         StandardState? owner;
@@ -361,12 +356,12 @@ public sealed class RoundsLedgerPlanner
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return (Verdict.FieldUnavailable("purpose_owner"), 0);
+            return Verdict.FieldUnavailable("purpose_owner");
         }
 
         if (!workable || owner is null)
         {
-            return (BuildingRuntimePackage.BuildingReasonNoDeficit, 0);
+            return BuildingRuntimePackage.BuildingReasonNoDeficit;
         }
 
         if (purpose.Report.OpenWork is { } openWork)
@@ -378,16 +373,16 @@ public sealed class RoundsLedgerPlanner
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                return (Verdict.FieldUnavailable("purpose_plans"), 0);
+                return Verdict.FieldUnavailable("purpose_plans");
             }
 
             if (open)
             {
-                return (BuildingRuntimePackage.BuildingReasonExistingWork, 0);
+                return BuildingRuntimePackage.BuildingReasonExistingWork;
             }
         }
 
-        return (purpose.Report.Order, purpose.Report.WorkTicks);
+        return purpose.Report.Order;
     }
 
     private async Task<RoundsLedgerResult> CommitAsync(StepArbiter? arbiter, ControlState state, Rounds review, CancellationToken call, CancellationToken epoch)
@@ -549,6 +544,4 @@ public readonly record struct RoundsLedgerResult : IPlannerMethod
     public PlanId Plan { get; init; }
 
     public IReadOnlyList<LedgerReport> Reports { get; init; }
-
-    public uint NativeWorkTicks { get; init; }
 }

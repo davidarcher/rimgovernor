@@ -21,8 +21,6 @@ public sealed class RoundsDefenseLayoutResult : IPlannerMethod
     public PlanId Plan { get; set; }
 
     public string Tier { get; set; } = "";
-
-    public uint NativeWorkTicks { get; set; }
 }
 
 /// <summary>Plans the colony's defensive layout: the killbox, the firing line, the perimeter, the turrets and mortars, and the cover to clear, one tier at a time.</summary>
@@ -33,7 +31,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const string DefenseMortarDefinition = "Turret_Mortar";
     internal const string DefenseIedHighExplosive = "TrapIED_HighExplosive";
     internal const string DefenseIedIncendiary = "TrapIED_Incendiary";
-    internal const uint DefenseNativeWorkTicks = 2500;
 
     internal static readonly DefenseDefinitions DefenseDefinitionNames = new()
     {

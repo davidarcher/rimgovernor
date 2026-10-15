@@ -77,7 +77,6 @@ the first native protective effect.
 | `authority` | event row. `change` (`changed`, `lost`, `retaken`), `reason`, `active`, `generation`, `previous_generation`, `cursor`, `paused`, `pace`, `stop_reason`; `WARN` for `lost` |
 | `clock_journal` | event row. `through_cursor`, `newest_cursor` |
 | `alert` | event row. `key`, `label`, `priority`, `cursor` |
-| `idle_stall` | decision, `WARN`. `reason` `no_work`; attrs `tick`, `refusals`, `lend_ticks`, `standing` |
 
 
 ### Rounds, layout and colony (`RimGovernor.Brain.BuildingRuntime/Rounds`, `ColonyPlan`, `Layout*`)

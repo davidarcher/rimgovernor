@@ -29,8 +29,6 @@ public sealed record RoundsShrineResult : IPlannerMethod
     /// <summary>Every candidate the step judged and passed over, with its own reason, beside the one Shrine names.</summary>
     public IReadOnlyList<Pol.ShrineHold> Skipped { get; init; } = [];
 
-    public uint NativeWorkTicks { get; init; }
-
     /// <summary>Records one candidate the step judged and moved past: the first becomes the step's hold, every later one a skipped candidate.</summary>
     internal RoundsShrineResult Pass(string shrine, string reason) =>
         Hold == ""

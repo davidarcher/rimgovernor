@@ -35,37 +35,6 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         return new RoundsSleepingUpkeepPlanner(reviewer, native, building);
     }
 
-    /// <summary>
-    /// The clock window inside which a completed assignment's sleep is observed: one full day covers the next
-    /// rest period, and the budget is not renewed by later observations.
-    /// </summary>
-    private const int SleepingObservationBudget = GameTime.TicksPerDay;
-
-    /// <summary>One clock window inside that budget.</summary>
-    private const int SleepingObservationSlice = 600;
-
-    /// <summary>The clock window a completed assignment of this epoch still earns; only observed use recovers the goal, and without ticks nobody sleeps.</summary>
-    internal static uint SleepingNativeWorkTicks(Sto.PlanState plan, GenerationSnapshot current, Tick tick)
-    {
-        if (plan.Progress.Count != 1)
-        {
-            return 0;
-        }
-        var p = plan.Progress[0];
-        if (p.Action.Assign is null)
-        {
-            return 0;
-        }
-        // The assignment's observation is taken at the root plan's scope, so only the world (colony, load, map) is compared, not the plan.
-        var v = p.View;
-        var known = v.Effect.TryGetValue(out var effect);
-        if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !Boundary.World(v.Snapshot, current) || tick.Value < v.Tick.Value || tick.Value - v.Tick.Value >= SleepingObservationBudget)
-        {
-            return 0;
-        }
-        return Math.Min((uint)SleepingObservationSlice, (uint)(SleepingObservationBudget - (tick.Value - v.Tick.Value)));
-    }
-
     internal async Task<RoundsBuildingResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
@@ -96,26 +65,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
             }
         }
-        // A completed assignment is retired from the goal's active methods once its epoch is cleaned, so the
-        // epoch's full method history is what still earns the observation window.
-        uint observe = 0;
-        var methods = p.Journal.LoadOwnerMethods(goal, call);
-        foreach (var m in methods)
-        {
-            // Only a bed assignment is followed by observed sleep.
-            if (m.MethodId.Value.StartsWith("throne-", StringComparison.Ordinal))
-            {
-                continue;
-            }
-            var plan = p.Journal.LoadPlan(m.Plan, call);
-            observe = Math.Max(observe, SleepingNativeWorkTicks(plan, state.Snapshot, review.Tick));
-        }
-        var result = await DecideAsync(arbiter, state, review, goal, call, epoch).ConfigureAwait(false);
-        if (result.Verdict != BuildingReasonAdmitted && result.NativeWorkTicks == 0)
-        {
-            result = result with { NativeWorkTicks = observe };
-        }
-        return result;
+        return await DecideAsync(arbiter, state, review, goal, call, epoch).ConfigureAwait(false);
     }
 
     private async Task<RoundsBuildingResult> DecideAsync(StepArbiter arbiter, ControlState state, Sto.Rounds review, Sto.StandardState goal, CancellationToken call, CancellationToken epoch)

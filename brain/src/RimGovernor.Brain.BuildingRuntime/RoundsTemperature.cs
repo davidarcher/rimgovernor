@@ -141,39 +141,4 @@ internal static partial class BuildingRuntimePackage
     /// <summary>The planning definitions the temperature planner reads: every method it can place, so availability and draw are known before one is chosen.</summary>
     internal static readonly string[] TemperatureDefinitions = ["Campfire", "PassiveCooler", "Cooler"];
 
-    /// <summary>Completed construction lends bounded ordinary refueling and heat-exchange time. Neither the construction receipt nor this allowance establishes safety.</summary>
-    internal static uint TemperatureOutputAllowance(string heater, StoreJournal journal, Sto.StandardState goal, GenerationSnapshot current, Tick tick, CancellationToken ct)
-    {
-        var methods = journal.LoadOwnerMethods(goal, ct);
-        uint allowance = 0;
-        foreach (var method in methods)
-        {
-            var plan = journal.LoadPlan(method.Plan, ct);
-            allowance = Math.Max(allowance, TemperatureNativeWorkTicks(heater, plan, current, tick));
-        }
-        return allowance;
-    }
-
-    internal static uint TemperatureNativeWorkTicks(string heater, Sto.PlanState plan, GenerationSnapshot current, Tick tick)
-    {
-        if (plan.Progress.Count != 1)
-        {
-            return 0;
-        }
-        var progress = plan.Progress[0];
-        if (progress.Action.Building is not { } building || (building.Definition != "Campfire" && building.Definition != heater && building.Definition != "PassiveCooler" && building.Definition != "Cooler"))
-        {
-            return 0;
-        }
-        // Native order-generation drift (authority reacquired since the build) does not unbuild the structure:
-        // the receipt must match the world and the plan revision it served, not the native generation.
-        var v = progress.View;
-        current = current with { Plan = plan.Spec.Id, Revision = plan.Spec.Revision, Native = v.Snapshot.Native };
-        var known = v.Effect.TryGetValue(out var effect);
-        if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !v.Snapshot.Matches(current) || tick.Value < v.Tick.Value || tick.Value - v.Tick.Value >= 10000)
-        {
-            return 0;
-        }
-        return Math.Min(120u, (uint)(10000 - (tick.Value - v.Tick.Value)));
-    }
 }

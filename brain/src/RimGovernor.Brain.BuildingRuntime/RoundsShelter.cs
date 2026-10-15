@@ -54,41 +54,6 @@ public sealed partial class RoundsBuildingPlanner
 
 internal static partial class BuildingRuntimePackage
 {
-    /// <summary>
-    /// A completed starter shell may trigger RimWorld's normal automatic roofing. Give that work at most four
-    /// in-game hours from the durable completion tick. Polling, restarting or cancelling cannot renew this
-    /// budget. Shells vary in size by shape, so any nonempty fully completed plan qualifies. The budget is
-    /// scoped to the world and plan revision the walls were completed in, not to the native order generation:
-    /// an authority re-acquisition between the last dispatch and the review (a cancelled transport call) moves
-    /// the generation on without touching the standing walls, and nothing else lends the clock the roof needs
-    /// when the shell is the only work.
-    /// </summary>
-    internal static uint ShelterNativeWorkTicks(Sto.PlanState plan, GenerationSnapshot current, Tick tick)
-    {
-        if (plan.Progress.Count == 0)
-        {
-            return 0;
-        }
-        long completed = 0;
-        foreach (var p in plan.Progress)
-        {
-            var v = p.View;
-            var known = v.Effect.TryGetValue(out var effect);
-            if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !Boundary.World(v.Snapshot, current)
-                || v.Snapshot.Plan != plan.Spec.Id || v.Snapshot.Revision != plan.Spec.Revision || v.Tick.Value > tick.Value)
-            {
-                return 0;
-            }
-            completed = Math.Max(completed, v.Tick.Value);
-        }
-        const long budget = 10000;
-        if (tick.Value - completed >= budget)
-        {
-            return 0;
-        }
-        return (uint)(budget - (tick.Value - completed));
-    }
-
     /// <summary>Whether every named definition can be raised by any colonist now (no construction skill needed); a shell piece also has to be a single cell.</summary>
     internal static bool RoundsDefinitionsAvailable(Observation.ColonyProjection facts, IReadOnlyList<string> names, bool shell) =>
         DefinitionsGate(facts, names, shell).IsZero;

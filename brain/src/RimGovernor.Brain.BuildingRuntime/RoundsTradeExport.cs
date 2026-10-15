@@ -141,9 +141,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     // Whether the latest declaration carries an export order.
     private bool _working;
 
-    /// <summary>The window an export batch asks for per step; the review re-reads the bench between windows.</summary>
-    internal const uint ExportNativeWorkTicks = 2500;
-
     /// <summary>Reads every settlement of the world, whatever its distance.</summary>
     internal const double AllSettlementsRadius = 1e9;
 
@@ -417,7 +414,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             {
                 return new PurposeReport { Order = BuildingReasonNoDeficit };
             }
-            return new PurposeReport { Order = WaitFor(Pol.Cause.ExistingWork, "export"), WorkTicks = ExportNativeWorkTicks };
+            return new PurposeReport { Order = WaitFor(Pol.Cause.ExistingWork, "export") };
         }
     }
 

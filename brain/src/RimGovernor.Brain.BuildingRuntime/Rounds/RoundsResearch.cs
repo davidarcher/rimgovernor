@@ -7,8 +7,6 @@ public interface IRoundsResearchSource : Observation.IResearchSource
 /// <summary>Composes EnsureResearch: picks the next project, builds the bench it needs, or waits on the current one.</summary>
 public sealed class RoundsResearchPlanner
 {
-    internal const uint ResearchNativeWorkTicks = 2500;
-
     private readonly Rounder reviewer;
     private readonly IRoundsResearchSource native;
     private readonly RoundsBuildingPlanner? building;
@@ -46,7 +44,7 @@ public sealed class RoundsResearchPlanner
         var copy = building.Copy();
         copy.AdvancedLab = advanced;
         var result = await copy.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-        return new RoundsResearchResult { Verdict = result.Verdict, NativeWorkTicks = result.NativeWorkTicks };
+        return new RoundsResearchResult { Verdict = result.Verdict };
     }
 
     internal async Task<RoundsResearchResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
@@ -165,7 +163,7 @@ public sealed class RoundsResearchPlanner
                 }
             }
 
-            return new RoundsResearchResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "current_research_project"), NativeWorkTicks = ResearchNativeWorkTicks };
+            return new RoundsResearchResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "current_research_project") };
         }
 
         if (!deficit || goal is null)
@@ -415,6 +413,4 @@ public readonly record struct RoundsResearchResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 
     public PlanId Plan { get; init; }
-
-    public uint NativeWorkTicks { get; init; }
 }

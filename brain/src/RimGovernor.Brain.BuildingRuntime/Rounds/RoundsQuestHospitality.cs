@@ -22,7 +22,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
         if (work.Waiting)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "quest_hosting"), NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, false);
+            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "quest_hosting") }, false);
         }
 
         if (work.Shuttle is { Loading: ShuttleLoading.ExplicitPawns } or { Loading: ShuttleLoading.Autoload, Autoload: true })
@@ -69,6 +69,6 @@ public sealed partial class RoundsPopulationJoinerPlanner
         }
 
         reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
+        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
     }
 }

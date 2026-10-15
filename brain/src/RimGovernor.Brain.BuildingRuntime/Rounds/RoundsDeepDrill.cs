@@ -219,7 +219,7 @@ public sealed partial class RoundsResourcePlanner
         }
         if (drill.Built)
         {
-            return (new RoundsResourceResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = StockWaitTicks }, true);
+            return (new RoundsResourceResult { Verdict = BuildingReasonExistingWork }, true);
         }
         foreach (var e in supply.Plan.Plan.Portfolio)
         {

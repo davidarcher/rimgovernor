@@ -202,7 +202,7 @@ are deliberately not configurable:
 
 | Regulator | Why it is kept |
 |---|---|
-| `StepBudget` (`Reads`, `Wall`, `NativeWork`) | Bounds one step's planner waves; an overrun is reported on the `clock_step` row, and a wave past `Wall` holds admission naming its planners instead of failing the step. |
+| `StepBudget` (`Reads`, `Wall`) | Bounds one step's planner waves; an overrun is reported on the `clock_step` row, and a wave past `Wall` holds admission naming its planners instead of failing the step. |
 | `DefaultStepWall = 40s` | Under the 60 s step call so a wedged wave is named, not a context deadline. |
 | `clockStopSpanLimit = 10 min` | Discards stop spans that cannot be one review's wait (a long-stopped clock, wall-clock skew). |
 | `ConstructionHelpHoldTicks` (one game hour) | Keeps construction helpers across a brief gap in suitable work so they do not flap. |

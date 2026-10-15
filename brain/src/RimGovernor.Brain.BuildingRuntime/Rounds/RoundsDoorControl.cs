@@ -30,7 +30,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             if (held == change.HoldOpen)
             {
-                return (new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "door_passage_pending"), NativeWorkTicks = StockWaitTicks }, true);
+                return (new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "door_passage_pending") }, true);
             }
             var id = PlanIds.MintPlanId();
             var actions = new List<DomainAction>();

@@ -21,8 +21,6 @@ public readonly record struct RoundsHusbandryResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 
     public PlanId Plan { get; init; }
-
-    public uint NativeWorkTicks { get; init; }
 }
 
 public sealed partial class RoundsHusbandryPlanner
@@ -56,18 +54,13 @@ public sealed partial class RoundsHusbandryPlanner
         var started = Reviewer.Clock.Now();
         var read = await Reviewer.ObserveRoomsAsync(Reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var projection = read.Projection with { Facts = read.Projection.Facts with { AnimalWard = read.Projection.Facts.AnimalWard with { Ready = WardReadyOf(read.Projection) } } };
-        var wait = AnimalProductWait(projection.Facts.FoodPlan);
         var herd = projection.Facts.HerdPolicy();
         var nativeWorkPending = PolicyFunctions.HerdWorkPending(projection.Facts.AnimalUpkeep.Animals, projection.Facts.AnimalUpkeep.WildAnimals, herd);
-        if (nativeWorkPending)
-        {
-            wait = Math.Max(wait, StockWaitTicks);
-        }
 
         var (goal, workable) = p.Journal.Workable(review, PolicyConstants.MaintainHerd, call);
         if (!workable || goal is null)
         {
-            return new RoundsHusbandryResult { Verdict = BuildingReasonNoDeficit, NativeWorkTicks = wait };
+            return new RoundsHusbandryResult { Verdict = BuildingReasonNoDeficit };
         }
 
         foreach (var m in goal.Methods)
@@ -75,7 +68,7 @@ public sealed partial class RoundsHusbandryPlanner
             var open = p.Journal.LoadPlan(m.Plan, call);
             if (StorePackage.PlanOpen(open))
             {
-                return new RoundsHusbandryResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = wait };
+                return new RoundsHusbandryResult { Verdict = BuildingReasonExistingWork };
             }
         }
 
@@ -119,10 +112,10 @@ public sealed partial class RoundsHusbandryPlanner
             case HusbandryPlanReason.NoDeficit:
                 if (nativeWorkPending)
                 {
-                    return new RoundsHusbandryResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = wait };
+                    return new RoundsHusbandryResult { Verdict = BuildingReasonExistingWork };
                 }
 
-                return new RoundsHusbandryResult { Verdict = BuildingReasonNoDeficit, NativeWorkTicks = wait };
+                return new RoundsHusbandryResult { Verdict = BuildingReasonNoDeficit };
             case HusbandryPlanReason.Unknown:
                 return new RoundsHusbandryResult { Verdict = FieldUnavailable("husbandry_census") };
         }
@@ -141,7 +134,7 @@ public sealed partial class RoundsHusbandryPlanner
         var (verdict, ok) = AdmitSubject(p.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
         if (!ok)
         {
-            return new RoundsHusbandryResult { Verdict = verdict, NativeWorkTicks = wait };
+            return new RoundsHusbandryResult { Verdict = verdict };
         }
 
         if (!arbiter.TryClaim([choice.Animal]))
@@ -169,26 +162,5 @@ public sealed partial class RoundsHusbandryPlanner
 
         p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return new RoundsHusbandryResult { Verdict = BuildingReasonAdmitted, Plan = id };
-    }
-}
-
-internal static partial class BuildingRuntimePackage
-{
-    internal static uint AnimalProductWait(Fact<FoodPlan> plan)
-    {
-        if (!plan.TryGetValue(out var v))
-        {
-            return 0;
-        }
-
-        foreach (var entry in v.Portfolio)
-        {
-            if (entry.Channel.Kind == CandidateKind.AnimalProduct && entry.Selected)
-            {
-                return StockWaitTicks;
-            }
-        }
-
-        return 0;
     }
 }

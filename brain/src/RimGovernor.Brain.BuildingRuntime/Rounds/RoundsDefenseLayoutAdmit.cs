@@ -42,7 +42,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                     placed++;
                     continue;
                 }
-                return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value, NativeWorkTicks = DefenseNativeWorkTicks };
+                return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value };
             }
             if (!ok && ((tier.Name == PolicyApi.TierFiringLine && building.Definition == DefenseDefinitionNames.Floor) || PolicyApi.IsPerimeterTier(tier.Name) || tier.Name == PolicyApi.TierIEDs))
             {
@@ -61,7 +61,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (actions.Count == 0 && placed > 0 && unfloorable.Count == 0)
         {
-            return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value, NativeWorkTicks = DefenseNativeWorkTicks };
+            return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value };
         }
         if (unfloorable.Count > 0)
         {

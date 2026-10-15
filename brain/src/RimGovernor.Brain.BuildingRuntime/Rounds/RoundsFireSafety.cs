@@ -12,15 +12,11 @@ public sealed class RoundsFireSafetyResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 
     public FireSafetyOutcome Outcome { get; init; }
-
-    public uint NativeWorkTicks { get; init; }
 }
 
 /// <summary>Keeps the colonists able to fight fires.</summary>
 public sealed class RoundsFireSafetyPlanner
 {
-    internal const uint FireSafetyNativeWorkTicks = 600;
-
     private readonly Rounder _reviewer;
     private readonly IRoundsFireSafetySource _native;
 
@@ -132,7 +128,7 @@ public sealed class RoundsFireSafetyPlanner
         switch (outcome)
         {
             case FireSafetyOutcome.WaitingForNative:
-                return new RoundsFireSafetyResult { Verdict = BuildingReasonExistingWork, Outcome = outcome, NativeWorkTicks = FireSafetyNativeWorkTicks };
+                return new RoundsFireSafetyResult { Verdict = BuildingReasonExistingWork, Outcome = outcome };
             case FireSafetyOutcome.Unknown:
                 return new RoundsFireSafetyResult { Verdict = FieldUnavailable("fire_safety"), Outcome = outcome };
             case FireSafetyOutcome.Blocked:

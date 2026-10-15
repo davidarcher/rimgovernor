@@ -16,9 +16,6 @@ public sealed record StepBudget
     /// <summary>Bounds the planner waves: the critical wave still pending at the deadline holds admission naming its planners, and the optional wave's cutoff is the same deadline. Zero or less means <see cref="DefaultStepWall"/>.</summary>
     public TimeSpan Wall { get; init; }
 
-    /// <summary>Bounds the native-work window a step lends (the largest NativeWorkTicks its planners ask for); zero means the window's own maximum.</summary>
-    public uint NativeWork { get; init; }
-
     internal TimeSpan EffectiveWall => Wall <= TimeSpan.Zero ? DefaultStepWall : Wall;
 }
 

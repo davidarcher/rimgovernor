@@ -35,7 +35,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
         if (choice.Kind is "protect" or "wait")
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
+            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, true);
         }
 
         var id = PlanIds.MintPlanId();
@@ -117,6 +117,6 @@ public sealed partial class RoundsPopulationJoinerPlanner
             reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         }
 
-        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
+        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
     }
 }

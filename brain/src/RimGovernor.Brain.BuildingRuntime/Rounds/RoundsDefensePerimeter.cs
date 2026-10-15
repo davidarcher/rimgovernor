@@ -464,7 +464,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             if (pending)
             {
-                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("perimeter_preview"), Tier = tier.Name.Value, NativeWorkTicks = DefenseNativeWorkTicks };
+                return new RoundsDefenseLayoutResult { Verdict = FieldUnavailable("perimeter_preview"), Tier = tier.Name.Value };
             }
             return new RoundsDefenseLayoutResult { Verdict = NoSpace("perimeter_section"), Tier = tier.Name.Value };
         }

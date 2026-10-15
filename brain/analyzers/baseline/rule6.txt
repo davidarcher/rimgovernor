@@ -11,7 +11,6 @@ BuildingRuntime/Rounds/Rounder.cs|Rounder.ReviewStepAsync|"Hopper"
 BuildingRuntime/Rounds/Rounder.cs|Rounder.ReviewStepAsync|"NutrientPasteDispenser"
 BuildingRuntime/Rounds/Rounder.cs|Rounder.ReviewStepAsync|"Wall"
 BuildingRuntime/Rounds/RoundsAcquisition.cs|BuildingRuntimePackage.CensusBlocking|"WoodLog"
-BuildingRuntime/Rounds/RoundsArt.cs|RoundsArtPlanner.ArtNativeWorkTicks|2500
 BuildingRuntime/Rounds/RoundsBuildingSelection.cs|BuildingRuntimePackage.ButcherTableWanted|"TableButcher"
 BuildingRuntime/Rounds/RoundsBuildingSelection.cs|BuildingRuntimePackage.CampfireIntentStanding|"Campfire"
 BuildingRuntime/Rounds/RoundsBuildingSelection.cs|RoundsBuildingPlanner.NewRoundsButcherPlanner|"TableButcher"
@@ -39,12 +38,10 @@ BuildingRuntime/Rounds/RoundsDefenseLayout.cs|RoundsDefenseLayoutPlanner.Defense
 BuildingRuntime/Rounds/RoundsDefenseLayout.cs|RoundsDefenseLayoutPlanner.DefenseDefinitionNames|"WoodLog"
 BuildingRuntime/Rounds/RoundsDefenseLayout.cs|RoundsDefenseLayoutPlanner.DefenseDefinitionNames|"WoodPlankFloor"
 BuildingRuntime/Rounds/RoundsDefenseLayout.cs|RoundsDefenseLayoutPlanner.DefenseMortarDefinition|"Turret_Mortar"
-BuildingRuntime/Rounds/RoundsDefenseLayout.cs|RoundsDefenseLayoutPlanner.DefenseNativeWorkTicks|2500
 BuildingRuntime/Rounds/RoundsDefenseLayoutTiers.cs|RoundsDefenseLayoutPlanner.DefenseReverifyTicks|2500
 BuildingRuntime/Rounds/RoundsDefensePerimeter.cs|RoundsDefenseLayoutPlanner.DefenseRoomLamp|"StandingLamp"
 BuildingRuntime/Rounds/RoundsField.cs|BuildingRuntimePackage.FieldSiteRequest|"Heater"
 BuildingRuntime/Rounds/RoundsField.cs|BuildingRuntimePackage.FieldSiteRequest|"HydroponicsBasin"
-BuildingRuntime/Rounds/RoundsField.cs|RoundsFieldPlanner.FieldAllowance|60000
 BuildingRuntime/Rounds/RoundsField.cs|RoundsFieldPlanner.StepAsync|"Heater"
 BuildingRuntime/Rounds/RoundsField.cs|RoundsFieldPlanner.StepAsync|"HydroponicsBasin"
 BuildingRuntime/Rounds/RoundsFirebreak.cs|FirebreakMemory.FirebreakGroundOf|"WoodLog"
@@ -61,8 +58,6 @@ BuildingRuntime/Rounds/RoundsPaste.cs|RoundsBuildingPlanner.SelectPaste|"Nutrien
 BuildingRuntime/Rounds/RoundsPlanDig.cs|RoundsBuildingPlanner.DigExhaustAsync|"Cooler"
 BuildingRuntime/Rounds/RoundsPower.cs|BuildingRuntimePackage.PowerDefinition|"HiddenConduit"
 BuildingRuntime/Rounds/RoundsPower.cs|BuildingRuntimePackage.PowerDefinition|"PowerConduit"
-BuildingRuntime/Rounds/RoundsPower.cs|BuildingRuntimePackage.PowerOutputAllowance|"Door"
-BuildingRuntime/Rounds/RoundsPower.cs|BuildingRuntimePackage.PowerOutputAllowance|"Wall"
 BuildingRuntime/Rounds/RoundsPower.cs|RoundsBuildingPlanner.PreviewPlannedPowerAsync|"Wall"
 BuildingRuntime/Rounds/RoundsPower.cs|RoundsBuildingPlanner.PreviewPowerShelterAsync|"Door"
 BuildingRuntime/Rounds/RoundsPower.cs|RoundsBuildingPlanner.PreviewPowerShelterAsync|"Wall"
@@ -71,9 +66,8 @@ BuildingRuntime/Rounds/RoundsPrisonerInteraction.cs|RoundsPrisonerInteractionPla
 BuildingRuntime/Rounds/RoundsPrisonerInteraction.cs|RoundsPrisonerInteractionPlanner.StageJailAsync|"Door"
 BuildingRuntime/Rounds/RoundsPrisonerInteraction.cs|RoundsPrisonerInteractionPlanner.StageJailAsync|"Wall"
 BuildingRuntime/Rounds/RoundsRefrigeration.cs|RoundsBuildingPlanner.NewRoundsRefrigerationPlanner|"Cooler"
-BuildingRuntime/Rounds/RoundsRefrigeration.cs|RoundsBuildingPlanner.RefrigerationNativeWorkTicks|"Cooler"
+BuildingRuntime/Rounds/RoundsRefrigeration.cs|RoundsBuildingPlanner.RefrigerationCoolingRemaining|"Cooler"
 BuildingRuntime/Rounds/RoundsRefrigeration.cs|RoundsBuildingPlanner.SelectRefrigerationAsync|"Cooler"
-BuildingRuntime/Rounds/RoundsResearch.cs|RoundsResearchPlanner.ResearchNativeWorkTicks|2500
 BuildingRuntime/Rounds/RoundsResource.cs|RoundsResourcePlanner.DispatchResourceConcernAsync|"Beer"
 BuildingRuntime/Rounds/RoundsResource.cs|RoundsResourcePlanner.StepRecordedAsync|"Beer"
 BuildingRuntime/Rounds/RoundsResourceFields.cs|Rounder.ChopMinGrowth|"WoodLog"
@@ -112,14 +106,10 @@ BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureCooling|"
 BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureDefinitions|"Campfire"
 BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureDefinitions|"Cooler"
 BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureDefinitions|"PassiveCooler"
-BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureNativeWorkTicks|"Campfire"
-BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureNativeWorkTicks|"Cooler"
-BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureNativeWorkTicks|"PassiveCooler"
 BuildingRuntime/RoundsTemperature.cs|RoundsBuildingPlanner.SelectTemperature|"Campfire"
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"Door"
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"Wall"
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"WoodLog"
-BuildingRuntime/RoundsTradeExport.cs|RoundsTradeExportPlanner.ExportNativeWorkTicks|2500
 BuildingRuntime/RoundsTradeRequests.cs|BuildingRuntimePackage.RequestRecordPending|360000
 BuildingRuntime/RoundsWorkProjects.cs|BuildingRuntimePackage.RoundsDeficitWork|"Beer"
 BuildingRuntime/RoundsWorkshop.cs|RoundsBuildingPlanner.PrepareWorkshopAsync|"Beer"
@@ -141,7 +131,6 @@ Host/Client/FacadeNativeClient.Defense.cs|FacadeNativeClient.DefenseSpatialAcces
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"HiddenConduit"
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"PowerConduit"
 Host/Client/FacadeNativeClient.Sites.cs|PlacementReads.SalvageMaxAgeTicks|2500
-Host/Composition/BrainComposition.Planners.cs|BrainComposition.DefaultClockWindowTicks|60000
 Observation/ColonyDecode.cs|ObservationPackage.DecodeColony|"PowerConduit"
 Observation/ColonyDecode.cs|ObservationPackage.DecodeColony|"WoodLog"
 Observation/Definitions.cs|ObservationPackage.StarterDefinitions|"Barricade"

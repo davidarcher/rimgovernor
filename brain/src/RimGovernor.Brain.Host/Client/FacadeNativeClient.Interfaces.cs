@@ -27,7 +27,7 @@ internal sealed partial class FacadeNativeClient :
     // Building runtime: clock and colony natives.
     IClockNative,
     IEntityNative,
-    IClockWindowNative,
+    IClockStepNative,
     IClockDriverNative,
     IColonyFactsReader,
     IColonyStatusNative,
@@ -177,7 +177,7 @@ internal sealed partial class FacadeNativeClient :
     Task<O.BundleSnapshot?> IClockEventNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
         ReadStepAsync(request, ct);
 
-    Task<O.BundleSnapshot?> IClockWindowNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
+    Task<O.BundleSnapshot?> IClockStepNative.ReadStepAsync(BridgeFunctions.StepRequest request, CancellationToken ct) =>
         ReadStepAsync(request, ct);
 
     Task<PbClock.EventsReply> IClockEventNative.ReadClockEventsAsync(PbClock.EventsRequest request, CancellationToken ct) =>

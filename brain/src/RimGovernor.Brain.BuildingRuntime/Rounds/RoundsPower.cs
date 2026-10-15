@@ -470,68 +470,8 @@ internal static partial class BuildingRuntimePackage
         return required;
     }
 
-    internal static uint PowerOutputAllowance(StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, CancellationToken ct)
-    {
-        var methods = journal.LoadOwnerMethods(goal, ct);
-        uint allowance = 0;
-        foreach (var m in methods)
-        {
-            var plan = journal.LoadPlan(m.Plan, ct);
-            allowance = Math.Max(allowance, PowerNativeWorkTicks(plan, current, tick));
-            var actions = plan.Spec.Actions;
-            if (actions.Count > 0)
-            {
-                var walls = true;
-                foreach (var a in actions)
-                {
-                    walls = walls && a.Building is { } b && (b.Definition == "Wall" || b.Definition == "Door");
-                }
-
-                if (walls)
-                {
-                    allowance = Math.Max(allowance, ShelterNativeWorkTicks(plan, current, tick));
-                }
-            }
-        }
-
-        return allowance;
-    }
-
     internal static bool PowerDefinition(string name) =>
         name is "PowerConduit" or "HiddenConduit" or "WaterproofConduit" || PolicyFunctions.PowerFamilyDefinitions().Contains(name);
-
-    internal static uint PowerNativeWorkTicks(PlanState plan, GenerationSnapshot current, Tick tick)
-    {
-        if (plan.Progress.Count is < 1 or > 8)
-        {
-            return 0;
-        }
-
-        current = current with { Plan = plan.Spec.Id, Revision = plan.Spec.Revision };
-        long completed = 0;
-        foreach (var p in plan.Progress)
-        {
-            if (p.Action.Building is not { } b || !PowerDefinition(b.Definition))
-            {
-                return 0;
-            }
-
-            var v = p.View;
-            if (v.Stage != Stage.Completed || v.Unresolved || !v.Effect.TryGetValue(out var effect) || effect != Effect.Completed || !v.Snapshot.Matches(current) || tick.Value < v.Tick.Value)
-            {
-                return 0;
-            }
-
-            completed = Math.Max(completed, v.Tick.Value);
-        }
-
-        if (tick.Value - completed >= 10000)
-        {
-            return 0;
-        }
-
-        return (uint)Math.Min(120L, 10000L - (tick.Value - completed));
-    }
 
     internal static IReadOnlySet<Cell> PorchCells(ColonyProjection facts)
     {

@@ -146,27 +146,6 @@ public sealed partial class RoundsBuildingPlanner
 
 internal static partial class BuildingRuntimePackage
 {
-    /// <summary>The native work ticks the comfort furniture just built still need before the next comfort pick; the longest across the furniture.</summary>
-    internal static uint ComfortUseAllowance(StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, DiningFurniture furniture, CancellationToken ct)
-    {
-        uint ticks = 0;
-        foreach (var definition in furniture.Definitions())
-        {
-            PlanId methodPlan;
-            try
-            {
-                methodPlan = journal.LoadOwnerMethod(goal, new MethodId("comfort-" + definition), ct).Plan;
-            }
-            catch (NotFoundException)
-            {
-                continue;
-            }
-            var plan = journal.LoadPlan(methodPlan, ct);
-            ticks = Math.Max(ticks, ComfortNativeWorkTicks(plan, current, tick, furniture));
-        }
-        return ticks;
-    }
-
     internal static DiningFurniture ComfortFurniture(ColonyProjection facts)
     {
         if (facts.Facts.Comfort.TryGetValue(out var v))
@@ -216,28 +195,6 @@ internal static partial class BuildingRuntimePackage
 
     internal static Verdict ComfortAccessWait(ComfortNeed dining) =>
         dining == Pol.ComfortNeed.Capacity ? WaitFor(Cause.FacilityAccess, "dining") : WaitFor(Cause.FacilityAccess, "recreation");
-
-    /// <summary>The ticks (at most 120) a completed comfort building of this plan keeps the comfort review waiting, within 10000 ticks of the completion.</summary>
-    internal static uint ComfortNativeWorkTicks(PlanState plan, GenerationSnapshot current, Tick tick, DiningFurniture furniture)
-    {
-        if (plan.Progress.Count != 1)
-        {
-            return 0;
-        }
-        var p = plan.Progress[0];
-        if (p.Action.Building is not { } b || !furniture.Definitions().Contains(b.Definition))
-        {
-            return 0;
-        }
-        current = current with { Plan = plan.Spec.Id, Revision = plan.Spec.Revision };
-        var v = p.View;
-        var known = v.Effect.TryGetValue(out var effect);
-        if (v.Stage != Stage.Completed || v.Unresolved || !known || effect != Effect.Completed || !v.Snapshot.Matches(current) || tick < v.Tick || tick.Value - v.Tick.Value >= 10000)
-        {
-            return 0;
-        }
-        return Math.Min(120u, (uint)(10000 - (tick.Value - v.Tick.Value)));
-    }
 
     internal static bool BuilderAvailable(IReadOnlyList<WorkPawn> pawns, int minimum)
     {

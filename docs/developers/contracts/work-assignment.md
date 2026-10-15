@@ -495,8 +495,7 @@ bill pinned to a current artist as it stands plus the bill the art selectors
 choose for each artist lacking one. A sculpture pinned to someone who is no longer an
 artist, or any sculpture once the need is known gone, is undeclared and so
 removed after the grace rounds; an unread need or artist abstains. The declarer
-keeps only the game time a sculpture takes (`artNativeWorkTicks`), lent through the
-ledger step's report. The produce-item quest
+keeps no game-time hint. The produce-item quest
 decrees of `MaintainPopulation` declare through
 `RoundsPopulationJoinerPlanner.DeclareOrders` (`policy.DeclareDecreeOrders`): the
 funded batch, or the bill already making the item as it stands; the planner keeps

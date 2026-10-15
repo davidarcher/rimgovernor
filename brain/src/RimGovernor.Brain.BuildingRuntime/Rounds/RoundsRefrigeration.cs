@@ -3,7 +3,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     internal const uint RefrigerationCoolingTicks = 2 * GameTime.TicksPerDay;
-    internal const uint RefrigerationCoolingWindowTicks = GameTime.TicksPerHour;
 
     public static RoundsBuildingPlanner NewRoundsRefrigerationPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
@@ -49,44 +48,35 @@ public sealed partial class RoundsBuildingPlanner
         }
     }
 
-    internal static (uint Allowance, bool Exhausted, bool Lent) RefrigerationOutputAllowance(StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, Tick since, CancellationToken ct)
+    /// <summary>
+    /// Whether the cooling window of the standard's coolers has run out, and whether that rests on the latch alone
+    /// (no method in the epoch, so no cooler is known to be settling).
+    /// </summary>
+    internal static (bool Exhausted, bool LatchOnly) RefrigerationCooling(StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, Tick since, CancellationToken ct)
     {
         var methods = journal.LoadOwnerMethods(goal, ct);
         if (methods.Count == 0)
         {
-            var (latchAllowance, latchExhausted) = RefrigerationLatchAllowance(since, tick);
-            return (latchAllowance, latchExhausted, true);
+            return (RefrigerationLatchExhausted(since, tick), true);
         }
 
-        uint allowance = 0;
+        var open = false;
         var exhausted = false;
         foreach (var method in methods)
         {
             var plan = journal.LoadPlan(method.Plan, ct);
-            var (remaining, completed) = RefrigerationNativeWorkTicks(plan, current, tick);
-            allowance = Math.Max(allowance, remaining);
+            var (remaining, completed) = RefrigerationCoolingRemaining(plan, current, tick);
+            open = open || remaining > 0;
             exhausted = exhausted || (completed && remaining == 0);
         }
 
-        return (allowance, exhausted && allowance == 0, false);
+        return (exhausted && !open, false);
     }
 
-    internal static (uint Allowance, bool Exhausted) RefrigerationLatchAllowance(Tick since, Tick tick)
-    {
-        if (since.Value <= 0 || tick < since)
-        {
-            return (0, false);
-        }
+    internal static bool RefrigerationLatchExhausted(Tick since, Tick tick) =>
+        since.Value > 0 && tick >= since && tick.Value - since.Value >= RefrigerationCoolingTicks;
 
-        if (tick.Value - since.Value >= RefrigerationCoolingTicks)
-        {
-            return (0, true);
-        }
-
-        return (Math.Min(RefrigerationCoolingWindowTicks, (uint)(RefrigerationCoolingTicks - (tick.Value - since.Value))), false);
-    }
-
-    internal static (uint Remaining, bool Completed) RefrigerationNativeWorkTicks(PlanState plan, GenerationSnapshot current, Tick tick)
+    internal static (long Remaining, bool Completed) RefrigerationCoolingRemaining(PlanState plan, GenerationSnapshot current, Tick tick)
     {
         if (plan.Progress.Count != 1)
         {
@@ -120,7 +110,7 @@ public sealed partial class RoundsBuildingPlanner
             return (0, true);
         }
 
-        return (Math.Min(RefrigerationCoolingWindowTicks, (uint)(RefrigerationCoolingTicks - (tick.Value - v.Tick.Value))), true);
+        return (RefrigerationCoolingTicks - (tick.Value - v.Tick.Value), true);
     }
 
     internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewRefrigerationAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)

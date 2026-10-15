@@ -2,9 +2,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed class RoundsArtPlanner : IPurposeReporter
 {
-    /// <summary>The native work ticks one sculpture takes at a bench.</summary>
-    internal const int ArtNativeWorkTicks = 2500;
-
     private readonly Rounder _reviewer;
     private readonly object _mu = new();
 
@@ -62,7 +59,7 @@ public sealed class RoundsArtPlanner : IPurposeReporter
             {
                 return new PurposeReport { Order = BuildingReasonNoDeficit };
             }
-            return new PurposeReport { Order = WaitFor(Cause.ExistingWork, "sculpture"), WorkTicks = ArtNativeWorkTicks };
+            return new PurposeReport { Order = WaitFor(Cause.ExistingWork, "sculpture") };
         }
     }
 

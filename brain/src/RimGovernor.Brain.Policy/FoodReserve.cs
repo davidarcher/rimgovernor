@@ -186,34 +186,6 @@ public static partial class PolicyFunctions
         };
     }
 
-    /// <summary>Go <c>ReserveBillRunning</c>: reports an active bill for a reserve product while the reserve is short: the product it makes needs game time, not another method.</summary>
-    public static bool ReserveBillRunning(Fact<EquatableArray<ProductionBench>> benches, FoodReserveReview reserve)
-    {
-        if (!benches.TryGetValue(out var rows) || reserve.Emergency || !FieldPositive(reserve.DeficitNutrition))
-        {
-            return false;
-        }
-        foreach (var bench in rows)
-        {
-            var products = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var recipe in bench.Recipes)
-            {
-                if (recipe.Products.Count == 1 && ReserveFoodDefinition(new Resource(recipe.Products[0].Name)))
-                {
-                    products.Add(recipe.Name);
-                }
-            }
-            foreach (var bill in bench.Bills)
-            {
-                if (bill.Active.TryGetValue(out var active) && active && products.Contains(bill.Recipe))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     /// <summary>
     /// Go <c>SelectReserveBill</c>: selects a standing native target-count bill. Its target includes existing
     /// stock of the selected product because native counts that stock toward satisfaction; only other reserve

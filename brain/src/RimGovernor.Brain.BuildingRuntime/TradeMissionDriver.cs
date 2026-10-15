@@ -142,7 +142,7 @@ public sealed partial class RoundsTradePlanner
             var plan = player.Journal.LoadPlan(method.Plan, call);
             if (StorePackage.PlanOpen(plan))
             {
-                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
+                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
             }
         }
         var caravan = MissionCaravan(m, world);
@@ -209,7 +209,7 @@ public sealed partial class RoundsTradePlanner
                 player.Journal.ReviewStandard(saved.Standard.Id, saved.Revision, state.Snapshot, Finding.Met, call);
                 return (recorded, true);
             }
-            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
+            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
         }
         if (m.Phase == TradeMissionPhase.Buying)
         {
@@ -230,27 +230,17 @@ public sealed partial class RoundsTradePlanner
             }
             if (caravan.Moving && caravan.Destination == m.HomeTile)
             {
-                // Enter uses UnloadIndividually: inventory survives entry, then pawn jobs unload it. Observe
-                // each final travel tick before those jobs can erase the existing holder evidence.
-                var ticks = TradeWalkTicks;
-                foreach (var route in caravan.HomeRoutes)
-                {
-                    if (route.DestinationTile == m.HomeTile && route.EstimatedTicksKnown && route.EstimatedTicks <= TradeWalkTicks)
-                    {
-                        ticks = 1;
-                    }
-                }
-                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = ticks }, true);
+                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
             }
             if (!TradeMissions.TradeMissionReturnSafe(m, caravan))
             {
-                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
+                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
             }
             CaravanDeparture? departure;
             var departureValid = CaravanDeparture.TryCreate(m.Crew, [], m.HomeTile, out departure);
             if (MissionAttempted(project, "trade-return"))
             {
-                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
+                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
             }
             if (!departureValid)
             {
@@ -260,7 +250,7 @@ public sealed partial class RoundsTradePlanner
             var action = DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-home"), departure! with { Mode = CaravanDepartureMode.ExistingRoute });
             return MissionCommit(state, project, m, id, action, "trade-return", call, epoch);
         }
-        return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
+        return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
     }
 
     internal (RoundsTradeResult Result, bool Handled) MissionRecord(Sto.StandardState p, TradeMission m, CancellationToken ct)
@@ -277,7 +267,7 @@ public sealed partial class RoundsTradePlanner
                 }
             }
         }
-        return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
+        return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
     }
 
     internal (RoundsTradeResult Result, bool Handled) MissionCommit(
@@ -295,7 +285,7 @@ public sealed partial class RoundsTradePlanner
             throw new ControlException("missionCommit: session state changed");
         }
         Reviewer.Player.Journal.CommitMethodRecord(p.Standard.Id, p.Revision, new MethodId(string.Create(CultureInfo.InvariantCulture, $"{method}-{p.Admitted}")), "", plan, m, call);
-        return (new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, NativeWorkTicks = TradeWalkTicks }, true);
+        return (new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
     internal (RoundsTradeResult Result, bool Handled) MissionTradeCommit(ControlState state, Sto.StandardState p, TradeMission m, Trade value, CancellationToken call, CancellationToken epoch)
@@ -342,7 +332,7 @@ public sealed partial class RoundsTradePlanner
         }
         if (!session.Open)
         {
-            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
+            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
         }
         var (sheet, _) = await Native.ReadTradeSheetAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         IReadOnlyList<TradeLine> lines;
@@ -353,7 +343,7 @@ public sealed partial class RoundsTradePlanner
         }
         catch (Pol.TradeMissionFoodDemandUnknownException)
         {
-            return (new RoundsTradeResult { Verdict = FieldUnavailable("food_plan"), NativeWorkTicks = TradeWalkTicks }, true);
+            return (new RoundsTradeResult { Verdict = FieldUnavailable("food_plan") }, true);
         }
         if (sheet.Trader != trader || !sheet.CanTradeNow || lines.Count == 0)
         {
@@ -467,7 +457,7 @@ public sealed partial class RoundsTradePlanner
             var id = new StandardId("trade-mission-" + PlanIds.MintPlanId().Value);
             var standard = Standard.NewTradeMissionStandard(id, state.Snapshot, m);
             Reviewer.Player.Journal.SeedStandard(standard, ct);
-            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = TradeWalkTicks }, true);
+            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
         }
         return (new RoundsTradeResult(), false);
     }

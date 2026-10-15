@@ -11,16 +11,11 @@ public sealed class ClockSchedulerConfig
 
     public RoundsFieldPlanner? Fields { get; init; }
 
-    /// <summary>The longest window the step may lend.</summary>
-    public uint MaxTicks { get; init; }
-
     /// <summary>The oldest a read may be when it is used.</summary>
     public TimeSpan MaxAge { get; init; }
 
     /// <summary>Whether the Worker dispatches orders; gates the rules window and the dispatch turn.</summary>
     public bool Worker { get; init; }
-
-    public uint CombatMaxTicks { get; init; }
 
     /// <summary>How long a timer step may skip the planners before the safety net promotes one to a full step; zero means <see cref="ClockScheduler.DefaultFullStepEvery"/>.</summary>
     public TimeSpan FullStepEvery { get; init; }
@@ -163,7 +158,7 @@ public sealed class ClockSchedulerConfig
 
     public RoundsTradePlanner? Trade { get; init; }
 
-    /// <summary>Whether the rounds methods run (the lend of a native-work window needs them).</summary>
+    /// <summary>Whether the rounds methods run.</summary>
     public bool RoundsMethods { get; init; }
 
     /// <summary>Runs after a step reads the world: true when the world was rebuilt since the last, so the next step reviews in full.</summary>

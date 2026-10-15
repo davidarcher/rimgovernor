@@ -237,13 +237,8 @@ public sealed partial class RoundsBuildingPlanner
                     return result;
                 }
             }
-            uint ticks = 0;
-            foreach (var built in ring)
-            {
-                ticks = Math.Max(ticks, ShelterNativeWorkTicks(built, s.State.Snapshot, s.Facts.Identity.Tick));
-            }
             s.Check();
-            return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "shelter_method"), NativeWorkTicks = ticks };
+            return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "shelter_method") };
         }
         if (roofingOnly)
         {

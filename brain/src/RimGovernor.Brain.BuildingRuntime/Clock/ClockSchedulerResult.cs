@@ -170,8 +170,6 @@ public sealed class ClockSchedulerResult
 
     public Dictionary<string, double> PlannerMs { get; set; } = new(StringComparer.Ordinal);
 
-    public uint NativeWorkTicks { get; set; }
-
     public StepReason Reason { get; set; } = new();
 
     /// <summary>The pace the step's clock status reported.</summary>

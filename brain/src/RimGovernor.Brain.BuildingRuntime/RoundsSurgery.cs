@@ -11,9 +11,6 @@ public sealed class RoundsSurgeryResult : IPlannerMethod
 
     /// <summary>Set when the plan carries an organ harvest or an artificial part recovery, or a peg-leg step.</summary>
     public bool Harvest { get; set; }
-
-    /// <summary>Lends a window while a surgery bill is queued: native doctors carry it, and no plan action stays open.</summary>
-    public uint NativeWorkTicks { get; set; }
 }
 
 /// <summary>
@@ -24,9 +21,6 @@ public sealed class RoundsSurgeryResult : IPlannerMethod
 /// </summary>
 public sealed class RoundsSurgeryPlanner
 {
-    /// <summary>The window a queued bill lends per stop; the next stop reads the bill again.</summary>
-    private const uint SurgeryNativeWorkTicks = (uint)MedicalWaitTicks;
-
     private readonly Rounder _reviewer;
 
     private RoundsSurgeryPlanner(Rounder reviewer) => _reviewer = reviewer;
@@ -72,16 +66,10 @@ public sealed class RoundsSurgeryPlanner
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
-        // A queued bill is clock work whether or not the goal still stands: an elective's bill settles its goal before the operation.
-        uint ticks = 0;
-        if (SurgeryBillsQueued(read.Projection.Facts.MedicalPawns, read.Projection.Facts.Prisoners))
-        {
-            ticks = SurgeryNativeWorkTicks;
-        }
         var (goal, workable) = p.Journal.Workable(review, MaintainSurgery, call);
         if (!workable || goal is null)
         {
-            return new RoundsSurgeryResult { Verdict = BuildingReasonNoDeficit, NativeWorkTicks = ticks };
+            return new RoundsSurgeryResult { Verdict = BuildingReasonNoDeficit };
         }
         var inFlight = new Dictionary<PawnId, bool>();
         foreach (var method in goal.Methods)
@@ -97,11 +85,11 @@ public sealed class RoundsSurgeryPlanner
         }
         if (!read.Projection.Facts.MedicalPawns.TryGetValue(out _))
         {
-            return new RoundsSurgeryResult { Verdict = FieldUnavailable("medical_pawns"), NativeWorkTicks = ticks };
+            return new RoundsSurgeryResult { Verdict = FieldUnavailable("medical_pawns") };
         }
         var surgery = read.Projection.SurgeryContext();
         var selection = SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight.Keys.ToHashSet(), surgery);
-        var result = new RoundsSurgeryResult { Wants = selection.Wants, NativeWorkTicks = ticks };
+        var result = new RoundsSurgeryResult { Wants = selection.Wants };
         var queue = new List<Pol.SurgeryChoice>();
         foreach (var choice in selection.Queue)
         {

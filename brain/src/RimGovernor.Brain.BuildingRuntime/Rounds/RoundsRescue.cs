@@ -127,7 +127,7 @@ public sealed class RoundsRescuePlanner
 
         if (!ok)
         {
-            return new RoundsRescueResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "rescue_pairing"), NativeWorkTicks = (uint)BuildingRuntimePackage.MedicalWaitTicks };
+            return new RoundsRescueResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "rescue_pairing") };
         }
 
         var rescue = new Rescue((Domain.PawnId)rescuer, (Domain.PawnId)patient);
@@ -135,7 +135,7 @@ public sealed class RoundsRescuePlanner
         var (verdict, admitted) = BuildingRuntimePackage.AdmitSubject(p.Journal, prefix, BuildingRuntimePackage.IncidentPlans(incident.Methods, prefix), state.Snapshot, call);
         if (!admitted)
         {
-            return new RoundsRescueResult { Verdict = verdict, NativeWorkTicks = (uint)BuildingRuntimePackage.MedicalWaitTicks };
+            return new RoundsRescueResult { Verdict = verdict };
         }
 
         var method = BuildingRuntimePackage.NextMethodId(prefix, BuildingRuntimePackage.IncidentMethodIds(incident.Methods));
@@ -159,6 +159,4 @@ public readonly record struct RoundsRescueResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 
     public PlanId Plan { get; init; }
-
-    public uint NativeWorkTicks { get; init; }
 }

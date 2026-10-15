@@ -64,12 +64,6 @@ public sealed record FoodOrder
     public FoodOrderGap Gap { get; init; }
 
     public string Subject { get; init; } = "";
-
-    /// <summary>
-    /// Whether a standing reserve bill is cooking while the reserve is short: the product needs game time, not
-    /// another method.
-    /// </summary>
-    public bool ReserveRunning { get; init; }
 }
 
 public static class BillSelectionOrderExtensions
@@ -125,8 +119,7 @@ public static partial class PolicyFunctions
         var f = r.Facts;
         var census = WithoutBills(r.Benches);
         var selections = new List<BillSelection>();
-        var reserveRunning = false;
-        FoodOrder Gap(FoodOrderGap g, string subject) => new() { Gap = g, Subject = subject, ReserveRunning = reserveRunning };
+        FoodOrder Gap(FoodOrderGap g, string subject) => new() { Gap = g, Subject = subject };
         switch (r.Purpose)
         {
             case var purpose when purpose == PolicyConstants.CookFood:
@@ -157,7 +150,6 @@ public static partial class PolicyFunctions
                 {
                     return Gap(FoodOrderGap.Field, "food_reserve");
                 }
-                reserveRunning = ReserveBillRunning(r.Benches, reserve);
                 var (selected, known) = SelectProductionBill(PolicyConstants.PreserveFood, census, f.Colonists, f.FoodDays, Unknown<double>(), r.TargetDays, new ProductionBillContext { Reserve = reserve });
                 if (known)
                 {
@@ -219,7 +211,6 @@ public static partial class PolicyFunctions
         {
             Selections = selections,
             Gap = selections.Count == 0 ? FoodOrderGap.NoBill : FoodOrderGap.Chosen,
-            ReserveRunning = reserveRunning,
         };
     }
 

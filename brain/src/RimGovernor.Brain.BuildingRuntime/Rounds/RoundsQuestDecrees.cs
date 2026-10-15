@@ -140,7 +140,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
             if (reason == "existing_work")
             {
-                return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
+                return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, true);
             }
 
             if (reason != "")
@@ -212,12 +212,12 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
             }
 
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
+            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
         }
 
         if (lending)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
+            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, true);
         }
 
         return (default, false);

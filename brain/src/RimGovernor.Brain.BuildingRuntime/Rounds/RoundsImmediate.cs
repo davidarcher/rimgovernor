@@ -173,9 +173,6 @@ internal static partial class BuildingRuntimePackage
 
     internal static bool ProtectionNeedsTicks(ClockSchedulerResult result) =>
         (result.Defense is not null && (result.Defense.Plan.Value.Length != 0 || result.Defense.Verdict == BuildingReasonExistingWork))
-        || (result.Tend is not null && result.Tend.NativeWorkTicks > 0)
-        || (result.Rescue is { } rescue && rescue.NativeWorkTicks > 0)
-        || (result.FireSafety is not null && result.FireSafety.NativeWorkTicks > 0)
         || PositiveFact(ClockShelterHeld(result.Rounds));
 }
 

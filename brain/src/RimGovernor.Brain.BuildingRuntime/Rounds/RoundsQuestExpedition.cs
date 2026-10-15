@@ -62,7 +62,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
         if (work.Departure is null)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, false);
+            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, false);
         }
 
         if (work.Departure.Mode == CaravanDepartureMode.Formation)
@@ -91,6 +91,6 @@ public sealed partial class RoundsPopulationJoinerPlanner
         }
 
         reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id, NativeWorkTicks = BuildingRuntimePackage.StockWaitTicks }, true);
+        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
     }
 }

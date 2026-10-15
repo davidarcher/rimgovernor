@@ -11,9 +11,6 @@ public sealed class RoundsClearanceResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 
     public PlanId Plan { get; init; }
-
-    /// <summary>The ticks the native work of the step will take, when the verdict waits on it.</summary>
-    public uint NativeWorkTicks { get; init; }
 }
 
 /// <summary>Clears the home obstructions: roof, furniture, doors, walls and floors in the way of the planned ground.</summary>
@@ -100,7 +97,7 @@ public sealed partial class RoundsClearancePlanner
             step = PendingClearanceStep(step);
             if (step.Roof.Count + step.Targets.Count == 0)
             {
-                return new RoundsClearanceResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = StockWaitTicks };
+                return new RoundsClearanceResult { Verdict = BuildingReasonExistingWork };
             }
             (prefix, actions) = RecoveryStepMethod(id, step);
         }
@@ -114,7 +111,7 @@ public sealed partial class RoundsClearancePlanner
             step = PendingClearanceStep(planned);
             if (step.Roof.Count + step.Targets.Count + step.Floors.Count == 0)
             {
-                return new RoundsClearanceResult { Verdict = BuildingReasonExistingWork, NativeWorkTicks = StockWaitTicks };
+                return new RoundsClearanceResult { Verdict = BuildingReasonExistingWork };
             }
             (prefix, actions) = GroundStepMethod(id, step);
         }

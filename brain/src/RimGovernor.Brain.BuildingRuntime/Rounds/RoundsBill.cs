@@ -132,10 +132,6 @@ public sealed class RoundsBillPlanner : IPurposeReporter
                 report = report with { Order = WaitFor(Cause.MethodUsed, "ledger_bill") };
                 break;
         }
-        if (order.ReserveRunning)
-        {
-            report = report with { WorkTicks = ReserveBillWorkTicks };
-        }
         return report;
     }
 
@@ -213,8 +209,6 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         }
         return butcher ? AwaitingPlan("butcher_bench", "") : AwaitingPlan("cooking_bench", "");
     }
-
-    internal const int ReserveBillWorkTicks = GameTime.TicksPerHour;
 }
 
 internal static partial class BuildingRuntimePackage

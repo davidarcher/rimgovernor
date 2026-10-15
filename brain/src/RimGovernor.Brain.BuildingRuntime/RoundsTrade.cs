@@ -29,12 +29,6 @@ public sealed class RoundsTradeResult : IPlannerMethod
     public string Trader { get; init; } = "";
 
     public TradeOperationKind Phase { get; init; }
-
-    /// <summary>
-    /// Asks for a clock window without a plan: a caravan is still walking to its trade spot, or a settled one
-    /// has yet to leave, and only game time moves it.
-    /// </summary>
-    public uint NativeWorkTicks { get; init; }
 }
 
 /// <summary>
@@ -223,7 +217,7 @@ public sealed partial class RoundsTradePlanner
             }
             if (!session.Open)
             {
-                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork, Trader = row.Id, Phase = TradeOperationKind.Open, NativeWorkTicks = TradeWalkTicks };
+                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork, Trader = row.Id, Phase = TradeOperationKind.Open };
             }
             return await DriveAsync(state, incident, review, row.Id, traders, new Domain.PawnId(session.Negotiator), started, call, epoch).ConfigureAwait(false);
         }
@@ -244,7 +238,7 @@ public sealed partial class RoundsTradePlanner
         {
             if (waiting)
             {
-                return new RoundsTradeResult { Verdict = WaitFor(Pol.Cause.ExistingWork, "caravan_departure"), NativeWorkTicks = TradeArrivalTicks };
+                return new RoundsTradeResult { Verdict = WaitFor(Pol.Cause.ExistingWork, "caravan_departure") };
             }
             return new RoundsTradeResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "caravan_trade") };
         }
@@ -600,20 +594,12 @@ public sealed partial class RoundsTradePlanner
         {
             Reviewer.TradeOffers.Drop(trader);
         }
-        // The next phase lands in the stop after this window: a session left open under a full window outlasts the caravan's visit.
-        var ticks = kind != TradeOperationKind.End ? TradeArrivalTicks : 0u;
-        return new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, Trader = trader, Phase = kind, NativeWorkTicks = ticks };
+        return new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id, Trader = trader, Phase = kind };
     }
 }
 
 internal static partial class BuildingRuntimePackage
 {
-    /// <summary>The window lent while a caravan walks in or a settled one lingers: one game hour, after which the census is read again.</summary>
-    internal const uint TradeArrivalTicks = GameTime.TicksPerHour;
-
-    /// <summary>The window lent while a negotiator walks to open a session, after which the session is read again.</summary>
-    internal const uint TradeWalkTicks = 250;
-
     /// <summary>The fixed method id of one caravan's phase attempt.</summary>
     internal static MethodId TradeMethod(TradeOperationKind kind, string trader, int attempt)
     {

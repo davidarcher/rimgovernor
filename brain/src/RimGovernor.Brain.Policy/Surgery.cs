@@ -271,33 +271,6 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Whether a living colonist or prisoner has a queued medical bill. A native doctor job carries the bill, so
-    /// it is clock work until the operation completes or the bill ends; an unknown count is not work.
-    /// </summary>
-    public static bool SurgeryBillsQueued(Fact<EquatableArray<CarePawn>> pawns, Fact<EquatableArray<PrisonerFacts>> prisoners)
-    {
-        static bool Queued(Fact<bool> dead, Fact<int> count) =>
-            dead.TryGetValue(out var d) && !d && count.TryGetValue(out var n) && n > 0;
-        pawns.TryGetValue(out var rows);
-        foreach (var pawn in rows)
-        {
-            if (Queued(pawn.Dead, pawn.QueuedSurgeries))
-            {
-                return true;
-            }
-        }
-        prisoners.TryGetValue(out var held);
-        foreach (var row in held)
-        {
-            if (Queued(row.Dead, row.QueuedSurgeries))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>
     /// Ranks every living patient's served operations. A patient with a queued bill or an open surgery action
     /// (inFlight) gets nothing new. Each part picks its best stocked recipe (bionic, then prosthetic, then peg)
     /// that some eligible doctor performs within the kind's failure cap; the patient queues its most valuable

@@ -135,22 +135,22 @@ public sealed partial class RoundsPopulationJoinerPlanner
             case JoinerPlanReason.NoOffer:
             case JoinerPlanReason.NoCapacity:
             case JoinerPlanReason.QuestNoOffer:
-                if (expedition.NativeWorkTicks > 0)
+                if (!expedition.Verdict.IsZero)
                 {
                     return expedition;
                 }
 
-                if (inspection.NativeWorkTicks > 0)
+                if (!inspection.Verdict.IsZero)
                 {
                     return inspection;
                 }
 
-                if (departure.NativeWorkTicks > 0)
+                if (!departure.Verdict.IsZero)
                 {
                     return departure;
                 }
 
-                if (hosting.NativeWorkTicks > 0)
+                if (!hosting.Verdict.IsZero)
                 {
                     return hosting;
                 }
@@ -215,6 +215,4 @@ public readonly record struct RoundsPopulationJoinerResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 
     public PlanId Plan { get; init; }
-
-    public uint NativeWorkTicks { get; init; }
 }

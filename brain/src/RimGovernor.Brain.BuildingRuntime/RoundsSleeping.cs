@@ -12,12 +12,6 @@ public sealed record RoundsBuildingResult : IPlannerMethod
 
     /// <summary>Absent when the building planner abstains before an admission decision.</summary>
     public Sto.BuildingMethodDecision? Decision { get; init; }
-
-    /// <summary>
-    /// Bounds ordinary roofing or comfort use after observed construction. It neither asserts recovery nor grants
-    /// native authority.
-    /// </summary>
-    public uint NativeWorkTicks { get; init; }
 }
 
 /// <summary>
@@ -402,8 +396,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             r = resolvedPaste;
         }
-        uint coolingAllowance = 0;
-        var coolingLent = false;
+        var coolingLatchOnly = false;
         if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == MaintainRefrigeration || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes)
         {
             RoundsBuildingPlanner? resolved;
@@ -415,7 +408,7 @@ public sealed partial class RoundsBuildingPlanner
             else if (r.Concern == MaintainRefrigeration)
             {
                 bool exhausted;
-                (coolingAllowance, exhausted, coolingLent) = RefrigerationOutputAllowance(p.Journal, goal, state.Snapshot, facts.Identity.Tick, review.Latches.RefrigerationSince, call);
+                (exhausted, coolingLatchOnly) = RefrigerationCooling(p.Journal, goal, state.Snapshot, facts.Identity.Tick, review.Latches.RefrigerationSince, call);
                 // The dining room's meal closet stands before its cooler; a shell already tried this epoch, or
                 // refused, leaves the cooling to go on.
                 var (closet, closetOwed) = PlannedMealCloset(facts);
@@ -472,39 +465,13 @@ public sealed partial class RoundsBuildingPlanner
             if (!reason.IsZero)
             {
                 var result = new RoundsBuildingResult { Verdict = reason };
-                if (r.Concern == EnsureBasicPower && reason.Is(Pol.Cause.NoSpace))
-                {
-                    return result with { NativeWorkTicks = PowerOutputAllowance(p.Journal, goal, state.Snapshot, facts.Identity.Tick, call) };
-                }
-                if (r.Concern == EnsureBasicPower && reason == AwaitingMethod(Pol.PowerMethod.WaitFuel))
-                {
-                    // An empty generator is refuelled by a native haul the census cannot see coming; like a stock
-                    // refusal, the hold lends the window that haul needs rather than parking the clock on no_work.
-                    return result with { NativeWorkTicks = StockWaitTicks };
-                }
-                // A cooler completed on the tick the supervisor latched the window reads powerOn=false until the
-                // power net ticks once, so the cooling allowance also covers cooler_power_needed; a cooler still
-                // unpowered when it runs out is a real hold. Time lent from the latch alone does not cover it:
-                // with no method in the epoch there is no cooler still settling.
-                var powerSettling = r.Concern == MaintainRefrigeration && reason == AwaitingMethod(Pol.RefrigerationMethod.PowerNeeded) && !coolingLent;
+                // A cooler completed on the tick the supervisor latched reads powerOn=false until the power net
+                // ticks once, so the cooling window also covers cooler_power_needed; a cooler still unpowered when
+                // it runs out is a real hold. The latch alone does not cover it: with no method in the epoch there
+                // is no cooler still settling.
+                var powerSettling = r.Concern == MaintainRefrigeration && reason == AwaitingMethod(Pol.RefrigerationMethod.PowerNeeded) && !coolingLatchOnly;
                 if (reason == BuildingReasonComfortWait || reason == AwaitingMethod(Pol.PowerMethod.WaitOutput) || reason == BuildingReasonTemperatureWait || reason == AwaitingMethod(Pol.RefrigerationMethod.Wait) || powerSettling)
                 {
-                    if (r.Concern == EnsureTemperatureSafety)
-                    {
-                        result = result with { NativeWorkTicks = TemperatureOutputAllowance(facts.Shapes.Furniture.Heater, p.Journal, goal, state.Snapshot, facts.Identity.Tick, call) };
-                    }
-                    else if (r.Concern == MaintainRefrigeration)
-                    {
-                        result = result with { NativeWorkTicks = coolingAllowance };
-                    }
-                    else if (r.Concern == EnsureBasicPower)
-                    {
-                        result = result with { NativeWorkTicks = PowerOutputAllowance(p.Journal, goal, state.Snapshot, facts.Identity.Tick, call) };
-                    }
-                    else
-                    {
-                        result = result with { NativeWorkTicks = ComfortUseAllowance(p.Journal, goal, state.Snapshot, facts.Identity.Tick, furniture, call) };
-                    }
                     p.Current(call, epoch);
                     if (p.Session.State() != state)
                     {
@@ -562,13 +529,6 @@ public sealed partial class RoundsBuildingPlanner
                     throw new ControlException("step: p.session.State() != state");
                 }
             }, call);
-            // A setpoint patch that landed on a paused game leaves the census reading the old target until the
-            // game ticks (the review re-reads on tick advance), so the same patch is proposed again and found
-            // used. Lend the cooling allowance anyway: the clock then runs, the census refreshes and the room cools.
-            if (setResult.Verdict.Is(Pol.Cause.MethodUsed))
-            {
-                setResult = setResult with { NativeWorkTicks = coolingAllowance };
-            }
             return setResult;
         }
         var (missing, method, selectionReason) = r.Selection(facts);
@@ -1645,9 +1605,6 @@ internal static partial class BuildingRuntimePackage
     /// another world does, and that is checked beside it.
     /// </summary>
     internal static bool RoundsCachedFresh(FactFamily family, Tick actual, Tick anchor) => true;
-
-    /// <summary>One clock window lent to a method refused for insufficient stock. The census counts what lies on the map, and a stack a pawn is carrying to a stockpile, a bench is about to finish or a hauler is about to unforbid is invisible to it; without ticks the haul never lands and the refusal repeats until the clock parks on no_work. The next step re-reads the census, so the wait is the window, not a belief about stock.</summary>
-    internal const uint StockWaitTicks = GameTime.TicksPerHour;
 
     /// <summary>Bounds the builds one epoch may stage under the same selection: beds for one owed count, campfires after burn-outs.</summary>
     internal const int SleepingBedsPerEpoch = 8;

@@ -24,24 +24,22 @@ internal static partial class BuildingRuntimePackage
 }
 
 /// <summary>The native reads a scheduler step makes.</summary>
-public interface IClockWindowNative : IZonesNative, IPlanningWindowNative, IEntityNative
+public interface IClockStepNative : IZonesNative, IPlanningWindowNative, IEntityNative
 {
     Task<PbObservations.BundleSnapshot?> ReadStepAsync(BridgeApi.StepRequest request, CancellationToken ct);
 }
 
 /// <summary>
 /// Plans a step: it reads the world once, runs the rounder and the planners the due queue selects as a bounded
-/// wave, arbitrates their proposals, and reports the native-work window the planners ask for. Which planners run is
-/// the reason's selection. The clock itself stays in the mod, so the Go scheduler's window admission, lease,
-/// epoch, pace and event-poll machinery is not carried: the host (the in-process loop) decides and starts windows
-/// from <see cref="ClockSchedulerResult.NativeWorkTicks"/> and the planners' verdicts.
+/// wave and arbitrates their proposals. Which planners run is the reason's selection. The clock itself stays in
+/// the mod and time passes continuously: the planners never ask it for ticks.
 /// </summary>
 public sealed partial class ClockScheduler
 {
     public static TimeSpan DefaultFullStepEvery => StepReasons.DefaultFullStepEvery;
 
     private readonly Player _player;
-    private readonly IClockWindowNative _native;
+    private readonly IClockStepNative _native;
     private readonly IClock _clock;
     private readonly ClockFacts _facts;
     private readonly PlannerQueue _queue;
@@ -58,7 +56,7 @@ public sealed partial class ClockScheduler
     private PbCommon.ObservationContext? _stepContext;
     private volatile bool _running;
 
-    public ClockScheduler(Player player, IClockWindowNative native, ClockSchedulerConfig config, IClock clock)
+    public ClockScheduler(Player player, IClockStepNative native, ClockSchedulerConfig config, IClock clock)
     {
         ArgumentNullException.ThrowIfNull(player);
         ArgumentNullException.ThrowIfNull(native);
@@ -184,9 +182,6 @@ public sealed partial class ClockScheduler
         return v;
     }
 
-    /// <summary>The most ticks a step lends as a native-work window: the configured bound, else the window's own maximum.</summary>
-    internal uint NativeWorkBudget() => Config.Budget.NativeWork > 0 ? Config.Budget.NativeWork : Config.MaxTicks;
-
     /// <summary>Makes the next timer step a full one after a planner wave failed with its selection spent.</summary>
     internal void ReplanAfterFailure() => _lastFull = default;
 
@@ -199,10 +194,6 @@ public sealed partial class ClockScheduler
     /// <summary>The store scope an observation context establishes: the load token, map and native generation.</summary>
     internal static FactScope FactScope(PbCommon.ObservationContext context) =>
         new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration.GetValueOrDefault());
-
-    /// <summary>The ticks to wait when any isolated planner failure of the step is a native refusal; zero otherwise.</summary>
-    internal static uint PlannerRefusalWait(IEnumerable<Exception> failures) =>
-        failures.Any(f => f is BridgeRefusedException) ? StockWaitTicks : 0;
 
     private bool StepReviews(StepReason reason) =>
         Config.Rounds is not null && PreviewSelection(reason).Planners;
@@ -239,7 +230,7 @@ public sealed partial class ClockScheduler
     /// <summary>
     /// Performs one planning step for <paramref name="reason"/>: reads the world once, fixes the step's read
     /// validity, and runs the planners the reason selects. It never acquires authority, starts a window or runs a
-    /// background loop. The result carries what the planners did and the native-work window they ask for.
+    /// background loop. The result carries what the planners did.
     /// </summary>
     public async Task<ClockSchedulerResult> StepWithReasonAsync(StepReason reason, CancellationToken ct)
     {
@@ -356,7 +347,6 @@ public sealed partial class ClockScheduler
                     _lastFull = _clock.Now();
                 }
             }
-            result.NativeWorkTicks = NativeWork(result);
             return result;
         }
         catch (Exception e)
@@ -370,22 +360,18 @@ public sealed partial class ClockScheduler
             {
                 ["running"] = result.Running,
                 ["gate_wait_ms"] = gateWait.TotalMilliseconds,
-                ["budget"] = new Dictionary<string, object?> { ["wall_ms"] = Config.Budget.EffectiveWall.TotalMilliseconds, ["native_ticks"] = NativeWorkBudget() },
+                ["budget"] = new Dictionary<string, object?> { ["wall_ms"] = Config.Budget.EffectiveWall.TotalMilliseconds },
             };
             if (result.Waiting.Count > 0)
             {
                 row["waiting"] = result.Waiting;
-            }
-            if (result.NativeWorkTicks > 0)
-            {
-                row["native_work_ticks"] = result.NativeWorkTicks;
             }
             if (failure is not null)
             {
                 row["error"] = failure.Message;
             }
             // The step's budgets beside what it used: reads against the read budget, the planner waves against the
-            // wall budget, the native-work window against its bound.
+            // wall budget.
             if (Config.Budget.Reads > 0)
             {
                 ((Dictionary<string, object?>)row["budget"]!)["reads"] = Config.Budget.Reads;
@@ -424,32 +410,6 @@ public sealed partial class ClockScheduler
             Metrics.RecordStepMetrics(cause, elapsed, result.CriticalWave, row);
             reads.Tally.Publish(Tel.Emitter, StepDecision(result, failure, cause, elapsed, row));
         }
-    }
-
-    // The largest window any planner asks for: native work (a sculpture, a research project, a caravan walking, a
-    // bounded home fire) finishes on game time, not on another method.
-    private uint NativeWork(ClockSchedulerResult r)
-    {
-        uint ticks = 0;
-        foreach (var asked in new uint?[]
-        {
-            r.Shrine?.NativeWorkTicks, r.Fields?.NativeWorkTicks, r.Clearance?.NativeWorkTicks,
-            r.Sleeping?.NativeWorkTicks, r.Cooking?.NativeWorkTicks, r.Butcher?.NativeWorkTicks, r.Comfort?.NativeWorkTicks,
-            r.BasicComfort?.NativeWorkTicks, r.Workshop?.NativeWorkTicks, r.Hospital?.NativeWorkTicks,
-            r.SleepingUpkeep?.NativeWorkTicks, r.Expansion?.NativeWorkTicks, r.Power?.NativeWorkTicks,
-            r.Temperature?.NativeWorkTicks, r.Refrigeration?.NativeWorkTicks, r.Lighting?.NativeWorkTicks,
-            r.Flooring?.NativeWorkTicks, r.Routes?.NativeWorkTicks, r.MechCharger?.NativeWorkTicks, r.GeneBank?.NativeWorkTicks,
-            r.FireSafety?.NativeWorkTicks, r.DefenseLayout?.NativeWorkTicks, r.Research?.NativeWorkTicks,
-            r.Husbandry?.NativeWorkTicks, r.Trade?.NativeWorkTicks, r.Ledger?.NativeWorkTicks,
-            r.PopulationJoiner?.NativeWorkTicks, r.Resource?.NativeWorkTicks, r.Tend?.NativeWorkTicks,
-            r.Rescue?.NativeWorkTicks, r.Surgery?.NativeWorkTicks,
-        })
-        {
-            ticks = Math.Max(ticks, asked ?? 0);
-        }
-        // A planner that failed on a native refusal produced neither work nor a wait; one window lets the world move.
-        ticks = Math.Max(ticks, PlannerRefusalWait(r.PlannerFailures));
-        return ticks == 0 ? 0 : Math.Min(ticks, Math.Max(NativeWorkBudget(), ticks));
     }
 
     /// <summary>
