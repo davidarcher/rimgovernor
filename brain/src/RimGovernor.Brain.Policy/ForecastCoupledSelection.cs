@@ -26,11 +26,18 @@ public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitment
 public static partial class PolicyFunctions
 {
     private const int SeedShare = 4;
+    /// <summary>Scheduler bound of a screening evaluation. The depth-first schedule search reaches its first complete
+    /// plans within a few expansions per activity and spends the rest of a larger bound varying the last tasks, so a
+    /// portfolio's consequences are ranked from the first few dozen plans; the 4,096 bound confirms the final choice.</summary>
+    private const int ScreenBound = 64;
+    private const int PortfolioBound = 4096;
 
     /// <summary>One bounded subset search, evaluated by the same ColonyForecast trajectory as its baseline.
     /// Empty/continue is evaluated first. Partial portfolios remain expandable regardless of isolated value.
-    /// Order: single roots for up to a quarter of the budget; the leader plus each other root; then the
-    /// full cardinality sweep (singles, pairs, ...), skipping subsets already evaluated.</summary>
+    /// Order: single roots, screened, for up to a quarter of the budget; the leader plus each other root,
+    /// screened, repeated from each new leader until none improves it; the final leader at the full
+    /// per-portfolio bound; then the full cardinality sweep (singles, pairs, ...) at that bound, skipping
+    /// subsets already evaluated at it.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
         ForecastCoupledCandidates candidates, int budget = 16384)
     {
@@ -83,11 +90,14 @@ public static partial class PolicyFunctions
             && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown;
         var redundantPairs = alternatives.Where(GraphOnly).SelectMany(a => alternatives.Where(b => a.Id != b.Id
             && closures[a.Id].IsSubsetOf(closures[b.Id])).Select(b => (Contained: a.Id, Container: b.Id))).ToHashSet();
-        // The traversal reaches a subset by more than one phase; evaluating it again would only repeat its cost.
-        var evaluated = new HashSet<string>(StringComparer.Ordinal);
-        bool Evaluate(ForecastCommitment[] additions)
+        // The traversal reaches a subset by more than one phase; evaluating it again at a bound it already got
+        // would only repeat its cost. A larger bound is a new evaluation.
+        var evaluated = new Dictionary<string, int>(StringComparer.Ordinal);
+        bool Evaluate(ForecastCommitment[] additions, int bound = PortfolioBound)
         {
-            if (!evaluated.Add(string.Join('\n', additions.Select(c => c.Id)))) return true;
+            var key = string.Join('\n', additions.Select(c => c.Id));
+            if (evaluated.TryGetValue(key, out var done) && done >= bound) return true;
+            evaluated[key] = bound;
             if (expansions >= budget) { truncated = true; return false; }
             expansions++;
             var commitments = request.Commitments.Concat(additions).ToArray();
@@ -95,7 +105,7 @@ public static partial class PolicyFunctions
             var remaining = budget - expansions;
             if (remaining == 0) { truncated = true; return false; }
             var scenario = ForecastCoupledScenarioOf(request with { Coupled = candidates.Context with
-            { Activities = candidates.Context.Activities with { ExpansionBudget = Math.Min(4096, remaining) } } }, ForecastCommitmentsById(commitments)).Coupled!;
+            { Activities = candidates.Context.Activities with { ExpansionBudget = Math.Min(bound, remaining) } } }, ForecastCommitmentsById(commitments)).Coupled!;
             expansions += scenario.Expansions;
             findings.UnionWith(scenario.Findings);
             if (scenario.Truncated) truncated = true;
@@ -129,13 +139,13 @@ public static partial class PolicyFunctions
         // Breadth by cardinality prevents one deep branch from hiding every independent source.
         // No value-based pruning: two individually useless contributions can remain complementary.
         // The seed pass may stop starting evaluations once it has spent its share; that is a hand-off, not truncation.
-        var seedLimit = int.MaxValue; var seedSpent = false;
+        var seedLimit = int.MaxValue; var seedSpent = false; var leafBound = PortfolioBound;
         bool Search(int start, int left, List<ForecastCommitment> partial)
         {
             if (left == 0)
             {
                 if (expansions >= seedLimit) { seedSpent = true; return false; }
-                return Evaluate(partial.ToArray());
+                return Evaluate(partial.ToArray(), leafBound);
             }
             for (var i = start; i <= alternatives.Length - left; i++)
             {
@@ -162,20 +172,38 @@ public static partial class PolicyFunctions
                 var portfolio = seed.Append(root).OrderBy(c => rank[c.Id]).ToArray();
                 if (!CompatiblePortfolio(portfolio)) continue;
                 if (seed.Any(c => redundantPairs.Contains((c.Id, root.Id)) || redundantPairs.Contains((root.Id, c.Id)))) continue;
-                if (!Evaluate(portfolio)) return false;
+                if (!Evaluate(portfolio, ScreenBound)) return false;
             }
             return true;
         }
         var continueSearch = candidates.Incumbents.Count == 0 || Evaluate([]);
         if (continueSearch)
         {
-            // Seed pass: single roots until a quarter of the budget is spent (every root if that is cheaper).
-            seedLimit = budget / SeedShare;
+            // Seed pass: screened single roots until a quarter of the budget is spent (every root if that is cheaper).
+            seedLimit = budget / SeedShare; leafBound = ScreenBound;
             continueSearch = Search(0, 1, []) || seedSpent;
-            seedLimit = int.MaxValue;
+            seedLimit = int.MaxValue; leafBound = PortfolioBound;
             if (!continueSearch) truncated = true;
         }
-        if (continueSearch && !bestIsBaseline && !Extend(selected.ToArray())) { continueSearch = false; truncated = true; }
+        if (continueSearch && !bestIsBaseline)
+        {
+            // Greedy to a fixpoint: a portfolio that beat the leader becomes the leader and is extended in turn, so
+            // a set of any cardinality is reached one root at a time. Each level is bounded by the roots, not by a
+            // sweep of subsets, and ends when no root improves the leader. Selection is ranked by the same
+            // consequence order as every other evaluation; the final leader is then confirmed at the full bound.
+            string[] before;
+            do
+            {
+                before = selected;
+                if (!Extend(before)) { continueSearch = false; truncated = true; }
+            }
+            while (continueSearch && !selected.SequenceEqual(before, StringComparer.Ordinal));
+            if (continueSearch)
+            {
+                var members = selected.ToHashSet(StringComparer.Ordinal);
+                if (!Evaluate(alternatives.Where(c => members.Contains(c.Id)).ToArray())) { continueSearch = false; truncated = true; }
+            }
+        }
         for (var size = 1; continueSearch && size <= alternatives.Length; size++)
             if (!Search(0, size, [])) { truncated = true; break; }
         if (truncated) findings.Add("portfolio_search_truncated");

@@ -39,9 +39,11 @@ public sealed class PortfolioSearchDiagnosisTests
             ReferenceRoots = [.. Roots.Where(r => r.ActivityCompletions.Any(eats.Contains))];
             SingletonCosts = new(() =>
             {
-                // A one-root universe is exactly one production Evaluate: expansions = baseline + 1 + scheduler expansions.
+                // The plain order's cost of one single root: one production Evaluate at the 4,096 per-portfolio bound is
+                // 1 + the scheduler's expansions, added to the baseline's. (Production now screens single roots at a
+                // smaller bound first, so a one-root universe no longer measures this.)
                 var baseline = Select([], 262144).Selection.Expansions;
-                return (baseline, [.. Roots.Select(r => Select([r], 262144).Selection.Expansions - baseline)]);
+                return (baseline, [.. Roots.Select(r => 1 + ForecastColony(Replay(this, [r], 4096)).Baseline.Coupled!.Expansions)]);
             });
         }
 
@@ -259,41 +261,43 @@ public sealed class PortfolioSearchDiagnosisTests
     }
 
     [Fact]
-    public void IncumbentSeededExtensionServesBothEventsOfOneConsumerAtTheDefaultBudget()
+    public void ScreenedFixpointExtensionServesAllFourDemandedIngestionsAtTheDefaultBudget()
     {
         var s = Shared.Value;
         var selection = s.Select(s.Roots, 16384);
-
-        // Exact physical choice: the one-ingestion incumbent root plus one more ingestion root of the same consumer.
-        Assert.Equal([IncumbentRoot, "food/14/delivery/1/eat/diner/1/composition/11"], selection.Selection.Selected);
-        Assert.True(selection.Selected.Feasible == Known(true));
-        Assert.Equal(500, selection.Selected.Plan.CompletedAt);
-        Assert.Equal(354, selection.Selected.Plan.LaborCost);
         var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
-        // Both of the diner's hunger events are relieved: 240-250 and 490-500, ending by the 250 and 500 thresholds.
-        Assert.Equal([("food/0/delivery/0/composition/2/after/food/14/delivery/0/eat/diner/0/composition/16", "porter", 250L, 251L),
-            ("food/14/delivery/0/eat/diner/0/composition/16", "diner", 240L, 250L),
-            ("food/14/delivery/1/eat/diner/1/composition/21", "diner", 490L, 500L)],
-            selection.Selected.Plan.Allocations.Where(a => food.Contains(a.Activity) || a.Activity == IncumbentRoot)
-                .Select(a => (a.Activity, a.Pawn, (long)a.Start, (long)a.End)).OrderBy(a => a.Item1, StringComparer.Ordinal));
-        Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal)));
-        Assert.Equal(11, selection.Selected.Plan.Allocations.Length);
+        var eats = selection.Selected.Plan.Allocations.Where(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal)).ToArray();
 
-        // Consequences against the pre-#3197 incumbent [325,96.875,450,650,0] / needs component 4 = 2 / labor 198.
-        Assert.Equal([325d, 96.875, 450d, 450d, 0d], selection.SelectedVector.Urgent.Select(x => x.Value));
-        Assert.Equal([0d, 0d, 1d, 0d], selection.SelectedVector.Needs.Skip(2).Select(x => x.Value));
+        // Exact physical choice: four roots, one ingestion each, two per consumer. It is not the food/27 reference set but
+        // is strictly better than it, so the issue's "reference set or an equal-or-better one" holds.
+        Assert.Equal(["food/0/delivery/0/eat/diner/0/composition/1", "food/14/delivery/0/eat/pawn/0/composition/8",
+            "food/14/delivery/1/eat/pawn/0/composition/12", "food/14/delivery/2/eat/diner/0/composition/14"], selection.Selection.Selected);
+        Assert.True(selection.Selected.Feasible == Known(true));
+        Assert.Equal(4, eats.Length);
+        Assert.Equal([("food/0/delivery/0/eat/diner/0/composition/3", "diner", 240L, 250L),
+            ("food/14/delivery/0/eat/pawn/0/composition/18", "pawn", 358L, 368L),
+            ("food/14/delivery/1/eat/pawn/0/composition/22", "pawn", 466L, 476L),
+            ("food/14/delivery/2/eat/diner/0/composition/24", "diner", 557L, 567L)],
+            eats.Select(a => (a.Activity, a.Pawn, (long)a.Start, (long)a.End)).OrderBy(a => a.Item1, StringComparer.Ordinal));
+        Assert.Equal(567, selection.Selected.Plan.CompletedAt);
+        Assert.Equal(947, selection.Selected.Plan.LaborCost);
+        Assert.DoesNotContain("selected_activity_budget_truncated", selection.Selection.Findings);
 
-        // The extension, not the pairwise sweep, found it: single roots stopped after a quarter of the budget, and every
-        // evaluated pair adds one root to the leader. The search is still bounded and says so.
+        // Lexicographically no worse than the reference's urgent [0, 18.413, 185, 185, 0] with needs component 4 equal to 0;
+        // the search found a strictly better first-differing component (13.924 < 18.413).
+        double[] reference = [0, 18.413, 185, 185, 0];
+        var urgent = selection.SelectedVector.Urgent.Select(x => x.Value).ToArray();
+        Assert.True(urgent.Zip(reference).Select(p => p.First.CompareTo(p.Second)).First(c => c != 0) < 0);
+        Assert.Equal([0d, 13.924, 118d, 185d, 0d], urgent.Select(x => Math.Round(x, 3)));
+        Assert.Equal(0d, selection.SelectedVector.Needs[4].Value);
+
+        // Cost stays at the default budget: the search is still bounded and says so. Cardinalities 3 and 4 were entered
+        // through one-root extension steps from the leader, not a subset sweep (which would need 28,580 / 339,189 subsets).
         Assert.Equal(16384, selection.Selection.Expansions);
         Assert.True(selection.Selection.SearchTruncated);
         Assert.Contains("portfolio_search_truncated", selection.Selection.Findings);
-        // Evidence is one row per rejected alternative, so count distinct root sets.
-        var singles = selection.Rejected.Where(r => r.Commitments.Count == 1).Select(r => r.Commitments[0]).Distinct().ToArray();
-        var pairs = selection.Rejected.Where(r => r.Commitments.Count == 2).ToArray();
-        Assert.True(singles.Length <= 3, "single roots are not swept to the budget: " + singles.Length);
-        Assert.NotEmpty(pairs);
-        Assert.All(pairs, p => Assert.Contains(IncumbentRoot, p.Commitments));
+        Assert.Contains(selection.Rejected, r => r.Commitments.Count == 4);
+        Assert.Contains(selection.Rejected, r => r.Commitments.Count == 3);
 
         // Deterministic: a second run is identical.
         var again = s.Select(s.Roots, 16384);
@@ -302,6 +306,16 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(selection.Selected.Plan.Allocations.Select(a => (a.Activity, a.Pawn, a.Start, a.End)),
             again.Selected.Plan.Allocations.Select(a => (a.Activity, a.Pawn, a.Start, a.End)));
         Assert.Equal(selection.SelectedVector, again.SelectedVector);
+    }
+
+    [Fact]
+    public void ServedIngestionsGrowWithTheBudgetUpToTheDefault()
+    {
+        var s = Shared.Value;
+        var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
+        // Before #3215 these were 1, 1, 1, 2 (one at 8,192 and below). Screening lets even 1,024 reach a second ingestion.
+        Assert.Equal([2, 3, 4, 4], Budgets.Where(b => b <= 16384).Select(budget => s.Select(s.Roots, budget).Selected.Plan.Allocations
+            .Count(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal))));
     }
 
     [Fact]

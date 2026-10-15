@@ -73,13 +73,19 @@ search and 32 selected activities. Stable ordering makes replay deterministic;
 the result is best found within bounds. Partial bundles remain expandable even
 when neither constituent has isolated benefit.
 
-Traversal is incumbent-seeded: single roots first, but only until a quarter of the
-budget is spent; then the best portfolio found so far is extended with each other
-root in root order; then the full cardinality sweep (singles, pairs, ...) resumes
-and skips every subset already evaluated. A budget that cannot finish the single
-roots therefore still reaches a second contribution, and truncation stays explicit
+Traversal is incumbent-seeded and screened. Single roots come first, only until a
+quarter of the budget is spent, each evaluated at a screening bound of 64 scheduler
+expansions (the depth-first search finds its first complete plans within a few
+expansions per activity). The best portfolio found is then extended with each other
+root in root order, again screened, and the extension repeats from every new leader
+until no root improves it, so a set of any cardinality is built one root at a time. The
+final leader is confirmed at the full 4,096 bound, and the full cardinality sweep
+(singles, pairs, ...) resumes at that bound, skipping every subset already evaluated at
+it. A larger bound on the same subset is a new evaluation. A budget that cannot finish
+the single roots still reaches further contributions, and truncation stays explicit
 (`portfolio_search_truncated`). See
-[the measured cost](../testing/portfolio-allocations.md#incumbent-seeded-extension-3197).
+[the measured cost](../testing/portfolio-allocations.md#fixpoint-extension-with-screened-evaluation-3215)
+and the [first extension](../testing/portfolio-allocations.md#incumbent-seeded-extension-3197).
 
 Search skips an already visited exact scheduled prefix and omits a redundant
 graph-only root when another selected root already contains its entire task

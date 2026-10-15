@@ -438,8 +438,8 @@ fixture's selection at 65,536 and 262,144 expansions is now the incumbent plus
 `food/14/delivery/1/eat/pawn/0` (the pawn eats at 305-315 from the stack the diner also
 uses), urgent `[75, 38.6, 265, 465, 0]`, needs component 4 equal to 2, labor 354, ending tick
 315, which beats the diner's second meal lexicographically (`75 < 325`). Budgets up to 16,384
-are unchanged and the original fixture is unchanged. Four of four is still not selected: the
-subset search does not reach cardinality 4.
+are unchanged and the original fixture is unchanged. Four of four was still not selected
+then (superseded by [#3215](#fixpoint-extension-with-screened-evaluation-3215)).
 
 | Budget | Incumbent before (ingestions, urgent, needs[4], labor) | After |
 | ---: | --- | --- |
@@ -500,9 +500,8 @@ machine is not characterized, so this is an observation and not a speed claim. G
 and composition cost is unchanged (12.746 MB / 10.424 ms larger; 1.350 MB / 1.278 ms
 original).
 
-`PortfolioSearchDiagnosisTests.IncumbentSeededExtensionServesBothEventsOfOneConsumerAtTheDefaultBudget`
-pins the exact selection, every food allocation's worker and interval, the consequence
-vector, labor, expansions, truncation and determinism. The re-recorded
+The #3197 test that pinned this selection was replaced by the
+[#3215 test](#fixpoint-extension-with-screened-evaluation-3215). The re-recorded
 [original](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/productive.quality.json)
 and [larger](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/four-workers.quality.json)
 snapshots carry the rest.
@@ -595,4 +594,100 @@ two of four demanded ingestions. The follow-up search work, with candidate lever
 (iterating the extension, restricting candidates, cheaper extension evaluations,
 composite roots, a larger budget), is tracked in
 [#3215](https://github.com/davidarcher/rimgovernor/issues/3215); no search change is made
-here.
+here. *History (superseded by [#3215](#fixpoint-extension-with-screened-evaluation-3215)):*
+"the extension is one level" and "what blocks it" above describe the #3197 traversal; the
+fixpoint extension with screened evaluation reaches four of four at the default budget.
+
+## Fixpoint extension with screened evaluation (#3215)
+
+Recorded 2026-10-15 (same machine and Release build as above, one warmup and three
+samples, medians). It changes the search in `ForecastCoupledSelection` only: no budget,
+evaluator, Hands rule or per-portfolio bound changed, and no need kind or fixture is named.
+
+**Result.** At the default 16,384 budget the four-worker fixture selects four of four
+demanded ingestions: urgent `[0, 13.924, 118, 185, 0]`, needs component 4 equal to 0, labor
+947, ending tick 567. This is strictly better than the `food/27` reference set (urgent
+`[0, 18.413, 185, 185, 0]`) on every urgent component after the first, so it satisfies "the
+reference or an equal-or-better one". `ScreenedFixpointExtensionServesAllFourDemandedIngestionsAtTheDefaultBudget`
+pins the selection, vector, expansions, explicit truncation and determinism;
+`ServedIngestionsGrowWithTheBudgetUpToTheDefault` pins 2, 3, 4, 4 ingestions at 1,024,
+4,096, 8,192 and 16,384 in the four-worker fixture.
+
+### The levers
+
+| Lever | Outcome |
+| --- | --- |
+| 1. Iterate the extension to a fixpoint | Built. Each new leader is extended by every other root until none improves it, so a set of any cardinality is built one root at a time. |
+| 3. Cheaper (screened) evaluation | Built. Single roots and every extension step run the scheduler at a bound of 64 expansions instead of 4,096. The depth-first scheduler finds its first complete plans within a few expansions per activity and the rest of the bound only varies the last tasks, so 64 ranks candidates like the full bound. The final leader is re-evaluated at 4,096 and the cardinality sweep resumes at that bound. |
+| 2. Restrict candidates to roots relieving unrelieved demand | Measured and dropped: not needed once screening is cheap, and it risks hiding a root that helps only in combination. |
+| 4. Composite roots | Not built; the fixpoint reaches the target without it. |
+| 5. Larger default budget | Measured and not viable (the reference set sits at plain-order evaluation 357,973). The default is unchanged. |
+
+A larger bound on the same subset is a new evaluation (the dedupe is keyed by bound), so
+confirming the leader at 4,096 is not skipped. Truncation stays explicit
+(`portfolio_search_truncated`).
+
+### Incumbent per budget
+
+Urgent is the five-component vector; "before" ingestions are from the earlier sections.
+
+| Fixture | Budget | Before (ingestions, urgent, labor, end tick) | After |
+| --- | ---: | --- | --- |
+| Original | 1,024 | 2, `[0,0,0,0,0]`, 218, 362 | 2, same urgent, 207, 500 |
+| Original | 4,096 | 2, same, 208, 342 | 2, same urgent, 206, 500 |
+| Original | 8,192 and above | 2, same, 206, 500 | unchanged |
+| Four-worker | 1,024 | 1, `[325,96.875,450,650,0]`, 211, 251 | 3, `[75,48.775,320,520,0]`, 370, 370 |
+| Four-worker | 4,096 | 1, same, 198, 251 | 4, `[75,34.375,200,320,0]`, 833, 461 |
+| Four-worker | 8,192 | 1, same, 198, 251 | **4**, `[0,13.924,118,185,0]`, 947, 567 |
+| Four-worker | 16,384 (default) | 2, `[325,96.875,450,450,0]`, 354, 500 | **4**, `[0,13.924,118,185,0]`, 947, 567 |
+| Four-worker | 65,536 | 2, `[75,38.6,265,465,0]`, 354, 315 | 4, same as 8,192 |
+| Four-worker | 262,144 | 2, same, 354, 315 | 4, same as 8,192 |
+
+The original fixture is never worse: urgent stays `[0,0,0,0,0]` and labor falls (207
+against 218 at 1,024, 206 against 208 at 4,096); the end tick moves to the 500 the larger
+budgets already chose. Every four-worker row serves more ingestions and improves urgent
+lexicographically; labor rises because more food is produced, which the order does not
+penalise ahead of urgent needs.
+
+### Measured cost
+
+Allocation, expansions and wall time are descriptive, not gates. "Before" is the parent
+commit measured in the same session.
+
+| Fixture | Budget | Allocated MB before / after | Elapsed ms before / after | Expansions after | Recipes / ingestions after | Labor | End tick |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original | 1,024 | 29.4 / 34.8 | 38.3 / 15.0 | 1,024 | 2 / 2 | 207 | 500 |
+| Original | 4,096 | 115.5 / 140.4 | 199.5 / 63.4 | 4,096 | 2 / 2 | 206 | 500 |
+| Original | 8,192 | 249.2 / 262.4 | 221.1 / 134.2 | 8,192 | 2 / 2 | 206 | 500 |
+| Original | 16,384 | 486.9 / 487.9 | 244.1 / 229.9 | 16,384 | 2 / 2 | 206 | 500 |
+| Original | 65,536 | 1,569.4 / 1,589.4 | 787.3 / 829.7 | 53,128 (was 52,654) | 2 / 2 | 206 | 500 |
+| Original | 262,144 | 1,569.4 / 1,589.4 | 803.2 / 829.8 | 53,128 (was 52,654) | 2 / 2 | 206 | 500 |
+| Four-worker | 1,024 | 84.7 / 63.9 | 37.5 / 25.4 | 1,024 | 3 / 3 | 370 | 370 |
+| Four-worker | 4,096 | 347.1 / 276.0 | 188.1 / 118.6 | 4,096 | 4 / 4 | 833 | 461 |
+| Four-worker | 8,192 | 767.8 / 511.9 | 470.0 / 210.8 | 8,192 | 4 / 4 | 947 | 567 |
+| Four-worker | 16,384 | 1,303.8 / 1,018.2 | 788.3 / 474.1 | 16,384 | 4 / 4 | 947 | 567 |
+| Four-worker | 65,536 | 5,362.6 / 6,303.4 | 3,185.4 / 3,393.7 | 65,536 | 4 / 4 | 947 | 567 |
+| Four-worker | 262,144 | 22,482.3 / 21,754.4 | 12,842.1 / 11,633.3 | 262,144 | 4 / 4 | 947 | 567 |
+
+The default budget is unchanged and costs less on the four-worker fixture (1,018 MB and 474
+ms against 1,304 MB and 788 ms): screened evaluations are cheaper than 4,096-bound ones.
+Generation cost is unchanged (12.75 MB, about 8.8 ms). The 65,536 row allocates more
+because the extra budget is spent on full-bound evaluations around a better leader; those
+budgets are opt-in and not used by `Rounds`.
+
+### Baseline diffs
+
+Both embedded baselines were re-recorded deliberately (`RIMGOVERNOR_PORTFOLIO_OUTPUT`).
+
+- [`productive.quality.json`](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/productive.quality.json):
+  labor at 1,024 and 4,096 (207 and 206), the 65,536 and 262,144 rows record 53,128
+  expansions (a few more subsets are evaluated before the search exhausts), and finding
+  counts move with the searches. The ingestions and urgent `[0,0,0,0,0]` do not change.
+- [`four-workers.quality.json`](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/four-workers.quality.json):
+  every budget has the new, better selection tabulated above.
+
+### Unverified
+
+Wall time and allocation vary with machine load. The screen bound of 64 was chosen on these
+two fixtures; where first complete plans need many more expansions per activity the screen
+could rank poorly, which costs incumbent quality, not determinism or boundedness.

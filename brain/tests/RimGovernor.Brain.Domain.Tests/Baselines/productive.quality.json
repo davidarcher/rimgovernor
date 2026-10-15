@@ -12,11 +12,11 @@
       "SearchTruncated": true,
       "Selected": [
         "food/0/delivery/0/eat/pawn/0/composition/1",
-        "food/3/delivery/0/eat/pawn/0/composition/4"
+        "food/3/delivery/0/eat/pawn/1/composition/5"
       ],
       "Feasible": true,
-      "CompletedAt": 362,
-      "LaborCost": 218,
+      "CompletedAt": 500,
+      "LaborCost": 207,
       "Physical": [
         {
           "Activity": "food/0/delivery/0/composition/2",
@@ -77,10 +77,10 @@
         {
           "Activity": "food/3/delivery/0/composition/7",
           "Pawn": "helper",
-          "Depart": 351,
-          "Arrive": 351,
-          "Start": 351,
-          "End": 352,
+          "Depart": 186,
+          "Arrive": 186,
+          "Start": 186,
+          "End": 187,
           "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 1,
@@ -89,62 +89,32 @@
           "Learning": null
         },
         {
-          "Activity": "food/3/delivery/0/eat/pawn/0/composition/11",
+          "Activity": "food/3/delivery/0/eat/pawn/1/composition/12",
           "Pawn": "pawn",
-          "Depart": 351,
-          "Arrive": 352,
-          "Start": 352,
-          "End": 362,
-          "TravelTicks": 1,
+          "Depart": 490,
+          "Arrive": 490,
+          "Start": 490,
+          "End": 500,
+          "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 10,
-          "DisplacedLaborTicks": 11,
+          "DisplacedLaborTicks": 10,
           "RecoveryLaborTicks": 0,
           "Learning": null
         },
         {
           "Activity": "food/3/recipe/0/composition/6",
-          "Pawn": "pawn",
-          "Depart": 250,
-          "Arrive": 251,
-          "Start": 251,
-          "End": 351,
-          "TravelTicks": 1,
+          "Pawn": "helper",
+          "Depart": 95,
+          "Arrive": 95,
+          "Start": 95,
+          "End": 186,
+          "TravelTicks": 0,
           "WaitTicks": 0,
-          "WorkTicks": 100,
-          "DisplacedLaborTicks": 101,
+          "WorkTicks": 91,
+          "DisplacedLaborTicks": 91,
           "RecoveryLaborTicks": 0,
-          "Learning": {
-            "Skill": "Cooking",
-            "Callback": {
-              "Id": "food/3/recipe/0/composition/6",
-              "Tick": 351,
-              "RawXp": 10,
-              "Path": 0,
-              "Practice": false
-            },
-            "Before": {
-              "Level": 1,
-              "StoredLevel": 1,
-              "Xp": 95,
-              "AppliedGain": 0,
-              "DecayLoss": 0,
-              "RangeBudget": null,
-              "Findings": []
-            },
-            "After": {
-              "Level": 2,
-              "StoredLevel": 2,
-              "Xp": 5,
-              "AppliedGain": 10,
-              "DecayLoss": 0,
-              "RangeBudget": null,
-              "Findings": []
-            },
-            "ObservedWorkTicks": 100,
-            "WorkTicks": 100,
-            "Provenance": "native-test"
-          }
+          "Learning": null
         },
         {
           "Activity": "food/3/supply/0/rice/4/composition/5",
@@ -220,13 +190,13 @@
         "MoodExposure": null,
         "MoodDepth": null,
         "Development": 0,
-        "Labor": 218,
+        "Labor": 207,
         "Unknown": [
           "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
-        "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|352|362",
+        "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|490|500",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -252,6 +222,7 @@
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/0/recipe/0",
+        "physical_lot_quantity_shortfall:food/3/recipe/0",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
@@ -279,11 +250,11 @@
       "SearchTruncated": true,
       "Selected": [
         "food/0/delivery/0/eat/pawn/0/composition/1",
-        "food/3/delivery/0/eat/pawn/0/composition/4"
+        "food/3/delivery/0/eat/pawn/1/composition/5"
       ],
       "Feasible": true,
-      "CompletedAt": 342,
-      "LaborCost": 208,
+      "CompletedAt": 500,
+      "LaborCost": 206,
       "Physical": [
         {
           "Activity": "food/0/delivery/0/composition/2",
@@ -374,10 +345,10 @@
         {
           "Activity": "food/3/delivery/0/composition/7",
           "Pawn": "helper",
-          "Depart": 331,
-          "Arrive": 331,
-          "Start": 331,
-          "End": 332,
+          "Depart": 184,
+          "Arrive": 184,
+          "Start": 184,
+          "End": 185,
           "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 1,
@@ -386,36 +357,36 @@
           "Learning": null
         },
         {
-          "Activity": "food/3/delivery/0/eat/pawn/0/composition/11",
+          "Activity": "food/3/delivery/0/eat/pawn/1/composition/12",
           "Pawn": "pawn",
-          "Depart": 331,
-          "Arrive": 332,
-          "Start": 332,
-          "End": 342,
-          "TravelTicks": 1,
+          "Depart": 490,
+          "Arrive": 490,
+          "Start": 490,
+          "End": 500,
+          "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 10,
-          "DisplacedLaborTicks": 11,
+          "DisplacedLaborTicks": 10,
           "RecoveryLaborTicks": 0,
           "Learning": null
         },
         {
           "Activity": "food/3/recipe/0/composition/6",
           "Pawn": "pawn",
-          "Depart": 250,
-          "Arrive": 251,
-          "Start": 251,
-          "End": 331,
-          "TravelTicks": 1,
+          "Depart": 104,
+          "Arrive": 104,
+          "Start": 104,
+          "End": 184,
+          "TravelTicks": 0,
           "WaitTicks": 0,
           "WorkTicks": 80,
-          "DisplacedLaborTicks": 81,
+          "DisplacedLaborTicks": 80,
           "RecoveryLaborTicks": 0,
           "Learning": {
             "Skill": "Cooking",
             "Callback": {
               "Id": "food/3/recipe/0/composition/6",
-              "Tick": 331,
+              "Tick": 184,
               "RawXp": 8,
               "Path": 0,
               "Practice": false
@@ -517,13 +488,13 @@
         "MoodExposure": null,
         "MoodDepth": null,
         "Development": 0,
-        "Labor": 208,
+        "Labor": 206,
         "Unknown": [
           "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
-        "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|332|342",
+        "ThermalOccupancy": "pawn|food|cell/3/1|240|250;pawn|food|cell/3/1|490|500",
         "Maintenance": [],
         "Support": {
           "UrgentFirstCareTicks": 0,
@@ -553,6 +524,7 @@
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/0/recipe/0",
+        "physical_lot_quantity_shortfall:food/3/recipe/0",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
@@ -854,6 +826,7 @@
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/0/recipe/0",
+        "physical_lot_quantity_shortfall:food/3/recipe/0",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
@@ -1155,6 +1128,7 @@
         "no_feasible_need_choice:food",
         "no_feasible_need_choice:rest",
         "physical_lot_quantity_shortfall:food/0/recipe/0",
+        "physical_lot_quantity_shortfall:food/3/recipe/0",
         "physical_lot_quantity_shortfall:rice",
         "portfolio_search_truncated",
         "practice_held_essential_emergency_or_unknown",
@@ -1178,7 +1152,7 @@
       "Roots": 8,
       "CompositionExpansions": 501,
       "GenerationTruncated": false,
-      "Expansions": 52654,
+      "Expansions": 53128,
       "SearchTruncated": true,
       "Selected": [
         "food/0/delivery/0/eat/pawn/0/composition/1",
@@ -1481,7 +1455,7 @@
       "Roots": 8,
       "CompositionExpansions": 501,
       "GenerationTruncated": false,
-      "Expansions": 52654,
+      "Expansions": 53128,
       "SearchTruncated": true,
       "Selected": [
         "food/0/delivery/0/eat/pawn/0/composition/1",
