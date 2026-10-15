@@ -25,7 +25,7 @@ read-only service exposes none of these player routes.
 | POST | `/api/player/control/resume` | Run the bot for the exact observed world under that world's root plan |
 | POST | `/api/player/control/pause` | Stop the bot: invalidate local permission, suspend routine concerns and clean up owned work |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
-| POST | `/api/player/clock-speed` | Set the speed the brain requests while it owns the clock (`{"speed":"Normal\|Fast\|Superfast\|Ultrafast"}`, else 400); applies from the next window, see [interface contracts](interface-contracts.md) |
+| POST | `/api/player/clock-speed` | Set the speed the brain requests while it owns the clock (`{"speed":"Normal\|Fast\|Superfast\|Ultrafast"}`, else 400); the next step sends it, see [interface contracts](interface-contracts.md) |
 | GET | `/api/player/colony` | Live colony census (below) |
 
 `/api/player/colony` fields; unknown facts are null:
@@ -78,15 +78,16 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
   work.
 - Pause stops local work; drafted pawns stay drafted until the game's own auto-undraft takes them back.
 - Resume and Pause also own the game clock, with no wire field for it: the bot holds the clock exactly while
-  `state.enabled` is true. Resume lets the clock coordinator admit owned epochs; Pause withdraws that authority
-  and pauses a running owned epoch once (a game that no epoch of the bot is running is not paused), and the
-  player is then free to unpause. The bot does not re-take a clock the player runs while `state.enabled` is false.
+  `state.enabled` is true. Resume lets the run driver send `Run` and own the speed; Pause holds the clock once
+  (`Hold(Review)`, detail `bot_off`) and the player is then free to unpause. The bot does not re-take a clock
+  the player runs while `state.enabled` is false, and the toggle is not persisted (`AutoResume` decides at load).
 - While the bot holds the clock, native swallows the player's speed input. The owner flag is native control
   authority (`NativeControlAuthority` Active, granted by Resume, withdrawn by Pause or a revocation), not a
   wire field. `PlayerSpeedKeyBlock` marks `TimeControls.DoTimeControlsGUI`, where space, 1-4 and the time-control
-  buttons live, and skips `TickManager.CurTimeSpeed` and `TogglePaused` changes made inside it. Letter and dialog
-  pauses and supervisor assignments (`PlayerSpeedHook.Owned`) are outside that scope and pass. A blocked
-  attempt shows a rate-limited in-game message.
+  buttons live, and skips `TickManager.CurTimeSpeed` and `TogglePaused` changes made inside it
+  (`SpeedKeyBlockPolicy.Swallow`). Letter and dialog pauses and supervisor assignments are outside that scope
+  and pass. A blocked attempt shows a rate-limited in-game message saying the bot runs the clock and that
+  Pause in the launcher takes over.
 - Record phases: `pending`, `running` (resume, non-zero native generation), `paused`, `refused`,
   `uncertain`. Historical results never confer current permission; `state.generation.plan` is the live
   root plan.
@@ -132,7 +133,7 @@ routes. Work preferences attach to the live root plan.
 - `kind: "owned_draft"` (routine-produced) with `draft: {"pawnId": "…"}` and no `building` payload;
 - any other routine kind with neither payload.
 
-The public projection omits leases, native tokens and brain-session ownership data. An
+The public projection omits native tokens and brain-session ownership data. An
 `owned_draft` action is plan-owned: the undraft sweep undrafts its pawn once no live plan needs it, so
 drafts carry no cleanup progress and are not a persistent toggle.
 

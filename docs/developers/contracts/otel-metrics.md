@@ -18,10 +18,10 @@ All names are prefixed `rimgovernor.`; durations are milliseconds.
 | --- | --- | --- | --- |
 | `native.phase.duration` | histogram, `ms` (native buckets) | `native_tool`, `phase` | each native call: `gate_wait`, `call`, `decode`, `native_queue`, `native_execute` (when the companion reported its split) in `Client.core`; `proto_decode` in `protoCall` |
 | `native.calls` | counter, `{call}` | `native_tool`, `outcome` (`ok`, `refused`, `error`) | each native call |
-| `scheduler.step.duration` | histogram, `ms` (scheduler buckets) | `step_cause` (`timer`, `wake`, `settled`, `full`, `live`) | end of every `ClockScheduler.StepWithReason` |
-| `scheduler.stop_latency` | histogram, `ms` | none | a step woken by a native clock stop: stop stamp to step start |
-| `scheduler.controller_pause` | histogram, `ms` | none | wall time the brain held the game paused in a step |
-| `scheduler.stop_pause` | histogram, `ms` | none | window stop to the admission that resumed the game |
+| `scheduler.step.duration` | histogram, `ms` (scheduler buckets) | `step_cause` (`timer`, `wake`, `settled`, `full`) | end of every `ClockScheduler.StepWithReason` |
+| `scheduler.stop_latency` | histogram, `ms` | none | a step woken by a native hold: hold stamp to step start |
+| `scheduler.controller_pause` | histogram, `ms` | none | not recorded: no step pauses the game for a window any more (the instrument remains registered) |
+| `scheduler.stop_pause` | histogram, `ms` | none | not recorded, as `scheduler.controller_pause` |
 | `scheduler.critical_wave.duration` | histogram, `ms` | none | critical planner wave wall time |
 | `game.ticks_per_second` | gauge, `{tick}/s` | none | the clock status's effective ticks per wall second, set by each step that read one |
 | `action.outcomes` | counter, `{action}` | `action_kind`, `verdict` (`applied`, `refused`, `failed`), `reason` | each action in a Hands dispatch batch; one count per refusal reason |
@@ -81,7 +81,7 @@ sum over processes:
 | `native_calls` | sum of `native.calls` over all outcomes |
 | `native_errors` | `native.calls` with `outcome=error` (refusals are not errors) |
 | `native_queue_ms_mean`, `native_exec_ms_mean` | `native.phase.duration` sum / count for `phase=native_queue` and `native_execute` |
-| `paused_fraction` | `scheduler.controller_pause` sum / the run's `wall_ms` |
+| `paused_fraction` | `scheduler.controller_pause` sum / the run's `wall_ms` (reads zero: the instrument is no longer recorded) |
 
 The remaining keys come from the report and output directory, not telemetry:
 `wall_ms`, `boot_ms`, `ticks_advanced`, `wall_tps`, the wait statistics

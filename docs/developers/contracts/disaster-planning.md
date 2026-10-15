@@ -8,7 +8,7 @@ is the game-condition census: every condition affecting the map with its
 definition, implementation class, label, whether it is permanent and, for a
 timed condition, the native remaining ticks. Remaining time is planning evidence
 only; an episode ends when the condition is no longer observed, never when the
-count runs out. A condition starting or ending under a running clock window
+count runs out. A condition starting or ending under a running clock
 invalidates the `colony` fact family (see the clock contract), because such
 events arrive as non-stopping letters. The food, production,
 sleeping, shelter, temperature, cooking, power and storage gates determine affected

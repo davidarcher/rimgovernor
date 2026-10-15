@@ -13,8 +13,10 @@ The launcher controls the game and shows what the governor is doing.
 ## Speed and manual control
 
 **Play** enables automatic control on the loaded colony and after each load.
-The default runs at RimWorld's own Ultrafast (15x), slowed only when the game cannot keep up. Pause in RimWorld to take manual
-control; once Auto resumes, the governor can adjust work and settings again.
+The default asks for Ultrafast, which the mod drives with the game's tick boost. A single native limit slows the game
+when frames take too long or the brain stops responding; the brain only asks for a speed. The game pauses briefly
+while the bot reviews a threat, handles a coupled order or saves (an autosave about once per in-game day, into
+the rotating `Autosave-1..5` slots). To take manual control, press Pause in the launcher.
 
 The Observe tab shows **Bot on** or **Bot off**. Resume turns the bot on and gives it the game clock.
 Pause turns it off: the bot stops acting on the colony, the game is paused once if the bot was running it,

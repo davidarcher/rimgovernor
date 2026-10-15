@@ -104,7 +104,7 @@ Span tree, one scheduler step:
 scheduler.step                      root; attr step_cause
   rounds.review                     the Round
   admission                         plan admission; error status on a store error, refused status + reasons
-worker.step                         child of the scheduler step that admitted the window
+worker.step                         child of the scheduler step that woke it
 clock.poll                          root of its own
 ```
 

@@ -38,7 +38,7 @@ There is no text log or debug flag: everything is a log record in `otlp/logs.jso
 Every service event is a structured record that
 becomes a row of its `kind`; a record with no kind writes nothing.
 Kinds: `planner_step` (one per planner run; target `worker_step` is the clock worker's step, one per change of outcome), `clock_step`, `admission`,
-`clock_run`, `authority`, `alert`, `dispatch`, `rounds_review`. Grep the
+`clock_run`, `clock_hold`, `clock_resume`, `clock_stop`, `authority`, `alert`, `dispatch`, `rounds_review`. Grep the
 emitting code for each one's
 attributes.
 
@@ -75,7 +75,7 @@ Traps in the numbers:
 - `step reasons`: a healthy running clock is mostly `wake`; mostly `timer`
   means the poll loop is not seeing events. `timer` runs only planners due on
   the queue, `wake` is committed journal evidence, `settled` and `full` re-plan
-  everything, `live` plans under a running clock.
+  everything.
 - `resume_latency_ms_*` is the native time a hold lasted before a Run resumed it, the stall a held colony waits on the brain; it
   should sit well under one `StepInterval`. Rows without a native stamp count
   but are not sampled.
@@ -149,7 +149,8 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
   that resumed it (both events' stamps are on native's clock);
   `observe_latency_ms_*` is how long the controller took to see the hold.
 - `effective_speed` is `wall_tps` over the speed's own rate (Normal 60, Fast
-  180, Superfast 360, Ultrafast 900), holds included: 1 means the clock never
+  180, Superfast 360; Ultrafast is 900 here, but native serves it with the 9000 ticks/s boost, so a
+  boosted run reads above 1), holds included: 1 means the clock never
   lost pace. `native_effective_tps_mean` is native's ten-second account.
 - `hold_latencies` correlate the two processes by cursor only (no Unix time of
   one is subtracted from the other's).
@@ -218,17 +219,21 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-obser
 
 Fills the table in [brain host](../architecture/brain-host.md#live-clock-baseline). Needs a live game with the bot on,
 run on the shared-machine rules in `AGENTS.md`. Record machine (CPU, GPU, RAM), revision and the run's `service.instance.id`
-with the numbers.
+with the numbers. The frame budget, heartbeat tolerance, combat resume budget, Normal fallback and autosave cadence are
+unmeasured guesses until this run is recorded (#3199).
 
-1. Run `speedmatrix/observations` (above) for frame time at each pace: read `frames` p50/p95/p99 per row and the
-   `pace` rows (`ceiling`, `reason`) in `otlp/logs.jsonl` for the effective ticks/s as the pace backs off and ramps.
+1. Run `speedmatrix/observations` (above) for frame time at each speed: read `frames` p50/p95/p99 per row and the
+   `clock_step` fields `pacing_reason`, `paced_tps`, `tps_ceiling` and `effective_tps` in `otlp/logs.jsonl` for
+   how the one ceiling holds the rate and recovers.
 2. Critical wave and review scope: take `critical_wave_ms` from the `clock_step` rows and `dur_ms` from `rounds_review` /
    `planner_step` rows of the same run; report p50/p95/max.
-3. Hazard stop to resume: take `stop_latency_ms` from `clock_step` rows that follow a `clock_stop`; stage a combat hold
-   (a raid fixture) so the hazard class is the one the combat budget covers.
-4. Heartbeat: sort the timestamps of all `clock_step` and `planner_step` rows of one `run` and report the p50/p99/max
-   gap between consecutive rows, once idle and once during a long step.
-5. Write the values, machine and run into the brain-host table and mark each recommended budget measured or guess.
+3. Hazard hold to resume: take `stop_latency_ms` from `clock_step` rows that follow a `clock_stop` or `clock_hold`;
+   for combat read `resume_latency_ms` and `over_budget` on `clock_stop` rows and p50/p95 on `combat_summary` (stage
+   a raid fixture so a decision event is armed).
+4. Heartbeat: the driver sends `Heartbeat` from its own 1 s loop, independent of steps. Measure the longest gap native
+   saw between contacts (a `Run` or `Heartbeat`) during a long step and while idle, against the 5 s tolerance.
+5. Autosave: time a `Hold(Autosave)` from hold to the resuming `Run` on a representative colony.
+6. Write the values, machine and run into the brain-host table and mark each recommended budget measured or guess.
 
 Rerun the native check when the clock scheduler, step cache or
 Ultrafast/acceleration path changes; the observation baseline when the capture, encoding or main-thread admission

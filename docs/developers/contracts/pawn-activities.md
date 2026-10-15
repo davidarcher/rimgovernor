@@ -210,7 +210,7 @@ retained ownership does not authorize indefinite idle time.
 Work deadline exhaustion is a failure. Native food/rest levels and physiological
 consequences are not modified by execution.
 
-Completion/failure stops the current clock window through the existing requested
+Completion/failure holds the clock through the existing requested
 pause journal path, exposing typed readback for replanning. A terminal coordinated participant waits without repeatedly pausing useful work by other participants. A nongraph assignment still pauses while awaiting a decision. Downing, mental state or drafting encountered at selection/start
 pauses and releases this voluntary-work owner; native involuntary behavior and
 the existing combat owner are not replaced. This is not a complete autonomous

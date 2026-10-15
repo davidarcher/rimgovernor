@@ -288,13 +288,14 @@ independent of observation and review revisions; there is no player-direction co
 
 ### Coupled orders
 
-Every routine order dispatches under the running clock window; order count never stops
+Every routine order dispatches under the running clock; order count never stops
 the clock. A plan dependency is coupled (`domain.ActionDependency.Coupled`) exactly when
 the later order is written against the earlier one's result (an id it produced, a
 position it reached). Ordering-only dependencies are not coupled, and no routine planner
 emits a coupled dependency today. When a coupled prerequisite completes under a running
-window the step reports the ready orders (`ClockSchedulerResult.Coupled`, `CoupledOrders`)
-and plans them live at once; the window runs on. Staleness is refused natively via the
+clock the step reports the ready orders (`ClockSchedulerResult.Coupled`, `CoupledOrders`);
+the run driver holds the clock (`COUPLED_ORDER`) so they are planned against a quiet world, and
+resumes it after. Staleness is refused natively via the
 CAS evidence admission carries, and the planner prepares again.
 
 ## Native execution
@@ -718,10 +719,9 @@ wielding a hunting weapon (`WeaponDef.Hunts`, the one predicate for the candidat
 prey as the occurrence's payload (`store.HuntPrey`). The fight runs through
 `admitFight` with `CombatView.Hunt` set and the prey as its threats; the frame's
 detail rows cover the open hunt census rows. A hostile in the frame, or the plan no
-longer opening the hunt, ends the origin. An open hunt fight runs in combat windows
-with the live prey as the watch's acknowledged ids (`ClockWatchFacts.HuntPrey`),
-so the combat budget backstop wakes its next decision; no hostile exists to make
-the window a combat one otherwise.
+longer opening the hunt, ends the origin. An open hunt fight runs a combat watch
+with the live prey as the watch's acknowledged ids (`ClockWatchFacts.HuntPrey`);
+no hostile exists to make the watch a combat one otherwise.
 
 **Royal permits** (`CombatPermit.cs`). An outmatched fight calls the permits its
 colonists hold. With the royalty read known (`CombatView.Royalty`, the review's

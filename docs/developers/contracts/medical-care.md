@@ -36,8 +36,8 @@ The executor's emergency gate (`policy.EvaluateEmergency`) holds dispatch as
 `critical_medical` on the same terms: a bleeding or downed-untended colonist, or an
 unknown health fact, holds every action. A colonist who only needs tending is the
 tend planner's patient, one downed with nothing to tend is the rescue planner's,
-and neither holds anything. The clock window acknowledges every colonist known
-downed so the native watcher lets rescue and recovery take ticks.
+and neither holds anything. The combat watch acknowledges every colonist known
+downed so the native watcher lets rescue and recovery proceed without holding again.
 
 ## Dependent patients
 

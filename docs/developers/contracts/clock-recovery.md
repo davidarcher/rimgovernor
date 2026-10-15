@@ -6,10 +6,12 @@ the brain bridge and store validate clock commands and recovered evidence agains
 canonical native producer. Autonomous play (the in-process host, see [brain host](../architecture/brain-host.md)) composes the scheduler and workers;
 validation never restores permission after restart.
 
-> The clock is continuous run with named holds (epic #3168): `Run(target speed, policy)`, `Hold(reason)` and an
-> explicit heartbeat. There is no clock attempt, epoch, lease, window or receipt, and no clock persistence in the store
-> (see [Execute under supervision](../architecture/control-loop.md#execute-under-supervision) and the
-> [clock wire contract](../../../contracts/wire/clock-lifecycle.md)).
+The clock is continuous run with named holds: `Run(target speed, policy)`, `Hold(reason)` and an explicit
+heartbeat ([Execute under supervision](../architecture/control-loop.md#execute-under-supervision) and the
+[clock wire contract](../../../contracts/wire/clock-lifecycle.md)). This page owns what the brain does with the native
+journal and with each run decision: the event inbox, review and acknowledgement, the run decision, the scheduler step and
+the run driver. The only clock state the brain persists is that inbox and its review log; there is no clock attempt,
+receipt or lease store.
 
 ## Immediate protection and ordinary review
 
@@ -22,21 +24,16 @@ ordinary fact. Ordinary review retains its own inspection tick.
 Protective actions yield the scheduler gate to the existing Worker before
 unrelated development reads. Pending actions remain ahead of ordinary review
 until dispatch or an explicit current hold; a hold does not permanently veto
-ordinary work. Native Run continues through its existing safety,
-authority and journal checks. Ordinary review can run while the clock
-runs. Relevant invalidations select planners through catalog dependencies;
+ordinary work. A running clock keeps its own native safety, authority and journal checks, and ordinary review runs while it runs. Relevant invalidations select planners through catalog dependencies;
 unrelated section changes do not invalidate a protective decision.
 The independent event poll cancels an in-flight ordinary review when it captures
 a native stop, releasing the same gate for fresh protection. It does not cancel
 the immediate scope or revoke valid authority merely to interrupt development.
 
-`clock_step.critical_wave_ms` includes review. `controller_pause_ms` measures
-each scheduler interval from observing a paused native clock through returning
-control, using the brain's monotonic clock; unobserved pause intervals stay unknown.
-These are brain wall time,
+`clock_step.critical_wave_ms` includes review. It is brain wall time,
 distinct from the game ticks used for onset, observation, dispatch and native
 outcomes. Combatlab metrics record a `response` report with runner, fixture,
-speed, phase ticks, brain pauses and first observed damage to a hostile.
+speed, phase ticks and first observed damage to a hostile.
 Hazard reports separately identify native-supervisor detection. Missing phases
 remain null; an accepted order does not fill the native-effect field. These
 records supply evidence for later calibration, without numeric latency gates.
@@ -55,8 +52,8 @@ copy is the brain's clock inbox). Its cursors start past the process's start tim
 milliseconds, so a relaunched game's cursors exceed every cursor an older store
 holds. A page's observation context matches the requested current world; each event
 retains its original world. A load or map change does not reset the cursor
-or rewrite old event contexts. Event reads initialize the journal before any owned
-start; status reads initialize the tick watchers. Neither advances time or acquires
+or rewrite old event contexts. Event reads initialize the journal before any
+`Run`; status reads initialize the tick watchers. Neither advances time or acquires
 authority.
 
 `ValidateClockEventsPage` checks the typed request and page together.
@@ -113,8 +110,8 @@ interruption holds:
 - game alerts (`Event_Alert`): planning evidence and an `alert` row;
 - injury observations (`Event_InjuryObserved`): sub-threshold damage native coalesces;
 - notifications (`Event_Notification`): only classes native never stops play for;
-- the benign stops (`store/clock.BenignStop`): tick budget, requested pause, watch
-  latched, and a letter pause for an informational letter.
+- the benign holds (`ClockJournal.BenignHold`): never-run, the brain's own coupled-order, review and autosave
+  holds, a game-forced pause, an armed combat event and a letter pause for an informational letter.
 
 Pause failures and other stop events remain conservative holds.
 Cleared conditions cannot erase an earlier unacknowledged event.
@@ -135,26 +132,25 @@ archive, queried only by request ID; later events cannot change those results.
 `policy.EvaluateClockWatch` requires fresh same-authority status and emergency facts and a complete catalog. Reviewed
 and captured cursors must match the native newest cursor, with no interruption or gap holds. Native tick boundaries
 and durable events must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). The decision names the watch
-mode and the acknowledgements the next `Run` carries. There is no budget, window or admission: a refusal only keeps
-a held clock held.
+mode and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony`,
+`unreviewed_events` or `interruption`) only keeps a held clock held; it never stops a running one.
 
 ### Threat and stock rules
 
-- A live, undowned hostile or hunting predator refuses the window (`unsafe_colony`)
+- A live, undowned hostile or hunting predator refuses the run (`unsafe_colony`)
   unless the ActiveCombat concern holds an admitted plan with open work; unknown plan
   evidence refuses as `unknown_facts`.
 - A hostile building alone refuses only while the defense planner has not reported
   `no_worker:squad` for this stop (`ClockWatchFacts.SquadUnanswered`); after that
-  it is watched and the colony window admits.
+  it is watched and the colony run resumes.
 - A hostile or hunting animal, or hostile building, known to be at least
   `policy.DistantThreatCells` from every colonist is not an emergency (the native
-  `hostile_within` radius stops a running window first). A humanlike or mechanoid
+  `hostile_within` radius holds a running clock first). A humanlike or mechanoid
   threat, or one whose race or distance is unknown, holds at any distance.
 - A skilled furniture or cooler build needs one available pawn with Construction
   enabled at the native skill minimum.
 - With an active-combat plan the decision is a combat watch: it names, sorted, every
-  live hostile the window acknowledges and uses the combat budget (never above the
-  colony budget). Once every hostile is dead or downed it is colony mode again,
+  live hostile the run acknowledges and arms the decision-class combat events when a fight plan owns the combat. Once every hostile is dead or downed it is colony mode again,
   acknowledging nothing. Colonist status, unknown threat status and every other hold
   apply in both modes.
 
@@ -171,8 +167,8 @@ autonomous play attaches `ClockRunDriver`.
 The rounder runs first and its failure aborts the step; every other composed planner
 then runs as one concurrent wave whose failures are isolated: a planner whose native
 read is refused or whose preview is stale commits nothing and is reported in
-`ClockSchedulerResult.PlannerFailures`, but its peers finish and the window is still
-evaluated on what they committed. Only the step's own context ending fails the wave.
+`ClockSchedulerResult.PlannerFailures`, but its peers finish and the run decision is still
+taken on what they committed. Only the step's own context ending fails the wave.
 Planners are admitted in concern-priority order, at most `bridge.MaxConcurrentCalls`
 at a time, so a tight budget is spent on the highest priorities first. Native reads
 still execute one at a time on the game's main thread.
@@ -182,7 +178,7 @@ still execute one at a time on the game's main thread.
 `observation` (`observations_*`, presentation state) or `mirror` (the clock
 events read: one call at a time, outside the shared slots). One slot is
 reserved for control and a waiting control call is admitted before any waiting read,
-so a renew or stop never queues behind a burst of reads. The class rides beside
+so a `Run`, `Hold` or heartbeat never queues behind a burst of reads. The class rides beside
 `request` and `trace` on the wire, and the companion's `MainThreadAdmission` runs
 queued control hops before observation hops within a frame (untyped tools bypass
 that ordering).
@@ -202,9 +198,8 @@ are deliberately not configurable:
 
 | Regulator | Why it is kept |
 |---|---|
-| `StepBudget` (`Reads`, `Wall`) | Bounds one step's planner waves; an overrun is reported on the `clock_step` row, and a wave past `Wall` holds admission naming its planners instead of failing the step. |
+| `StepBudget` (`Reads`, `Wall`) | Bounds one step's planner waves; an overrun is reported on the `clock_step` row, and a wave past `Wall` leaves the step incomplete naming its planners instead of failing it. |
 | `DefaultStepWall = 40s` | Under the 60 s step call so a wedged wave is named, not a context deadline. |
-| `clockStopSpanLimit = 10 min` | Discards stop spans that cannot be one review's wait (a long-stopped clock, wall-clock skew). |
 | `ConstructionHelpHoldTicks` (one game hour) | Keeps construction helpers across a brief gap in suitable work so they do not flap. |
 | `TradeOffersMaxAgeTicks` (three game hours) | Rereads a trader's offers once the record is stale; a freshness bound, not a veto. |
 | `ProgressCooldownMax` (three game days) | A failed situation is retried, never banned; it is the retry ceiling of every progress cooldown. |
@@ -282,13 +277,13 @@ Unchanged scheduling decisions back off, except while a combat watch is running.
 loop through `WakeSignal` and resets the backoff, carrying invalidated families and the authority flag as the step's
 `StepReason`. The Worker also steps on that signal.
 
-No admission waits for the stop between windows: every routine kind the worker
+Dispatch never waits for a hold: every routine kind the worker
 dispatches validates its preconditions natively at apply time (action-contracts.md
 executor holds on `stale_facts` (`workerHeldStale`) is retried at once, off the
 worker's backoff and once per hold; the clock is not held for the retry.
 
 A running clock arms no watches: a completed order is not a reason to hold the clock. Dispatched construction and haul attempts are counted as evidence only
-(`ClockSchedulerResult.Unwatched`).
+(`unwatched` on the `clock_run` row).
 
 A coupled order (`domain.ActionDependency.Coupled`, controller-contracts.md "Coupled orders") whose prerequisite has
 completed and which is still undispatched (`PlanSpec.CoupledPending`) takes a brain hold (`HOLD_REASON_COUPLED_ORDER`):
@@ -297,20 +292,18 @@ the step plans against the held world and the driver sends Run again once it has
 ### Live planning
 
 The clock is Running whenever the brain is not holding it, so every step plans live: planners read the bundle's
-snapshot (one main-thread hop) and commit plans the worker dispatches under the running clock. A `timer` step is
-promoted to `live` once `FullStepEvery` has passed; a `wake` or `full` step goes live at once.
-
+snapshot (one main-thread hop) and commit plans the worker dispatches under the running clock.
 
 ### Step causes and the due queue
 
-`StepReason.Cause` is `timer`, `wake`, `settled`, `full` or `live`. The scheduler
+`StepReason.Cause` is `timer`, `wake`, `settled` or `full`. A `settled` step follows a hold or `Run` the driver just made. The scheduler
 queues the `plannerCatalog` entries `plannerSelection` picks over its due queue
 (`plannerQueue`):
 
 | Cause | Entries run |
 | --- | --- |
 | `full`, `settled` | every configured entry |
-| `timer` | entries whose next review tick (`plannerEntry.reviewEvery`) has passed (see the code for per-class cadence); with nothing due the step runs the admission tail alone. Promoted to `full` once `FullStepEvery` has passed without a full wave |
+| `timer` | entries whose next review tick (`plannerEntry.reviewEvery`) has passed (see the code for per-class cadence); with nothing due the step runs the driver tail alone. Promoted to `full` once `FullStepEvery` has passed without a full wave |
 | `wake` | entries whose dispatched `kinds` include a latched outcome's kind (an unremembered action selects all) or whose declared `sections` include one an `ObservationInvalidated` row dirtied (`facts.Invalidation.Sections`); all of them when authority changed |
 
 An entry that reported `existing_work` waits on the open attempts of its kinds

@@ -158,7 +158,7 @@ defenders' doorway, sized from defenders and turrets, no door on the raiders' ro
 - A `Complete` record is re-verified after each ActiveCombat epoch and once per game hour:
   a tier that lost a building re-opens under a new repair prefix, so earlier refusals do not bar it, as a new tier method while
   `Complete` stays true. A missing building whose cell carries a blueprint or frame is not
-  placed again; the planner asks for a clock window. Defenders are undrafted once
+  placed again; the planner waits for the build. Defenders are undrafted once
   ActiveCombat stops authorizing the hold plan.
 - Combat holds the line only against an ordinary edge assault in front of the cover row
   (`policy.BehindFiringLine`). Sieges, sapper or breach toil, drops, engaged raiders and
@@ -237,7 +237,7 @@ Home at a time, nearest the colony center first.
   intervention retains an emergency hold, including a fire that grows oversized while
   firefighting is under way. Fire monitoring uses Normal speed and at most 60 ticks
   between reviews; unavailable safe workers retain the hold. `MaintainFireSafety` has no
-  order to issue: the `fire` family only grants the clock a bounded native-work window
+  order to issue: the `fire` family only keeps the clock running
   while `EvaluateFireSafety` finds a bounded fire with an eligible firefighter.
 - A pending, never-issued repair is cancelled on the next repair step, before the need
   gate, once the concern recovered or its hold says the structure is ineligible.

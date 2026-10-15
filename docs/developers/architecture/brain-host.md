@@ -23,7 +23,7 @@ collected and thrown together after everything else ran.
 
 One dedicated thread (`rimgovernor-brain-scheduler`) steps the `ClockScheduler` with the `ClockWorker.stepLoop`
 cadence: first step Full, delay doubling to the maximum on an unchanged step key, evidence resets it, a settled step
-after a window. It idles unless the player is enabled with a known observation. Authority is the loaded world's:
+after the run driver held or resumed the clock. It idles unless the player is enabled with a known observation. Authority is the loaded world's:
 `FacadeAuthority` implements `INativeAuthority` over the facade, and `AutoResumer` offers each fresh world one resume
 through the same control intent the resume route submits.
 
@@ -77,7 +77,9 @@ from the sources.
 
 ## Watchdog thresholds
 
-`BrainWatchdog.Standard()` is a chosen starting point (a stuck step otherwise holds `ClockWorker` until its step timeout):
+`BrainWatchdog.Standard()` is a chosen starting point. The watchdog guards the brain's own step; it does not guard the game. A stuck brain is the clock ceiling's to handle: the heartbeat lapses and native drops the rate to Normal (see [control loop](control-loop.md#the-one-ceiling-and-the-heartbeat)).
+
+The thresholds are unmeasured guesses:
 
 | Threshold | Value | Why |
 | --- | --- | --- |
@@ -87,29 +89,33 @@ from the sources.
 | `FaultBackoff` | 5 s | Half the worker's maximum idle delay (10 s), so a fault does not spin and recovery stays prompt. |
 | `PlannerMissLimit` | 3 | Consecutive missed wave cutoffs before a planner is reported stalled in `BrainHost.Status()`. |
 
-They have not been measured against a live game; see [Live clock baseline](#live-clock-baseline).
+None has been measured against a live game (#3199); see [Live clock baseline](#live-clock-baseline).
 
 ## Live clock baseline
 
-Not yet measured (#3169): no live game run has been recorded, so every value below is a guess taken from the
-current constants, not an observation. The recording procedure is in
-[Measure brain throughput](../testing/measure-throughput.md#clock-baseline-run). Fill the Measured column from one
-run and name the machine and run under the tables.
+Not measured (#3199): no live game run has been recorded, so every value below is a guess taken from the current
+constants, not an observation. The recording procedure is in
+[Measure brain throughput](../testing/measure-throughput.md#clock-baseline-run). When #3199 records a run, fill the
+Measured column from it and name the machine and run under the tables. The same constants are listed with their
+meaning in the [control loop](control-loop.md#constants-that-are-not-measured).
 
 | Quantity | Measured | Current constant | Source row |
 | --- | --- | --- | --- |
-| Frame time at each pace level (p50/p95/p99) | not measured | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | native call `timing` / `native_frames` |
-| Effective ticks/s at Ultrafast (15x, 900 ticks/s, with the one ceiling lowering it on over-budget frames) | not measured | 0.7 down, 1.25 up per 250 ms | `pace`, `clock_step` pacing |
+| Frame time at each speed (p50/p95/p99) | not measured | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | native call `timing` / `native_frames` |
+| Effective ticks/s at Ultrafast (boosted, up to 9000 ticks/s, with the one ceiling lowering it on over-budget frames) | not measured | 0.7 down, 1.25 up per 250 ms | `clock_step` pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) |
 | Critical planner wave wall time | not measured | none | `clock_step.critical_wave_ms` |
 | Immediate review scope wall time | not measured | none | `rounds_review`, `planner_step` `dur_ms` |
-| Hazard stop to resume latency | not measured | none | `clock_step.stop_latency_ms`, `clock_stop` |
-| Gap between brain activity (heartbeat) | not measured | none | gaps between consecutive `clock_step` / `planner_step` rows |
+| Combat hold to resume latency | not measured | 2 s budget (`ClockCombatStops.ResumeBudget`) | `clock_stop.resume_latency_ms`, `combat_summary` p50/p95 |
+| Brain silence before the heartbeat lapses | not measured | 1 s beat, 5 s tolerance | `clock_step` rows with `pacing_reason` `heartbeat`; `heartbeat` failure events |
+| Autosave hold duration | not measured | one in-game day cadence | `clock_run` rows with reason `autosave` and the next `resumed` |
 
 | Recommended budget | Value | Status |
 | --- | --- | --- |
 | Native frame budget | 30 ms | guess (the existing constant) |
-| Brain heartbeat interval and tolerance | undecided | guess; derive from the p99 heartbeat gap |
-| Resume-latency budget for combat holds | undecided | guess; derive from the p95 `stop_latency_ms` |
+| Brain heartbeat interval and tolerance | 1 s and 5 s | guess; derive from the p99 brain silence |
+| Resume-latency budget for combat holds | 2 s | guess; derive from the p95 `resume_latency_ms` |
+| Combat fallback speed | Normal | guess; the safest choice, not a measured one |
+| Autosave cadence | one in-game day | guess; needs a measured save duration and a tolerable intent loss |
 
 Machine: not recorded. Run: none.
 
@@ -145,7 +151,7 @@ Decided (user, 2026-10-13):
   incompatible-schema reset affects them all. Launcher Telemetry is intentionally unmapped (not a bug, #3117): the
   host writes OTLP files and has no endpoint to send to, so the saved setting has nothing to drive, and
   `RIMGOVERNOR_PROFILE` stays unset by the harness. `-rimgovernor-test-acceleration` also sets `ClockTestAcceleration`.
-  `BrainCompositionOptions.TargetSpeed` (default Ultrafast) is the speed the clock windows request; the harness changes
+  `BrainCompositionOptions.TargetSpeed` (default Ultrafast) is the speed every `Run` asks for; the harness changes
   it live between launches and speed-matrix rows with `POST /api/player/clock-speed`, with no relaunch.
 - **Acceptance harness.** The acceptance harness launches every game with `-rimgovernor-inproc` and
   `RIMGOVERNOR_OBSERVE=1` (a case starts the brain through the player API; a `ServeSpec.Env` entry can override), and sets `RIMGOVERNOR_STATE=<Output>/service.sqlite` (plus a case's

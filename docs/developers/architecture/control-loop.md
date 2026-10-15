@@ -55,8 +55,8 @@ Immediate protection precedes development reads: combat and draft cleanup,
 emergency tending/rescue, protective areas and active fire use a scoped review
 of the native frame. It does not fetch the development planning window. The
 same scheduler retains ordinary work on its due queue, yielding the player
-gate to Hands before that work can block dispatch. A stopped clock can admit
-protective native progress before ordinary review runs.
+gate to Hands before that work can block dispatch. A held clock lets
+protective orders take effect before ordinary review runs.
 
 An omitted Concern was not inspected. Its Methods, progress and derived
 ordinary facts keep their prior evidence and timestamps. World replacement,
@@ -103,133 +103,192 @@ Do not infer a universal atomic reservation of every future construction cost.
 
 ## Execute under supervision
 
-Epic #3168 replaces today's windowed clock with a continuous Run/Hold model.
-This section records the target design first, then what is built today; the
-implementing pieces (#3177 and the #3178 series) cite it as their source of
-truth. Where the two differ, the as-built text is current behavior and the
-target text is not yet true.
-
-### Target design: Run and Hold
+A player can describe the clock in two sentences. With the bot on, the bot owns
+the clock and the player's speed keys are off. With the bot off, the bot stops
+acting on the colony, the game is paused once and the player is free to unpause.
+The toggle is the player Resume/Pause route ([player API](../contracts/player-api.md));
+it is not persisted, and `AutoResume` decides at load.
 
 While the bot is on, the clock is in one of two states.
 
 - **Running.** The game advances at the brain's target speed. There are no tick
-  budgets, no window sizing and no per-window admission. Time passes
-  continuously unless a hold applies. Reads and orders run beside the advancing
-  game; a coherent frame still binds planner facts to its tick, and dispatch
-  still revalidates current context and the action's native contract.
-- **Held.** The game is paused for one named reason (below). The hold ends when
-  that reason is finished, not on a timer.
+  budgets, window sizes or per-window admission: time passes continuously unless
+  a hold applies. Reads and orders run beside the advancing game. A coherent
+  frame binds planner facts to its tick, and dispatch revalidates current context
+  and the action's native contract, so a fact that aged while the game ran is
+  refused natively rather than guarded by pausing.
+- **Held.** The game is paused for one named reason. A hold ends only when the
+  brain sends `Run`, and the brain sends it when the reason is finished, not on
+  a timer. Native never resumes by itself.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Running: bot on, Run(target speed)
-    Running --> Held: native hazard stop
+    [*] --> Held: NeverRun
+    Held --> Running: Run(target speed, watch policy)
+    Running --> Running: Run (speed or policy changed)
+    Running --> Held: native hazard hold
     Running --> Held: brain Hold(reason)
     Running --> Held: game-forced pause
-    Held --> Running: reason finished, Run(target speed)
-    Running --> Running: heartbeat lost, native ceiling drops to Normal
+    Running --> Running: heartbeat lost, ceiling drops to Normal
 ```
 
-**Into Held.**
+### Who decides what
+
+| Piece | Owns |
+| --- | --- |
+| Native clock (`NativeClockRuntime`, the supervisor) | The game's speed, the hazard probe, the event journal, the hold itself and the one ceiling. Hazard holds happen on a tick boundary within the [declared bounds](hazard-detection-bounds.md). |
+| `ClockScheduler` step | Planning only: one coherent bundle read, the planner wave and the result. It starts and stops nothing. |
+| `ClockRunDriver` | The hold state machine, run after every step. It sends `Run`, takes the brain's own holds, acknowledges reviewed holds, keeps the heartbeat and polls the journal. |
+| Hands and the Worker | Order dispatch under the running clock. |
+
+The brain only ever asks for a speed. It does not manage a rate, a frame budget
+or the player's speed.
+
+### Into Held
 
 | Source | Reason | Examples |
 | --- | --- | --- |
-| Native | Tick-bounded hazard stop, within the [declared bound](hazard-detection-bounds.md) | hostile spawn, downing, stopping letter |
-| Brain request | A coupled order that needs a quiet world | a write checked against a paused snapshot; an order that waits on a prerequisite outcome |
-| Brain request | A decision-class event that needs review before time advances | see Combat below |
-| Brain request | A due autosave | see Autosave below |
-| Game | A game-forced pause | letters, dialogs |
+| Native | A tick-bounded hazard (`hostile`, `colonist_downed`, `predator_hunt`, `colonist_injury`, `notification_batch`, and the rest of the [hazard table](hazard-detection-bounds.md#declared-bound-per-hazard-class)) | a hostile spawns, a colonist is downed, a stopping letter |
+| Native | An armed combat event, only while an admitted fight plan owns the combat | see Combat |
+| Native | A game-forced pause (`GAME_FORCED`, dialog and letter pauses) | a force-pausing dialog, a long event |
+| Brain `Hold(CoupledOrder)` | A coupled order whose prerequisite just completed, so the next order needs a quiet world | a build order that waits on the haul that fills it |
+| Brain `Hold(Autosave)` | A due autosave | see Autosave |
+| Brain `Hold(Review)` | The bot stops acting: Pause, a checkpoint save, shutdown, or authority ended under a `Run` the driver sent | the player pressed Pause |
 
-Losing the brain's heartbeat is not a hold. Native lowers the one ceiling
-(the [interface contracts](../contracts/interface-contracts.md) describe
-`ClockCeiling`) to Normal and the game keeps running; contact ramps it back.
-The brain only ever asks for a speed.
+A `Hold` of an already held clock keeps the first reason. `Hold` needs only the
+loaded identity, never current authority, so cleanup can always stop play.
+Losing the brain's heartbeat is not a hold (see the ceiling below).
 
-**Out of Held.** The brain finishes the reason, then resumes at its target
-speed. In a fight it resumes as soon as the immediate review dispatches,
-without waiting for ordinary review.
+### Out of Held
 
-**What the old admission refusals become.** Window admission refused for the
-reasons below; the new model replaces each as listed.
+After each planning step the driver reads the clock status and decides:
 
-| Old refusal | Now |
-| --- | --- |
-| Stale, Unknown, InvalidLimits, NoWork, NotPaused | Gone. Staleness is a per-family tick tolerance on the facts a planner reads; a window needing a fresh paused status no longer exists |
-| Unsafe | A native hazard hold |
-| Outstanding | A coupled-order hold |
-| Unreviewed, Interrupted | A review hold, scoped to decision events only |
+- A held clock resumes with `Run` when the watch decision
+  (`policy.EvaluateClockWatch`) allows it: facts fresh and same-authority, every
+  captured journal page reviewed, no unacknowledged interruption or gap, no
+  unknown threat. A refused decision leaves the clock held and the next step
+  retries (`HeldException`).
+- A running clock is never stopped by a refused decision: native holds on what it
+  sees. The driver only resends `Run` when the implied watch policy or the speed
+  differs from the last one sent. `Run` is idempotent and doubles as the speed
+  and policy change.
+- Holds that native took (a hazard, a letter) are acknowledged once a step has
+  planned against them. The brain finishes the reason, then resumes at its target
+  speed.
+- A step that follows a driver hold or `Run` repeats at once (a `settled` step,
+  never twice in a row) so the planners work against the held world without
+  waiting a step interval.
 
-**Combat.** The brain holds on decision events (a hostile appears, a downing,
-an injury crossing the severity threshold), not on every combat event. The
-brain arms exactly those three native combat events (`HostileArrived`,
-`Downed`, `SeriousInjury`), and only while an admitted fight plan owns the
-combat; the other native events (range, melee, shield, explosive, raid phase,
-breach, mental break, prison break) are never armed. Each hold marks the
-defense planner, the immediate review answers it, and Run resumes as soon as
-that dispatches.
+A `Run` carries the speed and a complete watch policy: colony mode, or combat mode
+with the live hostiles it acknowledges. The hazard thresholds are the brain's
+(see [hazard bounds](hazard-detection-bounds.md#brain-authored-thresholds)); native
+holds no literal for them.
 
-Resume latency from hold to the resuming Run is a gate
+### The one ceiling and the heartbeat
+
+Native keeps one ceiling on the tick rate (`ClockCeiling`): the lower of a frame
+budget input and a brain-liveness input. A frame whose tick work runs past the
+frame budget lowers the rate at once and it recovers in gradual steps. The
+brain's driver sends an explicit `Heartbeat` every second; if none arrives within
+the tolerance the ceiling drops to Normal and ramps back once the brain is heard
+again. Neither input is a hold: the game keeps running at the lower rate. The
+[interface contracts](../contracts/interface-contracts.md#clock-speed-and-the-one-ceiling)
+give the numbers.
+
+### Target speed
+
+The target speed is a live brain option (`ClockTargetSpeed`, default Ultrafast).
+`POST /api/player/clock-speed` changes it; the next step sends `Run` at the new
+speed. The acceptance harness sets each launch's speed this way. Ultrafast runs
+the game's tick boost under the one ceiling; the boost is a development feature of
+the game, so the native tick-rate figures are listed with their caveats in the
+[interface contracts](../contracts/interface-contracts.md#clock-speed-and-the-one-ceiling).
+
+### Combat
+
+The brain holds on decision events, not on every combat event. It arms exactly
+three native combat events (`HostileArrived`, `Downed`, `SeriousInjury`;
+`ClockCombatStops.DecisionEvents`), and only while an admitted fight plan owns the
+combat. The other native events (range, melee, shield, explosive, raid phase,
+breach, mental break, prison break) are never armed. Between decision events the
+fight plan's orders run while the clock runs.
+
+A hold on an armed event marks the defense planner; the immediate-protection
+review answers it, and `Run` resumes as soon as that dispatches, without waiting
+for ordinary review. A hold with no fight plan to answer it cannot happen: a
+colony or unowned watch is disarmed.
+
+Resume latency from hold to the resuming `Run` is a gate
 (`ClockCombatStops.ResumeBudget`, logged per hold as `resume_latency_ms` on
-`clock_stop` and as p50/p95 on `combat_summary`). When a resume in the current
+`clock_stop` and as p50/p95 on `combat_summary`). When one resume in the current
 combat exceeds the budget the gate trips, and for the rest of that fight the
-brain asks for the slower `ClockCombatStops.FallbackSpeed` (never above the
-target speed) instead of holding more often; the gate clears when the combat
-closes. The budget (2 s) and the fallback speed (Normal) are conservative
-placeholders and **unmeasured**: the baseline numbers are deferred (#3199; see
-the [live clock baseline](brain-host.md#live-clock-baseline)), as is the
-heartbeat tolerance. Replace them with the measured budget when the table is
-filled.
+brain asks for the slower `ClockCombatStops.FallbackSpeed` (never above the target
+speed) instead of holding more often. The gate clears when the combat closes.
 
-**Autosave.** A periodic hold flushes governor state, saves, and resumes. The
-brain holds every `AutosaveEveryTicks` game ticks (default one in-game day, an
-unmeasured guess), saves into the rotating `Autosave-1..5` slots only while the
-clock is held, then `Run`s. It is not the game's own autosave.
+### Autosave
 
-**Native contract.** A new minimal wire contract replaces `StartRequest`, the
-epoch and its lease: `Run(target speed)`, `Hold(reason)` and a heartbeat (#3177).
-The one ceiling, which merges the frame budget with brain liveness, survives
-unchanged beneath it. The toggle itself is the existing player Resume/Pause
-route: Resume takes the clock and disables the player's speed keys, Pause stops
-the bot, pauses the game once and re-enables the keys. The toggle is not
-persisted; `AutoResume` decides at load.
+A periodic hold flushes governor state, saves and resumes. Every
+`ClockRunConfig.AutosaveEveryTicks` game ticks (default one in-game day, counted
+on the game clock from the previous autosave hold) the driver takes
+`Hold(Autosave)`, saves into the rotating `Autosave-1..5` slots at the first step
+that finds the clock held and paused, and then sends `Run`. No save is made while
+the clock runs; a failed save never keeps the clock from running. It is not the
+game's own autosave.
 
-**Deleted and kept.**
+### Player keys
 
-| Deleted | Kept |
-| --- | --- |
-| Tick budgets, finite windows and per-window admission; the 60,000 and 300-tick limits | Native hazard probe and its tick bounds |
-| Lease renewal and the clock attempt, epoch and receipt persistence (stores and saves are not migrated) | Native event journal, cursor announcements and the event reader |
-| Brain `PaceBackoff`, the 2,500-tick fallback horizon, native blind-tick regulator and `ClockBlindTicks` | The one native ceiling: frame budget plus heartbeat |
-| `FollowPlayerSpeed`, `PlayerQuiet`, `RepauseClock`, the `not_paused` refusal, `PlayerSpeedHook` and player-speed seeding | Brain `TargetSpeed` option and `POST /api/player/clock-speed` |
-| Native `PlayerAccelerated` as a pacing mode (its clamp becomes the one ceiling) | Immediate-protection review ahead of ordinary review; planner scheduling and Hands dispatch |
-| `NativeWorkTicks`, idle lend and `idle_stall` | The player Resume/Pause route and the speed-key block |
+While the bot holds the clock, native swallows the player's speed and pause input
+(space, 1 to 4 and the time-control buttons) and shows a rate-limited message
+saying why. Letter and dialog pauses and the supervisor's own assignments are not
+player input and pass. Pause turns the bot off: the driver holds the clock for
+`Review` once, the keys work again and the player owns the clock.
 
-### As built
+### Constants that are not measured
 
-Landed: the brain `TargetSpeed` option (#3170), Resume/Pause owning the clock
-(#3172), the speed-key block while the bot holds the clock (#3173), the one
-native ceiling with a brain heartbeat (#3171) and the removal of native
-`PlayerAccelerated`, `Pace`/`Paced` and the owner's `max_ticks_per_second`
-(#3201; Ultrafast tops out at the game's 15x until #3177). Everything else in this section
-below still runs as described here until its removal piece lands (#3174 and
-#3175 for pacing and player-speed following; #3177 and #3178 for the contract
-and the hold state machine).
+These are conservative guesses, not measurements. The live baseline that would
+replace them is #3199; the procedure is in
+[Measure brain throughput](../testing/measure-throughput.md#clock-baseline-run) and the
+table in [brain host](brain-host.md#live-clock-baseline).
 
-Native grants bounded tick windows under a renewable wall-clock lease.
-A routine window permits up to 60,000 ticks; combat uses a 300-tick backstop.
-Native allowances, hazards and player input may stop either earlier. Lease
-expiry stops control when the brain becomes unresponsive.
+| Constant | Value | Where |
+| --- | --- | --- |
+| Frame budget | 30 ms of tick work per frame | `ClockCeiling.DefaultFrameBudgetMs` |
+| Heartbeat tolerance | 5 s without contact drops the ceiling to Normal | `ClockCeiling.HeartbeatToleranceMs` |
+| Heartbeat interval | 1 s | `ClockRunConfig.HeartbeatInterval` (must stay under the tolerance) |
+| Combat resume budget | 2 s | `ClockCombatStops.ResumeBudget` |
+| Combat fallback speed | Normal | `ClockCombatStops.FallbackSpeed` |
+| Autosave cadence | one in-game day | `ClockRunConfig.DefaultAutosaveEveryTicks` |
 
-Routine reads and orders can run during a window. Only admitting the next window
-requires the stop boundary. A coherent frame binds planner facts to its tick;
-dispatch revalidates current context and the action's native contract.
+### What was removed
+
+The earlier model admitted finite tick windows under a renewable wall-clock lease,
+with a per-window admission decision, brain and native pace regulators, and
+following of the player's own speed. All of it is gone, as are the clock attempt,
+epoch and receipt stores. Do not reintroduce a tick budget or a second regulator;
+the one ceiling, the target speed and named holds replace them.
+
+### Event delivery
+
+The native journal is authoritative. Each append announces its cursor to the
+in-process brain; the brain reads after its own cursor through an unheld
+`clock_read_events`. A bounded poll (250 ms, backing off to 2 s after a failure)
+catches missed announcements. A load triggers a tail read, and page loss remains
+explicit.
+
+Events wake the scheduler and worker. Named action outcomes reconcile first.
+A hold may warm admission observations, reusable only when tick, identity,
+generation and invalidation state still match.
+
+Routine operation outcomes wake work without holding the clock. A running clock
+arms no watch on a completed order; dispatched construction and haul attempts
+are evidence only. Coupled orders wake when their prerequisite outcome arrives.
 
 ```mermaid
 sequenceDiagram
     participant N as Native clock
     participant P as Event reader
     participant S as Brain scheduler
+    participant D as Run driver
     participant H as Hands
     N->>P: Announce journal advance
     P->>N: Read after cursor
@@ -237,36 +296,23 @@ sequenceDiagram
     P->>S: Wake affected work
     S->>H: Reconcile and dispatch
     H->>N: Guarded native operations
-    S->>N: Admit next window when stopped
-    Note over N,S: Lease renewal is independent of planner completion
+    S->>D: Step result
+    D->>N: Run, Hold or nothing
+    D-->>N: Heartbeat (independent loop)
 ```
-
-### Event delivery
-
-The native journal is authoritative. Each append announces its cursor to the in-process brain; the brain reads after its own
-cursor through an unheld `clock_read_events`. A bounded poll catches missed announcements.
-A load triggers a tail read, and page loss remains explicit.
-
-Events wake scheduler and worker. Named action outcomes reconcile first.
-A stop may warm admission observations, reusable only when tick, identity,
-generation and invalidation state still match.
-
-Routine operation outcomes wake work without stopping simulation. Combat windows
-may watch terminal construction/haul attempts, allowing a stop at their outcome
-tick. Coupled orders wake when their prerequisite outcome arrives.
 
 ### Step reasons
 
 | Trigger | Work |
 | --- | --- |
-| Settled window, tick advance or safety-net review | Full planner reconciliation |
-| Timer | Due planner entries; admission alone when none is due |
-| Outcome/fact wake | Affected planners; authority changes expand to all |
-| Running window | Live planning and dispatch; no new window admission |
+| `settled`: the step after a driver hold or `Run` | Every planner not waiting on a dependency |
+| `full`: the first step, a step after idle, or a `timer` step promoted by the two-minute safety net | Every planner |
+| `timer` | Due planner entries; with none due, the driver tail alone |
+| `wake` | Outcome or fact wake: affected planners; authority changes expand to all |
 
-`clock_step` records why a step ran and its admitted window.
-`stop_latency_ms` measures native-stop-to-step time, not hazard onset to
-protective effect. Precise clock guards live in the
+`clock_step` records why a step ran. `stop_latency_ms` measures native-hold-to-step
+time, not hazard onset to protective effect. `clock_run` records each `Run`, `Hold`
+or refusal the driver made. Precise guards live in the
 [clock contract](../contracts/clock-recovery.md) and
 [hazard bounds](hazard-detection-bounds.md).
 
@@ -279,8 +325,9 @@ period. Forced or queued work can influence preference without excluding a pawn.
 
 Pause retains routine Concerns and open work. Colony/map/load changes or tick
 rewinds invalidate old context. Explicit Pause does not undraft pawns; native
-auto-undraft applies while authority is inactive. Informational letter pauses
-may stop a window without holding automation.
+auto-undraft applies while authority is inactive. An informational letter
+pauses the game but does not suspend automation: the brain resumes the clock
+once it has reviewed the hold.
 
 ### Drafts
 

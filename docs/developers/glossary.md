@@ -7,6 +7,9 @@
 | Colony identity | Native identity used to scope persistent concerns, policies and history. |
 | Load token | Identity of the current loaded game context; old in-flight work cannot carry it into another load. |
 | Player direction | The intent supplied by the player. There is one author of orders, so no direction counter or compare-and-swap exists; authority is the load token, native tick, native order generation and a pause flag. |
+| Run / Hold | The two states of the clock while the bot is on. Running advances at the brain's target speed; Held is paused for one named reason and ends only when the brain sends `Run`. See [Execute under supervision](architecture/control-loop.md#execute-under-supervision). |
+| Heartbeat | The brain driver's explicit once-a-second contact with native. If it stops, the one ceiling lowers the tick rate to Normal; it is not a hold. See [the one ceiling](architecture/control-loop.md#the-one-ceiling-and-the-heartbeat). |
+| Ceiling | Native's single clamp on the tick rate: the lower of a frame-budget input and a heartbeat input. The brain only asks for a speed. |
 | Concern | A desired outcome, often maintained over time, such as sufficient food supply. |
 | Standard | A concern holding a measured target over time; a chore is a Standard whose target is no outstanding work, and a Once Standard settles a finite target and stays settled. See [Concerns and their forms](architecture/control-loop.md#concerns-and-their-forms). |
 | Incident | A Concern triggered by an event, one row per occurrence. Its Situation is Active, Clear or Unclear. |

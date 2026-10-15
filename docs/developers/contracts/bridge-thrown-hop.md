@@ -68,5 +68,5 @@ in the structured receipt.
 - A catch stays only where the game itself throws on legitimate input; give it a
   one-line reason.
 - Not covered: exceptions outside a tool call (Harmony hooks such as
-  `ObservationFrameHook`/`PlayerSpeedHook`, tick handlers). They run on the game
+  `ObservationFrameHook`/`PlayerSpeedKeyBlock`, tick handlers). They run on the game
   thread outside any tool call, so none of the above applies.

@@ -22,7 +22,7 @@ One row per planner run, method selection, admission outcome and action dispatch
 `telemetry.Decide(ctx, telemetry.Decision{...})`. The payload shape is fixed:
 
 ```json
-{"verdict": "refused", "reason": "critical_wave_budget", "target": "window", "dur_ms": 1.5, "attrs": {}}
+{"verdict": "refused", "reason": "critical_wave_budget", "target": "step", "dur_ms": 1.5, "attrs": {}}
 ```
 
 - `verdict`: the outcome word. Vocabulary: `admitted`, `refused`, `waiting`, `applied`, `failed`,
@@ -51,7 +51,7 @@ Register a kind and a consuming reader before adding an emission.
 | `native_frame` | event row. `outcome` (`decoded`, `miss`; a cache hit writes no row and counts in `native_poll`), `native_tool`, `frame`, `why` (miss), plus decoded-frame fields. The in-process client writes the `miss` row (warn) when a frame read gives up after `FrameReadTimeout` (30 s): `native_tool` is the read, `why` the unavailable detail, `waited_ms`, `latest_frame`, `latest_writes` and `expected_writes` (the read-after-write count it waited for). Reader: the OTLP timeline |
 | `native_poll` | event row, at most one per 5 s, only when something folded: `window_ms`, `tools` (per `native_tool`: `wrapper`, `calls`, `native_timed` and the summed `gate_wait_ms`, `call_ms`, `decode_ms`, `total_ms`, `response_bytes`, `proto_decode_ms`, `native_queue_ms`, `native_execute_ms` of the folded quiet-poll calls), `frame_hits` (cache hits per `native_tool`). `SummarizePhases` adds them to the tool's calls, timings and cache hits; `trace` does not show them |
 | `combat_order` (decision) | `target` pawn, `verdict` `applied`/`refused`, `reason` refusal, attrs `index`, `job` |
-| `clock_step` (decision) | `verdict` step outcome (`planned`, `deferred`, `failed`), `reason` `step`, `deferred` or `step_error`, `target` the step's cause (`timer`, `wake`, `settled`, `full`, `live`), `dur_ms` step wall; attrs also `gate_wait_ms`, `journal_ms`, `stop`, `stop_latency_ms`, the pacing fields and `error`; attrs `reads`, `tools`, `schema_fetches`, `running`, `stop_pause_s` (read tally) |
+| `clock_step` (decision) | `verdict` step outcome (`planned`, `deferred`, `failed`), `reason` `step`, `deferred` or `step_error`, `target` the step's cause (`timer`, `wake`, `settled`, `full`), `dur_ms` step wall; attrs also `gate_wait_ms`, `journal_ms`, `stop` and `stop_latency_ms` (a step woken by a native hold: hold stamp to step start), the pacing fields (`pacing_reason`, `paced_tps`, `tps_ceiling`, `effective_tps`) and `error`; attrs `reads`, `tools`, `schema_fetches`, `running` (read tally) |
 | `clock_run` (decision) | one per scheduler step that changed or refused the clock, filed by `ClockRunDriver`. `verdict` `run`, `adjust`, `hold`, `refused` or `failed`, `reason` `resumed`, `watch_changed`, `speed_changed`, `coupled_order`, `autosave`, `combat_event`, the first refused reason, or `run_error`; attrs `running`, `unwatched`, `coupled_orders`, `acknowledged_holds`, `held_for` (the native hold reason), `combat`, `refused`, `error` |
 | `dispatch` (decision) | one per run that acted. `target` action, `verdict` outcome (`completed`, `refused`, `failed`, `waiting`, `held`), `reason` cause or error class; attrs `attempt`, `stage`, `stage_after`, `receipt`, `refusal_class` and `refusal_reason` (native's class and reason when the run left a refused receipt), `running`, `stale`, `error`, `repeated`, `reads`, `tools`, `schema_fetches`. Level `WARN` for a failure other than a dependency wait. Written for a run that reached native (carries `receipt`, `running` and the read tally; `rimgovernor phases` counts only these) or whose outcome changed (`changed` true, `repeated` the unrecorded runs that restated the previous outcome); an unchanged run that never reached native writes nothing. `reason` is the stage word for a wait, `dependency`, `stale`, `error`, the first refusal, or `completed`; `refused` (all refusal reasons) rides in attrs. The cancelled-settle of an undispatched action is `failed`/`cancelled_settled` with `attempts` |
 
@@ -61,20 +61,21 @@ Immediate protection adds `scope: immediate` to its `planner_step` rows,
 `observation_tick` on the Rounder row and `decision_tick` on planner rows.
 `dispatch_tick` on a Worker or synchronous combat Hands dispatch records the
 journal's native dispatch tick, including uncertain replies.
-`clock_step.controller_pause_ms` records the monotonic scheduler interval from
-an observed paused clock through return; it excludes unobserved pause intervals.
 `clock_step.critical_wave_ms`
 includes pre-wave review. The native acceptance `ResponseEvidence` reader uses
-these fields alongside `stop_pause_s`; it never treats an accepted dispatch as
-the first native protective effect.
+it to separate controller activity from native outcomes and never treats an accepted dispatch as
+the first native protective effect. `clock_step.controller_pause_ms` and `stop_pause_s` are no longer
+written (the clock no longer pauses for a window); the readers that still name them read nothing.
 
 | Kind | Shape and fields |
 |---|---|
-| `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait `policy.Cause` wire value (a closed set; free-text detail is not recorded); attrs `subject` (optional, what the cause concerns), `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `window_ticks`, `repeated`, `error`. Rounder targets `rounds` (`ok`/`reviewed`, `ok`/`cancelled` when an authority change cancelled the round, or `failed`/`error`; attr `partial`); the worker targets `worker_step`. Step journal failures target `reasons`, `waits` or `proposals` with `failed`/`journal_error`. |
-| `admission` (decision) | `target` method or plan, `verdict` `admitted`/`refused`/`held`, `reason` the refusal (a method refusal); attrs `concern`, `refused` (all reasons), `held_by`, `mode`, `work`, `combat_plan`, `hostiles`, `clock_state`, `wall_budget_ms`, `actions`, `error` |
-| `clock_stop` | event row. `reason`, `evidence`, `cursor`, `observed_at_unix_ms`, `benign`, the stop legs, and for a combat stop `event`, `resume_latency_ms`, `ticks_since_stop` |
-| `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `ticks_between_stops_p50`, `ticks_between_stops_p95` |
-| `authority` | event row. `change` (`changed`, `lost`, `retaken`), `reason`, `active`, `generation`, `previous_generation`, `cursor`, `paused`, `pace`, `stop_reason`; `WARN` for `lost` |
+| `planner_step` (decision) | one per planner run. `target` planner, `verdict` outcome (`admitted`, `waiting`, `refused`, `unselected`, `failed`), `reason` the refusal or wait `policy.Cause` wire value (a closed set; free-text detail is not recorded); attrs `subject` (optional, what the cause concerns), `proposals`, `edits`, `cause`, `admitted`, `running`, `reconciled`, `cleaned`, `deferred`, `retaken`, `combat`, `repeated`, `error`. Rounder targets `rounds` (`ok`/`reviewed`, `ok`/`cancelled` when an authority change cancelled the round, or `failed`/`error`; attr `partial`); the worker targets `worker_step`. Step journal failures target `reasons`, `waits` or `proposals` with `failed`/`journal_error`. |
+| `admission` (decision) | `target` method or plan, `verdict` `admitted`/`refused`/`held`, `reason` the refusal (a method refusal); attrs `concern`, `refused` (all reasons), `held_by`, `mode`, `work`, `combat_plan`, `hostiles`, `actions`, `error` |
+| `clock_hold` | event row, one per `HoldEntered` journal event the poll commits (a native hazard, a game pause or a brain hold). `reason` (the `HoldReason`), `evidence`, `cursor`, `observed_at_unix_ms`, `benign`, `tick` and the legs `detected_tick`, `hold_ticks`, `occurrence_tick`, `detect_ticks`, `age_at_reply_ms` |
+| `clock_resume` | event row, one per `Resumed` journal event. `from` (the hold reason), `speed`, `cursor` |
+| `clock_stop` | event row, one per combat hold the brain resumed from while a fight was open. `event` (the armed combat event), `tick`, `resume_latency_ms` (hold to the resuming `Run`), `over_budget` and `resume_budget_ms` when the resume-latency gate tripped, `ticks_since_stop` |
+| `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `resume_budget_ms`, `gate_tripped`, `ticks_between_stops_p50`, `ticks_between_stops_p95` |
+| `authority` | event row. `change` (`changed`, `lost`, `retaken`), `reason`, `active`, `generation`, `previous_generation`, `cursor`; `WARN` for `lost` |
 | `clock_journal` | event row. `through_cursor`, `newest_cursor` |
 | `alert` | event row. `key`, `label`, `priority`, `cursor` |
 
@@ -179,9 +180,9 @@ reader operation, now over the `rimgovernor.*` attributes.
 `rimgovernor log`, `phases` and `trace` (read from the OTLP rings), the launcher's Observe tab
 (`tools/launcher/Observe.cs`, which tails `logs.jsonl`)
 and acceptance diagnostics consume these kinds.
-`bridge.IsWorkerStep`, `bridge.IsWindowStop` and `bridge.StepFields` centralize
-clock/worker interpretation. Combat `clock_stop` rows carry `event`; ordinary
-stop-event rows do not. Acceptance readers use the case's OTLP log ring
+`bridge.IsWorkerStep` and `bridge.StepFields` centralize
+clock/worker interpretation. Combat `clock_stop` rows carry `event`; `clock_hold` rows
+carry the journal's hold. Acceptance readers use the case's OTLP log ring
 (`<output>/otlp/logs.jsonl*`, `<output>/service-N/otlp/...` per relaunch):
 `OtlpTimeline.Read` rebuilds the row shape these
 helpers expect from the typed log reader (`OtlpReader.ReadLogs`, see

@@ -183,9 +183,9 @@ release and reconsideration. Unknown inputs do not certify recovery. See
 
 An active mental break keeps its pawn's mood incident in deficit and releases its
 reserved work through shared cancellation. State kind, aggression and age remain
-mood evidence. Non-violent breaks continue ordinary clock windows.
+mood evidence. Non-violent breaks leave the clock running.
 
-SocialFighting continues ordinary clock windows despite its native aggression flag:
+SocialFighting leaves the clock running despite its native aggression flag:
 it neither activates ActiveCombat nor selects a subdue response. Independent hostile
 threats and urgent medical needs keep their emergency classification.
 

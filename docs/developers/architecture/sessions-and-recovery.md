@@ -31,7 +31,7 @@ retains its recovery requirement. Methods are planned against the loaded world.
 
 `AutoResumer` offers each fresh world one resume through the same control intent the resume
 route submits, unless the launcher started the game with Observe. The player's Resume or Pause
-stands afterwards. Restart can revoke stale native authority and grant a fresh lease.
+stands afterwards. Restart can revoke stale native authority and grant it again.
 
 ## Game process and connection
 
@@ -41,8 +41,9 @@ reconnect and no transport to lose. The launcher finds the game through the
 `http-endpoint.json` file the mod writes. Main-thread game operations remain scheduled by
 native code; clock-journal reads are unheld and follow advance announcements.
 
-If the brain faults or stalls, the host suspends authority and the game keeps running; native
-revokes authority when its lease lapses. Only the player's Resume clears a suspension, and a
+If the brain faults or stalls, the host suspends authority and the game keeps running; once the brain's
+heartbeat lapses native lowers the tick-rate ceiling to Normal and raises it again when the brain is heard
+([control loop](control-loop.md#the-one-ceiling-and-the-heartbeat)). Only the player's Resume clears a suspension, and a
 player's Pause stands.
 
 ## Uncertain writes and read retries

@@ -1,25 +1,24 @@
 # Hazard detection bounds
 
 The native supervisor (`integrations/rimgovernor-native/src/Bridge/SupervisedPlayTool.cs`)
-guards a running clock window with a hazard probe (`Probe`) and reports the
+guards a running clock with a hazard probe (`Probe`) and reports the
 facts that changed under it with a digest pass (`PublishFactChanges`). The two are separate: the probe is paced in game ticks so its detection
 gap holds at every production `TimeSpeed`, and the digests never run inside
 it. `SupervisedPlayHazards.cs` declares the constants and the per-class
 table below; the native contract probe (`native-clock-ceiling`) drives the pure
 cadence functions through every speed's tick pattern.
 
-> **Run/Hold (epic #3168).** The probe, bounds and stop kinds below survive as
-> the native hazard hold; what changes is what a stop ends. Today a stop closes
-> a window and the brain admits the next; under the target design a stop is a
-> Hold the brain finishes and resumes from, and the armed combat events become
-> decision-event holds, not every event ([control loop](control-loop.md#execute-under-supervision)).
-> The 300-tick `combatBackstopTicks` window backstop below is deleted with windows.
+> **Hazard holds.** A hazard the probe finds holds the clock; the `HoldEntered` event names the reason and the
+> tick. Native never resumes by itself: the brain reviews the hold, plans against the held world and sends `Run`
+> ([control loop](control-loop.md#execute-under-supervision)). Non-stopping observations and demoted tiers
+> invalidate facts without a hold. The brain arms only decision-class combat events, not every one (see Armed
+> combat stops).
 
 ## Probe cadence
 
 | Gate | Where it runs | Interval |
 | --- | --- | --- |
-| Tick-paced | `DoSingleTick` postfix (`OnTick`), every active epoch | `ProbeIntervalTicks` = 30 ticks |
+| Tick-paced | `DoSingleTick` postfix (`OnTick`), every running clock | `ProbeIntervalTicks` = 30 ticks |
 | Wall-paced | `TickManagerUpdate` postfix (`OnFrame`), once per frame | `ProbeIntervalMs` = 100 ms |
 | Hook-requested | the next tick boundary after a direct game hook fires | 1 tick |
 
@@ -31,7 +30,7 @@ ticks, at Fast every 18, at Superfast the tick gate fires first. Under the
 acceptance test acceleration (`testAcceleration`) the tick hook calls
 the frame path itself, so the same gates apply.
 
-`max_probe_tick_gap` on the clock status (per epoch) and
+`max_probe_tick_gap` on the clock status (per run) and
 `session_max_probe_tick_gap` (cumulative for the loaded game) report the
 widest gap observed; `hazard_gaps` reports it per class beside the declared
 bound. The speedmatrix row carries them as `max_probe_tick_gap` and
@@ -45,7 +44,7 @@ Ultrafast) and under test acceleration. `detect_ticks` on a stop
 (`detected_tick` less `occurrence_tick`) is the measured gap; the
 `hazard/*` acceptance cases (`brain/src/RimGovernor.Brain.Acceptance.Cases/Hazard`,
 injecting through `scripts/fixtures/HazardFixture.cs` and the letter
-fixture) run a window at Ultrafast, inject the class mid-window and assert
+fixture) run the clock at Ultrafast, inject the class mid-run and assert
 both `detect_ticks` and the injection-to-detection gap within the bound;
 a hooked class must also land within the hooked bound. The hooks live in
 `SupervisedPlayHooks.cs`; when Harmony cannot install them the status
@@ -54,7 +53,7 @@ reports every class unhooked and the polled interval bound still holds.
 | Stop kind | Hazard | Detection | Bound (ticks) | Occurrence tick on the stop | Acceptance case |
 | --- | --- | --- | --- | --- | --- |
 | `notification_batch` | a stopping letter or transient message | letters: `LetterStack.ReceiveLetter` hook requests the next-tick probe; messages: polled | 30 (a letter lands in 1) | the newest letter's `arrivalTick` or message's `startingTick` | `hazard/letter` |
-| `hostile` | a hostile pawn within `hostileWithin` of a colonist | polled; `Pawn.SpawnSetup` hook requests the next-tick probe when a hostile spawns | 30 (a spawn lands in 1) | the pawn's spawn tick when it spawned under this epoch, else absent | `hazard/hostile` |
+| `hostile` | a hostile pawn within `hostileWithin` of a colonist | polled; `Pawn.SpawnSetup` hook requests the next-tick probe when a hostile spawns | 30 (a spawn lands in 1) | the pawn's spawn tick when it spawned under the current run, else absent | `hazard/hostile` |
 | `colonist_downed` | a colonist downed or dead | `Pawn_HealthTracker.MakeDowned` and `Pawn.Kill` hooks request the next-tick probe | 1 | the tick the hook fired; a corpse's `timeOfDeath` | `hazard/downed` |
 | `predator_hunt` | a predator hunting within 40 cells of a colonist | polled | 30 | the predator's `PredatorHunt` job `startTick` | `hazard/predator` |
 | `hunting_route_unsafe` | a colonist hunting prey along an unsafe route | polled | 30 | the hunter's `Hunt` job `startTick` | (hunting/* areas) |
@@ -90,18 +89,18 @@ constants.
 hunt withdrawal), `ColonyFactsRequest` / `SnapshotStreamRequest`
 `hunt_predator_margin_cells` (the hunt census; absent, every pair reports
 `skipped`), and `Rule.predator_margin_cells` (native rules). Damage and
-explosive classification read the last epoch's policy, so before the brain has
-started an epoch the combat log records those rows unclassified.
+explosive classification read the last run's policy, so before the brain's
+first `Run` the combat log records those rows unclassified.
 
 A wound under the severity floor, and a resting patient who lost their
 eligibility, are demoted tiers, not stops: the probe journals the observation
 and an `observation_invalidated` row over the `pawns` and `emergency`
-families (a medical review without a stop) and the window runs on, so
-neither costs a stop-to-readmit pause. A pawn's demoted injury invalidates
+families (a medical review without a stop) and the clock runs on, so
+neither costs a hold. A pawn's demoted injury invalidates
 again at most every `MedicalWakeIntervalTicks` (600), so a brawl cannot
 replan the colony every probe; the wake raised for a discharged rest watch
 is never throttled. `hazard/injury` asserts the wake lands inside the
-30-tick bound with the window still running, and the native contract probe
+30-tick bound with the clock still running, and the native contract probe
 pins the floor's boundary.
 Fire is not a hazard class: the supervisor stops for it through the
 `ThreatSmall` letter vanilla raises, under `notification_batch`.
@@ -110,7 +109,7 @@ Fire is not a hazard class: the supervisor stops for it through the
 
 `PublishFactChanges` recomputes the research, world (faction relations),
 game-condition and zone digests and journals an `observation_invalidated`
-row when one changed. It runs at the epoch's start (baseline) and then:
+row when one changed. It runs when a `Run` resumes the clock (baseline) and then:
 
 | Trigger | Source |
 | --- | --- |
@@ -129,7 +128,7 @@ re-reads fresh fill on the wake.
 
 The digest pass runs from the frame path after the probe gate, never from
 `Probe`; the contract probe asserts the cadence functions are independent
-and the epoch timing summary (`probeMs`, `digestMs`) and the clock status
+and the run timing summary (`probeMs`, `digestMs`) and the clock status
 (`probe_elapsed_ms`, `digest_elapsed_ms`, `probe_total`, `digest_total`)
 carry the two counters apart. The [throughput
 measure](../testing/measure-throughput.md) reports `digest_share` per
@@ -142,7 +141,7 @@ decision-class ones (Downed, Serious injury, Hostile arrived) while a fight
 plan is open (`ClockCombatStops.DecisionEvents`, #3180); the rest are
 available to a policy that arms them and are never armed today.
 
-A `WATCH_MODE_COMBAT` epoch also stops on the armed events in
+A `WATCH_MODE_COMBAT` run also holds on the armed events in
 `WatchPolicy.combat_stop_events` with a bound of **0 ticks**: the stop
 lands on the boundary of the tick the event happened on
 (`STOP_REASON_COMBAT_EVENT`, `occurrence_tick` = the stop tick). A game hook
@@ -162,8 +161,7 @@ records the event and `TickBody` stops right after the watch checks
 | Breach | `Thing.Destroy` prefix (`KillFinalize` of a player wall, door or turret) |
 | Mental break | `MentalStateHandler.TryStartMentalState` postfix |
 
-A combat window with no armed event stops on its tick budget, the
-brain's `combatBackstopTicks` (300). The acceptance case
+A combat run with no armed event has no tick backstop: it holds only on the hazards above. The acceptance case
 `combatlab/stops` proves the exact tick on `lab-open`.
 
 ## Combat event ring

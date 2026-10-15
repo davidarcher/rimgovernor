@@ -123,9 +123,9 @@ native pathing, actual pawn throughput or expert play.
 
 ### Combat response and return to ordinary work
 
-1. Native combat events stop an armed window at its event boundary; the
-   [combat-stop contract](hazard-detection-bounds.md#armed-combat-stops) also
-   defines a 300-tick brain backstop. Detection/stop time is not the
+1. Native combat events hold the clock at their event boundary; the brain arms only
+   decision-class events ([combat-stop contract](hazard-detection-bounds.md#armed-combat-stops)),
+   with no tick backstop between them. Detection/hold time is not the
    time at which a defender has reached safety.
 2. [RoundsDefensePlanner](../../../brain/src/RimGovernor.Brain.BuildingRuntime/Rounds/RoundsDefense.cs)
    builds a combat view and supplies native geometry to
@@ -287,7 +287,7 @@ create another benchmark service.
 | --- | --- | --- |
 | 1. Restore existing contracts | #2502 puts exact combat batches through journaled Hands. Existing replay and interruption tests pass; batching is retained | Delete the planner-owned writer. Preserve native replay identity and authority guards |
 | 2. Complete shared inputs | Build on `ResourceDemandOf` and explicit residual labor; include the accepted planned-ingredient exception when #2504 coordinates commitments | Delete duplicate merges; no additional demand store |
-| 3. Protect the response path | #2503 declares response stages and narrows unrelated review dependencies. A blocked development read cannot block the critical protective intent; native timing is measured | Keep one scheduler, one writer and lease supervision; do not use tighter test deadlines as proof |
+| 3. Protect the response path | #2503 declares response stages and narrows unrelated review dependencies. A blocked development read cannot block the critical protective intent; native timing is measured | Keep one scheduler, one writer and the one ceiling; do not use tighter test deadlines as proof |
 | 4. Make continuation explicit | #2354/#2355 and #2505 establish combat-shelter and recovery transitions, including unknown/refused observations and recovery to normal work | Replace duplicated family guards where the shared rule applies; preserve stable useful orders |
 | 5. Coordinate scarce capacity | #2504 proves the cooking/construction/recovery conflict through existing admission. Optional work resumes after the constraint clears | Derive capacity from existing work; no exclusive routine-worker slots or general solver |
 | 6. Qualify playing strength | Extend #2351 with the scorecard, repeat-run noise and expert reference; demonstrate improvement on the three proving scenarios and held-out cases | Reuse current report formats; report coverage and uncertainty instead of a universal expert claim |

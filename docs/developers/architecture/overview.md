@@ -86,7 +86,7 @@ for the ownership boundaries and [live policy stages](colony-forecast.md#live-ac
 for the implementation, enforced dependencies and current bounds.
 
 Routine planning can run while the supervised game window is advancing.
-Native hazard stops and expiring leases protect the game independently of
+Native hazard holds and the one tick-rate ceiling (frame budget plus brain heartbeat) protect the game independently of
 planner completion. Detection time, scheduler wake time and time to a useful
 protective effect are distinct measurements.
 
