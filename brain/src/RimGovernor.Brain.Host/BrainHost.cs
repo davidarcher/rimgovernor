@@ -327,6 +327,7 @@ public sealed class BrainHost : IAsyncDisposable
         // A failed join retains the database: Close itself observes uncertain cleanup, and these retries never
         // repeat an execution command (Go drainBuilding).
         var drained = false;
+        Exception? drainError = null;
         for (var attempt = 1; attempt <= timings.ShutdownAttempts && !drained; attempt++)
         {
             try
@@ -350,6 +351,7 @@ public sealed class BrainHost : IAsyncDisposable
             {
                 if (attempt == timings.ShutdownAttempts)
                 {
+                    drainError = e;
                     errors.Add(e);
                 }
                 else
@@ -370,7 +372,7 @@ public sealed class BrainHost : IAsyncDisposable
             else
             {
                 // The session may still write: leaving the database open is safer than closing it under a write.
-                _log.Error("database_retained", "the session did not drain; the state database stays open");
+                _log.Error("database_retained", "the session did not drain; the state database stays open", ("error", drainError?.ToString() ?? ""));
             }
         }
         _log.Info("brain_stopped", "the in-process brain stopped", ("drained", drained));

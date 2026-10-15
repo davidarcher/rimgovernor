@@ -33,6 +33,11 @@ internal sealed class SaveSignalLoop(INativeFacade facade, StateFlusher flusher,
             {
                 return;
             }
+            catch (Exception) when (ct.IsCancellationRequested)
+            {
+                // Native answers a shutdown-cancelled wait with a refusal rather than a cancellation; that is the stop, not a failure.
+                return;
+            }
             catch (Exception e)
             {
                 log.Warn("save_signal_wait_failed", "save signal wait failed", ("error", e.Message));

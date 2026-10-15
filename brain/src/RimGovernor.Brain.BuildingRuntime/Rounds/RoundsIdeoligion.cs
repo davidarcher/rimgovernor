@@ -80,7 +80,7 @@ public sealed partial class Rounder
     internal void ReviewIdeoligion(ref RoundsReading read, GenerationSnapshot snapshot, CancellationToken ct)
     {
         var choice = ReformChoice(read, snapshot);
-        var owed = choice.TryGetValue(out var v) ? Known(v.Design.Memes.Count > 0) : Unknown<bool>();
+        var owed = choice.TryGetValue(out var v) ? Known(v.Design.Memes.Count > 0 && v.Comparison?.Decision == DesignDecision.Improves) : Unknown<bool>();
         read = WithReformOwed(read, owed);
         Rounds review;
         try
@@ -307,6 +307,12 @@ public sealed partial class RoundsIdeoligionPlanner
         if (!Rounder.ReformChoice(read, state.Snapshot).TryGetValue(out var choice) || choice.Design.Memes.Count == 0)
         {
             return new RoundsIdeoligionResult { Verdict = WaitFor(Cause.MethodUsed, "ideoligion_design"), Comparison = choice?.Comparison };
+        }
+
+        // Unchanged, ineligible and unsafe choices carry the current design; there is nothing to reform.
+        if (choice.Comparison?.Decision != DesignDecision.Improves)
+        {
+            return new RoundsIdeoligionResult { Verdict = WaitFor(Cause.MethodUsed, "ideoligion_design"), Comparison = choice.Comparison };
         }
 
         if (read.Catalog is not { } catalog || !read.Projection.Facts.Ideology.TryGetValue(out var ideo))

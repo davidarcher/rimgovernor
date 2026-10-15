@@ -43,7 +43,7 @@ public sealed partial class RoundsBuildingPlanner
         var gear = Copy();
         gear.Concern = MaintainEquipment;
         var result = await gear.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-        if (result.Decision.Admitted || result.NativeWorkTicks > 0 || result.Verdict == BuildingReasonWorkshopResearch)
+        if (result.Decision?.Admitted == true || result.NativeWorkTicks > 0 || result.Verdict == BuildingReasonWorkshopResearch)
         {
             return result;
         }
