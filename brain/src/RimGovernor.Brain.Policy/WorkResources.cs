@@ -116,9 +116,15 @@ public static partial class PolicyFunctions
             if (row.Action.PawnActivities is not { } batch) continue;
             foreach (var task in batch.Tasks)
             {
+                if (task.Step.Destination is { } destination) targets.Add("cell/" + destination.X + "/" + destination.Z);
                 if (task.Step.Container.Length != 0) targets.Add(task.Step.Container);
                 if (task.SiteDefinition.Length != 0 && task.Step.Target.Length != 0) targets.Add(task.Step.Target);
-                if (task.Step.Cooking is { } recipe) { targets.Add(task.Step.Target); targets.Add(recipe.Bill); }
+                if (task.Step.Recipe is { } recipe)
+                {
+                    targets.Add(task.Step.Target);
+                    if (recipe.Bill.Length != 0) targets.Add(recipe.Bill);
+                    if (recipe.Unfinished.Length != 0) targets.Add(recipe.Unfinished);
+                }
             }
             foreach (var order in batch.Orders)
             {
@@ -132,11 +138,12 @@ public static partial class PolicyFunctions
                     ? native.SingleOrDefault(p => p.Pawn == order.Pawn && p.Assignment == order.Assignment && p.Revision == order.Revision) : null;
                 foreach (var step in order.Steps)
                 {
+                    if (step.Destination is { } destination) targets.Add("cell/" + destination.X + "/" + destination.Z);
                     if (step.Target.Length != 0) targets.Add(step.Target);
                     if (step.Container.Length != 0) targets.Add(step.Container);
-                    if (step.Cooking is { } cooking) targets.Add(cooking.Bill);
+                    if (step.Recipe is { } cooking) targets.Add(cooking.Bill);
                 }
-                if (order.OutputDelivery?.Cooking is { } continuation)
+                if (order.OutputDelivery?.Recipe is { } continuation)
                 { targets.Add(continuation.Bench); targets.Add(continuation.Bill); }
                 var claims = new List<ForecastMaterialClaim>();
                 foreach (var step in order.Steps)
@@ -151,9 +158,10 @@ public static partial class PolicyFunctions
                         if (observed?.State == "completed") continue;
                         claims.Add(new(new(output.Resource), Known((double)Math.Max(0, step.Count - carried)), Known("")));
                     }
-                    if (step.Cooking is { } cooking)
+                    if (step.Recipe is { } cooking)
                     {
                         if (observed?.State is "completed" or "failed") continue; // Fresh stock owns any remaining/consumed ingredients.
+                        if (observed is { Unfinished.Length: > 0 }) continue; // Actual UFT owns consumed ingredients outside loose stock.
                         if (cooking.Resource.Length == 0) { findings.Add("unknown_cooking_materials:" + row.Action.Id.Value); continue; }
                         var carried = observed?.CarriedResource == cooking.Resource ? observed.CarriedCount : 0;
                         claims.Add(new(new(cooking.Resource), Known((double)Math.Max(0, cooking.Ingredients.Sum(i => i.Count) - carried)), Known(cooking.Bill)));
@@ -212,7 +220,7 @@ public static partial class PolicyFunctions
         if (candidate.Findings.Count != 0 || candidate.Pawns.Any(view.Claims.Pawns.Contains)
             || candidate.Targets.Any(view.Claims.Targets.Contains)) return false;
         var usesBench = proposed.Actions.Any(a => a.ProductionBill is { Mode: BillMode.GearBatch }
-            || a.PawnActivities is { } activity && activity.Orders.Any(o => o.Steps.Any(s => s.Cooking is not null) || o.OutputDelivery?.Cooking is not null));
+            || a.PawnActivities is { } activity && activity.Orders.Any(o => o.Steps.Any(s => s.Recipe is not null) || o.OutputDelivery?.Recipe is not null));
         if (usesBench && (!view.Evidence.WorkResources.IsKnown || !view.Evidence.Pawns.TryGetValue(out var benchPawns)
             || benchPawns.Any(p => !p.Occupied.IsKnown || p.Occupied.Value && !p.Target.IsKnown))) return false;
         foreach (var pawn in candidate.Pawns)
@@ -222,7 +230,7 @@ public static partial class PolicyFunctions
             if (observed is null || !observed.Available.TryGetValue(out var available) || !available
                 || !observed.Applies.TryGetValue(out var applies) || !applies) return false;
             if (retainedParticipants?.Contains(pawn) != true && proposed.Actions.SelectMany(a => a.PawnActivities?.Orders ?? []).Any(o => o.Pawn == pawn
-                && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Cook or PawnActivityKind.Approach or PawnActivityKind.Supply))
+                && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Recipe or PawnActivityKind.Approach or PawnActivityKind.Supply))
                 && (!view.Capacity.TryGetValue(pawn, out var capacity) || !capacity.Capacity.Windows.TryGetValue(out var windows)
                     || !windows.Any(w => w.Start == 0 && w.End > 0))) return false;
         }
@@ -238,9 +246,12 @@ public static partial class PolicyFunctions
         var needed = candidate.Materials.Concat(promises).SelectMany(c => c.MaterialClaims).GroupBy(c => c.Resource);
         foreach (var group in needed)
         {
-            if (group.Any(c => !c.Units.IsKnown) || !view.Materials.TryGetValue(out var budget)
+            var credits = group.Where(c => c.ReservationBill.TryGetValue(out var id) && id.Length != 0)
+                .GroupBy(c => c.ReservationBill.Value).Select(g => Methods.Evaluation.WorkMaterialEvaluation.ExistingBillCredit(view, g.Key, group.Key,
+                    g.All(c => c.Units.IsKnown) ? g.Sum(c => c.Units.Value) : 0)).ToArray();
+            if (group.Any(c => !c.Units.IsKnown) || credits.Any(c => !c.IsKnown) || !view.Materials.TryGetValue(out var budget)
                 || !budget.GetValueOrDefault(group.Key, Known(0.0)).TryGetValue(out var free)
-                || group.Sum(c => c.Units.Value) > free) return false;
+                || group.Sum(c => c.Units.Value) > free + credits.Sum(c => c.Value)) return false;
         }
         return true;
     }

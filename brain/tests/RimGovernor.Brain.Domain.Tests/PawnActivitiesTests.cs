@@ -9,8 +9,8 @@ public sealed class PawnActivitiesTests
     private static PawnActivities Batch() => new(1, [new("pawn", "assignment", "method", 0, 1, false,
         [new(PawnActivityKind.Hold, "", "", "", 0, 1234, "filth"), new(PawnActivityKind.Eat, "meal", "", "", 1, 2345),
          new(PawnActivityKind.Deliver, "harvest", "", "", 3, 3456) { Destination = new Cell(12, 34) },
-         new(PawnActivityKind.Cook, "bench", "cooking", "", 0, 4567)
-         { Cooking = new("bill", "recipe", [new("stack-a", 4), new("stack-b", 6)]) }])]);
+         new(PawnActivityKind.Recipe, "bench", "cooking", "", 0, 4567)
+         { Recipe = new("bill", "recipe", [new("stack-a", 4), new("stack-b", 6)]) }])]);
     [Fact]
     public void HandsIntentAndJournalRetainExactTargetsAndDeadlines()
     {
@@ -35,13 +35,13 @@ public sealed class PawnActivitiesTests
         var cook = b.Orders[0].Steps[3];
         void Refused(PawnActivityStep step) => Assert.Throws<DomainException>(() =>
             (b with { Orders = [b.Orders[0] with { Steps = [step] }] }).Validate());
-        Refused(cook with { Cooking = null });
-        Refused(cook with { Cooking = cook.Cooking! with { Bill = "" } });
-        Refused(cook with { Cooking = cook.Cooking! with { Recipe = "" } });
-        Refused(cook with { Cooking = cook.Cooking! with { Ingredients = [] } });
-        Refused(cook with { Cooking = cook.Cooking! with { Ingredients = [new("a", 1), new("a", 1)] } });
-        Refused(cook with { Cooking = cook.Cooking! with { Ingredients = [new("a", 0)] } });
-        Refused(cook with { Cooking = cook.Cooking! with { Ingredients = [new("", 1)] } });
+        Refused(cook with { Recipe = null });
+        Refused(cook with { Recipe = cook.Recipe! with { Bill = "" } });
+        Refused(cook with { Recipe = cook.Recipe! with { Recipe = "" } });
+        Refused(cook with { Recipe = cook.Recipe! with { Ingredients = [] } });
+        Refused(cook with { Recipe = cook.Recipe! with { Ingredients = [new("a", 1), new("a", 1)] } });
+        Refused(cook with { Recipe = cook.Recipe! with { Ingredients = [new("a", 0)] } });
+        Refused(cook with { Recipe = cook.Recipe! with { Ingredients = [new("", 1)] } });
         Refused(cook with { WorkGiver = "" });
         Refused(cook with { Job = "choose-bill" });
         Refused(cook with { Count = 2 });

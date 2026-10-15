@@ -169,14 +169,14 @@ public static partial class PolicyFunctions
             findings.ToArray(), expansions, truncated);
     }
 
-    private static void ValidateActivityProblem(ForecastActivityProblem p)
+    private static void ValidateActivityProblem(ForecastActivityProblem p, bool allowEmpty = false)
     {
         static bool Id(string id) => !string.IsNullOrWhiteSpace(id) && !id.Contains(':') && !id.Contains(';');
         static void Number(Fact<double> fact)
         {
             if (fact.TryGetValue(out var value) && (!double.IsFinite(value) || value < 0)) throw new DomainException("invalid activity estimate");
         }
-        if (p.ExpansionBudget is < 1 or > 4096 || p.Activities.Length is < 1 or > 32
+        if (p.ExpansionBudget is < 1 or > 4096 || p.Activities.Length > 32 || !allowEmpty && p.Activities.Length == 0
             || p.Activities.Any(t => !Id(t.Id) || !Id(t.Location) || !Id(t.EndLocation))
             || p.Activities.Select(t => t.Id).Distinct().Count() != p.Activities.Length
             || p.Pawns.Any(a => !Id(a.Pawn) || !Id(a.Location)) || p.Pawns.Select(a => a.Pawn).Distinct().Count() != p.Pawns.Length)

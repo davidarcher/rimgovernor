@@ -22,7 +22,7 @@ public sealed class PawnActivityMethodTests
 
     private static PawnActivityOrder Order(string pawn = "pawn", string method = "food-method", bool release = false) =>
         new(pawn, "assignment-" + pawn, method, 0, 1, release, release ? [] :
-            [new(PawnActivityKind.Deliver, "observed-stack-" + pawn, "", "", 2, 500) { Destination = new Cell(10, 11) }]);
+            [new(PawnActivityKind.Deliver, "observed-stack-" + pawn, "", "", 2, 500) { Destination = new Cell(pawn == "helper" ? 12 : 10, 11) }]);
 
     private static DomainAction Action(string id, params PawnActivityOrder[] orders) =>
         DomainAction.NewPawnActivitiesAction(new ActionId(id), new PawnActivities(1, orders));

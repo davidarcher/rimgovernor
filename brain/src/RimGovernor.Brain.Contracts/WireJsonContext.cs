@@ -19,6 +19,8 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(Observations.FoodActivityRequest))]
 [JsonSerializable(typeof(Observations.FoodActivityRead))]
+[JsonSerializable(typeof(Observations.RecipeActivityRequest))]
+[JsonSerializable(typeof(Observations.RecipeActivityRead))]
 [JsonSerializable(typeof(Observations.ActivityTaskRequest))]
 [JsonSerializable(typeof(Observations.ActivityTaskRead))]
 [JsonSerializable(typeof(Observations.ConstructionActivityRequest))]

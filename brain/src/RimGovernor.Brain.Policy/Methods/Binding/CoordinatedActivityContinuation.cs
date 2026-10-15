@@ -77,7 +77,7 @@ internal static partial class CoordinatedActivityBinding
         bound.Kind == task.Step.Kind && bound.Deadline == task.Step.Deadline && bound.WorkGiver == task.Step.WorkGiver
         && bound.Job == task.Step.Job && (bound.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply)
             || bound.Count > 0 && bound.Count <= task.Step.Count)
-        && (task.Step.Cooking is not { } recipe || bound.Cooking is { } cooking && cooking.Bill == recipe.Bill
-            && cooking.Recipe == recipe.Recipe && cooking.Resource == recipe.Resource
+        && (task.Step.Recipe is not { } recipe || bound.Recipe is { } cooking && cooking.Bill == recipe.Bill
+            && cooking.Recipe == recipe.Recipe && cooking.Resource == recipe.Resource && cooking.Stuff == recipe.Stuff && cooking.Unfinished == recipe.Unfinished
             && cooking.Ingredients.Sum(i => i.Count) == recipe.Ingredients.Sum(i => i.Count));
 }

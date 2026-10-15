@@ -161,7 +161,8 @@ namespace HomeBridge.BridgeTools
                     return new Obs.WorkResourcePawn(p.GetUniqueLoadID(), execution?.Assignment ?? "", execution?.Revision ?? 0,
                         execution?.State ?? "", carried?.GetUniqueLoadID() ?? "", carried?.def.defName ?? "", carried?.stackCount ?? 0)
                         { LocalHour = GenLocalDate.HourFloat(map), Bill = p.CurJob?.bill?.GetUniqueLoadID() ?? "",
-                            Target = p.CurJob?.targetA.Thing?.GetUniqueLoadID() ?? "" };
+                            Target = p.CurJob?.targetA.Thing?.GetUniqueLoadID() ?? "",
+                            Unfinished = (p.CurJob?.targetB.Thing as UnfinishedThing)?.GetUniqueLoadID() ?? "" };
                 })) };
             result = result with { EventLoot = EventLootFacts.Read(map, things, reachable) };
             Span("cf.eventLoot");

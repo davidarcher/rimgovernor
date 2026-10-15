@@ -116,3 +116,20 @@ progress, interruption, observed repair) decide from native
 facts. Movement, path legality and completed repair remain native nightly
 evidence. Extend a shared implementation to development only when it removes
 duplicated decisions rather than renaming family branches.
+
+## Selected clothing recipe continuation
+
+Ordinary tailoring uses the same selected task graph and participant release as
+food and construction. Exact recipe/stuff/input choice lives only in the admitted
+Method action. Recipe completion enables output observation, never inventory
+credit; delivery binds product definition **and selected stuff**. Changed stacks
+may rebind only a not-yet-executed obligation with the same selected recipe,
+stuff and total quantity. A failed consuming recipe is released rather than
+replayed. Normal equipment review can then choose observed unfinished work as a
+new Method, carrying its native remaining work and no fresh loose-input charge.
+
+The native UFT and its bound bill preserve actual partial work across that
+release. Hands cleans up only its own provisioned bill when no UFT exists; it
+never removes a user bill or unsuspends an orphan after failure. Concern recovery
+still does not erase participant release or observed-output obligations. See
+[exact tailoring execution](pawn-activities.md#exact-tailoring-recipes).

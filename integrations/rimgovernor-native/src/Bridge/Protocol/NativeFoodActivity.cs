@@ -56,7 +56,7 @@ public sealed class NativeFoodActivity
             IEnumerable<Thing> sources = plants;
             if (existing?.OutputDelivery is { } output)
                 sources = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
-                    .Where(t => t.Spawned && t.def.defName == output.Resource && t.Position.DistanceToSquared(output.Cooking is null
+                    .Where(t => t.Spawned && t.def.defName == output.Resource && t.Position.DistanceToSquared(output.Recipe is null
                         ? new(output.Origin.X, 0, output.Origin.Z) : new(output.Destination.X, 0, output.Destination.Z)) <= 4)
                     .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
             if (sources.Count() > 16) { sources = sources.Take(16); truncated = true; }
@@ -77,7 +77,7 @@ public sealed class NativeFoodActivity
                 using var approach = map.pathFinder.FindPathNow(pawn.Position, source, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.Touch);
                 budget--;
                 if (!approach.Found) continue;
-                if (existing?.OutputDelivery?.Cooking is not null)
+                if (existing?.OutputDelivery?.Recipe is not null)
                 {
                     NativeFoodCooking.Add(pawn, source, count, approach.TotalCost, existing, options, ref budget, ref truncated);
                     continue; // Supply was selected; rebind that exact recipe only.

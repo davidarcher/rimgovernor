@@ -124,6 +124,7 @@ public sealed class FoodActivityContinuationTests
     private sealed class Reads(FoodActivityRead read) : IArrivalPawns, IActivityTaskSource
     {
         public Task<ActivityTaskRead> ReadActivityTasksAsync(ActivityTaskRequest request, CancellationToken ct) => Task.FromResult(TaskRead(request.Batch, read));
+        public Task<RecipeActivityRead> ReadRecipeActivityAsync(RecipeActivityRequest request, CancellationToken ct) => Task.FromResult(new RecipeActivityRead());
         public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(new ConstructionActivityRead());
         public Task<ListPawnsReply> ReadCombatPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
             Task.FromResult(new ListPawnsReply { Outcome = new PawnSnapshot { Context = read.Context } });

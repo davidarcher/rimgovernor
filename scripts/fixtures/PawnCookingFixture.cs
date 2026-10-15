@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var probeGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(g => g.workType == DefDatabase<WorkTypeDef>.GetNamed("Cooking")
                         && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(cookingBench));
-                    NativeActivityCooking.ResolveRecipe(worker, cookingBench, probeGiver.defName, selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName, out _, out var reason);
+                    NativeActivityRecipe.ResolveRecipe(worker, cookingBench, probeGiver.defName, selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName, out _, out var reason);
                     using var toBench = map.pathFinder.FindPathNow(unselectedIngredient.Position, cookingBench.InteractionCell, TraverseParms.For(worker, Danger.None), peMode: PathEndMode.OnCell);
                     using var toStore = map.pathFinder.FindPathNow(cookingBench.InteractionCell, destination, TraverseParms.For(worker, Danger.None), peMode: PathEndMode.OnCell);
                     throw new InvalidOperationException($"Native cooking candidate read omitted the eligible exact recipe: {reason}; options={observations.Count}; budget={budget}; work={selectedBill.recipe.WorkAmountTotal(null)}; benchRoute={toBench.Found}; storeRoute={toStore.Found}; interaction={cookingBench.InteractionCell}; destination={destination}.");
@@ -108,13 +108,13 @@ namespace HomeBridge.BridgeTools
                 if (remaining != 0) throw new InvalidOperationException("Selected inputs were lost, not merely moved.");
             }
             var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(g => g.workType == DefDatabase<WorkTypeDef>.GetNamed("Cooking") && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(cookingBench));
-            var step = new PawnActivityStep(PawnActivityKind.Cook, cookingBench.GetUniqueLoadID(), giver.defName, "", 0, deadline)
-                { Cooking = new PawnActivityCooking(selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName,
+            var step = new PawnActivityStep(PawnActivityKind.Recipe, cookingBench.GetUniqueLoadID(), giver.defName, "", 0, deadline)
+                { Recipe = new PawnActivityRecipe(selectedBill.GetUniqueLoadID(), selectedBill.recipe.defName,
                     EquatableArray.From(selected)) };
             var batch = new PawnActivities(Context().NativeGeneration!.Value, new[] {
                 new PawnActivityOrder(worker!.GetUniqueLoadID(), "cooking", "food-method", attempt - 1, attempt, false, new[] { step }) });
             var before = NativePawnActivities.Read(worker);
-            var invalid = batch with { Orders = new[] { batch.Orders[0] with { Steps = new[] { step with { Cooking = step.Cooking! with { Ingredients = EquatableArray.From(new[] { new PawnActivityIngredient(firstIngredient.GetUniqueLoadID(), 1) }) } } } } } };
+            var invalid = batch with { Orders = new[] { batch.Orders[0] with { Steps = new[] { step with { Recipe = step.Recipe! with { Ingredients = EquatableArray.From(new[] { new PawnActivityIngredient(firstIngredient.GetUniqueLoadID(), 1) }) } } } } } };
             if (NativePawnActivities.Validate(invalid, Context()) == null || NativePawnActivities.Read(worker) != before)
                 throw new InvalidOperationException("Wrong ingredient quantity was accepted or changed ownership.");
             NativePawnActivities.Apply(batch, Context());
@@ -128,7 +128,7 @@ namespace HomeBridge.BridgeTools
         private static int RawCount() => worker!.Map.listerThings.AllThings.Where(t => t.def == unselectedIngredient.def).Sum(t => t.stackCount);
 
         [Tool("test/pawn_cooking_read", Description="UNSAFE FOR MODEL EXECUTION. Read physical ingredients, edible products and both bills' remaining counts.")]
-        public async Task<object> ReadCooking(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() => new
+        public async Task<object> ReadRecipe(IRimBridgeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() => new
         {
             success = true, execution = NativePawnActivities.Read(worker!), raw = RawCount(), beforeRaw,
             required = firstCount + secondCount, unselected = unselectedIngredient.stackCount,

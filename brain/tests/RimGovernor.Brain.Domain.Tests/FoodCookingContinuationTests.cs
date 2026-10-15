@@ -35,9 +35,9 @@ public sealed class FoodCookingContinuationTests
     }
     private static PawnActivities Cooking(PawnActivities supply, string ingredient = "changed-stack")
     {
-        var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Cook);
+        var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         return ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings:
-            [new(task.Id, task.Step with { Cooking = task.Step.Cooking! with { Ingredients = [new(ingredient, 10)] } })]))!;
+            [new(task.Id, task.Step with { Recipe = task.Step.Recipe! with { Ingredients = [new(ingredient, 10)] } })]))!;
     }
 
     [Fact]
@@ -49,10 +49,10 @@ public sealed class FoodCookingContinuationTests
         Assert.Equal(10, cooked.Orders[0].Steps[0].Count);
         var other = Cook() with { Cooking = Cook().Cooking! with { ProductNutrition = Known(2.0),
             Continuation = Cook().Cooking!.Continuation with { Bill = "other-bill", Recipe = "other-recipe" } } };
-        Assert.Equal("other-recipe", Select(Raw(), Cook(), other).Tasks.Single(t => t.Step.Kind == PawnActivityKind.Cook).Step.Cooking!.Recipe);
+        Assert.Equal("other-recipe", Select(Raw(), Cook(), other).Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe).Step.Recipe!.Recipe);
         foreach (var expensive in new[] { Cook(200), Cook() with { TravelTicks = 250 }, Cook() with { Count = 9 },
             Cook() with { Cooking = Cook().Cooking! with { ProductNutrition = default } } })
-            Assert.DoesNotContain(Select(Raw(), expensive).Tasks, t => t.Step.Kind == PawnActivityKind.Cook);
+            Assert.DoesNotContain(Select(Raw(), expensive).Tasks, t => t.Step.Kind == PawnActivityKind.Recipe);
     }
 
     [Fact]
@@ -75,8 +75,8 @@ public sealed class FoodCookingContinuationTests
             Assert.Equal(batch.Tasks, wire.Batch.Tasks);
         }
         var step = cooking.Orders[0].Steps[0];
-        Assert.Equal("changed-stack", step.Cooking!.Ingredients.Single().Thing);
-        Assert.Equal("recipe", step.Cooking.Recipe);
+        Assert.Equal("changed-stack", step.Recipe!.Ingredients.Single().Thing);
+        Assert.Equal("recipe", step.Recipe.Recipe);
         var delivery = cooking.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
         var delivered = ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, bindings:
             [new(delivery.Id, delivery.Step with { Target = "observed-meal" })]))!;
@@ -91,8 +91,8 @@ public sealed class FoodCookingContinuationTests
     {
         var supply = Select(Cook());
         Assert.True(ContinueCoordinatedActivity(supply, Known(true), Done(supply))!.Orders[0].Release);
-        var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Cook);
-        var wrong = task.Step with { Cooking = task.Step.Cooking! with { Bill = "other-bill" } };
+        var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
+        var wrong = task.Step with { Recipe = task.Step.Recipe! with { Bill = "other-bill" } };
         Assert.True(ContinueCoordinatedActivity(supply, Known(true), Done(supply, bindings: [new(task.Id, wrong)]))!.Orders[0].Release);
         var cooking = Cooking(supply);
         Assert.True(ContinueCoordinatedActivity(cooking, Known(true), Done(cooking, "failed"))!.Orders[0].Release);
@@ -112,7 +112,7 @@ public sealed class FoodCookingContinuationTests
         var helperFood = Raw() with { Pawn = "helper", TravelTicks = 25, ApproachTicks = Known(0.0), DeliveryTicks = Known(25.0) };
         var cooking = ReconsiderObservedFood(batch, Known(true), done, Read(helperFood, Cook()), out _)!;
         Assert.True(cooking.Orders.Single(o => o.Pawn == "helper").Release);
-        Assert.Contains(cooking.Tasks, t => t.Step.Kind == PawnActivityKind.Cook);
+        Assert.Contains(cooking.Tasks, t => t.Step.Kind == PawnActivityKind.Recipe);
         var raw = ReconsiderObservedFood(batch, Known(true), done, Read(helperFood, Cook(300)), out _)!;
         Assert.True(raw.Orders.Single(o => o.Pawn == "pawn").Release);
         Assert.Equal("helper", raw.Tasks.Single().Pawn);

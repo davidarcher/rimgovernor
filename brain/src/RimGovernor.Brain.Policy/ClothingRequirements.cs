@@ -2,60 +2,6 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
 {
-    // The equipment owner already netted physical stock and preserved standing work before calling this.
-    private static ProductionRequirements ClothingRequirements(GearNeed[] needs, GearMethod method,
-        IReadOnlyList<GearBench> benches, GearPlanningRequest request)
-    {
-        var variants = new List<ProductionRequirementVariant>();
-        var bench = benches.Single(b => b.Id == method.Bench);
-        var recipe = bench.Recipes.Value.Single(r => r.Definition == method.Recipe);
-        if (needs.Length == 0 || !recipe.Ingredients.TryGetValue(out var slots)) return new([]);
-        var materials = needs.SelectMany(n => n.Pawn.LoadoutModel.ValueOrDefault?.Options ?? [])
-            .Where(o => o.Source == GearSource.Bill && o.Definition == needs[0].Need.Definition)
-            .Select(o => o.Stuff).Distinct().OrderBy(r => r.Value, StringComparer.Ordinal);
-        foreach (var stuff in materials)
-        {
-            var chosen = new List<Amount>();
-            foreach (var slot in slots)
-            {
-                var members = slot.Where(a => method.Filter.Contains(a.Resource)).ToArray();
-                var matching = members.Where(a => a.Resource == stuff).ToArray();
-                if (matching.Length == 1) chosen.Add(matching[0]);
-                else if (members.Length == 1) chosen.Add(members[0]);
-            }
-            if (chosen.Count != slots.Count) continue;
-            if (!string.IsNullOrEmpty(stuff.Value) && !chosen.Any(a => a.Resource == stuff)) continue;
-            var filter = EquatableArray.From(chosen.Select(a => a.Resource.Value).Distinct().Order(StringComparer.Ordinal));
-            if (slots.Any(s => s.Count(a => filter.Contains(a.Resource.Value)) != 1)) continue;
-            var proposed = new OrderSpec { BenchKind = bench.Def, Recipe = method.Recipe, Mode = BillMode.GearBatch, Target = method.Count, Ingredients = filter };
-            // Native treats identical bill creation as idempotent, not as another unit of queued output.
-            if (benches.SelectMany(b => b.Bills.Value).Any(b => !b.Spent && b.Spec.TryGetValue(out var existing) && existing.Key() == proposed.Key())) continue;
-            var relief = new List<ForecastRequirementRelief>();
-            var known = true;
-            foreach (var n in needs)
-            {
-                if (!n.Pawn.LoadoutModel.TryGetValue(out var input)) { known = false; break; }
-                input = input with { Climate = n.Pawn.Climate ?? input.Climate };
-                foreach (var trait in input.Role.Work.Traits.ValueOrDefault)
-                    input = input with { Nudist = input.Nudist || trait.Effects.Nudist, TaintFree = input.TaintFree || trait.Effects.TaintFree };
-                var option = input.Options.FirstOrDefault(o => o.Source == GearSource.Bill && o.Definition == n.Need.Definition
-                    && o.Stuff == stuff && GearEligible(input, o));
-                if (option is null) { known = false; break; }
-                var effects = ClothingRelief(n.Pawn, input, option);
-                if (effects is null) { known = false; break; }
-                relief.AddRange(effects);
-            }
-            if (!known) continue;
-            Fact<double> cost = default, work = default;
-            if (chosen.All(a => request.MaterialPrices.TryGetValue(a.Resource, out var price) && double.IsFinite(price) && price >= 0))
-                cost = Known(chosen.Sum(a => a.Count * request.MaterialPrices[a.Resource]) * method.Count);
-            if (recipe.WorkAmount.TryGetValue(out var amount) && double.IsFinite(amount) && amount > 0)
-                work = Known(amount * method.Count);
-            variants.Add(new(filter, new(EquatableArray.From(relief), cost, work)));
-        }
-        return new(EquatableArray.From(variants.DistinctBy(v => string.Join(",", v.Ingredients))));
-    }
-
     private static List<ForecastRequirementRelief>? ClothingRelief(GearPawn pawn, GearLoadoutInput input, GearOption option)
     {
         var result = new List<ForecastRequirementRelief>();

@@ -367,6 +367,24 @@ public sealed partial class RoundsGearPlanner
                 action2 = DomainAction.NewGearReplaceAction(new ActionId($"{planId}-0"), replace);
                 break;
             default:
+                if (Native is IActivityTaskSource recipeSource)
+                {
+                    var recipeRead = await recipeSource.ReadRecipeActivityAsync(new(identity), call).ConfigureAwait(false);
+                    _ = Boundary.Context(recipeRead.Context, state.Snapshot);
+                    var recipeMethod = new MethodId($"recipe-activity-{planId}");
+                    var activity = PolicyFunctions.StartClothingActivity(recipeRead, PolicyFunctions.ClothingActivityRequirements(census), state.Snapshot.Native.Value,
+                        recipeMethod.Value, checked(review.Tick.Value + Reviewer.Policy.AcquisitionProgress().Deadline.Value),
+                        p.Journal.WorkResources(state.Snapshot, call), out var comparison);
+                    if (activity is not null)
+                    {
+                        p.Current(call, epoch);
+                        if (p.Session.State() != state) throw new ControlException("recipe activity scope changed");
+                        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, recipeMethod,
+                            comparison is { SearchTruncated: true } ? "clothing alternatives (bounded search truncated)" : "clothing alternatives",
+                            new PlanSpec(planId, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{planId}-0"), activity)]), call);
+                        return new RoundsGearResult { Verdict = BuildingReasonAdmitted, Plan = planId };
+                    }
+                }
                 if (busy.Count > 0)
                 {
                     return new RoundsGearResult { Verdict = BuildingReasonExistingWork };

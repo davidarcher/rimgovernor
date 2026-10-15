@@ -1,141 +1,183 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Store;
+using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
+using Amount = RimGovernor.Brain.Policy.Amount;
+using GearStock = RimGovernor.Brain.Policy.GearStock;
+using GearCandidate = RimGovernor.Brain.Policy.GearCandidate;
 using static RimGovernor.Brain.Domain.Fact;
 using static RimGovernor.Brain.Policy.PolicyFunctions;
-
+using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ClothingChoiceTests
 {
-    private static readonly Resource Cloth = new("Cloth"), Wool = new("Wool"), Shirt = new("Shirt");
-    private static GearOption Garment(string id, Resource stuff, double cold, GearSource source = GearSource.Bill) => new() {
-        ID = id, Definition = Shirt, Stuff = stuff, Slot = GearSlot.SkinTorso, Layers = ["OnSkin"], Groups = ["Torso"],
-        Source = source, Quality = 2, Condition = 1, Cold = cold, Cost = 20, Sharp = 0.2 };
-    private static GearPawn Pawn(string id, double ambient = 20, GearOption? worn = null) => new() {
-        Pawn = new RimGovernor.Brain.Domain.PawnId(id), Loadout = "load-" + id, Candidates = Known(default(EquatableArray<GearCandidate>)),
-        Apparel = Known(default(EquatableArray<GearApparel>)),
+    private static GearOption Garment(string product, string stuff, double cold = 5, string group = "Torso") => new()
+    { ID = product + stuff, Definition = new(product), Stuff = new(stuff), Slot = group == "Torso" ? GearSlot.SkinTorso : GearSlot.SkinLegs,
+        Layers = ["OnSkin"], Groups = [group], Source = GearSource.Bill, Quality = 2, Condition = 1, Cold = cold, Cost = 20, Sharp = 0.2 };
+    private static GearObservation Census(double ambient = 20, params GearOption[] options) => new()
+    { Stored = Known(default(EquatableArray<GearStock>)), Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
+        Candidates = Known(default(EquatableArray<GearCandidate>)), Apparel = Known(default(EquatableArray<GearApparel>)),
         LoadoutModel = Known(new GearLoadoutInput { Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30,
-            Worn = worn is null ? [] : [worn], Options = [Garment("cloth", Cloth, 5), Garment("wool", Wool, 15)] }) };
-    private static GearRecipe Recipe => new() { Definition = "MakeShirt", Products = [Shirt], Available = Known(true), AvailableOn = Known(true),
-        RequiredWork = Known(default(EquatableArray<WorkRequirement>)), WorkAmount = Known(100.0),
-        Ingredients = Known<EquatableArray<EquatableArray<Amount>>>([[new(Cloth, 10), new(Wool, 10)]]) };
-    private static GearBench Bench => new() { Id = "bench", Def = "Tailor", Usable = Known(true), WorkSpeed = Known(1.0),
-        Recipes = Known<EquatableArray<GearRecipe>>([Recipe]), Bills = Known(default(EquatableArray<GearBill>)) };
-    private static GearPlanningRequest Request(GearPawn[] pawns) => new() {
-        Observation = Known(new GearObservation { Pawns = pawns, Stored = Known(default(EquatableArray<GearStock>)) }),
-        Benches = Known<EquatableArray<GearBench>>([Bench]), MaterialPrices = new Dictionary<Resource, double> { [Cloth] = 1, [Wool] = 2 },
-        StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Cloth] = ["Fabric"], [Wool] = ["Fabric"] } };
-    private static ProductionMaterialView View(double cloth = 30, double wool = 30) => new(
-        Known<EquatableArray<ProductionRecipeInput>>([new("MakeShirt", Recipe.Ingredients, Known(false)),
-            new("Art", Known<EquatableArray<EquatableArray<Amount>>>([[new(Wool, 10)]]), Known(false))]),
-        Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [Cloth] = Known(cloth), [Wool] = Known(wool) }));
-    private static LedgerPlacement[] Placements(Declared d) => d.Orders.Select((o, i) => new LedgerPlacement("bench-" + i, o)).ToArray();
+            Options = options.Length == 0 ? [Garment("Shirt", "Cloth"), Garment("Shirt", "Wool", 15)] : EquatableArray.From(options) }) }] };
+    private static RecipeIngredientObservation Input(string id, string stuff, int count = 10, double travel = 5) =>
+        new(id, stuff, count, new(5, 5), count) { Capacity = 75, ApproachTicks = Known(travel), CarryTicks = Known(5.0), ReturnTicks = Known(5.0) };
+    private static RecipeActivityOption Option(string stuff, string product = "Shirt", double work = 100, string pawn = "tailor", string bench = "bench") =>
+        new(product + stuff + pawn, pawn, bench, "Tailor", "Make" + product, product, stuff, "", "", new(10, 10),
+            [Input(stuff, stuff)], Known(0.0), Known(work), Known(5.0), new(15, 15)) { RequiredCount = 10 };
+    private static RecipeActivityRead Read(params RecipeActivityOption[] options) => new()
+    { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) };
+    private static RoundsFacts Facts(double cloth = 30, double wool = 30) => WorkResourceTestFacts.Create("tailor", "helper") with
+    { Resources = Known<EquatableArray<Amount>>([new(new("Cloth"), (long)cloth), new(new("Wool"), (long)wool)]) };
+    private static WorkResourceView Resources(double cloth = 30, double wool = 30) => WorkResourcesOf(
+        WorkAdmissionEvidenceOf(Facts(cloth, wool), Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
+    private static PawnActivities? Start(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
+        out ForecastActivityOutcomeComparison? comparison) => StartClothingActivity(read, ClothingActivityRequirements(census), 1, "clothing", 2000, resources, out comparison);
+    private static PawnActivityRecipe Recipe(PawnActivities batch) => batch.Tasks.Single(t => t.Step.Recipe != null).Step.Recipe!;
 
     [Fact]
-    public void ObservedColdSelectsWarmMaterialAndWarmWeatherPrefersCheaperCoverage()
+    public void RequirementAndConstructionScarcityChangeStuffWithoutPinningIt()
     {
-        var cold = DeclareGearOrders(Request([Pawn("pawn", 0)]));
-        Assert.False(cold.Abstained());
-        Assert.Equal(2, Assert.Single(cold.Orders).Requirements!.Variants.Count);
-        var selected = SelectLedgerMaterials(Placements(cold), View());
-        Assert.Equal(Wool.Value, Assert.Single(Assert.Single(selected.Selected).Spec.Ingredients));
-        Assert.Equal(1, selected.Comparison.Priority.Safety);
-        var warm = SelectLedgerMaterials(Placements(DeclareGearOrders(Request([Pawn("pawn")]))), View());
-        Assert.Equal(Cloth.Value, Assert.Single(Assert.Single(warm.Selected).Spec.Ingredients));
-        Assert.Equal(0, warm.Comparison.Priority.Safety);
-        Assert.Equal(1, warm.Comparison.Priority.Required);
-        Assert.Equal(10, warm.Comparison.Priority.MaterialCost);
-        Assert.Equal(100, warm.Comparison.Priority.Work);
+        var census = Census(0); var read = Read(Option("Cloth"), Option("Wool"));
+        Assert.Equal("Wool", Recipe(Start(census, read, Resources(), out _)!).Stuff);
+        var facts = Facts() with { ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("Wool")] = 30 }) };
+        var resources = WorkResourcesOf(WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))), Known(default(EquatableArray<ProductionBatch>)), []);
+        Assert.Equal("Cloth", Recipe(Start(census, read, resources, out _)!).Stuff);
+        var evidence = WorkAdmissionEvidenceOf(Facts(), Known(default(EquatableArray<ProductionBatch>))) with
+        { Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Wool", Known<EquatableArray<Amount>>([new(new("Wool"), 30)]))]) };
+        var wall = DomainAction.NewBuildingAction(new("competing-wall"), new("TestWall", new(3, 3), Rotation.North, "Wool"), ConstructionTier.Survive);
+        var committed = WorkResourcesOf(evidence, Known(default(EquatableArray<ProductionBatch>)),
+            [new(new("construction-method"), wall, new() { Action = wall.Id, Stage = Stage.Pending })]);
+        Assert.Equal("Cloth", Recipe(Start(census, read, committed, out _)!).Stuff);
+        Assert.Null(Start(census, read, Resources(0, 0), out _));
     }
 
     [Fact]
-    public void RequiredClothingBeatsOptionalProductionAndScarcityChangesTheCombination()
+    public void GarmentShapeRemainsOpenUntilNeedsAndWorkAreCompared()
     {
-        var clothes = Placements(DeclareGearOrders(Request([Pawn("pawn", 0)])));
-        var art = new LedgerPlacement("art", new() { Recipe = "Art", Mode = BillMode.GearBatch, Target = 1 });
-        var choice = SelectLedgerMaterials([.. clothes, art], View(0, 10));
-        Assert.Equal("MakeShirt", Assert.Single(choice.Selected).Spec.Recipe);
-        Assert.Equal("Art", Assert.Single(choice.Postponed).Spec.Recipe);
-        var partial = SelectLedgerMaterials(clothes, View(10, 0));
-        Assert.Equal(Cloth.Value, Assert.Single(Assert.Single(partial.Selected).Spec.Ingredients));
-        Assert.Equal(0.5, partial.Comparison.Priority.Safety);
+        var options = new[] { Garment("Shirt", "Cloth", 2), Garment("Parka", "Cloth", 20) };
+        var read = Read(Option("Cloth", "Shirt", 20), Option("Cloth", "Parka", 200));
+        Assert.Equal("MakeParka", Recipe(Start(Census(0, options), read, Resources(), out _)!).Recipe);
+        Assert.Equal("MakeShirt", Recipe(Start(Census(20, options), read, Resources(), out _)!).Recipe);
     }
 
     [Fact]
-    public void StoredAndQueuedGarmentsReduceTheSameShortageOnce()
+    public void IngredientStackAlternativesIncludeSplitInputsAndTravelChangesChoice()
     {
-        var request = Request([Pawn("a"), Pawn("b"), Pawn("c")]);
-        var chosenStuff = Assert.Single(DeclareGearOrders(request).Orders).Ingredients.Contains(Cloth.Value) ? Cloth : Wool;
-        // Both material alternatives are present; the warm loadout's stable tie chooses cloth.
-        request = request with { Observation = Known(request.Observation.Value with { Stored = Known<EquatableArray<GearStock>>([
-            new() { Definition = Shirt, Stuff = chosenStuff, Quality = 2, HPBand = 9, Count = 1 }]) }) };
-        var standing = new OrderSpec { BenchKind = "Tailor", Recipe = "MakeShirt", Mode = BillMode.GearBatch, Target = 1, Ingredients = [chosenStuff.Value] };
-        request = request with { Benches = Known<EquatableArray<GearBench>>([Bench with { Bills = Known<EquatableArray<GearBill>>([
-            new() { Id = "existing", Products = [Shirt], Active = Known(true), Spec = Known(standing) }]) }]) };
-        var orders = DeclareGearOrders(request);
-        Assert.False(orders.Abstained());
-        Assert.Equal(2, orders.Orders.Count);
-        Assert.Equal(standing, Assert.Single(orders.Orders, o => o.Requirements is null));
-        Assert.Equal(1, Assert.Single(orders.Orders, o => o.Requirements is not null).Target);
-        var residual = Assert.Single(orders.Orders, o => o.Requirements is not null);
-        var extra = SelectLedgerMaterials([new("bench", residual)], View());
-        Assert.Equal(Wool.Value, Assert.Single(Assert.Single(extra.Selected).Spec.Ingredients));
-        var satisfied = request with { Observation = Known(request.Observation.Value with { Pawns = [Pawn("a"), Pawn("b")] }) };
-        Assert.Null(Assert.Single(DeclareGearOrders(satisfied).Orders).Requirements);
+        var row = Option("Cloth") with { Inputs = [Input("a-far", "Cloth", 10, 300), Input("b-near", "Cloth", 6), Input("c-near", "Cloth", 4)] };
+        var selected = Recipe(Start(Census(), Read(row), Resources(), out _)!);
+        Assert.Equal(["b-near", "c-near"], selected.Ingredients.Select(i => i.Thing).Order().ToArray());
+        Assert.Equal(10, selected.Ingredients.Sum(i => i.Count));
+        row = row with { Inputs = [Input("a-far", "Cloth", 10, 1), Input("b-near", "Cloth", 6, 300), Input("c-near", "Cloth", 4, 300)] };
+        Assert.Equal("a-far", Assert.Single(Recipe(Start(Census(), Read(row), Resources(), out _)!).Ingredients).Thing);
     }
 
     [Fact]
-    public void OptionalUpgradeWaitsAndUnknownWorkOrPriceCannotAuthorizeClothing()
+    public void RetainingObservedCurrentProductAndPostponingAreRealComparisonResults()
     {
-        var worn = Garment("worn", Cloth, 5, GearSource.Worn) with { Sharp = 0, Blunt = 0 };
-        var upgrade = Pawn("pawn", worn: worn);
-        upgrade = upgrade with { LoadoutModel = Known(upgrade.LoadoutModel.Value with { Options = [Garment("upgrade", Cloth, 5) with { Sharp = 5 }] }) };
-        var optional = DeclareGearOrders(Request([upgrade]));
-        Assert.Single(optional.Orders);
-        Assert.Empty(SelectLedgerMaterials(Placements(optional), View()).Selected);
-        var missing = Request([Pawn("pawn")]) with { MaterialPrices = new Dictionary<Resource, double>() };
-        var unknown = SelectLedgerMaterials(Placements(DeclareGearOrders(missing)), View());
-        Assert.Empty(unknown.Selected);
-        Assert.Contains(unknown.Comparison.Findings, f => f.StartsWith("unknown_requirement_cost:", StringComparison.Ordinal));
-        var work = Request([Pawn("pawn")]) with { Benches = Known<EquatableArray<GearBench>>([Bench with { Recipes = Known<EquatableArray<GearRecipe>>([Recipe with { WorkAmount = default }]) }]) };
-        Assert.Empty(SelectLedgerMaterials(Placements(DeclareGearOrders(work)), View()).Selected);
-        var unread = Request([Pawn("pawn")]);
-        unread = unread with { Observation = Known(unread.Observation.Value with { Stored = default }) };
-        Assert.True(DeclareGearOrders(unread).Abstained());
+        var read = Read(Option("Cloth")) with { Retained = [new("running-uft", "Shirt", "Cloth", 1, Known(25.0))] };
+        Assert.Null(Start(Census(), read, Resources(), out var retained));
+        Assert.StartsWith("retain-", Assert.Single(retained!.Selected));
+        Assert.Null(Start(Census(), Read(Option("Cloth", work: 3000)), Resources(), out var postpone));
+        Assert.Empty(postpone!.Selected);
+        Assert.Null(Start(Census(), Read(Option("Cloth") with { WorkTicks = default }), Resources(), out _));
     }
 
     [Fact]
-    public void PrioritiesAreLexicographicAndSharedNeedReliefIsCapped()
+    public void UnfinishedWorkUsesRemainingWorkAndDoesNotSpendLooseIngredientsAgain()
     {
-        ForecastMaterialOption Needed(string id, string need, double cost, double work) =>
-            new(id, id, Known(0.0), [new(Cloth, 10)]) { Requirements = new([new(need, ProductionNeedPriority.Required, 1)], Known(cost), Known(work)) };
-        var optional = new ForecastMaterialOption("optional", "optional", Known(1e100), [new(Cloth, 20)]);
-        var one = Needed("a", "coverage", 10, 100);
-        var duplicate = Needed("b", "coverage", 20, 100);
-        var distinct = Needed("c", "other-pawn", 10, 100);
-        var result = CompareMaterialPlans([one, duplicate, distinct, optional], View(20, 0).Availability);
-        Assert.Equal(["a", "c"], result.Selected.Select(o => o.Id));
-        Assert.Equal(2, result.Priority.Required);
-        var faster = one with { Id = "fast", Demand = one.Demand, Requirements = one.Requirements! with { Work = Known(50.0) } };
-        Assert.Equal("fast", Assert.Single(CompareMaterialPlans([one, faster], View().Availability).Selected).Id);
-        var tattered = Garment("old", Cloth, 5, GearSource.Worn) with { Condition = 0.4 };
-        var maintenance = SelectLedgerMaterials(Placements(DeclareGearOrders(Request([Pawn("pawn", worn: tattered)]))), View());
-        Assert.Equal(1, maintenance.Comparison.Priority.Maintenance);
+        var unfinished = Option("Cloth") with { Bill = "owned-bill", Unfinished = "unfinished-shirt", Inputs = [], WorkTicks = Known(10.0) };
+        var result = Start(Census(), Read(unfinished), Resources(0, 0), out _)!;
+        Assert.Equal("unfinished-shirt", Recipe(result).Unfinished);
+        Assert.Empty(Recipe(result).Ingredients);
+        Assert.Equal("Cloth", result.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver).ProductStuff);
     }
 
     [Fact]
-    public void PhysicalReplacementPrecedesCraftingAndIndefiniteBillsDoNotInventOutput()
+    public void ExistingExactBillCanExecuteItsAlreadyHeldInputsButCannotFundAnotherRecipe()
     {
-        var pawn = Pawn("pawn");
-        pawn = pawn with { LoadoutModel = Known(pawn.LoadoutModel.Value with {
-            Options = [Garment("stored", Cloth, 5, GearSource.Stored), Garment("cloth", Cloth, 5)] }),
-            Candidates = Known<EquatableArray<GearCandidate>>([new("stored", 100, Shirt)]) };
-        Assert.Empty(DeclareGearOrders(Request([pawn])).Orders);
-        var standing = new OrderSpec { BenchKind = "Tailor", Recipe = "MakeShirt", Mode = BillMode.StockTarget, Target = 1 };
-        var request = Request([Pawn("a"), Pawn("b")]) with { Benches = Known<EquatableArray<GearBench>>([Bench with {
-            Bills = Known<EquatableArray<GearBill>>([new() { Id = "bill", Products = [Shirt], Active = Known(true), Spec = Known(standing) }]) }]) };
-        Assert.Equal(standing, Assert.Single(DeclareGearOrders(request).Orders));
+        var resources = Resources(0, 0);
+        resources = resources with { Evidence = resources.Evidence with
+        { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(10.0), Known("standing-bill"))])]) } };
+        var selected = Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }), resources, out _)!;
+        Assert.Equal("standing-bill", Recipe(selected).Bill);
+        Assert.Null(Start(Census(), Read(Option("Cloth")), resources, out _));
+        resources = resources with { Evidence = resources.Evidence with
+        { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("existing", [new(new("Cloth"), Known(100.0), Known("standing-bill"))])]) } };
+        var other = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
+            { Inputs = [Input("other-stack", "Cloth")], Destination = new(16, 15) };
+        var bundle = Start(Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs")),
+            Read(Option("Cloth") with { Bill = "standing-bill" }, other), resources, out _)!;
+        Assert.Single(bundle.Tasks, t => t.Step.Recipe != null);
+    }
+
+    [Fact]
+    public void ComplementaryGarmentsCanShareAStackButCannotDoubleSpendItOrTheirDestination()
+    {
+        var census = Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs"));
+        var shirt = Option("Cloth") with { Inputs = [Input("shared", "Cloth", 20)] };
+        var pants = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
+            { Inputs = [Input("shared", "Cloth", 20)], Destination = new(16, 15) };
+        var together = Start(census, Read(shirt, pants), Resources(), out _)!;
+        Assert.Equal(2, together.Tasks.Count(t => t.Step.Recipe != null));
+        Assert.Equal(20, together.Tasks.Where(t => t.Step.Recipe != null).Sum(t => t.Step.Recipe!.Ingredients.Sum(i => i.Count)));
+        var tooSmall = Read(shirt with { Inputs = [Input("shared", "Cloth", 15)] }, pants with { Inputs = [Input("shared", "Cloth", 15)] });
+        Assert.Single(Start(census, tooSmall, Resources(), out _)!.Tasks, t => t.Step.Recipe != null);
+        Assert.Single(Start(census, Read(shirt, pants with { Destination = shirt.Destination }), Resources(), out _)!.Tasks, t => t.Step.Recipe != null);
+    }
+
+    [Fact]
+    public void RetainedGarmentCannotAddProtectionAlongsideAConflictingReplacement()
+    {
+        var census = Census(0, Garment("Shirt", "Cloth", 5), Garment("Parka", "Cloth", 10));
+        var read = Read(Option("Cloth", "Parka")) with { Retained = [new("ongoing", "Shirt", "Cloth", 1, Known(10.0))] };
+        Start(census, read, Resources(), out var comparison);
+        Assert.Single(comparison!.Selected);
+    }
+
+    [Fact]
+    public void UnknownsPhysicalReplacementsAndGenerationBoundsRemainVisible()
+    {
+        var census = Census();
+        Assert.Contains("unknown_clothing_stock", ClothingActivityRequirements(census with { Stored = default }).Findings);
+        var physical = census with { Pawns = [census.Pawns[0] with { Candidates = Known<EquatableArray<GearCandidate>>([new("stored-shirt", 1, new("Shirt"))]) }] };
+        Assert.Empty(ClothingActivityRequirements(physical).Alternatives);
+        Start(census, Read(Option("Cloth")) with { Truncated = true }, Resources(), out var bounded);
+        Assert.Contains("generation_truncated", bounded!.Findings);
+    }
+
+    [Fact]
+    public void NormalDemandComparisonJournalAndHandsPreserveExactRecipeAndObservedOutput()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
+        var path = Path.Combine(Path.GetTempPath(), "rg-clothing-" + Guid.NewGuid().ToString("N") + ".db");
+        BridgeFunctions.RegisterIntentKinds();
+        using var journal = Journal.Open(path, ct);
+        var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = new(100), Enabled = true,
+            Policy = DefaultRoundsPolicy(), Facts = Facts() with { Gear = Known(Census()) } }, ct);
+        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainEquipment);
+        var batch = Start(Census(), Read(Option("Cloth")), journal.WorkResources(world, ct), out _)!;
+        Assert.NotNull(batch);
+        var plan = new PlanSpec(new("make-clothing"), new(1), [DomainAction.NewPawnActivitiesAction(new("recipe-action"), batch)]);
+        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("clothing"), plan, ct);
+        var stored = journal.LoadPlan(plan.Id, ct).Spec.Actions[0];
+        var intent = BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
+        Assert.Equal("Cloth", Recipe(intent).Stuff);
+        Assert.Equal(batch.Tasks, intent.Tasks);
+        var output = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
+        var execution = new ActivityTaskRead { Known = true, Context = Read().Context! with { Tick = 400 },
+            Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
+                new(o.Assignment, o.Method, o.Revision, 0, "completed", "", null, 100)))),
+            Bindings = [new(output.Id, output.Step with { Target = "actual-cloth-product" })] };
+        var delivery = ContinueCoordinatedActivity(batch, Known(true), execution)!;
+        Assert.Equal("actual-cloth-product", delivery.Orders.Single().Steps[0].Target);
+        Assert.Null(delivery.Orders.Single().Steps[0].Recipe);
+        var failed = execution with { Pawns = EquatableArray.From(execution.Pawns.Select(p => p with { Execution = p.Execution! with { State = "failed" } })) };
+        Assert.True(ContinueCoordinatedActivity(batch, Known(true), failed)!.Orders.Single().Release);
+        Assert.True(ContinueCoordinatedActivity(batch, Known(false), execution)!.Orders.Single().Release);
     }
 }

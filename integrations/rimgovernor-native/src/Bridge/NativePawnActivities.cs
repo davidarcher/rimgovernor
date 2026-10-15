@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
         private static bool installed;
         private static JobDef holdDef = null!;
         private static JobDef deliveryDef = null!;
-        private static JobDef cookingDef = null!;
+        private static JobDef recipeDef = null!;
         private static bool replacing;
         internal static bool IsHold(Job job) => job.def == holdDef;
         internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
@@ -55,8 +55,8 @@ namespace HomeBridge.BridgeTools
             DefDatabase<JobDef>.Add(holdDef);
             deliveryDef = new JobDef { defName = "RimGovernorDeliver", driverClass = typeof(JobDriver_GovernorDeliver), reportString = "Delivering to the colony plan's destination.", casualInterruptible = false };
             DefDatabase<JobDef>.Add(deliveryDef);
-            cookingDef = new JobDef { defName = "RimGovernorCook", driverClass = typeof(JobDriver_GovernorCook), reportString = "Cooking the colony plan's selected recipe.", casualInterruptible = false };
-            DefDatabase<JobDef>.Add(cookingDef);
+            recipeDef = new JobDef { defName = "RimGovernorRecipe", driverClass = typeof(JobDriver_GovernorRecipe), reportString = "Making the colony plan's selected recipe.", casualInterruptible = false };
+            DefDatabase<JobDef>.Add(recipeDef);
             var h = new Harmony("rimgovernor.activity-execution");
             void Patch(Type t, string name, string? before = null, string? after = null) => h.Patch(AccessTools.Method(t, name),
                 before == null ? null : new HarmonyMethod(typeof(NativePawnActivities), before),
@@ -118,7 +118,7 @@ namespace HomeBridge.BridgeTools
                     if (step.Kind == PawnActivityKind.Sleep && !RestUtility.CanUseBedNow(target, pawn, true)) return Refuse("Selected bed unavailable.");
                     if (step.Kind == PawnActivityKind.Deliver && !DeliveryAllowed(pawn, target, step)) return Refuse("Selected delivery unavailable.");
                     if (step.Kind == PawnActivityKind.Supply && !SupplyAllowed(pawn, target, step)) return Refuse("Selected material delivery unavailable.");
-                    if (step.Kind == PawnActivityKind.Cook && !NativeActivityCooking.Resolve(pawn, target, step, out _, out _, out var cookingReason)) return Refuse(cookingReason);
+                    if (step.Kind == PawnActivityKind.Recipe && !NativeActivityRecipe.Resolve(pawn, target, step, out _, out _, out var cookingReason)) return Refuse(cookingReason);
                 }
             }
             return null;
@@ -261,10 +261,10 @@ namespace HomeBridge.BridgeTools
                 job.count = step.Count;
                 job.haulOpportunisticDuplicates = false;
             }
-            else if (step.Kind == PawnActivityKind.Cook)
+            else if (step.Kind == PawnActivityKind.Recipe)
             {
-                if (!NativeActivityCooking.Resolve(p, target, step, out var bill, out var ingredients, out var cookingReason)) throw new InvalidOperationException(cookingReason);
-                job = JobMaker.MakeJob(cookingDef, target);
+                if (!NativeActivityRecipe.Resolve(p, target, step, out var bill, out var ingredients, out var cookingReason)) throw new InvalidOperationException(cookingReason);
+                job = JobMaker.MakeJob(recipeDef, target);
                 job.bill = bill;
                 job.targetQueueB = ingredients.Select(i => new LocalTargetInfo(i.Thing)).ToList();
                 job.countQueue = ingredients.Select(i => i.Count).ToList();
@@ -310,6 +310,12 @@ namespace HomeBridge.BridgeTools
             if (___pawn.Downed || ___pawn.InMentalState || ___pawn.Drafted) { Fault(e, "involuntary_or_combat_state"); Release(e); return true; }
             if (!Offers.TryGetValue(newJob, out var offer) || offer.Entry != e || offer.Step != e.Step || offer.JobId != newJob.loadID)
             { Fault(e, "unauthorized_job_substitution"); return false; }
+            if (e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step].Kind == PawnActivityKind.Recipe && newJob.bill == null)
+            {
+                if (!NativeActivityRecipe.Resolve(___pawn, newJob.targetA.Thing, e.Order.Steps[e.Step], out var bill, out _, out var reason, create: true))
+                { Fault(e, reason); return false; }
+                newJob.bill = bill;
+            }
             e.Running = newJob; e.RunningId = newJob.loadID;
             preToilReservationsCanFail = true;
             return true;
@@ -326,6 +332,7 @@ namespace HomeBridge.BridgeTools
             if (__state) startNewJob = false;
             if (replacing || !Entries.TryGetValue(___pawn, out var e) || e.Running == null || !ReferenceEquals(e.Running, ___pawn.CurJob) || e.RunningId != ___pawn.CurJob.loadID) return;
             var hold = e.Running.def == holdDef;
+            NativeActivityRecipe.Cleanup(e.Running.bill);
             e.Running = null;
             if (e.State == "failed") return;
             if (condition == JobCondition.Succeeded && !hold) { e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed"; e.Reason = "Succeeded"; }

@@ -42,7 +42,7 @@ internal static partial class FoodMethodCandidates
                 options.Add(new(id, row.Pawn, Known(cooking.OutputTravelTicks), Known(0.0)));
                 bindings[(supply, row.Pawn)] = new(supply, row.Pawn, [], PawnActivityKind.Deliver, row.Target, "", "",
                     cooking.IngredientCount, deadline, row.Origin) { Resource = row.Resource, Source = row.Origin, Destination = row.Destination };
-                bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [supply], PawnActivityKind.Cook, c.Bench, c.WorkGiver, "", 0, deadline, c.Origin)
+                bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [supply], PawnActivityKind.Recipe, c.Bench, c.WorkGiver, "", 0, deadline, c.Origin)
                     { Resource = row.Resource, Source = row.Destination, Cooking = cooking, Ingredient = row.Target };
                 bindings[(id, row.Pawn)] = new(id, row.Pawn, [cook], PawnActivityKind.Deliver, "observed-output", "", "", c.ProductCount, deadline, c.Origin)
                     { Resource = c.Product, Source = c.Origin, Destination = c.Destination };

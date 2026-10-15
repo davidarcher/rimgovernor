@@ -915,10 +915,10 @@ transient forecast inputs and concrete target bindings, not persistent Methods.
 | Owner | Responsibility |
 | --- | --- |
 | `RoundsAcquisitionPlanner` / `RoundsBuildingPlanner` | Read existing demand and native options; admit the proposed Method through the existing journal |
-| `FoodMethodCandidates` / `ConstructionMethodCandidates` in `Methods.Generation` | Generate one graph, mutually exclusive outcomes for the current Method decision, and task/pawn binding data |
+| `FoodMethodCandidates` / `ConstructionMethodCandidates` / `ClothingMethodCandidates` in `Methods.Generation` | Generate one graph, mutually exclusive outcomes for the current Method decision, and task/pawn binding data |
 | `PolicyFunctions.CompareActivityOutcomes` | Shared ColonyForecast alternative search, scheduling, deadlines, labor ceiling, postponement and selection |
 | `CoordinatedActivityBinding` / `FoodActivityBinding` in `Methods.Binding` | Resolve selected allocations into exact activity actions; no independent ranking |
-| `StartFoodActivity` / `StartConstructionActivity` / `ReconsiderObservedFood` / `ContinueCoordinatedActivity` | Pure ownership/lifecycle checks and sequencing of generation, comparison and binding |
+| `StartFoodActivity` / `StartConstructionActivity` / `StartClothingActivity` / `ReconsiderObservedFood` / `ContinueCoordinatedActivity` | Pure ownership/lifecycle checks and sequencing of generation, comparison and binding |
 | Existing Method journal and Hands | Admission, progress/revision ownership, dispatch and release |
 
 There is no separate generic activity-candidate or selection engine. Binding
@@ -1107,3 +1107,14 @@ The scene is registered/compiling; measured errors await nightly execution. It i
 not evidence of autonomous portfolio selection. Pure tests cover equal current
 mood with different thought expiry, meals, quantity waste, recovery, timing,
 interruption, unknowns, protected work, distance and bounded generation.
+
+### Clothing activity consumer
+
+[Ordinary tailoring](../contracts/equipment-upkeep.md#live-clothing-requirement-selection)
+uses these same stages. Generation retains garment/recipe/stuff/stack/worker and
+destination alternatives. Evaluation compares capped equipment-owned requirement
+relief and total labor under shared resource claims; binding emits only selected
+exact recipes and observed-output delivery tasks. A retained running output is
+an outcome with known completion and no newly allocated activity. Conflicting
+wearables exclude one another, including retained output. This is a family
+consumer, not the cross-family portfolio/coupled-needs milestone (#3133/#3134).

@@ -39,7 +39,7 @@ supports one observed cook for all three stages; delegated cooking needs separat
 observed route legs. Combining undersized ingredient stacks is not implemented.
 
 Supply completion permits fresh exact ingredient rebinding at the selected bench
-staging area. Cook completion permits only observed matching output delivery.
+staging area. Recipe completion permits only observed matching output delivery.
 Failed consuming work releases; nearby food cannot authorize replay, refund or
 inferred consumption. Nominal nutrition is not eater-specific survival value.
 
@@ -138,7 +138,7 @@ still at the source, and a new planner decision must inspect that state. An exac
 require fresh observed identities and a revised assignment; future output IDs are
 not guessed.
 
-`Cook` names the exact bench, existing bill, recipe, cooking WorkGiver and up to
+`Recipe` names the exact bench, existing bill, recipe, cooking WorkGiver and up to
 16 distinct ingredient stacks with positive counts. It authorizes one recipe
 iteration, regardless of the bill's remaining repeat count. Bill creation and
 configuration remain separate Hands actions; cooking neither creates nor edits a
@@ -272,3 +272,24 @@ does not reserve a pawn or authorize native fallback.
 The exact action execution and ownership contract above remains unchanged. Needs
 candidate generation does not install a second controller or remove eat-trigger,
 cleaning, hauling or scheduling helpers prematurely.
+
+## Exact tailoring recipes
+
+The generic `Recipe` activity carries a `PawnActivityRecipe`: exact recipe, bill
+(if already present), stuff, input identities/counts, or exact unfinished item.
+The ordinary textile/leather path is described in
+[equipment upkeep](equipment-upkeep.md#live-clothing-requirement-selection).
+Hands validates the entire batch before installing it. A new recipe's suspended
+`Bill_GovernorRecipe` is provisioned only at verified job start; it cannot be
+selected by native priority scanning. Existing player bills are never deleted.
+Owned bills without unfinished work are cleaned up on job termination; actual
+unfinished work retains its native bill, creator, stuff, ingredients and work.
+
+Selected task output matching requires both product definition and selected
+stuff. A completed job is not product evidence: delivery binds an actually
+observed stack and an exact empty destination. Failure releases the assignment;
+a later normal equipment review may select the observed unfinished item as a
+new Method. It never replays a consuming operation based on a missing receipt.
+Observed native UFT conversion removes the loose-input claim while preserving
+pawn/bench ownership. The session journal records only the selected attempt;
+all rejected alternatives and forecast graphs are transient.

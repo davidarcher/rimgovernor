@@ -16,7 +16,7 @@ internal static class NativeFoodCooking
         List<Obs.FoodActivityOption> options, ref int budget, ref bool truncated)
     {
         var map = pawn.Map;
-        var pinned = existing.OutputDelivery!.Cooking;
+        var pinned = existing.OutputDelivery!.Recipe;
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>()
             .Where(b => pinned is null || b.GetUniqueLoadID() == pinned.Bench).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).Take(5).ToArray();
         if (benches.Length > 4) truncated = true;
@@ -31,7 +31,7 @@ internal static class NativeFoodCooking
             {
                 var recipe = bill.recipe;
                 if (pinned is not null && (bill.GetUniqueLoadID() != pinned.Bill || recipe.defName != pinned.Recipe)) continue;
-                if (!NativeActivityCooking.ResolveRecipe(pawn, bench, giver.defName, bill.GetUniqueLoadID(), recipe.defName, out _, out _)
+                if (!NativeActivityRecipe.ResolveRecipe(pawn, bench, giver.defName, bill.GetUniqueLoadID(), recipe.defName, out _, out _)
                     || !bill.IsFixedOrAllowedIngredient(source) || recipe.ingredients.Any(i => !i.filter.Allows(source.def))) continue;
                 var required = recipe.ingredients.Sum(i => (long)i.CountRequiredOfFor(source.def, recipe, bill));
                 if (required <= 0 || required > available || required > int.MaxValue) continue;
@@ -62,11 +62,11 @@ internal static class NativeFoodCooking
                     if (!toSupply.Found || !toBench.Found || !toStore.Found) continue;
                     if (pinned is not null)
                     {
-                        var exact = new PawnActivityStep(PawnActivityKind.Cook, bench.GetUniqueLoadID(), giver.defName, "", 0, existing.OutputDelivery.Deadline)
-                            { Cooking = new(bill.GetUniqueLoadID(), recipe.defName, [new(source.GetUniqueLoadID(), (int)required)]) };
-                        if (!NativeActivityCooking.Resolve(pawn, bench, exact, out _, out _, out _)) continue;
+                        var exact = new PawnActivityStep(PawnActivityKind.Recipe, bench.GetUniqueLoadID(), giver.defName, "", 0, existing.OutputDelivery.Deadline)
+                            { Recipe = new(bill.GetUniqueLoadID(), recipe.defName, [new(source.GetUniqueLoadID(), (int)required)]) };
+                        if (!NativeActivityRecipe.Resolve(pawn, bench, exact, out _, out _, out _)) continue;
                     }
-                    var continuation = new ActivityCookingContinuation(bench.GetUniqueLoadID(), bill.GetUniqueLoadID(), recipe.defName, giver.defName,
+                    var continuation = new ActivityRecipeContinuation(bench.GetUniqueLoadID(), bill.GetUniqueLoadID(), recipe.defName, giver.defName,
                         new(bench.InteractionCell.x, bench.InteractionCell.z), product.thingDef.defName, product.count, new(destination.x, destination.z));
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), source.def.defName, new(source.Position.x, source.Position.z),
                         new(supply.x, supply.z), "", available, approach + toSupply.TotalCost + toBench.TotalCost, 0)

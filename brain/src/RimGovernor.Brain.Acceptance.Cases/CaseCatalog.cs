@@ -18,6 +18,8 @@ public static class CaseCatalog
         registry.Register(PawnControlCase.LifecycleCase());
         registry.Register(PawnDeliveryCase.Case());
         registry.Register(PawnCookingCase.Case());
+        registry.Register(ClothingActivityCase.Case());
+        registry.Register(ClothingActivityCase.Case(interrupted: true));
         registry.Register(CoordinatedWorkCase.Case("food"));
         registry.Register(CoordinatedWorkCase.Case("food", interrupted: true));
         registry.Register(CoordinatedWorkCase.Case("construction"));

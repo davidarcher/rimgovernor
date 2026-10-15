@@ -7,4 +7,5 @@ public sealed record WorkResourcePawn(string Pawn, string Assignment, long Revis
     public double? LocalHour { get; init; }
     public string Bill { get; init; } = "";
     public string Target { get; init; } = "";
+    public string Unfinished { get; init; } = "";
 }

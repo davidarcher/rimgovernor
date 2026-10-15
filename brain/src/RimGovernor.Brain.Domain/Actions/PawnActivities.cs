@@ -1,11 +1,13 @@
 namespace RimGovernor.Brain.Domain;
 
-public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Cook, Approach, Supply }
+public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Recipe, Approach, Supply }
 
 public sealed record PawnActivityIngredient(string Thing, int Count);
-public sealed record PawnActivityCooking(string Bill, string Recipe, EquatableArray<PawnActivityIngredient> Ingredients)
+public sealed record PawnActivityRecipe(string Bill, string Recipe, EquatableArray<PawnActivityIngredient> Ingredients)
 {
     public string Resource { get; init; } = "";
+    public string Stuff { get; init; } = "";
+    public string Unfinished { get; init; } = "";
 }
 
 /// <summary>An authorized step, not a native-priority request. Deadlines are absolute game ticks.</summary>
@@ -13,7 +15,7 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
     string Job, int Count, long Deadline, string WaitForFilth = "")
 {
     public Cell? Destination { get; init; }
-    public PawnActivityCooking? Cooking { get; init; }
+    public PawnActivityRecipe? Recipe { get; init; }
     public long NotBefore { get; init; }
     public string Container { get; init; } = "";
 }
@@ -25,15 +27,16 @@ public sealed record SelectedActivityTask(string Id, string Pawn, EquatableArray
     public string Resource { get; init; } = "";
     public Cell? Source { get; init; }
     public string SiteDefinition { get; init; } = "";
+    public string ProductStuff { get; init; } = "";
     public bool CompletionMustBeObserved { get; init; }
     public int AttemptsLeft { get; init; } = 3;
 }
 
-public sealed record ActivityCookingContinuation(string Bench, string Bill, string Recipe, string WorkGiver,
+public sealed record ActivityRecipeContinuation(string Bench, string Bill, string Recipe, string WorkGiver,
     Cell Origin, string Product, int ProductCount, Cell Destination);
 public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline, int AttemptsLeft)
 {
-    public ActivityCookingContinuation? Cooking { get; init; }
+    public ActivityRecipeContinuation? Recipe { get; init; }
 }
 public sealed record PawnActivityOrder(string Pawn, string Assignment, string Method, long ExpectedRevision,
     long Revision, bool Release, PawnActivityStep[] Steps)
@@ -73,24 +76,24 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                         : step.Destination is null)
                     && step.NotBefore >= 0 && step.NotBefore < step.Deadline
                     && (step.Kind == PawnActivityKind.Supply ? Identity.IsValidText(step.Container) : step.Container.Length == 0), "invalid activity step");
-                if (step.Kind == PawnActivityKind.Cook)
+                if (step.Kind == PawnActivityKind.Recipe)
                 {
-                    var cooking = step.Cooking;
-                    DomainException.Require(cooking != null && Identity.IsValidText(cooking.Bill) && Identity.IsValidText(cooking.Recipe)
+                    var cooking = step.Recipe;
+                    DomainException.Require(cooking != null && (Identity.IsValidText(cooking.Bill) || Identity.IsValidText(cooking.Stuff)) && Identity.IsValidText(cooking.Recipe)
                         && Identity.IsValidText(step.WorkGiver) && step.Job.Length == 0 && step.Count == 0
-                        && cooking.Ingredients.Count is > 0 and <= 16
+                        && (cooking.Unfinished.Length != 0 ? cooking.Ingredients.Count == 0 : cooking.Ingredients.Count is > 0 and <= 16)
                         && cooking.Ingredients.All(i => i != null && Identity.IsValidText(i.Thing) && i.Count > 0)
                         && cooking.Ingredients.Select(i => i.Thing).Distinct(StringComparer.Ordinal).Count() == cooking.Ingredients.Count,
                         "invalid exact cooking activity");
                 }
-                else DomainException.Require(step.Cooking == null, "cooking arguments on another activity family");
+                else DomainException.Require(step.Recipe == null, "cooking arguments on another activity family");
             }
             if (order.OutputDelivery is { } output)
             {
                 DomainException.Require(Identity.IsValidText(output.Resource) && output.Count > 0 && output.Deadline > 0
                     && output.AttemptsLeft is >= 0 and <= 3 && output.Origin is { X: >= 0, Z: >= 0 }
                     && output.Destination is { X: >= 0, Z: >= 0 }, "invalid output delivery obligation");
-                if (output.Cooking is { } cook)
+                if (output.Recipe is { } cook)
                     DomainException.Require(Identity.IsValidText(cook.Bench) && Identity.IsValidText(cook.Bill)
                         && Identity.IsValidText(cook.Recipe) && Identity.IsValidText(cook.WorkGiver) && Identity.IsValidText(cook.Product)
                         && cook.ProductCount > 0 && cook.Origin is { X: >= 0, Z: >= 0 } && cook.Destination is { X: >= 0, Z: >= 0 }, "invalid cooking continuation");

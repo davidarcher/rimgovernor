@@ -4,7 +4,7 @@
 
 `MaintainEquipment` is a maintained development concern in the shared ColonyPlan.
 Emergencies suspend it. Hands issues its actions; neither the native read nor an
-adviser independently starts work. Missing observations remain unknown. Vanilla pawn priorities schedule crafting and construction; bounded methods
+adviser independently starts work. Missing observations remain unknown. Selected ordinary tailoring and construction activities are scheduled by policy; bounded Methods
 and pawn/item claims prevent duplicate work. The [pawn profile](work-assignment.md#pawn-profile) exports the
 per-pawn apparel and weapon flags (Nudist, Ascetic, Brawler's `MeleeOnly`) the
 loadout planner consumes. The role apparel policies are the
@@ -36,35 +36,20 @@ concern can select a fresh method at the next review.
 
 ## Production and resource protection
 
-The production bench census carries work and speed facts for the rate model
-(#2590). Clothing selection uses base recipe work as a tie-break estimate;
-it does not claim a worker completion time. `GearRecipe.WorkAmount` is the work one unit
-takes, from the definition catalog (`RecipeDef.workAmount`, else the first
-product's base `WorkToMake`, as the game's `WorkAmountTotal` does, without the
-stuff multiplier); `RequiredWork` remains the skill gate. `GearBench.WorkSpeed`
-is `BillStack.work_speed`, native's `GetStatValue(WorkTableWorkSpeedFactor)` on
-the bench now, stat parts included; `RecipeDef.workTableSpeedStat` defaults to
-that stat. Both stay unknown when the catalog or native supplies none.
+The catalog's base work and bench-speed observations remain available to existing
+production families. Ordinary clothing instead uses the exact native recipe's
+stuff-adjusted work, worker speed, bench speed and routes in the shared activity
+comparison described below. Missing estimates remain explicit unknowns.
 
-Available eligible replacements precede production. A missing replacement can
-select a discovered recipe and issue a finite bill for the colony gap count. When its workshop
-is missing, the shared workshop ladder stages the bench in a suitable room (or
-stages the room first) and raises research prerequisites under `EnsureResearch`.
-Existing active production is preserved. Ingredient alternatives use native costs
-and respect player reserves, stopped spending and shared plan commitments. The
-inspected stuff is a preference: a worn-out cloth shirt is replaced from cloth
-when cloth is funded and otherwise from any funded material the recipe accepts.
-The materials themselves are a standing [resource demand](#clothing-material-demand),
-not a bill's afterthought. Native
-bills carry the funded material set as their ingredient membership, retained
-through persistence and the applied intent. Native ingredient admission and
-consumption keep stock committed to construction and other pawns' bill jobs. Required work types feed the shared work-allocation method: while the
-concern is in deficit, every standing bench recipe that produces a reported
-replacement need contributes its work type to `EnsureWorkAssignments` before
-any bill exists, the same way a resource deficit covers its benches, because
-native bill admission refuses a bench nobody works.
-
-Production needs are the definitions the loadout model wants a bill to supply:
+Available eligible replacements precede production. Clothing demand generates
+competing garment recipes, stuffs, quantities and exact input allocations; only
+the selected alternative becomes a Method and Hands recipe intent. Existing
+supported bills and unfinished garments can be selected for execution. When a
+workshop is missing, the existing workshop ladder and research prerequisites
+retain their owners. Shared admission protects construction and other committed
+materials. The clothing runway below remains an acquisition estimate; it does
+not pin the material of a later executable recipe.
+Equipment needs include the loadout model gaps:
 replacements for damaged apparel, and definition/stuff options that improve an
 observed thermal deficit (`cold`, `heat`). A core body-part group (Torso, Legs)
 the pawn wears nothing over is a deficit in any weather, found by the brain from the
@@ -211,8 +196,8 @@ The native gear operation requires a paused game, exact pawn and target identiti
 and a signature covering load, map, outfit/filter, primary weapon, worn identities
 and forced/locked state. It rechecks eligibility at dispatch and starts ordinary
 `Wear` or `Equip` work. Drafted, incapacitated, quest and player-ordered pawns are
-preserved. Production also rechecks the retained pawn/loadout prerequisite and
-available replacements before adding its bill.
+preserved. Selected tailoring rechecks native recipe legality and exact inputs;
+the normal equipment review owns the wearer need and physical replacement choice.
 
 On Actions/Apply the apparel order is a `GiveJobIntent` with job `Wear`
 (`NativeGearOperations`). Native checks the pawn and the apparel
@@ -268,65 +253,69 @@ stockpile space before the standing stock bill. Spares default to disabled.
 
 ## Live clothing requirement selection
 
-`DeclareGearOrders` attaches derived requirement evidence to new clothing batches.
-The existing work-ledger material comparison consumes it without a separate
-planner or reservation store. This evidence is not bill identity, saved intent,
-or a second demand target. The equipment loadout model remains the need owner.
+Ordinary textile/leather garments use the normal `MaintainEquipment` review,
+`RoundsGearPlanner`, shared activity comparison, Method journal and Hands.
+The equipment loadout model owns demand. Generation reads every eligible
+`GearLoadoutInput.Options` garment/stuff option, not only the loadout winner's
+`Replacements`. Physical eligible replacements still precede new production.
+Nudist, taint, outfit, coverage and climate constraints remain equipment policy.
 
-The native census now exposes all allowed materials for each discovered garment
-recipe, in definition order, rather than only the most-stocked material. The
-existing loadout search chooses garment definitions and retains its search bound.
-For each declared garment, the material comparison keeps the observed, eligible
-material variants allowed by its existing category filter. Unobserved material
-stats never inherit the chosen material's protection. A candidate that worsens
-observed thermal exposure or removes existing core coverage is excluded.
+`ClothingMethodCandidates` exposes transient recipe/delivery candidates to the
+shared ColonyForecast comparator before binding. Each observed bench recipe,
+allowed stuff, eligible worker, ingredient allocation and storage destination can
+remain an alternative. Existing supported bills are exact start/resume options
+respecting their worker, filter, radius and storage settings; a standing bill is
+not counted as a second product. Running unfinished work supplies a retained
+completion estimate. Unfinished work with no active worker can be selected for
+resumption using its exact recipe, stuff, creator and bound bill. No loose inputs
+are charged again after native observation shows their conversion into a UFT.
+Unsupported existing intent remains visible in findings and is not cancelled.
 
-Known clothing effects have explicit priorities, compared lexicographically:
+Known clothing effects retain explicit lexicographic priorities:
 
 1. Reduce cold/heat exposure within the loadout model's ambient/seasonal range.
 2. Restore missing core coverage or an observed required apparel definition.
 3. Replace a tattered worn garment.
 
-Thermal relief is the fraction of a pawn's current modeled deficit removed.
-Coverage and condition use one unit per pawn/group or worn item. Shared need IDs
-cap combined relief at one, preventing multiple batches from each claiming the
-same benefit. These are estimated outcomes at the observed Normal-quality material
-stats, not a guarantee of the crafted quality or that the pawn wears the product.
-No number converts optional art into a clothing necessity. Other producers remain
-unclassified and retain funded batch count as the next comparison criterion;
-their urgency is not modeled by this clothing slice.
+Shared requirement IDs cap repeated benefit. Compatible garments can combine;
+conflicting garments for one wearer cannot claim simultaneous protection. Each
+recipe iteration makes one item; multiple beneficiaries and compatible needs
+supply quantity alternatives. Empty selection postpones work. Known current
+output can win without a new order. Equal relief prefers lower total participant
+labor, including supplied native route costs, ingredient trips/capacity and
+remaining recipe work divided by observed pawn/bench speed. Construction demand,
+other admitted materials, participant availability, exact stack quantities,
+bench claims and output-cell capacity constrain bundles. An exact existing bill's
+material claim overlaps its selected iteration once, rather than being charged
+again. There is no separate clothing scheduler, reservation store or demand owner.
 
-For equal requirement relief and other funded batch count, clothing variants
-prefer lower ingredient market value, then lower base recipe work. Market value
-is a transparent cost proxy, not calibrated opportunity cost. Base work is the
-catalog recipe amount times batch size; pawn skill, material work multipliers,
-travel, bench speed and available work windows are not a completion-time estimate.
-Unknown prices or recipe work exclude the affected variants with explicit
-findings. Clothing production upgrades with no coverage, condition, required-def
-or thermal relief wait for a justified upgrade valuation; wearing an eligible
-existing improvement still uses the existing equipment path.
+The supported native family is ordinary single-output, stuff-made textile/leather
+apparel using the base recipe worker and one stuff across its ingredient slots.
+Armor, weapons, special products and mixed-resource recipes retain their existing
+owners or an explicit unsupported finding. This does not migrate unrelated
+production. The old local clothing bill/material winner has been removed;
+`DeclareGearOrders` retains already standing intents while new garment production
+is selected through activities.
 
-The equipment owner nets serviceable unassigned stock before new production.
-Active finite bills contribute their observed remaining target once per bill ID
-and product; existing bills remain declared. Only the residual shortage becomes
-new work. Indefinite/stock-target bills do not imply a finite quantity and hold
-new production for that product. Missing stock, bill activity or configuration
-abstains. This retains the existing one-garment-per-recipe-iteration assumption;
-modded multi-output recipes need quantity evidence before that assumption can be
-relaxed. Within a def/stuff batch, remaining beneficiaries use stable pawn order.
-Physical eligible replacements continue to precede new production.
+Bounds are explicit: native reading has a 512-operation budget; pure allocation
+seeds every observed starting stack then searches partial splits with a 128-visit
+budget and at most 16 variants per row. Shared generation admits at most 16
+outcomes/32 tasks. Truncation is reported, never an optimum claim. A bundle uses
+one recipe per bench and distinct output cells; missing between-job routes can
+exclude sequential jobs on one worker. Route duration is a native path-cost
+estimate, not a simulation of pickup animations or future congestion. Relief uses
+observed Normal-quality stats; future crafted quality, future weather, coupled
+needs and colony-wide portfolio opportunity costs remain unassessed. Material
+scarcity is a hard shared budget, not a calibrated market-price valuation.
 
-An exact bill configuration already standing is not offered as additional output:
-native creation is idempotent for that configuration. Another material can serve
-the residual need; otherwise it waits for readback to change. Whole batches still
-use one material assignment per ingredient slot, so a two-item batch cannot yet
-split one item into cloth and one into wool. Alternative garment shapes and
-recipes remain upstream loadout/recipe choices, not joint colony-wide options.
-
-`ClothingChoiceTests` exercises the live declaration-to-material-selection policy
-with observed-input fixtures: temperature and scarcity changes, clothing versus
-optional production, stock plus queued output netting, duplicate bill exclusion,
-physical replacement precedence, unknown costs/work/stock, optional-upgrade
-postponement, tattered clothing and shared priority caps. Native candidate reads,
-actual crafting and wearing remain nightly gameplay evidence, not claims of these
-unit tests. Hands and atomic journal material admission retain their ownership.
+`ClothingChoiceTests` covers shape/stuff/distance/scarcity reversals, stack splits,
+compatible and conflicting garments, retain/postpone, unfinished work, unknowns,
+and journal/Hands/output continuation. `WorkResourcesTests` covers actual UFT
+conversion without double charging loose inputs. The prepared native cases
+`production/clothing-activity` and `production/clothing-activity-unfinished`
+enter through normal review without a fixture-selected recipe, bill or material;
+they assert exact selected-stuff creation, conservation, observed release and
+interrupted UFT resumption. Registration/compilation is preland evidence; gameplay
+is supplied by the nightly. Existing food, coordination, physical-wear and armory
+cases remain. The former local-winner ClothingChoice tests were replaced because
+they asserted the removed selection path, not the new runtime outcome.

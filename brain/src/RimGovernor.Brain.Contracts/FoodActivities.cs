@@ -20,7 +20,7 @@ public sealed record FoodActivityOption(string Pawn, string Target, string Resou
     public Fact<bool> HarvestAllowed { get; init; }
 }
 /// <summary>One eligible recipe/source alternative, not a selected order. Route includes final product delivery.</summary>
-public sealed record FoodCookingEstimate(ActivityCookingContinuation Continuation, int IngredientCount,
+public sealed record FoodCookingEstimate(ActivityRecipeContinuation Continuation, int IngredientCount,
     double CookTicks, double OutputTravelTicks, Fact<double> ProductNutrition, bool Supplied);
 public sealed record FoodActivityRead
 {

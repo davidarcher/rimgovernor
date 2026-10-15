@@ -63,7 +63,8 @@ public sealed class NativeActivityTasks
                     foreach (var item in candidates.Take(16))
                     {
                         if (--budget < 0) { truncated = true; break; }
-                        if (item.def.defName != task.Resource || item.Destroyed || item.IsForbidden(pawn)
+                        if (item.def.defName != task.Resource || task.ProductStuff.Length != 0 && item.Stuff?.defName != task.ProductStuff
+                            || item.Destroyed || item.IsForbidden(pawn)
                             || carried == null && !pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)) continue;
                         var count = Math.Min(task.Step.Count, Math.Min(item.stackCount, pawn.carryTracker.MaxStackSpaceEver(item.def)));
                         if (count <= 0 || carried != null && count != carried.stackCount) continue;
@@ -98,10 +99,29 @@ public sealed class NativeActivityTasks
                     if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
                     bindings.Add(new(task.Id, step with { Target = target.GetUniqueLoadID() }));
                 }
-                else if (step.Kind == PawnActivityKind.Cook)
+                else if (step.Kind == PawnActivityKind.Recipe)
                 {
                     var bench = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target);
-                    if (bench == null || step.Cooking is not { } recipe || task.Source is not { } input) continue;
+                    if (bench == null || step.Recipe is not { } recipe || task.Source is not { } input) continue;
+                    if (recipe.Stuff.Length != 0)
+                    {
+                        // A fresh selected task keeps its exact recipe/stuff. Rebind split/merged inputs only;
+                        // failed consuming work itself is never replayed by the shared continuation.
+                        var left = recipe.Ingredients.Sum(i => i.Count);
+                        var reboundInputs = new List<PawnActivityIngredient>();
+                        foreach (var item in map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
+                            .Where(t => t.Spawned && t.def.defName == recipe.Resource && !t.IsForbidden(pawn)
+                                && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None))
+                            .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
+                        {
+                            if (left == 0) break;
+                            if (reboundInputs.Count == 16) { truncated = true; break; }
+                            var take = Math.Min(left, item.stackCount); reboundInputs.Add(new(item.GetUniqueLoadID(), take)); left -= take;
+                        }
+                        var rebound = step with { Recipe = recipe with { Ingredients = EquatableArray.From(reboundInputs) } };
+                        if (left == 0 && NativeActivityRecipe.Resolve(pawn, bench, rebound, out _, out _, out _)) bindings.Add(new(task.Id, rebound));
+                        continue;
+                    }
                     var count = recipe.Ingredients.Sum(i => i.Count);
                     var ingredients = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
                         .Where(t => t.Spawned && t.def.defName == task.Resource && t.stackCount >= count
@@ -110,8 +130,8 @@ public sealed class NativeActivityTasks
                     if (ingredients.Length > 16) truncated = true;
                     foreach (var ingredient in ingredients.Take(16))
                     {
-                        var bound = step with { Cooking = recipe with { Ingredients = [new(ingredient.GetUniqueLoadID(), count)] } };
-                        if (NativeActivityCooking.Resolve(pawn, bench, bound, out _, out _, out _)) bindings.Add(new(task.Id, bound));
+                        var bound = step with { Recipe = recipe with { Ingredients = [new(ingredient.GetUniqueLoadID(), count)] } };
+                        if (NativeActivityRecipe.Resolve(pawn, bench, bound, out _, out _, out _)) bindings.Add(new(task.Id, bound));
                     }
                 }
             }
