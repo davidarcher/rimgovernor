@@ -226,7 +226,7 @@ public static class SpeedMatrix
 
         if (row.PacedFrames == 0)
         {
-            problems.Add("no frame ran under player pacing");
+            problems.Add("no frame ran under the clock ceiling");
         }
         else
         {
@@ -257,13 +257,13 @@ public static class SpeedMatrix
 
         switch (row.LastPacingReason)
         {
-            case "accelerated" or "frame_budget":
+            case "fixed" or "frame_budget":
                 break;
             case "":
                 problems.Add("no running step reported a pacing reason");
                 break;
             default:
-                problems.Add($"the last running window was held at \"{row.LastPacingReason}\", not the accelerated rate");
+                problems.Add($"the last running window was held at \"{row.LastPacingReason}\", not the speed's own rate");
                 break;
         }
 

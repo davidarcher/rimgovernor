@@ -402,7 +402,7 @@ public sealed partial class ClockWindowDriver
         if (_config.TargetSpeed is { } target)
         {
             var speed = target.Speed;
-            start = start with { Speed = speed, PlayerAccelerated = !start.TestAcceleration && speed == PbClock.Speed.Ultrafast };
+            start = start with { Speed = speed };
         }
         // A routine window runs the whole budget; a native-work or combat bound may narrow it below.
         run.Paused = ClockWindowSizing.StopSpan(status, _clock.Now());

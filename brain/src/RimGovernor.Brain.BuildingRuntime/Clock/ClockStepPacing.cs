@@ -14,8 +14,6 @@ public sealed record StepPacing
 
     public double EffectiveTps { get; init; }
 
-    public bool Player { get; init; }
-
     /// <summary>Reads the pace out of a status (Go <c>stepPacing</c>).</summary>
     public static StepPacing Of(PbClock.Status status)
     {
@@ -25,15 +23,14 @@ public sealed record StepPacing
             pacing = pacing with
             {
                 PacedTps = epoch.PacedTicksPerSecond.GetValueOrDefault(),
-                Ceiling = epoch.MaxTicksPerSecond.GetValueOrDefault(),
-                Player = epoch.Pacing is not null && epoch.Pacing.GetValueOrDefault() == PbClock.Pacing.PlayerAccelerated,
+                Ceiling = epoch.CeilingTicksPerSecond.GetValueOrDefault(),
                 Reason = epoch.PacingReason is not null ? PacingReasonName(epoch.PacingReason.GetValueOrDefault()) : "",
             };
         }
         return pacing;
     }
 
-    /// <summary>The wire reason without its enum prefix, lower case: <c>frame_budget</c>, <c>ceiling</c>, ... (Go <c>PacingReasonName</c>).</summary>
+    /// <summary>The wire reason without its enum prefix, lower case: <c>frame_budget</c>, <c>heartbeat</c>, ... (Go <c>PacingReasonName</c>).</summary>
     public static string PacingReasonName(PbClock.PacingReason reason)
     {
         var name = reason.ToString();
@@ -60,10 +57,6 @@ public sealed record StepPacing
         if (Ceiling != 0)
         {
             extra["tps_ceiling"] = Ceiling;
-        }
-        if (Player)
-        {
-            extra["player_pacing"] = true;
         }
         if (EffectiveTps > 0)
         {

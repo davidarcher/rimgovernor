@@ -74,7 +74,6 @@ public sealed class ResumePauseClockOwnerTests
                 StartTick = Tick,
                 TickDeadline = Tick + request.MaxTicks!.Value,
                 LastTick = Tick,
-                Pacing = request.Pacing,
             };
             var receipt = new PbClock.ControlReceipt
             {
@@ -230,7 +229,7 @@ public sealed class ResumePauseClockOwnerTests
                 InjuryStopCooldownMs = 0,
             });
             var sequence = await Journal.ReadClockSequenceAsync(_lifetime.Token);
-            var intent = new ClockIntent(sequence.NextRequestId(), "", snapshot, new ClockCommand(Start: new ClockStart(PbClock.Speed.Ultrafast, policy, 600, PlayerAccelerated: true)));
+            var intent = new ClockIntent(sequence.NextRequestId(), "", snapshot, new ClockCommand(Start: new ClockStart(PbClock.Speed.Ultrafast, policy, 600)));
             var (attempt, error) = await Coordinator.Command(intent, _lifetime.Token);
             if (error is null)
             {

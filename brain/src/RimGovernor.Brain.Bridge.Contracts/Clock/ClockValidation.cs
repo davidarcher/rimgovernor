@@ -308,26 +308,4 @@ public static partial class BridgeFunctions
                 throw Contract("clock receipt outcome missing");
         }
     }
-
-    /// <summary>
-    /// Go's <c>clockPacing</c>: player acceleration is Ultrafast without test acceleration; fixed and unspecified
-    /// pacing are always valid.
-    /// </summary>
-    internal static void ClockPacing(Pacing pacing, Speed speed, bool testAcceleration)
-    {
-        switch (pacing)
-        {
-            case Pacing.Unspecified:
-            case Pacing.Fixed:
-                return;
-            case Pacing.PlayerAccelerated:
-                if (speed != Speed.Ultrafast || testAcceleration)
-                {
-                    throw Contract("clock player acceleration requires ultrafast without test acceleration");
-                }
-                return;
-            default:
-                throw Contract("clock pacing");
-        }
-    }
 }

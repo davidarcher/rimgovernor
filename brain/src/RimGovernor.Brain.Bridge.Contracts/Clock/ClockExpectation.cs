@@ -31,11 +31,6 @@ public static partial class BridgeFunctions
             {
                 throw Contract("clock test acceleration requires ultrafast");
             }
-            if (start.MaxTicksPerSecond > 60000)
-            {
-                throw Contract("clock tick rate ceiling");
-            }
-            ClockPacing(start.WirePacing ?? Pacing.Unspecified, start.Speed, start.TestAcceleration);
             ClockPolicy(start.Policy, start.MaxTicks);
             return;
         }
@@ -50,10 +45,6 @@ public static partial class BridgeFunctions
             if ((speed.Original?.TestAcceleration ?? false) && speed.Speed != Speed.Ultrafast)
             {
                 throw Contract("clock accelerated epoch cannot change speed");
-            }
-            if (speed.MaxTicksPerSecond is { } ceiling && (ceiling < 1 || ceiling > 60000))
-            {
-                throw Contract("clock tick rate ceiling");
             }
         }
         ClockEpoch(original);
@@ -84,9 +75,7 @@ public static partial class BridgeFunctions
                 || actual.TickDeadline - actual.StartTick != start.MaxTicks
                 || actual.RequestedSpeed != start.Speed
                 || actual.TestAcceleration.GetValueOrDefault() != start.TestAcceleration
-                || !Equals(actual.Policy, start.Policy)
-                || actual.MaxTicksPerSecond.GetValueOrDefault() != start.MaxTicksPerSecond
-                || (actual.Pacing.GetValueOrDefault() == Pacing.PlayerAccelerated) != start.PlayerAccelerated)
+                || !Equals(actual.Policy, start.Policy))
             {
                 throw Contract("clock start epoch mismatch");
             }
@@ -94,10 +83,6 @@ public static partial class BridgeFunctions
         }
         var change = e.Command.Speed!;
         ClockSameEpoch(actual, change.Original, change.Speed);
-        if (change.MaxTicksPerSecond is { } ceiling && actual!.MaxTicksPerSecond.GetValueOrDefault() != ceiling)
-        {
-            throw Contract("clock tick rate ceiling mismatch");
-        }
     }
 
     /// <summary>

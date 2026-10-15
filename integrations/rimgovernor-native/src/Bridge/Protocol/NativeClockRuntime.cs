@@ -82,10 +82,6 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Test acceleration requires SPEED_ULTRAFAST.");
             if (request.TestAcceleration.GetValueOrDefault() && !TestAccelerationAvailable)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Test acceleration is admitted only for a game launched with -rimgovernor-test-acceleration.");
-            if (!ValidCeiling(request.MaxTicksPerSecond is not null, request.MaxTicksPerSecond.GetValueOrDefault()))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A tick rate ceiling is 1..60000 ticks per second.");
-            if (!ValidPacing(request))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Player acceleration requires SPEED_ULTRAFAST without test acceleration, and a frame budget is 5..45 ms.");
             lock (Gate)
             {
                 if (_state != null && _state.Active) return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A clock epoch is already active.");
@@ -121,9 +117,7 @@ namespace HomeBridge.BridgeTools
                         policy.Mode.GetValueOrDefault() == Clock.WatchMode.Colony ? "colony" : "combat", policy.HealthDropFraction.GetValueOrDefault(),
                         policy.MinHealthFraction.GetValueOrDefault(), policy.HostileWithin.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedHostileIds),
                         ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
-                        (int)policy.InjuryStopCooldownMs.GetValueOrDefault(), (int)request.MaxTicks.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), request.TestAcceleration.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds),
-                        (int)request.MaxTicksPerSecond.GetValueOrDefault(),
-                        request.Pacing.GetValueOrDefault() == Clock.Pacing.PlayerAccelerated);
+                        (int)policy.InjuryStopCooldownMs.GetValueOrDefault(), (int)request.MaxTicks.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), request.TestAcceleration.GetValueOrDefault(), ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds));
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
                     return TypedStatus(context);
                 }
@@ -147,35 +141,25 @@ namespace HomeBridge.BridgeTools
                 return null;
             }
         }
-        // An accelerated epoch owns the boost for its whole life: it pauses or
-        // lowers its ceiling, it never changes speed.
+        // An accelerated epoch owns the boost for its whole life: it pauses, it
+        // never changes speed.
         internal static Common.Failure? ValidateTypedSpeedChange(Clock.SpeedRequest request)
         {
             lock (Gate)
             {
                 var s = _state;
                 if (s != null && s.Active && s.TestAcceleration && request.Speed.GetValueOrDefault() != Clock.Speed.Ultrafast)
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An accelerated epoch cannot change speed; pause it or change its ceiling instead.");
-                if (!ValidCeiling(request.MaxTicksPerSecond is not null, request.MaxTicksPerSecond.GetValueOrDefault()))
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A tick rate ceiling is 1..60000 ticks per second.");
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An accelerated epoch cannot change speed; pause it instead.");
                 return null;
             }
         }
-        private static bool ValidPacing(Clock.StartRequest request)
-        {
-            if (request.Pacing is not null && request.Pacing.GetValueOrDefault() != Clock.Pacing.Fixed && request.Pacing.GetValueOrDefault() != Clock.Pacing.PlayerAccelerated) return false;
-            if (request.Pacing.GetValueOrDefault() != Clock.Pacing.PlayerAccelerated) return true;
-            return request.Speed.GetValueOrDefault() == Clock.Speed.Ultrafast && !request.TestAcceleration.GetValueOrDefault();
-        }
-        private static bool ValidCeiling(bool hasCeiling, uint ceiling)
-            => (!hasCeiling || (ceiling >= 1 && ceiling <= 60000));
         internal static Clock.Status TypedSpeed(Clock.SpeedRequest request, Common.ObservationContext context)
         {
             lock (Gate)
             {
                 if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
                 if (ActiveState.TestAcceleration && request.Speed.GetValueOrDefault() != Clock.Speed.Ultrafast) throw new InvalidOperationException("An accelerated epoch cannot change speed; pause it instead.");
-                Speed(((request.Epoch?.Owner ?? throw new InvalidOperationException("Missing epoch")).ControllerSessionId ?? ""), request.Epoch.Owner.Epoch, NativeSpeed(request.Speed.GetValueOrDefault()), request.MaxTicksPerSecond is not null ? (int?)request.MaxTicksPerSecond.GetValueOrDefault() : null);
+                Speed(((request.Epoch?.Owner ?? throw new InvalidOperationException("Missing epoch")).ControllerSessionId ?? ""), request.Epoch.Owner.Epoch, NativeSpeed(request.Speed.GetValueOrDefault()));
                 if (ActiveState.RequestedSpeed != NativeSpeed(request.Speed.GetValueOrDefault()) || Find.TickManager.CurTimeSpeed != NativeSpeed(request.Speed.GetValueOrDefault()))
                     throw new InvalidOperationException("Native speed did not match admitted change");
                 return TypedStatus(context);
@@ -284,14 +268,12 @@ namespace HomeBridge.BridgeTools
         private static Clock.Epoch Epoch(State s, bool live = true)
         {
             var epoch = BaseEpoch(s);
-            if (s.PlayerPaced) { epoch = epoch with { Pacing = Clock.Pacing.PlayerAccelerated }; epoch = epoch with { FrameBudgetMs = (uint)s.FrameBudgetMs }; }
             if (live && s.Active) { epoch = epoch with { PacedTicksPerSecond = (uint)PacedTicksPerSecond(s) }; epoch = epoch with { PacingReason = PacingReasonOf(s) }; epoch = epoch with { CeilingTicksPerSecond = (uint)CeilingTicksPerSecond(s) }; }
             return epoch;
         }
         private static Clock.Epoch BaseEpoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner, Origin = TypedOf(s).Origin,
             RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = TypedOf(s).Policy, StartTick = s.StartTick,
-            TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration,
-            MaxTicksPerSecond = (uint)s.MaxTicksPerSecond };
+            TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration };
 
         // The read never waits: the controller polls the page.
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)

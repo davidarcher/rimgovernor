@@ -67,11 +67,6 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeFunctions.Contract("clock test acceleration requires ultrafast");
         }
-        if (request.MaxTicksPerSecond is not null && (request.MaxTicksPerSecond.GetValueOrDefault() < 1 || request.MaxTicksPerSecond.GetValueOrDefault() > 60000))
-        {
-            throw BridgeFunctions.Contract("clock tick rate ceiling");
-        }
-        BridgeFunctions.ClockPacing(request.Pacing.GetValueOrDefault(), request.Speed.GetValueOrDefault(), request.TestAcceleration.GetValueOrDefault());
         BridgeFunctions.ClockPolicy(request.Policy, request.MaxTicks.GetValueOrDefault());
         var pre = request.Authority!;
         var expectation = new ClockExpectation(
@@ -82,9 +77,7 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
                 request.Speed.GetValueOrDefault(),
                 request.Policy,
                 request.MaxTicks.GetValueOrDefault(),
-                request.TestAcceleration.GetValueOrDefault(),
-                request.MaxTicksPerSecond.GetValueOrDefault(),
-                request.Pacing.GetValueOrDefault() == PbClock.Pacing.PlayerAccelerated)));
+                request.TestAcceleration.GetValueOrDefault())));
         return await CallAsync(() => _facade.StartClockAsync(request, ct), pre, expectation, ct).ConfigureAwait(false);
     }
 
@@ -101,17 +94,13 @@ internal sealed class FacadeClockWriter(INativeFacade facade) : IClockWriter
         {
             throw BridgeFunctions.Contract("clock accelerated epoch cannot change speed");
         }
-        if (request.MaxTicksPerSecond is not null && (request.MaxTicksPerSecond.GetValueOrDefault() < 1 || request.MaxTicksPerSecond.GetValueOrDefault() > 60000))
-        {
-            throw BridgeFunctions.Contract("clock tick rate ceiling");
-        }
         var pre = request.Authority!;
         Original(request.Epoch, pre, original);
         var expectation = new ClockExpectation(
             pre.Identity,
             pre.Attempt,
             pre.ExpectedGeneration.GetValueOrDefault(),
-            new ClockCommand(Speed: new ClockSpeed(original, request.Speed.GetValueOrDefault(), request.MaxTicksPerSecond)));
+            new ClockCommand(Speed: new ClockSpeed(original, request.Speed.GetValueOrDefault())));
         return await CallAsync(() => _facade.ChangeClockSpeedAsync(request, ct), pre, expectation, ct).ConfigureAwait(false);
     }
 

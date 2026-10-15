@@ -42,28 +42,8 @@ public enum ObservedSpeed
 }
 
 /// <summary>
-/// How a running Ultrafast epoch paces its ticks. FIXED is the speed's
-/// own rate. PLAYER_ACCELERATED raises Ultrafast's ticks per frame toward the
-/// boosted rate while the frame's tick work stays inside native's 30 ms frame
-/// budget, so input, rendering and control dispatch keep their share of each
-/// frame. It needs no test launch.
-/// </summary>
-[JsonConverter(typeof(WireEnumConverter<Pacing>))]
-public enum Pacing
-{
-    [WireName("PACING_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("PACING_FIXED")]
-    Fixed = 1,
-    [WireName("PACING_PLAYER_ACCELERATED")]
-    PlayerAccelerated = 2,
-}
-
-/// <summary>
-/// What bounds the running epoch's tick rate right now, most binding
-/// first: the one ceiling (heartbeat or frame budget), the owner's
-/// max_ticks_per_second; else the pacing runs at its ceiling (ACCELERATED) or
-/// the speed's own rate (FIXED).
+/// What bounds the running epoch's tick rate right now: the one ceiling
+/// (heartbeat or frame budget), else the speed's own rate (FIXED).
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<PacingReason>))]
 public enum PacingReason
@@ -72,12 +52,8 @@ public enum PacingReason
     Unspecified = 0,
     [WireName("PACING_REASON_FIXED")]
     Fixed = 1,
-    [WireName("PACING_REASON_ACCELERATED")]
-    Accelerated = 2,
     [WireName("PACING_REASON_FRAME_BUDGET")]
     FrameBudget = 3,
-    [WireName("PACING_REASON_CEILING")]
-    Ceiling = 6,
     /// <summary>
     /// The one ceiling is held at Normal (rising back) because the brain has not
     /// made contact within the heartbeat tolerance.
@@ -380,20 +356,6 @@ public sealed record StartRequest
     /// or change its ceiling.
     /// </summary>
     public bool? TestAcceleration { get; init; }
-
-    /// <summary>
-    /// Continuous ceiling on the epoch's tick rate, beneath the requested
-    /// speed's own rate; an accelerated epoch admits a live change through
-    /// SpeedRequest. Zero or absent is the speed's own rate.
-    /// </summary>
-    public uint? MaxTicksPerSecond { get; init; }
-
-    /// <summary>
-    /// PACING_PLAYER_ACCELERATED requires SPEED_ULTRAFAST and excludes
-    /// test_acceleration; absent is PACING_FIXED. Native paces it against its
-    /// own 30 ms frame budget (Epoch.frame_budget_ms).
-    /// </summary>
-    public Pacing? Pacing { get; init; }
 }
 
 public sealed record OwnedRequest
@@ -410,12 +372,6 @@ public sealed record SpeedRequest
     public Authority.WritePrecondition? Authority { get; init; }
 
     public Speed? Speed { get; init; }
-
-    /// <summary>
-    /// The new ceiling (StartRequest.max_ticks_per_second); absent keeps the
-    /// epoch's. An accelerated epoch admits this with SPEED_ULTRAFAST.
-    /// </summary>
-    public uint? MaxTicksPerSecond { get; init; }
 }
 
 public sealed record StatusRequest
@@ -441,14 +397,8 @@ public sealed record Epoch
 
     public bool? TestAcceleration { get; init; }
 
-    public uint? MaxTicksPerSecond { get; init; }
-
-    public Pacing? Pacing { get; init; }
-
-    public uint? FrameBudgetMs { get; init; }
-
     /// <summary>
-    /// The tick rate the pacing holds right now (60 x the multiplier the game
+    /// The tick rate the epoch holds right now (60 x the multiplier the game
     /// ticks at), and what bounds it.
     /// </summary>
     public uint? PacedTicksPerSecond { get; init; }
@@ -586,10 +536,9 @@ public sealed record Status
     public double? EffectiveTicksPerSecond { get; init; }
 
     /// <summary>
-    /// Player acceleration's frame account, cumulative for the loaded
-    /// game session: frames a player-accelerated epoch ticked, those whose
-    /// tick work exceeded the epoch's frame budget, and the widest frame's
-    /// tick work. A command queued for the main thread waits at most one
+    /// The frame account, cumulative for the loaded game session: frames an
+    /// epoch ticked, those whose tick work exceeded the frame budget, and the
+    /// widest frame's tick work. A command queued for the main thread waits at most one
     /// frame's tick work.
     /// </summary>
     public ulong? PacedFrames { get; init; }
@@ -1266,14 +1215,11 @@ public sealed record Rectangle
 }
 
 /// <summary>
-/// The epoch's speed or ceiling changed; the epoch continues. An owner's
-/// change carries its new ceiling.
+/// The epoch's speed changed; the epoch continues.
 /// </summary>
 public sealed record SpeedChanged
 {
     public Speed? Speed { get; init; }
-
-    public uint? MaxTicksPerSecond { get; init; }
 }
 
 public sealed record PauseFailed

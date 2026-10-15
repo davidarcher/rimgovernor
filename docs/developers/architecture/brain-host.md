@@ -93,8 +93,8 @@ run and name the machine and run under the tables.
 
 | Quantity | Measured | Current constant | Source row |
 | --- | --- | --- | --- |
-| Frame time at each pace level (p50/p95/p99) | not measured | 30 ms budget (`SupervisedPlayPacing.DefaultFrameBudgetMs`) | native call `timing` / `native_frames` |
-| Effective ticks/s from the 15x floor to the 150x ceiling | not measured | 0.7 down, 1.25 up per 250 ms | `pace`, `clock_step` pacing |
+| Frame time at each pace level (p50/p95/p99) | not measured | 30 ms budget (`ClockCeiling.DefaultFrameBudgetMs`) | native call `timing` / `native_frames` |
+| Effective ticks/s at Ultrafast (15x, 900 ticks/s, with the one ceiling lowering it on over-budget frames) | not measured | 0.7 down, 1.25 up per 250 ms | `pace`, `clock_step` pacing |
 | Critical planner wave wall time | not measured | none | `clock_step.critical_wave_ms` |
 | Immediate review scope wall time | not measured | none | `rounds_review`, `planner_step` `dur_ms` |
 | Hazard stop to resume latency | not measured | none | `clock_step.stop_latency_ms`, `clock_stop` |

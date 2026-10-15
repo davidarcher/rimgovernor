@@ -67,7 +67,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Authority.WritePrecondition), TypeInfoPropertyName = "AuthorityWritePrecondition")]
 [JsonSerializable(typeof(Clock.Speed), TypeInfoPropertyName = "ClockSpeed")]
 [JsonSerializable(typeof(Clock.ObservedSpeed), TypeInfoPropertyName = "ClockObservedSpeed")]
-[JsonSerializable(typeof(Clock.Pacing), TypeInfoPropertyName = "ClockPacing")]
 [JsonSerializable(typeof(Clock.PacingReason), TypeInfoPropertyName = "ClockPacingReason")]
 [JsonSerializable(typeof(Clock.WatchMode), TypeInfoPropertyName = "ClockWatchMode")]
 [JsonSerializable(typeof(Clock.StopReason), TypeInfoPropertyName = "ClockStopReason")]

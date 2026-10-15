@@ -164,14 +164,11 @@ namespace HomeBridge.BridgeTools
         private static ClockEventJournal EnsureJournal() { if (Journal == null) { Journal = new ClockEventJournal(); _cursor = Journal.Newest; } return Journal; }
         private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
         private static object Start(string owner, Verse.TimeSpeed speed, string mode, float healthDrop, float minHealth, float hostileWithin,
-            string ignoredHostiles, string ignoredDowned, string ignoredInjured, int cooldown, int maxTicks, string surgical, bool acceleration, string rest,
-            int maxTicksPerSecond = 0, bool playerPaced = false)
+            string ignoredHostiles, string ignoredDowned, string ignoredInjured, int cooldown, int maxTicks, string surgical, bool acceleration, string rest)
         {
             var s = new State
             {
                 Active = true, Epoch = ++_epoch, Session = Verse.Current.Game, Map = Verse.Find.CurrentMap, RequestedSpeed = speed,
-                MaxTicksPerSecond = maxTicksPerSecond,
-                PlayerPaced = playerPaced, FrameBudgetMs = playerPaced ? DefaultFrameBudgetMs : 0,
                 StartTick = Verse.Find.TickManager.TicksGame, TickDeadline = Verse.Find.TickManager.TicksGame + maxTicks, LastTick = Verse.Find.TickManager.TicksGame
             };
             EnsureJournal();
@@ -180,10 +177,9 @@ namespace HomeBridge.BridgeTools
             else { Verse.Find.TickManager.CurTimeSpeed = speed; Add("started", "Started", s, null); }
             return null;
         }
-        private static object Speed(string owner, long epoch, Verse.TimeSpeed speed, int? maxTicksPerSecond = null)
+        private static object Speed(string owner, long epoch, Verse.TimeSpeed speed)
         {
             _state.RequestedSpeed = speed; Verse.Find.TickManager.CurTimeSpeed = speed;
-            if (maxTicksPerSecond.HasValue) _state.MaxTicksPerSecond = maxTicksPerSecond.Value;
             Add("speed_changed", "Speed changed", _state, new Dictionary<string, object> { ["speed"] = speed.ToString() });
             return null;
         }
@@ -215,24 +211,22 @@ namespace HomeBridge.BridgeTools
             internal Verse.TimeSpeed RequestedSpeed; internal int StartTick, LastTick, MaxProbeTickGap, ProbeCount;
             internal long? TickDeadline, StopAtMs; internal string PendingKind, PendingDetail, StopReason, StopDetail, ForcePauseKind;
             internal bool? PauseVerified; internal long ForcePauseSinceMs; internal bool TestAcceleration;
-            internal int MaxTicksPerSecond;
-            internal bool PlayerPaced; internal int FrameBudgetMs;
             internal List<Dictionary<string, object>> BaselineAlerts = new List<Dictionary<string, object>>(), SuppressedInjuries = new List<Dictionary<string, object>>();
         }
         // The clamp lives in the production SupervisedPlayClamp.cs partial,
         // outside this project; the probe only records what the typed runtime
         // reports of it.
         private static void NoteControllerRead(State s) { }
-        // Player acceleration lives in the production
-        // SupervisedPlayPacing.cs partial, outside this project; the fake
-        // reports a pacing epoch at Ultrafast's own rate with no frames.
+        // Rate reporting lives in the production SupervisedPlayPacing.cs
+        // partial, outside this project; the fake reports an epoch at
+        // Ultrafast's own rate with no frames.
         internal const int DefaultFrameBudgetMs = 30;
         private static double EffectiveTicksPerSecond() => 0;
         private static RimGovernor.Contracts.Wire.Clock.Status ReportFrames(RimGovernor.Contracts.Wire.Clock.Status status) => status;
         private static int PacedTicksPerSecond(State s) => 900;
         // The one ceiling lives in the real ClockCeiling.cs (native-clock-ceiling probe); the fake reports none.
         private static int CeilingTicksPerSecond(State s) => 0;
-        private static RimGovernor.Contracts.Wire.Clock.PacingReason PacingReasonOf(State s) => RimGovernor.Contracts.Wire.Clock.PacingReason.Accelerated;
+        private static RimGovernor.Contracts.Wire.Clock.PacingReason PacingReasonOf(State s) => RimGovernor.Contracts.Wire.Clock.PacingReason.Fixed;
         internal static void FixtureReset()
         { _state = null; Journal = null; _epoch = _cursor = 0; RefusePause = false; InitialStop = null; _patchError = null; HarmonyLib.Harmony.Installed = false; }
         internal static bool IsActiveForFixture() => _state != null && _state.Active;

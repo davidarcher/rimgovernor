@@ -143,7 +143,6 @@ namespace HomeBridge.BridgeTools
                 case "speed_changed":
                 {
                     var speed = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) };
-                    if (P().ContainsKey("maxTicksPerSecond")) speed = speed with { MaxTicksPerSecond = checked((uint)Number(P(), "maxTicksPerSecond")) };
                     result = result with { Event = speed };
                     break;
                 }

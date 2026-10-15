@@ -130,9 +130,6 @@ public static partial class ClockJournal
         string Policy,
         string Original,
         bool TestAcceleration,
-        uint MaxTicksPerSecond,
-        bool CeilingSet,
-        bool PlayerAccelerated,
         string? WindowProfile,
         long? WindowTick,
         ulong? WindowReviewRevision,
@@ -142,11 +139,11 @@ public static partial class ClockJournal
 
     /// <summary>The columns <see cref="ReadIntentRow"/> reads, in order.</summary>
     internal const string IntentColumns =
-        "intent_key,colony,map_id,load_token,plan_id,revision,native_generation,kind,speed,max_ticks,policy,original,test_acceleration,max_ticks_per_second,ceiling_set,player_accelerated,window_profile,window_tick,window_review_revision,window_captured_cursor,window_max_ticks";
+        "intent_key,colony,map_id,load_token,plan_id,revision,native_generation,kind,speed,max_ticks,policy,original,test_acceleration,window_profile,window_tick,window_review_revision,window_captured_cursor,window_max_ticks";
 
     /// <summary>The placeholders <see cref="IntentParameters"/> binds, in the order of <see cref="IntentColumns"/>.</summary>
     internal const string IntentValues =
-        "$key,$colony,$map,$load,$plan,$revision,$native,$kind,$speed,$maxticks,$policy,$original,$test,$perSecond,$ceiling,$player,$wprofile,$wtick,$wrevision,$wcursor,$wmaxticks";
+        "$key,$colony,$map,$load,$plan,$revision,$native,$kind,$speed,$maxticks,$policy,$original,$test,$wprofile,$wtick,$wrevision,$wcursor,$wmaxticks";
 
     /// <summary>Go <c>encodeClockIntent</c>: validates the attempt and returns the intent's column values.</summary>
     internal static IntentRow EncodeIntent(ClockAttempt v)
@@ -157,10 +154,7 @@ public static partial class ClockJournal
         string kind;
         var speed = 0;
         uint maxTicks = 0;
-        uint perSecond = 0;
         bool test = false;
-        bool ceilingSet = false;
-        bool player = false;
         var policy = "";
         var original = "";
         if (intent.Command.Start is { } start)
@@ -169,8 +163,6 @@ public static partial class ClockJournal
             speed = (int)start.Speed;
             maxTicks = start.MaxTicks;
             test = start.TestAcceleration;
-            perSecond = start.MaxTicksPerSecond;
-            player = start.PlayerAccelerated;
             policy = Encoding.UTF8.GetString(Binary(start.Policy!));
         }
         else
@@ -178,11 +170,6 @@ public static partial class ClockJournal
             var change = intent.Command.Speed!;
             kind = "speed";
             speed = (int)change.Speed;
-            if (change.MaxTicksPerSecond is { } ceiling)
-            {
-                perSecond = ceiling;
-                ceilingSet = true;
-            }
             original = Encoding.UTF8.GetString(Binary(change.Original!));
         }
         var w = intent.Window;
@@ -200,9 +187,6 @@ public static partial class ClockJournal
             policy,
             original,
             test,
-            perSecond,
-            ceilingSet,
-            player,
             w?.Profile,
             w?.Tick.Value,
             w?.ReviewRevision,
@@ -227,9 +211,6 @@ public static partial class ClockJournal
             ("$policy", Encoding.UTF8.GetBytes(row.Policy)),
             ("$original", Encoding.UTF8.GetBytes(row.Original)),
             ("$test", row.TestAcceleration ? 1 : 0),
-            ("$perSecond", (long)row.MaxTicksPerSecond),
-            ("$ceiling", row.CeilingSet ? 1 : 0),
-            ("$player", row.PlayerAccelerated ? 1 : 0),
             ("$wprofile", row.WindowProfile),
             ("$wtick", row.WindowTick),
             ("$wrevision", row.WindowReviewRevision),
@@ -253,14 +234,11 @@ public static partial class ClockJournal
             Encoding.UTF8.GetString(r.RequiredBlob(at + 10)),
             Encoding.UTF8.GetString(r.RequiredBlob(at + 11)),
             r.GetInt64(at + 12) != 0,
-            checked((uint)r.GetInt64(at + 13)),
-            r.GetInt64(at + 14) != 0,
-            r.GetInt64(at + 15) != 0,
-            r.Text(at + 16),
-            r.Number(at + 17),
-            r.IsDBNull(at + 18) ? null : r.UnsignedText(at + 18),
-            r.Number(at + 19),
-            r.Number(at + 20) is { } maxTicks ? checked((uint)maxTicks) : null
+            r.Text(at + 13),
+            r.Number(at + 14),
+            r.IsDBNull(at + 15) ? null : r.UnsignedText(at + 15),
+            r.Number(at + 16),
+            r.Number(at + 17) is { } maxTicks ? checked((uint)maxTicks) : null
         );
 
     /// <summary>
@@ -289,15 +267,13 @@ public static partial class ClockJournal
                         (Pb.Speed)row.Speed,
                         Unmarshal<Pb.WatchPolicy>(Encoding.UTF8.GetBytes(row.Policy)),
                         row.MaxTicks,
-                        row.TestAcceleration,
-                        row.MaxTicksPerSecond,
-                        row.PlayerAccelerated
+                        row.TestAcceleration
                     )
                 );
                 break;
             case "speed":
                 command = new ClockCommand(
-                    Speed: new ClockSpeed(Unmarshal<Pb.Epoch>(Encoding.UTF8.GetBytes(row.Original)), (Pb.Speed)row.Speed, row.CeilingSet ? row.MaxTicksPerSecond : null)
+                    Speed: new ClockSpeed(Unmarshal<Pb.Epoch>(Encoding.UTF8.GetBytes(row.Original)), (Pb.Speed)row.Speed)
                 );
                 break;
             default:

@@ -592,9 +592,7 @@ public sealed partial class BrainComposition
                 InjuryStopCooldownMs = 0,
             }),
             DefaultClockWindowTicks,
-            testAcceleration,
-            0,
-            speed == PbClock.Speed.Ultrafast && !testAcceleration);
+            testAcceleration);
         var window = new ClockWindowConfig
         {
             Profile = _options.Profile,

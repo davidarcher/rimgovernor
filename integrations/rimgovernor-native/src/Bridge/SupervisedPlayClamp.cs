@@ -10,8 +10,7 @@ namespace HomeBridge.BridgeTools
     // lower value is exactly a lower tick rate. The clamp lives in a postfix on
     // that getter, so the requested speed stays what it was and the external
     // speed-change watcher never sees it. What it applies is the epoch's one
-    // ceiling (ClockCeiling.cs: frame budget plus brain heartbeat) and the
-    // owner's max_ticks_per_second.
+    // ceiling (ClockCeiling.cs: frame budget plus brain heartbeat).
     internal static partial class Supervisor
     {
         internal const int NormalTicksPerSecond = 60;
@@ -36,12 +35,7 @@ namespace HomeBridge.BridgeTools
             State? s;
             lock (Gate) s = _state;
             if (s == null || !s.Active) return;
-            __result = PacedMultiplier(s, __result);
             __result = ClockCeilingMultiplier(s, __result);
-            var ceiling = s.MaxTicksPerSecond;
-            if (ceiling <= 0) return;
-            var multiplier = ceiling / (float)NormalTicksPerSecond;
-            if (multiplier < __result) __result = multiplier;
         }
 
         // The brain made contact: a status, events or bundle read. It beats the

@@ -5,34 +5,19 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Player acceleration. A PACING_PLAYER_ACCELERATED epoch at
-    // Ultrafast ticks faster than the game's own 15x by raising the
-    // TickRateMultiplier the tick loop reads once per frame (the same postfix
-    // the ceilings use, so no speed ever looks external and the boost static
-    // is never touched). The multiplier adapts to the wall time the previous
-    // frame's ticks took against the epoch's frame budget: over the budget it
-    // drops at once, comfortably under it climbs one step per ramp interval
-    // back toward the boosted rate. The epoch holds neverForceNormalSpeed, so
-    // the game's forced slowdown never applies. Every tick of such an epoch runs
-    // the full frame check (OnUpdate) first, as an accelerated epoch does: ownership,
-    // a player pause and the tick-bounded hazard probe are checked
-    // between any two ticks of a frame, however many the frame carries.
+    // Tick-rate reporting and frame accounting. Native never raises a speed:
+    // the game's own multiplier (Ultrafast is 15x) is the most a player epoch
+    // ticks at, and the one ceiling (ClockCeiling.cs) is the only clamp beneath
+    // it. The epoch holds neverForceNormalSpeed, so the game's forced slowdown
+    // never applies. Every tick of a test-acceleration epoch runs the full
+    // frame check (OnUpdate) first: ownership, a player pause and the
+    // tick-bounded hazard probe are checked between any two ticks of a frame,
+    // however many the frame carries.
     internal static partial class Supervisor
     {
         internal const int DefaultFrameBudgetMs = ClockCeiling.DefaultFrameBudgetMs;
-        // Ultrafast's own multiplier is the floor: pacing never runs a
-        // player slower than the speed they chose. The boosted rate (150x,
-        // 9000 ticks/s) is the ceiling.
-        internal const float PacedFloorMultiplier = 15f;
-        internal const float PacedCeilingMultiplier = 150f;
-        // Decrease immediately; increase by PacedRaise once per PacedRampMs
-        // while the frame's tick work stays under PacedHeadroom of the
-        // budget, so a frame near the budget holds its rate instead of
-        // oscillating across it.
-        private const float PacedLower = 0.7f;
-        private const float PacedRaise = 1.25f;
-        private const float PacedHeadroom = 0.75f;
-        private const long PacedRampMs = 250;
+        // The boosted rate of a test-acceleration epoch (150x, 9000 ticks/s).
+        internal const float TestAccelerationMultiplier = 150f;
 
         private static long _frameBeganTimestamp;
 
@@ -40,37 +25,8 @@ namespace HomeBridge.BridgeTools
         // to OnFrame.
         internal static void OnFrameBegin() => _frameBeganTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
 
-        // The pacing multiplier the TickRateMultiplier postfix raises
-        // Ultrafast to. Caller holds Gate.
-        private static float PacedMultiplier(State s, float gameMultiplier)
-        {
-            if (!s.PlayerPaced || s.RequestedSpeed != TimeSpeed.Ultrafast) return gameMultiplier;
-            // Pause (0) is the game's to keep.
-            if (gameMultiplier < PacedFloorMultiplier) return gameMultiplier;
-            return Math.Max(gameMultiplier, s.Paced);
-        }
-
-        // One frame of pacing, from the frame's tick work. Caller holds Gate.
-        private static void Pace(State s, TickManager tm, double frameMs, int ticks)
-        {
-            if (!s.PlayerPaced || ticks == 0) return;
-            NoteFrame(frameMs, frameMs > s.FrameBudgetMs);
-            var now = NowMs();
-            if (tm.CurTimeSpeed != TimeSpeed.Ultrafast) return;
-            if (frameMs > s.FrameBudgetMs)
-            {
-                var lowered = Math.Max(PacedFloorMultiplier, s.Paced * PacedLower);
-                if (lowered < s.Paced) { s.Paced = lowered; s.PaceLowered++; }
-                s.LastPaceMs = now;
-                return;
-            }
-            if (frameMs > s.FrameBudgetMs * PacedHeadroom || now - s.LastPaceMs < PacedRampMs) return;
-            s.LastPaceMs = now;
-            s.Paced = Math.Min(PacedCeilingMultiplier, s.Paced * PacedRaise);
-        }
-
-        // The tick rate the epoch holds now: the paced (or speed's own)
-        // multiplier under the owner's and the one ceiling.
+        // The tick rate the epoch holds now: the multiplier the game ticks at,
+        // under the one ceiling.
         private static int PacedTicksPerSecond(State s)
         {
             var tm = Find.TickManager;
@@ -99,18 +55,12 @@ namespace HomeBridge.BridgeTools
                 return s.Ceiling.Binding == ClockCeiling.Input.Heartbeat
                     ? RimGovernor.Contracts.Wire.Clock.PacingReason.Heartbeat
                     : RimGovernor.Contracts.Wire.Clock.PacingReason.FrameBudget;
-            if (s.MaxTicksPerSecond > 0 && s.MaxTicksPerSecond < unclamped)
-                return RimGovernor.Contracts.Wire.Clock.PacingReason.Ceiling;
-            if (!s.PlayerPaced || s.RequestedSpeed != TimeSpeed.Ultrafast) return RimGovernor.Contracts.Wire.Clock.PacingReason.Fixed;
-            return s.Paced < PacedCeilingMultiplier
-                ? RimGovernor.Contracts.Wire.Clock.PacingReason.FrameBudget
-                : RimGovernor.Contracts.Wire.Clock.PacingReason.Accelerated;
+            return RimGovernor.Contracts.Wire.Clock.PacingReason.Fixed;
         }
 
         private static int UnclampedTicksPerSecond(State s)
         {
-            if (s.TestAcceleration) return (int)(PacedCeilingMultiplier * NormalTicksPerSecond);
-            if (s.PlayerPaced && s.RequestedSpeed == TimeSpeed.Ultrafast) return (int)(s.Paced * NormalTicksPerSecond);
+            if (s.TestAcceleration) return (int)(TestAccelerationMultiplier * NormalTicksPerSecond);
             switch (s.RequestedSpeed)
             {
                 case TimeSpeed.Normal: return NormalTicksPerSecond;
@@ -159,7 +109,7 @@ namespace HomeBridge.BridgeTools
             return ms <= 0 ? 0 : (last.Value - first.Value) * 1000.0 / ms;
         }
 
-        // The session's frame account, reset when the loaded game changes.
+        // The session's frame account (frames that carried ticks), reset when the loaded game changes.
         private static object? _framesSession;
         private static ulong _pacedFrames, _pacedFramesOverBudget;
         private static double _maxPacedFrameMs;

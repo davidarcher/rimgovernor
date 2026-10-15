@@ -192,8 +192,10 @@ persisted; `AutoResume` decides at load.
 ### As built
 
 Landed: the brain `TargetSpeed` option (#3170), Resume/Pause owning the clock
-(#3172), the speed-key block while the bot holds the clock (#3173) and the one
-native ceiling with a brain heartbeat (#3171). Everything else in this section
+(#3172), the speed-key block while the bot holds the clock (#3173), the one
+native ceiling with a brain heartbeat (#3171) and the removal of native
+`PlayerAccelerated`, `Pace`/`Paced` and the owner's `max_ticks_per_second`
+(#3201; Ultrafast tops out at the game's 15x until #3177). Everything else in this section
 below still runs as described here until its removal piece lands (#3174 and
 #3175 for pacing and player-speed following; #3177 and #3178 for the contract
 and the hold state machine).

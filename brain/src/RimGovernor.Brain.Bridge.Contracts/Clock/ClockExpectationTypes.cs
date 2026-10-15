@@ -16,25 +16,14 @@ public sealed record ClockCommand(ClockStart? Start = null, ClockSpeed? Speed = 
 /// Asks for the native tick boost; it requires SPEED_ULTRAFAST and a game launched with test acceleration
 /// (headless acceptance profiles only), which native refuses otherwise.
 /// </param>
-/// <param name="MaxTicksPerSecond">A continuous ceiling under the speed's own rate; zero is none.</param>
-/// <param name="PlayerAccelerated">
-/// Asks for player acceleration: an Ultrafast epoch, without test acceleration, whose ticks per frame native
-/// adapts to its frame budget (30 ms) toward the boosted rate. Any launch admits it.
-/// </param>
 public sealed record ClockStart(
     Speed Speed,
     WatchPolicy? Policy,
     uint MaxTicks,
-    bool TestAcceleration = false,
-    uint MaxTicksPerSecond = 0,
-    bool PlayerAccelerated = false)
-{
-    /// <summary>The start's pacing as StartRequest carries it: absent (null) for fixed pacing.</summary>
-    public Pacing? WirePacing => PlayerAccelerated ? Pacing.PlayerAccelerated : null;
-}
+    bool TestAcceleration = false);
 
-/// <summary>Go's <c>ClockSpeed</c>; <paramref name="MaxTicksPerSecond"/> is the ceiling the change carries, null keeps the epoch's.</summary>
-public sealed record ClockSpeed(Epoch? Original, Speed Speed, uint? MaxTicksPerSecond = null);
+/// <summary>Go's <c>ClockSpeed</c>.</summary>
+public sealed record ClockSpeed(Epoch? Original, Speed Speed);
 
 /// <summary>
 /// Go's <c>ClockExpectation</c>: retains original admission facts for receipt recovery. It cannot authorize a

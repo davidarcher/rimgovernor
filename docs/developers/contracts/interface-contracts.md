@@ -25,14 +25,11 @@ lists the routes the in-process host offers.
   `external_speed_changed` stop. `ClockTestAcceleration` pins every window to boosted Ultrafast
   instead.
 - **Target speed.** `BrainCompositionOptions.TargetSpeed` (default Ultrafast) is the speed each window the brain
-  starts requests; player acceleration (`PACING_PLAYER_ACCELERATED`) applies only while it is Ultrafast.
+  starts requests; Ultrafast is the game's own 15x (native never raises it; the top speed fell from 150x to 15x in #3201 until the Run/Hold contract #3177 lands).
   `POST /api/player/clock-speed` (`{"speed":"Normal|Fast|Superfast|Ultrafast"}`) changes it live from the next
   window; a running window keeps its speed. `ClockTestAcceleration` ignores it. Acceptance sets each launch's speed
   (a speed-matrix row's) through that route once the brain is up; it writes no player speed.
-- **Owner ceiling** (`StartRequest.max_ticks_per_second`). A continuous ceiling beside the one ceiling below; an
-  accelerated epoch admits a live ceiling change through `SpeedRequest` while its speed stays Ultrafast.
-- **One ceiling** (`ClockCeiling.cs`, #3171) bounds every running epoch's tick rate, whatever its
-  pacing: the lower of a frame-budget input and a brain-heartbeat input; the brain only asks for a
+- **One ceiling** (`ClockCeiling.cs`, #3171) is the only clamp on a running epoch's tick rate: the lower of a frame-budget input and a brain-heartbeat input; the brain only asks for a
   speed. A frame whose tick work exceeds the 30 ms budget lowers the frame input to 70% of the rate
   it ran at, at once; it climbs 25% per 250 ms only after a 1 s hold and only under 75% of the
   budget, and releases at 9000 ticks/s. The heartbeat is brain contact (a status read, an events
@@ -40,21 +37,19 @@ lists the routes the in-process host offers.
   contact ramps it back by doubling every 100 ms. `Epoch.ceiling_ticks_per_second` reports the
   ceiling (0 = none) and `pacing_reason` names the binding input (`FRAME_BUDGET` or `HEARTBEAT`).
   All of these numbers are conservative defaults, unmeasured until the live baseline (#3199).
-  It is the only liveness and frame-budget guard: the brain-side pace backoff and the native
-  blind-tick regulator are gone (#3174). The owner's `max_ticks_per_second` and player acceleration
-  below still run beside it; an explicit beat arrives with the Run/Hold contract (#3177).
-- **Player acceleration** (every Ultrafast window without `ClockTestAcceleration`,
-  `StartRequest.pacing = PACING_PLAYER_ACCELERATED`) is Ultrafast only and never combines with
-  `ClockTestAcceleration`. Native raises Ultrafast's multiplier between 15x and 150x against the
-  30 ms frame budget (reported as `Epoch.frame_budget_ms`; the start request carries none): a frame
-  whose tick work exceeds it lowers the rate at once, one under 75% of it climbs 25% per 250 ms; the
-  epoch holds `DebugViewSettings.neverForceNormalSpeed`, so the game's forced slowdown (danger
-  holding the tick rate at Normal for 800 ticks) never applies. Every tick runs the full safety check, so hazard bounds stay
-  tick-bounded however many ticks a frame carries.
-  - `Epoch.pacing_reason`/`paced_ticks_per_second` and `Status.effective_ticks_per_second` feed the
-    clock_step row and the Observe tab's Now view. `speedmatrix/observations`' `player` row checks the
-    hazard gaps, the over-budget frame share (the manual-command dispatch bound) and `speed_changes`
-    per 6000 ticks.
+  It is the only liveness and frame-budget guard: the brain-side pace backoff, the native
+  blind-tick regulator (#3174), native player acceleration (`PACING_PLAYER_ACCELERATED`, the
+  15x-to-150x raise on frame time) and the owner's `max_ticks_per_second` (#3201) are gone; the
+  wire carries neither field. An explicit beat arrives with the Run/Hold contract (#3177).
+- **Rates.** Native never raises a speed: a player epoch ticks at the game's own multiplier
+  (Ultrafast 15x) under the one ceiling; only a `ClockTestAcceleration` epoch runs the 150x boost
+  and runs the full safety check before every tick, so hazard bounds stay tick-bounded however many
+  ticks a frame carries. Every epoch holds `DebugViewSettings.neverForceNormalSpeed`, so the game's
+  forced slowdown (danger holding the tick rate at Normal for 800 ticks) never applies.
+  - `Epoch.pacing_reason` (`FIXED`, `FRAME_BUDGET` or `HEARTBEAT`)/`paced_ticks_per_second` and
+    `Status.effective_ticks_per_second` feed the clock_step row and the Observe tab's Now view.
+    `speedmatrix/observations`' `player` row checks the hazard gaps, the over-budget frame share (the
+    manual-command dispatch bound) and `speed_changes` per 6000 ticks.
 
 ## Prepared profiles
 

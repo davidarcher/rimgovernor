@@ -91,8 +91,7 @@ namespace HomeBridge.BridgeTools
         internal static object Start(string owner, TimeSpeed speed,
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
-            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "",
-            int maxTicksPerSecond = 0, bool playerPaced = false)
+            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "")
         {
             lock (Gate)
             {
@@ -105,8 +104,6 @@ namespace HomeBridge.BridgeTools
                     return Failure("No playable map is loaded.");
                 if (testAcceleration && (BoostField == null || BoostField.FieldType != typeof(bool)))
                     return Failure("Native boost support is unavailable.");
-                if (playerPaced && (testAcceleration || speed != TimeSpeed.Ultrafast))
-                    return Failure("Player acceleration requires Ultrafast without test acceleration.");
                 try { LetterPauseHook.EnsurePatched(); }
                 catch (Exception error) { return Failure("Pause source tracking unavailable: " + error.Message); }
                 if (LongEventHandler.AnyEventNowOrWaiting)
@@ -134,8 +131,6 @@ namespace HomeBridge.BridgeTools
                     LastTick = Find.TickManager.TicksGame,
                     LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
                     TestAcceleration = testAcceleration,
-                    MaxTicksPerSecond = Clamp(maxTicksPerSecond, 0, 60000),
-                    PlayerPaced = playerPaced, FrameBudgetMs = DefaultFrameBudgetMs, Paced = PacedFloorMultiplier, LastPaceMs = NowMs(),
                     Ceiling = new ClockCeiling(NowMs()),
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),
@@ -212,7 +207,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static object Speed(string owner, long epoch, TimeSpeed speed, int? maxTicksPerSecond = null)
+        internal static object Speed(string owner, long epoch, TimeSpeed speed)
         {
             lock (Gate)
             {
@@ -231,9 +226,8 @@ namespace HomeBridge.BridgeTools
                     s.RequestedSpeed = old;
                     return Failure("The requested speed did not take; supervision remains active.");
                 }
-                if (maxTicksPerSecond.HasValue) s.MaxTicksPerSecond = Clamp(maxTicksPerSecond.Value, 0, 60000);
-                Add("speed_changed", "Supervisor owner changed speed to " + speed + (s.MaxTicksPerSecond > 0 ? " under " + s.MaxTicksPerSecond + " ticks/s" : "") + ".", s,
-                    new Dictionary<string, object?> { { "speed", speed.ToString() }, { "maxTicksPerSecond", (long)s.MaxTicksPerSecond } });
+                Add("speed_changed", "Supervisor owner changed speed to " + speed + ".", s,
+                    new Dictionary<string, object?> { { "speed", speed.ToString() } });
                 return Snapshot(s, true);
             }
         }
@@ -257,7 +251,7 @@ namespace HomeBridge.BridgeTools
             {
                 // The frame can contain many accelerated ticks. Check ownership,
                 // tick-bounded hazards before admitting another tick.
-                if (s.TestAcceleration || s.PlayerPaced) OnUpdate();
+                if (s.TestAcceleration) OnUpdate();
                 if (!s.Active) return;
                 if (!ReferenceEquals(Current.Game, s.Session) || !ReferenceEquals(Find.CurrentMap, s.Map))
                 { Stop(s, "session_changed", "Loaded game changed.", false, null); return; }
@@ -276,7 +270,7 @@ namespace HomeBridge.BridgeTools
                 // The tick-paced hazard probe: at every production speed
                 // consecutive probes are at most ProbeIntervalTicks apart, however
                 // many ticks the frame carries. The accelerated path ran it above.
-                if (!s.TestAcceleration && !s.PlayerPaced)
+                if (!s.TestAcceleration)
                 {
                     if (!RunProbeIfDue(s, tm)) return;
                     RunDigestIfDue(s, tm);
@@ -306,7 +300,7 @@ namespace HomeBridge.BridgeTools
                         {
                             var frameMs = (System.Diagnostics.Stopwatch.GetTimestamp() - _frameBeganTimestamp) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
                             s.Ceiling.Frame(NowMs(), frameMs, tm.TicksThisFrame, (int)Math.Round(tm.TickRateMultiplier * NormalTicksPerSecond));
-                            Pace(s, tm, frameMs, tm.TicksThisFrame);
+                            if (tm.TicksThisFrame > 0) NoteFrame(frameMs, frameMs > s.Ceiling.FrameBudgetMs);
                         }
                     s.Timing.Frames++;
                     if (s.Timing.FrameTicks > s.Timing.MaxFrameTicks) s.Timing.MaxFrameTicks = s.Timing.FrameTicks;
@@ -1371,7 +1365,6 @@ namespace HomeBridge.BridgeTools
                 { "stopAtMs", s != null ? (object?)s.StopAtMs : null },
                 { "pausedMs", ClockPauseAccounting.PausedMs(Current.Game) }, { "runningMs", ClockPauseAccounting.RunningMs(Current.Game) },
                 { "probeTickLimit", ProbeIntervalTicks },
-                { "maxTicksPerSecond", s != null ? s.MaxTicksPerSecond : 0 },
                 { "startTick", s != null ? (object)s.StartTick : null },
                 { "tickDeadline", s != null ? (object?)s.TickDeadline : null },
                 { "injuryStopCooldownMs", s != null ? s.InjuryStopCooldownMs : 0 },
@@ -1475,11 +1468,6 @@ namespace HomeBridge.BridgeTools
             public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick; public long? TickDeadline;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned; public bool PriorNeverForceNormal; public bool NeverForceNormalOwned;
-            // The owner's ceiling from the start or a speed change (0 = none).
-            public int MaxTicksPerSecond;
-            // Player acceleration (SupervisedPlayPacing.cs): the mode, its frame
-            // budget, the multiplier it holds and when it last ramped.
-            public bool PlayerPaced; public int FrameBudgetMs; public float Paced; public long LastPaceMs; public int PaceLowered;
             // The one ceiling (ClockCeiling.cs): frame budget plus brain heartbeat.
             public ClockCeiling Ceiling = new ClockCeiling(0);
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;

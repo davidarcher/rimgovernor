@@ -1,8 +1,6 @@
 # Rule 6 (game data): file|Type.Member|"DefName" or file|Type.Member|number outside Acceptance. Delete a line when fixed; never add one.
-Bridge.Contracts/Clock/ClockEvents.cs|BridgeFunctions.ClockJournalEvent|60000
 Bridge.Contracts/Clock/ClockEvents.cs|BridgeFunctions.ClockStopEvent|1800000
 Bridge.Contracts/Clock/ClockExpectation.cs|BridgeFunctions.ValidateClockExpectation|1800000
-Bridge.Contracts/Clock/ClockExpectation.cs|BridgeFunctions.ValidateClockExpectation|60000
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockEpoch|1800000
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockPolicy|1800000
 Bridge.Contracts/Foundation/NewColonyValidation.cs|NewColonyBounds.MaxTimeoutMs|1800000
@@ -143,9 +141,7 @@ Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"Pemmican"
 Domain/TradeMission.cs|TradeMission.Validate|"Silver"
 Executor/Flows.cs|Executor.CommsTradeRequestEffect|360000
 Host/Autosaver.cs|Autosaver.IntervalTicks|60000
-Host/Client/FacadeClockWriter.cs|FacadeClockWriter.ChangeSpeedAsync|60000
 Host/Client/FacadeClockWriter.cs|FacadeClockWriter.StartAsync|1800000
-Host/Client/FacadeClockWriter.cs|FacadeClockWriter.StartAsync|60000
 Host/Client/FacadeNativeClient.Defense.cs|FacadeNativeClient.DefenseSpatialAccessBudgetMs|2500
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"HiddenConduit"
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"PowerConduit"

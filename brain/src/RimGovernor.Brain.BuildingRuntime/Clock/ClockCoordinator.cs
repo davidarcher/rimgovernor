@@ -408,14 +408,6 @@ public sealed partial class ClockCoordinator : IDisposable
                             MaxTicks = s.MaxTicks,
                             TestAcceleration = s.TestAcceleration,
                         };
-                        if (s.MaxTicksPerSecond != 0)
-                        {
-                            request = request with { MaxTicksPerSecond = s.MaxTicksPerSecond };
-                        }
-                        if (s.WirePacing is { } pacing)
-                        {
-                            request = request with { Pacing = pacing };
-                        }
                         reply = await _writer.StartAsync(request, call).ConfigureAwait(false);
                     }
                     else if (command.Speed is { } sp)
@@ -426,10 +418,6 @@ public sealed partial class ClockCoordinator : IDisposable
                             Authority = pre,
                             Speed = sp.Speed,
                         };
-                        if (sp.MaxTicksPerSecond is { } ceiling)
-                        {
-                            request = request with { MaxTicksPerSecond = ceiling };
-                        }
                         reply = await _writer.ChangeSpeedAsync(request, sp.Original, call).ConfigureAwait(false);
                     }
                 }
