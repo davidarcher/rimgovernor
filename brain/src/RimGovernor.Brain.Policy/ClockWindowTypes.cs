@@ -40,8 +40,6 @@ public sealed record ClockWindowStatus
 
     public ClockWindowState State { get; init; }
 
-    public Fact<bool> ActualPaused { get; init; }
-
     public Fact<bool> NativeTickBoundary { get; init; }
 
     public Fact<bool> DurableEvents { get; init; }
@@ -150,9 +148,6 @@ public enum ClockWindowReason
 
     [WireName("interruption")]
     Interrupted,
-
-    [WireName("not_paused")]
-    NotPaused,
 
     [WireName("no_work")]
     NoWork,

@@ -3,13 +3,13 @@ using System.Diagnostics;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 // The admission tail of ClockScheduler.StepWithReason (Go clock_scheduler.go), run after the planning step: reconcile
-// a start in flight, settle owed epochs, leave a running window to its stops, re-take the clock from the player,
+// a start in flight, settle owed epochs, leave a running window to its stops,
 // then judge the facts (EvaluateClockWindow) and start a window for the step's native-work ask.
 //
 // Differences from Go, all consequences of the C# step planning only:
-//   - the player re-take and the owed-epoch settlement run after the planners, not before them, so a step that
-//     finds either has planned on facts read under a game that was running; the driver returns true and the next
-//     (settled) step plans again at the paused tick;
+//   - the owed-epoch settlement runs after the planners, not before them, so a step that finds one has planned on
+//     facts read under a game that was running; the driver returns true and the next (settled) step plans again at
+//     the paused tick;
 //   - the status and the emergency census are read again here (Go read the bundle once, again only when planners ran);
 //   - the step publishes its own clock_step row; the admission verdict is its own "admission" row.
 
@@ -33,8 +33,6 @@ public sealed partial class ClockWindowDriver
         public bool Cleaned { get; set; }
 
         public bool Reconciled { get; set; }
-
-        public bool Retaken { get; set; }
 
         public int Unwatched { get; set; }
 
@@ -129,10 +127,6 @@ public sealed partial class ClockWindowDriver
         if (run.Combat)
         {
             attrs["combat"] = true;
-        }
-        if (run.Retaken)
-        {
-            attrs["retaken"] = true;
         }
         if (run.Reconciled)
         {
@@ -236,18 +230,6 @@ public sealed partial class ClockWindowDriver
         && loaded.Context?.NativeGeneration is { } generation
         && generation == (ulong)state.Snapshot.Native.Value;
 
-    // Whether the status shows the player running the game under a stopped clock this process no longer owes: the
-    // status is stopped and not actually paused, the tick moved on since the step's, no epoch is owed, and authority
-    // stands so the re-take's review can admit. A player who paused and stays paused never trips it (Go playerDriven).
-    private bool PlayerDriven(PbClock.Status status, IReadOnlyList<ClockEpochObligation> epochs, ControlState state)
-    {
-        if (!ClockScheduler.PlayerRunning(status) || !_scheduler.LastTickKnown || (long)(status.Context?.Tick).GetValueOrDefault() <= _scheduler.LastTick)
-        {
-            return false;
-        }
-        return epochs.All(owned => ClockCoordinator.Terminal(owned.Stage)) && state.Enabled;
-    }
-
     private async Task<bool> AdmitAsync(ClockSchedulerResult step, WindowRun run, CancellationToken call, CancellationToken epoch)
     {
         var journal = _player.Journal;
@@ -256,42 +238,6 @@ public sealed partial class ClockWindowDriver
         var started = _clock.Now();
         var loaded = await ReadBundleAsync(call).ConfigureAwait(false);
         var loadedContext = loaded.Context ?? throw new BridgeContractException("step read carried no context");
-
-        // The player runs the game by hand under a stopped clock: every fact read while it runs is stale before the
-        // review commits, and no window can be admitted against a running game. Re-take the clock once the player has
-        // let go of the speed keys: pause natively; the next step plans at the paused tick.
-        if (loaded.ClockStatus is { } bundledStatus && PlayerDriven(bundledStatus, epochs, _session.State()))
-        {
-            if (!_poll.PlayerQuiet().Quiet)
-            {
-                run.Deferred = true;
-                return false;
-            }
-            PbClock.Status taken;
-            try
-            {
-                taken = BundleClockStatus(loaded, _session.State().Snapshot);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                ClockEvents.AuthorityLost("bundle clock status failed while re-taking the clock", ("err", e.Message));
-                throw Failed(e);
-            }
-            _scheduler.LivePace(taken, started);
-            var repaused = await _session.RepauseClock(taken, call).ConfigureAwait(false);
-            ClockEvents.Event(
-                "clock-scheduler",
-                "authority",
-                "clock re-taken from the player",
-                ("change", "retaken"),
-                ("tick", (repaused.Context?.Tick).GetValueOrDefault()),
-                ("paused", repaused.ActualPaused is not null && repaused.ActualPaused.GetValueOrDefault()),
-                ("pace", _scheduler.Pace.PerSecond),
-                ("stop_reason", taken.State?.Stopped?.Reason.ToString() ?? ""));
-            run.Retaken = true;
-            _scheduler.SetLastTick((long)(repaused.Context?.Tick).GetValueOrDefault());
-            return true;
-        }
 
         var state = _session.State();
         var id = loadedContext.Identity ?? throw new BridgeContractException("step read carried no identity");
@@ -458,10 +404,6 @@ public sealed partial class ClockWindowDriver
             var speed = target.Speed;
             start = start with { Speed = speed, PlayerAccelerated = !start.TestAcceleration && speed == PbClock.Speed.Ultrafast };
         }
-        if (_config.FollowPlayerSpeed)
-        {
-            start = ClockPlayerSpeed.Follow(start, status);
-        }
         // A routine window runs the whole budget; a native-work or combat bound may narrow it below.
         run.Paused = ClockWindowSizing.StopSpan(status, _clock.Now());
         step.Window = new ClockWindowSize(start.MaxTicks);
@@ -508,7 +450,6 @@ public sealed partial class ClockWindowDriver
                 Snapshot = state.Snapshot,
                 Tick = tick,
                 State = clockState,
-                ActualPaused = Boundary.FactBool(status.ActualPaused is not null, status.ActualPaused.GetValueOrDefault()),
                 NativeTickBoundary = Boundary.FactBool(status.NativeTickBoundary is not null, status.NativeTickBoundary.GetValueOrDefault()),
                 DurableEvents = Boundary.FactBool(status.DurableEvents is not null, status.DurableEvents.GetValueOrDefault()),
                 NewestCursor = status.NewestCursor is not null ? Known((long)status.NewestCursor.GetValueOrDefault()) : Unknown<long>(),

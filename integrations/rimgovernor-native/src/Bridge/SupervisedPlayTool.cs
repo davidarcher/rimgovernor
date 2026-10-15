@@ -201,7 +201,7 @@ namespace HomeBridge.BridgeTools
                 s.PriorNeverForceNormal = DebugViewSettings.neverForceNormalSpeed;
                 s.NeverForceNormalOwned = true;
                 DebugViewSettings.neverForceNormalSpeed = true;
-                PlayerSpeedHook.Owned(() => Find.TickManager.CurTimeSpeed = speed);
+                SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
                 if (Find.TickManager.CurTimeSpeed != speed)
                 {
                     Stop(s, "start_refused", "The requested speed did not take.", true, null);
@@ -225,7 +225,7 @@ namespace HomeBridge.BridgeTools
                 s.Ceiling.Beat(NowMs());
                 var old = s.RequestedSpeed;
                 s.RequestedSpeed = speed;
-                PlayerSpeedHook.Owned(() => Find.TickManager.CurTimeSpeed = speed);
+                SupervisorSpeed.Owned(() => Find.TickManager.CurTimeSpeed = speed);
                 if (Find.TickManager.CurTimeSpeed != speed)
                 {
                     s.RequestedSpeed = old;

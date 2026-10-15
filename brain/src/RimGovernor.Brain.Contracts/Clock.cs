@@ -620,14 +620,6 @@ public sealed record Status
     public ulong? PacedFramesOverBudget { get; init; }
 
     public double? MaxPacedFrameMs { get; init; }
-
-    /// <summary>
-    /// The speed the player last chose in this loaded game: a speed
-    /// set by anything but the supervisor itself, or by a fixture standing in
-    /// for the player. Unset until one is chosen; pauses never count. The
-    /// owner starts each window at it.
-    /// </summary>
-    public Speed? PlayerSpeed { get; init; }
 }
 
 /// <summary>The <c>state</c> choice of <see cref="Status"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

@@ -75,14 +75,12 @@ internal sealed class ClockEventPoll(
     Session session,
     IClockEventNative native,
     ClockLatched latched,
-    ClockWindowConfig config,
-    IClock clock) : IDisposable
+    ClockWindowConfig config) : IDisposable
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private PbCommon.Identity? _identity;
     private ClockHistory _history;
     private ClockGrant _grant;
-    private long _manualAt;
     private int _running;
 
     public void Dispose() => _gate.Dispose();
@@ -92,21 +90,6 @@ internal sealed class ClockEventPoll(
     {
         get => Volatile.Read(ref _running) != 0;
         set => Volatile.Write(ref _running, value ? 1 : 0);
-    }
-
-    /// <summary>Records a Manual authority change: the player pressed a speed key at this wall time (Go <c>noteManual</c>).</summary>
-    public void NoteManual(DateTimeOffset at) => Interlocked.Exchange(ref _manualAt, at.UtcTicks);
-
-    /// <summary>How long since the last Manual bump and whether that is at least the quiet bound; with no bump seen the clock is quiet (Go <c>playerQuiet</c>).</summary>
-    public (TimeSpan Since, bool Quiet) PlayerQuiet()
-    {
-        var at = Interlocked.Read(ref _manualAt);
-        if (at == 0)
-        {
-            return (TimeSpan.Zero, true);
-        }
-        var since = clock.Now() - new DateTimeOffset(at, TimeSpan.Zero);
-        return (since, since >= config.EffectivePlayerQuiet);
     }
 
     // Disables authority for what a poll found. Fresh evidence disables before persistence; evidence earlier polls
@@ -366,10 +349,6 @@ internal sealed class ClockEventPoll(
                 {
                     Tel.ObserveTick(current.Tick);
                     Publish(page);
-                    if (ManualAfter(page, _history.Floor))
-                    {
-                        NoteManual(clock.Now());
-                    }
                     if (StoppedIn(page))
                     {
                         Running = false;
@@ -460,11 +439,6 @@ internal sealed class ClockEventPoll(
 
     private static bool StoppedIn(PbClock.EventsPage page) =>
         page.Events.Any(e => e.Event is PbClock.ClockEventEvent.StoppedCase && !ClockJournal.OtherWorld(e, page));
-
-    // Whether the page carries a Manual authority change past the cursor: the player pressed a speed key, which
-    // revokes authority before the service re-acquires it (Go clockPollManual).
-    private static bool ManualAfter(PbClock.EventsPage page, long after) =>
-        page.Events.Any(e => e.Cursor.GetValueOrDefault() > after && e.Event is PbClock.ClockEventEvent.AuthorityChangedCase { Value: var changed } && (changed.Reason ?? "") == "Manual");
 
     // The oneof case name of a wire choice record ("StoppedCase" -> "Stopped"), "None" when no case is set.
     private static string CaseName(object? choice) =>

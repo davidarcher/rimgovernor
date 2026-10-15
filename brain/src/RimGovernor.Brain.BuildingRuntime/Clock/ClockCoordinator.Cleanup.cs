@@ -210,36 +210,4 @@ public sealed partial class ClockCoordinator
         }
         return ErrorJoin.Of(cause, err)!;
     }
-
-    /// <summary>
-    /// Pauses a game the player runs by hand under a stopped epoch this process owned (Go <c>RepauseObserved</c>).
-    /// The status is the stopped one the caller just read and validated (a scheduler step's bundle); the owned pause
-    /// names its epoch, so a replacement owner's clock is never touched. The epoch is already settled, so nothing is
-    /// journaled: the returned status is what the admission that follows reads its pause facts from.
-    /// </summary>
-    public async Task<PbClock.Status> RepauseObserved(PbClock.Status observed, CancellationToken ct)
-    {
-        var epoch = observed.State is PbClock.StatusState.StoppedCase { Value: var stopped } ? stopped.Epoch : null;
-        if (epoch is null || epoch.Owner is null || epoch.Origin is null || observed.Context is not { Identity: { } identity, Tick: var observedTick })
-        {
-            throw new EvidenceException();
-        }
-        await _gate.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            using var call = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            call.CancelAfter(_config.CallTimeout);
-            var reply = await _writer.OwnedPauseAsync(new PbClock.OwnedRequest { Identity = identity, Owner = epoch.Owner }, call.Token).ConfigureAwait(false);
-            var status = ValidatedStatus(reply.Outcome is PbClock.StatusReplyOutcome.StatusCase { Value: var s } ? s : null, identity);
-            if (status.State is not PbClock.StatusState.StoppedCase || status.Context?.Tick < observedTick)
-            {
-                throw new EvidenceException();
-            }
-            return status;
-        }
-        finally
-        {
-            _gate.Release();
-        }
-    }
 }

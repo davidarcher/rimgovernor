@@ -49,10 +49,6 @@ public sealed partial class ClockScheduler
     /// <summary>The ticks the running window's pace covers in the step's wall: what a step expects the tick to have moved by since its predecessor (Go <c>drift</c>).</summary>
     private long Drift() => (long)(Pace.LiveTicks * Config.MaxAge.TotalSeconds);
 
-    /// <summary>Whether a stopped clock's game is running: the player un-paused after an external pause and drives the speed by hand (Go <c>clockPlayerRunning</c>).</summary>
-    internal static bool PlayerRunning(PbClock.Status status) =>
-        status.State is PbClock.StatusState.StoppedCase && status.ActualPaused is not null && !status.ActualPaused.GetValueOrDefault();
-
     /// <summary>
     /// Measures the running window's pace from the previous step's status tick: the pace the step's read validity
     /// widens its bounds by. A stopped, stopping or never-started clock, or a pace not yet measured, leaves the pace
@@ -62,16 +58,10 @@ public sealed partial class ClockScheduler
     {
         var tick = (long)(status.Context?.Tick).GetValueOrDefault();
         var pace = 0.0;
-        // The pace is measured under a running window and, the same way, under a stopped clock the player runs by
-        // hand; only the window widens the bounds.
-        var running = status.State is PbClock.StatusState.RunningCase;
-        if ((running || PlayerRunning(status)) && Pace.Known && tick > Pace.Tick && readAt > Pace.At)
+        if (status.State is PbClock.StatusState.RunningCase && Pace.Known && tick > Pace.Tick && readAt > Pace.At)
         {
             Pace.PerSecond = (tick - Pace.Tick) / (readAt - Pace.At).TotalSeconds;
-            if (running)
-            {
-                pace = Pace.PerSecond;
-            }
+            pace = Pace.PerSecond;
         }
         Pace.LiveTicks = pace;
         (Pace.Tick, Pace.At, Pace.Known) = (tick, readAt, true);

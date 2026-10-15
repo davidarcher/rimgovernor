@@ -27,9 +27,6 @@ public sealed record BrainCompositionOptions
     /// </summary>
     public PbClock.Speed TargetSpeed { get; init; } = PbClock.Speed.Ultrafast;
 
-    /// <summary>Runs each window at the speed the player last chose instead of always Ultrafast (Go <c>--follow-player-speed</c>, default off; ignored with <see cref="ClockTestAcceleration"/>).</summary>
-    public bool FollowPlayerSpeed { get; init; }
-
     /// <summary>Arms the native blind-tick regulator past this many ticks, 1 to <see cref="MaxClockBlindTicks"/>; 0 leaves windows unregulated (Go <c>--clock-blind-ticks</c>, default 0).</summary>
     public uint ClockBlindTicks { get; init; }
 

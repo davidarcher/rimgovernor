@@ -248,9 +248,6 @@ public sealed partial class Session : IPlayerSession, IWorkerSession
     public Task CleanupClockObserved(PbClock.Status? observed, CancellationToken ct) =>
         _clock is null ? Task.CompletedTask : _clock.CleanupObserved(observed, ct);
 
-    /// <summary>Pauses a game the player runs under a stopped owned epoch before the next window is admitted (Go <c>RepauseClock</c>).</summary>
-    public Task<PbClock.Status> RepauseClock(PbClock.Status observed, CancellationToken ct) =>
-        Coordinator("RepauseClock").RepauseObserved(observed, ct);
 
     public bool RoundsMethodsEnabled() => _roundsMethods;
 }

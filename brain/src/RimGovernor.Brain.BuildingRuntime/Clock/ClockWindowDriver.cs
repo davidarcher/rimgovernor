@@ -48,7 +48,7 @@ public sealed partial class ClockWindowDriver : IClockWorkerStopper, IDisposable
         _config = config;
         _clock = clock;
         _wake = wake;
-        _poll = new ClockEventPoll(player, session, native, scheduler.Latched, config, clock);
+        _poll = new ClockEventPoll(player, session, native, scheduler.Latched, config);
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public sealed partial class ClockWindowDriver : IClockWorkerStopper, IDisposable
         var start = Validated(config, scheduler.Config);
         var inbox = await player.Journal.BindClockInboxAsync(config.Profile, lifetime).ConfigureAwait(false);
         var driver = new ClockWindowDriver(player, session, scheduler, native, config with { Start = start, Profile = inbox.Profile }, clock, wake);
-        if (start.PlayerAccelerated || config.FollowPlayerSpeed || config.TargetSpeed is not null)
+        if (start.PlayerAccelerated || config.TargetSpeed is not null)
         {
             scheduler.Backoff = new PaceBackoff(new Tick(config.PaceHorizonTicks), clock.Now, driver.RequestCeilingAsync);
         }

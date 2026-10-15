@@ -178,14 +178,13 @@ public static partial class PolicyFunctions
                 break;
             case ClockWindowState.Running:
             case ClockWindowState.Stopping:
-                Hold(ClockWindowReason.NotPaused);
+                Hold(ClockWindowReason.Outstanding);
                 break;
             default:
                 Hold(ClockWindowReason.Unknown);
                 break;
         }
 
-        Check(f.Status.ActualPaused, true, ClockWindowReason.NotPaused);
         Check(f.Status.NativeTickBoundary, true, ClockWindowReason.Unknown);
         var known = f.Status.DurableEvents.TryGetValue(out var durable);
         if (!known || (!durable && f.Status.State != ClockWindowState.NeverStarted))

@@ -601,8 +601,6 @@ public sealed partial class BrainComposition
             Profile = _options.Profile,
             Start = start,
             TargetSpeed = testAcceleration ? null : TargetSpeed,
-            // serve --follow-player-speed opts back into the player's own speed; the dev tick boost wins.
-            FollowPlayerSpeed = _options.FollowPlayerSpeed && !testAcceleration,
             PaceHorizonTicks = _options.ClockBlindTicks,
             // The host's autosaver (Go newGoAutosaver(...).AtStop): saves at a paused window start, flushing governor state first.
             Autosave = context.Autosave,

@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
     /// <c>TimeControls.DoTimeControlsGUI</c>, so a change made while that call is on the
     /// stack is the player's. The key event is still consumed by the game; the clock is
     /// simply not touched, and a rate-limited message says why. Forced pauses from
-    /// letters and dialogs, and the supervisor's own assignments (PlayerSpeedHook.Owned),
+    /// letters and dialogs, and the supervisor's own assignments (SupervisorSpeed.Owned),
     /// are not in that scope and pass.</summary>
     internal static class PlayerSpeedKeyBlock
     {
@@ -43,9 +43,8 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { }
         }
 
-        /// <summary>True while a player clock change would be swallowed. PlayerSpeedHook
-        /// uses it to not record the swallowed change as the player's speed.</summary>
-        internal static bool Blocking() => SpeedKeyBlockPolicy.Swallow(_inPlayerInput > 0, BotHoldsClock(), PlayerSpeedHook.IsOwned);
+        /// <summary>True while a player clock change would be swallowed.</summary>
+        internal static bool Blocking() => SpeedKeyBlockPolicy.Swallow(_inPlayerInput > 0, BotHoldsClock(), SupervisorSpeed.IsOwned);
 
         private static bool BotHoldsClock()
         {
