@@ -5,7 +5,6 @@ Bridge.Contracts/Clock/ClockExpectation.cs|BridgeFunctions.ValidateClockExpectat
 Bridge.Contracts/Clock/ClockExpectation.cs|BridgeFunctions.ValidateClockExpectation|60000
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockEpoch|1800000
 Bridge.Contracts/Clock/ClockValidation.cs|BridgeFunctions.ClockPolicy|1800000
-Bridge.Contracts/Facts/ColonyGearValidation.cs|BridgeFunctions.ValidateColonyGear|300000
 Bridge.Contracts/Foundation/NewColonyValidation.cs|NewColonyBounds.MaxTimeoutMs|1800000
 BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.DefaultHorizonTicks|2500
 BuildingRuntime/Clock/ClockPaceBackoff.cs|PaceBackoff.FullTicksPerSecond|9000
