@@ -19,7 +19,8 @@ public sealed partial class DefinitionCatalog
     private BiotechCatalog? BuildBiotech()
     {
         var genes = Rows<GeneDef>();
-        if (genes.Count == 0)
+        // Core ships gene defs but the mech work modes are Biotech's: a load without them has no Biotech (#3185).
+        if (genes.Count == 0 || Rows<MechWorkModeDef>().Count == 0)
         {
             return null;
         }

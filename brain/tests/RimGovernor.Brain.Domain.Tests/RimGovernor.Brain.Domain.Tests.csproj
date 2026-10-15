@@ -12,6 +12,18 @@
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="xunit.runner.visualstudio" />
   </ItemGroup>
+  <!-- Tests over the game's own Def types (Game/) compile only where the game install is present, as Game.props does. -->
+  <PropertyGroup>
+    <GameAssembly>$(RimWorldDir)/Assembly-CSharp.dll</GameAssembly>
+    <GameAvailable Condition="Exists('$(GameAssembly)')">true</GameAvailable>
+    <DefaultItemExcludes Condition="'$(GameAvailable)' != 'true'">$(DefaultItemExcludes);Game/**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(GameAvailable)' == 'true'">
+    <Reference Include="Assembly-CSharp"><HintPath>$(RimWorldDir)/Assembly-CSharp.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="UnityStubs"><HintPath>$(RimWorldDir)/UnityStubs.dll</HintPath><Private>true</Private></Reference>
+    <ProjectReference Include="../../src/RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Acceptance/RimGovernor.Brain.Acceptance.csproj" />
