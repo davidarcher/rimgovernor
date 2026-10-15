@@ -26,6 +26,7 @@ internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmission
         Recipes = e.Get<Fact<EquatableArray<ProductionRecipeInput>>>("Recipes", o),
         Promises = e.Get<Fact<EquatableArray<ProductionMaterialPromise>>>("Promises", o),
         Reviewed = e.Get<EquatableArray<ActionId>>("Reviewed", o),
+        NeedTargets = e.Get<EquatableArray<WorkTargetCapacity>>("NeedTargets", o),
     };
     protected override void WriteFields(Utf8JsonWriter w, WorkAdmissionEvidence v, Codecs o)
     {
@@ -33,8 +34,15 @@ internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmission
         w.Put("Pawns", v.Pawns, o); w.Put("WorkResources", v.WorkResources, o);
         w.Put("Stock", v.Stock, o); w.Put("Construction", v.Construction, o);
         w.Put("Reservations", v.Reservations, o); w.Put("Recipes", v.Recipes, o);
-        w.Put("Promises", v.Promises, o); w.Put("Reviewed", v.Reviewed, o);
+        w.Put("Promises", v.Promises, o); w.Put("Reviewed", v.Reviewed, o); w.Put("NeedTargets", v.NeedTargets, o);
     }
+}
+
+internal sealed class WorkTargetCapacityConverter : ObjectCodec<WorkTargetCapacity>
+{
+    protected override WorkTargetCapacity Read(JsonElement e, Codecs o) => new(e.Str("Target"), e.Get<Fact<int>>("MaxPawns", o), e.Get<Fact<double>>("Quantity", o));
+    protected override void WriteFields(Utf8JsonWriter w, WorkTargetCapacity v, Codecs o)
+    { w.WriteString("Target", v.Target); w.Put("MaxPawns", v.MaxPawns, o); w.Put("Quantity", v.Quantity, o); }
 }
 
 internal sealed class WorkBuildingCostConverter : ObjectCodec<WorkBuildingCost>

@@ -9,10 +9,17 @@ public sealed record WorkPawnAvailability(string Pawn, Fact<bool> Available, Fac
 }
 public sealed record WorkAction(PlanId Plan, DomainAction Action, ProgressView Progress);
 public sealed record WorkActionCensus(EquatableArray<WorkAction> Actions, bool Truncated = false);
+/// <summary>An observed target's claimant capacity (vanilla ReservationManager maxPawns) and, for a stack, its quantity. Unknown stays unknown.</summary>
+public sealed record WorkTargetCapacity(string Target, Fact<int> MaxPawns, Fact<double> Quantity);
+/// <summary>One owner's claim on a capacity target; <see cref="Count"/> is the stack units it takes (0 for a bed or a pin).</summary>
+public sealed record WorkTargetClaim(string Target, string Owner, string Task, int Count);
 public sealed record WorkResourceClaims(EquatableArray<ForecastCommitment> Materials,
     EquatableArray<string> Pawns, EquatableArray<string> Targets, EquatableArray<string> Findings)
 {
     public bool Truncated { get; init; }
+    /// <summary>Claims on sleep, recreation and observed food targets. Each such target is also in <see cref="Targets"/>
+    /// (generators avoid every claimed target); admission shares it up to its capacity instead of refusing a second owner.</summary>
+    public EquatableArray<WorkTargetClaim> Shared { get; init; }
 }
 public sealed record WorkResourceView(WorkAdmissionEvidence Evidence, WorkResourceClaims Claims,
     Fact<IReadOnlyDictionary<Resource, Fact<double>>> Materials)
@@ -108,7 +115,18 @@ public static partial class PolicyFunctions
         var selectedMaterials = new Dictionary<(string Owner, string Task, Resource Resource, string Bill), double>();
         var pawns = new HashSet<string>(StringComparer.Ordinal);
         var targets = new HashSet<string>(StringComparer.Ordinal);
+        var exclusive = new HashSet<string>(StringComparer.Ordinal);
+        var shared = new Dictionary<(string Target, string Owner, string Task), int>();
         var findings = new HashSet<string>(StringComparer.Ordinal);
+        // A target some claim takes whole stays exclusive, whatever else shares it.
+        void Take(string target) { targets.Add(target); exclusive.Add(target); }
+        // The same task seen through its order and through its task row is one claim, not two.
+        void Share(PawnActivityStep step, string owner, string task)
+        {
+            targets.Add(step.Target);
+            var key = (step.Target, owner, task);
+            shared[key] = Math.Max(shared.GetValueOrDefault(key), step.Kind == PawnActivityKind.Eat ? step.Count : 0);
+        }
         foreach (var row in actions.OrderBy(a => a.Action.Id.Value, StringComparer.Ordinal))
         {
             var progress = row.Progress;
@@ -120,7 +138,7 @@ public static partial class PolicyFunctions
                 && evidence.ForecastPromises.TryGetValue(out var promises)
                 && (progress.Attempt.Value == 0 || progress.Tick > evidence.Tick || promises.Any(p => p.Id == "production/" + row.Action.Id.Value)))
             {
-                targets.Add(bill.Bench);
+                Take(bill.Bench);
                 if (bill.Worker.Length != 0) pawns.Add(bill.Worker);
             }
             if (row.Action.Building is { } building && row.Action.ConstructionTarget.Length == 0)
@@ -129,7 +147,7 @@ public static partial class PolicyFunctions
                 if (evidence.Standing.TryGetValue(out var standing) && standing.Contains(building)) continue;
                 if (!progress.Unresolved && progress.Stage is Stage.Completed or Stage.Cancelled or Stage.Unsuccessful && progress.Tick < evidence.Tick
                     && evidence.Standing.IsKnown) continue;
-                targets.Add(BuildingClaimTarget(building));
+                Take(BuildingClaimTarget(building));
                 var cost = evidence.Buildings.TryGetValue(out var costs)
                     ? costs.SingleOrDefault(c => c.Definition == building.Definition && c.Stuff == building.Stuff) : null;
                 if (cost is null || !cost.Materials.TryGetValue(out var units))
@@ -149,12 +167,11 @@ public static partial class PolicyFunctions
                         && (p.Assignment != owner.Assignment || p.Revision != owner.Revision))) continue;
                 // Preparation owns the selected future service too, not only its approach cell.
                 // Produced food keeps its unresolved identity until native output rebinding.
-                if (task.Step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation
-                    || task.Step.Kind == PawnActivityKind.Eat && task.Step.Target.Length != 0 && task.Step.Target != "observed-output")
-                    targets.Add(task.Step.Target);
-                foreach (var input in task.Inputs.Where(i => i.Observed && i.Lot.Length != 0)) targets.Add(input.Lot);
-                if (task.Step.Destination is { } destination) targets.Add("cell/" + destination.X + "/" + destination.Z);
-                if (task.Step.Container.Length != 0) targets.Add(task.Step.Container);
+                var sharesService = SharesCapacity(task.Step);
+                if (sharesService) Share(task.Step, task.Pawn, task.Id);
+                foreach (var input in task.Inputs.Where(i => i.Observed && i.Lot.Length != 0 && !(sharesService && i.Lot == task.Step.Target))) Take(input.Lot);
+                if (task.Step.Destination is { } destination) Take("cell/" + destination.X + "/" + destination.Z);
+                if (task.Step.Container.Length != 0) Take(task.Step.Container);
                 var executing = batch.Orders.FirstOrDefault(o => !o.Release && !o.Preparing && o.Task == task.Id);
                 var actual = executing is not null && evidence.WorkResources.TryGetValue(out var actualWorkers)
                     ? actualWorkers.SingleOrDefault(p => p.Pawn == executing.Pawn && p.Assignment == executing.Assignment && p.Revision == executing.Revision) : null;
@@ -192,12 +209,12 @@ public static partial class PolicyFunctions
                         selectedMaterials[key] = Math.Max(selectedMaterials.GetValueOrDefault(key), count);
                     }
                 }
-                if (task.SiteDefinition.Length != 0 && task.Step.Target.Length != 0) targets.Add(task.Step.Target);
+                if (task.SiteDefinition.Length != 0 && task.Step.Target.Length != 0) Take(task.Step.Target);
                 if (task.Step.Recipe is { } recipe)
                 {
-                    targets.Add(task.Step.Target);
-                    if (recipe.Bill.Length != 0) targets.Add(recipe.Bill);
-                    if (recipe.Unfinished.Length != 0) targets.Add(recipe.Unfinished);
+                    Take(task.Step.Target);
+                    if (recipe.Bill.Length != 0) Take(recipe.Bill);
+                    if (recipe.Unfinished.Length != 0) Take(recipe.Unfinished);
                 }
             }
             foreach (var order in batch.Orders)
@@ -212,13 +229,14 @@ public static partial class PolicyFunctions
                     ? native.SingleOrDefault(p => p.Pawn == order.Pawn && p.Assignment == order.Assignment && p.Revision == order.Revision) : null;
                 foreach (var step in order.Steps)
                 {
-                    if (step.Destination is { } destination) targets.Add("cell/" + destination.X + "/" + destination.Z);
-                    if (step.Target.Length != 0) targets.Add(step.Target);
-                    if (step.Container.Length != 0) targets.Add(step.Container);
-                    if (step.Recipe is { } cooking) targets.Add(cooking.Bill);
+                    if (step.Destination is { } destination) Take("cell/" + destination.X + "/" + destination.Z);
+                    if (SharesCapacity(step)) Share(step, order.Pawn, order.Task);
+                    else if (step.Target.Length != 0) Take(step.Target);
+                    if (step.Container.Length != 0) Take(step.Container);
+                    if (step.Recipe is { } cooking) Take(cooking.Bill);
                 }
                 if (order.OutputDelivery?.Recipe is { } continuation)
-                { targets.Add(continuation.Bench); targets.Add(continuation.Bill); }
+                { Take(continuation.Bench); Take(continuation.Bill); }
                 var claims = new List<ForecastMaterialClaim>();
                 if (batch.Tasks.Any(t => t.Id == order.Task && t.Inputs.Count > 0)) continue;
                 foreach (var step in order.Steps)
@@ -271,7 +289,30 @@ public static partial class PolicyFunctions
                 g.Select(c => c.ReservationBill).Distinct().Count() == 1 ? g.First().ReservationBill : default)))
             });
         return new(EquatableArray.From(materials), EquatableArray.From(pawns.Order(StringComparer.Ordinal)),
-            EquatableArray.From(targets.Order(StringComparer.Ordinal)), EquatableArray.From(findings.Order(StringComparer.Ordinal)));
+            EquatableArray.From(targets.Order(StringComparer.Ordinal)), EquatableArray.From(findings.Order(StringComparer.Ordinal)))
+        {
+            Shared = EquatableArray.From(shared.Where(s => !exclusive.Contains(s.Key.Target))
+                .Select(s => new WorkTargetClaim(s.Key.Target, s.Key.Owner, s.Key.Task, s.Value))
+                .OrderBy(c => c.Target, StringComparer.Ordinal).ThenBy(c => c.Owner, StringComparer.Ordinal).ThenBy(c => c.Task, StringComparer.Ordinal))
+        };
+    }
+
+    // Preparation owns the selected future service too, not only its approach cell. Produced food keeps its
+    // unresolved identity until native output rebinding.
+    private static bool SharesCapacity(PawnActivityStep step) => step.Target.Length != 0
+        && (step.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation
+            || step.Kind == PawnActivityKind.Eat && step.Target != "observed-output");
+
+    /// <summary>True when <paramref name="claims"/> on one target need more owners than its MaxPawns (an unreadable value is read as 1,
+    /// this admission's policy) or, for a stack of known quantity, take more units than it holds.
+    /// <paramref name="otherOwners"/> are pawns outside the claims that already occupy it.</summary>
+    private static bool TargetOverCapacity(WorkAdmissionEvidence evidence, string target, IEnumerable<WorkTargetClaim> claims, IEnumerable<string> otherOwners)
+    {
+        var capacity = evidence.NeedTargets.FirstOrDefault(t => t.Target == target);
+        var max = capacity is not null && capacity.MaxPawns.TryGetValue(out var known) && known > 0 ? known : 1;
+        var list = claims.ToArray();
+        if (list.Select(c => c.Owner).Concat(otherOwners).Distinct(StringComparer.Ordinal).Count() > max) return true;
+        return capacity is not null && capacity.Quantity.TryGetValue(out var quantity) && list.Sum(c => (double)c.Count) > quantity;
     }
 
     public static string BuildingClaimTarget(Building building) => "cell/" + building.Cell.X + "/" + building.Cell.Z;
@@ -299,6 +340,7 @@ public static partial class PolicyFunctions
     {
         if (view.Claims.Truncated) return "claims_truncated";
         var exclusive = new HashSet<string>(StringComparer.Ordinal);
+        var sharedSeen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var action in proposed.Actions)
         {
             var parts = action.PawnActivities is { } batch
@@ -308,16 +350,28 @@ public static partial class PolicyFunctions
                 var claim = WorkClaimsOf(view.Evidence, [new(proposed.Id, part, new ProgressView { Action = part.Id, Stage = Stage.Pending })]);
                 // An order's cell is where its pawn walks or stands (approach, hold, a stockpile drop), not a thing
                 // only one pawn may use: orders of one batch may meet at a cell. Named things (stacks, containers,
-                // bills, benches, sites) and a building's own cell stay exclusive.
-                var exclusiveTargets = action.PawnActivities is null ? claim.Targets : claim.Targets.Where(t => !t.StartsWith("cell/", StringComparison.Ordinal));
-                if (exclusiveTargets.FirstOrDefault(t => !exclusive.Add(t)) is { } shared) return "shared_target:" + shared;
+                // bills, benches, sites) and a building's own cell stay exclusive. A capacity target (a bed, a pin,
+                // an observed food stack) is shared up to its capacity below, unless another claim takes it whole.
+                var sharedHere = claim.Shared.Select(s => s.Target).ToHashSet(StringComparer.Ordinal);
+                var exclusiveTargets = (action.PawnActivities is null ? claim.Targets : claim.Targets.Where(t => !t.StartsWith("cell/", StringComparison.Ordinal)))
+                    .Where(t => !sharedHere.Contains(t));
+                if (exclusiveTargets.FirstOrDefault(t => !exclusive.Add(t) || sharedSeen.Contains(t)) is { } taken) return "shared_target:" + taken;
+                if (sharedHere.FirstOrDefault(exclusive.Contains) is { } contested) return "shared_target:" + contested;
+                sharedSeen.UnionWith(sharedHere);
             }
         }
         var candidate = WorkClaimsOf(view.Evidence, proposed.Actions.Select(a => new WorkAction(proposed.Id, a,
             new ProgressView { Action = a.Id, Stage = Stage.Pending })));
+        var capacityTargets = candidate.Shared.Select(s => s.Target).ToHashSet(StringComparer.Ordinal);
+        if (capacityTargets.FirstOrDefault(t => TargetOverCapacity(view.Evidence, t, candidate.Shared.Where(s => s.Target == t), [])) is { } crowded)
+            return "shared_target:" + crowded;
         if (candidate.Findings.Count != 0) return "unknown_claims:" + string.Join(",", candidate.Findings);
         if (candidate.Pawns.FirstOrDefault(view.Claims.Pawns.Contains) is { } held) return "pawn_claimed:" + held;
-        if (candidate.Targets.FirstOrDefault(view.Claims.Targets.Contains) is { } taken) return "target_claimed:" + taken;
+        var committedShared = view.Claims.Shared.Select(s => s.Target).ToHashSet(StringComparer.Ordinal);
+        if (candidate.Targets.FirstOrDefault(t => view.Claims.Targets.Contains(t) && !(capacityTargets.Contains(t) && committedShared.Contains(t))) is { } blocked)
+            return "target_claimed:" + blocked;
+        if (capacityTargets.FirstOrDefault(t => TargetOverCapacity(view.Evidence, t,
+            view.Claims.Shared.Concat(candidate.Shared).Where(s => s.Target == t), [])) is { } full) return "target_claimed:" + full;
         var usesBench = proposed.Actions.Any(a => a.ProductionBill is { Mode: BillMode.GearBatch }
             || a.PawnActivities is { } activity && activity.Orders.Any(o => o.Steps.Any(s => s.Recipe is not null) || o.OutputDelivery?.Recipe is not null));
         if (usesBench && (!view.Evidence.WorkResources.IsKnown || !view.Evidence.Pawns.TryGetValue(out var benchPawns)
@@ -333,11 +387,15 @@ public static partial class PolicyFunctions
                 && (!view.Capacity.TryGetValue(pawn, out var capacity) || !capacity.Capacity.Windows.TryGetValue(out var windows)
                     || !windows.Any(w => w.Start == 0 && w.End > 0))) return "pawn_capacity_unavailable:" + pawn;
         }
-        if (view.Evidence.Pawns.TryGetValue(out var nativePawns)
-            && nativePawns.Any(p => p.Target.TryGetValue(out var target) && target.Length != 0
-                && candidate.Targets.Contains(target) && !candidate.Pawns.Contains(p.Pawn))) return "pawn_target_claimed";
-        if (view.Evidence.WorkResources.TryGetValue(out var allPawns)
-            && allPawns.Any(p => p.Target.Length != 0 && candidate.Targets.Contains(p.Target) && !candidate.Pawns.Contains(p.Pawn))) return "native_target_claimed";
+        // A pawn the plan does not move already occupying a target: whole for an exclusive one, one more owner for a capacity target.
+        IEnumerable<string> Holders(string target, bool journal) => journal
+            ? view.Evidence.Pawns.TryGetValue(out var rows) ? rows.Where(p => p.Target.TryGetValue(out var occupied) && occupied == target).Select(p => p.Pawn) : []
+            : view.Evidence.WorkResources.TryGetValue(out var all) ? all.Where(p => p.Target == target).Select(p => p.Pawn) : [];
+        bool Occupied(string target, bool journal) => Holders(target, journal).Any(p => !candidate.Pawns.Contains(p));
+        bool Crowded(string target, bool journal) => Occupied(target, journal) && TargetOverCapacity(view.Evidence, target,
+            view.Claims.Shared.Concat(candidate.Shared).Where(s => s.Target == target), Holders(target, journal));
+        if (candidate.Targets.FirstOrDefault(t => t.Length != 0 && (capacityTargets.Contains(t) ? Crowded(t, true) : Occupied(t, true))) is not null) return "pawn_target_claimed";
+        if (candidate.Targets.FirstOrDefault(t => t.Length != 0 && (capacityTargets.Contains(t) ? Crowded(t, false) : Occupied(t, false))) is not null) return "native_target_claimed";
         var bills = proposed.Actions.Where(a => a.ProductionBill is { Mode: BillMode.GearBatch })
             .Select(a => new ProductionBatch(a.ProductionBill!, new ProgressView { Action = a.Id, Stage = Stage.Pending }));
         var production = ProductionPromisesOf(PriceProductionBatches(Known(EquatableArray.From(bills)), view.Evidence.Recipes), default);

@@ -181,5 +181,15 @@ internal static class NativeNeedsForecast
     internal const int IngestMaxPawns = 10;
     /// <summary>Vanilla claimant capacity; a non-positive read is unknown, never a guess.</summary>
     internal static Fact<int> Capacity(int maxPawns) => maxPawns > 0 ? Fact.Known(maxPawns) : default;
+    /// <summary>The (maxPawns, stackCount) the vanilla job driver of a service step reserves its target with
+    /// (Ingest: stack, 10, amount; LayDown: bed, SleepingSlotsCount, 0; Play_Horseshoes: pin, joyMaxParticipants, 0). ReservationManager.CanReserve
+    /// refuses a claim whose maxPawns differs from an existing one's and sums stack counts, so bind-time checks must pass exactly these.</summary>
+    internal static (int MaxPawns, int StackCount) ServiceReservation(PawnActivityKind kind, Thing target, int count) => kind switch
+    {
+        PawnActivityKind.Eat => (IngestMaxPawns, count),
+        PawnActivityKind.Sleep when target is Building_Bed bed => (bed.SleepingSlotsCount, 0),
+        PawnActivityKind.Recreation => (DefDatabase<JoyGiverDef>.GetNamed("Play_Horseshoes").jobDef.joyMaxParticipants, 0),
+        _ => (1, -1),
+    };
     private static Fact<double> K(double value) => double.IsFinite(value) ? Fact.Known(value) : default;
 }

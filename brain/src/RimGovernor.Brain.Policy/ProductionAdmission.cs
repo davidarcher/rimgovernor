@@ -29,6 +29,8 @@ public sealed record WorkAdmissionEvidence
     public Fact<EquatableArray<ProductionRecipeInput>> Recipes { get; init; }
     public Fact<EquatableArray<ProductionMaterialPromise>> Promises { get; init; }
     public EquatableArray<ActionId> Reviewed { get; init; }
+    /// <summary>Observed need targets' claimant capacity and stack quantity, frozen with the review; absent targets read as capacity 1.</summary>
+    public EquatableArray<WorkTargetCapacity> NeedTargets { get; init; }
 
     public Fact<EquatableArray<ForecastCommitment>> ForecastPromises => Promises.TryGetValue(out var rows)
         ? Known(EquatableArray.From(rows.Select(p => new ForecastCommitment(p.Id, default) { MaterialClaims = p.Claims }))) : default;
@@ -71,6 +73,9 @@ public static partial class PolicyFunctions
             Promises = promises.TryGetValue(out var claims)
                 ? Known(EquatableArray.From(claims.Select(c => new ProductionMaterialPromise(c.Id, c.MaterialClaims)))) : default,
             Reviewed = batches.TryGetValue(out var rows) ? EquatableArray.From(rows.Select(b => b.Progress.Action)) : [],
+            NeedTargets = facts.ForecastObserved.Needs is { } needs
+                ? EquatableArray.From(needs.Pawns.SelectMany(p => p.Targets).GroupBy(t => t.Id, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal)
+                    .Select(g => new WorkTargetCapacity(g.Key, g.First().MaxPawns, g.First().StockCount))) : [],
         };
     }
 

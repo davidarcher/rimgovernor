@@ -7,6 +7,7 @@ internal static class CodecRegistry
     {
         var codecs = new Codecs();
         codecs.Register(new WorkAdmissionEvidenceConverter());
+        codecs.Register(new WorkTargetCapacityConverter());
         codecs.Register(new WorkBuildingCostConverter());
         codecs.Register(new WorkPawnAvailabilityConverter());
         codecs.Register(new WorkResourcePawnConverter());

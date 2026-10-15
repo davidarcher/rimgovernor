@@ -328,7 +328,8 @@ namespace HomeBridge.BridgeTools
             }
             var target = Thing(step.Target) ?? (p.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? p.carryTracker.CarriedThing : null)
                 ?? throw new InvalidOperationException("target_missing");
-            if (p.carryTracker.CarriedThing != target && (target.IsForbidden(p) || !p.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some))) throw new InvalidOperationException("target_unreachable_or_reserved");
+            var (maxPawns, stackCount) = NativeNeedsForecast.ServiceReservation(step.Kind, target, step.Count);
+            if (p.carryTracker.CarriedThing != target && (target.IsForbidden(p) || !p.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some, maxPawns, stackCount))) throw new InvalidOperationException("target_unreachable_or_reserved");
             Job? job = null;
             if (step.Kind == PawnActivityKind.Work)
             {
