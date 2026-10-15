@@ -140,6 +140,11 @@ if (args.Contains("--gear-check"))
     return RequestCheckMode.RunGear();
 }
 
+if (args.Contains("--fixture"))
+{
+    return FixtureMode.Run(args[Array.IndexOf(args, "--fixture") + 1], args.Contains("--record"));
+}
+
 var controller = new SeatController();
 var doorProbe = args.Contains("--doortest") ? new DoorProbe() : null;
 var live = new PolicyController { Log = args.Contains("--trace") ? Console.Error.WriteLine : null };
@@ -384,6 +389,68 @@ internal static class RequestCheckMode
     private static RealFightRequest With(RealPawn first) => Base with { Pawns = [first, Raider] };
 
     private static RealPawn Deer(string id, string herd, int z) => new() { Id = id, Side = "wild", Kind = "Deer", Herd = herd, X = 40, Z = z };
+}
+
+// --fixture <dir>: the committed hunting fixture (hunting-observed.request.json) built in this process and its readback
+// compared with the committed hunting-observed.readback.json, value for value; the unsupported variant must reject
+// naming its field before any map exists. One seed, one arena. --record writes the readback file instead of comparing
+// (review it against the request before committing). A pass is a round-trip proof, not a calibration claim.
+internal static class FixtureMode
+{
+    internal static int Run(string dir, bool record)
+    {
+        var failures = 0;
+        var readbackPath = Path.Combine(dir, "hunting-observed.readback.json");
+        var json = File.ReadAllText(Path.Combine(dir, "hunting-observed.request.json"));
+        var worldPawns = Verse.Find.WorldPawns.AllPawnsAliveOrDead.Count();
+        try
+        {
+            RequestJson.Read(File.ReadAllText(Path.Combine(dir, "hunting-unsupported.request.json")));
+            Console.Error.WriteLine("FAIL the unsupported variant was accepted");
+            failures++;
+        }
+        catch (RealFightRejected e)
+        {
+            Console.Error.WriteLine("ok   unsupported variant rejected: " + e.Message);
+        }
+
+        if (Verse.Find.Maps.Count != 0 || Verse.Find.WorldPawns.AllPawnsAliveOrDead.Count() != worldPawns)
+        {
+            Console.Error.WriteLine("FAIL a rejected request built a map or generated a pawn");
+            failures++;
+        }
+
+        var request = RequestJson.Read(json);
+        var arena = new Arena(request);
+        var outcome = arena.Fight(request.Seeds[0]);
+        var options = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true };
+        var actual = System.Text.Json.JsonSerializer.Serialize(arena.Readback, options);
+        if (record)
+        {
+            File.WriteAllText(readbackPath, actual + "\n");
+            Console.Error.WriteLine("recorded " + readbackPath);
+        }
+        else if (!System.Text.Json.Nodes.JsonNode.DeepEquals(System.Text.Json.Nodes.JsonNode.Parse(actual), System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(readbackPath))))
+        {
+            Console.Error.WriteLine("FAIL the readback differs from the committed expectation\n" + actual);
+            failures++;
+        }
+
+        Console.Error.WriteLine($"fixture: winner='{outcome.Winner}' ticks={outcome.Ticks} nondeterministic={outcome.Nondeterministic}");
+        foreach (var p in outcome.Pawns)
+        {
+            Console.Error.WriteLine($"  {p.Id} down={p.Downed} dead={p.Dead} hp={p.HealthPercent:0.00} shots={p.Shots} hit={p.HitsTaken} attack={p.FirstAttackTick} depart={p.DepartureTick} withdrew={p.Withdrew}@{p.WithdrawalTick} kills=[{string.Join(",", p.Kills)}] injuries={p.Injuries.Count}");
+        }
+
+        if (outcome.Nondeterministic)
+        {
+            Console.Error.WriteLine("FAIL the fixture is not deterministic");
+            failures++;
+        }
+
+        Console.Error.WriteLine(failures == 0 ? "fixture: PASS" : $"fixture: FAIL ({failures})");
+        return failures == 0 ? 0 : 1;
+    }
 }
 
 // --hunt: one hunter with a rifle against a wild herd of three flee-only deer and one of three revenge-capable boars, each

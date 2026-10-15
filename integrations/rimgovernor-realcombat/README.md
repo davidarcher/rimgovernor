@@ -75,6 +75,42 @@ base fill and `Ground` lays rectangular regions over it, each with a `Terrain` a
 request and reports cell counts per terrain and roof in `TerrainCells` and `RoofCells`. Things (cover, obstacles) are
 unchanged.
 
+## Supported domain and the reconstruction gate (#3156)
+
+The gate: a request states an observed encounter, the game builds it, and the readback equals what was stated with
+nothing defaulted or ignored. `fixtures/` holds one observed hunting scenario that passes it:
+`hunting-observed.request.json` (two hurt hunters with graded gear, a wild boar herd close by and a deer herd far off,
+sand over soil, a constructed and a thin-rock roof patch, one hunter leaving at tick 400) and the expected
+`hunting-observed.readback.json` (what the game held: the stated values plus the resolved weapon and apparel hit points
+and per-terrain and per-roof cell counts). `hunting-unsupported.request.json` is the same request with one member the
+format lacks (`tameAfterHunt`); it must reject naming it. `--fixture fixtures` runs both in one process (one arena, one
+seed, `Verify` on) and exits 0 when the readback equals the committed file value for value; `--record` rewrites the
+readback file (review it against the request before committing). **A passing smoke proves the round trip. It is not a
+calibration claim, and the single seed says nothing about outcome rates.**
+
+Supported scenario classes: a map up to the configured size with a base terrain, rectangular terrain and roof regions,
+and standing things; colonist and hostile humanlikes and animals/insects with stated age, xenotype, skills, traits,
+weapon and apparel (quality, hit points), carried items, hediffs, missing parts, psycasts and Empire title; wild
+faction-less animals in herds under the game's animal AI; colonists hunting a named wild animal; timed departures.
+Unsupported (rejects, never approximated): anything in the rejection list above, plus everything the format has no
+field for (time of day, temperature, food and rest needs, mood, bonds, mental breaks, dynamic events, other maps).
+
+Result shape: per seed `Winner`, `Ticks` and per pawn the facts under "The result" above; `Readback` once per request.
+
+Known caveats, kept honest:
+
+- **Withdrawal** is leaving the map alive by any cause: `WithdrawalTick`/`Withdrew`. `GotAway` is only the flag for a
+  replayed departure. In the fixture the leaving hunter reads `Withdrew` true at tick 400 and `GotAway` true; prey that
+  flees under its own AI would read `Withdrew` without `GotAway`.
+- **Boar retaliation is unverified.** The `--hunt` smoke never had the hunter hit, and the fixture's closer-range boars
+  (placed 23, 18 and 15 cells from the hunter, the last two with a weaker shot) were killed or wounded without ever hitting a hunter in the one seed
+  played, so the fixture does not show a retaliation. The retaliation path is the game's own, not scripted here.
+- **A third arena in one process once showed `ThinIce` over requested terrain** (923 cells). The hypothesis is water
+  terrain freezing at the map temperature, possibly tied to the snow and weather restores added with departures and wild
+  prey; it is not investigated. The fixture builds one arena and requests no water, so it is not exposed; any caller
+  building several arenas per process should compare `Readback` (the gate fails the run by field name on a mismatch).
+- The hunters do not eat, rest or tend: injuries are read at the fight's end, never healed.
+
 ## Build and run
 
 The game copy must match the runtime's `Assembly-CSharp` (the private copy under `.rimgovernor/native-rimworld`, whose

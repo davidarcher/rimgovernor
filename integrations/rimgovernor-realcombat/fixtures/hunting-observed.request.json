@@ -1,0 +1,43 @@
+{
+  "schema": 3,
+  "name": "hunting-observed",
+  "width": 60,
+  "height": 60,
+  "terrain": "Soil",
+  "ground": [
+    { "terrain": "Sand", "roof": "", "minX": 14, "minZ": 26, "maxX": 30, "maxZ": 38 },
+    { "terrain": "", "roof": "RoofConstructed", "minX": 10, "minZ": 32, "maxX": 14, "maxZ": 36 },
+    { "terrain": "", "roof": "RoofRockThin", "minX": 26, "minZ": 26, "maxX": 29, "maxZ": 29 }
+  ],
+  "weather": "Clear",
+  "hostileFaction": "PirateWaster",
+  "things": [],
+  "pawns": [
+    {
+      "id": "h1", "side": "colonist", "kind": "Colonist", "hunt": "b0",
+      "x": 12, "z": 30, "age": 34, "xenotype": "Baseliner",
+      "weapon": "Gun_BoltActionRifle", "weaponQuality": "Good", "weaponHitPoints": 0,
+      "worn": [ { "def": "Apparel_FlakVest", "stuff": "", "quality": "Poor", "hitPoints": 40 } ],
+      "skills": { "Shooting": 4 },
+      "hediffs": [ { "def": "Cut", "part": "right arm", "severity": 3 } ]
+    },
+    {
+      "id": "h2", "side": "colonist", "kind": "Colonist", "hunt": "d0",
+      "x": 12, "z": 34, "age": 52, "xenotype": "Baseliner",
+      "weapon": "Gun_BoltActionRifle", "weaponQuality": "Poor", "weaponHitPoints": 50,
+      "worn": [ { "def": "Apparel_FlakVest", "stuff": "", "quality": "Normal", "hitPoints": 0 } ],
+      "skills": { "Shooting": 5 },
+      "hediffs": [ { "def": "Cut", "part": "left leg", "severity": 2 } ]
+    },
+    { "id": "b0", "side": "wild", "kind": "WildBoar", "herd": "boar", "x": 15, "z": 30 },
+    { "id": "b1", "side": "wild", "kind": "WildBoar", "herd": "boar", "x": 16, "z": 32 },
+    { "id": "b2", "side": "wild", "kind": "WildBoar", "herd": "boar", "x": 16, "z": 28 },
+    { "id": "d0", "side": "wild", "kind": "Deer", "herd": "deer", "x": 44, "z": 34 },
+    { "id": "d1", "side": "wild", "kind": "Deer", "herd": "deer", "x": 46, "z": 36 },
+    { "id": "d2", "side": "wild", "kind": "Deer", "herd": "deer", "x": 46, "z": 32 }
+  ],
+  "departures": [ { "id": "h2", "tick": 400, "kind": "leave" } ],
+  "seeds": [1],
+  "maxTicks": 2400,
+  "verify": true
+}
