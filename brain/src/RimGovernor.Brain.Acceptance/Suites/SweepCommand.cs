@@ -182,7 +182,9 @@ public static partial class SweepCommand
             {
                 if (c.Name.StartsWith("combatlab/hunting-prediction-", StringComparison.Ordinal))
                 {
-                    exit = Math.Max(exit, await SweepHuntingAsync(c, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false));
+                    var huntingExit = await SweepHuntingAsync(c, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
+                    exit = Math.Max(exit, huntingExit);
+                    if (huntingExit != 0) break;
                     continue;
                 }
                 var fixture = c.Name[CasePrefix.Length..];

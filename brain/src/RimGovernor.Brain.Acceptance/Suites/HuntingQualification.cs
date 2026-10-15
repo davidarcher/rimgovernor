@@ -16,8 +16,12 @@ public static class HuntingQualification
         {
             var p = outcome.Actors.Single(x => x.Id == a.Id);
             return p.Dead || p.Downed || p.MissingParts.Except(a.MissingParts, StringComparer.Ordinal).Any() ||
-                p.Injuries.Any(i => (i.Tendable || i.Permanent || i.BleedRate > 0) &&
-                    i.Severity > a.Health.Where(h => h.Definition == i.Definition && h.Part == i.Part).Sum(h => h.Severity) + 0.0001);
+                p.Injuries.GroupBy(i => (i.Definition, i.Part)).Any(group =>
+                {
+                    var before = a.Health.Where(h => h.Definition == group.Key.Definition && h.Part == group.Key.Part).ToArray();
+                    return group.Any(i => i.Tendable || i.Permanent || i.BleedRate > 0) &&
+                        (group.Count() > before.Length || group.Sum(i => i.Severity) > before.Sum(h => h.Severity) + 0.0001);
+                });
         });
 
     /// <summary>Split-conformal absolute relative residual: training outcomes alone set the radius.

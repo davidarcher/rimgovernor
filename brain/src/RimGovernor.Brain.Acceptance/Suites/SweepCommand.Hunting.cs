@@ -23,7 +23,7 @@ public static partial class SweepCommand
                 await RunChildAsync(c, opts, roots[worker], Path.Combine(directory, "seed-" + seed),
                     ["-run-seed", seed.ToString(System.Globalization.CultureInfo.InvariantCulture), "-checkpoint-every", "0"], token);
                 return seed;
-            }, ct);
+            }, ct, stopOnFailure: true);
             await stdout.WriteLineAsync("retained hunting trials: " + directory);
             return 0;
         }

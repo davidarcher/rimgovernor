@@ -105,6 +105,18 @@ public sealed class HuntingQualificationTests
         Assert.Contains("ranking:matched", HuntingQualification.Score(reversed).Failures);
     }
 
+    [Fact]
+    public void ExistingWoundCannotHideAnotherWoundOnTheSameBodyPart()
+    {
+        var trial = Trial(1);
+        var request = trial.Request with { Actors = [trial.Request.Actors[0] with { Health = [new("Cut", "arm", 3)] }] };
+        var unchanged = Sample(1) with { Actors = [Actor() with { Injuries = [new("Cut", "arm", 3, 0, true, false, false)] }] };
+        var another = unchanged with { Actors = [Actor() with { Injuries = [
+            new("Cut", "arm", 2.8, 0, true, false, false), new("Cut", "arm", .2, 0, true, false, false)] }] };
+        Assert.False(HuntingQualification.SeriousHarm(request, unchanged));
+        Assert.True(HuntingQualification.SeriousHarm(request, another));
+    }
+
     private static IEnumerable<HuntingTrial> Calibration() => Enumerable.Range(20001, 19).Select(i => Trial(i) with { HeldOut = false });
     private static EncounterActorOutcome Actor() => new("h", false, false, 1, 0, false, [], [], [], null, null, null, null, null);
     private static EncounterSample Sample(int seed) => new(seed, 100, false, [Actor()]);

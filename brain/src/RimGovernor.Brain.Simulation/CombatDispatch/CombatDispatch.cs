@@ -64,7 +64,7 @@ public static class CombatDispatcher
     /// <summary>
     /// Runs <paramref name="fn"/> once per seed on the given number of workers and returns the runs sorted by
     /// seed. <paramref name="fn"/> receives the worker index (0..workers-1), which maps to that worker's game
-    /// root; one worker never runs two seeds at once. A failing run is recorded, does not stop the others,
+    /// root; one worker never runs two seeds at once. A failing run is recorded; stopOnFailure cancels active/queued work, otherwise it does not stop the others,
     /// and is thrown (the first failure by seed) as a <see cref="DispatchException{T}"/> carrying the full
     /// report. Workers above <see cref="MaxWorkers"/>, below 1, or duplicate seeds are refused before anything
     /// runs.
@@ -74,8 +74,9 @@ public static class CombatDispatcher
         int workers,
         string load,
         Func<int, int, CancellationToken, Task<T>> fn,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool stopOnFailure = false)
     {
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var report = new DispatchReport<T> { Workers = workers, Load = load };
         if (workers < 1 || workers > MaxWorkers)
         {
@@ -101,11 +102,13 @@ public static class CombatDispatcher
                         var run = new DispatchRun<T> { Seed = ordered[i], Worker = worker };
                         try
                         {
-                            run = run with { Value = await fn(worker, ordered[i], cancellationToken).ConfigureAwait(false) };
+                            stop.Token.ThrowIfCancellationRequested();
+                            run = run with { Value = await fn(worker, ordered[i], stop.Token).ConfigureAwait(false) };
                         }
                         catch (Exception ex)
                         {
                             run = run with { Error = ex.Message };
+                            if (stopOnFailure) stop.Cancel();
                         }
                         runs[i] = run; // each index has one writer
                     }

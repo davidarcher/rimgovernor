@@ -65,6 +65,7 @@ unresolved and horizon-censored trials, not only successful rows.
 Stop collection on reconstruction/provenance mismatch, missed serious harm,
 continued contribution after departure, process-cleanup failure or a systemic
 runner failure. Diagnose and fix before spending the remaining run budget.
+The shared dispatcher cancels active and queued hunting trials after the first failure and does not start another stratum. Ordinary combat sweeps retain their continue-on-failure behavior.
 Runtime gates remain 15-second cold start, 1-second warm request and 2-second
 cancellation/cleanup. Diagnostic ceilings record failures; they do not relax
 these gates. Measure shared machine load with timing evidence.
