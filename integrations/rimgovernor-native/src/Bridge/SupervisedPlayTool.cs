@@ -1278,6 +1278,8 @@ namespace HomeBridge.BridgeTools
             public string? Mode; public float HostileWithin; public float HealthDropFraction; public float MinHealthFraction;
             public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick;
+            // What the game's TickRateMultiplier asked for before the ceiling, as of the last frame.
+            public volatile float UnclampedMultiplier;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned; public bool PriorNeverForceNormal; public bool NeverForceNormalOwned;
             // The one ceiling (ClockCeiling.cs): frame budget plus brain heartbeat.
             public ClockCeiling Ceiling = SharedCeiling();

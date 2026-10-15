@@ -31,10 +31,10 @@ namespace HomeBridge.BridgeTools
         // TickRateMultiplier postfix: nothing else about the speed changes.
         internal static void ClampTickRate(ref float __result)
         {
-            if (__result <= 0f) return;
             State? s;
             lock (Gate) s = _state;
-            if (s == null || !s.Active) return;
+            if (s != null && s.Active) s.UnclampedMultiplier = __result;
+            if (__result <= 0f || s == null || !s.Active) return;
             __result = ClockCeilingMultiplier(s, __result);
         }
 

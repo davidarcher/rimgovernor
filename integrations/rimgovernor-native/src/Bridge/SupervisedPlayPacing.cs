@@ -17,8 +17,6 @@ namespace HomeBridge.BridgeTools
     internal static partial class Supervisor
     {
         internal const int DefaultFrameBudgetMs = ClockCeiling.DefaultFrameBudgetMs;
-        // The boosted rate of a test-acceleration epoch (150x, 9000 ticks/s).
-        internal const float TestAccelerationMultiplier = 150f;
 
         private static long _frameBeganTimestamp;
 
@@ -59,18 +57,11 @@ namespace HomeBridge.BridgeTools
             return RimGovernor.Contracts.Wire.Clock.PacingReason.Fixed;
         }
 
-        private static int UnclampedTicksPerSecond(State s)
-        {
-            if (s.TestAcceleration) return (int)(TestAccelerationMultiplier * NormalTicksPerSecond);
-            switch (s.RequestedSpeed)
-            {
-                case TimeSpeed.Normal: return NormalTicksPerSecond;
-                case TimeSpeed.Fast: return 3 * NormalTicksPerSecond;
-                case TimeSpeed.Superfast: return 12 * NormalTicksPerSecond;
-                case TimeSpeed.Ultrafast: return 15 * NormalTicksPerSecond;
-            }
-            return 0;
-        }
+        // The rate the game's own multiplier asks for before the ceiling: what
+        // ClampTickRate saw last frame, Ultrafast's boost included. 0 while paused
+        // or before the first frame.
+        private static int UnclampedTicksPerSecond(State s) =>
+            (int)Math.Round(s.UnclampedMultiplier * NormalTicksPerSecond);
 
         // Effective speed: game ticks per wall second over the last
         // EffectiveWindowMs of frames, paused frames included, sampled every
