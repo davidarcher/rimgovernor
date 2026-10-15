@@ -313,6 +313,96 @@ corpse's potential yield times its rot clock, replaced by the butchered meat; a 
 cadence over the trailing 14 days feeds the hunters' throughput
 ([hunting](../architecture/supply-model.md#hunting)).
 
+### Need-task targets and the one-owner rule
+
+`ForecastCoupled.EvaluateCoupledSchedule` refuses a portfolio in which two pawns own
+the same need target (`conflicting_selected_target_owners`, not time-aware; added with
+#3135). The owners are the `ForecastNeedTask.Target` of each selected need task plus
+the `ActivityTaskCandidate.Target` of each selected binding that names an observed
+`Needs.Pawns[].Targets` id. `ForecastNeedTask` is a policy-internal record; the wire
+type is `NeedTarget`. What a target means depends on its producer:
+
+| Producer | `Kind` | `Target` | Meaning | Exclusive? |
+| --- | --- | --- | --- | --- |
+| Native `NativeNeedsForecast` bed row | `rest` | bed thing id | the bed the pawn lies in (`CanUseBedNow`) | yes |
+| Native horseshoes pin row | `joy` | pin thing id | the exact recreation object | yes |
+| Practice joy tasks (`ForecastCoupledCandidates`) | `joy` | practice target | the exact practice object | yes |
+| Native food row (observed stack) | `food` | meal stack thing id, `AvailableCount` = stack size | where to take meals from | no |
+| `CoupledFoodMethodCandidates.AddEating` (produced or delivered food) | `food` | `cell/x/z` of the delivery cell (`CoupledFoodUse.Location`) | the cell the meal stack will sit in | no |
+| Incumbent preparation (`ForecastIncumbentPreparation`) | observed service kind | the observed service target | the current service the pawn already holds | as its kind |
+
+An ingestion target names only the source stack. The Eat step carries a thing target
+(or `observed-output`, rebound natively to the selected resource within two cells of
+the use cell and the observed lot) plus a `count`; native builds `JobDefOf.Ingest` on
+that stack with `job.count` and checks `stackCount >= count`
+(`NativePawnActivities.cs`, `NativeActivityTasks.cs`). Nothing reserves a dining
+cell, chair or table for the eater: the chew spot is chosen by RimWorld at ingestion
+and is listed as unsupported (`chew_spot_travel` on the food `NeedTarget`). The native
+legality check is per pawn and does not sum counts across pawns, so conservation of
+the shared stack lives in the evaluator's lot ledger (`Inputs` with `Lot`; refusals
+`source_lot_shortfall`, `timed_material_shortfall`), so a demand-versus-quantity
+check already exists independent of the owner rule. (From RimWorld's `JobDriver_Ingest`, to be confirmed by a native run:
+the ingest reservation names the stack count it will consume and allows several
+claimants while the counts fit; the brain's `CanReserveAndReach(target)` bind-time
+check uses the default single claimant, so it can refuse while another pawn holds an
+active reservation. Not exercised by any acceptance case.)
+
+Exclusivity is real for beds and recreation objects (one occupant, pawn-owned for
+the whole service) and is enforced twice: this check at selection, and Hands claims
+(`WorkClaimsOf` adds sleep, recreation and exact observed-food `Step.Target` to
+`Claims.Targets`; `WorkResourcesRefusal` returns `target_claimed:` across Methods and
+`shared_target:` inside one proposal, exempting only `cell/` targets of a
+PawnActivities batch). Tests that pin the rule:
+`ForecastCoupledSelectionTests.TwoParticipantsCannotSelectTheSameObservedServiceTarget`
+(joy), `ForecastIncumbentSelectionTests.SyntheticRetainedTargetCannotBeAssignedToAnotherParticipant`
+(joy), `FutureNeedTargetClaimsTests` (Hands claims for sleep/recreation) and
+`PortfolioSearchDiagnosisTests` (the four-worker food case, pinned as a limiter, not
+a physical constraint). The only history of the rule is its introduction in #3135
+(e05747f10); the comment gives the reason as Hands ownership of exact targets for the
+whole Method.
+
+Consequence for food: the rule is applied to a stackable source as if it were a seat.
+In production `CoupledFoodUse.Location` is the product's delivery destination for
+every rostered pawn, so any plan serving two consumers from one produced or
+delivered meal batch is refused, not only the generated four-worker fixture
+(`PortfolioSearchDiagnosisTests`, #3195/#3196). The data that separates the classes
+is already present: `ForecastNeedTask.Kind == "food"` with `Count > 0` and a stock
+quantity (`AvailableCount`, or the produced lot's quantity) is a stackable source;
+`rest` and `joy` (`Count == 0`) name an occupied object.
+
+Options for the design decision (#3202 step 2, not chosen here):
+
+- (a) Exempt `Kind == "food"` stack sources from the owner check. No wire, save or
+  contract change: `NeedTask.Kind/Count` and `Inputs/Lot` already exist; the lot
+  ledger already supplies the demand-versus-quantity check. Edit
+  `ForecastCoupled.cs` (about 6 lines in the owner computation) plus tests (flip
+  the `PortfolioSearchDiagnosisTests` assertions, add a bed refusal test, re-record
+  `four-workers.quality.json` and the docs). It covers generated delivery-cell
+  targets, which never appear in `Claims.Targets` (the Eat step target is
+  `observed-output`; only the Deliver destination cell is claimed and `cell/` is
+  exempt inside one batch). For observed stack ids the Hands claim and
+  `shared_target`/`target_claimed` would still refuse a second claimant, so an
+  evaluator-only change would select plans admission rejects unless Hands gains
+  stack-count-aware claims for Eat steps. Cost: a rule keyed on `Kind` strings
+  (a convention, not a type).
+- (b) Split a source target from an occupied target. `ForecastNeedTask` and
+  `ActivityTaskCandidate` (both policy-internal, not wire or save) gain a field and
+  every constructor of `ForecastNeedTask` (producers in `ForecastCoupledCandidates`,
+  `CoupledFoodMethodCandidates`, `ForecastIncumbentPreparation` and about eight test
+  files) is touched; the owner check reads only the occupied field. If observed rows
+  must declare it natively, `NeedTarget` (wire, `WireJsonContext`, native
+  `NativeNeedsForecast`) changes too. For food the occupied target would be empty
+  because the chew spot is unmodeled, so (b) is (a) made typed instead of
+  convention-keyed. Largest surface; persisted state is untouched (the records are
+  transient and not in the save or journal).
+- (c) Keep the rule; rebuild the fixture with two dining cells. No contract change.
+  Test-only: the four-worker fixture in `PortfolioAllocationTests`, a second
+  delivery chain and routes, the #3195 reference schedule and checker
+  (`PortfolioReferenceScheduleTests`, `ReferenceScheduleChecker`), the diagnosis
+  tests, `four-workers.quality.json` and the docs, with a large re-baseline. It does
+  not change production, where all consumers of one batch still share the delivery
+  cell, so the limiter stays in the real colony.
+
 ## Trade food policy
 
 `ReviewTradeNeed` accepts an optional `TradeFoodContext` from the shared food
