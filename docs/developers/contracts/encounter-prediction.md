@@ -85,6 +85,51 @@ statistical gates. Held-out health, terrain, herd and departure evidence belongs
 to [#2825](https://github.com/davidarcher/rimgovernor/issues/2825); broader runs require
 nightly or explicit authorization.
 
+## Evidence still required before selection
+
+A direct engine run and its worker replay share the same simulation implementation.
+Their agreement establishes service fidelity and repeatability; it cannot measure
+prediction error against the live game. Repeating an identical seed also does not
+add independent observations to a false-safe denominator.
+
+The next qualification experiment belongs to #2825's existing CombatLab runner
+and retained bundle/report lifecycle. Before a broader run, freeze the supported
+scenario class, prediction interval construction, serious-harm/false-safe event
+classification, held-out split and seed schedule. Retain rejected and unresolved
+scenarios as well as successful predictions so abstention cannot masquerade as
+accuracy. The present worker exports samples, not calibrated predictive intervals;
+interval construction and independent native comparisons remain unfinished.
+
+The required evidence is:
+
+- Matched initial native readback and independent observed outcomes, with build,
+  mod, tactic, scenario and seed provenance. Prediction seeds must be independent
+  of the live simulation's future randomness.
+- Held-out health, distance, terrain, herd and departure variations. Observe
+  actual prey retaliation and its injury/death consequences; inferred use of the
+  game's Hunt job does not prove that behavior transferred correctly.
+- Duration errors, declared interval coverage, separated-pair ranking, missed
+  serious injury/death, contribution after departure, unresolved rate and tails,
+  using the predeclared criteria above. Downstream recovery labor remains separate.
+- Startup, first-request, warm-request and cancellation/cleanup measurements,
+  including failures. A diagnostic timeout ceiling is not a passing latency gate.
+
+The existing `combatlab/hunt-squad` and `combatlab/hunt-door` cases use a quiet
+world. The latter explicitly substitutes a permanent manhunter because that
+fixture's storyteller disables revenge on damage. These are execution cases,
+not suitable evidence for revenge frequency. Reuse the CombatLab machinery with
+revenge enabled and observed; do not qualify against the substituted threat.
+
+Even with zero failures, the exact one-sided 95% binomial upper bound is
+`1 - 0.05^(1/n)`. At least 299 independent applicable safe predictions with zero
+false-safe observations are needed to put that bound at or below 1%. This is a
+necessary sample-size floor under the binomial assumptions, not a proposed run
+budget or a sufficient qualification test: correlated repeats, unrepresentative
+scenes and missing domain strata do not establish coverage. Any observed
+false-safe still fails the separately declared zero-failure gate. A 20-seed pilot
+can estimate noise but cannot satisfy this bound. Broad collection still requires
+nightly or explicit authorization; no accepted report or #3130 cutover follows
+from a lifecycle smoke alone.
 ## Reproducible lifecycle probe
 
 The existing `RealCombat.NativeSmoke --predictor <absolute host DLL> --game
