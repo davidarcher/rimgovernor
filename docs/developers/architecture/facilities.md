@@ -979,23 +979,19 @@ embedder keeps it where it stands unless the switching price pays for a move; th
 in-place widening is gone. `RangeTemplate(room)` turns the layout into
 the `[]WantedPiece` the room reconciler builds.
 
-`MaintainTraining` (Military, #2619, per-skill since #2707) demands it. Each
-adult is judged on the one skill it trains (`policy.TrainingSkill`, mirrored by
-native `RangeTraining.TryChoose`: the higher usable level, then the stronger
-passion, then Shooting; Shooting is unusable for a Brawler, a skill for a pawn
-with it disabled) against that skill's own ceiling: `UnlockedTrainingTier` for
-Shooting, `UnlockedSparringTier` for Melee (the best tier whose gate research is
-finished in the research census; an unknown census holds at tier 0).
-`TrainingReview` counts the pawns below per skill. While a Shooting pawn is
-below, the military store declares `RoomDemand.Ranges` (stands: RangeStandsFor
-the capable adults; the stockpile review, so with the stockpiles family); while
-at least two Melee pawns are below (a lone one has no partner) it declares
-`RoomDemand.Rings` (`RingMarkersFor` the capable adults, grow-only).
-`RoundsTrainingPlanner` (family `training`) then reconciles `RangeTemplate` and
-`RingTemplate` in turn (a room with nothing ready leaves the next its turn) and
-takes no further action once they stand. A child and a pawn who can train neither
-skill are not counted. No action kind or wire field is involved.
+`MaintainTraining` requests facilities only for actual assigned capability requirements
+threatened by bounded native decay. Held Ideology role requirements preserve OR skill
+branches; unlocked tiers constrain feasibility rather than desired proficiency. A range
+serves supported Shooting maintenance; a ring provides at least two markers when an
+assigned melee holder needs a partner. Existing facilities remain grow-only.
+`RoundsTrainingPlanner` reconciles those facilities. Shared coupled selection chooses the
+actual sessions, participants and opportunity costs through ordinary Method/Hands actions.
+See [assigned capability maintenance](../contracts/capability-maintenance.md).
 
+Under active bot authority, range WorkGivers cannot independently start sessions and
+sparring `PlanFor` cannot form a roster. Exact admitted Work steps install participants;
+the existing native drivers retain mechanics and safeguards. The scanner behavior below
+remains available outside that controlled scope.
 **Shooting tiers.** The drill climbs a research-gated ladder of practice weapons
 (the sparring ring has its own, below; both stop teaching at 8, 12, 16 and 20). Every
 weapon keeps the 3 s cycle; what changes is the XP per shot and the skill

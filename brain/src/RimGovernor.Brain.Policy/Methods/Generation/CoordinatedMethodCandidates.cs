@@ -23,6 +23,7 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     public RimGovernor.Contracts.Wire.Observations.FoodCookingEstimate? Cooking { get; init; }
     public string Ingredient { get; init; } = "";
     public PawnActivityRecipe? Recipe { get; init; }
+    public PawnActivityPractice? Practice { get; init; }
     public string ProductStuff { get; init; } = "";
     public ClothingActivityRequirement? Clothing { get; init; }
     public EquatableArray<SelectedActivityInput> SelectedInputs { get; init; }

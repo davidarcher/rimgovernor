@@ -14,7 +14,7 @@ namespace RimGovernor.Runtime
     {
         public override PathEndMode PathEndMode => PathEndMode.OnCell;
 
-        public override bool ShouldSkip(Pawn pawn, bool forced = false) => !SparringBouts.Eligible(pawn) || SparringBouts.MarkerDef == null;
+        public override bool ShouldSkip(Pawn pawn, bool forced = false) => RangeTraining.MigratedScope(pawn) || !SparringBouts.Eligible(pawn) || SparringBouts.MarkerDef == null;
 
         public override IEnumerable<Thing> PotentialWorkThingsGlobal(Pawn pawn)
         {
@@ -24,7 +24,7 @@ namespace RimGovernor.Runtime
 
         public override bool HasJobOnThing(Pawn pawn, Thing t, bool forced = false)
         {
-            return t.Spawned && !t.IsForbidden(pawn) && SparringBouts.For(pawn.Map).PlanFor(pawn) == t && pawn.CanReserve(t);
+            return !RangeTraining.MigratedScope(pawn) && t.Spawned && !t.IsForbidden(pawn) && SparringBouts.For(pawn.Map).PlanFor(pawn) == t && pawn.CanReserve(t);
         }
 
         public override Job JobOnThing(Pawn pawn, Thing t, bool forced = false)

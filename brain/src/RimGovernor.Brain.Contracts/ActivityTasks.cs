@@ -17,6 +17,8 @@ public sealed record ActivityTaskRead
 {
     public ObservationContext? Context { get; init; }
     public bool Known { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PracticeMandateRead>))]
+    public EquatableArray<PracticeMandateRead> Practice { get; init; }
     public bool Truncated { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<ActivityTaskBinding>))]
     public EquatableArray<ActivityTaskBinding> Bindings { get; init; }

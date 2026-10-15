@@ -221,3 +221,5 @@ The [pawn activity contract](../architecture/pawn-activity.md) owns these event 
 
 These events use the existing bounded telemetry queue and rotating logs. Interval
 boundaries are non-overlapping and captured by native transition hooks; there is no periodic phase sampling. Open intervals export only when changed or closed. Lost or rotated records are unknown time, not zero work.
+
+The existing `coupled_selection` vectors also carry `maintenance` rows: actual requirement identity, conditional native XP shortfall and findings. The OTLP timeline reads these attrs; native `production/maintenance-range` and `production/maintenance-sparring` correlate the selected Method with real skills and restoration.

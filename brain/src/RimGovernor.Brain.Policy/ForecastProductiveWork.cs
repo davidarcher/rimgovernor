@@ -10,7 +10,7 @@ public sealed record ForecastProductiveDuration(Fact<double> WorkTicks, Forecast
 public static partial class PolicyFunctions
 {
     public static Fact<bool> ReviewProductiveActivityNeed(PawnActivities batch, Fact<bool> needed, ActivityTaskRead read)
-        => ProductiveFoodDemandEnded(batch, read) ? Known(false) : needed;
+        => ProductiveFoodDemandEnded(batch, read) || PracticeMandateEnded(batch, read) ? Known(false) : needed;
 
     /// <summary>Reconsider only at a physical work boundary. Fresh needs can retire the supported
     /// ingestion-only investment; missing observations cannot establish demand satisfaction.</summary>

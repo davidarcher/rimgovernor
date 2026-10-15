@@ -30,8 +30,10 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         s.GetProperty("Count").GetInt32(), s.GetProperty("Deadline").GetInt64(), s.Str("WaitForFilth"))
         { Destination = s.GetProperty("Destination") is var d && d.ValueKind != JsonValueKind.Null
             ? new Cell(d.GetProperty("X").GetInt32(), d.GetProperty("Z").GetInt32()) : null,
-          Recipe = ReadRecipe(s.GetProperty("Recipe")), NotBefore = s.GetProperty("NotBefore").GetInt64(), Container = s.Str("Container"),
+          Practice = ReadPractice(s.GetProperty("Practice")), Recipe = ReadRecipe(s.GetProperty("Recipe")), NotBefore = s.GetProperty("NotBefore").GetInt64(), Container = s.Str("Container"),
           SupportDemand = s.Str("SupportDemand"), Medicine = s.Str("Medicine") };
+    private static PawnActivityPractice? ReadPractice(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
+        : new(e.Str("Skill"), e.Str("Role"), e.GetProperty("RequirementIndex").GetInt32(), e.Str("Partner"), e.Str("PartnerTarget"), e.GetProperty("DurationTicks").GetInt32()) { Beneficiary = e.Str("Beneficiary") };
     private static PawnActivityRecipe? ReadRecipe(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Bill"), e.Str("Recipe"), EquatableArray.From(e.GetProperty("Ingredients").EnumerateArray()
             .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32())))) { Resource = e.Str("Resource"), Stuff = e.Str("Stuff"), Unfinished = e.Str("Unfinished") };
@@ -109,6 +111,13 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         w.WriteString("Job", s.Job); w.WriteNumber("Count", s.Count); w.WriteNumber("Deadline", s.Deadline); w.WriteString("WaitForFilth", s.WaitForFilth);
         w.WriteNumber("NotBefore", s.NotBefore); w.WriteString("Container", s.Container);
         w.WriteString("SupportDemand", s.SupportDemand); w.WriteString("Medicine", s.Medicine);
+        if (s.Practice is { } practice)
+        {
+            w.WriteStartObject("Practice"); w.WriteString("Beneficiary", practice.Beneficiary); w.WriteString("Skill", practice.Skill); w.WriteString("Role", practice.Role);
+            w.WriteNumber("RequirementIndex", practice.RequirementIndex); w.WriteString("Partner", practice.Partner);
+            w.WriteString("PartnerTarget", practice.PartnerTarget); w.WriteNumber("DurationTicks", practice.DurationTicks); w.WriteEndObject();
+        }
+        else w.WriteNull("Practice");
         if (s.Destination is { } d)
         { w.WriteStartObject("Destination"); w.WriteNumber("X", d.X); w.WriteNumber("Z", d.Z); w.WriteEndObject(); }
         else w.WriteNull("Destination");

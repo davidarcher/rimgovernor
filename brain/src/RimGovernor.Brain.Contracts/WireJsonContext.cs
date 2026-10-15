@@ -1914,4 +1914,9 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Defs.PriceType), TypeInfoPropertyName = "DefsPriceType")]
 [JsonSerializable(typeof(Defs.QualityCategory), TypeInfoPropertyName = "DefsQualityCategory")]
 [JsonSerializable(typeof(Defs.TradeCurrency), TypeInfoPropertyName = "DefsTradeCurrency")]
+[JsonSerializable(typeof(EquatableArray<Observations.PracticeWorker>))]
+[JsonSerializable(typeof(Observations.PracticeActivityRead))]
+[JsonSerializable(typeof(RimGovernor.Brain.Domain.PawnActivityPractice))]
+[JsonSerializable(typeof(EquatableArray<Observations.PracticeMandateRead>))]
+[JsonSerializable(typeof(EquatableArray<Observations.PracticeFloorRead>))]
 public sealed partial class WireJsonContext : JsonSerializerContext;

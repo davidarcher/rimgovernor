@@ -302,3 +302,5 @@ new Method. It never replays a consuming operation based on a missing receipt.
 Observed native UFT conversion removes the loose-input claim while preserving
 pawn/bench ownership. The session journal records only the selected attempt;
 all rejected alternatives and forecast graphs are transient.
+
+Selected range/sparring use the existing Work step with a typed practice mandate and reciprocal exact participants. See [assigned capability maintenance](capability-maintenance.md) for floor ownership, bounded execution and uncertainty. Native autonomous roster/skill selection is disabled under active bot authority for the current map; uncontrolled behavior remains native.

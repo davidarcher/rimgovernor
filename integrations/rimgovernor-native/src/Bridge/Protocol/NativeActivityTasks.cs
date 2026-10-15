@@ -115,6 +115,12 @@ public sealed class NativeActivityTasks
                         bindings.Add(new(task.Id, step with { Target = target.GetUniqueLoadID() }));
                     }
                 }
+                else if (step.Practice != null)
+                {
+                    if (!NativePracticeActivities.Assigned(pawn, step.Practice)) { satisfied.Add(task.Id); continue; }
+                    var target = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == step.Target);
+                    if (target != null && NativePracticeActivities.Legal(pawn, target, step)) bindings.Add(new(task.Id, step));
+                }
                 else if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof" && step.Destination is { } destination)
                 {
                     var cell = new IntVec3(destination.X, 0, destination.Z);
@@ -207,6 +213,7 @@ public sealed class NativeActivityTasks
                 Options = EquatableArray.From(reads.SelectMany(r => r.Options)) };
         }
         return new() { Context = context, Known = true, Truncated = truncated, Food = food,
+            Practice = EquatableArray.From(request.Batch.Tasks.Where(t => t.Step.Practice != null).Select(t => NativePracticeActivities.Mandate(map, t))),
             Needs = request.Batch.Tasks.Any(t => t.ProductiveWorkTicks.IsKnown)
                 ? NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.ToList()) : null,
             Pawns = EquatableArray.From(participants), Bindings = EquatableArray.From(bindings), SatisfiedTasks = EquatableArray.From(satisfied) };

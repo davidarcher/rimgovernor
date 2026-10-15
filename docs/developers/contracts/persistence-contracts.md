@@ -18,7 +18,7 @@ store `unclear`/`active`/`clear`); governor-state blobs version 6. Databases and
 there is no adoption path.
 
 The C# brain's journal (`RimGovernor.Brain.Store`, Microsoft.Data.Sqlite on the SourceGear `e_sqlite3` provider)
-keeps the same ownership rules in its own file format: `PRAGMA user_version` 10 and the same `application_id`.
+keeps the same ownership rules in its own file format: `PRAGMA user_version` 11 and the same `application_id`.
 Domain payloads (actions, admissions, transitions, Standards, Incidents, Rounds and the family records) are
 JSON text written by hand-written codecs under `Codec/` with fixed field names and no reflection
 serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`). The per-kind column checks the brain kept in SQL `CHECK`
@@ -315,3 +315,5 @@ Essential-service coverage, bounded stress checks and development proposals in
 They reference existing Concern-owned predicates and shared demand, never own a
 second stock target, saved goal queue or progress journal. Missing/partial review
 evidence cannot establish satisfaction. See [essential services](essential-services.md).
+
+Selected practice references live role requirements through the existing Method action payload. The session journal stores the admitted participants and exact targets; requirements, XP projections and rejected alternatives remain derived in memory. The existing native bout registry owns transient selected rosters; no skill target or additional save state is written.

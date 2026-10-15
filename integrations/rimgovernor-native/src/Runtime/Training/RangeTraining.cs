@@ -19,6 +19,10 @@ namespace RimGovernor.Runtime
     // JobDefs/RimGovernorTraining.xml.
     public static class RangeTraining
     {
+        public static bool MigratedScope(Pawn pawn) => pawn.IsColonistPlayerControlled && Current.Game != null
+            && HomeBridge.BridgeTools.NativeControlAuthority.TryGetForGame(Current.Game, out var authority)
+            && authority.Status() is { Active: true, Identity: { } identity } && identity.Map == pawn.Map;
+
         public const string ShootingJob = "RimGovernor_TrainShooting";
         public const string WeaponDef = "Bow_Training";
 
@@ -146,7 +150,8 @@ namespace RimGovernor.Runtime
         // skill's ceiling.
         public static bool BelowTarget(Pawn pawn, SkillDef skill)
         {
-            return TryChoose(pawn, out var chosen) && chosen == skill && pawn.skills.GetSkill(skill).Level < CeilingFor(skill);
+            return (MigratedScope(pawn) ? CanTrain(pawn, skill) : TryChoose(pawn, out var chosen) && chosen == skill)
+                && pawn.skills.GetSkill(skill).Level < CeilingFor(skill);
         }
 
         public static bool Eligible(Pawn pawn, SkillDef skill)

@@ -5,16 +5,8 @@ public sealed class RoundsTrainingResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 }
 
-/// <summary>
-/// MaintainTraining (#2619): while a capable colonist is below the combat skill target the stockpile review asks
-/// layout for a training range (RoomDemand.Ranges, the stand count; a further graveyard is asked for the same
-/// way), and while two fighters are below the melee ceiling for a sparring ring (RoomDemand.Rings, the marker
-/// count; #2707). This planner then stages the planned range's stands and dummies and the ring's markers
-/// through the room reconciler. Both are unfenced open air (PlannedRoom.Unfenced), so the reconciler owes them
-/// no ring, roof or floor, only the template; one that outgrew its stands or markers is widened by layout and
-/// the same template builds the new ones. A standing range or ring takes no further action here: the native
-/// training and spar jobs spend the pawn-hours.
-/// </summary>
+/// <summary>Reconciles shared layout facilities for assigned combat capability maintenance.
+/// The ordinary coupled Method pipeline selects actual practice and Hands owns dispatch.</summary>
 public sealed class RoundsTrainingPlanner
 {
     private readonly Rounder _reviewer;
@@ -129,7 +121,8 @@ public sealed class RoundsTrainingPlanner
         {
             return (Unknown<int>(), Unknown<int>());
         }
-        var profiles = Known<EquatableArray<Pol.PawnProfile>>([.. Profiles(pawns)]);
-        return (TrainingStands(profiles, facts.Facts.Research), TrainingRings(profiles, facts.Facts.Research));
+        if (!ReviewTraining(facts.Facts).TryGetValue(out var review)) return (Unknown<int>(), Unknown<int>());
+        return (Known(review.ShootingBelow > 0 ? RangeStandsFor(review.Capable) : 0),
+            Known(review.MeleeBelow > 0 ? RingMarkersFor(Math.Max(2, review.Capable)) : 0));
     }
 }

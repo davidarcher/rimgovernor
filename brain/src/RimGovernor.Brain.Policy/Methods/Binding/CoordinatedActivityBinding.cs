@@ -9,8 +9,8 @@ internal static partial class CoordinatedActivityBinding
         var tasks = plan.Allocations.Select(a => bindings.TryGetValue((a.Activity, a.Pawn), out var task)
             ? new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
                 new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
-                    task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
-                    { Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine, Recipe = task.Recipe ?? (task.Cooking is { } cooking
+                    task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
+                    { Practice = task.Practice, Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine, Recipe = task.Recipe ?? (task.Cooking is { } cooking
                         ? new(cooking.Continuation.Bill, cooking.Continuation.Recipe, [new(task.Ingredient, cooking.IngredientCount)]) { Resource = task.Resource } : null) },
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,

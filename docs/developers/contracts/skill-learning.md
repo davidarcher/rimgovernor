@@ -115,3 +115,5 @@ learning/output and subsequent work without installing a chosen worker. Pure tes
 cover beneficial/costly no-unlock allocations, deadlines, decay, interruption,
 fresh-demand retirement and journal/wire preservation. Native execution remains
 separate from registration and compilation.
+
+[Assigned capability maintenance](capability-maintenance.md) combines supported scheduled callbacks with decay against actual held-role requirements. Native practice cycle quotes are conditional execution estimates, not guaranteed completed learning or injury-free work.

@@ -2,6 +2,9 @@ namespace RimGovernor.Brain.Domain;
 
 public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Recipe, Approach, Supply }
 
+public sealed record PawnActivityPractice(string Skill, string Role, int RequirementIndex, string Partner, string PartnerTarget, int DurationTicks)
+{ public string Beneficiary { get; init; } = ""; }
+
 public sealed record PawnActivityIngredient(string Thing, int Count);
 public sealed record PawnActivityRecipe(string Bill, string Recipe, EquatableArray<PawnActivityIngredient> Ingredients)
 {
@@ -16,6 +19,7 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
 {
     public Cell? Destination { get; init; }
     public PawnActivityRecipe? Recipe { get; init; }
+    public PawnActivityPractice? Practice { get; init; }
     public string Medicine { get; init; } = "";
     public long NotBefore { get; init; }
     public string Container { get; init; } = "";
@@ -66,6 +70,16 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision
         && a.Release == b.Release && a.OutputDelivery == b.OutputDelivery && a.Task == b.Task && a.Preparing == b.Preparing
         && a.Steps.SequenceEqual(b.Steps);
+    private static void ValidatePractice(PawnActivityStep step)
+    {
+        DomainException.Require(step.Practice != null || step.Job is not ("RimGovernor_TrainShooting" or "RimGovernor_Spar"), "practice requires an assigned mandate");
+        if (step.Practice is { } practice)
+            DomainException.Require(step.Kind == PawnActivityKind.Work && Identity.IsValidText(practice.Role) && Identity.IsValidText(practice.Beneficiary)
+                && practice.RequirementIndex >= 0 && practice.DurationTicks > 0 && practice.DurationTicks <= GameTime.TicksPerDay
+                && (practice.Skill == "Shooting" && step.Job == "RimGovernor_TrainShooting" && practice.Partner.Length == 0 && practice.PartnerTarget.Length == 0
+                    || practice.Skill == "Melee" && step.Job == "RimGovernor_Spar" && Identity.IsValidText(practice.Partner) && Identity.IsValidText(practice.PartnerTarget)),
+                "invalid selected practice");
+    }
     public void Validate()
     {
         DomainException.Require(AuthorityGeneration > 0 && Orders is { Length: > 0 and <= 64 }, "activity batch requires authority and bounded orders");
@@ -91,6 +105,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                         ? Identity.IsValidText(step.Container) : step.Container.Length == 0)
                     && (step.SupportDemand.Length == 0 || (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Work) && Identity.IsValidText(step.SupportDemand))
                     && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && (step.Job is "TendPatient" or "DoBill") && Identity.IsValidText(step.Medicine)), "invalid activity step");
+                ValidatePractice(step);
                 if (step.Kind == PawnActivityKind.Recipe || step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
                 {
                     var cooking = step.Recipe;
@@ -125,6 +140,12 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 && task.Inputs.All(i => Identity.IsValidText(i.Resource) && Identity.IsValidText(i.Lot) && i.Count > 0
                     && i.Location is { X: >= 0, Z: >= 0 } && Identity.IsValidText(i.Provenance))
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
+        foreach (var task in Tasks) ValidatePractice(task.Step);
+        foreach (var task in Tasks.Where(t => t.Step.Practice?.Skill == "Melee"))
+            DomainException.Require(Tasks.Any(partner => partner.Pawn == task.Step.Practice!.Partner
+                && partner.Step.Target == task.Step.Practice.PartnerTarget && partner.Step.Practice?.Partner == task.Pawn
+                && partner.Step.Practice.PartnerTarget == task.Step.Target && partner.Pawn != task.Pawn && partner.Step.Target != task.Step.Target),
+                "selected sparring needs reciprocal exact participants");
         var visited = new HashSet<string>(StringComparer.Ordinal);
         while (visited.Count < Tasks.Count)
         {

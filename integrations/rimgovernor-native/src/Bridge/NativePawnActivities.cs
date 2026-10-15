@@ -21,6 +21,7 @@ namespace HomeBridge.BridgeTools
         {
             internal Pawn Pawn = null!;
             internal PawnActivityOrder Order = null!;
+            internal SelectedActivityTask? SelectedTask;
             internal NativeControlIdentity Identity = null!;
             internal ulong Generation;
             internal int Step;
@@ -50,6 +51,17 @@ namespace HomeBridge.BridgeTools
         private static Operations.PawnActivityExecution Row(Entry e) => new(e.Order.Assignment, e.Order.Method, e.Order.Revision,
             e.Step, e.State, e.Reason, e.Running == null ? null : e.RunningId, e.Tick);
 
+        internal static bool TrySelectPracticePair(Pawn pawn, Thing target, PawnActivityStep step)
+        {
+            if (!Entries.TryGetValue(pawn, out var own) || own.Order.Release || step.Practice is not { } practice) return false;
+            var partner = Entries.Values.FirstOrDefault(e => e.Order.Pawn == practice.Partner && !e.Order.Release
+                && e.Order.Method == own.Order.Method && e.Generation == own.Generation && e.Identity == own.Identity);
+            if (partner?.SelectedTask?.Step is not { } other || other.Practice is not { } reciprocal
+                || reciprocal.Partner != own.Order.Pawn || reciprocal.PartnerTarget != step.Target
+                || other.Target != practice.PartnerTarget) return false;
+            var partnerTarget = Thing(other.Target);
+            return partnerTarget != null && NativePracticeActivities.Legal(partner.Pawn, partnerTarget, other) && RimGovernor.Runtime.SparringBouts.For(pawn.Map).SelectPair(pawn, target, partner.Pawn, partnerTarget);
+        }
         internal static void Install()
         {
             if (installed) return;
@@ -120,6 +132,7 @@ namespace HomeBridge.BridgeTools
                     var target = Thing(step.Target) ?? (pawn.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? pawn.carryTracker.CarriedThing : null);
                     if (target == null || target.Destroyed || (!target.Spawned && pawn.carryTracker.CarriedThing != target)
                         || target.Spawned && target.Map != pawn.Map) return Refuse("Activity target unavailable.");
+                    if (step.Practice != null && !NativePracticeActivities.Legal(pawn, target, step)) return Refuse("Selected practice unavailable.");
                     if (step.Kind == PawnActivityKind.Work)
                     {
                         var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
@@ -134,10 +147,25 @@ namespace HomeBridge.BridgeTools
                     if (step.Kind == PawnActivityKind.Recipe && !NativeActivityRecipe.Resolve(pawn, target, step, out _, out _, out var cookingReason)) return Refuse(cookingReason);
                 }
             }
+            foreach (var task in batch.Tasks.Where(t => t.Step.Practice != null))
+            {
+                var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == task.Pawn);
+                var target = Thing(task.Step.Target);
+                if (pawn == null || target == null || !NativePracticeActivities.Legal(pawn, target, task.Step)) return Refuse("Selected practice task unavailable.");
+                if (task.Step.Practice!.Skill == "Melee")
+                {
+                    var partner = Find.CurrentMap.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == task.Step.Practice.Partner);
+                    var partnerTarget = Thing(task.Step.Practice.PartnerTarget);
+                    if (partner == null || partnerTarget == null || !RimGovernor.Runtime.SparringBouts.For(pawn.Map).CanSelectPair(pawn, target, partner, partnerTarget))
+                        return Refuse("Selected sparring roster unavailable.");
+                }
+            }
             return null;
         }
         private static bool Supported(WorkGiverDef giver, string job) =>
-            (job == "DoBill" && giver.Worker is WorkGiver_DoBill) || (job == "TendPatient" && giver.Worker is WorkGiver_Tend) || (job == "Clean" && giver.Worker is WorkGiver_CleanFilth) || (job == "Repair" && giver.Worker is WorkGiver_Repair)
+            (job == "RimGovernor_TrainShooting" && giver.Worker is RimGovernor.Runtime.WorkGiver_TrainRange)
+            || (job == "RimGovernor_Spar" && giver.Worker is RimGovernor.Runtime.WorkGiver_Spar)
+            || (job == "DoBill" && giver.Worker is WorkGiver_DoBill) || (job == "TendPatient" && giver.Worker is WorkGiver_Tend) || (job == "Clean" && giver.Worker is WorkGiver_CleanFilth) || (job == "Repair" && giver.Worker is WorkGiver_Repair)
             || (job == "Harvest" && giver.Worker is WorkGiver_GrowerHarvest)
             || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames)
             || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
@@ -187,7 +215,7 @@ namespace HomeBridge.BridgeTools
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
                 oldJobs.Add((pawn, order.Release ? old?.Running : old?.Running ?? pawn.CurJob));
                 var e = new Entry { Pawn = pawn, Order = order with { Steps = order.Steps.ToArray() }, Identity = identity, Generation = batch.AuthorityGeneration,
-                    Tick = Find.TickManager.TicksGame, Dependencies = order.Steps.Select(s => s.WaitForFilth.Length == 0 ? null : Thing(s.WaitForFilth)).ToArray() };
+                    SelectedTask = batch.Tasks.FirstOrDefault(t => t.Id == order.Task), Tick = Find.TickManager.TicksGame, Dependencies = order.Steps.Select(s => s.WaitForFilth.Length == 0 ? null : Thing(s.WaitForFilth)).ToArray() };
                 Entries[pawn] = e;
                 changed.Add(e);
             }
@@ -266,9 +294,10 @@ namespace HomeBridge.BridgeTools
             if (step.Kind == PawnActivityKind.Work)
             {
                 var giver = (WorkGiver_Scanner)DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver).Worker;
-                var eligible = step.Job == "DoBill" || (giver is WorkGiver_GrowerHarvest ? giver.HasJobOnCell(p, target.Position, false) : giver.HasJobOnThing(p, target, false));
+                var eligible = step.Practice != null ? NativePracticeActivities.Legal(p, target, step) : step.Job == "DoBill" || (giver is WorkGiver_GrowerHarvest ? giver.HasJobOnCell(p, target.Position, false) : giver.HasJobOnThing(p, target, false));
                 if (p.WorkTagIsDisabled(giver.def.workTags) || (giver.def.workType != null && p.WorkTypeIsDisabled(giver.def.workType)) || giver.MissingRequiredCapacity(p) != null || !eligible) throw new InvalidOperationException("work_refused");
-                if (step.Job == "DoBill")
+                if (step.Practice != null) job = NativePracticeActivities.Job(p, target, step);
+                else if (step.Job == "DoBill")
                 {
                     if (target is not Pawn patient || !NativeSupportSurgery.Resolve(p, patient, step, out job)) throw new InvalidOperationException("selected_surgery_unavailable");
                 }
@@ -414,14 +443,18 @@ namespace HomeBridge.BridgeTools
                 && (__instance.job.targetA.Thing ?? p.carryTracker.CarriedThing) is { } source
                 && NativeSupportActivities.Remaining(p.Map, step, source.def) < step.Count)
             { p.jobs.EndCurrentJob(JobCondition.Incompletable); return; }
+            if (step.Practice is { } practice && !NativePracticeActivities.Assigned(p, practice))
+            { p.jobs.EndCurrentJob(JobCondition.Succeeded); return; }
             if (Find.TickManager.TicksGame < step.Deadline) return;
-            p.jobs.EndCurrentJob(e.Order.Steps[e.Step].Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? JobCondition.Succeeded : JobCondition.Incompletable);
+            p.jobs.EndCurrentJob(step.Practice != null || e.Order.Steps[e.Step].Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? JobCondition.Succeeded : JobCondition.Incompletable);
         }
         private static void Fault(Entry e, string reason)
         { if (e.State != "failed") { e.State = "failed"; e.Reason = reason; e.Tick = Find.TickManager.TicksGame; Emit(e); } Find.TickManager.Pause(); }
         private static void Release(Entry e)
         {
             Entries.Remove(e.Pawn);
+            if (e.Pawn.Map != null && RimGovernor.Runtime.SparringBouts.For(e.Pawn.Map).BoutOf(e.Pawn)?.Selected == true)
+                RimGovernor.Runtime.SparringBouts.For(e.Pawn.Map).Leave(e.Pawn);
             if (e.Running != null && ReferenceEquals(e.Pawn.CurJob, e.Running) && e.Pawn.CurJob.loadID == e.RunningId)
                 e.Pawn.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
         }

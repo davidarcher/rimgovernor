@@ -93,6 +93,17 @@ public static partial class PolicyFunctions
             AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
                 checked(read.Tick + (long)horizon), resources));
         else findings.Add("unknown_clothing_requirements");
+        var practice = Methods.Generation.PracticeMethodCandidates.Generate(facts, read.Practice, horizon, AssignedCombatCapabilities(facts.Ideology),
+            facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients.IsKnown && facts.CriticalPatients.Value == 0
+            && !needs.Pawns.SelectMany(p => p.Needs).Any(n => n.Kind is "food" or "rest" && n.Level.IsKnown && n.Level.Value <= 0));
+        tasks.AddRange(practice.Tasks); options.AddRange(practice.Options); alternatives.AddRange(practice.Roots);
+        foreach (var binding in practice.Bindings) bindings.Add(binding.Key, binding.Value);
+        foreach (var route in practice.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
+        findings.UnionWith(practice.Findings);
+        foreach (var task in practice.Practice.Where(p => p.Worker.JoyGainPerTick.IsKnown && p.Worker.JoyGainPerTick.Value > 0))
+            needTasks.Add(new(task.Task, task.Worker.Pawn, "joy", task.Worker.Target, new(""), 0,
+                Known(task.Worker.JoyGainPerTick.Value * Math.Max(0, task.Worker.DurationTicks.Value - task.Worker.PreparationTicks)), [])
+                { ThoughtsComplete = false, ServiceDelay = task.Worker.PreparationTicks });
         foreach (var pawn in needs.Pawns)
         {
             var capacity = NeedsWorkCapacity(resources, pawn.Pawn, horizon);
@@ -133,7 +144,8 @@ public static partial class PolicyFunctions
         // Recovery can unlock productive work which the earliest-only schedule would otherwise try too soon.
         // Propose the dependency, rather than hoping weights invent a missing complementary combination.
         var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1
-            && needTasks.All(n => n.Task != c.ActivityCompletions[0])).ToArray();
+            && needTasks.All(n => n.Task != c.ActivityCompletions[0])
+            && practice.Practice.All(p => p.Task != c.ActivityCompletions[0])).ToArray();
         var delayed = 0;
         foreach (var root in productiveRoots)
             foreach (var recovery in needTasks.ToArray())
@@ -178,6 +190,7 @@ public static partial class PolicyFunctions
             Needs = needs,
             Resources = resources,
             Construction = read.Construction,
+            MaintenanceRequirements = practice.Requirements, PracticeTasks = practice.Practice,
             Support = read.Support,
             Thermal = read.Thermal,
             Shelters = EquatableArray.From(shelters),

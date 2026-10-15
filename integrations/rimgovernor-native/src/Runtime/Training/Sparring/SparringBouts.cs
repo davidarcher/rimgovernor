@@ -36,6 +36,7 @@ namespace RimGovernor.Runtime
     public sealed class Bout
     {
         public int Id;
+        public bool Selected;
         public BoutState State;
         public int FormedTick;
         public int LastArrivalTick;
@@ -136,7 +137,7 @@ namespace RimGovernor.Runtime
             Upkeep();
             var bout = BoutOf(pawn);
             if (bout != null) return bout.State == BoutState.Gathering ? bout.SlotOf(pawn).Marker : null;
-            if (!Free(pawn)) return null;
+            if (RangeTraining.MigratedScope(pawn) || !Free(pawn)) return null;
             Form();
             bout = BoutOf(pawn);
             return bout?.SlotOf(pawn).Marker;
@@ -144,7 +145,7 @@ namespace RimGovernor.Runtime
 
         private bool Free(Pawn pawn)
         {
-            if (!Eligible(pawn) || BoutOf(pawn) != null) return false;
+            if (RangeTraining.MigratedScope(pawn) || !Eligible(pawn) || BoutOf(pawn) != null) return false;
             if (sitOutUntil.TryGetValue(pawn.thingIDNumber, out var until) && Now < until) return false;
             var work = DefDatabase<WorkTypeDef>.GetNamedSilentFail(WorkTypeName);
             return work != null && pawn.workSettings != null && pawn.workSettings.WorkIsActive(work);
@@ -156,6 +157,28 @@ namespace RimGovernor.Runtime
             if (def == null) return new List<Thing>();
             var taken = new HashSet<Thing>(bouts.SelectMany(b => b.Slots.Select(s => s.Marker)));
             return map.listerThings.ThingsOfDef(def).Where(t => t.Spawned && !taken.Contains(t)).ToList();
+        }
+
+        // Exact admitted pair; no roster search and no substitute after participant loss.
+        public bool CanSelectPair(Pawn first, Thing firstMarker, Pawn second, Thing secondMarker)
+        {
+            var existing = BoutOf(first);
+            if (existing != null) return existing.Slots.Count == 2 && existing.SlotOf(first)?.Marker == firstMarker
+                && existing.SlotOf(second)?.Marker == secondMarker;
+            return BoutOf(second) == null && first != second && firstMarker != secondMarker && Eligible(first) && Eligible(second)
+                && !bouts.Any(b => b.Slots.Any(s => s.Marker == firstMarker || s.Marker == secondMarker));
+        }
+
+        public bool SelectPair(Pawn first, Thing firstMarker, Pawn second, Thing secondMarker)
+        {
+            var existing = BoutOf(first);
+            if (existing != null) return existing.Slots.Count == 2 && existing.SlotOf(first)?.Marker == firstMarker
+                && existing.SlotOf(second)?.Marker == secondMarker;
+            if (BoutOf(second) != null || first == second || firstMarker == secondMarker || !Eligible(first) || !Eligible(second)
+                || bouts.Any(b => b.Slots.Any(s => s.Marker == firstMarker || s.Marker == secondMarker))) return false;
+            var bout = new Bout { Id = nextBoutId++, Selected = true, State = BoutState.Gathering, FormedTick = Now };
+            bout.Slots.Add(new BoutSlot { Pawn = first, Marker = firstMarker });
+            bout.Slots.Add(new BoutSlot { Pawn = second, Marker = secondMarker }); bouts.Add(bout); return true;
         }
 
         private void Form()

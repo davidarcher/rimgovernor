@@ -7,6 +7,7 @@ public sealed record ForecastNeedTask(string Task, string Pawn, string Kind, str
     Resource Resource, int Count, Fact<double> Gain, EquatableArray<NeedMemory> Thoughts)
 {
     public string FoodReady { get; init; } = "";
+    public double ServiceDelay { get; init; }
     public Fact<double> FreshTicks { get; init; }
     public Fact<double> AvailableCount { get; init; }
     public string FreshFrom { get; init; } = "";
@@ -19,6 +20,8 @@ public sealed record ForecastCoupledContext
     public required ForecastActivityProblem Activities { get; init; }
     public bool Truncated { get; init; }
     public required NeedsForecastRead Needs { get; init; }
+    public EquatableArray<ForecastMaintenanceRequirement> MaintenanceRequirements { get; init; }
+    public EquatableArray<ForecastPracticeTask> PracticeTasks { get; init; }
     public required WorkResourceView Resources { get; init; }
     public ConstructionActivityRead Construction { get; init; } = new();
     public SupportActivityRead Support { get; init; } = new();
@@ -35,6 +38,7 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     EquatableArray<ForecastFinding> Findings)
 {
     public EquatableArray<ForecastShelterOutcome> Shelters { get; init; }
+    public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public EquatableArray<ForecastThermalExposure> ThermalExposure { get; init; }
     public EquatableArray<string> CompletedDevelopmentSites { get; init; }
     /// <summary>Known stationary-location exposure avoided relative to the same occupancy without proposed room changes.
@@ -308,7 +312,7 @@ public static partial class PolicyFunctions
                 if (completed.GetValueOrDefault(task.Task) != Known(true) || !task.Gain.TryGetValue(out var gain))
                 { Uncertain("unassessed_need_completion", task.Task, a.End); continue; }
                 choices.Add(new(task.Task, pawn.Pawn, task.Kind, task.Target, task.Resource.Value, task.Count,
-                    a.Depart, a.Start, a.End, gain, task.Thoughts));
+                    a.Depart, Math.Min(a.End, a.Start + task.ServiceDelay), a.End, gain, task.Thoughts));
             }
             var productive = plan.Allocations.Where(a => a.Pawn == pawn.Pawn && context.NeedTasks.All(n => n.Task != a.Activity)).ToArray();
             var protectedTime = productive.Select(a => new ForecastOccupancy(a.Activity, pawn.Pawn, Known(a.Depart), Known(a.End), ForecastOccupancyState.Active)).ToList();
@@ -377,9 +381,19 @@ public static partial class PolicyFunctions
             ForecastShelters(existingRooms, plan, horizon), horizon);
         var reliefKnown = changedUse.Any(t => t.AssessedTicks > 0) && changedUse.Count == unchanged.Count && changedUse.Zip(unchanged)
             .All(pair => pair.First.Pawn == pair.Second.Pawn && pair.First.AssessedTicks == pair.Second.AssessedTicks);
+        var maintenance = ForecastMaintenance(context.MaintenanceRequirements, context.PracticeTasks, plan, completed, horizon);
+        foreach (var group in context.PracticeTasks.Where(p => allocations.ContainsKey(p.Task)).GroupBy(p => p.Requirement))
+        {
+            var without = ForecastMaintenance(context.MaintenanceRequirements,
+                EquatableArray.From(context.PracticeTasks.Where(p => p.Requirement != group.Key)), plan, completed, horizon);
+            if (!maintenance.Zip(without).Any(p => p.First.MissingXp.IsKnown && p.Second.MissingXp.IsKnown
+                && p.First.MissingXp.Value < p.Second.MissingXp.Value))
+                Refuse("practice_without_assigned_shortfall_improvement", group.Key, 0);
+        }
         return new(plan, feasible, inventory.Stocks, needs, EquatableArray.From(findings))
         {
             Support = ForecastSupportConsequencesOf(context, plan, completed, horizon),
+            Maintenance = maintenance,
             Shelters = shelters, ThermalExposure = exposure,
             ThermalOccupancy = string.Join(";", context.NeedTasks.Where(n => allocations.ContainsKey(n.Task))
                 .Select(n => (Need: n, Allocation: allocations[n.Task]))

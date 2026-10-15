@@ -6,6 +6,7 @@ public sealed record ForecastConsequenceVector(EquatableArray<Fact<double>> Urge
     EquatableArray<string> Unknown)
 {
     public string ThermalOccupancy { get; init; } = "";
+    public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public ForecastSupportConsequences Support { get; init; } = new();
 }
 
@@ -171,9 +172,10 @@ public static partial class PolicyFunctions
         if (!moodKnown) unknown.Add("unassessed_mood");
         unknown.Add("serious_harm_probability_unassessed");
         unknown.UnionWith(outcome.Support.Findings);
+        unknown.UnionWith(outcome.Maintenance.SelectMany(m => m.Findings));
         return new(EquatableArray.From(urgent), EquatableArray.From(needsVector), moodKnown ? Known(moods.Sum(m => m!.TargetExposureTicks.Value)) : default,
             moodKnown ? Known(moods.Sum(m => m!.PressureTicks.Value)) : default,
-            development, outcome.Plan.LaborCost, EquatableArray.From(unknown)) { ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support };
+            development, outcome.Plan.LaborCost, EquatableArray.From(unknown)) { ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance };
     }
 
     private static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
@@ -205,6 +207,10 @@ public static partial class PolicyFunctions
         { var rank = a.MoodExposure.Value.CompareTo(b.MoodExposure.Value); if (rank != 0) return rank; }
         if (a.MoodDepth.IsKnown && b.MoodDepth.IsKnown)
         { var rank = a.MoodDepth.Value.CompareTo(b.MoodDepth.Value); if (rank != 0) return rank; }
+        var maintenance = a.Maintenance.Zip(b.Maintenance).Where(p => p.First.Requirement == p.Second.Requirement
+            && p.First.MissingXp.IsKnown && p.Second.MissingXp.IsKnown).ToArray();
+        var maintenanceRank = maintenance.Sum(p => p.First.MissingXp.Value).CompareTo(maintenance.Sum(p => p.Second.MissingXp.Value));
+        if (maintenanceRank != 0) return maintenanceRank;
         var development = b.Development.CompareTo(a.Development); if (development != 0) return development;
         var supply = a.Support.UnsuppliedDemand.CompareTo(b.Support.UnsuppliedDemand); if (supply != 0) return supply;
         return a.Support.FirstCareTicks.CompareTo(b.Support.FirstCareTicks);

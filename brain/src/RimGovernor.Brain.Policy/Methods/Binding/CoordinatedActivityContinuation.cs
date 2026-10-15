@@ -76,7 +76,7 @@ internal static partial class CoordinatedActivityBinding
 
     private static bool CompatibleActivityBinding(SelectedActivityTask task, PawnActivityStep bound) =>
         bound.Kind == task.Step.Kind && bound.Deadline == task.Step.Deadline && bound.WorkGiver == task.Step.WorkGiver
-        && bound.Medicine == task.Step.Medicine && bound.SupportDemand == task.Step.SupportDemand
+        && bound.Practice == task.Step.Practice && bound.Medicine == task.Step.Medicine && bound.SupportDemand == task.Step.SupportDemand
         && (bound.Kind is not (PawnActivityKind.Recipe or PawnActivityKind.Sleep or PawnActivityKind.Recreation)
             || bound.Target == task.Step.Target)
         && (bound.Kind != PawnActivityKind.Eat || bound.Count == task.Step.Count)

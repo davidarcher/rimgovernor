@@ -89,6 +89,8 @@ public sealed partial class Rounder
         ["support_care_room_factor"] = Number(vector.Support.CareRoomFactor),
         ["support_tend_quality"] = Number(vector.Support.TendQuality),
         ["support_surgery_room_factor"] = Number(vector.Support.SurgeryRoomFactor),
+        ["maintenance"] = vector.Maintenance.Select(m => new Dictionary<string, object?>
+        { ["requirement"] = m.Requirement, ["missing_xp"] = Number(m.MissingXp), ["unknown"] = m.Findings.ToArray() }).ToArray(),
         ["development"] = vector.Development, ["labor"] = vector.Labor, ["unknown"] = vector.Unknown.ToArray()
     };
 }
