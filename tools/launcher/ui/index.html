@@ -188,11 +188,15 @@
     <div class="obbar" id="obBar" aria-live="polite">
       <span class="pill down" id="obConn">no game</span>
       <span id="obTick"></span>
+      <span class="pill down" id="obBot" title="Whether the bot is acting on the colony and owns the game clock">Bot unknown</span>
+      <button id="obResume" disabled>Resume</button>
+      <button id="obPause" disabled>Pause</button>
       <span class="grow"></span>
       <span class="pill" id="obWarn">0 warn</span>
       <span class="pill" id="obErr">0 error</span>
     </div>
     <div class="alert" id="obProblem" role="alert" hidden></div>
+    <div class="err" id="obBotErr" role="alert"></div>
     <nav class="subtabs" role="tablist" aria-label="Observe views">
       <button role="tab" data-ob="now" aria-selected="true">Now</button>
       <button role="tab" data-ob="concerns" aria-selected="false">Concerns</button>
@@ -833,6 +837,13 @@ function obRender() {
   $('obTick').textContent = g && g.tick != null ? 'tick ' + num(g.tick) + (g.paused ? ' (paused)' : '') + (v.state.status ? ' - ' + v.state.status.label : '') : '';
   $('obWarn').textContent = v.warns + ' warn'; $('obWarn').className = 'pill' + (v.warns ? ' warn' : '');
   $('obErr').textContent = v.errors + ' error'; $('obErr').className = 'pill' + (v.errors ? ' down' : '');
+  // Bot on means the player state is enabled: the bot acts on the colony and owns the clock. Unknown until the control read answers.
+  const on = v.control && v.control.state ? v.control.state.enabled : null;
+  $('obBot').textContent = on == null ? 'Bot unknown' : on ? 'Bot on' : 'Bot off';
+  $('obBot').className = 'pill ' + (on == null ? 'down' : on ? 'up' : 'warn');
+  const world = v.control && v.control.state && v.control.state.generation;
+  $('obResume').disabled = !world || on === true;
+  $('obPause').disabled = !world || on === false;
   $('obProblem').hidden = !v.problem;
   $('obProblem').textContent = v.problem;
   if (ob.sub === 'now') $('ob-now').innerHTML = obNow(v);
@@ -850,6 +861,15 @@ async function pollObserve() {
   }
   ob.since = v.next;
   obRender();
+}
+// Resume gives the bot the clock; Pause pauses the game once if the bot was running it and gives the clock back.
+for (const [id, on] of [['obResume', true], ['obPause', false]]) {
+  $(id).onclick = async () => {
+    $('obResume').disabled = $('obPause').disabled = true;
+    $('obBotErr').textContent = '';
+    try { await setBot(on); } catch (e) { $('obBotErr').textContent = String(e.message || e); }
+    await pollObserve();
+  };
 }
 document.querySelectorAll('[data-ob]').forEach(b => b.onclick = () => {
   ob.sub = b.dataset.ob;

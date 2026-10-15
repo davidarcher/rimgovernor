@@ -7,7 +7,7 @@ The launcher controls the game and shows what the governor is doing.
 | Tab | Use it to |
 | --- | --- |
 | Launch | Start, stop or restart the brain; select a save; generate a colony; change settings; read build and start diagnostics under Details. |
-| Observe | Watch the running brain: Now, Concerns, Problems and Log. Read-only. |
+| Observe | Watch the running brain: Now, Concerns, Problems and Log. Its Resume and Pause buttons turn the bot on or off. |
 | Acceptance | Run a native test case visibly on this checkout's private game. Stop the brain and close its game first. |
 
 ## Speed and manual control
@@ -15,6 +15,10 @@ The launcher controls the game and shows what the governor is doing.
 **Play** enables automatic control on the loaded colony and after each load.
 The default uses adaptive Ultrafast pacing. Pause in RimWorld to take manual
 control; once Auto resumes, the governor can adjust work and settings again.
+
+The Observe tab shows **Bot on** or **Bot off**. Resume turns the bot on and gives it the game clock.
+Pause turns it off: the bot stops acting on the colony, the game is paused once if the bot was running it,
+and you are free to unpause and run the game yourself.
 
 ## Watch the governor
 

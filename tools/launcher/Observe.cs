@@ -13,12 +13,14 @@ public sealed record WatchRow(long Seq, string At, string Level, string Kind, st
 /// <param name="State"><c>GET /api/state</c> as the game answered it; null when it did not.</param>
 /// <param name="Routines"><c>GET /api/routines</c>: stage, emergencies, runways and every concern's progress.</param>
 /// <param name="Colony"><c>GET /api/player/colony</c>: the census.</param>
+/// <param name="Control"><c>GET /api/player/control</c>: <c>state.enabled</c> is whether the bot is on (it owns the clock exactly then).</param>
 /// <param name="Next">The sequence of the newest row; pass it back as <c>since</c>.</param>
 public sealed record ObserveView(
     string Problem,
     JsonElement? State,
     JsonElement? Routines,
     JsonElement? Colony,
+    JsonElement? Control,
     long Warns,
     long Errors,
     IReadOnlyList<WatchRow> Rows,
@@ -46,7 +48,7 @@ public sealed class ObserveService(HttpClient http, Func<CancellationToken, Task
     {
         Pump();
         var baseAddress = await address(ct).ConfigureAwait(false);
-        JsonElement? state = null, routines = null, colony = null;
+        JsonElement? state = null, routines = null, colony = null, control = null;
         var problem = "";
         if (baseAddress is null)
         {
@@ -57,16 +59,60 @@ public sealed class ObserveService(HttpClient http, Func<CancellationToken, Task
             var reads = await Task.WhenAll(
                 GetAsync(baseAddress, "/api/state", ct),
                 GetAsync(baseAddress, "/api/routines", ct),
-                GetAsync(baseAddress, "/api/player/colony", ct)).ConfigureAwait(false);
-            (state, routines, colony) = (reads[0], reads[1], reads[2]);
+                GetAsync(baseAddress, "/api/player/colony", ct),
+                GetAsync(baseAddress, "/api/player/control", ct)).ConfigureAwait(false);
+            (state, routines, colony, control) = (reads[0], reads[1], reads[2], reads[3]);
         }
 
         lock (_mu)
         {
             var fresh = since <= 0 ? _rows.TakeLast(MaxPerPoll) : _rows.Where(r => r.Seq > since).Take(MaxPerPoll);
             var rows = fresh.ToList();
-            return new ObserveView(problem, state, routines, colony, _warns, _errors, rows, rows.Count > 0 ? rows[^1].Seq : Math.Max(since, 0));
+            return new ObserveView(problem, state, routines, colony, control, _warns, _errors, rows, rows.Count > 0 ? rows[^1].Seq : Math.Max(since, 0));
         }
+    }
+
+    /// <summary>
+    /// Turns the bot on (<c>Resume</c>, which gives it the game clock) or off (<c>Pause</c>, which pauses a running
+    /// owned clock epoch once and hands the clock back to the player) through the player control route, for the world
+    /// the brain currently observes. The reply's own error text reaches the page.
+    /// </summary>
+    public async Task SetBotAsync(bool on, CancellationToken ct)
+    {
+        var baseAddress = await address(ct).ConfigureAwait(false) ?? throw new LauncherException("The game is not running with the brain.");
+        var control = await GetAsync(baseAddress, "/api/player/control", ct).ConfigureAwait(false) ?? throw new LauncherException("The brain did not answer the control read.");
+        if (!control.TryGetProperty("state", out var state) || !state.TryGetProperty("generation", out var world) || world.ValueKind != JsonValueKind.Object)
+        {
+            throw new LauncherException("The brain has not observed a world yet.");
+        }
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(
+            new
+            {
+                requestId = (on ? "launcher-resume-" : "launcher-pause-") + Guid.NewGuid().ToString("N"),
+                expected = new { colonyId = world.GetProperty("colony").GetString(), loadToken = world.GetProperty("load").GetString(), mapId = world.GetProperty("map").GetInt32() },
+            },
+            LauncherJson.Compact);
+        using var content = new ByteArrayContent(body);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+        using var response = await http.PostAsync(new Uri(baseAddress + (on ? "/api/player/control/resume" : "/api/player/control/pause")), content, ct).ConfigureAwait(false);
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var detail = "";
+        try
+        {
+            using var doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false), cancellationToken: ct).ConfigureAwait(false);
+            detail = doc.RootElement.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.Object && error.TryGetProperty("detail", out var d) ? d.GetString() ?? "" : "";
+        }
+        catch (JsonException)
+        {
+            // an unreadable body leaves the status code as the message
+        }
+
+        throw new LauncherException(detail.Length > 0 ? detail : $"The game refused the request ({(int)response.StatusCode}).");
     }
 
     /// <summary>One GET against the channel; null for any failure (a route family absent or the game busy), so the page shows that panel as unknown.</summary>

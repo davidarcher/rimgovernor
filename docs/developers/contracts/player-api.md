@@ -77,6 +77,10 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
   bot executes, not a grant of its own; there is no priority arbitration between guidance and routine
   work.
 - Pause stops local work; drafted pawns stay drafted until the game's own auto-undraft takes them back.
+- Resume and Pause also own the game clock, with no wire field for it: the bot holds the clock exactly while
+  `state.enabled` is true. Resume lets the clock coordinator admit owned epochs; Pause withdraws that authority
+  and pauses a running owned epoch once (a game that no epoch of the bot is running is not paused), and the
+  player is then free to unpause. The bot does not re-take a clock the player runs while `state.enabled` is false.
 - Record phases: `pending`, `running` (resume, non-zero native generation), `paused`, `refused`,
   `uncertain`. Historical results never confer current permission; `state.generation.plan` is the live
   root plan.
@@ -129,8 +133,9 @@ drafts carry no cleanup progress and are not a persistent toggle.
 ## Control API and launcher
 
 The Resume API enables control for the observed world and Pause stops it.
-The [launcher](../architecture/launcher.md) starts the game with `RIMGOVERNOR_OBSERVE` off, which auto-resumes; it exposes
-no Resume/Pause buttons. An unresolved Resume (pending or uncertain) blocks another
+The [launcher](../architecture/launcher.md) starts the game with `RIMGOVERNOR_OBSERVE` off, which auto-resumes; its
+Observe tab also has Resume and Pause buttons and shows `state.enabled` as Bot on or Bot off (the buttons post to these
+routes for the world `state.generation` names). An unresolved Resume (pending or uncertain) blocks another
 Resume until a later journaled Pause supersedes it; Pause is always available. Background refresh
 preserves request IDs and last-good data. Session/world changes exclude stale permission and responses
 without silently resubmitting either intent. The UI has no draft, undraft or native-token input.

@@ -38,13 +38,13 @@ The page polls only its visible tab and skips a tick while a request is in fligh
 | Tab | Source and purpose |
 | --- | --- |
 | Launch | Game files and mod state, saved games, settings and colony generation; the Details log of build and start diagnostics |
-| Observe | Read-only view of the running brain: Now, Concerns, Problems and Log |
+| Observe | View of the running brain (Now, Concerns, Problems and Log) with the bot's Resume and Pause buttons |
 | Acceptance | Registered case list and one visible native run |
 
 ## Observe tab
 
 The tab polls `getObserve(since)` (`ObserveService` in [Observe.cs](../../../tools/launcher/Observe.cs)) every 1.5 s while it shows. The reply carries
-`GET /api/state`, `/api/routines` and `/api/player/colony` as the game answered them (null when a
+`GET /api/state`, `/api/routines`, `/api/player/colony` and `/api/player/control` as the game answered them (null when a
 route does not answer; the page shows unknown, never a guess), plus the rows the game's log ring
 (`otlp/logs.jsonl`, read with `LogTail`) gained since `since`. The first read of a ring starts at its end,
 so history from an earlier run is not shown; the launcher keeps the newest 3000 rows and counts
@@ -52,7 +52,10 @@ WARN and ERROR rows since it began watching. Views: Now (emergencies, colony cen
 runways, latest rounds review, newest `clock_step`, `clock_stop`, and `authority`
 rows), Concerns (every concern's method, blocker and next review, from `/api/routines`), Problems
 (WARN and ERROR rows collapsed by kind, component, verdict, reason and target) and Log (filter by
-level, kind regex and text). Nothing writes to the game; `openLink` accepts only the player guide.
+level, kind regex and text). The bar above the views shows Bot on or Bot off (`state.enabled` from
+`GET /api/player/control`) with Resume and Pause buttons (`setBot` in `ObserveService`), which post to the
+[player control routes](../contracts/player-api.md#control-api-and-launcher) for the world the brain observes; a
+refusal's text appears under the bar. They are the only writes the tab makes; `openLink` accepts only the player guide.
 
 ## Controls
 
