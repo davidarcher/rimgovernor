@@ -584,9 +584,9 @@ public sealed partial class BrainComposition
                 HostileWithin = 20f,
                 InjuryStopCooldownMs = 0,
             }),
-            // The host's autosaver (Go newGoAutosaver(...).AtStop): saves while the clock is held for it, flushing governor state first.
+            // The host's autosaver: saves while the clock is held for it, flushing governor state first.
             Autosave = context.Autosave,
-            AutosaveEveryTicks = Autosaver.IntervalTicks,
+            AutosaveEveryTicks = ClockRunConfig.DefaultAutosaveEveryTicks,
             PageLimit = 128,
             PollInterval = TimeSpan.FromSeconds(1),
             CallTimeout = lease,

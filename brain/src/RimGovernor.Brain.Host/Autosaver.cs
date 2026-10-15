@@ -4,75 +4,47 @@ using RimGovernor.Brain.PlayerApi;
 namespace RimGovernor.Brain.Host;
 
 /// <summary>
-/// The Go-owned autosave, run at the clock scheduler's stop between windows now that native skips vanilla autosave (Go
-/// <c>goAutosaver</c>, serve_autosave.go). The last-save tick and the slot are runtime state, not persisted: the first
-/// stop of a process or of a rewound tick (a load) only sets the baseline.
+/// The brain's autosave, made while the clock run driver holds the clock for it (the cadence lives in
+/// <see cref="BuildingRuntime.ClockRunConfig.AutosaveEveryTicks"/>, not here, now that native skips vanilla autosave).
+/// The slot is runtime state, not persisted: a new process starts again at <c>Autosave-1</c>.
 /// </summary>
-internal sealed class Autosaver(Func<PbLifecycle.SaveRequest, CancellationToken, Task<PbLifecycle.SaveReply>> save, HostLog log) : IDisposable
+internal sealed class Autosaver(Func<PbLifecycle.SaveRequest, CancellationToken, Task<PbLifecycle.SaveReply>> save, HostLog log)
 {
-    /// <summary>The game time between Go saves: one in-game day, the same span as a routine clock window.</summary>
-    internal const long IntervalTicks = 60000;
-
-    /// <summary>How many rotating <c>Autosave-N</c> files Go keeps.</summary>
+    /// <summary>How many rotating <c>Autosave-N</c> files are kept.</summary>
     internal const int Slots = 5;
 
-    private readonly SemaphoreSlim _mu = new(1, 1);
-    private bool _known;
-    private long _last;
+    // The one clock run driver step calls this, one hold at a time, so the rotation needs no lock.
     private int _slot;
 
-    public void Dispose() => _mu.Dispose();
-
     /// <summary>
-    /// Saves when the interval has elapsed since the last Go save. A failed or uncertain save is logged and leaves the
-    /// mark, so the next stop (a fresh observation) tries again; only a completed save advances the mark and slot.
+    /// Saves into the next slot. A failed or uncertain save is logged and leaves the slot, so the next autosave hold
+    /// reuses it; only a completed save advances the rotation. The driver calls this only while the clock is held.
     /// </summary>
-    public async Task AtStopAsync(PbCommon.Identity identity, long tick, CancellationToken cancellationToken)
+    public async Task SaveAsync(PbCommon.Identity identity, long tick, CancellationToken cancellationToken)
     {
-        await _mu.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var name = $"Autosave-{(_slot % Slots) + 1}";
+        var request = new PbLifecycle.SaveRequest
+        {
+            Player = new PbLifecycle.PlayerLifecycleContext
+            {
+                Identity = identity,
+                PlayerDirection = NewColonyBounds.LifecycleDirection,
+                RequestId = $"autosave-{(DateTimeOffset.UtcNow - DateTimeOffset.UnixEpoch).Ticks * 100}",
+            },
+            SaveName = name,
+        };
         try
         {
-            if (!_known || tick < _last)
-            {
-                _known = true;
-                _last = tick;
-                return;
-            }
-
-            if (tick - _last < IntervalTicks)
-            {
-                return;
-            }
-
-            var name = $"Autosave-{(_slot % Slots) + 1}";
-            var request = new PbLifecycle.SaveRequest
-            {
-                Player = new PbLifecycle.PlayerLifecycleContext
-                {
-                    Identity = identity,
-                    PlayerDirection = NewColonyBounds.LifecycleDirection,
-                    RequestId = $"autosave-{(DateTimeOffset.UtcNow - DateTimeOffset.UnixEpoch).Ticks * 100}",
-                },
-                SaveName = name,
-            };
-            try
-            {
-                _ = await save(request, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                log.Warn("autosave_failed", "autosave failed; retrying at the next stop", ("save", name), ("tick", tick), ("uncertain", e is FacadeSaveUncertainException), ("error", e.Message));
-                return;
-            }
-
-            _last = tick;
-            _slot++;
-            log.Info("autosaved", "autosaved", ("save", name), ("tick", tick));
+            _ = await save(request, cancellationToken).ConfigureAwait(false);
         }
-        finally
+        catch (Exception e) when (e is not OperationCanceledException)
         {
-            _ = _mu.Release();
+            log.Warn("autosave_failed", "autosave failed; retrying at the next autosave hold", ("save", name), ("tick", tick), ("uncertain", e is FacadeSaveUncertainException), ("error", e.Message));
+            return;
         }
+
+        _slot++;
+        log.Info("autosaved", "autosaved", ("save", name), ("tick", tick));
     }
 }
 

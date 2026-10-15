@@ -60,8 +60,12 @@ plus `HostSnapshots` (the cached brain snapshot, polled every `RefreshInterval`)
 `RoundsDiagnostics`. `BrainHost` registers `PlayerRoutes`, `ReadRoutes`, `PresentationRoutes` and `LifecycleRoutes`
 from `SessionParts.Player`. There is no Attention provider: the brain's acknowledgement had no facade method to port. The
 host wraps the lifecycle in `FlushedLifecycle` (the governor state is flushed before every save) and builds the
-`Autosaver` (one in-game day, five rotating `Autosave-N` slots, baseline on the first stop or a rewound tick), which
-the composition passes to the clock run driver as `ClockRunConfig.Autosave`.
+`Autosaver` (five rotating `Autosave-N` slots; no cadence of its own), which the composition passes to the clock run
+driver as `ClockRunConfig.Autosave`. The driver owns the cadence: `ClockRunConfig.AutosaveEveryTicks` game ticks after
+the last autosave hold (counted from the first running step of a process or a rewound tick) it takes a `Hold(Autosave)`,
+saves at the first step that finds the clock held and paused, and resumes with `Run` once that step has planned. No
+save is made while Running. The default is one in-game day (`DefaultAutosaveEveryTicks`, 60,000), a conservative guess
+that is unmeasured; a measured save duration and tolerable intent loss should replace it.
 
 The catalog reads need `CatalogFactory` and the `governor_ideoligion` resolver `StartingIdeoligion`; the mod's
 `BrainBootstrap` installs both (see below). Both live in the mod

@@ -43,6 +43,10 @@ public sealed partial class ClockRunDriver : IClockWorkerStopper, IDisposable
     private PbClock.WatchPolicy? _sentPolicy;
     private PbClock.Speed _sentSpeed;
     private long _autosaveMark = long.MinValue;
+
+    // Set when the driver takes an autosave hold; the save runs at the first step that finds the clock held and paused
+    // (the driver's hold, or a hazard hold that beat it), never while Running.
+    private bool _autosaveDue;
     private long _combatMarkedFor = long.MinValue;
     private readonly HashSet<ActionId> _coupledHeld = [];
 

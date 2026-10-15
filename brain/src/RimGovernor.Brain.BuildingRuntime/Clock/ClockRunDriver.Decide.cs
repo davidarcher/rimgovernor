@@ -230,10 +230,12 @@ public sealed partial class ClockRunDriver
                 if (_autosaveMark == long.MinValue || statusTick < _autosaveMark)
                 {
                     _autosaveMark = statusTick;
+                    _autosaveDue = false;
                 }
                 else if (statusTick - _autosaveMark >= _config.AutosaveEveryTicks)
                 {
                     _autosaveMark = statusTick;
+                    _autosaveDue = true;
                     return await HoldAsync(note, PbClock.HoldReason.Autosave, "autosave", call).ConfigureAwait(false);
                 }
             }
@@ -251,8 +253,9 @@ public sealed partial class ClockRunDriver
                 note.Reason = "combat_event";
                 return true;
             }
-            if (_config.Autosave is { } autosave && status.ActualPaused is not null && status.ActualPaused.GetValueOrDefault())
+            if (_autosaveDue && _config.Autosave is { } autosave && status.ActualPaused is not null && status.ActualPaused.GetValueOrDefault())
             {
+                _autosaveDue = false;
                 try
                 {
                     await autosave(id, statusTick, call).ConfigureAwait(false);

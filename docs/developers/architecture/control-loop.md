@@ -181,7 +181,10 @@ the [live clock baseline](brain-host.md#live-clock-baseline)), as is the
 heartbeat tolerance. Replace them with the measured budget when the table is
 filled.
 
-**Autosave.** A periodic hold flushes governor state, saves, and resumes.
+**Autosave.** A periodic hold flushes governor state, saves, and resumes. The
+brain holds every `AutosaveEveryTicks` game ticks (default one in-game day, an
+unmeasured guess), saves into the rotating `Autosave-1..5` slots only while the
+clock is held, then `Run`s. It is not the game's own autosave.
 
 **Native contract.** A new minimal wire contract replaces `StartRequest`, the
 epoch and its lease: `Run(target speed)`, `Hold(reason)` and a heartbeat (#3177).

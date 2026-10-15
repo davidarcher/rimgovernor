@@ -623,22 +623,25 @@ public sealed class ClockRunDriverTests
     public async Task AutosaveHoldsTheRunningClockOnceDueSavesWhileHeldAndRunResumes()
     {
         var saved = new List<long>();
+        var heldWhenSaving = new List<bool>();
+        Rig? current = null;
         using var rig = await Rig.StartAsync(new RigOptions
         {
             AutosaveEveryTicks = 500,
             Autosave = (_, tick, _) =>
             {
                 saved.Add(tick);
+                heldWhenSaving.Add(current!.Game.Held);
                 return Task.CompletedTask;
             },
         });
+        current = rig;
         await rig.PolledAsync();
 
-        // The first step finds the clock held before it ever ran, so it saves at that tick, then Runs. The first running
-        // step only marks where the save interval starts, and a short run is not due.
+        // The first step finds the clock held before it ever ran and Runs it without a save: only a due autosave saves.
+        // The first running step only marks where the save interval starts, and a short run is not due.
         Assert.True(await rig.StepAsync());
-        Assert.Equal([rig.Game.Tick], saved);
-        saved.Clear();
+        Assert.Empty(saved);
         rig.Game.Advance(100);
         Assert.False(await rig.StepAsync());
         Assert.Equal(0, rig.Game.Holds);
@@ -656,9 +659,57 @@ public sealed class ClockRunDriverTests
         Assert.False(rig.Game.Held);
         Assert.Equal(2, rig.Game.Runs);
 
-        // The interval restarts at the hold: the next step is not due.
+        // The interval restarts at the hold: the next step is not due, and the one save was made with the clock held.
         Assert.False(await rig.StepAsync());
         Assert.Equal(1, rig.Game.Holds);
+        Assert.Equal([true], heldWhenSaving);
+
+        // The next interval holds and saves once more; no save ever happens at a running step.
+        rig.Game.Advance(600);
+        Assert.True(await rig.StepAsync());
+        Assert.Single(saved);
+        await rig.PolledAsync();
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(2, saved.Count);
+        Assert.All(heldWhenSaving, held => Assert.True(held));
+        Assert.False(rig.Game.Held);
+    }
+
+    [Fact]
+    public async Task OtherHoldsNeverSaveAndAHazardThatBeatsTheAutosaveHoldStillSavesWhileHeld()
+    {
+        var saved = new List<long>();
+        using var rig = await Rig.StartAsync(new RigOptions
+        {
+            CoupledPlan = true,
+            AutosaveEveryTicks = 500,
+            Autosave = (_, tick, _) =>
+            {
+                saved.Add(tick);
+                return Task.CompletedTask;
+            },
+        });
+        await rig.PolledAsync();
+        Assert.True(await rig.StepAsync());
+
+        // The coupled-order hold is not an autosave: nothing is saved, though the clock is held and paused.
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.HoldReason.CoupledOrder, rig.Game.Reason);
+        await rig.PolledAsync();
+        Assert.True(await rig.StepAsync());
+        Assert.Empty(saved);
+
+        // The first running step with nothing newly coupled marks where the interval starts.
+        Assert.False(await rig.StepAsync());
+
+        // A hazard that fires as the autosave hold lands keeps its reason; the due save still runs inside that hold.
+        rig.Game.Advance(600);
+        rig.Game.BeforeHold = rig.Game.HostileHazard;
+        Assert.True(await rig.StepAsync());
+        Assert.Equal(PbClock.HoldReason.Hostile, rig.Game.Reason);
+        await rig.PolledAsync();
+        Assert.True(await rig.StepAsync());
+        Assert.Equal([rig.Game.Tick], saved);
     }
 
     [Fact]

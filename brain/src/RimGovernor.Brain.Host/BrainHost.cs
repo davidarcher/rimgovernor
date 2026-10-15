@@ -162,8 +162,7 @@ public sealed class BrainHost : IAsyncDisposable
         if (lifecycle is not null)
         {
             var autosaver = new Autosaver(lifecycle.SaveAsync, new HostLog(_emitter, "autosave"));
-            _routes.Add(autosaver);
-            autosave = autosaver.AtStopAsync;
+            autosave = autosaver.SaveAsync;
         }
 
         var planners = options.Composition.ComposePlanners(new PlannerContext

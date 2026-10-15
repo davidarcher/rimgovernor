@@ -126,7 +126,6 @@ Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"MealSurvivalPack"
 Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"Pemmican"
 Domain/TradeMission.cs|TradeMission.Validate|"Silver"
 Executor/Flows.cs|Executor.CommsTradeRequestEffect|360000
-Host/Autosaver.cs|Autosaver.IntervalTicks|60000
 Host/Client/FacadeNativeClient.Defense.cs|FacadeNativeClient.DefenseSpatialAccessBudgetMs|2500
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"HiddenConduit"
 Host/Client/FacadeNativeClient.Placement.cs|PlacementReads.BuildingPreviewRow|"PowerConduit"

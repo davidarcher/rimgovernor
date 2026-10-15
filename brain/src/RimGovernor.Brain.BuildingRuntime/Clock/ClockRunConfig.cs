@@ -19,8 +19,15 @@ public sealed record ClockRunConfig
     /// <summary>Saves the game while the clock is held for it; null saves nothing.</summary>
     public Func<PbCommon.Identity, long, CancellationToken, Task>? Autosave { get; init; }
 
-    /// <summary>The game ticks between the autosave holds: the autosaver's own interval, so a hold is never spent on a save it would skip.</summary>
-    public long AutosaveEveryTicks { get; init; }
+    /// <summary>
+    /// One in-game day of game ticks: the conservative default autosave cadence, a guess that is unmeasured. A save
+    /// costs a pause and a governor-state flush; the loss it bounds is the intent written since the last save, so the
+    /// right interval needs a measured save duration and a tolerable loss (#3169 baseline), neither of which exists yet.
+    /// </summary>
+    public const long DefaultAutosaveEveryTicks = GameTime.TicksPerDay;
+
+    /// <summary>The game ticks between autosave holds, measured on the game clock from the previous autosave hold; 0 holds at every running step.</summary>
+    public long AutosaveEveryTicks { get; init; } = DefaultAutosaveEveryTicks;
 
     /// <summary>The longest a combat hold may take to resume before the gate trips (unmeasured default, #3180).</summary>
     public TimeSpan CombatResumeBudget { get; init; } = ClockCombatStops.ResumeBudget;
