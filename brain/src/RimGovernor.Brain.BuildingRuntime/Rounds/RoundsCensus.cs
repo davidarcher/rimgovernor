@@ -53,7 +53,7 @@ internal sealed class RoundsCensusStore
         }
     }
 
-    internal bool BenchTable(FactStore m, FactScope scope, Identity expected, out Table<string, GearBenchRead> table)
+    internal bool BenchTable(FactStore m, FactScope scope, Identity expected, out KeyedTable<string, GearBenchRead> table)
     {
         RoundsCensus? census;
         ulong generation;
@@ -265,7 +265,7 @@ internal sealed class MirroredBenches : IRoundsWorkBenchSource
 
     private static List<GearBenchRead> BenchRows(IReadOnlyDictionary<string, GearBenchRead> rows) => ClockMirror.BenchRows(rows);
 
-    private static async Task<Table<string, GearBenchRead>> PublishBenchesAsync(FactStore m, FactScope scope, IRoundsWorkBenchSource native, C.Identity id, long tick, CancellationToken ct) =>
+    private static async Task<KeyedTable<string, GearBenchRead>> PublishBenchesAsync(FactStore m, FactScope scope, IRoundsWorkBenchSource native, C.Identity id, long tick, CancellationToken ct) =>
         await ClockMirror.PublishBenchesAsync(m, scope, native, id, tick, ct).ConfigureAwait(false);
 }
 

@@ -13,7 +13,7 @@ public readonly record struct Watermark(long Tick)
 }
 
 /// <summary>One keyed section as the store holds it: Rows as of AsOf, published at table Version. Never mutated once published.</summary>
-public sealed record Table<TKey, TRow>(IReadOnlyDictionary<TKey, TRow> Rows, Watermark AsOf, ulong Version)
+public sealed record KeyedTable<TKey, TRow>(IReadOnlyDictionary<TKey, TRow> Rows, Watermark AsOf, ulong Version)
     where TKey : notnull;
 
 /// <summary>
@@ -52,7 +52,7 @@ public delegate void Recorder(Published published);
 public static class StoreTables
 {
     /// <summary>The section's table under scope, false when none is held.</summary>
-    public static bool TryGetTable<TKey, TRow>(FactStore? store, Scope scope, string name, out Table<TKey, TRow> table)
+    public static bool TryGetTable<TKey, TRow>(FactStore? store, Scope scope, string name, out KeyedTable<TKey, TRow> table)
         where TKey : notnull
     {
         table = default!;
@@ -62,7 +62,7 @@ public static class StoreTables
         }
         lock (store.Gate)
         {
-            if (store.CurrentScope != scope || !store.Tables.TryGetValue(name, out var held) || held is not Table<TKey, TRow> typed)
+            if (store.CurrentScope != scope || !store.Tables.TryGetValue(name, out var held) || held is not KeyedTable<TKey, TRow> typed)
             {
                 return false;
             }
@@ -75,18 +75,18 @@ public static class StoreTables
     /// Publishes rows, a whole frame's section, as the section's table under scope, emptying the store first
     /// when scope differs from the one its sections belong to.
     /// </summary>
-    public static Table<TKey, TRow> PutTable<TKey, TRow>(FactStore? store, Scope scope, string name, IReadOnlyDictionary<TKey, TRow>? rows, Watermark asOf)
+    public static KeyedTable<TKey, TRow> PutTable<TKey, TRow>(FactStore? store, Scope scope, string name, IReadOnlyDictionary<TKey, TRow>? rows, Watermark asOf)
         where TKey : notnull
     {
         rows ??= new Dictionary<TKey, TRow>();
         if (store is null)
         {
-            return new Table<TKey, TRow>(rows, asOf, 0);
+            return new KeyedTable<TKey, TRow>(rows, asOf, 0);
         }
         lock (store.Gate)
         {
             store.Rescope(scope);
-            var table = new Table<TKey, TRow>(rows, asOf, store.NextTableVersion());
+            var table = new KeyedTable<TKey, TRow>(rows, asOf, store.NextTableVersion());
             store.Tables[name] = table;
             store.CurrentRecorder?.Invoke(new Published(scope, name, table.Version, asOf, rows));
             return table;

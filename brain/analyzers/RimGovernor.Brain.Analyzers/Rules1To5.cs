@@ -22,7 +22,6 @@ public sealed class LayersAnalyzer : GateAnalyzer
         new[] { "Contracts" },
         new[] { "Policy" },
         new[] { "Bridge.Contracts", "Bridge" },
-        new[] { "Facts" },
         new[] { "Observation" },
         new[] { "Store" },
         new[] { "Snapshot" },

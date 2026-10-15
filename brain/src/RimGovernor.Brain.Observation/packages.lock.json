@@ -28,15 +28,6 @@
       "rimgovernor.brain.domain": {
         "type": "Project"
       },
-      "rimgovernor.brain.facts": {
-        "type": "Project",
-        "dependencies": {
-          "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
-          "RimGovernor.Brain.Contracts": "[1.0.0, )",
-          "RimGovernor.Brain.Domain": "[1.0.0, )",
-          "RimGovernor.Brain.Policy": "[1.0.0, )"
-        }
-      },
       "rimgovernor.brain.policy": {
         "type": "Project",
         "dependencies": {

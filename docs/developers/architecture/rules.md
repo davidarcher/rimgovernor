@@ -22,7 +22,7 @@ the rule.
 ## Gates
 
 1. **Layers (`RGARCH001`).** `Domain -> Contracts -> Policy -> Bridge
-   (Bridge.Contracts, Bridge) -> Facts -> Observation -> Store -> Snapshot ->
+   (Bridge.Contracts, Bridge) -> Observation -> Store -> Snapshot ->
    Executor -> BuildingRuntime -> PlayerApi -> Host`. The project references
    already form this order and Roslyn cannot compile a cycle; the analyzer
    reads the assembly references of each compilation and fails a reference that
