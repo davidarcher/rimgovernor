@@ -46,6 +46,7 @@ tasks:
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-designation-guards'
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-home-coverage'
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-construction-tier-gate'
+      - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-speed-key-block'
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-team-policy'
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-traffic-counts'
       - 'dotnet {{.EVIDENCE}}/bin/NativeContractProbes.dll native-production-bill-settings'

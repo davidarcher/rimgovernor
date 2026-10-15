@@ -88,6 +88,7 @@ from their saved components or transient work scopes:
 | `OrderedWorkHistory.installed` | `Read`; two patches, exceptions return unavailable, true only after both. | Failure after first patch and retry; unknown generation must remain unknown, N01.04/05. |
 | `HomeCoverage.installed` | `Install`; Set/Clear/Invert then true, no reset. | Partial revision observation must not be treated as complete, N01.04/05. |
 | `WallUpgradeSafety.installed` | `Install`; also initializes the PlayerUiRevision observer; true after all hooks. | Partial guard install and repeat initialization, N01.04/05. |
+| `PlayerSpeedKeyBlock._patched`, `_inPlayerInput`, `_lastMessage` | `Ensure` installs once from the first main-thread hop; the depth counter brackets `TimeControls.DoTimeControlsGUI` (finalizer decrements); the timestamp rate-limits the in-game message. The blocking decision itself reads per-Game `NativeControlAuthority`. | Depth is not thread-local (GUI runs on the main thread only). Live-verify keys are inert while on and work after Pause, N01.05. |
 | `LetterPauseHook.installed` | `EnsurePatched`; letter and three clock callbacks then true, no reset. | Partial installation/retry must preserve pause attribution, N01.05. |
 
 These flags persist across disconnect/load/player override because Harmony patches

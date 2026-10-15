@@ -352,6 +352,7 @@ namespace HomeBridge.BridgeTools
                 // install is gated out of it rather than faked.
                 ObservationFrameHook.Ensure();
                 PlayerSpeedHook.Ensure();
+                PlayerSpeedKeyBlock.Ensure();
                 ModLogTick.Ensure();
 #endif
                 var started = Stopwatch.GetTimestamp();

@@ -20,6 +20,10 @@ The Observe tab shows **Bot on** or **Bot off**. Resume turns the bot on and giv
 Pause turns it off: the bot stops acting on the colony, the game is paused once if the bot was running it,
 and you are free to unpause and run the game yourself.
 
+While the bot is on, the game ignores your speed and pause input (space, 1, 2, 3, 4 and the time-control
+buttons) and shows a message saying why. Press Pause in the launcher to take the clock back; the keys work
+again as soon as the bot is off.
+
 ## Watch the governor
 
 The Observe tab reads the running game and needs nothing else installed. Its header shows

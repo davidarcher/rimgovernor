@@ -36,6 +36,8 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { }
         }
 
+        internal static bool IsOwned => _owned > 0;
+
         /// Runs a supervisor speed assignment, which is never the player's.
         internal static void Owned(Action assign)
         {
@@ -46,7 +48,7 @@ namespace HomeBridge.BridgeTools
 
         private static void AfterSpeed(TickManager __instance)
         {
-            if (_owned > 0) return;
+            if (_owned > 0 || PlayerSpeedKeyBlock.Blocking()) return;
             var speed = __instance.CurTimeSpeed;
             if (speed == TimeSpeed.Paused) return;
             _game = Current.Game;

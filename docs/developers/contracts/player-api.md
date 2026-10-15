@@ -81,6 +81,12 @@ direction compare-and-swap. Intents are journaled in order and each `requestId` 
   `state.enabled` is true. Resume lets the clock coordinator admit owned epochs; Pause withdraws that authority
   and pauses a running owned epoch once (a game that no epoch of the bot is running is not paused), and the
   player is then free to unpause. The bot does not re-take a clock the player runs while `state.enabled` is false.
+- While the bot holds the clock, native swallows the player's speed input. The owner flag is native control
+  authority (`NativeControlAuthority` Active, granted by Resume, withdrawn by Pause or a revocation), not a
+  wire field. `PlayerSpeedKeyBlock` marks `TimeControls.DoTimeControlsGUI`, where space, 1-4 and the time-control
+  buttons live, and skips `TickManager.CurTimeSpeed` and `TogglePaused` changes made inside it. Letter and dialog
+  pauses and supervisor assignments (`PlayerSpeedHook.Owned`) are outside that scope and pass. A blocked
+  attempt shows a rate-limited in-game message.
 - Record phases: `pending`, `running` (resume, non-zero native generation), `paused`, `refused`,
   `uncertain`. Historical results never confer current permission; `state.generation.plan` is the live
   root plan.

@@ -841,6 +841,7 @@ function obRender() {
   const on = v.control && v.control.state ? v.control.state.enabled : null;
   $('obBot').textContent = on == null ? 'Bot unknown' : on ? 'Bot on' : 'Bot off';
   $('obBot').className = 'pill ' + (on == null ? 'down' : on ? 'up' : 'warn');
+  $('obBot').title = on ? 'The bot owns the game clock; speed keys are off in game. Pause to take over.' : '';
   const world = v.control && v.control.state && v.control.state.generation;
   $('obResume').disabled = !world || on === true;
   $('obPause').disabled = !world || on === false;
