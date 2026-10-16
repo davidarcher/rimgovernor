@@ -167,6 +167,13 @@ claims with a supported shared Method or an explicit unsupported result. Do not
 delete physiological, involuntary, emergency or manual-player coverage merely
 because it does not belong to ordinary economic selection.
 
+A native-only case that probes a vanilla mechanic through a colonist's own job
+choice (`burial/stranger_sarcophagus`, `burial/grave_over_morgue`) declares
+`AcceptanceCase.VanillaColonists` with a Reason. The runner then calls the
+test-only `test/vanilla_colonists` fixture op, so colonists choose voluntary jobs
+natively for that game while the scenario clock holds the authority. It is
+absent from production builds and is not evidence of controlled execution.
+
 Native disorientation and the native imposed-sleep/force-job ability effects retain
 their direct job authority through exact source-method scopes. The scope applies only
 to the affected pawn, restores on exceptions, and records interruption/release of any

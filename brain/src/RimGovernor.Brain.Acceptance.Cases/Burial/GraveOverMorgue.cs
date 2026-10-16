@@ -30,6 +30,8 @@ internal static class GraveOverMorgue
         },
         RequiredOps = [BurialStage, BurialRead],
         QuietWorld = true,
+        VanillaColonists = true,
+        Reason = "VanillaColonists: an idle colonist's own vanilla haul ranks the grave over the morgue zone.",
         Budget = TimeSpan.FromMinutes(5),
         Crew = new Crew { Size = 3 },
         Run = RunAsync,

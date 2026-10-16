@@ -517,6 +517,7 @@ public sealed class CaseRunner
     {
         var checkpointing = _deps.Checkpointing;
         await StaffAsync(c, lifecycle.Harness, report, cancellationToken).ConfigureAwait(false);
+        await Needs.RecordVanillaColonistsAsync(c, lifecycle.Harness, report, cancellationToken).ConfigureAwait(false);
         report["quiet_mode"] = QuietText(c.Quiet);
         if (resumed.Resuming && resumed.Entry!.Prepared is { } resumedPrepared)
         {

@@ -10,7 +10,7 @@ using Verse;
 
 namespace HomeBridge.BridgeTools
 {
-    // Disposable test setup only. A colonist that wanders off to
+    // Disposable test setup only; every fixture build carries this file. A colonist that wanders off to
     // eat, sleep or break mid-assertion reruns a harness for a reason
     // unrelated to it. Freezing pins every colonist need at its maximum after
     // each needs tick except the ones the scenario keeps live (Food for a
@@ -87,6 +87,58 @@ namespace HomeBridge.BridgeTools
         {
             if (!Active || ___pawn == null || ___pawn.needs == null || !___pawn.IsColonist || ___pawn.Faction != Faction.OfPlayer) return;
             Pin(___pawn);
+        }
+    }
+
+    // Disposable test setup only (#3230). Under an active controller authority
+    // NativePawnActivities owns every player-controlled colonist's voluntary job
+    // choice, and the acceptance scenario clock runs only under that authority.
+    // A case that probes a vanilla mechanic (a colonist hauling a corpse on its
+    // own) declares AcceptanceCase.VanillaColonists, and the runner calls this op
+    // so colonists choose jobs natively for the current game only. Production keeps
+    // the rule that a controlled colonist never silently falls back to vanilla AI.
+    public static class VanillaColonists
+    {
+        private static bool patched;
+        private static Game game;
+
+        public static bool Active => game != null && ReferenceEquals(game, Current.Game);
+
+        public static object Apply()
+        {
+            game = Current.Game;
+            EnsurePatched();
+            return new { success = true, vanillaColonists = true,
+                colonists = Find.Maps.Sum(m => m.mapPawns.FreeColonistsSpawned.Count) };
+        }
+
+        private static void EnsurePatched()
+        {
+            if (patched) return;
+            var controlled = AccessTools.Method(typeof(NativePawnActivities), "Controlled")
+                ?? throw new MissingMethodException("NativePawnActivities.Controlled");
+            new Harmony("rimgovernor.test.vanilla-colonists").Patch(controlled,
+                prefix: new HarmonyMethod(typeof(VanillaColonists), nameof(BeforeControlled)));
+            patched = true;
+        }
+
+        private static bool BeforeControlled(ref bool __result)
+        {
+            if (!Active) return true;
+            __result = false;
+            return false;
+        }
+    }
+
+    public sealed class VanillaColonistsFixture
+    {
+        [Tool("test/vanilla_colonists", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup (#3230): colonists choose voluntary jobs natively under an active controller authority, for the current game only. For acceptance cases that probe vanilla mechanics under the scenario clock.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (Current.Game == null || Find.CurrentMap == null) throw new InvalidOperationException("A loaded game is required.");
+                return VanillaColonists.Apply();
+            }, cancellationToken).ConfigureAwait(false);
         }
     }
 

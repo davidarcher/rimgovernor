@@ -34,6 +34,29 @@ public static class Needs
             : throw new AcceptanceException($"{FreezeNeedsTool} refused: {reply.ToJson()}");
     }
 
+    /// <summary>Lets colonists choose voluntary jobs natively under the controller authority (FreezeNeedsFixture.cs, so every fixture build carries it).</summary>
+    public const string VanillaColonistsTool = "test/vanilla_colonists";
+
+    /// <summary>
+    /// Applies <see cref="AcceptanceCase.VanillaColonists"/> to the opened game and records the reply under
+    /// <c>report["vanilla_colonists"]</c>; a case without the flag is untouched.
+    /// </summary>
+    public static async Task RecordVanillaColonistsAsync(AcceptanceCase c, Harness harness, Report report, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(c);
+        ArgumentNullException.ThrowIfNull(harness);
+        ArgumentNullException.ThrowIfNull(report);
+        if (!c.VanillaColonists)
+        {
+            return;
+        }
+
+        var reply = await harness.CallAsync("vanilla-colonists", VanillaColonistsTool, new JsonObject(), cancellationToken).ConfigureAwait(false);
+        report["vanilla_colonists"] = reply["success"].AsBool() == true
+            ? reply
+            : throw new AcceptanceException($"{VanillaColonistsTool} refused: {reply.ToJson()}");
+    }
+
     /// <summary>
     /// Freezes every colonist need but <paramref name="keep"/> and records the reply under
     /// <c>report["frozen_needs"]</c>: the one call every service-driven harness makes once its save is loaded and

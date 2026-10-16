@@ -36,7 +36,9 @@ internal static class StrangerSarcophagus
         RequiredOps = [TombStage, TombSecond, TombRead, TombFresh],
         QuietWorld = true,
         Keep = ["Mood"],
-        Reason = "Mood stays live: the assertion reads the memory it gains.",
+        VanillaColonists = true,
+        Reason = "Mood stays live: the assertion reads the memory it gains. VanillaColonists: colonists haul the corpses and deconstruct "
+            + "the sarcophagus on their own, the vanilla Notify_HauledTo path the probe verifies.",
         Budget = TimeSpan.FromMinutes(8),
         Crew = new Crew { Size = 3 },
         Run = RunAsync,

@@ -132,6 +132,7 @@ public sealed class CaseSession : ISession, IRingHost
         var start = CaseRunner.SeededStart(_case.Start!, _seed);
         await opened.ReopenAsync(start, _case.Quiet, _case.KeepNeeds(), cancellationToken).ConfigureAwait(false);
         await CaseRunner.StaffAsync(_case, opened.Harness, _report, cancellationToken).ConfigureAwait(false);
+        await Needs.RecordVanillaColonistsAsync(_case, opened.Harness, _report, cancellationToken).ConfigureAwait(false);
         return opened.Harness;
     }
 

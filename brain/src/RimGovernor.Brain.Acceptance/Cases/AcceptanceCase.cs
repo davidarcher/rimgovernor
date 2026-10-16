@@ -48,7 +48,7 @@ public sealed record AcceptanceCase
     /// <summary>Defaults to <see cref="QuietMode.Required"/>; a Loud (or IfAvailable) case declares it and says why in Reason.</summary>
     public QuietMode Quiet { get; init; } = QuietMode.Required;
 
-    /// <summary>Why the case departs from the checklist's defaults: a storyteller that is not quieted, a DebugStart bigger than the default or a Budget past MaxBudget. Lint requires it for any of the three.</summary>
+    /// <summary>Why the case departs from the checklist's defaults: a storyteller that is not quieted, a DebugStart bigger than the default, a Budget past MaxBudget or VanillaColonists. Lint requires it for any of these.</summary>
     public string Reason { get; init; } = "";
 
     /// <summary>Marks the game quiet-world: under test acceleration, wild plants and animals outside the home area stop ticking and the wild spawners stop.</summary>
@@ -56,6 +56,14 @@ public sealed record AcceptanceCase
 
     /// <summary>The NeedDef names (Food, Rest, Joy...) left unfrozen; everything else is frozen before Run.</summary>
     public IReadOnlyList<string> Keep { get; init; } = [];
+
+    /// <summary>
+    /// Test-only: colonists choose voluntary jobs natively while the scenario clock holds the controller authority
+    /// (the runner calls <see cref="Needs.VanillaColonistsTool"/> on the opened game). Only for a native-only case that
+    /// probes a vanilla mechanic such as a colonist's own haul; production never falls back to vanilla AI for a
+    /// controlled colonist (#3135, #3230). Lint requires a Reason.
+    /// </summary>
+    public bool VanillaColonists { get; init; }
 
     /// <summary>Null for a native-only case.</summary>
     public ServeSpec? Serve { get; init; }
@@ -216,6 +224,16 @@ public sealed record AcceptanceCase
             {
                 errors.Add($"case \"{Name}\": Crew is Ordinary without a Reason: superpawns are the default");
             }
+        }
+
+        if (VanillaColonists && Reason.Length == 0)
+        {
+            errors.Add($"case \"{Name}\": VanillaColonists without a Reason: name the vanilla mechanic the colonists' own job choice probes");
+        }
+
+        if (VanillaColonists && (Serve is not null || Service))
+        {
+            errors.Add($"case \"{Name}\": VanillaColonists on a service-driven case: the opt-out is for native-only probes of vanilla mechanics");
         }
 
         if (Quiet != QuietMode.Required && Reason.Length == 0)
