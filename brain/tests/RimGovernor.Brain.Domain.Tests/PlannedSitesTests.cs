@@ -82,6 +82,7 @@ public sealed class PlannedSitesTests
         var row = new O.ConstructionActivityOption("planned/room1/wall/Steel", ShellWallDefinition, new Cell(-1, 0), "Pawn_1", "Steel", "Thing_Steel1",
             new Cell(5, 5), 6, 75, "ConstructFinishFrames", Known(10d), Known(20d), Known(300d));
         var blocker = new O.PlannedSiteBlocker(new Cell(3, 0), "Plant_1", "Plant_TreeOak", "Plant");
+        var clearing = new O.PlannedSiteClearing("planned/room1/wall/Steel/clear/cut", O.PlannedClearingKind.Cut, [new Cell(3, 0)]);
         var answered = new O.ConstructionActivityRead
         {
             Known = true,
@@ -89,7 +90,10 @@ public sealed class PlannedSitesTests
             Planned =
             [
                 new O.PlannedSiteAnswer("planned/room1/wall/Steel", Known(false))
-                    { Blockers = [blocker], Rejections = [new O.PlannedSiteRejection(new Cell(3, 0), "blocked")], Options = [row] },
+                {
+                    Blockers = [blocker], Rejections = [new O.PlannedSiteRejection(new Cell(3, 0), "blocked")], Options = [row],
+                    Verdict = O.PlannedSiteVerdict.Feasible, Clearing = [clearing],
+                },
             ],
         };
         var facts = JoinPlannedSites(sites, findings, [(batches[0], answered), (batches[1], null)]);
@@ -97,6 +101,9 @@ public sealed class PlannedSitesTests
         Assert.Equal(Known(false), wall.CanPlace);
         Assert.Equal([row], wall.Options);
         Assert.Equal([blocker], wall.Blockers);
+        // Feasibility once cleared, and the clearing it owes, come through the join (#3276).
+        Assert.Equal(O.PlannedSiteVerdict.Feasible, wall.Verdict);
+        Assert.Equal([clearing], wall.Clearing);
         Assert.Single(wall.Rejections);
         // A site in the same read that no answer names, and every site of a read that never came, stay unknown.
         Assert.False(facts.Sites.Single(s => s.Id == "planned/room1/wall/WoodLog").CanPlace.IsKnown);
@@ -117,6 +124,25 @@ public sealed class PlannedSitesTests
         var facts = JoinPlannedSites(sites, findings, [(batches[0], truncated)]);
         Assert.False(facts.Sites.Single(s => s.Id == "planned/room1/wall/Steel").CanPlace.IsKnown);
         Assert.Contains("planned_site_read_truncated", facts.Findings);
+    }
+
+    [Fact]
+    public void TheRoofAndVentsAreOwedAsIfTheRingStood()
+    {
+        // Bare ground: Reconcile owes the ring but no roof yet, since nothing encloses the room.
+        var room = Room(1, 0);
+        var plan = new LayoutPlan { Rooms = [room], Roofed = room.Region };
+        var input = new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [], Unroofed = room.Region.Cells().ToHashSet() };
+        var now = Reconcile(input).Owed;
+        Assert.DoesNotContain(now, o => o.Kind == OpKind.RoofIn);
+        var stood = RingStandsGround(input.Ground, now);
+        Assert.Equal(now.Where(o => o.Kind is OpKind.WallIn).SelectMany(o => o.Cells).ToHashSet(), stood.Walls.ToHashSet());
+        Assert.Empty(input.Ground.Walls);
+        var stands = Reconcile(input with { Ground = stood }).Owed;
+        var sited = PlannedSitedOps(now, stands);
+        Assert.Equal(9, sited.Single(o => o.Kind == OpKind.RoofIn).Cells.Count);
+        Assert.Equal(now.Where(o => o.Kind == OpKind.WallIn), sited.Where(o => o.Kind == OpKind.WallIn));
+        Assert.Contains(Sites([(room, sited)]), s => s.Id == "planned/room1/roof" && s.Positions.Count == 9);
     }
 
     [Fact]

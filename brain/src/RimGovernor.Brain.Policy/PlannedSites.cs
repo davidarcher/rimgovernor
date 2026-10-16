@@ -26,6 +26,12 @@ public sealed record PlannedBuildSite(string Id, int Room, OpKind Op, string Def
     public EquatableArray<PlannedSiteBlocker> Blockers { get; init; }
 
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
+
+    /// <summary>Feasibility once the footprint is cleared (native Verdict); Unspecified while native has not answered.</summary>
+    public PlannedSiteVerdict Verdict { get; init; }
+
+    /// <summary>The Cut, Haul and Mine prerequisites native reports for the footprint.</summary>
+    public EquatableArray<PlannedSiteClearing> Clearing { get; init; }
 }
 
 /// <summary>Every planned site of a round with the findings of building and reading them (a truncated read among them).</summary>
@@ -152,6 +158,55 @@ public static partial class PolicyFunctions
         return sites;
     }
 
+    /// <summary>
+    /// The ground as if the room's owed ring work were done (#3276): a copy of ground with each owed WallIn and DoorOut
+    /// cell walled, each DoorIn cell a door and each WallOut cell cleared. Reconcile over it owes the roof and the vents
+    /// the ring brings, by the same rule real placement meets once the ring stands; nothing else is assumed built.
+    /// </summary>
+    public static GroundCensus RingStandsGround(GroundCensus ground, IReadOnlyList<Operation> owed)
+    {
+        var g = new GroundCensus
+        {
+            Walls = [.. ground.Walls],
+            Doors = [.. ground.Doors],
+            Fences = [.. ground.Fences],
+            Gates = [.. ground.Gates],
+            Stuff = new Dictionary<Cell, string>(ground.Stuff),
+            Vents = [.. ground.Vents],
+            Rock = [.. ground.Rock],
+        };
+        foreach (var op in owed)
+        {
+            foreach (var c in op.Cells)
+            {
+                switch (op.Kind)
+                {
+                    case OpKind.WallIn:
+                    case OpKind.DoorOut:
+                        _ = g.Doors.Remove(c);
+                        _ = g.Walls.Add(c);
+                        break;
+                    case OpKind.DoorIn:
+                        _ = g.Walls.Remove(c);
+                        _ = g.Doors.Add(c);
+                        break;
+                    case OpKind.WallOut:
+                        _ = g.Walls.Remove(c);
+                        break;
+                }
+            }
+        }
+        return g;
+    }
+
+    /// <summary>
+    /// The operations a room's planned sites are built from: what Reconcile owes now (owed) without its vents and roof,
+    /// plus the vents and roof it owes once the ring stands (stands, Reconcile over RingStandsGround). A standing ring
+    /// owes the same either way. PlannedOwedCost keeps pricing owed itself.
+    /// </summary>
+    public static IReadOnlyList<Operation> PlannedSitedOps(IReadOnlyList<Operation> owed, IReadOnlyList<Operation> stands) =>
+        [.. owed.Where(o => o.Kind is not (OpKind.VentIn or OpKind.RoofIn)), .. stands.Where(o => o.Kind is OpKind.VentIn or OpKind.RoofIn)];
+
     /// <summary>Each unplaced shelf candidate as a one-piece planned site in the shelf's stuff and price (shelf; null leaves none).</summary>
     public static IReadOnlyList<PlannedBuildSite> ShelfPlannedSites(IEnumerable<ShelfCandidate> candidates, (string Stuff, IReadOnlyList<Amount> Costs)? shelf)
     {
@@ -234,6 +289,8 @@ public static partial class PolicyFunctions
                 Rejections = a.Rejections,
                 Blockers = a.Blockers,
                 Options = EquatableArray.From(a.Options.Where(o => o.Site == site.Id)),
+                Verdict = a.Verdict,
+                Clearing = a.Clearing,
             }
             : site);
         return new PlannedSiteFacts { Sites = EquatableArray.From(joined), Findings = EquatableArray.From(all) };

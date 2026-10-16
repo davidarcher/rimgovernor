@@ -158,6 +158,20 @@ public sealed class StorageOptionsTests
     }
 
     [Fact]
+    public void ASuccessorRoomWithKnownSiteWorkHasALeadTimeAndNamesItsRoofApart()
+    {
+        var request = Request();
+        var rooms = request.StoreRooms.Value.Select(r => r.Room == 7 ? r with { Work = Known(3000.0), RoofOwed = true } : r).ToList();
+        var room = Assert.Single(Store(Report(request with { StoreRooms = Known<IReadOnlyList<PlannedStoreRoom>>(rooms) }), DomainConstants.GeneralRole).Options,
+            o => o.Kind == StorageOptionKind.SuccessorRoom);
+
+        Assert.Equal(Known(3000.0), room.WorkTicks);
+        Assert.True(room.LeadDays.IsKnown);
+        Assert.DoesNotContain(FindingRoomWorkUnknown, room.Findings);
+        Assert.Contains(FindingRoomRoofWorkUnassessed, room.Findings);
+    }
+
+    [Fact]
     public void AFurtherYardBuildsNothingAndALeftUnsizedRoomIsUnknown()
     {
         var report = Report(Request());

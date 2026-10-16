@@ -43,6 +43,14 @@ public static partial class PolicyFunctions
         var deadline = checked(read.Tick + (long)horizon);
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new Dictionary<(string, string, string), ForecastActivityRoute>();
+        // Planned rooms are construction (#3276): the same gate as placed sites, from the round's planned-site facts.
+        var plannedFindings = new List<string>();
+        var plannedSites = shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedFacts) ? plannedFacts.Sites : [];
+        if (shelterEnabled && !facts.PlannedSites.IsKnown) plannedFindings.Add("planned_sites_unknown");
+        var plannedAlternatives = PlannedRoomAlternatives(plannedSites);
+        plannedFindings.AddRange(plannedAlternatives.Findings);
+        var planned = Methods.Generation.PlannedRoomCandidates.Generate(plannedSites, plannedAlternatives.Alternatives, read.Thermal, resources,
+            needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon);
         var lots = read.FoodSources.Select(o => new ForecastMaterialLot(o.Target, Location(o.Location), new(o.Resource), Known((double)o.Count)) { Perishable = true, FreshTicks = o.FreshTicks })
     .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => new ForecastMaterialLot(o.Input, Location(o.Origin), new(o.Resource), o.AvailableInput)))
     .Concat(read.Clothing.Options.SelectMany(o => o.Inputs).Select(i => new ForecastMaterialLot(i.Thing, Location(i.Location), new(i.Resource), Known((double)i.AvailableCount))))
@@ -51,13 +59,15 @@ public static partial class PolicyFunctions
         .Select(w => new ForecastMaterialLot(w.Medicine, Location(w.MedicineLocation!.Value), new(w.MedicineResource), Known((double)w.MedicineAvailable))))
     .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food" && t.Location is not null)
         .Select(t => new ForecastMaterialLot(t.Id, Location(t.Location!.Value), new(t.Resource), t.StockCount) { Perishable = true, FreshTicks = t.FreshTicks }))
+    .Concat(planned.Lots)
     .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToArray();
         var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>();
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
+        findings.UnionWith(plannedFindings); findings.UnionWith(planned.Findings);
         foreach (var pawn in needs.Pawns) foreach (var blocker in pawn.VoluntaryControlBlockers)
             findings.Add("unsupported_voluntary_state:" + pawn.Pawn + ":" + blocker);
         if (facts.CoupledWorkActive) findings.Add("protected_current_method_remaining_time_unassessed");
-        var truncated = read.Truncated; var expanded = 0;
+        var truncated = read.Truncated || planned.Truncated; var expanded = 0;
         string Location(Cell c) => "cell/" + c.X + "/" + c.Z;
         bool Space(int count)
         {
@@ -85,16 +95,23 @@ public static partial class PolicyFunctions
         });
         var templates = food.Bindings.Concat(construction.Bindings).Concat(shelter.Bindings).ToDictionary(b => b.Key, b => b.Value);
         var shelterRoots = shelter.Roots.Keys.Select(id => new ForecastCommitment(id, []) { ExclusiveOutcome = id });
-        var support = Methods.Generation.SupportMethodCandidates.Generate(read.Support, food.Operations.Concat(shelter.Operations),
-            food.Options.Concat(construction.Problem?.Options ?? []).Concat(shelter.Options), templates, resources, read.Tick, deadline);
-        var composed = ComposeCoupledCandidates(support.Operations, food.Observed.Concat(construction.Observed).Concat(shelter.Observed).Concat(support.Observed),
-            food.Alternatives.Concat(constructionRoots).Concat(shelterRoots).Concat(support.Roots), support.Options,
+        var support = Methods.Generation.SupportMethodCandidates.Generate(read.Support, food.Operations.Concat(shelter.Operations).Concat(planned.Operations),
+            food.Options.Concat(construction.Problem?.Options ?? []).Concat(shelter.Options).Concat(planned.Options), templates, resources, read.Tick, deadline);
+        var composed = ComposeCoupledCandidates(support.Operations, food.Observed.Concat(construction.Observed).Concat(shelter.Observed).Concat(planned.Observed).Concat(support.Observed),
+            food.Alternatives.Concat(constructionRoots).Concat(shelterRoots).Concat(planned.Roots).Concat(support.Roots), support.Options,
             support.Bindings, food.Needs, horizon, shelter.Roots);
-        tasks.AddRange(composed.Tasks); options.AddRange(composed.Options); needTasks.AddRange(composed.Needs); alternatives.AddRange(composed.Alternatives);
+        // The realizations of each planned site; nothing binds them until placement (#3278).
+        var plannedRealized = EquatableArray.From(planned.Sites.Select(s => new ForecastPlannedSite(s.Site, s.Room, s.Stuff,
+            EquatableArray.From(s.Operations.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []).Distinct().Order(StringComparer.Ordinal)),
+            EquatableArray.From((composed.Realizations.GetValueOrDefault(s.Finish) ?? []).Order(StringComparer.Ordinal)))));
+        var unplaced = plannedRealized.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
+        tasks.AddRange(composed.Tasks); options.AddRange(composed.Options); needTasks.AddRange(composed.Needs);
+        alternatives.AddRange(PlannedExclusions(composed.Alternatives, planned.Sites, planned.Rooms));
         foreach (var binding in composed.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in food.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         foreach (var route in construction.Problem?.Routes ?? []) Route(route.Pawn, route.From, route.To, route.Ticks);
         foreach (var route in shelter.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
+        foreach (var route in planned.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         foreach (var route in support.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         findings.UnionWith(food.Findings); findings.UnionWith(construction.Findings); findings.UnionWith(composed.Findings); findings.UnionWith(support.Findings);
         truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
@@ -160,7 +177,8 @@ public static partial class PolicyFunctions
         }).ToArray();
         // Recovery can unlock productive work which the earliest-only schedule would otherwise try too soon.
         // Propose the dependency, rather than hoping weights invent a missing complementary combination.
-        var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1
+        // Planned work has no action template to delay (#3278).
+        var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1 && !unplaced.Contains(c.ActivityCompletions[0])
             && needTasks.All(n => n.Task != c.ActivityCompletions[0])
             && practice.Practice.All(p => p.Task != c.ActivityCompletions[0])).ToArray();
         var delayed = 0; var delayedTasks = new HashSet<string>(StringComparer.Ordinal); var delayedRoots = new HashSet<string>(StringComparer.Ordinal);
@@ -230,6 +248,8 @@ public static partial class PolicyFunctions
             Support = read.Support,
             Thermal = read.Thermal,
             Shelters = EquatableArray.From(shelters),
+            PlannedSites = plannedRealized,
+            PlannedRooms = EquatableArray.From(planned.Rooms),
             InitialLots = EquatableArray.From(lots),
             Bindings = bindings,
             NeedTasks = EquatableArray.From(needTasks),
@@ -237,6 +257,23 @@ public static partial class PolicyFunctions
         },
             EquatableArray.From(DistinctAlternatives(alternatives)), EquatableArray.From(findings), truncated)
         { CompositionExpansions = composed.Expansions };
+
+        // Ring sites in one stuff exclude the room's ring sites and alternatives in every other stuff (#3276). Composition
+        // renames each root to its realizations, so the exclusion names those, not the generated root ids.
+        static IEnumerable<ForecastCommitment> PlannedExclusions(IEnumerable<ForecastCommitment> roots,
+            IEnumerable<Methods.Generation.PlannedSiteOperations> sites, IEnumerable<PlannedRoomAlternative> rooms)
+        {
+            var rows = roots.ToArray();
+            var stuffOf = sites.Where(s => s.Stuff.Length != 0).Select(s => (Id: s.Site, s.Room, s.Stuff))
+                .Concat(rooms.Where(a => a.Stuff.Length != 0).Select(a => (a.Id, a.Room, a.Stuff)))
+                .ToDictionary(s => s.Id, s => (s.Room, s.Stuff), StringComparer.Ordinal);
+            static string Base(string id) => id.IndexOf("/composition/", StringComparison.Ordinal) is var i and >= 0 ? id[..i] : id;
+            var realized = rows.Where(c => stuffOf.ContainsKey(Base(c.Id))).Select(c => (c.Id, Of: stuffOf[Base(c.Id)])).ToArray();
+            return rows.Select(c => c.Outcome is { } outcome && stuffOf.TryGetValue(Base(c.Id), out var own)
+                ? c with { Outcome = outcome with { Excludes = EquatableArray.From(outcome.Excludes.Concat(realized
+                    .Where(r => r.Of.Room == own.Room && r.Of.Stuff != own.Stuff).Select(r => r.Id)).Distinct().Order(StringComparer.Ordinal)) } }
+                : c);
+        }
 
         // The same root reached by two generation paths is one alternative; different roots cannot share an id.
         static List<ForecastCommitment> DistinctAlternatives(List<ForecastCommitment> roots)

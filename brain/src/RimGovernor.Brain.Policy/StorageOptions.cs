@@ -48,6 +48,12 @@ public sealed record PlannedStoreRoom
     public bool Outdoor { get; init; }
 
     public Fact<IReadOnlyDictionary<Resource, long>> Material { get; init; }
+
+    /// <summary>The catalog work its planned sites owe (PlannedRoomWork); unknown while the plan or a def's work is.</summary>
+    public Fact<double> Work { get; init; }
+
+    /// <summary>A roof is owed: its work has no catalog figure and is not in Work.</summary>
+    public bool RoofOwed { get; init; }
 }
 
 /// <summary>
@@ -107,8 +113,11 @@ public static partial class PolicyFunctions
     /// <summary>A build whose WorkToBuild the catalog does not show.</summary>
     public const string FindingWorkUnknown = "work_unknown";
 
-    /// <summary>A planned room's build work, unknown until planned-room work joins the forecast (#3241).</summary>
+    /// <summary>A planned room's build work is unknown: the plan is unread or a planned site's def shows no WorkToBuild (#3276).</summary>
     public const string FindingRoomWorkUnknown = "room_work_unknown";
+
+    /// <summary>A planned room owes a roof, whose work has no catalog figure: the room's WorkTicks leave it out.</summary>
+    public const string FindingRoomRoofWorkUnassessed = "room_roof_work_unassessed";
 
     /// <summary>A planned room whose owed material is unknown (the plan's owed cost is unread).</summary>
     public const string FindingRoomMaterialUnknown = "room_material_unknown";
@@ -244,8 +253,8 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The room options of a store role: one per planned room of the plan role no zone of the store role stands in,
-    /// priced from the plan's owed material (a yard owes none and its work is FurtherYardWorkTicks; a storage room's
-    /// work is unknown until #3241); its interior is the ground taken and the stacks gained, its exposure that of
+    /// priced from the plan's owed material and work (a yard owes none and its work is FurtherYardWorkTicks; a storage
+    /// room's work is its planned sites' catalog work, PlannedStoreRoom.Work, its roof named apart); its interior is the ground taken and the stacks gained, its exposure that of
     /// open air for an outdoor room and none for a roofed one. With none, one unsized option.
     /// </summary>
     private static List<StorageOption> RoomOptions(StockpileRequest r, StorageOptionKind kind, PlannedRole role, string prefix, Fact<List<LootItem>> stranded, Dictionary<Cell, SiteCell> census)
@@ -269,7 +278,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var work = role == PlannedRole.Yard ? Known(FurtherYardWorkTicks) : Unknown<double>();
+            var work = role == PlannedRole.Yard ? Known(FurtherYardWorkTicks) : room.Work;
             var slots = Enumerable.Repeat(Known(room.Outdoor ? 1.0 : 0.0), room.Cells.Count).ToList();
             var avoided = DeteriorationAvoided(r.Items, stranded, Known(room.Cells.Count), slots, false, census);
             output.Add(new StorageOption
@@ -285,6 +294,7 @@ public static partial class PolicyFunctions
                 Findings = Findings(
                     room.Material.IsKnown ? null : FindingRoomMaterialUnknown,
                     work.IsKnown ? null : FindingRoomWorkUnknown,
+                    role != PlannedRole.Yard && room.RoofOwed ? FindingRoomRoofWorkUnassessed : null,
                     avoided.IsKnown ? null : FindingDeteriorationUnknown),
             });
         }

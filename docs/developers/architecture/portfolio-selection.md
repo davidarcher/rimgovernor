@@ -6,7 +6,10 @@ Normal Rounds generates alternatives from one native frame, compares their
 coupled ColonyForecast consequences, then binds the selected graph through
 the WorkAssignments Concern and existing Method journal. Hands remains the
 only order writer. The path is enabled for observed food, needs, existing
-construction sites, planned shelter completion and clothing production.
+construction sites, planned shelter completion, planned rooms and clothing
+production. Planned rooms are compared and selected but not yet bound: their
+sites are unplaced until #3278, so binding skips their allocations
+([planned room activities](colony-forecast.md#planned-room-activities)).
 
 Supported cooking alternatives carry native learning and per-level work-rate
 evidence into the shared allocator. Subsequent demanded meals can take less time
@@ -37,6 +40,10 @@ and labor is invented. True ties retain the feasible incumbent, then prefer
 less total participant labor among new plans. Clothing delivery is development,
 not wearing or thermal protection. Completed construction effects count each
 physical site once, including when a larger prerequisite bundle supplies it.
+A planned site finished inside the horizon is one unit of requested development,
+the lowest tier; a whole planned room carries no value of its own. Work in the
+closure of a commitment that carries requested-development relief is exempt
+from the thermal-relief gate on construction allocations.
 
 Unknown dimensions are compared only when both alternatives assess them.
 Unknown meal thoughts cannot veto known urgent hunger relief. Unknown routes,

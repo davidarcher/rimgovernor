@@ -21,6 +21,20 @@ public sealed record ForecastNeedTask(string Task, string Pawn, string Kind, str
 }
 public sealed record ForecastMaterialLot(string Lot, string Location, Resource Resource, Fact<double> Count)
 { public bool Perishable { get; init; } public Fact<double> FreshTicks { get; init; } }
+/// <summary>
+/// One planned site's generated work (#3276): the composed activities it was realized as (deliveries, clearing and its
+/// finish) and the finish realizations among them. Stuff is a ring site's stuff, empty for any other site. The
+/// activities have no action template until placement (#3278).
+/// </summary>
+public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, EquatableArray<string> Activities, EquatableArray<string> Finishes);
+
+/// <summary>
+/// What one schedule completes of a planned room: the planned sites (ids) whose finish completes inside the horizon,
+/// and the room alternatives all of whose sites do. A room with completed sites and no complete alternative reports
+/// its later effect unassessed (planned_room_effect_unassessed), never as zero.
+/// </summary>
+public sealed record ForecastPlannedRoomOutcome(int Room, EquatableArray<string> CompletedSites, EquatableArray<string> Complete);
+
 public sealed record ForecastCoupledContext
 {
     public required ForecastActivityProblem Activities { get; init; }
@@ -33,6 +47,9 @@ public sealed record ForecastCoupledContext
     public SupportActivityRead Support { get; init; } = new();
     public CoupledThermalRead? Thermal { get; init; }
     public EquatableArray<ForecastShelterPlan> Shelters { get; init; }
+    /// <summary>The planned sites generated as construction activities (#3276), and the room alternatives they make up.</summary>
+    public EquatableArray<ForecastPlannedSite> PlannedSites { get; init; }
+    public EquatableArray<PlannedRoomAlternative> PlannedRooms { get; init; }
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
     public EquatableArray<ForecastNeedTask> NeedTasks { get; init; }
     /// <summary>Observed retained waiting occupies time but is not productive labor or a need service.</summary>
@@ -49,6 +66,8 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public EquatableArray<ForecastThermalExposure> ThermalExposure { get; init; }
     public EquatableArray<string> CompletedDevelopmentSites { get; init; }
+    /// <summary>Per planned room with a site completed inside the horizon: its completed sites and complete alternatives.</summary>
+    public EquatableArray<ForecastPlannedRoomOutcome> PlannedRooms { get; init; }
     /// <summary>Known stationary-location exposure avoided relative to the same occupancy without proposed room changes.
     /// Unobserved transit/idle receive no benefit.</summary>
     public Fact<double> StationaryThermalRelief { get; init; }
@@ -480,6 +499,15 @@ public static partial class PolicyFunctions
                 && p.First.MissingXp.Value < p.Second.MissingXp.Value))
                 Refuse("practice_without_assigned_shortfall_improvement", group.Key, 0);
         }
+        // A planned site counts once it finishes inside the horizon; a room only when a whole alternative does (#3276).
+        var builtSites = context.PlannedSites.Where(s => s.Finishes.Any(f => completed.GetValueOrDefault(f) == Known(true)))
+            .Select(s => s.Site).ToHashSet(StringComparer.Ordinal);
+        var plannedRooms = context.PlannedSites.Where(s => builtSites.Contains(s.Site)).GroupBy(s => s.Room).OrderBy(g => g.Key)
+            .Select(g => new ForecastPlannedRoomOutcome(g.Key, EquatableArray.From(g.Select(s => s.Site).Order(StringComparer.Ordinal)),
+                EquatableArray.From(context.PlannedRooms.Where(a => a.Room == g.Key && a.Sites.All(builtSites.Contains)).Select(a => a.Id))))
+            .ToArray();
+        foreach (var room in plannedRooms.Where(r => r.Complete.Count == 0))
+            Finding("planned_room_effect_unassessed", "planned/room" + room.Room, horizon);
         var thermalRelief = reliefKnown ? Known(unchanged.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)
             - changedUse.Sum(t => t.AssessedColdDegreeTicks + t.AssessedHotDegreeTicks)) : default;
         return new(plan, feasible, inventory.Stocks, needs, EquatableArray.From(findings))
@@ -492,6 +520,7 @@ public static partial class PolicyFunctions
                 .OrderBy(p => p.Need.Pawn, StringComparer.Ordinal).ThenBy(p => p.Allocation.Arrive).ThenBy(p => p.Need.Kind, StringComparer.Ordinal)
                 .Select(p => FormattableString.Invariant($"{p.Need.Pawn}|{p.Need.Kind}|{tasks[p.Need.Task].Location}|{p.Allocation.Arrive:R}|{p.Allocation.End:R}"))),
             StationaryThermalRelief = thermalRelief,
+            PlannedRooms = EquatableArray.From(plannedRooms),
             CompletedDevelopmentSites = EquatableArray.From(plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true))
                 .Select(a => context.Bindings.GetValueOrDefault((a.Activity, a.Pawn)))
                 .Where(b => b is { Kind: PawnActivityKind.Work } && b.Job is "FinishFrame" or "BuildRoof")

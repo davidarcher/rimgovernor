@@ -33,7 +33,12 @@ public sealed partial class Rounder
         var id = PlanIds.MintPlanId();
         var method = new MethodId($"coupled-{id}");
         var activity = PolicyFunctions.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
-        if (activity is null) return;
+        if (activity is null)
+        {
+            // Selected planned sites start no order until placement (#3278); the selection itself stays observable.
+            if (selection.Selected.PlannedRooms.Count > 0) RecordCoupledSelection(selection, facts.Tick.Value, "planned_unplaced");
+            return;
+        }
         Player.Current(call, epoch);
         if (Player.Session.State().Snapshot != snapshot) throw new ControlException("coupled activity scope changed");
         try
@@ -69,6 +74,8 @@ public sealed partial class Rounder
                 ["generation_truncated"] = selection.GenerationTruncated, ["search_truncated"] = selection.Selection.SearchTruncated,
                 ["composition_expansions"] = selection.CompositionExpansions, ["search_expansions"] = selection.Selection.Expansions,
                 ["uncertainty"] = selection.Selection.Findings,
+                ["planned_rooms"] = selection.Selected.PlannedRooms.Select(r => new Dictionary<string, object?>
+                { ["room"] = r.Room, ["completed_sites"] = r.CompletedSites.ToArray(), ["complete"] = r.Complete.ToArray() }).ToArray(),
                 ["beneficiaries"] = selection.Selected.Needs.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => new Dictionary<string, object?>
                 {
                     ["pawn"] = p.Key,

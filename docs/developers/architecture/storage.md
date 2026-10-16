@@ -158,7 +158,7 @@ one value, and the report ranks nothing:
 |---|---|---|
 | Zone growth | no material, 0 work | the open footprint cells the zone can still reach (`StoreGrowth`, as the review's grow edit reads them); one stack per cell |
 | Shelf | the catalog Shelf's cost list from its build stuff (`BuildStuff`) and that stuff's `WorkToBuild` | one per shelf candidate: its 2 floor cells lost, its stacks |
-| Successor room (warehouse) | the plan's owed material for a planned storage room no warehouse zone stands in (`PlannedOwedCost`); work unknown until #3241 | its interior cells and stacks |
+| Successor room (warehouse) | the plan's owed material for a planned storage room no warehouse zone stands in (`PlannedOwedCost`); work is its planned sites' catalog `WorkToBuild` times pieces over the first stuff's full alternative (`PlannedRoomWork`), the roof left out and named (`room_roof_work_unassessed`) | its interior cells and stacks |
 | Further room (yard) | a planned yard no yard zone stands in: no material, 0 work | its interior cells and stacks |
 
 Each option's lead time is `StorageLeadDays` over its work. With no planned
@@ -172,7 +172,7 @@ and open air in a yard). A shelf skips Chunks, Plants and Buildings rows. The
 yard preset admits no deteriorating item a shelf holds, so a yard shelf reads a
 known 0. A stuffed item def has a rate only when every stuff gives it the same
 one (a loot row names no stuff). Any unknown value stays unknown, never zero,
-and names a finding (`work_unknown`, `room_work_unknown`,
+and names a finding (`work_unknown`, `room_work_unknown`, `room_roof_work_unassessed`,
 `deterioration_unknown`, ...): such an option is not ranked on a guess. The
 placed options (zone growth, shelf) feed the storage portfolio (#3239); the
 room options reach layout through the yard's runway and stranded signal and the

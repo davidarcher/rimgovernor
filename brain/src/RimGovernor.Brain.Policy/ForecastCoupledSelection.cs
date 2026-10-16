@@ -95,6 +95,7 @@ public static partial class PolicyFunctions
             && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
             && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown && c.MoodMemories.Count == 0
             && c.SituationalChanges.Count == 0 && c.ComfortShifts.Count == 0;
+        var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var redundantPairs = alternatives.Where(GraphOnly).SelectMany(a => alternatives.Where(b => a.Id != b.Id
             && closures[a.Id].IsSubsetOf(closures[b.Id])).Select(b => (Contained: a.Id, Container: b.Id))).ToHashSet();
         // The traversal reaches a subset by more than one phase; evaluating it again at a bound it already got
@@ -117,6 +118,8 @@ public static partial class PolicyFunctions
             findings.UnionWith(scenario.Findings);
             if (scenario.Truncated) truncated = true;
             var feasible = scenario.Alternatives.Where(a => a.Feasible == Known(true)).ToArray();
+            var requested = commitments.Where(c => c.Outcome?.Requirements is { Relief.Count: > 0 })
+                .SelectMany(c => closures.GetValueOrDefault(c.Id) ?? []).ToHashSet(StringComparer.Ordinal);
             if (feasible.Length == 0)
             {
                 evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), null, "infeasible_or_unassessed"));
@@ -127,8 +130,10 @@ public static partial class PolicyFunctions
                 var vector = CoupledConsequences(outcome, commitments);
                 // Physical feasibility does not certify optional investment. Partial shells retain
                 // unknown exposure; they cannot win by hiding it. Keep expanding complementary roots.
-                if (outcome.Plan.Allocations.Any(a => candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
-                    && (binding.SiteDefinition.Length != 0 || binding.Job == "BuildRoof"))
+                // Construction a selected commitment values as requested development carries its own relief (#3276).
+                if (outcome.Plan.Allocations.Any(a => !requested.Contains(a.Activity)
+                    && (unplaced.Contains(a.Activity) || candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding)
+                    && (binding.SiteDefinition.Length != 0 || binding.Job == "BuildRoof")))
                     && (!outcome.StationaryThermalRelief.IsKnown || outcome.StationaryThermalRelief.Value <= 0))
                 {
                     if (unserved.Count < 4 && additions.Length == 1) unserved.Add([additions[0].Id]);
@@ -333,7 +338,7 @@ public static partial class PolicyFunctions
     {
         if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
-        return Methods.Binding.CoordinatedActivityBinding.StartWithDeferred(selection, candidates.Context.Bindings, authority, method, tick);
+        return Methods.Binding.CoordinatedActivityBinding.StartWithDeferred(selection, candidates.Context.Bindings, authority, method, tick, candidates.Context.PlannedSites);
     }
 
     /// <summary>The no-change choice has a finite observed safe interval, not permission for a native selector.

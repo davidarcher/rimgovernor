@@ -11,13 +11,11 @@ public sealed partial class Rounder
     internal async Task<Fact<PlannedSiteFacts>> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, FlooringPolicy flooring,
         IReadOnlyList<ShelfCandidate> shelves, CancellationToken ct)
     {
-        if (PlannedOwedOf(colony, flooring) is not { } owed)
+        if (PlannedRoomSitesOf(colony, flooring) is not { } roomSites)
         {
             return Unknown<PlannedSiteFacts>();
         }
-        var sites = new List<PlannedBuildSite>(PolicyApi.PlannedSitesOf(owed.Rooms, room => PlannedRingStuffsOf(colony, room),
-            (def, stuff) => PlannedRingPrice(colony, def, stuff), def => PlannedPiecePrice(colony, def), owed.FloorPrice,
-            ClimateDefs().VentDef, owed.Placed));
+        var sites = new List<PlannedBuildSite>(roomSites);
         if (shelves.Count > 0)
         {
             var stuff = colony.BuildStuff(PolicyApi.ShelfDefinition);
@@ -36,6 +34,35 @@ public sealed partial class Rounder
             reads.Add((batch, read));
         }
         return Known(PolicyApi.JoinPlannedSites(sites, findings, reads));
+    }
+
+    /// <summary>The plan's owed operations as planned sites (PlannedSitesOf), unread; null while the plan or the construction census is unknown.</summary>
+    internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyProjection colony, FlooringPolicy flooring) =>
+        PlannedOwedOf(colony, flooring) is not { } owed ? null
+            : PolicyApi.PlannedSitesOf(owed.Sited, room => PlannedRingStuffsOf(colony, room),
+                (def, stuff) => PlannedRingPrice(colony, def, stuff), def => PlannedPiecePrice(colony, def), owed.FloorPrice,
+                ClimateDefs().VentDef, owed.Placed);
+
+    /// <summary>
+    /// A planned site's catalog work per piece (WorkToBuild): its def's for its stuff, a floor's own; unknown where the
+    /// catalog does not show it. A roof has no catalog work (PlannedRoomWork reports it apart).
+    /// </summary>
+    internal static Fact<double> PlannedSiteWork(ColonyProjection colony, FlooringFacts floors, PlannedBuildSite site)
+    {
+        if (site.Op == OpKind.FloorIn)
+        {
+            return floors.Definitions.TryGetValue(site.Definition, out var floor) ? floor.WorkToBuild : Unknown<double>();
+        }
+        if (AnimalContainmentDefinition(colony.Definitions, site.Definition) is not { } def)
+        {
+            return Unknown<double>();
+        }
+        if (site.Stuff.Length == 0)
+        {
+            return def.StuffOptions.Count == 0 ? def.WorkToBuild : Unknown<double>();
+        }
+        return def.StuffOptions.FirstOrDefault(o => o.Stuff == site.Stuff) is { } option
+            && option.Stats.TryGetValue(BridgeConstants.StatWorkToBuild, out var work) ? Known(work) : Unknown<double>();
     }
 
     /// <summary>

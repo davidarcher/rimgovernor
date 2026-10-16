@@ -905,9 +905,15 @@ internal static partial class BuildingRuntimePackage
                 .ToDictionary(e => e.Key, e => (IReadOnlyDictionary<Resource, long>)e.Value));
     }
 
-    /// <summary>The plan's owed operations per built room, the placed sites the census owes instead and the floor prices.</summary>
+    /// <summary>
+    /// The plan's owed operations per built room, the placed sites the census owes instead and the floor prices. Sited is
+    /// what the planned sites build per room (PlannedSitedOps): Rooms with the roof and vents owed once the ring stands.
+    /// </summary>
     internal sealed record PlannedOwed(IReadOnlyList<(PlannedRoom Room, IReadOnlyList<Operation> Owed)> Rooms, IReadOnlySet<(string Def, Cell Cell)> Placed,
-        Func<string, IReadOnlyList<Amount>?> FloorPrice);
+        Func<string, IReadOnlyList<Amount>?> FloorPrice)
+    {
+        public IReadOnlyList<(PlannedRoom Room, IReadOnlyList<Operation> Owed)> Sited { get; init; } = Rooms;
+    }
 
     /// <summary>
     /// The reconciler's owed diff over every built room of the plan, read against the colony's standing buildings and floors
@@ -959,6 +965,7 @@ internal static partial class BuildingRuntimePackage
             }
         }
         var owed = new List<(PlannedRoom, IReadOnlyList<Operation>)>();
+        var sited = new List<(PlannedRoom, IReadOnlyList<Operation>)>();
         foreach (var room in PolicyApi.PlannedBuiltRooms(plan))
         {
             var (input, known) = RoomRingInput(colony, plan, room);
@@ -975,9 +982,13 @@ internal static partial class BuildingRuntimePackage
                 Furniture = plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Select(p => p.Wanted())] : [],
                 WantedFloor = PolicyApi.WantedFloors(room, [], flooringFacts, flooring),
             };
-            owed.Add((room, PolicyApi.Reconcile(input).Owed));
+            var now = PolicyApi.Reconcile(input).Owed;
+            owed.Add((room, now));
+            // The roof and vents the ring brings, owed once it stands (#3276): the sites build them, pricing does not.
+            var stands = PolicyApi.Reconcile(input with { Ground = PolicyApi.RingStandsGround(input.Ground, now) }).Owed;
+            sited.Add((room, PolicyApi.PlannedSitedOps(now, stands)));
         }
-        return new PlannedOwed(owed, placed, FloorPrice);
+        return new PlannedOwed(owed, placed, FloorPrice) { Sited = sited };
     }
 
     /// <summary>The stuff a planned piece is built from (the bulk chooser's, "" for a def made from no stuff) and its cost list; null where the def is unavailable.</summary>

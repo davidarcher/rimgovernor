@@ -115,7 +115,8 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>
     /// The layout plan's storage rooms and yards for the storage option report, each with the material the plan still
-    /// owes for it (PlannedConstructionOf; a yard is unfenced and owes none); unknown while the plan is.
+    /// owes for it (PlannedConstructionOf; a yard is unfenced and owes none) and the catalog work its planned sites owe
+    /// (PlannedRoomWork over PlannedRoomSitesOf); unknown while the plan is.
     /// </summary>
     internal static Fact<IReadOnlyList<Pol.PlannedStoreRoom>> StoreRooms(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring)
     {
@@ -125,6 +126,8 @@ internal static partial class BuildingRuntimePackage
         }
         var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Storage || r.Role == Pol.PlannedRole.Yard).ToList();
         var owed = rooms.Any(r => !r.Unfenced()) ? PlannedConstructionOf(projection, flooring) : default;
+        var sites = rooms.Any(r => !r.Unfenced()) ? Rounder.PlannedRoomSitesOf(projection, flooring) : null;
+        var floors = sites is null ? null : FlooringFactsOf(projection);
         var output = new List<Pol.PlannedStoreRoom>(rooms.Count);
         foreach (var room in rooms)
         {
@@ -137,7 +140,14 @@ internal static partial class BuildingRuntimePackage
             {
                 material = Known(byRoom.GetValueOrDefault(room.Id) ?? new Dictionary<Pol.Resource, long>());
             }
-            output.Add(new Pol.PlannedStoreRoom { Room = room.Id, Role = room.Role, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material });
+            var (work, roof) = room.Unfenced() ? (Known(0.0), false)
+                : sites is null || floors is null ? (Unknown<double>(), false)
+                : PlannedRoomWork(sites, room.Id, site => Rounder.PlannedSiteWork(projection, floors, site));
+            output.Add(new Pol.PlannedStoreRoom
+            {
+                Room = room.Id, Role = room.Role, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material,
+                Work = work, RoofOwed = roof,
+            });
         }
         return Known<IReadOnlyList<Pol.PlannedStoreRoom>>(output);
     }

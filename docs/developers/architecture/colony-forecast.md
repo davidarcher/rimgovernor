@@ -376,25 +376,25 @@ unknown routes, independent runnable work and the shared search budget.
 
 ## Planned rooms
 
-`ForecastWorkInputs.PlannedRooms` carries one commitment per room of the layout plan, `planned/room{id}`,
-built by `PlannedRoomCommitments` from `RoundsFacts.PlannedConstruction`: the material the plan still owes that
-room. It is the reconciler's own diff, not a second one: `Rounder.PlannedConstructionOf` builds each room's
-`ReconcileInput` from the plan (the stored `Pieces` as the template, the colony's standing buildings and floors as
-the census) and `PlannedOwedCost` prices the `WallIn`, `DoorIn`, `VentIn`, `FloorIn` and `Build` operations that
-`Reconcile` says are owed, from the def catalog. The price and the build therefore read the same diff. A wall two
-rooms share is claimed by the lowest room id. The commitment is exact `MaterialClaims` (no reservation bill, no
-stock effect, no site), so `ForecastMaterialBudgetOf` holds that material back from other alternatives. It is
-the same plan the shared construction demand reads, so the two cannot disagree.
-
-Not modelled: nothing is placed yet, so there is no work amount, route or finish time to schedule and labor is
-declared in `UnsupportedEffects` (`planned_construction_labor`). Scheduling planned rooms against pawn capacity
-needs a planned-site notion with a work estimate and a legality read. Native provides both through the
-construction activity read's [planned sites](../contracts/forecast-contracts.md#planned-construction-sites).
-No activity is generated from them yet (#3276). A wall, door, vent or piece with a blueprint or frame already placed is left out of the planned claim: the standing site owes its outstanding material through the construction census, so nothing is claimed twice.
+`RoundsFacts.PlannedConstruction` is the material the layout plan still owes per room. It is the reconciler's own
+diff, not a second one: `Rounder.PlannedConstructionOf` builds each room's `ReconcileInput` from the plan (the
+stored `Pieces` as the template, the colony's standing buildings and floors as the census) and `PlannedOwedCost`
+prices the `WallIn`, `DoorIn`, `VentIn`, `FloorIn` and `Build` operations that `Reconcile` says are owed, from
+the def catalog. The price and the build therefore read the same diff. A wall two rooms share is owed by the
+lowest room id. The shared construction demand reads it; the forecast holds no standing claim on it. A planned
+room's material is claimed only through its delivery activities once selected (below). A wall, door, vent or
+piece with a blueprint or frame already placed is left out: the standing site owes its outstanding material
+through the construction census, so nothing is counted twice.
 
 The plan also owes a roof (`RoofIn`): `PlannedConstructionOf` passes the ring input's open-sky cells, so a
-roofed-set cell still open to the sky is owed once the room's ring stands (the reconcile owes no roof before
-that). A roof costs no material.
+roofed-set cell still open to the sky is owed once the room's ring stands. A roof costs no material, so its price
+is unchanged. The planned sites (below) read the roof and the vents from a second, hypothetical reconcile in
+`Rounder.PlannedOwedOf`, over `RingStandsGround` (the ground as if the owed ring stood): `PlannedSitedOps` keeps
+the owed ring, floors and pieces and takes the vents and the roof from that pass. A room whose ring is not yet
+built therefore still has a roof site.
+
+Planned rooms are scheduled as construction activities in the coupled portfolio (#3276); see
+[planned room activities](#planned-room-activities).
 
 ### Planned-site facts
 
@@ -415,7 +415,8 @@ unplaced `ShelfCandidates` are added as one-piece sites (`ShelfPlannedSites`, ro
 
 `PlannedSiteBatches` asks native `PlannedSitesPerRead` (4) sites per construction activity read.
 `JoinPlannedSites` attaches each answer's `CanPlace`, `Rejections`, `Blockers` (unclassified, as native reports
-them) and per pawn x source `Options` by site id. A site stays unknown when:
+them), per pawn x source `Options`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul and mine
+prerequisites) by site id. A site stays unknown when:
 
 - no answer names it;
 - its read is missing or unknown (`planned_site_read_unknown`);
@@ -425,6 +426,50 @@ them) and per pawn x source `Options` by site id. A site stays unknown when:
 
 The roof has no native placement and is never asked. Its work per cell is the coupled read's
 `ThermalWorker.RoofCellWorkTicks`, which the generator joins.
+
+### Planned room activities
+
+`GenerateCoupledActivities` turns the planned-site facts into construction activities when housing, shelter or
+temperature safety is enabled (the placed-site gate; `planned_sites_unknown` when the facts are). The steps:
+
+1. `PlannedRoomAlternatives` names each room's alternatives (one ring stuff and one scope each; below).
+2. `PlannedRoomCandidates` (Methods generation) assesses every site of every alternative. A site with an
+   `Illegal` verdict makes the alternative infeasible (`planned_room_alternative_infeasible:{alt}:{site}`). An
+   `Unestimable` or unread verdict, no finish row, no delivery row for owed material, or a clearing with no
+   routable row leaves it unvalued (`planned_room_alternative_unvalued:{alt}:{site}:{reason}`). A roof is
+   valued only when a free pawn who reaches the room shows `RoofCellWorkTicks`. Nothing is emitted for an
+   alternative that is not valued.
+3. Each site of a valued alternative is generated in the placed-site shape: a delivery per material source
+   (at most 4; `planned_site_sources_truncated:{site}`), one op per clearing prerequisite, and a finish.
+   - Ring finishes share one `ChoiceIdentity` per room and kind, so two stuffs of one wall cannot both be built.
+   - A vent requires a completed wall site, and the roof a completed wall and door site, in whichever stuff.
+     Completed planned sites are supplied at the room (`planned/room{id}`), not at their cells, so the link
+     does not depend on where the dependent is worked.
+   - The roof is worked from the room's anchor (its first wall site any free pawn reaches), with that row's
+     start route.
+4. Roots. Each site is its own comparison root, named by its site id and shared by every alternative that
+   contains it. A site root carries one requested-development relief entry (the Need is its site id), so one
+   completed site is one unit of development, the lowest tier. Each alternative is also a root,
+   `planned/room{id}[/{stuff}]/{scope}`, which requires all its sites' finishes and carries no relief of its own;
+   alternatives of a room exclude each other. Ring site roots of different stuffs, and the other stuffs'
+   alternatives, are excluded from each other (`Outcome.Excludes`). Planned roots get no after-production
+   variants.
+
+A room over 96 generated operations is left out whole (`planned_room_candidates_truncated:{room}`).
+
+Only start routes are known (#3313 owns between-site routes). A pawn chaining two sites at different cells has an
+unknown route, so a whole room usually completes inside the horizon only when its rows share a location or
+several pawns split it.
+
+`ForecastCoupledCandidates.Context.PlannedSites` (`ForecastPlannedSite`: site, room, stuff, composed activities,
+finishes) and `Context.PlannedRooms` keep the mapping back. The evaluated outcome's `PlannedRooms` lists, per room
+with a site finished in the horizon, the completed sites and the alternatives completed whole. A room left
+partial names `planned_room_effect_unassessed` instead of a whole-room value.
+
+Selection treats planned allocations as requested development: the thermal-relief gate exempts allocations in
+the closure of selected commitments that carry requested-development relief. Binding skips planned allocations
+(`CoordinatedActivityBinding.Start`), since nothing is placed until #3278. A selection whose only work is
+planned starts no order and records `coupled_selection` with target `planned_unplaced`.
 
 ## Review inputs and pawn windows
 
@@ -436,14 +481,10 @@ the same geometry produce one outcome. Missing claims or an incomplete census
 stay unknown, while completed, removed and cancelled claims stop generating
 future work. There is no new demand calculation, journal or saved plan.
 
-`ConstructionForecastRequestOf` consumes that exact demand value, its observed
-workers and material reservations. It rejects a tick mismatch and estimates for
-unobserved pawns, and replaces copied worker facts with the current observations.
-It does not invent labor budgets, routes or free time. The returned request and
-forecast retain the same demand object used by supply consumers. This connects
-input assembly. Normal selection uses the coupled request and Method binding
-described in [portfolio selection](portfolio-selection.md); the isolated
-construction request remains a diagnostic/test entry point.
+The coupled request consumes that exact demand value, its observed workers and
+material reservations; it does not invent labor budgets, routes or free time.
+Normal selection uses the coupled request and Method binding described in
+[portfolio selection](portfolio-selection.md).
 
 `ForecastPawnCapacityOf` derives one timeline per pawn from observed availability,
 its 24-hour timetable, local time, remaining useful current-job time and declared
@@ -1108,34 +1149,26 @@ for binding, failure and native-read limits. Existing helpers stay until their
 replacement is proven.
 ### Planned room alternatives
 
-`PlannedRoomAlternatives` (Policy, pure) is candidate generation for planned rooms: it produces temporary
-candidate Method alternatives and nothing else. Alternatives of one room exclude each other. Each
-`PlannedRoomAlternative` carries the exact material it would claim, in the commitment shape of the baseline planned
-claim. It does not build a `ColonyForecastDelta`, rank, select or postpone. Alternatives:
+`PlannedRoomAlternatives` (Policy, pure) names each planned room's alternatives from its planned sites. Each
+`PlannedRoomAlternative` is one ring stuff and one scope, with the ids of the sites it builds. It does not price,
+rank or select:
 
-- **Stuff** – one per stuff the caller passes (the catalog's `StuffOptions` that make the room's wall and door),
-  `planned/room{id}/{stuff}`, priced through the same `PlannedOwedCost` with a per-stuff shell price.
-- **Scope** – `Shell` (walls, doors, vents), `ShellFloor`, and the full scope, by filtering the operation kinds of
-  the same owed diff: `planned/room{id}/{stuff}/{Shell|ShellFloor}`.
+- **Scope**: `Shell` (walls, doors, vents and the roof), `ShellFloor`, and `Full` (also the stored pieces), by
+  operation kind.
+- **Stuff**: every scope of the room's first ring stuff, then each further ring stuff at `Full`, at most
+  `PlannedAlternativesPerRoom` (4; `planned_room_alternatives_truncated` past it). A ring site belongs to its own
+  stuff's alternatives; floors, pieces, the roof and a stuff-less vent belong to every alternative their scope
+  covers.
+- Ids are `planned/room{id}/{stuff}/{scope}` (`planned/room{id}/{scope}` for a stuff-less ring). An alternative
+  with no site, or with the same sites as an earlier one of its room, is left out.
 
-Postponing a room is not an alternative here; the shared comparator owns it.
+Postponing a room is not an alternative; the shared comparator owns it. The alternatives are compared as
+activities in the coupled portfolio ([planned room activities](#planned-room-activities)); the family runs no
+winner loop of its own.
 
-**Why the shared comparator does not take them yet.** `CompareActivityOutcomes` compares `ForecastActivityOutcome`s,
-which need a need, a completion activity in the `ForecastActivityProblem`, a deadline, `AvoidedLaborLoss` and, for
-the per-unit objective, positive `ProgressUnits`. A planned room has none of these: it places nothing, so there is
-no activity with work ticks (the catalog's work to build is not wired for unplaced sites), no need a room
-relieves (needs are #3132), and no avoided loss or progress unit without inventing one. Its material claim also
-lives on a commitment, not on an outcome. `CompareMaterialPlans` takes mutually exclusive options per demand, but
-maximises a supplied `Value` and skips an option whose value is unknown, which would skip every alternative. When
-rooms gain an activity graph and a need, the alternatives are generated in the Methods generation stage (fenced by
-`RGARCH009`), their claims attached to the outcome's activities, and a binding step resolves the selected id; the
-family never runs its own winner loop. Nothing in Rounds builds them yet.
-
-Limits: a shared wall is attributed to the lowest room id under every alternative; the vent def is priced by the
-same stuff and goes unpriced where it cannot be made from it. Pens and yards are rooms of the plan with
-ids (the tiler places both as room nodes), so the baseline and these alternatives
-cover them like any other room; their furniture is not in the plan's stored pieces, so only the ring, doors and
-floors are priced.
+Limits: a shared wall is attributed to the lowest room id under every alternative. Pens and yards are rooms of
+the plan with ids (the tiler places both as room nodes), so they get alternatives like any other room; their
+furniture is not in the plan's stored pieces, so only the ring, doors and floors are sited.
 
 
 ### Shared live work resources

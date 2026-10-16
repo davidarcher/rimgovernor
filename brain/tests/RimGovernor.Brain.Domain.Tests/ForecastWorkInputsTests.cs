@@ -144,64 +144,40 @@ public sealed class ForecastWorkInputsTests
     {
         var facts = Facts(); var policy = DefaultRoundsPolicy();
         var demand = ResourceDemandOf(facts, policy, new());
-        Assert.Single(demand.Work.ConstructionCommitments.Value);
-        var request = ConstructionForecastRequestOf(new("world/load", 100), 1, facts, policy, demand, new()).Value;
-        Assert.Same(demand, request.Demand);
-        Assert.Same(demand.Needs, ForecastColony(request).Demand.Needs);
-        Assert.Equal(facts.CurrentConstruction, request.Construction.Census);
-        Assert.Equal(facts.BillReservations, request.Construction.IngredientReservations);
-        Assert.Equal("construction/action", request.Commitments[0].Id);
-        Assert.False(request.Commitments[0].AlternativeLaborCost.IsKnown);
-        Assert.Throws<DomainException>(() => ConstructionForecastRequestOf(new("world/load", 101), 1, facts, policy, demand, new()));
+        var commitment = Assert.Single(demand.Work.ConstructionCommitments.Value);
+        Assert.Equal("construction/action", commitment.Id);
+        Assert.False(commitment.AlternativeLaborCost.IsKnown);
+        Assert.Equal(facts.CurrentConstruction, demand.Work.Construction);
+        Assert.Equal(facts.BillReservations, demand.Work.IngredientReservations);
     }
 
     [Fact]
     public void UnknownClaimsAreNotEmptyAndRemovedOrCompletedClaimsStopGeneratingWork()
     {
-        var facts = Facts(); var policy = DefaultRoundsPolicy();
+        var facts = Facts();
         Assert.False(ForecastWorkInputsOf(facts with { ConstructionClaims = default }).ConstructionCommitments.IsKnown);
         var cancelled = facts with { ConstructionClaims = Known(default(EquatableArray<ConstructionClaim>)) };
         Assert.Empty(ForecastWorkInputsOf(cancelled).ConstructionCommitments.Value);
         var gone = facts with { CurrentConstruction = Known(new CurrentConstruction { Colony = true }) };
         Assert.Empty(ForecastWorkInputsOf(gone).ConstructionCommitments.Value);
-        var unknown = facts with { ConstructionClaims = default };
-        Assert.False(ConstructionForecastRequestOf(new("world/load", 100), 1, unknown, policy, ResourceDemandOf(unknown, policy, new()), new()).IsKnown);
     }
 
     [Fact]
-    public void ConstructionRequestIncludesTheSharedProductionPromisesAndRefusesUnreadOnes()
+    public void WorkInputsCarryTheSharedProductionPromisesAndNoPlannedRoomClaim()
     {
         var resource = new Resource("TestMaterial");
         var promise = new ForecastCommitment("production/batch", default)
         { MaterialClaims = [new(resource, Known(10.0), Known(""))] };
-        var facts = Facts() with { ProductionPromises = Known<EquatableArray<ForecastCommitment>>([promise]) };
-        var policy = DefaultRoundsPolicy();
-        var demand = ResourceDemandOf(facts, policy, new());
-        var request = ConstructionForecastRequestOf(new("world", 100), 1, facts, policy, demand, new()).Value;
-        Assert.Contains(promise, request.Commitments);
-        Assert.Equal(-10, ForecastColony(request).Baseline.MaterialAvailability.Value[resource].Value);
-        facts = facts with { ProductionPromises = default };
-        Assert.False(ConstructionForecastRequestOf(new("world", 100), 1, facts, policy, ResourceDemandOf(facts, policy, new()), new()).IsKnown);
-    }
-
-    [Fact]
-    public void PlannedRoomsAreClaimsOnFreeMaterialAndUnknownPlanLeavesThemUnknown()
-    {
-        var wood = new Resource("WoodLog");
-        var planned = Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(new Dictionary<int, IReadOnlyDictionary<Resource, long>>
+        var facts = Facts() with
         {
-            [2] = new Dictionary<Resource, long> { [wood] = 30 },
-            [1] = new Dictionary<Resource, long> { [wood] = 50 },
-            [3] = new Dictionary<Resource, long>(),
-        });
-        var commitments = PlannedRoomCommitments(planned).Value;
-        Assert.Equal(["planned/room1", "planned/room2"], commitments.Select(c => c.Id));
-        Assert.All(commitments, c => Assert.Contains("planned_construction_labor", c.UnsupportedEffects));
-
-        var stock = Known(EquatableArray.From(new[] { new Amount(wood, 100) }));
-        var free = ForecastMaterialBudgetOf(stock, Known(default(EquatableArray<IngredientReservation>)), commitments, 7).Value;
-        Assert.Equal(20, free[wood].Value);
-
-        Assert.False(PlannedRoomCommitments(Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>()).IsKnown);
+            ProductionPromises = Known<EquatableArray<ForecastCommitment>>([promise]),
+            PlannedConstruction = Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
+                new Dictionary<int, IReadOnlyDictionary<Resource, long>> { [1] = new Dictionary<Resource, long> { [resource] = 50 } }),
+        };
+        var work = ResourceDemandOf(facts, DefaultRoundsPolicy(), new()).Work;
+        Assert.Contains(promise, work.ProductionPromises.Value);
+        // Planned rooms are construction activities in the coupled portfolio (#3276), not a material-only claim.
+        Assert.DoesNotContain(work.ConstructionCommitments.Value, c => c.Id.StartsWith("planned/", StringComparison.Ordinal));
+        Assert.False(ForecastWorkInputsOf(facts with { ProductionPromises = default }).ProductionPromises.IsKnown);
     }
 }

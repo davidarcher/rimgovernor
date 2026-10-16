@@ -8,9 +8,12 @@ internal static partial class CoordinatedActivityBinding
                 NotBefore = task.DepartTick },
          new(PawnActivityKind.Hold, "", "", "", 0, task.Step.Deadline)];
     internal static PawnActivities? StartWithDeferred(ForecastCoupledSelection selection,
-        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick)
+        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
+        IEnumerable<ForecastPlannedSite>? planned = null)
     {
-        var active = Start(selection.Selection, bindings, authority, method, tick);
+        // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278).
+        var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
+        var active = Start(selection.Selection, bindings, authority, method, tick, unplaced);
         var deferred = selection.Deferred.Where(t => t.Until > tick).Select(t => new SelectedActivityTask(
             "defer/" + t.Pawn, t.Pawn, [], new(PawnActivityKind.Idle, "", "", "", 0, t.Until), t.Location, tick)).ToArray();
         if (deferred.Length == 0) return active;
@@ -19,10 +22,11 @@ internal static partial class CoordinatedActivityBinding
         { Tasks = EquatableArray.From((active?.Tasks ?? []).Concat(deferred)) };
     }
     internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection,
-        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick)
+        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
+        IReadOnlySet<string>? unplaced = null)
     {
         if (selection?.Plan is not { } plan || selection.Selected.Length == 0) return null;
-        var tasks = plan.Allocations.Select(a => bindings.TryGetValue((a.Activity, a.Pawn), out var task)
+        var tasks = plan.Allocations.Where(a => unplaced?.Contains(a.Activity) != true).Select(a => bindings.TryGetValue((a.Activity, a.Pawn), out var task)
             ? new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
                 new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
                     task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)

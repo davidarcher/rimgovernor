@@ -1,72 +1,69 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
 using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class PlannedRoomAlternativesTests
 {
-    private static readonly Resource Wood = new("WoodLog");
-    private static readonly Resource Steel = new("Steel");
+    private static PlannedBuildSite Site(string id, OpKind op, string stuff, int cells, int room = 1) =>
+        new("planned/room" + room + "/" + id, room, op, op == OpKind.FloorIn ? "WoodPlankFloor" : "Def", stuff, Rotation.North,
+            EquatableArray.From(Enumerable.Range(0, cells).Select(i => new Cell(i, 0))));
 
-    private static readonly string[] Stuffs = ["Steel", "WoodLog"];
-
-    private static IReadOnlyList<(PlannedRoom, IReadOnlyList<Operation>)> Owed(LayoutPlan plan) =>
-        [.. plan.Rooms.Select(room => (room, Reconcile(new ReconcileInput
-        {
-            Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [],
-            Furniture = plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Select(p => p.Wanted())] : [],
-            WantedFloor = _ => "WoodPlankFloor",
-        }).Owed))];
-
-    private static LayoutPlan Plan() => new()
-    {
-        Rooms = [new PlannedRoom { Id = 1, Role = PlannedKitchen, Region = RectRegion(new Rectangle { X = 0, Z = 0, Width = 3, Height = 3 }) }],
-        Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>>
-        {
-            [1] = [new InteriorPiece { Slot = "bench", Def = "TableButcher", Size = new Cell(1, 1), Rect = new Rectangle { X = 1, Z = 1, Width = 1, Height = 1 } }],
-        },
-    };
-
-    private static Func<string, IReadOnlyList<Amount>?> Shell(string stuff) =>
-        _ => [new Amount(stuff == "Steel" ? Steel : Wood, stuff == "Steel" ? 2 : 5)];
-
-    private static IReadOnlyList<PlannedRoomAlternative> Alternatives() =>
-        PlannedRoomAlternatives(Owed(Plan()), Stuffs, Shell, _ => [new Amount(Wood, 20)], _ => [new Amount(Wood, 1)], "Vent",
-            new HashSet<(string, Cell)>());
-
-    private static long Claim(PlannedRoomAlternative o, Resource r) =>
-        (long)o.Claims.MaterialClaims.Single(c => c.Resource == r).Units.Value;
+    /// <summary>A room whose ring reads in Steel then WoodLog, with a stuff-less floor, a bench and a roof.</summary>
+    private static IReadOnlyList<PlannedBuildSite> Room() =>
+    [
+        Site("wall/Steel", OpKind.WallIn, "Steel", 12), Site("wall/WoodLog", OpKind.WallIn, "WoodLog", 12),
+        Site("door/Steel", OpKind.DoorIn, "Steel", 1), Site("door/WoodLog", OpKind.DoorIn, "WoodLog", 1),
+        Site("floor/WoodPlankFloor", OpKind.FloorIn, "", 9), Site("build/TableButcher/1/1", OpKind.Build, "WoodLog", 1),
+        Site("roof", OpKind.RoofIn, "", 9),
+    ];
 
     [Fact]
-    public void EachStuffThatMakesTheShellIsOneExclusiveOptionPricedFromItsOwnCosts()
+    public void EveryScopeOfTheFirstStuffThenEachFurtherStuffAtFullAndSitesAreShared()
     {
-        var options = Alternatives();
-        var steel = options.Single(o => o.Id == "planned/room1/Steel");
-        var wood = options.Single(o => o.Id == "planned/room1/WoodLog");
-        // 16 ring cells, 9 floor cells at 1 wood, one bench at 20 wood.
-        Assert.Equal(16 * 2, Claim(steel, Steel));
-        Assert.Equal(9 + 20, Claim(steel, Wood));
-        Assert.Equal(16 * 5 + 9 + 20, Claim(wood, Wood));
-        Assert.DoesNotContain(wood.Claims.MaterialClaims, c => c.Resource == Steel);
-        Assert.Contains("planned_construction_labor", wood.Claims.UnsupportedEffects);
+        var (alternatives, findings) = PlannedRoomAlternatives(Room());
+        Assert.Empty(findings);
+        Assert.Equal(["planned/room1/Steel/Shell", "planned/room1/Steel/ShellFloor", "planned/room1/Steel/Full", "planned/room1/WoodLog/Full"],
+            alternatives.Select(a => a.Id));
+        Assert.Equal(["planned/room1/door/Steel", "planned/room1/roof", "planned/room1/wall/Steel"], alternatives[0].Sites);
+        Assert.Contains("planned/room1/floor/WoodPlankFloor", alternatives[1].Sites);
+        Assert.DoesNotContain("planned/room1/build/TableButcher/1/1", alternatives[1].Sites);
+        // The stuff-less floor, the piece and the roof belong to both stuffs' Full alternatives; ring sites to their own stuff.
+        var wood = alternatives[3];
+        Assert.Equal(["planned/room1/build/TableButcher/1/1", "planned/room1/door/WoodLog", "planned/room1/floor/WoodPlankFloor", "planned/room1/roof",
+            "planned/room1/wall/WoodLog"], wood.Sites);
+        Assert.Equal(("WoodLog", PlannedScope.Full), (wood.Stuff, wood.Scope));
     }
 
     [Fact]
-    public void ScopeOptionsFilterOperationKindsOfTheSameOwedDiff()
+    public void ScopesThatOweTheSameSitesCollapseAndShelfCandidatesAreNoRoom()
     {
-        var options = Alternatives();
-        Assert.Equal(16 * 5, Claim(options.Single(o => o.Id == "planned/room1/WoodLog/Shell"), Wood));
-        Assert.Equal(16 * 5 + 9, Claim(options.Single(o => o.Id == "planned/room1/WoodLog/ShellFloor"), Wood));
-        Assert.DoesNotContain(options.Single(o => o.Id == "planned/room1/Steel/Shell").Claims.MaterialClaims, c => c.Resource == Wood);
+        var (alternatives, _) = PlannedRoomAlternatives(
+            [Site("wall", OpKind.WallIn, "", 12), new PlannedBuildSite("shelf/0/0", 0, OpKind.Build, "Shelf", "WoodLog", Rotation.North, [new Cell(0, 0)])]);
+        Assert.Equal(["planned/room1/Shell"], alternatives.Select(a => a.Id));
+        Assert.Empty(PlannedRoomAlternatives([]).Alternatives);
     }
 
     [Fact]
-    public void AStufflessRingHasOnlyScopeAlternativesAndNothingOwedHasNone()
+    public void AlternativesPastTheCapAreNamed()
     {
-        var plain = PlannedRoomAlternatives(Owed(Plan()), [], Shell, _ => null, _ => null, "Vent", new HashSet<(string, Cell)>());
-        Assert.Equal(["planned/room1/Shell", "planned/room1/ShellFloor", "planned/room1"], plain.Select(o => o.Id));
-        Assert.Empty(PlannedRoomAlternatives(Owed(Plan()), Stuffs, _ => _ => null, _ => null, _ => null, "Vent", new HashSet<(string, Cell)>()));
+        var sites = Room().Concat([Site("wall/Granite", OpKind.WallIn, "BlocksGranite", 12)]).ToList();
+        var (alternatives, findings) = PlannedRoomAlternatives(sites);
+        Assert.Equal(PlannedAlternativesPerRoom, alternatives.Count);
+        Assert.Equal(["planned_room_alternatives_truncated"], findings);
+    }
+
+    [Fact]
+    public void RoomWorkSumsTheFirstStuffFullSitesPerPieceAndNamesTheRoofApart()
+    {
+        var (work, roof) = PlannedRoomWork(Room(), 1, s => Known(s.Op == OpKind.FloorIn ? 85.0 : s.Op == OpKind.Build ? 600.0 : 135.0));
+        // 12 steel walls and a steel door at 135, nine floors at 85, one bench at 600; the roof is left out.
+        Assert.Equal(Known(13 * 135.0 + 9 * 85.0 + 600.0), work);
+        Assert.True(roof);
+        Assert.False(PlannedRoomWork(Room(), 1, s => s.Op == OpKind.Build ? Unknown<double>() : Known(1.0)).Work.IsKnown);
+        Assert.Equal((Known(0.0), false), PlannedRoomWork(Room(), 2, _ => Known(1.0)));
     }
 }

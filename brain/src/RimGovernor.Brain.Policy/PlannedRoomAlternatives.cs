@@ -3,21 +3,20 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>How much of a planned room an alternative builds: its operations, filtered by kind from what the reconciler owes.</summary>
 public enum PlannedScope
 {
-    /// <summary>The ring: walls, doors and vents.</summary>
+    /// <summary>The ring (walls, doors and vents) and the roof it carries.</summary>
     Shell,
-    /// <summary>The ring and the floors.</summary>
+    /// <summary>The shell and the floors.</summary>
     ShellFloor,
-    /// <summary>Everything the plan owes the room: the ring, floors and stored stations.</summary>
+    /// <summary>Everything the plan owes the room: the shell, floors and stored stations.</summary>
     Full,
 }
 
 /// <summary>
-/// A candidate Method alternative for building one planned room: a temporary, mutually exclusive proposal with
-/// the exact material it would claim (Claims, the same commitment shape the baseline planned claim has). Alternatives
-/// of one Room exclude each other. It is not an outcome: it has no need, activity, deadline or progress units, so
-/// the shared outcome comparator cannot take it yet, and nothing here ranks or picks among them.
+/// One way of building a planned room (#3276): the planned sites (PlannedBuildSite ids) of one ring stuff and one scope.
+/// Alternatives of one Room exclude each other; their sites are shared, each its own comparison root, so this names
+/// what a whole room needs and nothing ranks or picks among the alternatives here.
 /// </summary>
-public sealed record PlannedRoomAlternative(int Room, string Id, string Stuff, PlannedScope Scope, ForecastCommitment Claims);
+public sealed record PlannedRoomAlternative(int Room, string Id, string Stuff, PlannedScope Scope, EquatableArray<string> Sites);
 
 public static partial class PolicyFunctions
 {
@@ -29,45 +28,77 @@ public static partial class PolicyFunctions
         _ => true,
     };
 
+    private static bool RingOp(OpKind kind) => kind is OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn;
+
     /// <summary>
-    /// The candidate Method alternatives for each planned room that still owes material, from the same owed diff the
-    /// baseline claim prices (PlannedOwedCost). For every stuff that can make the room's wall and door (stuffs; the
-    /// caller passes the catalog's options, shellPriceOf giving the ring's price list for that stuff) there is one
-    /// alternative per scope, named <c>planned/room{id}/{stuff}</c> for the full scope and
-    /// <c>planned/room{id}/{stuff}/{scope}</c> for a partial one. A stuff-less ring (stuffs empty) has only the
-    /// scope alternatives, priced by shellPriceOf(""). An alternative whose claim is empty is left out, as the
-    /// baseline does. Postponement is not generated: the shared comparator owns it. The alternatives are
-    /// not ranked and this function does not select.
+    /// The alternatives of each planned room, from its planned sites (PlannedSitesOf; shelf candidates, Room 0, are not
+    /// rooms): every scope in the room's first ring stuff, then each further stuff at Full, at most
+    /// PlannedAlternativesPerRoom (finding planned_room_alternatives_truncated past it). A ring stuff is one the ring sites
+    /// were read in, in their order (cheapest first); a ring site belongs to its stuff's alternatives, a stuff-less
+    /// site (a vent made from no stuff, floors, pieces, the roof) to every alternative its scope covers. An alternative
+    /// is named <c>planned/room{id}/{stuff}/{scope}</c> (<c>planned/room{id}/{scope}</c> for a stuff-less ring); one
+    /// with no site, or the same sites as an earlier one of its room, is left out. Nothing here ranks or selects.
     /// </summary>
-    public static IReadOnlyList<PlannedRoomAlternative> PlannedRoomAlternatives(
-        IReadOnlyList<(PlannedRoom Room, IReadOnlyList<Operation> Owed)> rooms,
-        IReadOnlyList<string> stuffs,
-        Func<string, Func<string, IReadOnlyList<Amount>?>> shellPriceOf,
-        Func<string, IReadOnlyList<Amount>?> piecePrice,
-        Func<string, IReadOnlyList<Amount>?> floorPrice,
-        string ventDef,
-        IReadOnlySet<(string Def, Cell Cell)> placed)
+    public static (IReadOnlyList<PlannedRoomAlternative> Alternatives, IReadOnlyList<string> Findings) PlannedRoomAlternatives(IEnumerable<PlannedBuildSite> sites)
     {
         var alternatives = new List<PlannedRoomAlternative>();
-        foreach (var stuff in stuffs.Count == 0 ? new[] { "" } : stuffs.Order(StringComparer.Ordinal).ToArray())
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var room in sites.Where(s => s.Room > 0 && s.Zone.Length == 0).GroupBy(s => s.Room).OrderBy(g => g.Key))
         {
-            foreach (var scope in new[] { PlannedScope.Shell, PlannedScope.ShellFloor, PlannedScope.Full })
+            var stuffs = room.Where(s => RingOp(s.Op) && s.Stuff.Length > 0).Select(s => s.Stuff).Distinct().ToList();
+            if (stuffs.Count == 0)
             {
-                var scoped = rooms.Select(r => (r.Room, (IReadOnlyList<Operation>)[.. r.Owed.Where(o => InScope(scope, o.Kind))])).ToList();
-                var cost = PlannedOwedCost(scoped, shellPriceOf(stuff), piecePrice, floorPrice, ventDef, placed);
-                foreach (var (room, needs) in cost.OrderBy(c => c.Key))
+                stuffs.Add("");
+            }
+            var wanted = new List<(string Stuff, PlannedScope Scope)>();
+            wanted.AddRange(new[] { PlannedScope.Shell, PlannedScope.ShellFloor, PlannedScope.Full }.Select(scope => (stuffs[0], scope)));
+            wanted.AddRange(stuffs.Skip(1).Select(stuff => (stuff, PlannedScope.Full)));
+            if (wanted.Count > PlannedAlternativesPerRoom)
+            {
+                findings.Add("planned_room_alternatives_truncated");
+            }
+            var seen = new List<EquatableArray<string>>();
+            foreach (var (stuff, scope) in wanted.Take(PlannedAlternativesPerRoom))
+            {
+                var members = EquatableArray.From(room
+                    .Where(s => InScope(scope, s.Op) && (!RingOp(s.Op) || s.Stuff.Length == 0 || s.Stuff == stuff))
+                    .Select(s => s.Id).Order(StringComparer.Ordinal));
+                if (members.Count == 0 || seen.Contains(members))
                 {
-                    var commitments = PlannedRoomCommitments(Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
-                        new Dictionary<int, IReadOnlyDictionary<Resource, long>> { [room] = needs }));
-                    if (commitments.Value.Count == 0)
-                    {
-                        continue;
-                    }
-                    var id = "planned/room" + room + (stuff.Length > 0 ? "/" + stuff : "") + (scope == PlannedScope.Full ? "" : "/" + scope);
-                    alternatives.Add(new PlannedRoomAlternative(room, id, stuff, scope, commitments.Value[0] with { Id = id }));
+                    continue;
                 }
+                seen.Add(members);
+                alternatives.Add(new PlannedRoomAlternative(room.Key, "planned/room" + room.Key + (stuff.Length > 0 ? "/" + stuff : "") + "/" + scope,
+                    stuff, scope, members));
             }
         }
-        return alternatives;
+        return (alternatives, [.. findings]);
+    }
+
+    /// <summary>
+    /// The work a planned room owes (#3276): the catalog work per piece (work; unknown for any site leaves the sum
+    /// unknown) times the pieces, over the sites of its first-stuff Full alternative (PlannedRoomAlternatives). A roof
+    /// has no catalog work: Roof says one is owed and left out of Work. A room that owes nothing has Known(0).
+    /// </summary>
+    public static (Fact<double> Work, bool Roof) PlannedRoomWork(IReadOnlyList<PlannedBuildSite> sites, int room, Func<PlannedBuildSite, Fact<double>> work)
+    {
+        var own = sites.Where(s => s.Room == room && s.Zone.Length == 0).ToList();
+        var alternatives = PlannedRoomAlternatives(own).Alternatives;
+        if (alternatives.Count == 0)
+        {
+            return (Known(0.0), false);
+        }
+        var chosen = alternatives.Last(a => a.Stuff == alternatives[0].Stuff);
+        var members = own.Where(s => chosen.Sites.Contains(s.Id)).ToList();
+        var total = 0.0;
+        foreach (var site in members.Where(s => s.Op != OpKind.RoofIn))
+        {
+            if (!work(site).TryGetValue(out var each))
+            {
+                return (Unknown<double>(), members.Any(s => s.Op == OpKind.RoofIn));
+            }
+            total += each * site.Positions.Count;
+        }
+        return (Known(total), members.Any(s => s.Op == OpKind.RoofIn));
     }
 }
