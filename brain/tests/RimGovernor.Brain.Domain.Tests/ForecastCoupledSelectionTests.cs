@@ -254,6 +254,43 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal(normal.SelectedVector, replay.SelectedVector);
     }
 
+    [Theory]
+    [InlineData(.28, true, true)]
+    [InlineData(.9, true, false)]
+    [InlineData(.28, false, false)]
+    public void MoodMemoryWinsOnlyWhereItLowersBreakRisk(double mood, bool thresholdKnown, bool wins)
+    {
+        // Two equal-labor harvests; one grants a +4, eight-day memory at completion (the sarcophagus thought).
+        var facts = Review(level: 1, fall: 0);
+        var candidates = facts.CoupledAlternatives!;
+        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood),
+            BreakThreshold = thresholdKnown ? Known(.3) : default };
+        var harvest = new ForecastCommitment("plain", []) { ActivityCompletions = [SourceTask(facts, "plant-a")] };
+        var memory = new NeedMemory("KnowBuriedInSarcophagus", 4, Known(8d * GameTime.TicksPerDay), false);
+        facts = facts with { CoupledAlternatives = candidates with
+        {
+            Alternatives = [harvest with { Id = "mood", MoodMemories = [new("pawn", memory)] }, harvest],
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
+        } };
+        var result = Select(facts);
+        Assert.Equal(Known(true), result.Selected.Feasible);
+        Assert.Equal(thresholdKnown, result.BaselineVector.BreakRisk.IsKnown);
+        Assert.Equal(!thresholdKnown, result.BaselineVector.Unknown.Contains("mental_break_probability_unassessed"));
+        Assert.Equal(!thresholdKnown, result.Baseline.Needs["pawn"].Findings.Contains("mental_break_probability_unassessed"));
+        if (wins)
+        {
+            Assert.Equal(["mood"], result.Selection.Selected);
+            Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+            return;
+        }
+        // No break risk to remove (or none assessed): the memory ties no-change and the incumbent is kept.
+        Assert.Empty(result.Selection.Selected);
+        if (thresholdKnown) Assert.Equal(0, result.BaselineVector.BreakRisk.Value);
+        // The memory still lowers raw mood pressure; that is not break risk and does not rank.
+        var evaluated = result.Rejected.First(r => r.Commitments.SequenceEqual(["mood"])).Consequences!;
+        Assert.True(!thresholdKnown || evaluated.MoodDepth.Value < result.BaselineVector.MoodDepth.Value);
+    }
+
     [Fact]
     public void ExhaustedSearchPreservesFeasibleCurrentCommitmentAndExposesBound()
     {

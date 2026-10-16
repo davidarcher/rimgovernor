@@ -1205,8 +1205,10 @@ memories carry an explicit flag. Unknown expiry, repeated/grouped memories or
 unsupported renewal/stacking make the memory result unknown. The
 `MemoryAdjustedMoodTarget` remains the memory contribution applied to the current
 target. The coupled [mood timeline](portfolio-selection.md#needs-and-observed-execution)
-separately models supported conditional thoughts and actual seeker response.
-Unmodeled need-category/room changes and break probability remain unassessed.
+separately models supported conditional thoughts and actual seeker response,
+plus memories a commitment grants at completion, and prices
+[break risk](../contracts/forecast-contracts.md#coupled-mood-break-risk) for pawns
+with an observed threshold. Unmodeled need-category/room changes remain unassessed.
 Existing Mood/comfort functions retain current diagnostics until their separate
 routine-writer retirement; they are not a second forecast scheduler.
 

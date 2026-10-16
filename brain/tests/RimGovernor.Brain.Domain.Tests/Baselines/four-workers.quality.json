@@ -197,6 +197,7 @@
           "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
         "Support": {
@@ -234,10 +235,12 @@
         "Development": 0,
         "Labor": 370,
         "Unknown": [
+          "mental_break_probability_unassessed",
           "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": null,
         "ThermalOccupancy": "diner|food|cell/3/1|214|250;pawn|food|cell/3/1|360|370",
         "Maintenance": [],
         "Support": {
@@ -545,6 +548,7 @@
           "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
         "Support": {
@@ -582,10 +586,12 @@
         "Development": 0,
         "Labor": 833,
         "Unknown": [
+          "mental_break_probability_unassessed",
           "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": null,
         "ThermalOccupancy": "diner|food|cell/3/1|214|250;pawn|food|cell/3/1|0|370;pawn|food|cell/3/1|451|461",
         "Maintenance": [],
         "Support": {
@@ -932,6 +938,7 @@
           "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
         "Support": {
@@ -969,10 +976,12 @@
         "Development": 0,
         "Labor": 947,
         "Unknown": [
+          "mental_break_probability_unassessed",
           "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": null,
         "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|557|567;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|466|476",
         "Maintenance": [],
         "Support": {
@@ -1320,6 +1329,7 @@
           "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
         "Support": {
@@ -1357,10 +1367,12 @@
         "Development": 0,
         "Labor": 947,
         "Unknown": [
+          "mental_break_probability_unassessed",
           "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": null,
         "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|557|567;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|466|476",
         "Maintenance": [],
         "Support": {
@@ -1712,6 +1724,7 @@
           "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
         "Support": {
@@ -1749,10 +1762,12 @@
         "Development": 0,
         "Labor": 947,
         "Unknown": [
+          "mental_break_probability_unassessed",
           "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": null,
         "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|557|567;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|466|476",
         "Maintenance": [],
         "Support": {
@@ -2112,6 +2127,7 @@
           "serious_harm_probability_unassessed",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": 0,
         "ThermalOccupancy": "",
         "Maintenance": [],
         "Support": {
@@ -2149,10 +2165,12 @@
         "Development": 0,
         "Labor": 947,
         "Unknown": [
+          "mental_break_probability_unassessed",
           "serious_harm_probability_unassessed",
           "unassessed_mood",
           "unassessed_thermal_exposure"
         ],
+        "BreakRisk": null,
         "ThermalOccupancy": "diner|food|cell/3/1|107|250;diner|food|cell/3/1|557|567;pawn|food|cell/3/1|0|368;pawn|food|cell/3/1|466|476",
         "Maintenance": [],
         "Support": {

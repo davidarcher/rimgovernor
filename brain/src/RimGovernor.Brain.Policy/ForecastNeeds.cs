@@ -170,9 +170,10 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>Event/interval projection. Productive work and needs share one occupancy union. Food is credited
-    /// only at completed eating; interrupted rest/joy credit elapsed service. No break probability or mood currency.</summary>
+    /// only at completed eating; interrupted rest/joy credit elapsed service. Break risk is the mood timeline's; no mood currency.</summary>
     public static ForecastNeedsResult ForecastNeedsTimeline(NeedsForecastPawn pawn, ForecastCapacityInput input,
-        IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null)
+        IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
+        IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null)
     {
         NeedHorizon(input.HorizonTicks);
         if (input.Pawn.Id.Value != pawn.Pawn || selected.Any(c => c.Pawn != pawn.Pawn)
@@ -284,14 +285,15 @@ public static partial class PolicyFunctions
             var complete = true;
             var mealIds = new HashSet<string>(StringComparer.Ordinal);
             var delta = memories.Sum(m => Remaining(m, input.HorizonTicks) - m.Offset);
-            foreach (var meal in intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End))
-                foreach (var thought in meal.Choice.Thoughts)
-                {
-                    if (!thought.Permanent && !thought.RemainingTicks.IsKnown) { findings.Add("unknown_meal_thought_duration"); complete = false; continue; }
-                    // Same-memory renewal/stacking is not additive evidence.
-                    if (memories.Any(m => m.Id == thought.Id) || !mealIds.Add(thought.Id)) { findings.Add("unsupported_meal_memory_overlap:" + thought.Id); complete = false; continue; }
-                    delta += Remaining(thought, input.HorizonTicks - meal.End);
-                }
+            var added = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
+                .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []);
+            foreach (var (thought, start) in added)
+            {
+                if (!thought.Permanent && !thought.RemainingTicks.IsKnown) { findings.Add("unknown_meal_thought_duration"); complete = false; continue; }
+                // Same-memory renewal/stacking is not additive evidence.
+                if (memories.Any(m => m.Id == thought.Id) || !mealIds.Add(thought.Id)) { findings.Add("unsupported_meal_memory_overlap:" + thought.Id); complete = false; continue; }
+                delta += Remaining(thought, input.HorizonTicks - start);
+            }
             thoughtDelta = complete ? Known(delta) : default;
         }
         else findings.Add("unknown_thought_expiry");
@@ -300,10 +302,11 @@ public static partial class PolicyFunctions
             Occupancy = input.Occupancy.IsKnown ? Known(EquatableArray.From(occupied)) : default });
         findings.UnionWith(capacity.Findings);
         findings.Add("need_rates_constant_current_conditions");
-        findings.Add("mental_break_probability_unassessed");
         findings.Add("need_category_and_room_mood_changes_unassessed");
+        var mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt, granted);
+        if (!mood.BreakRisk.IsKnown) findings.Add("mental_break_probability_unassessed");
         return new(EquatableArray.From(metrics), thoughtDelta, target, capacity, EquatableArray.From(findings))
-        { Mood = ForecastMoodTimeline(pawn, input.HorizonTicks, selected, interruptedAt), UsefulFoodGain = usefulFood };
+        { Mood = mood, UsefulFoodGain = usefulFood };
     }
     /// <summary>One physiological sleep-service projection shared by rest recovery and conditional mood.
     /// Remaining assigned bed time after native waking stays occupied, but is not counted as sleep.</summary>

@@ -5,6 +5,8 @@ public sealed record ForecastConsequenceVector(EquatableArray<Fact<double>> Urge
     Fact<double> MoodExposure, Fact<double> MoodDepth, double Development, double Labor,
     EquatableArray<string> Unknown)
 {
+    /// <summary>Expected mental breaks summed over pawns; known only when every pawn's break threshold and mood are.</summary>
+    public Fact<double> BreakRisk { get; init; }
     public string ThermalOccupancy { get; init; } = "";
     public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public ForecastSupportConsequences Support { get; init; } = new();
@@ -87,7 +89,7 @@ public static partial class PolicyFunctions
         }
         static bool GraphOnly(ForecastCommitment c) => c.ActivityCompletions.Count > 0 && c.Outcome is null
             && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
-            && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown;
+            && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown && c.MoodMemories.Count == 0;
         var redundantPairs = alternatives.Where(GraphOnly).SelectMany(a => alternatives.Where(b => a.Id != b.Id
             && closures[a.Id].IsSubsetOf(closures[b.Id])).Select(b => (Contained: a.Id, Container: b.Id))).ToHashSet();
         // The traversal reaches a subset by more than one phase; evaluating it again at a bound it already got
@@ -258,12 +260,15 @@ public static partial class PolicyFunctions
         var moods = outcome.Needs.Values.Select(n => n.Mood).ToArray();
         var moodKnown = moods.Length > 0 && moods.All(m => m is not null && m.TargetExposureTicks.IsKnown && m.PressureTicks.IsKnown);
         if (!moodKnown) unknown.Add("unassessed_mood");
+        var breakKnown = moodKnown && moods.All(m => m!.BreakRisk.IsKnown);
+        if (!breakKnown) unknown.Add("mental_break_probability_unassessed");
         unknown.Add("serious_harm_probability_unassessed");
         unknown.UnionWith(outcome.Support.Findings);
         unknown.UnionWith(outcome.Maintenance.SelectMany(m => m.Findings));
         return new(EquatableArray.From(urgent), EquatableArray.From(needsVector), moodKnown ? Known(moods.Sum(m => m!.TargetExposureTicks.Value)) : default,
             moodKnown ? Known(moods.Sum(m => m!.PressureTicks.Value)) : default,
-            development, outcome.Plan.LaborCost, EquatableArray.From(unknown)) { ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance };
+            development, outcome.Plan.LaborCost, EquatableArray.From(unknown))
+        { BreakRisk = breakKnown ? Known(moods.Sum(m => m!.BreakRisk.Value)) : default, ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance };
     }
 
     private static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
@@ -291,10 +296,17 @@ public static partial class PolicyFunctions
         if (a.Support.FoodProduction.Length != 0 && a.Support.FoodProduction == b.Support.FoodProduction
             && a.Support.FoodPoisonExposure.IsKnown && b.Support.FoodPoisonExposure.IsKnown)
         { var rank = a.Support.FoodPoisonExposure.Value.CompareTo(b.Support.FoodPoisonExposure.Value); if (rank != 0) return rank; }
-        if (a.MoodExposure.IsKnown && b.MoodExposure.IsKnown)
-        { var rank = a.MoodExposure.Value.CompareTo(b.MoodExposure.Value); if (rank != 0) return rank; }
-        if (a.MoodDepth.IsKnown && b.MoodDepth.IsKnown)
-        { var rank = a.MoodDepth.Value.CompareTo(b.MoodDepth.Value); if (rank != 0) return rank; }
+        // Mood tier: with every break threshold known, expected breaks replace the raw threshold ticks, so mood
+        // far above every threshold carries no value. Otherwise the raw ticks rank where both sides assess them.
+        if (a.BreakRisk.IsKnown && b.BreakRisk.IsKnown)
+        { var rank = a.BreakRisk.Value.CompareTo(b.BreakRisk.Value); if (rank != 0) return rank; }
+        else
+        {
+            if (a.MoodExposure.IsKnown && b.MoodExposure.IsKnown)
+            { var rank = a.MoodExposure.Value.CompareTo(b.MoodExposure.Value); if (rank != 0) return rank; }
+            if (a.MoodDepth.IsKnown && b.MoodDepth.IsKnown)
+            { var rank = a.MoodDepth.Value.CompareTo(b.MoodDepth.Value); if (rank != 0) return rank; }
+        }
         var maintenance = a.Maintenance.Zip(b.Maintenance).Where(p => p.First.Requirement == p.Second.Requirement
             && p.First.MissingXp.IsKnown && p.Second.MissingXp.IsKnown).ToArray();
         var maintenanceRank = maintenance.Sum(p => p.First.MissingXp.Value).CompareTo(maintenance.Sum(p => p.Second.MissingXp.Value));

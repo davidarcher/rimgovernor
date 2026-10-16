@@ -58,6 +58,25 @@ public sealed class ForecastConditionalMoodTests
         Assert.Equal(controlDay.TerminalMood.Value, controlNight.TerminalMood.Value, 8);
     }
 
+    [Theory]
+    [InlineData(.5, 0)]
+    [InlineData(.4, 1 / 4.25)]
+    [InlineData(.2, 1 / 1.05)]
+    public void BreakRiskIntegratesEachTiersRenewalRateOverTheTargetTrajectory(double target, double perDay)
+    {
+        var pawn = Pawn(false) with { MoodUnclampedTarget = Known(target), MoodTarget = Known(target) };
+        var result = ForecastMoodTimeline(pawn, Day, []);
+        Assert.Equal(perDay, result.BreakRisk.Value, 8);
+        Assert.DoesNotContain("mental_break_probability_unassessed", result.Findings);
+        // A fading -10 memory lifts the target across the minor threshold halfway: in that tier for half the horizon.
+        var fading = ForecastMoodTimeline(Pawn(false) with { MoodUnclampedTarget = Known(.4), MoodTarget = Known(.4),
+            Memories = Known<EquatableArray<NeedMemory>>([new("sting", -10, Known(Day), true)]) }, Day, []);
+        Assert.Equal(.5 / 4.25, fading.BreakRisk.Value, 4);
+        var unknown = ForecastMoodTimeline(pawn with { BreakThreshold = default }, Day, []);
+        Assert.False(unknown.BreakRisk.IsKnown);
+        Assert.Contains("mental_break_probability_unassessed", unknown.Findings);
+    }
+
     [Fact]
     public void ActualMoodRespondsGraduallyAndSleepFreezesActualRatherThanOnlyRemovingThought()
     {
@@ -230,7 +249,7 @@ public sealed class ForecastConditionalMoodTests
         var sleep = Assert.Single(selected.Selected.Plan.Allocations);
         Assert.Equal(5 * Hour, sleep.Start, 6);
         Assert.Equal(12 * Hour, sleep.End, 6);
-        Assert.True(selected.SelectedVector.MoodDepth.Value < selected.BaselineVector.MoodDepth.Value);
+        Assert.True(selected.SelectedVector.BreakRisk.Value < selected.BaselineVector.BreakRisk.Value);
         var (_, control) = SelectObserved(Pawn(false));
         Assert.Empty(control.Selection.Selected);
         var (_, urgent) = SelectObserved(Pawn() with { Needs = [new("rest", Known(.27), Known(0d), Known(.28), Known(1d))] });

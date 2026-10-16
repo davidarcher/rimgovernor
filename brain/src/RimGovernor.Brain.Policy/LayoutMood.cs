@@ -150,6 +150,49 @@ public sealed record MoodBreakModel
         var days = Tiers[(int)tier].Days;
         return days / (PolicyConstants.MoodJudgment.MTBDays[(int)tier] + PolicyConstants.MoodJudgment.CooldownDays + days);
     }
+
+    /// <summary>
+    /// The breaks a day a colonist held at the mood level is expected to have: one per renewal cycle of the tier's
+    /// MTB and the post-recovery cooldown. It reads only the threshold, so the break's own duration and the
+    /// 2000-tick wait below a threshold before a break can fire are not modelled. 0 above the minor threshold.
+    /// </summary>
+    public double BreaksPerDay(double level)
+    {
+        var (tier, ok) = TierAt(level);
+        return ok ? BreaksPerDay(tier) : 0;
+    }
+
+    /// <summary>Adds the ticks a mood level moving linearly from one value to another spends in each tier, cut at the tier thresholds.</summary>
+    internal void AddTierTicks(double from, double to, double ticks, Span<double> byTier)
+    {
+        Span<double> cuts = stackalloc double[PolicyConstants.MoodTierCount + 2];
+        cuts[0] = 0; cuts[1] = 1;
+        var count = 2;
+        if (from != to)
+            foreach (var fraction in PolicyConstants.MoodJudgment.Fractions)
+            {
+                var at = ((Threshold * fraction) - from) / (to - from);
+                if (at > 0 && at < 1) cuts[count++] = at;
+            }
+        cuts[..count].Sort();
+        for (var i = 0; i < count - 1; i++)
+        {
+            var (tier, ok) = TierAt(from + ((to - from) * (cuts[i] + cuts[i + 1]) / 2));
+            if (ok) byTier[(int)tier] += ticks * (cuts[i + 1] - cuts[i]);
+        }
+    }
+
+    /// <summary>The expected breaks of the ticks spent in each tier.</summary>
+    internal static double Breaks(ReadOnlySpan<double> byTier)
+    {
+        double breaks = 0;
+        for (var tier = MoodTier.Minor; tier <= MoodTier.Extreme; tier++)
+            breaks += byTier[(int)tier] / GameTime.TicksPerDay * BreaksPerDay(tier);
+        return breaks;
+    }
+
+    private static double BreaksPerDay(MoodTier tier) =>
+        1 / (PolicyConstants.MoodJudgment.MTBDays[(int)tier] + PolicyConstants.MoodJudgment.CooldownDays);
 }
 
 /// <summary>One stage of a ThoughtDef; a null stage (the game keeps unused ones null) is not Present and carries no mood.</summary>

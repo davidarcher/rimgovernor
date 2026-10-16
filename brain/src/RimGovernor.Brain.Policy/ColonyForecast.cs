@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Caller-supplied snapshot identity; evaluating never reads live world state.</summary>
@@ -18,7 +20,12 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
     /// <summary>Observed standing construction owned by this Method; no second supplied stock effect.</summary>
     public Building? Construction { get; init; }
     public Fact<double> AlternativeLaborCost { get; init; }
+    /// <summary>Mood memories this Method grants when all its activities complete; in-memory forecast evidence, not a wire or save field.</summary>
+    public EquatableArray<ForecastMoodMemory> MoodMemories { get; init; }
 }
+
+/// <summary>One pawn's memory granted by a commitment; it starts at the commitment's completion.</summary>
+public sealed record ForecastMoodMemory(string Pawn, NeedMemory Memory);
 
 /// <summary>Replace by removing an ID and adding its new version. Empty means continue.</summary>
 public sealed record ColonyForecastDelta

@@ -6,17 +6,23 @@ public sealed record ForecastMoodPoint(double Tick, Fact<double> Target, Fact<do
 public sealed record ForecastMoodResult(EquatableArray<ForecastMoodPoint> Trajectory,
     Fact<double> TargetExposureTicks, Fact<double> TargetDepthTicks, Fact<double> ActualExposureTicks,
     Fact<double> ActualDepthTicks, Fact<double> TerminalMood, EquatableArray<string> Findings)
-{ public Fact<double> PressureTicks { get; init; } }
+{
+    public Fact<double> PressureTicks { get; init; }
+    /// <summary>Expected mental breaks over the horizon from the target trajectory (MoodBreakModel.BreaksPerDay); unknown without an observed threshold.</summary>
+    public Fact<double> BreakRisk { get; init; }
+}
 
 public static partial class PolicyFunctions
 {
     /// <summary>Conditional thoughts are native mechanics, independent of candidate family or trait names.
-    /// Target and actual mood remain separate; threshold exposure is never a break probability.</summary>
+    /// Target and actual mood remain separate; threshold exposure is not itself a break probability. Granted
+    /// memories (a commitment's MoodMemories) start at their tick like a completed meal's thoughts.</summary>
     public static ForecastMoodResult ForecastMoodTimeline(NeedsForecastPawn pawn, double horizon,
-        IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null)
+        IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
+        IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null)
     {
         NeedHorizon(horizon);
-        var unknown = new SortedSet<string>(StringComparer.Ordinal) { "mental_break_probability_unassessed", "unmodeled_situational_thoughts_constant" };
+        var unknown = new SortedSet<string>(StringComparer.Ordinal) { "unmodeled_situational_thoughts_constant" };
         var trajectory = new List<ForecastMoodPoint>();
         var events = new SortedSet<double> { 0, horizon };
         var intervals = selected.Select(c => (Choice: c, End: interruptedAt is not null && interruptedAt.TryGetValue(c.Id, out var at)
@@ -37,7 +43,7 @@ public static partial class PolicyFunctions
         foreach (var memory in memories.Where(m => !m.Permanent && m.RemainingTicks.IsKnown))
             if (memory.RemainingTicks.Value > 0 && memory.RemainingTicks.Value < horizon) events.Add(memory.RemainingTicks.Value);
         var meals = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
-            .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).ToArray();
+            .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []).ToArray();
         if (meals.Select(m => m.Thought.Id).Distinct().Count() != meals.Length
             || meals.Any(m => memories.Any(old => old.Id == m.Thought.Id) || !m.Thought.Permanent && !m.Thought.RemainingTicks.IsKnown))
             return new([], default, default, default, default, default, ["unsupported_memory_renewal_or_stacking"]);
@@ -49,6 +55,11 @@ public static partial class PolicyFunctions
         var actual = pawn.Mood.ValueOrDefault;
         double targetExposure = 0, targetDepth = 0, actualExposure = 0, actualDepth = 0, pressure = 0;
         var thresholdKnown = pawn.BreakThreshold.TryGetValue(out var threshold);
+        var breakKnown = thresholdKnown && FinitePositive(threshold);
+        if (!breakKnown) unknown.Add("mental_break_probability_unassessed");
+        // The observed threshold is the pawn's minor-break level, the model's base for every tier.
+        var breakModel = new MoodBreakModel { Threshold = threshold };
+        Span<double> tierTicks = stackalloc double[PolicyConstants.MoodTierCount];
         // Bound response interpolation by native update-sized intervals. Phase is not observed.
         if (pawn.MoodIntervalTicks.TryGetValue(out var interval) && double.IsFinite(interval) && interval > 0)
         {
@@ -88,6 +99,7 @@ public static partial class PolicyFunctions
             var endTarget = Target(Math.BitDecrement(points[i + 1]), asleep);
             pressure += (1 - (target + endTarget) / 2) * duration;
             if (thresholdKnown) Integrate(threshold - target, threshold - endTarget, duration, ref targetExposure, ref targetDepth);
+            if (breakKnown) breakModel.AddTierTicks(target, endTarget, duration, tierTicks);
             if (actualKnown)
             {
                 var previous = actual;
@@ -104,7 +116,7 @@ public static partial class PolicyFunctions
         return new(EquatableArray.From(trajectory), thresholdKnown ? Known(targetExposure) : default,
             thresholdKnown ? Known(targetDepth) : default, actualKnown && thresholdKnown ? Known(actualExposure) : default,
             actualKnown && thresholdKnown ? Known(actualDepth) : default, actualKnown ? Known(actual) : default, EquatableArray.From(unknown))
-        { PressureTicks = Known(pressure) };
+        { PressureTicks = Known(pressure), BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default };
     }
 
     internal static IEnumerable<double> ConditionalThoughtTransitions(NeedsForecastPawn pawn, double horizon)

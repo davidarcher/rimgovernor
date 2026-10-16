@@ -120,6 +120,27 @@ observations remain available for project planning; bill counts are not labor ho
 Strategic mood signals use each pawn's observed native minor-break threshold.
 A ten-point recovery margin prevents repeated signals near that threshold; it is
 brain hysteresis, not a forecast. Missing thresholds retain established risk.
+
+## Coupled mood break risk
+
+The coupled comparator prices forecast mood as expected mental breaks (#3221).
+`MoodBreakModel.BreaksPerDay` (`LayoutMood.cs`, the one owner of the break math)
+gives a level's tier one break per renewal cycle of the tier's MTB (4, 0.8 or 0.5
+days) plus the 15,000-tick post-recovery cooldown. The pawn's observed minor-break
+threshold sets the tier levels. `ForecastMoodResult.BreakRisk` integrates that
+rate over the piecewise-linear target trajectory, cut at the tier thresholds. The
+2,000-tick wait below a threshold before a break can fire and the break's own
+duration are not modelled. Actual mood and layout's work-day/watt price are not used.
+
+`ForecastConsequenceVector.BreakRisk` sums the pawns' risk and is known only when
+every pawn's threshold and mood are assessed. In that case it replaces target
+exposure and pressure within the mood tier, so mood far above every threshold has
+no comparator value. Otherwise the vector keeps
+`mental_break_probability_unassessed` and the raw ticks rank as before. The
+serious-harm, unmet-needs and development ordering is unchanged; there is no
+mood-to-labor rate. A commitment's in-memory `MoodMemories` start for their pawn
+when all its activities complete inside the horizon. Failed or later work grants
+nothing, and unknown completion leaves that pawn's mood unassessed.
 Power reserve risk likewise persists across unavailable reads and serialization;
 recovery requires readable current networks.
 

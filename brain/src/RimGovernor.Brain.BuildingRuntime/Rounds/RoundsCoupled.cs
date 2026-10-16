@@ -110,6 +110,7 @@ public sealed partial class Rounder
         ["needs"] = vector.Needs.Select(v => v.IsKnown ? (object)v.Value : null).ToArray(),
         ["mood_exposure"] = vector.MoodExposure.IsKnown ? vector.MoodExposure.Value : null,
         ["mood_pressure"] = vector.MoodDepth.IsKnown ? vector.MoodDepth.Value : null,
+        ["mood_break_risk"] = Number(vector.BreakRisk),
         ["thermal_occupancy"] = vector.ThermalOccupancy,
         ["support_urgent_first_care_ticks"] = Number(vector.Support.UrgentFirstCareTicks),
         ["support_pending_care_batches"] = vector.Support.PendingCareBatches,

@@ -22,7 +22,9 @@ They do not restore a local helper selector underneath the chosen portfolio.
 
 The comparison horizon is one game day. The ordering compares urgent food/rest
 exhaustion duration, deficit depth and threshold exposure before other unmet
-needs, supported mood target exposure/pressure and requested development.
+needs, mood and requested development. Mood ranks by expected
+[break risk](../contracts/forecast-contracts.md#coupled-mood-break-risk) when every
+pawn's break threshold is observed, otherwise by target exposure/pressure.
 Complete assessed thermal exposure retains degree-ticks; incomplete occupancy
 remains unknown. Proposed shelter also compares thermal relief over the same
 known stationary occupancy against the observed environment without that work.

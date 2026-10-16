@@ -333,6 +333,29 @@ public static partial class PolicyFunctions
         }
         ApplyExternal(horizon);
         Expire(horizon);
+        // A commitment's mood memories start when all its activities have completed inside the horizon. Failed or
+        // later work grants nothing here; unknown completion leaves those pawns' mood unassessed.
+        var granted = new Dictionary<string, List<(NeedMemory Thought, double Start)>>(StringComparer.Ordinal);
+        var grantUnknown = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var commitment in commitments.Values.Where(c => c.MoodMemories.Count > 0))
+        {
+            Fact<double> at = commitment.ActivityCompletions.Count == 0 ? default : Known(0.0);
+            foreach (var id in commitment.ActivityCompletions)
+            {
+                var done = completed.GetValueOrDefault(id);
+                if (!allocations.TryGetValue(id, out var allocation) || allocation.End > horizon || done == Known(false))
+                { at = Known(double.PositiveInfinity); break; }
+                if (!done.IsKnown) { at = default; break; }
+                at = Known(Math.Max(at.Value, allocation.End));
+            }
+            foreach (var row in commitment.MoodMemories)
+                if (!at.IsKnown) grantUnknown.Add(row.Pawn);
+                else if (at.Value <= horizon)
+                {
+                    if (!granted.TryGetValue(row.Pawn, out var list)) granted[row.Pawn] = list = [];
+                    list.Add((row.Memory, at.Value));
+                }
+        }
         var needs = new Dictionary<string, ForecastNeedsResult>(StringComparer.Ordinal);
         var rejectedWork = new HashSet<string>(unavailableWork, StringComparer.Ordinal);
         foreach (var pawn in context.Needs.Pawns)
@@ -376,14 +399,15 @@ public static partial class PolicyFunctions
             else foreach (var work in productive)
                 if (!able.Any(w => w.Start <= work.Depart && w.End >= work.End))
                 { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
-            var projected = ForecastNeedsTimeline(pawn, input, choices);
-            if (context.NeedTasks.Any(n => n.Pawn == pawn.Pawn && !n.ThoughtsComplete && allocations.ContainsKey(n.Task)))
+            var projected = ForecastNeedsTimeline(pawn, input, choices, granted: granted.GetValueOrDefault(pawn.Pawn));
+            var mealsUnknown = context.NeedTasks.Any(n => n.Pawn == pawn.Pawn && !n.ThoughtsComplete && allocations.ContainsKey(n.Task));
+            if (mealsUnknown || grantUnknown.Contains(pawn.Pawn))
                 projected = projected with
                 {
                     ThoughtOffsetAtHorizon = default,
                     MemoryAdjustedMoodTarget = default,
                     Mood = null,
-                    Findings = [.. projected.Findings, "future_meal_thoughts_unassessed"]
+                    Findings = [.. projected.Findings, mealsUnknown ? "future_meal_thoughts_unassessed" : "commitment_mood_memory_unassessed"]
                 };
             needs[pawn.Pawn] = projected;
         }
