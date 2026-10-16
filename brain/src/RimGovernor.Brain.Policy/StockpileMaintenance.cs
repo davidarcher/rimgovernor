@@ -132,6 +132,9 @@ public sealed record StockpileRequest
 
     /// <summary>Whether a Shelf is buildable (researched) and the planner can place it.</summary>
     public bool ShelfAvailable { get; init; }
+
+    /// <summary>The loot census (projection EventLoot), read for each store's stranded stacks (StrandedStacks).</summary>
+    public Fact<EquatableArray<LootItem>> Loot { get; init; }
 }
 
 /// <summary>One built shelf serving an owned zone and the settings last patched onto it (Patched false: never patched, native defaults).</summary>

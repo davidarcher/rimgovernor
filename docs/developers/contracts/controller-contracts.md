@@ -532,7 +532,9 @@ batch through journaled Hands is tracked in
 
 `ManageSupplySafety` owns both directions of the forbid flag for visible, player-owned or
 unowned haulable items, including later event drops. A complete `event_loot` census
-reports each item's identity, cell, forbid flag and native hauling safety. There is no
+reports each item's identity, cell, forbid flag, native hauling safety and storage
+headroom; a zero-headroom unforbidden row also names the storage groups that accept it
+([stranded stock](../architecture/storage.md#stranded-stock)). There is no
 first-seen or player-forbid exemption; unknown or over-limit censuses authorize nothing.
 The scenario's starting stacks are in that census and are released like any other safe
 forbidden stack. The reach and demand stage is skipped for a forbidden stack on the

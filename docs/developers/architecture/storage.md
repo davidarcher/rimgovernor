@@ -83,6 +83,19 @@ When every zone of a yard store is at 85% used
 further room (`Yard`, one more than the plan holds) and that room's zone is created once it is
 planned and open.
 
+### Stranded stock
+
+A stack is stranded when it can be hauled nowhere now: the loot census reads it
+unforbidden and safe with zero `StorageHeadroom`. For each such row (and each
+zero-headroom row of unknown safety) native names the player's storage groups,
+stockpile zones and storage buildings by load id, whose settings accept the item,
+ignoring space (`LootItem.AcceptedBy`). `policy.StrandedStacks` counts a
+store's stranded stacks over the zones serving it and the shelves in them. It
+is unknown, never zero, while the census is unread, while any unforbidden row's
+headroom is unknown, or when a zero-headroom row of unknown safety names the
+store. The runway work of the storage capacity options (#3227) reads it; nothing
+acts on it yet.
+
 ## Planned rooms
 
 Layout plans the storage rooms;

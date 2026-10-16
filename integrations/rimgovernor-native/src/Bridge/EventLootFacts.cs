@@ -32,6 +32,10 @@ namespace HomeBridge.BridgeTools
                 if (safe == true && safety.PathLength >= 0) row = row with { PathLength = safety.PathLength };
                 if (!headroom.TryGetValue(t.def, out var units)) headroom[t.def] = units = StorageHeadroom(map, t);
                 row = row with { StorageHeadroom = units };
+                // A stack no storage has room for names the stores whose
+                // filter would take it. Unknown safety is listed too, so the
+                // brain can read that store's stranded count as unknown.
+                if (units == 0 && row.Forbidden == false && safe != false) row = row with { AcceptedBy = [.. AcceptingGroups(map, t)] };
                 census = census with { Items = [.. census.Items, row] };
             }
             safety.Dispose();
@@ -55,6 +59,15 @@ namespace HomeBridge.BridgeTools
             }
             return units;
         }
+
+        // The player's storage groups (stockpile zones and storage buildings)
+        // whose settings accept the item, ignoring space, by load id.
+        internal static IEnumerable<Common.Ref> AcceptingGroups(Map map, Thing item) =>
+            map.haulDestinationManager.AllGroupsListInPriorityOrder
+                .Where(g => g.parent?.Accepts(item) == true)
+                .Select(g => g.parent as ILoadReferenceable).Where(p => p != null)
+                .Select(p => p!.GetUniqueLoadID()).Distinct().OrderBy(id => id, StringComparer.Ordinal)
+                .Select(id => new Common.Ref { Id = id });
 
         internal static bool? Safe(Thing item)
         {

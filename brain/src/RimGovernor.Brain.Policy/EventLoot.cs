@@ -25,6 +25,13 @@ public sealed record LootItem
 
     /// <summary>Feeds remote loot's reach and demand filter; unknown cost or storage holds a remote stack.</summary>
     public Fact<long> StorageHeadroom { get; init; }
+
+    /// <summary>
+    /// The storage groups (owned zones and storage buildings, by id) whose filter accepts the stack, ignoring
+    /// space. Native fills it only on an unforbidden row with zero headroom whose safety is not false
+    /// (<see cref="PolicyFunctions.StrandedStacks"/>); empty elsewhere.
+    /// </summary>
+    public EquatableArray<string> AcceptedBy { get; init; }
 }
 
 /// <summary>

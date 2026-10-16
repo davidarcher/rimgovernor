@@ -8260,7 +8260,10 @@ public abstract record ThreatSectionOutcome
 /// Current autonomous hauling safety for visible haulable items. count is the
 /// stack size; path_length is the shortest observed safe colonist route to the
 /// item in cells (present only with safe_to_haul true); storage_headroom is the
-/// item units the player's accepting storage can still take for this def.
+/// item units the player's accepting storage can still take for this def;
+/// accepted_by, set only on an unforbidden row with storage_headroom 0 and
+/// safe_to_haul not false, names the player's storage groups (stockpile zones and
+/// storage buildings, by load id) whose settings accept the item, ignoring space.
 /// </summary>
 public sealed record LootItem
 {
@@ -8275,6 +8278,9 @@ public sealed record LootItem
     public double? PathLength { get; init; }
 
     public long? StorageHeadroom { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
+    public EquatableArray<Common.Ref> AcceptedBy { get; init; }
 }
 
 public sealed record LootCensus

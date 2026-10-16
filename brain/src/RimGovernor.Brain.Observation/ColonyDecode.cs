@@ -548,6 +548,7 @@ public static partial class ObservationPackage
                     SafetyKnown = row.SafeToHaul is not null,
                     Count = row.Count.GetValueOrDefault(),
                     SpawnForbidden = spawnForbidden.Contains(head?.DefName ?? ""),
+                    AcceptedBy = EquatableArray.From(row.AcceptedBy.Select(r => r.Id ?? "")),
                 };
                 if (row.PathLength is not null)
                 {

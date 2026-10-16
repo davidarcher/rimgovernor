@@ -122,6 +122,58 @@ public static partial class PolicyFunctions
         new MedicalOwner(),
     ];
 
+    /// <summary>
+    /// The store's stranded stacks: unforbidden, safe loot rows with zero storage headroom whose accepting storage
+    /// groups include a zone serving the store or a shelf in one. Such a stack can be hauled nowhere now, and this
+    /// store would take it. Headroom is read as the haul backlog reads it (WorkAssignment). Unknown, never zero, when
+    /// the census is unread, when a row's headroom is unknown (it could belong to any store) or when a zero-headroom
+    /// row of unknown safety is accepted by this store.
+    /// </summary>
+    public static Fact<long> StrandedStacks(StockpileRequest request, Store store)
+    {
+        if (!request.Loot.TryGetValue(out var rows))
+        {
+            return Unknown<long>();
+        }
+        var groups = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var z in request.Zones)
+        {
+            if (store.Serves(z))
+            {
+                groups.Add(z.Id);
+            }
+        }
+        foreach (var s in request.Shelves)
+        {
+            if (groups.Contains(s.Zone))
+            {
+                groups.Add(s.Building);
+            }
+        }
+        long stranded = 0;
+        foreach (var row in rows)
+        {
+            if (row.Forbidden)
+            {
+                continue;
+            }
+            if (!row.StorageHeadroom.TryGetValue(out var room))
+            {
+                return Unknown<long>();
+            }
+            if (room > 0 || (row.SafetyKnown && !row.SafeToHaul) || !row.AcceptedBy.Any(groups.Contains))
+            {
+                continue;
+            }
+            if (!row.SafetyKnown)
+            {
+                return Unknown<long>();
+            }
+            stranded++;
+        }
+        return Known(stranded);
+    }
+
     /// <summary>Collects the registered departments' declarations.</summary>
     public static StoreDeclaration DeclareStores(StoreView view) => DeclareStores(StoreOwners, view);
 
