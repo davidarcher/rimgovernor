@@ -43,7 +43,7 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
     private CancellationTokenSource? _cancel;
 
     /// <summary>The wait between requests.</summary>
-    internal TimeSpan Poll { get; init; } = TimeSpan.FromSeconds(1);
+    internal TimeSpan Poll { get; init; } = TimeSpan.FromMilliseconds(250);
 
     /// <summary>Bounds the generation once the game answers; it is also the wire's timeoutMs.</summary>
     internal TimeSpan Timeout { get; init; } = TimeSpan.FromMilliseconds(NewColonyBounds.MaxTimeoutMs);

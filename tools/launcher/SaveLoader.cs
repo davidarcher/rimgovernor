@@ -12,8 +12,6 @@ namespace RimGovernor.Launcher;
 /// </summary>
 public sealed class SaveLoader : IDisposable
 {
-    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(2);
-
     private readonly HttpClient _client;
     private readonly Lock _gate = new();
     private CancellationTokenSource? _current;
@@ -23,6 +21,12 @@ public sealed class SaveLoader : IDisposable
         ArgumentNullException.ThrowIfNull(client);
         _client = client;
     }
+
+    /// <summary>
+    /// The wait between posts while the routes are not up yet, and between polls once the load is accepted. Short, so
+    /// the load starts within one retry of the brain registering <c>/api/lifecycle</c>.
+    /// </summary>
+    internal TimeSpan RetryDelay { get; init; } = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
     /// Asks the channel at <paramref name="baseUrl"/> to load <paramref name="save"/>, retrying (same request id) while
@@ -43,7 +47,7 @@ public sealed class SaveLoader : IDisposable
 
         try
         {
-            await ReloadAsync(_client, baseUrl.TrimEnd('/'), save, run.Token).ConfigureAwait(false);
+            await ReloadAsync(baseUrl.TrimEnd('/'), save, run.Token).ConfigureAwait(false);
         }
         finally
         {
@@ -69,8 +73,9 @@ public sealed class SaveLoader : IDisposable
 
     public void Dispose() => Stop();
 
-    private static async Task ReloadAsync(HttpClient client, string baseUrl, string save, CancellationToken ct)
+    private async Task ReloadAsync(string baseUrl, string save, CancellationToken ct)
     {
+        var client = _client;
         var requestId = "launcher-reload-" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString("x", System.Globalization.CultureInfo.InvariantCulture);
         var body = JsonSerializer.Serialize(new { requestId, saveName = save, readiness = "map", timeoutMs = 30000 });
         Exception last = new InvalidOperationException("no reply");

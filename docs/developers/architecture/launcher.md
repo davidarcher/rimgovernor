@@ -62,7 +62,9 @@ refusal's text appears under the bar. They are the only writes the tab makes; `o
 Play starts RimWorld from the private game copy with `-rimgovernor-inproc` and
 the settings' extra arguments, then waits (up to five minutes) for the endpoint
 file and a healthy channel. When the settings name a save to load, it is loaded
-once the channel answers. There is no separate brain process: the brain runs inside
+once the channel answers: `SaveLoader` posts `POST /api/lifecycle/load` every
+250 ms until the brain registers the route (404 before that), then polls the
+request every 250 ms until the map is loaded. There is no separate brain process: the brain runs inside
 the game, so Stop and Close game both end RimWorld.
 
 Settings are saved in `.rimgovernor/launcher.json`. Extra arguments and the save
@@ -98,7 +100,7 @@ ranges, DLC requirements and the Rhadamant preset; the page renders them without
 inventing or filtering them. The runner
 ([NewColonyRunner.cs](../../../tools/launcher/NewColonyRunner.cs)) closes the
 game, starts it afresh, posts `POST /api/lifecycle/new` and polls
-`GET /api/lifecycle/new?requestId=`. Its elapsed timer advances between polls;
+`GET /api/lifecycle/new?requestId=` every 250 ms. Its elapsed timer advances between polls;
 failed polls mark retained values stale. The form is validated by the same
 `BridgeFunctions.ValidateNewColonyRequest` the game's route uses, and the spec
 embeds the scenario parts, so settings, page and wire share one shape. The

@@ -34,10 +34,11 @@
     <ProjectReference Include="../../src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
-  <!-- The launcher is a WinExe outside this solution; its new-colony form (no WinForms dependency) is compiled in to pin the presets. -->
+  <!-- The launcher is a WinExe outside this solution; its new-colony form and save loader (no WinForms dependency) are compiled in to pin the presets and the load retries. -->
   <ItemGroup>
     <Compile Include="../../../tools/launcher/NewColony.cs" Link="Launcher/NewColony.cs" />
     <Compile Include="../../../tools/launcher/LauncherException.cs" Link="Launcher/LauncherException.cs" />
+    <Compile Include="../../../tools/launcher/SaveLoader.cs" Link="Launcher/SaveLoader.cs" />
   </ItemGroup>
   <!-- The thoughtaudit guard analysis (#3218 spike) is pure syntax analysis; compiled in to pin its unknown handling without the game. -->
   <ItemGroup>
