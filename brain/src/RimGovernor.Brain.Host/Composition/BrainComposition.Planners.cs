@@ -62,7 +62,6 @@ public sealed partial class BrainComposition
         RoundsPopulationCustodyPlanner? cfgPopulationCustody = null;
         RoundsPopulationJoinerPlanner? cfgPopulationJoiner = null;
         RoundsBuildingPlanner? cfgPower = null;
-        RoundsPrisonerInteractionPlanner? cfgPrisonerInteraction = null;
         RoundsPsylinkPlanner? cfgPsylink = null;
         RoundsRecoveryPlanner? cfgRecovery = null;
         RoundsRescuePlanner? cfgRescue = null;
@@ -284,9 +283,10 @@ public sealed partial class BrainComposition
         {
             cfgHusbandry = RoundsHusbandryPlanner.NewRoundsHusbandryPlanner(reviewer);
         }
-        if (prisonerInteraction)
+        if (prisonerInteraction || populationCustody)
         {
-            cfgPrisonerInteraction = RoundsPrisonerInteractionPlanner.NewRoundsPrisonerInteractionPlanner(reviewer);
+            // The prisoner-interaction and population-custody toggles compose the prisoners family's two Needs (#3262).
+            families.Add(new PrisonersRounds(reviewer, prisonerInteraction, populationCustody).Runner());
         }
         if (sc.PopulationJoiner)
         {
@@ -494,7 +494,6 @@ public sealed partial class BrainComposition
             PopulationCustody = cfgPopulationCustody,
             PopulationJoiner = cfgPopulationJoiner,
             Power = cfgPower,
-            PrisonerInteraction = cfgPrisonerInteraction,
             Psylink = cfgPsylink,
             Recovery = cfgRecovery,
             Rescue = cfgRescue,
@@ -604,7 +603,7 @@ public sealed partial class BrainComposition
         Add(sc.Blight, RemoveBlight);
         Add(sc.Recovery, RecoverDisasterServices);
         Add(sc.Husbandry, MaintainHerd);
-        Add(sc.PrisonerInteraction || sc.PopulationCustody || sc.PopulationJoiner, MaintainPopulation);
+        Add(sc.PopulationCustody || sc.PopulationJoiner, MaintainPopulation);
         Add(sc.Pollution, ManagePollution);
         Add(sc.MechCharger, EnsureMechCharger);
         Add(sc.GeneBank, MaintainGeneBank);
@@ -633,6 +632,6 @@ public sealed partial class BrainComposition
         Add(sc.Trade, TradeWithCaravan);
         // The equip planner supplies EnsureBasicDefense's method capability.
         Add(sc.Equip, EnsureBasicDefense);
-        return (thresholds, new RoundsCapabilities { Methods = methods, Needs = sc.Refrigeration ? [RefrigerationNeed] : [], LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance });
+        return (thresholds, new RoundsCapabilities { Methods = methods, Needs = sc.Refrigeration ? [RefrigerationNeed] : [], LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
     }
 }

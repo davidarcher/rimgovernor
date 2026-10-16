@@ -126,7 +126,7 @@ internal static class PopulationDecoder
             }
             if (pawn.Prisoner is null || !pawn.Prisoner.GetValueOrDefault())
             {
-                continue; // MaintainPopulation's recruit census only ever considers colony prisoners.
+                continue; // prisoners/recruit's census only ever considers colony prisoners.
             }
             rows.Add(PrisonerRow(person, pawn, id, custodyRow.Prospect, catalog));
         }

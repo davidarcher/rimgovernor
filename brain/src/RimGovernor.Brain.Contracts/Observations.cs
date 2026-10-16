@@ -4472,7 +4472,7 @@ public sealed record PopulationPerson
     public long? PrisonerTicks { get; init; }
 
     /// <summary>
-    /// Prisoner prospect facts MaintainPopulation judges a prisoner's use by
+    /// Prisoner prospect facts prisoners/recruit judges a prisoner's use by
     /// Pawn_GuestTracker.will (Ideology), the pawn's ideoligion load
     /// id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
     /// colonists, the skill/trait/age biography and SummaryHealthPercent.

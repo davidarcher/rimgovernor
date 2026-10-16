@@ -74,7 +74,7 @@ public enum CustodyPlanReason
     Unknown,
 }
 
-/// <summary>The one candidate chosen for a capture/rescue dispatch, mirroring PrisonerChoice's single-write-per-cycle rule.</summary>
+/// <summary>The one candidate chosen for a capture/rescue dispatch, chosen deterministically.</summary>
 public sealed record CustodyChoice
 {
     public CustodyPlanReason Reason { get; init; }
@@ -144,8 +144,8 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Picks the next eligible candidate to dispatch. A capture of a raider not known to be recruitable ranks
-    /// after every other candidate; within a rank the lowest pawn ID wins, mirroring
-    /// SelectPrisonerInteractionMethod's determinism. Rescues are never demoted, and an unrecruitable raider
+    /// after every other candidate; within a rank the lowest pawn ID wins, for
+    /// a deterministic order. Rescues are never demoted, and an unrecruitable raider
     /// is still captured once nothing outranks it.
     /// </summary>
     public static CustodyChoice SelectCustodyMethod(Fact<EquatableArray<CustodyFacts>> rows)

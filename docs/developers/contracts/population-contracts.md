@@ -47,7 +47,7 @@ Ideology is active. Execution and non-exclusive toggles are player-only.
 - **Peg legs.** A colony prisoner carries `withdrawal` (a drug addiction a prisoner cannot feed). A
   legless prisoner is never released until MaintainSurgery puts a peg leg back.
 
-### Prisoner use (`MaintainPopulation`, `policy.prisonerUse`)
+### Prisoner use (`prisoners/recruit`, `policy.prisonerUse`)
 
 The routine chooses each prisoner's use itself, with no player-only exemption:
 
@@ -62,6 +62,10 @@ The routine chooses each prisoner's use itself, with no player-only exemption:
 
 A prisoner being recruited with its resistance broken keeps recruiting; an unknown fact never
 authorizes a write. Native faction admission, resistance and recruitment probability are never written.
+Each prisoner owed a change is its own `prisoners/recruit` Method (`prisoner-<mode>-<pawn>`, claiming
+`prisoner/<pawn>`), so several prisoners' changes are in flight at once. A downed humanlike owed a
+rescue or capture is the `prisoners/custody` Need; both remain held (see
+[control loop](../architecture/control-loop.md#migration)).
 
 ## Joiners
 

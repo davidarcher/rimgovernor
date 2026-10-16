@@ -1,6 +1,9 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Composes MaintainPopulation's custody methods: rescue, capture, arrest, lance, containment and tend.</summary>
+/// <summary>
+/// Composes MaintainPopulation's anomaly half: lance, entity capture, containment and tend. A humanlike's rescue
+/// or capture moved to the prisoners family's prisoners/custody Need (#3262).
+/// </summary>
 public sealed partial class RoundsPopulationCustodyPlanner
 {
     private readonly Rounder reviewer;
@@ -65,7 +68,6 @@ public sealed partial class RoundsPopulationCustodyPlanner
 
         var started = reviewer.Clock.Now();
         var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
-        var choice = PolicyFunctions.SelectCustodyMethod(read.Projection.Facts.Custody);
         if (PolicyFunctions.LanceCandidate(read.Projection.Facts) is { } lanceTarget && lanceTarget.Value != "")
         {
             var (lance, handled) = await StepLanceAsync(p, state, started, goal, review.Tick, lanceTarget, arbiter, call, epoch).ConfigureAwait(false);
@@ -75,114 +77,15 @@ public sealed partial class RoundsPopulationCustodyPlanner
             }
         }
 
-        if (choice.Reason == CustodyPlanReason.NoDeficit)
+        // A downed humanlike's capture or rescue is the prisoners family's (prisoners/custody, #3262); a downed
+        // entity's capture stays held here with the rest of the anomaly half.
+        if (PolicyFunctions.EntityCaptureTarget(read.Projection.Facts.Containment) is not null)
         {
-            if (PolicyFunctions.EntityCaptureTarget(read.Projection.Facts.Containment) is { } entity)
-            {
-                choice = new CustodyChoice { Pawn = (PawnId)entity, Decision = CustodyDecision.Capture };
-            }
+            return new RoundsPopulationCustodyResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_population_capture",
+                "Population acquisition requires shared participant and custody outcome alternatives.") };
         }
 
-        if (choice.Reason == CustodyPlanReason.NoDeficit)
-        {
-            return await StepContainmentAsync(p, state, started, goal, read.Projection.Facts, arbiter, call, epoch).ConfigureAwait(false);
-        }
-
-        if (choice.Reason == CustodyPlanReason.Unknown)
-        {
-            return new RoundsPopulationCustodyResult { Verdict = Verdict.FieldUnavailable("custody") };
-        }
-
-        if (choice.Decision == CustodyDecision.Rescue)
-            return new RoundsPopulationCustodyResult { Verdict = Verdict.AwaitingPlan("dependent_rescue_incident_owner",
-                "Critical eligible dependent rescue belongs to CriticalMedicine; other custody transport requires shared forecast support.") };
-
-        var identityCtx = Boundary.Identity(state.Snapshot);
-        var (emergency, _) = await native.ReadEmergencyAsync(identityCtx, call).ConfigureAwait(false);
-        try
-        {
-            Boundary.Context(emergency.Context, state.Snapshot);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ControlException("step: emergency context", e);
-        }
-
-        if (emergency.Context is not { } emergencyContext || emergencyContext.Tick < review.Tick.Value)
-        {
-            throw new ControlException("step: emergency read older than the review");
-        }
-
-        if (!emergency.Facts.ColonistsComplete.TryGetValue(out var complete) || !complete || emergency.Facts.Colonists.Count == 0)
-        {
-            return new RoundsPopulationCustodyResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "colonists_complete") };
-        }
-
-        var ids = new List<string>(emergency.Facts.Colonists.Count + 1);
-        foreach (var pawn in emergency.Facts.Colonists)
-        {
-            if (pawn.Id == choice.Pawn)
-            {
-                continue; // the custody target is never its own performer
-            }
-
-            ids.Add(pawn.Id.Value);
-        }
-
-        ids.Add(choice.Pawn.Value);
-        var (reply, _) = await native.ReadCombatPawnsAsync(identityCtx, ids, call).ConfigureAwait(false);
-        var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == nil");
-        try
-        {
-            Boundary.Context(observed.Context, state.Snapshot);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ControlException("step: observed context", e);
-        }
-
-        if (observed.Pawns.Count != ids.Count)
-        {
-            throw new ControlException("step: pawn count differs from the requested ids");
-        }
-
-        var arms = await BuildingRuntimePackage.ReadArmamentAsync(native, identityCtx, call).ConfigureAwait(false);
-        var catalog = arms.Catalog;
-        var profiles = new List<PawnProfile>();
-        O.PawnState? patient = null;
-        var seen = new HashSet<string>();
-        foreach (var row in observed.Pawns)
-        {
-            if (row is null || row.Pawn is null || !seen.Add((row.Pawn.Id ?? "")))
-            {
-                throw new ControlException("step: row missing or repeated");
-            }
-
-            var pawn = new PawnId((row.Pawn.Id ?? ""));
-            if (pawn == choice.Pawn)
-            {
-                patient = row;
-                continue;
-            }
-
-            var work = ObservationPackage.WorkPawnRow(row, catalog, arms.Things);
-            profiles.Add(PolicyFunctions.BuildProfile(work));
-        }
-
-        if (patient is null)
-        {
-            throw new ControlException("step: patient == nil");
-        }
-
-        switch (choice.Decision)
-        {
-            case CustodyDecision.Capture:
-                return new RoundsPopulationCustodyResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_population_capture",
-                    "Population acquisition requires shared participant and custody outcome alternatives.") };
-
-            default:
-                throw new ControlException("step: unknown custody decision");
-        }
+        return await StepContainmentAsync(p, state, started, goal, read.Projection.Facts, arbiter, call, epoch).ConfigureAwait(false);
     }
 
     internal RoundsPopulationCustodyResult Commit(Player p, ControlState state, DateTimeOffset started, StandardState goal, MethodId method, PlanId id, DomainAction action, CancellationToken call, CancellationToken epoch)

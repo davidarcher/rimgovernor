@@ -315,7 +315,7 @@ public static partial class PolicyFunctions
             new() { Role = RoomRole.Bedroom, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Barracks), FurnitureFromGame = true },
             new() { Role = RoomRole.Barracks, Status = FacilityStatus.Pending },
             new() { Role = RoomRole.Shelter, Status = FacilityStatus.Pending },
-            // A jail is its own planned room: MaintainPopulation shells it while a prisoner is held and keeps a
+            // A jail is its own planned room: prisoners/recruit shells it while a prisoner is held and keeps a
             // prisoner bed per prisoner.
             new() { Role = RoomRole.PrisonCell, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
             new() { Role = RoomRole.PrisonBarracks, Status = FacilityStatus.Pending },

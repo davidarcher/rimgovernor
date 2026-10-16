@@ -42,6 +42,8 @@ public static class OperationIntent
         [MaintainClimateEnvelope] = "Climate envelope",
         [MaintainHerd] = "Herd",
         [MaintainPopulation] = "Population",
+        [PrisonersFamily.Recruit.FilingKey] = "Prisoners",
+        [PrisonersFamily.Custody.FilingKey] = "Custody",
         [Concerns.TradeMission] = "Trade mission",
     };
 

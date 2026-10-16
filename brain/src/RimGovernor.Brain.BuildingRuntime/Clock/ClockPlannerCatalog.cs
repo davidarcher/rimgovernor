@@ -261,8 +261,6 @@ internal static class ClockPlannerCatalog
             c => c.Recovery is not null, (s, ct, e, a) => s.Config.Recovery!.StepAsync(a, ct, e), (o, m) => o.Recovery = m, immediate: true),
         E("husbandry", O, [ActionKind.Husbandry], [FactSection.Pawns, FactSection.Colony],
             c => c.Husbandry is not null, (s, ct, e, a) => s.Config.Husbandry!.StepAsync(a, ct, e), (o, m) => o.Husbandry = m),
-        E("prisonerInteraction", O, [ActionKind.PrisonerInteraction], [FactSection.Population, FactSection.Pawns],
-            c => c.PrisonerInteraction is not null, (s, ct, e, a) => s.Config.PrisonerInteraction!.StepAsync(a, ct, e), (o, m) => o.PrisonerInteraction = m),
         E("populationCustody", C, [ActionKind.Capture, ActionKind.UseItem, ActionKind.Rescue, ActionKind.Tend, ActionKind.DoorControl, ActionKind.RecoveryService], SectionsCustody,
             c => c.PopulationCustody is not null, (s, ct, e, a) => s.Config.PopulationCustody!.StepAsync(a, ct, e), (o, m) => o.PopulationCustody = m),
         E("populationJoiner", O,

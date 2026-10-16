@@ -334,6 +334,22 @@ owner, writing the record with each inspection it admits; surgery bills claim
 `surgery/<patient>/<recipe>/<part>`. A weapon drop stays held as an unsupported
 forecast outcome.
 
+**Prisoners (#3262).** The prisoner half of MaintainPopulation is the `prisoners`
+family (`Prisoners.cs`, runtime `PrisonersRounds`), an Optional entry woken by
+PrisonerInteraction, Building and BedUse outcomes. `prisoners/recruit`
+(Development) is unmet while any living prisoner is owed an interaction change
+(recruit, convert, enslave or release), unknown while the census or any
+prisoner's decision facts are unread. Each owed change is its own Method,
+`prisoner-<mode>-<pawn>`, claiming `prisoner/<pawn>`: two prisoners' changes run
+side by side, and a second change to one prisoner waits on the first's claim.
+While the Need is unmet its work step stages the jail (ring and next bed through
+the shared building planner, then the prisoner flag on each jail bed) under the
+Need owner. `prisoners/custody` (Wellbeing) is unmet while a downed humanlike is
+owed a rescue or capture; both are held (`dependent_rescue_incident_owner`,
+`unsupported_forecast_population_capture`). The joiner and anomaly halves stay on
+MaintainPopulation until their slices; `populationCustody` now carries only the
+anomaly half (lance, entity capture, containment).
+
 **Per-family migration checklist** (as followed for food-stores/storage):
 
 1. Write the facts record and `IFamily` in Policy: `Derive` from the Inspect body
@@ -379,9 +395,9 @@ three ways.
 | Ideology | MaintainIdeoRoles, MaintainRituals, ImproveIdeoligion |
 | Biotech | MaintainMechs, EnsureMechCharger, MaintainGeneBank, ManagePollution |
 | Royalty | MaintainPermits, MaintainPsylink |
-| Prisoners | MaintainPopulation (prisoner recruit, custody) |
+| Prisoners | `prisoners`: Needs `recruit`, `custody` (#3262) |
 | Joiners and quests | MaintainPopulation (joiners, quests, letters, ceremonies, decrees, monuments, departures, refugees, grav inspection) |
-| Anomaly | MaintainPopulation (entity capture, door, tend, bioferrite, monolith); lance placement is decided when the slice is groomed |
+| Anomaly | MaintainPopulation (entity capture, door, tend, bioferrite, monolith, lance) |
 | Economy | `economy`: Need `research` (#3263; EnsureResearch deleted); MaintainResource, MaintainTrade, TradeWithCaravan, trade missions |
 | Colony admin | `admin`: Need `creep-joiners` (#3264); EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles, MaintainBurial, ManageSupplySafety |
 | People | EnsureMood, AnswerDialog |

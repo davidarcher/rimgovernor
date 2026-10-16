@@ -75,4 +75,8 @@ public static partial class PolicyFunctions
     /// </summary>
     public static (ThoughtAudit Row, bool Ok) ThoughtAuditRow(string def) =>
         ThoughtAuditRows.Value.TryGetValue(def, out var row) ? (row, true) : (new ThoughtAudit("", ""), false);
+
+    /// <summary>Every owner id the audit table names, each once, in ordinal order.</summary>
+    internal static IReadOnlyList<string> ThoughtAuditOwners() =>
+        [.. ThoughtAuditRows.Value.Values.SelectMany(r => r.Owner.Split(';', StringSplitOptions.RemoveEmptyEntries)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
 }

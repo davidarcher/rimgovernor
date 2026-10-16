@@ -725,36 +725,24 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// custodyDeficit is only known once a deployment reads the population census broadened for custody
-    /// (RoundsPopulationCustodyPlanner); an unknown custody status is not held against recovery, matching
-    /// every other optional sub-step fact -- only a known deficit, in either prisoner recruitment or
-    /// custody, blocks recovery. joinerDeficit likewise needs the quest census (RoundsPopulationJoinerPlanner).
+    /// The joiner and anomaly halves of the population; prisoners are their own family (#3262). An unknown
+    /// optional sub-step fact is not held against recovery: only a known deficit blocks it. joinerDeficit needs
+    /// the quest census (RoundsPopulationJoinerPlanner).
     /// </summary>
     internal static void InspectPopulation(RoundsRun c)
     {
         var f = c.F;
-        var p = c.P;
         var recovered = Unknown<bool>();
-        var prisonerDeficitKnown = PrisonerRecruitDeficit(f.Prisoners, f.PrisonerColony, f.FoodDays, p.Prisoners()).TryGetValue(out var prisonerDeficit);
-        var custodyDeficitKnown = CustodyDeficit(f.Custody).TryGetValue(out var custodyDeficit);
         var joinerDeficitKnown = JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity()), f).TryGetValue(out var joinerDeficit);
         var questKnown = QuestDeficit(f).TryGetValue(out var questDeficit);
         var letterKnown = JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).TryGetValue(out var letterDeficit);
         var ceremonyStarts = CeremonyStartOf(f.Royalty) is not null;
         if (LanceTarget(f) is not null || EntityCaptureOwed(f.Containment) || EntityDoorOwed(f.Containment) || EntityTendOwed(f.Containment)
-            || EntityBioferriteOwed(f.Containment, f.Research) || MonolithAdvanceOwedNow(f) || (prisonerDeficitKnown && prisonerDeficit)
-            || (custodyDeficitKnown && custodyDeficit) || (joinerDeficitKnown && joinerDeficit) || (questKnown && questDeficit) || (letterKnown && letterDeficit)
+            || EntityBioferriteOwed(f.Containment, f.Research) || MonolithAdvanceOwedNow(f)
+            || (joinerDeficitKnown && joinerDeficit) || (questKnown && questDeficit) || (letterKnown && letterDeficit)
             || ceremonyStarts || DecreeDeficit(f) || MonumentDeficit(f) || DepartureDeficit(f) || RefugeeDeficit(f) || GravInspectionDeficit(f))
         {
             recovered = Known(false);
-        }
-        else if (prisonerDeficitKnown)
-        {
-            recovered = Known(!prisonerDeficit);
-        }
-        else if (custodyDeficitKnown)
-        {
-            recovered = Known(!custodyDeficit);
         }
         else if (joinerDeficitKnown)
         {

@@ -59,7 +59,7 @@ public sealed record RoundsPolicy
     public long ConcernStallTicks { get; init; }
 
     /// <summary>
-    /// How long MaintainPopulation feeds a prisoner it has no use for (not worth recruiting, not enslavable)
+    /// How long prisoners/recruit feeds a prisoner it has no use for (not worth recruiting, not enslavable)
     /// while the food runway holds FoodTargetDays before releasing it (default 15 days); below the target it
     /// releases at once. See PrisonerPolicy.
     /// </summary>

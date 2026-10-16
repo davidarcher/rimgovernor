@@ -377,7 +377,7 @@ internal static class StationFactsBuilder
         }
         if (projection.Facts.Prisoners.TryGetValue(out var prisoners))
         {
-            f = f with { Prisoners = Known(RoundsPrisonerInteractionPlanner.HeldPrisoners(prisoners)) };
+            f = f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(prisoners)) };
         }
         if (needs.Count > 0)
         {

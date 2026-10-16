@@ -6,13 +6,9 @@ namespace RimGovernor.Brain.Policy;
 public static partial class PolicyConstants
 {
     /// <summary>
-    /// MaintainPopulation names Population-*'s prisoner interaction deficit: any observed, living colony
-    /// prisoner whose exclusive interaction is not the use the colony has for it (prisonerUse). The governor
-    /// chooses each prisoner's use itself -- recruit, convert, enslave or release -- with no player-only
-    /// exemption; execution and the non-exclusive toggles are never proposed. Native eligibility
-    /// (recruitable, alive, prisoner, not a wild man barred from the mode, Ideology for Enslave/Convert) is
-    /// re-validated by native when it applies the intent; this only decides which already-observed prisoner
-    /// gets which write.
+    /// MaintainPopulation names Population-*'s joiner and anomaly deficits (joiner offers, quest work, lance,
+    /// entity capture and containment) until their family slices. Prisoner use and humanlike custody are the
+    /// prisoners family's Needs (#3262, <see cref="PrisonersFamily"/>).
     /// </summary>
     public static readonly ConcernId MaintainPopulation = new("MaintainPopulation");
 }
@@ -226,30 +222,6 @@ public sealed partial record PrisonerFacts
     }
 }
 
-/// <summary>Names why the prisoner interaction planner did or did not propose an interaction write.</summary>
-public enum PrisonerPlanReason
-{
-    [WireName("")]
-    None = 0,
-    [WireName("no_recruitable_prisoner")]
-    NoDeficit,
-    [WireName("population_census_unknown")]
-    Unknown,
-}
-
-/// <summary>
-/// The one prisoner/mode pair chosen for an interaction write, mirroring HusbandryChoice's
-/// single-write-per-cycle rule. Interaction is set whenever Reason is None.
-/// </summary>
-public sealed record PrisonerChoice
-{
-    public PrisonerPlanReason Reason { get; init; }
-
-    public PawnId Pawn { get; init; }
-
-    public PrisonerInteractionMode? Interaction { get; init; }
-}
-
 public static partial class PolicyFunctions
 {
     /// <summary>
@@ -447,28 +419,5 @@ public static partial class PolicyFunctions
             }
         }
         return Known(deficit);
-    }
-
-    /// <summary>
-    /// Picks the lowest-pawn-ID living prisoner still needing a write, and the write it needs, to dispatch
-    /// next. A row whose facts are incomplete is skipped rather than blocking the rest.
-    /// </summary>
-    public static PrisonerChoice SelectPrisonerInteractionMethod(Fact<EquatableArray<PrisonerFacts>> prisoners, Fact<PrisonerColony> colony, Fact<double> food, PrisonerPolicy p)
-    {
-        var known = prisoners.TryGetValue(out var rows);
-        var ck = colony.TryGetValue(out var c);
-        if (!known || (rows!.Count > 0 && !ck))
-        {
-            return new PrisonerChoice { Reason = PrisonerPlanReason.Unknown };
-        }
-        foreach (var row in rows!.OrderBy(r => r.Pawn))
-        {
-            var (want, unknown) = PrisonerUse(row, c!, food, p);
-            if (!unknown && want is not null)
-            {
-                return new PrisonerChoice { Pawn = row.Pawn, Interaction = want };
-            }
-        }
-        return new PrisonerChoice { Reason = PrisonerPlanReason.NoDeficit };
     }
 }

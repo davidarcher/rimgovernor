@@ -73,7 +73,6 @@ BuildingRuntime/Rounds/RoundsIdeoligion.cs|Rounder.ReformChoice
 BuildingRuntime/Rounds/RoundsMechCharger.cs|RoundsMechChargerPlanner.StepAsync
 BuildingRuntime/Rounds/RoundsMedical.cs|RoundsMedicalPlanner.HarvestMedicineAsync
 BuildingRuntime/Rounds/RoundsMedical.cs|RoundsMedicalPlanner.StepAsync
-BuildingRuntime/Rounds/RoundsPrisonerInteraction.cs|RoundsPrisonerInteractionPlanner.MarkJailBedAsync
 BuildingRuntime/Rounds/RoundsPsylink.cs|PsylinkMemory.ReviewAsync
 BuildingRuntime/Rounds/RoundsResourceRunway.cs|Rounder.ResourceSurfaceOreAsync
 BuildingRuntime/RoundsSleeping.cs|RoundsBuildingPlanner.AdmitPreviewsAsync

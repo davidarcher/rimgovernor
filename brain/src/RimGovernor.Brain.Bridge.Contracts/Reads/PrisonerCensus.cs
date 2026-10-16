@@ -4,8 +4,8 @@ using RimGovernor.Contracts.Wire.Common;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>PrisonerCensus</c>: one rounds cycle's whole prisoner census, read once per cycle so the prisoner
-/// interaction planner can detect MaintainPopulation's deficit and select a candidate the same way the
+/// Go's <c>PrisonerCensus</c>: one rounds cycle's whole prisoner census, read once per cycle so the prisoners
+/// family can detect prisoners/recruit's deficit and select a candidate the same way the
 /// always-present generic colony census lets the husbandry planner detect and select from animal state. Unlike that
 /// generic census, prisoner facts live only on the dedicated population read. The read and its decoder
 /// (<c>ReadRoundsPopulation</c>, <c>decodePopulation</c>, <c>prisonerProspect</c>) are wire plumbing and not

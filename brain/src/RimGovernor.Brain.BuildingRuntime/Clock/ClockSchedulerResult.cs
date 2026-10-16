@@ -89,8 +89,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsHusbandryResult? Husbandry { get; set; }
 
-    public RoundsPrisonerInteractionResult? PrisonerInteraction { get; set; }
-
     public RoundsPopulationCustodyResult? PopulationCustody { get; set; }
 
     public RoundsPopulationJoinerResult? PopulationJoiner { get; set; }
@@ -199,7 +197,6 @@ public sealed class ClockSchedulerResult
         AnimalContainment = other.AnimalContainment ?? AnimalContainment;
         Recovery = other.Recovery ?? Recovery;
         Husbandry = other.Husbandry ?? Husbandry;
-        PrisonerInteraction = other.PrisonerInteraction ?? PrisonerInteraction;
         PopulationCustody = other.PopulationCustody ?? PopulationCustody;
         PopulationJoiner = other.PopulationJoiner ?? PopulationJoiner;
         Resource = other.Resource ?? Resource;

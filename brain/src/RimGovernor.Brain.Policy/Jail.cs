@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// Furnishing the jail. While a prisoner is held, MaintainPopulation keeps one bed set for prisoners in a
+// Furnishing the jail. While a prisoner is held, prisoners/recruit keeps one bed set for prisoners in a
 // planned jail per held prisoner: it sets every unflagged bed standing in a jail for prisoners at once (owner
 // type is room-level in the game, so a jail is never left mixed), reports the crib and slave beds as strays
 // (native refuses a crib; a slave bed is not the jail's to flip), and otherwise reconciles the room

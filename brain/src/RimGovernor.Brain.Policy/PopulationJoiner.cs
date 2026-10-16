@@ -155,7 +155,7 @@ public enum JoinerPlanReason
 }
 
 /// <summary>
-/// The one offer chosen for a QuestAccept write, mirroring PrisonerChoice's single-write-per-cycle rule.
+/// The one offer chosen for a QuestAccept write, chosen deterministically.
 /// Quest is set whenever Reason is None; RewardChoice is the QuestAccept reward index (-1 without a
 /// reward-choice part, otherwise the game's own first option).
 /// </summary>
@@ -335,8 +335,8 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Picks the lowest-ID answerable joiner offer to accept next, mirroring SelectPrisonerInteractionMethod's
-    /// determinism, once the colony's capacity for one more colonist is known.
+    /// Picks the lowest-ID answerable joiner offer to accept next, for a
+    /// deterministic order, once the colony's capacity for one more colonist is known.
     /// </summary>
     public static JoinerChoice SelectJoinerMethod(Fact<EquatableArray<JoinerOffer>> offers, Fact<bool> capacity, RoundsFacts facts)
     {

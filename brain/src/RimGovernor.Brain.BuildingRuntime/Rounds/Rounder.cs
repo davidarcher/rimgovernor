@@ -112,6 +112,9 @@ public sealed partial class Rounder
     /// <summary>Whether the review reads the clearance census (RoundsCapabilities.ClearanceCensus).</summary>
     internal bool ClearanceCensus;
 
+    /// <summary>Whether the review reads the jail shell definitions (RoundsCapabilities.JailShell).</summary>
+    internal bool JailShell;
+
     internal string OverlayKey = "";
     internal Tick OverlayDrawn;
     internal bool OverlayCleared;
@@ -250,6 +253,7 @@ public sealed partial class Rounder
         var reviewerOverlay = false;
         IActionsWriter? undraftWriter = null;
         var clearanceCensus = false;
+        var jailShell = false;
         if (capabilities.Length > 1)
         {
             throw new ControlException("NewRounder: len(capabilities) > 1");
@@ -259,6 +263,7 @@ public sealed partial class Rounder
             reviewerOverlay = capabilities[0].LayoutOverlay;
             undraftWriter = capabilities[0].Undraft;
             clearanceCensus = capabilities[0].ClearanceCensus;
+            jailShell = capabilities[0].JailShell;
             methods = Known<EquatableArray<ConcernId>>([.. capabilities[0].Methods]);
             PolicyApi.InspectRounds(new RoundsFacts { AvailableMethods = methods }, new RoundsLatches(), thresholds);
             Needs = capabilities[0].Needs.ToHashSet();
@@ -272,6 +277,7 @@ public sealed partial class Rounder
         LayoutOverlay = reviewerOverlay;
         Undraft = undraftWriter;
         ClearanceCensus = clearanceCensus;
+        JailShell = jailShell;
     }
 
     public async Task<RoundsResult> StepAsync(CancellationToken ct)
@@ -352,7 +358,7 @@ public sealed partial class Rounder
         {
             readDefinitions = [.. readDefinitions, .. RoundsTrainingPlanner.TrainingDefinitions];
         }
-        if (MethodEnabled(PolicyApi.EnsureCooking) || Needs.Contains(PolicyApi.RefrigerationNeed) || MethodEnabled(PolicyConstants.MaintainPopulation))
+        if (MethodEnabled(PolicyApi.EnsureCooking) || Needs.Contains(PolicyApi.RefrigerationNeed) || JailShell)
         {
             // The planned kitchen, freezer and jail shells; the jail bed is a furniture rule's, read with every catalog.
             readDefinitions = [.. readDefinitions, "Wall", "Door"];
@@ -750,6 +756,9 @@ public sealed record RoundsCapabilities
     /// ground drop rest on it. Set when the home-upkeep family runs clearance.
     /// </summary>
     public bool ClearanceCensus { get; init; }
+
+    /// <summary>Reads the Wall and Door definitions the jail shell is planned from (#3262). Set when the prisoners family stages the jail.</summary>
+    public bool JailShell { get; init; }
 
     /// <summary>Sends the undraft sweep's Draft intents; null never undrafts.</summary>
     public IActionsWriter? Undraft { get; init; }
