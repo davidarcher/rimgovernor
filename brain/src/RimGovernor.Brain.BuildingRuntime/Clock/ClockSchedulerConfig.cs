@@ -26,12 +26,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsWorkPlanner? Work { get; init; }
 
-    public RoundsPollutionPlanner? Pollution { get; init; }
-
-    public RoundsMechChargerPlanner? MechCharger { get; init; }
-
-    public RoundsGeneBankPlanner? GeneBank { get; init; }
-
 
     public RoundsBuildingPlanner? Sleeping { get; init; }
 
@@ -52,10 +46,6 @@ public sealed class ClockSchedulerConfig
     public RoundsRecoveryPlanner? Recovery { get; init; }
 
     public MaintainShelterPlanner? MaintainShelter { get; init; }
-
-    public RoundsPsylinkPlanner? Psylink { get; init; }
-
-    public RoundsPermitsPlanner? Permits { get; init; }
 
 
     public RoundsStockpilePlanner? Stockpiles { get; init; }

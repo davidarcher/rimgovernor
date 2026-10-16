@@ -310,10 +310,10 @@ not add a mech first. The charger definitions are the catalog rows with
 `PlanningDefinition.MechCharger` (a `Building_MechCharger` thing class),
 `observation.MechChargerDefs`.
 
-`EnsureMechCharger` (`MechChargerConcern.cs`, `RoundsMechCharger.cs`) is the concern
-for that need: a Standard in the Upkeep domain, assessed only where the Biotech
-colony read and the mechs are known (`RoundsFacts.MechChargerOwed`), in deficit
-while a charger is owed. Its one method builds the first catalog-flagged,
+`biotech/mech-charger` (`BiotechFamily.cs`, `RoundsBiotech.cs`, #3261) is the Need
+for that: known only where the Biotech colony read and the mechs are known
+(`RoundsFacts.MechChargerOwed`), unmet while a charger is owed, and a precondition of
+`biotech/mechs`. Its one Method per charger count builds the first catalog-flagged,
 researched charger on the first footprint native previews as legal, safe and
 reachable, ranked by `MechChargerSites` over the polluting-machine rule
 `PollutionSites`: footprints lie wholly on known free ground (walkable,
@@ -321,18 +321,16 @@ unoccupied, in no zone, no doorway) at the catalog's `PlanningDefinition.Size`,
 far from field zones, bedroom and barracks cells, dining and recreation room
 cells and polluted cells, then near an atomizer. A charger blueprint, frame or
 open plan holds it. Powering the charger is the power concern's; emptying its waste is
-`ManagePollution`'s. Biotech concerns are bound only when assessed, so the store
-counts `policy.BiotechConcerns` apart from the concerns every colony has.
+the `biotech/pollution` Need's.
 
-`MaintainGeneBank` (`GeneBankConcern.cs`, `RoundsGeneBank.cs`) keeps every genepack in a
+`biotech/gene-bank` (`GeneBankConcern.cs`, `RoundsBiotech.cs`, #3261) keeps every genepack in a
 gene bank: a Genepack deteriorates unless it
-sits in a powered bank (4 packs each). A Standard in the
-Upkeep domain over the Colony fact family, assessed from the keyed Biotech
-colony section: `GeneBankNeed` is unknown while the section, a bank's
+sits in a powered bank (4 packs each). A Need over the Colony fact family, read
+from the keyed Biotech colony section: `GeneBankNeed` is unknown while the section, a bank's
 capacity or a pack's whereabouts (map position or bank id) are unread, and
 otherwise owed while more packs lie loose than the standing banks have free
 slots (`RoundsFacts.GeneBankOwed`; a pack with no bank at all owes one). Its
-one method builds the first available catalog bank (the def carrying
+one Method per bank count builds the first available catalog bank (the def carrying
 `CompProperties_GenepackContainer`, `bridge.GeneBanks`, never a name) on the
 first free footprint native previews as legal, safe and reachable, searched
 outward from the first gene assembler (a bank links to an assembler within 12.9
@@ -433,9 +431,9 @@ candidate is pending, and the declared batches are the ingredient demand of
 The second migration (#2604) is declare-only: `RoundsMedicalPlanner` declares
 the `medical/reserves` Need's stock-target medicine bill (`policy.DeclareMedicine`) and
 `RoundsCareBillDeclarer` the surgery part (the `medical/surgery` Need, declared while
-the Need is unmet, #3258) and mech gestation
-(MaintainMechs) bills (the baby food bill is now `BabyFoodDeclarer`'s, filed
-under the `food/baby-feeding` Need, #3254)
+the Need is unmet, #3258) bills (the baby food bill is now `BabyFoodDeclarer`'s, filed
+under the `food/baby-feeding` Need, #3254, and the mech gestation bill
+`MechBillDeclarer`'s, filed under `biotech/mechs`, #3261)
 (`policy.DeclareSelection` over the unchanged selectors), each only while its concern
 is workable; the old `RoundsBillPlanner` purposes are deleted. These bills are
 placed and kept but never removed in the first pass (a gestation bill is the mech
@@ -559,12 +557,14 @@ the drafts join the fight roster and are undrafted when it closes.
 
 ## Mech gestation
 
-`MaintainMechs` (`MechGestation.cs`, planner flag `mechs`) queues
+`biotech/mechs` (`MechGestation.cs`, `BiotechFamily.cs`, planner flag `mechs`) queues
 one gestation bill at a time: a `Bill_Mech` as a single-count `GearBatch`
 production bill on a gestator (the `mech` branch of the production bill write).
-`MechGestationOwed` raises the concern while a gestator is idle, no waste is
+`MechGestationOwed` leaves the Need unmet while a gestator is idle, no waste is
 uncleared, a charger is ready (`MechChargerReady`: chargers before more mechs)
-and `NextMech` finds a kind a mechanitor can afford. The rules:
+and `NextMech` finds a kind a mechanitor can afford; with `biotech/mech-charger`
+composed the Need also waits while a charger is owed. The bill is declared to the
+work ledger only while the Need is ready. The rules:
 
 - Bandwidth gates: a kind is built only when `TotalBandwidth - UsedBandwidth -
   GestationBandwidth` (the pawn row's mechanitor block) covers its catalog

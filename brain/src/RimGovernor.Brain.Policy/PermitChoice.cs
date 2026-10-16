@@ -3,15 +3,13 @@ using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
-// MaintainPermits spends permit points. A colonist with permit points takes the permit that is worth most to
-// this colony: aid first, then trade and drop-pod access, then psycast permits (more so once a colonist is a
-// psycaster). The choice is a pure ranking over the royalty read; the goal commits it as a choose_permit pawn
-// setting, and the plan recorded on the goal (in the save with the goal) is the persisted intent.
+// The royalty/permits Need spends permit points. A colonist with permit points takes the permit that is worth
+// most to this colony: aid first, then trade and drop-pod access, then psycast permits (more so once a colonist is
+// a psycaster). The choice is a pure ranking over the royalty read; the Need's Method commits it as a
+// choose_permit pawn setting.
 
 public static partial class PolicyConstants
 {
-    public static readonly ConcernId MaintainPermits = new("MaintainPermits");
-
     // The worker classes of the permits that act (RoyalTitlePermitDef.workerClass, carried by the royalty
     // read): what the permit does for the colony.
     internal const string PermitWorkerCallAid = "RoyalTitlePermitWorker_CallAid";
@@ -240,7 +238,7 @@ public static partial class PolicyFunctions
     public static PermitChoice? NextPermitOf(Fact<RoyaltyFacts> royalty) =>
         royalty.TryGetValue(out var f) ? NextPermit(f) : null;
 
-    /// <summary>Measures MaintainPermits: true once no worthwhile permit is takeable now, unknown without the royalty read (nothing is raised then).</summary>
+    /// <summary>The royalty/permits Need's predicate: true once no worthwhile permit is takeable now, unknown without the royalty read (nothing is raised then).</summary>
     public static Fact<bool> PermitsSpent(Fact<RoyaltyFacts> royalty)
     {
         if (!royalty.IsKnown)

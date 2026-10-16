@@ -19,11 +19,8 @@ public sealed class ClockSchedulerResult
 
     public RoundsWorkResult? Work { get; set; }
 
-    public RoundsPollutionResult? Pollution { get; set; }
 
-    public RoundsBuildingResult? MechCharger { get; set; }
 
-    public RoundsBuildingResult? GeneBank { get; set; }
 
 
     public RoundsBuildingResult? Sleeping { get; set; }
@@ -47,9 +44,7 @@ public sealed class ClockSchedulerResult
 
     public MaintainShelterResult? MaintainShelter { get; set; }
 
-    public RoundsPsylinkResult? Psylink { get; set; }
 
-    public RoundsPermitsResult? Permits { get; set; }
 
 
     public RoundsStockpileResult? Stockpiles { get; set; }
@@ -93,9 +88,6 @@ public sealed class ClockSchedulerResult
     internal void MergeFrom(ClockSchedulerResult other)
     {
         Work = other.Work ?? Work;
-        Pollution = other.Pollution ?? Pollution;
-        MechCharger = other.MechCharger ?? MechCharger;
-        GeneBank = other.GeneBank ?? GeneBank;
         Sleeping = other.Sleeping ?? Sleeping;
         SleepingUpkeep = other.SleepingUpkeep ?? SleepingUpkeep;
         Expansion = other.Expansion ?? Expansion;
@@ -105,8 +97,6 @@ public sealed class ClockSchedulerResult
         Defense = other.Defense ?? Defense;
         Recovery = other.Recovery ?? Recovery;
         MaintainShelter = other.MaintainShelter ?? MaintainShelter;
-        Psylink = other.Psylink ?? Psylink;
-        Permits = other.Permits ?? Permits;
         Stockpiles = other.Stockpiles ?? Stockpiles;
         DefenseLayout = other.DefenseLayout ?? DefenseLayout;
         MoodRelief = other.MoodRelief ?? MoodRelief;

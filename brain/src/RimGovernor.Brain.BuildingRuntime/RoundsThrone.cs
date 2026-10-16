@@ -16,7 +16,7 @@ public sealed partial class Rounder
     {
         ct.ThrowIfCancellationRequested();
         var projection = reading.Projection;
-        if (!MethodEnabled(MaintainHousing) && !MethodEnabled(MaintainPsylink))
+        if (!MethodEnabled(MaintainHousing) && !Needs.Contains(RoyaltyFamily.Psylink))
         {
             return reading;
         }

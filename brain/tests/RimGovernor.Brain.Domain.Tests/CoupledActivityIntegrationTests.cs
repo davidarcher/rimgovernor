@@ -74,7 +74,7 @@ public sealed class CoupledActivityIntegrationTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-independent-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
+        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainShelter);
         var firstPlan = new PlanSpec(new("first"), new(1), [DomainAction.NewPawnActivitiesAction(new("first-action"), first)]);
         journal.CommitMethod(owner.Standard.Id, owner.Revision, new("coupled-observed"), firstPlan, ct);
         Send(journal, firstPlan, 100, ct);
@@ -145,7 +145,7 @@ public sealed class CoupledActivityIntegrationTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-coupled-integration-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var reviewed = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainMechs);
+        var owner = Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainShelter);
         var plan = new PlanSpec(new("selected"), new(1), [DomainAction.NewPawnActivitiesAction(new("selected-action"), batch)]);
         journal.CommitMethod(owner.Standard.Id, owner.Revision, new("coupled-observed"), plan, ct);
         Assert.Equal(batch.Tasks.ToArray(), Send(journal, plan, 100, ct).Tasks.ToArray());

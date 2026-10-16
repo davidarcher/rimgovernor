@@ -119,14 +119,15 @@ Throne-room requirements are not a wire field: the client builds a view from eac
 leaves royalty unknown. `disablingPrecepts` is not modelled. `policy.NextThroneNeed`
 picks the first rung above the holder's with a throne.
 
-- `MaintainPsylink` (`policy.PsylinkCandidates`): gives a psylink to each available
-  colonist with a needs block and no psylink level. The neuroformer is acquired by
+- `royalty/psylink` (`policy.PsylinkCandidates`, `RoyaltyFamily.cs`): owed while an available
+  colonist with a needs block and no psylink level waits on a held neuroformer. Neuroformer use is
+  not yet a supported forecast outcome, so the unmet Need is held as `unsupported_forecast_neuroformer`. The neuroformer is acquired by
   economy/resource (stock floor of one, `policy.NeuroformerNeeds`, while a candidate
   waits, none is held and royalty marks it `craftable` or `tradeable`). With one held,
   `UseItem` targets the colonist, at most twice per colonist per Episode. Level-ups
   (`policy.PsylinkLevelUps`: psycaster below level 6, no royal title) follow
   no-psylink colonists and never raise the stock floor. Psyfocus is kept by the
-  meditation schedule, not this concern.
+  meditation schedule, not this Need.
 - Mood psycast (`policy.SelectMoodCast`): the mood planner commits an `Ability` on the
   mood incident when measured need relief is spent or absent (`no_measured_correctable_need`,
   `bounded_methods_exhausted`, `unowned_thought_pressure`; never while a facility concern
@@ -142,11 +143,11 @@ picks the first rung above the holder's with a throne.
   [ideology contracts](ideology-contracts.md#ritual-scheduling).
 - `rooms/gatherings` (`policy.PlanGathering`): see
   [mood control](mood-control.md#holding-a-party).
-- `MaintainPermits` (`policy.NextPermit`): each review ranks every untaken permit of
+- `royalty/permits` (`policy.NextPermit`, `RoyaltyFamily.cs`): each family read ranks every untaken permit of
   every titled colonist (`policy.RankPermits`): acting permits by worker class (aid and
   laborer calls, trade, drop-pod and shuttle access; psycast permits ahead of trade for
-  a psycaster), takeable before blocked. Open while the best permit is takeable; commits
-  one `choose_permit` `PawnSettingsIntent`. Using a permit is the `Ability` action's job.
+  a psycaster), takeable before blocked. Unmet while the best permit is takeable; its Method
+  `permit-<holder>-<permit>` commits one `choose_permit` `PawnSettingsIntent`, claiming the holder's settings. Using a permit is the `Ability` action's job.
 
 ### Environmental disruption
 

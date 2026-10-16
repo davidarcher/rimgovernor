@@ -45,7 +45,7 @@ public sealed class PawnActivityMethodTests
             new PlanId("review"), new PlanRevision(1), default);
         var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = new Tick(100),
             Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
-        return Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
+        return Assert.Single(review.Standards, s => s.Standard.Kind == MaintainShelter);
     }
 
     private static PawnActivityOrder Order(string pawn = "pawn", string method = "food-method", bool release = false) =>

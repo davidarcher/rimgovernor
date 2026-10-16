@@ -3,18 +3,12 @@ using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
-{
-    /// <summary>
-    /// ManagePollution keeps wastepacks out of the open and the cleanup crew's area on the polluted ground.
-    /// Wastepacks that are neither frozen nor inside an atomizer deteriorate into pollution (Biotech
-    /// CompDissolution); a forbidden pack cannot be hauled at all. The goal is in deficit while any wastepack
-    /// is exposed or forbidden, or the game counts a polluted cell outside the pollution-clear area; it
-    /// settles when none is. The methods are designations and area edits, never the outcome (the pack frozen
-    /// or atomized, the cell inside the area). It is a Standard whose target is no outstanding work. The existing toxic-fallout shelter and crop-pollution handling are separate.
-    /// </summary>
-    public static readonly ConcernId ManagePollution = new("ManagePollution");
-}
+// The biotech/pollution Need (BiotechFamily) keeps wastepacks out of the open and the cleanup crew's area on the
+// polluted ground. Wastepacks that are neither frozen nor inside an atomizer deteriorate into pollution (Biotech
+// CompDissolution); a forbidden pack cannot be hauled at all. The Need is unmet while any wastepack is exposed or
+// forbidden, or the game counts a polluted cell outside the pollution-clear area; it is met when none is. The
+// methods are designations and area edits, never the outcome (the pack frozen or atomized, the cell inside the
+// area). The existing toxic-fallout shelter and crop-pollution handling are separate.
 
 /// <summary>
 /// One spawned wastepack stack with the game's own verdicts (CompDissolution.IsFrozen, InAtomizer, the item's
@@ -65,7 +59,7 @@ public sealed record PollutionFacts
 }
 
 /// <summary>
-/// What ManagePollution orders this cycle: packs to allow (a forbidden pack cannot be hauled), packs to haul
+/// What the pollution Need orders this cycle: packs to allow (a forbidden pack cannot be hauled), packs to haul
 /// to storage, and the polluted cells to put in the pollution-clear area.
 /// </summary>
 public sealed record PollutionWork
@@ -82,7 +76,7 @@ public sealed record PollutionWork
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// The binary ManagePollution signal. Any known exposed or forbidden pack, or polluted cell outside the
+    /// The binary pollution signal. Any known exposed or forbidden pack, or polluted cell outside the
     /// area, is a deficit; otherwise the answer is no deficit only when every verdict is known.
     /// </summary>
     public static Fact<bool> PollutionDeficit(Fact<PollutionFacts> facts)

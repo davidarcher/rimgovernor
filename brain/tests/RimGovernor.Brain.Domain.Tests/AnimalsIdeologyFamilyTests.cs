@@ -262,7 +262,7 @@ public sealed class AnimalsIdeologyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-legacy-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = source.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
-        var ledger = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
+        var ledger = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainShelter);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct));
         var key = Journal.GovernorStandardKeyPrefix + ledger.Standard.Id.Value;
 

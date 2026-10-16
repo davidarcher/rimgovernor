@@ -199,9 +199,9 @@ public static partial class ObservationPackage
     }
 
     /// <summary>
-    /// ManagePollution's read from the Biotech colony section: each wastepack with the game's verdicts and the
-    /// count of polluted cells outside the pollution-clear area. Unknown without the section, so the goal has no
-    /// assessment on a colony without Biotech.
+    /// The biotech/pollution Need's read from the Biotech colony section: each wastepack with the game's verdicts and
+    /// the count of polluted cells outside the pollution-clear area. Unknown without the section, so the Need is
+    /// unknown on a colony without Biotech.
     /// </summary>
     internal static Fact<PollutionFacts> ColonyPollution(Fact<BiotechColony> section)
     {

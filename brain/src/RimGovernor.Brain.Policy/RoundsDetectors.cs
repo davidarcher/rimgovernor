@@ -251,58 +251,6 @@ public static partial class PolicyFunctions
         c.Owed(MaintainShelter, c.F.SafeAreaOwed);
     }
 
-    /// <summary>MaintainMechs: a mech is owed inside the bandwidth.</summary>
-    internal static void InspectMechs(RoundsRun c) => c.Owed(MaintainMechs, c.F.MechGestationOwed);
-
-    /// <summary>MaintainPsylink: a held neuroformer waits for a willing colonist.</summary>
-    internal static void InspectPsylink(RoundsRun c) => c.Owed(MaintainPsylink, c.F.PsylinkOwed);
-
-
-    /// <summary>A colonist holds permit points for a permit worth taking. Unknown without the royalty read raises nothing.</summary>
-    internal static void InspectPermits(RoundsRun c)
-    {
-        c.Assess(MaintainPermits, PermitsSpent(c.F.Royalty));
-        var owed = NextPermitOf(c.F.Royalty) is not null;
-        if (owed)
-        {
-            c.Raise(MaintainPermits).Deficit = Known(1.0);
-        }
-    }
-
-    /// <summary>Without the Biotech read the need is unknown and raises no goal. It is always assessed so the stored bindings match the set the review loader derives from empty facts.</summary>
-    internal static void InspectPollution(RoundsRun c)
-    {
-        var cleared = Unknown<bool>();
-        if (PollutionDeficit(c.F.Pollution).TryGetValue(out var deficit))
-        {
-            cleared = Known(!deficit);
-        }
-        c.Assess(ManagePollution, cleared);
-        if (c.F.Pollution.TryGetValue(out _) && !Positive(cleared))
-        {
-            c.Raise(ManagePollution);
-        }
-    }
-
-    /// <summary>Unknown without the charger read, and then it raises no goal. Always assessed, like ManagePollution.</summary>
-    internal static void InspectMechCharger(RoundsRun c)
-    {
-        c.Assess(EnsureMechCharger, NotFact(c.F.MechChargerOwed));
-        if (c.F.MechChargerOwed.TryGetValue(out var owed) && owed)
-        {
-            c.Raise(EnsureMechCharger);
-        }
-    }
-
-    /// <summary>Unknown without the gene-building read, and then it raises no goal. Always assessed, like EnsureMechCharger.</summary>
-    internal static void InspectGeneBank(RoundsRun c)
-    {
-        c.Assess(MaintainGeneBank, NotFact(c.F.GeneBankOwed));
-        if (c.F.GeneBankOwed.TryGetValue(out var owed) && owed)
-        {
-            c.Raise(MaintainGeneBank);
-        }
-    }
 
     /// <summary>A standing stockpile edit is the deficit; availability is gated through AvailableMethods.</summary>
     internal static void InspectStockpiles(RoundsRun c)

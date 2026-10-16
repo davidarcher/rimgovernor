@@ -617,8 +617,8 @@ three ways (prisoners, joiners, anomaly).
 | Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259), `restore-workers` (#3311; RestoreWorkers and the undraft planner deleted); ActiveCombat |
 | Animals | `animals`: Needs `herd`, `containment`, `ward`, `sterilize` (#3260) |
 | Ideology | `ideology`: Needs `roles`, `rituals`, `reform` (#3260) |
-| Biotech | MaintainMechs, EnsureMechCharger, MaintainGeneBank, ManagePollution |
-| Royalty | MaintainPermits, MaintainPsylink |
+| Biotech | `biotech`: Needs `mechs` (waits on `mech-charger`), `mech-charger`, `gene-bank`, `pollution` (#3261) |
+| Royalty | `royalty`: Needs `permits`, `psylink` (#3261) |
 | Prisoners | `prisoners`: Needs `recruit`, `custody` (#3262) |
 | Joiners and quests | `joiners`: Needs `offers`, `letters`, `ceremony`, `quests`, `decrees`, `monuments`, `departures`, `grav-inspection` (#3302) |
 | Anomaly | `anomaly`: Needs `doors`, `capture`, `tend`, `lance`, `bioferrite`, `monolith` (#3302) |

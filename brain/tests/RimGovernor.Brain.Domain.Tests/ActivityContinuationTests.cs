@@ -23,7 +23,7 @@ public sealed class ActivityContinuationTests
         BridgeFunctions.RegisterIntentKinds();
         var review = journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
+        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainShelter);
         owner = journal.CommitMethod(owner.Standard.Id, owner.Revision, new("method"), plan, ct);
         var scope = Root with { Plan = plan.Id };
         journal.Prepare(plan.Id, plan.Actions[0].Id, scope, new(100), ct);

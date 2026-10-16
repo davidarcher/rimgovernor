@@ -5,15 +5,12 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyConstants
 {
-    /// <summary>
-    /// MaintainPsylink observes unmet psylink and level-up requirements for willing colonists below MaxPsylinkLevel
-    /// (PsylinkLevelUps; Deserter route excluded). Ordinary item use remains unsupported until shared forecast
-    /// admission owns its labor and consequences. Acquiring the neuroformer
-    /// is the economy/resource Need's: NeuroformerNeeds raises a stock floor of one, which the resource ladder meets
-    /// with a production bill when the recipe is available and a trade buy when a trader sells it. Psyfocus is
-    /// an explicit unsupported ordinary-control state until a shared meditation Method exists.
-    /// </summary>
-    public static readonly ConcernId MaintainPsylink = new("MaintainPsylink");
+    // The royalty/psylink Need observes unmet psylink and level-up requirements for willing colonists below
+    // MaxPsylinkLevel (PsylinkLevelUps; Deserter route excluded). Ordinary item use remains unsupported until shared
+    // forecast admission owns its labor and consequences. Acquiring the neuroformer is the economy/resource Need's:
+    // NeuroformerNeeds raises a stock floor of one, which the resource ladder meets with a production bill when the
+    // recipe is available and a trade buy when a trader sells it. Psyfocus is an explicit unsupported
+    // ordinary-control state until a shared meditation Method exists.
 
     /// <summary>
     /// The ThingDef that grants a psylink (or a level) to the colonist who uses it; psycast neurotrainers
@@ -133,7 +130,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Measures MaintainPsylink: a use is owed while a candidate or a level-up colonist and a held neuroformer
+    /// The royalty/psylink Need's predicate: a use is owed while a candidate or a level-up colonist and a held neuroformer
     /// item both exist. Unknown while the candidates or level-ups are unknown or a colonist waits on an unread
     /// item list; known false with no one waiting.
     /// </summary>

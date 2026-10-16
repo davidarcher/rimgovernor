@@ -61,7 +61,7 @@ public sealed record BiotechColony
         return output;
     }
 
-    /// <summary>The section's banks and packs as MaintainGeneBank reads them: a pack is loose when it has a map position, held when a bank names it, unknown when it reports neither.</summary>
+    /// <summary>The section's banks and packs as the biotech/gene-bank Need reads them: a pack is loose when it has a map position, held when a bank names it, unknown when it reports neither.</summary>
     public GeneBankFacts GeneBankFacts()
     {
         var banks = new List<GeneBankSlot>();

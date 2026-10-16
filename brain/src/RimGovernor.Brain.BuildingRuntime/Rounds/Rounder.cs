@@ -490,11 +490,9 @@ public sealed partial class Rounder
             _ = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
         }
         Fact<EquatableArray<PawnId>> psylinkCandidates = default;
-        if (Psylink is not null)
+        if (Needs.Contains(RoyaltyFamily.Psylink))
         {
-            var (candidates, psylinkOwed) = await Psylink.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
-            psylinkCandidates = candidates;
-            reading = reading.WithFacts(rf => rf with { PsylinkOwed = psylinkOwed });
+            psylinkCandidates = PolicyFunctions.PsylinkCandidates(reading.Projection.Royalty, reading.Projection.WorkPawns);
         }
         if (reading.Projection.Facts.FoodPlan.TryGetValue(out var foodPlan))
         {
@@ -608,13 +606,6 @@ public sealed partial class Rounder
                 {
                     // Go: PlanWork's error leaves the coverage facts as the review set them.
                 }
-            }
-        }
-        if (MethodEnabled(PolicyApi.MaintainMechs))
-        {
-            if ((await MechGestationAsync(Native, Boundary.Identity(state.Snapshot), reading.Projection, ct).ConfigureAwait(false)) is { } gestation)
-            {
-                reading = reading.WithFacts(rf => rf with { MechGestationOwed = PolicyApi.MechGestationOwed(gestation) });
             }
         }
         reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Rooms = reading.Projection.Rooms } });

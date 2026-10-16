@@ -245,11 +245,6 @@ public sealed record RoundsFacts
     /// <summary>The Safe allowed area differs from the enclosed roofed rooms (PlanSafeArea); it holds MaintainShelter open. Unknown unless the MaintainShelter method is composed.</summary>
     public Fact<bool> SafeAreaOwed { get; init; }
 
-    /// <summary>A mechanitor can afford the next mech, a gestator is idle and no waste is uncleared (MechGestationOwed); it holds MaintainMechs open. Unknown unless the method is composed.</summary>
-    public Fact<bool> MechGestationOwed { get; init; }
-
-    /// <summary>A willing colonist has no psylink and a psylink neuroformer is held (PsylinkOwed); it holds MaintainPsylink open. Unknown unless the method is composed.</summary>
-    public Fact<bool> PsylinkOwed { get; init; }
 
 
     /// <summary>The finished buildings the held rituals' patterns require (observation, from the frame's building census).</summary>
@@ -361,13 +356,13 @@ public sealed record RoundsFacts
     /// <summary>The food/blight Need's blighted-plant census (the colony read's plant things of the planning window), for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
     public Fact<EquatableArray<BlightedPlant>> Blight { get; init; }
 
-    /// <summary>ManagePollution's wastepack verdicts and the polluted cells outside the clear area (the Biotech colony section); unknown without Biotech or when the read failed, and then the need is unknown.</summary>
+    /// <summary>The biotech/pollution Need's wastepack verdicts and the polluted cells outside the clear area (the Biotech colony section); unknown without Biotech or when the read failed, and then the need is unknown.</summary>
     public Fact<PollutionFacts> Pollution { get; init; }
 
-    /// <summary>Whether the colony owes one more mech charger (MechChargerNeed); unknown without Biotech, mechs or chargers read, and then the EnsureMechCharger need is unknown.</summary>
+    /// <summary>Whether the colony owes one more mech charger (MechChargerNeed); unknown without Biotech, mechs or chargers read, and then the biotech/mech-charger Need is unknown.</summary>
     public Fact<bool> MechChargerOwed { get; init; }
 
-    /// <summary>Whether more genepacks lie loose than the standing gene banks have room for (GeneBankNeed); unknown without Biotech or a complete gene-building read, and then MaintainGeneBank has no assessment.</summary>
+    /// <summary>Whether more genepacks lie loose than the standing gene banks have room for (GeneBankNeed); unknown without Biotech or a complete gene-building read, and then the biotech/gene-bank Need is unknown.</summary>
     public Fact<bool> GeneBankOwed { get; init; }
 
     /// <summary>The MaintainStockpiles review: this cycle's stockpile edits and the planned rooms owed a shell, or why none stands.</summary>

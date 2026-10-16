@@ -21,10 +21,9 @@ public sealed record GeneBankFacts
 
 public static partial class PolicyFunctions
 {
-    // MaintainGeneBank adds capacity for loose genepacks, which deteriorate outside powered banks. Capacity comes
-    // from native bank facts; EnsureBasicPower owns power supply. Banks are identified by
+    // The biotech/gene-bank Need adds capacity for loose genepacks, which deteriorate outside powered banks.
+    // Capacity comes from native bank facts; EnsureBasicPower owns power supply. Banks are identified by
     // CompProperties_GenepackContainer.
-    public static readonly ConcernId MaintainGeneBank = new("MaintainGeneBank");
 
     /// <summary>
     /// Go <c>GeneBankNeed</c>: RoundsFacts.GeneBankOwed's value: whether more packs lie loose than the banks'

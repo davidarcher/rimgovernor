@@ -48,19 +48,14 @@ public static partial class PolicyFunctions
         // Industry
         [EnsureBasicPower] = 1,
         [MaintainTrade] = 1,
-        [MaintainMechs] = 1,
-        [EnsureMechCharger] = 1,
 
         // Military
         [EnsureDefensiveLayout] = 1,
 
         // Medical
-        [MaintainGeneBank] = 1,
 
         // People
         [EnsureWorkAssignments] = 1,
-        [MaintainPsylink] = 1,
-        [MaintainPermits] = 1,
     };
 
     /// <summary>The number of stockpile-zone creations one method of concern may carry; zero means the concern owns no store.</summary>

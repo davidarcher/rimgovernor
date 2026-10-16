@@ -84,21 +84,6 @@ public static partial class PolicyFunctions
             }
             return Known(1.0);
         }
-        else if (id == EnsureMechCharger)
-        {
-            // A charger owed is a full deficit, none owed none.
-            return OwedDeficit(f.MechChargerOwed);
-        }
-        else if (id == MaintainGeneBank)
-        {
-            // A bank owed is a full deficit, none owed none.
-            return OwedDeficit(f.GeneBankOwed);
-        }
-        else if (id == ManagePollution)
-        {
-            // Census-driven like blight: any exposed or forbidden wastepack, or polluted cell outside the clear area, is a full deficit.
-            return OwedDeficit(PollutionDeficit(f.Pollution));
-        }
         else if (id == MaintainStockpiles)
         {
             if (!f.Stockpiles.TryGetValue(out var review) || !review.Known)
@@ -120,16 +105,6 @@ public static partial class PolicyFunctions
             return Unknown<double>();
         }
         return Known(Math.Min(1.0, Math.Max(0.0, ((double)target - stock) / target)));
-    }
-
-    /// <summary>A binary owed fact as a full or empty deficit; unknown stays unknown.</summary>
-    private static Fact<double> OwedDeficit(Fact<bool> owed)
-    {
-        if (!owed.TryGetValue(out var v))
-        {
-            return Unknown<double>();
-        }
-        return Known(v ? 1.0 : 0.0);
     }
 
     /// <summary>

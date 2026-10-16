@@ -120,9 +120,6 @@ public sealed partial class ClockScheduler
         (object? Planner, Rounder? Reviewer, ConcernId? Concern, ConcernId? Expected)[] planners =
         [
             (c.Work, c.Work?.Reviewer, null, null),
-            (c.Pollution, c.Pollution?.Reviewer, null, null),
-            (c.MechCharger, c.MechCharger?.Reviewer, null, null),
-            (c.GeneBank, c.GeneBank?.Reviewer, null, null),
             (c.Sleeping, c.Sleeping?.Reviewer, c.Sleeping?.Concern, MaintainHousing),
             (c.SleepingUpkeep, c.SleepingUpkeep?.Reviewer, null, null),
             (c.Expansion, c.Expansion?.Reviewer, c.Expansion?.Concern, MaintainHousing),

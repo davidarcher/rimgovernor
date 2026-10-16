@@ -36,15 +36,10 @@ public sealed partial class BrainComposition
         RoundsFieldPlanner? cfgFields = null;
         RoundsBuildingPlanner? roomsFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
-        RoundsGeneBankPlanner? cfgGeneBank = null;
         RoundsBuildingPlanner? roomsLighting = null;
         MaintainShelterPlanner? cfgMaintainShelter = null;
-        RoundsMechChargerPlanner? cfgMechCharger = null;
         RoundsMoodReliefPlanner? cfgMoodRelief = null;
-        RoundsPermitsPlanner? cfgPermits = null;
-        RoundsPollutionPlanner? cfgPollution = null;
         RoundsBuildingPlanner? cfgPower = null;
-        RoundsPsylinkPlanner? cfgPsylink = null;
         RoundsRecoveryPlanner? cfgRecovery = null;
         RoundsResourcePlanner? cfgResource = null;
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
@@ -131,10 +126,16 @@ public sealed partial class BrainComposition
         cfgRounds = reviewer;
         // Any toggle that declares production orders composes the admin family's work-ledger Need (#3304).
         var workLedger = bills || gear || armory || sc.Art || sc.PopulationJoiner || foodStorageUpkeep || refrigeration || medical || sc.Mechs;
-        if (medical || sc.Mechs)
+        var biotech = new BiotechNeeds { Mechs = sc.Mechs, MechCharger = mechCharger, GeneBank = geneBank, Pollution = pollution };
+        if (medical)
         {
-            // The surgery part and mech gestation bills are the ledger's, declare-only (#2604).
-            reviewer.AddOrderDeclarer(new RoundsCareBillDeclarer(reviewer, client, medical, sc.Mechs));
+            // The surgery part bills are the ledger's, declare-only (#2604).
+            reviewer.AddOrderDeclarer(new RoundsCareBillDeclarer(reviewer, client, medical));
+        }
+        if (sc.Mechs)
+        {
+            // The biotech/mechs Need's gestation bill is the ledger's too, filed under the Need (#3261).
+            reviewer.AddOrderDeclarer(new MechBillDeclarer(reviewer, client, biotech));
         }
         if (bills)
         {
@@ -257,14 +258,15 @@ public sealed partial class BrainComposition
             // The population-custody toggle also composes the anomaly family (#3302).
             families.Add(new AnomalyRounds(reviewer, client).Runner());
         }
-        if (sc.Psylink)
+        if (sc.Permits || sc.Psylink)
         {
-            cfgPsylink = RoundsPsylinkPlanner.NewRoundsPsylinkPlanner(reviewer, client);
+            // The permit and psylink toggles compose the royalty family's two Needs (#3261).
+            families.Add(new RoyaltyRounds(reviewer, sc.Permits, sc.Psylink ? client : null).Runner());
         }
-        if (sc.Permits)
+        if (biotech.Any)
         {
-            // MaintainPermits plans from the review's royalty read.
-            cfgPermits = RoundsPermitsPlanner.NewRoundsPermitsPlanner(reviewer);
+            // The mech, mech charger, gene bank and pollution toggles compose the biotech family (#3261).
+            families.Add(new BiotechRounds(reviewer, biotech).Runner());
         }
         if (sc.IdeoRoles || sc.Rituals || sc.Ideoligion)
         {
@@ -281,10 +283,6 @@ public sealed partial class BrainComposition
         {
             // MaintainShelter plans from the review's rooms; no read of its own.
             cfgMaintainShelter = MaintainShelterPlanner.NewMaintainShelterPlanner(reviewer);
-        }
-        if (pollution)
-        {
-            cfgPollution = RoundsPollutionPlanner.NewRoundsPollutionPlanner(reviewer);
         }
         var layout = new LayoutNeeds { HomeCoverage = homeCoverage, Firebreak = sc.Firebreak, StoneShell = stoneShell, ClimateEnvelope = envelope };
         LayoutRounds? layoutRounds = null;
@@ -315,7 +313,7 @@ public sealed partial class BrainComposition
             cfgResource = RoundsResourcePlanner.NewRoundsResourcePlanner(reviewer, client);
             reviewer.AddOrderDeclarer(new RoundsResourceDeclarer(cfgResource));
         }
-        if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || lighting || flooring || routes || mechCharger || geneBank)
+        if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || lighting || flooring || routes)
         {
             if (sleeping || shelter)
             {
@@ -332,14 +330,6 @@ public sealed partial class BrainComposition
             if (power)
             {
                 cfgPower = RoundsBuildingPlanner.NewRoundsPowerPlanner(reviewer, client);
-            }
-            if (mechCharger)
-            {
-                cfgMechCharger = RoundsMechChargerPlanner.NewRoundsMechChargerPlanner(reviewer, client);
-            }
-            if (geneBank)
-            {
-                cfgGeneBank = RoundsGeneBankPlanner.NewRoundsGeneBankPlanner(reviewer, client);
             }
             if (lighting)
             {
@@ -402,14 +392,9 @@ public sealed partial class BrainComposition
             DefenseLayout = cfgDefenseLayout,
             Dialog = cfgDialog,
             Expansion = cfgExpansion,
-            GeneBank = cfgGeneBank,
             MaintainShelter = cfgMaintainShelter,
-            MechCharger = cfgMechCharger,
             MoodRelief = cfgMoodRelief,
-            Permits = cfgPermits,
-            Pollution = cfgPollution,
             Power = cfgPower,
-            Psylink = cfgPsylink,
             Recovery = cfgRecovery,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
@@ -490,16 +475,10 @@ public sealed partial class BrainComposition
         Add(sc.Temperature, EnsureTemperatureSafety);
         Add(sc.Power, EnsureBasicPower);
         Add(sc.Art, MaintainTrade);
-        Add(sc.Mechs, MaintainMechs);
         Add(sc.Routes, MaintainRoutes);
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
         Add(sc.Recovery, RecoverDisasterServices);
-        Add(sc.Pollution, ManagePollution);
-        Add(sc.MechCharger, EnsureMechCharger);
-        Add(sc.GeneBank, MaintainGeneBank);
         Add(sc.Sheltering, MaintainShelter);
-        Add(sc.Psylink, MaintainPsylink);
-        Add(sc.Permits, MaintainPermits);
         Add(sc.Stockpiles, MaintainStockpiles);
         if (sc.DefensiveLayout)
         {
@@ -508,8 +487,9 @@ public sealed partial class BrainComposition
         }
         Add(sc.Trade, TradeWithCaravan);
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
-        // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, and the
-        // rooms family's room census, beauty definitions, floors and sculpture rooms.
+        // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, the
+        // rooms family's room census, beauty definitions, floors and sculpture rooms, and psylink's royalty read and
+        // neuroformer candidates.
         var needs = new List<NeedId>();
         if (sc.Refrigeration)
         {
@@ -559,6 +539,10 @@ public sealed partial class BrainComposition
         if (sc.Burial)
         {
             needs.Add(AdminFamily.Burial);
+        }
+        if (sc.Psylink)
+        {
+            needs.Add(RoyaltyFamily.Psylink);
         }
         if (sc.Envelope)
         {

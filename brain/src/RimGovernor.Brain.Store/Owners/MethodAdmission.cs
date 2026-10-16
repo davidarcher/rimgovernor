@@ -129,13 +129,10 @@ public sealed partial class Store
         {
             throw new ConflictException($"bill method needs a current autopilot review and at most {MaxBillPlanActions} actions");
         }
-        // Bills serve the mech goal's gestation bills. The admin/work-ledger Need commits the round's reconcile plan
-        // (the economy/resource Need's stock bills and the medical Needs' bills among them): places and removals
-        // together.
-        var bound = owner is NeedOwner { Need: var held }
-            ? held == AdminFamily.WorkLedger
-            : owner.OwnerNeed(review, out var need)
-                && need == MaintainMechs;
+        // Bills are the admin/work-ledger Need's: it commits the round's reconcile plan (the economy/resource Need's
+        // stock bills, the medical Needs' bills and the biotech/mechs Need's gestation bill among them): places and
+        // removals together.
+        var bound = owner is NeedOwner { Need: var held } && held == AdminFamily.WorkLedger;
         if (!bound)
         {
             throw new ConflictException($"{owner.OwnerLabel} does not admit production bills");

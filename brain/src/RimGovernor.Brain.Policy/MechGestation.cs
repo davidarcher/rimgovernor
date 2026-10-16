@@ -43,7 +43,7 @@ public sealed record MechChoice
 }
 
 /// <summary>
-/// Ports <c>mech_gestation.go</c>. MaintainMechs is the mech gestation goal: a mechanitor with bandwidth to
+/// Ports <c>mech_gestation.go</c>. The biotech/mechs Need is mech gestation: a mechanitor with bandwidth to
 /// spare, an idle mech gestator and no waste left lying about is owed one more mech, queued as a Bill_Mech on the
 /// gestator. Gestation rules (numbers come from the game defs, never from here): bandwidth is the limit (free
 /// bandwidth is TotalBandwidth - UsedBandwidth - GestationBandwidth); gestation is held while the gestators hold
@@ -52,9 +52,7 @@ public sealed record MechChoice
 /// </summary>
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId MaintainMechs = new("MaintainMechs");
-
-    /// <summary>MaintainMechs' bill purpose: one single-count gestation bill (BillMode.GearBatch, target 1) on a gestator.</summary>
+    /// <summary>The biotech/mechs Need's bill purpose: one single-count gestation bill (BillMode.GearBatch, target 1) on a gestator.</summary>
     public static readonly BillPurpose MechGestationBill = new("mech_gestation");
 
     /// <summary>

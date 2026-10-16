@@ -11,19 +11,16 @@ public sealed record MechChargerSiteFacts
 }
 
 /// <summary>
-/// Ports <c>mech_charger_concern.go</c>. EnsureMechCharger keeps a recharging station free for the mechs. A
-/// mechanitor's mechs recharge one at a time on a Building_MechCharger (MechChargerOwed): the goal is in deficit
-/// while the colony owes one more charger, and settles once a charger stands idle. It is a Standard whose target
-/// is no outstanding work, like ManagePollution. The method is one charger construction; powering it is the power
-/// goal's, emptying its waste is ManagePollution's.
+/// Ports <c>mech_charger_concern.go</c>. The biotech/mech-charger Need keeps a recharging station free for the
+/// mechs. A mechanitor's mechs recharge one at a time on a Building_MechCharger (MechChargerOwed): the Need is
+/// unmet while the colony owes one more charger, and met once a charger stands idle. The method is one charger
+/// construction; powering it is the power goal's, emptying its waste is the biotech/pollution Need's.
 /// The charger is a building that produces wastepacks, so it is sited by the polluting-machine rule
 /// (PollutionSites) over free ground, never by a definition name: the catalog's mech_charger flag finds the
 /// definition.
 /// </summary>
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId EnsureMechCharger = new("EnsureMechCharger");
-
     /// <summary>RoundsFacts.MechChargerOwed's value: whether the colony owes one more charger, unknown while the mechs or the charger list are unread.</summary>
     public static Fact<bool> MechChargerNeed(Fact<MechFleet> fleet, Fact<EquatableArray<MechCharger>> chargers)
     {

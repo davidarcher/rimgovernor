@@ -1,19 +1,17 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Declares the surgery and mech bills of the care purposes through the rounds review.</summary>
+/// <summary>Declares the surgery bills of the care purposes through the rounds review.</summary>
 public sealed class RoundsCareBillDeclarer : IOrderDeclarer
 {
     private readonly Rounder _reviewer;
     private readonly object _native;
     private readonly bool _surgery;
-    private readonly bool _mech;
 
-    public RoundsCareBillDeclarer(Rounder reviewer, object native, bool surgery, bool mech)
+    public RoundsCareBillDeclarer(Rounder reviewer, object native, bool surgery)
     {
         _reviewer = reviewer;
         _native = native;
         _surgery = surgery;
-        _mech = mech;
     }
 
     internal List<ConcernId> Concerns()
@@ -23,14 +21,10 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         {
             output.Add(PolicyApi.SurgeryNeed.FilingKey);
         }
-        if (_mech)
-        {
-            output.Add(PolicyApi.MaintainMechs);
-        }
         return output;
     }
 
-    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var journal = _reviewer.Player.Journal;
         var review = journal.LoadRounds(ct);
@@ -41,24 +35,8 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
             {
                 output.Merge(PolicyApi.Abstaining(Cause.UnreadReview).For(c.Value));
             }
-            return output;
+            return Task.FromResult(output);
         }
-
-        async Task Collect(ConcernId need, bool enabled, Func<Task<Declared>> declare)
-        {
-            if (!enabled)
-            {
-                return;
-            }
-            var (_, workable) = journal.Workable(review, need, ct);
-            if (!workable)
-            {
-                return;
-            }
-            var one = await declare().ConfigureAwait(false);
-            output.Merge(one.For(need.Value));
-        }
-
         if (_surgery)
         {
             // The medical/surgery Need's part bill (#3258): declared while the Need is unmet, nothing while it is met,
@@ -72,25 +50,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
             };
             output.Merge(one.For(PolicyApi.SurgeryNeed.FilingKey.Value));
         }
-        await Collect(PolicyApi.MaintainMechs, _mech, async () =>
-        {
-            MechGestation? gestation;
-            try
-            {
-                gestation = await MechGestationAsync(_native, Boundary.Identity(snapshot), projection, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                return AbstainOnRead(Cause.UnreadMechs, ex, ct);
-            }
-            if (gestation is null)
-            {
-                return PolicyApi.Abstaining(Cause.UnreadMechs);
-            }
-            var (selected, gap) = PolicyApi.SelectMechGestationBill(MechBenches(benches), gestation);
-            return PolicyApi.DeclareSelection(selected, gap == default, benches);
-        }).ConfigureAwait(false);
-        return output;
+        return Task.FromResult(output);
     }
 
     /// <summary>The surgery part bill: one batch bill fabricating a part a restore operation lacks.</summary>

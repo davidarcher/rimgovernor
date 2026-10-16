@@ -9,11 +9,20 @@ using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
+/// <summary>
+/// Facts that hold ordinary Standards unmet for store-level owner tests: MaintainShelter (SafeAreaOwed, a Safe area
+/// edit owed) and MaintainStockpiles (a standing stockpile edit).
+/// </summary>
+internal static class StandardTestFacts
+{
+    internal static Fact<StockpileReview> StockpileEditOwed => Known(new StockpileReview { Known = true, Active = true });
+}
+
 internal static class WorkResourceTestFacts
 {
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
-        Tick = new(100), MechGestationOwed = Known(true), PsylinkOwed = Known(true),
+        Tick = new(100), SafeAreaOwed = Known(true), Stockpiles = StandardTestFacts.StockpileEditOwed,
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
             Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }]),
@@ -229,15 +238,15 @@ public sealed class WorkResourcesTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-shared-work-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        var foodOwner = Assert.Single(review.Standards, s => s.Standard.Kind == PolicyConstants.MaintainPsylink);
-        var craftOwner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
+        var foodOwner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainStockpiles);
         journal.CommitMethod(foodOwner.Standard.Id, foodOwner.Revision, new("method"), Plan("food", Delivery("food")), ct);
-        Assert.Throws<ProductionMaterialException>(() => journal.CommitMethod(craftOwner.Standard.Id, craftOwner.Revision,
-            new("craft"), Plan("craft", Craft("bill")), ct));
-        Assert.Empty(journal.LoadOwnerMethods(craftOwner, ct));
+        // The craft bill is the admin/work-ledger Need's: production bills bind to no Standard.
+        Assert.Throws<ProductionMaterialException>(() => journal.CommitClaimedMethod(AdminFamily.WorkLedger, World,
+            new("craft"), "", Plan("craft", Craft("bill")), ct));
+        Assert.Empty(journal.LoadNeed(AdminFamily.WorkLedger, World, ct).Methods);
         Assert.Equal(4, journal.ProductionMaterials(World, ct).Availability.Value[new("Rice")].Value);
         journal.Cancel(new("food"), new("food"), ct);
-        journal.CommitMethod(craftOwner.Standard.Id, craftOwner.Revision, new("craft"), Plan("craft", Craft("bill")), ct);
+        journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, new("craft"), "", Plan("craft", Craft("bill")), ct);
     }
     [Fact]
     public void ContestedNewActivityIsAnAdmissionRefusalAndPreservesExistingWork()
@@ -246,8 +255,8 @@ public sealed class WorkResourcesTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-contested-proposal-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
-        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == PolicyConstants.MaintainPsylink);
+        var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainShelter);
+        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainStockpiles);
         journal.CommitMethod(existing.Standard.Id, existing.Revision, new("method"), Plan("held", Delivery("held")), ct);
         var proposed = Delivery("proposed", "helper").PawnActivities!;
         proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };

@@ -28,12 +28,12 @@ public static partial class PolicyFunctions
         Set(
             [WorkType.Construction],
             MaintainHousing,
-            MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
+            MaintainRoutes);
         SetNeeds(
             [WorkType.Construction],
             HomeUpkeepFamily.Clearance, MilitaryFamily.Defense, RoomsFamily.Comfort, HomeUpkeepFamily.Repairs,
             LayoutFamily.StoneShell, FoodStorageNeed, LayoutFamily.HomeCoverage, AnimalsFamily.Containment,
-            RoomsFamily.Lighting, RoomsFamily.Flooring);
+            RoomsFamily.Lighting, RoomsFamily.Flooring, BiotechFamily.MechCharger, BiotechFamily.GeneBank);
         SetNeeds([WorkType.PlantCutting], BlightNeed);
         SetNeeds([WorkType.Art], RoomsFamily.Art);
 
@@ -45,7 +45,7 @@ public static partial class PolicyFunctions
         // A wear order is a forced job any pawn carries; the replacement bill needs the bench's work type.
         // Construction keeps the workshop rung available before a bench exists to request its crafting work.
         SetNeeds([WorkType.Construction, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MilitaryFamily.Equipment);
-        Set([WorkType.Hauling], ManagePollution);
+        SetNeeds([WorkType.Hauling], BiotechFamily.Pollution);
 
         // The shell, sarcophagus and graves are built; vanilla haulers carry the corpses.
         SetNeeds([WorkType.Construction], AdminFamily.Burial);

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>child/mech-gestation</c> (Go <c>mech_gestation.go</c>) proves a mechanitor gestates a mech inside its bandwidth and
-/// the controller gives it a work order: the MaintainMechs goal queues a gestation bill on the gestator, the game forms
+/// the controller gives it a work order: the biotech/mechs Need queues a gestation bill on the gestator, the game forms
 /// the mech, and the routine's mech control sets the mech's control group to the mode its kind calls for.
 /// </summary>
 internal static class ChildMechGestation
@@ -30,7 +30,7 @@ internal static class ChildMechGestation
     internal static AcceptanceCase Case() => new()
     {
         Name = "child/mech-gestation",
-        Scope = "Issue #1692: a mechanitor with a powered gestator is owed a mech by MaintainMechs, which bills the gestator "
+        Scope = "Issue #1692: a mechanitor with a powered gestator is owed a mech by the biotech/mechs Need, which bills the gestator "
             + "inside the mechanitor's free bandwidth; the game hauls the ingredients and forms the mech, and the routine's mech "
             + "control gives its control group the work mode its kind calls for; the fixture completes the forming bill's gestation cycles so the game days of gestation are not run. A Go snapshot over recorded facts cannot cover "
             + "it: the chain is vanilla's own (the Bill_Mech bandwidth rule, hauling, gestation cycles under power, the mech's "
