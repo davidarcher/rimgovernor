@@ -61,8 +61,9 @@ public sealed partial class Store
             return;
         }
         var review = LoadRounds(tx);
+        // A Need owner is checked by its NeedId: the shelter housing Needs keep their builders.
         if (owner.OwnerNeed(review, out var need)
-            && ConstructionLaborHeld(review.Latches, need, plan.Actions.Select(a => a.Kind)))
+            && ConstructionLaborHeld(review.Latches, owner is NeedOwner { Need: var held } ? held.FilingKey : need, plan.Actions.Select(a => a.Kind)))
         {
             throw new ConstructionLaborException();
         }
@@ -410,88 +411,6 @@ public sealed partial class Store
     /// <summary>Replacement is observed and guarded natively by owned bill identity and unchanged settings.</summary>
     private static bool MealReplacementOpenWorkExempt(StandardState goal, PlanSpec plan) =>
         plan.Actions.Count == 1 && plan.Actions[0].ProductionBill is { Mode: BillMode.FoodTarget } bill && bill.Replaces.Length != 0;
-
-    private static readonly HashSet<string> ShelterBunkMethods = new HashSet<string>(StringComparer.Ordinal)
-    {
-        "shelter-spots",
-        "shelter-bedrolls",
-        "shelter-beds",
-        "shelter-clear-bedrolls",
-        "shelter-clear-beds",
-    };
-
-    /// <summary>
-    /// Admits a method under the initial shelter while its only open work is bunk rungs: the ring is sited around
-    /// the spots and beds, so walls and door proceed while a bed stalls. The new method must be pure construction
-    /// on no cell an open bunk stands on; any other open method (the shell itself) still holds the goal.
-    /// </summary>
-    private static bool ShelterOpenWorkExempt(StoreTransaction tx, StandardState goal, MethodId method, PlanSpec plan)
-    {
-        var review = LoadRounds(tx);
-        if (!review.Standards.Any(b => b.Standard == goal.Standard.Id && b.Concern == MaintainHousing) || plan.Actions.Count == 0)
-        {
-            return false;
-        }
-        var taken = new HashSet<Cell>();
-        foreach (var m in goal.Methods)
-        {
-            var p = LoadIn(tx, m.Plan);
-            if (!StorePackage.PlanOpen(p))
-            {
-                continue;
-            }
-            var ring = StorePackage.IsRoomShellMethod(m.MethodId);
-            if (ring && StorePackage.IsRoomShellMethod(method))
-            {
-                return false; // one ring wave at a time
-            }
-            if (!ShelterBunkMethods.Contains(m.MethodId.Value) && !ring)
-            {
-                return false;
-            }
-            foreach (var a in p.Spec.Actions)
-            {
-                if (a.Building is { } b)
-                {
-                    if (ring)
-                    {
-                        _ = taken.Add(b.Cell);
-                        continue;
-                    }
-                    foreach (var c in BunkCells(b.Cell, b.Rotation))
-                    {
-                        _ = taken.Add(c);
-                    }
-                }
-            }
-        }
-        // The shelter room is one continuous reconcile: the ring's open wave and the bunk rungs (placements and the
-        // clearing deconstructions) run together on disjoint cells.
-        foreach (var a in plan.Actions)
-        {
-            if (a.Building is { } b)
-            {
-                if (taken.Contains(b.Cell))
-                {
-                    return false;
-                }
-                continue;
-            }
-            if (a.Deconstruction is { } d)
-            {
-                if (taken.Contains(d.Cell))
-                {
-                    return false;
-                }
-                continue;
-            }
-            if (a.UninstallBuilding is not { } u || taken.Contains(u.Cell))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
 
     /// <summary>
     /// Admits furniture beside an owner's open planned-room ring wave, and a ring wave beside the owner's open

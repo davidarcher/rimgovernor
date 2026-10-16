@@ -54,7 +54,7 @@ public enum TemperatureMethod
     RefuelOn,
 }
 
-/// <summary>A campfire the temperature family built as room heat (its construction claim carries EnsureTemperatureSafety): its native room and auto-refuel toggle.</summary>
+/// <summary>A campfire the temperature family built as room heat (its construction claim carries the shelter/temperature filing key): its native room and auto-refuel toggle.</summary>
 public sealed record HeatCampfire
 {
     public string Id { get; init; } = "";
@@ -243,7 +243,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Holds EnsureTemperatureSafety open past the fixed thresholds: a heat campfire owes its refuel switch, or a
+    /// Holds shelter/temperature unmet past the fixed thresholds: a heat campfire owes its refuel switch, or a
     /// sleeping room with no campfire or heater sits below its sleepers' comfort minimum.
     /// </summary>
     public static bool TemperatureOwed(Fact<RoomObservation> fact, TemperatureCooling cooling)
@@ -521,7 +521,7 @@ public static partial class PolicyFunctions
     /// through a vented wall when cooling reports the research done and a network with spare capacity for its
     /// draw, otherwise a passive cooler inside the room. Native temperature proves recovery.
     /// </summary>
-    public static TemperatureProposal SelectTemperatureMethod(Fact<RoomObservation> fact, TemperatureCooling cooling, RoundsPolicy limits, RoundsLatches latches)
+    public static TemperatureProposal SelectTemperatureMethod(Fact<RoomObservation> fact, TemperatureCooling cooling, RoundsPolicy limits)
     {
         limits.Validate();
         if (!fact.TryGetValue(out var v))
@@ -576,9 +576,9 @@ public static partial class PolicyFunctions
                 continue;
             }
             var method = TemperatureMethod.NoMethod;
-            // Known sleepers' comfort minimum replaces the fixed cold thresholds: a parka wearer needs no heat
-            // at 10 C.
-            var cold = temperature < limits.ColdEnter || (latches.Cold && temperature < limits.ColdExit);
+            // A plain threshold at the comfort band's exit bars (no hysteresis, #3257). Known sleepers' comfort
+            // minimum replaces the fixed cold threshold: a parka wearer needs no heat at 10 C.
+            var cold = temperature < limits.ColdExit;
             var (low, _, banded) = SleepersBand(room, cooling.Sleepers);
             if (banded)
             {
@@ -588,7 +588,7 @@ public static partial class PolicyFunctions
             {
                 method = TemperatureMethod.Heat;
             }
-            else if (temperature > limits.HotEnter || (latches.Hot && temperature > limits.HotExit))
+            else if (temperature > limits.HotExit)
             {
                 method = TemperatureMethod.Cool;
             }

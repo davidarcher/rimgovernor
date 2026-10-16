@@ -156,7 +156,7 @@ internal static class UpkeepHomeCoverage
         for (var n = 0; n < 2; n++)
         {
             var label = string.Create(CultureInfo.InvariantCulture, $"bed_{n}");
-            await UpkeepSupport.FollowMethodsExcludingAsync(journal, PolicyFunctions.MaintainHousing, label, seen, a =>
+            await UpkeepSupport.FollowMethodsExcludingAsync(journal, ShelterFamily.Sleeping, label, seen, a =>
                 a.Building is { } b && b.Definition == "Bed" ? null : $"not a bed build: {a.Kind}", report, bounded.Token).ConfigureAwait(false);
             if (report[label + "_recovered_by"].AsString() != "controller_order")
             {

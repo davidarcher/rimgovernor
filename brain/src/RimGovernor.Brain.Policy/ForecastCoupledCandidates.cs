@@ -35,7 +35,8 @@ public static partial class PolicyFunctions
         };
         if (!NeedEnabled(FoodSupplyNeed) || OutdoorAcquisitionHeld(facts))
             read = read with { Food = read.Food with { Options = [] }, FoodConversions = [] };
-        var shelterEnabled = Enabled(MaintainHousing) || Enabled(MaintainShelter) || Enabled(EnsureTemperatureSafety);
+        var shelterEnabled = NeedEnabled(ShelterFamily.Starter) || NeedEnabled(ShelterFamily.Sleeping) || NeedEnabled(ShelterFamily.Expansion)
+            || NeedEnabled(ShelterFamily.SafeArea) || NeedEnabled(ShelterFamily.Temperature);
         if (!shelterEnabled)
             read = read with { Construction = read.Construction with { Options = [] },
                 Thermal = read.Thermal is { } thermal ? thermal with { Cells = EquatableArray.From(thermal.Cells.Select(c => c with { BuildRoof = false })) } : null };

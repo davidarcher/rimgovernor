@@ -7,7 +7,7 @@ using DomainWire = RimGovernor.Brain.Domain.Wire;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>power/wind-thin-roof</c> (Go <c>power/wind_thin_roof.go</c>): EnsureBasicPower on a lab that is solid granite under
+/// <c>power/wind-thin-roof</c> (Go <c>power/wind_thin_roof.go</c>): the power/basic Need on a lab that is solid granite under
 /// thin mountain roof except a 30x30 pocket holding one unpowered lamp. The layout plan's turbine pair stands on rock
 /// beside the pocket, so the one plan the family admits digs the rock of the turbine's wind path and removes the roof
 /// over it in dig waves holding no building; the ordinary plan then places a WindTurbine once the site reads clear, and
@@ -81,7 +81,7 @@ internal static class PowerWindThinRoof
         }
 
         var run = await RoutineService.StartAsync(s, PowerKit.Prefix, ["power", "work"], cancellationToken).ConfigureAwait(false);
-        var concern = PolicyFunctions.EnsureBasicPower.Value;
+        var concern = PowerFamily.Basic.Value;
         var method = await RoutineService.BoundedAsync(ct => run.Service.WaitMethodAsync(concern, null, ct), TimeSpan.FromMinutes(8), "first power method", cancellationToken).ConfigureAwait(false);
 
         report["concern_id"] = method.Concern;

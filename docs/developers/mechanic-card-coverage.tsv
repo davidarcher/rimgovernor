@@ -302,9 +302,9 @@ EnslavedPrisoner_Know_Honorable_Mood	memory		unknown	0	0	0	no-code-or-xml-refere
 EnslavedPrisoner_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
 EnslavedPrisoner_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
 EntityInRoom	situational		partial	1	3	1	state-expression
-EnvironmentCold	situational	EnsureTemperatureSafety	resolved	1	2	0	
+EnvironmentCold	situational	shelter/temperature	resolved	1	2	0	
 EnvironmentDark	situational	rooms/lighting	resolved	1	1	0	
-EnvironmentHot	situational	EnsureTemperatureSafety	resolved	1	2	0	
+EnvironmentHot	situational	shelter/temperature	resolved	1	2	0	
 ExecutedColonist_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
 ExecutedGuest_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
 ExecutedPrisoner	situational		partial	4	12	3	state-expression
@@ -652,7 +652,7 @@ NeedNeuralSupercharge	situational		partial	1	4	2	external-type
 NeedOutdoors	situational		partial	1	3	1	unsupported-syntax
 NeedPlay	situational		partial	1	2	1	unsupported-syntax
 NeedRest	situational		partial	1	2	1	unsupported-syntax
-NeedRoomSize	situational	MaintainHousing	partial	1	6	2	external-type
+NeedRoomSize	situational	shelter/sleeping	partial	1	6	2	external-type
 NeuroquakeEcho	memory		unknown	1	0	0	conditions-in-callers
 NeurosisPulse	situational		unknown	1	1	1	unsupported-syntax
 NewColonyHope	memory		unknown	0	0	0	no-code-or-xml-reference
@@ -802,13 +802,13 @@ Slavery_Honorable_SlavesInColony	situational		partial	1	4	2	external-type
 Slavery_Horrible_SlavesInColony	situational		partial	1	4	2	external-type
 SleepDisturbed	memory		partial	1	6	1	depth-limit
 SleepSuppressor	situational		partial	5	19	4	state-expression
-SleptInBarracks	memory	MaintainHousing	resolved	1	8	0	
+SleptInBarracks	memory	shelter/sleeping	resolved	1	8	0	
 SleptInBedroom	memory		resolved	1	7	0	
 SleptInCold	memory		resolved	1	2	0	
 SleptInHeat	memory		resolved	1	2	0	
 SleptInRoomWithSlave	memory		resolved	1	13	0	
-SleptOnGround	memory	MaintainHousing	partial	1	3	1	external-type
-SleptOutside	memory	MaintainHousing	resolved	1	3	0	
+SleptOnGround	memory	shelter/sleeping	partial	1	3	1	external-type
+SleptOutside	memory	shelter/sleeping	resolved	1	3	0	
 SleptUsingSleepAccelerator	memory		unknown	0	0	0	no-code-or-xml-reference
 Slighted	memory		unknown	0	0	0	xml-granted
 SmokeleafHigh	situational		unknown	1	1	1	unsupported-syntax

@@ -46,9 +46,9 @@ them (a thought names every concern providing it):
 | Thought | Concern |
 | --- | --- |
 | `AteWithoutTable`, `NeedJoy` | `rooms/comfort` |
-| `SleptOutside`, `SleptOnGround`, `SleptInBarracks`, `NeedRoomSize` | `MaintainHousing` |
+| `SleptOutside`, `SleptOnGround`, `SleptInBarracks`, `NeedRoomSize` | `shelter/sleeping` |
 | `EnvironmentDark` | `rooms/lighting` |
-| `EnvironmentCold`, `EnvironmentHot` | `EnsureTemperatureSafety` |
+| `EnvironmentCold`, `EnvironmentHot` | `shelter/temperature` |
 
 When those thoughts carry at least half of the pawn's negative thought offset, the
 pawn's mood state records the owners (most negative first) and the method proposal is
@@ -70,7 +70,7 @@ pressure clears it.
 `SleptInBarracks` is answered by the existing bedroom builders (`NextBedroomStep`):
 barracks sleepers are unhoused, so the planned private bedrooms are built within the
 housing budget and research gates; the thought only raises the deficit that activates
-`MaintainHousing`, and adds no new builder.
+`shelter/sleeping`, and adds no new builder.
 
 The owner of a thought is the audit table's `owner` column (see below); there is no
 second table in code. Every negative thought with an empty owner, or no table row at

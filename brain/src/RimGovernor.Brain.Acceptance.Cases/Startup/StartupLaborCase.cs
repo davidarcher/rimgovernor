@@ -261,7 +261,7 @@ internal static class StartupLaborCase
             {
                 var (method, action, progress, beds) = await OpenWorkAsync(st, methods, cancellationToken).ConfigureAwait(false);
                 subject = subject with { Method = method, Action = action, Progress = progress };
-                if (row.Concern == PolicyFunctions.MaintainHousing)
+                if (row.Concern == ShelterFamily.Starter.FilingKey)
                 {
                     subject = subject with { ShelterBeds = beds };
                 }
@@ -273,18 +273,23 @@ internal static class StartupLaborCase
         return result;
     }
 
-    /// <summary>The open methods of the goal or Project the review binds to <paramref name="need"/>; null when it binds none or the row is gone.</summary>
-    private static async Task<IReadOnlyList<Method>?> OwnerMethodsAsync(Journal st, ReviewRecord review, ConcernId need, CancellationToken cancellationToken)
+    /// <summary>
+    /// The open methods of the goal the review binds to <paramref name="need"/>, or of the family Need filed under it
+    /// (a Need's row is keyed by its filing key); null when it binds none or the row is gone.
+    /// </summary>
+    private static async Task<IReadOnlyList<OwnedMethod>?> OwnerMethodsAsync(Journal st, ReviewRecord review, ConcernId need, CancellationToken cancellationToken)
     {
         if (!review.StandardFor(need, out var id))
         {
-            return null;
+            return need.Value.Contains('/', StringComparison.Ordinal) && review.Revision != 0
+                ? [.. st.LoadNeed(new NeedId(need.Value), review.Snapshot, cancellationToken).Methods.Select(m => new OwnedMethod(m.Method, m.Plan))]
+                : null;
         }
 
         try
         {
             var owner = await st.LoadStandardAsync(id, cancellationToken).ConfigureAwait(false);
-            return owner.Standard.Id.Value.Length == 0 ? null : [.. owner.Methods];
+            return owner.Standard.Id.Value.Length == 0 ? null : [.. owner.Methods.Select(m => new OwnedMethod(m.MethodId, m.Plan))];
         }
         catch (NotFoundException)
         {
@@ -293,7 +298,7 @@ internal static class StartupLaborCase
     }
 
     /// <summary>The first open action among methods: its method, action id, the progress view and whether the open rung is the shelter-beds one.</summary>
-    private static async Task<(string Method, string Action, LaborProgress? Progress, bool Beds)> OpenWorkAsync(Journal st, IReadOnlyList<Method> methods, CancellationToken cancellationToken)
+    private static async Task<(string Method, string Action, LaborProgress? Progress, bool Beds)> OpenWorkAsync(Journal st, IReadOnlyList<OwnedMethod> methods, CancellationToken cancellationToken)
     {
         foreach (var m in methods)
         {
@@ -316,7 +321,7 @@ internal static class StartupLaborCase
                 }
 
                 IReadOnlyList<string> fresh = v.TryGetFreshHeldReason(out var reasons) ? [.. reasons.Select(r => Wire.Name(r))] : [];
-                return (m.MethodId.Value, v.Action.Value, new LaborProgress(Wire.Name(v.Stage), v.Unresolved, fresh), m.MethodId.Value == ShelterBedsMethod);
+                return (m.Method.Value, v.Action.Value, new LaborProgress(Wire.Name(v.Stage), v.Unresolved, fresh), m.Method.Value == ShelterBedsMethod);
             }
         }
 
@@ -331,26 +336,11 @@ internal static class StartupLaborCase
             return known;
         }
 
-        foreach (var b in review.Standards)
+        if (review.Revision != 0)
         {
-            if (b.Concern != PolicyFunctions.MaintainHousing)
+            foreach (var m in st.OwnerMethodHistory(st.LoadNeed(ShelterFamily.Starter, review.Snapshot, cancellationToken), cancellationToken))
             {
-                continue;
-            }
-
-            StandardState state;
-            try
-            {
-                state = await st.LoadStandardAsync(b.Standard, cancellationToken).ConfigureAwait(false);
-            }
-            catch (NotFoundException)
-            {
-                return known;
-            }
-
-            foreach (var m in state.Methods)
-            {
-                if (m.MethodId.Value != ShelterBedsMethod)
+                if (m.Method.Value != ShelterBedsMethod)
                 {
                     continue;
                 }

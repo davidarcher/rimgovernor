@@ -10,19 +10,24 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// Facts that hold ordinary Standards unmet for store-level owner tests: MaintainShelter (SafeAreaOwed, a Safe area
-/// edit owed) and MaintainStockpiles (a standing stockpile edit).
+/// Facts that hold ordinary Standards unmet for store-level owner tests: MaintainRoutes (a store one colonist cannot
+/// reach) and MaintainStockpiles (a standing stockpile edit).
 /// </summary>
 internal static class StandardTestFacts
 {
     internal static Fact<StockpileReview> StockpileEditOwed => Known(new StockpileReview { Known = true, Active = true });
+
+    internal static UpkeepObservation RouteOwed => new() { Routes = Known(new RoutesObservation { Pawns = ["a"],
+        Facilities = [new() { Id = "test-store", Kind = "storage", Travel = [new() { Pawn = "a", Reachable = false }] }] }) };
+
+    internal static UpkeepObservation RouteMet => new() { Routes = Known(new RoutesObservation()) };
 }
 
 internal static class WorkResourceTestFacts
 {
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
-        Tick = new(100), SafeAreaOwed = Known(true), Stockpiles = StandardTestFacts.StockpileEditOwed,
+        Tick = new(100), Upkeep = StandardTestFacts.RouteOwed, Stockpiles = StandardTestFacts.StockpileEditOwed,
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
             Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }]),
@@ -255,7 +260,7 @@ public sealed class WorkResourcesTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-contested-proposal-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainShelter);
+        var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
         var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainStockpiles);
         journal.CommitMethod(existing.Standard.Id, existing.Revision, new("method"), Plan("held", Delivery("held")), ct);
         var proposed = Delivery("proposed", "helper").PawnActivities!;

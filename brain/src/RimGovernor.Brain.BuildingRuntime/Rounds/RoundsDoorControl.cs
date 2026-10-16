@@ -14,7 +14,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         foreach (var change in PolicyApi.DoorChanges(facts.Rooms, facts.Facts.Upkeep.Routes, Reviewer.Policy))
         {
-            if (Concern == PolicyApi.EnsureTemperatureSafety && !change.Heat)
+            if (Concern == ShelterFamily.Temperature.FilingKey && !change.Heat)
             {
                 continue;
             }

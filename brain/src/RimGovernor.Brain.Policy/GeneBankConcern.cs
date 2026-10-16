@@ -22,7 +22,7 @@ public sealed record GeneBankFacts
 public static partial class PolicyFunctions
 {
     // The biotech/gene-bank Need adds capacity for loose genepacks, which deteriorate outside powered banks.
-    // Capacity comes from native bank facts; EnsureBasicPower owns power supply. Banks are identified by
+    // Capacity comes from native bank facts; the power/basic Need owns power supply. Banks are identified by
     // CompProperties_GenepackContainer.
 
     /// <summary>

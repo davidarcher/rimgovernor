@@ -27,13 +27,13 @@ public static partial class PolicyFunctions
         }
         Set(
             [WorkType.Construction],
-            MaintainHousing,
             MaintainRoutes);
         SetNeeds(
             [WorkType.Construction],
             HomeUpkeepFamily.Clearance, MilitaryFamily.Defense, RoomsFamily.Comfort, HomeUpkeepFamily.Repairs,
             LayoutFamily.StoneShell, FoodStorageNeed, LayoutFamily.HomeCoverage, AnimalsFamily.Containment,
-            RoomsFamily.Lighting, RoomsFamily.Flooring, BiotechFamily.MechCharger, BiotechFamily.GeneBank);
+            RoomsFamily.Lighting, RoomsFamily.Flooring, BiotechFamily.MechCharger, BiotechFamily.GeneBank,
+            ShelterFamily.Starter, ShelterFamily.Sleeping, ShelterFamily.Expansion);
         SetNeeds([WorkType.PlantCutting], BlightNeed);
         SetNeeds([WorkType.Art], RoomsFamily.Art);
 

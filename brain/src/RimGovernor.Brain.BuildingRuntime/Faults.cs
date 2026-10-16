@@ -21,7 +21,7 @@ public sealed record Faults
     /// <summary>Catalog planners whose run blocks until the step (critical) or wave (optional) context ends.</summary>
     public IReadOnlySet<string> HangPlanners { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 
-    /// <summary>Pins every food plan's GapPerDay to zero, so the gates that wait on a closed food gap (MaintainHousing's expansion) open.</summary>
+    /// <summary>Pins every food plan's GapPerDay to zero, so the gates that wait on a closed food gap (the shelter family's housing expansion) open.</summary>
     public bool FoodGapZero { get; init; }
 
     /// <summary>

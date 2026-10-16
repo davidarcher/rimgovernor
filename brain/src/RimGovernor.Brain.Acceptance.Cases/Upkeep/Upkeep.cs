@@ -342,12 +342,58 @@ internal static class UpkeepSupport
     /// <see cref="FollowMethodsAsync"/> over a caller-owned seen set, so a goal whose deficit needs two successive
     /// methods (a bed built, then that bed assigned) is followed method by method without revisiting the first.
     /// </summary>
-    internal static async Task FollowMethodsExcludingAsync(ControllerJournal journal, ConcernId need, string label, HashSet<string> seen, Func<DomainAction, string?> accept, Report report, CancellationToken cancellationToken)
+    internal static Task FollowMethodsExcludingAsync(ControllerJournal journal, ConcernId need, string label, HashSet<string> seen, Func<DomainAction, string?> accept, Report report, CancellationToken cancellationToken) =>
+        FollowCoreAsync(journal, need.Value, ct => StandardMetAsync(journal, need, ct), label, seen, accept, report, cancellationToken);
+
+    /// <summary>The family Need's <see cref="FollowMethodsAsync"/>: its Methods file under its id, and it is met once its progress row is gone.</summary>
+    internal static Task FollowMethodsAsync(ControllerJournal journal, NeedId need, string label, Func<DomainAction, string?> accept, Report report, CancellationToken cancellationToken) =>
+        FollowMethodsExcludingAsync(journal, need, label, new HashSet<string>(StringComparer.Ordinal), accept, report, cancellationToken);
+
+    /// <summary>The family Need's <see cref="FollowMethodsExcludingAsync(ControllerJournal, ConcernId, string, HashSet{string}, Func{DomainAction, string?}, Report, CancellationToken)"/>.</summary>
+    internal static Task FollowMethodsExcludingAsync(ControllerJournal journal, NeedId need, string label, HashSet<string> seen, Func<DomainAction, string?> accept, Report report, CancellationToken cancellationToken) =>
+        FollowCoreAsync(journal, need.Value, async ct => NeedMet(await journal.LoadRoundsAsync(ct).ConfigureAwait(false), need), label, seen, accept, report, cancellationToken);
+
+    /// <summary>
+    /// Polls until the family Need reports <paramref name="state"/> (#3231 decision 18): an unmet Need has a progress
+    /// row under its filing key, a met one has none. Met is read only after the row was seen, or after three reviews
+    /// at distinct ticks without one, so a review before the family's first run does not read as met.
+    /// </summary>
+    internal static async Task WaitNeedAsync(ControllerJournal journal, NeedId need, Finding state, CancellationToken cancellationToken)
     {
-        var renewals = 0;
-        var rejected = 0;
-        async Task<bool> RecoveredAsync()
+        var seenUnmet = false;
+        var quiet = new HashSet<long>();
+        try
         {
+            await new Wait { Stall = NeedStall, Interval = TimeSpan.FromSeconds(1) }.WaitProgressAsync(async ct =>
+            {
+                var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
+                if (review.Revision == 0)
+                {
+                    return ("no-review", false);
+                }
+                var met = NeedMet(review, need);
+                seenUnmet |= !met;
+                if (met)
+                {
+                    quiet.Add(review.Tick.Value);
+                }
+                var done = state == Finding.Unmet ? !met : met && (seenUnmet || quiet.Count >= 3);
+                return done ? ("", true) : (string.Create(CultureInfo.InvariantCulture, $"tick={review.Tick.Value} revision={review.Revision}"), false);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (WaitError e)
+        {
+            throw new AcceptanceException($"{need.Value} never reported {JournalReads.FindingName(state)}: {e.Message}", e);
+        }
+    }
+
+    /// <summary>Whether the review files no progress row for the family Need: a reported unmet Need always has one.</summary>
+    private static bool NeedMet(RimGovernor.Brain.Store.Rounds review, NeedId need) =>
+        review.Revision != 0 && !review.Progress.Any(p => p.Concern == need.FilingKey);
+
+    /// <summary>Whether a goal the review binds to <paramref name="need"/> is met.</summary>
+    private static async Task<bool> StandardMetAsync(ControllerJournal journal, ConcernId need, CancellationToken cancellationToken)
+    {
             var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
             if (new NeedId(need.Value).IsValid)
             {
@@ -376,7 +422,13 @@ internal static class UpkeepSupport
             }
 
             return false;
-        }
+    }
+
+    private static async Task FollowCoreAsync(ControllerJournal journal, string concern, Func<CancellationToken, Task<bool>> met, string label, HashSet<string> seen, Func<DomainAction, string?> accept, Report report, CancellationToken cancellationToken)
+    {
+        var renewals = 0;
+        var rejected = 0;
+        Task<bool> RecoveredAsync() => met(cancellationToken);
 
         var deadline = DateTimeOffset.UtcNow + TimeSpan.FromMinutes(10);
         while (true)
@@ -393,7 +445,7 @@ internal static class UpkeepSupport
                 methodCts.CancelAfter(TimeSpan.FromSeconds(15));
                 try
                 {
-                    method = await journal.Service.WaitMethodExcludingAsync(need.Value, seen, methodCts.Token).ConfigureAwait(false);
+                    method = await journal.Service.WaitMethodExcludingAsync(concern, seen, methodCts.Token).ConfigureAwait(false);
                     break;
                 }
                 catch (Exception e) when (e is AcceptanceException or OperationCanceledException)
@@ -618,7 +670,7 @@ internal static class UpkeepSupport
         using (var deficitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
             deficitCts.CancelAfter(TimeSpan.FromMinutes(4));
-            _ = await WaitNeedAsync(journal, PolicyFunctions.MaintainHousing, Finding.Unmet, deficitCts.Token).ConfigureAwait(false);
+            await WaitNeedAsync(journal, ShelterFamily.Sleeping, Finding.Unmet, deficitCts.Token).ConfigureAwait(false);
         }
 
         // The fixture leaves no vacant suitable bed, so the first method builds one (a Building action). Ownership
@@ -627,7 +679,7 @@ internal static class UpkeepSupport
         // suitable bed, which WaitNeedAsync below confirms and VerifySleepingAsync checks natively.
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var kinds = new JsonArray();
-        await FollowMethodsExcludingAsync(journal, PolicyFunctions.MaintainHousing, "bed", seen, a =>
+        await FollowMethodsExcludingAsync(journal, ShelterFamily.Sleeping, "bed", seen, a =>
         {
             if (a.Building is not null)
             {
@@ -639,7 +691,7 @@ internal static class UpkeepSupport
         }, report, cancellationToken).ConfigureAwait(false);
         if (report["bed_recovered_by"].AsString() != "ordinary_work")
         {
-            await FollowMethodsExcludingAsync(journal, PolicyFunctions.MaintainHousing, "assign", seen, a =>
+            await FollowMethodsExcludingAsync(journal, ShelterFamily.Sleeping, "assign", seen, a =>
             {
                 if (a.Assign is not null)
                 {
@@ -654,7 +706,7 @@ internal static class UpkeepSupport
         report["sleeping_action_kinds"] = kinds;
         using var recoverCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         recoverCts.CancelAfter(TimeSpan.FromMinutes(15));
-        _ = await WaitNeedAsync(journal, PolicyFunctions.MaintainHousing, Finding.Met, recoverCts.Token).ConfigureAwait(false);
+        await WaitNeedAsync(journal, ShelterFamily.Sleeping, Finding.Met, recoverCts.Token).ConfigureAwait(false);
     }
 
     private static async Task VerifySleepingAsync(Harness h, JsonObject identity, JsonObject prepared, UpkeepCensus after, Report report, CancellationToken cancellationToken)
@@ -689,7 +741,7 @@ internal static class UpkeepSupport
         report["colonists"] = colonists;
         if (colonists == 0 || suitable < colonists)
         {
-            throw new AcceptanceException($"{suitable} of {colonists} colonists own a roofed bed after MaintainHousing recovered");
+            throw new AcceptanceException($"{suitable} of {colonists} colonists own a roofed bed after shelter/sleeping was met");
         }
     }
 
@@ -736,11 +788,11 @@ internal static class UpkeepSupport
         using (var deficitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
             deficitCts.CancelAfter(TimeSpan.FromMinutes(4));
-            _ = await WaitNeedAsync(journal, PolicyFunctions.EnsureTemperatureSafety, Finding.Unmet, deficitCts.Token).ConfigureAwait(false);
+            await WaitNeedAsync(journal, ShelterFamily.Temperature, Finding.Unmet, deficitCts.Token).ConfigureAwait(false);
         }
 
         var definition = prepared["definition"].AsString();
-        await FollowMethodsAsync(journal, PolicyFunctions.EnsureTemperatureSafety, "heat", a =>
+        await FollowMethodsAsync(journal, ShelterFamily.Temperature, "heat", a =>
         {
             if (a.Building is not { } b)
             {
@@ -751,7 +803,7 @@ internal static class UpkeepSupport
         }, report, cancellationToken).ConfigureAwait(false);
         using var recoverCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         recoverCts.CancelAfter(TimeSpan.FromMinutes(12));
-        _ = await WaitNeedAsync(journal, PolicyFunctions.EnsureTemperatureSafety, Finding.Met, recoverCts.Token).ConfigureAwait(false);
+        await WaitNeedAsync(journal, ShelterFamily.Temperature, Finding.Met, recoverCts.Token).ConfigureAwait(false);
     }
 
     private static async Task VerifyColdAsync(Harness h, JsonObject identity, JsonObject prepared, UpkeepCensus after, Report report, CancellationToken cancellationToken)

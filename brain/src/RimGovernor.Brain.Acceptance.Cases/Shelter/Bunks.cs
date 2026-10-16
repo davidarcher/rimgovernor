@@ -280,22 +280,14 @@ internal static class ShelterBunks
                         return (Wait.Signature("no-review", e.Message), false);
                     }
 
-                    foreach (var binding in review.Standards)
+                    if (review.Revision != 0)
                     {
-                        if (binding.Concern != PolicyFunctions.MaintainHousing)
-                        {
-                            continue;
-                        }
+                        var owner = st.LoadNeed(ShelterFamily.Starter, review.Snapshot, ct);
 
                         // The latest binding in any epoch, retired or not: a bunk rung completes on its placement receipt and retires at once.
-                        PlanId id;
-                        try
+                        if (st.OwnerMethodPlan(owner, new MethodId(method), ct) is not { } id)
                         {
-                            id = await st.LatestMethodPlanAsync(binding.Standard, new MethodId(method), ct).ConfigureAwait(false);
-                        }
-                        catch (RimGovernor.Brain.Store.NotFoundException)
-                        {
-                            return (Wait.Signature(binding.Standard.Value, "unbound"), false);
+                            return (Wait.Signature(ShelterFamily.Starter.Value, "unbound"), false);
                         }
 
                         var plan = await st.LoadPlanAsync(id, ct).ConfigureAwait(false);
@@ -323,20 +315,20 @@ internal static class ShelterBunks
 
                         if (complete && !done)
                         {
-                            return (Wait.Signature(binding.Standard.Value, seen), false);
+                            return (Wait.Signature(ShelterFamily.Starter.Value, seen), false);
                         }
 
                         found = bunks;
                         return ("", true);
                     }
 
-                    return (Wait.Signature("unbound", review.Standards.Count), false);
+                    return (Wait.Signature("unbound", review.Revision), false);
                 },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
-            throw new AcceptanceException($"{method} not admitted for MaintainHousing (last seen: {seen}): {e.Message}", e);
+            throw new AcceptanceException($"{method} not admitted for the starter shelter Need (last seen: {seen}): {e.Message}", e);
         }
 
         return found;
@@ -376,21 +368,13 @@ internal static class ShelterBunks
                         return (Wait.Signature("no-review", e.Message), false);
                     }
 
-                    foreach (var binding in review.Standards)
+                    if (review.Revision != 0)
                     {
-                        if (binding.Concern != PolicyFunctions.MaintainHousing)
-                        {
-                            continue;
-                        }
+                        var owner = st.LoadNeed(ShelterFamily.Starter, review.Snapshot, ct);
 
-                        PlanId id;
-                        try
+                        if (st.OwnerMethodPlan(owner, new MethodId(ClearBedsMethod), ct) is not { } id)
                         {
-                            id = await st.LatestMethodPlanAsync(binding.Standard, new MethodId(ClearBedsMethod), ct).ConfigureAwait(false);
-                        }
-                        catch (RimGovernor.Brain.Store.NotFoundException)
-                        {
-                            return (Wait.Signature(binding.Standard.Value, "unbound"), false);
+                            return (Wait.Signature(ShelterFamily.Starter.Value, "unbound"), false);
                         }
 
                         var plan = await st.LoadPlanAsync(id, ct).ConfigureAwait(false);
@@ -409,13 +393,13 @@ internal static class ShelterBunks
                         return ("", true);
                     }
 
-                    return (Wait.Signature("unbound", review.Standards.Count), false);
+                    return (Wait.Signature("unbound", review.Revision), false);
                 },
                 cancellationToken).ConfigureAwait(false);
         }
         catch (AcceptanceException e)
         {
-            throw new AcceptanceException($"{ClearBedsMethod} not admitted for MaintainHousing: {e.Message}", e);
+            throw new AcceptanceException($"{ClearBedsMethod} not admitted for the starter shelter Need: {e.Message}", e);
         }
 
         return cells;

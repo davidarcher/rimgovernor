@@ -205,8 +205,8 @@ starter shell, converting the new bed on a later review. Tending, rescue, the
 medicine reserve and doctor coverage stay their own families; the bed patch
 completing never clears the deficit.
 
-The bedroom row works the same way for `MaintainHousing` (the `sleeping`
-family): a colonist without an owned suitable bed is first assigned a vacant
+The bedroom row works the same way for the `shelter/sleeping` Need (the
+`sleeping` toggle): a colonist without an owned suitable bed is first assigned a vacant
 one through the typed `assign` operation, and only when nobody can be
 assigned is one bed staged in a Bedroom-hosting room (Bedroom, Barracks or
 generic Room) whose observed temperature lies inside the comfortable band of

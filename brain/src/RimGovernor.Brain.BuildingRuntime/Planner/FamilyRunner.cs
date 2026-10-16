@@ -435,6 +435,11 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             // A Safeguard vetoes routine work: the Need waits on nothing it can do.
             return (Verdict.Refuse(Cause.SharedAdmission, e.Message, ""), []);
         }
+        catch (ConstructionLaborException)
+        {
+            // The starter shelter holds the builders: this Need waits, its siblings still run.
+            return (Verdict.AwaitingPlan("construction_labor", "initial_shelter"), []);
+        }
         var after = await Task.Run(() => step.Journal.LoadNeed(need.Id, step.World, call), call).ConfigureAwait(false);
         var seen = before.Methods.Select(m => m.Plan).ToHashSet();
         return (verdict, [.. after.Methods.Where(m => !seen.Contains(m.Plan)).Select(m => new FamilyMethod(need.Id, m.Method, m.Plan, ClaimOutcome.Admitted))]);

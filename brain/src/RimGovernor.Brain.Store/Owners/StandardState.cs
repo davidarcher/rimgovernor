@@ -445,7 +445,6 @@ public sealed partial class Store
         AcquisitionOpenWorkExempt(tx, state, plan)
         || GrowerCropOpenWorkExempt(plan)
         || MealReplacementOpenWorkExempt(state, plan)
-        || ShelterOpenWorkExempt(tx, state, method, plan)
         || RoomShellOpenWorkExempt(tx, state, method, plan)
         || BuildingOpenWorkExempt(tx, state, plan);
 

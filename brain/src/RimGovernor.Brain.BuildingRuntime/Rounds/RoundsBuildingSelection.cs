@@ -63,7 +63,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (0, default, BuildingReasonExistingFacility);
         }
-        if (c == PolicyApi.EnsureTemperatureSafety)
+        if (c == ShelterFamily.Temperature.FilingKey)
         {
             if (Temperature is null)
             {
@@ -95,7 +95,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (1, Routes.Key, default);
         }
-        if (c == PolicyApi.EnsureBasicPower)
+        if (c == PowerFamily.Basic.FilingKey)
         {
             if (Power is null)
             {
@@ -151,7 +151,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (1, new MethodId("laboratory-" + Definition), default);
         }
-        if (c == PolicyApi.MaintainHousing)
+        if (ShelterFamily.Housing(c))
         {
             if (Phase == Phase.HousingSleeping)
             {

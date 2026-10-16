@@ -1,6 +1,6 @@
 # Power contracts
 
-`EnsureBasicPower` (`PowerMethod.cs`, `PowerBudget.cs`) keeps every enabled
+The power family's `power/basic` Need (`PowerFamily.cs`, `PowerMethod.cs`, `PowerBudget.cs`, #3257) keeps every enabled
 consumer powered by reading the native power census and sizing each network against a day of energy,
 never by counting generators. Native placement previews and shared admission gate every build; output
 plus `PowerOn` on the consumer, not a receipt, establishes recovery.
@@ -108,7 +108,7 @@ Hands correlate completed work against `PowerFamilyDefinitions()`.
 
 A tiled layout plan (`LayoutTile.cs`) owns its conduit paths: `LayoutPlan.Conduits` is a list of
 `ConduitLink{From, To, Cells}` derived with the plan by `RouteConduits` (`LayoutConduit.cs`). It is the
-net the planner would lay; `EnsureBasicPower` still decides which sites connect, by which method and at
+net the planner would lay; the `power/basic` Need still decides which sites connect, by which method and at
 what budget, and the `connect` contract above is unchanged. No action kind carries it.
 
 - **Refs.** `From`/`To` are tagged: `room:<id>` for a planned room, `site:<node id>` for a site: a

@@ -302,9 +302,9 @@ EnslavedPrisoner_Know_Honorable_Mood	memory	other unreferenced	other
 EnslavedPrisoner_Know_Horrible	memory	other unreferenced	other	
 EnslavedPrisoner_Know_Horrible_Mood	memory	other unreferenced	other	
 EntityInRoom	situational	ThoughtWorker_EntityInRoom	other	
-EnvironmentCold	situational	ThoughtWorker_Cold	temperature	EnsureTemperatureSafety
+EnvironmentCold	situational	ThoughtWorker_Cold	temperature	shelter/temperature
 EnvironmentDark	situational	ThoughtWorker_Dark	light	rooms/lighting
-EnvironmentHot	situational	ThoughtWorker_Hot	temperature	EnsureTemperatureSafety
+EnvironmentHot	situational	ThoughtWorker_Hot	temperature	shelter/temperature
 ExecutedColonist_Know_Abhorrent_Mood	memory	other unreferenced	other	
 ExecutedGuest_Know_Abhorrent_Mood	memory	other unreferenced	other	
 ExecutedPrisoner	situational	ThoughtWorker_Tale	other	
@@ -652,7 +652,7 @@ NeedNeuralSupercharge	situational	ThoughtWorker_NeedNeuralSupercharge	other
 NeedOutdoors	situational	ThoughtWorker_NeedOutdoors	need:outdoors	
 NeedPlay	situational	ThoughtWorker_NeedPlay	need:play	
 NeedRest	situational	ThoughtWorker_NeedRest	need:rest	
-NeedRoomSize	situational	ThoughtWorker_NeedRoomSize	need:prefersindoors;need:roomsize;room	MaintainHousing
+NeedRoomSize	situational	ThoughtWorker_NeedRoomSize	need:prefersindoors;need:roomsize;room	shelter/sleeping
 NeuroquakeEcho	memory	other CompAbilityEffect_Neuroquake.GiveNeuroquakeThought	other	
 NeurosisPulse	situational	ThoughtWorker_Hediff	hediff;hediff:NeurosisPulse	
 NewColonyHope	memory	other MapParent.Abandon,MoveColonyUtility.SetPawnThoughts,SettleInEmptyTileUtility.Settle	room	
@@ -802,13 +802,13 @@ Slavery_Honorable_SlavesInColony	situational	ThoughtWorker_Precept_SlavesInColon
 Slavery_Horrible_SlavesInColony	situational	ThoughtWorker_Precept_SlavesInColony	other	
 SleepDisturbed	memory	sleep Pawn.CheckForDisturbedSleep	other	
 SleepSuppressor	situational	ThoughtWorker_SleepSuppressor	other	
-SleptInBarracks	memory	other+sleep ThoughtUtility.RemovePositiveBedroomThoughts,Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	MaintainHousing
+SleptInBarracks	memory	other+sleep ThoughtUtility.RemovePositiveBedroomThoughts,Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	shelter/sleeping
 SleptInBedroom	memory	other+sleep ThoughtUtility.RemovePositiveBedroomThoughts,Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	
 SleptInCold	memory	sleep Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	
 SleptInHeat	memory	sleep Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	
 SleptInRoomWithSlave	memory	sleep Toils_LayDown.ApplyBedRelatedEffects	hediff;need:rest;room	
-SleptOnGround	memory	sleep Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	MaintainHousing
-SleptOutside	memory	sleep Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	MaintainHousing
+SleptOnGround	memory	sleep Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	shelter/sleeping
+SleptOutside	memory	sleep Toils_LayDown.ApplyBedThoughts	room;room_role:Barracks;room_role:Bedroom;room_stat:Impressiveness;temperature	shelter/sleeping
 SleptUsingSleepAccelerator	memory	other unreferenced	other	
 Slighted	memory	social xml:Core/Defs/InteractionDefs/Interactions_Social.xml	other	
 SmokeleafHigh	situational	ThoughtWorker_Hediff	hediff;hediff:SmokeleafHigh	

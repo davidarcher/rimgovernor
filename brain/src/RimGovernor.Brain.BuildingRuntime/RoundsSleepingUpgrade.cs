@@ -149,17 +149,13 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>Deconstructs a replaced bed, once per bed per Episode.</summary>
-    internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = new MethodId("bedroom-replace-remove-" + DigestHex(rep.Bed, 8));
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "old_bed_removal") };
-        }
-        catch (Sto.NotFoundException)
-        {
         }
         // A real bed is packed, not deconstructed: the stored bed furnishes the next bedroom or bed spot (PackShellBed, ReinstallStoredBed).
         if (rep.Def == "Bed" || rep.Def == SleepingCoupleBedDefinition)
@@ -174,18 +170,14 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>Previews and admits one upgrade piece, once per room and slot per Episode.</summary>
-    internal async Task<RoundsBuildingResult> UpgradeBedroomAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> UpgradeBedroomAsync(ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var facts = reading.Projection;
         var method = new MethodId($"bedroom-upgrade-{u.Slot}-{DigestHex(u.Room, 8)}");
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "bedroom_upgrade") };
-        }
-        catch (Sto.NotFoundException)
-        {
         }
         var stuff = u.Stuff != "" ? u.Stuff : PieceStuff(facts, u.Def);
         var snapshot = state.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };

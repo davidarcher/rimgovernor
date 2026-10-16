@@ -72,7 +72,7 @@ public static partial class PolicyConstants
     public const string ReasonFlowDay = "flow_day_cycle";
     public const string ReasonNeedCold = "need_cold";
 
-    /// <summary>The spare place MaintainHousing's expansion phase keeps beyond the population: indoor capacity must exceed the colonist count. The station graph provides the same spare bed.</summary>
+    /// <summary>The spare place the shelter/expansion Need keeps beyond the population: indoor capacity must exceed the colonist count. The station graph provides the same spare bed.</summary>
     public const int HousingSparePlaces = 1;
 
     /// <summary>

@@ -128,12 +128,15 @@ public static partial class PolicyFunctions
         NeedOwner(EssentialService.Medical, CriticalCensusNeedOf(facts.CriticalPatients));
         NeedOwner(EssentialService.Medical, SurgeryNeedOf(medical));
         NeedOwner(EssentialService.Medical, MedicalReservesNeedOf(medical));
-        Owner(EssentialService.Shelter, MaintainHousing);
-        Owner(EssentialService.Shelter, MaintainShelter);
-        Owner(EssentialService.Temperature, EnsureTemperatureSafety);
+        var shelter = ShelterFacts.From(facts, policy);
+        NeedOwner(EssentialService.Shelter, StarterShelterNeedOf(shelter));
+        NeedOwner(EssentialService.Shelter, SleepingNeedOf(shelter, true));
+        NeedOwner(EssentialService.Shelter, ExpansionNeedOf(shelter, true, true));
+        NeedOwner(EssentialService.Shelter, SafeAreaNeedOf(shelter));
+        NeedOwner(EssentialService.Temperature, TemperatureNeedOf(shelter));
         NeedOwner(EssentialService.Food, FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Food, RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
-        Owner(EssentialService.Power, EnsureBasicPower);
+        NeedOwner(EssentialService.Power, PowerNeedOf(PowerFacts.From(facts)));
         Owner(EssentialService.Logistics, MaintainRoutes);
         NeedOwner(EssentialService.Materials, ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
@@ -325,13 +328,13 @@ public static partial class PolicyFunctions
         if (facts.PowerRequired.IsKnown && !facts.PowerRequired.Value) return;
         if (!facts.EssentialInputs.Power.TryGetValue(out var power))
         {
-            scenario(new(EnsureBasicPower, "", "owner_power_coverage", default), "unmapped_facility",
+            scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "owner_power_coverage"), "unmapped_facility",
                 () => (ServiceCoverage.Unknown, ["power_topology"]));
             return;
         }
         foreach (var generator in power.Buildings.Where(b => b.BaseW.IsKnown && b.BaseW.Value > 0).OrderBy(b => b.Id, StringComparer.Ordinal))
         {
-            scenario(new(EnsureBasicPower, "", "owner_power_coverage", default), "facility/" + generator.Id, () =>
+            scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "owner_power_coverage"), "facility/" + generator.Id, () =>
             {
                 var coverage = PowerCoverage(Known<EquatableArray<PowerBuilding>>(power.Buildings.Where(b => b.Id != generator.Id).Cast<PowerBuilding>().ToImmutableArray()));
                 if (!coverage.Headroom.IsKnown) return (ServiceCoverage.Unknown, ["power_network_output"]);
@@ -339,7 +342,7 @@ public static partial class PolicyFunctions
             });
         }
         // Network service membership is not inferred from the sign of watts: decorative consumers are not essential services.
-        scenario(new(EnsureBasicPower, "", "essential_consumer_membership", default), "unmapped_service",
+        scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "essential_consumer_membership"), "unmapped_service",
             () => (ServiceCoverage.Unknown, ["power_consumer_service_membership"]));
     }
 }

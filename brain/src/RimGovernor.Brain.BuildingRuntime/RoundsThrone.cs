@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// The throne room: MaintainHousing's sleeping planner shells the planned room, places the title's throne and
+// The throne room: the shelter family's sleeping planner (shelter/sleeping) shells the planned room, places the title's throne and
 // furnishes it to the title's impressiveness (Policy NextThroneStep, ThroneRoomTargets). The layout review
 // (ReplanLayout) plans the room from the title's minimum area. Once it stands, the throne is assigned to its
-// holder through the generic Assign action; the step holds MaintainHousing open until the royalty read lists
-// the holder as its owner.
+// holder through the generic Assign action; the sleeping Need stays unmet until the royalty read lists the
+// holder as its owner.
 public sealed partial class Rounder
 {
     /// <summary>
@@ -16,7 +16,7 @@ public sealed partial class Rounder
     {
         ct.ThrowIfCancellationRequested();
         var projection = reading.Projection;
-        if (!MethodEnabled(MaintainHousing) && !Needs.Contains(RoyaltyFamily.Psylink))
+        if (!Needs.Contains(ShelterFamily.Sleeping) && !Needs.Contains(RoyaltyFamily.Psylink))
         {
             return reading;
         }
@@ -237,7 +237,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// furniture the template and the plan still owe, installed from packed stock first), the assignment, the
     /// refuel. Furnishing beyond the template follows through the room upgrade.
     /// </summary>
-    internal async Task<RoundsBuildingResult> StageThroneAsync(StepArbiter arbiter, PackedStock stock, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> StageThroneAsync(StepArbiter arbiter, PackedStock stock, ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
     {
         switch (step.Kind)
         {
@@ -265,7 +265,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// (refused attempts retry within AssignMethod's bound). The royalty read refreshes on its own cadence, so
     /// a throne assigned this epoch reads unowned until then and the method is used.
     /// </summary>
-    internal RoundsBuildingResult AssignThrone(ControlState state, Sto.Rounds review, Sto.StandardState goal, Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
+    internal RoundsBuildingResult AssignThrone(ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var (method, barred) = AssignMethod(goal, $"throne-assign-{step.Need.Holder}-{step.Throne}", state.Snapshot, call);
@@ -292,7 +292,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("assignThrone: latest.Revision != review.Revision || !latest.Enabled");
         }
-        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
-        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
+        var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
+        return new RoundsBuildingResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) };
     }
 }

@@ -2246,22 +2246,16 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
     protected override RoundsLatches Read(JsonElement e, Codecs o) =>
         new()
         {
-            Sleeping = e.Bool("Sleeping"),
             MedicalReserve = e.Bool("MedicalReserve"),
             Routes = e.Get<EquatableArray<string>>("Routes", o),
-            Cold = e.Bool("Cold"),
-            Hot = e.Bool("Hot"),
             Dash = e.Get<DashWindow>("Dash", o),
             Housing = e.Get<Phase>("Housing", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsLatches v, Codecs o)
     {
-        w.WriteBoolean("Sleeping", v.Sleeping);
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
         w.Put("Routes", v.Routes, o);
-        w.WriteBoolean("Cold", v.Cold);
-        w.WriteBoolean("Hot", v.Hot);
         w.Put("Dash", v.Dash, o);
         w.Put("Housing", v.Housing, o);
     }

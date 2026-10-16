@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Policy;
 //
 // Once the throne stands and the holder holds the title, NextThroneStep reports Assign until the royalty read
 // lists the holder as the throne's owner (RoyalThrone); the runtime sends it as the generic Assign intent, and
-// the step holds MaintainHousing open until the read shows it done.
+// the step holds shelter/sleeping unmet until the read shows it done.
 
 /// <summary>ThingAnyOfCount asks for Count buildings of any of Things.</summary>
 public sealed record ThingAnyOfCount

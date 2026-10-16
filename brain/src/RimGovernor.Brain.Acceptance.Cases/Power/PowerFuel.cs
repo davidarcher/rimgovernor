@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// tests cover reserve, battery, wind and geothermal decisions.
 /// </summary>
 /// <remarks>
-/// Parity note against the Go case: the hold window's "no method committed" check reads the EnsureBasicPower row of
+/// Parity note against the Go case: the hold window's "no method committed" check reads the power/basic Need row of
 /// <c>/api/routines</c> (a goal's committed method is its <c>method</c> member) instead of the journal's goal record.
 /// </remarks>
 internal static class PowerFuel
@@ -18,7 +18,7 @@ internal static class PowerFuel
     internal static AcceptanceCase Case() => new()
     {
         Name = "power/fuel",
-        Scope = "Native EnsureBasicPower reliability vertical on the lab: an out-of-fuel generator holds the live Go power family "
+        Scope = "Native power/basic reliability vertical on the lab: an out-of-fuel generator holds the live Go power family "
             + "until native colonists refuel it, confirmed by an independent native read.",
         Start = new FixtureStart { Op = "test/power_prepare", Args = new JsonObject { ["scenario"] = "fuel" }, On = new LabStart() },
         Service = true,
@@ -83,7 +83,7 @@ internal static class PowerFuel
             while (DateTimeOffset.UtcNow < deadline)
             {
                 var routines = await run.Service.GetAsync("GET", "/api/routines", cancellationToken).ConfigureAwait(false);
-                if (RoutineService.ConcernRow(routines, PolicyFunctions.EnsureBasicPower.Value) is { } row)
+                if (RoutineService.ConcernRow(routines, PowerFamily.Basic.Value) is { } row)
                 {
                     sawStandard = true;
                     if (row["method"].AsString().Length > 0)

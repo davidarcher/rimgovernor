@@ -48,7 +48,7 @@ internal static class UpkeepJealousAscetic
             using var journal = await UpkeepHomeCoverage.ServeStageAsync(s, service, report, cancellationToken).ConfigureAwait(false);
             using var recoverCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             recoverCts.CancelAfter(TimeSpan.FromMinutes(25));
-            _ = await UpkeepSupport.WaitNeedAsync(journal, PolicyFunctions.MaintainHousing, Finding.Met, recoverCts.Token).ConfigureAwait(false);
+            await UpkeepSupport.WaitNeedAsync(journal, ShelterFamily.Sleeping, Finding.Met, recoverCts.Token).ConfigureAwait(false);
         }
         finally
         {

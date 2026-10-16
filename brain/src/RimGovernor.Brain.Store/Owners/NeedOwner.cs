@@ -27,8 +27,9 @@ public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, Equatab
     string IMethodOwner.OwnerLabel => "need " + Need.Value;
 
     /// <summary>
-    /// A Need is routine work: the Safeguards and the shelter construction latch apply to it as to a Concern other
-    /// than MaintainHousing, so it reports no Concern of its own.
+    /// A Need is routine work: the Safeguards apply to it as to any Concern, so it reports no Concern of its own. The
+    /// shelter construction latch reads the Need's filing key instead (AdmitConstructionLabor), which exempts the
+    /// shelter family's housing Needs.
     /// </summary>
     bool IMethodOwner.OwnerNeed(Rounds rounds, out ConcernId need)
     {

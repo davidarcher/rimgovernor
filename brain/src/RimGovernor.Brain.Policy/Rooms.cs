@@ -310,7 +310,7 @@ public static partial class PolicyFunctions
         [
             new() { Role = RoomRole.DiningRoom, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.RecRoom), FurnitureFromGame = true },
             new() { Role = RoomRole.RecRoom, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.DiningRoom), FurnitureFromGame = true },
-            // A bedroom is a hosted colonist bed: MaintainHousing stages one in any room that already sleeps
+            // A bedroom is a hosted colonist bed: shelter/sleeping stages one in any room that already sleeps
             // colonists or in a generic room, then assigns it; the game scores the room Bedroom or Barracks by count.
             new() { Role = RoomRole.Bedroom, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Barracks), FurnitureFromGame = true },
             new() { Role = RoomRole.Barracks, Status = FacilityStatus.Pending },
@@ -338,24 +338,24 @@ public static partial class PolicyFunctions
             // A tomb is its own planned room: the admin/burial Need shells it and places a sarcophagus while a dead
             // colonist has none waiting.
             new() { Role = RoomRole.Tomb, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
-            // A throne room is its own planned room: MaintainHousing shells it sized to the next title's area,
+            // A throne room is its own planned room: shelter/sleeping shells it sized to the next title's area,
             // places a throne and furnishes it to the title's impressiveness; assigning the throne awaits an
             // action kind.
             new() { Role = RoomRole.ThroneRoom, Status = FacilityStatus.Implemented, Content = "Royalty", Furniture = ["Throne", "GrandThrone"] },
-            // A worship room is its own planned room, staged like the child rooms: MaintainHousing shells it
+            // A worship room is its own planned room, staged like the child rooms: shelter/sleeping shells it
             // and places the buildings the ideoligion requires, which the game's defs name (the ideology
             // section), not this row.
             new() { Role = RoomRole.WorshipRoom, Status = FacilityStatus.Implemented, Content = "Ideology", FurnitureFromGame = true },
-            // The child rooms are their own planned rooms: MaintainHousing shells each while a baby (nursery),
+            // The child rooms are their own planned rooms: shelter/sleeping shells each while a baby (nursery),
             // baby or child (playroom) or child (classroom) lives and places the furniture the game scores the
             // role from (ChildRoomNeeds); a nursery room holds no other bed.
             new() { Role = RoomRole.Nursery, Status = FacilityStatus.Implemented, Content = "Biotech", Roles = [FurnitureRole.BabyBed] },
             new() { Role = RoomRole.Playroom, Status = FacilityStatus.Implemented, Content = "Biotech", Roles = [FurnitureRole.Toy, FurnitureRole.Decoration] },
             new() { Role = RoomRole.Classroom, Status = FacilityStatus.Implemented, Content = "Biotech", Roles = [FurnitureRole.Board, FurnitureRole.Desk] },
-            // A deathrest chamber is its own planned room: MaintainHousing shells it while a deathrester lives
+            // A deathrest chamber is its own planned room: shelter/sleeping shells it while a deathrester lives
             // and places a casket per deathrester and the accelerators its capacity allows.
             new() { Role = RoomRole.DeathrestChamber, Status = FacilityStatus.Implemented, Content = "Biotech", Roles = [FurnitureRole.DeathrestCasket, FurnitureRole.DeathrestAccelerator] },
-            // A containment cell is its own planned room: MaintainHousing shells it while a capturable entity
+            // A containment cell is its own planned room: shelter/sleeping shells it while a capturable entity
             // has no platform able to hold it and places the holding platform the game's defs name, once the
             // predicted containment strength reaches what the entity needs.
             new() { Role = RoomRole.ContainmentCell, Status = FacilityStatus.Implemented, Content = "Anomaly", FurnitureFromGame = true },

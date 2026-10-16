@@ -34,6 +34,9 @@ public sealed class LaborProfileTests
         { EconomyFamily.Resource.Value, [WorkType.Mining, WorkType.PlantCutting, WorkType.Crafting] },
         { AdminFamily.Burial.Value, [WorkType.Construction] },
         { MedicalReservesNeed.Value, [WorkType.Crafting, WorkType.PlantCutting] },
+        { ShelterFamily.Starter.Value, [WorkType.Construction] },
+        { ShelterFamily.Sleeping.Value, [WorkType.Construction] },
+        { ShelterFamily.Expansion.Value, [WorkType.Construction] },
     };
 
     [Theory]
@@ -52,6 +55,6 @@ public sealed class LaborProfileTests
         Assert.Equal([WorkType.Handling], NeedLabor(NeedId.Of(AnimalsFamily.FamilyId, "herd", "pawn-1")));
         Assert.Empty(NeedLabor(AdminFamily.CreepJoiners));
         Assert.Equal([WorkType.Hauling], ConcernLabor(MaintainStockpiles));
-        Assert.Equal([WorkType.Construction], ConcernLabor(MaintainHousing));
+        Assert.Equal([WorkType.Construction], ConcernLabor(MaintainRoutes));
     }
 }

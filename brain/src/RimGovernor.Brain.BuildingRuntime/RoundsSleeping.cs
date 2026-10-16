@@ -85,7 +85,10 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Holds the housing bedroom choice this step builds for.</summary>
     internal Pol.SleepingChoice? Sleeping { get; set; }
 
-    /// <summary>The step of a phased goal (MaintainHousing) this planner serves, where the review's latched phase decides which one runs; for a rooms comfort Need, which of its planners this is. Empty for every other goal.</summary>
+    /// <summary>
+    /// The step this planner serves: a shelter housing planner (starter, sleeping, expansion), which its Need's
+    /// preconditions order, or, for a rooms comfort Need, which of its planners this is. Empty for every other goal.
+    /// </summary>
     internal Pol.Phase Phase { get; set; }
 
     /// <summary>
@@ -111,10 +114,6 @@ public sealed partial class RoundsBuildingPlanner
         var (goal, workable) = Reviewer.Player.Journal.Workable(review, Concern, call);
         return (goal, workable);
     }
-
-    /// <summary>The Standard a not yet migrated step (the shelter room) works under; a Need-owned planner does not reach it.</summary>
-    internal static Sto.StandardState StandardOwned(Sto.IWorkOwner owner, string step) =>
-        owner as Sto.StandardState ?? throw new ControlException($"{step}: Standard-owned only until its family migrates");
 
     /// <summary>A copy for a derived planner (Go's <c>spot := *r</c>); the proposals it holds stay shared, as the Go pointers do.</summary>
     internal RoundsBuildingPlanner Copy() => (RoundsBuildingPlanner)MemberwiseClone();
@@ -172,7 +171,8 @@ public sealed partial class RoundsBuildingPlanner
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
         }
         // A phased Standard walks its phases in order: only the planner for the phase the review left owed runs.
-        // A Need-owned planner runs whenever its family finds the Need ready.
+        // A Need-owned planner (the shelter housing steps, the rooms comfort planners) runs whenever its family
+        // finds the Need ready.
         if (!r.Need.IsValid && !r.Phase.IsEmpty && review.Latches.Phase(r.Concern) != r.Phase)
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
@@ -308,14 +308,14 @@ public sealed partial class RoundsBuildingPlanner
             definitions = [];
         }
         IReadOnlyList<string> pendingConsumers = [];
-        if (r.Concern == EnsureBasicPower)
+        if (r.Concern == PowerFamily.Basic.FilingKey)
         {
             // The consumers other goals' admitted plans are about to build join the census request so the budget can price their draw.
             var held = p.Journal.BuildingReservations(state.Snapshot, call);
             pendingConsumers = PendingBuildingDefinitions(held);
             definitions = [.. new[] { "Wall", "Door" }, .. PowerFamilyDefinitions(), .. pendingConsumers];
         }
-        if (r.Concern == EnsureTemperatureSafety)
+        if (r.Concern == ShelterFamily.Temperature.FilingKey)
         {
             definitions = [.. TemperatureDefinitions, "Heater"];
         }
@@ -355,14 +355,14 @@ public sealed partial class RoundsBuildingPlanner
         Observation.ColonyReading reading;
         var roundsSource = r.Native is Observation.IRoundsSource;
         var separation = (r.ButcherFacility() || r.Concern == CookingNeed.FilingKey) && roundsSource;
-        if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == EnsureTemperatureSafety || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes || separation)
+        if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == ShelterFamily.Temperature.FilingKey || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes || separation)
         {
             // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
             // separation protects each other's rooms; without a census nothing is protected.
             var full = await r.Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)r.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
-        else if (r.Concern == EnsureBasicPower || r.Phase == Pol.Phase.ComfortBasic || r.Shelter)
+        else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Shelter)
         {
             // The shelter ring reconciles against the construction census, which only the rounds read carries.
             var full = await r.Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)r.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. observed], call).ConfigureAwait(false);
@@ -384,7 +384,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             r = placing;
         }
-        if (r.Concern == MaintainRoutes || r.Concern == EnsureTemperatureSafety)
+        if (r.Concern == MaintainRoutes || r.Concern == ShelterFamily.Temperature.FilingKey)
         {
             var (doorResult, handled) = r.ControlRoomDoor(state, goal, facts, call, epoch);
             if (handled)
@@ -415,15 +415,15 @@ public sealed partial class RoundsBuildingPlanner
             }
             r = resolvedPaste;
         }
-        if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
+        if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
         {
             RoundsBuildingPlanner? resolved;
             Verdict reason;
-            if (r.Concern == EnsureTemperatureSafety)
+            if (r.Concern == ShelterFamily.Temperature.FilingKey)
             {
-                (resolved, reason) = r.SelectTemperature(facts, review.Latches);
+                (resolved, reason) = r.SelectTemperature(facts);
             }
-            else if (r.Concern == EnsureBasicPower)
+            else if (r.Concern == PowerFamily.Basic.FilingKey)
             {
                 (resolved, reason) = r.SelectPower(facts, pendingConsumers);
             }
@@ -666,7 +666,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
             }
         }
-        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
+        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
         {
             gate = ComfortBuilderGate(facts, r.Definition);
             if (r.Power is { Method: Pol.PowerMethod.Generate } generator)
@@ -697,7 +697,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (r.Shelter)
         {
-            var site = new ShelterSite { State = state, Review = review, Owner = StandardOwned(goal, "shelter room"), Facts = facts, Read = reading, Check = Check };
+            var site = new ShelterSite { State = state, Review = review, Owner = goal, Facts = facts, Read = reading, Check = Check };
             var shelterResult = await r.StepShelterRoomAsync(site, roofingOnly, call, epoch).ConfigureAwait(false);
             if (ringOpen && shelterResult.Verdict != BuildingReasonAdmitted)
             {
@@ -731,12 +731,12 @@ public sealed partial class RoundsBuildingPlanner
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var heldReservations = p.Journal.BuildingReservations(snapshot, call);
-        if (r.ButcherFacility() || r.Concern == CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
+        if (r.ButcherFacility() || r.Concern == CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == MaintainRoutes)
         {
             var pendingPlanner = r;
             bool Pending(Progress progress)
             {
-                if (pendingPlanner.Concern == EnsureTemperatureSafety)
+                if (pendingPlanner.Concern == ShelterFamily.Temperature.FilingKey)
                 {
                     if (pendingPlanner.Temperature!.Method == Pol.TemperatureMethod.Heat || pendingPlanner.Temperature.Method == Pol.TemperatureMethod.HeatElectric)
                     {
@@ -744,7 +744,7 @@ public sealed partial class RoundsBuildingPlanner
                     }
                     return PendingFacility(progress, "PassiveCooler") || PendingFacility(progress, "Cooler");
                 }
-                if (pendingPlanner.Concern == EnsureBasicPower)
+                if (pendingPlanner.Concern == PowerFamily.Basic.FilingKey)
                 {
                     foreach (var name in PowerFamilyDefinitions())
                     {
@@ -1038,9 +1038,9 @@ public sealed partial class RoundsBuildingPlanner
         }
         // A loose sleeping spot stands only in a room planned to sleep in; the basic-comfort table and seat keep
         // out of the rooms that must stay clear.
-        var looseSpot = Concern == MaintainHousing && Definition == "SleepingSpot" && Facility is null && Cells is null;
+        var looseSpot = ShelterFamily.Housing(Concern) && Definition == "SleepingSpot" && Facility is null && Cells is null;
         IReadOnlyList<Cell> protectedSet = protectedCells;
-        if (!looseSpot && (Concern == MaintainHousing || ((Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot) && Cells is null)) && Facility is null)
+        if (!looseSpot && (ShelterFamily.Housing(Concern) || ((Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot) && Cells is null)) && Facility is null)
         {
             // Loose sleeping spots and the basic-comfort table and seat go to the starter shell or a bedroom, not
             // into a standing kitchen, lab, storage or other planned room: beds there make it a sleeping room and

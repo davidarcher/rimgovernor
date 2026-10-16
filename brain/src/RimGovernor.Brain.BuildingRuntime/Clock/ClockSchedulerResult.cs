@@ -23,16 +23,6 @@ public sealed class ClockSchedulerResult
 
 
 
-    public RoundsBuildingResult? Sleeping { get; set; }
-
-
-    public RoundsBuildingResult? SleepingUpkeep { get; set; }
-
-    public RoundsBuildingResult? Expansion { get; set; }
-
-    public RoundsBuildingResult? Power { get; set; }
-
-    public RoundsBuildingResult? Temperature { get; set; }
 
     public RoundsBuildingResult? Routes { get; set; }
 
@@ -41,8 +31,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsRecoveryResult? Recovery { get; set; }
 
-
-    public MaintainShelterResult? MaintainShelter { get; set; }
 
 
 
@@ -88,15 +76,9 @@ public sealed class ClockSchedulerResult
     internal void MergeFrom(ClockSchedulerResult other)
     {
         Work = other.Work ?? Work;
-        Sleeping = other.Sleeping ?? Sleeping;
-        SleepingUpkeep = other.SleepingUpkeep ?? SleepingUpkeep;
-        Expansion = other.Expansion ?? Expansion;
-        Power = other.Power ?? Power;
-        Temperature = other.Temperature ?? Temperature;
         Routes = other.Routes ?? Routes;
         Defense = other.Defense ?? Defense;
         Recovery = other.Recovery ?? Recovery;
-        MaintainShelter = other.MaintainShelter ?? MaintainShelter;
         Stockpiles = other.Stockpiles ?? Stockpiles;
         DefenseLayout = other.DefenseLayout ?? DefenseLayout;
         MoodRelief = other.MoodRelief ?? MoodRelief;

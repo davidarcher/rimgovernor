@@ -95,7 +95,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // Expand stages the colony one review short of MaintainHousing's
+        // Expand stages the colony one review short of the shelter family's
         // expansion phase: every single colonist in a bedroom of their own and
         // every couple sharing one with a double bed, each with an end table, on the planned bedroom rooms
         // (so no bedroom step is owed and the plan's other rooms stay free),
@@ -163,7 +163,7 @@ namespace HomeBridge.BridgeTools
                 foreach (var p in groups[g]) owned.Add(new KeyValuePair<Pawn, Building_Bed>(p, bedThing));
                 // An end table: the only piece a Camp/Masonry 3x4 bedroom's
                 // template holds besides the bed, so no room quality upgrade
-                // holds MaintainHousing in its bedroom phase.
+                // holds the shelter/sleeping Need on its bedrooms.
                 var bedCells = bedThing.OccupiedRect();
                 var table = interior.Cells.Where(c => !bedCells.Contains(c) && !c.AdjacentToCardinal(door))
                     .OrderBy(c => bedCells.ClosestCellTo(c).DistanceToSquared(c)).ThenByDescending(c => c.DistanceToSquared(door)).FirstOrDefault();

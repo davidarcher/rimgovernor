@@ -55,7 +55,7 @@ The routine chooses each prisoner's use itself, with no player-only exemption:
    the colony size): converted first while Ideology is active outside classic mode and it holds another
    ideoligion, then recruited.
 2. Otherwise, able to labor and not a wild man: enslaved when the colony's slavery precept is
-   `Slavery_Acceptable` or `Slavery_Honorable` (every other precept costs mood). MaintainHousing gives
+   `Slavery_Acceptable` or `Slavery_Honorable` (every other precept costs mood). `shelter/sleeping` gives
    each slave a bed set for slaves (`BuildingPatchIntent.for_slaves`).
 3. Otherwise released: at once while the food runway is below `RoundsPolicy.FoodTargetDays`, else after
    `RoundsPolicy.PrisonerReleaseAfterDays` (15 by default) in custody.
@@ -130,14 +130,14 @@ creepjoiner.
 - **Isolation.** A creepjoiner held apart (downside known hidden and no finished inspection in the
   record, `policy.CreepJoinerDownsides.Isolated`) owes one isolation room: a planned child room
   (`policy.IsolationRoomNeed`, role `RoomRoleIsolationRoom`, one bed) whose bed is the first
-  `bed_humanlike` def the furniture rules resolve. `MaintainShelter` plans a bot-owned `Isolation`
+  `bed_humanlike` def the furniture rules resolve. The `shelter/safe-area` Need plans a bot-owned `Isolation`
   allowed area over its interior. Once the room stands the `admin/creep-joiners` Need moves the pawn
   into the area (an area-only `WorkAssignment`) and releases it, by clearing the
   area, when its downside shows, its inspection is done or it is hungry: the game treats food outside
   an allowed area as forbidden with no starvation exemption (`ForbidUtility.InAllowedArea`), so a
   hungry pawn is not kept in. The `Safe` area excludes the room. Known edges: a threat's shelter move
-  may shuffle the pawn, another colonist may take the bed, and the room needs `MaintainShelter`
-  enabled.
+  may shuffle the pawn, another colonist may take the bed, and the room needs the `sheltering`
+  toggle (`shelter/safe-area`) enabled.
 - **Disarming an arrested creepjoiner** (dentures and wooden hands, then remove them so it can only
   headbutt). Game rules: a natural Hand or Jaw is offered no removal (`Recipe_RemoveBodyPart` offers a
   part with an added part, a clean one whose def spawns a thing on removal, one with a bad visible

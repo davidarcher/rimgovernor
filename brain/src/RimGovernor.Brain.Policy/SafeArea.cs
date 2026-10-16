@@ -2,12 +2,6 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
 {
-    /// <summary>
-    /// The standing goal that keeps the colony's shelter settings current: the bot-owned "Safe" allowed area,
-    /// and later sheltering pawns in it and the killbox restriction.
-    /// </summary>
-    public static readonly ConcernId MaintainShelter = new("MaintainShelter");
-
     /// <summary>The bot area key of the Safe allowed area.</summary>
     public const string SafeAreaKey = "Safe";
 

@@ -40,9 +40,11 @@ internal static class SustainedColonyCase
     /// </summary>
     internal static readonly IReadOnlyList<string> ColonyConcerns =
     [
-        PolicyFunctions.MaintainHousing.Value,
+        ShelterFamily.Starter.Value,
+        ShelterFamily.Sleeping.Value,
+        ShelterFamily.Expansion.Value,
         PolicyFunctions.CookingNeed.Value,
-        PolicyFunctions.EnsureTemperatureSafety.Value,
+        ShelterFamily.Temperature.Value,
         EconomyFamily.Resource.Value,
         PolicyFunctions.EnsureWorkAssignments.Value,
         MilitaryFamily.Defense.Value,

@@ -5,7 +5,7 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>upkeep/couple</c> (Go <c>couple.go</c>): two bedless lovers beside one vacant double bed. MaintainHousing must
+/// <c>upkeep/couple</c> (Go <c>couple.go</c>): two bedless lovers beside one vacant double bed. the shelter family's sleeping Need must
 /// assign both to it through AssignIntents and recovers only once each is observed sleeping there, so neither sleeps
 /// alone.
 /// </summary>
@@ -14,7 +14,7 @@ internal static class UpkeepCouple
     internal static AcceptanceCase Case() => new()
     {
         Name = "upkeep/couple",
-        Scope = "Couples share a bedroom (#812): two willing lovers are both assigned one vacant double bed via AssignIntents and MaintainHousing recovers on their observed shared sleep.",
+        Scope = "Couples share a bedroom (#812): two willing lovers are both assigned one vacant double bed via AssignIntents and the shelter family's sleeping Need recovers on their observed shared sleep.",
         Start = new LabStart(),
         Keep = UpkeepSupport.SleepingKeep,
         Serve = new ServeSpec { Families = ["sleeping", "work"], Prefix = UpkeepSupport.Prefix },
@@ -50,7 +50,7 @@ internal static class UpkeepCouple
             using var journal = await UpkeepHomeCoverage.ServeStageAsync(s, service, report, cancellationToken).ConfigureAwait(false);
             using var recoverCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             recoverCts.CancelAfter(TimeSpan.FromMinutes(15));
-            _ = await UpkeepSupport.WaitNeedAsync(journal, PolicyFunctions.MaintainHousing, Finding.Met, recoverCts.Token).ConfigureAwait(false);
+            await UpkeepSupport.WaitNeedAsync(journal, ShelterFamily.Sleeping, Finding.Met, recoverCts.Token).ConfigureAwait(false);
         }
         finally
         {

@@ -119,7 +119,7 @@ public sealed partial class Rounder
             }
         }
 
-        if (MethodEnabled(PolicyFunctions.MaintainShelter))
+        if (Needs.Contains(ShelterFamily.SafeArea))
         {
             f = f with { SafeAreaOwed = SafeArea.Review(StockpileWorld(state.Snapshot), projection) };
         }
@@ -185,7 +185,7 @@ public sealed partial class ClockScheduler
     internal bool ImmediateConfigured()
     {
         var c = Config;
-        return c.Rounds is not null && (c.Defense is not null || c.Recovery is not null || c.MaintainShelter is not null
+        return c.Rounds is not null && (c.Defense is not null || c.Recovery is not null
             || c.Families.Any(f => f.Immediate));
     }
 

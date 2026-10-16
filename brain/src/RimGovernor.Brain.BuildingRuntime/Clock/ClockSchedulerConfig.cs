@@ -27,16 +27,6 @@ public sealed class ClockSchedulerConfig
     public RoundsWorkPlanner? Work { get; init; }
 
 
-    public RoundsBuildingPlanner? Sleeping { get; init; }
-
-
-    public RoundsSleepingUpkeepPlanner? SleepingUpkeep { get; init; }
-
-    public RoundsBuildingPlanner? Expansion { get; init; }
-
-    public RoundsBuildingPlanner? Power { get; init; }
-
-    public RoundsBuildingPlanner? Temperature { get; init; }
 
     public RoundsBuildingPlanner? Routes { get; init; }
 
@@ -44,8 +34,6 @@ public sealed class ClockSchedulerConfig
 
 
     public RoundsRecoveryPlanner? Recovery { get; init; }
-
-    public MaintainShelterPlanner? MaintainShelter { get; init; }
 
 
     public RoundsStockpilePlanner? Stockpiles { get; init; }

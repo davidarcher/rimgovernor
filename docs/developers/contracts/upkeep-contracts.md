@@ -169,7 +169,7 @@ defenders' doorway, sized from defenders and turrets, no door on the raiders' ro
   generating network with spare watts for every draw, stock covering turrets and conduits.
   Placement, spacing and conduit routing are the planner's; an unroutable turret is dropped.
   A layout without turrets re-probes once per game hour. A standing unpowered turret is a
-  deficit (`unpowered`) owned by `EnsureBasicPower`'s network; damage is
+  deficit (`unpowered`) owned by the `power/basic` Need's network; damage is
   the `home-upkeep/repairs` Need's. While every tier stands the concern reports a known zero
   deficit so other upkeep concerns take the free slot.
 - An observed empty barrel (`unfuelled`) is a tier deficit. With fuel in stock the concern
@@ -308,14 +308,15 @@ cells or targets overlap an open Method is refused by claim (`claim_conflict`).
 
 ### Housing
 
-`MaintainHousing` is one concern with ordered phases recorded as `Latches.Housing`:
-`shelter` (first sleeping places and roofed shell, foothold priority), `sleeping` (bed
-ownership and upgrades), and from `StageReserves` `expansion` (one spare indoor place).
-Only the current phase's planner acts.
+Housing is three Needs of the shelter family (#3257): `shelter/starter` (first sleeping
+places and roofed shell, foothold priority), `shelter/sleeping` (bed ownership and
+upgrades, precondition `shelter/starter`) and `shelter/expansion` (one spare indoor place,
+preconditions `shelter/starter` and `shelter/sleeping`). The preconditions replace the
+old phase latch: a Need waits while one it names is unmet, and each planner's Methods are
+admitted by claims under its Need. While the starter is owed it alone holds the
+Construction labor (`ConstructionLaborHeld`, read per review, no latch).
 
-- The sleeping phase is declared by the `sleeping` family; with it the deficit is
-  method-available and ranks like any development row, without it method-unavailable.
-  Each review re-derives targets (colonists without an owned suitable bed or without
+- `shelter/sleeping` is composed by the `sleeping` toggle. Each review re-derives targets (colonists without an owned suitable bed or without
   observed use of one) from the upkeep census and retained use history.
 - Assign first: the lowest waiting colonist with a vacant suitable bed gets the lowest
   such bed through the typed `assign` operation, one per Episode, carrying the colonist's
@@ -454,12 +455,12 @@ under it; it has no latch, and unknown temperature or room facts leave it unknow
 - The method needs an enclosed room, native `Cooler` availability and a wall cell with a
   straight inside-wall-outdoors line. An existing cooler facing the room is patched to
   the freezer target via the building-temperature action, not duplicated; an unpowered
-  one defers to `EnsureBasicPower`; one venting into another enclosed room is blocked.
+  one defers to the `power/basic` Need; one venting into another enclosed room is blocked.
   A cooler receipt or build never clears the deficit; native cooling must be observed on
-  the stock. `EnsureBasicPower` holds on out-of-fuel or broken producers (ordinary pawn
+  the stock. The `power/basic` Need holds on out-of-fuel or broken producers (ordinary pawn
   work) and sizes a draining network by daily energy budget
   ([power contracts](power-contracts.md)).
-- `EnsureTemperatureSafety` reuses the wall search for a hot sleeping room. Hot rooms are
+- The `shelter/temperature` Need reuses the wall search for a hot sleeping room. Hot rooms are
   served hottest first, cold rooms coldest first. A room with no thermal facility gets
   one powered `Cooler` at the lowest-sorted vented wall cell, cold side in, when `Cooler`
   availability is known true and a connected network's nominal producer capacity exceeds
@@ -467,11 +468,11 @@ under it; it has no latch, and unknown temperature or room facts leave it unknow
   A known solar flare, unfinished research, unknown power facts or no vented wall keep
   the passive cooler inside the room. A `Cooler` the power census places beside the room
   counts as its facility. The setpoint is the native default (21 C); the family patches
-  no setpoints; its draw reaches `EnsureBasicPower` as pending demand while open, measured
+  no setpoints; its draw reaches the `power/basic` Need as pending demand while open, measured
   once built.
 - Solar flare: while a `SolarFlare` condition with a native remaining-duration read is
-  observed (`policy.PowerOutageHold`) the review keeps `EnsureBasicPower` open with
-  `method_unavailable` (suspended, never cancelled, not extending the startup hold), and
+  observed (`policy.PowerOutageHold`) the power family holds `power/basic` without a
+  Method (`power_outage`; its open work is kept, never cancelled), and
   the power and refrigeration planners report `solar_flare` (`PowerWaitBlackout`,
   `RefrigerationWaitBlackout`) with no allowance lent. The deficit keeps its measured
   state until the flare ends.
@@ -597,7 +598,7 @@ The comfort Needs are plain thresholds chained by precondition, with no phase la
   waits. Dining needs a native eating surface with adjacent sittable furniture in an
   enclosed roofed room with safe access; seats go only on the surface's adjacent cells. At
   most one table, seat and recreation object per admission. Sleeping upgrades belong to
-  `MaintainHousing`.
+  `shelter/sleeping`.
 - Recovery needs access for eligible colonists plus observed dining and recreation use, tied
   to the current load and exact furniture identity; access loss or removal reopens it. No
   schedule rewrite or forced need job. The shared watchdog bounds waiting.

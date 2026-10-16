@@ -115,7 +115,7 @@ internal static partial class BuildingRuntimePackage
         var heat = new HashSet<Cell>();
         foreach (var claim in claims)
         {
-            if (claim.Concern == PolicyApi.EnsureTemperatureSafety && claim.Building?.Definition == "Campfire")
+            if (claim.Concern == ShelterFamily.Temperature.FilingKey && claim.Building?.Definition == "Campfire")
             {
                 foreach (var c in claim.Cells)
                 {

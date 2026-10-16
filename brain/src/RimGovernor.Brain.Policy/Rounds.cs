@@ -215,7 +215,7 @@ public sealed record RoundsFacts
 
     public Fact<bool> SleepingRecovered { get; init; }
 
-    /// <summary>A planned individual bedroom step is due; it keeps MaintainHousing open once everyone owns a shelter bed.</summary>
+    /// <summary>A planned individual bedroom step is due; it keeps the shelter/sleeping Need unmet once everyone owns a shelter bed.</summary>
     public Fact<bool> BedroomsOwed { get; init; }
 
     /// <summary>The stock covers the butcher table's build cost (its cheapest stuff choice).</summary>
@@ -233,7 +233,7 @@ public sealed record RoundsFacts
     /// <summary>A weapon bench stands beside the crafting spot that stood in for it; it keeps the military/equipment Need unmet for the deconstruction.</summary>
     public Fact<bool> CraftingSpotRetireOwed { get; init; }
 
-    /// <summary>A heat campfire's auto-refuel should switch, or a sleeping room sits unheated below its sleepers' comfort minimum (TemperatureOwed); it holds EnsureTemperatureSafety open.</summary>
+    /// <summary>A heat campfire's auto-refuel should switch, or a sleeping room sits unheated below its sleepers' comfort minimum (TemperatureOwed); it keeps the shelter/temperature Need unmet.</summary>
     public Fact<bool> TemperatureOwed { get; init; }
 
     /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture (SculptureRoomsOwed); the work ledger's art bills read it. Unknown unless the rooms/art Need is composed.</summary>
@@ -242,7 +242,7 @@ public sealed record RoundsFacts
     /// <summary>The dispatcher's unmet throughput per bench kind (units a day short and why), sorted by kind; the facilities ladder reads it. Empty when nothing is short or the ledger has no declarers.</summary>
     public EquatableArray<UnmetThroughput> UnmetThroughput { get; init; }
 
-    /// <summary>The Safe allowed area differs from the enclosed roofed rooms (PlanSafeArea); it holds MaintainShelter open. Unknown unless the MaintainShelter method is composed.</summary>
+    /// <summary>The Safe allowed area differs from the enclosed roofed rooms (PlanSafeArea); it keeps the shelter/safe-area Need unmet. Unknown unless that Need is composed.</summary>
     public Fact<bool> SafeAreaOwed { get; init; }
 
 
@@ -579,21 +579,19 @@ public sealed record RoundsFacts
 
 public sealed record RoundsLatches
 {
-    public bool Sleeping { get; set; }
-
     public bool MedicalReserve { get; set; }
 
     /// <summary>Holds the facility IDs MaintainRoutes last measured unreachable.</summary>
     public EquatableArray<string> Routes { get; set; }
 
-    public bool Cold { get; set; }
-
-    public bool Hot { get; set; }
-
     /// <summary>The planned outdoor dash window (#2765), held until its bound; zero when none is open.</summary>
     public DashWindow Dash { get; set; } = new();
 
-    /// <summary>The MaintainHousing phase this review left owed (reviewHousing); empty once housing recovered. The housing planners run only for their own phase.</summary>
+    /// <summary>
+    /// <see cref="Phase.HousingShelter"/> while this review finds the starter shelter not standing (a sleeping or an
+    /// indoor place short for everyone, or unread), else empty: the starter shelter then holds the colony's
+    /// Construction labor (<see cref="PolicyFunctions.ConstructionLaborHeld"/>). A per-review value, not a latch.
+    /// </summary>
     public Phase Housing { get; set; }
 
 }
@@ -657,9 +655,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId AnswerDialog = new("AnswerDialog");
     public static readonly ConcernId ActiveCombat = new("ActiveCombat");
     public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
-    public static readonly ConcernId MaintainHousing = new("MaintainHousing");
-    public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");
-    public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     public static readonly ConcernId TradeWithCaravan = new("TradeWithCaravan");
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
@@ -796,27 +791,6 @@ public static partial class PolicyFunctions
         return Known(true);
     }
 
-    internal static bool LatchValue(bool active, Fact<double> fact, double enter, double exit, bool high)
-    {
-        if (!fact.TryGetValue(out var v))
-        {
-            return active;
-        }
-        if (high)
-        {
-            if (active)
-            {
-                return v >= exit;
-            }
-            return v > enter;
-        }
-        if (active)
-        {
-            return v <= exit;
-        }
-        return v < enter;
-    }
-
     /// <summary>f when measured, else other: an unmeasured sleeping-room temperature reads as the outdoor temperature (sleeping outdoors).</summary>
     internal static Fact<T> Fallback<T>(Fact<T> f, Fact<T> other) => f.TryGetValue(out _) ? f : other;
 
@@ -869,19 +843,12 @@ public static partial class PolicyFunctions
                 throw new DomainException("negative food fact");
             }
         }
-        c.SleepingActive = previous.Sleeping;
-        if (f.SleepingRecovered.TryGetValue(out var recovered))
-        {
-            c.SleepingActive = !recovered;
-        }
         c.L = new RoundsLatches
         {
-            Sleeping = c.SleepingActive,
             MedicalReserve = c.Medicine.Active,
             Routes = c.Routes.Latched,
             Dash = DashLatch(f.Dash),
-            Cold = LatchValue(previous.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
-            Hot = LatchValue(previous.Hot, Fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
+            Housing = StarterShelterOwed(f) ? Phase.HousingShelter : Phase.None,
         };
         c.R = new RoundsFindings { Latches = c.L with { } };
         c.Demand = ResourceDemandOf(f, p, c.L);

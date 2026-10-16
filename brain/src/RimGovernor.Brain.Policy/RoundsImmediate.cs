@@ -4,7 +4,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>The closed safety scope; ordinary planning stays on its own inspection clock even when these concerns need repeated observation.</summary>
     public static bool ImmediateConcern(ConcernId id) =>
-        id == ActiveCombat || id == MaintainShelter || id == RecoverDisasterServices;
+        id == ActiveCombat || id == RecoverDisasterServices;
 
     /// <summary>The immediate (safety-scope) review. Throws DomainException on invalid facts.</summary>
     public static RoundsFindings InspectImmediateRounds(RoundsFacts f, RoundsLatches previous, RoundsPolicy p)

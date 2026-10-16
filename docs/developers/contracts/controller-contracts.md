@@ -566,7 +566,7 @@ hold, when its def is one a native spawner forbids on purpose
 (`CompProperties_Spawner.spawnForbidden`, e.g. insect jelly) or it lies within
 `ThreatReachCells` of a danger seed (live discovered hostile pawn or any hostile building,
 passive hives included; `policy.DangerSeeds`). The same seeds feed the hauler gate:
-while a hostile is live and for an hour after, `MaintainShelter` restricts haulers to the
+while a hostile is live and for an hour after, the `shelter/safe-area` Need restricts haulers to the
 `NoDanger` allowed area (home minus killbox and cells near accumulated seeds).
 
 Unsafe items are forbidden before safe ones are allowed, each in one plan carrying every pending target. Forbid

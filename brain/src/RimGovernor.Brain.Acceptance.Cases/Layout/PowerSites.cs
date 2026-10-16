@@ -47,8 +47,8 @@ internal static class LayoutPowerSites
                 Watch = new WatchConfig
                 {
                     Watch = TimeSpan.FromMinutes(1),
-                    Extra = [PolicyFunctions.MaintainHousing.Value],
-                    Until = sample => LayoutFixture.Planned(sample[PolicyFunctions.MaintainHousing.Value].AsMap(), IsShellMethod, complete: false),
+                    Extra = [ShelterFamily.Starter.Value],
+                    Until = sample => LayoutFixture.Planned(sample[ShelterFamily.Starter.Value].AsMap(), IsShellMethod, complete: false),
                 },
                 Audit = (h, rep, ct) => AuditAsync(s, h, rep, ct),
             },

@@ -32,24 +32,18 @@ public sealed partial class BrainComposition
         RoundsDefensePlanner? cfgDefense = null;
         RoundsDefenseLayoutPlanner? cfgDefenseLayout = null;
         RoundsDialogPlanner? cfgDialog = null;
-        RoundsBuildingPlanner? cfgExpansion = null;
         RoundsFieldPlanner? cfgFields = null;
         RoundsBuildingPlanner? roomsFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
         RoundsBuildingPlanner? roomsLighting = null;
-        MaintainShelterPlanner? cfgMaintainShelter = null;
         RoundsMoodReliefPlanner? cfgMoodRelief = null;
-        RoundsBuildingPlanner? cfgPower = null;
         RoundsRecoveryPlanner? cfgRecovery = null;
         RoundsResourcePlanner? cfgResource = null;
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
         Rounder? cfgRounds = null;
         RoundsBuildingPlanner? cfgRoutes = null;
-        RoundsBuildingPlanner? cfgSleeping = null;
-        RoundsSleepingUpkeepPlanner? cfgSleepingUpkeep = null;
         RoundsStockpilePlanner? cfgStockpiles = null;
         FactStore? cfgStore = null;
-        RoundsBuildingPlanner? cfgTemperature = null;
         RoundsTradePlanner? cfgTrade = null;
         RoundsWorkPlanner? cfgWork = null;
         RoundsBuildingPlanner? cfgWorkshop = null;
@@ -279,10 +273,17 @@ public sealed partial class BrainComposition
             // The colony admin family (#3264, #3304): creep joiners, supply safety, burial and the work ledger.
             families.Add(new AdminRounds(reviewer, admin, supplies ? client : null).Runner());
         }
-        if (sc.Sheltering)
+        if (sleeping || shelter || expansion || temperature || sc.Sheltering)
         {
-            // MaintainShelter plans from the review's rooms; no read of its own.
-            cfgMaintainShelter = MaintainShelterPlanner.NewMaintainShelterPlanner(reviewer);
+            // The housing, temperature and safe-area toggles compose the shelter family's Needs (#3257): the starter
+            // shelter with the shelter or sleeping toggle, then sleeping, the spare room, temperature and the safe area.
+            families.Add(new ShelterRounds(reviewer, sleeping || shelter || expansion || temperature ? client : null,
+                sleeping || shelter, sleeping, expansion, temperature, sc.Sheltering).Runner());
+        }
+        if (power)
+        {
+            // The power toggle composes the power family's basic Need (#3257).
+            families.Add(new PowerRounds(reviewer, client).Runner());
         }
         var layout = new LayoutNeeds { HomeCoverage = homeCoverage, Firebreak = sc.Firebreak, StoneShell = stoneShell, ClimateEnvelope = envelope };
         LayoutRounds? layoutRounds = null;
@@ -315,22 +316,6 @@ public sealed partial class BrainComposition
         }
         if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || lighting || flooring || routes)
         {
-            if (sleeping || shelter)
-            {
-                cfgSleeping = RoundsBuildingPlanner.NewRoundsShelterPlanner(reviewer, client);
-            }
-            if (sleeping)
-            {
-                cfgSleepingUpkeep = RoundsSleepingUpkeepPlanner.Create(reviewer, client);
-            }
-            if (temperature)
-            {
-                cfgTemperature = RoundsBuildingPlanner.NewRoundsTemperaturePlanner(reviewer, client);
-            }
-            if (power)
-            {
-                cfgPower = RoundsBuildingPlanner.NewRoundsPowerPlanner(reviewer, client);
-            }
             if (lighting)
             {
                 roomsLighting = RoundsBuildingPlanner.NewRoundsLightingPlanner(reviewer, client);
@@ -342,10 +327,6 @@ public sealed partial class BrainComposition
             if (routes)
             {
                 cfgRoutes = RoundsBuildingPlanner.NewRoundsRoutesPlanner(reviewer, client);
-            }
-            if (expansion)
-            {
-                cfgExpansion = RoundsBuildingPlanner.NewRoundsExpansionPlanner(reviewer, client);
             }
             if (comfort)
             {
@@ -391,18 +372,12 @@ public sealed partial class BrainComposition
             Defense = cfgDefense,
             DefenseLayout = cfgDefenseLayout,
             Dialog = cfgDialog,
-            Expansion = cfgExpansion,
-            MaintainShelter = cfgMaintainShelter,
             MoodRelief = cfgMoodRelief,
-            Power = cfgPower,
             Recovery = cfgRecovery,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
-            Sleeping = cfgSleeping,
-            SleepingUpkeep = cfgSleepingUpkeep,
             Stockpiles = cfgStockpiles,
             Store = cfgStore,
-            Temperature = cfgTemperature,
             Trade = cfgTrade,
             Work = cfgWork,
         };
@@ -472,13 +447,9 @@ public sealed partial class BrainComposition
         }
 
         Add(sc.Work, EnsureWorkAssignments);
-        Add(sc.Temperature, EnsureTemperatureSafety);
-        Add(sc.Power, EnsureBasicPower);
         Add(sc.Art, MaintainTrade);
         Add(sc.Routes, MaintainRoutes);
-        Add(sc.Sleeping || sc.Expansion, MaintainHousing);
         Add(sc.Recovery, RecoverDisasterServices);
-        Add(sc.Sheltering, MaintainShelter);
         Add(sc.Stockpiles, MaintainStockpiles);
         if (sc.DefensiveLayout)
         {
@@ -543,6 +514,31 @@ public sealed partial class BrainComposition
         if (sc.Psylink)
         {
             needs.Add(RoyaltyFamily.Psylink);
+        }
+        // The shelter family's Needs (#3257): the room census, sleeping review, temperature and safe-area reads.
+        if (sc.Sleeping || sc.Shelter)
+        {
+            needs.Add(ShelterFamily.Starter);
+        }
+        if (sc.Sleeping)
+        {
+            needs.Add(ShelterFamily.Sleeping);
+        }
+        if (sc.Expansion)
+        {
+            needs.Add(ShelterFamily.Expansion);
+        }
+        if (sc.Temperature)
+        {
+            needs.Add(ShelterFamily.Temperature);
+        }
+        if (sc.Sheltering)
+        {
+            needs.Add(ShelterFamily.SafeArea);
+        }
+        if (sc.Power)
+        {
+            needs.Add(PowerFamily.Basic);
         }
         if (sc.Envelope)
         {

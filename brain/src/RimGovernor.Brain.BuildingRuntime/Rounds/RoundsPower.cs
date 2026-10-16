@@ -14,7 +14,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsPowerPlanner: native is not a rounds source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.EnsureBasicPower };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PowerFamily.Basic.FilingKey, Need = PowerFamily.Basic };
     }
 
     /// <summary>The planner resolved to the power method the policy picked, or the verdict that says why none applies.</summary>

@@ -15,7 +15,7 @@ public sealed class ServiceInvestmentTests
         var facts = ForecastThermalPortfolioTests.Review(-10);
         var selection = ForecastThermalPortfolioTests.Select(facts);
         var proposal = Assert.Single(selection.ServiceInvestments);
-        Assert.Equal(EnsureTemperatureSafety, proposal.Target.Owner);
+        Assert.Equal(ShelterFamily.Temperature.FilingKey, proposal.Target.Owner);
         Assert.Equal("owner_observed_recovery", proposal.Target.Predicate);
         Assert.Equal(1000, proposal.HorizonTicks);
         Assert.Contains("pawn", proposal.Beneficiaries);

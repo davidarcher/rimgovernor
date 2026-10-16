@@ -8,7 +8,7 @@ using ReviewRounds = RimGovernor.Brain.Store.Rounds;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// The sheltering cases (Go <c>shelter/sheltering.go</c>) prove MaintainShelter's Safe area and the sheltering planner end to
+/// The sheltering cases (Go <c>shelter/sheltering.go</c>) prove the shelter family's safe-area Need and the sheltering planner end to
 /// end on the lab: the ShelterFixture hut at the centre is the only roofed room, so the Safe area covers it. The assertion is
 /// the native allowed-area writes landing on colonists and a tame animal, the Safe area the game holds and the pawns
 /// physically sheltering from a real condition or a real manhunter pack. The trigger ends between two service runs: the planner keeps no history, so the restarted service restores from the
@@ -219,7 +219,7 @@ internal static class ShelterSheltering
     /// <summary>
     /// Polls the journal until every pawn's latest completed allowed-area action shelters it (a non-empty area) or, restoring,
     /// clears it. The plans are the sheltering planner's RecoverDisasterServices methods; restoring, a completed delete of the
-    /// Safe area after the pawn's last move (MaintainShelter resets its areas in a new service) also unrestricts it. The native
+    /// Safe area after the pawn's last move (the safe-area Need resets its areas in a new service) also unrestricts it. The native
     /// readback after the service stops is the assertion.
     /// </summary>
     private static async Task WaitAreasAsync(Journal st, IReadOnlyList<string> pawns, bool shelter, Wait w, Report report, string label, CancellationToken cancellationToken)
@@ -284,10 +284,9 @@ internal static class ShelterSheltering
 
                     long reset = 0;
                     var resetKnown = false;
-                    var (goal, _) = await st.WorkableAsync(review, PolicyFunctions.MaintainShelter, ct).ConfigureAwait(false);
-                    if (goal is not null)
+                    if (review.Revision != 0)
                     {
-                        foreach (var m in goal.History)
+                        foreach (var m in st.OwnerMethodHistory(st.LoadNeed(ShelterFamily.SafeArea, review.Snapshot, ct), ct))
                         {
                             var plan = await st.LoadPlanAsync(m.Plan, ct).ConfigureAwait(false);
                             for (var i = 0; i < plan.Spec.Actions.Count; i++)

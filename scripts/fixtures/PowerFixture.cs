@@ -14,23 +14,23 @@ namespace HomeBridge.BridgeTools
     //   fuel       -- one wood-fired generator with its fuel drained, conduits
     //                 to one electric consumer, and unforbidden wood nearby.
     //                 The consumer is unpowered purely for lack of fuel;
-    //                 refuelling is ordinary colonist work, so EnsureBasicPower
+    //                 refuelling is ordinary colonist work, so power/basic
     //                 must hold (waiting_for_refuel) rather than compile a
     //                 second generator.
     //   reserve    -- one fuelled generator, one battery holding a few
     //                 watt-days, and consumers drawing more than the generator
     //                 supplies, so every consumer is powered right now but the
-    //                 network's reserve runway is under a day: EnsureBasicPower
+    //                 network's reserve runway is under a day: power/basic
     //                 must admit one more generator before the battery empties.
     //   battery    -- a solar-only network: one solar generator, conduits and
     //                 one lamp inside a small roofed room, no bank at all.
-    //                 Nothing carries the night, so EnsureBasicPower must add
+    //                 Nothing carries the night, so power/basic must add
     //                 storage (one Battery, indoors) and the lamp must stay
     //                 powered through the night on it.
     //   wind       -- no generator, no bank: one lamp on a conduit line in a
     //                 wide open field (nothing wind-blocking, no roof), with
     //                 Electricity and Batteries researched and no wood in
-    //                 stock. EnsureBasicPower must add a WindTurbine whose
+    //                 stock. power/basic must add a WindTurbine whose
     //                 catch zone is clear, then connect it.
     //   mountain   -- the wind scenario inside a thin-roofed granite mountain
     //: the lab is solid rock under RoofRockThin except
@@ -38,11 +38,11 @@ namespace HomeBridge.BridgeTools
     //                 conduit line, with Stonecutting, Electricity and
     //                 Batteries researched and no wood in stock. The layout's
     //                 turbine pair lands on rock beside the pocket, so
-    //                 EnsureBasicPower must dig and unroof the turbine's wind
+    //                 power/basic must dig and unroof the turbine's wind
     //                 path, raise a WindTurbine on it, then connect it.
     //   geothermal -- no generator, no bank: one lamp on a conduit line and a
     //                 free steam geyser a dozen cells away, with
-    //                 GeothermalPower researched. EnsureBasicPower must build
+    //                 GeothermalPower researched. power/basic must build
     //                 the GeothermalGenerator on the geyser ahead of any other
     //                 generator, then connect it.
     //

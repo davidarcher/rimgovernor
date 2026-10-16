@@ -542,6 +542,30 @@ intent once its Method is open, the read clears it once the reform is observed o
 the ideoligion, count or expected design moves on, and an older save's Standard
 record is read once at load when the blob is absent.
 
+**Shelter and power (#3257).** MaintainHousing, MaintainShelter and
+EnsureTemperatureSafety are the `shelter` family (`Shelter.cs`, runtime
+`ShelterRounds`), one entry (Critical while the sleeping toggle composes it) whose
+Needs are derived only for their composed toggles. `shelter/starter` (the starter
+shelter and its bunk rungs, `RoundsShelterBunks`) is met while a sleeping and an
+indoor place stand for everyone; `shelter/sleeping` (bed ownership, bedrooms and
+upgrades) waits on it, and `shelter/expansion` (one spare indoor place) waits on
+both: those preconditions replace the Housing phase latch, and the cold, hot and
+sleeping latches are deleted. `shelter/temperature` is a plain threshold at the
+season's exit bars, unmet too while a heat refuel switch or a venting door is
+owed. The three housing planners, the shelter rungs and temperature run their
+existing step bodies under the Need owner, admitted by claims; `ShelterSite` takes
+any work owner. `shelter/safe-area` (the Safe-area edit, SeriousHarm) keeps its
+own Need and runs in the immediate pass reading only the review's planned area
+edits (`SafeAreaMemory.Owed`), committing them as the `safe-area` Method; it left
+`ImmediateConcern`. The starter shelter still holds the Construction labor while
+it is owed (`ConstructionLaborHeld`, a per-review value, no latch). EnsureBasicPower
+is the `power` family (`PowerFamily.cs`, runtime `PowerRounds`): `power/basic` is
+met while the grid covers its draw; a solar flare holds it (`power_outage`) without
+a Method. Essential-service targets and forecast owners re-key to the Need filing
+keys. Known gaps: a Need-owned shell records no material `ShortfallDependency`,
+`ZoneClaimsIn` and `StockpilePatchesIn` link only Standard plans, and roof actions
+claim no cells.
+
 **Medical (#3258).** `CriticalMedical`, `MaintainMedicalReserves` and
 `MaintainSurgery` are the `medical` family (`Medical.cs`, runtime `MedicalRounds`),
 one Critical catalog entry that replaces the `tend`, `rescue`, `hospital`,
@@ -566,9 +590,9 @@ recovery or a peg-leg step stands; its surgeries claim
 `surgery/<patient>/<recipe>/<part>` and the part bill is declared while it is unmet.
 The forecast reads the critical census, surgery and reserves rows as Needs, and the
 pain and sickness thoughts are owned by `medical/care`. `CriticalMedical` left
-`ImmediateConcern`; ActiveCombat, RestoreWorkers, MaintainShelter and
-RecoverDisasterServices remain. The `MedicalReserve` latch stays: the silver gap and
-the trade routine still read it.
+`ImmediateConcern`; ActiveCombat and RecoverDisasterServices remain (RestoreWorkers
+and the Safe-area edit, now `shelter/safe-area` #3257, left it too). The
+`MedicalReserve` latch stays: the silver gap and the trade routine still read it.
 
 **Per-family migration checklist** (as followed for food-stores/storage):
 
@@ -600,9 +624,10 @@ the trade routine still read it.
    conflict; then update the contract docs that named the Concern.
 
 **Family map.** The grouping of the first consolidation pass sets the family
-boundaries: cooking and baby feeding join Food, MaintainShelter (the
-Safe-area edit) stays its own Need in Shelter, and the population Concern split
-three ways (prisoners, joiners, anomaly).
+boundaries: cooking and baby feeding join Food, the Safe-area edit stays its own
+Need in Shelter (`shelter/safe-area`, SeriousHarm, so the family also runs in the
+immediate pass), and the population Concern split three ways (prisoners, joiners,
+anomaly).
 
 | Family | Today's Concerns |
 | --- | --- |
@@ -611,8 +636,8 @@ three ways (prisoners, joiners, anomaly).
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | `rooms`: Needs `lighting`, `flooring`, `art`, `comfort`, `hosting`, `party-spot`, `gatherings` (#3255; its five Concerns and the comfort phase latch deleted) |
 | Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted); EnsureDefensiveLayout |
-| Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |
-| Power | EnsureBasicPower |
+| Shelter | `shelter`: Needs `starter`, `sleeping`, `expansion`, `temperature`, `safe-area` (#3257; MaintainHousing, MaintainShelter, EnsureTemperatureSafety deleted; the housing phase latch is the `sleeping` and `expansion` preconditions) |
+| Power | `power`: Need `basic` (#3257; EnsureBasicPower deleted) |
 | Medical | `medical`: Needs `critical/<pawn>`, `care`, `reserves`, `surgery` (#3258; CriticalMedical, MaintainMedicalReserves, MaintainSurgery deleted) |
 | Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259), `restore-workers` (#3311; RestoreWorkers and the undraft planner deleted); ActiveCombat |
 | Animals | `animals`: Needs `herd`, `containment`, `ward`, `sterilize` (#3260) |

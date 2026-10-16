@@ -263,7 +263,7 @@ of the plan standing shelled with a standing animal bed the sleeping
 census reads medical; unknown while a standing bed's census row or flag is
 unread), read by the husbandry planner from the room census; `Area` is the id
 of the bot-owned `Hospital` allowed area (`HospitalAreaKey`, the hospital interior, planned by
-MaintainShelter beside the Safe area, which keeps the hospital in; `""`
+the `shelter/safe-area` Need beside the Safe area, which keeps the hospital in; `""`
 until created). An unknown or unready ward selects nothing. The
 steps are derived each cycle from the animals' allowed area and sterilize
 facts, one write per cycle and one animal in the room at a time: `allowed_area`

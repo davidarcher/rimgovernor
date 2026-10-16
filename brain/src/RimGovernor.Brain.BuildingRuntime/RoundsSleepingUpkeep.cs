@@ -1,12 +1,13 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// Answers MaintainHousing's bedroom phase: it transfers ownership of a vacant suitable bed to a colonist
+/// Answers the shelter family's sleeping Need (shelter/sleeping, #3257): it transfers ownership of a vacant suitable bed to a colonist
 /// without one (a one-shot AssignIntent native checks for roof, access, allowed area and the pawn's
 /// comfortable band), and when no bed can be assigned it stages one through the same building ladder the
 /// hospital walks (furnish a Bedroom-hosting room warm enough for the waiting colonists, else a starter shell
-/// first), assigning it on a later review. Neither the assignment nor the construction receipt recovers the
-/// goal; ReviewSleeping does, on the assigned pawn's observed use of that bed.
+/// first), assigning it on a later review. Neither the assignment nor the construction receipt meets the
+/// Need; ReviewSleeping does, on the assigned pawn's observed use of that bed. Its Methods are admitted by their
+/// claims, each MethodId once per target.
 /// </summary>
 public sealed partial class RoundsSleepingUpkeepPlanner
 {
@@ -31,7 +32,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("NewRoundsSleepingUpkeepPlanner: !ok");
         }
-        var building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = Pol.Phase.HousingSleeping };
+        var building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Sleeping.FilingKey, Need = ShelterFamily.Sleeping, Phase = Pol.Phase.HousingSleeping };
         return new RoundsSleepingUpkeepPlanner(reviewer, native, building);
     }
 
@@ -52,23 +53,15 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(review, MaintainHousing, call);
-        if (!workable || goal is null || review.Latches.Phase(MaintainHousing) != Pol.Phase.HousingSleeping)
+        var (goal, workable) = Building.WorkOwner(review, call);
+        if (!workable || goal is null)
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
-        }
-        foreach (var m in goal.Methods)
-        {
-            var plan = p.Journal.LoadPlan(m.Plan, call);
-            if (StorePackage.PlanOpen(plan))
-            {
-                return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
-            }
         }
         return await DecideAsync(arbiter, state, review, goal, call, epoch).ConfigureAwait(false);
     }
 
-    private async Task<RoundsBuildingResult> DecideAsync(StepArbiter arbiter, ControlState state, Sto.Rounds review, Sto.StandardState goal, CancellationToken call, CancellationToken epoch)
+    private async Task<RoundsBuildingResult> DecideAsync(StepArbiter arbiter, ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var started = Reviewer.Clock.Now();
@@ -246,27 +239,22 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("decide: latest.Revision != review.Revision || !latest.Enabled");
         }
-        p.Journal.CommitOwnerMethod(goal, method, "", spec, call);
-        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
+        var commit = p.Journal.CommitOwnerWork(goal, method, "", spec, call);
+        return new RoundsBuildingResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) };
     }
 
     /// <summary>
     /// The method ID for the next assignment attempt of this epoch under base, or "" when the pair was already
     /// applied, or the shared refusal budget bars another attempt (the verdict then says why).
     /// </summary>
-    internal (MethodId Method, Verdict Verdict) AssignMethod(Sto.StandardState goal, string baseName, GenerationSnapshot world, CancellationToken call)
+    internal (MethodId Method, Verdict Verdict) AssignMethod(Sto.IWorkOwner goal, string baseName, GenerationSnapshot world, CancellationToken call)
     {
         var p = Reviewer.Player;
         var refused = new List<PlanId>();
         for (var attempt = 0; ; attempt++)
         {
             var method = new MethodId(attempt > 0 ? string.Create(CultureInfo.InvariantCulture, $"{baseName}-retry{attempt}") : baseName);
-            Method existing;
-            try
-            {
-                existing = p.Journal.LoadOwnerMethod(goal, method, call);
-            }
-            catch (Sto.NotFoundException)
+            if (p.Journal.OwnerMethodPlan(goal, method, call) is not { } existing)
             {
                 var (verdict, ok) = AdmitSubject(p.Journal, baseName, refused, world, call);
                 if (!ok)
@@ -275,12 +263,12 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                 }
                 return (method, new Verdict());
             }
-            var plan = p.Journal.LoadPlan(existing.Plan, call);
+            var plan = p.Journal.LoadPlan(existing, call);
             if (!SleepingAssignUnadmitted(plan.Progress))
             {
                 return (new MethodId(""), new Verdict());
             }
-            refused.Add(existing.Plan);
+            refused.Add(existing);
         }
     }
 
@@ -302,17 +290,13 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>Commits one patch setting bed for slaves, once per bed per Episode; the next review assigns the waiting slave to it.</summary>
-    internal RoundsBuildingResult MarkSlaveBed(ControlState state, Sto.StandardState goal, string bed, CancellationToken call, CancellationToken epoch)
+    internal RoundsBuildingResult MarkSlaveBed(ControlState state, Sto.IWorkOwner goal, string bed, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = new MethodId("sleeping-slave-bed-" + bed);
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "slave_bed_marking") };
-        }
-        catch (Sto.NotFoundException)
-        {
         }
         var patch = BedUse.NewBedSlaves(bed);
         var id = PlanIds.MintPlanId();
@@ -323,8 +307,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("markSlaveBed: p.session.State() != state");
         }
-        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
-        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
+        var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
+        return new RoundsBuildingResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) };
     }
 }
 

@@ -68,9 +68,14 @@ public static partial class PolicyFunctions
     /// </summary>
     public static ConstructionTier PlannerTier(ConcernId concern, Phase phase)
     {
-        if (concern == MaintainHousing)
+        // The shelter family's starter shelter and spare room are Survive; bed ownership and bedrooms Sustain.
+        if (concern == ShelterFamily.Starter.FilingKey || concern == ShelterFamily.Expansion.FilingKey)
         {
-            return phase == Phase.HousingSleeping ? ConstructionTier.Sustain : ConstructionTier.Survive;
+            return ConstructionTier.Survive;
+        }
+        if (concern == ShelterFamily.Sleeping.FilingKey)
+        {
+            return ConstructionTier.Sustain;
         }
         if (concern == CookingNeed.FilingKey || concern == EconomyFamily.Research.FilingKey)
         {

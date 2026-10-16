@@ -15,7 +15,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     internal async Task<(RoundsBuildingResult Result, bool Due)> PackShellBedAsync(
         PackedStock stock,
         ControlState state,
-        Store.StandardState goal,
+        Sto.IWorkOwner goal,
         Observation.RoundsReading reading,
         string bed, CancellationToken call, CancellationToken epoch)
     {
@@ -49,21 +49,12 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             var digest = SHA256.HashData(Encoding.UTF8.GetBytes(b.Id));
             var method = new MethodId("bedroom-shell-pack-" + Convert.ToHexStringLower(digest.AsSpan(0, 8)));
-            Method? existing;
-            try
-            {
-                existing = p.Journal.LoadOwnerMethod(goal, method, call);
-            }
-            catch (Store.NotFoundException)
-            {
-                existing = null;
-            }
-            if (existing is not null)
+            if (p.Journal.OwnerMethodPlan(goal, method, call) is { } existing)
             {
                 // Packing is under way: wait for it rather than build a second bed.
                 try
                 {
-                    var prior = p.Journal.LoadPlan(existing.Plan, call);
+                    var prior = p.Journal.LoadPlan(existing, call);
                     if (Standard.WorkOpen(prior.Progress))
                     {
                         return (new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "shell_bed_pack") }, true);

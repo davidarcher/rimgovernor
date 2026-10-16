@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
@@ -12,13 +13,13 @@ internal static class Ledger
     internal const string FreeThought = "MyOrganHarvested";
     private const string OwnedThought = "SleptOutside";
     private const double OwnedLoss = 4;
-    private const string Owner = "MaintainHousing";
+    private static readonly string Owner = ShelterFamily.Sleeping.Value;
     private const double FreeLoss = 6;
 
     internal static AcceptanceCase Case() => new()
     {
         Name = "mood/ledger",
-        Scope = "The mood ledger routes thoughts by owner (#2549, #2538): a colonist carrying SleptOutside (owner MaintainHousing, -4) "
+        Scope = "The mood ledger routes thoughts by owner (#2549, #2538): a colonist carrying SleptOutside (owner shelter/sleeping, -4) "
             + "and MyOrganHarvested (no owner, -6) shows both in the moodLedger of GET /api/player/colony, the first with its owner and "
             + "the second alone in the unowned bucket, each with its pawn count and mood lost. Nightly tier. The native side proves only "
             + "that both memories are present on the pawn; the claim is the controller's own output.",

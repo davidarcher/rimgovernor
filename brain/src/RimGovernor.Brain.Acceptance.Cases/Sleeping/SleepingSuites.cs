@@ -178,7 +178,7 @@ internal static partial class SleepingSuites
                     Watch = new WatchConfig
                     {
                         Watch = TimeSpan.FromMinutes(16),
-                        Extra = [PolicyFunctions.MaintainHousing.Value],
+                        Extra = [ShelterFamily.Sleeping.Value],
                         Until = _ =>
                         {
                             live ??= TryOpen(path, cancellationToken);
@@ -219,7 +219,7 @@ internal static partial class SleepingSuites
                     Watch = new WatchConfig
                     {
                         Watch = TimeSpan.FromMinutes(8),
-                        Extra = [PolicyFunctions.MaintainHousing.Value],
+                        Extra = [ShelterFamily.Sleeping.Value],
                         Until = _ =>
                         {
                             live ??= TryOpen(path, cancellationToken);

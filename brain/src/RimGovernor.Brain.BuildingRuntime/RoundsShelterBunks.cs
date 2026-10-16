@@ -14,8 +14,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 //
 // The room is one continuous reconcile (StepShelterRoom): the first review admits the spots and the ring
 // together, and every later review goes on up the ladder (the clearing, then the beds) while the ring's wave
-// is open, the walls and the bunks standing on disjoint cells (the store's ShelterOpenWorkExempt admits them
-// side by side). A bed rung refused whole (no wood at all) never holds the ring; the sleeping family
+// is open, the walls and the bunks standing on disjoint cells (claim admission takes them side by side, #3257). A bed rung refused whole (no wood at all) never holds the ring; the sleeping family
 // furnishes the room later.
 
 /// <summary>One bunk slot: the anchor and rotation a building order names (the footprint is BunkRect).</summary>
@@ -29,7 +28,7 @@ internal sealed class ShelterSite
 {
     public ControlState State { get; init; }
     public Sto.Rounds Review { get; init; } = new();
-    public required Sto.StandardState Owner { get; init; }
+    public required Sto.IWorkOwner Owner { get; init; }
     public Observation.ColonyProjection Facts { get; init; } = new();
     public Observation.ColonyReading Read { get; init; } = new();
     public Action Check { get; init; } = () => { };
@@ -56,7 +55,7 @@ internal static partial class BuildingRuntimePackage
     internal static readonly MethodId ShelterClearBedsMethodId = new("shelter-clear-beds");
     internal const string ShelterBedDefinition = "Bed";
 
-    /// <summary>Whether m is a bunk rung or clearing step under the initial shelter goal (the store's ShelterBunkMethods names the same set).</summary>
+    /// <summary>Whether m is a bunk rung or clearing step under the starter shelter Need.</summary>
     internal static bool IsShelterBunkMethod(MethodId m) =>
         m == ShelterSpotsMethodId || m == ShelterBedrollsMethodId || m == ShelterBedsMethodId || m == ShelterClearBedrollsMethodId || m == ShelterClearBedsMethodId;
 
@@ -161,23 +160,18 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class RoundsBuildingPlanner
 {
-    /// <summary>Reads the bunk methods bound under the goal's epoch.</summary>
-    internal ShelterBunkRecord ShelterBunks(Sto.StandardState goal, Fact<Pol.CurrentConstruction> census, CancellationToken call)
+    /// <summary>Reads the bunk methods the owner bound.</summary>
+    internal ShelterBunkRecord ShelterBunks(Sto.IWorkOwner goal, Fact<Pol.CurrentConstruction> census, CancellationToken call)
     {
         var journal = Reviewer.Player.Journal;
         var record = new ShelterBunkRecord();
         foreach (var method in new[] { ShelterSpotsMethodId, ShelterBedrollsMethodId, ShelterBedsMethodId, ShelterClearBedrollsMethodId, ShelterClearBedsMethodId })
         {
-            Method m;
-            try
-            {
-                m = journal.LoadOwnerMethod(goal, method, call);
-            }
-            catch (Sto.NotFoundException)
+            if (journal.OwnerMethodPlan(goal, method, call) is not { } bound)
             {
                 continue;
             }
-            var plan = journal.LoadPlan(m.Plan, call);
+            var plan = journal.LoadPlan(bound, call);
             var bunks = new List<ShelterBunk>();
             foreach (var action in plan.Spec.Actions)
             {
@@ -254,9 +248,9 @@ public sealed partial class RoundsBuildingPlanner
             var (result, handled) = await StepShelterBunksAsync(s, room, call, epoch).ConfigureAwait(false);
             if (handled && result.Verdict == BuildingReasonAdmitted)
             {
-                // The admission moved the goal's revision: the ring is admitted under the goal as it now stands.
+                // The admission moved the owner's revision: the ring is admitted under the owner as it now stands.
                 bunks = result;
-                var (renewed, workable) = Reviewer.Player.Journal.Workable(s.Review, Concern, call);
+                var (renewed, workable) = WorkOwner(s.Review, call);
                 if (!workable || renewed is null)
                 {
                     return result;
@@ -281,14 +275,14 @@ public sealed partial class RoundsBuildingPlanner
         return reconciled;
     }
 
-    /// <summary>The plans of the ring's build waves bound under the goal's epoch, retired ones included: the record of a ring begun.</summary>
-    internal List<Sto.PlanState> ShelterRingMethods(Sto.StandardState goal, string name, CancellationToken call)
+    /// <summary>The plans of the ring's build waves the owner bound, retired ones included: the record of a ring begun.</summary>
+    internal List<Sto.PlanState> ShelterRingMethods(Sto.IWorkOwner goal, string name, CancellationToken call)
     {
         var ring = new List<Sto.PlanState>();
         var seen = new HashSet<PlanId>();
-        foreach (var m in goal.Methods.Concat(goal.History))
+        foreach (var m in Reviewer.Player.Journal.OwnerMethodHistory(goal, call))
         {
-            if (!m.MethodId.Value.StartsWith(name + "-build-", StringComparison.Ordinal) || !seen.Add(m.Plan))
+            if (!m.Method.Value.StartsWith(name + "-build-", StringComparison.Ordinal) || !seen.Add(m.Plan))
             {
                 continue;
             }

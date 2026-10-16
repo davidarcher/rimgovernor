@@ -120,11 +120,6 @@ public sealed partial class ClockScheduler
         (object? Planner, Rounder? Reviewer, ConcernId? Concern, ConcernId? Expected)[] planners =
         [
             (c.Work, c.Work?.Reviewer, null, null),
-            (c.Sleeping, c.Sleeping?.Reviewer, c.Sleeping?.Concern, MaintainHousing),
-            (c.SleepingUpkeep, c.SleepingUpkeep?.Reviewer, null, null),
-            (c.Expansion, c.Expansion?.Reviewer, c.Expansion?.Concern, MaintainHousing),
-            (c.Power, c.Power?.Reviewer, c.Power?.Concern, EnsureBasicPower),
-            (c.Temperature, c.Temperature?.Reviewer, c.Temperature?.Concern, EnsureTemperatureSafety),
             (c.Routes, c.Routes?.Reviewer, c.Routes?.Concern, MaintainRoutes),
         ];
         foreach (var (planner, reviewer, concern, expected) in planners)
@@ -137,13 +132,6 @@ public sealed partial class ClockScheduler
             {
                 throw new ControlException($"NewClockScheduler: {planner.GetType().Name} does not review through the scheduler's rounder or its concern");
             }
-        }
-        // The sleeping and expansion building planners are also checked for their phase; every other
-        // planner (defense, tend, ...) validates its own reviewer when it is built.
-        if (c.Sleeping is { } s && s.Phase != Policy.Phase.HousingShelter
-            || c.Expansion is { } e && e.Phase != Policy.Phase.HousingExpansion)
-        {
-            throw new ControlException("NewClockScheduler: a building planner is built for another phase");
         }
     }
 

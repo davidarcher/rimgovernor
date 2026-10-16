@@ -13,15 +13,16 @@ public static partial class PolicyFunctions
         or ActionKind.MoveBuilding or ActionKind.UninstallBuilding or ActionKind.CoverClearance;
 
     /// <summary>
-    /// Reports whether a proposal waits for the initial shelter's builders. While the housing latch is at the
-    /// shelter phase the shelter owns the Construction labor: a plan holding an action that draws on it is refused
-    /// unless it serves the housing goal itself. A plan
+    /// Reports whether a proposal waits for the initial shelter's builders. While the review finds the starter
+    /// shelter owed (<see cref="RoundsLatches.Housing"/>) the shelter owns the Construction labor: a plan holding an
+    /// action that draws on it is refused unless it serves a shelter housing Need itself (<paramref name="need"/> is
+    /// the owner's Concern, or a Need owner's filing key). A plan
     /// of other kinds (gathering, growing, zoning, bills, settings) never waits, so the supply that the shelter's
     /// own demand asks for is not held behind it.
     /// </summary>
     public static bool ConstructionLaborHeld(RoundsLatches latches, ConcernId need, IEnumerable<ActionKind> kinds)
     {
-        if (latches.Housing != Phase.HousingShelter || need == MaintainHousing)
+        if (latches.Housing != Phase.HousingShelter || ShelterFamily.Housing(need))
         {
             return false;
         }

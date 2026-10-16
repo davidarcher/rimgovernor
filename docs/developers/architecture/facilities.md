@@ -35,7 +35,7 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    Finishing the project clears the record on the next workshop step.
 3. **Power**: a bench that needs power is staged only once a generator
    definition is buildable; standing unpowered it is an ordinary consumer for
-   `EnsureBasicPower`, which raises its own deficit and connects it.
+   the `power/basic` Need, which raises its own deficit and connects it.
 4. **Bench**: the first candidate bench the planning census reports available
    and buildable by a builder the colony has (unpowered before powered) is
    furnished into a hosting room, or the starter shell is staged first.
@@ -99,7 +99,7 @@ and the throne's indoor rule are code, not data, and are not stated.
 `policy.BuildStationGraph` (`LayoutGraph.cs`) turns the catalog and the
 existing demand models into the planner's input: nodes are station classes with
 a count, edges are affinity. Counts: beds are the colonists plus
-`HousingSparePlaces` (the spare place `MaintainHousing`'s expansion phase
+`HousingSparePlaces` (the spare place the `shelter/expansion` Need
 keeps), with medical, prison, baby and animal beds for the injured, prisoners,
 babies and animals, each divided by the bed's sleeping slots; work stations are
 the day's work (the colonists' nutrition met by the food recipe with the least
@@ -485,7 +485,7 @@ the rest of the plan carries:
 
 ## Electrical safety
 
-`EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary
+The `power/basic` Need uses `HiddenConduit` for new connections and replaces ordinary
 conduits in bounded eight-cell methods. Turret connections use the same safe
 definition. Native research, placement, stock and construction checks still apply;
 unknown blockers, forbidden conduits and unfinished work cannot be replaced.
@@ -779,7 +779,7 @@ in controller-contracts; the largest room any colonist is owed wins).
 columns, instrument, glowing and forbidden buildings); every requirement
 below is met from that one need, so a stricter title (the room follows the
 title the colony works toward) tightens all of them together. The sleeping
-planner raises it under MaintainHousing, like the tomb:
+planner raises it under the `shelter/sleeping` Need, like the tomb:
 
 1. The layout review grows a `throne` core room of at least
    `MinArea` cells (the throne node of `policy.ReplanLayout`, sized at what stands or
@@ -812,7 +812,7 @@ planner raises it under MaintainHousing, like the tomb:
    one; one owned by another colonist is left alone). The runtime sends the
    generic `assign` action (`AssignIntent`) with the holder's current throne
    as the expected previous assignment, once per holder and throne per concern
-   epoch. The step holds MaintainHousing open until the read lists the holder
+   epoch. The step holds `shelter/sleeping` unmet until the read lists the holder
    as the throne's owner.
 5. The template plans every counted piece of the title in its own slot
    (the braziers of `AnyOfCounts`, the columns and drapes of `Counts`, the
@@ -1218,7 +1218,7 @@ stored component count above the pre-service baseline.
 links open when colonist traffic uses them. Known room roles, temperatures,
 ownership, fire and perishable-content facts are required. Custody, containment,
 thermal-control boundaries and exposed perimeter links are excluded. Changed
-conditions clear the latch. `EnsureTemperatureSafety` may open a safe internal
+conditions clear the latch. The `shelter/temperature` Need may open a safe internal
 link from an occupied hot room toward a cooler room, using the existing hot
 entry/recovery band. An available occupant receives a plan-owned draft and
 ordinary move across the door; without one, existing cooling methods remain.

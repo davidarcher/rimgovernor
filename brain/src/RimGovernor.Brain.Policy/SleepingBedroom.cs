@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // Individual bedrooms. The sleeping planner walks each colonist, a bedless joiner included, into a room of
 // their own in the bedroom wing, in the wing's slot order: raise the room's shell, stage one bed in it, then
 // move the colonist's ownership there. The shelter bed left behind stays as a spare for joiners
-// (MaintainHousing keeps one beyond the population).
+// (shelter/expansion keeps one beyond the population).
 
 /// <summary>The next bedroom step.</summary>
 public enum BedroomStepKind

@@ -18,7 +18,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsShelterPlanner: reviewer == nil || native == nil");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = Pol.Phase.HousingShelter, Definition = "Wall", Shelter = true };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Starter.FilingKey, Need = ShelterFamily.Starter, Phase = Pol.Phase.HousingShelter, Definition = "Wall", Shelter = true };
     }
 
     /// <summary>Reuses the same furnishing and ring path to keep one spare indoor sleeping place beyond the observed population.</summary>
@@ -28,7 +28,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsExpansionPlanner: reviewer == nil || native == nil");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainHousing, Phase = Pol.Phase.HousingExpansion, Definition = "Wall", Shelter = true };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Expansion.FilingKey, Need = ShelterFamily.Expansion, Phase = Pol.Phase.HousingExpansion, Definition = "Wall", Shelter = true };
     }
 
     /// <summary>The layout module this planner furnishes: a facility ladder's room role names it, the shelter and expansion planners raise the shelter.</summary>

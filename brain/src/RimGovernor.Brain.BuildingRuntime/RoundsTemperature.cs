@@ -2,7 +2,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
 {
-    internal bool TemperatureEnabled() => MethodEnabled(EnsureTemperatureSafety);
+    internal bool TemperatureEnabled() => Needs.Contains(ShelterFamily.Temperature);
+
+    /// <summary>Whether the shelter family composes any housing Need (starter, sleeping, expansion).</summary>
+    internal bool HousingEnabled() => Needs.Contains(ShelterFamily.Starter) || Needs.Contains(ShelterFamily.Sleeping) || Needs.Contains(ShelterFamily.Expansion);
 
     /// <summary>
     /// Whether any composed family reads the typed room census inside the review bracket: temperature and
@@ -10,9 +13,9 @@ public sealed partial class Rounder
     /// plans need each room's measured cleanliness.
     /// </summary>
     internal bool RoomsEnabled() =>
-        // MaintainHousing: suite claims and the plan's suite wing read the census's standing bedrooms.
-        // MaintainShelter: the Safe area covers the census's enclosed roofed rooms.
-        TemperatureEnabled() || MethodEnabled(MaintainShelter) || MethodEnabled(MaintainHousing) || Needs.Contains(RoomsFamily.Comfort) || Needs.Contains(RefrigerationNeed) || Needs.Contains(RoomsFamily.Lighting) || Needs.Contains(RoomsFamily.Flooring) || MethodEnabled(MaintainRoutes) || Needs.Contains(AdminFamily.Burial) || Needs.Contains(LayoutFamily.ClimateEnvelope) || Needs.Contains(MilitaryFamily.Training) || MethodEnabled(MaintainStockpiles);
+        // Housing: suite claims and the plan's suite wing read the census's standing bedrooms.
+        // shelter/safe-area: the Safe area covers the census's enclosed roofed rooms.
+        TemperatureEnabled() || Needs.Contains(ShelterFamily.SafeArea) || HousingEnabled() || Needs.Contains(RoomsFamily.Comfort) || Needs.Contains(RefrigerationNeed) || Needs.Contains(RoomsFamily.Lighting) || Needs.Contains(RoomsFamily.Flooring) || MethodEnabled(MaintainRoutes) || Needs.Contains(AdminFamily.Burial) || Needs.Contains(LayoutFamily.ClimateEnvelope) || Needs.Contains(MilitaryFamily.Training) || MethodEnabled(MaintainStockpiles);
 
     internal bool MethodEnabled(ConcernId goal)
     {
@@ -43,13 +46,13 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsTemperaturePlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = EnsureTemperatureSafety };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Temperature.FilingKey, Need = ShelterFamily.Temperature };
     }
 
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectTemperature(Observation.ColonyProjection facts, Pol.RoundsLatches latches)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectTemperature(Observation.ColonyProjection facts)
     {
         var cooling = TemperatureCooling(facts);
-        var proposal = SelectTemperatureMethod(facts.Rooms, cooling, Reviewer.Policy, latches);
+        var proposal = SelectTemperatureMethod(facts.Rooms, cooling, Reviewer.Policy);
         switch (proposal.Method)
         {
             case Pol.TemperatureMethod.Heat or Pol.TemperatureMethod.HeatElectric or Pol.TemperatureMethod.Cool or Pol.TemperatureMethod.CoolPowered or Pol.TemperatureMethod.RefuelOff or Pol.TemperatureMethod.RefuelOn:

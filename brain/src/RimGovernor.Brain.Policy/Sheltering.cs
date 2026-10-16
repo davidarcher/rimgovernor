@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One MaintainShelter sheltering move: a pawn's allowed area set to the Safe area, or cleared (empty) once
+/// One shelter/safe-area sheltering move: a pawn's allowed area set to the Safe area, or cleared (empty) once
 /// no trigger holds.
 /// </summary>
 public sealed record AllowedAreaChange
@@ -188,7 +188,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// MaintainShelter's sheltering planner. While a trigger holds, undrafted colonists (for a threat, those
+    /// The shelter/safe-area sheltering planner. While a trigger holds, undrafted colonists (for a threat, those
     /// outside the squad's draft set, ShelterCombatants) and animals that take areas without a pen are moved
     /// into the Safe area. Once every trigger is known clear, pawns still restricted to the Safe area go back
     /// to unrestricted. Haulers not sheltered are kept to the NoDanger area while DangerWindow holds, and go

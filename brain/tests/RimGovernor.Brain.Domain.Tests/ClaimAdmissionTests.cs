@@ -27,6 +27,10 @@ public sealed class ClaimAdmissionTests
         public NeedCommit Food(string method, params DomainAction[] actions) =>
             Journal.CommitClaimedMethod(FoodSupplyNeed, World, new(method), "",
                 new PlanSpec(new(method + "-plan-" + Guid.NewGuid().ToString("N")[..8]), new(1), EquatableArray.From(actions)), TestContext.Current.CancellationToken);
+        /// <summary>Commits under the shelter family's starter Need (#3257): its rungs are admitted by claims.</summary>
+        public NeedCommit Shelter(string method, params DomainAction[] actions) =>
+            Journal.CommitClaimedMethod(ShelterFamily.Starter, World, new(method), "",
+                new PlanSpec(new(method + "-plan-" + Guid.NewGuid().ToString("N")[..8]), new(1), EquatableArray.From(actions)), TestContext.Current.CancellationToken);
         public ClaimCommit Commit(ConcernId kind, string method, params DomainAction[] actions)
         {
             var owner = Owner(kind);
@@ -101,19 +105,19 @@ public sealed class ClaimAdmissionTests
     public void GearDressedTwiceForOnePawnIsRefused()
     {
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainShelter, "dress-a", Dress("d1", "a")).Outcome);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainShelter, "dress-b", Dress("d2", "b")).Outcome);
-        var refused = colony.Commit(MaintainShelter, "dress-a-again", Dress("d3", "a"));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "dress-a", Dress("d1", "a")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "dress-b", Dress("d2", "b")).Outcome);
+        var refused = colony.Commit(MaintainRoutes, "dress-a-again", Dress("d3", "a"));
         Assert.Equal(ClaimOutcome.Conflict, refused.Outcome);
         Assert.Equal("gear/a", refused.Conflict!.Claim);
     }
 
     [Fact]
-    public void DuplicateHousingOnTheSameCellsIsRefused()
+    public void DuplicateShelterRungOnTheSameCellsIsRefused()
     {
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainHousing, "bunk-1", Build("bed-1", "TestBed", 5, 5)).Outcome);
-        var refused = colony.Commit(MaintainHousing, "bunk-2", Build("bed-2", "TestBed", 5, 5));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("bunk-1", Build("bed-1", "TestBed", 5, 5)).Outcome);
+        var refused = colony.Shelter("bunk-2", Build("bed-2", "TestBed", 5, 5));
         Assert.Equal(ClaimOutcome.Conflict, refused.Outcome);
         Assert.Equal("bunk-1", refused.Conflict!.Method.Value);
     }
@@ -123,41 +127,46 @@ public sealed class ClaimAdmissionTests
     {
         using var colony = Open();
         // A North 1x2 bed at (5,5) occupies (5,5) and (5,6): the anchor-only claim never saw the second cell.
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainHousing, "bed", Build("bed", "TestBed", 5, 5)).Outcome);
-        var overlap = colony.Commit(MaintainHousing, "wall-on-bed", Build("wall-1", "TestWall", 5, 6));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("bed", Build("bed", "TestBed", 5, 5)).Outcome);
+        var overlap = colony.Shelter("wall-on-bed", Build("wall-1", "TestWall", 5, 6));
         Assert.Equal(ClaimOutcome.Conflict, overlap.Outcome);
         Assert.Equal("cell/5/6", overlap.Conflict!.Claim);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainHousing, "wall-beside", Build("wall-2", "TestWall", 6, 6)).Outcome);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainHousing, "wall-above", Build("wall-3", "TestWall", 5, 7)).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("wall-beside", Build("wall-2", "TestWall", 6, 6)).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("wall-above", Build("wall-3", "TestWall", 5, 7)).Outcome);
     }
 
     [Fact]
     public void ShelterRungsRunTogetherOnDisjointCellsAndClearingAHeldCellIsRefused()
     {
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainHousing, "room-shell-1",
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("room-shell-1",
             Build("ring-1", "TestWall", 0, 0), Build("ring-2", "TestWall", 1, 0), Build("ring-3", "TestWall", 2, 0)).Outcome);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainHousing, "shelter-bunk", Build("bunk", "TestBed", 1, 1)).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("shelter-bunk", Build("bunk", "TestBed", 1, 1)).Outcome);
         var clearing = DomainAction.NewDeconstructionAction(new("cut"), new Deconstruction("old-wall", "TestWall", new(1, 0)));
-        var refused = colony.Commit(MaintainHousing, "shelter-clear", clearing);
+        var refused = colony.Shelter("shelter-clear", clearing);
         Assert.Equal(ClaimOutcome.Conflict, refused.Outcome);
         Assert.Equal("cell/1/0", refused.Conflict!.Claim);
         Assert.Equal("room-shell-1", refused.Conflict.Method.Value);
     }
 
     [Fact]
-    public void ReleasedMethodFreesItsClaimsButKeepsItsMethodId()
+    public void ReleasedShelterMethodFreesItsClaimsAndTheStoreLeavesReissueToThePlanner()
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        var first = colony.Commit(MaintainHousing, "bunk", Build("bed", "TestBed", 5, 5));
+        var first = colony.Shelter("bunk", Build("bed", "TestBed", 5, 5));
         Assert.Equal(ClaimOutcome.Admitted, first.Outcome);
-        Assert.Equal(ClaimOutcome.Conflict, colony.Commit(MaintainHousing, "bunk-again", Build("bed-2", "TestBed", 5, 5)).Outcome);
-        var plan = Assert.Single(first.State.Methods).Plan;
+        Assert.Equal(ClaimOutcome.Conflict, colony.Shelter("bunk-again", Build("bed-2", "TestBed", 5, 5)).Outcome);
+        var plan = Assert.Single(first.Owner.Methods).Plan;
         colony.Journal.Cancel(plan, new("bed"), ct);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainHousing, "bunk-again", Build("bed-2", "TestBed", 5, 5)).Outcome);
-        // A released MethodId stays bound for the episode: the journal key, not the claim check, refuses it.
-        Assert.Throws<MethodBoundException>(() => colony.Commit(MaintainHousing, "bunk", Build("bed-3", "TestBed", 8, 8)));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("bunk-again", Build("bed-2", "TestBed", 5, 5)).Outcome);
+        // A Need's released MethodId is the planner's to issue again once its product is gone (decision 19): the store
+        // admits a new attempt, and the history reads that latest attempt of the MethodId.
+        Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("bunk", Build("bed-3", "TestBed", 8, 8)).Outcome);
+        var owner = colony.Journal.LoadNeed(ShelterFamily.Starter, World, ct);
+        var latest = Assert.Single(colony.Journal.OwnerMethodHistory(owner, ct), m => m.Method.Value == "bunk").Plan;
+        Assert.NotEqual(plan, latest);
+        Assert.Equal(latest, colony.Journal.OwnerMethodPlan(owner, new("bunk"), ct));
     }
 
     [Fact]
@@ -165,18 +174,18 @@ public sealed class ClaimAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        var first = colony.Commit(MaintainShelter, "deliver", Delivery("d1", "a", "deliver"));
+        var first = colony.Commit(MaintainRoutes, "deliver", Delivery("d1", "a", "deliver"));
         Assert.Equal(ClaimOutcome.Admitted, first.Outcome);
         colony.Journal.Cancel(Assert.Single(first.State.Methods).Plan, new("d1"), ct);
         // The deficit clears, then returns: the Standard opens a new episode.
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         var met = colony.Journal.ReviewRounds(new() { Revision = colony.Review.Review.Revision, Current = World, Tick = new(110), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(110), SafeAreaOwed = Known(false) } }, ct);
+            Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(110), Upkeep = StandardTestFacts.RouteMet } }, ct);
         colony.Journal.ReviewRounds(new() { Revision = met.Review.Revision, Current = World, Tick = new(120), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(120) } }, ct);
-        var owner = colony.Owner(MaintainShelter);
+        var owner = colony.Owner(MaintainRoutes);
         Assert.Equal(first.State.Standard.Episode + 1, owner.Standard.Episode);
-        var reopened = colony.Commit(MaintainShelter, "deliver", Delivery("d2", "a", "deliver"));
+        var reopened = colony.Commit(MaintainRoutes, "deliver", Delivery("d2", "a", "deliver"));
         Assert.Equal(ClaimOutcome.Admitted, reopened.Outcome);
         Assert.Equal(owner.Standard.Episode, Assert.Single(reopened.State.Methods).Episode);
     }
@@ -186,13 +195,13 @@ public sealed class ClaimAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        var first = colony.Commit(MaintainShelter, "deliver", Delivery("d1", "a", "deliver"));
+        var first = colony.Commit(MaintainRoutes, "deliver", Delivery("d1", "a", "deliver"));
         Assert.Equal(ClaimOutcome.Admitted, first.Outcome);
-        var again = colony.Commit(MaintainShelter, "deliver", Delivery("d2", "b", "deliver"));
+        var again = colony.Commit(MaintainRoutes, "deliver", Delivery("d2", "b", "deliver"));
         Assert.Equal(ClaimOutcome.Continued, again.Outcome);
         Assert.Null(again.Conflict);
         Assert.Equal(first.State.Revision, again.State.Revision);
-        Assert.Single(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainShelter), ct));
+        Assert.Single(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainRoutes), ct));
     }
 
     [Fact]
@@ -200,16 +209,16 @@ public sealed class ClaimAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainShelter, "ledger", Delivery("l1", "a", "ledger")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "ledger", Delivery("l1", "a", "ledger")).Outcome);
         var other = colony.Commit(MaintainStockpiles, "art", Delivery("a1", "a", "art"));
         Assert.Equal(ClaimOutcome.Conflict, other.Outcome);
         Assert.Equal("pawn/a", other.Conflict!.Claim);
         Assert.Equal("ledger", other.Conflict.Method.Value);
         Assert.Empty(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainStockpiles), ct));
         // Opted in, a disjoint second Method beside the owner's own open one is admitted ...
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainShelter, "ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
         // ... while the ordinary commit keeps the one-open-Method gate.
-        var owner = colony.Owner(MaintainShelter);
+        var owner = colony.Owner(MaintainRoutes);
         Assert.Throws<OpenMethodException>(() => colony.Journal.CommitMethod(owner.Standard.Id, owner.Revision, new("ledger-3"),
             new PlanSpec(new("ledger-3-plan"), new(1), [Delivery("l3", "c", "ledger-3")]), ct));
     }

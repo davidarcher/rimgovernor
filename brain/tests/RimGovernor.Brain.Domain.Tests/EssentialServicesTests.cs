@@ -8,9 +8,11 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static readonly ConcernId[] Owners = [MaintainHousing, MaintainShelter, EnsureTemperatureSafety,
-        EnsureBasicPower, MaintainRoutes];
+    private static readonly ConcernId[] Owners = [MaintainRoutes];
     private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
+
+    /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
+    private static RoundsFacts Warm() => Facts() with { SleepingMin = Known(20.0), SleepingMax = Known(22.0) };
     private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128, params ConcernId[] shortfalls) =>
         ReviewEssentialServices(facts, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },
             MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }) },
@@ -22,22 +24,24 @@ public sealed class EssentialServicesTests
         var normal = InspectRounds(new(), new(), DefaultRoundsPolicy());
         Assert.NotNull(normal.EssentialServices);
         Assert.Equal(Enum.GetValues<EssentialService>(), normal.EssentialServices.Coverage.Select(c => c.Service).Distinct().Order().ToArray());
-        var known = Review(Facts());
-        Assert.Contains(known.Coverage, c => c.Target.Owner == EnsureTemperatureSafety && c.Coverage == ServiceCoverage.Adequate);
-        Assert.Contains(known.Stress, c => c.Target.Owner == EnsureTemperatureSafety && c.Coverage == ServiceCoverage.Unknown);
-        Assert.DoesNotContain(known.Proposals, p => p.Target.Owner == EnsureTemperatureSafety);
+        var known = Review(Warm());
+        Assert.Contains(known.Coverage, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Adequate);
+        Assert.Contains(Review(Facts()).Coverage, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Unknown);
+        Assert.Contains(known.Stress, c => c.Target.Owner == ShelterFamily.Temperature.FilingKey && c.Coverage == ServiceCoverage.Unknown);
+        Assert.DoesNotContain(known.Proposals, p => p.Target.Owner == ShelterFamily.Temperature.FilingKey);
     }
 
     [Fact]
     public void HeatedShelterUsesExistingOwnerPredicatesAndStableIdentityUntilObservedRecovery()
     {
-        var cold = Review(Facts(), 128, EnsureTemperatureSafety);
-        var later = Review(Facts() with { Tick = new(200), SleepingMin = Known(-20.0) }, 128, EnsureTemperatureSafety);
-        var proposal = Assert.Single(cold.Proposals, p => p.Target.Owner == EnsureTemperatureSafety);
-        Assert.Equal(proposal.Id, Assert.Single(later.Proposals, p => p.Target.Owner == EnsureTemperatureSafety).Id);
-        Assert.DoesNotContain(Review(Facts()).Proposals, p => p.Id == proposal.Id);
-        Assert.Equal(DevelopmentReviewState.Satisfied, ReassessDevelopment(proposal, Review(Facts())));
-        Assert.Equal("owner_observed_recovery", proposal.Target.Predicate);
+        var cold = Review(Warm() with { SleepingMin = Known(-5.0) });
+        var later = Review(Warm() with { Tick = new(200), SleepingMin = Known(-20.0) });
+        var proposal = Assert.Single(cold.Proposals, p => p.Target.Owner == ShelterFamily.Temperature.FilingKey);
+        Assert.Equal(proposal.Id, Assert.Single(later.Proposals, p => p.Target.Owner == ShelterFamily.Temperature.FilingKey).Id);
+        Assert.DoesNotContain(Review(Warm()).Proposals, p => p.Id == proposal.Id);
+        Assert.Equal(DevelopmentReviewState.Satisfied, ReassessDevelopment(proposal, Review(Warm())));
+        Assert.Equal("need_satisfied", proposal.Target.Predicate);
+        Assert.Equal(ShelterFamily.Temperature, proposal.Target.OwnerNeed);
     }
 
     [Fact]

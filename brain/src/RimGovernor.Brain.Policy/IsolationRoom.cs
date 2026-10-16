@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The creepjoiner isolation room: one planned room holding one bed, owed while a creepjoiner whose downside has
 // not shown and whose inspection the colony has not finished lives in the colony. It is staged like the
-// containment cell: the layout review grows a core room sized to the bed, MaintainHousing shells it and places
+// containment cell: the layout review grows a core room sized to the bed, shelter/sleeping shells it and places
 // the bed. The bed is the definition catalog's own (a humanlike sleeping bed the ThingDef mirror's
 // bed_humanlike field names, the fewest-slots one the colony would sleep in), never a name here. The room is a
 // plan role only: the game scores it a bedroom, which is what its furnishing makes it.

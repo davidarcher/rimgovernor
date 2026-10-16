@@ -58,20 +58,7 @@ public static partial class PolicyFunctions
 
     public static Fact<double> RoundsDeficit(ConcernId id, RoundsFacts f, RoundsPolicy p)
     {
-        long stock = 0, target = 0;
-        var known = false;
-        if (id == MaintainHousing)
-        {
-            // The expansion phase: one indoor place beyond the population.
-            var countKnown = f.Colonists.TryGetValue(out target);
-            if (!countKnown || target <= 0 || target >= long.MaxValue)
-            {
-                return Unknown<double>();
-            }
-            target++;
-            known = f.IndoorCapacity.TryGetValue(out stock);
-        }
-        else if (id == EnsureDefensiveLayout)
+        if (id == EnsureDefensiveLayout)
         {
             // A configured layout is owed until every tier is observed standing.
             if (!p.DefensiveLayout)
@@ -100,11 +87,6 @@ public static partial class PolicyFunctions
         {
             return Unknown<double>();
         }
-        if (!known || target <= 0 || stock < 0)
-        {
-            return Unknown<double>();
-        }
-        return Known(Math.Min(1.0, Math.Max(0.0, ((double)target - stock) / target)));
     }
 
     /// <summary>

@@ -165,18 +165,8 @@ internal static class ClockPlannerCatalog
     [
         E("work", O, [ActionKind.WorkAssignment, ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.Building], SectionsWork,
             c => c.Work is not null, (s, ct, e, a) => s.Config.Work!.StepAsync(a, ct, e), (o, m) => o.Work = m, EnsureWorkAssignments),
-        E("sleeping", O, [ActionKind.Building, ActionKind.Deconstruction], SectionsBuilding,
-            c => c.Sleeping is not null, (s, ct, e, a) => s.Config.Sleeping!.StepAsync(a, ct, e), (o, m) => o.Sleeping = m, MaintainHousing),
-        E("power", O, [ActionKind.Building], SectionsBuilding,
-            c => c.Power is not null, (s, ct, e, a) => s.Config.Power!.StepAsync(a, ct, e), (o, m) => o.Power = m, EnsureBasicPower),
-        E("temperature", O, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
-            c => c.Temperature is not null, (s, ct, e, a) => s.Config.Temperature!.StepAsync(a, ct, e), (o, m) => o.Temperature = m, EnsureTemperatureSafety),
         E("routes", O, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
             c => c.Routes is not null, (s, ct, e, a) => s.Config.Routes!.StepAsync(a, ct, e), (o, m) => o.Routes = m, MaintainRoutes),
-        E("sleepingUpkeep", C, [ActionKind.Building, ActionKind.Assign, ActionKind.MoveBuilding, ActionKind.UninstallBuilding, ActionKind.RecoveryService], SectionsThrone,
-            c => c.SleepingUpkeep is not null, (s, ct, e, a) => s.Config.SleepingUpkeep!.StepAsync(a, ct, e), (o, m) => o.SleepingUpkeep = m, MaintainHousing),
-        E("expansion", O, [ActionKind.Building, ActionKind.Excavation], SectionsBuilding,
-            c => c.Expansion is not null, (s, ct, e, a) => s.Config.Expansion!.StepAsync(a, ct, e), (o, m) => o.Expansion = m, MaintainHousing),
         E(DefensePlanner, C, [ActionKind.OwnedDraft, ActionKind.Subdue, ActionKind.Ability], SectionsThreat,
             c => c.Defense is not null, (s, ct, e, a) => s.Config.Defense!.StepAsync(a, ct, e), (o, m) => o.Defense = m, immediate: true),
         E("moodRelief", O, [ActionKind.Ability], SectionsPawns,
@@ -187,8 +177,6 @@ internal static class ClockPlannerCatalog
             c => c.Dialog is not null, (s, ct, e, a) => s.Config.Dialog!.StepAsync(a, ct, e), (o, m) => o.Dialog = m),
         E("trade", O, [ActionKind.Trade, ActionKind.CommsTradeRequest], SectionsColony,
             c => c.Trade is not null, (s, ct, e, a) => s.Config.Trade!.StepAsync(a, ct, e), (o, m) => o.Trade = m, families: FamiliesWorld),
-        E("maintainShelter", O, [ActionKind.Area], SectionsBuilding,
-            c => c.MaintainShelter is not null, (s, ct, e, a) => s.Config.MaintainShelter!.StepAsync(a, ct, e), (o, m) => o.MaintainShelter = m, MaintainShelter, immediate: true),
         E("stockpiles", O, [ActionKind.ZoneCellEdit, ActionKind.StockpilePatch, ActionKind.ZoneDelete, ActionKind.ZoneCreate, ActionKind.Building], SectionsBuilding,
             c => c.Stockpiles is not null, (s, ct, e, a) => s.Config.Stockpiles!.StepAsync(a, ct, e), (o, m) => o.Stockpiles = m, MaintainStockpiles),
         E("defenseLayout", O, [ActionKind.Building, ActionKind.RecoveryService, ActionKind.CoverClearance, ActionKind.FoundationRemoval], SectionsBuilding,
@@ -264,30 +252,6 @@ internal static class ClockPlannerCatalog
             output.Add(FamilyEntry(runner));
         }
         return output;
-    }
-
-    /// <summary>Reports whether the review binds an active MaintainHousing goal still in deficit on its starter-shelter phase.</summary>
-    public static bool ShelterOwed(RoundsResult review)
-    {
-        if (review.Review.Latches.Housing != Policy.Phase.HousingShelter)
-        {
-            return false;
-        }
-        foreach (var binding in review.Review.Standards)
-        {
-            if (binding.Concern != MaintainHousing)
-            {
-                continue;
-            }
-            foreach (var state in review.Standards)
-            {
-                if (state.Standard.Id == binding.Standard)
-                {
-                    return state.Standard.Status == StandardStatus.Open && state.Standard.Finding == Finding.Unmet;
-                }
-            }
-        }
-        return false;
     }
 }
 

@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // Go: worship.go. The worship room. An ideoligion that requires buildings (Ideoligion.RequiredBuildings: the
 // building precepts' ThingDefs and the held rituals' required buildings, all read from the game) is owed one
 // worship room holding one of each. It is staged exactly like the child rooms (ChildRooms, LayoutChildRooms): the
-// layout review grows a core room sized to the footprints, MaintainHousing shells it and places the buildings at the
+// layout review grows a core room sized to the footprints, shelter/sleeping shells it and places the buildings at the
 // shared template's slots. Names come from the ideoligion and footprints from the native catalog, never constants
 // here. The ideology read carries no room-quality requirement, so none is staged.
 

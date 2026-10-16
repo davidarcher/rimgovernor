@@ -20,7 +20,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 ///
 ///   medicine -- test/medicine_setup: no medicine, the medical/reserves Need.
 ///   cold     -- routine_sleeping_prepare + routine_temperature_prepare (coldSnap: days have passed, so ordinary cold
-///               snaps bring the afternoon under the campfire threshold), EnsureTemperatureSafety; last because a
+///               snaps bring the afternoon under the campfire threshold), the shelter/temperature Need; last because a
 ///               campfire's fuel is finite and its reopening would be the fixture's, not a regression.
 ///
 /// Calendar time is not the property: a season is 900k ticks, over an hour of wall time at Ultrafast, so a season soak
@@ -100,7 +100,7 @@ internal static class UpkeepCampaign
         var stages = new List<CampaignStage>
         {
             FromScenario(all["medicine"], PolicyFunctions.MedicalReservesNeed.FilingKey),
-            FromScenario(all["cold"], PolicyFunctions.EnsureTemperatureSafety),
+            FromScenario(all["cold"], ShelterFamily.Temperature.FilingKey),
         };
         // Days of play have passed by the last stage; the fixture cools the map with ordinary cold snaps rather than
         // failing on a warm afternoon.

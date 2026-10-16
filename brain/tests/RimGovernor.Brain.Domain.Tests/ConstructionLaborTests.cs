@@ -34,7 +34,10 @@ public sealed class ConstructionLaborTests
     [Fact]
     public void TheShelterItselfKeepsItsBuilders()
     {
-        Assert.False(Held(Shelter, MaintainHousing, ActionKind.Building));
+        Assert.False(Held(Shelter, ShelterFamily.Starter.FilingKey, ActionKind.Building));
+        Assert.False(Held(Shelter, ShelterFamily.Sleeping.FilingKey, ActionKind.Building));
+        Assert.False(Held(Shelter, ShelterFamily.Expansion.FilingKey, ActionKind.Building));
+        Assert.True(Held(Shelter, ShelterFamily.Temperature.FilingKey, ActionKind.Building));
     }
 
     [Fact]

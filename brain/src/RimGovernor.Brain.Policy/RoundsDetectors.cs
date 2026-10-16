@@ -14,7 +14,7 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 
     public RoundsPolicy P { get; set; } = p;
 
-    /// <summary>The latches the reviews yield; R.Latches starts as L and the housing, comfort and medical detectors set their own phase on it.</summary>
+    /// <summary>The latches the reviews yield; R.Latches starts as L and the comfort and medical detectors set their own phase on it.</summary>
     public RoundsLatches L { get; set; } = new();
 
     public RoundsFindings R { get; set; } = new();
@@ -25,8 +25,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
     public MedicalReserveReview Medicine { get; set; } = default!;
 
     public RoutesReview Routes { get; set; } = default!;
-
-    public bool SleepingActive { get; set; }
 
     /// <summary>Appends a Concern and returns it for the detector to adjust.</summary>
     public RoundsConcern Raise(ConcernId id)
@@ -63,9 +61,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 public static partial class PolicyFunctions
 {
     internal static Fact<bool> NotFact(Fact<bool> f) => Measured(f, v => !v);
-
-    /// <summary>A retained latch with missing input preserves history, not fresh evidence.</summary>
-    internal static Fact<bool> LatchRecovered(bool active, Fact<double> observed) => Measured(observed, _ => !active);
 
     internal static void InspectAnswerDialog(RoundsRun c)
     {
@@ -104,54 +99,6 @@ public static partial class PolicyFunctions
             c.Raise(EnsureWorkAssignments);
         }
         c.Assess(EnsureWorkAssignments, workMet);
-    }
-
-    internal static void InspectHousing(RoundsRun c)
-    {
-        var housing = ReviewHousing(c.F, c.Previous, c.P, c.SleepingActive);
-        c.R.Latches.Housing = housing.Phase;
-        if (housing.Phase != Phase.None)
-        {
-            var g = c.Raise(MaintainHousing);
-            g.Deficit = housing.Deficit;
-        }
-        c.Assess(MaintainHousing, housing.Recovered);
-    }
-
-    internal static void InspectTemperatureSafety(RoundsRun c)
-    {
-        var f = c.F;
-        var p = c.P;
-        var l = c.L;
-        var temperatureMet = FootholdTemperature(f, p);
-        if (Positive(f.TemperatureOwed))
-        {
-            // A refuel switch or a room below its sleepers' band holds the goal open.
-            temperatureMet = Known(false);
-        }
-        if (DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p).Any(d => d.Heat))
-        {
-            temperatureMet = Known(false);
-        }
-        if (l.Cold || l.Hot || !Positive(temperatureMet))
-        {
-            c.Raise(EnsureTemperatureSafety);
-        }
-        c.Assess(EnsureTemperatureSafety, AllFacts(temperatureMet, LatchRecovered(l.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature)), LatchRecovered(l.Hot, Fallback(f.SleepingMax, f.OutdoorTemperature))));
-    }
-
-    internal static void InspectBasicPower(RoundsRun c)
-    {
-        var powerMet = FootholdPower(c.F);
-        if (!Positive(powerMet))
-        {
-            // A solar flare with a known remaining duration switches every powered building off for hours:
-            // the power deficit it measures is real but answering it with a generator is not, so the goal
-            // stays open with no method (it neither extends the startup hold nor is cancelled) until the
-            // flare ends and the planner can tell an outage from a shortfall.
-            c.Raise(EnsureBasicPower).MethodUnavailable = PowerOutageHold(c.F.DisasterConditions);
-        }
-        c.Assess(EnsureBasicPower, powerMet);
     }
 
     /// <summary>
@@ -241,14 +188,6 @@ public static partial class PolicyFunctions
             // Binary like the other upkeep needs: the silver amount is not a fraction.
             c.Raise(MaintainTrade).Deficit = Known(1.0);
         }
-    }
-
-    /// <summary>
-    /// A Safe area edit is owed. A settings write, unknown raises nothing.
-    /// </summary>
-    internal static void InspectShelter(RoundsRun c)
-    {
-        c.Owed(MaintainShelter, c.F.SafeAreaOwed);
     }
 
 

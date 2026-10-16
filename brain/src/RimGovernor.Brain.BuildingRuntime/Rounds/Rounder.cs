@@ -62,7 +62,7 @@ public sealed partial class Rounder
     /// <summary>The realized-consumption ledger of the current load, in memory only.</summary>
     internal ConsumptionMemory Consumption = new();
 
-    /// <summary>MaintainShelter's Safe area memory.</summary>
+    /// <summary>The safe-area Need's (shelter/safe-area) memory of the bot-owned allowed areas.</summary>
     internal SafeAreaMemory SafeArea = new();
 
     /// <summary>The firebreak ring's review memory, set when the layout family composes layout/firebreak.</summary>
@@ -431,7 +431,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = TemperatureOwed(reading.Projection) });
         var targets = await ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ShellsShort = PolicyApi.ShellsShort(targets, reading.Projection.Resources) });
-        if (MethodEnabled(PolicyApi.MaintainShelter))
+        if (Needs.Contains(ShelterFamily.SafeArea))
         {
             reading = reading.WithFacts(rf => rf with { SafeAreaOwed = SafeArea.Review(StockpileWorld(state.Snapshot), reading.Projection) });
         }

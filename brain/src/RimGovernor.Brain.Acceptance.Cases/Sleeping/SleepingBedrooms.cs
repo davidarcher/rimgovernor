@@ -89,8 +89,8 @@ internal static class SleepingBedrooms
                 Watch = new WatchConfig
                 {
                     Watch = TimeSpan.FromMinutes(2),
-                    Extra = [PolicyFunctions.MaintainHousing.Value],
-                    Until = sample => Moved(sample[PolicyFunctions.MaintainHousing.Value].AsMap()),
+                    Extra = [ShelterFamily.Sleeping.Value],
+                    Until = sample => Moved(sample[ShelterFamily.Sleeping.Value].AsMap()),
                 },
                 Audit = (h, rep, ct) => AuditAsync(s, h, rep, ct),
             },

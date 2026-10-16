@@ -81,7 +81,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// installed (a RelocateIntent on the packed item's inner building) on free floor in the room, once per
     /// Episode. due is false when the lever has nothing to do.
     /// </summary>
-    internal async Task<(RoundsBuildingResult Result, bool Due)> SculptBedroomAsync(PackedStock stock, ControlState state, Sto.StandardState goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Due)> SculptBedroomAsync(PackedStock stock, ControlState state, Sto.IWorkOwner goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
         var facts = reading.Projection;
@@ -111,13 +111,9 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         var p = Reviewer.Player;
         var method = new MethodId("bedroom-sculpture-install-" + DigestHex(step.Packed, 8));
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadOwnerMethod(goal, method, call);
             return (new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "sculpture_install") }, true);
-        }
-        catch (Sto.NotFoundException)
-        {
         }
         var item2 = inner.GetValueOrDefault(step.Packed);
         var id = PlanIds.MintPlanId();
@@ -129,8 +125,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("sculptBedroom: p.session.State() != state");
         }
-        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
-        return (new RoundsBuildingResult { Verdict = BuildingReasonAdmitted }, true);
+        var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
+        return (new RoundsBuildingResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) }, true);
     }
 }
 

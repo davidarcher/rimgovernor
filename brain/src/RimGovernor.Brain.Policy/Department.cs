@@ -46,7 +46,6 @@ public static partial class PolicyFunctions
         [MaintainStockpiles] = 16,
 
         // Industry
-        [EnsureBasicPower] = 1,
         [MaintainTrade] = 1,
 
         // Military

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// Individual bedrooms. The review keeps MaintainHousing open while a bedroom step is due; the sleeping planner
+// Individual bedrooms. The sleeping Need (shelter/sleeping) stays unmet while a bedroom step is due; the sleeping planner
 // answers it once every colonist owns a bed: move, furnish, then shell (NextBedroomStep).
 
 internal static partial class BuildingRuntimePackage
@@ -82,7 +82,7 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>
     /// The review's BedroomsOwed fact for the projection. A due room quality swap or wing migration owes a
-    /// bedroom too, so MaintainHousing stays open until it is done.
+    /// bedroom too, so the sleeping Need stays unmet until it is done.
     /// </summary>
     internal static Fact<bool> BedroomsOwedOf(Observation.ColonyProjection facts)
     {
@@ -149,7 +149,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// on site only when none is stored. A vacant bed left in the starter shell is packed to become that stock;
     /// a placement native refuses means wait.
     /// </summary>
-    internal async Task<RoundsBuildingResult> ReconcileBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.BedroomStep step, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> ReconcileBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.BedroomStep step, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
         // A suite is only started with its whole ring in stock.

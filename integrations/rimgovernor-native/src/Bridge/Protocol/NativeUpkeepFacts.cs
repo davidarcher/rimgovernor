@@ -391,7 +391,7 @@ namespace HomeBridge.BridgeTools
                 var values = people.Select(Person).ToList();
                 for (var i = 0; i < people.Count; i++) values[i] = SleepingRelations(people[i], values[i]);
                 result = result with { People = [.. result.People, .. values] };
-                // Slaves of the colony: MaintainHousing gives each a
+                // Slaves of the colony: shelter/sleeping gives each a
                 // bed set for slaves.
                 result = result with { Slaves = [.. result.Slaves, .. map.mapPawns.AllPawnsSpawned.Where(p => p.IsSlaveOfColony && !p.Dead).OrderBy(p => p.thingIDNumber).Select(Person)] };
                 // Hosted guests: housed to their title like a colonist;

@@ -5,11 +5,11 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>layout/ring</c> (Go <c>ring.go</c>): on the tribal baseline colony at Masonry, staged one review short of
-/// MaintainHousing's expansion phase, the expansion planner raises the capacity ring of stone-block walls and a stone Door.
+/// the shelter family's expansion Need, the expansion planner raises the capacity ring of stone-block walls and a stone Door.
 /// </summary>
 internal static class LayoutRing
 {
-    /// <summary>The prefix that starts every MaintainHousing expansion-phase building method (buildingruntime's capacity selection).</summary>
+    /// <summary>The prefix that starts every shelter expansion Need building method (buildingruntime's capacity selection).</summary>
     private const string ExpansionMethod = "expansion-";
 
     /// <summary>The environment variable the service reads its harness-only fault injections from (buildingruntime <c>FaultsEnv</c>).</summary>
@@ -19,7 +19,7 @@ internal static class LayoutRing
     {
         Name = "layout/ring",
         Scope = "Issue #1271: on the tribal " + Baselines.BaselineName + " colony at Masonry, staged one review short of " +
-            "MaintainHousing's expansion phase (a bedroom per single colonist and per couple, a used bed each, no spare place, Foothold's exits met, the food gap pinned to zero), " +
+            "the shelter family's expansion Need (a bedroom per single colonist and per couple, a used bed each, no spare place, Foothold's exits met, the food gap pinned to zero), " +
             "the expansion planner raises the capacity ring: the native audit reads a stone Door and stone-block walls. " +
             "A snapshot test cannot cover it: the ring is proven by native construction of the tier's stuff, and the run " +
             "records the step read TestLayoutRingStepIsMasonry replays.",
@@ -64,9 +64,9 @@ internal static class LayoutRing
                 Watch = new WatchConfig
                 {
                     Watch = TimeSpan.FromMinutes(2),
-                    Extra = [PolicyFunctions.MaintainHousing.Value],
+                    Extra = [ShelterFamily.Expansion.Value],
                     Until = sample => LayoutFixture.Planned(
-                        sample[PolicyFunctions.MaintainHousing.Value].AsMap(),
+                        sample[ShelterFamily.Expansion.Value].AsMap(),
                         method => method.StartsWith(ExpansionMethod, StringComparison.Ordinal),
                         complete: true),
                 },
