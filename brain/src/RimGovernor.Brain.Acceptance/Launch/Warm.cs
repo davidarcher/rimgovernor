@@ -239,7 +239,8 @@ public sealed class Game : IGameHold
     /// Stops whatever game <paramref name="root"/> owns, headless first, then the windowed profile's kept process if one
     /// was launched (<see cref="StopRenderedGameAsync"/>), and waits for the processes to be gone; a root with nothing
     /// running is not an error. It is what ends a batch of harnesses that kept the game (<see cref="KeepGameEnv"/>). The
-    /// state directories are <c>&lt;root&gt;/config-headless</c> and <c>&lt;root&gt;/config</c>, not the root itself.
+    /// state directories are <c>&lt;root&gt;/config-headless</c> and <c>&lt;root&gt;/config-rendered</c>, not the root
+    /// itself; the player's game under <c>&lt;root&gt;/config</c> (the launcher's Play) is never stopped here.
     /// Returns whether a process was stopped.
     /// </summary>
     public static async Task<bool> StopGameAsync(string root, string gameId, CancellationToken cancellationToken)
@@ -250,7 +251,7 @@ public sealed class Game : IGameHold
     }
 
     /// <summary>
-    /// Stops the process the root's windowed profile (<c>root/config</c>, the profile PrepareRendered launches) keeps, so
+    /// Stops the process the root's windowed profile (<c>root/config-rendered</c>, the one PrepareRendered launches) keeps, so
     /// a headless case does not boot beside it: a rendered case leaves its process at the main menu, and on a small box
     /// a window still drawing its menu starves the next headless boot past the connect budget. Nothing is done when the
     /// windowed profile carries no launch record (the root never launched rendered), so headless-only roots pay
@@ -259,7 +260,7 @@ public sealed class Game : IGameHold
     /// </summary>
     public static async Task<bool> StopRenderedGameAsync(string root, string gameId, CancellationToken cancellationToken)
     {
-        var configDir = Path.Combine(HeadlessProfile.MustAbs(root), "config");
+        var configDir = Path.Combine(HeadlessProfile.MustAbs(root), "config-rendered");
         string profile;
         try
         {
@@ -280,9 +281,15 @@ public sealed class Game : IGameHold
             return false;
         }
 
+        // The record sits in root/profile, which the player's Play also launches with, so it is removed only when this
+        // stop ended the rendered process it described.
         var stopped = await GameProcess.StopAsync(configDir, gameId, cancellationToken).ConfigureAwait(false);
-        TryDelete(record);
-        TryDelete(Path.Combine(profile, HeadlessProfile.LaunchedPackageFile));
+        if (stopped)
+        {
+            TryDelete(record);
+            TryDelete(Path.Combine(profile, HeadlessProfile.LaunchedPackageFile));
+        }
+
         return stopped;
     }
 

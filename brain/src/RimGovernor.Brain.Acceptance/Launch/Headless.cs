@@ -60,7 +60,8 @@ public static partial class HeadlessProfile
 
     /// <summary>
     /// Makes a harness-launched game quit after 20 minutes without a call (native IdleExit), so a warm game kept at the
-    /// main menu that no run comes back to does not linger. Only acceptance launches carry it; the player's config never does.
+    /// main menu that no run comes back to does not linger. Only acceptance launches carry it (root/config-headless and
+    /// root/config-rendered); the player's root/config, which the launcher's Play reads, never does.
     /// </summary>
     public const string IdleExitArg = "-rimgovernor-idle-exit=20";
 
@@ -328,7 +329,8 @@ public static partial class HeadlessProfile
 
     /// <summary>
     /// The profile directory (-savedatafolder) the game that <paramref name="configDir"/>'s config.json launches reads its
-    /// Config/ModsConfig.xml and saves from: root/headless-profile for Prepare, root/profile for PrepareRendered.
+    /// Config/ModsConfig.xml and saves from: root/headless-profile for Prepare (root/config-headless), root/profile for
+    /// PrepareRendered (root/config-rendered) and for the player's root/config.
     /// </summary>
     public static string SaveDataFolder(string configDir)
     {
@@ -665,15 +667,18 @@ public static partial class HeadlessProfile
     public static void CopyFile(string source, string destination) => Checkpoints.CopyFile(source, destination);
 
     /// <summary>
-    /// Launches the unified native package without -Headless flags, for a visible window, and returns the rewritten
-    /// configuration directory (root/config). <paramref name="fixtureOps"/> feed the stale-package check's rebuild hint
-    /// (<see cref="Config.FixtureOps"/>).
+    /// Launches the unified native package without -Headless flags, for a visible window: it reads the root's base
+    /// root/config/config.json, writes the acceptance args into root/config-rendered/config.json and returns that
+    /// directory, so the game's records and endpoint live under config-rendered. root/config stays the player's: the
+    /// launcher's Play launches from it, and an acceptance-only arg written there would leak into every later Play.
+    /// -savedatafolder stays root/profile, so a rendered run sees the player's saves; its Config/Prefs.xml and Config/ModsConfig.xml, and the launch snapshots beside them, are a known
+    /// shared surface this rewrites for the run. <paramref name="fixtureOps"/> feed the stale-package check's rebuild
+    /// hint (<see cref="Config.FixtureOps"/>).
     /// </summary>
     public static string PrepareRendered(string root, IReadOnlyList<string> fixtureOps, IReadOnlyList<string>? expansions)
     {
         root = MustAbs(root);
-        var configuration = Path.Combine(root, "config");
-        var config = LoadConfig(Path.Combine(configuration, "config.json"));
+        var config = LoadConfig(Path.Combine(root, "config", "config.json"));
         var game = GameSection(config);
         RequireOwnedLaunch(game);
         var workingDir = game["workingDir"].AsString();
@@ -698,8 +703,10 @@ public static partial class HeadlessProfile
             "-rimgovernor-test-acceleration",
             InProcArg,
             IdleExitArg);
-        WriteConfig(Path.Combine(configuration, "config.json"), config);
-        return configuration;
+        var destination = Path.Combine(root, "config-rendered");
+        Directory.CreateDirectory(destination);
+        WriteConfig(Path.Combine(destination, "config.json"), config);
+        return destination;
     }
 
     /// <summary>
@@ -744,7 +751,7 @@ public static partial class HeadlessProfile
         }
 
         // -rimgovernor-test-acceleration is the native gate for clock test acceleration; both acceptance profiles (this
-        // one and PrepareRendered) carry it, a player launch never does. 1.7 ignores -logFile and writes one Player.log at
+        // one and PrepareRendered, each in its own config directory) carry it, a player launch from root/config never does. 1.7 ignores -logFile and writes one Player.log at
         // a fixed LocalLow path shared by every instance, so -NoFileLog stops that write: the per-instance log is the
         // stdout the launcher captures to <config>/<game>/game.log. -DisableLogStackTraces bounds that capture (about
         // 15 MB a minute with stacks); message lines, exceptions included, stay.

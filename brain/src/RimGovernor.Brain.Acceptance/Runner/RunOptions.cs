@@ -139,6 +139,6 @@ public sealed record RunOptions
     public string ConfigDir(AcceptanceCase c)
     {
         ArgumentNullException.ThrowIfNull(c);
-        return Path.Combine(Root, Headless && !c.Rendered ? "config-headless" : "config");
+        return Path.Combine(Root, Headless && !c.Rendered ? "config-headless" : "config-rendered");
     }
 }

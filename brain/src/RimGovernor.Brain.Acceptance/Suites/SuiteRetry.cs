@@ -43,7 +43,7 @@ internal static class SuiteRetry
     {
         _ = await Game.StopGameAsync(root, gameId, cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        foreach (var profile in new[] { "config-headless", "config" })
+        foreach (var profile in new[] { "config-headless", "config-rendered" })
         {
             var dir = Path.Combine(root, profile);
             if (Directory.Exists(dir) && HeadlessProfile.GameRunning(dir, gameId))

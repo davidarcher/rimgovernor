@@ -37,13 +37,13 @@ public sealed partial class Config
 
     /// <summary>
     /// The game log of the instance under <see cref="Root"/>: the stdout the launcher captures into its state directory
-    /// (<c>&lt;Root&gt;/config-headless</c> or <c>&lt;Root&gt;/config</c>), per root. 1.7 ignores -logFile and writes
+    /// (<c>&lt;Root&gt;/config-headless</c> or <c>&lt;Root&gt;/config-rendered</c>), per root. 1.7 ignores -logFile and writes
     /// Player.log to one shared LocalLow path, so nothing reads that file.
     /// </summary>
     public string StartupLogPath() => GameProcess.LogPath(StateDirectory(), GameId);
 
     /// <summary>The launcher's state directory for this configuration's root: where the running game's records and log live.</summary>
-    public string StateDirectory() => Path.Combine(Root, Headless ? "config-headless" : "config");
+    public string StateDirectory() => Path.Combine(Root, Headless ? "config-headless" : "config-rendered");
 
     /// <summary>
     /// Sets <see cref="Expansions"/> to the union of the official expansions the named saves were recorded with, so
