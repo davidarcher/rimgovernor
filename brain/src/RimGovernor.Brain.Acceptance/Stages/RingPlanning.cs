@@ -54,7 +54,7 @@ public static class RingPlanning
         IReadOnlyDictionary<string, string>? files = null;
         try
         {
-            files = Harness.PackageFiles(game);
+            files = Harness.StampFiles(game);
         }
         catch (AcceptanceException)
         {

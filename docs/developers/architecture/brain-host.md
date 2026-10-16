@@ -158,7 +158,11 @@ Decided (user, 2026-10-13):
   serve flags named like environment variables, `ServeSpec.Env`) in the launched game's environment and records the
   launch environment in the save-data folder (`RimGovernorLaunchedEnv.json`). The game reads its environment once, so a
   kept game launched without a case's flags is relaunched (reason `env`); the state path never forces a relaunch, and a
-  kept game's readers follow the recorded path. `HostSeams.Install()` (called from `CaseCatalog.Register`) wires the
+  kept game's readers follow the recorded path. The brain runs from the assemblies the game loaded at launch, so a kept
+  game is also relaunched (reason `package`) when any file under the installed mod's `Assemblies/` or
+  `BridgeTools/RimGovernor/` (or `About.xml`) changed since its launch (`Harness.RelaunchFiles`); the lab start-cache
+  stamp and report `package_files` stay on the narrower `Harness.StampFiles` (About.xml, Runtime.dll, Bridge.dll).
+  `HostSeams.Install()` (called from `CaseCatalog.Register`) wires the
   store-backed case readers over that file. Readers that need the game's own data (`StarterSite.Planner`,
   `LayoutSiteHost.Surveyor`, `ColonyFactsSource.Reader`, the catalog and blight readers) call the mod's read-only
   `rimgovernor/acceptance_read_*` tools (`colony_facts`, `blight`, `starter_site`, `impressiveness`, `animal_races`;

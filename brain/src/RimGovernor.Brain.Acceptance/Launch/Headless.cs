@@ -30,7 +30,8 @@ public static partial class HeadlessProfile
     public const string LaunchedModsFile = "RimGovernorLaunchedMods.xml";
 
     /// <summary>
-    /// The snapshot of the installed package's file hashes taken right before a fresh launch, beside
+    /// The snapshot of the installed package's file hashes (<see cref="Harness.RelaunchFiles"/>: every shipped assembly,
+    /// not just the stamp files) taken right before a fresh launch, beside
     /// <see cref="LaunchedModsFile"/>. The process runs the DLLs it loaded at launch, so this is the record of which
     /// native build a kept process serves.
     /// </summary>
@@ -421,7 +422,7 @@ public static partial class HeadlessProfile
         File.WriteAllBytes(Path.Combine(profile, LaunchedPackageFile), new UTF8Encoding(false).GetBytes(snapshot.ToJsonString(IndentedOptions)));
     }
 
-    /// <summary>Hashes the package installed under the game's working directory in <paramref name="configDir"/>'s config.json.</summary>
+    /// <summary>Hashes every shipped file of the package installed under the game's working directory in <paramref name="configDir"/>'s config.json.</summary>
     private static IReadOnlyDictionary<string, string> LaunchedPackageFiles(string configDir)
     {
         var path = Path.Combine(MustAbs(configDir), "config.json");
@@ -432,7 +433,7 @@ public static partial class HeadlessProfile
             throw new AcceptanceException($"{Path.Combine(configDir, "config.json")}: the game has no workingDir");
         }
 
-        return Harness.PackageFiles(workingDir);
+        return Harness.RelaunchFiles(workingDir);
     }
 
     /// <summary>Snapshots the environment entries a fresh launch adds to <see cref="LaunchedEnvFile"/>; a missing profile is not an error.</summary>
