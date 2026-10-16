@@ -14,10 +14,10 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// season decisions.
 /// </summary>
 /// <remarks>
-/// Parity notes against the Go case: the latch is observed as the concern's row in <c>/api/routines</c> and its release
-/// as the measured food temperature reaching the policy's exit threshold within the two-game-day budget (the player API
-/// exposes no latch sets), and the count of methods the goal ever committed (<c>refrigeration_methods</c>) is not
-/// reported (the API has no goal method history).
+/// Parity notes against the Go case: the unmet food-stores/refrigeration Need is observed as its row in
+/// <c>/api/routines</c> and its satisfaction as the measured food temperature reaching the policy's exit threshold
+/// within the two-game-day budget, and the count of methods the Need ever committed (<c>refrigeration_methods</c>) is
+/// not reported (the API has no method history).
 /// </remarks>
 internal static class RefrigerationBuild
 {
@@ -43,7 +43,7 @@ internal static class RefrigerationBuild
     internal static AcceptanceCase Case() => new()
     {
         Name = "refrigeration/build",
-        Scope = "Native MaintainRefrigeration vertical on the lab: warm at-risk meat in an enclosed room drives the live Go "
+        Scope = "Native food-stores/refrigeration vertical on the lab: warm at-risk meat in an enclosed room drives the live Go "
             + "rounder/planner to admit a Cooler on a vented wall; native cooling then takes the measured room under "
             + "the exit threshold, confirmed by an independent native read, and the seeded rotting stack's rot progress "
             + "stops advancing.",
@@ -80,7 +80,7 @@ internal static class RefrigerationBuild
         }
         finally
         {
-            // Failure evidence: the same independent food read a pass ends with, so a dropped refrigeration latch can be
+            // Failure evidence: the same independent food read a pass ends with, so a met refrigeration Need can be
             // explained (stock hauled out, rotted, or genuinely chilled), and the emergency reviewer's own threat census,
             // so an unsafe_colony hold names the pawns behind it.
             if (!s.Report.Has("food_after"))
@@ -165,9 +165,9 @@ internal static class RefrigerationBuild
         // work priorities to match the controller's own assignment, which only the work family applies.
         var run = await RoutineService.StartAsync(s, Prefix, ["refrigeration", "work"], cancellationToken).ConfigureAwait(false);
         started(run);
-        var concern = PolicyFunctions.MaintainRefrigeration.Value;
+        var concern = PolicyFunctions.RefrigerationNeed.Value;
 
-        // The review must bind MaintainRefrigeration.
+        // The review must report the food-stores/refrigeration Need.
         _ = await run.WaitBoundAsync(concern, TimeSpan.FromMinutes(3), cancellationToken).ConfigureAwait(false);
 
         // The refrigeration method: a Cooler build on a wall cell.
@@ -227,8 +227,8 @@ internal static class RefrigerationBuild
                 cancellationToken).ConfigureAwait(false);
         }
 
-        // Native cooling: the review releases its latch only when the stock's measured temperature falls to ChilledExitC,
-        // and the goal is then retired. The measured food temperature is that census; the tick budget (two game days, ample
+        // Native cooling: the Need is met once the stock's measured temperature falls to ChilledExitC, and its row is
+        // then pruned. The measured food temperature is that census; the tick budget (two game days, ample
         // for a cooler against a heat wave) bounds the cooling itself.
         var policy = PolicyFunctions.DefaultFoodStoragePolicy();
         await run.WaitCensusAsync(

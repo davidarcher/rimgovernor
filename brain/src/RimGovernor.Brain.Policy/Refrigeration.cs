@@ -3,12 +3,12 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-// MaintainRefrigeration makes the rooms that hold warm, soon-to-rot perishable food cold, where
+// The food-stores/refrigeration Need makes the rooms that hold warm, soon-to-rot perishable food cold, where
 // the food-stores/storage Need moves such food into better storage. Both read the same FoodStorageObservation: a stock
-// is "warm at risk" when it is roofed (so a stockpile exists to cool), perishable, warmer than ChilledMaxC and
-// closer than SafeRotDays to rotting. The review latches on warm at-risk nutrition and releases once every
-// such room is measured at or below ChilledExitC (or the food is gone); the method then reuses an existing
-// cooler before proposing one on a vented wall of the room.
+// is "warm at risk" when it is roofed (so a stockpile exists to cool), perishable, warmer than ChilledExitC and
+// closer than SafeRotDays to rotting. The review is a plain threshold with no latch (decision 16): active while warm
+// at-risk nutrition reaches AtRiskNutritionThreshold; the method then reuses an existing cooler before proposing
+// one on a vented wall of the room.
 
 public sealed record RefrigerationReview
 {
@@ -16,7 +16,7 @@ public sealed record RefrigerationReview
 
     /// <summary>
     /// The total nutrition of warm at-risk roofed stock; unknown when the census or any at-risk stock's
-    /// storage facts are unknown, which preserves the previous latch.
+    /// storage facts are unknown, and the review is then inactive.
     /// </summary>
     public Fact<double> WarmNutrition { get; init; }
 
@@ -208,11 +208,11 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Enters on warm at-risk nutrition at or above AtRiskNutritionThreshold and, once active, holds until no
-    /// roofed at-risk stock remains warmer than ChilledExitC. Unknown storage facts on any at-risk stock
-    /// preserve the previous latch rather than asserting recovery.
+    /// Active while the roofed at-risk nutrition warmer than ChilledExitC (the exit bar) reaches
+    /// AtRiskNutritionThreshold: a plain threshold, holding nothing from the review before (decision 16). Unknown
+    /// storage facts on any at-risk stock leave the nutrition unknown and the review inactive.
     /// </summary>
-    public static RefrigerationReview ReviewRefrigeration(FoodStorageObservation fact, bool active, FoodStoragePolicy p)
+    public static RefrigerationReview ReviewRefrigeration(FoodStorageObservation fact, FoodStoragePolicy p)
     {
         if (!p.Valid)
         {
@@ -221,17 +221,13 @@ public static partial class PolicyFunctions
         fact.Validate();
         if (!fact.Stocks.TryGetValue(out var stocks))
         {
-            return new RefrigerationReview { Active = active, WarmNutrition = Unknown<double>() };
+            return new RefrigerationReview { WarmNutrition = Unknown<double>() };
         }
         if (p.ChilledExitC > fact.ChilledMaxC)
         {
             throw new DomainException("refrigeration exit temperature above the chilled limit");
         }
-        var limit = fact.ChilledMaxC;
-        if (active)
-        {
-            limit = p.ChilledExitC;
-        }
+        var limit = p.ChilledExitC;
         var total = 0.0;
         var rooms = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in stocks)
@@ -239,7 +235,7 @@ public static partial class PolicyFunctions
             var (warm, known) = entry.WarmAtRisk(p, limit);
             if (!known)
             {
-                return new RefrigerationReview { Active = active, WarmNutrition = Unknown<double>() };
+                return new RefrigerationReview { WarmNutrition = Unknown<double>() };
             }
             if (!warm)
             {
@@ -247,13 +243,13 @@ public static partial class PolicyFunctions
             }
             if (!entry.Stock.Nutrition.TryGetValue(out var nutrition))
             {
-                return new RefrigerationReview { Active = active, WarmNutrition = Unknown<double>() };
+                return new RefrigerationReview { WarmNutrition = Unknown<double>() };
             }
             total += nutrition;
             entry.Stock.Room.TryGetValue(out var room);
             rooms.Add(room ?? "");
         }
-        var isActive = active ? total > 0 : total >= p.AtRiskNutritionThreshold;
+        var isActive = total >= p.AtRiskNutritionThreshold;
         return new RefrigerationReview
         {
             WarmNutrition = Known(total),

@@ -221,10 +221,10 @@ public sealed record RoundsFacts
     /// <summary>A tomb, grave or morgue step is due; it keeps MaintainBurial open while a corpse waits on one.</summary>
     public Fact<bool> BurialOwed { get; init; }
 
-    /// <summary>The warm standing tombs, morgues and meal closets (WarmCoolingRooms); they join MaintainRefrigeration's rooms.</summary>
+    /// <summary>The warm standing tombs, morgues and meal closets (WarmCoolingRooms); they join the food-stores/refrigeration Need's rooms.</summary>
     public Fact<EquatableArray<string>> WarmRooms { get; init; }
 
-    /// <summary>The planned meal closet waits to be shelled while its dining room stands; it keeps MaintainRefrigeration open.</summary>
+    /// <summary>The planned meal closet waits to be shelled while its dining room stands; it keeps the food-stores/refrigeration Need unmet.</summary>
     public Fact<bool> MealClosetOwed { get; init; }
 
     /// <summary>
@@ -635,15 +635,6 @@ public sealed record RoundsLatches
 
     public bool MedicalReserve { get; set; }
 
-    public bool Refrigeration { get; set; }
-
-    /// <summary>
-    /// The review tick the Refrigeration latch last engaged, kept while it holds and zero when it is
-    /// released: the refrigeration planner lends native cooling time from it when the goal's epoch has no
-    /// cooler method of its own.
-    /// </summary>
-    public Tick RefrigerationSince { get; set; }
-
     /// <summary>Holds the bench IDs MaintainLighting last measured dark.</summary>
     public EquatableArray<string> Lighting { get; set; }
 
@@ -744,7 +735,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
     public static readonly ConcernId EnsureBasicDefense = new("EnsureBasicDefense");
     public static readonly ConcernId MaintainMedicalReserves = new("MaintainMedicalReserves");
-    public static readonly ConcernId MaintainRefrigeration = new("MaintainRefrigeration");
     public static readonly ConcernId EnsureComfort = new("EnsureComfort");
     public static readonly ConcernId ClearPests = new("ClearPests");
     public static readonly ConcernId MaintainEquipment = new("MaintainEquipment");
@@ -952,8 +942,6 @@ public static partial class PolicyFunctions
         };
         var medicineFacts = f.MedicalReserve with { Colonists = f.Colonists };
         c.Medicine = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve);
-        c.Refrigeration = ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage);
-        c.Refrigeration = c.Refrigeration.WithWarmRooms(f.WarmRooms);
         c.Lighting = ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark));
         c.Lighting = c.Lighting.WithPlanned(f.PlanLit);
         c.Flooring = ReviewFlooring(f.Upkeep.Flooring, f.Upkeep.Rooms, previous.Flooring, p.Flooring);
@@ -1006,7 +994,6 @@ public static partial class PolicyFunctions
             Sleeping = c.SleepingActive,
             Animals = c.Animals.History,
             MedicalReserve = c.Medicine.Active,
-            Refrigeration = c.Refrigeration.Active,
             Lighting = EquatableArray.From(c.Lighting.Dark),
             Flooring = EquatableArray.From(c.Flooring.Latched),
             Routes = c.Routes.Latched,

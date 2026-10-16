@@ -142,7 +142,6 @@ public sealed partial class ClockScheduler
             (c.Expansion, c.Expansion?.Reviewer, c.Expansion?.Concern, MaintainHousing),
             (c.Power, c.Power?.Reviewer, c.Power?.Concern, EnsureBasicPower),
             (c.Temperature, c.Temperature?.Reviewer, c.Temperature?.Concern, EnsureTemperatureSafety),
-            (c.Refrigeration, c.Refrigeration?.Reviewer, c.Refrigeration?.Concern, MaintainRefrigeration),
             (c.Lighting, c.Lighting?.Reviewer, c.Lighting?.Concern, MaintainLighting),
             (c.Flooring, c.Flooring?.Reviewer, c.Flooring?.Concern, MaintainFlooring),
             (c.Routes, c.Routes?.Reviewer, c.Routes?.Concern, MaintainRoutes),

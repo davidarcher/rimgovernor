@@ -63,8 +63,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsBuildingResult? Temperature { get; set; }
 
-    public RoundsBuildingResult? Refrigeration { get; set; }
-
     public RoundsBuildingResult? Lighting { get; set; }
 
     public RoundsBuildingResult? Flooring { get; set; }
@@ -192,7 +190,6 @@ public sealed class ClockSchedulerResult
         Expansion = other.Expansion ?? Expansion;
         Power = other.Power ?? Power;
         Temperature = other.Temperature ?? Temperature;
-        Refrigeration = other.Refrigeration ?? Refrigeration;
         Lighting = other.Lighting ?? Lighting;
         Flooring = other.Flooring ?? Flooring;
         Routes = other.Routes ?? Routes;

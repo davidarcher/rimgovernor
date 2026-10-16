@@ -446,10 +446,10 @@ order. Meals eaten: a postfix on `FoodUtility.FoodOptimality` adds up to 24 poin
 fresh perishable stack as it nears rotting (none beyond 60000 ticks), skipped when taking
 food to inventory. Hauling is unchanged. The `lab/spoilage-pick` case proves both picks.
 
-`MaintainRefrigeration` takes the warm side: roofed perishable nutrition in a known room,
-warmer than 10 C and under five days from rot. It latches at the same five-unit floor and
-releases only when every such stock measures 5 C or colder; unknown temperature or room
-facts preserve the latch.
+The `food-stores/refrigeration` Need (#3280) takes the warm side: roofed perishable
+nutrition in a known room, warmer than 5 C (`ChilledExitC`) and under five days from rot.
+It is unmet while that nutrition reaches the same five-unit floor and met once it is
+under it; it has no latch, and unknown temperature or room facts leave it unknown.
 
 - The method needs an enclosed room, native `Cooler` availability and a wall cell with a
   straight inside-wall-outdoors line. An existing cooler facing the room is patched to
@@ -473,12 +473,12 @@ facts preserve the latch.
   observed (`policy.PowerOutageHold`) the review keeps `EnsureBasicPower` open with
   `method_unavailable` (suspended, never cancelled, not extending the startup hold), and
   the power and refrigeration planners report `solar_flare` (`PowerWaitBlackout`,
-  `RefrigerationWaitBlackout`) with no allowance lent. The deficit and latch keep their
-  measured state until the flare ends.
-- `MaintainRefrigeration` keeps a method under the flare: the cook-ahead planner
+  `RefrigerationWaitBlackout`) with no allowance lent. The deficit keeps its measured
+  state until the flare ends.
+- The refrigeration Need keeps a method under the flare: the cook-ahead planner
   (`policy.CookAheadFood`) raises one `CookMealSimple`-first target bill, in meals, on a
   bench native still reports usable (a fuelled stove; an unpowered electric one is
-  excluded) for the latched warm nutrition beyond `ReservedFoodNutrition`. It may add a
+  excluded) for the warm nutrition beyond `ReservedFoodNutrition`. It may add a
   second bill of a recipe the bench already carries, but one claim per bench and recipe
   per load. Without the flare hold or with reserved targets covering the stock it
   proposes nothing.

@@ -56,7 +56,62 @@ public sealed class FoodStoresFamilyTests
 
     private static FoodReserveReview Reserve(params string[] hold) => new() { TargetNutrition = 10, StockNutrition = 10, Hold = hold };
 
-    private static Need Derive(FoodStoresFacts facts) => Assert.Single(new FoodStoresFamily(Policy).Derive(facts));
+    private static Need Derive(FoodStoresFacts facts) => Assert.Single(new FoodStoresFamily(Policy, true, false).Derive(facts));
+
+    /// <summary>A roofed perishable stock in room r1 measured at <paramref name="celsius"/>, two days from rot.</summary>
+    private static FoodStorageStock Warm(string id, double nutrition, double celsius) => new(new FoodStock
+    {
+        Id = id,
+        DefName = new("RawFungus"),
+        Nutrition = Known(nutrition),
+        Perishable = Known(true),
+        RotTicks = Known(2L * GameTime.TicksPerDay),
+        Roofed = Known(true),
+        TemperatureC = Known(celsius),
+        Forbidden = Known(false),
+        Room = Known("r1"),
+    });
+
+    private static Need Refrigeration(FoodStoresFacts facts) => Assert.Single(new FoodStoresFamily(Policy, false, true).Derive(facts));
+
+    [Fact]
+    public void TheRefrigerationNeedIsAPlainThresholdAtTheExitBarAndAnUnknownCensusIsUnknown()
+    {
+        // Warm at-risk nutrition at the floor, colder than the old 10 C entry bar but warmer than the 5 C exit bar:
+        // with no latch it is unmet on its own.
+        var warm = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold, Policy.ChilledExitC + 2)), WarmRooms = Known<EquatableArray<string>>([]), MealClosetOwed = Known(false) });
+        Assert.Equal((RefrigerationNeed, NeedTier.Wellbeing, Satisfaction.Unmet), (warm.Id, warm.Tier, warm.Satisfaction));
+        Assert.True(warm.Deficit.TryGetValue(out var deficit) && deficit > 0 && deficit <= 1);
+
+        // The same stock at the exit bar is met, and so is warm stock under the floor.
+        var chilled = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold, Policy.ChilledExitC)), WarmRooms = Known<EquatableArray<string>>([]), MealClosetOwed = Known(false) });
+        Assert.Equal(Satisfaction.Met, chilled.Satisfaction);
+        var little = Refrigeration(new() { Storage = Census(Warm("a", Policy.AtRiskNutritionThreshold / 2, Policy.ChilledExitC + 2)) });
+        Assert.Equal(Satisfaction.Met, little.Satisfaction);
+
+        // A warm cooling room or an owed meal closet is unmet on a cold census.
+        Assert.Equal(Satisfaction.Unmet, Refrigeration(new() { Storage = Census(), WarmRooms = Known<EquatableArray<string>>(["tomb-1"]) }).Satisfaction);
+        var closet = Refrigeration(new() { Storage = Census(), MealClosetOwed = Known(true) });
+        Assert.Equal(Satisfaction.Unmet, closet.Satisfaction);
+        Assert.True(closet.Deficit.TryGetValue(out var owed) && owed >= 0.5);
+
+        // An unread census, or a warm stock of unknown temperature, is unknown, never met.
+        var unread = Refrigeration(new());
+        Assert.Equal(Satisfaction.Unknown, unread.Satisfaction);
+        Assert.False(unread.Deficit.TryGetValue(out _));
+        var unmeasured = Census(new FoodStorageStock(Warm("a", Policy.AtRiskNutritionThreshold, 20).Stock with { TemperatureC = Unknown<double>() }));
+        Assert.Equal(Satisfaction.Unknown, Refrigeration(new() { Storage = unmeasured }).Satisfaction);
+    }
+
+    [Fact]
+    public void EachFoodStoresNeedIsDerivedOnlyWhenItsServiceIsComposed()
+    {
+        var facts = new FoodStoresFacts { Storage = Census() };
+        Assert.Equal([FoodStorageNeed, RefrigerationNeed], new FoodStoresFamily(Policy, true, true).Derive(facts).Select(n => n.Id));
+        Assert.Equal([FoodStorageNeed], new FoodStoresFamily(Policy, true, false).Derive(facts).Select(n => n.Id));
+        Assert.Equal([RefrigerationNeed], new FoodStoresFamily(Policy, false, true).Derive(facts).Select(n => n.Id));
+        Assert.Equal([FactFamily.Rooms, FactFamily.Colony], new FoodStoresFamily(Policy, false, true).Reads);
+    }
 
     [Fact]
     public void TheStorageNeedIsAPlainThresholdAtTheTargetShareAndAnUnknownCensusIsUnknown()
@@ -117,7 +172,7 @@ public sealed class FoodStoresFamilyTests
         };
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
         Colony? colony = null;
-        var runner = new FamilyRunner<FoodStoresFacts>(new FoodStoresFamily(Policy), (_, _) => Task.FromResult(colony!.Facts),
+        var runner = new FamilyRunner<FoodStoresFacts>(new FoodStoresFamily(Policy, true, false), (_, _) => Task.FromResult(colony!.Facts),
             new FamilySchedule { Kinds = [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid] });
         colony = new Colony
         {

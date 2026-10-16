@@ -3,9 +3,10 @@ using System.Globalization;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// What the food stores family reads (#3251): the perishable food census, the travel reserve review, whether a
-/// food stockpile stands, whether the food plan holds the stock-protection channel, and the reserve stacks the
-/// native supply reads offer to hold or release (known only on a full family read; the pure uses leave it unknown).
+/// What the food stores family reads (#3251, #3280): the perishable food census, the travel reserve review, whether
+/// a food stockpile stands, whether the food plan holds the stock-protection channel, the reserve stacks the native
+/// supply reads offer to hold or release (known only on a full family read; the pure uses leave it unknown), and the
+/// planned cooling rooms refrigeration answers for.
 /// </summary>
 public sealed record FoodStoresFacts
 {
@@ -25,6 +26,12 @@ public sealed record FoodStoresFacts
     /// <summary>The colonists who haul in danger (<see cref="PolicyFunctions.DangerHaulers"/>): explain names why unstored food stays put.</summary>
     public Fact<EquatableArray<PawnId>> Haulers { get; init; }
 
+    /// <summary>The warm standing tombs, morgues and meal closets (<see cref="PolicyFunctions.WarmCoolingRooms"/>); unknown while the plan, rooms or cooler research are unread.</summary>
+    public Fact<EquatableArray<string>> WarmRooms { get; init; }
+
+    /// <summary>Whether the planned meal closet waits to be shelled while its dining room stands; unknown while unread.</summary>
+    public Fact<bool> MealClosetOwed { get; init; }
+
     /// <summary>The facts a review already holds; the reserve targets stay unknown.</summary>
     public static FoodStoresFacts From(RoundsFacts f) => new()
     {
@@ -33,28 +40,38 @@ public sealed record FoodStoresFacts
         Stockpile = PolicyFunctions.FoodStorageStanding(f),
         StockProtection = PolicyFunctions.FoodPlanSupport(f.FoodPlan, CandidateKind.Reserve, "stock-protection"),
         Haulers = f.DangerHaulers,
+        WarmRooms = f.WarmRooms,
+        MealClosetOwed = f.MealClosetOwed,
     };
 }
 
 /// <summary>
-/// The food stores family (#3251), storage only: one colony-wide Need, <c>food-stores/storage</c>, met while the
-/// food stockpile stands, the travel reserve is held and filled, and at least <see cref="FoodStoragePolicy.TargetStoredFraction"/>
-/// of the at-risk perishable nutrition sits in adequate storage. Its Methods hold or release reserve stacks and
-/// allow or forbid one larder corpse; the reserve refill is the PreserveFood bill the work ledger places, and the
-/// stockpile is the stockpile planner's, so those leave the Need unmet with no Method of this family.
+/// The food stores family (#3251, #3280): up to two colony-wide Needs, each derived only when its service is
+/// composed, with no ordering between them. <c>food-stores/storage</c> is met while the food stockpile stands, the
+/// travel reserve is held and filled, and at least <see cref="FoodStoragePolicy.TargetStoredFraction"/> of the
+/// at-risk perishable nutrition sits in adequate storage; its Methods hold or release reserve stacks and allow or
+/// forbid one larder corpse, while the reserve refill is the PreserveFood bill the work ledger places and the
+/// stockpile is the stockpile planner's. <c>food-stores/refrigeration</c> is met while no at-risk nutrition sits warm
+/// and no planned cooling room is owed; its coolers, setpoints and cold rooms are building work the runtime's work
+/// step commits, and its solar-flare answer is the CookAheadFood bill the work ledger places.
 /// </summary>
-public sealed class FoodStoresFamily(FoodStoragePolicy policy) : IFamily<FoodStoresFacts>
+public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, bool refrigeration) : IFamily<FoodStoresFacts>
 {
     /// <summary>The most supply actions one reserve Method carries.</summary>
     internal const int ReserveActionLimit = 8;
 
     public string Id => PolicyFunctions.FoodStoresFamilyId;
 
-    public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony];
+    /// <summary>The colony census; refrigeration also reads the room census its warm stock and cooling rooms stand in.</summary>
+    public IReadOnlyList<FactFamily> Reads { get; } = refrigeration ? [FactFamily.Rooms, FactFamily.Colony] : [FactFamily.Colony];
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
-    public IReadOnlyList<Need> Derive(FoodStoresFacts facts) => [PolicyFunctions.FoodStorageNeedOf(facts, policy)];
+    public IReadOnlyList<Need> Derive(FoodStoresFacts facts) =>
+    [
+        .. storage ? [PolicyFunctions.FoodStorageNeedOf(facts, policy)] : Array.Empty<Need>(),
+        .. refrigeration ? [PolicyFunctions.RefrigerationNeedOf(facts, policy)] : Array.Empty<Need>(),
+    ];
 
     /// <summary>
     /// Pending reserve access first (one Method of at most eight supply actions), otherwise the larder's one corpse
@@ -123,6 +140,9 @@ public static partial class PolicyFunctions
     /// <summary>The food stores family's storage Need (#3251).</summary>
     public static readonly NeedId FoodStorageNeed = NeedId.Of(FoodStoresFamilyId, "storage");
 
+    /// <summary>The food stores family's refrigeration Need (#3280).</summary>
+    public static readonly NeedId RefrigerationNeed = NeedId.Of(FoodStoresFamilyId, "refrigeration");
+
     /// <summary>Whether the reserve review asks for stacks to be held or released.</summary>
     public static bool ReserveAccessPending(Fact<FoodReserveReview> reserve) =>
         reserve.TryGetValue(out var r) && (r.Hold.Count > 0 || r.Release.Count > 0);
@@ -181,6 +201,57 @@ public static partial class PolicyFunctions
                 new("unstored_nutrition", Nutrition(storage?.UnstoredNutrition ?? default)),
                 new("corpse_larder", census ? Known(storage!.Larder ? "change" : "none") : Unknown<string>()),
                 new("food_not_stored", census && storage!.Deficit.TryGetValue(out var shortfall) && shortfall > 0 ? Known(Wire.Name(FoodStorageStuckReason(f.Storage, p, f.Haulers))) : Unknown<string>()),
+            ],
+        };
+    }
+
+    /// <summary>
+    /// The refrigeration Need, a plain threshold with no latch (decision 16): unmet while the at-risk roofed
+    /// perishable nutrition warmer than <see cref="FoodStoragePolicy.ChilledExitC"/> reaches
+    /// <see cref="FoodStoragePolicy.AtRiskNutritionThreshold"/>, while a standing tomb, morgue or meal closet measures
+    /// warm, or while the planned meal closet waits for its shell. Otherwise it is unknown when the census is, and
+    /// met. Unread warm rooms or an unread closet owe nothing. Its deficit is the warm nutrition's share of the
+    /// threshold, whole for a warm cooling room, and at least a half while the closet is owed.
+    /// </summary>
+    public static Need RefrigerationNeedOf(FoodStoresFacts f, FoodStoragePolicy p)
+    {
+        RefrigerationReview review;
+        try
+        {
+            review = ReviewRefrigeration(f.Storage, p).WithWarmRooms(f.WarmRooms);
+        }
+        catch (DomainException)
+        {
+            // Malformed census rows are an unreadable census, never a measured one.
+            review = new RefrigerationReview { WarmNutrition = Unknown<double>() };
+        }
+        var nutritionKnown = review.WarmNutrition.TryGetValue(out var nutrition);
+        var closet = Positive(f.MealClosetOwed);
+        var satisfaction = review.Active || closet ? Satisfaction.Unmet : nutritionKnown ? Satisfaction.Met : Satisfaction.Unknown;
+        var deficit = 0.0;
+        if (satisfaction == Satisfaction.Unmet)
+        {
+            deficit = nutritionKnown && p.AtRiskNutritionThreshold > 0 ? Math.Min(1.0, nutrition / p.AtRiskNutritionThreshold) : 1.0;
+            if (review.Warm.Count > 0)
+            {
+                deficit = 1.0;
+            }
+            if (closet)
+            {
+                deficit = Math.Max(deficit, 0.5);
+            }
+        }
+        return new Need
+        {
+            Id = RefrigerationNeed,
+            Tier = NeedTier.Wellbeing,
+            Satisfaction = satisfaction,
+            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(deficit),
+            Evidence =
+            [
+                new("warm_nutrition", Nutrition(review.WarmNutrition)),
+                new("warm_rooms", f.WarmRooms.TryGetValue(out var warm) ? Known(warm.Count == 0 ? "none" : string.Join(",", warm)) : Unknown<string>()),
+                new("meal_closet", f.MealClosetOwed.TryGetValue(out var owed) ? Known(owed ? "owed" : "none") : Unknown<string>()),
             ],
         };
     }

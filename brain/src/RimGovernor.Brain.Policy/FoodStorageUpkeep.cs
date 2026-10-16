@@ -87,10 +87,10 @@ public sealed record FoodStoragePolicy
     /// <summary>Our own tuning (the game defines no safe days): the rot runway that makes warm roofed stock acceptable anyway.</summary>
     public double SafeRotDays { get; init; }
 
-    /// <summary>The measured storage temperature MaintainRefrigeration releases at (hysteresis under FoodStorageObservation.ChilledMaxC).</summary>
+    /// <summary>The storage temperature the food-stores/refrigeration Need is met at: at-risk stock warmer than it counts as warm (at or under FoodStorageObservation.ChilledMaxC).</summary>
     public double ChilledExitC { get; init; }
 
-    /// <summary>The setpoint MaintainRefrigeration asks a cooler for.</summary>
+    /// <summary>The setpoint the food-stores/refrigeration Need asks a cooler for.</summary>
     public double FreezerTargetC { get; init; }
 
     internal bool Valid =>

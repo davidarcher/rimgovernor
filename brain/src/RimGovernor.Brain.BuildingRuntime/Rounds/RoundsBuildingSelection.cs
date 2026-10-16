@@ -71,14 +71,6 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (1, Temperature.Key, default);
         }
-        if (c == PolicyApi.MaintainRefrigeration)
-        {
-            if (Refrigeration is null || Refrigeration.Method != RefrigerationMethod.Build)
-            {
-                return (0, default, FieldUnavailable("refrigeration_proposal"));
-            }
-            return (1, Refrigeration.Key, default);
-        }
         if (c == PolicyApi.MaintainLighting)
         {
             if (Lighting is null || Lighting.Method != LightingMethod.Build)

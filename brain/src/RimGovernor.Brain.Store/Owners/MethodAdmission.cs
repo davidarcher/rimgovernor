@@ -136,15 +136,14 @@ public sealed partial class Store
         }
         // Bills serve the cooking/food goals, the resource-target goals whose production path stages a bench and then
         // a StockTarget bill on it, the equipment goal whose replacement is a StockTarget bill on a standing bench,
-        // the refrigeration goal's cook-ahead bill, the art goal's pinned sculpture bills, the baby feeding goal's
-        // baby food bill, the mech goal's gestation bills and the surgery goal's part bills. The work ledger goal
+        // the art goal's pinned sculpture bills, the baby feeding goal's baby food bill, the mech goal's gestation
+        // bills and the surgery goal's part bills. The work ledger goal
         // commits the round's whole reconcile plan: places and removals together.
         var bound = owner.OwnerNeed(review, out var need)
             && (need == EnsureCooking
                 || need == EnsureFoodSupply
                 || need == MaintainResource
                 || need == MaintainEquipment
-                || need == MaintainRefrigeration
                 || need == MaintainArt
                 || need == MaintainBabyFeeding
                 || need == MaintainMechs

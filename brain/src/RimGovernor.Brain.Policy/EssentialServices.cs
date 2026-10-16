@@ -128,7 +128,7 @@ public static partial class PolicyFunctions
         Owner(EssentialService.Shelter, MaintainShelter);
         Owner(EssentialService.Temperature, EnsureTemperatureSafety);
         NeedOwner(EssentialService.Food, FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
-        Owner(EssentialService.Food, MaintainRefrigeration);
+        NeedOwner(EssentialService.Food, RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         Owner(EssentialService.Power, EnsureBasicPower);
         Owner(EssentialService.Logistics, MaintainRoutes);
         Owner(EssentialService.Materials, MaintainResource);

@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Observation;
 
 /// <summary>
-/// Reads exact cooler buildings so MaintainRefrigeration can see each cooler's rotation, target setpoint and CAS
+/// Reads exact cooler buildings so the food-stores/refrigeration Need can see each cooler's rotation, target setpoint and CAS
 /// token. Power state comes from the same-tick colony power census instead.
 /// </summary>
 public interface IRefrigerationSource

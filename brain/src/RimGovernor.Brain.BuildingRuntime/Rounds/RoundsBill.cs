@@ -37,7 +37,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         }
         else if (purpose == PolicyConstants.CookAheadFood)
         {
-            need = PolicyApi.MaintainRefrigeration;
+            need = PolicyApi.RefrigerationNeed.FilingKey;
         }
         _reviewer = reviewer;
         _purpose = purpose;
@@ -102,10 +102,6 @@ public sealed class RoundsBillPlanner : IPurposeReporter
                 }
                 continue;
             }
-            if (_purpose == PolicyConstants.CookAheadFood && StorePackage.PlanOpen(plan))
-            {
-                return true;
-            }
         }
         return false;
     }
@@ -113,10 +109,13 @@ public sealed class RoundsBillPlanner : IPurposeReporter
     internal PurposeReport FoodReport(FoodOrderRequest request, ColonyProjection projection)
     {
         var order = PolicyApi.SelectFoodOrder(request);
-        // The preservation bills serve the food-stores/storage Need: its standing, not an owner's open work, gates the report.
+        // The preservation and cook-ahead bills serve the food-stores Needs: the Need's standing, not an owner's open
+        // work, gates the report.
         var report = _purpose == PolicyConstants.PreserveFood
             ? new PurposeReport { Need = PolicyApi.FoodStorageNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
-            : new PurposeReport { OpenWork = OpenWork };
+            : _purpose == PolicyConstants.CookAheadFood
+                ? new PurposeReport { Need = PolicyApi.RefrigerationNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
+                : new PurposeReport { OpenWork = OpenWork };
         switch (order.Gap)
         {
             case FoodOrderGap.Plan:
@@ -138,7 +137,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         return report;
     }
 
-    internal FoodOrderRequest FoodRequest(ColonyProjection projection, RoundsReview review)
+    internal FoodOrderRequest FoodRequest(ColonyProjection projection)
     {
         var seasonal = _reviewer.Seasonal(projection.Facts);
         var request = new FoodOrderRequest
@@ -157,7 +156,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         }
         else if (_purpose == PolicyConstants.CookAheadFood)
         {
-            var refrigeration = PolicyApi.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, review.Latches.Refrigeration, _reviewer.Policy.FoodStorage);
+            var refrigeration = PolicyApi.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, _reviewer.Policy.FoodStorage);
             request = request with { Warm = refrigeration.WarmNutrition };
         }
         return request;
@@ -168,10 +167,10 @@ public sealed class RoundsBillPlanner : IPurposeReporter
 
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
-        RoundsReview review;
         try
         {
-            review = _reviewer.Player.Journal.LoadRounds(ct);
+            // The bills wait on a readable review.
+            _ = _reviewer.Player.Journal.LoadRounds(ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -181,7 +180,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         FoodOrderRequest request;
         try
         {
-            request = FoodRequest(projection, review);
+            request = FoodRequest(projection);
         }
         catch (DomainException ex)
         {

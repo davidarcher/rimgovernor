@@ -21,7 +21,7 @@ public static partial class PolicyConstants
     public static readonly BillPurpose ButcherFood = new("butcher");
 
     /// <summary>
-    /// MaintainRefrigeration's answer to a solar flare: the warm perishable stock the dark coolers cannot save
+    /// The food-stores/refrigeration Need's answer to a solar flare: the warm perishable stock the dark coolers cannot save
     /// is cooked into meals on whichever bench still works (a fuelled stove; native's usable flag already
     /// excludes the unpowered electric one), so the colony eats it before it rots instead of waiting out the
     /// outage. The target is the at-risk nutrition beyond what existing bills already reserve, in meals; the

@@ -66,7 +66,6 @@ public sealed partial class BrainComposition
         RoundsPrisonerInteractionPlanner? cfgPrisonerInteraction = null;
         RoundsPsylinkPlanner? cfgPsylink = null;
         RoundsRecoveryPlanner? cfgRecovery = null;
-        RoundsBuildingPlanner? cfgRefrigeration = null;
         RoundsRescuePlanner? cfgRescue = null;
         RoundsResearchPlanner? cfgResearch = null;
         RoundsResourcePlanner? cfgResource = null;
@@ -259,10 +258,20 @@ public sealed partial class BrainComposition
             cfgMedical = RoundsMedicalPlanner.NewRoundsMedicalPlanner(reviewer, client);
             cfgSurgery = RoundsSurgeryPlanner.Create(reviewer);
         }
-        if (foodStorageUpkeep)
+        if (foodStorageUpkeep || refrigeration)
         {
-            var foodStores = new FoodStoresRounds(reviewer, client);
-            reviewer.AddOrderDeclarer(new FoodStoresDeclarer(foodStores));
+            // The storage and refrigeration toggles compose the food-stores family's two Needs (#3251, #3280).
+            var foodStores = new FoodStoresRounds(reviewer, client, foodStorageUpkeep, refrigeration ? RoundsBuildingPlanner.NewRoundsRefrigerationPlanner(reviewer, client) : null);
+            if (foodStorageUpkeep)
+            {
+                reviewer.AddOrderDeclarer(new FoodStoresDeclarer(foodStores));
+            }
+            if (refrigeration)
+            {
+                // The solar-flare cook-ahead bill answers the refrigeration Need, wired with its family rather than
+                // the cooking bills so a refrigeration-only service serves it.
+                reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, CookAheadFood));
+            }
             families.Add(foodStores.Runner());
         }
         if (animalContainment)
@@ -373,7 +382,7 @@ public sealed partial class BrainComposition
         {
             cfgSupplies = RoundsSupplyPlanner.Create(reviewer, client);
         }
-        if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || refrigeration || lighting || flooring || routes || mechCharger || geneBank)
+        if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || lighting || flooring || routes || mechCharger || geneBank)
         {
             if (sleeping || shelter)
             {
@@ -390,13 +399,6 @@ public sealed partial class BrainComposition
             if (power)
             {
                 cfgPower = RoundsBuildingPlanner.NewRoundsPowerPlanner(reviewer, client);
-            }
-            if (refrigeration)
-            {
-                cfgRefrigeration = RoundsBuildingPlanner.NewRoundsRefrigerationPlanner(reviewer, client);
-                // The solar-flare cook-ahead bill is the refrigeration goal's own method, wired with its family
-                // rather than the cooking bills so a refrigeration-only service serves it.
-                reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, CookAheadFood));
             }
             if (mechCharger)
             {
@@ -497,7 +499,6 @@ public sealed partial class BrainComposition
             PrisonerInteraction = cfgPrisonerInteraction,
             Psylink = cfgPsylink,
             Recovery = cfgRecovery,
-            Refrigeration = cfgRefrigeration,
             Rescue = cfgRescue,
             Research = cfgResearch,
             Resource = cfgResource,
@@ -591,7 +592,6 @@ public sealed partial class BrainComposition
         Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);
         Add(sc.Temperature, EnsureTemperatureSafety);
         Add(sc.Power, EnsureBasicPower);
-        Add(sc.Refrigeration, MaintainRefrigeration);
         Add(sc.Lighting, MaintainLighting);
         Add(sc.Art, MaintainArt, MaintainTrade);
         Add(sc.Mechs, MaintainMechs);
@@ -641,6 +641,6 @@ public sealed partial class BrainComposition
         Add(sc.Trade, TradeWithCaravan);
         // The equip planner supplies EnsureBasicDefense's method capability.
         Add(sc.Equip, EnsureBasicDefense);
-        return (thresholds, new RoundsCapabilities { Methods = methods, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance });
+        return (thresholds, new RoundsCapabilities { Methods = methods, Needs = sc.Refrigeration ? [RefrigerationNeed] : [], LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance });
     }
 }

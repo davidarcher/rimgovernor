@@ -321,10 +321,6 @@ public sealed partial class RoundsBuildingPlanner
         {
             definitions = [.. TemperatureDefinitions, "Heater"];
         }
-        if (r.Concern == MaintainRefrigeration)
-        {
-            definitions = ["Cooler"];
-        }
         if (r.Concern == MaintainLighting)
         {
             definitions = r.LightingDefinitions();
@@ -348,9 +344,9 @@ public sealed partial class RoundsBuildingPlanner
         {
             observed = [.. definitions, "SleepingSpot", ShelterBedDefinition, SleepingBedrollDefinition];
         }
-        if (r.Concern == EnsureCooking || r.Concern == MaintainRefrigeration || r.ButcherFacility())
+        if (r.Concern == EnsureCooking || r.ButcherFacility())
         {
-            // The planned kitchen, freezer or butchery is shelled first.
+            // The planned kitchen or butchery is shelled first.
             observed = [.. observed, "Wall", "Door"];
         }
         if (r.Shelter)
@@ -361,7 +357,7 @@ public sealed partial class RoundsBuildingPlanner
         Observation.ColonyReading reading;
         var roundsSource = r.Native is Observation.IRoundsSource;
         var separation = (r.ButcherFacility() || r.Concern == EnsureCooking) && roundsSource;
-        if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == EnsureTemperatureSafety || r.FacilityLadder() || r.Concern == MaintainRefrigeration || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes || separation)
+        if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == EnsureTemperatureSafety || r.FacilityLadder() || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes || separation)
         {
             // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
             // separation protects each other's rooms; without a census nothing is protected.
@@ -421,31 +417,13 @@ public sealed partial class RoundsBuildingPlanner
             }
             r = resolvedPaste;
         }
-        var coolingLatchOnly = false;
-        if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == MaintainRefrigeration || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes)
+        if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes)
         {
             RoundsBuildingPlanner? resolved;
             Verdict reason;
             if (r.Concern == EnsureTemperatureSafety)
             {
                 (resolved, reason) = r.SelectTemperature(facts, review.Latches);
-            }
-            else if (r.Concern == MaintainRefrigeration)
-            {
-                bool exhausted;
-                (exhausted, coolingLatchOnly) = RefrigerationCooling(p.Journal, goal, state.Snapshot, facts.Identity.Tick, review.Latches.RefrigerationSince, call);
-                // The dining room's meal closet stands before its cooler; a shell already tried this epoch, or
-                // refused, leaves the cooling to go on.
-                var (closet, closetOwed) = PlannedMealCloset(facts);
-                if (PositiveFact(closetOwed))
-                {
-                    var closetResult = await r.ReconcileRoomAsync(state, review, goal, new Observation.RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = closet, Name = PlannedRoomMethod(closet).Value, Reason = "cold meal shelf" }, call, epoch).ConfigureAwait(false);
-                    if (!closetResult.Verdict.SkipsToPlacement)
-                    {
-                        return closetResult;
-                    }
-                }
-                (resolved, reason) = await r.SelectRefrigerationAsync(facts, review.Latches, exhausted, call).ConfigureAwait(false);
             }
             else if (r.Concern == EnsureBasicPower)
             {
@@ -489,40 +467,11 @@ public sealed partial class RoundsBuildingPlanner
             }
             if (!reason.IsZero)
             {
-                var result = new RoundsBuildingResult { Verdict = reason };
-                // A cooler completed on the tick the supervisor latched reads powerOn=false until the power net
-                // ticks once, so the cooling window also covers cooler_power_needed; a cooler still unpowered when
-                // it runs out is a real hold. The latch alone does not cover it: with no method in the epoch there
-                // is no cooler still settling.
-                var powerSettling = r.Concern == MaintainRefrigeration && reason == AwaitingMethod(Pol.RefrigerationMethod.PowerNeeded) && !coolingLatchOnly;
-                if (reason == BuildingReasonComfortWait || reason == AwaitingMethod(Pol.PowerMethod.WaitOutput) || reason == BuildingReasonTemperatureWait || reason == AwaitingMethod(Pol.RefrigerationMethod.Wait) || powerSettling)
+                if (reason == BuildingReasonComfortWait || reason == AwaitingMethod(Pol.PowerMethod.WaitOutput) || reason == BuildingReasonTemperatureWait)
                 {
-                    p.Current(call, epoch);
-                    if (p.Session.State() != state)
-                    {
-                        throw new ControlException("step: p.session.State() != state");
-                    }
-                    var (last, _) = await r.Native.IdentityAsync(call).ConfigureAwait(false);
-                    Observation.Identity actual;
-                    try
-                    {
-                        actual = ObservationPackage.DecodeIdentity(last);
-                    }
-                    catch (Exception e) when (e is not OperationCanceledException)
-                    {
-                        throw new ControlException($"step: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick): {e.Message}");
-                    }
-                    if (!RoundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick))
-                    {
-                        throw new ControlException("step: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick)");
-                    }
-                    var now = r.Reviewer.Clock.Now();
-                    if (now < reading.StartedAt || now - reading.StartedAt > r.Reviewer.MaxAge)
-                    {
-                        throw new Observation.ObservationStaleException();
-                    }
+                    await r.WaitFenceAsync(state, reading, facts, call, epoch).ConfigureAwait(false);
                 }
-                return result;
+                return new RoundsBuildingResult { Verdict = reason };
             }
             r = resolved!;
             definitions = [r.Definition];
@@ -543,18 +492,6 @@ public sealed partial class RoundsBuildingPlanner
                     throw new ControlException("step: p.session.State() != state");
                 }
             }, call);
-        }
-        if (r.Refrigeration is { Method: Pol.RefrigerationMethod.SetTarget })
-        {
-            var setResult = r.CommitRefrigerationTarget(goal, () =>
-            {
-                p.Current(call, epoch);
-                if (p.Session.State() != state)
-                {
-                    throw new ControlException("step: p.session.State() != state");
-                }
-            }, call);
-            return setResult;
         }
         var (missing, method, selectionReason) = r.Selection(facts);
         switch (method.Value)
@@ -636,7 +573,7 @@ public sealed partial class RoundsBuildingPlanner
         var (plannedModule, plannedModuleOk) = r.PlannedRoomModule();
         if (plannedModuleOk)
         {
-            // The planned room is raised and furnished together: the ring is admitted, and the stove or cooler
+            // The planned room is raised and furnished together: the ring is admitted, and the stove or bench
             // goes onto the room's interior without waiting for the walls. A shell already tried this epoch, or
             // refused, leaves the usual placement to go on.
             var (room, owed) = PlannedRoomOwed(facts, plannedModule);
@@ -731,7 +668,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
             }
         }
-        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == MaintainRefrigeration || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes)
+        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes)
         {
             gate = ComfortBuilderGate(facts, r.Definition);
             if (r.Power is { Method: Pol.PowerMethod.Generate } generator)
@@ -796,7 +733,7 @@ public sealed partial class RoundsBuildingPlanner
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var heldReservations = p.Journal.BuildingReservations(snapshot, call);
-        if (r.ButcherFacility() || r.Concern == EnsureCooking || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == MaintainRefrigeration || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes)
+        if (r.ButcherFacility() || r.Concern == EnsureCooking || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.HousingExpansion || r.Concern == EnsureBasicPower || r.Concern == EnsureTemperatureSafety || r.Concern == MaintainLighting || r.Concern == MaintainFlooring || r.Concern == MaintainRoutes)
         {
             var pendingPlanner = r;
             bool Pending(Progress progress)
@@ -862,14 +799,6 @@ public sealed partial class RoundsBuildingPlanner
         var pendingAnchors = p.Journal.PendingBuildingAnchors(snapshot, own, call);
         protectedCells.AddRange(pendingAnchors);
         var excavation = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading };
-        if (r.Refrigeration is { Method: Pol.RefrigerationMethod.Build })
-        {
-            var (exhaust, exhausted) = await r.DigExhaustAsync(excavation, Check, call, epoch).ConfigureAwait(false);
-            if (exhausted)
-            {
-                return exhaust;
-            }
-        }
         var (sky, skyHandled) = await r.DigSkyAsync(excavation, protectedCells, Check, call, epoch).ConfigureAwait(false);
         if (skyHandled)
         {
@@ -957,6 +886,39 @@ internal sealed record RoundsAdmission
 
 public sealed partial class RoundsBuildingPlanner
 {
+    /// <summary>
+    /// The fence a waiting verdict passes before it is reported: the session is still current and unchanged, the
+    /// native still names the step's world at or past the read, and the read is inside the review's age bound.
+    /// </summary>
+    internal async Task WaitFenceAsync(ControlState state, Observation.ColonyReading reading, Observation.ColonyProjection facts, CancellationToken call, CancellationToken epoch)
+    {
+        var p = Reviewer.Player;
+        p.Current(call, epoch);
+        if (p.Session.State() != state)
+        {
+            throw new ControlException("step: p.session.State() != state");
+        }
+        var (last, _) = await Native.IdentityAsync(call).ConfigureAwait(false);
+        Observation.Identity actual;
+        try
+        {
+            actual = ObservationPackage.DecodeIdentity(last);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new ControlException($"step: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick): {e.Message}");
+        }
+        if (!RoundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick))
+        {
+            throw new ControlException("step: err != nil || !roundsBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick)");
+        }
+        var now = Reviewer.Clock.Now();
+        if (now < reading.StartedAt || now - reading.StartedAt > Reviewer.MaxAge)
+        {
+            throw new Observation.ObservationStaleException();
+        }
+    }
+
     /// <summary>
     /// Admits the plan, the previews in dispatch order. Native validates each building intent when it applies it,
     /// so the siting reads carry no boundary re-check here.
@@ -1060,10 +1022,6 @@ public sealed partial class RoundsBuildingPlanner
         if (Paste.Count > 0)
         {
             return await PreviewPasteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
-        }
-        if (Refrigeration is not null)
-        {
-            return await PreviewRefrigerationAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
         }
         if (Temperature is { Method: Pol.TemperatureMethod.CoolPowered })
         {

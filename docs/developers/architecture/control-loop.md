@@ -273,8 +273,8 @@ Two decisions travel with the migration rather than any one family:
 - **MaintainFireSafety is deleted outright**, not migrated. Pawns fight fires
   natively; firefighter work stays assigned through work assignments, and home
   fires no longer pause development work.
-- **Food stores is the first family** (MaintainFoodStorage and
-  MaintainRefrigeration): both are Food owners in the forecast with real
+- **Food stores is the first family** (food storage and refrigeration):
+  both are Food owners in the forecast with real
   planners, and its slice deletes the ReserveAccess exemption.
 
 **Food stores, storage (#3251).** `MaintainFoodStorage` is now the
@@ -289,7 +289,27 @@ Methods are `food-reserve` (at most eight hold/release supply actions) and
 supply stacks as claims; `AdmitSupplyMethod` binds the Need owner to the stacks the
 review lists. The stock-target meal order and the PreserveFood bill declare to the
 ledger under the Need's filing key, and the ledger reads the Need's standing for
-them instead of open work. Refrigeration stays a Concern until #3280.
+them instead of open work.
+
+**Food stores, refrigeration (#3280).** Refrigeration is the
+`food-stores/refrigeration` Need (`RefrigerationNeedOf`), a Wellbeing Need of the
+same family, derived only when the refrigeration service is composed and with no
+precondition on storage. It is a plain threshold (decision 16): unmet while at-risk
+perishable nutrition warmer than `ChilledExitC` (5 C) reaches
+`AtRiskNutritionThreshold`, while a standing tomb, morgue or meal closet measures
+warm, or while the planned meal closet waits for its shell; unknown when the census
+is unread; otherwise met. The `Refrigeration` and `RefrigerationSince` latches and
+the native cooling time they lent are gone: the cooling window runs only over
+coolers the Need itself committed in its world (`OwnerMethodHistory`). Its building
+work is the family runner's `work` step (`FoodStoresRounds.WorkAsync` calling
+`RoundsBuildingPlanner.RefrigerationStepAsync` with the Need owner): the meal
+closet ring, a cooler setpoint, the freezer ring, the exhaust dig and the cooler,
+each committed once per world under the Need and held apart by claims, not by a
+whole-owner guard. With refrigeration on, the family reads the room census and
+wakes on Building and BuildingTemperature outcomes. The review reads the cooler
+and room definitions when `RoundsCapabilities.Needs` lists the Need (a Need has no
+registry row, so it is not a `Methods` entry). The CookAheadFood bill declares
+under the Need's filing key and reports the Need's standing.
 
 **Per-family migration checklist** (as followed for food-stores/storage):
 
@@ -323,7 +343,7 @@ three ways.
 
 | Family | Today's Concerns |
 | --- | --- |
-| Food stores | food-stores/storage (was MaintainFoodStorage, #3251), MaintainRefrigeration |
+| Food stores | food-stores/storage (was MaintainFoodStorage, #3251), food-stores/refrigeration (#3280) |
 | Food | EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight |
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |

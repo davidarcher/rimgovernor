@@ -200,8 +200,6 @@ internal static class ClockPlannerCatalog
             c => c.Power is not null, (s, ct, e, a) => s.Config.Power!.StepAsync(a, ct, e), (o, m) => o.Power = m, EnsureBasicPower),
         E("temperature", O, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
             c => c.Temperature is not null, (s, ct, e, a) => s.Config.Temperature!.StepAsync(a, ct, e), (o, m) => o.Temperature = m, EnsureTemperatureSafety),
-        E("refrigeration", O, [ActionKind.Building, ActionKind.BuildingTemperature], SectionsBuilding,
-            c => c.Refrigeration is not null, (s, ct, e, a) => s.Config.Refrigeration!.StepAsync(a, ct, e), (o, m) => o.Refrigeration = m, MaintainRefrigeration),
         E("lighting", O, [ActionKind.Building], SectionsBuilding,
             c => c.Lighting is not null, (s, ct, e, a) => s.Config.Lighting!.StepAsync(a, ct, e), (o, m) => o.Lighting = m, MaintainLighting),
         E("flooring", O, [ActionKind.Building], SectionsBuilding,

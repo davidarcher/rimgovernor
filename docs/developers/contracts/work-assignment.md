@@ -446,7 +446,7 @@ and the replacement of an inadequate baby food bill (an adequate new bill is pla
 beside it), both waiting for orphan removal of these kinds.
 
 The food bills (#2602) are the second migration: `EnsureCooking`, `MaintainFoodStorage` (now the `food-stores/storage` Need, #3251),
-`EnsureFoodSupply` and `MaintainRefrigeration` declare to the ledger. The cooking,
+`EnsureFoodSupply` and refrigeration (now the `food-stores/refrigeration` Need, #3280) declare to the ledger. The cooking,
 reserve (preserve), butcher and cook-ahead `RoundsBillPlanner`s and the food-storage
 upkeep planner declare through `policy.DeclareFoodOrders` (`FoodOrders.cs`): the
 same selectors that once chose the next bill now run over the bench census read

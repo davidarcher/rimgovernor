@@ -30,8 +30,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 
     public MedicalReserveReview Medicine { get; set; } = default!;
 
-    public RefrigerationReview Refrigeration { get; set; } = default!;
-
     public LightingReview Lighting { get; set; } = default!;
 
     public FlooringReview Flooring { get; set; } = default!;
@@ -558,48 +556,6 @@ public static partial class PolicyFunctions
         if (recovered.TryGetValue(out var v) && !v)
         {
             c.Raise(MaintainBabyFeeding);
-        }
-    }
-
-    /// <summary>
-    /// Answers the same at-risk perishable nutrition as the food-stores/storage Need by cooling the room the food
-    /// already sits in. It runs at foothold priority like EnsureTemperatureSafety rather than as a ranked
-    /// development project: the review only latches on food inside SafeRotDays of spoiling, and a cooler
-    /// queued behind the project limit arrives after the food is gone.
-    /// </summary>
-    internal static void InspectRefrigeration(RoundsRun c)
-    {
-        var f = c.F;
-        var refrigeration = c.Refrigeration;
-        var recovered = Unknown<bool>();
-        if (refrigeration.WarmNutrition.TryGetValue(out _))
-        {
-            recovered = Known(!refrigeration.Active);
-        }
-        f.MealClosetOwed.TryGetValue(out var closetOwed);
-        if (closetOwed)
-        {
-            recovered = Known(false);
-        }
-        c.Assess(MaintainRefrigeration, recovered);
-        if (!Positive(recovered))
-        {
-            var g = c.Raise(MaintainRefrigeration);
-            // A cooler cannot run under a solar flare either (the cooler planner reports solar_flare), but
-            // the goal keeps a method: the warm stock is cooked ahead on a bench that still works.
-            if (refrigeration.WarmNutrition.TryGetValue(out var nutrition) && c.P.FoodStorage.AtRiskNutritionThreshold > 0)
-            {
-                g.Deficit = Known(Math.Min(1, nutrition / c.P.FoodStorage.AtRiskNutritionThreshold));
-            }
-            if (refrigeration.Warm.Count > 0)
-            {
-                g.Deficit = Known(1.0);
-            }
-            g.Deficit.TryGetValue(out var d);
-            if (closetOwed && d < 0.5)
-            {
-                g.Deficit = Known(0.5);
-            }
         }
     }
 

@@ -8,7 +8,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>
     /// The planned meal closet with nothing standing on it while the planned dining room stands;
-    /// MaintainRefrigeration shells it.
+    /// the food-stores/refrigeration Need shells it.
     /// </summary>
     public static (PlannedRoom? Room, bool Ok) MealClosetOwed(this LayoutPlan p, RoomObservation rooms)
     {

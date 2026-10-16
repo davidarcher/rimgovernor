@@ -21,11 +21,6 @@ public sealed partial class RoundsBuildingPlanner
             return (PlannedRole.Butchery, true);
         }
 
-        if (Concern == PolicyFunctions.MaintainRefrigeration && Refrigeration is not null && Refrigeration.Method == RefrigerationMethod.Build)
-        {
-            return (PlannedRole.Freezer, true);
-        }
-
         return (default, false);
     }
 

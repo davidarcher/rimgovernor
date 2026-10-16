@@ -269,14 +269,6 @@ public sealed partial class Store
             detection = new RoundsDetection(facts, latches, request.Policy);
             needs = PolicyFunctions.InspectRounds(facts, latches, request.Policy);
             disaster = needs.Disaster;
-            if (needs.Latches.Refrigeration)
-            {
-                needs.Latches.RefrigerationSince = request.Tick;
-                if (latches.Refrigeration && latches.RefrigerationSince.Value > 0)
-                {
-                    needs.Latches.RefrigerationSince = latches.RefrigerationSince;
-                }
-            }
         }
         if (request.Enabled && request.Immediate)
         {

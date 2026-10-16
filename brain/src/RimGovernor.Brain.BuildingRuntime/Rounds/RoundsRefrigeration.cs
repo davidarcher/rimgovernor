@@ -1,14 +1,20 @@
+using System.Globalization;
+
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
 {
     internal const uint RefrigerationCoolingTicks = 2 * GameTime.TicksPerDay;
 
+    /// <summary>The definitions the refrigeration step reads: the cooler, and the wall and door of the cold rooms it shells.</summary>
+    internal IReadOnlyList<string> RefrigerationDefinitions() => [Definition, PolicyFunctions.ShellWallDefinition, PolicyFunctions.ShellDoorDefinition];
+
+    /// <summary>The shared building planner under the food-stores/refrigeration Need (#3280): its Methods bind under the Need and are admitted by claims.</summary>
     public static RoundsBuildingPlanner NewRoundsRefrigerationPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainRefrigeration))
+        if (reviewer is null || native is null)
         {
-            throw new ControlException("NewRoundsRefrigerationPlanner: reviewer, native or method disabled");
+            throw new ControlException("NewRoundsRefrigerationPlanner: reviewer or native missing");
         }
 
         if (native is not IRoundsSource || native is not IRefrigerationSource)
@@ -16,12 +22,12 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsRefrigerationPlanner: native lacks the rounds or refrigeration source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MaintainRefrigeration, Definition = "Cooler" };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.RefrigerationNeed.FilingKey, Need = PolicyFunctions.RefrigerationNeed, Definition = "Cooler" };
     }
 
-    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyProjection facts, RoundsLatches latches, bool allowance, CancellationToken ct)
+    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyProjection facts, bool allowance, CancellationToken ct)
     {
-        var review = PolicyFunctions.ReviewRefrigeration(facts.Facts.FoodStorageUpkeep, latches.Refrigeration, Reviewer.Policy.FoodStorage);
+        var review = PolicyFunctions.ReviewRefrigeration(facts.Facts.FoodStorageUpkeep, Reviewer.Policy.FoodStorage);
         review = review.WithWarmRooms(WarmCoolingRooms(facts));
         if (!review.Active)
         {
@@ -49,15 +55,144 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>
-    /// Whether the cooling window of the standard's coolers has run out, and whether that rests on the latch alone
-    /// (no method in the epoch, so no cooler is known to be settling).
+    /// The refrigeration Need's work step (#3280), run by the food stores family for the ready Need under its owner.
+    /// It reads the rooms, shells the owed meal closet, picks the cooler method, and commits the setpoint, or the
+    /// freezer's ring, the exhaust dig and the cooler itself. No whole-owner guard holds it: each target is
+    /// committed once under the Need, and an overlapping footprint is held by the claim.
     /// </summary>
-    internal static (bool Exhausted, bool LatchOnly) RefrigerationCooling(StoreJournal journal, IWorkOwner goal, GenerationSnapshot current, Tick tick, Tick since, CancellationToken ct)
+    internal async Task<Verdict> RefrigerationStepAsync(NeedWork work, CancellationToken call)
+    {
+        var p = Reviewer.Player;
+        var state = work.State;
+        var epoch = work.Epoch;
+        IWorkOwner goal = work.Owner;
+        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
+        if (!review.Enabled || !review.Snapshot.Matches(state.Snapshot))
+        {
+            return BuildingReasonNoReview;
+        }
+        var (identity, _) = await Native.IdentityAsync(call).ConfigureAwait(false);
+        var expected = ObservationPackage.DecodeIdentity(identity);
+        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        {
+            throw new ControlException(string.Create(CultureInfo.InvariantCulture, $"refrigeration step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) observed tick={expected.Tick.Value} review tick={review.Tick.Value}"));
+        }
+        var full = await Reviewer.ObserveRoomsAsync((IRoundsSource)Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), RefrigerationDefinitions(), call).ConfigureAwait(false);
+        var reading = full.Reading;
+        var facts = reading.Projection;
+        PlannerSnapshot.RecordStepRead("building", Concern, state.Snapshot, facts);
+        RecordRoleMismatches(facts, call);
+        void Check()
+        {
+            p.Current(call, epoch);
+            if (p.Session.State() != state)
+            {
+                throw new ControlException("refrigeration step: p.session.State() != state");
+            }
+        }
+        var rounds = new RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() };
+
+        var (exhausted, committed) = RefrigerationCooling(p.Journal, goal, state.Snapshot, facts.Identity.Tick, call);
+        // The dining room's meal closet stands before its cooler; a shell already committed, or refused, leaves the
+        // cooling to go on.
+        var (closet, closetOwed) = PlannedMealCloset(facts);
+        if (PositiveFact(closetOwed))
+        {
+            var closetResult = await ReconcileRoomAsync(state, review, goal, rounds, null, new RoomReconcile { RingOnly = true, Room = closet, Name = PlannedRoomMethod(closet).Value, Reason = "cold meal shelf" }, call, epoch).ConfigureAwait(false);
+            if (!closetResult.Verdict.SkipsToPlacement)
+            {
+                return closetResult.Verdict;
+            }
+        }
+        var (resolved, reason) = await SelectRefrigerationAsync(facts, exhausted, call).ConfigureAwait(false);
+        if (!reason.IsZero)
+        {
+            // A cooler completed on the tick the review saw reads powerOn=false until the power net ticks once, so
+            // the cooling window also covers cooler_power_needed while the Need has a committed method; with none
+            // there is no cooler still settling.
+            if (reason == AwaitingMethod(RefrigerationMethod.Wait) || (reason == AwaitingMethod(RefrigerationMethod.PowerNeeded) && committed))
+            {
+                await WaitFenceAsync(state, reading, facts, call, epoch).ConfigureAwait(false);
+            }
+            return reason;
+        }
+        var r = resolved!;
+        if (r.Refrigeration is { Method: RefrigerationMethod.SetTarget })
+        {
+            return r.CommitRefrigerationTarget(goal, Check, call).Verdict;
+        }
+        var method = r.Refrigeration!.Key;
+
+        // The planned freezer is raised and furnished together: its ring is admitted and the cooler goes on its
+        // wall without waiting for the walls. A ring already committed, or refused, leaves the cooler to go on.
+        var (freezer, freezerOwed) = PlannedRoomOwed(facts, PlannedRole.Freezer);
+        if (freezerOwed)
+        {
+            var ring = await r.ReconcileRoomAsync(state, review, goal, rounds, null, new RoomReconcile { RingOnly = true, Room = freezer, Name = PlannedRoomMethod(freezer).Value }, call, epoch).ConfigureAwait(false);
+            if (!ring.Verdict.SkipsToPlacement)
+            {
+                return ring.Verdict;
+            }
+        }
+        var gate = ComfortBuilderGate(facts, r.Definition);
+        if (!gate.IsZero)
+        {
+            return gate;
+        }
+        if (!r.MethodOnce(goal, method, call))
+        {
+            return WaitFor(Cause.MethodUsed, "sleeping_method");
+        }
+
+        var planId = PlanIds.MintPlanId();
+        var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
+        var heldReservations = p.Journal.BuildingReservations(snapshot, call);
+        // One cooler is pending at a time: the player's or another plan's cooler still to stand holds this one.
+        var playerPlan = p.Journal.LoadPlan(state.Snapshot.Plan, call);
+        if (playerPlan.Progress.Any(progress => PendingFacility(progress, r.Definition)) || heldReservations.Any(h => PendingFacility(h.Progress, r.Definition)))
+        {
+            return BuildingReasonExistingWork;
+        }
+        var protectedCells = new List<Cell>();
+        foreach (var h in heldReservations)
+        {
+            var v = h.Progress.View;
+            if (!v.Unresolved && v.Effect.TryGetValue(out var effect) && (effect == Effect.Completed || effect == Effect.Unsuccessful) && v.Tick.Value <= facts.Identity.Tick.Value)
+            {
+                continue;
+            }
+            protectedCells.AddRange(h.Footprint);
+        }
+        // Building intents admitted on other owners' plans but not yet applied show nothing on the map; keep off their anchors.
+        protectedCells.AddRange(p.Journal.PendingBuildingAnchors(snapshot, [.. goal.OpenMethods.Select(m => m.Plan)], call));
+
+        var excavation = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading };
+        var (exhaust, dug) = await r.DigExhaustAsync(excavation, Check, call, epoch).ConfigureAwait(false);
+        if (dug)
+        {
+            return exhaust.Verdict;
+        }
+        var (selected, stock, previewReason) = await r.PreviewRefrigerationAsync(snapshot, facts, protectedCells, Check, call).ConfigureAwait(false);
+        if (!previewReason.IsZero)
+        {
+            return previewReason;
+        }
+        // Admission never checks stock: RimWorld places the blueprints regardless and the frames hold natively for
+        // materials, which MaintainResource then reads as the deficit.
+        var admitted = await r.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Snapshot = snapshot, Selected = selected, Stock = stock, Purpose = Purpose.Rounds }, call, epoch).ConfigureAwait(false);
+        return admitted.Verdict;
+    }
+
+    /// <summary>
+    /// Whether the cooling window of the Need's coolers has run out, and whether the Need has committed any method
+    /// in its world. With none no cooler is known to be settling, so no second cooler is lent time (decision 16).
+    /// </summary>
+    internal static (bool Exhausted, bool Committed) RefrigerationCooling(StoreJournal journal, IWorkOwner goal, GenerationSnapshot current, Tick tick, CancellationToken ct)
     {
         var methods = journal.OwnerMethodHistory(goal, ct);
         if (methods.Count == 0)
         {
-            return (RefrigerationLatchExhausted(since, tick), true);
+            return (false, false);
         }
 
         var open = false;
@@ -70,11 +205,8 @@ public sealed partial class RoundsBuildingPlanner
             exhausted = exhausted || (completed && remaining == 0);
         }
 
-        return (exhausted && !open, false);
+        return (exhausted && !open, true);
     }
-
-    internal static bool RefrigerationLatchExhausted(Tick since, Tick tick) =>
-        since.Value > 0 && tick >= since && tick.Value - since.Value >= RefrigerationCoolingTicks;
 
     internal static (long Remaining, bool Completed) RefrigerationCoolingRemaining(PlanState plan, GenerationSnapshot current, Tick tick)
     {

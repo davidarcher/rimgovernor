@@ -7,25 +7,60 @@ public interface IRoundsFoodStoresSource
 }
 
 /// <summary>
-/// The runtime half of the food stores family (#3251): its full read (the rounds census, then the reserve stacks
-/// to hold or release while reserve access is pending) and the stock-target meal order that stores food, which
-/// the work ledger places under the food-stores/storage Need.
+/// The runtime half of the food stores family (#3251, #3280): its full read (the rounds census, or with
+/// refrigeration the room census and its cooling rooms, then the reserve stacks to hold or release while reserve
+/// access is pending), the stock-target meal order that stores food, which the work ledger places under the
+/// food-stores/storage Need, and the refrigeration Need's building work step.
 /// </summary>
 public sealed class FoodStoresRounds
 {
     private readonly Rounder _reviewer;
     private readonly IRoundsFoodStoresSource _native;
+    private readonly bool _storage;
+    private readonly RoundsBuildingPlanner? _cooler;
 
-    public FoodStoresRounds(Rounder reviewer, IRoundsFoodStoresSource native)
+    /// <summary>
+    /// <paramref name="storage"/> derives the food-stores/storage Need; a <paramref name="cooler"/> planner
+    /// (NewRoundsRefrigerationPlanner) derives food-stores/refrigeration and does its building work.
+    /// </summary>
+    public FoodStoresRounds(Rounder reviewer, IRoundsFoodStoresSource native, bool storage = true, RoundsBuildingPlanner? cooler = null)
     {
         _reviewer = reviewer ?? throw new ControlException("FoodStoresRounds: reviewer is missing");
         _native = native ?? throw new ControlException("FoodStoresRounds: native is missing");
+        if (!storage && cooler is null)
+        {
+            throw new ControlException("FoodStoresRounds: neither storage nor refrigeration is composed");
+        }
+        _storage = storage;
+        _cooler = cooler;
     }
 
-    /// <summary>The family's scheduler entry: it wakes on the colony facts and on its supply outcomes (a haul outcome too, though it proposes none).</summary>
+    /// <summary>
+    /// The family's scheduler entry: it wakes on the colony facts and on its supply outcomes (a haul outcome too,
+    /// though it proposes none), and with refrigeration on its cooler, cold-room and setpoint outcomes.
+    /// </summary>
     public FamilyRunner Runner() =>
-        new FamilyRunner<FoodStoresFacts>(new FoodStoresFamily(_reviewer.Policy.FoodStorage), ReadAsync,
-            new FamilySchedule { Kinds = [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid] });
+        new FamilyRunner<FoodStoresFacts>(new FoodStoresFamily(_reviewer.Policy.FoodStorage, _storage, _cooler is not null), ReadAsync,
+            new FamilySchedule
+            {
+                Kinds = _cooler is null
+                    ? [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid]
+                    : [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.Building, ActionKind.BuildingTemperature],
+            },
+            WorkAsync);
+
+    /// <summary>
+    /// The building work of a ready Need: the refrigeration Need's cooler, setpoint and cold rooms. Storage has no
+    /// building work; its Methods are proposed.
+    /// </summary>
+    internal async Task<Verdict> WorkAsync(NeedWork work, FoodStoresFacts facts, CancellationToken call)
+    {
+        if (work.Need.Id != PolicyFunctions.RefrigerationNeed || _cooler is null)
+        {
+            return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
+        }
+        return await _cooler.RefrigerationStepAsync(work, call).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the owned rounds census, and while the reserve
@@ -41,8 +76,26 @@ public sealed class FoodStoresRounds
         {
             throw new ControlException("food stores read: the scope is another world or older than the review");
         }
-        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
-        var facts = FoodStoresFacts.From(reading.Projection.Facts) with { Haulers = PolicyFunctions.DangerHaulers(reading.Projection.WorkPawns) };
+        RoundsReading reading;
+        Fact<EquatableArray<string>> warm = default;
+        Fact<bool> closet = default;
+        if (_cooler is null)
+        {
+            reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
+        }
+        else
+        {
+            // Refrigeration reads the room census: its warm stock stands in rooms and its cooling rooms are planned.
+            reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), _cooler.RefrigerationDefinitions(), ct).ConfigureAwait(false);
+            warm = WarmCoolingRooms(reading.Projection);
+            closet = MealClosetOwed(reading.Projection);
+        }
+        var facts = FoodStoresFacts.From(reading.Projection.Facts) with
+        {
+            Haulers = PolicyFunctions.DangerHaulers(reading.Projection.WorkPawns),
+            WarmRooms = warm,
+            MealClosetOwed = closet,
+        };
         if (!facts.StockProtection || !facts.Reserve.TryGetValue(out var reserve) || !PolicyFunctions.ReserveAccessPending(facts.Reserve)
             || _native is not IFoodReserveSupplyReader supplies)
         {

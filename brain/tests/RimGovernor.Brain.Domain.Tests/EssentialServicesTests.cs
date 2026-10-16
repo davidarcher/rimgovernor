@@ -10,7 +10,7 @@ public sealed class EssentialServicesTests
 {
     private static readonly ConcernId[] Owners = [EnsureFoodSupply, EnsureCooking, CriticalMedicine, MaintainSurgery,
         MaintainMedicalReserves, MaintainHousing, MaintainShelter, EnsureTemperatureSafety,
-        MaintainRefrigeration, EnsureBasicPower, MaintainRoutes, MaintainResource];
+        EnsureBasicPower, MaintainRoutes, MaintainResource];
     private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
     private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128, params ConcernId[] shortfalls) =>
         ReviewEssentialServices(facts, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },

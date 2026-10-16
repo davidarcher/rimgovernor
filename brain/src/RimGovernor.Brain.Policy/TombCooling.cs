@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.Policy;
 
 // Cooling for the standing tomb, morgue and meal closet. Once the colony can build coolers, each of those rooms
 // that stands and measures above TombMaxC owes cooling, empty or not: cold keeps a colonist fresh for resurrector
-// mech serum and slows rot, and the room is cooled before anything lies in it. MaintainRefrigeration takes the
-// room beside its food rooms, reuses or builds a cooler (the planned one over the room's exhaust reservation
-// first) and sets it to FreezerTargetC. Cooling never gates a room's shell.
+// mech serum and slows rot, and the room is cooled before anything lies in it. The food-stores/refrigeration
+// Need takes the room beside its food rooms, reuses or builds a cooler (the planned one over the room's exhaust
+// reservation first) and sets it to FreezerTargetC. Cooling never gates a room's shell.
 
 public static partial class PolicyFunctions
 {

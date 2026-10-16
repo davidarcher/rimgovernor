@@ -22,7 +22,7 @@ public static class OperationIntent
         [CriticalMedicine] = "Medical",
         [MaintainMedicalReserves] = "Medicine",
         [MaintainSurgery] = "Surgery",
-        [MaintainRefrigeration] = "Refrigeration",
+        [RefrigerationNeed.FilingKey] = "Refrigeration",
         [EnsureComfort] = "Comfort",
         [EnsureResearch] = "Research",
         [EnsureWorkAssignments] = "Work",

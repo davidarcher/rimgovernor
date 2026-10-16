@@ -2258,8 +2258,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
             Sleeping = e.Bool("Sleeping"),
             Animals = e.Get<AnimalUpkeepHistory>("Animals", o),
             MedicalReserve = e.Bool("MedicalReserve"),
-            Refrigeration = e.Bool("Refrigeration"),
-            RefrigerationSince = e.Get<Tick>("RefrigerationSince", o),
             Lighting = e.Get<EquatableArray<string>>("Lighting", o),
             Flooring = e.Get<EquatableArray<string>>("Flooring", o),
             Routes = e.Get<EquatableArray<string>>("Routes", o),
@@ -2279,8 +2277,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         w.WriteBoolean("Sleeping", v.Sleeping);
         w.Put("Animals", v.Animals, o);
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
-        w.WriteBoolean("Refrigeration", v.Refrigeration);
-        w.Put("RefrigerationSince", v.RefrigerationSince, o);
         w.Put("Lighting", v.Lighting, o);
         w.Put("Flooring", v.Flooring, o);
         w.Put("Routes", v.Routes, o);

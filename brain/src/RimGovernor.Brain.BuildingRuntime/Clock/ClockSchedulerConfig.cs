@@ -70,8 +70,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsBuildingPlanner? Temperature { get; init; }
 
-    public RoundsBuildingPlanner? Refrigeration { get; init; }
-
     public RoundsBuildingPlanner? Lighting { get; init; }
 
     public RoundsBuildingPlanner? Flooring { get; init; }

@@ -14,7 +14,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The shared building planner under a Need owner (#3279): a test family's work step builds a ring room and a roof
 /// through <c>CommitBuildsAsync</c> and <c>CommitRoof</c>; each target is committed once and not re-issued after
-/// release, and an overlapping ring under another Need is held by the claim.
+/// release, and an overlapping ring under another Need is held by the claim. The food-stores/refrigeration Need's
+/// cooler (#3280) is admitted beside a ring room under another Need when their claims do not overlap.
 /// </summary>
 public sealed class NeedBuildingTests
 {
@@ -22,6 +23,9 @@ public sealed class NeedBuildingTests
 
     private static readonly NeedId RoomA = NeedId.Of("test-rooms", "room", "a");
     private static readonly NeedId RoomB = NeedId.Of("test-rooms", "room", "b");
+
+    /// <summary>A ring room beside the cooler, filed in the cooler's family (a family owns its NeedIds).</summary>
+    private static readonly NeedId ColdRoom = NeedId.Of(FoodStoresFamilyId, "room", "a");
 
     /// <summary>The native the planner previews against: every building placement is ready.</summary>
     public interface ITestNative : IRoundsSource, IRoundsWorkBenchSource, IRoundsBuildingSource;
@@ -87,6 +91,24 @@ public sealed class NeedBuildingTests
         ];
 
         // Building work needs previews between choosing and committing: nothing is proposed purely.
+        public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, bool overlap) => [];
+    }
+
+    /// <summary>The refrigeration Need's cooler beside room a's ring: both unmet, neither ordered after the other.</summary>
+    private sealed class CoolerFamily : IFamily<bool>
+    {
+        public string Id => FoodStoresFamilyId;
+
+        public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Pawns];
+
+        public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
+
+        public IReadOnlyList<Need> Derive(bool overlap) =>
+        [
+            new Need { Id = ColdRoom, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet },
+            new Need { Id = RefrigerationNeed, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet },
+        ];
+
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, bool overlap) => [];
     }
 
@@ -156,7 +178,7 @@ public sealed class NeedBuildingTests
         };
     }
 
-    private static Colony Open()
+    private static Colony Open(bool cooler = false)
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-need-building-" + Guid.NewGuid().ToString("N") + ".db"), ct);
@@ -169,7 +191,8 @@ public sealed class NeedBuildingTests
             {
                 Buildings = Known<EquatableArray<WorkBuildingCost>>([
                     new(ShellWallDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 5)])) { Size = Known(new Cell(1, 1)) },
-                    new(ShellDoorDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 25)])) { Size = Known(new Cell(1, 1)) }]),
+                    new(ShellDoorDefinition, "WoodLog", Known<EquatableArray<Amount>>([new(new("WoodLog"), 25)])) { Size = Known(new Cell(1, 1)) },
+                    new("Cooler", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 10)])) { Size = Known(new Cell(1, 1)) }]),
             },
         };
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -200,10 +223,31 @@ public sealed class NeedBuildingTests
             },
         };
         Colony? colony = null;
-        var runner = new FamilyRunner<bool>(new RoomsFamily(), (_, _) => Task.FromResult(colony!.Overlap), null, async (work, _, call) =>
+        IFamily<bool> family = cooler ? new CoolerFamily() : new RoomsFamily();
+        var runner = new FamilyRunner<bool>(family, (_, _) => Task.FromResult(colony!.Overlap), null, async (work, _, call) =>
         {
             var review = await journal.LoadRoundsAsync(call);
-            var a = work.Need.Id == RoomA;
+            if (work.Need.Id == RefrigerationNeed)
+            {
+                // The cooler step's admission: one Cooler on a wall cell well clear of room a's ring.
+                var snapshot = World with { Plan = PlanIds.MintPlanId(), Revision = new(1) };
+                var action = DomainAction.NewBuildingAction(new ActionId(snapshot.Plan.Value + "-0"), new Building("Cooler", new(20, 20), Rotation.North, ""), PlannerTier(RefrigerationNeed.FilingKey, Phase.None));
+                var preview = new Preview { Action = action, Snapshot = snapshot, Tick = new(100), CanPlace = Known(true), SafeToPlace = Known(true) };
+                var admitted = await planner.AdmitPreviewsAsync(new RoundsAdmission
+                {
+                    State = work.State,
+                    Review = review,
+                    Owner = work.Owner,
+                    Facts = reading.Reading.Projection,
+                    Method = new MethodId("refrigeration-cooler-20-20"),
+                    Snapshot = snapshot,
+                    Selected = [preview],
+                    Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) },
+                    Purpose = Purpose.Rounds,
+                }, call, work.Epoch);
+                return admitted.Verdict;
+            }
+            var a = work.Need.Id == RoomA || work.Need.Id == ColdRoom;
             var room = Ring(a ? "test-room-a" : "test-room-b", a ? 4 : 1, roof: a);
             var built = await planner.CommitBuildsAsync(work.State, review, work.Owner, reading, new LayoutPlan(), room, call, work.Epoch);
             var (roofed, _) = planner.CommitRoof(work.State, work.Owner, room, call, work.Epoch);
@@ -260,5 +304,25 @@ public sealed class NeedBuildingTests
         Assert.True(held.Is(Cause.Claim), held.ToString());
         Assert.DoesNotContain(run.Methods, m => m.Need == RoomB);
         Assert.Empty(colony.Journal.LoadNeed(RoomB, World, ct).Methods);
+    }
+
+    [Fact]
+    public async Task TheRefrigerationCoolerAndARingRoomAreAdmittedSideBySide()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open(cooler: true);
+
+        var run = await colony.RunAsync();
+        var cooler = Colony.Report(run, RefrigerationNeed);
+        Assert.Equal(Outcome.Admitted, cooler.Outcome);
+        Assert.Equal(Outcome.Admitted, Colony.Report(run, ColdRoom).Outcome);
+        var coolerMethod = Assert.Single(run.Methods, m => m.Need == RefrigerationNeed);
+        Assert.Equal(RefrigerationNeed.FilingKey, colony.Journal.PlanMethod(coolerMethod.Plan, ct)!.Concern);
+        Assert.Contains(run.Methods, m => m.Need == ColdRoom);
+
+        // Both stay open together: neither Need's open work holds the other's.
+        Assert.True(Standard.WorkOpen(colony.Journal.LoadPlan(coolerMethod.Plan, ct).Progress));
+        Assert.All(run.Methods.Where(m => m.Need == ColdRoom), m => Assert.True(Standard.WorkOpen(colony.Journal.LoadPlan(m.Plan, ct).Progress)));
+        Assert.Single(colony.Journal.LoadNeed(RefrigerationNeed, World, ct).Methods);
     }
 }

@@ -9,6 +9,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     internal Fact<EquatableArray<ConcernId>> Methods;
+
+    /// <summary>The migrated families' Needs the runtime composes (#3280); the review reads their facts as it read their Concerns'.</summary>
+    internal IReadOnlySet<NeedId> Needs = new HashSet<NeedId>();
     internal Player Player;
     internal IRoundsSource Native;
     internal IClock Clock;
@@ -258,6 +261,7 @@ public sealed partial class Rounder
             clearanceCensus = capabilities[0].ClearanceCensus;
             methods = Known<EquatableArray<ConcernId>>([.. capabilities[0].Methods]);
             PolicyApi.InspectRounds(new RoundsFacts { AvailableMethods = methods }, new RoundsLatches(), thresholds);
+            Needs = capabilities[0].Needs.ToHashSet();
         }
         Methods = methods;
         Player = player;
@@ -348,7 +352,7 @@ public sealed partial class Rounder
         {
             readDefinitions = [.. readDefinitions, .. RoundsTrainingPlanner.TrainingDefinitions];
         }
-        if (MethodEnabled(PolicyApi.EnsureCooking) || MethodEnabled(PolicyApi.MaintainRefrigeration) || MethodEnabled(PolicyConstants.MaintainPopulation))
+        if (MethodEnabled(PolicyApi.EnsureCooking) || Needs.Contains(PolicyApi.RefrigerationNeed) || MethodEnabled(PolicyConstants.MaintainPopulation))
         {
             // The planned kitchen, freezer and jail shells; the jail bed is a furniture rule's, read with every catalog.
             readDefinitions = [.. readDefinitions, "Wall", "Door"];
@@ -739,6 +743,9 @@ internal static class RoundsReadingEdits
 public sealed record RoundsCapabilities
 {
     public IReadOnlyList<ConcernId> Methods { get; init; } = [];
+
+    /// <summary>The migrated families' Needs the runtime composes; a Need has no registry row to validate against.</summary>
+    public IReadOnlyList<NeedId> Needs { get; init; } = [];
 
     /// <summary>Draws the layout plan as a native overlay layer (serve --layout-overlay).</summary>
     public bool LayoutOverlay { get; init; }
