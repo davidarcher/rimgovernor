@@ -149,6 +149,15 @@ public sealed record StockpileRequest
 
     /// <summary>The native occupancy ring's samples of the zones' and built shelves' groups, read for each store's inflow (StoreInflow).</summary>
     public Fact<StoreOccupancy> Occupancy { get; init; }
+
+    /// <summary>The catalog Shelf's build cost from the stuff it is built from (StorageOptions); unknown without the def or its cost row.</summary>
+    public Fact<StorageBuildCost> ShelfCost { get; init; }
+
+    /// <summary>The layout plan's storage rooms and yards with their owed material (StorageOptions' room options); unknown while the plan is.</summary>
+    public Fact<IReadOnlyList<PlannedStoreRoom>> StoreRooms { get; init; }
+
+    /// <summary>The catalog's item facts, read for a stranded stack's deterioration rate and categories (StorageOptions).</summary>
+    public ItemFacts Items { get; init; } = new();
 }
 
 /// <summary>One built shelf serving an owned zone and the settings last patched onto it (Patched false: never patched, native defaults).</summary>
@@ -188,6 +197,9 @@ public sealed record StockpileReview
 
     /// <summary>Every shelf site a declared store could take, with its effect in stacks (ShelfCandidates). Generation only: nothing chooses from it yet.</summary>
     public IReadOnlyList<ShelfCandidate> ShelfCandidates { get; init; } = [];
+
+    /// <summary>Every standing store's capacity facts and costed options (StorageOptions). Generation only: nothing chooses from it yet.</summary>
+    public IReadOnlyList<StoreOptions> Options { get; init; } = [];
 
     public string Reason { get; init; } = "";
 }
@@ -464,6 +476,7 @@ public static partial class PolicyFunctions
             }
         }
         var shelf = NextWarehouseShelf(r, zones);
+        var shelfSites = ShelfCandidates(r);
         var active = edits.Count > 0 || r.Rooms.Count > 0 || shelf.Kind == ShelfStepKind.Build;
         return new StockpileReview
         {
@@ -471,7 +484,8 @@ public static partial class PolicyFunctions
             Rooms = r.Rooms,
             Edits = edits,
             Shelf = shelf,
-            ShelfCandidates = ShelfCandidates(r),
+            ShelfCandidates = shelfSites,
+            Options = StorageOptions(r, shelfSites),
             Active = active,
             Reason = active ? "" : "stockpiles fit their contents",
         };

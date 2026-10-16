@@ -73,56 +73,7 @@ public static partial class PolicyFunctions
             }
             fragments = [.. fragments.OrderBy(f => f.Id, StringComparer.Ordinal)];
             var keep = fragments[0];
-            var footprint = CellSet(WithoutCells(site.Footprint(), site.Avoid));
-            var owned = CellSet(keep.Cells);
-
-            bool Allowed(Cell cell)
-            {
-                if (!footprint.Contains(cell) || open.Protected.Contains(cell) || open.Taken.Contains(cell))
-                {
-                    return false;
-                }
-                if (!open.Cells.TryGetValue(cell, out var observed))
-                {
-                    return false;
-                }
-                if (site.Roofed)
-                {
-                    if (!observed.Roofed.TryGetValue(out var roofed) || !roofed)
-                    {
-                        return false;
-                    }
-                }
-                return true;
-            }
-
-            var reached = new HashSet<Cell>();
-            var queue = new List<Cell>();
-            foreach (var cell in keep.Cells)
-            {
-                if (Allowed(cell))
-                {
-                    reached.Add(cell);
-                    queue.Add(cell);
-                }
-            }
-            var add = new List<Cell>();
-            for (var i = 0; i < queue.Count; i++)
-            {
-                foreach (var cell in StockpileNeighbours(queue[i]))
-                {
-                    if (reached.Contains(cell) || !Allowed(cell) || (!owned.Contains(cell) && !open.Ok(cell)))
-                    {
-                        continue;
-                    }
-                    reached.Add(cell);
-                    queue.Add(cell);
-                    if (!owned.Contains(cell))
-                    {
-                        add.Add(cell);
-                    }
-                }
-            }
+            var (add, reached, allowed) = StoreGrowth(site, keep, open);
             if (add.Count > 0)
             {
                 foreach (var cell in add)
@@ -151,7 +102,7 @@ public static partial class PolicyFunctions
                 {
                     var observed = open.CellAt(cell);
                     var known = observed.Walkable.TryGetValue(out var walkable);
-                    clear = clear && Allowed(cell) && known && walkable && !observed.Occupied();
+                    clear = clear && allowed(cell) && known && walkable && !observed.Occupied();
                     foreach (var neighbour in StockpileNeighbours(cell))
                     {
                         connected = connected || reached.Contains(neighbour);
@@ -170,5 +121,65 @@ public static partial class PolicyFunctions
             }
         }
         return edits;
+    }
+
+    /// <summary>
+    /// The cleared site ground a whole-footprint store's kept zone can still take: the open footprint cells
+    /// (off Avoid, protected and taken ground, roofed where the site asks) reachable from the zone. Also returns
+    /// every reached cell, the zone's own included, and the footprint test.
+    /// </summary>
+    internal static (List<Cell> Add, HashSet<Cell> Reached, Func<Cell, bool> Allowed) StoreGrowth(StoreSite site, StockpileZone keep, StockpileOpen open)
+    {
+        var footprint = CellSet(WithoutCells(site.Footprint(), site.Avoid));
+        var owned = CellSet(keep.Cells);
+
+        bool Allowed(Cell cell)
+        {
+            if (!footprint.Contains(cell) || open.Protected.Contains(cell) || open.Taken.Contains(cell))
+            {
+                return false;
+            }
+            if (!open.Cells.TryGetValue(cell, out var observed))
+            {
+                return false;
+            }
+            if (site.Roofed)
+            {
+                if (!observed.Roofed.TryGetValue(out var roofed) || !roofed)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        var reached = new HashSet<Cell>();
+        var queue = new List<Cell>();
+        foreach (var cell in keep.Cells)
+        {
+            if (Allowed(cell))
+            {
+                reached.Add(cell);
+                queue.Add(cell);
+            }
+        }
+        var add = new List<Cell>();
+        for (var i = 0; i < queue.Count; i++)
+        {
+            foreach (var cell in StockpileNeighbours(queue[i]))
+            {
+                if (reached.Contains(cell) || !Allowed(cell) || (!owned.Contains(cell) && !open.Ok(cell)))
+                {
+                    continue;
+                }
+                reached.Add(cell);
+                queue.Add(cell);
+                if (!owned.Contains(cell))
+                {
+                    add.Add(cell);
+                }
+            }
+        }
+        return (add, reached, Allowed);
     }
 }

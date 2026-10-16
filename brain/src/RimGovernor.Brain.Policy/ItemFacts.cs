@@ -13,6 +13,12 @@ public sealed record ItemFacts
     /// <summary>The game's Nutrition stat of every item def that shows one.</summary>
     public IReadOnlyDictionary<Resource, double> Nutrition { get; init; } = new Dictionary<Resource, double>();
 
+    /// <summary>
+    /// The game's DeteriorationRate stat (HP per day before the roof and outdoor factors) of every item def, a
+    /// stuffed def only when every stuff it is made from gives it the same rate. A def absent here has an unknown rate.
+    /// </summary>
+    public IReadOnlyDictionary<Resource, double> DeteriorationRate { get; init; } = new Dictionary<Resource, double>();
+
     /// <summary>The game's MedicalPotency of every medicine def.</summary>
     public IReadOnlyDictionary<Resource, double> MedicalPotency { get; init; } = new Dictionary<Resource, double>();
 

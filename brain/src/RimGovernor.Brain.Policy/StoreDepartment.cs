@@ -86,14 +86,18 @@ public static partial class PolicyFunctions
     /// the census is unread, when a row's headroom is unknown (it could belong to any store) or when a zero-headroom
     /// row of unknown safety is accepted by this store.
     /// </summary>
-    public static Fact<long> StrandedStacks(StockpileRequest request, Store store)
+    public static Fact<long> StrandedStacks(StockpileRequest request, Store store) =>
+        StrandedRows(request, store).TryGetValue(out var rows) ? Known((long)rows.Count) : Unknown<long>();
+
+    /// <summary>The store's stranded loot rows (<see cref="StrandedStacks"/>), one stack each; unknown on the same terms.</summary>
+    internal static Fact<List<LootItem>> StrandedRows(StockpileRequest request, Store store)
     {
         if (!request.Loot.TryGetValue(out var rows))
         {
-            return Unknown<long>();
+            return Unknown<List<LootItem>>();
         }
         var groups = StoreGroups(request, store);
-        long stranded = 0;
+        var stranded = new List<LootItem>();
         foreach (var row in rows)
         {
             if (row.Forbidden)
@@ -102,7 +106,7 @@ public static partial class PolicyFunctions
             }
             if (!row.StorageHeadroom.TryGetValue(out var room))
             {
-                return Unknown<long>();
+                return Unknown<List<LootItem>>();
             }
             if (room > 0 || (row.SafetyKnown && !row.SafeToHaul) || !row.AcceptedBy.Any(groups.Contains))
             {
@@ -110,9 +114,9 @@ public static partial class PolicyFunctions
             }
             if (!row.SafetyKnown)
             {
-                return Unknown<long>();
+                return Unknown<List<LootItem>>();
             }
-            stranded++;
+            stranded.Add(row);
         }
         return Known(stranded);
     }

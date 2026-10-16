@@ -84,6 +84,64 @@ internal static partial class BuildingRuntimePackage
         return new Decision { Kind = "layout_edit", Component = "layout", Verdict = verdict, Reason = reason, Target = target, Attrs = attrs };
     }
 
+    /// <summary>
+    /// The Shelf's build cost for the storage option report: the stuff an ordinary placement builds it from
+    /// (BuildStuff), that stuff's cost list and WorkToBuild; unknown without the def or a cost row for the stuff.
+    /// </summary>
+    internal static Fact<Pol.StorageBuildCost> ShelfCost(Observation.ColonyProjection projection)
+    {
+        if (!projection.TryDefinition(ShelfDefinition, out var d))
+        {
+            return Unknown<Pol.StorageBuildCost>();
+        }
+        if (d.StuffOptions.Count == 0)
+        {
+            return !d.Stuffed && d.Costs.TryGetValue(out var costs)
+                ? Known(new Pol.StorageBuildCost { Costs = [.. costs], WorkTicks = d.WorkToBuild })
+                : Unknown<Pol.StorageBuildCost>();
+        }
+        var stuff = projection.BuildStuff(ShelfDefinition);
+        if (d.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is not { } option)
+        {
+            return Unknown<Pol.StorageBuildCost>();
+        }
+        return Known(new Pol.StorageBuildCost
+        {
+            Stuff = stuff,
+            Costs = option.Costs,
+            WorkTicks = option.Stats.TryGetValue(BridgeConstants.StatWorkToBuild, out var work) ? Known(work) : Unknown<double>(),
+        });
+    }
+
+    /// <summary>
+    /// The layout plan's storage rooms and yards for the storage option report, each with the material the plan still
+    /// owes for it (PlannedConstructionOf; a yard is unfenced and owes none); unknown while the plan is.
+    /// </summary>
+    internal static Fact<IReadOnlyList<Pol.PlannedStoreRoom>> StoreRooms(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring)
+    {
+        if (!projection.LayoutPlan.TryGetValue(out var plan))
+        {
+            return Unknown<IReadOnlyList<Pol.PlannedStoreRoom>>();
+        }
+        var rooms = plan.Rooms.Where(r => r.Role == Pol.PlannedRole.Storage || r.Role == Pol.PlannedRole.Yard).ToList();
+        var owed = rooms.Any(r => !r.Unfenced()) ? PlannedConstructionOf(projection, flooring) : default;
+        var output = new List<Pol.PlannedStoreRoom>(rooms.Count);
+        foreach (var room in rooms)
+        {
+            Fact<IReadOnlyDictionary<Pol.Resource, long>> material = default;
+            if (room.Unfenced())
+            {
+                material = Known<IReadOnlyDictionary<Pol.Resource, long>>(new Dictionary<Pol.Resource, long>());
+            }
+            else if (owed.TryGetValue(out var byRoom))
+            {
+                material = Known(byRoom.GetValueOrDefault(room.Id) ?? new Dictionary<Pol.Resource, long>());
+            }
+            output.Add(new Pol.PlannedStoreRoom { Room = room.Id, Role = room.Role, Cells = [.. room.Region.Cells()], Outdoor = room.Outdoor, Material = material });
+        }
+        return Known<IReadOnlyList<Pol.PlannedStoreRoom>>(output);
+    }
+
     /// <summary>Whether the census found the Shelf buildable (researched).</summary>
     internal static bool ShelfAvailable(Observation.ColonyProjection projection)
     {
@@ -215,6 +273,7 @@ public sealed partial class Rounder
         request = request with { Shelves = shelfRows };
         request = request with { Occupancy = await StorageOccupancyAsync(request, tick, ct).ConfigureAwait(false) };
         request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.PolicyFunctions.YardDemand(request) } };
+        request = request with { ShelfCost = ShelfCost(projection), StoreRooms = StoreRooms(projection, Policy.Flooring), Items = projection.Facts.Items };
         return (request, "");
     }
 

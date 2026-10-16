@@ -20,6 +20,7 @@ public sealed partial class DefinitionCatalog
         var market = new Dictionary<P.Resource, double>();
         var nutrition = new Dictionary<P.Resource, double>();
         var medicalPotency = new Dictionary<P.Resource, double>();
+        var deteriorationRate = new Dictionary<P.Resource, double>();
         var stuffBeauty = new Dictionary<P.Resource, double>();
         var stuffCategories = new Dictionary<P.Resource, IReadOnlyList<string>>();
         var acceptedStuff = new Dictionary<P.Resource, IReadOnlyList<string>>();
@@ -64,6 +65,11 @@ public sealed partial class DefinitionCatalog
                 armor.Add(resource);
             }
 
+            if (def.category == ThingCategory.Item && ItemDeteriorationRate(def) is { } rate)
+            {
+                deteriorationRate[resource] = rate;
+            }
+
             // A medicine is a def whose base stats carry a medical potency (ThingDef.IsMedicine).
             foreach (var mod in def.statBases.Seq().Where(m => m.stat.defName == StatNames.MedicalPotency))
             {
@@ -86,6 +92,7 @@ public sealed partial class DefinitionCatalog
             Market = market,
             Nutrition = nutrition,
             MedicalPotency = medicalPotency,
+            DeteriorationRate = deteriorationRate,
             StuffBeauty = stuffBeauty,
             StuffCategories = stuffCategories,
             AcceptedStuff = acceptedStuff,
@@ -115,6 +122,28 @@ public sealed partial class DefinitionCatalog
     {
         var tags = apparel.defaultOutfitTags.Seq().ToList();
         return tags.Contains("Soldier") && !tags.Contains("Worker");
+    }
+
+    // ItemDeteriorationRate is an item def's DeteriorationRate: the def's own for a def not made from stuff, else the one
+    // rate every allowed stuff gives it; null when the stuffs disagree (a loot row names no stuff) or none is allowed.
+    private double? ItemDeteriorationRate(ThingDef def)
+    {
+        var stuffs = AllowedStuffs(def.defName);
+        if (stuffs.Count == 0)
+        {
+            return def.MadeFromStuff ? null : ShownStatValue(def.defName, string.Empty, StatNames.DeteriorationRate).Value;
+        }
+        double? rate = null;
+        foreach (var stuff in stuffs)
+        {
+            var value = ShownStatValue(def.defName, stuff, StatNames.DeteriorationRate).Value;
+            if (rate is { } seen && seen != value)
+            {
+                return null;
+            }
+            rate = value;
+        }
+        return rate;
     }
 
     // StuffFactor is the stuff's stat factor, 1 when it has none.

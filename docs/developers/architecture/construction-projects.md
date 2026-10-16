@@ -116,6 +116,10 @@ labor the construction slice already costs), with an outcome that relieves a nee
 forecast's needs model says; until #3132 supplies it the candidate carries an unknown benefit and is not
 ranked against other actions on a guess.
 
+The storage option report ([storage](storage.md#storage-options)) follows this rule: each shelf, zone
+growth and storage room option carries its catalog cost and its physical effect apart, and an unknown work,
+cost or effect stays unknown with a finding rather than ranked on a guess.
+
 Consequences: no break-day currency, no stat-to-stage tables here, and no second scenario type. Until the
 forecast can value the outcome, `NextRoomUpgrade` keeps its current ordering; replacing it waits on #3132.
 Open: slot identity stable across a re-tile.
