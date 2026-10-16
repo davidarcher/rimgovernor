@@ -434,8 +434,6 @@ public static partial class ObservationPackage
         }
         f = f with { OutdoorsDark = outdoorsDark };
         f = f with { MedicalReserve = ColonyMedicalReserve(v, tables, catalog) };
-        // The dialog section is present exactly while a force-pausing choice dialog is open; native omits it otherwise.
-        f = f with { ChoiceDialog = Known(v.Dialog is not null) };
         var letters = new List<JoinerLetterOffer>(v.JoinerLetters.Count);
         foreach (var row in v.JoinerLetters)
         {

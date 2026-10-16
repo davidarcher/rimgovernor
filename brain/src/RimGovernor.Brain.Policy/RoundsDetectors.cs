@@ -62,15 +62,6 @@ public static partial class PolicyFunctions
 {
     internal static Fact<bool> NotFact(Fact<bool> f) => Measured(f, v => !v);
 
-    internal static void InspectAnswerDialog(RoundsRun c)
-    {
-        if (Positive(c.F.ChoiceDialog))
-        {
-            c.Raise(AnswerDialog);
-        }
-        c.Assess(AnswerDialog, NotFact(c.F.ChoiceDialog));
-    }
-
     internal static void InspectActiveCombat(RoundsRun c)
     {
         var f = c.F;

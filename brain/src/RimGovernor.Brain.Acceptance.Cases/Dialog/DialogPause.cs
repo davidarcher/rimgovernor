@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// staged through the DialogFixture before the service attaches: one already open when the service acquires authority
 /// (the clock cannot start at all until it is answered), and one scheduled to open on a later game tick while a
 /// supervised clock is running (the HOLD_REASON_DIALOG_PAUSE hold, acknowledged like a letter pause). For each, the
-/// rounds raises AnswerDialog, the dialog planner picks the policy-preferred option ("OK" over "Research screen"), the
+/// people/dialog Need is unmet, its step picks the policy-preferred option ("OK" over "Research screen"), the
 /// executor activates it through a DialogIntent on Actions/Apply, and the clock runs again.
 /// </summary>
 internal static class DialogPause
@@ -32,7 +32,7 @@ internal static class DialogPause
         Name = "dialog/pause",
         Scope = "Issue #156: a force-pausing Dialog_NodeTree the game opens by itself is read as the colony "
             + "facts dialog section, answered with the policy-preferred option through a DialogIntent on Actions/Apply under the "
-            + "AnswerDialog incident, its HOLD_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the "
+            + "people/dialog Need, its HOLD_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the "
             + "native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-run.",
         Start = new LabStart(),
         RequiredOps = [FixtureTool],
@@ -146,12 +146,12 @@ internal static class DialogPause
         }
     }
 
-    /// <summary>What the durable journal proves for one dialog: the AnswerDialog plan whose action targets the window.</summary>
-    private sealed record Answered(string Incident, string Plan, string Option, int Index, Stage Stage)
+    /// <summary>What the durable journal proves for one dialog: the people/dialog plan whose action targets the window.</summary>
+    private sealed record Answered(string Method, string Plan, string Option, int Index, Stage Stage)
     {
         internal JsonObject ToJson() => new()
         {
-            ["incident"] = Incident,
+            ["method"] = Method,
             ["plan"] = Plan,
             ["option"] = Option,
             ["index"] = Index,
@@ -159,27 +159,23 @@ internal static class DialogPause
         };
     }
 
-    /// <summary>Lists every AnswerDialog plan any occurrence admitted (each dialog is its own incident), keyed by the targeted window.</summary>
+    /// <summary>Lists every plan the people/dialog Need bound in the review's world (one Method per window and option), keyed by the targeted window.</summary>
     private static async Task<Dictionary<int, Answered>> DialogAnswersAsync(Journal journal, CancellationToken cancellationToken)
     {
         var review = await Task.Run(() => journal.LoadRounds(cancellationToken), cancellationToken).ConfigureAwait(false);
         var output = new Dictionary<int, Answered>();
-        var world = new World(review.Snapshot.Colony, review.Snapshot.Load, review.Snapshot.Map);
-        var history = await Task.Run(() => journal.IncidentHistory(world, Policy.PolicyFunctions.AnswerDialog, cancellationToken), cancellationToken).ConfigureAwait(false);
-        foreach (var incident in history)
+        var history = await Task.Run(() => journal.OwnerMethodHistory(journal.LoadNeed(Policy.PeopleFamily.Dialog, review.Snapshot, cancellationToken), cancellationToken), cancellationToken).ConfigureAwait(false);
+        foreach (var method in history)
         {
-            foreach (var method in incident.Methods)
+            var plan = await Task.Run(() => journal.LoadPlan(method.Plan, cancellationToken), cancellationToken).ConfigureAwait(false);
+            for (var i = 0; i < plan.Spec.Actions.Count; i++)
             {
-                var plan = await Task.Run(() => journal.LoadPlan(method.Plan, cancellationToken), cancellationToken).ConfigureAwait(false);
-                for (var i = 0; i < plan.Spec.Actions.Count; i++)
+                if (plan.Spec.Actions[i].DialogAnswer is not { } answer)
                 {
-                    if (plan.Spec.Actions[i].DialogAnswer is not { } answer)
-                    {
-                        continue;
-                    }
-
-                    output[answer.WindowId] = new Answered(incident.Incident.Id.Value, method.Plan.Value, answer.OptionLabel, answer.OptionIndex, plan.Progress[i].View.Stage);
+                    continue;
                 }
+
+                output[answer.WindowId] = new Answered(method.Method.Value, method.Plan.Value, answer.OptionLabel, answer.OptionIndex, plan.Progress[i].View.Stage);
             }
         }
 

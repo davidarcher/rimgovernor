@@ -662,7 +662,7 @@ anomaly).
 | Anomaly | `anomaly`: Needs `doors`, `capture`, `tend`, `lance`, `bioferrite`, `monolith` (#3302) |
 | Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted), `trade`, `caravan` and `trade-mission` (#3316; the trade Concern, caravan Incident and trade-mission Standard deleted) |
 | Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger`, `stockpiles` (#3304); EnsureWorkAssignments |
-| People | EnsureMood, AnswerDialog |
+| People | `people`: Need `dialog` (#3304; AnswerDialog and its planner deleted); EnsureMood |
 | Disaster | RecoverDisasterServices |
 
 **Order.** Fire-safety deletion (#3252) is independent. After the spine:

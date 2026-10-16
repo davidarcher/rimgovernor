@@ -43,6 +43,10 @@ public sealed partial class Store
             throw new NotAdmittedException("unsupported_shared_trade_labor");
         if (owner is IncidentState incident && incident.Incident.Kind == EnsureMood && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
             throw new NotAdmittedException("unsupported_forecast_mood_cast");
+        // A window answer is the people/dialog Need's alone (#3304); another Need answers only its own letters.
+        if (owner is NeedOwner { Need: var answering } && answering != PeopleFamily.Dialog
+            && plan.Actions.Any(a => a.DialogAnswer is { LetterToken.Length: 0 }))
+            throw new NotAdmittedException("dialog_answer_not_owned");
         AdmitBillMethod(tx, owner, plan);
         AdmitZoneMethod(tx, owner, plan);
         AdmitAcquisitionMethod(tx, owner, plan);

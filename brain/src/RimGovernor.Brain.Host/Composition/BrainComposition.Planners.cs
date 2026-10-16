@@ -31,7 +31,6 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? roomsPartySpot = null;
         RoundsDefensePlanner? cfgDefense = null;
         RoundsDefenseLayoutPlanner? cfgDefenseLayout = null;
-        RoundsDialogPlanner? cfgDialog = null;
         RoundsFieldPlanner? cfgFields = null;
         RoundsBuildingPlanner? roomsFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
@@ -298,7 +297,8 @@ public sealed partial class BrainComposition
         }
         if (dialog)
         {
-            cfgDialog = new RoundsDialogPlanner(reviewer, client, new DialogAnswerPolicy(EquatableArray.From(DefaultDialogAnswerPrefer)));
+            // The people family's dialog Need (#3304) answers the force-pausing choice dialogs.
+            families.Add(new PeopleRounds(reviewer, client, new DialogAnswerPolicy(EquatableArray.From(DefaultDialogAnswerPrefer))).Runner());
         }
         if (trade)
         {
@@ -367,7 +367,6 @@ public sealed partial class BrainComposition
             Families = families,
             Defense = cfgDefense,
             DefenseLayout = cfgDefenseLayout,
-            Dialog = cfgDialog,
             MoodRelief = cfgMoodRelief,
             Recovery = cfgRecovery,
             Rounds = cfgRounds,

@@ -40,8 +40,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsMoodReliefPlanner? MoodRelief { get; init; }
 
-    public RoundsDialogPlanner? Dialog { get; init; }
-
     /// <summary>The families (#3250), each one due-queue entry after the catalog planners; none is wired yet.</summary>
     public IReadOnlyList<FamilyRunner> Families { get; init; } = [];
 

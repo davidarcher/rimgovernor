@@ -92,19 +92,15 @@ internal static class AnomalyMonolithDisrupt
         }
 
         var review = await Task.Run(() => journal.LoadRounds(cancellationToken), cancellationToken).ConfigureAwait(false);
-        var world = new World(review.Snapshot.Colony, review.Snapshot.Load, review.Snapshot.Map);
-        var history = await Task.Run(() => journal.IncidentHistory(world, PolicyFunctions.AnswerDialog, cancellationToken), cancellationToken).ConfigureAwait(false);
-        foreach (var incident in history)
+        var history = await Task.Run(() => journal.OwnerMethodHistory(journal.LoadNeed(PeopleFamily.Dialog, review.Snapshot, cancellationToken), cancellationToken), cancellationToken).ConfigureAwait(false);
+        foreach (var method in history)
         {
-            foreach (var method in incident.Methods)
+            var plan = await Task.Run(() => journal.LoadPlan(method.Plan, cancellationToken), cancellationToken).ConfigureAwait(false);
+            for (var i = 0; i < plan.Spec.Actions.Count; i++)
             {
-                var plan = await Task.Run(() => journal.LoadPlan(method.Plan, cancellationToken), cancellationToken).ConfigureAwait(false);
-                for (var i = 0; i < plan.Spec.Actions.Count; i++)
+                if (plan.Spec.Actions[i].DialogAnswer is { } answer && plan.Progress[i].View.Stage == Stage.Completed)
                 {
-                    if (plan.Spec.Actions[i].DialogAnswer is { } answer && plan.Progress[i].View.Stage == Stage.Completed)
-                    {
-                        _ = windows.Add(answer.WindowId);
-                    }
+                    _ = windows.Add(answer.WindowId);
                 }
             }
         }

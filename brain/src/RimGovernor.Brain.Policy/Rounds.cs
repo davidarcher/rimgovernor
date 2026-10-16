@@ -558,9 +558,6 @@ public sealed record RoundsFacts
     /// <summary>An owned pawn whose short name an older owned pawn holds; EnsureWorkAssignments renames it.</summary>
     public Fact<bool> NamesOwed { get; init; }
 
-    /// <summary>True while the game is force-paused by a choice dialog it opened by itself; AnswerDialog is the goal that answers it.</summary>
-    public Fact<bool> ChoiceDialog { get; init; }
-
     /// <summary>The standing butcher benches and the room each stands in; the food/supply Need's butcher facility is met once a table stands outside the kitchen.</summary>
     public Fact<EquatableArray<ButcherBench>> ButcherBenches { get; init; }
 
@@ -656,7 +653,6 @@ public sealed record RoundsAssessment
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId AnswerDialog = new("AnswerDialog");
     public static readonly ConcernId ActiveCombat = new("ActiveCombat");
     public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
