@@ -176,9 +176,9 @@ reader operation, now over the `rimgovernor.*` attributes.
 
 ## Readers
 
-`rimgovernor log`, `phases` and `trace` (read from the OTLP rings), the launcher's Observe tab
-(`tools/launcher/Observe.cs`, which tails `logs.jsonl`)
-and acceptance diagnostics consume these kinds.
+The launcher's Observe tab (`tools/launcher/Observe.cs`, which tails `logs.jsonl`)
+and acceptance diagnostics consume these kinds; `RimGovernor.cmd launch-phases`
+reads the launch spans (see [Launch spans](#launch-spans)).
 `bridge.IsWorkerStep` and `bridge.StepFields` centralize
 clock/worker interpretation. Combat `clock_stop` rows carry `event`; `clock_hold` rows
 carry the journal's hold. Acceptance readers use the case's OTLP log ring
@@ -269,6 +269,21 @@ from the game's `traces.jsonl` (`BootPhases.Read`): every non-root span of each
 game's earlier boot is not counted. A repeated name sums. Phases overlap, so the
 map does not add up to `boot_ms`. A ring that cannot be read leaves
 `boot_phases_error`; spans the game did not take leave `launch_spans_error`.
+
+`RimGovernor.cmd launch-phases [-json] [<run> [<run>]]` (`tools/rg`, model
+`LaunchWaterfall`) prints one run's trees as a waterfall: one line per span,
+each tree depth first with siblings in start order, with its offset from the
+game's own `launch` root (process start; the harness's and launcher's earlier
+phases are negative), its duration and a bar, then the total and the three
+largest phases. A run is an OTLP directory or its `traces.jsonl` (every tree of
+the latest root's run id, `service.instance.id`), or an acceptance case output,
+its `result.json` or an output directory holding one (the trees rooted between
+`started_at` and `finished_at`, read from `launch_dir`, the game's channel
+directory, which Finalize records beside `boot_phases`). With no run it
+reads the newer of the launcher's latest game (`.rimgovernor/bridge/config/<game>/`)
+and the latest `.rimgovernor/ev*` acceptance output. A second run prints the
+per-phase delta (phases summed by name as in `boot_phases`, the total first,
+then by largest change). `-json` prints the same as JSON.
 
 ## Pawn activity
 

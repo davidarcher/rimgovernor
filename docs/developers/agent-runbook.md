@@ -144,6 +144,12 @@ Read `diagnosis.txt` or `result.json` first. `acceptance why` summarizes failed
 stages, native refusals, Concern blockers and authority changes, with artifact
 and row references. The brain's log is the OTLP ring under the run's `otlp/` directory.
 
+Launch time: `RimGovernor.cmd launch-phases [<case output>]` prints the run's
+launch waterfall (harness, RimWorld load stages, bridge, brain, start) with the
+total and the three largest phases; `result.json` `boot_phases` has the same
+phases summed by name. Pass a second run to compare before and after. See
+[launch spans](contracts/otel-signals.md#launch-spans).
+
 The runner keeps its game by default. Stop it before changing expansions or
 using a fixture-less production build. `acceptance warm -root <root>` boots
 to the menu; `-background` detaches that boot.

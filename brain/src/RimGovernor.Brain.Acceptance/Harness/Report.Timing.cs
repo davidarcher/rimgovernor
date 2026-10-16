@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance;
 
 // Every result.json carries the run's timing so a slower harness is visible without inferring runtimes from
 // evidence mtimes: Create stamps started_at, Finalize adds finished_at, wall_ms, boot_ms (from the session open or
-// game_reuse.openMs), boot_phases (from the game's launch spans, see BootPhases), ticks_advanced (the game ticks the harness observed pass, see TickStats) and wall_tps, and
+// game_reuse.openMs), launch_dir and boot_phases (the game's launch spans, see BootPhases), ticks_advanced (the game ticks the harness observed pass, see TickStats) and wall_tps, and
 // fails a passing run whose wall time exceeds its budget_ms.
 public sealed partial class Report
 {
@@ -24,9 +24,12 @@ public sealed partial class Report
 
     public const string WallTpsKey = "wall_tps";
 
+    /// <summary>The opened game's channel directory (<see cref="LaunchDirectory"/>), where <c>RimGovernor.cmd launch-phases</c> finds the run's traces.</summary>
+    public const string LaunchDirKey = "launch_dir";
+
     /// <summary>
     /// The opened game's channel directory, where it writes its OTLP rings; Finalize reads <c>boot_phases</c>
-    /// (<see cref="BootPhases"/>) from its traces when set. Not a report field.
+    /// (<see cref="BootPhases"/>) from its traces when set and records it as <see cref="LaunchDirKey"/>.
     /// </summary>
     public string LaunchDirectory { get; set; } = "";
 
@@ -70,6 +73,7 @@ public sealed partial class Report
 
         if (!Has(BootPhases.Key) && LaunchDirectory.Length > 0)
         {
+            this[LaunchDirKey] = LaunchDirectory;
             try
             {
                 this[BootPhases.Key] = BootPhases.Read(OtlpFiles.RingPath(LaunchDirectory, OtlpSignal.Traces), started);

@@ -26,6 +26,7 @@ internal static class Program
           thoughtaudit  regenerate the thought-to-trigger table from the installed game
           colonyreview  render a colony-week recording into an HTML report or a site index
           pawnactivity  report pawn time and gaps from the OTLP ring
+          launch-phases  print a run's launch waterfall (or two runs' per-phase delta) from its traces
           launcher-stale  exit 75 when RimGovernorLauncher.exe is older than its sources, 0 when current
 
         <tool> -help shows a tool's flags.
@@ -75,6 +76,7 @@ internal static class Program
                 "remotebundle" => await RemoteBundleTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "thoughtaudit" => await ThoughtAuditCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "colonyreview" => await ColonyReviewCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
+                "launch-phases" => await LaunchPhasesCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 _ => throw new UsageException($"unknown tool \"{tool}\"\n\n{Usage}"),
             };
         }
