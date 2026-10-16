@@ -13,6 +13,14 @@ public sealed record RoundsStandard(ConcernId Concern, StandardId Standard);
 public sealed record ReserveSupply(string Thing, string Definition, bool Forbid);
 
 /// <summary>
+/// The review's combat standing (#3311): what the <c>military/combat</c> Need's fight runner (the defense entry) answers.
+/// <see cref="Situation"/> is <see cref="PolicyFunctions.CombatSituation"/> over the review's hostiles and hunt
+/// request; <see cref="Prey"/> is the food plan's squad prey while no hostile stands. A review files one while the
+/// situation is active or the Need still holds open work (a fight's drafts), and none otherwise.
+/// </summary>
+public sealed record RoundsCombat(Situation Situation, EquatableArray<PawnId> Prey);
+
+/// <summary>
 /// The durable review cursor and hysteresis history (Go <c>Rounds</c>). Standard bindings retain semantic needs
 /// while old executable plans keep their identity. A field Go omitted when empty is its empty value here.
 /// </summary>
@@ -70,6 +78,9 @@ public sealed record Rounds
 
     /// <summary>Binds the Responses this review assessed to their open occurrences; those needs have no entry in <see cref="Standards"/>.</summary>
     public EquatableArray<RoundsIncident> Incidents { get; init; }
+
+    /// <summary>The combat standing this enabled review filed; null while combat has nothing to answer or settle.</summary>
+    public RoundsCombat? Combat { get; init; }
 
     /// <summary>The roster planner's last recorded report: coverage, decaying skills and pawn profiles as of its tick. A disabled review keeps the last one.</summary>
     public WorkRosterReport? Roster { get; init; }

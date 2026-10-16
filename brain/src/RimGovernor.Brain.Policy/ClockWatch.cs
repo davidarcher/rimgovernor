@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// Decides the watch a Run carries. Live hostiles refuse it unless the ActiveCombat goal holds an admitted
+    /// Decides the watch a Run carries. Live hostiles refuse it unless the military/combat Need holds an admitted
     /// plan; then the watch is a combat one acknowledging exactly those hostile pawns (a hostile building makes
     /// the watch a combat one but is never acknowledged: the native watcher resolves acknowledged ids as pawns),
     /// and it returns to colony mode once every hostile is dead, downed or, for a building, destroyed. A refused

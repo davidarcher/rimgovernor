@@ -47,6 +47,12 @@ public static class RoundsMembers
     /// <summary>Asks the Safeguards whether this review admits a proposal for the incident, returning the veto's reason or "".</summary>
     public static string VetoIncident(this Rounds r, DomainIncident i) => r.VetoNeed(i.Kind);
 
+    /// <summary>
+    /// Asks the Safeguards whether this review admits combat work, returning the veto's reason or "". The
+    /// <c>military/combat</c> Need is routine work and reports no Concern of its own, as its Method admission does.
+    /// </summary>
+    public static string VetoCombat(this Rounds r) => r.VetoNeed(default);
+
     /// <summary>The review's colony-wide binding for <paramref name="kind"/>, or null.</summary>
     public static RoundsIncident? Incident(this Rounds r, ConcernId kind)
     {

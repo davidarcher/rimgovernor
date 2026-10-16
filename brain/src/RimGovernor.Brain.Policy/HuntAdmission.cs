@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The formation hunts the plan opened, in memory: their prey are admitted when the plan opens them
-/// (HuntRequest, which raises the ActiveCombat hunt origin), and a formation channel of admitted prey is
+/// (HuntRequest, which makes the military/combat Need unmet), and a formation channel of admitted prey is
 /// Designated from then, so the delivery credit commits it and moves the hunt group to Delivering at the first
 /// kill. It ends when no admitted animal stands any more. A restart forgets it; the next plan admits again.
 /// Go's nil receiver is a null reference here: callers use <c>admission?.Apply(channels) ?? channels</c>.

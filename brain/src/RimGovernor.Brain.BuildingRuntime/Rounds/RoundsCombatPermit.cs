@@ -5,8 +5,11 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsDefensePlanner
 {
-    /// <summary>Commits the permit and psycast calls of a combat step as one incident method.</summary>
-    internal void CommitPermitCalls(IncidentState incident, IReadOnlyList<CombatOrder> calls, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// Commits the permit and psycast calls of a combat step as one <c>military/combat</c> Method,
+    /// <c>permit-&lt;hash of the calls&gt;</c>: the same calls continue their open Method.
+    /// </summary>
+    internal void CommitPermitCalls(GenerationSnapshot snapshot, IReadOnlyList<CombatOrder> calls, CancellationToken call, CancellationToken epoch)
     {
         if (calls.Count == 0)
         {
@@ -20,10 +23,10 @@ public sealed partial class RoundsDefensePlanner
         {
             hash.Append(CultureInfo.InvariantCulture, $"{c.Pawn.Value}/{c.Faction}/{c.Permit}/{c.Target.Value}/{c.Cell.X},{c.Cell.Z}\n");
         }
-        var method = DefenseMethodId("permit", incident.Methods.Count, hash);
+        var method = DefenseMethodId("permit", hash);
         var p = _reviewer.Player;
         p.Current(call, epoch);
-        p.Journal.CommitIncidentMethod(incident.Incident.Id, method, "", spec, call);
+        p.Journal.CommitCombatMethod(snapshot, method, spec, call);
     }
 }
 

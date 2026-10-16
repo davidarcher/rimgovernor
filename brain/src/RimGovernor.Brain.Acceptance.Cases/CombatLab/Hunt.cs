@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>combatlab/hunt-squad</c> and <c>combatlab/hunt-door</c> (Go <c>hunt.go</c>), the squad hunt cases. Both start on
 /// the blank lab with four riflemen (lab-ranged's line) and no raiders, a group of calm wild animals north of them, and
-/// the planners a hunt and its aftermath compose: the hunt origin of ActiveCombat (defense), the butcher and haul flow
+/// the planners a hunt and its aftermath compose: the squad hunt of the military/combat Need (defense), the butcher and haul flow
 /// that takes the corpses (bill, haul, work, stockpiles).
 /// </summary>
 internal static class CombatLabHunt

@@ -646,14 +646,10 @@ public sealed record RoundsAssessment
     /// records the need, and its progress reads held as unavailable rather than stalled.
     /// </summary>
     public bool MethodUnavailable { get; set; }
-
-    /// <summary>The squad prey of an ActiveCombat deficit raised by the food plan with no hostile standing: the incident's hunt origin.</summary>
-    public EquatableArray<PawnId> Hunt { get; set; }
 }
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId ActiveCombat = new("ActiveCombat");
     public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
@@ -747,16 +743,28 @@ public static partial class PolicyFunctions
         [DisasterService.Storage] = FoodStorageStanding(f),
     };
 
-    /// <summary>Whether ActiveCombat has nothing to answer: no hostile stands and the food plan opens no squad hunt.</summary>
-    internal static Fact<bool> CombatCleared(RoundsFacts f)
+    /// <summary>
+    /// The combat situation (#3311): unclear while the hostile count is unknown; active while a hostile stands or
+    /// the food plan opens a squad hunt (<paramref name="prey"/> is its prey count); clear otherwise. The review's
+    /// combat standing and the <c>military/combat</c> Need both read it, so they cannot disagree.
+    /// </summary>
+    public static Situation CombatSituation(Fact<long> hostiles, int prey)
     {
-        var cleared = Measured(f.Hostiles, n => n == 0);
-        if (Positive(cleared) && HuntRequest(f.FoodPlan).Count > 0)
+        if (!hostiles.TryGetValue(out var n))
         {
-            return Known(false);
+            return Situation.Unclear;
         }
-        return cleared;
+        return n > 0 || prey > 0 ? Situation.Active : Situation.Clear;
     }
+
+    /// <summary>Whether combat has nothing to answer: <see cref="CombatSituation"/> is clear.</summary>
+    internal static Fact<bool> CombatCleared(RoundsFacts f) =>
+        CombatSituation(f.Hostiles, HuntRequest(f.FoodPlan).Count) switch
+        {
+            Situation.Clear => Known(true),
+            Situation.Active => Known(false),
+            _ => Unknown<bool>(),
+        };
 
     internal static bool Positive(Fact<bool> v) => v.TryGetValue(out var b) && b;
 

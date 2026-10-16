@@ -17,10 +17,19 @@ internal sealed class FightAdmission
 
 public sealed partial class RoundsDefensePlanner
 {
-    internal const string CombatMethodPrefix = "combat-";
+    /// <summary>The prefix of the map's fight, <c>engage-&lt;map&gt;</c> (#3311).</summary>
+    internal const string EngageMethodPrefix = "engage-";
+
+    /// <summary>The map's fight Method, named by its target: <c>engage-&lt;map&gt;</c>.</summary>
+    internal static MethodId EngageMethod(GenerationSnapshot snapshot) =>
+        new(EngageMethodPrefix + snapshot.Map.Value.ToString(CultureInfo.InvariantCulture));
+
+    /// <summary>Whether <paramref name="method"/> holds a fight: the map's engagement or a breaking colonist's subdue.</summary>
+    internal static bool IsFightMethod(MethodId method) =>
+        method.Value.StartsWith(EngageMethodPrefix, StringComparison.Ordinal) || method.Value.StartsWith(SubdueMethodPrefix, StringComparison.Ordinal);
 
     /// <summary>Admits a combat fight plan for the squad the memory names, drafts and loads out the pawns and issues the first orders.</summary>
-    internal async Task<RoundsDefenseResult> AdmitFightAsync(IncidentState incident, ControlState state, DateTimeOffset started, StepArbiter arbiter, FightAdmission a, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsDefenseResult> AdmitFightAsync(ControlState state, DateTimeOffset started, StepArbiter arbiter, FightAdmission a, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var memory = a.Memory;
@@ -29,23 +38,16 @@ public sealed partial class RoundsDefensePlanner
             return new RoundsDefenseResult { Verdict = BuildingReasonNoSquad };
         }
         var pawns = new List<PawnId>(memory.Roles.Count);
-        var hash = new StringBuilder();
-        hash.Append(memory.Tactic).Append('\n');
         foreach (var role in memory.Roles)
         {
             pawns.Add(role.Pawn);
-            hash.Append(role.Pawn.Value).Append('/').Append(role.Target.Value).Append('\n');
         }
         if (!arbiter.TryClaim(pawns))
         {
             return new RoundsDefenseResult { Verdict = WaitFor(Cause.MethodUsed, "combat_pawn_claim") };
         }
         var loadout = await FightLoadoutAsync(state, CombatView(a.Combat, a.In, pawns, a.Held), a.In.Rows, pawns, a.Combat.Catalog ?? throw new ControlException("fight admission: no definition catalog"), call).ConfigureAwait(false);
-        foreach (var order in loadout)
-        {
-            hash.Append("loadout ").Append(order.Pawn.Value).Append('/').Append(order.Thing).Append('/').Append(order.Wear ? "true" : "false").Append('\n');
-        }
-        var method = DefenseMethodId(CombatMethodPrefix.TrimEnd('-'), incident.Methods.Count, hash);
+        var method = EngageMethod(state.Snapshot);
         var id = PlanIds.MintPlanId();
         var (actions, held) = LoadoutActions(id, loadout);
         var drafts = new List<PawnId>(pawns.Count);
@@ -63,8 +65,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("admitFight: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        var world = new StoreWorld { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map };
-        p.Journal.CommitCombatFight(incident.Incident.Id, method, spec, memory, world, [.. drafts.Select(d => d)], call);
+        p.Journal.CommitCombatFight(state.Snapshot, method, spec, memory, [.. drafts.Select(d => (Domain.PawnId)d)], call);
         var admitted = new RoundsDefenseResult { Verdict = BuildingReasonAdmitted, Plan = id };
         var view = CombatView(a.Combat, a.In, drafts, a.Held);
         view = view with { Drugs = [.. await _reviewer.CombatDrugsAsync(state.Snapshot, call).ConfigureAwait(false)] };
@@ -175,7 +176,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var plan = CombatBatchPlan(fight, action, drafts, orders);
         var p = _reviewer.Player;
-        var saved = p.Journal.CommitCombatBatch(plan, call);
+        var saved = p.Journal.CommitCombatBatch(state.Snapshot, plan, call);
         var progress = saved.Progress[0];
         if (!saved.Retired && !progress.View.Unresolved && (progress.View.Stage == Stage.Pending || progress.View.Stage == Stage.Prepared))
         {

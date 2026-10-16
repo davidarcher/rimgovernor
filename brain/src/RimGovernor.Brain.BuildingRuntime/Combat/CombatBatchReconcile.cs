@@ -3,13 +3,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsDefensePlanner
 {
     /// <summary>
-    /// Retires the incident's combat batches the observed combat view shows done: a single-action plan whose batch
+    /// Retires the combat Need's batches the observed combat view shows done: a single-action plan whose batch
     /// the view confirms (<see cref="CombatBatchObserved"/>) records a completed observation and retires.
     /// </summary>
-    internal async Task ReconcileCombatBatchesAsync(ControlState state, IncidentState incident, CombatView view, CancellationToken ct)
+    internal async Task ReconcileCombatBatchesAsync(ControlState state, NeedOwner owner, CombatView view, CancellationToken ct)
     {
         var journal = _reviewer.Player.Journal;
-        foreach (var method in incident.Methods)
+        foreach (var method in owner.Methods)
         {
             var plan = await journal.LoadPlanAsync(method.Plan, ct).ConfigureAwait(false);
             if (plan.Retired || plan.Progress.Count != 1)

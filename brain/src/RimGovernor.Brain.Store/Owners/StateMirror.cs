@@ -314,7 +314,8 @@ public sealed partial class Store
     /// method row is deleted and its plan retired after one orphans pass sees them all, so methods start empty and
     /// are re-planned. A save without standard blobs leaves no standards. An incident's method rows are not touched.
     /// A Need's open plans (#3250) are retired in the same pass and its rows kept as history: Needs are re-derived
-    /// after the load, and their rows are keyed by the load token, so nothing continues across it.
+    /// after the load, and their rows are keyed by the load token, so nothing continues across it. Every open combat
+    /// fight closes with them (an older save's under its combat incident too, #3311); the saved restoration is kept.
     /// </summary>
     /// <param name="orphans">Sees the plans the rebuild is about to retire, before they are retired; null skips it.</param>
     public void RebuildStandards(IReadOnlyDictionary<string, string> saved, Action<IReadOnlyList<PlanState>, CancellationToken>? orphans, CancellationToken cancellationToken)
@@ -364,6 +365,7 @@ public sealed partial class Store
             tx =>
             {
                 _ = tx.Execute("UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM plan_owner WHERE kind IN ('standard','need'))");
+                CloseOpenCombatFightsIn(tx);
                 _ = tx.Execute("DELETE FROM standard_methods");
                 _ = tx.Execute("DELETE FROM plan_owner WHERE kind='standard'");
                 foreach (var id in tx.Query("SELECT id FROM standards ORDER BY id", [], r => new StandardId(r.GetString(0))))

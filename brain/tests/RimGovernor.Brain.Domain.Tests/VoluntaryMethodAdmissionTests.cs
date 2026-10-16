@@ -68,7 +68,7 @@ public sealed class VoluntaryMethodAdmissionTests
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
         var incident = journal.OpenIncident(new(RecoverDisasterServices, new("colony"), "observed_disaster",
-            World, new(100), []), ct);
+            World, new(100)), ct);
         var plan = new PlanSpec(new("emergency-plan"), new(1),
             [DomainAction.NewRecoveryServiceAction(new("emergency-action"), new(new("pawn"), "building", method))]);
         var committed = journal.CommitIncidentMethod(incident.Incident.Id, new("emergency-method"), "", plan, ct);

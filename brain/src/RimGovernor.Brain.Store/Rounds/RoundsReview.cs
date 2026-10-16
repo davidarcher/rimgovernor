@@ -435,7 +435,7 @@ public sealed partial class Store
             }
             r = r with { NoOps = EquatableArray.From(needs.NoOps) };
             var (bindings, incidentStates) = ReviewIncidents(tx, needs.Incidents, request, previous);
-            r = r with { Incidents = bindings };
+            r = r with { Incidents = bindings, Combat = ReviewCombat(tx, request) };
             resultIncidents.AddRange(incidentStates);
             var bound = new List<RoundsStandard>();
             foreach (var n in needs.Assessments)

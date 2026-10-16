@@ -101,7 +101,7 @@ internal static class AnomalyHorror
             var store = await ServiceJournal.OpenWithRetryAsync(s.Config, cancellationToken).ConfigureAwait(false);
             try
             {
-                // The colony's answer is journalled: the ActiveCombat goal binds when the arrivals are seen and recovers
+                // The colony's answer is journalled: the review files a combat standing when the arrivals are seen and clears
                 // once no live hostile is left. The native outcome is read after the service releases the game slot.
                 var sawFight = false;
                 try
@@ -122,7 +122,7 @@ internal static class AnomalyHorror
                         {
                             // Go fightState: an unreadable review reads as no binding.
                             var review = await ServiceJournal.TryRoundsAsync(store, ct).ConfigureAwait(false);
-                            var binding = review?.Incident(PolicyFunctions.ActiveCombat);
+                            var binding = review?.Combat;
                             var bound = binding is not null;
                             var need = binding is { } b ? Wire.Name(b.Situation) : "";
                             var tick = (ulong)(review?.Tick.Value ?? 0);

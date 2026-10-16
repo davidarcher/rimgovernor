@@ -48,7 +48,7 @@ internal sealed record DefenseVariant
 /// plan's 3-thick stone perimeter wall with its 3-door gates, section by section. The stored layout is re-verified by an
 /// independent native spatial-access read with every wall and barricade blocked and by a native inspection that no
 /// colonist stands on a trap. A real RaidEnemy edge assault is then raised at the opening and the defense planner must
-/// open one fight (method "combat-...") formed as hold-the-line. The service then holds the raid itself, and the run
+/// open one fight (method "engage-&lt;map&gt;") formed as hold-the-line. The service then holds the raid itself, and the run
 /// waits for the goal to recover, then for the aftermath: the hold plan's drafts are released and the layout planner
 /// re-admits every tier the raid degraded until the stored record is verified standing again within a bounded number of
 /// ticks. The repair is the planner's own: before the repair service starts, the fixture switches the game's
@@ -343,15 +343,15 @@ internal static class DefensePerimeter
         await using (var svc = await DefenseService.LaunchAsync(s, "raid", identity, cancellationToken).ConfigureAwait(false))
         {
             var method = await InPhaseAsync("combat response", () => WaitCombatMethodAsync(svc.Store, svc.Budget(RaidTimeout), report, cancellationToken)).ConfigureAwait(false);
-            if (!method.Method.Value.StartsWith("combat-", StringComparison.Ordinal))
+            if (!method.Method.Value.StartsWith(EngagePrefix, StringComparison.Ordinal))
             {
-                throw new AcceptanceException($"combat method \"{method.Method.Value}\", expected prefix \"combat-\"");
+                throw new AcceptanceException($"combat method \"{method.Method.Value}\", expected prefix \"{EngagePrefix}\"");
             }
 
             var fight = svc.Store.LoadCombatFight(method.Plan, cancellationToken) ?? throw new AcceptanceException($"combat plan {method.Plan.Value} has no fight record");
             AssertHoldPlan(fight.Memory, layout);
             // The service holds the raid: with the hold plan admitted the scheduler runs bounded combat windows that
-            // acknowledge the live hostiles, re-planning between them, until the ActiveCombat goal recovers. The fixture can
+            // acknowledge the live hostiles, re-planning between them, until the military/combat Need is met. The fixture can
             // only inspect from the harness session, so the outcome is read natively once the service is gone.
             var dispatched = new JsonObject();
             report["hold_plan_dispatch"] = dispatched;
@@ -365,7 +365,7 @@ internal static class DefensePerimeter
             resolvedTick = (long)resolved["resolved_tick"].AsNumber();
             var released = new JsonObject();
             report["defenders_released"] = released;
-            await InPhaseAsync("draft release after raid", () => WaitDefendersReleasedAsync(svc.Store, method.Plan, "combat-", svc.Budget(RepairTimeout), released, cancellationToken)).ConfigureAwait(false);
+            await InPhaseAsync("draft release after raid", () => WaitDefendersReleasedAsync(svc.Store, method.Plan, EngagePrefix, svc.Budget(RepairTimeout), released, cancellationToken)).ConfigureAwait(false);
             // The wounded are staged healed before the repair phase: a CriticalMedical hold suspends every routine goal, the
             // controller's tend order has no native preview yet, and the fixture colony has no bed for the game's own
             // doctors to use. Fixture ops need the harness session, so the repair phase runs under a fresh service on the
@@ -639,47 +639,50 @@ internal static class DefensePerimeter
         return record;
     }
 
-    /// <summary>The ActiveCombat incident the review binds and its stored state; both null while it binds none.</summary>
-    private static async Task<(IncidentState? State, RoundsIncident? Binding)> CombatIncidentAsync(JournalStore s, StoreRounds review, CancellationToken cancellationToken)
+    /// <summary>The prefix of the map's fight Method under the military/combat Need, <c>engage-&lt;map&gt;</c> (#3311).</summary>
+    private const string EngagePrefix = "engage-";
+
+    /// <summary>The review's combat standing and the military/combat Need's owner in its world; both null while it files none.</summary>
+    private static async Task<(NeedOwner? Owner, RoundsCombat? Standing)> CombatNeedAsync(JournalStore s, StoreRounds review, CancellationToken cancellationToken)
     {
-        if (review.Incident(PolicyFunctions.ActiveCombat) is not { } binding)
+        if (review.Combat is not { } standing)
         {
             return (null, null);
         }
 
-        var state = await s.LoadIncidentAsync(binding.Incident, cancellationToken).ConfigureAwait(false);
-        return (state, binding);
+        var owner = await Task.Run(() => s.LoadNeed(MilitaryFamily.Combat, review.Snapshot, cancellationToken), cancellationToken).ConfigureAwait(false);
+        return (owner, standing);
     }
 
-    /// <summary>Polls the journal for the ActiveCombat incident's first committed method after the raid.</summary>
-    private static async Task<IncidentMethod> WaitCombatMethodAsync(JournalStore s, Wait w, Report report, CancellationToken cancellationToken)
+    /// <summary>Polls the journal for the military/combat Need's first committed method after the raid.</summary>
+    private static async Task<NeedMethodBinding> WaitCombatMethodAsync(JournalStore s, Wait w, Report report, CancellationToken cancellationToken)
     {
-        IncidentMethod? found = null;
+        NeedMethodBinding? found = null;
         try
         {
             await w.WaitProgressAsync(async ct =>
             {
                 var review = await s.LoadRoundsAsync(ct).ConfigureAwait(false);
-                var (incident, binding) = await CombatIncidentAsync(s, review, ct).ConfigureAwait(false);
-                if (incident is null || binding is null)
+                var (owner, standing) = await CombatNeedAsync(s, review, ct).ConfigureAwait(false);
+                if (owner is null || standing is null)
                 {
-                    return (Wait.Signature("unbound", review.Incidents.Count), false);
+                    return (Wait.Signature("unbound", review.Tick.Value), false);
                 }
 
-                if (incident.Methods.Count > 0)
+                if (owner.Methods.Count > 0)
                 {
-                    report["combat_incident"] = binding.Incident.Value;
-                    report["combat_method"] = incident.Methods[0].Method.Value;
-                    found = incident.Methods[0];
+                    report["combat_need"] = owner.Need.Value;
+                    report["combat_method"] = owner.Methods[0].Method.Value;
+                    found = owner.Methods[0];
                     return ("", true);
                 }
 
-                return (Wait.Signature("bound", binding.Incident.Value), false);
+                return (Wait.Signature("bound", SituationName(standing.Situation)), false);
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (WaitError e)
         {
-            throw new AcceptanceException($"no ActiveCombat method: {e.Message}", e);
+            throw new AcceptanceException($"no military/combat method: {e.Message}", e);
         }
 
         return found!;
@@ -736,7 +739,7 @@ internal static class DefensePerimeter
 
     /// <summary>
     /// Polls the journal while the service fights the raid: it counts the combat stops the fight recorded and
-    /// returns once the ActiveCombat goal has recovered (no live hostile) or is no longer bound. At least one combat stop
+    /// returns once the review's combat standing is clear (no live hostile) or no longer filed. At least one combat stop
     /// must have been recorded, and at least one defender must have been observed arriving on its firing cell (a completed movement
     /// in the first hold plan or any hold plan the goal re-planned after it). The progress signature is the stop count,
     /// the goal's binding and the defenders on the line.
@@ -750,14 +753,14 @@ internal static class DefensePerimeter
             await w.WaitProgressAsync(async ct =>
             {
                 var review = await s.LoadRoundsAsync(ct).ConfigureAwait(false);
-                var (incident, binding) = await CombatIncidentAsync(s, review, ct).ConfigureAwait(false);
-                var bound = incident is not null && binding is not null;
-                var need = binding is null ? "" : SituationName(binding.Situation);
-                if (incident is not null)
+                var (owner, standing) = await CombatNeedAsync(s, review, ct).ConfigureAwait(false);
+                var bound = owner is not null && standing is not null;
+                var need = standing is null ? "" : SituationName(standing.Situation);
+                if (owner is not null)
                 {
-                    foreach (var m in incident.Methods)
+                    foreach (var m in owner.Methods)
                     {
-                        if (m.Method.Value.StartsWith("combat-", StringComparison.Ordinal))
+                        if (m.Method.Value.StartsWith(EngagePrefix, StringComparison.Ordinal))
                         {
                             _ = holdPlans.Add(m.Plan);
                         }
@@ -816,7 +819,7 @@ internal static class DefensePerimeter
     }
 
     /// <summary>
-    /// Waits until every fight rostering a defender is closed and its defenders undrafted: the recovered ActiveCombat goal
+    /// Waits until every fight rostering a defender is closed and its defenders undrafted: the met military/combat Need
     /// closes the fight, so the undraft sweep returns each defender to colony work.
     /// </summary>
     private static async Task<bool> WaitDefendersReleasedAsync(JournalStore s, PlanId first, string prefix, Wait w, JsonObject output, CancellationToken cancellationToken)
@@ -827,17 +830,13 @@ internal static class DefensePerimeter
             {
                 var plans = new HashSet<PlanId> { first };
                 var review = await s.LoadRoundsAsync(ct).ConfigureAwait(false);
-                // The recovered incident closes once its fights settle, so read the latest one, closed or not.
-                var world = new World(review.Snapshot.Colony, review.Snapshot.Load, review.Snapshot.Map);
-                var incident = await s.LatestIncidentAsync(world, PolicyFunctions.ActiveCombat, ct).ConfigureAwait(false);
-                if (incident is not null)
+                // A settled fight's plan retires, so read the Need's method history, retired plans included.
+                var owner = await Task.Run(() => s.LoadNeed(MilitaryFamily.Combat, review.Snapshot, ct), ct).ConfigureAwait(false);
+                foreach (var m in s.OwnerMethodHistory(owner, ct))
                 {
-                    foreach (var m in incident.Methods)
+                    if (m.Method.Value.StartsWith(prefix, StringComparison.Ordinal))
                     {
-                        if (m.Method.Value.StartsWith(prefix, StringComparison.Ordinal))
-                        {
-                            _ = plans.Add(m.Plan);
-                        }
+                        _ = plans.Add(m.Plan);
                     }
                 }
 
@@ -895,9 +894,10 @@ internal static class DefensePerimeter
             {
                 var review = await s.LoadRoundsAsync(ct).ConfigureAwait(false);
                 var combat = "";
-                if (await s.LatestIncidentAsync(world, PolicyFunctions.ActiveCombat, ct).ConfigureAwait(false) is { } latest)
+                var owner = await Task.Run(() => s.LoadNeed(MilitaryFamily.Combat, review.Snapshot, ct), ct).ConfigureAwait(false);
+                if (s.OwnerMethodPlan(owner, new MethodId(EngagePrefix + world.Map.Value.ToString(CultureInfo.InvariantCulture)), ct) is { } latest)
                 {
-                    combat = latest.Incident.Id.Value;
+                    combat = latest.Value;
                 }
 
                 if (review.StandardFor(PolicyFunctions.EnsureDefensiveLayout, out var id))

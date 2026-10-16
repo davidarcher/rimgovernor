@@ -5,20 +5,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsDefensePlanner
 {
     /// <summary>After the fight: strips the downed raiders of their apparel one at a time, finishes the rest and settles the entities; held while any of that is pending.</summary>
-    internal async Task<(RoundsDefenseResult Result, bool Held)> PostFightAsync(IncidentState incident, ControlState state, Tick tick, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsDefenseResult Result, bool Held)> PostFightAsync(NeedOwner owner, ControlState state, Tick tick, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         CombatFight? fight = null;
         PlanId fightPlan = default;
-        var strips = new Dictionary<PawnId, PlanId>();
-        foreach (var method in incident.Methods)
+        foreach (var method in owner.Methods)
         {
-            if (method.Method.Value.StartsWith(StripMethodPrefix, StringComparison.Ordinal))
-            {
-                strips[new PawnId(method.Method.Value[StripMethodPrefix.Length..])] = method.Plan;
-                continue;
-            }
-            if (!method.Method.Value.StartsWith(CombatMethodPrefix, StringComparison.Ordinal))
+            if (!IsFightMethod(method.Method))
             {
                 continue;
             }
@@ -46,7 +40,8 @@ public sealed partial class RoundsDefensePlanner
         {
             var id = new PawnId((raider.Id ?? ""));
             var strip = StripState.StripNone;
-            if (strips.TryGetValue(id, out var plan))
+            // The raider's latest strip, settled ones included: a stripped raider is not stripped again.
+            if (p.Journal.OwnerMethodPlan(owner, StripMethod(id), call) is { } plan)
             {
                 strip = StripStateOf(p.Journal, plan, call);
             }
@@ -55,7 +50,7 @@ public sealed partial class RoundsDefensePlanner
                 case PostFightStep.Wait:
                     return (new RoundsDefenseResult { Verdict = BuildingReasonExistingWork, Plan = fightPlan }, true);
                 case PostFightStep.Strip:
-                    return (CommitStrip(incident, id, call, epoch), true);
+                    return (CommitStrip(state.Snapshot, id, call, epoch), true);
             }
             if (PolicyApi.CaptureWorthy(new CombatPawnState { Luciferium = raider.LuciferiumAddicted.GetValueOrDefault() }))
             {
@@ -66,7 +61,10 @@ public sealed partial class RoundsDefensePlanner
         return await PostFightEntitiesAsync(state, tick, fightPlan, fight.Memory, combat, arbiter, call, epoch).ConfigureAwait(false);
     }
 
-    internal RoundsDefenseResult CommitStrip(IncidentState incident, PawnId raider, CancellationToken call, CancellationToken epoch)
+    /// <summary>The strip Method of a downed raider, named by its target: <c>strip-&lt;raider&gt;</c>.</summary>
+    internal static MethodId StripMethod(PawnId raider) => new(StripMethodPrefix + raider.Value);
+
+    internal RoundsDefenseResult CommitStrip(GenerationSnapshot snapshot, PawnId raider, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var id = PlanIds.MintPlanId();
@@ -74,7 +72,7 @@ public sealed partial class RoundsDefensePlanner
         var action = DomainAction.NewStripAction(new ActionId($"{id}-0"), value);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         p.Current(call, epoch);
-        p.Journal.CommitFightStrip(incident.Incident.Id, new MethodId(StripMethodPrefix + raider.Value), plan, call);
+        p.Journal.CommitFightStrip(snapshot, StripMethod(raider), plan, call);
         return new RoundsDefenseResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 

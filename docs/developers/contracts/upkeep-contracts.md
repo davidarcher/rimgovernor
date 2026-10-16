@@ -155,11 +155,11 @@ defenders' doorway, sized from defenders and turrets, no door on the raiders' ro
   nothing) while the hallway keeps colonists a cheaper trap-free route
   (`policy.hallwayAvoidsTraps`, `policy.colonistRouteAvoidsTraps`). Shooter cell floors are
   terrain; a floor the native preview refuses is dropped from the tier.
-- A `Complete` record is re-verified after each ActiveCombat epoch and once per game hour:
+- A `Complete` record is re-verified after each combat epoch (the latest `engage-<map>` plan) and once per game hour:
   a tier that lost a building re-opens under a new repair prefix, so earlier refusals do not bar it, as a new tier method while
   `Complete` stays true. A missing building whose cell carries a blueprint or frame is not
   placed again; the planner waits for the build. Defenders are undrafted once
-  ActiveCombat stops authorizing the hold plan.
+  the `military/combat` standing stops authorizing the hold plan.
 - Combat holds the line only against an ordinary edge assault in front of the cover row
   (`policy.BehindFiringLine`). Sieges, sapper or breach toil, drops, engaged raiders and
   raiders past the cover row get squad defense. A raider at or behind the cover row or lord

@@ -62,7 +62,7 @@ public sealed record ClockWatchFacts
 
     public ClockWatchStatus Status { get; init; } = new();
 
-    /// <summary>Whether the ActiveCombat goal holds an admitted plan with open work. Only then may live hostiles be watched instead of refused.</summary>
+    /// <summary>Whether the military/combat Need holds an admitted plan with open work. Only then may live hostiles be watched instead of refused.</summary>
     public Fact<bool> CombatPlan { get; init; }
 
     /// <summary>
@@ -81,7 +81,7 @@ public sealed record ClockWatchFacts
     public Fact<bool> Sheltered { get; init; }
 
     /// <summary>
-    /// The live prey of an open hunt fight (the hunt origin of ActiveCombat): no hostile stands, so the watch
+    /// The live prey of an open hunt fight (the squad hunt of the military/combat Need): no hostile stands, so the watch
     /// is a combat one that watches them.
     /// </summary>
     public EquatableArray<PawnId> HuntPrey { get; init; }

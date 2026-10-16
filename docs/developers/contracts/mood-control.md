@@ -293,7 +293,7 @@ reserved work through shared cancellation. State kind, aggression and age remain
 mood evidence. Non-violent breaks leave the clock running.
 
 SocialFighting leaves the clock running despite its native aggression flag:
-it neither activates ActiveCombat nor selects a subdue response. Independent hostile
+it neither makes `military/combat` unmet nor selects a subdue response. Independent hostile
 threats and urgent medical needs keep their emergency classification.
 
 Other standing aggressive colonists activate defense. The brain drafts one or two

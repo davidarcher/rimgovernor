@@ -69,21 +69,6 @@ public sealed partial class Store
                 states.Add(recovering);
                 continue;
             }
-            if (request.Immediate && open is { } huntingId && n.Id == PolicyFunctions.ActiveCombat)
-            {
-                var foodKnown = request.Facts.FoodPlan.IsKnown;
-                var hostileKnown = request.Facts.Hostiles.TryGetValue(out var hostiles);
-                if (!foodKnown && (!hostileKnown || hostiles == 0))
-                {
-                    var hunting = LoadIncident(tx, huntingId);
-                    if (hunting.Incident.HuntPrey.Count > 0)
-                    {
-                        bindings.Add(previous.IncidentBinding(huntingId) ?? throw new DomainException("active hunt lost review binding"));
-                        states.Add(hunting);
-                        continue;
-                    }
-                }
-            }
             if (n.Finding == Finding.Met && open is { } metId)
             {
                 var met = LoadIncident(tx, metId);
@@ -94,15 +79,7 @@ public sealed partial class Store
                     continue;
                 }
             }
-            var trigger = n.Id.Value + " deficit";
-            var huntPrey = default(EquatableArray<PawnId>);
-            if (n.Hunt.Count > 0 && n.Finding == Finding.Unmet)
-            {
-                // The food plan raised this occurrence: its hunt origin.
-                huntPrey = EquatableArray.From(n.Hunt.Select(prey => (PawnId)prey));
-                trigger = n.Id.Value + " hunt";
-            }
-            var opened = OpenIncidentIn(tx, new IncidentAssessment(n.Id, subject, trigger, current, tick, huntPrey));
+            var opened = OpenIncidentIn(tx, new IncidentAssessment(n.Id, subject, n.Id.Value + " deficit", current, tick));
             bindings.Add(new RoundsIncident { Kind = n.Id, Subject = subject, Incident = opened.Incident.Id, Situation = n.Finding.Situation() });
             states.Add(opened);
         }
@@ -119,6 +96,32 @@ public sealed partial class Store
             AbandonIncident(tx, id, tick);
         }
         return (EquatableArray.From(bindings), states);
+    }
+
+    /// <summary>
+    /// The combat standing of an enabled review (#3311): <see cref="PolicyFunctions.CombatSituation"/> over the
+    /// review's hostiles and the food plan's hunt request, filed while it is active or the <c>military/combat</c> Need
+    /// still holds open work (a fight's drafts); none otherwise. A clear situation cancels the Need's undispatched
+    /// Methods first, so nothing dispatches after the clear, as a recovered incident's did.
+    /// </summary>
+    internal static RoundsCombat? ReviewCombat(StoreTransaction tx, RoundsRequest request)
+    {
+        var hunt = PolicyFunctions.HuntRequest(request.Facts.FoodPlan);
+        var situation = PolicyFunctions.CombatSituation(request.Facts.Hostiles, hunt.Count);
+        var owner = LoadNeedIn(tx, MilitaryFamily.Combat, request.Current);
+        if (situation == Situation.Clear)
+        {
+            CancelUndispatchedMethods(tx, owner);
+        }
+        if (situation != Situation.Active && !StandardOpenWork(tx, owner))
+        {
+            return null;
+        }
+        // The prey is the hunt origin's: only a fight with no hostile standing hunts it.
+        var prey = situation == Situation.Active && request.Facts.Hostiles.TryGetValue(out var hostiles) && hostiles == 0
+            ? EquatableArray.From(hunt.Select(p => (PawnId)p))
+            : default;
+        return new RoundsCombat(situation, prey);
     }
 
     /// <summary>

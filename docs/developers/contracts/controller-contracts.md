@@ -76,7 +76,7 @@ deconstruction and floor, foundation and wall removal, moving or uninstalling a 
 clearance) with `awaiting_plan:construction_labor`. The housing goal is exempt, and so is a plan of other kinds: gathering, growing, zoning, bills
 and settings never wait, so the supply the shelter's own demand asks for (`ConstructionDemand`,
 the `DependencyRecord`) is not held behind it (#3147). The defense layout's killbox digs (#2818)
-also wait on a raid: no `ActiveCombat` incident in the journal files `awaiting_plan:raid`, and
+also wait on a raid: no `military/combat` fight in the journal files `awaiting_plan:raid`, and
 the first raid releases them. An item on a ring cell is never an obstruction (the
 builder hauls it aside when the wall goes over it), so a ring cell waits on no haul. The
 shelter room is one continuous reconcile: the first review admits the spots rung and the ring
@@ -653,11 +653,11 @@ assert ingestion. Unavailable inventory produces neither an order nor an attempt
 mark. Policy and runtime tests cover selection; `combatlab/drugs` covers the
 native inventory projection and `combatlab/combat_drug` covers ingestion.
 
-**Squad hunt.** A squad hunt is the `ActiveCombat` incident's hunt origin: while no
+**Squad hunt.** A squad hunt is the `military/combat` Need's hunt origin: while no
 hostile stands and the food plan opens a formation `Hunt` candidate (a group of three or
 more wild animals, or any animal a lone hunter must not designate, with three colonists
 wielding a hunting weapon (`WeaponDef.Hunts`, the one predicate for the candidate's gunner count and the formation) able to form the squad; with fewer it Holds as `needs_gunners`), the review asserts the deficit with the channel's
-prey as the occurrence's payload (`store.HuntPrey`). The fight runs through
+prey on the review's combat standing (`RoundsCombat.Prey`). The fight runs through
 `admitFight` with `CombatView.Hunt` set and the prey as its threats; the frame's
 detail rows cover the open hunt census rows. A hostile in the frame, or the plan no
 longer opening the hunt, ends the origin. An open hunt fight runs a combat watch

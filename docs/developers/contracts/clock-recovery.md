@@ -138,7 +138,7 @@ mode and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, 
 ### Threat and stock rules
 
 - A live, undowned hostile or hunting predator refuses the run (`unsafe_colony`)
-  unless the ActiveCombat concern holds an admitted plan with open work; unknown plan
+  unless the `military/combat` Need holds an admitted plan with open work; unknown plan
   evidence refuses as `unknown_facts`.
 - A hostile building alone refuses only while the defense planner has not reported
   `no_worker:squad` for this stop (`ClockWatchFacts.SquadUnanswered`); after that

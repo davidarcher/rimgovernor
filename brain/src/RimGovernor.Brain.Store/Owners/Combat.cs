@@ -62,16 +62,17 @@ public sealed partial class Store
     private const int MaxCombatRestorationBytes = 128 * 1024;
 
     /// <summary>
-    /// Admits a fight: the ActiveCombat incident's method on <paramref name="plan"/>, whose actions are its threat
-    /// loadout's equip and wear actions or a guarded subdue response, and its open fight row with the roster in one
-    /// transaction (the admission batch drafts them; a loadout pawn drafts later, so the roster may be empty then).
+    /// Admits a fight (#3311): the <c>military/combat</c> Need's Method on <paramref name="plan"/> in
+    /// <paramref name="current"/>'s world (<c>engage-&lt;map&gt;</c>, or <c>subdue-&lt;colonist&gt;</c>), whose actions
+    /// are its threat loadout's equip and wear actions or a guarded subdue response, and its open fight row with the
+    /// roster in one transaction (the admission batch drafts them; a loadout pawn drafts later, so the roster may be
+    /// empty then). Any open work of the Need, a held fight included, refuses it.
     /// </summary>
-    public IncidentState CommitCombatFight(
-        IncidentId incident,
+    public NeedOwner CommitCombatFight(
+        GenerationSnapshot current,
         MethodId method,
         PlanSpec plan,
         CombatMemory memory,
-        World world,
         IReadOnlyList<PawnId> roster,
         CancellationToken cancellationToken
     )
@@ -81,6 +82,7 @@ public sealed partial class Store
         {
             throw new DomainException("combat fight plan holds only loadout or subdue actions");
         }
+        var world = new World(current.Colony, current.Load, current.Map);
         if (roster.Count + plan.Actions.Count == 0 || !world.IsValid)
         {
             throw new DomainException("combat fight needs a roster or a loadout, and a world");
@@ -88,19 +90,19 @@ public sealed partial class Store
         return Run(
             tx =>
             {
-                var state = CommitIncidentMethodIn(tx, incident, method, "", plan, fightWork: false);
+                var owner = CommitCombatMethodIn(tx, current, method, plan, fightWork: false);
                 InsertCombatFight(tx, plan.Id, memory, world, roster);
-                return state;
+                return owner;
             },
             cancellationToken
         );
     }
 
     /// <summary>
-    /// Admits a strip of a downed raider beside the incident's open fight: a method whose plan holds only strip
-    /// actions, which the fight's own open work does not refuse.
+    /// Admits a strip of a downed raider (<c>strip-&lt;raider&gt;</c>) beside the Need's open fight: a Method whose plan
+    /// holds only strip actions, which the fight's own open work does not refuse.
     /// </summary>
-    public IncidentState CommitFightStrip(IncidentId incident, MethodId method, PlanSpec plan, CancellationToken cancellationToken)
+    public NeedOwner CommitFightStrip(GenerationSnapshot current, MethodId method, PlanSpec plan, CancellationToken cancellationToken)
     {
         plan.Validate();
         if (plan.Actions.Count == 0)
@@ -111,7 +113,54 @@ public sealed partial class Store
         {
             throw new DomainException("fight strip plan holds only strip actions");
         }
-        return Run(tx => CommitIncidentMethodIn(tx, incident, method, "", plan, fightWork: true), cancellationToken);
+        return Run(tx => CommitCombatMethodIn(tx, current, method, plan, fightWork: true), cancellationToken);
+    }
+
+    /// <summary>
+    /// Admits other combat work (a permit call, <c>permit-&lt;hash&gt;</c>) as a <c>military/combat</c> Method: any open
+    /// work of the Need, a held fight included, refuses it.
+    /// </summary>
+    public NeedOwner CommitCombatMethod(GenerationSnapshot current, MethodId method, PlanSpec plan, CancellationToken cancellationToken)
+    {
+        plan.Validate();
+        return plan.Actions.Count == 0
+            ? throw new DomainException("empty combat method")
+            : Run(tx => CommitCombatMethodIn(tx, current, method, plan, fightWork: false), cancellationToken);
+    }
+
+    /// <summary>
+    /// The combat Need's open-work admission, as the incident's was: the Safeguards, then any open plan of the Need
+    /// (and, unless <paramref name="fightWork"/>, any held fight) refuses the Method.
+    /// </summary>
+    private static NeedOwner CommitCombatMethodIn(StoreTransaction tx, GenerationSnapshot current, MethodId method, PlanSpec plan, bool fightWork)
+    {
+        if (!method.IsValid)
+        {
+            throw new DomainException("combat method needs an id");
+        }
+        var owner = LoadNeedIn(tx, MilitaryFamily.Combat, current);
+        AdmitRoundsSafeguards(tx, owner);
+        if (fightWork ? PlanOpenWork(tx, owner) : StandardOpenWork(tx, owner))
+        {
+            throw new OpenMethodException();
+        }
+        BindOwnerMethod(tx, owner, method, "", plan);
+        return LoadNeedIn(tx, MilitaryFamily.Combat, current);
+    }
+
+    /// <summary>
+    /// Ends every open fight: a load re-derives the combat Need (its plans retire) and an older save's fight belongs
+    /// to the retired combat incident (#3311), so no fight continues across a world rebuild. The saved
+    /// restoration is kept; with its fight closed the defense step restores it and a fight still needed restarts
+    /// under the Need. Unlike <see cref="CloseCombatFight"/> a fight that owns the restoration closes too.
+    /// </summary>
+    internal static void CloseOpenCombatFightsIn(StoreTransaction tx)
+    {
+        foreach (var plan in tx.Query("SELECT plan_id FROM combat_fights WHERE open=1 ORDER BY plan_id", [], r => new PlanId(r.GetString(0))))
+        {
+            _ = tx.Execute("UPDATE combat_fights SET open=0 WHERE plan_id=$plan", ("$plan", plan));
+            SupersedeCombatBatches(tx, plan, plan, restored: false);
+        }
     }
 
     /// <summary>Records an open fight for an existing plan, as <see cref="CommitCombatFight"/> does; a fight already recorded is left as it is.</summary>
@@ -236,10 +285,11 @@ public sealed partial class Store
     // ---- batches -----------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Binds an immutable ordered batch beside its fight. Pending tactical work does not prevent a new protective
-    /// batch; the executor still checks the Incident and current authority before dispatch.
+    /// Binds an immutable ordered batch beside its open fight, as the <c>military/combat</c> Need's
+    /// <c>batch-&lt;plan&gt;</c> Method in <paramref name="current"/>'s world. Pending tactical work does not prevent a new
+    /// protective batch; the executor still checks the review's combat standing and current authority before dispatch.
     /// </summary>
-    public PlanState CommitCombatBatch(PlanSpec plan, CancellationToken cancellationToken)
+    public PlanState CommitCombatBatch(GenerationSnapshot current, PlanSpec plan, CancellationToken cancellationToken)
     {
         if (!IsValidPlan(plan) || plan.Actions.Count != 1 || plan.Actions[0].CombatBatch is not { } batch)
         {
@@ -253,17 +303,15 @@ public sealed partial class Store
                     var got = LoadIn(tx, plan.Id);
                     return got.Spec.Actions.Count == 1 && got.Spec.Actions[0] == plan.Actions[0] ? got : throw new ConflictException();
                 }
-                var incident = tx.ScalarText(
-                    "SELECT i.incident_id FROM incident_methods i JOIN combat_fights f ON f.plan_id=i.plan_id WHERE f.plan_id=$fight AND f.open=1",
-                    ("$fight", batch.Fight)
-                ) ?? throw new NotFoundException();
-                var state = LoadIncident(tx, new IncidentId(incident));
-                if (state.Incident.Closed)
+                if (tx.Scalar(
+                    "SELECT count(*) FROM need_methods n JOIN combat_fights f ON f.plan_id=n.plan_id WHERE f.plan_id=$fight AND f.open=1 AND n.need_id=$need AND n.colony=$colony AND n.load_token=$load AND n.map_id=$map",
+                    ("$fight", batch.Fight), ("$need", MilitaryFamily.Combat.Value), ("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map)) == 0)
                 {
-                    throw new ConflictException();
+                    throw new NotFoundException();
                 }
-                AdmitRoundsSafeguards(tx, state);
-                BindOwnerMethod(tx, state, new MethodId("batch-" + plan.Id.Value), "", plan);
+                var owner = LoadNeedIn(tx, MilitaryFamily.Combat, current);
+                AdmitRoundsSafeguards(tx, owner);
+                BindOwnerMethod(tx, owner, new MethodId("batch-" + plan.Id.Value), "", plan);
                 return LoadIn(tx, plan.Id);
             },
             cancellationToken
@@ -451,7 +499,11 @@ public sealed partial class Store
         }
     }
 
-    public void CommitCombatRestoration(IncidentId id, PlanSpec plan, CancellationToken cancellationToken) =>
+    /// <summary>
+    /// Binds the restoration of the saved original settings as the <c>military/combat</c> Need's
+    /// <c>restore-&lt;plan&gt;</c> Method in <paramref name="current"/>'s world, retiring earlier restoration attempts.
+    /// </summary>
+    public void CommitCombatRestoration(GenerationSnapshot current, PlanSpec plan, CancellationToken cancellationToken) =>
         Run(
             tx =>
             {
@@ -467,11 +519,7 @@ public sealed partial class Store
                     }
                     return;
                 }
-                var state = LoadIncident(tx, id);
-                if (state.Incident.Closed)
-                {
-                    throw new ConflictException();
-                }
+                var state = LoadNeedIn(tx, MilitaryFamily.Combat, current);
                 // A fresh restoration decision transfers the same saved originals. Retire earlier cleanup
                 // attempts without changing their historical uncertainty.
                 var priorIds = new List<PlanId>();

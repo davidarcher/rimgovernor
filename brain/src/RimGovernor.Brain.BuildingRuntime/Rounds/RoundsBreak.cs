@@ -1,20 +1,19 @@
 using System.Globalization;
-using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsDefensePlanner
 {
-    internal const string SubdueMethodPrefix = "combat-subdue-";
+    internal const string SubdueMethodPrefix = "subdue-";
 
     /// <summary>
-    /// Settles an open subdue fight of the incident: keeps it while the subdued colonist is still breaking, otherwise
+    /// Settles an open subdue fight of the combat Need: keeps it while the subdued colonist is still breaking, otherwise
     /// cancels the open work, stops the owned drafts and closes the fight once the stop is confirmed.
     /// </summary>
-    internal async Task<(RoundsDefenseResult Result, bool Handled)> ReconcileSubdueFightAsync(IncidentState incident, ControlState state, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsDefenseResult Result, bool Handled)> ReconcileSubdueFightAsync(NeedOwner owner, ControlState state, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        foreach (var method in incident.Methods)
+        foreach (var method in owner.Methods)
         {
             if (!method.Method.Value.StartsWith(SubdueMethodPrefix, StringComparison.Ordinal))
             {
@@ -184,10 +183,10 @@ public sealed partial class RoundsDefensePlanner
     }
 
     /// <summary>Admits a subdue plan for the first aggressive breaking colonist a squad can answer.</summary>
-    internal async Task<RoundsDefenseResult> PlanBreakAsync(IncidentState incident, ControlState state, DateTimeOffset started, StepArbiter arbiter, Tick tick, EmergencyFacts f, IReadOnlyDictionary<string, O.PawnState> rows, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsDefenseResult> PlanBreakAsync(NeedOwner owner, ControlState state, DateTimeOffset started, StepArbiter arbiter, Tick tick, EmergencyFacts f, IReadOnlyDictionary<string, O.PawnState> rows, CancellationToken call, CancellationToken epoch)
     {
         var interrupted = new HashSet<PawnId>();
-        foreach (var method in incident.Methods)
+        foreach (var method in owner.Methods)
         {
             if (!method.Method.Value.StartsWith(SubdueMethodPrefix, StringComparison.Ordinal))
             {
@@ -247,9 +246,7 @@ public sealed partial class RoundsDefensePlanner
         {
             return new RoundsDefenseResult { Verdict = WaitFor(Cause.MethodUsed, "break_pawn_claim") };
         }
-        var h = new StringBuilder();
-        h.Append(victim.Value).Append('/').Append('[').Append(string.Join(' ', chosen.Select(c => c.Value))).Append(']');
-        var methodId = DefenseMethodId("combat-subdue", incident.Methods.Count, h);
+        var methodId = new MethodId(SubdueMethodPrefix + victim.Value);
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
         for (var i = 0; i < chosen.Count; i++)
@@ -269,7 +266,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("planBreak: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
         }
-        pl.Journal.CommitCombatFight(incident.Incident.Id, methodId, spec, NewFightMemory(tick), Player.PlayerWorld(state.Snapshot), [.. chosen.Select(c => c)], call);
+        pl.Journal.CommitCombatFight(state.Snapshot, methodId, spec, NewFightMemory(tick), [.. chosen.Select(c => (Domain.PawnId)c)], call);
         return new RoundsDefenseResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }

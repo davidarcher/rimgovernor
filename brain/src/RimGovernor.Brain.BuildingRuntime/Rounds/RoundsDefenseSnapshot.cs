@@ -112,12 +112,11 @@ public sealed partial class RoundsDefensePlanner
             return d;
         }
         var review = p.Journal.LoadRounds(ct);
-        var (incident, _, hit) = RoundsIncident(p.Journal, review, PolicyApi.ActiveCombat, ct);
-        if (!hit)
+        if (review.Combat is null)
         {
             return d;
         }
-        foreach (var m in incident!.Methods)
+        foreach (var m in p.Journal.LoadNeed(MilitaryFamily.Combat, review.Snapshot, ct).Methods)
         {
             if (m.Plan == result.Plan)
             {

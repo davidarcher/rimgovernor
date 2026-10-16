@@ -42,7 +42,7 @@ public static class OperationIntent
         [HomeUpkeepFamily.Clearance.FilingKey] = "Clear home obstructions",
         [AdminFamily.CreepJoiners.FilingKey] = "Creep joiners",
         [EconomyFamily.Caravan.FilingKey] = "Trade",
-        [ActiveCombat] = "Combat",
+        [MilitaryFamily.Combat.FilingKey] = "Combat",
         [BlightNeed.FilingKey] = "Blight",
         [BiotechFamily.Mechs.FilingKey] = "Mechs",
         [BiotechFamily.MechCharger.FilingKey] = "Mech charger",

@@ -89,7 +89,6 @@ public sealed class IncidentConverter : ObjectCodec<Incident>
             Started = e.Get<Tick>("Started", o),
             Closed = e.BoolOr("Closed"),
             Ended = e.GetOr("Ended", default(Tick), o),
-            HuntPrey = e.GetOr("HuntPrey", default(EquatableArray<PawnId>), o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, Incident v, Codecs o)
@@ -102,9 +101,5 @@ public sealed class IncidentConverter : ObjectCodec<Incident>
         w.Put("Started", v.Started, o);
         w.WriteBoolean("Closed", v.Closed);
         w.Put("Ended", v.Ended, o);
-        if (v.HuntPrey.Count > 0)
-        {
-            w.Put("HuntPrey", v.HuntPrey, o);
-        }
     }
 }

@@ -137,6 +137,9 @@ public sealed partial class Rounder
         f = f with { Tick = expected.Tick };
         f = f with { Dash = PolicyFunctions.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, PolicyFunctions.PublishedHypothermiaTuning) };
         f = f with { AvailableMethods = Methods, AvailableNeeds = AvailableNeeds };
+        // The immediate pass plans no food; the last full review's plan carries forward, so a squad hunt it opened
+        // stays a combat deficit (#3311).
+        f = f with { FoodPlan = HeldFoodPlan(state.Snapshot) };
         projection = projection with { Facts = f };
         reading = reading with { Reading = reading.Reading with { Projection = projection } };
         p.Current(ctx, epoch);
@@ -282,6 +285,15 @@ public sealed partial class ClockScheduler
 
             var state = Player.Journal.LoadIncident(binding.Incident, ct);
             foreach (var method in state.Methods)
+            {
+                plans.Add(method.Plan);
+            }
+        }
+
+        // The fight's plans while the review files a combat standing (#3311), as the combat incident's were.
+        if (r.Combat is not null)
+        {
+            foreach (var method in Player.Journal.LoadNeed(MilitaryFamily.Combat, r.Snapshot, ct).Methods)
             {
                 plans.Add(method.Plan);
             }

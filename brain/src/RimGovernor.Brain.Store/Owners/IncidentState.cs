@@ -53,14 +53,12 @@ public sealed record IncidentMethod(MethodId Method, PlanId Plan);
 /// What a review asserts about one occurrence: its key (the snapshot's world, <see cref="Kind"/>, <see cref="Subject"/>),
 /// the trigger it opens with.
 /// </summary>
-/// <param name="HuntPrey">The squad prey of the assessment; empty unless the food plan raises it with no hostile standing.</param>
 public sealed record IncidentAssessment(
     ConcernId Kind,
     PawnId Subject,
     string Trigger,
     GenerationSnapshot Snapshot,
-    Tick Tick,
-    EquatableArray<PawnId> HuntPrey
+    Tick Tick
 );
 
 public sealed partial class Store
@@ -69,7 +67,7 @@ public sealed partial class Store
 
     /// <summary>
     /// Opens the occurrence the assessment asserts, or, when one is already open under its key, refreshes that
-    /// row's snapshot and hunt prey from the assessment and keeps its id, start and trigger: a
+    /// row's snapshot from the assessment and keeps its id, start and trigger: a
     /// re-trigger inside an occurrence is idempotent.
     /// </summary>
     public IncidentState OpenIncident(IncidentAssessment assessment, CancellationToken cancellationToken) => Run(tx => OpenIncidentIn(tx, assessment), cancellationToken);
@@ -85,7 +83,6 @@ public sealed partial class Store
             Trigger = a.Trigger,
             Snapshot = a.Snapshot,
             Started = a.Tick,
-            HuntPrey = a.HuntPrey,
         };
         var existing = tx.ScalarText(
             "SELECT id FROM incidents WHERE colony=$colony AND load_token=$load AND map_id=$map AND kind=$kind AND subject=$subject AND ended_tick IS NULL",
@@ -118,7 +115,7 @@ public sealed partial class Store
             {
                 throw new ConflictException($"incident {id} assessed before it started");
             }
-            var refreshed = state.Incident with { Snapshot = a.Snapshot, HuntPrey = a.HuntPrey };
+            var refreshed = state.Incident with { Snapshot = a.Snapshot };
             _ = tx.Execute("UPDATE incidents SET payload=$payload WHERE id=$id", ("$payload", CanonicalIncident(refreshed)), ("$id", id));
             next = next with { Id = id };
         }
@@ -208,17 +205,13 @@ public sealed partial class Store
         plan.Validate();
         return plan.Actions.Count == 0
             ? throw new DomainException("empty incident method")
-            : Run(tx => CommitIncidentMethodIn(tx, id, method, reason, plan, fightWork: false), cancellationToken);
+            : Run(tx => CommitIncidentMethodIn(tx, id, method, reason, plan), cancellationToken);
     }
 
     public Task<IncidentState> CommitIncidentMethodAsync(IncidentId id, MethodId method, string reason, PlanSpec plan, CancellationToken cancellationToken) =>
         Task.Run(() => CommitIncidentMethod(id, method, reason, plan, cancellationToken), cancellationToken);
 
-    /// <summary>
-    /// <paramref name="fightWork"/> admits the method beside the incident's open fight: only a plan still open
-    /// refuses it.
-    /// </summary>
-    internal static IncidentState CommitIncidentMethodIn(StoreTransaction tx, IncidentId id, MethodId method, string reason, PlanSpec plan, bool fightWork)
+    internal static IncidentState CommitIncidentMethodIn(StoreTransaction tx, IncidentId id, MethodId method, string reason, PlanSpec plan)
     {
         var state = LoadIncident(tx, id);
         if (state.Incident.Closed)
@@ -226,7 +219,7 @@ public sealed partial class Store
             throw new ConflictException($"incident {id} is closed");
         }
         AdmitRoundsSafeguards(tx, state);
-        var open = fightWork ? PlanOpenWork(tx, state) : StandardOpenWork(tx, state);
+        var open = StandardOpenWork(tx, state);
         if (open && state.Incident.Kind == PolicyFunctions.RecoverDisasterServices && RecoveryAreaOnly(plan))
         {
             open = RecoveryAreaConflictingWork(tx, state);

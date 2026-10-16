@@ -95,26 +95,29 @@ public sealed partial class RoundsDefensePlanner
         {
             return new RoundsDefenseResult { Verdict = BuildingReasonNoReview };
         }
-        var (incident, need, found) = RoundsIncident(p.Journal, review, PolicyApi.ActiveCombat, call);
-        if (found)
+        // The review's combat standing (#3311): filed while combat is active or the military/combat Need still
+        // holds open work; none once it is settled.
+        if (review.Combat is not { } standing)
         {
-            var (subdued, handled) = await ReconcileSubdueFightAsync(incident!, state, call, epoch).ConfigureAwait(false);
-            if (handled)
-            {
-                return subdued;
-            }
+            return new RoundsDefenseResult { Verdict = BuildingReasonNoDeficit };
         }
-        if (found && need == Situation.Clear)
+        var owner = p.Journal.LoadNeed(MilitaryFamily.Combat, state.Snapshot, call);
+        var (subdued, handled) = await ReconcileSubdueFightAsync(owner, state, call, epoch).ConfigureAwait(false);
+        if (handled)
         {
-            SettleUnissuedWork(incident!, call);
-            var (post, held0) = await PostFightAsync(incident!, state, review.Tick, arbiter, call, epoch).ConfigureAwait(false);
+            return subdued;
+        }
+        if (standing.Situation == Situation.Clear)
+        {
+            SettleUnissuedWork(owner, call);
+            var (post, held0) = await PostFightAsync(owner, state, review.Tick, arbiter, call, epoch).ConfigureAwait(false);
             if (held0)
             {
                 return post;
             }
-            foreach (var method in incident!.Methods)
+            foreach (var method in owner.Methods)
             {
-                if (method.Method.Value.StartsWith(CombatMethodPrefix, StringComparison.Ordinal))
+                if (IsFightMethod(method.Method))
                 {
                     await ClearFightDoorsAsync(state, method.Plan, call).ConfigureAwait(false);
                     p.Journal.CloseCombatFight(method.Plan, call);
@@ -122,15 +125,15 @@ public sealed partial class RoundsDefensePlanner
             }
             return new RoundsDefenseResult { Verdict = BuildingReasonNoDeficit };
         }
-        if (!found || need != Situation.Active || review.VetoIncident(incident!.Incident) != "")
+        if (standing.Situation != Situation.Active || review.VetoCombat() != "")
         {
             return new RoundsDefenseResult { Verdict = BuildingReasonNoDeficit };
         }
         CombatFight? fight = null;
         PlanId fightPlan = default;
-        foreach (var method in incident.Methods)
+        foreach (var method in owner.Methods)
         {
-            if (method.Method.Value.StartsWith(CombatMethodPrefix, StringComparison.Ordinal))
+            if (IsFightMethod(method.Method))
             {
                 if (p.Journal.LoadCombatFight(method.Plan, call) is not { Open: true } record)
                 {
@@ -169,7 +172,7 @@ public sealed partial class RoundsDefensePlanner
         {
             throw new ControlException("decide: err != nil || combat.Emergency.Context == nil || combat.Context.GetTick() < int64(review.Tick)");
         }
-        var (inputs, reason) = CombatFrameInputs(combat, [.. incident.Incident.HuntPrey]);
+        var (inputs, reason) = CombatFrameInputs(combat, [.. standing.Prey]);
         if (inputs is null || !reason.IsZero)
         {
             return new RoundsDefenseResult { Verdict = reason };
@@ -178,7 +181,7 @@ public sealed partial class RoundsDefensePlanner
         inp.Needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false);
         var emergency = combat.Emergency;
         var rows = inp.Rows;
-        var broke = await PlanBreakAsync(incident, state, started, arbiter, new Tick(combat.Context?.Tick ?? 0), emergency.Facts, rows, call, epoch).ConfigureAwait(false);
+        var broke = await PlanBreakAsync(owner, state, started, arbiter, new Tick(combat.Context?.Tick ?? 0), emergency.Facts, rows, call, epoch).ConfigureAwait(false);
         if (!broke.Verdict.IsZero)
         {
             return broke;
@@ -214,7 +217,7 @@ public sealed partial class RoundsDefensePlanner
         view = view with { Drugs = [.. drug] };
         var tick = view.Tick;
         var stop = CombatStop(combat, memory.Tick);
-        await ReconcileCombatBatchesAsync(state, incident, view, call).ConfigureAwait(false);
+        await ReconcileCombatBatchesAsync(state, owner, view, call).ConfigureAwait(false);
         var (orders, ask, next) = PolicyApi.DecideCombat(view, new GeometryReply(), stop, memory);
         var recorded = new SnapshotCombatStop { Tick = tick, Stop = stop, Orderable = [.. orderable.Select(o => (Domain.PawnId)o)], Ask = ask, MemoryIn = memory };
         if (held.TryGetValue(out var layoutKnown))
@@ -236,17 +239,17 @@ public sealed partial class RoundsDefensePlanner
                 Component = "routine-defense",
                 Verdict = "held",
                 Reason = reconsider,
-                Target = incident.Incident.Id.Value,
+                Target = owner.Need.Value,
                 Attrs = new Dictionary<string, object?> { ["combat_plan"] = fightPlan, ["tactic"] = next.Tactic },
             });
         }
         if (next.Formed == tick && next.Refusal != "" && next.Tactic != CombatTactic.Hold)
         {
-            DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "hold_refused", incident.Incident.Id.Value, new Dictionary<string, object?> { ["incident"] = incident.Incident.Id.Value, ["gate"] = next.Refusal }, call);
+            DefenseAction("routine-defense", TelemetryLevel.Info, "refused", "hold_refused", owner.Need.Value, new Dictionary<string, object?> { ["need"] = owner.Need.Value, ["gate"] = next.Refusal }, call);
         }
         if (fight is null)
         {
-            var result = await AdmitFightAsync(incident, state, started, arbiter, new FightAdmission { Combat = combat, In = inp, Held = held, Reply = recorded.Reply ?? new GeometryReply(), Stop = stop, Memory = next }, call, epoch).ConfigureAwait(false);
+            var result = await AdmitFightAsync(state, started, arbiter, new FightAdmission { Combat = combat, In = inp, Held = held, Reply = recorded.Reply ?? new GeometryReply(), Stop = stop, Memory = next }, call, epoch).ConfigureAwait(false);
             if (result.Verdict == BuildingReasonAdmitted)
             {
                 recorded.Plan = result.Plan;
@@ -291,7 +294,7 @@ public sealed partial class RoundsDefensePlanner
             recorded.MemoryOut = next;
         }
         var (rest, permits) = SplitPermitCalls(orders);
-        CommitPermitCalls(incident, permits, call, epoch);
+        CommitPermitCalls(state.Snapshot, permits, call, epoch);
         var guards = CombatMechGuards(combat, inp.HostileIds, inp.Rows);
         drafts.AddRange(guards.Drafts.Select(d => (PawnId)d));
         var allOrders = rest.ToList();
@@ -339,11 +342,11 @@ public sealed partial class RoundsDefensePlanner
         return orderable;
     }
 
-    /// <summary>Cancels the pending and prepared work of the incident's methods, other than the post-fight strip, before the incident closes.</summary>
-    internal void SettleUnissuedWork(IncidentState incident, CancellationToken call)
+    /// <summary>Cancels the pending and prepared work of the combat Need's methods, other than the post-fight strip, once combat clears.</summary>
+    internal void SettleUnissuedWork(NeedOwner owner, CancellationToken call)
     {
         var p = _reviewer.Player;
-        foreach (var method in incident.Methods)
+        foreach (var method in owner.Methods)
         {
             if (method.Method.Value.StartsWith(StripMethodPrefix, StringComparison.Ordinal))
             {
@@ -362,10 +365,9 @@ public sealed partial class RoundsDefensePlanner
         }
     }
 
-    /// <summary>The method id of a defense plan: the prefix and the first 16 bytes of the hash of the plan's content and the count of admitted methods.</summary>
-    internal static MethodId DefenseMethodId(string prefix, int admitted, StringBuilder hash)
+    /// <summary>The method id of a defense plan named by its content: the prefix and the first 16 bytes of the content's hash.</summary>
+    internal static MethodId DefenseMethodId(string prefix, StringBuilder hash)
     {
-        hash.Append(CultureInfo.InvariantCulture, $"#{admitted}\n");
         var sum = SHA256.HashData(Encoding.UTF8.GetBytes(hash.ToString()));
         return new MethodId($"{prefix}-{Convert.ToHexStringLower(sum.AsSpan(0, 16))}");
     }

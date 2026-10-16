@@ -219,12 +219,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static bool DefenseReverifyDue(DefenseLayoutRecord record, Tick tick, string combat) =>
         combat != record.VerifiedCombat || tick.Value - record.VerifiedTick.Value >= DefenseReverifyTicks;
 
-    /// <summary>The id of the latest active-combat incident, or empty when there is none.</summary>
+    /// <summary>The plan of the map's latest fight (<c>engage-&lt;map&gt;</c>'s latest attempt), or empty when there is none.</summary>
     internal static string DefenseCombatKey(Player p, RoundsReview review, CancellationToken ct)
     {
-        var s = review.Snapshot;
-        var latest = p.Journal.LatestIncident(new StoreWorld { Colony = s.Colony, Load = s.Load, Map = s.Map }, PolicyApi.ActiveCombat, ct);
-        return latest is null ? "" : latest.Incident.Id.Value;
+        var owner = p.Journal.LoadNeed(MilitaryFamily.Combat, review.Snapshot, ct);
+        return p.Journal.OwnerMethodPlan(owner, RoundsDefensePlanner.EngageMethod(review.Snapshot), ct)?.Value ?? "";
     }
 
     internal static bool DefenseTierCensusUpdate(DefenseLayoutRecord record, DefenseCensus census)

@@ -129,7 +129,7 @@ public sealed partial class Store
                 }
                 if (owner.Kind == "need")
                 {
-                    AuthorizeNeedPlan(tx, target.Plan, root, target);
+                    AuthorizeNeedPlan(tx, review, target.Plan, root, target);
                     return;
                 }
                 AuthorizeStandardPlan(tx, review, LoadStandard(tx, new StandardId(owner.OwnerId)), root, target);
@@ -178,14 +178,21 @@ public sealed partial class Store
     /// <see cref="AuthorizeRoundsPlan"/> for a Need's method (#3250): the plan belongs to the root's world, no Safeguard
     /// vetoes routine work and the plan is unretired at the target revision. Whether the Need is still unmet is its
     /// family's to judge on its next run; the caller has already required a current enabled review under the root.
+    /// A <c>military/combat</c> plan other than the settings restoration dispatches only while the review's combat
+    /// standing is active, as the combat incident's did (#3311): nothing dispatches after the clear.
     /// </summary>
-    internal static void AuthorizeNeedPlan(StoreTransaction tx, PlanId plan, GenerationSnapshot root, GenerationSnapshot target)
+    internal static void AuthorizeNeedPlan(StoreTransaction tx, Rounds review, PlanId plan, GenerationSnapshot root, GenerationSnapshot target)
     {
         GuardNeedWork(tx, plan, root);
         var p = LoadIn(tx, plan);
         if (p.Retired || p.Spec.Revision != target.Revision)
         {
             throw new ConflictException("plan is retired or revised");
+        }
+        if (tx.ScalarText("SELECT need_id FROM need_methods WHERE plan_id=$plan", ("$plan", plan)) == MilitaryFamily.Combat.Value
+            && review.Combat is not { Situation: Situation.Active } && !CombatRestorationPlan(tx, p.Spec))
+        {
+            throw new ConflictException("combat is not in deficit");
         }
         RoundsActionsSupported(p.Spec);
     }

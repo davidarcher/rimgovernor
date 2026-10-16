@@ -62,20 +62,6 @@ public static partial class PolicyFunctions
 {
     internal static Fact<bool> NotFact(Fact<bool> f) => Measured(f, v => !v);
 
-    internal static void InspectActiveCombat(RoundsRun c)
-    {
-        var f = c.F;
-        if (!Positive(CombatCleared(f)))
-        {
-            c.Raise(ActiveCombat);
-        }
-        var a = c.Assess(ActiveCombat, CombatCleared(f));
-        if (Positive(Measured(f.Hostiles, n => n == 0)))
-        {
-            a.Hunt = EquatableArray.From(HuntRequest(f.FoodPlan));
-        }
-    }
-
     internal static void InspectWorkAssignments(RoundsRun c)
     {
         var f = c.F;

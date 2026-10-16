@@ -37,7 +37,7 @@ public sealed record EmergencyPawn
 /// <summary>
 /// Go <c>ThreatKind</c>. HostileBuilding is a hostile-faction building the census lists as a combat target in
 /// its own right (an insect hive, a crashed ship part): a squad target once no hostile pawn remains and, within
-/// <see cref="EmergencyThreat.DistantThreatCells"/> of a colonist, a deficit for ActiveCombat and an
+/// <see cref="EmergencyThreat.DistantThreatCells"/> of a colonist, a deficit for the military/combat Need and an
 /// unsafe-threat hold like a hostile pawn, so the fight is planned under a stopped clock and run under watched
 /// combat runs. A building further out is watched like a distant animal.
 /// </summary>
@@ -266,7 +266,7 @@ public sealed record EmergencySnapshot
 
     /// <summary>
     /// Go <c>PodsPending</c>: a drop-pod raid on its way down: an arrival whose pods have not opened by the
-    /// census tick. It is a threat for the ActiveCombat goal and a combat run with nothing to acknowledge
+    /// census tick. It is a threat for the military/combat Need and a combat run with nothing to acknowledge
     /// until the open, so the fight forms on the arrival.
     /// </summary>
     public bool PodsPending => IsValid && Facts.PodsOpen.Value > 0 && Facts.PodsOpen >= Tick;

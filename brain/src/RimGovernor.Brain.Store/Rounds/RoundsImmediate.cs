@@ -37,6 +37,8 @@ public sealed partial class Store
             Latches = r.Latches,
             Standards = MergeImmediateRows(previous.Standards, r.Standards, v => v.Concern),
             Incidents = MergeImmediateRows(previous.Incidents, r.Incidents, v => v.Kind),
+            // Combat is judged in every pass: the immediate review's standing replaces the last one.
+            Combat = r.Combat,
             NoOps = MergeImmediateRows(previous.NoOps, r.NoOps, v => v.Concern),
         };
         // The previous record may be a disabled round, which files no mood proposals; an enabled record carries

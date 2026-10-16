@@ -488,7 +488,23 @@ colonist no live plan needs stands and no hostile does, unknown while the coloni
 census is unread, and has no Methods. Its work step is the undraft sweep; the
 family is immediate, so the sweep runs in both passes, and its undrafts are logged
 under `military/restore-workers`. The family's own kinds widen the protection
-watch only on its own SeriousHarm plans. ActiveCombat is not migrated yet.
+watch only on its own SeriousHarm plans.
+
+**Military family, combat (#3311).** `military/combat` replaces the combat incident
+incident: a SeriousHarm Need, one per map, unmet while a hostile stands or the held
+food plan requests a squad hunt (deficit hostiles plus prey), met when neither does,
+unknown while the hostile census is unread. One policy function,
+`PolicyFunctions.CombatSituation`, gives Active, Clear or Unclear for the review's
+combat standing (`Rounds.Combat`), the Need's predicate and `CombatCleared`. The
+review files the standing while it is active or the Need still holds open work; a
+clear cancels the Need's undispatched Methods, and the executor refuses a combat plan
+other than the restoration while the standing is not active. The `defense` runner
+fights it: its Methods are `engage-<map>`, `subdue-<colonist>`, `strip-<raider>`,
+`permit-<hash>`, `batch-<plan>` and `restore-<plan>`, owned through `need_methods`.
+The immediate pass carries the held food plan forward, so the hunt prey is read the
+same in both passes. A load closes every open fight (an older save's fight belongs
+to the retired incident) and keeps `family/combat_restoration`, which the next
+defense step restores under the Need.
 
 **Colony admin, creep joiners (#3264).** `ManageCreepJoiners` is now the
 `admin/creep-joiners` Need (`ColonyAdmin.cs`, `AdminRounds`), a Wellbeing Need of
@@ -603,8 +619,9 @@ recovery or a peg-leg step stands; its surgeries claim
 `surgery/<patient>/<recipe>/<part>` and the part bill is declared while it is unmet.
 The forecast reads the critical census, surgery and reserves rows as Needs, and the
 pain and sickness thoughts are owned by `medical/care`. `CriticalMedical` left
-`ImmediateConcern`; ActiveCombat and RecoverDisasterServices remain (RestoreWorkers
-and the Safe-area edit, now `shelter/safe-area` #3257, left it too). The
+`ImmediateConcern`; only RecoverDisasterServices remains (RestoreWorkers and
+the combat incident, now `military/restore-workers` and `military/combat` #3311, and the
+Safe-area edit, now `shelter/safe-area` #3257, left it too). The
 `MedicalReserve` latch stays: the silver gap and the trade routine still read it.
 
 **Per-family migration checklist** (as followed for food-stores/storage):
@@ -652,7 +669,7 @@ anomaly).
 | Shelter | `shelter`: Needs `starter`, `sleeping`, `expansion`, `temperature`, `safe-area` (#3257; MaintainHousing, MaintainShelter, EnsureTemperatureSafety deleted; the housing phase latch is the `sleeping` and `expansion` preconditions) |
 | Power | `power`: Need `basic` (#3257; EnsureBasicPower deleted) |
 | Medical | `medical`: Needs `critical/<pawn>`, `care`, `reserves`, `surgery` (#3258; CriticalMedical, MaintainMedicalReserves, MaintainSurgery deleted) |
-| Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259), `restore-workers` (#3311; RestoreWorkers and the undraft planner deleted); ActiveCombat |
+| Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259), `restore-workers` and `combat` (#3311; RestoreWorkers, the combat incident and the undraft planner deleted) |
 | Animals | `animals`: Needs `herd`, `containment`, `ward`, `sterilize` (#3260) |
 | Ideology | `ideology`: Needs `roles`, `rituals`, `reform` (#3260) |
 | Biotech | `biotech`: Needs `mechs` (waits on `mech-charger`), `mech-charger`, `gene-bank`, `pollution` (#3261) |

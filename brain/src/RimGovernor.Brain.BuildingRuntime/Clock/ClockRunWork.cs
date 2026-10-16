@@ -52,9 +52,10 @@ internal static class ClockRunWork
     }
 
     /// <summary>
-    /// Whether the current rounds binds an ActiveCombat incident in deficit whose admitted plan still has open work:
-    /// the only evidence under which live hostiles are watched rather than refused. <c>FightOpen</c> is whether a
-    /// fight owns the combat and <c>Prey</c> the hunt origin's live prey (Go <c>clockSchedulerCombatPlan</c>).
+    /// Whether the current rounds files an active combat standing whose <c>military/combat</c> Need holds an admitted
+    /// plan with open work (#3311): the only evidence under which live hostiles are watched rather than refused.
+    /// <c>FightOpen</c> is whether a fight owns the combat and <c>Prey</c> the squad hunt's live prey (Go
+    /// <c>clockSchedulerCombatPlan</c>).
     /// </summary>
     public static async Task<(bool Plan, bool FightOpen, EquatableArray<PawnId> Prey)> CombatPlanAsync(StoreJournal journal, GenerationSnapshot current, CancellationToken ct)
     {
@@ -64,19 +65,19 @@ internal static class ClockRunWork
             return (false, false, default);
         }
         var fights = await Task.Run(() => journal.OpenCombatFights(ct), ct).ConfigureAwait(false);
-        var (incident, need, found) = await Task.Run(() => RoundsIncident(journal, review, PolicyApi.ActiveCombat, ct), ct).ConfigureAwait(false);
-        if (!found || need != Situation.Active)
+        if (review.Combat is not { Situation: Situation.Active } standing)
         {
             return (false, false, default);
         }
-        foreach (var method in incident.Methods)
+        var owner = await Task.Run(() => journal.LoadNeed(MilitaryFamily.Combat, current, ct), ct).ConfigureAwait(false);
+        foreach (var method in owner.Methods)
         {
             // A fight owns the combat: its orders go out at each stop, not as plan work. Closed, it holds the
-            // incident until its claims are released, with no stops armed. A hunt origin's fight is watched through
+            // Need until its claims are released, with no stops armed. A squad hunt's fight is watched through
             // its live prey.
             if (fights.TryGetValue(method.Plan, out var fight))
             {
-                return (true, fight.Open, fight.Open ? new EquatableArray<PawnId>(ImmutableArray.CreateRange(incident.Incident.HuntPrey.Select(p => p))) : default);
+                return (true, fight.Open, fight.Open ? new EquatableArray<PawnId>(ImmutableArray.CreateRange(standing.Prey.Select(p => p))) : default);
             }
             var plan = await journal.LoadPlanAsync(method.Plan, ct).ConfigureAwait(false);
             if (Standard.WorkOpen(plan.Progress))

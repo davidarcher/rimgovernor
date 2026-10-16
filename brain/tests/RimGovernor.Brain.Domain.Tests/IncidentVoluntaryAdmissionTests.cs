@@ -38,15 +38,25 @@ public sealed class IncidentVoluntaryAdmissionTests
         VerifyCaravan(DomainAction.NewTradeAction(new("action"), trade), true, "");
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void PreventativeMoodCastCannotUseIncidentToBypassSharedLaborButCombatRetainsAuthority(bool combat)
+    [Fact]
+    public void PreventativeMoodCastCannotUseIncidentToBypassSharedLabor()
     {
-        var ability = new Ability(new("pawn"), AbilitySource.PsycastSource(combat ? "Stun" : "WordOfJoy"),
-            AbilityTarget.AbilityPawnTarget(new("target")));
-        Verify(combat ? ActiveCombat : EnsureMood, DomainAction.NewAbilityAction(new("action"), ability),
-            combat, "unsupported_forecast_mood_cast");
+        var ability = new Ability(new("pawn"), AbilitySource.PsycastSource("WordOfJoy"), AbilityTarget.AbilityPawnTarget(new("target")));
+        Verify(EnsureMood, DomainAction.NewAbilityAction(new("action"), ability), false, "unsupported_forecast_mood_cast");
+    }
+
+    /// <summary>A combat cast keeps its authority as a <c>military/combat</c> Method (#3311).</summary>
+    [Fact]
+    public void CombatCastRetainsAuthorityUnderTheCombatNeed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-combat-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        var ability = new Ability(new("pawn"), AbilitySource.PsycastSource("Stun"), AbilityTarget.AbilityPawnTarget(new("target")));
+        var plan = new PlanSpec(new("plan"), new(1), [DomainAction.NewAbilityAction(new("action"), ability)]);
+        var committed = journal.CommitCombatMethod(World, new("permit-cast"), plan, ct);
+        Assert.Equal(plan.Id, Assert.Single(committed.Methods).Plan);
     }
 
     /// <summary>The economy/caravan Need (#3316) admits a trade phase as its Method, or refuses it with <paramref name="reason"/> and binds nothing.</summary>
@@ -80,7 +90,7 @@ public sealed class IncidentVoluntaryAdmissionTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-incident-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
-        var incident = journal.OpenIncident(new(kind, new("colony"), "observed_need", World, new(100), []), ct);
+        var incident = journal.OpenIncident(new(kind, new("colony"), "observed_need", World, new(100)), ct);
         var plan = new PlanSpec(new("plan"), new(1), [action]);
         if (allowed)
         {

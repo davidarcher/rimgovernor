@@ -68,6 +68,21 @@ public sealed partial class Rounder
         }
     }
 
+    /// <summary>
+    /// The food plan the last full review cached for <paramref name="world"/>'s colony, load and map; unknown when none
+    /// is held for it. The immediate pass and the combat Need carry it forward, so a squad hunt the plan opened stays
+    /// a combat deficit between full reviews (#3311).
+    /// </summary>
+    internal Fact<FoodPlan> HeldFoodPlan(GenerationSnapshot world)
+    {
+        var s = Census;
+        lock (s.Mu)
+        {
+            var id = s.FoodIdentity;
+            return s.FoodPlanFact.IsKnown && id.Colony == world.Colony && id.Load == world.Load && id.Map == world.Map ? s.FoodPlanFact : Unknown<FoodPlan>();
+        }
+    }
+
     internal FoodTrade FoodTradeOf(ColonyProjection p)
     {
         var tk = p.Facts.Traders.TryGetValue(out var traders);

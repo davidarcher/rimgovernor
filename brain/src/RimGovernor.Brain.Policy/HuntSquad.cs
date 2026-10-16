@@ -262,7 +262,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The squad prey the food plan opens: the union of the open squad channels' prey, sorted. It is what
-    /// raises the hunt origin of the ActiveCombat incident while nothing hostile stands.
+    /// makes the military/combat Need unmet while nothing hostile stands.
     /// </summary>
     public static IReadOnlyList<PawnId> HuntRequest(Fact<FoodPlan> plan)
     {

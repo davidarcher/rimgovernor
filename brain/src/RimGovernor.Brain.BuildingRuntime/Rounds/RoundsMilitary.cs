@@ -8,7 +8,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// the pest facts (the acquisition census, the Need's own hunts and the next hunt), and the equipment facts (the
 /// gear census, the crafting spot owed down and the mortar shell review). The work step cancels stale pest hunts and
 /// files why no hunt was proposed, builds the training range and ring rooms under the training Need, and places or
-/// retires the crafting spot and walks the replacement-gear workshop ladder under the equipment Need.
+/// retires the crafting spot and walks the replacement-gear workshop ladder under the equipment Need. The combat
+/// Need (#3311) reads the hostiles and the held food plan's squad-hunt prey in both passes; the defense runner
+/// fights it.
 /// </summary>
 public sealed class MilitaryRounds
 {
@@ -18,6 +20,7 @@ public sealed class MilitaryRounds
     private readonly bool _training;
     private readonly bool _equipment;
     private readonly bool _restoreWorkers;
+    private readonly bool _combat;
 
     // Stages the training rooms; null for a source that cannot preview buildings.
     private readonly RoundsBuildingPlanner? _building;
@@ -33,7 +36,7 @@ public sealed class MilitaryRounds
     /// military/equipment, whose work step places the <paramref name="armory"/>'s crafting spot and, with
     /// <paramref name="workshop"/>, walks the replacement-gear workshop ladder.
     /// </summary>
-    public MilitaryRounds(Rounder reviewer, bool defense, bool pests, bool training, bool equipment = false, RoundsArmoryPlanner? armory = null, bool workshop = false, bool restoreWorkers = true)
+    public MilitaryRounds(Rounder reviewer, bool defense, bool pests, bool training, bool equipment = false, RoundsArmoryPlanner? armory = null, bool workshop = false, bool restoreWorkers = true, bool combat = true)
     {
         if (reviewer is null || reviewer.Native is null)
         {
@@ -49,6 +52,7 @@ public sealed class MilitaryRounds
         _training = training;
         _equipment = equipment;
         _restoreWorkers = restoreWorkers;
+        _combat = combat;
         _armory = armory;
         if (training && reviewer.Native is IRoundsBuildingSource source)
         {
@@ -62,7 +66,7 @@ public sealed class MilitaryRounds
 
     /// <summary>The family's scheduler entry: it wakes on its reads and on hunt, building, equip and dressing outcomes.</summary>
     public FamilyRunner Runner() =>
-        new FamilyRunner<MilitaryFacts>(new MilitaryFamily(_defense, _pests, _training, _equipment, _restoreWorkers), ReadAsync, Schedule, WorkAsync);
+        new FamilyRunner<MilitaryFacts>(new MilitaryFamily(_defense, _pests, _training, _equipment, _restoreWorkers, _combat), ReadAsync, Schedule, WorkAsync);
 
     /// <summary>
     /// An optional entry (critical in the immediate pass) woken by the outcomes of pest hunts, buildings, arming,
@@ -80,13 +84,13 @@ public sealed class MilitaryRounds
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world. Throws when the scope is another world or older
-    /// than the review. The immediate pass reads only the restore-workers facts.
+    /// than the review. The immediate pass reads only the restore-workers and combat facts.
     /// </summary>
     internal async Task<MilitaryFacts> ReadAsync(FamilyReadScope scope, CancellationToken call)
     {
         if (scope.Immediate)
         {
-            return _restoreWorkers ? await RestoreFactsAsync(scope.World, new MilitaryFacts(), call).ConfigureAwait(false) : new MilitaryFacts();
+            return _restoreWorkers || _combat ? await RestoreFactsAsync(scope.World, new MilitaryFacts(), call).ConfigureAwait(false) : new MilitaryFacts();
         }
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
@@ -121,7 +125,7 @@ public sealed class MilitaryRounds
         {
             facts = await PestFactsAsync(scope.World, review, facts, call).ConfigureAwait(false);
         }
-        if (_restoreWorkers)
+        if (_restoreWorkers || _combat)
         {
             facts = await RestoreFactsAsync(scope.World, facts, call).ConfigureAwait(false);
         }
@@ -129,8 +133,9 @@ public sealed class MilitaryRounds
     }
 
     /// <summary>
-    /// The restore-workers section from the frame the sweep reads: the drafts no live plan needs and, unless the
-    /// defense read already holds them, the hostiles of its emergency census.
+    /// The restore-workers and combat section from the frame the sweep reads: the drafts no live plan needs, the
+    /// held food plan's squad-hunt prey and, unless the defense read already holds them, the hostiles of its emergency
+    /// census.
     /// </summary>
     private async Task<MilitaryFacts> RestoreFactsAsync(GenerationSnapshot world, MilitaryFacts facts, CancellationToken call)
     {
@@ -151,7 +156,8 @@ public sealed class MilitaryRounds
             var tick = new Tick((long)(frame.Context?.Tick ?? 0));
             hostiles = PolicyApi.EmergencyNeeds(EmergencySnapshot.New(world, tick, frame.Emergency.Facts), world, tick).Hostiles;
         }
-        return facts with { Hostiles = hostiles, StrayDrafts = DraftNeeds.StrayDrafts(state, frame.Emergency.Facts, frame.Pawns, needed) };
+        var prey = PolicyApi.HuntRequest(_reviewer.HeldFoodPlan(world));
+        return facts with { Hostiles = hostiles, HuntPrey = [.. prey], StrayDrafts = DraftNeeds.StrayDrafts(state, frame.Emergency.Facts, frame.Pawns, needed) };
     }
 
     /// <summary>
@@ -228,6 +234,11 @@ public sealed class MilitaryRounds
         if (work.Need.Id == MilitaryFamily.RestoreWorkers)
         {
             return await _reviewer.SweepDraftsAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false);
+        }
+        if (work.Need.Id == MilitaryFamily.Combat)
+        {
+            // The defense runner fights the Need: its open Methods are the fight, else it waits on that planner.
+            return work.Owner.Methods.Count > 0 ? BuildingReasonExistingWork : AwaitingPlan(MilitaryFamily.Combat.Value, "defense_planner");
         }
         return NoMethod(work.Need.Id);
     }

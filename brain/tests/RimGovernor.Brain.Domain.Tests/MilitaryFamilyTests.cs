@@ -69,8 +69,31 @@ public sealed class MilitaryFamilyTests
     [Fact]
     public void DisabledNeedsAreNotDerived()
     {
-        Assert.Equal([MilitaryFamily.Pests], new MilitaryFamily(defense: false, training: false, equipment: false, restoreWorkers: false).Derive(new MilitaryFacts()).Select(n => n.Id));
-        Assert.Empty(new MilitaryFamily(restoreWorkers: false).SeriousHarmReads);
+        Assert.Equal([MilitaryFamily.Pests], new MilitaryFamily(defense: false, training: false, equipment: false, restoreWorkers: false, combat: false).Derive(new MilitaryFacts()).Select(n => n.Id));
+        Assert.Empty(new MilitaryFamily(restoreWorkers: false, combat: false).SeriousHarmReads);
+    }
+
+    /// <summary>The combat Need (#3311) is unmet by live hostiles or squad-hunt prey, met by neither, unknown while the census is unread.</summary>
+    [Fact]
+    public void CombatIsUnmetByHostilesOrHuntPreyMetByNeitherAndUnknownWhileTheCensusIsUnread()
+    {
+        var hostile = Derive(new MilitaryFacts { Hostiles = Known(2L) }, MilitaryFamily.Combat);
+        Assert.Equal((Satisfaction.Unmet, 2.0, NeedTier.SeriousHarm), (hostile.Satisfaction, hostile.Deficit.Value, hostile.Tier));
+
+        var hunt = Derive(new MilitaryFacts { Hostiles = Known(0L), HuntPrey = [new PawnId("deer")] }, MilitaryFamily.Combat);
+        Assert.Equal((Satisfaction.Unmet, 1.0), (hunt.Satisfaction, hunt.Deficit.Value));
+
+        var clear = Derive(new MilitaryFacts { Hostiles = Known(0L) }, MilitaryFamily.Combat);
+        Assert.Equal((Satisfaction.Met, 0.0), (clear.Satisfaction, clear.Deficit.Value));
+
+        var unknown = Derive(new MilitaryFacts(), MilitaryFamily.Combat);
+        Assert.Equal(Satisfaction.Unknown, unknown.Satisfaction);
+        Assert.False(unknown.Deficit.IsKnown);
+
+        Assert.Equal(Situation.Active, CombatSituation(Known(1L), 0));
+        Assert.Equal(Situation.Active, CombatSituation(Known(0L), 1));
+        Assert.Equal(Situation.Clear, CombatSituation(Known(0L), 0));
+        Assert.Equal(Situation.Unclear, CombatSituation(Unknown<long>(), 0));
     }
 
     [Fact]
@@ -293,12 +316,12 @@ public sealed class MilitaryFamilyTests
     }
 
     [Fact]
-    public void TheImmediatePassJudgesOnlyRestoreWorkersAndItsRowReachesRoundsProgress()
+    public void TheImmediatePassJudgesOnlyCombatAndRestoreWorkersAndItsRowReachesRoundsProgress()
     {
         using var colony = Open();
         colony.Facts = Unmet(Hunt("pest-hunt-a", Pest("rat-a", 5))) with { StrayDrafts = Known(1) };
         var run = colony.Run(immediate: true);
-        Assert.Equal([MilitaryFamily.RestoreWorkers], run.Standings.Select(s => s.Need.Id));
+        Assert.Equal([MilitaryFamily.Combat, MilitaryFamily.RestoreWorkers], run.Standings.Select(s => s.Need.Id));
         Assert.Empty(run.Methods);
         Assert.Empty(run.SeriousHarmPlans);
         colony.File(run);

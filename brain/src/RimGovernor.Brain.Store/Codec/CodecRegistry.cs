@@ -215,6 +215,7 @@ internal static class CodecRegistry
         codecs.Register(new RoomLinkConverter());
         codecs.Register(new RoomTripConverter());
         codecs.Register(new RoundsConverter());
+        codecs.Register(new RoundsCombatConverter());
         codecs.Register(new RoundsIncidentConverter());
         codecs.Register(new RoundsLatchesConverter());
         codecs.Register(new RoundsMoodCauseConverter());

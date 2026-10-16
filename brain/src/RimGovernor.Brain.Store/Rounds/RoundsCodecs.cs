@@ -330,6 +330,18 @@ public sealed class RoundsIncidentConverter : ObjectCodec<RoundsIncident>
     }
 }
 
+public sealed class RoundsCombatConverter : ObjectCodec<RoundsCombat>
+{
+    protected override RoundsCombat Read(JsonElement e, Codecs o) =>
+        new(e.Get<Situation>("Situation", o), e.Get<EquatableArray<PawnId>>("Prey", o));
+
+    protected override void WriteFields(Utf8JsonWriter w, RoundsCombat v, Codecs o)
+    {
+        w.Put("Situation", v.Situation, o);
+        w.Put("Prey", v.Prey, o);
+    }
+}
+
 public sealed class DependencyCostConverter : ObjectCodec<DependencyCost>
 {
     protected override DependencyCost Read(JsonElement e, Codecs o) => new(e.Get<ActionId>("Action", o), e.I64("Count"));

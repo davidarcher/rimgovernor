@@ -2178,6 +2178,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             Comfort = e.Get<ComfortHistory>("Comfort", o),
             Standards = e.Get<EquatableArray<RoundsStandard>>("Standards", o),
             Incidents = e.Get<EquatableArray<RoundsIncident>>("Incidents", o),
+            Combat = e.GetOr<RoundsCombat?>("Combat", null, o),
             Roster = e.GetOr<WorkRosterReport?>("Roster", null, o),
             Progress = e.Get<EquatableArray<ConcernProgress>>("Progress", o),
             ReadyWork = e.GetOr<ReadyWorkReport?>("ReadyWork", null, o),
@@ -2225,6 +2226,10 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
         w.Put("Comfort", v.Comfort, o);
         w.Put("Standards", v.Standards, o);
         w.Put("Incidents", v.Incidents, o);
+        if (v.Combat is { } vCombat)
+        {
+            w.Put("Combat", vCombat, o);
+        }
         if (v.Roster is { } vRoster)
         {
             w.Put("Roster", vRoster, o);

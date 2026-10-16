@@ -28,6 +28,12 @@ public sealed record MilitaryFacts
 {
     public Fact<long> Hostiles { get; init; }
 
+    /// <summary>
+    /// The food plan's squad-hunt prey (<see cref="PolicyFunctions.HuntRequest"/>): a fight with no hostile standing.
+    /// Empty when the plan opens no squad hunt or is unread; the combat Need is judged on the hostiles first.
+    /// </summary>
+    public EquatableArray<PawnId> HuntPrey { get; init; }
+
     public Fact<long> Armed { get; init; }
 
     /// <summary>Living, conscious colonists able to fight who hold no weapon.</summary>
@@ -107,9 +113,14 @@ public sealed record MilitaryFacts
 /// <item><c>military/restore-workers</c> (SeriousHarm, #3311): no drafted colonist stands that no live plan needs
 /// while no hostile does; unknown while the census is unread. It has no Methods: its work step is the undraft
 /// sweep, which replaced the RestoreWorkers Concern and the undraft planner.</item>
+/// <item><c>military/combat</c> (SeriousHarm, #3311): one per map, <see cref="PolicyFunctions.CombatSituation"/> over
+/// the hostiles and the squad-hunt prey: unmet while a hostile stands or a squad hunt is open, met otherwise, unknown
+/// while the hostile count is. It proposes no Methods: the defense runner fights it (<c>engage-&lt;map&gt;</c>,
+/// <c>subdue-&lt;colonist&gt;</c>, <c>strip-&lt;raider&gt;</c>, <c>permit-&lt;hash&gt;</c>, its batches and the
+/// settings restoration). It replaced the combat incident Concern.</item>
 /// </list>
 /// </summary>
-public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool training = true, bool equipment = true, bool restoreWorkers = true) : IFamily<MilitaryFacts>
+public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool training = true, bool equipment = true, bool restoreWorkers = true, bool combat = true) : IFamily<MilitaryFacts>
 {
     public const string FamilyId = "military";
 
@@ -122,6 +133,8 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     public static readonly NeedId Equipment = NeedId.Of(FamilyId, "equipment");
 
     public static readonly NeedId RestoreWorkers = NeedId.Of(FamilyId, "restore-workers");
+
+    public static readonly NeedId Combat = NeedId.Of(FamilyId, "combat");
 
     /// <summary>The stable refusal subject of an unmet defense Need.</summary>
     public const string UnsupportedEquipment = "unsupported_forecast_equipment";
@@ -136,12 +149,16 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
 
     public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony, FactFamily.Pawns, FactFamily.Rooms, FactFamily.Emergency, FactFamily.World, FactFamily.Research];
 
-    /// <summary>Restore-workers reads the colonist rows and the emergency census in the immediate pass.</summary>
-    public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = restoreWorkers ? [FactFamily.Pawns, FactFamily.Emergency] : [];
+    /// <summary>Restore-workers and combat read the colonist rows and the emergency census in the immediate pass.</summary>
+    public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = restoreWorkers || combat ? [FactFamily.Pawns, FactFamily.Emergency] : [];
 
     public IReadOnlyList<Need> Derive(MilitaryFacts facts)
     {
-        var needs = new List<Need>(5);
+        var needs = new List<Need>(6);
+        if (combat)
+        {
+            needs.Add(CombatNeed(facts));
+        }
         if (restoreWorkers)
         {
             needs.Add(RestoreWorkersNeed(facts));
@@ -366,6 +383,29 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             Tier = NeedTier.SeriousHarm,
             Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet,
             Deficit = Known(ok ? 0.0 : n),
+            Evidence = evidence,
+        };
+    }
+
+    /// <summary>
+    /// The combat Need: <see cref="PolicyFunctions.CombatSituation"/> over the hostiles and the squad-hunt prey. Its
+    /// deficit is the hostiles standing plus the prey.
+    /// </summary>
+    private static Need CombatNeed(MilitaryFacts f)
+    {
+        var evidence = EquatableArray.From<NeedEvidence>([new("hostiles", Text(f.Hostiles)), new("hunt_prey", Count(f.HuntPrey.Count))]);
+        var situation = PolicyFunctions.CombatSituation(f.Hostiles, f.HuntPrey.Count);
+        if (situation == Situation.Unclear || !f.Hostiles.TryGetValue(out var hostiles))
+        {
+            return new Need { Id = Combat, Tier = NeedTier.SeriousHarm, Evidence = evidence };
+        }
+        var met = situation == Situation.Clear;
+        return new Need
+        {
+            Id = Combat,
+            Tier = NeedTier.SeriousHarm,
+            Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = Known(met ? 0.0 : (double)(hostiles + f.HuntPrey.Count)),
             Evidence = evidence,
         };
     }
