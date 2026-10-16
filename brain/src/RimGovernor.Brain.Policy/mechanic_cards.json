@@ -5,7 +5,7 @@
     {
       "def": "DeadMansApparel",
       "kind": "situational",
-      "status": "extracted",
+      "status": "verified",
       "xml": {
         "nullifyingTraits": [
           "Bloodlust"

@@ -171,7 +171,9 @@ A native-only case that probes a vanilla mechanic through a colonist's own job
 choice (`burial/stranger_sarcophagus`, `burial/grave_over_morgue`) declares
 `AcceptanceCase.VanillaColonists` with a Reason. The runner then calls the
 test-only `test/vanilla_colonists` fixture op, so colonists choose voluntary jobs
-natively for that game while the scenario clock holds the authority. It is
+natively for that game while the scenario clock holds the authority. A probe that
+only needs game ticks to pass on an idle colonist (`apparel/dead_mans`) declares it
+too, since the hold stops the clock on an unassigned voluntary pawn. It is
 absent from production builds and is not evidence of controlled execution.
 
 Native disorientation and the native imposed-sleep/force-job ability effects retain

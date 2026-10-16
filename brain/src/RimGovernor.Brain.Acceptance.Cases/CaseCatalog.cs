@@ -35,6 +35,7 @@ public static class CaseCatalog
         registry.Register(CoordinatedWorkCase.Case("construction"));
 
         // The case areas land with #3090 and #3093; each area adds one line below (sorted by area).
+        ApparelCases.Register(registry);
         ApplyCases.Register(registry);
         AnimalsCases.Register(registry);
         AnomalyCases.Register(registry);

@@ -169,4 +169,52 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
     }
+
+    // The DeadMansApparel probe (#3283): the first colonist (lowest thing id)
+    // wears five fresh, mutually compatible garments, the first `tainted` of
+    // them marked worn by a corpse through the native Apparel.WornByCorpse,
+    // with the Bloodlust trait added or removed. Every call redresses the pawn,
+    // so the worn count is always five and only the tainted count varies.
+    public sealed class DeadMansFixture
+    {
+        private static readonly string[] Outfit = { "Apparel_BasicShirt", "Apparel_Pants", "Apparel_FlakVest", "Apparel_Duster", "Apparel_CowboyHat" };
+
+        [Tool("test/deadmans_wear", Description = "Disposable fixture (#3283): redress the first colonist in five fresh garments, the first `tainted` worn by a corpse, with Bloodlust on or off. Test builds only.")]
+        public async Task<object> Wear(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "How many of the five garments are WornByCorpse (0-5).")] int tainted = 0,
+            [ToolParameter(Description = "Give the pawn the Bloodlust trait (true) or remove it (false).")] bool bloodlust = false)
+            => await ctx.MainThread.InvokeAsync<object>(() =>
+            {
+                if (tainted < 0 || tainted > Outfit.Length) throw new System.ArgumentOutOfRangeException(nameof(tainted));
+                var pawn = Find.CurrentMap.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First();
+                foreach (var old in pawn.apparel.WornApparel.ToList()) old.Destroy();
+                var defs = Outfit.Select(n => DefDatabase<ThingDef>.GetNamed(n)).ToList();
+                for (var i = 0; i < defs.Count; i++)
+                {
+                    if (!ApparelUtility.HasPartsToWear(pawn, defs[i])) throw new System.InvalidOperationException($"{pawn} cannot wear {defs[i].defName}.");
+                    for (var j = 0; j < i; j++)
+                        if (!ApparelUtility.CanWearTogether(defs[i], defs[j], pawn.RaceProps.body))
+                            throw new System.InvalidOperationException($"{defs[i].defName} and {defs[j].defName} cannot be worn together.");
+                }
+                for (var i = 0; i < defs.Count; i++)
+                {
+                    var apparel = (Apparel)ThingMaker.MakeThing(defs[i], defs[i].MadeFromStuff ? GenStuff.DefaultStuffFor(defs[i]) : null);
+                    apparel.WornByCorpse = i < tainted;
+                    pawn.apparel.Wear(apparel, false, true);
+                }
+                var trait = pawn.story.traits.GetTrait(TraitDefOf.Bloodlust);
+                if (bloodlust && trait == null) pawn.story.traits.GainTrait(new Trait(TraitDefOf.Bloodlust));
+                if (!bloodlust && trait != null) pawn.story.traits.RemoveTrait(trait);
+                // Vanilla's optimizer would strip tainted gear on its own; the probe holds the outfit still.
+                pawn.mindState.nextApparelOptimizeTick = Find.TickManager.TicksGame + 600000;
+                pawn.needs?.mood?.thoughts?.situational?.Notify_SituationalThoughtsDirty();
+                var worn = pawn.apparel.WornApparel;
+                return new { success = true, tick = Find.TickManager.TicksGame, pawn = pawn.GetUniqueLoadID(),
+                    worn = worn.Count, tainted = worn.Count(a => a.WornByCorpse),
+                    apparel = worn.Select(a => new { def = a.def.defName, wornByCorpse = a.WornByCorpse }).ToList(),
+                    bloodlust = pawn.story.traits.HasTrait(TraitDefOf.Bloodlust),
+                    inhumanized = pawn.health.hediffSet.hediffs.Any(h => h.def.defName == "Inhumanized"),
+                    traits = pawn.story.traits.allTraits.Select(t => t.def.defName).ToList() };
+            }, cancellationToken);
+    }
 }

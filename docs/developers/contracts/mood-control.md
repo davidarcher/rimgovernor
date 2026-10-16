@@ -148,7 +148,7 @@ stay `unknown` with their reason. Modded defs get no cards.
 `MechanicCards.ByDef` embeds the file and parses it on first use into `MechanicCard` records. A malformed file, an
 unknown or missing field, an unknown status or a schema other than `MechanicCards.Schema` throws; it never yields an
 empty catalog. A card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
-and consumers ignore it for live play. Nothing consumes the cards yet.
+and consumers ignore it for live play. `DeadMansApparel` ships `verified` (`Live`) since #3283; nothing consumes the cards yet.
 
 A card is `unreachable` (#3243) when every site has a guard that no writer on the site's direct caller path can make
 hold; the guard carries an `unreachable` reason naming the writers and the callers checked. The check is shallow: the
@@ -200,6 +200,15 @@ The probe for `KnowBuriedInSarcophagus` is `burial/stranger_sarcophagus`. It rec
 colonist's native haul of a stranger corpse into a fresh sarcophagus gives no colonist the memory and leaves the
 corpse's `everBuriedInSarcophagus` false, because `Notify_HauledTo` returns unless `thisIsFirstBodyEver`, which only
 `TryAcceptThing` sets and no haul path calls (#3242).
+
+The probe for `DeadMansApparel` is `apparel/dead_mans` (#3283). The fixture op `test/deadmans_wear` dresses the first
+colonist in five fresh, compatible garments, marks the first n `WornByCorpse` and adds or removes `Bloodlust`. For each
+step the case reads the pawn's situational thought rows once the cache is clean, lifts them as the brain's mood thoughts
+do (`ObservationPackage.MoodThoughts`), and compares the thought's offset with `CardStageOffset` for the same pawn and
+outfit: none for n = 0, -5/-8/-11/-14 for n = 1-4 and none with Bloodlust at n = 2. For n = 5 it requires the thought
+and records the observed stage against the card's clamp. With Bloodlust the situational row stays in the cache at
+offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. The case
+declares `VanillaColonists`: without a service the voluntary-control hold stops the scenario clock on the idle colonist.
 
 `PolicyFunctions.GenerateEffectSources` (pure, #3224; not yet wired into `GenerateCoupledActivities`) searches backward
 from a mood shortfall: pawns whose no-change `ForecastMoodTimeline` has break risk or threshold exposure. For each

@@ -129,7 +129,7 @@ public sealed class MechanicCardGuardsTests
     [InlineData(4)]
     public void StageOffsetMatchesTheHandCurve(int tainted) => Assert.Equal(Known(-(5.0 + (3 * (tainted - 1)))), Offset(tainted));
 
-    // Native returns stage 4 for five or more; ThoughtState.StageIndexFor clamps it to the last defined stage (#3283 probes it).
+    // Native returns stage 4 for five or more; ThoughtState.StageIndexFor clamps it to the last defined stage (observed by apparel/dead_mans, #3283).
     [Theory]
     [InlineData(5)]
     [InlineData(7)]
@@ -161,11 +161,12 @@ public sealed class MechanicCardGuardsTests
         Assert.False(Offset(2, Plain with { Traits = Unknown<EquatableArray<string>>() }).IsKnown);
     }
 
+    // #3283: the native probe apparel/dead_mans passed at the card's drift hash, so the card ships verified.
     [Fact]
-    public void ExtractedCountCardIsNotLive()
+    public void ProbedCountCardIsVerifiedAndLive()
     {
-        Assert.Equal(MechanicCardStatus.Extracted, Tainted.Status);
-        Assert.False(Tainted.Live);
+        Assert.Equal(MechanicCardStatus.Verified, Tainted.Status);
+        Assert.True(Tainted.Live);
     }
 
     [Fact]

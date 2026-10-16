@@ -72,8 +72,8 @@ shallow by design: a transitive caller walk explodes through `JobDriver.SetupToi
 `resolved` is a claim about the granting member only. It does not cover conditions in callers (each site carries its
 caller count), the bodies of resolved calls and properties (a call is a symbol, not an inlined condition), a def
 field's XML initialization (writers of def fields such as `IngestibleProperties.tableDesired` are the XML loader), or
-the lambda that defers a grant (recorded as a resolved `lambda` guard saying so). A card is a draft: no probe has
-verified it.
+the lambda that defers a grant (recorded as a resolved `lambda` guard saying so). A card is a draft until a probe
+verifies it (`DeadMansApparel`, #3283).
 
 ## Outputs
 
@@ -154,7 +154,8 @@ The Gate 1 lever (#3217 re-grooming), `DeadMansApparel` (owner MaintainEquipment
 `p.apparel.WornApparel` (`Pawn_ApparelTracker.WornApparel`) where `apparel.WornByCorpse`, resolved through
 `ThoughtWorker_DeadMansApparel.ApparelCounts`: count != 0 and >= 5 at stage 4, count != 0 and < 5 at stage
 `count - 1`. Stages -5/-8/-11/-14; nullifiers `Bloodlust` and `Inhumanized` (Anomaly). Native clamps stage 4 to the last
-stage (`ThoughtState.StageIndexFor`); #3283 probes it.
+stage (`ThoughtState.StageIndexFor`). The native probe `apparel/dead_mans` (#3283) observed -5/-8/-11/-14 for one to four tainted
+items, -14 (stage 3, the clamp) for five, and no offset with Bloodlust, so the card ships `verified`.
 
 Across the 16 owned defs, 9 are `resolved` (also `SleptInBarracks`, `SleptOutside`, `EnvironmentCold`,
 `EnvironmentHot`, `DeadMansApparel`, `BabySick`, `Sick`), 6 `partial` and 1 `unknown`. All three benchmark cards were
