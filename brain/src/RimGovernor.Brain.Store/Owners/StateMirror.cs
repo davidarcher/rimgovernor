@@ -122,6 +122,20 @@ public sealed partial class Store
         }
     }
 
+    /// <summary>The saved layout plan, or null when it does not decode or is not <c>Valid()</c>.</summary>
+    internal static Policy.LayoutPlan? SavedLayoutPlan(JsonElement record)
+    {
+        try
+        {
+            var plan = StoreJson.Deserialize<Policy.LayoutPlan>(record.GetRawText());
+            return plan.Valid() ? plan : null;
+        }
+        catch (StoreCorruptException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>
     /// Replaces the family record tables with the save's <c>family/*</c> blobs on a world change: the tables are
     /// session caches of the save. A missing blob leaves its table empty.
@@ -157,10 +171,10 @@ public sealed partial class Store
                     {
                         _ = tx.Execute("DELETE FROM " + table);
                     }
-                    if (blobs.TryGetValue(GovernorLayoutPlanKey, out var layout))
+                    // A saved plan that no longer decodes (a role or field since deleted) or is not Valid() restores as
+                    // no plan, as the table's own read does, so the next survey derives a fresh one.
+                    if (blobs.TryGetValue(GovernorLayoutPlanKey, out var layout) && SavedLayoutPlan(layout.Record) is { } plan)
                     {
-                        var plan = StoreJson.Deserialize<Policy.LayoutPlan>(layout.Record.GetRawText());
-                        DomainException.Require(plan.Valid(), "invalid layout plan");
                         var scope = layout.Scope!.Value;
                         _ = tx.Execute(
                             "INSERT INTO colony_layout_plans(colony,map_id,tick,plan) VALUES($colony,$map,$tick,$plan)",

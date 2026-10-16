@@ -366,6 +366,27 @@ internal static class ZoneDelete
 
         report["preset_partition"] = string.Create(CultureInfo.InvariantCulture, $"indoor_only {indoor.Count} + outdoor_safe {outdoor.Count} = nonperishables {nonperishable.Count}");
 
+        // outdoor_safe_waste is the materials yard's (#3232): a rot-capable def (a corpse) and the toxic wastepack are
+        // allowed, with allow-fresh off so only rotten things of the corpse defs get in; a deteriorating item is not.
+        var waste = await PresetDefs("outdoor_safe_waste").ConfigureAwait(false);
+        var wasteFilter = (await ZoneRow("preset-outdoor_safe_waste-specials", zoneId).ConfigureAwait(false) ?? [])["filter"].AsMap();
+        if (!waste.Any(n => n.StartsWith("Corpse_", StringComparison.Ordinal)) || wasteFilter?["allowFresh"].AsBool() != false || wasteFilter?["allowRotten"].AsBool() != true)
+        {
+            throw new AcceptanceException($"presets: outdoor_safe_waste must allow corpse defs with allowFresh off and allowRotten on; got {waste.Count} defs, filter {wasteFilter?.ToJson()}");
+        }
+
+        if (indoor.Contains("Wastepack") && !waste.Contains("Wastepack"))
+        {
+            throw new AcceptanceException("presets: outdoor_safe_waste must allow the toxic wastepack");
+        }
+
+        if (!indoor.Contains("Cloth") || waste.Contains("Cloth"))
+        {
+            throw new AcceptanceException("presets: Cloth deteriorates outside (indoor_only) and must not be in outdoor_safe_waste");
+        }
+
+        report["preset_outdoor_safe_waste"] = waste.Count;
+
         // --- cells ---
         //
         // cells[0] is one corner of the fixture's 2x2 interior. Removing it leaves a contiguous 3-cell L-shape and

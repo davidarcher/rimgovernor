@@ -33,7 +33,6 @@ public static partial class PolicyFunctions
 
         [PlannedRole.TrainingRange] = ConstructionTier.Expand,
         [PlannedRole.SparringRing] = ConstructionTier.Expand,
-        [PlannedRole.WasteYard] = ConstructionTier.Expand,
         [PlannedRole.Yard] = ConstructionTier.Expand,
         [PlannedRole.Tomb] = ConstructionTier.Expand,
         [PlannedRole.Morgue] = ConstructionTier.Expand,

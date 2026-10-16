@@ -204,6 +204,8 @@ public enum FilterPreset
     OutdoorSafe = 6,
     [WireName("FILTER_PRESET_INDOOR_ONLY")]
     IndoorOnly = 7,
+    [WireName("FILTER_PRESET_OUTDOOR_SAFE_WASTE")]
+    OutdoorSafeWaste = 8,
 }
 
 /// <summary>

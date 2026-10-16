@@ -132,6 +132,41 @@ namespace HomeBridge.BridgeTools
             return !IsRottable(def) && !IsOutdoorSafe(def);
         }
 
+        /// <summary>Can be stored rotten: the game's own allow-rotten worker
+        /// (a rot timer that does not destroy the thing, so corpses rather than
+        /// raw food, which vanishes when it rots).</summary>
+        internal static bool CanBeRotten(ThingDef def)
+        {
+            var rotten = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowRotten");
+            return rotten != null && rotten.Worker.CanEverMatch(def);
+        }
+
+        /// <summary>Waste: a thing that dissolves on its own (CompDissolution,
+        /// the toxic wastepack).</summary>
+        internal static bool IsWaste(ThingDef def)
+        {
+            return def.GetCompProperties<CompProperties_Dissolution>() != null;
+        }
+
+        /// <summary>The one outdoor store's defs: outdoor-safe, or able to be
+        /// stored rotten, or waste. Apply also turns the allow-fresh special
+        /// off, so of the rot-capable defs only rotten things are admitted, and
+        /// the fresh worker's always-fresh defs are left out of the count.</summary>
+        internal static bool IsOutdoorSafeWaste(ThingDef def)
+        {
+            if (IsFreshAlways(def))
+                return false;
+            return IsOutdoorSafe(def) || CanBeRotten(def) || IsWaste(def);
+        }
+
+        /// <summary>The fresh worker matches every thing of this def, so a
+        /// filter with allow-fresh off admits none of them.</summary>
+        private static bool IsFreshAlways(ThingDef def)
+        {
+            var fresh = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowFresh");
+            return fresh != null && fresh.Worker.AlwaysMatches(def);
+        }
+
         /// <summary>The defs a computed preset allows. Null for the two presets
         /// that are the game's own buttons rather than a def set.</summary>
         internal static List<ThingDef>? PresetDefs(string preset, List<ThingDef> universe)
@@ -146,6 +181,8 @@ namespace HomeBridge.BridgeTools
                 return universe.Where(IsOutdoorSafe).ToList();
             if (preset == "indoorOnly")
                 return universe.Where(IsIndoorOnly).ToList();
+            if (preset == "outdoorSafeWaste")
+                return universe.Where(IsOutdoorSafeWaste).ToList();
             return null;
         }
 
@@ -178,6 +215,9 @@ namespace HomeBridge.BridgeTools
                     break;
                 case "indoorOnly":
                     d["indoorOnly"] = "Every storable def that is NOT perishable and NOT outdoorSafe: no CompRottable, and a deterioration rate above zero. The exact complement of outdoorSafe within nonperishables, so the two counts sum to the nonperishables count.";
+                    break;
+                case "outdoorSafeWaste":
+                    d["outdoorSafeWaste"] = "The one outdoor store: outdoorSafe defs, defs the AllowRotten special's worker can ever match (a rot timer that does not destroy the thing: corpses), and waste defs (CompProperties_Dissolution: the toxic wastepack), with the AllowFresh special disallowed so only rotten things of the rot-capable defs are admitted. Defs the AllowFresh worker always matches (raw food, non-rotting non-drug ingestibles) are left out, since that special excludes every thing of them.";
                     break;
             }
             return d;
@@ -306,6 +346,15 @@ namespace HomeBridge.BridgeTools
                 if (changes != null)
                     changes.Add("Set the filter from preset \"" + preset + "\": " + defs.Count
                                 + " of " + universe.Count + " storable defs allowed.");
+                if (preset == "outdoorSafeWaste")
+                {
+                    var fresh = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowFresh");
+                    if (fresh != null)
+                    {
+                        filter.SetAllow(fresh, false);
+                        changes?.Add("Disallow special filter AllowFresh: only rotten things of the rot-capable defs.");
+                    }
+                }
             }
 
             foreach (var category in allow.Categories)

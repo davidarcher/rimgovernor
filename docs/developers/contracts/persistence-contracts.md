@@ -77,7 +77,8 @@ stored JSON is the `LayoutPlan` fields (Rooms, Links, Entrances, Owed, Trips, Ou
 Reservations, Sites, RetiredGround, Roofed, Lamps, Pieces, Conduits, Cold, Hot, NextRoomID) and decoding
 rejects an unknown field (Pieces is optional on read, so a plan saved before it still decodes and gains it at the next replan), so a plan written with a field since removed reads as none. In
 the save it is the blob `family/layout_plan` (`GovernorState.cs`,
-`GovernorLayoutPlanKey`), which follows the save's timeline. The runtime records a plan only
+`GovernorLayoutPlanKey`), which follows the save's timeline; a blob that does not decode or is not `Valid()`
+restores as no plan the same way. The runtime records a plan only
 when it derives one or a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`); a failed
 replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups, embedding,
 comfort and matched rooms) is not persisted: the Rounder holds it in memory and recomputes it

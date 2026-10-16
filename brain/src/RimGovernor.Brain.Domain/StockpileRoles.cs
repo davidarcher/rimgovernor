@@ -29,9 +29,6 @@ public static partial class DomainConstants
     /// <summary>The apparel zone: clothing, a patch of the warehouse.</summary>
     public const string ApparelRole = "apparel";
 
-    /// <summary>The waste yard's one dump zone, a Sanitation store.</summary>
-    public const string DumpRole = "wastedump";
-
     /// <summary>
     /// Gear stockpiles keep serviceable gear only: at least half its hit points and Normal quality. What falls
     /// below is burnable waste or sale gear.

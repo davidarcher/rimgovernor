@@ -54,9 +54,6 @@ public enum PlannedRole
     [WireName("morgue")]
     Morgue,
 
-    [WireName("waste_yard")]
-    WasteYard,
-
     [WireName("training_range")]
     TrainingRange,
 

@@ -15,6 +15,7 @@ public enum FilterBase
     Nonperishables,
     OutdoorSafe,
     IndoorOnly,
+    OutdoorSafeWaste,
 }
 
 /// <summary>
@@ -153,8 +154,7 @@ public sealed partial record StockpileFilter
     public static StockpileFilter FoodFilter() => new(FilterBase.Food);
 
     /// <summary>
-    /// The warehouse's: every storable that is not safe outside, plus packed buildings, less what burns: the waste
-    /// yard takes the burnable. A building def cannot deteriorate, so the indoor_only preset never lists one; the
+    /// The warehouse's: every storable that is not safe outside, plus packed buildings, less what burns. A building def cannot deteriorate, so the indoor_only preset never lists one; the
     /// Buildings category adds the packed furniture, benches and art clearance leaves behind.
     /// </summary>
     public static StockpileFilter GeneralFilter() =>
@@ -163,8 +163,11 @@ public sealed partial record StockpileFilter
     /// <summary>The opening outdoor store's: every non-perishable storable except chunks.</summary>
     public static StockpileFilter OpeningStoreFilter() => new(FilterBase.Nonperishables, null, [FilterSelector.CategoryDef("Chunks")]);
 
-    /// <summary>The items safe outside, the native outdoor_safe preset.</summary>
-    public static StockpileFilter YardFilter() => new(FilterBase.OutdoorSafe);
+    /// <summary>
+    /// The materials yard's, the one outdoor store: the native outdoor_safe_waste preset, which takes the items safe
+    /// outside plus what is already rotten or waste and is left there to wear away.
+    /// </summary>
+    public static StockpileFilter YardFilter() => new(FilterBase.OutdoorSafeWaste);
 
     /// <summary>Holds fresh animal and insect corpses only.</summary>
     public static StockpileFilter CorpseLarderFilter() =>

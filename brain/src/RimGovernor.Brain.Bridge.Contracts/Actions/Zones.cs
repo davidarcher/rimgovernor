@@ -68,6 +68,7 @@ public static partial class BridgeFunctions
                 FilterBase.Nonperishables => Op.FilterPreset.Nonperishables,
                 FilterBase.OutdoorSafe => Op.FilterPreset.OutdoorSafe,
                 FilterBase.IndoorOnly => Op.FilterPreset.IndoorOnly,
+                FilterBase.OutdoorSafeWaste => Op.FilterPreset.OutdoorSafeWaste,
                 _ => Op.FilterPreset.Unspecified,
             },
         };

@@ -291,7 +291,7 @@ public sealed record StationEdge
 
 /// <summary>
 /// A room the colony needs that holds no station: a node of the graph with a role and an area demand, nothing
-/// to furnish. Circulation is the first (#2911); the morgue and the waste yard (#2882) are the same kind.
+/// to furnish. Circulation is the first (#2911); the tomb and the morgue (#2882) are the same kind.
 /// </summary>
 public sealed record RoomNode
 {

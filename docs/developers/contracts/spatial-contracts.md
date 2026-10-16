@@ -440,8 +440,8 @@ idle.
   without a 1x1 row for the chair or a built bench gets none. No round builds the chair yet.
   Beauty has the shape (`BeautyTarget`) but no decor candidate feeds it.
   **Circulation (#2911).** The station graph carries station-less room nodes
-  (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the morgue
-  and waste yard of #2882 reuse the kind). Circulation is the corridor that joins rooms
+  (`StationGraph.Rooms`, `RoomNode`: role, area demand, optional strip width; the tomb
+  and morgue of #2882 reuse the kind). Circulation is the corridor that joins rooms
   nobody may walk through: when the private rooms (`RoomCrossing.Mechanisms() > 0`, not
   cold) outnumber the public ones, some hub would carry two bedroom doors, so clustering
   adds `PlannedCirculation` strips (`addCirculation`, `LayoutCirculation.cs`), required
@@ -453,7 +453,7 @@ idle.
   no flow door from a room with beds to a non-circulation room while one stands; the
   corridor's group links carry no flow weight, so `Trips` are unchanged. Colonies whose
   private rooms do not outnumber the public ones get no corridor.
-  **Outskirts rooms (#2882).** The tomb, morgue and waste yard
+  **Outskirts rooms (#2882).** The tomb and morgue
   are station-less room nodes of the same graph (`OutskirtsRoomNodes`,
   `LayoutOutskirts.cs`): each asks the floor its slot gives and keeps its role's
   interior template, and clustering makes a `Planned` group of it. No distance band sits on
@@ -472,8 +472,8 @@ idle.
   killbox yard and `perimeterThick`, only on ground a wall can stand on) and ignores
   closing, hole filling and shoreline detours, which the plan's own score still prices.
   The morgue is cold, so it
-  carries the cooler any cold group carries. Wind is not a constraint: it has no game effect here. The tiler gives the
-  unfenced waste yard no wall, door or entrance. The siting reasons and the perimeter overlap checks are #2886.
+  carries the cooler any cold group carries. Wind is not a constraint: it has no game effect here.
+  The siting reasons and the perimeter overlap checks are #2886.
   **Training rooms (#2887).** The range and the sparring ring are station-less nodes too
   (`TrainingRoomNodes`, `LayoutTrainingNodes.cs`; `StationGraphInput.TrainingStands`
   and `TrainingMarkers` ask for them, zero asks for none). Each asks its exact floor
@@ -598,8 +598,8 @@ its target's fresh CAS token: `stockpile_patch` (zone or shelf), `zone_cell_edit
 create is a native zone preview and a `zone_create` method. Each is a
 `layout`/`stockpiles` clock event.
 
-**Waste dump** (`wastedump`) is the Sanitation department's declared store: one Low zone over
-the waste yard interior, allowing all storable items. Warehouse gear (apparel or weapons in a
+**Waste** has no store of its own (#3232): the materials yard's `outdoor_safe_waste` preset takes rotten
+things and waste beside the items safe outside. Warehouse gear (apparel or weapons in a
 `general` zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`);
 unknown hit points or quality is not sale gear.
 

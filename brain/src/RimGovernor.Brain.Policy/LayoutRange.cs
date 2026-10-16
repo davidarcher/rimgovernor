@@ -3,13 +3,12 @@ namespace RimGovernor.Brain.Policy;
 public sealed partial record PlannedRoom
 {
     /// <summary>
-    /// Whether the room has no ring: a training range, sparring ring, waste yard or yard stands in open air with nothing
+    /// Whether the room has no ring: a training range, sparring ring or yard stands in open air with nothing
     /// built round it, so it owes no wall, fence, gate, roof or floor and has no Door. Only the animal pen keeps a fence.
     /// </summary>
     public bool Unfenced() =>
         Role == PolicyFunctions.PlannedTrainingRange
         || Role == PolicyFunctions.PlannedSparringRing
-        || Role == PolicyFunctions.PlannedWasteYard
         || Role == PolicyFunctions.PlannedYard
         || Role == PlannedRole.Airlock
         || Role == PolicyFunctions.PlannedPorch;
@@ -27,7 +26,6 @@ public static partial class PolicyConstants
     internal static readonly IReadOnlySet<PlannedRole> OutdoorRoles = new HashSet<PlannedRole>
     {
         PlannedRole.Pen,
-        PlannedRole.WasteYard,
         PlannedRole.Yard,
         PlannedRole.TrainingRange,
         PlannedRole.SparringRing,

@@ -271,7 +271,7 @@ internal sealed partial class Embedder
 {
     /// <summary>
     /// Reports a room group none of whose links is a flow (positive weight): nothing prices its distance. A
-    /// required link alone (the incinerator beside the waste yard) is a structural rule, not a trip.
+    /// required link alone is a structural rule, not a trip.
     /// </summary>
     public bool Unpriced(int i)
     {

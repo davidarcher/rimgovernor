@@ -20,4 +20,4 @@ position and containment.
 - Eligibility is native's own judgment (destination separation, protection, player policy); the brain
   filters on it and never second-guesses it.
 
-The waste dump is a declared, native-filtered zone: see [spatial contracts](spatial-contracts.md).
+Rotten things and waste store in the materials yard, a declared, native-filtered zone (`outdoor_safe_waste`): see [storage](../architecture/storage.md).

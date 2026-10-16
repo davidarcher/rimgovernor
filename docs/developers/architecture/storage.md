@@ -15,7 +15,7 @@ storage room or freezer stands, then deleted so its contents haul to the better
 stores; it is only the patch because the placement search treats zoned cells as
 unplaceable, so a whole-interior zone starved the campfire slot, tracked by the
 layout epic), Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (the weapons and apparel zones),
-People (tomb, morgue) and Sanitation (waste dump); the
+People (tomb, morgue); the
 animal feed store belongs to Husbandry.
 
 A store is a rectangle placement over its planned room, created once the room's
@@ -44,22 +44,20 @@ separate rectangle drags and excluded from growth.
 | Store | Role | Where | Priority | Holds |
 | --- | --- | --- | --- | --- |
 | Warehouse | `general` | One zone over the whole interior of each planned storage room (15x7): from plan time on open ground, once the interior is open for a dug or partly rocky room | Low | The `indoor_only` preset plus Buildings, less the burnable special |
-| Materials yard | `yard` | One zone over the whole interior of each planned yard, an Outdoor room (13x9 interior, unfenced: no ring, gate or floor) beside the core inside its ring (`ReserveYard`, planned from the start) | Low | The `outdoor_safe` preset: items that neither spoil nor deteriorate outdoors, derived from the native item catalog, never a list in the brain |
+| Materials yard | `yard` | One zone over the whole interior of each planned yard, an Outdoor room (13x9 interior, unfenced: no ring, gate or floor) beside the core inside its ring (`ReserveYard`, planned from the start) | Low | The `outdoor_safe_waste` preset, the one outdoor store: items that neither spoil nor deteriorate outdoors, plus what is already rotten (rot-capable defs with allow-fresh off: rotting corpses) and waste (dissolving defs: the toxic wastepack), left there to wear away. Defined natively from the def database, never a list in the brain |
 | Workstation stockpiles | `ingredients:*` | A free roofed 2x2 patch in the bench's room nearest the bench, one per bench with an active bill (the kitchen and butcher excepted) | Important | That bench's recipe ingredients (`policy.DeriveBenchInputs`); a stonecutter's is its stone chunks |
 | Meal store | `meals:*` | The planned meal closet whole, a 2x2 in the freezer at its dining door, or one cell beside the dining table off the chairs (the one store sited from a built fact, the table); each from plan time | Critical | Prepared meals |
 | Freezer shelves | `rawmeat:*`, `rawveg:*`, `corpses:*`, `perishables:*` | Three 2x2 shelves in the planned freezer (raw meat and raw vegetables nearest the kitchen door, carcasses by the butchery door) and the perishables cover over the rest, all declared by the Food department from plan time on open ground (a rock or unseen interior defers the create; no room census) | Critical, perishables Preferred | Raw meat, raw vegetables, the corpse larder, the perishables catch-all |
 | Medicine store | `medicine:*` | A 2x2 in the planned hospital, nearest the template's bed slots by walking distance (nearest the door without slots), from plan time | Important | Medicine |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
 | Gear | `apparel`, `weapons` | A 3x3 patch each inside the first planned warehouse, which leaves the cells out (weapons: clear of every prison) | Preferred | Clothing, and weapons with armor |
-| Waste dump | `wastedump` | The waste yard interior (the Sanitation department's declared store, planned room cover from plan time) | Low | Everything storable except the native not-burnable special |
 
 Low priority on the warehouse and yard is deliberate: the higher-priority
 workstation and medicine stockpiles draw their items first, and
 hauling (which RimWorld owns) moves the rest to the warehouse or yard.
 
-The one waste dump is a declared store over the yard, so waste
-hauls to it from anywhere. Fresh animal corpses use the freezer shelf and the
-butchery; there is no dump role for them. Zones of the retired `dump:*` roles
+Rotten things and waste have no store of their own (#3232): they haul to the
+materials yard. Fresh animal corpses use the freezer shelf and the butchery. Zones of the retired `dump:*` roles
 in older saves are deleted.
 
 ## Gear zones
