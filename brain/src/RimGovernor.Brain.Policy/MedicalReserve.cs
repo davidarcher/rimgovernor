@@ -67,7 +67,7 @@ public sealed record MedicineMethod
 }
 
 /// <summary>
-/// Names the one resource MaintainMedicalReserves replenishes (MedicineHerbal; the planner refuses to run without
+/// Names the one resource medical/reserves replenishes (MedicineHerbal; the planner refuses to run without
 /// native confirmation that definition exists) and reuses the exact bench/recipe census shape GearProduce
 /// established (GearBench/GearRecipe): the native reads are fully generic, so no separate medical bench census
 /// type is needed.

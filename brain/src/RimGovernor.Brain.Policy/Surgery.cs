@@ -97,9 +97,6 @@ public sealed record SurgerySelection
 
 public static partial class PolicyFunctions
 {
-    /// <summary>The medical-operation goal. It restores missing or destroyed parts; later kinds (cure, amputation, electives) add their own candidates to SelectSurgery.</summary>
-    public static readonly ConcernId MaintainSurgery = new("MaintainSurgery");
-
     /// <summary>The highest native failure chance a restore or a chronic cure may carry for the best eligible doctor.</summary>
     public const double RestoreFailureCap = 0.20;
 
@@ -206,7 +203,7 @@ public static partial class PolicyFunctions
         op.Kind == SurgeryKind.Install && op.Recipe.IsKnown && op.PartIndex.IsKnown && op.Tier > 1;
 
     /// <summary>
-    /// An elective upgrade could be queued now (stocked, within ElectiveFailureCap, a hospital bed) on a living colonist without a queued bill. It keeps MaintainSurgery open; a blocked elective never does.
+    /// An elective upgrade could be queued now (stocked, within ElectiveFailureCap, a hospital bed) on a living colonist without a queued bill. It keeps the medical/surgery Need unmet; a blocked elective never does.
     ///
     /// A chosen elective whose part is missing (ChosenElectives) also holds it open while a usable bench can
     /// fabricate the part: the part bill is the work. fabricable is FabricableParts; null fabricates nothing.

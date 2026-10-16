@@ -28,7 +28,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsBuildingResult? Sleeping { get; set; }
 
-    public RoundsBuildingResult? Hospital { get; set; }
 
     public RoundsBuildingResult? SleepingUpkeep { get; set; }
 
@@ -42,13 +41,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsDefenseResult? Defense { get; set; }
 
-    public RoundsTendResult? Tend { get; set; }
-
-    public RoundsRescueResult? Rescue { get; set; }
-
-    public RoundsMedicalResult? Medical { get; set; }
-
-    public RoundsSurgeryResult? Surgery { get; set; }
 
     public RoundsRecoveryResult? Recovery { get; set; }
 
@@ -105,17 +97,12 @@ public sealed class ClockSchedulerResult
         MechCharger = other.MechCharger ?? MechCharger;
         GeneBank = other.GeneBank ?? GeneBank;
         Sleeping = other.Sleeping ?? Sleeping;
-        Hospital = other.Hospital ?? Hospital;
         SleepingUpkeep = other.SleepingUpkeep ?? SleepingUpkeep;
         Expansion = other.Expansion ?? Expansion;
         Power = other.Power ?? Power;
         Temperature = other.Temperature ?? Temperature;
         Routes = other.Routes ?? Routes;
         Defense = other.Defense ?? Defense;
-        Tend = other.Tend ?? Tend;
-        Rescue = other.Rescue ?? Rescue;
-        Medical = other.Medical ?? Medical;
-        Surgery = other.Surgery ?? Surgery;
         Recovery = other.Recovery ?? Recovery;
         MaintainShelter = other.MaintainShelter ?? MaintainShelter;
         Psylink = other.Psylink ?? Psylink;

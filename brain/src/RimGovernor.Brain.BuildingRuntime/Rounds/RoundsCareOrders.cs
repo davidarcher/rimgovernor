@@ -21,7 +21,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         var output = new List<ConcernId>();
         if (_surgery)
         {
-            output.Add(PolicyApi.MaintainSurgery);
+            output.Add(PolicyApi.SurgeryNeed.FilingKey);
         }
         if (_mech)
         {
@@ -59,12 +59,19 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
             output.Merge(one.For(need.Value));
         }
 
-        await Collect(PolicyApi.MaintainSurgery, _surgery, () =>
+        if (_surgery)
         {
-            var (parts, productions) = SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
-            var (selected, gap) = PolicyApi.SelectSurgeryPartBill(productions, parts);
-            return Task.FromResult(PolicyApi.DeclareSelection(selected, gap == default, benches));
-        }).ConfigureAwait(false);
+            // The medical/surgery Need's part bill (#3258): declared while the Need is unmet, nothing while it is met,
+            // an abstain while the care census is unread.
+            var standing = PolicyApi.SurgeryNeedOf(MedicalFacts.From(projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve)).Satisfaction;
+            var one = standing switch
+            {
+                Satisfaction.Unknown => PolicyApi.Abstaining(Cause.UnreadMedicine),
+                Satisfaction.Met => new Declared(),
+                _ => SurgeryPartBill(projection, benches),
+            };
+            output.Merge(one.For(PolicyApi.SurgeryNeed.FilingKey.Value));
+        }
         await Collect(PolicyApi.MaintainMechs, _mech, async () =>
         {
             MechGestation? gestation;
@@ -84,5 +91,13 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
             return PolicyApi.DeclareSelection(selected, gap == default, benches);
         }).ConfigureAwait(false);
         return output;
+    }
+
+    /// <summary>The surgery part bill: one batch bill fabricating a part a restore operation lacks.</summary>
+    private static Declared SurgeryPartBill(ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    {
+        var (parts, productions) = SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
+        var (selected, gap) = PolicyApi.SelectSurgeryPartBill(productions, parts);
+        return PolicyApi.DeclareSelection(selected, gap == default, benches);
     }
 }

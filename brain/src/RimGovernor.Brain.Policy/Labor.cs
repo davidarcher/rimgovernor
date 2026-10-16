@@ -28,9 +28,6 @@ public static partial class PolicyFunctions
 
         // A resized or retargeted stockpile is refilled by haulers.
         Set([WorkType.Hauling], MaintainStockpiles);
-
-        // A medicine bill at a crafting bench, or a wild healroot harvest.
-        Set([WorkType.Crafting, WorkType.PlantCutting], MaintainMedicalReserves);
         return table;
     });
 

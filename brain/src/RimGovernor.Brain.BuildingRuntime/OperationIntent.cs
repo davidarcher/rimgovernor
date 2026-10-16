@@ -22,9 +22,10 @@ public static class OperationIntent
         [MilitaryFamily.Defense.FilingKey] = "Defense",
         [MilitaryFamily.Pests.FilingKey] = "Clear pests",
         [EnsureDefensiveLayout] = "Defense layout",
-        [CriticalMedicine] = "Medical",
-        [MaintainMedicalReserves] = "Medicine",
-        [MaintainSurgery] = "Surgery",
+        [CriticalCensusNeed.FilingKey] = "Medical",
+        [MedicalCareNeed.FilingKey] = "Medical care",
+        [MedicalReservesNeed.FilingKey] = "Medicine",
+        [SurgeryNeed.FilingKey] = "Surgery",
         [RefrigerationNeed.FilingKey] = "Refrigeration",
         [RoomsFamily.Comfort.FilingKey] = "Comfort",
         [RoomsFamily.Hosting.FilingKey] = "Hosting rooms",
@@ -82,6 +83,11 @@ public static class OperationIntent
         if (ConcernLabels.TryGetValue(kind, out var label))
         {
             return label;
+        }
+        // A patient's critical Need (medical/critical/<pawn>) reads as the medical emergency it is (#3258).
+        if (kind.Value.StartsWith(CriticalCensusNeed.Value + "/", StringComparison.Ordinal))
+        {
+            return "Medical";
         }
         var name = kind.Value;
         foreach (var prefix in new[] { "Maintain", "Ensure", "Manage" })

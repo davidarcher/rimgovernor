@@ -14,10 +14,11 @@ public sealed class RoundsSurgeryResult : IPlannerMethod
 }
 
 /// <summary>
-/// Composes MaintainSurgery's method: one plan of medical ProductionBillIntents, at most one per patient, from
-/// a fresh pawn care read. A patient with a queued bill or an open surgery action is in flight. The goal
-/// settles on the health change (the operation leaving the census), never on the bill. When nothing can be
-/// queued the first want (part short or no capable doctor) is the step's reason, filed on the goal record.
+/// The medical/surgery Need's work (#3258): one plan of surgery actions, at most one per patient, from a fresh pawn
+/// care read, under the Need and admitted by claims (a patient's operation claims its recipe and part). A patient
+/// with an open surgery action of the Need is in flight. The Need settles on the health change (the operation
+/// leaving the census), never on the bill. When nothing can be queued the first want (part short or no capable
+/// doctor) is the step's reason.
 /// </summary>
 public sealed class RoundsSurgeryPlanner
 {
@@ -34,14 +35,11 @@ public sealed class RoundsSurgeryPlanner
         return new RoundsSurgeryPlanner(reviewer);
     }
 
-    internal async Task<RoundsSurgeryResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsSurgeryResult> StepAsync(NeedWork work, CancellationToken call)
     {
         var p = _reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsSurgeryResult { Verdict = BuildingReasonDisabled };
-        }
+        var state = work.State;
+        var arbiter = work.Arbiter!;
         if (!state.ObservationKnown || !state.Snapshot.IsValid)
         {
             throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
@@ -66,13 +64,8 @@ public sealed class RoundsSurgeryPlanner
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
-        var (goal, workable) = p.Journal.Workable(review, MaintainSurgery, call);
-        if (!workable || goal is null)
-        {
-            return new RoundsSurgeryResult { Verdict = BuildingReasonNoDeficit };
-        }
         var inFlight = new Dictionary<PawnId, bool>();
-        foreach (var method in goal.Methods)
+        foreach (var method in work.Owner.Methods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);
             foreach (var progress in plan.Progress)
@@ -144,7 +137,7 @@ public sealed class RoundsSurgeryPlanner
         }
         // The tick keys the method: a failed surgery leaves the part missing, and the same recipe is queued again on a later review.
         var text = new StringBuilder();
-        text.Append(CultureInfo.InvariantCulture, $"{goal.Standard.Id}/{goal.Standard.Episode}/{expected.Tick.Value}\n");
+        text.Append(CultureInfo.InvariantCulture, $"{work.Need.Id.Value}/{expected.Tick.Value}\n");
         foreach (var choice in queue)
         {
             text.Append(CultureInfo.InvariantCulture, $"{choice.Pawn}/{choice.Recipe}/{choice.Part}\n");
@@ -154,13 +147,10 @@ public sealed class RoundsSurgeryPlanner
             text.Append(CultureInfo.InvariantCulture, $"harvest/{harvest.Prisoner}/{harvest.Recipe}/{harvest.Part}/{harvest.Surgeon}\n");
         }
         var method2 = new MethodId("restore-" + HashHex16(text.ToString()));
-        foreach (var previous in goal.Methods)
+        if (p.Journal.OwnerMethodPlan(work.Owner, method2, call) is not null)
         {
-            if (previous.MethodId == method2)
-            {
-                result.Verdict = WaitFor(Pol.Cause.MethodUsed, "restore_method");
-                return result;
-            }
+            result.Verdict = WaitFor(Pol.Cause.MethodUsed, "restore_method");
+            return result;
         }
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>(queue.Count);
@@ -180,14 +170,14 @@ public sealed class RoundsSurgeryPlanner
             actions.Add(DomainAction.NewSurgeryAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), cut));
         }
         var spec = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
+        p.Current(call, work.Epoch);
         if (p.Session.State() != state)
         {
             throw new ControlException("step: p.session.State() != state");
         }
-        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method2, spec, call);
-        result.Verdict = BuildingReasonAdmitted;
-        result.Plan = id;
+        var commit = p.Journal.CommitOwnerWork(work.Owner, method2, "", spec, call);
+        result.Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit);
+        result.Plan = commit.Outcome == Sto.ClaimOutcome.Admitted ? id : default;
         return result;
     }
 }

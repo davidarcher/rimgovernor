@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // Go: trade_routine.go. The routine trade goal: while a tradeable caravan stands on the map and the colony has
-// something to buy from it (the medicine shortfall MaintainMedicalReserves already reports, or a component
+// something to buy from it (the medicine shortfall medical/reserves already reports, or a component
 // shortfall under the derived component need) or to sell to it (stock above an economy/resource target),
 // RoundsTradePlanner opens one bounded session per caravan and settles it. It is config-only work like a
 // configuration push: a negotiator's conversation, not a development project, so it holds no development slot.
@@ -39,7 +39,7 @@ public sealed record TraderFacts
 public sealed record WealthFacts(double Items, double Buildings, double Pawns, double Total);
 
 /// <summary>
-/// What the review measured worth trading for: the medicine units MaintainMedicalReserves wants, the components
+/// What the review measured worth trading for: the medicine units medical/reserves wants, the components
 /// short of the target, each the economy/resource Need target's stock above its floor, and each raw-material hoard
 /// WealthSurplus sells down. Retained is the stock every Surplus row keeps after its sale (the target, or the
 /// wealth rule's floor).

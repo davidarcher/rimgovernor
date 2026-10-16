@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // economy/resource pure primitives: ingredient deficits, mining progress, resource method, and stock
 // selection. The dispatch vertical built on top of these is a single config-only economy/resource Need
 // goal, whose method is a generic bench/recipe StockTarget production bill exactly like
-// GearProduce/MaintainMedicalReserves dispatch through. Native mining-source acquisition
+// GearProduce/medical/reserves dispatch through. Native mining-source acquisition
 // (SelectResourceSources below), and material-storage zoning remain unwired to any native call.
 
 /// <summary>One native recipe-ingredient alternative's exact required quantity and the deficit against current stock.</summary>
@@ -165,7 +165,7 @@ public sealed record ResourceMethod
 
 /// <summary>
 /// Names the one dynamically-selected resource and target SelectResourceMethod should fund a bill for, plus
-/// the same generic bench/recipe census GearProduce/MaintainMedicalReserves already read. No Safeguards or
+/// the same generic bench/recipe census GearProduce/medical/reserves already read. No Safeguards or
 /// Holds are threaded through yet: the same disclosed no-cross-goal-ingredient-reservation gap applies.
 /// </summary>
 public sealed record ResourceMethodRequest

@@ -85,10 +85,10 @@ exist (the outfit excludes tainted gear, floors hit points at `apparelMinHP`, of
 gender-correct definitions, and `ClothingRunway` replaces garments before they tatter),
 so dominant apparel pressure raises that concern's deficit and adds no new action.
 Cosmetic preferences and Ideology apparel precepts stay unowned. The pain and
-sickness thoughts `Pain`, `Sick` and `BabySick` are owned by `MaintainMedicalReserves`:
+sickness thoughts `Pain`, `Sick` and `BabySick` are owned by the `medical/care` Need:
 tending, disease rest, the hospital bed and the medicine stock it holds already treat
 their causes (injuries, infections, infant illness), so dominant pain or sickness
-pressure raises that concern's deficit and adds no new action. The medicine runway still
+pressure raises that Need's deficit and adds no new action. The medicine runway still
 follows realized tending, not mood; no painkiller policy exists (combat-only drugs are
 untouched). `MasochistPain`, `Pain_Idealized` and permanent-condition hediff thoughts
 stay unowned. Every review that provisions `rooms/comfort` must rank it with a

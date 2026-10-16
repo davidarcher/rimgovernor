@@ -569,19 +569,19 @@ internal static class UpkeepSupport
         using (var deficitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
             deficitCts.CancelAfter(TimeSpan.FromMinutes(4));
-            _ = await WaitNeedAsync(journal, PolicyFunctions.MaintainMedicalReserves, Finding.Unmet, deficitCts.Token).ConfigureAwait(false);
+            _ = await WaitNeedAsync(journal, PolicyFunctions.MedicalReservesNeed.FilingKey, Finding.Unmet, deficitCts.Token).ConfigureAwait(false);
         }
 
         // The method is an ordinary resource acquisition of the native herbal-medicine definition; follow it to
         // completion, then require the observed reserve rather than the receipt.
-        await FollowMethodsAsync(journal, PolicyFunctions.MaintainMedicalReserves, "replenish", a => a.Kind switch
+        await FollowMethodsAsync(journal, PolicyFunctions.MedicalReservesNeed.FilingKey, "replenish", a => a.Kind switch
         {
             ActionKind.Acquisition or ActionKind.ProductionBill or ActionKind.MineAcquisition => null,
             _ => $"unexpected {a.Kind} action",
         }, report, cancellationToken).ConfigureAwait(false);
         using var recoverCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         recoverCts.CancelAfter(TimeSpan.FromMinutes(12));
-        _ = await WaitNeedAsync(journal, PolicyFunctions.MaintainMedicalReserves, Finding.Met, recoverCts.Token).ConfigureAwait(false);
+        _ = await WaitNeedAsync(journal, PolicyFunctions.MedicalReservesNeed.FilingKey, Finding.Met, recoverCts.Token).ConfigureAwait(false);
     }
 
     private static async Task VerifyMedicineAsync(Harness h, JsonObject identity, JsonObject prepared, UpkeepCensus after, Report report, CancellationToken cancellationToken)

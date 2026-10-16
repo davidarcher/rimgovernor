@@ -84,22 +84,6 @@ public static partial class PolicyFunctions
             }
             return Known(1.0);
         }
-        else if (id == MaintainMedicalReserves)
-        {
-            // The reserve review supplies the measured stock and target.
-            MedicalReserveReview review;
-            try
-            {
-                review = ReviewMedicalReserve(f.MedicalReserve, f.IsIssued(MaintainMedicalReserves), p.MedicalReserve);
-            }
-            catch (DomainException)
-            {
-                return Unknown<double>();
-            }
-            known = review.Stock.TryGetValue(out stock);
-            var targetKnown = review.Target.TryGetValue(out target);
-            known = known && targetKnown;
-        }
         else if (id == EnsureMechCharger)
         {
             // A charger owed is a full deficit, none owed none.

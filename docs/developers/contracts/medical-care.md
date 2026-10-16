@@ -2,10 +2,10 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
-`CriticalMedical` selects native-approved doctor/patient pairs by bleeding deadline,
+Each patient's `medical/critical/<pawn>` Need selects native-approved doctor/patient pairs by bleeding deadline,
 native life-threatening state and stable identity. It preserves `NoCare`, player
-work overrides and self-tend policy. Assignment review preserves the observed self-tend permission; it does not disable self-treatment because another doctor has a higher nominal quality. Shared care selection compares native-legal treatment options. Explicit native self-tend setting operations and their readback remain available. A completed treatment permits a later tend in
-the same concern episode; a later confirmed, completed autonomous treatment can admit
+work overrides and self-tend policy. Assignment review preserves the observed self-tend permission; it does not disable self-treatment because another doctor has a higher nominal quality. Shared care selection compares native-legal treatment options. Explicit native self-tend setting operations and their readback remain available. A completed treatment permits a later tend of
+the same patient's Need; a later confirmed, completed autonomous treatment can admit
 a new step after fresh native eligibility. Pending and uncertain work cannot.
 Actions and receipts stay retained across persistence and method archival. The
 current doctor's exact job target distinguishes treatment from tending somebody
@@ -13,7 +13,7 @@ else; a receipt never establishes completed treatment.
 
 If triage has no eligible pair after combat clears, the squad's drafts free up
 through the undraft sweep once the fight closes and no live plan needs them, and
-`CriticalMedical` selects treatment on a fresh read. An active or unknown threat
+the patient's critical Need selects treatment on a fresh read. An active or unknown threat
 keeps the fight open and the squad drafted. Existing tending is never interrupted.
 Changed patient/worker evidence can reopen an unavailable-pair hold.
 
@@ -28,9 +28,18 @@ clock still advances under the standing deficit.
 
 ## the brain planning
 
-`CriticalMedicine` is active while a critical patient needs tending or rescue or that
-count is unknown. The same tend and rescue methods serve every patient; the
-concern carries no priority.
+The `medical` family (`Medical.cs`, runtime `MedicalRounds`, #3258) derives one
+`medical/critical/<pawn>` Need (SeriousHarm) per critical patient: a living colonist
+or dependent who is bleeding, downed or needs a tend, or whom a life-saving
+amputation would save. An unread or stale emergency census is one Unknown
+`medical/critical` Need. The Needs run in the immediate pass on the emergency census
+and the doctors' and patients' pawn rows alone. Every patient's Need reads the same
+greedy pairing (`TendPairs`, `RescuePairs`) over the pawns no open tend or rescue
+holds, takes its own pair, and commits `tend-<patient>` or `rescue-<patient>` under
+the Need owner. A tend or rescue claims both pawns (`care/<pawn>`), so two patients'
+tends run side by side and an order that would take a held pawn is a claim conflict.
+In the ordinary pass a patient's Need first queues a life-saving amputation
+(`amputate-<patient>-<part>-<window>`).
 
 The executor's emergency gate (`policy.EvaluateEmergency`) holds dispatch as
 `critical_medical` on the same terms: a bleeding or downed-untended colonist, or an
@@ -41,8 +50,8 @@ downed so the native watcher lets rescue and recovery proceed without holding ag
 
 ## Dependent patients
 
-The same `CriticalMedicine` Incident owns eligible tending and rescue for the
-native dependent-patient census. It includes nonhostile humanlike hosted guests,
+Each dependent patient's `medical/critical/<pawn>` Need owns eligible tending and rescue
+for the native dependent-patient census. It includes nonhostile humanlike hosted guests,
 spawned subjects of active refugee-pod rescue objectives, and entities currently
 held on a player holding platform. Free colonists remain in their original census;
 ordinary prisoners, hostile acquisition targets and slaves are not added by this
@@ -59,7 +68,7 @@ A missing census, unresolved pawn reference, or unknown capability/health fact i
 unknown care evidence, never an empty or recovered need. Duplicate membership and
 unknown population groups are contract errors. The native frame adds health detail
 for these patients through the existing pawn table; no patient store is introduced.
-Neither the prisoners nor the anomaly family dispatches a parallel rescue or tend Method for these patients (`prisoners/custody` and `anomaly/tend` hold them). Capability-approved critical care uses the existing Incident owner; noncritical dependent care and unsupported custody transport remain unmet pending shared forecast support.
+Neither the prisoners nor the anomaly family dispatches a parallel rescue or tend Method for these patients (`prisoners/custody` and `anomaly/tend` hold them). Capability-approved critical care uses the patient's critical Need; noncritical dependent care and unsupported custody transport remain unmet pending shared forecast support.
 
 ## Maintained care
 
@@ -69,7 +78,8 @@ It does not choose surgical indications or invent an infection prognosis. Urgent
 care need not wait for cleaning; post-care cleaning cannot change a room factor
 already sampled by native treatment. There is no automatic cleaning finalizer.
 
-`MaintainMedicalReserves` (care phase) retains native visible condition
+The `medical/care` Need (Wellbeing, unmet while a sick colonist rests or is in bad
+condition, unknown while a tracked pawn is unread) retains native visible condition
 identities, severity, immunity, retend timing, care policy and medical-rest state.
 It enables ordinary Patient and PatientBedRest work when available and not
 disabled; native jobs choose beds. Missing observations, unavailable work or player
@@ -116,9 +126,13 @@ Actions/Apply; native checks a living pawn of, or hosted by, the colony, and a c
 already set applies again. A refused write is replanned from fresh facts on the
 next review.
 
-While the medicine reserve is low it contributes the configured herbal target per
-colonist to `economy/resource`; explicit higher floors stay authoritative. The
-reserve's bill and wild-healroot methods continue to work.
+The `medical/reserves` Need (Wellbeing) is unmet while the usable medicine stock is
+below its per-colonist target (no entry bar), unknown while the stock is unread. Its
+work withdraws stalled healroot designations and harvests wild healroot under the
+Need owner; its stock-target bill is the work ledger's. While the medicine reserve
+is low it contributes the configured herbal target per colonist to
+`economy/resource`; explicit higher floors stay authoritative. Care and reserves
+are independent Needs: the stock never waits on the sick resting.
 
 ## Surgery
 
@@ -139,7 +153,7 @@ operation bill; see the `surgery` row of [action contracts](action-contracts.md)
 The native setup used by medical acceptance is excluded from production builds and
 from the model execution surface.
 
-### MaintainSurgery
+### medical/surgery
 
 Restores missing or destroyed parts. Per part it takes the best recipe whose
 ingredients are on the map (bionic, then prosthetic, then peg) that some eligible
@@ -147,8 +161,8 @@ doctor performs with a native failure chance of 20% or less. Each patient queues
 most valuable part (capacity weight times part tier) as one medical
 `ProductionBillIntent`, and gets no second while a bill is queued or a surgery action
 is open. Otherwise the reason names the want: `surgery_part_short` or
-`surgery_no_doctor`. The concern settles when the operation leaves the census (the
-health change), never when the bill disappears. A pending step holds it open.
+`surgery_no_doctor`. The Need is met when the operation leaves the census (the
+health change), never when the bill disappears. A pending step keeps it unmet.
 
 **Chronic conditions** join the same ranking under the same 20% cap: a `cure`
 recipe, or a replacement-part `install` recipe on the part carrying the condition
@@ -169,8 +183,8 @@ concrete need:
 - A silver runway deficit (`SilverShort`: a purchase need and silver below its rough
   price plus the trade silver reserve) with no harvestable organ stocked. Gain is the
   organ's native market value; the routine trade sells a stocked organ as surplus
-  while the deficit holds. A short runway with an eligible prisoner holds the concern
-  open.
+  while the deficit holds. A short runway with an eligible prisoner keeps the Need
+  unmet.
 
 Cost in silver: `SilverPerMoodPoint` (20) times the vanilla thought magnitude times
 the colonists it reaches, plus `SilverPerGoodwillPoint` (5) times the goodwill change
@@ -198,7 +212,7 @@ by one patient at most. A patient whose best part has an option on the map wants
 here: `SelectSurgery` queues it. `ElectiveParts` turns the wants into `SurgeryPart`s of
 the items some usable bench fabricates, appended after the served parts, so the existing
 `SurgeryPartBill` (fabricate-first, `FabricableParts`) builds them; a part nothing
-fabricates yields no demand there. `ElectiveSurgeryOwed` holds MaintainSurgery open
+fabricates yields no demand there. `ElectiveSurgeryOwed` keeps `medical/surgery` unmet
 for a chosen elective only while it is fabricable. Demand clears when the part is
 stocked, installed or queued. The trade side
 (`RoundsTrade.cs`) sees served parts only.

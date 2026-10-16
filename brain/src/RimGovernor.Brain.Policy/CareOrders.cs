@@ -59,7 +59,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// MaintainMedicalReserves' declaration: the stock-target medicine bill SelectMedicineMethod produces. Any
+    /// The medical/reserves Need's declaration: the stock-target medicine bill SelectMedicineMethod produces. Any
     /// other choice declares nothing (the planner harvests, waits or has no deficit), except an unknown
     /// choice, which abstains.
     /// </summary>

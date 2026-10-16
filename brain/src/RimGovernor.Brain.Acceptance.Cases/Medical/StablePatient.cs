@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// test/medical_management_setup fixture (two tendable Flu patients plus a fourth colonist forced into
 /// GoJuiceAddiction's withdrawal stage) and test/routine_production_prepare (a pre-grown rice zone and fueled campfire
 /// bill), the live service with both the tend/medical and food routine families on, and the durable store's
-/// CriticalMedicine and food/supply goal-state timelines over a wall-clock window: evidence for whether ordinary
+/// medical/critical and food/supply goal-state timelines over a wall-clock window: evidence for whether ordinary
 /// triage/feeding and concurrent crop-replacement production progress together rather than one starving the other of
 /// pawn time. A diagnostic, not a pass/fail gate: it fails only when the harness itself could not complete.
 /// </summary>
@@ -20,7 +20,7 @@ internal static class StablePatient
     internal static AcceptanceCase Case() => new()
     {
         Name = "medical/stable-patient",
-        Scope = "Diagnostic: CriticalMedicine (two Flu patients plus a forced GoJuiceAddiction "
+        Scope = "Diagnostic: medical/critical (two Flu patients plus a forced GoJuiceAddiction "
             + "withdrawal patient) and food/supply (concurrent pre-seeded growing zone/campfire bill) standard-state "
             + "timelines under the live rounder/field planner, evidence for issue #1's stable-patient feeding "
             + "acceptance extension to withdrawal recovery and concurrent food production. Not a pass/fail acceptance gate.",
@@ -33,7 +33,7 @@ internal static class StablePatient
         // Feeding the patients and resting through tending are what the timeline is about.
         Keep = ["Food", "Rest"],
 
-        // Medical: tend for the two Flu patients and the forced withdrawal patient's CriticalMedicine deficit, plus
+        // Medical: tend for the two Flu patients and the forced withdrawal patient's medical/critical Need, plus
         // medicine-reserve replenishment so tend never runs the fixture's stocked medicine dry. Food: the same
         // food/supply pipeline sustained/food exercises, to prove the pre-seeded growing zone/campfire bill keeps
         // advancing concurrently with medical dispatch.
@@ -64,7 +64,7 @@ internal static class StablePatient
                 Watch = new WatchConfig
                 {
                     Watch = Window,
-                    Concern = PolicyFunctions.CriticalMedicine.Value,
+                    Concern = PolicyFunctions.CriticalCensusNeed.Value,
                     Extra = [PolicyFunctions.FoodSupplyNeed.Value],
                 },
                 Prepare = async (h, report, ct) =>
@@ -86,10 +86,10 @@ internal static class StablePatient
                     {
                         var food = await store.SampleStandardAsync(PolicyFunctions.FoodSupplyNeed.Value, ct).ConfigureAwait(false);
                         report["food_final"] = food;
-                        var medical = await store.SampleStandardAsync(PolicyFunctions.CriticalMedicine.Value, ct).ConfigureAwait(false);
+                        var medical = await store.SampleStandardAsync(PolicyFunctions.CriticalCensusNeed.Value, ct).ConfigureAwait(false);
                         report["medical_final"] = medical;
 
-                        // Native evidence: a CriticalMedical episode that cannot be served should leave no tend methods
+                        // Native evidence: a critical medical Need that cannot be served should leave no tend methods
                         // at all, not eight spent on pairs the native gate refuses. The tally names how many of this
                         // goal's methods ended unsuccessful.
                         var spent = 0;

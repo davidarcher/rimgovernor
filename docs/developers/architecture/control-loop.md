@@ -536,6 +536,34 @@ intent once its Method is open, the read clears it once the reform is observed o
 the ideoligion, count or expected design moves on, and an older save's Standard
 record is read once at load when the blob is absent.
 
+**Medical (#3258).** `CriticalMedical`, `MaintainMedicalReserves` and
+`MaintainSurgery` are the `medical` family (`Medical.cs`, runtime `MedicalRounds`),
+one Critical catalog entry that replaces the `tend`, `rescue`, `hospital`,
+`medical` and `surgery` planners. `medical/critical/<pawn>` (SeriousHarm) stands
+per critical patient and runs in the immediate pass on the emergency census and the
+care candidates' pawn rows; an unread census is one Unknown `medical/critical` Need.
+Every patient's Need reads one shared greedy pairing over the pawns no open care
+order holds and commits its own `tend-<patient>` or `rescue-<patient>` under the
+Need owner; both pawns are claims (`care/<pawn>`), so two patients' tends run side
+by side and an order on a held pawn is a claim conflict. The immediate pass
+protects only the family's Tend and Rescue work (`FamilySchedule.ProtectionKinds`).
+In the ordinary pass a patient's Need first queues a life-saving amputation.
+`medical/care` (unmet while a sick colonist rests or is in bad condition; its work
+is the hospital bed, built through the shared building planner or flagged medical
+once per bed) and `medical/reserves` (unmet below the medicine target, no entry
+bar; healroot withdrawals and harvests, the ledger's stock bill) are independent
+Wellbeing Needs: the Medical phase latch (`RoundsLatches.Medical`, `Phase.MedicalCare`,
+`Phase.MedicalReserves`, `Restocks`) is deleted with no precondition in its place,
+since the medicine stock never waited on the sick. `medical/surgery` (Wellbeing) is
+unmet while an owed restore, an actionable elective, an organ sale harvest, a part
+recovery or a peg-leg step stands; its surgeries claim
+`surgery/<patient>/<recipe>/<part>` and the part bill is declared while it is unmet.
+The forecast reads the critical census, surgery and reserves rows as Needs, and the
+pain and sickness thoughts are owned by `medical/care`. `CriticalMedical` left
+`ImmediateConcern`; ActiveCombat, RestoreWorkers, MaintainShelter and
+RecoverDisasterServices remain. The `MedicalReserve` latch stays: the silver gap and
+the trade routine still read it.
+
 **Per-family migration checklist** (as followed for food-stores/storage):
 
 1. Write the facts record and `IFamily` in Policy: `Derive` from the Inspect body
@@ -577,7 +605,7 @@ three ways (prisoners, joiners, anomaly).
 | Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted); EnsureDefensiveLayout |
 | Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |
 | Power | EnsureBasicPower |
-| Medical | CriticalMedicine, MaintainMedicalReserves, MaintainSurgery |
+| Medical | `medical`: Needs `critical/<pawn>`, `care`, `reserves`, `surgery` (#3258; CriticalMedical, MaintainMedicalReserves, MaintainSurgery deleted) |
 | Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259); ActiveCombat, RestoreWorkers |
 | Animals | `animals`: Needs `herd`, `containment`, `ward`, `sterilize` (#3260) |
 | Ideology | `ideology`: Needs `roles`, `rituals`, `reform` (#3260) |

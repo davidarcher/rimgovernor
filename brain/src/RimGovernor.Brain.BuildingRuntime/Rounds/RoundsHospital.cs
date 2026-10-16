@@ -5,7 +5,7 @@ public interface IRoundsHospitalSource : IRoundsBuildingSource
     Task<(BedUseTarget Target, BridgeResult Result)> ReadBedUseTargetAsync(C.Identity identity, string bed, CancellationToken ct);
 }
 
-/// <summary>Composes MaintainMedicalReserves' building method: a hospital bed built, converted or already standing.</summary>
+/// <summary>The medical/care Need's work (#3258): a hospital bed built, converted or already standing, under the Need and admitted by claims.</summary>
 public sealed partial class RoundsHospitalPlanner
 {
     internal Rounder Reviewer { get; init; } = null!;
@@ -31,7 +31,7 @@ public sealed partial class RoundsHospitalPlanner
             throw new ControlException("NewRoundsHospitalPlanner: native is not a rounds source");
         }
 
-        var building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MaintainMedicalReserves };
+        var building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MedicalCareNeed.FilingKey, Need = PolicyFunctions.MedicalCareNeed };
         return new RoundsHospitalPlanner { Reviewer = reviewer, Native = source, Building = building };
     }
 }
@@ -99,15 +99,15 @@ public sealed partial class RoundsBuildingPlanner
 
 public sealed partial class RoundsHospitalPlanner
 {
-    internal async Task<RoundsBuildingResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// The care Need's hospital step: the bed the hospital ladder selects is built through the shared building
+    /// planner, or an existing bed is flagged medical once per bed. A convert is issued again only after its attempt
+    /// is released and the bed reads non-medical (decision 19), through its refusal budget.
+    /// </summary>
+    internal async Task<RoundsBuildingResult> StepAsync(NeedWork work, CancellationToken call)
     {
         var p = Reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsBuildingResult { Verdict = BuildingReasonDisabled };
-        }
-
+        var state = work.State;
         if (!state.ObservationKnown || !state.Snapshot.IsValid || state.Snapshot.Native.Value == 0)
         {
             throw new ControlException("step: observation unknown, snapshot invalid or native generation unset");
@@ -117,21 +117,6 @@ public sealed partial class RoundsHospitalPlanner
         if (!review.Enabled || !review.Snapshot.Matches(state.Snapshot))
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoReview };
-        }
-
-        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainMedicalReserves, call);
-        if (!workable || goal is null || review.Latches.Medical != Phase.MedicalCare)
-        {
-            return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
-        }
-
-        foreach (var m in goal.Methods)
-        {
-            var open = p.Journal.LoadPlan(m.Plan, call);
-            if (StorePackage.PlanOpen(open))
-            {
-                return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
-            }
         }
 
         var started = Reviewer.Clock.Now();
@@ -144,7 +129,7 @@ public sealed partial class RoundsHospitalPlanner
 
         var reading = await Reviewer.ObserveRoomsAsync((IRoundsSource)Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var facts = reading.Projection;
-        PlannerSnapshot.RecordStepRead("hospital", PolicyFunctions.MaintainMedicalReserves, state.Snapshot, facts);
+        PlannerSnapshot.RecordStepRead("hospital", PolicyFunctions.MedicalCareNeed.FilingKey, state.Snapshot, facts);
         var choice = PolicyFunctions.SelectHospitalBed(HospitalRequestOf(facts));
         switch (choice.Method)
         {
@@ -157,17 +142,7 @@ public sealed partial class RoundsHospitalPlanner
             case HospitalMethod.Unavailable:
                 return new RoundsBuildingResult { Verdict = BuildingReasonHospitalUnavailable };
             case HospitalMethod.Build:
-                return await Building.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-        }
-
-        var method = new MethodId("hospital-convert-" + choice.Bed);
-        try
-        {
-            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
-            return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "hospital_convert_method") };
-        }
-        catch (NotFoundException)
-        {
+                return await Building.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false);
         }
 
         var (target, _) = await Native.ReadBedUseTargetAsync(Boundary.Identity(state.Snapshot), choice.Bed, call).ConfigureAwait(false);
@@ -190,13 +165,24 @@ public sealed partial class RoundsHospitalPlanner
             return new RoundsBuildingResult { Verdict = BuildingReasonExistingFacility };
         }
 
+        var method = new MethodId("hospital-convert-" + choice.Bed);
+        var attempts = p.Journal.OwnerMethodHistory(work.Owner, call).Where(m => m.Method == method).Select(m => m.Plan).ToList();
+        if (!work.Owner.Methods.Any(m => m.Method == method))
+        {
+            var (refused, admitted) = AdmitSubject(p.Journal, method.Value, attempts, state.Snapshot, call);
+            if (!admitted)
+            {
+                return new RoundsBuildingResult { Verdict = refused };
+            }
+        }
+
         var patch = BedUse.NewBedMedical(choice.Bed, true);
-        if (!arbiter.TryClaim([], "bed:" + choice.Bed))
+        if (!work.Arbiter!.TryClaim([], "bed:" + choice.Bed))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "bed_claim") };
         }
 
-        p.CommitBedPatch(state, goal, method, patch, () =>
+        var commit = p.CommitBedPatch(state, work.Owner, method, patch, () =>
         {
             if (Reviewer.Clock.Now() - started is var elapsed && (elapsed < TimeSpan.Zero || elapsed > Reviewer.MaxAge))
             {
@@ -208,15 +194,15 @@ public sealed partial class RoundsHospitalPlanner
             {
                 throw new ControlException("step: the review moved or was disabled");
             }
-        }, call, epoch);
-        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
+        }, call, work.Epoch);
+        return new RoundsBuildingResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) };
     }
 }
 
 public sealed partial class Player
 {
     /// <summary>Commits one bed-use plan under a method id; the guard, when given, runs after the session check and may throw to abort.</summary>
-    internal void CommitBedPatch(ControlState state, StandardState goal, MethodId method, BedUse patch, Action? guard, CancellationToken call, CancellationToken epoch)
+    internal Sto.WorkCommit CommitBedPatch(ControlState state, Sto.IWorkOwner owner, MethodId method, BedUse patch, Action? guard, CancellationToken call, CancellationToken epoch)
     {
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewBedUseAction(new ActionId($"{id}-0"), patch);
@@ -228,6 +214,6 @@ public sealed partial class Player
         }
 
         guard?.Invoke();
-        Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
+        return Journal.CommitOwnerWork(owner, method, "", plan, call);
     }
 }

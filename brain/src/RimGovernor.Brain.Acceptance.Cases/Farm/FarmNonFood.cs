@@ -53,7 +53,7 @@ internal sealed class FarmNonFood
                 + "growing zone, the colonists sow it, and the matured crop is harvested into herbal medicine (#2288).",
             "Plant_Healroot",
             "MedicineHerbal",
-            PolicyFunctions.MaintainMedicalReserves).Build();
+            PolicyFunctions.MedicalReservesNeed.FilingKey).Build();
     }
 
     private AcceptanceCase Build() => new()

@@ -289,7 +289,7 @@ public static partial class PolicyFunctions
     /// <summary>
     /// The interaction one living prisoner should have, or null when the row is settled: PrisonerIntent's use
     /// when the prisoner does not already have it. A legless prisoner is not released: vanilla cannot release
-    /// a downed pawn, and MaintainSurgery puts a peg leg back first. Unknown reports a fact the decision
+    /// a downed pawn, and medical/surgery puts a peg leg back first. Unknown reports a fact the decision
     /// needed but the census did not carry; an unknown fact is never evidence of a settled prisoner.
     /// </summary>
     internal static (PrisonerInteractionMode? Want, bool Unknown) PrisonerUse(PrisonerFacts row, PrisonerColony colony, Fact<double> food, PrisonerPolicy p)

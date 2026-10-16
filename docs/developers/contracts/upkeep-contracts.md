@@ -342,9 +342,9 @@ Only the current phase's planner acts.
 
 ### Medical reserves
 
-`MaintainMedicalReserves` starts below the configured medicine units per colonist and
-stays active until the higher recovery reserve (defaults one and three; planning policy,
-not demand forecasts). Current usable reachable medicine of any native definition counts;
+The `medical/reserves` Need (#3258) is unmet while usable medicine is below the
+recovery reserve per colonist (default three; planning policy, not demand forecasts),
+with no entry bar: it is a plain threshold at the target. Current usable reachable medicine of any native definition counts;
 forbidden, expired, unreachable and future stock cannot. Replenishment uses the native
 herbal-medicine definition and the shared source/production method; PlantCutting work
 joins shared allocation. When no bench recipe can produce it, the planner harvests

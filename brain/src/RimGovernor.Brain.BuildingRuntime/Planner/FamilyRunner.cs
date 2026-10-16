@@ -14,6 +14,13 @@ public sealed record FamilySchedule
 
     public IReadOnlyList<ActionKind> Kinds { get; init; } = [];
 
+    /// <summary>
+    /// The kinds of an immediate family's open SeriousHarm work the immediate pass watches as protection; null for
+    /// every kind in <see cref="Kinds"/>. A family whose SeriousHarm Needs also carry ordinary-pass work (the medical
+    /// family's amputation bills) names only its protection kinds.
+    /// </summary>
+    public IReadOnlyList<ActionKind>? ProtectionKinds { get; init; }
+
     /// <summary>The review cadence in game ticks, zero for the hourly default.</summary>
     public Tick Every { get; init; }
 }

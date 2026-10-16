@@ -143,7 +143,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (1, new MethodId("workshop-" + Definition), default);
         }
-        if (c == PolicyApi.MaintainMedicalReserves)
+        if (c == PolicyApi.MedicalCareNeed.FilingKey)
         {
             return (1, new MethodId("hospital-" + Definition), default);
         }

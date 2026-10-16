@@ -9,7 +9,7 @@ public enum BillMode
     /// <summary>
     /// The generic "keep at least Target units of this recipe's output in stock" bill, the same
     /// pause-when-satisfied/unpause-below-half shape FoodTarget uses, reused as-is by GearProduce,
-    /// economy/resource and MaintainMedicalReserves rather than inventing a mode per consumer. Unlike
+    /// economy/resource and medical/reserves rather than inventing a mode per consumer. Unlike
     /// FoodTarget it carries no food-specific recipe exclusion.
     /// </summary>
     StockTarget,

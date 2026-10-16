@@ -218,7 +218,4 @@ public static partial class PolicyFunctions
         r.Validate();
         return r;
     }
-
-    /// <summary>Whether the medicine bill and herb harvest may act. They run in both phases: a sick colonist never pauses restocking. Only the hospital and medicine-tier steps are care-only.</summary>
-    public static bool Restocks(this Phase p) => p.Value != "";
 }

@@ -539,9 +539,8 @@ public sealed record RoundsFacts
 
     /// <summary>
     /// Counts the critical patients who are bleeding or downed with a tend outstanding
-    /// (policy.UrgentPatients). CriticalMedicine is an emergency only while one exists or the count is
-    /// unknown; a colonist who merely needs tending, or is downed with nothing to tend, keeps the goal active
-    /// at priority 2 so the colony's other work and the clock go on around the tend or rescue.
+    /// (policy.UrgentPatients). The remote hold and the resource harvest read it; the medical family's critical
+    /// Needs count every critical patient (#3258).
     /// </summary>
     public Fact<long> UrgentPatients { get; init; }
 
@@ -602,8 +601,6 @@ public sealed record RoundsLatches
     /// <summary>The MaintainHousing phase this review left owed (reviewHousing); empty once housing recovered. The housing planners run only for their own phase.</summary>
     public Phase Housing { get; set; }
 
-    /// <summary>The MaintainMedicalReserves phase this review left owed: care (sick colonists resting, the hospital) before reserves (the medicine stock). Empty once recovered.</summary>
-    public Phase Medical { get; set; }
 }
 
 /// <summary>
@@ -664,13 +661,11 @@ public static partial class PolicyFunctions
 {
     public static readonly ConcernId AnswerDialog = new("AnswerDialog");
     public static readonly ConcernId ActiveCombat = new("ActiveCombat");
-    public static readonly ConcernId CriticalMedicine = new("CriticalMedical");
     public static readonly ConcernId RestoreWorkers = new("RestoreWorkers");
     public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
     public static readonly ConcernId MaintainHousing = new("MaintainHousing");
     public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
-    public static readonly ConcernId MaintainMedicalReserves = new("MaintainMedicalReserves");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     public static readonly ConcernId TradeWithCaravan = new("TradeWithCaravan");
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
@@ -970,7 +965,7 @@ public static partial class PolicyFunctions
                 r.Assessments.Add(a);
             }
         }
-        r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, r.All());
+        r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, r.All(), medicineActive: c.L.MedicalReserve);
         return r;
     }
 

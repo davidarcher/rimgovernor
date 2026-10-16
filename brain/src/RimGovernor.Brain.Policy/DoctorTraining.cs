@@ -9,7 +9,7 @@ public enum PegCycleStep
     Training,
 }
 
-// Peg-leg cycling: MaintainSurgery installs and removes cheap wood parts (peg leg, wooden hand, wooden foot: one
+// Peg-leg cycling: medical/surgery installs and removes cheap wood parts (peg leg, wooden hand, wooden foot: one
 // pool) on colony prisoners, one surgery at a time in the organ harvest's slot, for doctor training, prisoner
 // control and release. See the Go source for the full model; the constants below are its prices.
 public static partial class PolicyFunctions
@@ -129,7 +129,7 @@ public static partial class PolicyFunctions
         return best;
     }
 
-    /// <summary>Reports whether a peg-leg step would be queued now; DetectRounds holds MaintainSurgery open on it.</summary>
+    /// <summary>Reports whether a peg-leg step would be queued now; it keeps the medical/surgery Need unmet.</summary>
     public static bool PegCycleWanted(RoundsFacts f, PrisonerPolicy p) =>
         SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants, f.Recipes, null) is not null;
 

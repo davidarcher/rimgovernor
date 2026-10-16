@@ -42,7 +42,6 @@ internal static class InspectionRegistry
     [
         new(AnswerDialog, ConcernType.IncidentConcern, Department.System, [FactFamily.Emergency], InspectAnswerDialog),
         new(ActiveCombat, ConcernType.IncidentConcern, Department.Military, [FactFamily.Emergency, FactFamily.Colony], InspectActiveCombat),
-        new(CriticalMedicine, ConcernType.IncidentConcern, Department.Medical, [FactFamily.Pawns, FactFamily.Emergency], InspectCriticalMedicine),
         new(RestoreWorkers, ConcernType.IncidentConcern, Department.People, [FactFamily.Emergency, FactFamily.Pawns], InspectRestoreWorkers),
         new(EnsureWorkAssignments, ConcernType.OnceConcern, Department.People, [FactFamily.Pawns, FactFamily.Identity, FactFamily.Emergency], InspectWorkAssignments),
         new(MaintainHousing, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony, FactFamily.Rooms, FactFamily.Pawns], InspectHousing),
@@ -50,8 +49,6 @@ internal static class InspectionRegistry
         new(EnsureBasicPower, ConcernType.OnceConcern, Department.Industry, [FactFamily.Colony, FactFamily.World], InspectBasicPower),
         new(TradeWithCaravan, ConcernType.IncidentConcern, Department.Industry, [FactFamily.World, FactFamily.Colony, FactFamily.Definitions, FactFamily.Pawns], InspectTrade),
         new(EnsureDefensiveLayout, ConcernType.OnceConcern, Department.Military, [], InspectDefensiveLayout),
-        new(MaintainMedicalReserves, ConcernType.StandardConcern, Department.Medical, [FactFamily.Pawns, FactFamily.Colony], InspectMedicalReserves),
-        new(MaintainSurgery, ConcernType.StandardConcern, Department.Medical, [FactFamily.Pawns, FactFamily.Colony, FactFamily.Definitions], InspectSurgery),
         new(MaintainRoutes, ConcernType.StandardConcern, Department.Shelter, [FactFamily.World, FactFamily.Colony], InspectRoutes),
         new(MaintainTrade, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony, FactFamily.Pawns, FactFamily.Definitions, FactFamily.World], InspectExport),
         new(MaintainShelter, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Rooms, FactFamily.World, FactFamily.Emergency], InspectShelter),

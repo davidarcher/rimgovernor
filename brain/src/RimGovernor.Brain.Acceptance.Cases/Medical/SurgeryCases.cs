@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// The surgery planner fixture cases (Go <c>surgerycases.go</c>). Each opens on <c>test/medical_management_setup</c>
 /// (three Medicine 20 doctors, the third colonist missing a leg with a SimpleProstheticLeg stocked, a sterile lit
 /// surgery room with a medical hospital bed) plus one condition on the second colonist, and serves the medical family,
-/// which carries MaintainSurgery and CriticalMedical.
+/// which carries the medical family.
 /// </summary>
 internal static class SurgeryCases
 {
@@ -18,7 +18,7 @@ internal static class SurgeryCases
         {
             Name = "medical/surgery-restore",
             Scope = "Restore (#1164): a colonist missing a leg with a prosthetic in stock gets an InstallSimpleProstheticLeg "
-                + "medical ProductionBillIntent from MaintainSurgery, and native doctors install it (the part is no longer missing). "
+                + "medical ProductionBillIntent from medical/surgery, and native doctors install it (the part is no longer missing). "
                 + "End to end: the vanilla doctor job completing the bill is no Go snapshot; the service queues it, the case then advances the game.",
             Start = MedicalKit.Setup("restore"),
             Service = true,
@@ -30,7 +30,7 @@ internal static class SurgeryCases
         {
             Name = "medical/surgery-cataract",
             Scope = "Chronic replacement (#1165): the pawn read carries a Cataract on the eye, and with a bionic eye in stock "
-                + "MaintainSurgery admits a medical bill on that eye. A native read contract: the chronic defName and part index come from vanilla hediffs.",
+                + "medical/surgery admits a medical bill on that eye. A native read contract: the chronic defName and part index come from vanilla hediffs.",
             Start = MedicalKit.Setup("cataract"),
             Service = true,
             Budget = TimeSpan.FromMinutes(5),
@@ -41,7 +41,7 @@ internal static class SurgeryCases
         {
             Name = "medical/surgery-amputation",
             Scope = "Life-saving amputation (#1166): a hand WoundInfection losing its immunity race reads with its part index "
-                + "and a RemoveBodyPart operation of kind amputate; CriticalMedical queues it and native doctors complete it. Native: the read contract and vanilla infection physics.",
+                + "and a RemoveBodyPart operation of kind amputate; the patient's medical/critical Need queues it and native doctors complete it. Native: the read contract and vanilla infection physics.",
             Start = MedicalKit.Setup("infectedHand"),
             Service = true,
             Budget = TimeSpan.FromMinutes(10),
@@ -52,7 +52,7 @@ internal static class SurgeryCases
         {
             Name = "medical/surgery-harvest",
             Scope = "Organ harvest (#1169): with an unrecruitable prisoner, a colonist missing a kidney and none stocked, the "
-                + "population read carries the prisoner's harvest facts, MaintainSurgery harvests a kidney from the prisoner, "
+                + "population read carries the prisoner's harvest facts, medical/surgery harvests a kidney from the prisoner, "
                 + "then installs it with InstallNaturalKidney. Native: the population read contract and the vanilla harvest yielding the kidney.",
             Start = MedicalKit.Setup("missingKidney"),
             Service = true,
@@ -75,7 +75,7 @@ internal static class SurgeryCases
         {
             Name = "medical/surgery-part-recovery",
             Scope = "Artificial part recovery (#1232): with an unrecruitable low-worth prisoner wearing a BionicArm and a colonist "
-                + "missing an arm with none stocked, MaintainSurgery removes the arm from the prisoner, then installs it with "
+                + "missing an arm with none stocked, medical/surgery removes the arm from the prisoner, then installs it with "
                 + "InstallBionicArm. Native: the vanilla removal yielding the BionicArm item.",
             Start = MedicalKit.Setup("missingArm"),
             Service = true,

@@ -9,7 +9,7 @@ internal static class PegCycle
     {
         Name = "medical/peg-training",
         Scope = "Peg-leg doctor training (#1236): with Medicine 8 doctors (below the floor of 10) and an unrecruitable "
-            + "factionless prisoner missing a leg, MaintainSurgery queues InstallPegLeg on the prisoner, native doctors "
+            + "factionless prisoner missing a leg, medical/surgery queues InstallPegLeg on the prisoner, native doctors "
             + "install it, it queues RemoveBodyPart on the peg, and a doctor's Medicine level rises. "
             + "Native: vanilla surgery XP and the wood-part install and removal completing are no Go snapshot.",
         Start = new FixtureStart

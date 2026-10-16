@@ -695,7 +695,7 @@ door that stays blocked open is reported only (`defense_action` reason `containm
 since no order clears a blockage. Unread door facts are reported, never
 guessed. Bleeding captives: a held, downed, living entity whose health reads
 `needs_tend` is owed by `anomaly/tend` (bleeding first, then by id), held as
-`dependent_care_incident_owner`: critical care belongs to CriticalMedicine. A breach has no dedicated tactic: an escaped entity
+`dependent_care_incident_owner`: critical care belongs to the patient's medical/critical Need. A breach has no dedicated tactic: an escaped entity
 is a live hostile and falls to the existing defense tactics
 (`TestEscapedEntityFallsToTheExistingDefense`).
 

@@ -431,8 +431,9 @@ candidate is pending, and the declared batches are the ingredient demand of
 `openBills`. `production/gear-ledger` is the nightly signal.
 
 The second migration (#2604) is declare-only: `RoundsMedicalPlanner` declares
-MaintainMedicalReserves' stock-target medicine bill (`policy.DeclareMedicine`) and
-`RoundsCareBillDeclarer` the surgery part (MaintainSurgery) and mech gestation
+the `medical/reserves` Need's stock-target medicine bill (`policy.DeclareMedicine`) and
+`RoundsCareBillDeclarer` the surgery part (the `medical/surgery` Need, declared while
+the Need is unmet, #3258) and mech gestation
 (MaintainMechs) bills (the baby food bill is now `BabyFoodDeclarer`'s, filed
 under the `food/baby-feeding` Need, #3254)
 (`policy.DeclareSelection` over the unchanged selectors), each only while its concern

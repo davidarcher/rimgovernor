@@ -229,7 +229,7 @@ public sealed class PrisonersFamilyTests
     private static readonly NeedId[] OwnerNeeds =
     [
         HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance, FoodStorageNeed, CookingNeed, PrisonersFamily.Recruit, PrisonersFamily.Custody, MilitaryFamily.Equipment,
-        RoomsFamily.Comfort, RoomsFamily.Lighting,
+        RoomsFamily.Comfort, RoomsFamily.Lighting, MedicalCareNeed,
     ];
 
     [Fact]

@@ -37,18 +37,15 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? roomsFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
         RoundsGeneBankPlanner? cfgGeneBank = null;
-        RoundsHospitalPlanner? cfgHospital = null;
         RoundsBuildingPlanner? roomsLighting = null;
         MaintainShelterPlanner? cfgMaintainShelter = null;
         RoundsMechChargerPlanner? cfgMechCharger = null;
-        RoundsMedicalPlanner? cfgMedical = null;
         RoundsMoodReliefPlanner? cfgMoodRelief = null;
         RoundsPermitsPlanner? cfgPermits = null;
         RoundsPollutionPlanner? cfgPollution = null;
         RoundsBuildingPlanner? cfgPower = null;
         RoundsPsylinkPlanner? cfgPsylink = null;
         RoundsRecoveryPlanner? cfgRecovery = null;
-        RoundsRescuePlanner? cfgRescue = null;
         RoundsResourcePlanner? cfgResource = null;
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
         Rounder? cfgRounds = null;
@@ -57,9 +54,7 @@ public sealed partial class BrainComposition
         RoundsSleepingUpkeepPlanner? cfgSleepingUpkeep = null;
         RoundsStockpilePlanner? cfgStockpiles = null;
         FactStore? cfgStore = null;
-        RoundsSurgeryPlanner? cfgSurgery = null;
         RoundsBuildingPlanner? cfgTemperature = null;
-        RoundsTendPlanner? cfgTend = null;
         RoundsTradePlanner? cfgTrade = null;
         RoundsWorkPlanner? cfgWork = null;
         RoundsBuildingPlanner? cfgWorkshop = null;
@@ -182,13 +177,11 @@ public sealed partial class BrainComposition
             }
             cfgDefense = defensePlanner.WithCombatTuning(tuning);
         }
-        if (tend)
+        if (tend || rescue || medical || hospital)
         {
-            cfgTend = RoundsTendPlanner.Create(reviewer, client);
-        }
-        if (rescue)
-        {
-            cfgRescue = RoundsRescuePlanner.NewRoundsRescuePlanner(reviewer, client);
+            // The tend and rescue toggles compose the medical family's critical Needs' care orders, the medical toggle
+            // their amputations with the reserves and surgery Needs, the hospital toggle the care Need (#3258).
+            families.Add(new MedicalRounds(reviewer, client, tend, rescue, medical, hospital).Runner());
         }
         if (armory)
         {
@@ -214,11 +207,6 @@ public sealed partial class BrainComposition
         if (moodRelief)
         {
             cfgMoodRelief = RoundsMoodReliefPlanner.NewRoundsMoodReliefPlanner(reviewer);
-        }
-        if (medical)
-        {
-            cfgMedical = RoundsMedicalPlanner.NewRoundsMedicalPlanner(reviewer, client);
-            cfgSurgery = RoundsSurgeryPlanner.Create(reviewer);
         }
         if (foodStorageUpkeep || refrigeration)
         {
@@ -382,10 +370,6 @@ public sealed partial class BrainComposition
             {
                 cfgWorkshop = RoundsBuildingPlanner.NewRoundsWorkshopPlanner(reviewer, client);
             }
-            if (hospital)
-            {
-                cfgHospital = RoundsHospitalPlanner.NewRoundsHospitalPlanner(reviewer, client);
-            }
         }
         if (roomsFlooring is not null && layout.Firebreak && layoutRounds is { } layoutPave)
         {
@@ -422,26 +406,21 @@ public sealed partial class BrainComposition
             Dialog = cfgDialog,
             Expansion = cfgExpansion,
             GeneBank = cfgGeneBank,
-            Hospital = cfgHospital,
             MaintainShelter = cfgMaintainShelter,
             MechCharger = cfgMechCharger,
-            Medical = cfgMedical,
             MoodRelief = cfgMoodRelief,
             Permits = cfgPermits,
             Pollution = cfgPollution,
             Power = cfgPower,
             Psylink = cfgPsylink,
             Recovery = cfgRecovery,
-            Rescue = cfgRescue,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
             Sleeping = cfgSleeping,
             SleepingUpkeep = cfgSleepingUpkeep,
             Stockpiles = cfgStockpiles,
             Store = cfgStore,
-            Surgery = cfgSurgery,
             Temperature = cfgTemperature,
-            Tend = cfgTend,
             Trade = cfgTrade,
             Work = cfgWork,
         };
@@ -530,7 +509,6 @@ public sealed partial class BrainComposition
             thresholds = thresholds with { DefensiveLayout = true };
             methods.Add(EnsureDefensiveLayout);
         }
-        Add(sc.Medical, MaintainMedicalReserves, MaintainSurgery);
         Add(sc.Trade, TradeWithCaravan);
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
         // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, and the

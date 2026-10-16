@@ -88,7 +88,7 @@ AwkwardExecution	memory		unknown	0	0	0	xml-granted
 BabyBorn	memory		resolved	1	2	0	
 BabyCriedSocial	memory		resolved	1	2	0	
 BabyGiggledSocial	memory		resolved	1	2	0	
-BabySick	situational	MaintainMedicalReserves	resolved	2	5	0	
+BabySick	situational	medical/care	resolved	2	5	0	
 BeautifulSkyLanterns	memory		unknown	0	0	0	xml-granted
 BecameGhoul	memory		unknown	0	0	0	xml-granted
 BioSculpterDespised	memory		unknown	0	0	0	no-code-or-xml-reference
@@ -681,7 +681,7 @@ OtherTravelerArrested	memory		resolved	1	1	0
 OtherTravelerDied	memory		resolved	1	1	0	
 OtherTravelerLeftBehind	memory		resolved	1	1	0	
 OtherTravelerSurgicallyViolated	memory		resolved	1	1	0	
-Pain	situational	MaintainMedicalReserves	partial	1	2	1	state-expression
+Pain	situational	medical/care	partial	1	2	1	state-expression
 Pain_Idealized	situational		partial	1	4	2	external-type
 ParticipatedInRaid_Required	memory		unknown	0	0	0	xml-granted
 ParticipatedInRaid_Respected	memory		unknown	0	0	0	xml-granted
@@ -775,7 +775,7 @@ Scarification_Minor	situational		partial	1	4	2	external-type
 Scarification_Minor_Opinion	situational		partial	1	4	2	external-type
 SelfDislikedXenotype	situational		partial	1	4	2	external-type
 SharedBed	situational		partial	2	4	1	state-expression
-Sick	situational	MaintainMedicalReserves	resolved	1	1	0	
+Sick	situational	medical/care	resolved	1	1	0	
 SkillBookPassion	situational		partial	2	8	2	pattern
 Skullspike_Desired	situational		partial	1	4	2	external-type
 Skullspike_Disapproved	situational		partial	1	4	2	external-type

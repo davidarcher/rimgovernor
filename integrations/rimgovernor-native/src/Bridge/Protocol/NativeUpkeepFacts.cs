@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
                 // when the home area holds them (MaintainStorage debris),
                 // when they sit in storage (reserve stock wherever it is
                 // kept), or when they are the deteriorating, perishable or
-                // medicine stacks SecureSupplies and MaintainMedicalReserves
+                // medicine stacks SecureSupplies and medical/reserves
                 // follow wherever they were dropped.
                 // Corpses deteriorate and rot like food but are never
                 // supplies to secure: a raider corpse across the map would

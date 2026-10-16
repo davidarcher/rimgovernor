@@ -15,7 +15,7 @@ public sealed record SurgeryPart
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// MaintainSurgery's bill purpose: one batch bill fabricating a part a restore operation lacks, at a bench
+    /// The medical/surgery Need's bill purpose: one batch bill fabricating a part a restore operation lacks, at a bench
     /// whose recipe is researched and usable. ProductionBillContext.Parts carries the wants.
     /// </summary>
     public static readonly BillPurpose SurgeryPartBill = new("surgery_part");

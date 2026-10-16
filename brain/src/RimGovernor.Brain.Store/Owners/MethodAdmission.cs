@@ -129,14 +129,13 @@ public sealed partial class Store
         {
             throw new ConflictException($"bill method needs a current autopilot review and at most {MaxBillPlanActions} actions");
         }
-        // Bills serve the mech goal's gestation bills and the surgery goal's part bills. The admin/work-ledger Need
-        // commits the round's reconcile plan (the economy/resource Need's stock bills among them): places and
-        // removals together.
+        // Bills serve the mech goal's gestation bills. The admin/work-ledger Need commits the round's reconcile plan
+        // (the economy/resource Need's stock bills and the medical Needs' bills among them): places and removals
+        // together.
         var bound = owner is NeedOwner { Need: var held }
             ? held == AdminFamily.WorkLedger
             : owner.OwnerNeed(review, out var need)
-                && (need == MaintainMechs
-                    || need == MaintainSurgery);
+                && need == MaintainMechs;
         if (!bound)
         {
             throw new ConflictException($"{owner.OwnerLabel} does not admit production bills");
@@ -230,11 +229,11 @@ public sealed partial class Store
             throw new ConflictException();
         }
         // The military pests Need hunts its pests (#3259), the food/supply Need forages and hunts (#3254) and the
-        // joiners/decrees Need hunts a royal decree's animals (#3302) and the economy/resource Need chops, forages and
-        // hunts toward its floors (#3303); a Need owner reads as no Concern.
+        // joiners/decrees Need hunts a royal decree's animals (#3302), the economy/resource Need chops, forages and
+        // hunts toward its floors (#3303) and the medical/reserves Need harvests healroot (#3258).
         var bound = owner is NeedOwner { Need: var held }
-            ? held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees || held == EconomyFamily.Resource
-            : owner.OwnerNeed(review, out var need) && need == MaintainMedicalReserves;
+            && (held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees || held == EconomyFamily.Resource
+                || held == MedicalReservesNeed);
         if (!bound)
         {
             throw new ConflictException();

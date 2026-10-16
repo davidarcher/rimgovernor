@@ -4,7 +4,7 @@ using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
-// Organ harvest: MaintainSurgery harvests an organ from a prisoner the colony would not recruit
+// Organ harvest: medical/surgery harvests an organ from a prisoner the colony would not recruit
 // (PrisonerFacts.HarvestEligible) only for a concrete need, and only when the gain outweighs the cost, both
 // in silver:
 //
@@ -327,7 +327,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Reports whether a sale harvest would be queued now: the silver runway is short and some eligible
-    /// prisoner's organ clears its cost. DetectRounds holds MaintainSurgery open on it.
+    /// prisoner's organ clears its cost. It keeps the medical/surgery Need unmet.
     /// </summary>
     public static bool SaleHarvestWanted(RoundsFacts f, Fact<bool> silverShort)
     {
@@ -381,7 +381,7 @@ public static partial class PolicyFunctions
         return Known(n with { Surplus = surplus, Retained = retained });
     }
 
-    // Artificial part recovery: MaintainSurgery removes an added part (bionic, prosthetic, archotech) from a
+    // Artificial part recovery: medical/surgery removes an added part (bionic, prosthetic, archotech) from a
     // HarvestEligible prisoner so the colony can install or sell it. The gain is a colonist's capacity the
     // part restores (a surgery_part_short want with an install recipe for it, servedSurgery's weight x
     // SilverPerCapacity) or else the part's market value in stock, where the part demand and the trade
@@ -531,7 +531,7 @@ public static partial class PolicyFunctions
         return (cost, true);
     }
 
-    /// <summary>Reports whether a stock recovery would be queued now; DetectRounds holds MaintainSurgery open on it.</summary>
+    /// <summary>Reports whether a stock recovery would be queued now; it keeps the medical/surgery Need unmet.</summary>
     public static bool PartRecoveryWanted(RoundsFacts f) =>
         SelectPartRecovery(f.Prisoners, f.PrisonerColony, [], null, f.Recipes) is not null;
 

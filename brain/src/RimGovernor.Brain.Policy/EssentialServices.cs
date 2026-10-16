@@ -84,7 +84,7 @@ public static partial class PolicyFunctions
     /// <summary>Full-review assessment only. Unknown stress evidence never erases baseline evidence.
     /// Proposals reference owner satisfaction predicates; they grant neither practice nor spending.</summary>
     public static EssentialServiceReview ReviewEssentialServices(RoundsFacts facts, RoundsPolicy policy,
-        DerivedDemand demand, IReadOnlyList<RoundsAssessment> owners, int scenarioBudget = 128)
+        DerivedDemand demand, IReadOnlyList<RoundsAssessment> owners, int scenarioBudget = 128, bool medicineActive = false)
     {
         if (scenarioBudget < 0) throw new DomainException("negative service scenario budget");
         if (demand.Work.Tick != facts.Tick) throw new DomainException("service demand and facts must share a tick");
@@ -122,9 +122,12 @@ public static partial class PolicyFunctions
         var food = FoodFacts.From(facts, policy);
         NeedOwner(EssentialService.Food, FoodSupplyNeedOf(food));
         NeedOwner(EssentialService.Cooking, CookingNeedOf(food));
-        Owner(EssentialService.Medical, CriticalMedicine);
-        Owner(EssentialService.Medical, MaintainSurgery);
-        Owner(EssentialService.Medical, MaintainMedicalReserves);
+        // The medical family's Needs (#3258): the critical census as one row (the review counts the patients, it
+        // does not name them), then surgery and reserves; medicineActive is the review's medicine latch.
+        var medical = MedicalFacts.From(facts, policy, medicineActive);
+        NeedOwner(EssentialService.Medical, CriticalCensusNeedOf(facts.CriticalPatients));
+        NeedOwner(EssentialService.Medical, SurgeryNeedOf(medical));
+        NeedOwner(EssentialService.Medical, MedicalReservesNeedOf(medical));
         Owner(EssentialService.Shelter, MaintainHousing);
         Owner(EssentialService.Shelter, MaintainShelter);
         Owner(EssentialService.Temperature, EnsureTemperatureSafety);
@@ -261,7 +264,7 @@ public static partial class PolicyFunctions
                 .GroupBy(o => o.PartIndex.IsKnown ? o.PartIndex.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "whole")
                 .OrderBy(g => g.Key, StringComparer.Ordinal))
             {
-                var target = new ServiceTarget(MaintainSurgery, patient.Id.Value + "/" + group.Key, "served_procedure_feasible", default);
+                var target = new ServiceTarget(SurgeryNeed.FilingKey, patient.Id.Value + "/" + group.Key, "served_procedure_feasible", default);
                 var options = group.ToArray();
                 (ServiceCoverage, EquatableArray<string>) Assess(string excluded)
                 {

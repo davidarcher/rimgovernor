@@ -8,7 +8,11 @@ public interface IRoundsMedicalSource : Observation.IColonySource, IColonyFactsR
     Task<(IReadOnlyList<GearBenchRead> Reads, BridgeResult Result)> ReadGearBenchesAsync(C.Identity identity, CancellationToken ct);
 }
 
-/// <summary>Composes MaintainMedicalReserves and the critical-medicine amputation method.</summary>
+/// <summary>
+/// The medical family's reserves work and its critical Needs' amputations (#3258): the medicine Need's stalled-source
+/// withdrawals and herb harvest, and a patient's life-saving amputation, each under its Need and admitted by claims.
+/// The medicine bill is declared to the work ledger under the reserves Need.
+/// </summary>
 public sealed class RoundsMedicalPlanner : IOrderDeclarer
 {
     private readonly Rounder reviewer;
@@ -30,36 +34,20 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         return new RoundsMedicalPlanner(reviewer, native);
     }
 
-    internal async Task<RoundsMedicalResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// The reserves Need's restock: a stalled medicine designation is withdrawn first, once per stall; then, below
+    /// the target bar, the medicine bill is the ledger's, and with no bench for it the herbs are harvested. Each is
+    /// a Method of the Need; an open one is its own work, and nothing else waits on it.
+    /// </summary>
+    internal async Task<RoundsMedicalResult> RestockAsync(NeedWork work, CancellationToken call)
     {
         var p = reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonDisabled };
-        }
-
-        if (!state.ObservationKnown || !state.Snapshot.IsValid)
-        {
-            throw new ControlException("step: observation unknown or snapshot invalid");
-        }
-
+        var state = work.State;
+        var owner = work.Owner;
         var review = p.Journal.LoadRounds(call);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
             return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
-        }
-
-        var amputation = await PlanAmputationAsync(state, review, call, epoch).ConfigureAwait(false);
-        if (amputation.Plan.Value != "")
-        {
-            return amputation;
-        }
-
-        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainMedicalReserves, call);
-        if (!workable || goal is null || !review.Latches.Medical.Restocks())
-        {
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
         var started = reviewer.Clock.Now();
@@ -100,48 +88,35 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         {
             stalledSources.Add(row.Id);
             var (stallMethod, stallPlan) = BuildingRuntimePackage.StallWithdraw(row);
-            try
+            if (p.Journal.OwnerMethodPlan(owner, stallMethod, call) is not null)
             {
-                p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, stallMethod, call);
                 continue;
             }
-            catch (NotFoundException)
-            {
-            }
 
-            p.Current(call, epoch);
+            p.Current(call, work.Epoch);
             if (p.Session.State() != state)
             {
                 throw new ControlException("step: session state changed");
             }
 
-            p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, stallMethod, stallPlan, call);
-            return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = stallPlan.Id };
-        }
-
-        foreach (var method0 in goal.Methods)
-        {
-            var open = p.Journal.LoadPlan(method0.Plan, call);
-            if (StorePackage.PlanOpen(open))
-            {
-                return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
-            }
+            var withdraw = p.Journal.CommitOwnerWork(owner, stallMethod, "withdraw stalled " + row.Resource, stallPlan, call);
+            return new RoundsMedicalResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(withdraw), Plan = withdraw.Outcome == ClaimOutcome.Conflict ? default : stallPlan.Id };
         }
 
         var facts = ObservationPackage.ColonyMedicalReserve(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false)) with { Catalog = items };
-        var medicalReview = PolicyFunctions.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, reviewer.Policy.MedicalReserve);
+        var medicalReview = PolicyFunctions.ReviewMedicalReserve(facts, true, reviewer.Policy.MedicalReserve);
         if (!medicalReview.Active)
         {
             return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
         }
 
-        var seen = goal.Methods.Select(m => m.MethodId).ToList();
+        var seen = owner.Methods.Select(m => m.Method).ToList();
         var (census, _) = await native.ReadGearBenchesAsync(identity, call).ConfigureAwait(false);
         var benches = census.Select(row => row.Bench).ToList();
         var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicineResource, Seen = seen, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
         if (choice.Kind == MedicineMethodKind.Blocked)
         {
-            return await HarvestMedicineAsync(state, goal, observed, tables, medicalReview, facts, medicineResource, stalledSources, started, call, epoch).ConfigureAwait(false);
+            return await HarvestMedicineAsync(work, observed, tables, medicalReview, facts, medicineResource, stalledSources, started, call).ConfigureAwait(false);
         }
 
         if (choice.Kind != MedicineMethodKind.Produce)
@@ -168,30 +143,24 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         return null;
     }
 
-    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
-    {
-        var declared = DeclareOrdersInner(snapshot, projection, benches, ct);
-        return Task.FromResult(declared.For(PolicyFunctions.MaintainMedicalReserves.Value));
-    }
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+        Task.FromResult(Declare(reviewer.Policy, projection, benches).For(PolicyFunctions.MedicalReservesNeed.FilingKey.Value));
 
-    private Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    /// <summary>
+    /// The reserves Need's medicine bill: while the stock is below the target bar, the stock-target bill
+    /// <see cref="PolicyFunctions.SelectMedicineMethod"/> picks; nothing while it is met; an abstain while the stock
+    /// or the medicine catalog is unread.
+    /// </summary>
+    internal static Declared Declare(RoundsPolicy policy, ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {
-        var journal = reviewer.Player.Journal;
-        var review = journal.LoadRounds(ct);
-        if (!review.Enabled || review.Snapshot != snapshot)
+        var f = projection.Facts;
+        var reserve = PolicyFunctions.MedicalReserveAtTarget(f.MedicalReserve with { Colonists = f.Colonists }, policy.Seasonal(f.Calendar, f.DisasterConditions).MedicalReserve);
+        if (reserve is null || !reserve.Stock.IsKnown)
         {
-            return PolicyFunctions.Abstaining(Cause.UnreadReview);
+            return PolicyFunctions.Abstaining(Cause.UnreadMedicine);
         }
 
-        var (_, workable) = journal.Workable(review, PolicyFunctions.MaintainMedicalReserves, ct);
-        if (!workable || !review.Latches.Medical.Restocks())
-        {
-            return new Declared();
-        }
-
-        var facts = projection.Facts.MedicalReserve;
-        var medicalReview = PolicyFunctions.ReviewMedicalReserve(facts, review.Latches.MedicalReserve, reviewer.Policy.MedicalReserve);
-        if (!medicalReview.Active)
+        if (!reserve.Active)
         {
             return new Declared();
         }
@@ -199,20 +168,21 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         Resource medicine;
         try
         {
-            medicine = projection.Facts.Items.MedicineAt(0);
+            medicine = f.Items.MedicineAt(0);
         }
         catch (DomainException)
         {
             return PolicyFunctions.Abstaining(Cause.UnreadMedicine);
         }
 
-        var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = medicalReview, Resource = medicine, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
+        var choice = PolicyFunctions.SelectMedicineMethod(new MedicinePlanningRequest { Review = reserve, Resource = medicine, Benches = Known<EquatableArray<GearBench>>([.. benches]) });
         return PolicyFunctions.DeclareMedicine(choice, benches);
     }
 
-    private async Task<RoundsMedicalResult> HarvestMedicineAsync(ControlState state, StandardState goal, O.ColonyFactsSnapshot observed, Tables tables, MedicalReserveReview medicalReview, MedicalReserveObservation facts, Resource medicineResource, HashSet<string> stalledSources, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    private async Task<RoundsMedicalResult> HarvestMedicineAsync(NeedWork work, O.ColonyFactsSnapshot observed, Tables tables, MedicalReserveReview medicalReview, MedicalReserveObservation facts, Resource medicineResource, HashSet<string> stalledSources, DateTimeOffset started, CancellationToken call)
     {
         var p = reviewer.Player;
+        var state = work.State;
         if (!medicalReview.Replenish.TryGetValue(out var replenish))
         {
             return new RoundsMedicalResult { Verdict = Verdict.FieldUnavailable(BuildingRuntimePackage.UnreadMedicalFact(facts)) };
@@ -292,13 +262,9 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
 
         var digest = SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()));
         var method = new MethodId("acquire-" + Convert.ToHexStringLower(digest.AsSpan(0, 16)));
-        try
+        if (p.Journal.OwnerMethodPlan(work.Owner, method, call) is not null)
         {
-            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
             return new RoundsMedicalResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "acquire_method") };
-        }
-        catch (NotFoundException)
-        {
         }
 
         var id = PlanIds.MintPlanId();
@@ -311,24 +277,30 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
+        p.Current(call, work.Epoch);
         var elapsed = reviewer.Clock.Now() - started;
         if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
         {
             throw new ControlException("harvestMedicine: session state changed or the read took too long");
         }
 
-        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-        return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
+        var commit = p.Journal.CommitOwnerWork(work.Owner, method, "", plan, call);
+        return new RoundsMedicalResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = commit.Outcome == ClaimOutcome.Conflict ? default : id };
     }
 
-    private async Task<RoundsMedicalResult> PlanAmputationAsync(ControlState state, Rounds review, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// A critical patient's life-saving amputation in the ordinary pass: the first one the care census owes the
+    /// patient, once per part per requeue window, under the patient's Need. Null when none is owed (or the census is
+    /// unread).
+    /// </summary>
+    internal async Task<Verdict?> AmputateAsync(NeedWork work, PawnId patient, CancellationToken call)
     {
         var p = reviewer.Player;
-        var (incident, found) = BuildingRuntimePackage.IncidentDeficit(p.Journal, review, PolicyFunctions.CriticalMedicine, call);
-        if (!found)
+        var state = work.State;
+        var review = p.Journal.LoadRounds(call);
+        if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
-            return default;
+            return null;
         }
 
         var expected = await BuildingRuntimePackage.StepScopeAsync(reviewer.Native, call).ConfigureAwait(false);
@@ -342,15 +314,15 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         var window = expected.Tick.Value / BuildingRuntimePackage.AmputationRequeueTicks;
         if (!read.Projection.Facts.MedicalPawns.TryGetValue(out var pawns))
         {
-            return default;
+            return null;
         }
 
-        foreach (var pawn in pawns)
+        foreach (var pawn in pawns.Where(pawn => pawn.Id == patient))
         {
             foreach (var surgery in PolicyFunctions.LifeSavingAmputations(pawn))
             {
                 var method = new MethodId($"amputate-{surgery.Pawn}-{surgery.Part}-{window}");
-                if (incident.Methods.Any(m => m.Method == method))
+                if (p.Journal.OwnerMethodPlan(work.Owner, method, call) is not null)
                 {
                     continue;
                 }
@@ -358,18 +330,17 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
                 var id = PlanIds.MintPlanId();
                 var action = DomainAction.NewSurgeryAction(new ActionId($"{id}-0"), surgery);
                 var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-                p.Current(call, epoch);
+                p.Current(call, work.Epoch);
                 if (p.Session.State() != state)
                 {
                     throw new ControlException("planAmputation: session state changed");
                 }
 
-                p.Journal.CommitIncidentMethod(incident.Incident.Id, method, "", plan, call);
-                return new RoundsMedicalResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
+                return RoundsBuildingPlanner.OwnerCommitVerdict(p.Journal.CommitOwnerWork(work.Owner, method, "", plan, call));
             }
         }
 
-        return default;
+        return null;
     }
 }
 

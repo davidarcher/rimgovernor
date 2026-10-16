@@ -322,7 +322,7 @@ public static partial class PolicyFunctions
             // A hospital is a hosted medical bed, not a dedicated room: the game scores a room holding any
             // ordinary bed a Bedroom or Barracks, and a bed flagged medical inside it still draws patients,
             // doctors and the room's cleanliness into tending. Doctor coverage is AssignWork's standing
-            // requirement; medicine is MaintainMedicalReserves.
+            // requirement; medicine is medical/reserves.
             new() { Role = RoomRole.Hospital, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Bedroom, RoomRole.Barracks), FurnitureFromGame = true },
             // A laboratory is a hosted research bench: the economy/research Need stages the simple bench in the shelter
             // (scored a Barracks once the bunks stand) when a ladder rung waits on it.

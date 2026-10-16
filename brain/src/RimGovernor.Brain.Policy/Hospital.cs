@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// What a MaintainMedicalReserves deficit needs from the facility ladder: a humanlike bed the game treats as
+/// What an unmet medical/care Need needs from the facility ladder: a humanlike bed the game treats as
 /// medical, standing in a room whose native role can host the Hospital function.
 /// </summary>
 public enum HospitalMethod
@@ -74,7 +74,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>
     /// The living patients who need a hosted medical bed: those whose health read says they need rest, and the
-    /// surgical patients. A hospital bed serves medical rest; MaintainMedicalReserves's wider census (any bad
+    /// surgical patients. A hospital bed serves medical rest; the medical/care Need's wider census (any bad
     /// condition, e.g. a scar) keeps the deficit and does not size the ward. Not ok when the census or a patient's
     /// rest or death is unknown.
     /// </summary>

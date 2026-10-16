@@ -106,7 +106,7 @@ public static partial class PolicyFunctions
 
                     break;
                 case EmergencyReason.CriticalMedical:
-                    // Must NOT refuse the Run here: RoundsTendPlanner dispatches the tend order regardless of
+                    // Must NOT refuse the Run here: the medical family's critical Need dispatches the tend order regardless of
                     // the clock, but the native side can only carry it out -- and NeedsTend can only clear --
                     // while ticks are actually passing. Refusing to run while NeedsTend is true deadlocks: the
                     // order times out unexecuted, the reviewer retries, and the colony is unsafe forever. Unlike a

@@ -35,7 +35,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsBuildingPlanner? Sleeping { get; init; }
 
-    public RoundsHospitalPlanner? Hospital { get; init; }
 
     public RoundsSleepingUpkeepPlanner? SleepingUpkeep { get; init; }
 
@@ -49,13 +48,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsDefensePlanner? Defense { get; init; }
 
-    public RoundsTendPlanner? Tend { get; init; }
-
-    public RoundsRescuePlanner? Rescue { get; init; }
-
-    public RoundsMedicalPlanner? Medical { get; init; }
-
-    public RoundsSurgeryPlanner? Surgery { get; init; }
 
     public RoundsRecoveryPlanner? Recovery { get; init; }
 

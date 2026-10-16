@@ -24,7 +24,7 @@ public sealed record AnomalyFacts
 /// <item><c>anomaly/capture</c> (Wellbeing): no downed entity is owed a capture
 /// (<see cref="PolicyFunctions.EntityCaptureTarget"/>). Held as <c>unsupported_forecast_population_capture</c>.</item>
 /// <item><c>anomaly/tend</c> (Wellbeing): no downed held entity needs tending (<see cref="PolicyFunctions.EntityTendTarget"/>).
-/// Held as <c>dependent_care_incident_owner</c>: critical care belongs to CriticalMedicine.</item>
+/// Held as <c>dependent_care_incident_owner</c>: critical care belongs to the patient's medical/critical Need.</item>
 /// <item><c>anomaly/lance</c> (Wellbeing): no recruitable hostile stands while a colonist wears a lance
 /// (<see cref="PolicyFunctions.LanceCandidate"/>). The runtime holds it as <c>unsupported_forecast_population_lance</c>
 /// once its combat read finds an able wearer.</item>
@@ -125,7 +125,7 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
             else if (need.Id == Tend)
             {
                 output.Add(NeedMethod.Held(Tend, TendHeld,
-                    "Critical held-entity care belongs to CriticalMedicine; noncritical dependent care requires shared forecast support."));
+                    "Critical held-entity care belongs to the patient's medical/critical Need; noncritical dependent care requires shared forecast support."));
             }
             else if (need.Id == Monolith)
             {

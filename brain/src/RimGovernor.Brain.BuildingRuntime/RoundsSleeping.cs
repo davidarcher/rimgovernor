@@ -302,7 +302,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             definitions = r.Workshop!.Candidates;
         }
-        if (r.Concern == MaintainMedicalReserves || r.Phase == Pol.Phase.HousingSleeping || r.Concern == EconomyFamily.Research.FilingKey)
+        if (r.Concern == MedicalCareNeed.FilingKey || r.Phase == Pol.Phase.HousingSleeping || r.Concern == EconomyFamily.Research.FilingKey)
         {
             // The beds and the research bench are the furniture rules', read with every catalog (ColonyProjection.Shapes).
             definitions = [];
@@ -443,7 +443,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 (resolved, reason) = r.SelectWorkshop(state, review, facts, call);
             }
-            else if (r.Concern == MaintainMedicalReserves)
+            else if (r.Concern == MedicalCareNeed.FilingKey)
             {
                 (resolved, reason) = r.SelectHospital(facts);
             }
@@ -755,7 +755,7 @@ public sealed partial class RoundsBuildingPlanner
                     }
                     return PendingFacility(progress, "PowerConduit") || PendingFacility(progress, "HiddenConduit") || PendingFacility(progress, "WaterproofConduit");
                 }
-                if (pendingPlanner.Phase == Pol.Phase.HousingExpansion || pendingPlanner.Concern == MaintainMedicalReserves || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
+                if (pendingPlanner.Phase == Pol.Phase.HousingExpansion || pendingPlanner.Concern == MedicalCareNeed.FilingKey || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
                 {
                     return PendingFacility(progress, "SleepingSpot") || PendingFacility(progress, "Bed") || PendingFacility(progress, "DoubleBed") || PendingFacility(progress, "RoyalBed");
                 }

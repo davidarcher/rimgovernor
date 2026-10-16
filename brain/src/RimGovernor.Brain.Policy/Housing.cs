@@ -1,11 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The step a phased goal (MaintainHousing, MaintainMedicalReserves) leaves owed, latched per goal in RoundsLatches.
-/// MaintainHousing walks its phases in order and each has its own planner: the starter shelter with its bunks, then
-/// bed ownership and bedrooms, then the spare room. The comfort phases are not latched: they name which rooms Need
-/// a building planner serves (rooms/comfort, rooms/hosting, rooms/party-spot), ordered by Need preconditions. The
-/// empty phase is the default.
+/// The step a phased goal (MaintainHousing) leaves owed, latched per goal in RoundsLatches. MaintainHousing walks
+/// its phases in order and each has its own planner: the starter shelter with its bunks, then bed ownership and
+/// bedrooms, then the spare room. The comfort phases are not latched: they name which rooms Need a building planner
+/// serves (rooms/comfort, rooms/hosting, rooms/party-spot), ordered by Need preconditions. The empty phase is the
+/// default.
 /// </summary>
 public readonly record struct Phase(string Value)
 {
@@ -37,12 +37,6 @@ public readonly record struct Phase(string Value)
     /// <summary>The rooms/party-spot Need's planner: one PartySpot in the best shared room.</summary>
     public static Phase ComfortSpot => new("spot");
 
-    /// <summary>MaintainMedicalReserves' step: care for the sick (rest and a hospital bed) before the medicine stock.</summary>
-    public static Phase MedicalCare => new("care");
-
-    /// <summary>MaintainMedicalReserves' stock step.</summary>
-    public static Phase MedicalReserves => new("reserves");
-
     public bool Equals(Phase other) => string.Equals(Value, other.Value, StringComparison.Ordinal);
 
     public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Value);
@@ -66,10 +60,6 @@ public static class RoundsLatchesPhaseExtensions
         if (goal == PolicyFunctions.MaintainHousing)
         {
             return l.Housing;
-        }
-        if (goal == PolicyFunctions.MaintainMedicalReserves)
-        {
-            return l.Medical;
         }
         return new Phase("");
     }

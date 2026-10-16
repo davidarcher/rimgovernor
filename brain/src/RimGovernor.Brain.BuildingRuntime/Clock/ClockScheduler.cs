@@ -124,7 +124,6 @@ public sealed partial class ClockScheduler
             (c.MechCharger, c.MechCharger?.Reviewer, null, null),
             (c.GeneBank, c.GeneBank?.Reviewer, null, null),
             (c.Sleeping, c.Sleeping?.Reviewer, c.Sleeping?.Concern, MaintainHousing),
-            (c.Hospital, c.Hospital?.Reviewer, null, null),
             (c.SleepingUpkeep, c.SleepingUpkeep?.Reviewer, null, null),
             (c.Expansion, c.Expansion?.Reviewer, c.Expansion?.Concern, MaintainHousing),
             (c.Power, c.Power?.Reviewer, c.Power?.Concern, EnsureBasicPower),

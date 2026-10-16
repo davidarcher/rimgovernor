@@ -72,6 +72,41 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
+    /// The critical patients by id (#3258): the living colonists and dependents <see cref="EmergencyNeeds"/> counts
+    /// (urgent, downed, bleeding or needing a tend) and the colonists a life-saving amputation would save
+    /// (<see cref="AmputationNeeds"/>), sorted. Unknown exactly when the count is; an unknown care census adds
+    /// nobody.
+    /// </summary>
+    public static Fact<EquatableArray<PawnId>> CriticalPatientIds(EmergencySnapshot snapshot, GenerationSnapshot current, Tick tick, Fact<EquatableArray<CarePawn>> medical)
+    {
+        var (_, patients) = EmergencyNeeds(snapshot, current, tick);
+        if (!patients.IsKnown)
+        {
+            return Unknown<EquatableArray<PawnId>>();
+        }
+        var ids = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var pawn in EmergencyPatients(snapshot.Facts))
+        {
+            if (pawn.Dead.TryGetValue(out var dead) && dead)
+            {
+                continue;
+            }
+            if (UrgentPatient(pawn) || pawn.Downed.ValueOrDefault || pawn.Bleeding.ValueOrDefault || pawn.NeedsTend.ValueOrDefault)
+            {
+                ids.Add(pawn.Id.Value);
+            }
+        }
+        if (medical.TryGetValue(out var pawns))
+        {
+            foreach (var pawn in pawns.Where(p => LifeSavingAmputations(p).Count > 0))
+            {
+                ids.Add(pawn.Id.Value);
+            }
+        }
+        return Known(EquatableArray.From(ids.Select(id => new PawnId(id))));
+    }
+
+    /// <summary>
     /// Go <c>AmputationNeeds</c>: adds the colonists a life-saving amputation would save to the critical and
     /// urgent patient counts, never counting a colonist either already includes. Losing an immunity race is an
     /// emergency: the amputation runs at CriticalMedical's priority. Unknown care facts add nobody; an unknown

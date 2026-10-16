@@ -36,7 +36,7 @@ public sealed record PrisonersFacts
 /// prisoner's interaction, named <c>prisoner-&lt;mode&gt;-&lt;pawn&gt;</c>, one per prisoner owed a change; the runtime also stages the jail (ring,
 /// bed, prisoner flag) while the Need is unmet.</item>
 /// <item><c>prisoners/custody</c> (Wellbeing): no downed humanlike is owed a capture or rescue
-/// (<see cref="PolicyFunctions.CustodyDeficit"/>). Both are held: a rescue belongs to CriticalMedicine's Incident
+/// (<see cref="PolicyFunctions.CustodyDeficit"/>). Both are held: a rescue belongs to the patient's medical/critical Need
 /// owner and a capture needs shared forecast support.</item>
 /// </list>
 /// The two Needs are independent; neither waits on the other.
@@ -98,7 +98,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
             else if (need.Id == Custody && PolicyFunctions.SelectCustodyMethod(facts.Custody) is { Reason: CustodyPlanReason.None } held)
             {
                 output.Add(held.Decision == CustodyDecision.Rescue
-                    ? NeedMethod.Held(Custody, RescueHeld, "Critical eligible dependent rescue belongs to CriticalMedicine; other custody transport requires shared forecast support.")
+                    ? NeedMethod.Held(Custody, RescueHeld, "Critical eligible dependent rescue belongs to the patient's medical/critical Need; other custody transport requires shared forecast support.")
                     : NeedMethod.Held(Custody, CaptureHeld, "Population acquisition requires shared participant and custody outcome alternatives."));
             }
         }

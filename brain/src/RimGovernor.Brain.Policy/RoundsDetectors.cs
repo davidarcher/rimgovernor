@@ -90,16 +90,6 @@ public static partial class PolicyFunctions
         }
     }
 
-    internal static void InspectCriticalMedicine(RoundsRun c)
-    {
-        var medicalMet = Measured(c.F.CriticalPatients, v => v == 0);
-        if (!Positive(medicalMet))
-        {
-            c.Raise(CriticalMedicine);
-        }
-        c.Assess(CriticalMedicine, medicalMet);
-    }
-
     internal static void InspectRestoreWorkers(RoundsRun c)
     {
         var f = c.F;
@@ -221,58 +211,6 @@ public static partial class PolicyFunctions
             c.Raise(EnsureDefensiveLayout);
         }
         c.Assess(EnsureDefensiveLayout, recovered);
-    }
-
-    internal static void InspectMedicalReserves(RoundsRun c)
-    {
-        var f = c.F;
-        var medicine = c.Medicine;
-        // A plan issued for the care phase is not a medicine bill.
-        var active = medicine.Active || (f.IsIssued(MaintainMedicalReserves) && c.Previous.Medical != Phase.MedicalCare);
-        var reserveRecovered = Unknown<bool>();
-        if (medicine.Stock.TryGetValue(out _))
-        {
-            reserveRecovered = Known(!active);
-        }
-        // MaintainMedicalReserves is the one medical upkeep goal: resting and hospital care for the sick
-        // first then the medicine stock. The care phase keeps its pre-merge shape:
-        // priority 2, no ranked method and no labor, since work assignments own disease rest and monitoring
-        // recovery must not reserve execution capacity while the pawn rests.
-        var recovered = AllFacts(f.MedicalCareRecovered, reserveRecovered);
-        if (!Positive(f.MedicalCareRecovered))
-        {
-            c.R.Latches.Medical = Phase.MedicalCare;
-            var g = c.Raise(MaintainMedicalReserves);
-            g.MethodUnavailable = true;
-        }
-        else if (!Positive(reserveRecovered))
-        {
-            c.R.Latches.Medical = Phase.MedicalReserves;
-            c.Raise(MaintainMedicalReserves);
-        }
-        c.Assess(MaintainMedicalReserves, recovered);
-    }
-
-    /// <summary>An operation the planner serves stands on a living colonist until the health change removes it.</summary>
-    internal static void InspectSurgery(RoundsRun c)
-    {
-        var f = c.F;
-        var p = c.P;
-        // An actionable elective upgrade keeps it open too.
-        var recovered = AllFacts(SurgeryRecovered(f.MedicalPawns), Measured(ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts), owed => !owed));
-        // A sale organ harvest holds it open while the silver runway is short and a prisoner's organ clears
-        // its cost; a prisoner's recoverable artificial part too, and a peg-leg step: doctor training below
-        // the Medicine floor, prisoner control or a reinstall before release. A prisoner whose care allows
-        // better than herbal too.
-        if (SaleHarvestWanted(f, ReviewSilverShort(f, p, c.Medicine, c.Demand)) || PartRecoveryWanted(f) || PegCycleWanted(f, p.Prisoners()))
-        {
-            recovered = Known(false);
-        }
-        c.Assess(MaintainSurgery, recovered);
-        if (!Positive(recovered))
-        {
-            c.Raise(MaintainSurgery);
-        }
     }
 
     /// <summary>A ranked development project: the deficit is the measured fraction of facilities no colonist reaches.</summary>

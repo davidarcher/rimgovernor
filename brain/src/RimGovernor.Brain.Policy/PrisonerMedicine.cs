@@ -75,7 +75,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Adds PrisonerSurgeryHerbal herbal medicine to needs while a sale harvest or stock recovery (the ones
-    /// that hold MaintainSurgery open) is blocked only by the prisoner care limit.
+    /// that keep the medical/surgery Need unmet) is blocked only by the prisoner care limit.
     /// </summary>
     public static IReadOnlyDictionary<Resource, long> PrisonerHerbalNeeds(IReadOnlyDictionary<Resource, long> needs, RoundsFacts f, Fact<bool> silverShort)
     {

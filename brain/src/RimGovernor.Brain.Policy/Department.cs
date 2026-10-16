@@ -55,8 +55,6 @@ public static partial class PolicyFunctions
         [EnsureDefensiveLayout] = 1,
 
         // Medical
-        [MaintainMedicalReserves] = 1,
-        [MaintainSurgery] = 1,
         [MaintainGeneBank] = 1,
 
         // People

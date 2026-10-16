@@ -187,7 +187,7 @@ public sealed partial class ClockScheduler
     internal bool ImmediateConfigured()
     {
         var c = Config;
-        return c.Rounds is not null && (c.Defense is not null || c.Tend is not null || c.Rescue is not null || c.Recovery is not null || c.MaintainShelter is not null
+        return c.Rounds is not null && (c.Defense is not null || c.Recovery is not null || c.MaintainShelter is not null
             || c.Families.Any(f => f.Immediate));
     }
 
@@ -318,7 +318,7 @@ public sealed partial class ClockScheduler
                 plans.Add(plan);
             }
 
-            foreach (var kind in entry.Kinds)
+            foreach (var kind in entry.Family?.Schedule.ProtectionKinds ?? entry.Kinds)
             {
                 if (kind != ActionKind.RecoveryService)
                 {

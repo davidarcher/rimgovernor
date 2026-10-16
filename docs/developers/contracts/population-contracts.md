@@ -40,12 +40,12 @@ Ideology is active. Execution and non-exclusive toggles are player-only.
   `HarvestedOrgan` (and `SoldOrgan` when selling); without Ideology it is Core's thought.
 - **Medical care.** Each colony prisoner carries `medical_care`; an operation reads
   `medicine_care_limited` when medicine it takes is stocked but that care level forbids it. Prisoners
-  stay at herbal care at most: MaintainSurgery pins a prisoner above `HerbalOrWorse` back to it through
+  stay at herbal care at most: the `medical/surgery` Need pins a prisoner above `HerbalOrWorse` back to it through
   a care-only `WorkSettingsIntent` (native accepts it on a living colony prisoner) and never raises it.
   A harvest or part recovery blocked only by the limit is logged as refused and adds a `MedicineHerbal`
   want to economy/resource's targets.
 - **Peg legs.** A colony prisoner carries `withdrawal` (a drug addiction a prisoner cannot feed). A
-  legless prisoner is never released until MaintainSurgery puts a peg leg back.
+  legless prisoner is never released until the `medical/surgery` Need puts a peg leg back.
 
 ### Prisoner use (`prisoners/recruit`, `policy.prisonerUse`)
 

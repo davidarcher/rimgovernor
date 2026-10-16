@@ -192,7 +192,7 @@ and only the listed `items` (with `holders` and `corpses`) are then a
 The hospital row is a hosted function rather than a room of its own: the game
 scores a room as Hospital only when every bed in it is medical, so a colony's
 first medical bed stands in a Bedroom, Barracks or generic Room, and the
-catalog lists those as its hosts. Under a `MaintainMedicalReserves` care-phase deficit the
+catalog lists those as its hosts. While the `medical/care` Need is unmet the
 ward is sized by the living colonists who should seek medical rest (a bad
 condition such as a scar keeps the deficit but asks for no bed), counted
 against the medical, humanlike, non-prisoner beds in hosting rooms. Short of that count it flags an

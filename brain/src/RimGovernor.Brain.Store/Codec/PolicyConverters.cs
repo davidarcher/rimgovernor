@@ -2253,7 +2253,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
             Hot = e.Bool("Hot"),
             Dash = e.Get<DashWindow>("Dash", o),
             Housing = e.Get<Phase>("Housing", o),
-            Medical = e.Get<Phase>("Medical", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsLatches v, Codecs o)
@@ -2265,7 +2264,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         w.WriteBoolean("Hot", v.Hot);
         w.Put("Dash", v.Dash, o);
         w.Put("Housing", v.Housing, o);
-        w.Put("Medical", v.Medical, o);
     }
 }
 

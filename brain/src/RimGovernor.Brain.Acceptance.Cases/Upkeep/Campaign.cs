@@ -18,7 +18,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// property is the issue's: no deficit reopens without recovery. A reopen is recorded and the goal must be recovered
 /// again within reopenTicks and before the stage ends; a goal that is rebound, cancelled or invalidated fails at once.
 ///
-///   medicine -- test/medicine_setup: no medicine, MaintainMedicalReserves.
+///   medicine -- test/medicine_setup: no medicine, the medical/reserves Need.
 ///   cold     -- routine_sleeping_prepare + routine_temperature_prepare (coldSnap: days have passed, so ordinary cold
 ///               snaps bring the afternoon under the campfire threshold), EnsureTemperatureSafety; last because a
 ///               campfire's fuel is finite and its reopening would be the fixture's, not a regression.
@@ -99,7 +99,7 @@ internal static class UpkeepCampaign
             new(sc.Name, sc.Fixture, sc.Families, needs, sc.Prepare, sc.Watch, sc.Verify);
         var stages = new List<CampaignStage>
         {
-            FromScenario(all["medicine"], PolicyFunctions.MaintainMedicalReserves),
+            FromScenario(all["medicine"], PolicyFunctions.MedicalReservesNeed.FilingKey),
             FromScenario(all["cold"], PolicyFunctions.EnsureTemperatureSafety),
         };
         // Days of play have passed by the last stage; the fixture cools the map with ordinary cold snaps rather than
