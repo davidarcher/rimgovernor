@@ -507,7 +507,7 @@ built: the footprint, the reachability verdict, delivery (the observed zone
 state), per-body fisher capacity and the research lead.
 
 The shared tick food plan includes these rows. An admitted Open channel requests
-Fishing through EnsureResearch when needed; research lead is the remaining project
+Fishing through the `economy/research` Need when needed; research lead is the remaining project
 cost over the fastest researcher's daily points. The field family creates the selected fishing
 zone through the shared concern, admission and zone Hands path. Work allocation
 uses the native `Fishing` type and Animals skill. The proposed footprint is the

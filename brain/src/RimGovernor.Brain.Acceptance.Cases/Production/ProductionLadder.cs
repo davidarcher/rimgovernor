@@ -233,11 +233,8 @@ internal static class ProductionLadder
             ?? throw new AcceptanceException($"{resource} was never bound in the rounds");
         report[resource.ToLowerInvariant() + "_standard"] = goal;
 
-        // EnsureResearch is a Project: its own row, not a goal.
-        var researchConcern = PolicyFunctions.EnsureResearch.Value;
-        var research = await journal.StandardSummaryAsync(researchConcern, cancellationToken).ConfigureAwait(false)
-            ?? throw new AcceptanceException($"{researchConcern} was never bound in the rounds");
-        report[researchConcern.ToLowerInvariant() + "_standard"] = research;
+        // Research is the economy family's Need (#3263): its sample, not a Standard.
+        report["economy_research_need"] = await journal.SampleStandardAsync(EconomyFamily.Research.Value, cancellationToken).ConfigureAwait(false);
         report["production_ladder"] = await journal.ProductionLadderAsync(cancellationToken).ConfigureAwait(false);
 
         var live = await h.CallAsync("final-audit", AuditOp, new JsonObject(), cancellationToken).ConfigureAwait(false);

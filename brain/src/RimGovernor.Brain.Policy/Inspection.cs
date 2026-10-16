@@ -56,7 +56,6 @@ internal static class InspectionRegistry
         new(ClearPests, ConcernType.StandardConcern, Department.Military, [FactFamily.Colony, FactFamily.World], InspectPests),
         new(MaintainEquipment, ConcernType.StandardConcern, Department.Military, [FactFamily.Pawns, FactFamily.Colony], InspectEquipment),
         new(MaintainTraining, ConcernType.StandardConcern, Department.Military, [FactFamily.Pawns, FactFamily.Rooms, FactFamily.Colony], InspectTraining),
-        new(EnsureResearch, ConcernType.OnceConcern, Department.Industry, [FactFamily.Research, FactFamily.Pawns, FactFamily.Colony], InspectResearch),
         new(MaintainResource, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony, FactFamily.Definitions, FactFamily.Research, FactFamily.Pawns], InspectResource),
         new(TradeWithCaravan, ConcernType.IncidentConcern, Department.Industry, [FactFamily.World, FactFamily.Colony, FactFamily.Definitions, FactFamily.Pawns], InspectTrade),
         new(EnsureDefensiveLayout, ConcernType.OnceConcern, Department.Military, [], InspectDefensiveLayout),

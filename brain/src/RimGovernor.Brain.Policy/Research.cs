@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// EnsureResearch opening slice: pure, native-shape-preserving primitives (prerequisite queue, eligible
+// The research Need (economy family): pure, native-shape-preserving primitives (prerequisite queue, eligible
 // researchers, usable laboratories). No domain/store/executor/bridge/buildingruntime wiring exists yet for
 // this goal; these functions only make the deterministic method-selection logic available ahead of that wiring.
 

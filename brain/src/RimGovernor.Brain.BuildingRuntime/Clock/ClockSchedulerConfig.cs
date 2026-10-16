@@ -102,8 +102,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsPopulationJoinerPlanner? PopulationJoiner { get; init; }
 
-    public RoundsResearchPlanner? Research { get; init; }
-
     public RoundsResourcePlanner? Resource { get; init; }
 
     public RoundsHomeCoveragePlanner? HomeCoverage { get; init; }

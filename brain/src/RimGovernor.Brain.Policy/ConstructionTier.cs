@@ -72,7 +72,7 @@ public static partial class PolicyFunctions
         {
             return phase == Phase.HousingSleeping ? ConstructionTier.Sustain : ConstructionTier.Survive;
         }
-        if (concern == EnsureCooking || concern == EnsureResearch)
+        if (concern == EnsureCooking || concern == EconomyFamily.Research.FilingKey)
         {
             return ConstructionTier.Survive;
         }

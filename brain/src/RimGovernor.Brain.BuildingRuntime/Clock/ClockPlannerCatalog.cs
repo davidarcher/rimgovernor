@@ -124,7 +124,6 @@ internal static class ClockPlannerCatalog
     private static readonly FactSection[] SectionsWork = [FactSection.Pawns, FactSection.Population, FactSection.Emergency, FactSection.Colony, FactSection.Buildings];
     private static readonly FactSection[] SectionsRecovery = [FactSection.Pawns, FactSection.Emergency, FactSection.Colony];
     private static readonly FactSection[] SectionsCustody = [FactSection.Pawns, FactSection.Population, FactSection.Emergency, FactSection.Colony];
-    private static readonly FactSection[] SectionsResearch = [FactSection.Research, FactSection.Colony, FactSection.Buildings, FactSection.Rooms];
     private static readonly FactSection[] SectionsResource = [FactSection.Colony, FactSection.Bills, FactSection.Buildings, FactSection.Zones];
     // The bills and threat sets plus the research census the armory tier is capped by.
     private static readonly FactSection[] SectionsArmory = [FactSection.Colony, FactSection.Bills, FactSection.Pawns, FactSection.Emergency, FactSection.Research];
@@ -270,8 +269,6 @@ internal static class ClockPlannerCatalog
             [ActionKind.Tend, ActionKind.RecoveryService, ActionKind.QuestAccept, ActionKind.QuestShuttle, ActionKind.HackDesignation, ActionKind.GiveItem, ActionKind.Ritual, ActionKind.DialogAnswer, ActionKind.ZoneCreate, ActionKind.Acquisition, ActionKind.MineAcquisition, ActionKind.PrisonerInteraction, ActionKind.Building, ActionKind.MoveBuilding, ActionKind.Haul, ActionKind.CaravanDeparture],
             SectionsMedical,
             c => c.PopulationJoiner is not null, (s, ct, e, a) => s.Config.PopulationJoiner!.StepAsync(a, ct, e), (o, m) => o.PopulationJoiner = m),
-        E("research", O, [ActionKind.ResearchSelect, ActionKind.Building], SectionsResearch,
-            c => c.Research is not null, (s, ct, e, a) => s.Config.Research!.StepAsync(a, ct, e), (o, m) => o.Research = m, EnsureResearch),
         E("dialog", C, [ActionKind.DialogAnswer], SectionsColony,
             c => c.Dialog is not null, (s, ct, e, a) => s.Config.Dialog!.StepAsync(a, ct, e), (o, m) => o.Dialog = m),
         E("trade", O, [ActionKind.Trade, ActionKind.CommsTradeRequest], SectionsColony,

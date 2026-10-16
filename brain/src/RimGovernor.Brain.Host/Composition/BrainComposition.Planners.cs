@@ -67,7 +67,6 @@ public sealed partial class BrainComposition
         RoundsPsylinkPlanner? cfgPsylink = null;
         RoundsRecoveryPlanner? cfgRecovery = null;
         RoundsRescuePlanner? cfgRescue = null;
-        RoundsResearchPlanner? cfgResearch = null;
         RoundsResourcePlanner? cfgResource = null;
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
         RoundsRitualsPlanner? cfgRituals = null;
@@ -363,7 +362,8 @@ public sealed partial class BrainComposition
         }
         if (research)
         {
-            cfgResearch = RoundsResearchPlanner.NewRoundsResearchPlanner(reviewer, client);
+            // The research toggle composes the economy family's research Need (#3263).
+            families.Add(new EconomyRounds(reviewer, client).Runner());
         }
         if (dialog)
         {
@@ -500,7 +500,6 @@ public sealed partial class BrainComposition
             Psylink = cfgPsylink,
             Recovery = cfgRecovery,
             Rescue = cfgRescue,
-            Research = cfgResearch,
             Resource = cfgResource,
             ResourceAcquisition = cfgResourceAcquisition,
             Rituals = cfgRituals,
@@ -627,10 +626,6 @@ public sealed partial class BrainComposition
         {
             thresholds = thresholds with { DefensiveLayout = true };
             methods.Add(EnsureDefensiveLayout);
-        }
-        if (sc.ResearchPlans)
-        {
-            methods.Add(EnsureResearch);
         }
         if (sc.ResourceTargetsConfigured && !methods.Contains(MaintainResource))
         {

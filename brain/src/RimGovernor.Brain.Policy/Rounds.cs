@@ -557,10 +557,10 @@ public sealed record RoundsFacts
     /// <summary>The colony wealth split TradeWithCaravan's wealth-driven surplus keys on; unknown leaves that surplus out.</summary>
     public Fact<WealthFacts> Wealth { get; init; }
 
-    /// <summary>The native research state read inside the same paused identity bracket as the other routine facts. Unknown when the source cannot read research; missing facts never recover EnsureResearch.</summary>
+    /// <summary>The native research state read inside the same paused identity bracket as the other routine facts. Unknown when the source cannot read research; missing facts never meet the economy/research Need.</summary>
     public Fact<ResearchFacts> Research { get; init; }
 
-    /// <summary>The sorted ResearchProjectDefs other goals' recorded evidence is waiting on (the workshop ladder's research rung); the first unfinished one is EnsureResearch's target when none is configured.</summary>
+    /// <summary>The sorted ResearchProjectDefs other goals' recorded evidence is waiting on (the workshop ladder's research rung); the first unfinished one is the economy/research Need.s target.</summary>
     public EquatableArray<string> ResearchNeeds { get; init; }
 
     /// <summary>
@@ -738,7 +738,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureComfort = new("EnsureComfort");
     public static readonly ConcernId ClearPests = new("ClearPests");
     public static readonly ConcernId MaintainEquipment = new("MaintainEquipment");
-    public static readonly ConcernId EnsureResearch = new("EnsureResearch");
     public static readonly ConcernId MaintainResource = new("MaintainResource");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     public static readonly ConcernId TradeWithCaravan = new("TradeWithCaravan");

@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md)
 
-`EnsureResearch` shares ColonyPlan, priority arbitration and Hands. Advisory concerns cannot create
+The `economy/research` Need (#3263; was EnsureResearch) shares ColonyPlan, priority arbitration and Hands. Advisory concerns cannot create
 research orders.
 
 ## Target
@@ -31,7 +31,7 @@ knowledge, not research work: no researcher, no clock ticks and no bench unless 
 - The research read lists every unfinished knowledge project with its lock reasons (`hidden` while the
   entity codex hides it) and every category's slot (`ResearchRead.Knowledge`); only the ordinary
   slot's project is the current project.
-- An empty slot with a startable project of its own category is an `EnsureResearch` deficit (knowledge
+- An empty slot with a startable project of its own category is an `economy/research` deficit (knowledge
   arriving for a category with no project is lost). The step fills it, before the ordinary slot is
   judged, with the head of the concern's prerequisite queue when that head is a knowledge project, else
   the cheapest startable project of that category (`policy.KnowledgePick`: apparent cost, then name).
@@ -72,7 +72,7 @@ the shared development methods; dependent construction and production keep nativ
 and recipe preflight.
 
 When the next rung's only native lock is the research bench (`lock_reasons` holds just
-`research_building_or_facilities`), EnsureResearch walks the facility ladder instead of selecting: it
+`research_building_or_facilities`), the research Need walks the facility ladder instead of selecting: it
 stages a `SimpleResearchBench` in a room whose native role hosts the Laboratory facility (a Workshop,
 Barracks or plain room; the starter shell), else a starter shell first, through native placement and
 material admission. Selection follows once the bench stands. Holds: `research_bench_needed` (no
@@ -86,7 +86,7 @@ The planned laboratory (`PlannedLab`, an 11x6 interior) holds two hi-tech-width 
 row plus one reserved analyzer slot (2x2) on the room's centre line, clear of every worker cell and within the
 analyzer's link distance (8 cells) of each bench. `policy.RoomFurniture.AdvancedLab` and `Analyzer` are
 derived from the catalog (the other laboratory bench that links a research-speed facility, and that
-facility), never named; both are optional. EnsureResearch builds them ahead of need: once the census lists
+facility), never named; both are optional. The research Need builds them ahead of need: once the census lists
 the hi-tech bench buildable, it builds one in the planned laboratory (never the shelter's research slot),
 then the analyzer once the `MultiAnalyzer` project is done. Only an admitted building plan preempts the
 research step; every other outcome of the build-ahead (nothing owed, no space, a funding or placement hold)

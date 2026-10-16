@@ -324,7 +324,7 @@ public static partial class PolicyFunctions
             // doctors and the room's cleanliness into tending. Doctor coverage is AssignWork's standing
             // requirement; medicine is MaintainMedicalReserves.
             new() { Role = RoomRole.Hospital, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Bedroom, RoomRole.Barracks), FurnitureFromGame = true },
-            // A laboratory is a hosted research bench: EnsureResearch stages the simple bench in the shelter
+            // A laboratory is a hosted research bench: the economy/research Need stages the simple bench in the shelter
             // (scored a Barracks once the bunks stand) when a ladder rung waits on it.
             new() { Role = RoomRole.Laboratory, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Workshop, RoomRole.Barracks), FurnitureFromGame = true },
             // A workshop shares the shelter: the ladder furnishes the first enclosed room rather than siting a

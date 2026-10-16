@@ -27,14 +27,8 @@ public sealed class SnapshotPlanner
     /// <summary>Every SelectWorkshopBench request: the recipe catalog and bench census a workshop bench is chosen from.</summary>
     public List<WorkshopRequest> Workshops { get; } = [];
 
-    /// <summary>Every research selection's fresh census.</summary>
-    public List<ResearchCall> Research { get; } = [];
-
-    internal bool IsEmpty => Excavation.Count + Sites.Count + ResourceMethods.Count + Workshops.Count + Research.Count == 0;
+    internal bool IsEmpty => Excavation.Count + Sites.Count + ResourceMethods.Count + Workshops.Count == 0;
 }
-
-/// <summary>One research selection's inputs: the staged policy (armor rungs applied), the recorded research needs and the native research read without its observation context.</summary>
-public sealed record ResearchCall(RoundsPolicy Policy, IReadOnlyList<string> Needs, ResearchRead Read);
 
 /// <summary>One native excavation site read: what was asked (Purpose names the planner's question) and the reply without its observation context.</summary>
 public sealed record ExcavationRead(string Purpose, ExcavationTarget Target, IReadOnlyList<Cell> Cells, ExcavationSite Site);
@@ -151,13 +145,6 @@ public static partial class SnapshotPackage
 
     /// <summary>Records a workshop bench selection's request.</summary>
     public static void NoteWorkshop(WorkshopRequest r) => Add(p => p.Workshops.Add(r));
-
-    /// <summary>Records a research selection's inputs.</summary>
-    public static void NoteResearch(ResearchCall c)
-    {
-        c = c with { Read = c.Read with { Context = null } };
-        Add(p => p.Research.Add(c));
-    }
 
     /// <summary>
     /// Writes p into dir as planner-&lt;goal&gt;-&lt;tick&gt;-&lt;seq&gt;, seq the first from 1 not already taken (several steps at one paused tick

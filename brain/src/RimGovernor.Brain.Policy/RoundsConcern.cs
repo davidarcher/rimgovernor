@@ -14,7 +14,7 @@ public sealed record RoundsConcern
 }
 
 /// <summary>
-/// The review-time native research state EnsureResearch's need is measured against. Projects lists every
+/// The review-time native research state the economy/research Need is measured against. Projects lists every
 /// native project the census exposes so a configured target absent from the game stays unknown rather
 /// than an unbounded deficit.
 /// </summary>
@@ -175,7 +175,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// The project EnsureResearch pursues: the configured target when one is set, else the first derived
+    /// The project the research Need pursues: the configured target when one is set, else the first derived
     /// need the native research census lists and has not finished. Unknown facts keep the first derived
     /// need so the deficit stays unknown rather than recovered; no need at all is no target.
     /// </summary>
@@ -210,7 +210,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Resolves the project EnsureResearch pursues: the first unfinished project some need recorded (a bench
+    /// Resolves the project the research Need pursues: the first unfinished project some need recorded (a bench
     /// the workshop ladder gates, a planner waiting on research, the fishing and furniture requests). With no
     /// need nothing is researched. Derived is true for any target found.
     /// </summary>
@@ -250,7 +250,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Measures EnsureResearch: no target is certain recovery; a finished target is recovered; an idle
+    /// Measures the research Need: no target is certain recovery; a finished target is recovered; an idle
     /// research tab with the target unfinished is a full deficit. A current native project also recovers a
     /// configured target (player-chosen research is respected, never replaced), but not a derived one:
     /// another goal's ladder waits on that project, so the deficit stands, and the research planner asks the

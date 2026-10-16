@@ -340,33 +340,10 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// EnsureResearch and MaintainResource are operator-configured targets whose deficit is measured against
-    /// native facts read in this review: no target configured is certain recovery, a configured target with
-    /// missing facts is unknown, and RoundsResearchPlanner/RoundsResourcePlanner still re-read native state
-    /// immediately before proposing a method.
+    /// MaintainResource is an operator-configured target whose deficit is measured against native facts read in
+    /// this review: no target configured is certain recovery, a configured target with missing facts is unknown,
+    /// and RoundsResourcePlanner still re-reads native state immediately before proposing a method.
     /// </summary>
-    internal static void InspectResearch(RoundsRun c)
-    {
-        var f = c.F;
-        var p = c.P;
-        var researchNeeds = DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways, f.Items);
-        var (researchTarget, researchDerived) = ResearchConcern(researchNeeds, f.Research);
-        var (researchRecovered, researchDeficit) = ResearchTargetNeed(researchTarget, researchDerived, f.Research);
-        // An empty Anomaly knowledge slot with a project to fund is a spending need of its own; a disabled
-        // goal (no target, empty ladder) funds none.
-        if (f.Research.TryGetValue(out var facts) && facts.KnowledgePick.Value is { Length: > 0 } && researchNeeds.Count != 0)
-        {
-            researchDeficit.TryGetValue(out var deficit);
-            researchRecovered = Known(false);
-            researchDeficit = Known(Math.Max(deficit, 1.0));
-        }
-        if (!Positive(researchRecovered))
-        {
-            c.Raise(EnsureResearch).Deficit = researchDeficit;
-        }
-        c.Assess(EnsureResearch, researchRecovered);
-    }
-
     internal static void InspectResource(RoundsRun c)
     {
         var f = c.F;
@@ -399,8 +376,8 @@ public static partial class PolicyFunctions
             var g = c.Raise(MaintainResource);
             g.Deficit = resourceDeficit;
             // The ladder's research rung: while a project the workshop recorded as gating the bench is
-            // unfinished, the goal has no method of its own and holds no slot, so EnsureResearch can take
-            // one. Construction demand is chopped or mined meanwhile.
+            // unfinished, the goal has no method of its own and holds no slot; the economy/research Need works
+            // the project. Construction demand is chopped or mined meanwhile.
             g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && c.Demand.Works.Count == 0;
         }
         c.Assess(MaintainResource, resourceRecovered);
@@ -444,7 +421,7 @@ public static partial class PolicyFunctions
         c.Assess(TradeWithCaravan, TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity()))));
     }
 
-    /// <summary>EnsureDefensiveLayout is config-only like EnsureResearch: opt-in activates the goal at priority 3 (after the storage gate) and the planner reports no work once every tier stands.</summary>
+    /// <summary>EnsureDefensiveLayout is config-only: opt-in activates the goal at priority 3 (after the storage gate) and the planner reports no work once every tier stands.</summary>
     internal static void InspectDefensiveLayout(RoundsRun c)
     {
         var recovered = Known(!c.P.DefensiveLayout);

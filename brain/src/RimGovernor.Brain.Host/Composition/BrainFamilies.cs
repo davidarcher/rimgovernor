@@ -294,7 +294,7 @@ public sealed record BrainFamilies
     /// <summary>The name of every enabled family, in composition order (Go <c>activeRoundsFamilies</c>).</summary>
     public IReadOnlyList<string> Active() => [.. Entries.Where(e => e.Get(this)).Select(e => e.Name)];
 
-    /// <summary>Whether EnsureResearch is composed (Go <c>researchPlans</c>).</summary>
+    /// <summary>Whether the economy family's research Need is composed (Go <c>researchPlans</c>).</summary>
     public bool ResearchPlans => Research;
 
     /// <summary>Whether MaintainResource runs (Go <c>resourceTargetsConfigured</c>).</summary>

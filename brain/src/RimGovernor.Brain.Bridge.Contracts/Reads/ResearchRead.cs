@@ -4,10 +4,10 @@ using RimGovernor.Contracts.Wire.Common;
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 /// <summary>
-/// Go's <c>ResearchRead</c>: the native research snapshot translated into EnsureResearch's policy shapes, which
-/// project (if any) is already current, the finished projects, and every project's facts from the definition
-/// catalog with the current projects' native lock reasons. It reviews only the fields EnsureResearch's dispatch
-/// vertical consumes. The read itself (<c>ReadResearch</c>, <c>readResearchSnapshot</c>) is wire plumbing and not
+/// Go's <c>ResearchRead</c>: the native research snapshot translated into the economy family's research shapes,
+/// which project (if any) is already current, the finished projects, and every project's facts from the
+/// definition catalog with the current projects' native lock reasons. It reviews only the fields the
+/// <c>economy/research</c> Need consumes. The read itself (<c>ReadResearch</c>, <c>readResearchSnapshot</c>) is wire plumbing and not
 /// ported.
 /// </summary>
 public sealed record ResearchRead
@@ -24,6 +24,15 @@ public sealed record ResearchRead
 
     /// <summary>Every Anomaly knowledge category's slot, sorted by category; empty when Anomaly is inactive.</summary>
     public IReadOnlyList<KnowledgeSlot> Knowledge { get; init; } = [];
+
+    /// <summary>The policy census of this read, without its observation context.</summary>
+    public ResearchCensus Census() => new()
+    {
+        Current = CurrentProject,
+        Projects = Projects,
+        Finished = [.. Finished],
+        Knowledge = [.. Knowledge],
+    };
 }
 
 public static partial class BridgeFunctions

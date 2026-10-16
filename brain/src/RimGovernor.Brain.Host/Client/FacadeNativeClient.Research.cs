@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Host;
 internal sealed partial class FacadeNativeClient
 {
     /// <summary>
-    /// Go <c>Client.ReadResearch</c>: the native research snapshot translated into EnsureResearch's policy shapes. It
+    /// Go <c>Client.ReadResearch</c>: the native research snapshot translated into the economy family's research shapes. It
     /// reads the definition catalog first (every project's static facts) and merges the progress rows over it.
     /// </summary>
     internal async Task<(ResearchRead Value, BridgeResult Receipt)> ReadResearchAsync(PbCommon.Identity identity, CancellationToken cancellationToken)

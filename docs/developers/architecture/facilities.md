@@ -27,11 +27,11 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
 2. **Research**: when the first bench that could produce a `MaintainResource`
    deficit is gated only by unfinished research, the workshop planner records
    the projects on the `production_ladder` journal record and steps aside. The
-   next rounds read that record as the derived `EnsureResearch`
-   target (`policy.ResearchConcern`: the default research ladder follows when no need is
-   recorded, see [research](../contracts/research.md)), raises the concern, and
+   next rounds read that record as the derived `economy/research`
+   Need target (`policy.ResearchConcern`: the default research ladder follows when no need is
+   recorded, see [research](../contracts/research.md)), marks the Need unmet, and
    adds Research to the work requirements so a researcher is assigned;
-   `RoundsResearchPlanner` selects the prerequisite chain natively.
+   the economy family selects the prerequisite chain natively.
    Finishing the project clears the record on the next workshop step.
 3. **Power**: a bench that needs power is staged only once a generator
    definition is buildable; standing unpowered it is an ordinary consumer for
@@ -60,8 +60,8 @@ Each rung reports an explicit reason when it cannot proceed
 (`workshop_research_needed`, `workshop_bench_unavailable`, `no_space`,
 `unknown`) rather than staging something else. A research bench itself is the
 Laboratory row: when the research ladder's next rung is locked only for lack
-of a bench, `RoundsResearchPlanner` walks the same furnish-or-shell ladder
-under `EnsureResearch` for a `SimpleResearchBench` (`routine-laboratory-*`
+of a bench, the economy family walks the same furnish-or-shell ladder
+under `economy/research` for a `SimpleResearchBench` (`laboratory-*`
 plans) and selects the rung once it stands. A table still standing in a retiring
 shelter is packed with the rest of the retired ground and installed in the
 laboratory from stock; no separate pass relocates it.

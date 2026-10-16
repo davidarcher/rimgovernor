@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// Explicit intent to set the native current research project to one already-queued, prerequisite-ordered
-/// ResearchProjectDef. It is sent as a ResearchIntent on Actions/Apply; EnsureResearch's routine planner
+/// ResearchProjectDef. It is sent as a ResearchIntent on Actions/Apply; the economy/research Need
 /// proposes one only while no native research project is current.
 /// </summary>
 public sealed record ResearchSelect : IActionPayload

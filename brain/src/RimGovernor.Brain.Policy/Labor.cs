@@ -25,7 +25,6 @@ public static partial class PolicyFunctions
 
         // A sale batch at any crafting bench: sculpture, apparel, weapon.
         Set([WorkType.Art, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MaintainTrade);
-        Set([WorkType.Research], EnsureResearch);
         Set([WorkType.Mining, WorkType.PlantCutting, WorkType.Crafting], MaintainResource);
 
         // A wear order is a forced job any pawn carries; the replacement bill needs the bench's work type.

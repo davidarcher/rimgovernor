@@ -290,7 +290,7 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>
     /// The research the workshop ladder recorded as gating a bench for a still-targeted resource or active
-    /// equipment deficit, the derived EnsureResearch target when no operator target is configured.
+    /// equipment deficit: the economy/research Need's target.
     /// </summary>
     internal static IReadOnlyList<string> RoundsResearchNeeds(StoreJournal journal, Pol.RoundsPolicy p, Pol.ItemFacts items, GenerationSnapshot snapshot, CancellationToken ct)
     {

@@ -147,7 +147,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (1, new MethodId("hospital-" + Definition), default);
         }
-        if (c == PolicyApi.EnsureResearch)
+        if (c == EconomyFamily.Research.FilingKey)
         {
             return (1, new MethodId("laboratory-" + Definition), default);
         }

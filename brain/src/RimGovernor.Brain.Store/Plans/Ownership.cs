@@ -282,7 +282,17 @@ public sealed partial class Store
             StandardPlanLinks("building", " AND COALESCE(json_extract(a.body,'$.Payload.ConstructionTarget'),'')=''", ReceiptAccepted, "LIMIT 257"),
             current
         );
-        if (links.Count > MaxConstructionClaims)
+        // A Need-owned plan (#3263) claims what it builds as a Standard's does, filed under the Need's key.
+        var needs = tx.Query(
+            $"""
+                SELECT m.plan_id,m.need_id FROM need_methods m
+                 WHERE m.colony=$colony AND m.load_token=$load AND m.map_id=$map
+                 AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='building' AND COALESCE(json_extract(a.body,'$.Payload.ConstructionTarget'),'')='' AND {ReceiptAccepted})
+                 ORDER BY m.plan_id LIMIT 257
+                """,
+            [("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map)],
+            r => (Plan: new PlanId(r.GetString(0)), Need: new NeedId(r.GetString(1))));
+        if (links.Count + needs.Count > MaxConstructionClaims)
         {
             return default;
         }
@@ -306,6 +316,21 @@ public sealed partial class Store
                     continue;
                 }
                 result.Add(new ConstructionClaim { Plan = link.Plan, Action = progress.View.Action, Concern = g.Kind, Building = building });
+                if (result.Count > MaxConstructionClaims)
+                {
+                    return default;
+                }
+            }
+        }
+        foreach (var link in needs)
+        {
+            foreach (var progress in LoadIn(tx, link.Plan).Progress)
+            {
+                if (progress.Action.Building is not { } building || progress.Action.ConstructionTarget.Length != 0 || !CompletedInScope(progress.View, current, tick))
+                {
+                    continue;
+                }
+                result.Add(new ConstructionClaim { Plan = link.Plan, Action = progress.View.Action, Concern = link.Need.FilingKey, Building = building });
                 if (result.Count > MaxConstructionClaims)
                 {
                     return default;

@@ -244,6 +244,12 @@ public sealed partial class RoundsBuildingPlanner
                 // ring and the slot are admitted together, and ReconcileRoom leaves the ring alone while its wave is open.
                 continue;
             }
+            if (r.Need.IsValid)
+            {
+                // A Need-owned step has no whole-owner guard: its Methods are admitted by their claims, and a
+                // MethodId already committed is not re-issued (MethodOnce).
+                continue;
+            }
             if (StorePackage.PlanOpen(plan))
             {
                 return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
@@ -304,7 +310,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             definitions = r.Workshop!.Candidates;
         }
-        if (r.Concern == MaintainMedicalReserves || r.Phase == Pol.Phase.HousingSleeping || r.Concern == EnsureResearch)
+        if (r.Concern == MaintainMedicalReserves || r.Phase == Pol.Phase.HousingSleeping || r.Concern == EconomyFamily.Research.FilingKey)
         {
             // The beds and the research bench are the furniture rules', read with every catalog (ColonyProjection.Shapes).
             definitions = [];
@@ -449,7 +455,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 (resolved, reason) = r.SelectHospital(facts);
             }
-            else if (r.Concern == EnsureResearch)
+            else if (r.Concern == EconomyFamily.Research.FilingKey)
             {
                 (resolved, reason) = r.SelectResearchBench(facts);
             }

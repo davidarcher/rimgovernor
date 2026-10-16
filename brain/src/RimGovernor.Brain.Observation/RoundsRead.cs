@@ -518,27 +518,8 @@ public static partial class ObservationPackage
     }
 
     /// <summary>The research census; unknown when the frame carries none.</summary>
-    internal static Fact<ResearchFacts> FrameResearch(ResearchRead? read)
-    {
-        if (read is null)
-        {
-            return Unknown<ResearchFacts>();
-        }
-        var facts = new ResearchFacts { Current = new ResearchProjectId(read.CurrentProject) };
-        if (read.CurrentProject != "")
-        {
-            facts = facts with { CurrentBenchMissing = PolicyFunctions.ResearchBenchNeeded(read.Projects.GetValueOrDefault(read.CurrentProject) ?? new ResearchProjectFacts()) };
-        }
-        var projects = read.Projects.Keys.Select(name => new ResearchProjectId(name)).ToList();
-        projects.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
-        facts = facts with
-        {
-            Projects = EquatableArray.From(projects),
-            Finished = [.. read.Finished.Select(name => new ResearchProjectId(name))],
-            KnowledgePick = new ResearchProjectId(PolicyFunctions.KnowledgePick(read.Projects, read.Finished, read.Knowledge)),
-        };
-        return Known(facts);
-    }
+    internal static Fact<ResearchFacts> FrameResearch(ResearchRead? read) =>
+        read is null ? Unknown<ResearchFacts>() : Known(PolicyFunctions.ResearchSummary(read.Census()));
 
     /// <summary>The primary ideoligion; unknown when the frame carries no ideology section.</summary>
     internal static Fact<Ideoligion> FrameIdeology(Ideoligion? read) => read is null ? Unknown<Ideoligion>() : Known(read);

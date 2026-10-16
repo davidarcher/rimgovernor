@@ -24,7 +24,7 @@ public static class OperationIntent
         [MaintainSurgery] = "Surgery",
         [RefrigerationNeed.FilingKey] = "Refrigeration",
         [EnsureComfort] = "Comfort",
-        [EnsureResearch] = "Research",
+        [EconomyFamily.Research.FilingKey] = "Research",
         [EnsureWorkAssignments] = "Work",
         [ManageSupplySafety] = "Supply safety",
         [MaintainEquipment] = "Equipment",

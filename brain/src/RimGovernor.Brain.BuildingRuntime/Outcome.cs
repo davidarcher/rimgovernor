@@ -109,7 +109,7 @@ public readonly record struct Verdict(Outcome Outcome, Refusal Refusal = default
     public static Verdict AwaitingMethod<TMethod>(TMethod method)
         where TMethod : struct, Enum => AwaitingPlan(Wire.Name(method), "");
 
-    /// <summary>The refusal of a method that needs a native research project the census has not finished; EnsureResearch's roadmap is what gets there.</summary>
+    /// <summary>The refusal of a method that needs a native research project the census has not finished; the economy/research Need is what gets there.</summary>
     public static Verdict ResearchWait(string project) => AwaitingPlan("research", project);
 
     /// <summary>The refusal of a method the food plan does not yet support: capacity names what the plan has to provide.</summary>

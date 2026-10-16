@@ -558,7 +558,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { MedicalCareOwed = PolicyApi.MedicalCareOwed(reading.Projection.Facts, Policy.MedicalReserve) });
         reading = reading.WithFacts(rf => rf with { NamesOwed = PolicyApi.NamesOwed(reading.Projection.Facts.OwnedNames) });
         reading.Projection.ApplyFieldBudget(Seasonal(reading.Projection.Facts).FoodTargetDays);
-        // The workshop ladder's recorded research rung is the derived EnsureResearch target; it is journal
+        // The workshop ladder's recorded research rung is the derived economy/research target; it is journal
         // evidence, not a native read, so a review costs no extra call for it.
         var needs = RoundsResearchNeeds(p.Journal, Policy, reading.Projection.Facts.Items, state.Snapshot, ct);
         needs = CensusResearchNeeds(needs);

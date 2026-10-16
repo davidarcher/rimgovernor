@@ -311,6 +311,19 @@ and room definitions when `RoundsCapabilities.Needs` lists the Need (a Need has 
 registry row, so it is not a `Methods` entry). The CookAheadFood bill declares
 under the Need's filing key and reports the Need's standing.
 
+**Economy family, research (#3263).** `economy/research` (Development) replaced
+EnsureResearch: unmet while the first unfinished recorded research need (the
+workshop ladder's rung, planner waits, fishing and furniture requests, deep
+drilling) is unfinished, or while an empty Anomaly knowledge slot has a project
+to fund; unknown when the census is unread. Its pure Method is
+`research-<project>` (one ResearchSelect, claiming `research/<project>`); a
+current project or a bench-locked rung holds the Need. The family's work step
+raises the laboratory benches (`laboratory-<def>`, the high-tech bench and the
+analyzer) under the same Need owner beside the selection, so the two no longer
+serialize. `ConstructionClaimsIn` reads Need-owned building plans too. A Need's
+MethodIds are once per Need history, so a destroyed bench is not rebuilt under
+the same id. MaintainResource and trade stay Concerns until the rest of #3263.
+
 **Per-family migration checklist** (as followed for food-stores/storage):
 
 1. Write the facts record and `IFamily` in Policy: `Derive` from the Inspect body
@@ -359,7 +372,7 @@ three ways.
 | Prisoners | MaintainPopulation (prisoner recruit, custody) |
 | Joiners and quests | MaintainPopulation (joiners, quests, letters, ceremonies, decrees, monuments, departures, refugees, grav inspection) |
 | Anomaly | MaintainPopulation (entity capture, door, tend, bioferrite, monolith); lance placement is decided when the slice is groomed |
-| Economy | EnsureResearch, MaintainResource, MaintainTrade, TradeWithCaravan, trade missions |
+| Economy | `economy`: Need `research` (#3263; EnsureResearch deleted); MaintainResource, MaintainTrade, TradeWithCaravan, trade missions |
 | Colony admin | EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles, MaintainBurial, ManageSupplySafety, ManageCreepJoiners |
 | People | EnsureMood, AnswerDialog |
 | Disaster | RecoverDisasterServices |

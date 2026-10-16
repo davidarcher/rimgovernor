@@ -95,8 +95,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsPopulationJoinerResult? PopulationJoiner { get; set; }
 
-    public RoundsResearchResult? Research { get; set; }
-
     public RoundsResourceResult? Resource { get; set; }
 
     public RoundsHomeCoverageResult? HomeCoverage { get; set; }
@@ -206,7 +204,6 @@ public sealed class ClockSchedulerResult
         PrisonerInteraction = other.PrisonerInteraction ?? PrisonerInteraction;
         PopulationCustody = other.PopulationCustody ?? PopulationCustody;
         PopulationJoiner = other.PopulationJoiner ?? PopulationJoiner;
-        Research = other.Research ?? Research;
         Resource = other.Resource ?? Resource;
         HomeCoverage = other.HomeCoverage ?? HomeCoverage;
         MaintainShelter = other.MaintainShelter ?? MaintainShelter;
