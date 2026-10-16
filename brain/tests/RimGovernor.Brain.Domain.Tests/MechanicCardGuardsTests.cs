@@ -19,8 +19,21 @@ public sealed class MechanicCardGuardsTests
 
     private static CardGuardFacts Fresh(WasteItem corpse) => new() { Target = corpse, Colonists = Colonists };
 
+    // The sarcophagus rows left the shipped tables with the corpse-shaped search (#3284); the evaluator is still tested
+    // against the shipped unreachable card through them as a fixture.
+    private static readonly CardSymbolBinding[] Rows =
+    [
+        new("Corpse.everBuriedInSarcophagus", f => f.Target.CorpseOf == CorpseOf.None ? Unknown<bool>() : Known(f.Target.EverBuriedInSarcophagus)),
+        new("RaceProperties.Humanlike", f => f.Target.CorpseOf == CorpseOf.None ? Unknown<bool>() : Known(f.Target.CorpseOf != CorpseOf.Animal)),
+        new("MapPawns.FreeColonists", f => f.Colonists.TryGetValue(out var c) ? Known(c.Count > 0) : Unknown<bool>()),
+        new("Pawn_NeedsTracker.mood", f => f.Colonists.TryGetValue(out var c) ? Known(c.Any(p => p.Mood.IsKnown)) : Unknown<bool>()),
+        new("Building_Sarcophagus.everNonEmpty", f => f.Waste.Any(w => w.State == WasteState.Buried && w.Grave == f.Instance) ? Known(true) : Unknown<bool>()),
+    ];
+
+    private static readonly CardSiteAction[] Haul = [new("Building_Sarcophagus.Notify_HauledTo", ActionKind.Haul, "colonist", ["Pawn.IsColonist"])];
+
     private static CardEvaluation Evaluate(MechanicCard card, CardGuardFacts facts, IReadOnlyList<CardSymbolBinding>? bindings = null) =>
-        MechanicCardGuards.Evaluate(card, Assert.Single(card.Sites), facts, bindings);
+        MechanicCardGuards.Evaluate(card, Assert.Single(card.Sites), facts, bindings ?? Rows, Haul);
 
     private static CardGuardResult Guard(CardEvaluation e, string decl) =>
         e.Guards.Single(g => (g.Guard.Expr.Decl ?? g.Guard.Expr.Args![0].Decl) == decl);
@@ -92,7 +105,7 @@ public sealed class MechanicCardGuardsTests
     [Fact]
     public void RemovedBindingRowIsUnknownAndNotUsable()
     {
-        var bindings = MechanicCardGuards.Bindings.Where(b => b.Decl != "RaceProperties.Humanlike").ToList();
+        var bindings = Rows.Where(b => b.Decl != "RaceProperties.Humanlike").ToList();
         var e = Evaluate(Verified, Fresh(Corpse(CorpseOf.Stranger)), bindings);
 
         var humanlike = Guard(e, "RaceProperties.Humanlike");
@@ -183,6 +196,15 @@ public sealed class MechanicCardGuardsTests
             null);
 
         Assert.Equal(["binding Corpse.everBuriedInGrave is not in the card file", "site Building_Grave.Notify_HauledTo is not in the card file"], problems);
+    }
+
+    [Fact]
+    public void TableCheckFailsOnAPreventionRowAtASiteWithoutACount()
+    {
+        var problems = GuardTableCheck.Problems(MechanicCards.ByDef, [],
+            [new CardSiteAction("Building_Sarcophagus.Notify_HauledTo", ActionKind.ApparelPolicy, MechanicCardGuards.DisallowCounted, [])], null);
+
+        Assert.Equal(["site Building_Sarcophagus.Notify_HauledTo has a guard that is not a count, so disallow-counted cannot falsify it"], problems);
     }
 
     [Fact]

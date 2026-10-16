@@ -356,42 +356,51 @@ public sealed class ForecastCoupledSelectionTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void EffectSourceBuildAndHaulWinsOnlyWhenItsMaterialIsFunded(bool funded)
+    public void TaintedParkaFilterWinsNearABreakAndLosesForAContentPawnWorkingOutsideInTheCold(bool nearBreak)
     {
-        // #3224: the generated build -> haul chain spliced in as the family hook will; the build's wood is a timed input.
-        var facts = Review(level: 1, fall: 0);
-        if (funded)
-        {
-            facts = facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 60)]) };
-            facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-            facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
-        }
+        // #3284: the generated "tainted not allowed" candidate (+5 mood, 20 less cold insulation) spliced in as #3285 will.
+        var root = Assert.Single(GenerateEffectSources(EffectSourceCandidatesTests.Facts(),
+            new Dictionary<string, MechanicCard> { ["DeadMansApparel"] = MechanicCards.ByDef["DeadMansApparel"] with { Status = MechanicCardStatus.Verified } }).Roots);
+        // Near the break the pawn is fed; the content pawn is hungry, so it takes the outdoor harvest work.
+        var facts = nearBreak ? Review(level: 1, fall: 0) : Review();
         var candidates = facts.CoupledAlternatives!;
-        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = Known(.28), MoodTarget = Known(.28), MoodUnclampedTarget = Known(.28) };
-        var generated = GenerateEffectSources(EffectSourceCandidatesTests.Facts() with { Needs = candidates.Context.Needs with { Pawns = [pawn] } },
-            new Dictionary<string, MechanicCard> { ["KnowBuriedInSarcophagus"] = MechanicCards.ByDef["KnowBuriedInSarcophagus"] with { Status = MechanicCardStatus.Verified } });
-        var family = generated.Family.Problem!;
-        var root = Assert.Single(generated.Roots);
-        var problem = candidates.Context.Activities;
+        var mood = nearBreak ? .28 : .9;
+        var pawn = candidates.Context.Needs.Pawns[0] with
+        { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood), ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) };
+        // The mild forecast has no thermal cells; the cold one is -10 C at every task cell, with the outdoor work on offer.
+        var cells = candidates.Context.Activities.Activities.SelectMany(t => new[] { t.Location, t.EndLocation })
+            .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct().Select(l => l.Split('/'))
+            .Select(p => new Cell(int.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture), int.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture)));
+        var outdoor = candidates.Alternatives.Where(c => c.ActivityCompletions.Count > 0);
         facts = facts with { CoupledAlternatives = candidates with
         {
-            Alternatives = [root], // against no-change only, as the mood-memory test isolates its alternatives
+            Alternatives = nearBreak ? [root] : [.. outdoor, root],
             Context = candidates.Context with
             {
                 Needs = candidates.Context.Needs with { Pawns = [pawn] },
-                Activities = problem with { Activities = [.. problem.Activities, .. family.Activities], Options = [.. problem.Options, .. family.Options],
-                    Routes = [.. problem.Routes, .. family.Routes] }
+                Shelters = nearBreak ? candidates.Context.Shelters : [],
+                Thermal = nearBreak ? candidates.Context.Thermal : new()
+                {
+                    Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", "", false, false, 0, false))),
+                },
             }
         } };
         var result = Select(facts);
-        if (funded)
+        if (nearBreak)
         {
             Assert.Equal([root.Id], result.Selection.Selected);
             Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
             return;
         }
+        Assert.NotEmpty(result.Selection.Selected);
         Assert.DoesNotContain(root.Id, result.Selection.Selected);
-        Assert.Contains(result.Rejected, r => r.Commitments.Contains(root.Id) && r.Reason == "infeasible_or_unassessed");
+        // The content pawn's break risk does not move, and with the selected outdoor work the thinner parka adds cold exposure.
+        Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
+        var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
+        double Cold(params ForecastCommitment[] add) => ForecastColony(CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay,
+                facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
+            .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
+        Assert.True(Cold([.. work, root]) > Cold(work));
     }
 
     [Fact]

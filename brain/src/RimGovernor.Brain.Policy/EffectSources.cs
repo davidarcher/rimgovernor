@@ -5,28 +5,39 @@ namespace RimGovernor.Brain.Policy;
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// The effect-source family's entry (#3224): computes the mood shortfall and every card site's guard evaluation the
-    /// search can ask for (each unburied eligible target, against a fresh container and each occupant of a slot of the
-    /// site's class), then runs the pure search over them. <paramref name="cards"/> defaults to the shipped cards.
+    /// The effect-source family's entry (#3224, prevention branch #3284): for each verified prevention card and each pawn,
+    /// the card's offset for the worn apparel and, when it is known and negative, the gear planner's predicted outfit under
+    /// both filter variants (the counted items allowed, and disallowed) with its offset and its insulation change from the
+    /// worn outfit; then the pure search over them. <paramref name="cards"/> defaults to the shipped cards.
     /// </summary>
     internal static EffectSourceResult GenerateEffectSources(EffectSourceFacts facts, IReadOnlyDictionary<string, MechanicCard>? cards = null)
     {
-        var shortfall = facts.Needs.Pawns.Where(p => ForecastMoodTimeline(p, facts.Horizon, []) is var r
-                && (r.BreakRisk.TryGetValue(out var risk) && risk > 0 || r.TargetExposureTicks.TryGetValue(out var exposure) && exposure > 0))
-            .Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal);
         var all = (cards ?? MechanicCards.ByDef).Values.ToArray();
-        var evaluations = new Dictionary<(string Def, string Site, string Target, string Instance), CardEvaluation>();
-        foreach (var card in all.Where(c => c.Live && shortfall.Count > 0))
-        foreach (var site in card.Sites)
+        var outfits = new Dictionary<(string Card, string Pawn, EffectSourceVariant Variant), EffectSourceOutfit>();
+        foreach (var card in all.Where(c => c.Live && EffectSourceCandidates.Prevention(c, new HashSet<string>()) is not null))
+        foreach (var pawn in facts.Pawns)
         {
-            var owner = site.Site[..Math.Max(site.Site.LastIndexOf('.'), 0)];
-            var instances = facts.Slots.Where(s => s.Occupant.Length > 0 && (s.Class == owner || s.Class.EndsWith("." + owner, StringComparison.Ordinal)))
-                .Select(s => s.Occupant).Prepend("").Distinct(StringComparer.Ordinal).ToArray();
-            foreach (var target in facts.Waste.Where(w => w.State != WasteState.Buried && w.Eligible))
-            foreach (var instance in instances)
-                evaluations[(card.Def, site.Site, target.Id, instance)] = MechanicCardGuards.Evaluate(card, site,
-                    new CardGuardFacts { Target = target, Instance = instance, Waste = facts.Waste, Colonists = facts.Colonists });
+            var now = MechanicCardGuards.CardStageOffset(card, pawn.Card, EffectSourceCandidates.Apparel(pawn.Gear.Worn));
+            outfits[(card.Def, pawn.Pawn, EffectSourceVariant.Worn)] = new(pawn.Gear.Worn, now, 0, 0);
+            if (!now.TryGetValue(out var offset) || offset >= 0)
+            {
+                continue;
+            }
+            var counted = pawn.Gear.Worn.Concat(pawn.Gear.Options).ToDictionary(o => o.ID, o => MechanicCardGuards.Counts(card, o), StringComparer.Ordinal);
+            var (wornCold, wornHeat) = GearInsulation(pawn.Gear.Worn);
+            foreach (var variant in new[] { EffectSourceVariant.Allow, EffectSourceVariant.Disallow })
+            {
+                var disallow = variant == EffectSourceVariant.Disallow;
+                if (disallow && counted.Values.Any(c => !c.IsKnown))
+                {
+                    continue;
+                }
+                var target = PlanGearLoadout(pawn.Gear, o => disallow && counted[o.ID].Value).Target;
+                var (cold, heat) = GearInsulation(target);
+                outfits[(card.Def, pawn.Pawn, variant)] = new(target,
+                    MechanicCardGuards.CardStageOffset(card, pawn.Card, EffectSourceCandidates.Apparel(target)), cold - wornCold, heat - wornHeat);
+            }
         }
-        return EffectSourceCandidates.Generate(facts, all, shortfall, evaluations);
+        return EffectSourceCandidates.Generate(facts, all, outfits);
     }
 }

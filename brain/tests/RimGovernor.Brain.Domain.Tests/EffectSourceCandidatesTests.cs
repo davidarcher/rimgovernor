@@ -1,194 +1,158 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods.Generation;
-using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using WasteItem = RimGovernor.Brain.Policy.WasteItem;
-using Amount = RimGovernor.Brain.Policy.Amount;
 using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-// #3224: the effect-source generator searches from a mood shortfall through the verified card copy to build/haul/dispose
-// chains. The fixtures mirror the TombStrangerParityTests scenarios (#3219); the generator itself names no def or class.
+// #3284: the effect-source generator's prevention branch. A verified negative count card active for a pawn gives one
+// labor-free apparel-filter candidate carrying the card's offset change and the predicted outfit's insulation change.
+// The card is a verified copy of the shipped DeadMansApparel card (so the tests do not depend on its shipped status);
+// the generator itself names no def.
 public sealed class EffectSourceCandidatesTests
 {
-    private const string Def = "KnowBuriedInSarcophagus";
-    private const string Container = "RimWorld.Building_Sarcophagus";
+    private const string Def = "DeadMansApparel";
     private static readonly MechanicCard Shipped = MechanicCards.ByDef[Def];
-    private static readonly Dictionary<string, MechanicCard> Verified = new() { [Def] = Shipped with { Status = MechanicCardStatus.Verified } };
-    private static readonly Resource Wood = new("WoodLog");
+    private static readonly MechanicCard Verified = Shipped with { Status = MechanicCardStatus.Verified };
 
-    internal static NeedsForecastPawn Pawn(string id, double mood) => new()
+    private static GearOption Garment(string id, GearSlot slot, string layer, string group, double cold = 0, bool tainted = false,
+        GearSource source = GearSource.Worn) => new()
     {
-        Pawn = id, State = "eligible", Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood),
-        LocalHour = Known(6d), Awake = Known(true), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
-        MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true),
-        BreakThreshold = Known(.3), ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-        Memories = Known<EquatableArray<NeedMemory>>([]), Needs = [new("rest", Known(1d), Known(0d), Known(.3), Known(1d))],
+        ID = id, Definition = new("Apparel_" + id), Quality = 2, Slot = slot, Layers = [layer], Groups = [group], Source = source,
+        Condition = 1, Cold = cold, Tainted = tainted,
     };
 
-    private static MoodPawn Colonist(string id, params double[] stacks) => new()
-    {
-        Id = new PawnId(id), Mood = Known(.28),
-        Thoughts = Known<EquatableArray<MoodThought>>([.. stacks.Select(o => new MoodThought(Def, o)), new MoodThought("AteWithoutTable", -3)]),
-    };
+    // A pawn in a dead man's parka (cold insulation 30) over a clean shirt and pants; the only other parka is worse (10).
+    internal static EffectSourcePawn Pawn(string id = "pawn", bool locked = false, string[]? traits = null, string[]? disallowed = null) =>
+        new(id, new GearLoadoutInput
+        {
+            Ambient = -10, ComfortableMin = 10, ComfortableMax = 30,
+            Worn = [Garment("shirt", GearSlot.SkinTorso, "OnSkin", "Torso"), Garment("pants", GearSlot.SkinLegs, "OnSkin", "Legs"),
+                Garment("parka", GearSlot.Outer, "Shell", "Torso", 30, tainted: true) with { Locked = locked }],
+            Options = [Garment("thin-parka", GearSlot.Outer, "Shell", "Torso", 10, source: GearSource.Stored)],
+        }, new CardPawnFacts
+        {
+            Traits = Known<EquatableArray<string>>([.. traits ?? []]), Hediffs = Known<EquatableArray<string>>([]), AnomalyActive = Known(false),
+        })
+        { Disallowed = Known<EquatableArray<string>>([.. disallowed ?? []]) };
 
-    private static WasteItem Corpse(string id, CorpseOf of, bool everBuried = false) =>
-        new() { Id = id, Kind = "Corpse", State = WasteState.Exposed, Eligible = true, Cell = new Cell(30, 30), CorpseOf = of, EverBuriedInSarcophagus = everBuried };
+    internal static EffectSourceFacts Facts(int budget = 32, params EffectSourcePawn[] pawns) =>
+        new() { Pawns = pawns.Length == 0 ? [Pawn()] : pawns, Budget = budget };
 
-    private static WasteItem Buried(string id, CorpseOf of, string grave) =>
-        new() { Id = id, Kind = "Corpse", State = WasteState.Buried, CorpseOf = of, Grave = grave };
-
-    private static readonly EffectSourceSlot Free = new("slot/1", Container, "Sarcophagus", "WoodLog", new Cell(5, 5));
-
-    private static EffectSourceSlot Occupied(string occupant) =>
-        Free with { Occupant = occupant, Refund = Known<EquatableArray<Amount>>([new(Wood, 30)]) };
-
-    internal static EffectSourceFacts Facts(double mood = .28, MoodPawn? colonist = null, IReadOnlyList<WasteItem>? waste = null,
-        IReadOnlyList<EffectSourceSlot>? slots = null, int budget = 32) => new()
-    {
-        Needs = new() { Tick = 100, Pawns = [Pawn("pawn", mood)] },
-        Horizon = 300,
-        Colonists = Known<EquatableArray<MoodPawn>>([colonist ?? Colonist("pawn")]),
-        Waste = waste ?? [Corpse("raider", CorpseOf.Stranger)],
-        Slots = slots ?? [Free],
-        Costs = Known<EquatableArray<WorkBuildingCost>>([new("Sarcophagus", "WoodLog", Known<EquatableArray<Amount>>([new(Wood, 60)]))]),
-        Work = [new("pawn", "slot/1", Known(60d)), new("pawn", "raider", Known(40d)), new("pawn", "s1", Known(30d))],
-        Routes = [new("pawn", "start", "cell/5/5", Known(10d)), new("pawn", "cell/5/5", "cell/30/30", Known(20d)),
-            new("pawn", "start", "cell/30/30", Known(20d))],
-        Budget = budget,
-    };
-
-    private static EffectSourceResult Generate(EffectSourceFacts facts, IReadOnlyDictionary<string, MechanicCard>? cards = null) =>
-        GenerateEffectSources(facts, cards ?? Verified);
-
-    private static string[] Kinds(EffectSourceResult result) => [.. result.Steps.Select(s => s.Action + ":" + s.Target)];
+    internal static EffectSourceResult Generate(EffectSourceFacts facts, MechanicCard? card = null) =>
+        GenerateEffectSources(facts, new Dictionary<string, MechanicCard> { [Def] = card ?? Verified });
 
     [Fact]
-    public void FreeSlotGivesBuildThenHaulWithTheCardsMemoryAndTheBuildCost()
+    public void TaintedParkaGivesOneLaborFreeDisallowCandidateWithItsMoodAndInsulationChange()
     {
         var result = Generate(Facts());
 
-        Assert.Equal(["Building:slot/1", "Haul:raider"], Kinds(result));
-        var tasks = result.Family.Problem!.Activities;
-        Assert.Equal([tasks[0].Id], tasks[1].Prerequisites);
-        Assert.Equal([new ForecastActivityYield(Wood, Known(60d))], tasks[0].Inputs);
-        Assert.Equal(("cell/30/30", "cell/5/5"), (tasks[1].Location, tasks[1].EndLocation));
-        Assert.Equal("colonist", result.Steps[1].Constraint);
         var root = Assert.Single(result.Roots);
-        Assert.Equal([tasks[1].Id], root.ActivityCompletions);
-        Assert.Equal("effect/" + Def, root.ExclusiveOutcome);
-        var memory = Assert.Single(root.MoodMemories);
-        Assert.Equal(new ForecastMoodMemory("pawn", new NeedMemory(Def, 4, Known(8d * GameTime.TicksPerDay), false)), memory);
-        Assert.False(result.Family.Truncated);
+        Assert.Equal("gear-filter/pawn/disallow-" + Def, root.Id);
+        Assert.Empty(root.ActivityCompletions);
+        Assert.Equal("gear-filter/pawn", root.ExclusiveOutcome);
+        // The -5 stage goes away; the thin parka insulates 20 less, so the comfortable minimum rises by 20.
+        Assert.Equal([new ForecastSituationalChange("pawn", Def, 5)], root.SituationalChanges);
+        Assert.Equal([new ForecastComfortShift("pawn", 20, 0)], root.ComfortShifts);
+        Assert.Equal([new EffectSourceStep(root.Id, ActionKind.ApparelPolicy, "pawn", Def, true)], result.Steps);
+        Assert.Empty(result.Findings);
+        Assert.False(result.Truncated);
     }
 
-    [Theory]
-    [InlineData(new double[] { 4, 2 }, 1)]
-    [InlineData(new double[] { 4, 2, 1, .5 }, 0)]
-    public void MarginalStackFollowsTheCardXmlAndTheCapGivesNone(double[] stacks, double marginal)
+    [Fact]
+    public void AFilterThatAlreadyDisallowsGivesTheAllowVariantOnly()
     {
-        var result = Generate(Facts(colonist: Colonist("pawn", stacks)));
+        // A pawn still in a tainted parka under a disallowing filter (it has not changed yet): the other variant is allow,
+        // whose predicted outfit keeps the better parka, so nothing changes.
+        var root = Assert.Single(Generate(Facts(pawns: Pawn(disallowed: ["Apparel.WornByCorpse"]))).Roots);
 
-        if (marginal == 0) { Assert.Empty(result.Roots); Assert.Null(result.Family.Problem); return; }
-        Assert.Equal(marginal, Assert.Single(Assert.Single(result.Roots).MoodMemories).Memory.Offset);
+        Assert.Equal("gear-filter/pawn/allow-" + Def, root.Id);
+        Assert.Equal([new ForecastSituationalChange("pawn", Def, 0)], root.SituationalChanges);
+        Assert.Equal([new ForecastComfortShift("pawn", 0, 0)], root.ComfortShifts);
     }
 
-    [Theory]
-    [InlineData(CorpseOf.Stranger, true)]
-    [InlineData(CorpseOf.Animal, false)]
-    [InlineData(CorpseOf.Colonist, false)]
-    public void FlaggedAnimalAndColonistBodiesGiveNoCandidate(CorpseOf of, bool flagged)
+    [Fact]
+    public void ALockedTaintedParkaStaysUnderTheDisallowVariant()
     {
-        var result = Generate(Facts(waste: [Corpse("raider", of, flagged)]));
+        var gear = Pawn(locked: true).Gear;
+
+        Assert.Contains(PlanGearLoadout(gear, o => o.Tainted).Target, o => o.ID == "parka");
+        Assert.DoesNotContain(PlanGearLoadout(Pawn().Gear, o => o.Tainted).Target, o => o.ID == "parka");
+    }
+
+    [Fact]
+    public void BloodlustPawnGetsNoCandidate()
+    {
+        var result = Generate(Facts(pawns: Pawn(traits: ["Bloodlust"])));
 
         Assert.Empty(result.Roots);
-        Assert.Empty(result.Steps);
+        Assert.Empty(result.Findings);
     }
 
     [Fact]
-    public void ExtractedCardGivesNoCandidate()
+    public void ACardThatIsNotLiveGetsNoCandidate()
     {
-        var result = Generate(Facts(), new Dictionary<string, MechanicCard> { [Def] = Shipped with { Status = MechanicCardStatus.Extracted } });
+        var extracted = Generate(Facts(), Shipped with { Status = MechanicCardStatus.Extracted });
+        Assert.Empty(extracted.Roots);
+        Assert.Equal(["effect_source_card_unverified:" + Def], extracted.Findings);
+
+        // The shipped unreachable sarcophagus card is the negative benchmark.
+        var unreachable = GenerateEffectSources(Facts(), new Dictionary<string, MechanicCard> { ["KnowBuriedInSarcophagus"] = MechanicCards.ByDef["KnowBuriedInSarcophagus"] });
+        Assert.Empty(unreachable.Roots);
+        Assert.Equal(["effect_source_card_unreachable:KnowBuriedInSarcophagus"], unreachable.Findings);
+    }
+
+    [Fact]
+    public void AMissingBindingGivesNoCandidateAndAnUnknownFinding()
+    {
+        var unbound = Verified with
+        {
+            Sites = [.. Verified.Sites.Select(s => s with
+            {
+                Guards = [.. s.Guards.Select(g => g with { Count = g.Count! with { Where = g.Count.Where with { Decl = "Apparel.Unbound" } } })],
+            })],
+        };
+
+        var result = Generate(Facts(), unbound);
 
         Assert.Empty(result.Roots);
-        Assert.Contains("effect_source_card_unverified:" + Def, result.Family.Findings);
-    }
-
-    // #3243: the shipped sarcophagus card is unreachable (no writer of thisIsFirstBodyEver on the haul path).
-    [Fact]
-    public void UnreachableCardGivesNoCandidate()
-    {
-        var result = Generate(Facts(), new Dictionary<string, MechanicCard> { [Def] = Shipped });
-
-        Assert.Equal(MechanicCardStatus.Unreachable, Shipped.Status);
-        Assert.Empty(result.Roots);
-        Assert.Empty(result.Steps);
-        Assert.Contains("effect_source_card_unreachable:" + Def, result.Family.Findings);
+        Assert.Equal(["effect_source_offset_unknown:" + Def + "/pawn"], result.Findings);
     }
 
     [Fact]
-    public void ExhaustedStrangerOnlyOccupantBelowTheCapIsDisposedForAFreshOne()
+    public void AnUnreadFilterGivesNoCandidateAndAnUnknownFinding()
     {
-        var result = Generate(Facts(colonist: Colonist("pawn", 4), waste: [Corpse("raider", CorpseOf.Stranger), Buried("old", CorpseOf.Stranger, "s1")],
-            slots: [Occupied("s1")]));
-
-        Assert.Equal(["Deconstruction:s1", "Building:slot/1", "Haul:raider"], Kinds(result));
-        var tasks = result.Family.Problem!.Activities;
-        Assert.Equal([new ForecastActivityYield(Wood, Known(30d))], tasks[0].Outputs);
-        Assert.Equal([tasks[0].Id], tasks[1].Prerequisites);
-        Assert.Equal(2, Assert.Single(Assert.Single(result.Roots).MoodMemories).Memory.Offset);
-    }
-
-    [Fact]
-    public void OccupantHoldingAColonistIsBurialsAndIsNotDisposed()
-    {
-        var result = Generate(Facts(waste: [Corpse("raider", CorpseOf.Stranger), Buried("kin", CorpseOf.Colonist, "s1")], slots: [Occupied("s1")]));
+        var result = Generate(Facts(pawns: Pawn() with { Disallowed = Unknown<EquatableArray<string>>() }));
 
         Assert.Empty(result.Roots);
+        Assert.Equal(["effect_source_filter_unknown:" + Def + "/pawn"], result.Findings);
     }
 
     [Fact]
-    public void NoShortfallOrUnreadThoughtsGiveNone()
+    public void IdenticalInputsInAnyOrderGiveIdenticalOutputInPawnOrder()
     {
-        Assert.Empty(Generate(Facts(mood: .9)).Roots);
-        var unread = Generate(Facts(colonist: new MoodPawn { Id = new PawnId("pawn"), Mood = Known(.28), Thoughts = Unknown<EquatableArray<MoodThought>>() }));
-        Assert.Empty(unread.Roots);
-        Assert.Contains("effect_source_stacks_unknown:" + Def, unread.Family.Findings);
-    }
-
-    [Fact]
-    public void IdenticalInputsInAnyOrderGiveIdenticalOutput()
-    {
-        WasteItem[] waste = [Corpse("b", CorpseOf.Stranger), Corpse("a", CorpseOf.Stranger), Buried("old", CorpseOf.Stranger, "s1")];
-        EffectSourceSlot[] slots = [Occupied("s1") with { Id = "slot/2" }, Free];
-        var facts = Facts(colonist: Colonist("pawn", 4), waste: waste, slots: slots) is var f
-            ? f with { Work = [.. f.Work, new("pawn", "a", Known(40d)), new("pawn", "b", Known(40d)), new("pawn", "slot/2", Known(60d))] } : null!;
-        var shuffled = facts with { Waste = [.. waste.Reverse()], Slots = [.. slots.Reverse()], Work = [.. facts.Work.Reverse()], Routes = [.. facts.Routes.Reverse()] };
+        var facts = Facts(pawns: [Pawn("b"), Pawn("a"), Pawn("c", traits: ["Bloodlust"])]);
+        var shuffled = facts with { Pawns = [.. facts.Pawns.Reverse()] };
 
         var one = Signature(Generate(facts));
         Assert.Equal(one, Signature(Generate(facts)));
         Assert.Equal(one, Signature(Generate(shuffled)));
-        Assert.Equal(4, Generate(facts).Roots.Count);
+        Assert.Equal(["gear-filter/a/disallow-" + Def, "gear-filter/b/disallow-" + Def], Generate(facts).Roots.Select(r => r.Id));
     }
 
     [Fact]
     public void ExhaustedBudgetIsReported()
     {
-        var result = Generate(Facts(waste: [Corpse("a", CorpseOf.Stranger), Corpse("b", CorpseOf.Stranger)], budget: 1) is var f
-            ? f with { Work = [.. f.Work, new("pawn", "a", Known(40d)), new("pawn", "b", Known(40d))] } : null!);
+        var result = Generate(Facts(1, Pawn("b"), Pawn("a")));
 
-        Assert.True(result.Family.Truncated);
-        Assert.Contains("effect_source_generation_truncated", result.Family.Findings);
-        Assert.Single(result.Roots);
+        Assert.True(result.Truncated);
+        Assert.Equal(["effect_source_generation_truncated"], result.Findings);
+        Assert.Equal("gear-filter/a/disallow-" + Def, Assert.Single(result.Roots).Id);
     }
 
     private static string Signature(EffectSourceResult result) => string.Join("\n",
         result.Steps.Select(s => s.ToString())
-            .Concat(result.Roots.Select(r => r.Id + "|" + string.Join(",", r.ActivityCompletions) + "|" + string.Join(",", r.MoodMemories)))
-            .Concat(result.Family.Problem?.Activities.Select(a => a.Id + "|" + string.Join(",", a.Prerequisites) + "|" + string.Join(",", a.Inputs) + "|" + string.Join(",", a.Outputs)) ?? [])
-            .Concat(result.Family.Problem?.Options.Select(o => o.ToString()) ?? [])
-            .Concat(result.Family.Problem?.Routes.Select(o => o.ToString()) ?? [])
-            .Concat(result.Family.Findings));
+            .Concat(result.Roots.Select(r => r.Id + "|" + r.ExclusiveOutcome + "|" + string.Join(",", r.SituationalChanges) + "|" + string.Join(",", r.ComfortShifts)))
+            .Concat(result.Findings));
 }

@@ -148,7 +148,7 @@ stay `unknown` with their reason. Modded defs get no cards.
 `MechanicCards.ByDef` embeds the file and parses it on first use into `MechanicCard` records. A malformed file, an
 unknown or missing field, an unknown status or a schema other than `MechanicCards.Schema` throws; it never yields an
 empty catalog. A card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
-and consumers ignore it for live play. `DeadMansApparel` ships `verified` (`Live`) since #3283; nothing consumes the cards yet.
+and consumers ignore it for live play. `DeadMansApparel` ships `verified` (`Live`) since #3283; only the unwired effect-source generator consumes the cards yet.
 
 A card is `unreachable` (#3243) when every site has a guard that no writer on the site's direct caller path can make
 hold; the guard carries an `unreachable` reason naming the writers and the callers checked. The check is shallow: the
@@ -166,13 +166,16 @@ it, and the effect-source search reports `effect_source_card_unreachable:<def>` 
 `MechanicCardGuards.Evaluate` (pure, #3223) evaluates one card site's guards for one target (`CardGuardFacts`: the
 target corpse, the container instance, the waste census, the colonists) to `holds`, `fails`, `achievable` (action kind
 and actor constraint) or `unknown` (reason). Existing things and target properties bind through the hand-kept
-`Bindings` table (decl -> typed observation); an unmapped symbol is unknown. A field of the site's own type with a writer
+`Bindings` table (decl -> typed observation; empty since #3284 deleted the sarcophagus rows, so the evaluator's tests
+supply them as a fixture); an unmapped symbol is unknown. A field of the site's own type with a writer
 entry is the container's state, reasoned from its writers: a planned fresh instance (empty `Instance`) starts from
-defaults, an existing one reads the followed field through `Bindings`. A sarcophagus's `everNonEmpty` is observed only
-as "holds a body", so an empty existing sarcophagus is unknown and the search uses fresh instances. A followed field set
+defaults, an existing one reads the followed field through `Bindings`. A followed field set
 by a writer with no reset makes the instance `Exhausted` after one grant. Actor guards bind through the `SiteActions`
-map (site -> existing action kind and constraint; the sarcophagus haul is `Haul` by a colonist). A card is `Usable` only
-when `Live` and every guard holds or is achievable. `thoughtaudit -guards` fails when a table row names a decl or site
+map (site -> existing action kind and constraint). A card is `Usable` only
+when `Live` and every guard holds or is achievable. A `SiteActions` row with the constraint `disallow-counted`
+(`MechanicCardGuards.DisallowCounted`) is a prevention row: its action disallows the items the site's count guard
+counts, which makes the count 0. The one row maps `ThoughtWorker_ApparelThought.CurrentStateInternal` (the
+`DeadMansApparel` sites) to `ApparelPolicy`; the tool check requires every guard of such a site to be a count. `thoughtaudit -guards` fails when a table row names a decl or site
 absent from the shipped cards or the decompiled sources (`GuardTableCheck`, also run over the embedded cards by a test).
 
 `MechanicCardGuards.CardStageOffset` (pure, #3281) prices a count card for one pawn (`CardPawnFacts`: observed trait
@@ -184,7 +187,8 @@ and the offset is that stage's `baseMoodEffect` (`DeadMansApparel`: -5, -8, -11,
 when a nullifying trait or hediff is present or no site holds (a count of 0), and unknown when a binding, an
 observation or a modelled guard is missing. A hediff only Anomaly adds (`AnomalyHediffs`: `Inhumanized`) is absent
 while Anomaly is inactive, even when the hediff list is unread. It does not check `Live`; only a verified card may
-drive play. Nothing consumes it yet (#3284, #3285).
+drive play. The effect-source prevention branch consumes it (not yet wired, #3285). `MechanicCardGuards.Counts` says
+whether a card counts one item (some site's `where` holds), unknown when a binding is missing.
 
 A card is `verified` only for the code it was probed against. Its drift hash is the first 16 hex digits of SHA-256
 over the `bodyHash` of every site, every count guard's `via` override and every writer (follows included), distinct, sorted ordinally and joined by
@@ -210,18 +214,22 @@ and records the observed stage against the card's clamp. With Bloodlust the situ
 offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. The case
 declares `VanillaColonists`: without a service the voluntary-control hold stops the scenario clock on the idle colonist.
 
-`PolicyFunctions.GenerateEffectSources` (pure, #3224; not yet wired into `GenerateCoupledActivities`) searches backward
-from a mood shortfall: pawns whose no-change `ForecastMoodTimeline` has break risk or threshold exposure. For each
-usable memory card with a positive stage, each colonist's marginal stack (`baseMoodEffect * stackedEffectMultiplier^live`,
-live read from the summed offset of the def; none at `stackLimit`; unread thoughts give none) is the memory granted.
-Over unburied eligible targets and the caller's layout slots of the site's container class, in def, target and slot
-order, it chains at most three steps: the site's action (from `SiteActions`), preceded by a fresh `Building` on a free
-slot when the fresh instance is usable, or by `Deconstruction` of an exhausted occupant (no unknown guard, a known
-refund, no colonist inside) and a fresh build in its slot. A colonist's body is burial's, never a target. Build tasks
-carry the catalog cost as timed inputs and disposals the refund as outputs, so an unfunded chain is infeasible in the
-coupled forecast; each root commitment carries the memories as `MoodMemories`, and a card's roots share one
-`ExclusiveOutcome`. A node budget reports `effect_source_generation_truncated`. Steps (`EffectSourceStep`: action kind,
-target, slot, actor constraint) describe execution for the wiring.
+`PolicyFunctions.GenerateEffectSources` (pure, #3224; prevention branch #3284; not yet wired into
+`GenerateCoupledActivities`, #3285) turns a verified negative count card into per-pawn apparel filter candidates. A
+card matches a pawn when it is `Live`, every site maps to a `disallow-counted` `SiteActions` row, its count guards count
+one bound decl, and `CardStageOffset` for the pawn's worn apparel (its `GearLoadoutInput.Worn`, primary weapon excluded)
+is known and negative. The pawn's current filter (`EffectSourcePawn.Disallowed`: the item decls its apparel filter
+disallows) names the current variant; the other one (counted items allowed, or disallowed) is the candidate. The gear
+planner predicts the variant's outfit: `PlanGearLoadout`'s `disallowed` predicate drops matching worn items (unless
+locked) and options, and replaces the hand `TaintFree` flag for the call. The candidate is one labor-free
+`ForecastCommitment` `gear-filter/<pawn>/<allow|disallow>-<def>` with `ExclusiveOutcome` `gear-filter/<pawn>`, so a
+pawn's variants never combine (#3282 makes two changes to one thought unassessed). It carries the card's offset for the
+predicted outfit minus the worn one as a `ForecastSituationalChange`, and the summed quality-scaled insulation change as
+a `ForecastComfortShift` (minimum by minus the cold change, maximum by the heat change). Candidates are in pawn, then
+card order; a budget reports `effect_source_generation_truncated`. A card that is not live, an unknown offset, an unread
+filter or an unknown counted item gives a finding and no candidate. `EffectSourceStep` (candidate, `ApparelPolicy`,
+pawn, card, disallow) describes execution for the wiring. The comparator, not the generator, decides whether the mood
+change is worth the warmth.
 
 ### Mood ledger
 

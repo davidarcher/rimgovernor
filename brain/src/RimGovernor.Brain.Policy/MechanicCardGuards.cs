@@ -8,7 +8,8 @@ namespace RimGovernor.Brain.Policy;
 //   from the card's writers. A planned fresh instance starts from the field defaults; an existing one reads its prior state
 //   through the binding table. A field whose writers have no reset leaves the instance exhausted after one grant;
 // - the actor: a hand-kept site -> action-kind map (SiteActions) names the existing action kind that reaches the site and
-//   the actor guards it satisfies under a constraint.
+//   the actor guards it satisfies under a constraint, or, for a prevention row (DisallowCounted), the action that makes
+//   the site's count guard false.
 // Unknown never certifies: a card is usable only when it is verified and every guard holds or is achievable.
 // `thoughtaudit -guards` fails when a table row names a decl or site absent from the card file or the decompiled game.
 
@@ -75,21 +76,22 @@ public sealed record CardItemBinding(string Decl, Func<GearOption, Fact<bool>> R
 
 public static class MechanicCardGuards
 {
-    /// <summary>The symbol binding table: card decls of existing things and target properties, read from typed observations.</summary>
-    public static readonly IReadOnlyList<CardSymbolBinding> Bindings =
-    [
-        new("Corpse.everBuriedInSarcophagus", f => f.Target.CorpseOf == CorpseOf.None ? Unknown<bool>() : Known(f.Target.EverBuriedInSarcophagus)),
-        new("RaceProperties.Humanlike", f => f.Target.CorpseOf == CorpseOf.None ? Unknown<bool>() : Known(f.Target.CorpseOf != CorpseOf.Animal)),
-        new("MapPawns.FreeColonists", f => f.Colonists.TryGetValue(out var c) ? Known(c.Count > 0) : Unknown<bool>()),
-        new("Pawn_NeedsTracker.mood", f => f.Colonists.TryGetValue(out var c) ? Known(c.Any(p => p.Mood.IsKnown)) : Unknown<bool>()),
-        // A container holding a body has been non-empty; an empty existing one may have been, which nothing observes.
-        new("Building_Sarcophagus.everNonEmpty", f => f.Waste.Any(w => w.State == WasteState.Buried && w.Grave == f.Instance) ? Known(true) : Unknown<bool>()),
-    ];
+    /// <summary>
+    /// The symbol binding table: card decls of existing things and target properties, read from typed observations. Empty
+    /// since the sarcophagus rows went with the unreachable card's search (#3284); no live card binds such a symbol.
+    /// </summary>
+    public static readonly IReadOnlyList<CardSymbolBinding> Bindings = [];
 
-    /// <summary>The site -> action-kind map: a corpse reaches a sarcophagus by a colonist's haul to the tomb stockpile.</summary>
+    /// <summary>
+    /// The <see cref="CardSiteAction.Constraint"/> of a prevention row (#3284): the action disallows the items the site's
+    /// count guard counts (its <c>where</c>), which makes the count 0 and every count guard false.
+    /// </summary>
+    public const string DisallowCounted = "disallow-counted";
+
+    /// <summary>The site -> action-kind map: the apparel thought's count falls to 0 under a pawn's apparel filter that disallows the counted items.</summary>
     public static readonly IReadOnlyList<CardSiteAction> SiteActions =
     [
-        new("Building_Sarcophagus.Notify_HauledTo", ActionKind.Haul, "colonist", ["Pawn.IsColonist"]),
+        new("ThoughtWorker_ApparelThought.CurrentStateInternal", ActionKind.ApparelPolicy, DisallowCounted, []),
     ];
 
     /// <summary>The count collections the items of <see cref="CardStageOffset"/> stand for: a pawn's worn apparel, priced as the outfit's gear options.</summary>
@@ -166,6 +168,21 @@ public static class MechanicCardGuards
         }
         var at = Math.Min(stage.Value, card.Xml.Stages.Count - 1);
         return Known(at < 0 ? 0.0 : card.Xml.Stages[at].BaseMoodEffect ?? 0);
+    }
+
+    /// <summary>Whether a count card counts <paramref name="item"/>: some site's count <c>where</c> holds for it; unknown when a binding is missing.</summary>
+    public static Fact<bool> Counts(MechanicCard card, GearOption item, IReadOnlyList<CardItemBinding>? bindings = null)
+    {
+        var any = false;
+        foreach (var count in card.Sites.SelectMany(s => s.Guards).Select(g => g.Count).OfType<MechanicCardCount>())
+        {
+            if (!Item(count.Where, item, bindings ?? ItemBindings).TryGetValue(out var hit))
+            {
+                return Unknown<bool>();
+            }
+            any |= hit;
+        }
+        return Known(any);
     }
 
     /// <summary>Whether a nullifying trait or hediff is present; unknown when one could be and is not observed.</summary>

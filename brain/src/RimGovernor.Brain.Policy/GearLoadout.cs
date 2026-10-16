@@ -637,14 +637,10 @@ public static partial class PolicyFunctions
         var score = 0.0;
         var tainted = 0;
         var dressed = false;
-        double cold = 0,
-            heat = 0;
+        var (cold, heat) = GearInsulation(items);
         foreach (var o in items)
         {
             score += GearItemScore(p, o);
-            var (_, i) = GearQualityMultipliers(o.Quality);
-            cold += o.Cold * i;
-            heat += o.Heat * i;
             if (o.Tainted)
             {
                 tainted++;
@@ -675,6 +671,20 @@ public static partial class PolicyFunctions
         var (low, high) = p.Climate.TemperatureRange(p.Ambient);
         score -= GearThermalPenalty * (Math.Max(0, Math.Max(0, p.ComfortableMin - low) - cold) + Math.Max(0, Math.Max(0, high - p.ComfortableMax) - heat));
         return score;
+    }
+
+    /// <summary>The items' summed Cold and Heat insulation, each scaled by its quality multiplier.</summary>
+    internal static (double Cold, double Heat) GearInsulation(IEnumerable<GearOption> items)
+    {
+        double cold = 0,
+            heat = 0;
+        foreach (var o in items)
+        {
+            var (_, i) = GearQualityMultipliers(o.Quality);
+            cold += o.Cold * i;
+            heat += o.Heat * i;
+        }
+        return (cold, heat);
     }
 
     private static double GearEnsembleScore(GearLoadoutInput p, IReadOnlyList<GearOption> items)
@@ -739,13 +749,27 @@ public static partial class PolicyFunctions
             _ => 4,
         };
 
-    /// <summary>Searches compatible ensembles, retaining forced/locked items. Equal scores retain worn gear, then stable item identity. No input is mutated.</summary>
-    public static GearLoadout PlanGearLoadout(GearLoadoutInput p)
+    /// <summary>
+    /// Searches compatible ensembles, retaining forced/locked items. Equal scores retain worn gear, then stable item identity. No input is mutated.
+    /// <paramref name="disallowed"/> is an apparel filter variant (#3284): the pawn drops a matching worn item unless it is
+    /// locked and never picks a matching option. A variant replaces the hand TaintFree flag for the call, since the
+    /// comparator prices the mood from the card.
+    /// </summary>
+    public static GearLoadout PlanGearLoadout(GearLoadoutInput p, Func<GearOption, bool>? disallowed = null)
     {
         p.Validate();
         foreach (var t in p.Role.Work.Traits.ValueOrDefault)
         {
             p = p with { Nudist = p.Nudist || t.Effects.Nudist, TaintFree = p.TaintFree || t.Effects.TaintFree };
+        }
+        if (disallowed is not null)
+        {
+            p = p with
+            {
+                TaintFree = true,
+                Worn = EquatableArray.From(p.Worn.Where(o => o.Locked || !disallowed(o))),
+                Options = EquatableArray.From(p.Options.Where(o => !disallowed(o))),
+            };
         }
         var role = DeriveGearRole(p.Role);
         var options = p.Worn.Concat(p.Options).OrderBy(o => GearSourceRank(o.Source)).ThenBy(o => o.ID, StringComparer.Ordinal).ToList();
