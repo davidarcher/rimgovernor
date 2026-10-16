@@ -321,6 +321,8 @@ public static partial class SustainedFood
                 try
                 {
                     sample = await verifyStore.SampleStandardAsync(concernId, cancellationToken).ConfigureAwait(false);
+                    // The timeline reader names the top-level row by its owner, a Concern id or a NeedId.
+                    sample["concern"] = concernId;
                 }
                 catch (AcceptanceException e)
                 {

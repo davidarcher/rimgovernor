@@ -16,7 +16,7 @@ public enum ClaimOutcome
     Conflict,
 }
 
-/// <summary>The open Method holding a claim the candidate asked for: its owner (<c>standard &lt;id&gt;</c>), MethodId and the claim.</summary>
+/// <summary>The open Method holding a claim the candidate asked for: its owner (<c>standard &lt;id&gt;</c>, <c>incident &lt;id&gt;</c> or <c>need &lt;NeedId&gt;</c>), MethodId and the claim.</summary>
 public sealed record ClaimConflict(string Holder, MethodId Method, string Claim)
 {
     /// <summary>The planner reason a refusal files.</summary>
@@ -25,6 +25,9 @@ public sealed record ClaimConflict(string Holder, MethodId Method, string Claim)
 
 /// <summary>A claimed commit's result: the owner after the commit and, on <see cref="ClaimOutcome.Conflict"/>, the holder.</summary>
 public sealed record ClaimCommit(ClaimOutcome Outcome, StandardState State, ClaimConflict? Conflict = null);
+
+/// <summary>A Need's claimed commit result (#3250): the Need's owner after the commit and, on <see cref="ClaimOutcome.Conflict"/>, the holder.</summary>
+public sealed record NeedCommit(ClaimOutcome Outcome, NeedOwner Owner, ClaimConflict? Conflict = null);
 
 public sealed partial class Store
 {
@@ -71,6 +74,36 @@ public sealed partial class Store
     }
 
     /// <summary>
+    /// A Need's claimed commit (#3250): every Need-owned Method is admitted through claim overlap, never the open-work
+    /// gate. The Need was derived from <paramref name="current"/>, which must be the current enabled review's world.
+    /// A MethodId whose latest attempt is still open work continues it (<see cref="ClaimOutcome.Continued"/>); one
+    /// that was released is admitted again as the next attempt. Then the Safeguards, the claim overlap with every
+    /// open Method in the world (<see cref="ClaimOutcome.Conflict"/>, nothing written), the family admission checks
+    /// and binding run as for a Standard.
+    /// </summary>
+    public NeedCommit CommitClaimedMethod(NeedId need, GenerationSnapshot current, MethodId method, string reason, PlanSpec plan, CancellationToken cancellationToken)
+    {
+        need.Validate();
+        if (!method.IsValid) throw new DomainException("invalid need method id");
+        if (plan.Actions.Count == 0) throw new DomainException("empty need method");
+        return Run(tx => CommitClaimedNeedMethodIn(tx, need, current, method, reason, plan), cancellationToken);
+    }
+
+    private static NeedCommit CommitClaimedNeedMethodIn(StoreTransaction tx, NeedId need, GenerationSnapshot current, MethodId method, string reason, PlanSpec plan)
+    {
+        var review = LoadRounds(tx);
+        if (!review.Enabled || review.Snapshot != current)
+            throw new NotAdmittedException($"need {need.Value} has no current enabled review");
+        var owner = LoadNeedIn(tx, need, current);
+        IMethodOwner held = owner;
+        if (held.BoundPlan(tx, method) is not null) return new(ClaimOutcome.Continued, owner);
+        AdmitRoundsSafeguards(tx, owner);
+        if (ClaimOverlapIn(tx, current, plan) is { } conflict) return new(ClaimOutcome.Conflict, owner, conflict);
+        BindOwnerMethod(tx, owner, method, reason, plan);
+        return new(ClaimOutcome.Admitted, LoadNeedIn(tx, need, current));
+    }
+
+    /// <summary>
     /// The first open Method in <paramref name="current"/>'s world whose claims overlap <paramref name="plan"/>'s,
     /// in plan order. Footprints come from the current review's building costs; without them a building claims its
     /// anchor. More open Methods than the census bound refuse the candidate rather than admit it blind.
@@ -89,7 +122,11 @@ public sealed partial class Store
             JOIN plans p ON p.id=m.plan_id
             WHERE p.retired=0 AND json_extract(g.payload,'$.Snapshot.Colony')=$colony
               AND json_extract(g.payload,'$.Snapshot.Load')=$load AND json_extract(g.payload,'$.Snapshot.Map')=$map
-            ORDER BY m.plan_id LIMIT 1025
+            UNION ALL
+            SELECT n.plan_id,'need '||n.need_id,COALESCE(p.method_id,'') FROM need_methods n
+            JOIN plans p ON p.id=n.plan_id
+            WHERE p.retired=0 AND n.colony=$colony AND n.load_token=$load AND n.map_id=$map
+            ORDER BY 1 LIMIT 1025
             """, [("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map)],
             r => (Plan: new PlanId(r.GetString(0)), Holder: r.GetString(1), Method: new MethodId(r.GetString(2))));
         if (links.Count > MaxClaimPlans) throw new NotAdmittedException("claim_census_truncated");

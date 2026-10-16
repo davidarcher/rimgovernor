@@ -77,7 +77,7 @@ public sealed partial class ClockScheduler
         _clock = clock;
         _facts = new ClockFacts(config.Store);
         _queue = new PlannerQueue();
-        _catalog = [.. ClockPlannerCatalog.Entries];
+        _catalog = ClockPlannerCatalog.WithFamilies(config.Families);
         _queue.Catalog = () => _catalog;
         _queue.Configured = entry => entry.Configured(Config);
         if (config.Rounds is { } rounds)

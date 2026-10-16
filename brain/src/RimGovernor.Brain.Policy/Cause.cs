@@ -67,6 +67,9 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public static readonly Cause RoomTemperature = new("waiting_for_native_temperature");
     public static readonly Cause RetryBudgetWait = new("retry_budget_waiting");
 
+    /// <summary>A Need waits on another Need's predicate (#3250); the subject names the NeedId it waits on.</summary>
+    public static readonly Cause WaitingOnNeed = new("waiting_on_need");
+
     // CombatOrders and HoldFallback are the fight outcomes, waits in all but name: nothing failed. They are
     // not wait kinds a Verdict may carry.
     public static readonly Cause CombatOrders = new("combat_orders");
@@ -137,7 +140,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         RetriesSpent, RockNotDug, SiteBlocked, NativeIneligible, ReconcileWrite, Cooldown,
         NoMethod, HeldUnavailable, HeldOptIn, HeldNoSource,
         MethodUsed, ExistingWork, BunksOpen, ComfortUse, Facility, HospitalConvert,
-        SleepingUse, Separation, Dialog, Claim, FacilityAccess, RoomTemperature, RetryBudgetWait,
+        SleepingUse, Separation, Dialog, Claim, FacilityAccess, RoomTemperature, RetryBudgetWait, WaitingOnNeed,
         CombatOrders, HoldFallback,
         NotReady, AlreadyReserved, UnknownFacts, StaleFacts, UnsafePlacement, UnsafeThreat,
         CriticalMedical, MaterialRequired, DependencyBlocked, GeometryBlocked, InvalidHeld,
@@ -156,7 +159,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public static readonly IReadOnlyList<Cause> WaitCauses =
     [
         MethodUsed, ExistingWork, BunksOpen, ComfortUse, Facility, HospitalConvert,
-        SleepingUse, Separation, Dialog, Claim, FacilityAccess, RoomTemperature, RetryBudgetWait,
+        SleepingUse, Separation, Dialog, Claim, FacilityAccess, RoomTemperature, RetryBudgetWait, WaitingOnNeed,
     ];
 
     /// <summary>A cause that is a wait rather than a refusal: a wait kind or one of the two fight outcomes.</summary>
@@ -259,6 +262,7 @@ public static partial class PolicyFunctions
         [Cause.FacilityAccess] = "A facility stands but some colonists cannot reach it.",
         [Cause.RoomTemperature] = "A temperature has to settle first: a room's, or the weather outdoors.",
         [Cause.RetryBudgetWait] = "The game refused this for now and nothing has changed since.",
+        [Cause.WaitingOnNeed] = "Another need has to be met first.",
         [Cause.CombatOrders] = "Combat orders are running.",
         [Cause.HoldFallback] = "The hold line fell back to squad defense.",
 

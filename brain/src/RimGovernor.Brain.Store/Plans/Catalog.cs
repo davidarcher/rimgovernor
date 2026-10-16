@@ -102,6 +102,8 @@ public sealed partial class Store
                 {
                     "standard" => new PlanMethodBinding(new ConcernId(row.StandardKind ?? ""), episode, new MethodId(row.Method), plan, row.Reason ?? "", default),
                     "incident" => new PlanMethodBinding(new ConcernId(row.IncidentKind ?? ""), episode, new MethodId(row.Method), plan, row.Reason ?? "", new IncidentId(row.Owner)),
+                    // A Need's method files under its NeedId (#3250), the key its planner reasons use.
+                    "need" => new PlanMethodBinding(new ConcernId(row.Owner), episode, new MethodId(row.Method), plan, row.Reason ?? "", default),
                     _ => new PlanMethodBinding(default, episode, new MethodId(row.Method), plan, row.Reason ?? "", default),
                 };
             },

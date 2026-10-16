@@ -100,6 +100,18 @@ from 13 to 14; the journal is replaced on a version change, so there is no
 migration. The `need` owner is opted into claim admission; every other owner
 keeps the open-work gate until the final slice.
 
+**Implemented (#3250).** Policy `Needs.cs` holds `NeedId`, `Need` (tier,
+`Satisfaction` Unknown/Unmet/Met, deficit, evidence, preconditions), `NeedMethod`
+and `IFamily<TFacts>` (`Reads`, `SeriousHarmReads`, `Derive`, `Propose`);
+`NeedStandings` resolves preconditions within one family, and Unknown never
+counts as met. Store `NeedOwner` and `Store.CommitClaimedMethod(NeedId, ...)`
+admit a Method (Admitted, Continued or Conflict on a held claim). BuildingRuntime
+`FamilyRunner<TFacts>` runs a family as a planner entry
+(`ClockPlannerCatalog.WithFamilies`, from `ClockSchedulerConfig.Families`): one
+`planner_step` row and one ledger report per Need, and a family with
+SeriousHarm reads also runs in the immediate pass on those reads only. No real
+family is wired yet; each migrating slice adds its family.
+
 **Claims.** A Method's claims are derived from its actions at admission, never
 stored on the Method: `WorkClaimsOf` over the actions yields a `WorkResourceClaims`
 (pawns, targets, materials and shared targets). Targets cover the cells, things,

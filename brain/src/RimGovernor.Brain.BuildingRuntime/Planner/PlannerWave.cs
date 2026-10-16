@@ -39,6 +39,8 @@ internal sealed class PlannerWave : IDisposable
     private readonly Dictionary<string, bool> _critical = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DateTimeOffset> _began = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TimeSpan> _took = new(StringComparer.Ordinal);
+    // The family entries (#3250): they file under their NeedIds, never their own name.
+    private readonly HashSet<string> _families = new(StringComparer.Ordinal);
     private bool _closed;
 
     public PlannerWave(CancellationToken call)
@@ -62,6 +64,10 @@ internal sealed class PlannerWave : IDisposable
             _critical[entry.Name] = entry.Class == PlannerClass.Critical;
             _concerns[entry.Name] = entry.FilingKey();
             _began[entry.Name] = DateTimeOffset.UtcNow;
+            if (entry.Family is not null)
+            {
+                _families.Add(entry.Name);
+            }
         }
         var ct = entry.Class == PlannerClass.Critical ? Call : _optional.Token;
         var start = DateTimeOffset.UtcNow;
@@ -112,16 +118,17 @@ internal sealed class PlannerWave : IDisposable
                 late = _closed;
             }
             var decision = StepDecision(entry, reason, error, took, late);
-            if (ReviewScope.Immediate)
+            decision = Scoped(decision);
+            // A family's run files one planner_step row per NeedId, keyed by the NeedId as its concern, so explain
+            // pairs each with the concern_transitions row filed under the same key; the family's own row stands
+            // only for a failure or a run that judged no Need.
+            var needRows = error is null && priv.Families.TryGetValue(entry.Name, out var family) && family.Reports.Count > 0
+                ? family.Reports.Select(r => Scoped(NeedDecision(entry, r, took, late))).ToList()
+                : null;
+            foreach (var row in needRows ?? [decision])
             {
-                var attrs = new Dictionary<string, object?>(decision.Attrs) { ["scope"] = "immediate" };
-                if (ReadValidityScope.TryGet(out var validity))
-                {
-                    attrs["decision_tick"] = (long)validity.Tick.Value;
-                }
-                decision = decision with { Attrs = attrs };
+                Tel.Decide(row);
             }
-            Tel.Decide(decision);
             span?.SetTag("rimgovernor.verdict", decision.Verdict);
             span?.SetTag("rimgovernor.reason", decision.Reason);
             span?.SetTag("rimgovernor.late", late);
@@ -203,6 +210,28 @@ internal sealed class PlannerWave : IDisposable
         return d with { Attrs = attrs };
     }
 
+    /// <summary>The immediate review's rows carry its scope and decision tick.</summary>
+    private static Decision Scoped(Decision decision)
+    {
+        if (!ReviewScope.Immediate)
+        {
+            return decision;
+        }
+        var attrs = new Dictionary<string, object?>(decision.Attrs) { ["scope"] = "immediate" };
+        if (ReadValidityScope.TryGet(out var validity))
+        {
+            attrs["decision_tick"] = (long)validity.Tick.Value;
+        }
+        return decision with { Attrs = attrs };
+    }
+
+    /// <summary>The planner_step row of one Need a family run judged: the family entry's row with the NeedId as its concern.</summary>
+    internal static Decision NeedDecision(PlannerEntry entry, NeedReport report, TimeSpan took, bool late)
+    {
+        var d = StepDecision(entry, report.Verdict, null, took, late);
+        return d with { Attrs = new Dictionary<string, object?>(d.Attrs) { ["concern"] = report.Need.Value } };
+    }
+
     /// <summary>
     /// Records a planner's return and its reason. After the cutoff the return is discarded: the planner was
     /// recorded missed, its result is not merged and its (cancellation) error is not a failure.
@@ -238,11 +267,11 @@ internal sealed class PlannerWave : IDisposable
     {
         lock (_mu)
         {
-            return _reasons.TryGetValue(name, out var verdict) ? (_concerns[name], verdict) : null;
+            return !_families.Contains(name) && _reasons.TryGetValue(name, out var verdict) ? (_concerns[name], verdict) : null;
         }
     }
 
-    /// <summary>The purpose verdicts the returned ledger step filed beside its own.</summary>
+    /// <summary>The purpose verdicts the returned ledger step filed beside its own, and each returned family's verdicts under its NeedIds.</summary>
     public IReadOnlyList<LedgerReport> Reports()
     {
         lock (_mu)
@@ -253,6 +282,10 @@ internal sealed class PlannerWave : IDisposable
                 if (_results[name].Ledger is { } ledger)
                 {
                     output.AddRange(ledger.Reports);
+                }
+                if (_reasons.ContainsKey(name) && _results[name].Families.TryGetValue(name, out var family))
+                {
+                    output.AddRange(family.Reports.Select(r => new LedgerReport(r.Need.FilingKey, r.Verdict)));
                 }
             }
             return output;

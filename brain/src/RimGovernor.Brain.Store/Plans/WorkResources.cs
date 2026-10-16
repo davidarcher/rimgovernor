@@ -17,7 +17,12 @@ public sealed partial class Store
               AND json_extract(g.payload,'$.Snapshot.Load')=$load AND json_extract(g.payload,'$.Snapshot.Map')=$map
               AND EXISTS(SELECT 1 FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.plan_id=m.plan_id
                   AND (a.kind IN ('building','production_bill') OR a.kind='pawn_activities' AND p.retired=0))
-            ORDER BY m.plan_id LIMIT 1025
+            UNION ALL
+            SELECT n.plan_id,n.need_id FROM need_methods n
+            WHERE n.colony=$colony AND n.load_token=$load AND n.map_id=$map
+              AND EXISTS(SELECT 1 FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.plan_id=n.plan_id
+                  AND (a.kind IN ('building','production_bill') OR a.kind='pawn_activities' AND p.retired=0))
+            ORDER BY 1 LIMIT 1025
             """, current);
         if (links.Count > MaxWorkActions) return new([], true);
         var rows = new List<WorkAction>();

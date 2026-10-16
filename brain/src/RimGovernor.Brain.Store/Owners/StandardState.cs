@@ -560,6 +560,11 @@ public sealed partial class Store
             GuardIncidentWork(tx, new IncidentId(owner.Owner), current, tick);
             return;
         }
+        if (owner.Kind == "need")
+        {
+            GuardNeedWork(tx, plan, current);
+            return;
+        }
         var state = LoadStandard(tx, new StandardId(owner.Owner));
         var g = state.Standard;
         var s = g.Snapshot;

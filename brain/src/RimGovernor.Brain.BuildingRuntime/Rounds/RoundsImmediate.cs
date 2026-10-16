@@ -168,6 +168,12 @@ internal static partial class BuildingRuntimePackage
 {
     internal static bool ImmediatePlanner(PlannerEntry e) => e.Immediate;
 
+    /// <summary>
+    /// Whether the ordinary wave runs the entry: every non-immediate planner, recovery, and every family, whose
+    /// immediate run judged only its SeriousHarm Needs on the narrow read (#3250).
+    /// </summary>
+    internal static bool OrdinaryPlanner(PlannerEntry e) => !ImmediatePlanner(e) || e.Name == "recovery" || e.Family is not null;
+
     /// <summary>Whether the running wave is the immediate review (Go <c>immediateReview(ctx)</c>; the flag rides the wave's async scope).</summary>
     internal static bool ImmediateReview() => ReviewScope.Immediate;
 
@@ -181,7 +187,8 @@ public sealed partial class ClockScheduler
     internal bool ImmediateConfigured()
     {
         var c = Config;
-        return c.Rounds is not null && (c.Defense is not null || c.Tend is not null || c.Rescue is not null || c.Recovery is not null || c.MaintainShelter is not null);
+        return c.Rounds is not null && (c.Defense is not null || c.Tend is not null || c.Rescue is not null || c.Recovery is not null || c.MaintainShelter is not null
+            || c.Families.Any(f => f.Immediate));
     }
 
     /// <summary>
@@ -210,7 +217,7 @@ public sealed partial class ClockScheduler
             Queue.All = false;
             foreach (var e in Queue.Entries())
             {
-                if (Selected(e) && (!ImmediatePlanner(e) || e.Name == "recovery"))
+                if (Selected(e) && OrdinaryPlanner(e))
                 {
                     Queue.Mark(e.Name);
                 }
@@ -238,7 +245,7 @@ public sealed partial class ClockScheduler
             return names;
         }
 
-        var ordinary = sel with { Began = Queue.Seq, Pick = e => Selected(e) && (!ImmediatePlanner(e) || e.Name == "recovery") };
+        var ordinary = sel with { Began = Queue.Seq, Pick = e => Selected(e) && OrdinaryPlanner(e) };
         var hasOrdinary = false;
         foreach (var e in Queue.Entries())
         {
@@ -303,6 +310,12 @@ public sealed partial class ClockScheduler
             if (!ImmediatePlanner(entry))
             {
                 continue;
+            }
+
+            // A family's SeriousHarm Needs are its protection: the plans its latest immediate run saw open.
+            foreach (var plan in entry.Family?.SeriousHarmPlans ?? [])
+            {
+                plans.Add(plan);
             }
 
             foreach (var kind in entry.Kinds)

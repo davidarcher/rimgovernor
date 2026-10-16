@@ -233,6 +233,8 @@ public sealed partial class Store
     /// toward <see cref="MaxActiveStandards"/> (#3249). Standards absent from what is kept are deleted; every standard
     /// method row is deleted and its plan retired after one orphans pass sees them all, so methods start empty and
     /// are re-planned. A save without standard blobs leaves no standards. An incident's method rows are not touched.
+    /// A Need's open plans (#3250) are retired in the same pass and its rows kept as history: Needs are re-derived
+    /// after the load, and their rows are keyed by the load token, so nothing continues across it.
     /// </summary>
     /// <param name="orphans">Sees the plans the rebuild is about to retire, before they are retired; null skips it.</param>
     public void RebuildStandards(IReadOnlyDictionary<string, string> saved, Action<IReadOnlyList<PlanState>, CancellationToken>? orphans, CancellationToken cancellationToken)
@@ -267,7 +269,7 @@ public sealed partial class Store
         if (orphans is not null)
         {
             var plans = Run(
-                tx => (IReadOnlyList<PlanState>)tx.Query("SELECT plan_id FROM plan_owner WHERE kind='standard' ORDER BY plan_id", [], r => new PlanId(r.GetString(0))).Select(id => LoadIn(tx, id)).ToList(),
+                tx => (IReadOnlyList<PlanState>)tx.Query("SELECT plan_id FROM plan_owner WHERE kind='standard' OR kind='need' AND plan_id IN (SELECT id FROM plans WHERE retired=0) ORDER BY plan_id", [], r => new PlanId(r.GetString(0))).Select(id => LoadIn(tx, id)).ToList(),
                 cancellationToken
             );
             if (plans.Count > 0)
@@ -278,7 +280,7 @@ public sealed partial class Store
         Run(
             tx =>
             {
-                _ = tx.Execute("UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM plan_owner WHERE kind='standard')");
+                _ = tx.Execute("UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM plan_owner WHERE kind IN ('standard','need'))");
                 _ = tx.Execute("DELETE FROM standard_methods");
                 _ = tx.Execute("DELETE FROM plan_owner WHERE kind='standard'");
                 foreach (var id in tx.Query("SELECT id FROM standards ORDER BY id", [], r => new StandardId(r.GetString(0))))
@@ -341,10 +343,11 @@ internal static partial class StoreSchema
         CREATE INDEX active_standards ON standards(id) WHERE retired=0;
         CREATE TABLE incidents(id TEXT PRIMARY KEY, colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, started_tick INTEGER NOT NULL, ended_tick INTEGER, payload TEXT NOT NULL) STRICT;
         CREATE UNIQUE INDEX open_incidents ON incidents(colony,load_token,map_id,kind,subject) WHERE ended_tick IS NULL;
-        CREATE TABLE plan_owner(plan_id TEXT PRIMARY KEY REFERENCES plans(id), kind TEXT NOT NULL CHECK(kind IN ('standard','incident')), UNIQUE(plan_id,kind)) STRICT;
+        CREATE TABLE plan_owner(plan_id TEXT PRIMARY KEY REFERENCES plans(id), kind TEXT NOT NULL CHECK(kind IN ('standard','incident','need')), UNIQUE(plan_id,kind)) STRICT;
         CREATE TABLE standard_methods(standard_id TEXT NOT NULL REFERENCES standards(id), episode TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'standard' CHECK(kind='standard'), reason TEXT, PRIMARY KEY(standard_id,episode,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
         CREATE TABLE incident_methods(incident_id TEXT NOT NULL REFERENCES incidents(id), method_id TEXT NOT NULL, plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'incident' CHECK(kind='incident'), reason TEXT, PRIMARY KEY(incident_id,method_id), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
-        CREATE VIEW plan_methods AS SELECT plan_id,kind,standard_id AS owner_id,episode,method_id,reason FROM standard_methods UNION ALL SELECT plan_id,kind,incident_id,NULL,method_id,reason FROM incident_methods;
+        CREATE TABLE need_methods(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, need_id TEXT NOT NULL, method_id TEXT NOT NULL, attempt INTEGER NOT NULL CHECK(attempt>0), plan_id TEXT NOT NULL UNIQUE, kind TEXT NOT NULL DEFAULT 'need' CHECK(kind='need'), reason TEXT, PRIMARY KEY(colony,load_token,map_id,need_id,method_id,attempt), FOREIGN KEY(plan_id,kind) REFERENCES plan_owner(plan_id,kind)) STRICT;
+        CREATE VIEW plan_methods AS SELECT plan_id,kind,standard_id AS owner_id,episode,method_id,reason FROM standard_methods UNION ALL SELECT plan_id,kind,incident_id,NULL,method_id,reason FROM incident_methods UNION ALL SELECT plan_id,kind,need_id,NULL,method_id,reason FROM need_methods;
         """,
         [
             "SELECT id,revision,payload,retired FROM standards LIMIT 0",
@@ -352,6 +355,7 @@ internal static partial class StoreSchema
             "SELECT plan_id,kind FROM plan_owner LIMIT 0",
             "SELECT standard_id,episode,method_id,plan_id,kind,reason FROM standard_methods LIMIT 0",
             "SELECT incident_id,method_id,plan_id,kind,reason FROM incident_methods LIMIT 0",
+            "SELECT colony,load_token,map_id,need_id,method_id,attempt,plan_id,kind,reason FROM need_methods LIMIT 0",
             "SELECT plan_id,kind,owner_id,episode,method_id,reason FROM plan_methods LIMIT 0",
         ]
     );

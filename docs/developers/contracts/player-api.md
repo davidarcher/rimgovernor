@@ -148,7 +148,7 @@ Draft and undraft through the draft intent are covered by native acceptance `dra
 
 ## Concern JSON names
 
-Read routes name the watched kind `concern` (a Concern id string such as `EnsureFoodSupply`):
+Read routes name the watched kind `concern` (a Concern id string such as `EnsureFoodSupply`, or a NeedId `family/kind[/subject]` for a family's Need):
 `GET /api/routines` carries `progress[].concern` and `noOps[].concern`;
 Other fields (`method`,
 `expected`, `lastProgress`, `nextReview`, `blocked`, `cooldowns`, `prerequisite`, ...) are as named.

@@ -21,6 +21,7 @@ public static partial class PolicyFunctions
             || facts.WorkView is not { } resources) return null;
         if (read.Tick != facts.Tick.Value || needs.Tick != read.Tick || resources.Evidence.Tick.Value != read.Tick)
             return null; // A mixed frame cannot certify a consequence; caller retains absence explicitly.
+        // A gate is keyed by its owner: a Concern id, or a migrated family's NeedId under its FilingKey (#3250).
         bool Enabled(ConcernId concern) => !facts.AvailableMethods.TryGetValue(out var available) || available.Contains(concern);
         if (!Enabled(EnsureWorkAssignments)) return null;
         read = read with

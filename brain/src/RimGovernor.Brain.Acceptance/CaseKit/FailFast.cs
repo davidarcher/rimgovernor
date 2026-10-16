@@ -94,7 +94,7 @@ internal sealed class FailFastState
         "method_already_used", "already_working_on_it", "shelter_bunks_open", "breach_held", "waiting_for_native_comfort_use",
         "existing_facility_needs_bill_or_upkeep", "hospital_bed_convert_pending", "sleeping_use_needed", "butcher_separation_pending",
         "dialog_not_interactive", "waiting_on_claim", "existing_facility_access_blocked", "waiting_for_native_temperature",
-        "retry_budget_waiting", "combat_orders", "hold_fallback",
+        "retry_budget_waiting", "waiting_on_need", "combat_orders", "hold_fallback",
     };
 
     private const string HeldOptIn = "held:opt-in";

@@ -6,8 +6,23 @@ public enum ServiceCoverage { Unknown, Adequate, Shortfall, NotApplicable }
 public enum DevelopmentAlternative { Continue, Defer, AlternateChain, DevelopCapability, RestoreFacility, AcquireResources }
 public enum DevelopmentReviewState { Active, Satisfied, Obsolete, Unknown }
 
-/// <summary>A reference to an existing owner predicate, not an independent stock target or skill floor.</summary>
-public sealed record ServiceTarget(ConcernId Owner, string Subject, string Predicate, Fact<double> HorizonDays);
+/// <summary>
+/// A reference to an existing owner predicate, not an independent stock target or skill floor. The owner is a
+/// Concern id, or for a migrated family a NeedId under its <see cref="NeedId.FilingKey"/> (#3250); the two key
+/// spaces never collide, since only a NeedId holds a '/'.
+/// </summary>
+public sealed record ServiceTarget(ConcernId Owner, string Subject, string Predicate, Fact<double> HorizonDays)
+{
+    /// <summary>The target of a Need's own predicate.</summary>
+    public static ServiceTarget ForNeed(NeedId need, string subject = "", string predicate = "need_satisfied", Fact<double> horizonDays = default)
+    {
+        need.Validate();
+        return new(need.FilingKey, subject, predicate, horizonDays);
+    }
+
+    /// <summary>The NeedId that owns the target; default for a Concern owner.</summary>
+    public NeedId OwnerNeed => Owner.Value.Contains('/', StringComparison.Ordinal) ? new NeedId(Owner.Value) : default;
+}
 public sealed record ServiceAssessment(EssentialService Service, ServiceTarget Target, ServiceCoverage Coverage,
     EquatableArray<string> Beneficiaries, EquatableArray<string> MissingEvidence);
 public sealed record ServiceStressAssessment(ServiceTarget Target, string Unavailable, ServiceCoverage Coverage,
@@ -31,6 +46,18 @@ public sealed record EssentialServiceInputs
 
 public static partial class PolicyFunctions
 {
+    /// <summary>
+    /// A Need owner's service coverage (#3250): met is adequate, unmet a shortfall, and unknown stays unknown, never
+    /// adequate. A family slice that moves a service row onto its Need reads coverage from here, so the move does
+    /// not turn a measured row into Unknown.
+    /// </summary>
+    public static ServiceCoverage NeedCoverage(Need need) => need.Satisfaction switch
+    {
+        Satisfaction.Met => ServiceCoverage.Adequate,
+        Satisfaction.Unmet => ServiceCoverage.Shortfall,
+        _ => ServiceCoverage.Unknown,
+    };
+
     /// <summary>Disappearance or a truncated search is not observed satisfaction. No state is retained here.</summary>
     public static DevelopmentReviewState ReassessDevelopment(DevelopmentProposal previous, EssentialServiceReview current)
     {

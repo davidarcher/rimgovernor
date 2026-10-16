@@ -15,8 +15,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// The <c>PRAGMA user_version</c> <see cref="Open"/> requires; a database from another version is not
     /// migrated (see <see cref="OpenOrReplace"/>). Version 13 drops the clock attempt, epoch, receipt and retirement tables: JSON payloads written by the
     /// hand-written codecs, with no per-kind column checks; the Standard payload gained the planner's Record text.
+    /// Version 14 adds the Need owner (#3250): <c>plan_owner</c> kind <c>need</c> and the <c>need_methods</c> table.
     /// </summary>
-    public const int SchemaVersion = 13;
+    public const int SchemaVersion = 14;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

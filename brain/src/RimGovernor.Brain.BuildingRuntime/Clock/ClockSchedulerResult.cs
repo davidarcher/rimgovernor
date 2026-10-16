@@ -158,6 +158,9 @@ public sealed class ClockSchedulerResult
 
     public List<string> MissedCutoff { get; } = [];
 
+    /// <summary>Each family's run (#3250), by family id.</summary>
+    public Dictionary<string, FamilyRun> Families { get; } = new(StringComparer.Ordinal);
+
     public List<string> HeldBy { get; } = [];
 
     public TimeSpan CriticalWave { get; set; }
@@ -236,5 +239,9 @@ public sealed class ClockSchedulerResult
         MoodRelief = other.MoodRelief ?? MoodRelief;
         Dialog = other.Dialog ?? Dialog;
         Trade = other.Trade ?? Trade;
+        foreach (var (family, run) in other.Families)
+        {
+            Families[family] = run;
+        }
     }
 }

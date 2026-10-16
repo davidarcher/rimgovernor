@@ -31,6 +31,21 @@ public sealed partial class Store
                 concern = i.Incident.Kind;
                 world = new World(i.Incident.Snapshot.Colony, i.Incident.Snapshot.Load, i.Incident.Snapshot.Map);
             }
+            else if (found && string.Equals(method.Kind, "need", StringComparison.Ordinal))
+            {
+                // A Need's method serves its NeedId, filed as the concern key (#3250).
+                var (row, bound) = tx.QueryFirst(
+                    "SELECT colony,load_token,map_id FROM need_methods WHERE plan_id=$plan",
+                    [("$plan", plan.Spec.Id)],
+                    r => new World(new ColonyId(r.GetString(0)), new LoadId(r.GetString(1)), new MapId(r.GetInt32(2)))
+                );
+                if (!bound)
+                {
+                    continue;
+                }
+                concern = new NeedId(method.Owner).FilingKey;
+                world = row;
+            }
             else if (found)
             {
                 var g = LoadStandard(tx, new StandardId(method.Owner));

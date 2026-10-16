@@ -247,11 +247,14 @@ execution. World/load changes discard the disposable execution context.
 A Method binds one Plan to one owner in `standard_methods` (keyed by Standard, Episode and MethodID),
 or `incident_methods` (keyed by owner and MethodID). `plan_owner(plan_id PRIMARY
 KEY, kind)` holds one row per bound plan and each method table references it by `(plan_id, kind)` with
-a constant `kind`, so a plan has at most one owner across the two tables. Plan-to-owner lookups read
+a constant `kind`, so a plan has at most one owner across the tables. Plan-to-owner lookups read
 the `plan_methods` view (plan_id, kind, owner_id, episode, method_id, priority, reason; episode is NULL
-outside Standards). The `need` owner kind and `need_methods` table are the
-[target model's](../architecture/control-loop.md#method-journal-claim-admission)
-replacement for `standard_methods`; this paragraph is updated when they land.
+outside Standards). The [target model's](../architecture/control-loop.md#method-journal-claim-admission)
+owner is `need_methods` (kind `need`, journal version 14): keyed by world, NeedId, MethodId and
+`attempt`, with `owner_id` the NeedId in `plan_methods`. A released MethodId admitted again is a new
+attempt row; the rows are history, and a rebuild retires the plans but keeps the rows. A NeedId
+(`family/kind[/subject]`) also stands in the `concern` column of `concern_transitions` and the
+`concern` attr of `planner_step` for a family entry.
 
 ## Bounded working set
 

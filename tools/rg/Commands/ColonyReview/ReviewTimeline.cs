@@ -97,10 +97,12 @@ internal static partial class ReviewTimeline
             }
             census = census with { Pawns = census.Pawns?.Select(p => p with { Label = Plain(p.Label) }).ToList() };
             var concerns = new List<Concern>();
+            // An extra owner's sample rides under its key (a Concern id or a NeedId) and is told by its shape, a need
+            // and a status, not by its name. The watched owner's own fields sit at the top, named by "concern"; a
+            // report written before that field names it "watched".
             foreach (var p in sample.EnumerateObject())
             {
-                if ((p.Name.StartsWith("Ensure", StringComparison.Ordinal) || p.Name.StartsWith("Maintain", StringComparison.Ordinal))
-                    && p.Value.ValueKind == JsonValueKind.Object
+                if (p.Value.ValueKind == JsonValueKind.Object
                     && TryString(p.Value, "need", out var need)
                     && TryString(p.Value, "status", out var status)
                     && need.Length > 0)
@@ -111,7 +113,7 @@ internal static partial class ReviewTimeline
             if (TryString(sample, "need", out var topNeed) && topNeed.Length > 0)
             {
                 TryString(sample, "status", out var topStatus);
-                concerns.Add(new Concern("EnsureFoodSupply", topNeed, topStatus));
+                concerns.Add(new Concern(TryString(sample, "concern", out var watched) && watched.Length > 0 ? watched : "watched", topNeed, topStatus));
             }
             concerns.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
             rows.Add(Stamp(new Row { Census = census, Concerns = concerns }, tick));

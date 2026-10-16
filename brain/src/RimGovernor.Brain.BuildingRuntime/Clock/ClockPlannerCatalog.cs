@@ -35,6 +35,12 @@ internal sealed record PlannerEntry
     /// <summary>Reports whether the composition wired this planner.</summary>
     public required Func<ClockSchedulerConfig, bool> Configured { get; init; }
 
+    /// <summary>
+    /// The family this entry runs (#3250); null for a catalog planner. A family entry files its verdicts under its
+    /// NeedIds, not its name, and runs in the ordinary wave as well as, when it has SeriousHarm Needs, the immediate one.
+    /// </summary>
+    public FamilyRunner? Family { get; init; }
+
     /// <summary>Steps the planner and stores its result on the given result; its error is wrapped with the planner's name.</summary>
     public required Func<ClockScheduler, CancellationToken, CancellationToken, ClockSchedulerResult, StepArbiter, Task<Verdict>> Run { get; init; }
 
@@ -308,6 +314,74 @@ internal static class ClockPlannerCatalog
         E("defenseLayout", O, [ActionKind.Building, ActionKind.RecoveryService, ActionKind.CoverClearance, ActionKind.FoundationRemoval], SectionsBuilding,
             c => c.DefenseLayout is not null, (s, ct, e, a) => s.Config.DefenseLayout!.StepAsync(a, ct, e), (o, m) => o.DefenseLayout = m, EnsureDefensiveLayout),
     ];
+
+    /// <summary>
+    /// The due-queue entry of a family (#3250), named by its id: it wakes on an invalidation of any fact family it
+    /// reads (every census section of those families, and the sectionless ones by name), on a terminal outcome of
+    /// its Methods' kinds and on its cadence. It is immediate when the family has SeriousHarm Needs.
+    /// </summary>
+    public static PlannerEntry FamilyEntry(FamilyRunner runner)
+    {
+        var families = runner.Family.Reads.Union(runner.Family.SeriousHarmReads).Distinct().ToArray();
+        return new PlannerEntry
+        {
+            Name = runner.Family.Id,
+            Family = runner,
+            Immediate = runner.Immediate,
+            Class = runner.Schedule.Class,
+            Kinds = runner.Schedule.Kinds,
+            Sections = [.. families.SelectMany(FactStore.FamilySections).Distinct()],
+            Families = families,
+            Every = runner.Schedule.Every,
+            Configured = c => c.Rounds is not null,
+            Run = async (s, ct, epoch, output, _) =>
+            {
+                var p = s.Config.Rounds!.Player;
+                var state = p.Session.State();
+                if (!state.Enabled)
+                {
+                    output.Families[runner.Family.Id] = new FamilyRun { Verdict = BuildingRuntimePackage.BuildingReasonDisabled };
+                    return BuildingRuntimePackage.BuildingReasonDisabled;
+                }
+                if (!state.ObservationKnown || !state.Snapshot.IsValid)
+                {
+                    throw new ControlException("step: observation unknown or snapshot invalid");
+                }
+                var run = await runner.RunAsync(new FamilyStep
+                {
+                    Journal = p.Journal,
+                    World = state.Snapshot,
+                    Immediate = ReviewScope.Immediate,
+                    Fence = () =>
+                    {
+                        p.Current(ct, epoch);
+                        if (p.Session.State() != state)
+                        {
+                            throw new ControlException("step: session state changed");
+                        }
+                    },
+                }, ct).ConfigureAwait(false);
+                output.Families[runner.Family.Id] = run;
+                return run.Verdict;
+            },
+        };
+    }
+
+    /// <summary>The catalog with each family's entry after the planners; a family named like a planner or another family is refused.</summary>
+    public static List<PlannerEntry> WithFamilies(IReadOnlyList<FamilyRunner> families)
+    {
+        var output = new List<PlannerEntry>(Entries);
+        var names = output.Select(e => e.Name).ToHashSet(StringComparer.Ordinal);
+        foreach (var runner in families)
+        {
+            if (!names.Add(runner.Family.Id))
+            {
+                throw new ControlException($"family {runner.Family.Id} is named like another planner or family");
+            }
+            output.Add(FamilyEntry(runner));
+        }
+        return output;
+    }
 
     /// <summary>Reports whether the review binds an active MaintainHousing goal still in deficit on its starter-shelter phase.</summary>
     public static bool ShelterOwed(RoundsResult review)

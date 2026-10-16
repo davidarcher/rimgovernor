@@ -127,6 +127,11 @@ public sealed partial class Store
                     AuthorizeIncidentPlan(tx, review, new IncidentId(owner.OwnerId), root, target);
                     return;
                 }
+                if (owner.Kind == "need")
+                {
+                    AuthorizeNeedPlan(tx, target.Plan, root, target);
+                    return;
+                }
                 AuthorizeStandardPlan(tx, review, LoadStandard(tx, new StandardId(owner.OwnerId)), root, target);
             },
             cancellationToken
@@ -165,6 +170,22 @@ public sealed partial class Store
         if ((binding is null || binding.Situation != Situation.Active) && !CombatRestorationPlan(tx, p.Spec))
         {
             throw new ConflictException("incident is not in deficit");
+        }
+        RoundsActionsSupported(p.Spec);
+    }
+
+    /// <summary>
+    /// <see cref="AuthorizeRoundsPlan"/> for a Need's method (#3250): the plan belongs to the root's world, no Safeguard
+    /// vetoes routine work and the plan is unretired at the target revision. Whether the Need is still unmet is its
+    /// family's to judge on its next run; the caller has already required a current enabled review under the root.
+    /// </summary>
+    internal static void AuthorizeNeedPlan(StoreTransaction tx, PlanId plan, GenerationSnapshot root, GenerationSnapshot target)
+    {
+        GuardNeedWork(tx, plan, root);
+        var p = LoadIn(tx, plan);
+        if (p.Retired || p.Spec.Revision != target.Revision)
+        {
+            throw new ConflictException("plan is retired or revised");
         }
         RoundsActionsSupported(p.Spec);
     }
