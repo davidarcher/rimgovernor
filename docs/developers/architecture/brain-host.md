@@ -135,6 +135,16 @@ Decided (user, 2026-10-13):
   it will not run: `RIMGOVERNOR_OTLP_DIR` unset, or the start failed). The brain passes it as
   `BrainHostOptions.Routes`, so `/player/*` shares the endpoint file and request guard with `/native/*`. With no
   channel (or none within 30 s) the brain runs with `Routes = null` and logs one warning.
+- **Start time (#3290).** One headless boot with all DLCs took ~2.8 s from bridge start to brain started:
+
+  | Step | Time | Note |
+  | --- | --- | --- |
+  | `capabilities.initialize` (game thread) | 2.07 s | the defs check passes on its first try, but its hop is queued behind this |
+  | routes | ~34 ms | the routes task is awaited directly, with no polling |
+  | `brain.host_start` | ~0.64 s | includes ~160 ms of game-thread observation snapshot read |
+
+  Overlapping the brain start with `capabilities.initialize` would save ~0.4–0.5 s, but it needs a `BrainHost` API
+  change and a readiness gate, so it was rejected. The real cost belongs to #3289 and #3291.
 - **Settings.** The mod has no CLI; `InProcEnvironment` (Host, game-free) resolves environment variables. Paths must be
   absolute; a bad value stops the start with a warning naming the variable.
 
