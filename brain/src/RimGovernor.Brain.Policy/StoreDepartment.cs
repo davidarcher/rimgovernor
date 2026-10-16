@@ -135,21 +135,7 @@ public static partial class PolicyFunctions
         {
             return Unknown<long>();
         }
-        var groups = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var z in request.Zones)
-        {
-            if (store.Serves(z))
-            {
-                groups.Add(z.Id);
-            }
-        }
-        foreach (var s in request.Shelves)
-        {
-            if (groups.Contains(s.Zone))
-            {
-                groups.Add(s.Building);
-            }
-        }
+        var groups = StoreGroups(request, store);
         long stranded = 0;
         foreach (var row in rows)
         {
@@ -172,6 +158,27 @@ public static partial class PolicyFunctions
             stranded++;
         }
         return Known(stranded);
+    }
+
+    /// <summary>The store's storage groups (native load ids): the owned zones serving it and the built shelves in them.</summary>
+    internal static HashSet<string> StoreGroups(StockpileRequest request, Store store)
+    {
+        var groups = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var z in request.Zones)
+        {
+            if (store.Serves(z))
+            {
+                groups.Add(z.Id);
+            }
+        }
+        foreach (var s in request.Shelves)
+        {
+            if (groups.Contains(s.Zone))
+            {
+                groups.Add(s.Building);
+            }
+        }
+        return groups;
     }
 
     /// <summary>Collects the registered departments' declarations.</summary>

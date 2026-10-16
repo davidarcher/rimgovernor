@@ -64,6 +64,64 @@ internal sealed partial class FacadeNativeClient
     }
 
     /// <summary>
+    /// Native's saved storage occupancy ring: each named storage group's hourly stack samples after
+    /// <paramref name="sinceHour"/>, ascending. A group with no samples is absent. Game-scoped like consumption: the
+    /// group load ids name the map.
+    /// </summary>
+    internal async Task<Policy.StoreOccupancy> ReadStorageOccupancyAsync(IReadOnlyCollection<string> groups, int sinceHour, CancellationToken cancellationToken)
+    {
+        var request = new PbObservations.StorageOccupancyRequest
+        {
+            Groups = Domain.EquatableArray.From(groups.Order(StringComparer.Ordinal).Select(id => new PbCommon.Ref { Id = id })),
+            SinceHour = sinceHour >= 0 ? sinceHour : null,
+        };
+        var reply = await Facade.ReadStorageOccupancyAsync(request, cancellationToken).ConfigureAwait(false);
+        var outcome = reply?.Outcome;
+        if (outcome?.Unavailable is { } unavailable)
+        {
+            throw Unavailable(unavailable);
+        }
+
+        if (outcome?.Failure is { } failure)
+        {
+            throw Failure(failure);
+        }
+
+        var snapshot = outcome?.Observed ?? throw Contract("missing storage occupancy outcome");
+        if (snapshot.CurrentHour is null || snapshot.CurrentHour < 0)
+        {
+            throw Contract("invalid storage occupancy hour");
+        }
+
+        var output = new Dictionary<string, Domain.EquatableArray<Policy.OccupancySample>>(StringComparer.Ordinal);
+        foreach (var group in snapshot.Groups)
+        {
+            var id = group?.Group?.Id ?? "";
+            if (!groups.Contains(id) || output.ContainsKey(id))
+            {
+                throw Contract("invalid storage occupancy group");
+            }
+
+            var samples = new List<Policy.OccupancySample>();
+            var previous = sinceHour;
+            foreach (var sample in group!.Samples)
+            {
+                if (sample is null || sample.Hour is null || sample.Stacks is null || sample.Hour <= previous || sample.Hour > snapshot.CurrentHour || sample.Stacks < 0)
+                {
+                    throw Contract("invalid storage occupancy sample");
+                }
+
+                previous = sample.Hour.Value;
+                samples.Add(new Policy.OccupancySample { Hour = previous, Stacks = sample.Stacks.Value });
+            }
+
+            output[id] = Domain.EquatableArray.From(samples);
+        }
+
+        return new Policy.StoreOccupancy { CurrentHour = snapshot.CurrentHour.Value, Groups = output };
+    }
+
+    /// <summary>
     /// Go <c>Client.ReadResourceSources</c>: a fresh read of one resource definition's reachable mine/harvest sources and
     /// the always-populated storage capacity payload, in one complete page. The rows come back nearest first (ties by
     /// thing id).

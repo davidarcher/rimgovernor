@@ -4140,6 +4140,87 @@ public abstract record ConsumptionReplyOutcome
     public static implicit operator ConsumptionReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
+/// <summary>
+/// Storage occupancy. Native keeps a saved hourly ring (2500-tick hours, 15 days)
+/// of the item stacks held by each of the player's storage groups (stockpile zones
+/// and storage buildings, by load id) on home maps, sampled at each hour's first
+/// tick. A read names the groups and the last hour the reader does not need; the
+/// reply lists, per requested group that has samples, every sample after
+/// since_hour (absent or negative: the whole ring) in ascending hour order. A
+/// group not listed has no samples and is unknown: a group created mid-window
+/// starts its own samples, a deleted group drops out. current_hour is the hour now
+/// running.
+/// </summary>
+public sealed record StorageOccupancySample
+{
+    public int? Hour { get; init; }
+
+    public int? Stacks { get; init; }
+}
+
+public sealed record StorageOccupancyGroup
+{
+    public Common.Ref? Group { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<StorageOccupancySample>))]
+    public EquatableArray<StorageOccupancySample> Samples { get; init; }
+}
+
+public sealed record StorageOccupancySnapshot
+{
+    public int? CurrentHour { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<StorageOccupancyGroup>))]
+    public EquatableArray<StorageOccupancyGroup> Groups { get; init; }
+}
+
+public sealed record StorageOccupancyRequest
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
+    public EquatableArray<Common.Ref> Groups { get; init; }
+
+    public int? SinceHour { get; init; }
+}
+
+public sealed record StorageOccupancyReply
+{
+    public StorageOccupancyReplyOutcome? Outcome { get; init; }
+}
+
+/// <summary>The <c>outcome</c> choice of <see cref="StorageOccupancyReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(StorageOccupancyReplyOutcome.ObservedCase), "observed")]
+[JsonDerivedType(typeof(StorageOccupancyReplyOutcome.UnavailableCase), "unavailable")]
+[JsonDerivedType(typeof(StorageOccupancyReplyOutcome.FailureCase), "failure")]
+public abstract record StorageOccupancyReplyOutcome
+{
+    private protected StorageOccupancyReplyOutcome() { }
+
+    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public StorageOccupancySnapshot? Observed => (this as ObservedCase)?.Value;
+
+    public sealed record ObservedCase(StorageOccupancySnapshot Value) : StorageOccupancyReplyOutcome;
+
+    public static implicit operator StorageOccupancyReplyOutcome(StorageOccupancySnapshot value) => new ObservedCase(value);
+
+    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
+
+    public sealed record UnavailableCase(Common.Unavailable Value) : StorageOccupancyReplyOutcome;
+
+    public static implicit operator StorageOccupancyReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
+
+    public sealed record FailureCase(Common.Failure Value) : StorageOccupancyReplyOutcome;
+
+    public static implicit operator StorageOccupancyReplyOutcome(Common.Failure value) => new FailureCase(value);
+}
+
 public sealed record HandlerState
 {
     public Common.Ref? Pawn { get; init; }

@@ -100,6 +100,21 @@ headroom is unknown, or when a zero-headroom row of unknown safety names the
 store. The runway work of the storage capacity options (#3227) reads it; nothing
 acts on it yet.
 
+### Store inflow
+
+Native keeps a saved occupancy ring (`StorageOccupancyState`, 15 days of 2500-tick
+hours): at each hour's first tick it records the item stacks every player storage
+group on a home map holds, zero included. A group created mid-window starts its own
+samples; a deleted one stops and ages out. The stockpile request reads the samples
+of its zones and built shelves over the inflow window
+(`observations_read_storage_occupancy`, `StockpileRequest.Occupancy`).
+`policy.StoreInflow` is a store's net inflow in stacks per day: the sum over its
+zones and their shelves of each group's least-squares slope of held stacks over the
+last `StoreInflowWindowDays` (3). A negative inflow is a known reading (the store
+drains). It is unknown, never zero, while the ring is unread, when the store has no
+group, or while any of its groups has under a day of samples. Nothing acts on it
+yet; the yard runway (#3236) reads it.
+
 ### Shelves
 
 Every declared, non-retired store whose filter a shelf can hold is a shelf

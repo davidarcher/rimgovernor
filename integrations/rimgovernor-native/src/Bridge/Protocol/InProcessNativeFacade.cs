@@ -191,6 +191,9 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ConsumptionReply> ReadConsumptionAsync(Obs.ConsumptionRequest request, CancellationToken cancellationToken)
             => Read("observations_read_consumption", request, () => NativeConsumptionTool.HandleReadConsumption(request), cancellationToken);
 
+        public Task<Obs.StorageOccupancyReply> ReadStorageOccupancyAsync(Obs.StorageOccupancyRequest request, CancellationToken cancellationToken)
+            => Read("observations_read_storage_occupancy", request, () => NativeStorageOccupancyTool.HandleRead(request), cancellationToken);
+
         public Task<Obs.DefenseSiteReply> ReadDefenseSiteAsync(Obs.DefenseSiteRequest request, CancellationToken cancellationToken)
             => Read("observations_read_defense_site", request, () => NativeDefenseObservationTools.HandleReadDefenseSite(request), cancellationToken);
 

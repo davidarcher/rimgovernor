@@ -213,7 +213,41 @@ public sealed partial class Rounder
         request = request with { ShelfSpent = shelfSpent };
         request = request with { ShelfRecords = shelfRecords };
         request = request with { Shelves = shelfRows };
+        request = request with { Occupancy = await StorageOccupancyAsync(request, tick, ct).ConfigureAwait(false) };
         return (request, "");
+    }
+
+    /// <summary>
+    /// The occupancy ring's samples over the inflow window for the request's zones and built shelves; unknown when
+    /// the native cannot read it or the read fails (a store's inflow is then unknown, never zero).
+    /// </summary>
+    private async Task<Fact<Pol.StoreOccupancy>> StorageOccupancyAsync(Pol.StockpileRequest request, Tick tick, CancellationToken ct)
+    {
+        if (Native is not IStorageOccupancySource reader)
+        {
+            return Unknown<Pol.StoreOccupancy>();
+        }
+        var groups = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var z in request.Zones)
+        {
+            groups.Add(z.Id);
+        }
+        foreach (var s in request.Shelves)
+        {
+            groups.Add(s.Building);
+        }
+        if (groups.Count == 0)
+        {
+            return Unknown<Pol.StoreOccupancy>();
+        }
+        try
+        {
+            return Known(await reader.ReadStorageOccupancyAsync(groups, Pol.PolicyFunctions.StoreInflowSinceHour(tick), ct).ConfigureAwait(false));
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Unknown<Pol.StoreOccupancy>();
+        }
     }
 
     /// <summary>

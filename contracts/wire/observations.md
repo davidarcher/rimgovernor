@@ -55,6 +55,18 @@ project `construction`; loss `rot`, `deterioration`, `fire`, `sold`, `stolen`,
 load, and asks for the whole window once after a load or restart. Only recurring reasons
 feed a resource runway. A hook native misses under-counts; nothing gates on it.
 
+## Storage occupancy
+
+`ReadStorageOccupancy` (`observations_read_storage_occupancy`) reads the saved
+`StorageOccupancyState` ring: the item stacks each player storage group (stockpile zone
+or storage building, by load id) on a home map held at each hour's first tick (2500-tick
+hours, 15 days), packed into one versioned base64 string in the save that writes a group's
+row only when its count changed. A request names `groups` and `since_hour`; the reply lists,
+per requested group with samples, every sample after `since_hour` in ascending hour order
+(`current_hour` is the hour running). A group not listed has no samples. The brain reads its
+zones and built shelves over the inflow window and derives `policy.StoreInflow`; see
+[storage](../../docs/developers/architecture/storage.md#store-inflow).
+
 ## Deep resources and mineral scanners
 
 `ColonyFactsSnapshot.deep_resources` reads discovered `DeepResourceGrid` entries,

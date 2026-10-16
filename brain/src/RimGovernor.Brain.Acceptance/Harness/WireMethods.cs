@@ -48,6 +48,7 @@ public static class WireMethods
         ["observations_get_clearance_targets"] = (typeof(W.Observations.ClearanceTargetsRequest), typeof(W.Observations.ClearanceTargetsReply)),
         ["combat_geometry"] = (typeof(W.Mirror.CombatGeometryRequest), typeof(W.Mirror.CombatGeometryReply)),
         ["observations_read_consumption"] = (typeof(W.Observations.ConsumptionRequest), typeof(W.Observations.ConsumptionReply)),
+        ["observations_read_storage_occupancy"] = (typeof(W.Observations.StorageOccupancyRequest), typeof(W.Observations.StorageOccupancyReply)),
         ["observations_read_defense_site"] = (typeof(W.Observations.DefenseSiteRequest), typeof(W.Observations.DefenseSiteReply)),
         ["observations_read_lines_of_fire"] = (typeof(W.Observations.LinesOfFireRequest), typeof(W.Observations.LinesOfFireReply)),
         ["observations_read_husbandry"] = (typeof(W.Observations.HusbandryRequest), typeof(W.Observations.HusbandryReply)),

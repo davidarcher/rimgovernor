@@ -14,6 +14,12 @@ public interface IRoundsStockpileSource
     Task<(ZoneDeleteTarget Target, BridgeResult Result)> ReadZoneDeleteTargetAsync(C.Identity identity, string zone, CancellationToken ct);
 }
 
+/// <summary>Reads the saved occupancy ring: each named storage group's hourly stack samples after sinceHour.</summary>
+public interface IStorageOccupancySource
+{
+    Task<StoreOccupancy> ReadStorageOccupancyAsync(IReadOnlyCollection<string> groups, int sinceHour, CancellationToken ct);
+}
+
 /// <summary>Reads a shelf's storage settings CAS token.</summary>
 public interface IShelfTargetSource
 {

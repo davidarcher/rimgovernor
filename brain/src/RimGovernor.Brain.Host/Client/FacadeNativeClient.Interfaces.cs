@@ -74,6 +74,7 @@ internal sealed partial class FacadeNativeClient :
     IRoundsResourceSource,
     IResourceRunwaySource,
     IConsumptionSource,
+    IStorageOccupancySource,
     IShellBatchPreviewer,
     IRoundsStoneShellSource,
     IRoundsSupplySource,

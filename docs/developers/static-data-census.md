@@ -208,6 +208,7 @@ Kept, reason recorded:
 | NativeConstructionCausality.cs | 38 | code | Tracks exact created and spawned objects within a synchronous construction scope. |  |  |
 | NativeConstructionHookSet.cs | 36 | code | Helper identifying declared MethodInfo implementations for Harmony hook sets. |  |  |
 | NativeConsumptionTool.cs | 45 | state | Reads realized hourly consumption ledger entries. |  |  |
+| NativeStorageOccupancyTool.cs | 50 | state | Reads the hourly stacks-held samples of requested storage groups. |  |  |
 | NativeCustodyOperations.cs | 141 | state | GiveJob Capture/Rescue and entity holding-platform carry orders with vanilla gates. |  |  |
 | NativeCutPlant.cs | 76 | state | CutPlant designation on one exact plant with apply-time preconditions. | DesignationDef and Kind const strings | none needed |
 | NativeDeepResources.cs | 87 | state | Reads deep drill and scanner state and deposit progress via reflection. |  |  |

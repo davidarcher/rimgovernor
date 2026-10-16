@@ -195,6 +195,9 @@ internal sealed partial class FacadeNativeClient
     Task<Policy.ConsumptionPage> IConsumptionSource.ReadConsumptionAsync(int sinceHour, CancellationToken ct) =>
         ReadConsumptionAsync(sinceHour, ct);
 
+    Task<Policy.StoreOccupancy> IStorageOccupancySource.ReadStorageOccupancyAsync(IReadOnlyCollection<string> groups, int sinceHour, CancellationToken ct) =>
+        ReadStorageOccupancyAsync(groups, sinceHour, ct);
+
     Task<(SupplyRead Read, BridgeResult Result)> IFoodReserveSupplyReader.ReadFoodReserveSuppliesAsync(C.Identity identity, bool forbid, CancellationToken ct) =>
         ReadFoodReserveSuppliesAsync(identity, forbid, ct);
 

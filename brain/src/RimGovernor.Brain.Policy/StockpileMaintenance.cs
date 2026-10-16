@@ -151,6 +151,9 @@ public sealed record StockpileRequest
 
     /// <summary>The loot census (projection EventLoot), read for each store's stranded stacks (StrandedStacks).</summary>
     public Fact<EquatableArray<LootItem>> Loot { get; init; }
+
+    /// <summary>The native occupancy ring's samples of the zones' and built shelves' groups, read for each store's inflow (StoreInflow).</summary>
+    public Fact<StoreOccupancy> Occupancy { get; init; }
 }
 
 /// <summary>One built shelf serving an owned zone and the settings last patched onto it (Patched false: never patched, native defaults).</summary>

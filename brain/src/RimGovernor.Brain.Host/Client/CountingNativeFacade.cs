@@ -97,6 +97,7 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
     public Task<Mirror.CombatGeometryReply> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken) => Count("combat_geometry", () => inner.ReadCombatGeometryAsync(request, cancellationToken));
 
     public Task<Obs.ConsumptionReply> ReadConsumptionAsync(Obs.ConsumptionRequest request, CancellationToken cancellationToken) => Count("observations_read_consumption", () => inner.ReadConsumptionAsync(request, cancellationToken));
+    public Task<Obs.StorageOccupancyReply> ReadStorageOccupancyAsync(Obs.StorageOccupancyRequest request, CancellationToken cancellationToken) => Count("observations_read_storage_occupancy", () => inner.ReadStorageOccupancyAsync(request, cancellationToken));
 
     public Task<Obs.DefenseSiteReply> ReadDefenseSiteAsync(Obs.DefenseSiteRequest request, CancellationToken cancellationToken) => Count("observations_read_defense_site", () => inner.ReadDefenseSiteAsync(request, cancellationToken));
 
