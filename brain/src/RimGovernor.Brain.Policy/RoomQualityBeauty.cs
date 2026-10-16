@@ -35,12 +35,12 @@ public static partial class PolicyFunctions
     /// <summary>The plant pot the beauty lever places.</summary>
     public const string PlantPotDefinition = "PlantPot";
 
-    /// <summary>Bounds one floor upgrade plan, as MaintainFlooring's MaxCellsPerPlan does.</summary>
+    /// <summary>Bounds one floor upgrade plan, as the rooms/flooring Need's MaxCellsPerPlan does.</summary>
     internal const int MaxBeautyFloorCells = 24;
 
     /// <summary>
     /// The sculpture lever, after pots and floors: a finished packed small sculpture installed on free floor
-    /// in the room. The sculpture itself is MaintainArt's pinned bill. Sculptures pack as the generic
+    /// in the room. The sculpture itself is the rooms/art Need's pinned bill. Sculptures pack as the generic
     /// MinifiedThing (Buildings_Art.xml), so the packed read is filtered by inner definition.
     /// </summary>
     public const string PackedSculptureDefinition = "MinifiedThing";

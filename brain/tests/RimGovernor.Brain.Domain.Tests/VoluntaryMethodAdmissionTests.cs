@@ -40,7 +40,7 @@ public sealed class VoluntaryMethodAdmissionTests
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") with { PsylinkOwed = Fact.Known(true) } }, ct);
         var labor = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
-        var other = Assert.Single(review.Standards, s => s.Standard.Kind == (kind == "neuroformer" ? PolicyConstants.MaintainPsylink : MaintainArt));
+        var other = Assert.Single(review.Standards, s => s.Standard.Kind == (kind == "neuroformer" ? PolicyConstants.MaintainPsylink : MaintainMechs));
         var held = new PlanSpec(new("coupled-plan"), new(1),
             [DomainAction.NewPawnActivitiesAction(new("coupled-action"), new(1,
                 [new("pawn", "assignment", "coupled-method", 0, 1, false,
@@ -84,7 +84,7 @@ public sealed class VoluntaryMethodAdmissionTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-return-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainArt);
+        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         var departure = new CaravanDeparture([new("pawn")], [], 2, mode);
         var plan = new PlanSpec(new("return-plan"), new(1),
             [DomainAction.NewCaravanDepartureAction(new("return-action"), departure)]);

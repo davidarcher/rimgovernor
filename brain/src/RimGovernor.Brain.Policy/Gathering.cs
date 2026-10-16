@@ -28,9 +28,9 @@ public sealed record GatheringPlan
 
 public static partial class PolicyFunctions
 {
-    // HoldGatherings holds a vanilla party when the colony as a whole is losing mood a party would repay. It is a
-    // mood source with a cost (colonist time), not a repair: the PartySpot is kept by EnsureComfort
-    // (PartySpotDefinition), and this concern only decides when to start the party and who organizes it. Every
+    // The rooms/gatherings Need holds a vanilla party when the colony as a whole is losing mood a party would repay. It is a
+    // mood source with a cost (colonist time), not a repair: the PartySpot is kept by rooms/party-spot
+    // (PartySpotDefinition), and this Need only decides when to start the party and who organizes it. Every
     // number below is a vanilla fact, not a tuning choice:
     //
     //   - the def is Core's Party, the GatheringDef whose gatherSpotDefs name the PartySpot;
@@ -43,7 +43,6 @@ public static partial class PolicyFunctions
     //     durationDays) the last party is still paying out, so nothing is stored;
     //   - a party's lord job runs 5000 to 15000 ticks (LordJob_Joinable_Party.durationTicks) and, while it
     //     runs, the game refuses a new gathering.
-    public static readonly ConcernId HoldGatherings = new("HoldGatherings");
 
     /// <summary>The GatheringDef whose gatherSpotDefs is the PartySpot.</summary>
     public const string PartyGatheringDef = "Party";
@@ -51,14 +50,11 @@ public static partial class PolicyFunctions
     /// <summary>The memory each attendee gains when the party ends.</summary>
     public const string PartyThought = "AttendedParty";
 
-    /// <summary>The game's own gate (see HoldGatherings).</summary>
+    /// <summary>The game's own gate (see rooms/gatherings).</summary>
     public const int GatheringMinColonists = 4;
 
-    /// <summary>The game's own guest fraction (see HoldGatherings).</summary>
+    /// <summary>The game's own guest fraction (see rooms/gatherings).</summary>
     public const double GatheringGuestShare = 0.65;
-
-    /// <summary>The longest a party runs.</summary>
-    public static readonly Tick GatheringMaxTicks = new(15000);
 
     /// <summary>
     /// Go <c>PlanGathering</c>: returns the party to start now, or the zero plan (Organizer empty) when none is
@@ -195,14 +191,7 @@ public static partial class PolicyFunctions
         return (best.Id, true);
     }
 
-    /// <summary>
-    /// Go <c>GatheringRunning</c>: whether a party started at start may still be running at now: the game
-    /// refuses a second one until its lord job ends, which is at most GatheringMaxTicks after it began.
-    /// </summary>
-    public static bool GatheringRunning(Tick start, Tick now) => now >= start && now.Value - start.Value < GatheringMaxTicks.Value;
-
-    /// <summary>Go <c>GatheringOwed</c>: measures HoldGatherings: known false when no party is due now, unknown while its inputs are.</summary>
+    /// <summary>Go <c>GatheringOwed</c>: measures rooms/gatherings: known false when no party is due now, unknown while its inputs are.</summary>
     public static Fact<bool> GatheringOwed(Fact<GatheringPlan> plan) => plan.TryGetValue(out var p) ? Known(!p.Organizer.IsEmpty) : Unknown<bool>();
 
-    internal static void InspectGathering(RoundsRun c) => c.Owed(HoldGatherings, c.F.GatheringOwed);
 }

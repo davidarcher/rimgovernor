@@ -211,7 +211,7 @@ namespace HomeBridge.BridgeTools
                 // Every proper indoor room the colony lives in (any cell in
                 // the home area, not psychologically outdoors) with the
                 // terrain under each cell; the catalog's terrain rows carry the
-                // stats MaintainFlooring scores. A floor blueprint
+                // stats the rooms/flooring Need scores. A floor blueprint
                 // or frame on a cell is reported as its pending terrain so
                 // the planner never doubles an open order.
                 var rooms = map.regionGrid.AllRooms.Where(r => r.ProperRoom && !r.PsychologicallyOutdoors && !r.TouchesMapEdge

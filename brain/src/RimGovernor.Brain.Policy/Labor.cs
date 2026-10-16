@@ -18,9 +18,8 @@ public static partial class PolicyFunctions
         }
         Set(
             [WorkType.Construction],
-            EnsureComfort, MaintainHousing,
-            MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
-        Set([WorkType.Art], MaintainArt);
+            MaintainHousing,
+            MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
 
         // A sale batch at any crafting bench: sculpture, apparel, weapon.
         Set([WorkType.Art, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MaintainTrade);

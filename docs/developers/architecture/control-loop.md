@@ -553,7 +553,7 @@ three ways (prisoners, joiners, anomaly).
 | Food stores | food-stores/storage (was MaintainFoodStorage, #3251), food-stores/refrigeration (#3280) |
 | Food | `food`: Needs `supply`, `cooking`, `baby-feeding`, `blight` (#3254; EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight deleted) |
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
-| Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |
+| Rooms | `rooms`: Needs `lighting`, `flooring`, `art`, `comfort`, `hosting`, `party-spot`, `gatherings` (#3255; its five Concerns and the comfort phase latch deleted) |
 | Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted); EnsureDefensiveLayout |
 | Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |
 | Power | EnsureBasicPower |

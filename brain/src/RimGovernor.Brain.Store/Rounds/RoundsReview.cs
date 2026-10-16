@@ -230,9 +230,8 @@ public sealed partial class Store
             {
                 facts = facts with { SleepingRecovered = Known(false) };
             }
-            var comfortReview = PolicyFunctions.ReviewComfort(facts.Comfort, comfort, request.Tick);
-            comfort = comfortReview.History;
-            facts = facts with { ComfortRecovered = comfortReview.Recovered(), ComfortDeficit = comfortReview.Deficit() };
+            // The rooms family reads hosting recovery from this proof-of-use history.
+            comfort = PolicyFunctions.ReviewComfort(facts.Comfort, comfort, request.Tick).History;
             var (lootCensus, held) = LootReachFilter(request with { Facts = facts });
             // The cohort is the admin/supply-safety Need's work (AdminRounds reads it from the review).
             var (lootHistory, _) = PolicyFunctions.ReviewEventLoot(lootCensus, loot);

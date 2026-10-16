@@ -79,7 +79,7 @@ public sealed record FirebreakCell(Cell Cell, FirebreakTreatment Treatment);
 
 /// <summary>
 /// The ring work: every non-skipped band cell with its treatment and the wooden ruins to deconstruct.
-/// MaintainFlooring picks the floor a paved cell takes. (Go <c>FirebreakPlan</c>.)
+/// The rooms/flooring Need picks the floor a paved cell takes. (Go <c>FirebreakPlan</c>.)
 /// </summary>
 public sealed record FirebreakPlan
 {

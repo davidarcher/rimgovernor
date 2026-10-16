@@ -132,12 +132,10 @@ public sealed partial class Store
             throw new ConflictException($"bill method needs a current autopilot review and at most {MaxBillPlanActions} actions");
         }
         // Bills serve the resource-target goals whose production path stages a bench and then
-        // a StockTarget bill on it, the art goal's pinned sculpture bills, the mech goal's gestation bills and the
-        // surgery goal's part bills. The work ledger goal commits the round's whole reconcile plan: places and
-        // removals together.
+        // a StockTarget bill on it, the mech goal's gestation bills and the surgery goal's part bills.
+        // The work ledger goal commits the round's whole reconcile plan: places and removals together.
         var bound = owner.OwnerNeed(review, out var need)
             && (need == MaintainResource
-                || need == MaintainArt
                 || need == MaintainMechs
                 || need == MaintainSurgery
                 || need == MaintainWorkLedger);

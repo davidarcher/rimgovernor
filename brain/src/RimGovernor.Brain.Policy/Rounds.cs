@@ -161,9 +161,6 @@ public sealed record RoundsFacts
     /// <summary>The colony biome's permanent darkness: its map conditions include a no-sunlight class.</summary>
     public Fact<bool> OutdoorsDark { get; init; }
 
-    /// <summary>The built, powered rooms the layout plan lights with a planned lamp unbuilt (PlanLitRooms); they keep MaintainLighting open beside the dark benches.</summary>
-    public Fact<EquatableArray<int>> PlanLit { get; init; }
-
     public Fact<EquatableArray<RecoveryBuilding>> RecoveryBuildings { get; init; }
 
     public DisasterHistory? Disaster { get; init; }
@@ -230,12 +227,6 @@ public sealed record RoundsFacts
     /// <summary>The planned meal closet waits to be shelled while its dining room stands; it keeps the food-stores/refrigeration Need unmet.</summary>
     public Fact<bool> MealClosetOwed { get; init; }
 
-    /// <summary>
-    /// The colony owes its PartySpot a placement or a deconstruction (ReviewPartySpot); it holds
-    /// EnsureComfort Unmet for the pass or two the step takes. Unknown leaves comfort as it was.
-    /// </summary>
-    public Fact<bool> PartySpotOwed { get; init; }
-
     /// <summary>A stove kitchen supersedes a cooking campfire; it keeps the food/cooking Need unmet.</summary>
     public Fact<bool> CampfireRetireOwed { get; init; }
 
@@ -245,7 +236,7 @@ public sealed record RoundsFacts
     /// <summary>A heat campfire's auto-refuel should switch, or a sleeping room sits unheated below its sleepers' comfort minimum (TemperatureOwed); it holds EnsureTemperatureSafety open.</summary>
     public Fact<bool> TemperatureOwed { get; init; }
 
-    /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture (SculptureRoomsOwed); with a qualifying artist it holds MaintainArt open.</summary>
+    /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture (SculptureRoomsOwed); the work ledger's art bills read it. Unknown unless the rooms/art Need is composed.</summary>
     public Fact<bool> SculptureRoomsOwed { get; init; }
 
     /// <summary>The work ledger's reconcile diff is non-empty (LedgerDiffOwed); it holds MaintainWorkLedger open. Unknown unless the ledger has declarers and read every bench's bills.</summary>
@@ -266,12 +257,6 @@ public sealed record RoundsFacts
 
     /// <summary>The finished buildings the held rituals' patterns require (observation, from the frame's building census).</summary>
     public Fact<EquatableArray<RitualSite>> RitualSites { get; init; }
-
-    /// <summary>The party to start now (PlanGathering).</summary>
-    public Fact<GatheringPlan> GatheringPlan { get; init; }
-
-    /// <summary>Holds HoldGatherings open. Unknown unless the method is composed.</summary>
-    public Fact<bool> GatheringOwed { get; init; }
 
     /// <summary>The Safe allowed area's native load id, "" when the map has none (PlanSheltering).</summary>
     public Fact<string> ShelterArea { get; init; }
@@ -413,14 +398,10 @@ public sealed record RoundsFacts
 
     /// <summary>
     /// The same census before the hosting-room filter: every indoor seat at an eating surface and every
-    /// recreation source, whatever room (or none) hosts it. EnsureComfort's basic phase measures it; Comfort
+    /// recreation source, whatever room (or none) hosts it. The rooms/comfort Need measures it; Comfort
     /// keeps only facilities in rooms whose native role the facility catalog hosts.
     /// </summary>
     public Fact<ComfortObservation> BasicComfort { get; init; }
-
-    public Fact<bool> ComfortRecovered { get; init; }
-
-    public Fact<double> ComfortDeficit { get; init; }
 
     public Fact<EquatableArray<LootItem>> EventLoot { get; init; }
 
@@ -611,12 +592,6 @@ public sealed record RoundsLatches
 
     public bool MedicalReserve { get; set; }
 
-    /// <summary>Holds the bench IDs MaintainLighting last measured dark.</summary>
-    public EquatableArray<string> Lighting { get; set; }
-
-    /// <summary>Holds the room keys MaintainFlooring last measured short.</summary>
-    public EquatableArray<string> Flooring { get; set; }
-
     /// <summary>Holds the facility IDs MaintainRoutes last measured unreachable.</summary>
     public EquatableArray<string> Routes { get; set; }
 
@@ -629,9 +604,6 @@ public sealed record RoundsLatches
 
     /// <summary>The MaintainHousing phase this review left owed (reviewHousing); empty once housing recovered. The housing planners run only for their own phase.</summary>
     public Phase Housing { get; set; }
-
-    /// <summary>The EnsureComfort phase this review left owed: basic (reachable table, seat and recreation) before ranked (hosting rooms and proof of use, from Development). Empty once recovered.</summary>
-    public Phase Comfort { get; set; }
 
     /// <summary>The MaintainMedicalReserves phase this review left owed: care (sick colonists resting, the hospital) before reserves (the medicine stock). Empty once recovered.</summary>
     public Phase Medical { get; set; }
@@ -702,7 +674,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
     public static readonly ConcernId MaintainMedicalReserves = new("MaintainMedicalReserves");
-    public static readonly ConcernId EnsureComfort = new("EnsureComfort");
     public static readonly ConcernId MaintainResource = new("MaintainResource");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     public static readonly ConcernId TradeWithCaravan = new("TradeWithCaravan");
@@ -890,14 +861,7 @@ public static partial class PolicyFunctions
         var c = new RoundsRun(f, previous, p);
         var medicineFacts = f.MedicalReserve with { Colonists = f.Colonists };
         c.Medicine = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve);
-        c.Lighting = ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark));
-        c.Lighting = c.Lighting.WithPlanned(f.PlanLit);
-        c.Flooring = ReviewFlooring(f.Upkeep.Flooring, f.Upkeep.Rooms, previous.Flooring, p.Flooring);
         c.Routes = ReviewRoutes(f.Upkeep.Routes, previous.Routes, p.Routes);
-        if (f.ComfortDeficit.TryGetValue(out var comfortDeficit) && (double.IsNaN(comfortDeficit) || double.IsInfinity(comfortDeficit) || comfortDeficit < 0 || comfortDeficit > 1))
-        {
-            throw new DomainException("invalid comfort deficit");
-        }
         p.Validate();
         foreach (var fact in new[] { f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
         {
@@ -929,8 +893,6 @@ public static partial class PolicyFunctions
         {
             Sleeping = c.SleepingActive,
             MedicalReserve = c.Medicine.Active,
-            Lighting = EquatableArray.From(c.Lighting.Dark),
-            Flooring = EquatableArray.From(c.Flooring.Latched),
             Routes = c.Routes.Latched,
             Dash = DashLatch(f.Dash),
             Cold = LatchValue(previous.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),

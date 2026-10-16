@@ -45,9 +45,9 @@ them (a thought names every concern providing it):
 
 | Thought | Concern |
 | --- | --- |
-| `AteWithoutTable`, `NeedJoy` | `EnsureComfort` |
+| `AteWithoutTable`, `NeedJoy` | `rooms/comfort` |
 | `SleptOutside`, `SleptOnGround`, `SleptInBarracks`, `NeedRoomSize` | `MaintainHousing` |
-| `EnvironmentDark` | `MaintainLighting` |
+| `EnvironmentDark` | `rooms/lighting` |
 | `EnvironmentCold`, `EnvironmentHot` | `EnsureTemperatureSafety` |
 
 When those thoughts carry at least half of the pawn's negative thought offset, the
@@ -91,7 +91,7 @@ their causes (injuries, infections, infant illness), so dominant pain or sicknes
 pressure raises that concern's deficit and adds no new action. The medicine runway still
 follows realized tending, not mood; no painkiller policy exists (combat-only drugs are
 untouched). `MasochistPain`, `Pain_Idealized` and permanent-condition hediff thoughts
-stay unowned. Every review that provisions `EnsureComfort` must rank it with a
+stay unowned. Every review that provisions `rooms/comfort` must rank it with a
 deficit at least that weighted share
 (snapshot-tested). Schedules are never written. Social recreation, tolerated
 recreation kinds and environmental eligibility remain native job-giver choices.
@@ -321,8 +321,7 @@ mood/subdue case covers native refusal, resend and living containment.
 
 ## Recreation
 
-`EnsureComfort`'s basic phase supplies a reachable recreation source; its ranked
-phase adds a second distinct building-backed joy kind for multiple colonists, or for a
+`rooms/comfort` supplies a reachable recreation source; the comfort Needs then add a second distinct building-backed joy kind for multiple colonists, or for a
 lone colonist bored with their only reachable kind. The native census supplies kinds,
 each colonist's tolerance and boredom, and available building methods. Selection
 prefers a researched, powered television, then billiards, chess or horseshoes when
@@ -376,7 +375,7 @@ for any colonist count.
 
 ### The PartySpot
 
-`EnsureComfort` keeps exactly one free, instant-build `PartySpot` placed, independent
+`rooms/party-spot` keeps exactly one free, instant-build `PartySpot` placed, independent
 of any gathering. `policy.ReviewPartySpot` scores the dining and rec rooms
 lexicographically: the highest observed impressiveness stage (the Impressiveness
 `RoomStatDef` score stages, `ImpressivenessLevels.Stage`), ties broken by cell count.
@@ -391,20 +390,20 @@ It owes one step, each resolved by a single action through the existing paths:
   the same stage never move it;
 - duplicates: each extra spot is deconstructed.
 
-The need is `RoundsFacts.PartySpotOwed`. While it holds and neither facility phase is
-owed, `inspectComfort` raises `EnsureComfort` in the `spot` phase (served by the ranked
-planner) and assesses it Unmet, so comfort is briefly Unmet for the pass or two the
-step takes. Guards keep it from holding comfort Unmet: a blueprint or frame already
+The Need is `rooms/party-spot`, Unmet while `RoomsFacts.PartySpotOwed` holds; it waits on
+`rooms/hosting`, which waits on `rooms/comfort`, so the step runs only once both facility
+Needs are met, and its own building planner places or retires the spot. Guards keep it
+from staying Unmet: a blueprint or frame already
 standing, an unbuildable `PartySpot` (definition unavailable or no builder), no free
 cell, or an already spent per-Episode one-shot (`retireBuilding` once per building, one
-placement per room) all drop the deficit. Mood relief for `AteWithoutTable` and
-`NeedJoy` defers to `EnsureComfort` while it is active, so it defers during that window
-too.
+placement per room, read from the Need's own Methods) all drop the deficit. Mood relief
+for `AteWithoutTable` and `NeedJoy` defers to `rooms/comfort` while it is active.
 
 ### Gathering ownership
 
-`HoldGatherings` retains observed mood demand and the existing native gathering
-mechanics. Ordinary automatic participation is unsupported: its runtime returns
+`rooms/gatherings` is Unmet while observed mood demand owes a party (`policy.PlanGathering`,
+whose cooldown is the AttendedParty memory, with no stored history), after `rooms/party-spot`.
+Ordinary automatic participation is unsupported: the family holds the ready Need with
 `unsupported_forecast_gathering`, and Standard Method admission rejects a direct
 `gathering` action. Starting a lord cannot bypass shared participant availability,
 need timing and displaced work. Gathering support requires those alternatives in

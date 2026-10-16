@@ -47,7 +47,7 @@ internal static class SustainedColonyCase
         PolicyFunctions.EnsureWorkAssignments.Value,
         MilitaryFamily.Defense.Value,
         EconomyFamily.Research.Value,
-        PolicyFunctions.EnsureComfort.Value,
+        RoomsFamily.Comfort.Value,
         HomeUpkeepFamily.Repairs.Value,
     ];
 

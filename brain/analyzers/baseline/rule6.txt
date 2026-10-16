@@ -194,7 +194,6 @@ Policy/FoodPlan.cs|PolicyFunctions.FoodForageWorkTicks|2500
 Policy/FoodPlan.cs|PolicyFunctions.FoodHuntWorkTicks|7500
 Policy/FoodPolicy.cs|PolicyFunctions.TravelReserve|"MealSurvivalPack"
 Policy/FoodPolicy.cs|PolicyFunctions.TravelReserve|"Pemmican"
-Policy/Gathering.cs|PolicyFunctions.GatheringMaxTicks|15000
 Policy/GearClimate.cs|PolicyFunctions.GearTwelfthTicks|300000
 Policy/HazardThresholds.cs|PolicyFunctions.InjurySeverityFloorTicks|5000
 Policy/HerdPlan.cs|PolicyFunctions.HerdProductJob|"Chemfuel"

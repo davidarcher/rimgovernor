@@ -24,10 +24,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 
     public MedicalReserveReview Medicine { get; set; } = default!;
 
-    public LightingReview Lighting { get; set; } = default!;
-
-    public FlooringReview Flooring { get; set; } = default!;
-
     public RoutesReview Routes { get; set; } = default!;
 
     public bool SleepingActive { get; set; }
@@ -178,49 +174,6 @@ public static partial class PolicyFunctions
         c.Assess(EnsureBasicPower, powerMet);
     }
 
-    internal static void InspectComfort(RoundsRun c)
-    {
-        var f = c.F;
-        var basicComfort = ReviewBasicComfort(f.BasicComfort);
-        // A table with a seat and a recreation source are provided with the starter hut, at foothold
-        // priority: the two cheapest mood debuffs to remove should not wait for the ranked comfort project.
-        if (!Positive(basicComfort.Recovered()))
-        {
-            c.R.Latches.Comfort = Phase.ComfortBasic;
-            var g = c.Raise(EnsureComfort);
-            g.Deficit = basicComfort.Deficit();
-            g.MethodUnavailable = basicComfort.CoreRecovered() && !basicComfort.VarietyKnown;
-        }
-        else if (!Positive(f.ComfortRecovered))
-        {
-            // The ranked phase: hosting rooms and proof of use, once the basic facilities stand and the
-            // colony reached StageDevelopment.
-            c.R.Latches.Comfort = Phase.ComfortRanked;
-            var g = c.Raise(EnsureComfort);
-            g.Deficit = f.ComfortDeficit;
-        }
-        else if (Positive(f.PartySpotOwed))
-        {
-            // Neither facility phase is owed, but the colony's PartySpot is missing, duplicated or outranked
-            // by a better shared room. The step is one placement or one deconstruction (the review drops the
-            // deficit once the one-shot is spent or no cell takes it), so comfort is Unmet for a pass or
-            // two, not indefinitely.
-            c.R.Latches.Comfort = Phase.ComfortSpot;
-            c.Raise(EnsureComfort).Deficit = Known(1.0);
-        }
-        var recovered = basicComfort.Recovered();
-        if (c.R.Latches.Comfort != Phase.ComfortBasic)
-        {
-            // The ranked phase is assessed at every stage, as before the merge; only its goal waits for StageDevelopment.
-            recovered = AllFacts(recovered, f.ComfortRecovered);
-            if (Positive(f.PartySpotOwed))
-            {
-                recovered = Known(false);
-            }
-        }
-        c.Assess(EnsureComfort, recovered);
-    }
-
     /// <summary>
     /// MaintainResource is an operator-configured target whose deficit is measured against native facts read in
     /// this review: no target configured is certain recovery, a configured target with missing facts is unknown,
@@ -366,49 +319,7 @@ public static partial class PolicyFunctions
         }
     }
 
-    /// <summary>
-    /// A ranked development project: a dark bench costs work speed and mood, not lives, so it competes for
-    /// a project slot like the other upkeep needs. The deficit is the measured dark fraction.
-    /// </summary>
-    internal static void InspectLighting(RoundsRun c)
-    {
-        var recovered = Unknown<bool>();
-        if (c.Lighting.Known)
-        {
-            recovered = Known(!c.Lighting.Active);
-        }
-        c.Assess(MaintainLighting, recovered);
-        if (!Positive(recovered))
-        {
-            var g = c.Raise(MaintainLighting);
-            if (c.Lighting.Known)
-            {
-                g.Deficit = Known(1.0);
-            }
-        }
-    }
-
-    /// <summary>Likewise a ranked project, at the lowest rank in every tier.</summary>
-    internal static void InspectFlooring(RoundsRun c)
-    {
-        var flooring = c.Flooring;
-        var recovered = Unknown<bool>();
-        if (flooring.Known)
-        {
-            recovered = Known(!flooring.Active);
-        }
-        c.Assess(MaintainFlooring, recovered);
-        if (!Positive(recovered))
-        {
-            var g = c.Raise(MaintainFlooring);
-            if (flooring.Known)
-            {
-                g.Deficit = Known(1.0);
-            }
-        }
-    }
-
-    /// <summary>Likewise a ranked project: the deficit is the measured fraction of facilities no colonist reaches.</summary>
+    /// <summary>A ranked development project: the deficit is the measured fraction of facilities no colonist reaches.</summary>
     internal static void InspectRoutes(RoundsRun c)
     {
         var recovered = Unknown<bool>();
@@ -428,36 +339,6 @@ public static partial class PolicyFunctions
             {
                 g.Deficit = Known(1.0);
             }
-        }
-    }
-
-    /// <summary>A ranked upkeep project too: owed only while a room needs a sculpture and a qualifying artist exists; unknown raises nothing.</summary>
-    internal static void InspectArt(RoundsRun c)
-    {
-        var f = c.F;
-        var recovered = Unknown<bool>();
-        // An inspired artist holds it open without a room.
-        var pk = f.WorkProfiles.TryGetValue(out var profiles);
-        if (pk && InspiredArtists(profiles).Count > 0)
-        {
-            recovered = Known(false);
-        }
-        else
-        {
-            var known = f.SculptureRoomsOwed.TryGetValue(out var owed);
-            if (known && !owed)
-            {
-                recovered = Known(true);
-            }
-            else if (known && pk)
-            {
-                recovered = Known(Artists(profiles).Count == 0);
-            }
-        }
-        c.Assess(MaintainArt, recovered);
-        if (recovered.TryGetValue(out var v) && !v)
-        {
-            c.Raise(MaintainArt).Deficit = Known(1.0);
         }
     }
 

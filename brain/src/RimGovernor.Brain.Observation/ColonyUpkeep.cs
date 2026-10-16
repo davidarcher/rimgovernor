@@ -114,8 +114,8 @@ public static partial class ObservationPackage
     }
 
     /// <summary>
-    /// Decodes the flooring section; a cell missing its terrain leaves the whole census unknown so
-    /// MaintainFlooring keeps its previous latch, and a terrain the catalog has no stat or def row for throws.
+    /// Decodes the flooring section; a cell missing its terrain leaves the whole census unknown so the
+    /// rooms/flooring Need reads unknown, and a terrain the catalog has no stat or def row for throws.
     /// </summary>
     private static Fact<FlooringObservation> ColonyFlooring(O.FlooringSection? section, O.RoutesSection? routes, DefinitionCatalog? catalog)
     {
@@ -263,7 +263,7 @@ public static partial class ObservationPackage
 
     /// <summary>
     /// Decodes the lighting section; any row missing a measured glow, roof or lit flag leaves the whole census
-    /// unknown so MaintainLighting keeps its previous latch instead of reasoning from half a map.
+    /// unknown so the rooms/lighting Need reads unknown instead of reasoning from half a map.
     /// </summary>
     private static Fact<LightingObservation> ColonyLighting(O.LightingSection? section, Buildings buildings, DefinitionCatalog? catalog)
     {

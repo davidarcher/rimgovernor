@@ -142,11 +142,11 @@ Gate 1 negative benchmark.
 
 Two further owned-lever thoughts from the `thought_triggers.tsv` owner column resolve their guards:
 
-- `AteWithoutTable` (owner EnsureComfort; `resolved`): `Toils_Ingest.FinalizeIngest`, eight guards including
+- `AteWithoutTable` (owner rooms/comfort; `resolved`): `Toils_Ingest.FinalizeIngest`, eight guards including
   `thing.def.ingestible.chairSearchRadius > 10f`, `!(ingester.Position + ingester.Rotation.FacingCell).HasEatSurface(actor.Map)`,
   `ingester.GetPosture() == PawnPosture.Standing`, `!ingester.IsWildMan()` and `thing.def.ingestible.tableDesired`, plus
   the deferred-delegate note.
-- `EnvironmentDark` (owner MaintainLighting; `resolved`): `ThoughtWorker_Dark.CurrentStateInternal` returns
+- `EnvironmentDark` (owner rooms/lighting; `resolved`): `ThoughtWorker_Dark.CurrentStateInternal` returns
   `p.Awake() && p.needs.mood.recentMemory.TicksSinceLastLight > 240 && !PawnUtility.IsBiologicallyOrArtificiallyBlind(p) && (p.Ideo == null || !p.Ideo.IdeoPrefersDarkness())`.
 
 The Gate 1 lever (#3217 re-grooming), `DeadMansApparel` (owner MaintainEquipment; `resolved`, shipped since #3281):

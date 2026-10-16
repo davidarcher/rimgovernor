@@ -64,7 +64,6 @@ public static partial class PolicyFunctions
         // People
         [EnsureWorkAssignments] = 1,
         [MaintainPsylink] = 1,
-        [HoldGatherings] = 1,
         [MaintainPermits] = 1,
     };
 

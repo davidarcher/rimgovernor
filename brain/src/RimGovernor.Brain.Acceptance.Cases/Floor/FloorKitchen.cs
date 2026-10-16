@@ -7,7 +7,7 @@ using DomainWire = RimGovernor.Brain.Domain.Wire;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>floor/kitchen</c> (Go <c>floor/floor.go</c>): the MaintainFlooring vertical. A live game and the brain composed
+/// <c>floor/kitchen</c> (Go <c>floor/floor.go</c>): the rooms/flooring Need vertical. A live game and the brain composed
 /// with the flooring family. An enclosed roofed kitchen (a fuelled stove) stands on bare soil, whose terrain
 /// cleanliness native measures negative. The service must latch the room from the measured census, admit an affordable
 /// floor from the policy's list on the deficient interior cells only, the colonists lay it, and the next measured
@@ -26,7 +26,7 @@ internal static class FloorKitchen
     internal static AcceptanceCase Case() => new()
     {
         Name = "floor/kitchen",
-        Scope = "Native MaintainFlooring vertical: a measured-deficient kitchen interior on bare soil drives the live Go "
+        Scope = "Native rooms/flooring Need vertical: a measured-deficient kitchen interior on bare soil drives the live Go "
             + "rounder/planner to admit an affordable floor on the deficient cells only; the colonists lay it and "
             + "the measured census, not the receipt, releases the latch, confirmed by an independent native read.",
         Start = new FixtureStart { On = new LabStart(), Op = "test/flooring_prepare" },
@@ -105,9 +105,9 @@ internal static class FloorKitchen
         // match the controller's own assignment, which only the work family applies.
         var run = await RoutineService.StartAsync(s, Prefix, ["flooring", "work"], cancellationToken).ConfigureAwait(false);
         held.Run = run;
-        var concern = PolicyFunctions.MaintainFlooring.Value;
+        var concern = RoomsFamily.Flooring.Value;
 
-        // The review must bind MaintainFlooring.
+        // The review must bind the rooms/flooring Need.
         _ = await run.WaitBoundAsync(concern, TimeSpan.FromMinutes(3), cancellationToken).ConfigureAwait(false);
 
         // The flooring methods: each plan lays one policy floor on deficient interior cells only, never twice on a cell,

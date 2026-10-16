@@ -345,7 +345,7 @@ public sealed partial class Rounder
         {
             readDefinitions = [.. readDefinitions, .. PolicyApi.RoomBeautyDefinitions()];
         }
-        if (MethodEnabled(PolicyApi.MaintainFlooring))
+        if (Needs.Contains(RoomsFamily.Flooring))
         {
             // The traffic tier prices its floor in the review.
             readDefinitions = [.. readDefinitions, .. Policy.Flooring.Floors];
@@ -421,16 +421,11 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { BedroomsOwed = BedroomsOwedOf(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = ButcherTableAffordable(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { WarmRooms = WarmCoolingRooms(reading.Projection) });
-        reading = reading.WithFacts(rf => rf with { PlanLit = RoundsBuildingPlanner.PlanLitRooms(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { MealClosetOwed = MealClosetOwed(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { CampfireRetireOwed = CampfireRetireOwed(reading.Projection) });
         var vCraftingSpotRetireOwed = await CraftingSpotRetireOwedAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { CraftingSpotRetireOwed = vCraftingSpotRetireOwed });
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = TemperatureOwed(reading.Projection) });
-        if (MethodEnabled(PolicyApi.EnsureComfort))
-        {
-            reading = reading.WithFacts(rf => rf with { PartySpotOwed = PartySpotOwed(previous, reading.Projection, ct) });
-        }
         var targets = await ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ShellsShort = PolicyApi.ShellsShort(targets, reading.Projection.Resources) });
         if (MethodEnabled(PolicyApi.MaintainShelter))
@@ -440,7 +435,7 @@ public sealed partial class Rounder
         // The review's PlanSheltering raises RecoverDisasterServices, so it reads the same draft set as the
         // recovery planner: unknown, a threat shelters no colonist and the planner never runs.
         reading = reading.WithFacts(rf => rf with { ShelterCombatants = RoundsRecoveryPlanner.ShelterCombatants(p.Journal, new StoreWorld(state.Snapshot.Colony, state.Snapshot.Load, state.Snapshot.Map), ct) });
-        if (MethodEnabled(PolicyApi.MaintainArt))
+        if (Needs.Contains(RoomsFamily.Art))
         {
             reading = reading.WithFacts(rf => rf with { SculptureRoomsOwed = SculptureRoomsOwedOf(reading.Projection) });
         }
@@ -474,7 +469,7 @@ public sealed partial class Rounder
         ReviewReserve(ref reserveProjection);
         reading = reading.WithProjection(reserveProjection);
         reading = reading.WithProjection(ReviewBabyFeeding(reading.Projection));
-        if (MethodEnabled(PolicyApi.MaintainFlooring))
+        if (Needs.Contains(RoomsFamily.Flooring))
         {
             reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Flooring = TrafficFlooringFacts(reading.Projection, Policy.Flooring) } });
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { Upkeep = c.Facts.Upkeep with { Flooring = reading.Projection.Facts.Upkeep.Flooring } } });
@@ -497,10 +492,6 @@ public sealed partial class Rounder
             var (candidates, psylinkOwed) = await Psylink.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
             psylinkCandidates = candidates;
             reading = reading.WithFacts(rf => rf with { PsylinkOwed = psylinkOwed });
-        }
-        if (MethodEnabled(PolicyApi.HoldGatherings))
-        {
-            reading = ReviewGathering(reading, state.Snapshot);
         }
         if (reading.Projection.Facts.FoodPlan.TryGetValue(out var foodPlan))
         {

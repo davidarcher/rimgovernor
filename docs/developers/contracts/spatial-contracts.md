@@ -405,7 +405,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   price leaves lamps unplaced (`tile_lamps_unpriced`). Not priced: the `EnvironmentDark` mood (deferred to #2878), surgery
   success, partial glow beyond the reach, and the lamps' power wiring (they are in
   `TileResult.Lamps`, not pieces, so the conduit net does not route to them yet).
-  `MaintainLighting` is the runtime reconciler: its round builds the plan's `Lamps`
+  The `rooms/lighting` Need is the runtime reconciler: its round builds the plan's `Lamps`
   (`Lighting.cs`, `RoundsLighting.cs`; see [upkeep](upkeep-contracts.md)).
   **Comfort and beauty (#2975).** Furniture buys mood through two seeker needs the game
   keeps as one shape (`Need_Seeker`: every 150 ticks the level moves toward an instant level

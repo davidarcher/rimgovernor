@@ -24,22 +24,22 @@ public sealed partial class BrainComposition
 
         // ClockSchedulerConfig is init-only, so the planners are built into locals and the config is made last.
         RoundsArmoryPlanner? cfgArmory = null;
-        RoundsBuildingPlanner? cfgBasicComfort = null;
+        RoundsBuildingPlanner? roomsComfort = null;
         RoundsBuildingPlanner? foodButcher = null;
         var families = new List<FamilyRunner>();
-        RoundsBuildingPlanner? cfgComfort = null;
+        RoundsBuildingPlanner? roomsHosting = null;
+        RoundsBuildingPlanner? roomsPartySpot = null;
         RoundsDefensePlanner? cfgDefense = null;
         RoundsDefenseLayoutPlanner? cfgDefenseLayout = null;
         RoundsDialogPlanner? cfgDialog = null;
         RoundsBuildingPlanner? cfgExpansion = null;
         RoundsFieldPlanner? cfgFields = null;
-        RoundsBuildingPlanner? cfgFlooring = null;
+        RoundsBuildingPlanner? roomsFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
-        RoundsGatheringPlanner? cfgGathering = null;
         RoundsGeneBankPlanner? cfgGeneBank = null;
         RoundsHospitalPlanner? cfgHospital = null;
         RoundsLedgerPlanner? cfgLedger = null;
-        RoundsBuildingPlanner? cfgLighting = null;
+        RoundsBuildingPlanner? roomsLighting = null;
         MaintainShelterPlanner? cfgMaintainShelter = null;
         RoundsMechChargerPlanner? cfgMechCharger = null;
         RoundsMedicalPlanner? cfgMedical = null;
@@ -156,7 +156,7 @@ public sealed partial class BrainComposition
         }
         if (sc.Art)
         {
-            // MaintainArt's pinned sculpture bills are the ledger's.
+            // The rooms/art Need's pinned sculpture bills are the ledger's, filed under the Need (#3255).
             reviewer.AddOrderDeclarer(new RoundsArtPlanner(reviewer));
             // MaintainTrade's export batches are the ledger's too: the silver gap answered with sale goods (#2607).
             reviewer.AddOrderDeclarer(new RoundsTradeExportPlanner(reviewer));
@@ -289,11 +289,6 @@ public sealed partial class BrainComposition
             // The role, ritual and reform toggles compose the ideology family's three Needs (#3260).
             families.Add(IdeologyReader.Runner(reviewer, sc.IdeoRoles, sc.Rituals, sc.Ideoligion));
         }
-        if (sc.Gathering)
-        {
-            // HoldGatherings plans from the mood ledger, pawn rows, building table and emergency census.
-            cfgGathering = RoundsGatheringPlanner.NewRoundsGatheringPlanner(reviewer);
-        }
         var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial };
         if (admin.CreepJoiners || admin.SupplySafety || admin.Burial)
         {
@@ -371,11 +366,11 @@ public sealed partial class BrainComposition
             }
             if (lighting)
             {
-                cfgLighting = RoundsBuildingPlanner.NewRoundsLightingPlanner(reviewer, client);
+                roomsLighting = RoundsBuildingPlanner.NewRoundsLightingPlanner(reviewer, client);
             }
             if (flooring)
             {
-                cfgFlooring = RoundsBuildingPlanner.NewRoundsFlooringPlanner(reviewer, client);
+                roomsFlooring = RoundsBuildingPlanner.NewRoundsFlooringPlanner(reviewer, client);
             }
             if (routes)
             {
@@ -387,8 +382,9 @@ public sealed partial class BrainComposition
             }
             if (comfort)
             {
-                cfgComfort = RoundsBuildingPlanner.NewRoundsComfortPlanner(reviewer, client);
-                cfgBasicComfort = RoundsBuildingPlanner.NewRoundsBasicComfortPlanner(reviewer, client);
+                roomsComfort = RoundsBuildingPlanner.NewRoundsBasicComfortPlanner(reviewer, client);
+                roomsHosting = RoundsBuildingPlanner.NewRoundsComfortPlanner(reviewer, client);
+                roomsPartySpot = RoundsBuildingPlanner.NewRoundsPartySpotPlanner(reviewer, client);
             }
             if (workshop)
             {
@@ -399,10 +395,15 @@ public sealed partial class BrainComposition
                 cfgHospital = RoundsHospitalPlanner.NewRoundsHospitalPlanner(reviewer, client);
             }
         }
-        if (cfgFlooring is not null && layout.Firebreak && layoutRounds is { } layoutPave)
+        if (roomsFlooring is not null && layout.Firebreak && layoutRounds is { } layoutPave)
         {
-            // MaintainFlooring paves the settled ring cells the firebreak review found.
-            cfgFlooring.SetFirebreakPave(() => layoutPave.Pave());
+            // The rooms/flooring Need paves the settled ring cells the firebreak review found.
+            roomsFlooring.SetFirebreakPave(() => layoutPave.Pave());
+        }
+        if (roomsLighting is not null || roomsFlooring is not null || roomsComfort is not null || sc.Art || sc.Gathering)
+        {
+            // The lighting, flooring, art, comfort and gathering toggles compose the rooms family's Needs (#3255).
+            families.Add(new RoomsRounds(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsPartySpot, sc.Art, sc.Gathering).Runner());
         }
 
         var config = new ClockSchedulerConfig
@@ -414,19 +415,14 @@ public sealed partial class BrainComposition
             RoundsMethods = context.Session.RoundsMethodsEnabled(),
             Faults = faults,
             Families = families,
-            BasicComfort = cfgBasicComfort,
-            Comfort = cfgComfort,
             Defense = cfgDefense,
             DefenseLayout = cfgDefenseLayout,
             Dialog = cfgDialog,
             Expansion = cfgExpansion,
             Fields = cfgFields,
-            Flooring = cfgFlooring,
-            Gathering = cfgGathering,
             GeneBank = cfgGeneBank,
             Hospital = cfgHospital,
             Ledger = cfgLedger,
-            Lighting = cfgLighting,
             MaintainShelter = cfgMaintainShelter,
             MechCharger = cfgMechCharger,
             Medical = cfgMedical,
@@ -522,12 +518,9 @@ public sealed partial class BrainComposition
         Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);
         Add(sc.Temperature, EnsureTemperatureSafety);
         Add(sc.Power, EnsureBasicPower);
-        Add(sc.Lighting, MaintainLighting);
-        Add(sc.Art, MaintainArt, MaintainTrade);
+        Add(sc.Art, MaintainTrade);
         Add(sc.Mechs, MaintainMechs);
-        Add(sc.Flooring, MaintainFlooring);
         Add(sc.Routes, MaintainRoutes);
-        Add(sc.Comfort, EnsureComfort);
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
         Add(sc.Recovery, RecoverDisasterServices);
         Add(sc.Pollution, ManagePollution);
@@ -536,7 +529,6 @@ public sealed partial class BrainComposition
         Add(sc.Sheltering, MaintainShelter);
         Add(sc.Psylink, MaintainPsylink);
         Add(sc.Permits, MaintainPermits);
-        Add(sc.Gathering, HoldGatherings);
         Add(sc.Stockpiles, MaintainStockpiles);
         if (sc.DefensiveLayout)
         {
@@ -551,7 +543,8 @@ public sealed partial class BrainComposition
         Add(sc.Medical, MaintainMedicalReserves, MaintainSurgery);
         Add(sc.Trade, TradeWithCaravan);
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
-        // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census.
+        // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, and the
+        // rooms family's room census, beauty definitions, floors and sculpture rooms.
         var needs = new List<NeedId>();
         if (sc.Refrigeration)
         {
@@ -572,6 +565,26 @@ public sealed partial class BrainComposition
         if (sc.Cooking || sc.Bill)
         {
             needs.Add(CookingNeed);
+        }
+        if (sc.Lighting)
+        {
+            needs.Add(RoomsFamily.Lighting);
+        }
+        if (sc.Flooring)
+        {
+            needs.Add(RoomsFamily.Flooring);
+        }
+        if (sc.Art)
+        {
+            needs.Add(RoomsFamily.Art);
+        }
+        if (sc.Comfort)
+        {
+            needs.AddRange([RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySpot]);
+        }
+        if (sc.Gathering)
+        {
+            needs.Add(RoomsFamily.Gatherings);
         }
         if (sc.Burial)
         {

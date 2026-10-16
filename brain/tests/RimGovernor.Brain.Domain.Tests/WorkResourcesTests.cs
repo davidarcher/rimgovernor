@@ -13,7 +13,7 @@ internal static class WorkResourceTestFacts
 {
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
-        Tick = new(100), LedgerOwed = Known(true), SculptureRoomsOwed = Known(true),
+        Tick = new(100), LedgerOwed = Known(true), MechGestationOwed = Known(true),
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
             Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }]),
@@ -230,7 +230,7 @@ public sealed class WorkResourcesTests
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
         var foodOwner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
-        var craftOwner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainArt);
+        var craftOwner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         journal.CommitMethod(foodOwner.Standard.Id, foodOwner.Revision, new("method"), Plan("food", Delivery("food")), ct);
         Assert.Throws<ProductionMaterialException>(() => journal.CommitMethod(craftOwner.Standard.Id, craftOwner.Revision,
             new("craft"), Plan("craft", Craft("bill")), ct));
@@ -247,7 +247,7 @@ public sealed class WorkResourcesTests
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
         var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
-        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainArt);
+        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         journal.CommitMethod(existing.Standard.Id, existing.Revision, new("method"), Plan("held", Delivery("held")), ct);
         var proposed = Delivery("proposed", "helper").PawnActivities!;
         proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };

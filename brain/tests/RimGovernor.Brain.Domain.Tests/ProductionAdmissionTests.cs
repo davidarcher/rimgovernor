@@ -17,7 +17,7 @@ public sealed class ProductionAdmissionTests
         new ProgressView { Action = new ActionId(id), Stage = Stage.Pending });
     private static RoundsFacts Facts => new()
     {
-        Tick = new Tick(100), LedgerOwed = Known(true), SculptureRoomsOwed = Known(true),
+        Tick = new Tick(100), LedgerOwed = Known(true), MechGestationOwed = Known(true),
         WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
         ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
@@ -111,7 +111,7 @@ public sealed class ProductionAdmissionTests
         var path = Path.Combine(Path.GetTempPath(), "rg-admission-" + Guid.NewGuid().ToString("N") + ".db");
         using var first = Journal.Open(path, ct);
         var reviewed = first.ReviewRounds(new() { Current = World, Tick = Facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = Facts }, ct);
-        var owners = new[] { Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainWorkLedger), Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainArt) };
+        var owners = new[] { Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainWorkLedger), Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainMechs) };
         using var second = Journal.Open(path, ct);
         using var start = new ManualResetEventSlim();
         var stores = new[] { first, second };

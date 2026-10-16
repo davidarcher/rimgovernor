@@ -4,7 +4,7 @@ using System.Text;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// Ports <c>lighting.go</c>. MaintainLighting keeps the cells colonists stand on while working lit. It reasons from
+/// Ports <c>lighting.go</c>. The rooms/lighting Need keeps the cells colonists stand on while working lit. It reasons from
 /// the measured native glow at each bench's interaction cell rather than from fixture counts: a roofed work cell
 /// whose ground glow is below LitGlow is dark whatever lamps sit nearby. The method first looks for an existing lamp
 /// that should cover the cell and defers to power/refuel/repair work when that lamp is merely unserviced; otherwise
@@ -117,8 +117,8 @@ public sealed record Lamp
 }
 
 /// <summary>
-/// The per-bench latch: Dark lists the roofed work cells measured below LitGlow, sorted by bench ID. Known is false
-/// when the census was unknown, in which case Dark repeats the previous latch.
+/// The per-bench review: Dark lists the roofed work cells measured below LitGlow, sorted by bench ID. Known is false
+/// when the census was unknown, in which case Dark is empty and nothing is measured.
 /// </summary>
 public sealed record LightingReview
 {
@@ -226,18 +226,16 @@ public sealed record LightingFacts
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Keeps the cells colonists stand on while working lit.</summary>
-    public static readonly ConcernId MaintainLighting = new("MaintainLighting");
 
     /// <summary>
     /// Measures every roofed work cell against LitGlow. There is no hysteresis: a lamp within reach lifts the cell
     /// well above the threshold, and unroofed cells are skipped because sky glow would flap the latch with the day,
     /// except while the sky is dark (an eclipse, or a permanently dark biome), when the day is as dark as the night
     /// and every work cell is measured. A light-sensitive cell (its room grows cave fungus) is never dark: lighting
-    /// it would kill the crop. An unknown census keeps the previous dark set. An unknown sky (the biome was not
+    /// it would kill the crop. An unknown census measures nothing (Known false). An unknown sky (the biome was not
     /// read) throws once a census is measured, never assumed lit.
     /// </summary>
-    public static LightingReview ReviewLighting(Fact<LightingObservation> fact, IReadOnlyList<string> previous, LightingPolicy p, Fact<bool> skyDarkFact)
+    public static LightingReview ReviewLighting(Fact<LightingObservation> fact, LightingPolicy p, Fact<bool> skyDarkFact)
     {
         if (!p.IsValid())
         {
@@ -246,9 +244,7 @@ public static partial class PolicyFunctions
         var skyKnown = skyDarkFact.TryGetValue(out var skyDark);
         if (!fact.TryGetValue(out var v))
         {
-            var prior = previous.ToList();
-            prior.Sort(StringComparer.Ordinal);
-            return new LightingReview { Active = prior.Count > 0, Dark = prior, SkyDark = skyDark };
+            return new LightingReview { SkyDark = skyDark };
         }
         if (!skyKnown)
         {

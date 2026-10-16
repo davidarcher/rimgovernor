@@ -41,24 +41,10 @@ internal static partial class BuildingRuntimePackage
 
 public sealed partial class Rounder
 {
-    /// <summary>Whether a party spot must be placed or retired, read against the previous review's comfort methods.</summary>
-    internal Fact<bool> PartySpotOwed(Rounds previous, ColonyProjection facts, CancellationToken ct)
+    /// <summary>Whether a party spot must be placed or retired, read against the rooms/party-spot Need's unretired Methods.</summary>
+    internal static Fact<bool> PartySpotOwed(NeedOwner owner, ColonyProjection facts)
     {
-        Func<bool, string, bool>? spent = null;
-        foreach (var binding in previous.Standards)
-        {
-            if (binding.Concern != PolicyFunctions.EnsureComfort)
-            {
-                continue;
-            }
-
-            var state = Player.Journal.LoadStandard(binding.Standard, ct);
-            if (state.Standard.Finding == Finding.Unmet)
-            {
-                spent = BuildingRuntimePackage.PartySpotSpent(state.Methods.Select(m => m.MethodId));
-            }
-        }
-
+        var spent = BuildingRuntimePackage.PartySpotSpent(owner.Methods.Select(m => m.Method));
         if (!BuildingRuntimePackage.PartySpotReview(facts, spent).TryGetValue(out var need))
         {
             return Unknown<bool>();

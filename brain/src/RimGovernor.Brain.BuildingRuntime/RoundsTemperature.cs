@@ -12,7 +12,7 @@ public sealed partial class Rounder
     internal bool RoomsEnabled() =>
         // MaintainHousing: suite claims and the plan's suite wing read the census's standing bedrooms.
         // MaintainShelter: the Safe area covers the census's enclosed roofed rooms.
-        TemperatureEnabled() || MethodEnabled(MaintainShelter) || MethodEnabled(MaintainHousing) || MethodEnabled(EnsureComfort) || Needs.Contains(RefrigerationNeed) || MethodEnabled(MaintainLighting) || MethodEnabled(MaintainFlooring) || MethodEnabled(MaintainRoutes) || Needs.Contains(AdminFamily.Burial) || Needs.Contains(LayoutFamily.ClimateEnvelope) || Needs.Contains(MilitaryFamily.Training) || MethodEnabled(MaintainStockpiles);
+        TemperatureEnabled() || MethodEnabled(MaintainShelter) || MethodEnabled(MaintainHousing) || Needs.Contains(RoomsFamily.Comfort) || Needs.Contains(RefrigerationNeed) || Needs.Contains(RoomsFamily.Lighting) || Needs.Contains(RoomsFamily.Flooring) || MethodEnabled(MaintainRoutes) || Needs.Contains(AdminFamily.Burial) || Needs.Contains(LayoutFamily.ClimateEnvelope) || Needs.Contains(MilitaryFamily.Training) || MethodEnabled(MaintainStockpiles);
 
     internal bool MethodEnabled(ConcernId goal)
     {

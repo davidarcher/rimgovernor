@@ -1,9 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The step a phased goal (MaintainHousing, EnsureComfort, MaintainMedicalReserves) leaves owed, latched per goal
-/// in RoundsLatches. MaintainHousing walks its phases in order and each has its own planner: the starter shelter
-/// with its bunks, then bed ownership and bedrooms, then the spare room. The empty phase is the default.
+/// The step a phased goal (MaintainHousing, MaintainMedicalReserves) leaves owed, latched per goal in RoundsLatches.
+/// MaintainHousing walks its phases in order and each has its own planner: the starter shelter with its bunks, then
+/// bed ownership and bedrooms, then the spare room. The comfort phases are not latched: they name which rooms Need
+/// a building planner serves (rooms/comfort, rooms/hosting, rooms/party-spot), ordered by Need preconditions. The
+/// empty phase is the default.
 /// </summary>
 public readonly record struct Phase(string Value)
 {
@@ -24,15 +26,15 @@ public readonly record struct Phase(string Value)
     public static Phase HousingExpansion => new("expansion");
 
     /// <summary>
-    /// EnsureComfort's basic step: the basic facilities (a reachable table, seat and recreation source, foothold
-    /// priority) before the ranked project. Each phase has its own planner.
+    /// The rooms/comfort Need's planner: the basic facilities (a reachable table, seat and recreation source) before
+    /// the hosting rooms.
     /// </summary>
     public static Phase ComfortBasic => new("basic");
 
-    /// <summary>EnsureComfort's ranked step: hosting rooms and proof of use.</summary>
+    /// <summary>The rooms/hosting Need's planner: hosting rooms and proof of use.</summary>
     public static Phase ComfortRanked => new("ranked");
 
-    /// <summary>The PartySpot step, owed once neither facility phase is: the ranked planner serves it (RoundsFacts.PartySpotOwed).</summary>
+    /// <summary>The rooms/party-spot Need's planner: one PartySpot in the best shared room.</summary>
     public static Phase ComfortSpot => new("spot");
 
     /// <summary>MaintainMedicalReserves' step: care for the sick (rest and a hospital bed) before the medicine stock.</summary>
@@ -64,10 +66,6 @@ public static class RoundsLatchesPhaseExtensions
         if (goal == PolicyFunctions.MaintainHousing)
         {
             return l.Housing;
-        }
-        if (goal == PolicyFunctions.EnsureComfort)
-        {
-            return l.Comfort;
         }
         if (goal == PolicyFunctions.MaintainMedicalReserves)
         {

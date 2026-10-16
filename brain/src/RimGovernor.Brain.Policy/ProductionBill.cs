@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Names what a production bill is for. A string-valued struct rather than an enum so each family that adds a
-/// purpose (MaintainArt's ArtBill, the baby food bill) declares its own member next to its rule.
+/// purpose (the rooms/art Need's ArtBill, the baby food bill) declares its own member next to its rule.
 /// </summary>
 public readonly record struct BillPurpose(string Value)
 {

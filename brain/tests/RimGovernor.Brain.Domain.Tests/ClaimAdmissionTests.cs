@@ -201,11 +201,11 @@ public sealed class ClaimAdmissionTests
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
         Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainWorkLedger, "ledger", Delivery("l1", "a", "ledger")).Outcome);
-        var other = colony.Commit(MaintainArt, "art", Delivery("a1", "a", "art"));
+        var other = colony.Commit(MaintainMechs, "art", Delivery("a1", "a", "art"));
         Assert.Equal(ClaimOutcome.Conflict, other.Outcome);
         Assert.Equal("pawn/a", other.Conflict!.Claim);
         Assert.Equal("ledger", other.Conflict.Method.Value);
-        Assert.Empty(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainArt), ct));
+        Assert.Empty(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainMechs), ct));
         // Opted in, a disjoint second Method beside the owner's own open one is admitted ...
         Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainWorkLedger, "ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
         // ... while the ordinary commit keeps the one-open-Method gate.

@@ -9,7 +9,7 @@ public static partial class PolicyConstants
     /// The free, instant-build spot the game's gathering worker picks: RCellFinder.TryFindGatheringSpot takes
     /// a built colony building whose def is in GatheringDef.gatherSpotDefs (Core Party lists PartySpot) at a
     /// cell that passes GatheringsUtility.ValidateGatheringSpot (standable, safe, roofed, reservable).
-    /// EnsureComfort keeps one in the best shared room.
+    /// The rooms/party-spot Need keeps one in the best shared room.
     /// </summary>
     public const string PartySpotDefinition = "PartySpot";
 }

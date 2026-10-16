@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 // Count things of any one of its definitions. The bed entry is the bed replacement's (TitleBed); every other
 // entry is placed here, one piece at a time, at its bedroom template slot when the template plans that
 // definition and the slot is free, or else on free floor. Minimum impressiveness is the room target's
-// "title" reason and flooring is MaintainFlooring's living tier; the minimum area is not a lever (a room is
+// "title" reason and flooring is the rooms/flooring Need's living tier; the minimum area is not a lever (a room is
 // not enlarged).
 
 public static partial class PolicyFunctions

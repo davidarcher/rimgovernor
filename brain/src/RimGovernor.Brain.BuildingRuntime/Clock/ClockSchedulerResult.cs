@@ -33,10 +33,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsBuildingResult? Sleeping { get; set; }
 
-    public RoundsBuildingResult? Comfort { get; set; }
-
-    public RoundsBuildingResult? BasicComfort { get; set; }
-
     public RoundsBuildingResult? Workshop { get; set; }
 
     public RoundsBuildingResult? Hospital { get; set; }
@@ -48,10 +44,6 @@ public sealed class ClockSchedulerResult
     public RoundsBuildingResult? Power { get; set; }
 
     public RoundsBuildingResult? Temperature { get; set; }
-
-    public RoundsBuildingResult? Lighting { get; set; }
-
-    public RoundsBuildingResult? Flooring { get; set; }
 
     public RoundsBuildingResult? Routes { get; set; }
 
@@ -75,7 +67,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsPermitsResult? Permits { get; set; }
 
-    public RoundsGatheringResult? Gathering { get; set; }
 
     public RoundsStockpileResult? Stockpiles { get; set; }
 
@@ -125,16 +116,12 @@ public sealed class ClockSchedulerResult
         GeneBank = other.GeneBank ?? GeneBank;
         Ledger = other.Ledger ?? Ledger;
         Sleeping = other.Sleeping ?? Sleeping;
-        Comfort = other.Comfort ?? Comfort;
-        BasicComfort = other.BasicComfort ?? BasicComfort;
         Workshop = other.Workshop ?? Workshop;
         Hospital = other.Hospital ?? Hospital;
         SleepingUpkeep = other.SleepingUpkeep ?? SleepingUpkeep;
         Expansion = other.Expansion ?? Expansion;
         Power = other.Power ?? Power;
         Temperature = other.Temperature ?? Temperature;
-        Lighting = other.Lighting ?? Lighting;
-        Flooring = other.Flooring ?? Flooring;
         Routes = other.Routes ?? Routes;
         Defense = other.Defense ?? Defense;
         Tend = other.Tend ?? Tend;
@@ -146,7 +133,6 @@ public sealed class ClockSchedulerResult
         MaintainShelter = other.MaintainShelter ?? MaintainShelter;
         Psylink = other.Psylink ?? Psylink;
         Permits = other.Permits ?? Permits;
-        Gathering = other.Gathering ?? Gathering;
         Stockpiles = other.Stockpiles ?? Stockpiles;
         DefenseLayout = other.DefenseLayout ?? DefenseLayout;
         MoodRelief = other.MoodRelief ?? MoodRelief;

@@ -8,7 +8,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Builds the dark work room
-    // lightaccept needs to exercise MaintainLighting :
+    // lightaccept needs to exercise the rooms/lighting Need :
     //
     //   dark   -- an enclosed roofed room holding a fuelled stove whose
     //             interaction cell is measured dark, no lamp anywhere in

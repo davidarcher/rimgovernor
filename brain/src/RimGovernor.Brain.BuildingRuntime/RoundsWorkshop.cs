@@ -58,7 +58,7 @@ public sealed partial class RoundsBuildingPlanner
     /// gear. For a product no existing bench can produce: it discovers which player-buildable benches host a
     /// recipe for the resource, records the research still gating the first of them (the review turns that into
     /// the economy/research Need's target), furnishes a room whose native role can host a Workshop, and when no such room
-    /// exists stages a starter shell first, the same ladder EnsureComfort walks. A powered bench is staged when
+    /// exists stages a starter shell first, the same ladder the rooms/comfort Need walks. A powered bench is staged when
     /// a generator definition is available; EnsureBasicPower then connects it as an unpowered consumer. Bills on
     /// the staged bench belong to the resource or gear planner.
     /// </summary>

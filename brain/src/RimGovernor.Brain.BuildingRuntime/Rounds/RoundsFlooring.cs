@@ -9,15 +9,15 @@ internal interface IDefenseSiteReader
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>
-    /// Composes MaintainFlooring's building method: lay a role-appropriate floor on the cells native measures
+    /// Composes the rooms/flooring Need's building method: lay a role-appropriate floor on the cells native measures
     /// short of their room's requirement. Completion is the next measured census, not the build receipts: the
     /// review releases a room only once no cell of it reads deficient.
     /// </summary>
     public static RoundsBuildingPlanner NewRoundsFlooringPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainFlooring))
+        if (reviewer is null || native is null)
         {
-            throw new ControlException("NewRoundsFlooringPlanner: reviewer, native or method disabled");
+            throw new ControlException("NewRoundsFlooringPlanner: reviewer or native is missing");
         }
 
         if (native is not IRoundsSource)
@@ -25,7 +25,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsFlooringPlanner: native is not a rounds source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MaintainFlooring, Definition = "WoodPlankFloor" };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Flooring.FilingKey, Need = RoomsFamily.Flooring, Definition = "WoodPlankFloor" };
     }
 
     /// <summary>
@@ -37,26 +37,28 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Lists every floor the policy may choose so the census read carries each one's availability, stats and cost list.</summary>
     internal IReadOnlyList<string> FlooringDefinitions() => Reviewer.Policy.Flooring.Floors;
 
-    /// <summary>
-    /// Re-reviews the fresh census under the review's latch and maps the policy outcome onto the planner: a
-    /// build resolves the floor definition and its cells, everything else is a reason.
-    /// </summary>
-    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectFlooringAsync(GenerationSnapshot current, ColonyProjection facts, RoundsLatches latches, CancellationToken call)
+    /// <summary>The flooring census the traffic tier prices, with the firebreak ring's pave cells when composed: the rooms/flooring Need's evidence.</summary>
+    internal Fact<FlooringObservation> FlooringCensus(ColonyProjection facts)
     {
-        var p = Reviewer.Policy.Flooring;
-        var census = TrafficFlooringFacts(facts, p);
-        if (census.TryGetValue(out var v))
+        var census = TrafficFlooringFacts(facts, Reviewer.Policy.Flooring);
+        if (census.TryGetValue(out var v) && FirebreakPave is not null)
         {
-            if (FirebreakPave is not null)
-            {
-                v = v with { Firebreak = FirebreakPave() };
-            }
-
-            census = Known(v);
+            census = Known(v with { Firebreak = FirebreakPave() });
         }
 
+        return census;
+    }
+
+    /// <summary>
+    /// Reviews the fresh census and maps the policy outcome onto the planner: a build resolves the floor
+    /// definition and its cells, everything else is a reason.
+    /// </summary>
+    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectFlooringAsync(GenerationSnapshot current, ColonyProjection facts, CancellationToken call)
+    {
+        var p = Reviewer.Policy.Flooring;
+        var census = FlooringCensus(facts);
         LogTrafficFindings(census);
-        var review = PolicyFunctions.ReviewFlooring(census, facts.Rooms, latches.Flooring, p);
+        var review = PolicyFunctions.ReviewFlooring(census, facts.Rooms, p);
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);

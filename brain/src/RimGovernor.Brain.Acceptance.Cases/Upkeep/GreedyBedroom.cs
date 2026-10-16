@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>upkeep/greedy-bedroom</c> (Go <c>greedy_bedroom.go</c>): a Greedy colonist owns a bare 5x4 bedroom. The room
-/// quality gap closer furnishes it from the bedroom template (end table, dresser, lamp) and MaintainFlooring floors it
+/// quality gap closer furnishes it from the bedroom template (end table, dresser, lamp) and the rooms/flooring Need floors it
 /// until the native room reads slightly impressive (50) and the Greedy thought clears.
 /// </summary>
 internal static class UpkeepGreedyBedroom

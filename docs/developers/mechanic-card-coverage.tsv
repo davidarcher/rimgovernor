@@ -79,7 +79,7 @@ AteRawHumanlikeMeat	memory		unknown	0	0	0	xml-granted
 AteRottenFood	memory		partial	1	2	1	unsupported-syntax
 AteTwistedMeat	memory		unknown	0	0	0	xml-granted
 AteVeneratedAnimalMeat	memory		unknown	0	0	0	no-code-or-xml-reference
-AteWithoutTable	memory	EnsureComfort	resolved	1	8	0	
+AteWithoutTable	memory	rooms/comfort	resolved	1	8	0	
 AttendedConcert	memory		unknown	1	0	0	event-driven
 AttendedParty	memory		unknown	2	0	0	event-driven
 AttendedWedding	memory		unknown	1	5	5	indexer
@@ -303,7 +303,7 @@ EnslavedPrisoner_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
 EnslavedPrisoner_Know_Horrible_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
 EntityInRoom	situational		partial	1	3	1	state-expression
 EnvironmentCold	situational	EnsureTemperatureSafety	resolved	1	2	0	
-EnvironmentDark	situational	MaintainLighting	resolved	1	1	0	
+EnvironmentDark	situational	rooms/lighting	resolved	1	1	0	
 EnvironmentHot	situational	EnsureTemperatureSafety	resolved	1	2	0	
 ExecutedColonist_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
 ExecutedGuest_Know_Abhorrent_Mood	memory		unknown	0	0	0	no-code-or-xml-reference
@@ -646,7 +646,7 @@ NeedBeauty	situational		partial	1	2	1	unsupported-syntax
 NeedComfort	situational		partial	1	2	1	unsupported-syntax
 NeedFood	situational		partial	3	6	3	switch
 NeedIndoors	situational		partial	1	3	1	unsupported-syntax
-NeedJoy	situational	EnsureComfort	partial	1	2	1	unsupported-syntax
+NeedJoy	situational	rooms/comfort	partial	1	2	1	unsupported-syntax
 NeedLearning	situational		partial	1	3	1	unsupported-syntax
 NeedNeuralSupercharge	situational		partial	1	4	2	external-type
 NeedOutdoors	situational		partial	1	3	1	unsupported-syntax

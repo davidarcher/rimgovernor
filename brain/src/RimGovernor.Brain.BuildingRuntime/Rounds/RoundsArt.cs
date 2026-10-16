@@ -1,12 +1,22 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
+/// <summary>
+/// The rooms/art Need's work: its pinned sculpture bills, declared to the work ledger and filed under the Need. The
+/// ledger reads the Need's standing as of the last declaration, so no owner's open work gates the bills.
+/// </summary>
 public sealed class RoundsArtPlanner : IPurposeReporter
 {
+    /// <summary>The ledger key the art bills report under, a subject of the rooms/art Need.</summary>
+    internal static readonly ConcernId ArtBillsKey = NeedId.Of(RoomsFamily.FamilyId, "art", "bills").FilingKey;
+
     private readonly Rounder _reviewer;
     private readonly object _mu = new();
 
     /// <summary>Whether a sculpture is in progress at a bench (the last declaration's reading).</summary>
     private bool _sculpting;
+
+    /// <summary>The rooms/art Need as of the last declaration; unknown before the first.</summary>
+    private Need? _need;
 
     public RoundsArtPlanner(Rounder reviewer)
     {
@@ -17,16 +27,13 @@ public sealed class RoundsArtPlanner : IPurposeReporter
         _reviewer = reviewer;
     }
 
-    /// <summary>Declares the art orders of this review and returns the MaintainArt share.</summary>
+    /// <summary>Declares the art orders of this review and returns the rooms/art Need's share.</summary>
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(PolicyApi.MaintainArt));
+        Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(RoomsFamily.Art.FilingKey));
 
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
-        lock (_mu)
-        {
-            _sculpting = PolicyApi.SculptureInProgress(benches);
-        }
+        var sculpting = PolicyApi.SculptureInProgress(benches);
         var request = new ArtOrderRequest
         {
             Benches = [.. benches],
@@ -42,6 +49,12 @@ public sealed class RoundsArtPlanner : IPurposeReporter
             request = request with { Profiles = Known<EquatableArray<PawnProfile>>([.. profiles]) };
             request = request with { Demand = ArtDemand(projection, profiles) };
         }
+        var need = RoomsFamily.ArtNeed(new RoomsFacts { Profiles = request.Profiles, SculptureRoomsOwed = request.RoomsOwed });
+        lock (_mu)
+        {
+            _sculpting = sculpting;
+            _need = need;
+        }
         return PolicyApi.DeclareArtOrders(request);
     }
 
@@ -49,17 +62,18 @@ public sealed class RoundsArtPlanner : IPurposeReporter
 
     PurposeReport IPurposeReporter.Report() => Report();
 
-    internal static (ConcernId Key, ConcernId Need) ReportTarget() => (PolicyApi.MaintainArt, PolicyApi.MaintainArt);
+    internal static (ConcernId Key, ConcernId Need) ReportTarget() => (ArtBillsKey, RoomsFamily.Art.FilingKey);
 
     internal PurposeReport Report()
     {
         lock (_mu)
         {
+            var need = _need ?? RoomsFamily.ArtNeed(new RoomsFacts());
             if (!_sculpting)
             {
-                return new PurposeReport { Order = BuildingReasonNoDeficit };
+                return new PurposeReport { Need = need, Order = BuildingReasonNoDeficit };
             }
-            return new PurposeReport { Order = WaitFor(Cause.ExistingWork, "sculpture") };
+            return new PurposeReport { Need = need, Order = WaitFor(Cause.ExistingWork, "sculpture") };
         }
     }
 

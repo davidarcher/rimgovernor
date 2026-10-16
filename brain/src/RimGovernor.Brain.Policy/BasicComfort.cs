@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// The foothold half of the comfort need: every colonist can reach a seat at an indoor eating surface and a
 /// recreation source, wherever they stand. "Ate without table" and "no recreation" are the cheapest mood
 /// debuffs to remove, so they are provided with the starter hut rather than after the whole startup ladder;
-/// the hosting room's native role and proof of use stay EnsureComfort's ranked phase.
+/// the hosting room's native role and proof of use stay the rooms/hosting Need.
 /// </summary>
 public sealed record BasicComfortReview
 {
@@ -100,7 +100,7 @@ public static partial class PolicyFunctions
     /// <summary>
     /// Names the one facility the foothold goal builds next: a table where no indoor eating surface stands,
     /// then a seat beside it, then a recreation source. Existing furniture some colonist cannot reach is
-    /// preserved as a blocker, as EnsureComfort does, rather than duplicated.
+    /// preserved as a blocker, as the rooms/comfort Need does, rather than duplicated.
     /// </summary>
     public static ComfortMethod SelectBasicComfortMethod(ComfortObservation v, BasicComfortReview r)
     {

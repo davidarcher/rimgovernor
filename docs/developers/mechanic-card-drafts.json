@@ -74,7 +74,7 @@
     {
       "def": "AteWithoutTable",
       "kind": "memory",
-      "owner": "EnsureComfort",
+      "owner": "rooms/comfort",
       "status": "resolved",
       "reasons": [],
       "xml": {
@@ -559,7 +559,7 @@
     {
       "def": "EnvironmentDark",
       "kind": "situational",
-      "owner": "MaintainLighting",
+      "owner": "rooms/lighting",
       "status": "resolved",
       "reasons": [],
       "xml": {

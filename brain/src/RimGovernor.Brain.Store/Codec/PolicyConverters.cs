@@ -2248,14 +2248,11 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         {
             Sleeping = e.Bool("Sleeping"),
             MedicalReserve = e.Bool("MedicalReserve"),
-            Lighting = e.Get<EquatableArray<string>>("Lighting", o),
-            Flooring = e.Get<EquatableArray<string>>("Flooring", o),
             Routes = e.Get<EquatableArray<string>>("Routes", o),
             Cold = e.Bool("Cold"),
             Hot = e.Bool("Hot"),
             Dash = e.Get<DashWindow>("Dash", o),
             Housing = e.Get<Phase>("Housing", o),
-            Comfort = e.Get<Phase>("Comfort", o),
             Medical = e.Get<Phase>("Medical", o),
         };
 
@@ -2263,14 +2260,11 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
     {
         w.WriteBoolean("Sleeping", v.Sleeping);
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
-        w.Put("Lighting", v.Lighting, o);
-        w.Put("Flooring", v.Flooring, o);
         w.Put("Routes", v.Routes, o);
         w.WriteBoolean("Cold", v.Cold);
         w.WriteBoolean("Hot", v.Hot);
         w.Put("Dash", v.Dash, o);
         w.Put("Housing", v.Housing, o);
-        w.Put("Comfort", v.Comfort, o);
         w.Put("Medical", v.Medical, o);
     }
 }

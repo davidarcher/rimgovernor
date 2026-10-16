@@ -71,7 +71,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (1, Temperature.Key, default);
         }
-        if (c == PolicyApi.MaintainLighting)
+        if (c == RoomsFamily.Lighting.FilingKey)
         {
             if (Lighting is null || Lighting.Method != LightingMethod.Build)
             {
@@ -79,7 +79,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (1, Lighting.Key, default);
         }
-        if (c == PolicyApi.MaintainFlooring)
+        if (c == RoomsFamily.Flooring.FilingKey)
         {
             if (Flooring is null || Flooring.Method != FlooringMethod.Build)
             {
@@ -115,7 +115,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (0, default, FieldUnavailable("power_proposal"));
         }
-        if (c == PolicyApi.EnsureComfort)
+        if (RoomsFamily.ComfortStep(c))
         {
             if (Phase == Phase.ComfortSpot)
             {

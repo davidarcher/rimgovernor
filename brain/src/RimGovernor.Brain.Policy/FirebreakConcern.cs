@@ -19,7 +19,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>
     /// Go <c>FirebreakOwed</c>: the ring work plan leaves: a cut cell where standing reports an undesignated
-    /// plant, and a planned wooden ruin that open still reports undesignated. Paved cells are MaintainFlooring's;
+    /// plant, and a planned wooden ruin that open still reports undesignated. Paved cells are the rooms/flooring Need's;
     /// the plan's order is kept.
     /// </summary>
     public static FirebreakWork FirebreakOwed(FirebreakPlan plan, IReadOnlySet<Cell> standing, IReadOnlySet<Cell> open) =>

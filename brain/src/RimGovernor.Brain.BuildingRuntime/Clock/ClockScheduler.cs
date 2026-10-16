@@ -127,16 +127,12 @@ public sealed partial class ClockScheduler
             (c.GeneBank, c.GeneBank?.Reviewer, null, null),
             (c.Ledger, c.Ledger?.Reviewer, null, null),
             (c.Sleeping, c.Sleeping?.Reviewer, c.Sleeping?.Concern, MaintainHousing),
-            (c.Comfort, c.Comfort?.Reviewer, c.Comfort?.Concern, EnsureComfort),
-            (c.BasicComfort, c.BasicComfort?.Reviewer, c.BasicComfort?.Concern, EnsureComfort),
             (c.Workshop, c.Workshop?.Reviewer, c.Workshop?.Concern, MaintainResource),
             (c.Hospital, c.Hospital?.Reviewer, null, null),
             (c.SleepingUpkeep, c.SleepingUpkeep?.Reviewer, null, null),
             (c.Expansion, c.Expansion?.Reviewer, c.Expansion?.Concern, MaintainHousing),
             (c.Power, c.Power?.Reviewer, c.Power?.Concern, EnsureBasicPower),
             (c.Temperature, c.Temperature?.Reviewer, c.Temperature?.Concern, EnsureTemperatureSafety),
-            (c.Lighting, c.Lighting?.Reviewer, c.Lighting?.Concern, MaintainLighting),
-            (c.Flooring, c.Flooring?.Reviewer, c.Flooring?.Concern, MaintainFlooring),
             (c.Routes, c.Routes?.Reviewer, c.Routes?.Concern, MaintainRoutes),
         ];
         foreach (var (planner, reviewer, concern, expected) in planners)
@@ -150,12 +146,10 @@ public sealed partial class ClockScheduler
                 throw new ControlException($"NewClockScheduler: {planner.GetType().Name} does not review through the scheduler's rounder or its concern");
             }
         }
-        // The sleeping, comfort and expansion building planners are also checked for their phase; every other
+        // The sleeping and expansion building planners are also checked for their phase; every other
         // planner (defense, tend, ...) validates its own reviewer when it is built.
         if (c.Sleeping is { } s && s.Phase != Policy.Phase.HousingShelter
-            || c.Expansion is { } e && e.Phase != Policy.Phase.HousingExpansion
-            || c.Comfort is { } k && k.Phase != Policy.Phase.ComfortRanked
-            || c.BasicComfort is { } b && b.Phase != Policy.Phase.ComfortBasic)
+            || c.Expansion is { } e && e.Phase != Policy.Phase.HousingExpansion)
         {
             throw new ControlException("NewClockScheduler: a building planner is built for another phase");
         }

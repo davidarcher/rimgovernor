@@ -61,7 +61,7 @@ public sealed partial class LayoutRounds
     /// <summary>The family's scheduler entry.</summary>
     public FamilyRunner Runner() => new FamilyRunner<LayoutFacts>(new LayoutFamily(_needs), ReadAsync, Schedule, WorkAsync);
 
-    /// <summary>The settled ring cells the latest firebreak review found to pave (MaintainFlooring paves them); empty without the firebreak.</summary>
+    /// <summary>The settled ring cells the latest firebreak review found to pave (the rooms/flooring Need paves them); empty without the firebreak.</summary>
     public List<Cell> Pave() => _firebreak?.Pave() ?? [];
 
     /// <summary>

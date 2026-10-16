@@ -488,14 +488,14 @@ under it; it has no latch, and unknown temperature or room facts leave it unknow
 
 ### Lighting and flooring
 
-`MaintainLighting` reasons from measured ground glow at each work table and research bench
+`rooms/lighting` is a plain threshold over measured ground glow at each work table and research bench
 interaction cell (`UpkeepFacts.lighting`, with every glowing fixture's radius, lit flag and
 service state).
 
-- A roofed work cell under 0.3 latches its bench. Unroofed cells are ignored except under an
-  eclipse (`policy.EclipseHold`), when every cell is measured and such benches unlatch after
-  it ends. An unknown census preserves the latch. A cell whose room grows a light-sensitive
-  plant (`WorkLightCell.light_sensitive`) never latches.
+- A roofed work cell under 0.3 marks its bench dark. Unroofed cells are ignored except under an
+  eclipse (`policy.EclipseHold`), when every cell is measured and such benches clear after
+  it ends. An unknown census or sky reads the Need unknown. A cell whose room grows a light-sensitive
+  plant (`WorkLightCell.light_sensitive`) is never dark.
 - The method first looks for a fixture reaching the cell: one not lit defers
   (`lamp_power_needed`, `lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`); a lit
   one within placement radius that leaves the cell dark is blocked; one reaching only from
@@ -507,7 +507,7 @@ service state).
   free, walkable, unzoned cell of the room within two cells of the interaction cell, each
   validated by native preview. A receipt never clears the deficit; the next census must read
   the cell lit.
-- The plan is also a deficit input (`RoundsFacts.PlanLit`, `policy.PlanLitRooms`): a room the plan
+- The plan is also a deficit input (`policy.PlanLitRooms`): a room the plan
   lights (`LayoutPlan.Lamps`, so lighting its dark cost less than leaving it, in the tiler's
   sustained watts) that stands built (an enclosed census room within its region) with a planned lamp
   no observed lamp stands on, while a network has an active source, keeps the project open with no
@@ -515,13 +515,13 @@ service state).
   bench. A room the plan left dark, an unbuilt room or no active source yields none; unknown
   facts add none. The improvised lamp stays: it serves benches in rooms the plan lit nothing in.
 
-`MaintainFlooring` reasons from the terrain under each room cell and its native stats
+`rooms/flooring` is a plain threshold over the terrain under each room cell and its native stats
 (`UpkeepFacts.flooring`).
 
 - A clean workspace (an enclosed kitchen, hospital, laboratory or cooking-bench room, never a butchery) is deficient while any cell's cleanliness is
   negative; a living room (bedroom, barracks, dining, recreation) while any cell is natural
   ground. Other roles carry no requirement. No hysteresis; an ordered floor still counts as
-  deficient but is never ordered twice; an unknown census preserves the latch. Clean
+  deficient but is never ordered twice; an unknown census reads the Need unknown. Clean
   workspaces rank before living rooms.
 - Method: the known-available floor meeting the tier (non-negative cleanliness for clean,
   beauty for living), preferring stock-payable cost over the most cells of a bounded batch,
@@ -571,12 +571,14 @@ and window start; the window restarts on load).
 
 ### Comfort
 
-`EnsureComfort` has two phases recorded as `Latches.Comfort`.
+The comfort Needs are plain thresholds chained by precondition, with no phase latch:
+`rooms/comfort`, then `rooms/hosting`, then `rooms/party-spot` (see
+[mood control](mood-control.md#the-partyspot)).
 
-- `basic`: one
+- `rooms/comfort`: one
   eating surface, one adjacent seat and one recreation source every colonist can reach, read
   from the native census before the hosting-room filter. Capacity alone recovers it; observed
-  use is the `ranked` phase's (from `StageDevelopment`).  An inaccessible existing facility is a blocker, not a duplicate. Methods are
+  use is `rooms/hosting`'s (from `StageDevelopment`).  An inaccessible existing facility is a blocker, not a duplicate. Methods are
   `basic-comfort-<definition>` under plans `routine-basic-comfort-*`.
 - Maintenance priority (3) covers a second reachable building-backed joy kind: immediately
   for multiple joy-needing colonists, for a lone colonist when native boredom is set for the

@@ -7914,7 +7914,7 @@ public abstract record HomeCoverageSectionOutcome
 
 /// <summary>
 /// Lighting facts: the measured ground glow at every colonist work bench
-/// interaction cell plus the colony's glowing fixtures, so MaintainLighting
+/// interaction cell plus the colony's glowing fixtures, so the rooms/lighting Need
 /// reasons from illumination at the cell a pawn actually stands on rather than
 /// from fixture counts. Glow follows the native GlowGrid (0..1; RimWorld treats
 /// &gt;= 0.3 as lit). A lamp is lit only when native currently emits light. A work
@@ -7991,7 +7991,7 @@ public abstract record LightingSectionOutcome
 /// <summary>
 /// Flooring facts: every proper indoor home room with the terrain under each
 /// of its cells, plus one row per distinct terrain with the native stats
-/// MaintainFlooring scores (cleanliness, path cost, beauty, flammability) and
+/// the rooms/flooring Need scores (cleanliness, path cost, beauty, flammability) and
 /// whether the terrain is natural ground rather than a laid floor. A cell
 /// whose floor is already ordered carries the pending floor definition so the
 /// planner never doubles an open blueprint or frame.

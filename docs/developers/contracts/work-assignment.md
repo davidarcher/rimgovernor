@@ -470,8 +470,9 @@ own reports existing work; otherwise it reports what its declaration noted
 (awaiting the food plan, a missing cooking or butcher bench, an unread fact, or
 `ledger_bill` once the ledger holds the bill) and lends game time while its
 reserve, sculpture or export bill runs. A journal read that fails reports the
-purpose unavailable and never fails bill placement. Art and export file under
-`MaintainArt` and `MaintainTrade`, which no other planner serves. The four food
+purpose unavailable and never fails bill placement. Art files under the
+`rooms/art` Need's subject key `rooms/art/bills` and reads that Need's standing; export
+files under `MaintainTrade`, which no other planner serves. The four food
 purposes file under subject keys of their own (`food/cooking/bills`,
 `food-stores/storage/bills`, `food/supply/bills`, `food-stores/refrigeration/bills`), because
 their owners carry the building, acquisition and storage notes: a bill verdict filed on
@@ -489,7 +490,7 @@ the step lends the clock a window and the ledger places the bill. The old
 one-method-per-recipe history and the ingredient-credit cap on the bill target
 are gone: the order is judged again every Round at the floor's full target.
 
-`MaintainArt` (#2603) migrates the worker-pinned sculpture batches (room
+The `rooms/art` Need (#2603, #3255) migrates the worker-pinned sculpture batches (room
 decoration only since #2607; sculptures to sell are `MaintainTrade`'s):
 `RoundsArtPlanner.DeclareOrders` (`policy.DeclareArtOrders`) declares, while an
 inspired artist or an owed bedroom is open, every active sculpture

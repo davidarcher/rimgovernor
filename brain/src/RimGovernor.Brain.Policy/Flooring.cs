@@ -237,15 +237,11 @@ public sealed record FloorDeficit
 
     /// <summary>The floor the traffic tier priced its cells on; the selector lays exactly it.</summary>
     public string Floor { get; init; } = "";
-
-    /// <summary>Marks a traffic latch kept while the floor could not be priced.</summary>
-    public bool Unknown { get; init; }
 }
 
 /// <summary>
-/// The per-room latch: Deficits lists every room measured short, clean workspaces first and then by key, and
-/// Latched is the key set persisted between reviews. Known is false when the census was unknown, in which case
-/// Latched repeats the previous latch and Deficits is empty. (Go <c>FlooringReview</c>.)
+/// The per-room review: Deficits lists every room measured short, clean workspaces first and then by key. Known
+/// is false when the census was unknown, in which case Deficits is empty. (Go <c>FlooringReview</c>.)
 /// </summary>
 public sealed record FlooringReview
 {
@@ -254,8 +250,6 @@ public sealed record FlooringReview
     public bool Known { get; init; }
 
     public IReadOnlyList<FloorDeficit> Deficits { get; init; } = [];
-
-    public IReadOnlyList<string> Latched { get; init; } = [];
 }
 
 /// <summary>Go <c>FlooringMethod</c>. <see cref="None"/> is Go's empty string.</summary>
@@ -351,7 +345,7 @@ public sealed record FlooringFacts
 
 public static partial class PolicyFunctions
 {
-    // MaintainFlooring lays role-appropriate floors in the rooms the colony lives and works in. It reasons from
+    // The rooms/flooring Need lays role-appropriate floors in the rooms the colony lives and works in. It reasons from
     // the measured terrain under each room cell and the native stats of that terrain, never from what the
     // controller last ordered: a clean workspace (kitchen, hospital, laboratory) is deficient while any cell's
     // terrain cleanliness is negative, a living room (bedroom, barracks, dining, recreation) while any cell is
@@ -359,7 +353,6 @@ public static partial class PolicyFunctions
     // cleanliness, path cost, beauty, flammability and cost list of every affordable floor definition, and the
     // latch releases only on a measured census with no deficient cell left. The traffic tier floors the natural
     // home cells colonists are observed to walk where the floor pays for itself within PaybackDays.
-    public static readonly ConcernId MaintainFlooring = new("MaintainFlooring");
 
     /// <summary>The latch key of the single firebreak deficit.</summary>
     private const string FirebreakKey = "firebreak";
@@ -466,10 +459,9 @@ public static partial class PolicyFunctions
     /// floor is chosen before any cell: the tier style's aisle floor when it can be laid, else no floor. Each
     /// cell's payback is the floor's one-time ticks over the walking ticks it saves a day; cells are kept
     /// cheapest payback first up to the first beyond PaybackDays. Cells inside a tiered room are that room's
-    /// business. A floor that cannot be priced leaves the tier unknown: a traffic latch held before is kept,
-    /// none is raised.
+    /// business. A floor that cannot be priced raises no traffic deficit.
     /// </summary>
-    private static (FloorDeficit Deficit, bool Ok) TrafficDeficit(FlooringObservation v, HashSet<Cell> roomed, bool latched, FlooringPolicy p)
+    private static (FloorDeficit Deficit, bool Ok) TrafficDeficit(FlooringObservation v, HashSet<Cell> roomed, FlooringPolicy p)
     {
         var d = new FloorDeficit { Key = TrafficKey, Tier = FloorTier.Traffic };
         if (p.PaybackDays == 0 || v.TrafficSamples < TrafficWarmupSamples)
@@ -499,7 +491,7 @@ public static partial class PolicyFunctions
         var (name, known) = TrafficFloor(v, Math.Min(cells.Count, p.MaxCellsPerPlan), p);
         if (!known)
         {
-            return (d with { Unknown = latched }, latched || pending > 0);
+            return (d, pending > 0);
         }
         if (name.Length == 0)
         {
@@ -568,17 +560,16 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Go <c>ReviewFlooring</c>: measures every tiered room against its requirement. There is no hysteresis:
-    /// terrain does not flap. A cell whose floor is already ordered still counts as deficient, so the latch
-    /// holds until the floor is actually laid, but the planner never orders it twice. An unknown census keeps the
-    /// previous latch. Throws <see cref="DomainException"/> where Go returned an error.
+    /// terrain does not flap. A cell whose floor is already ordered still counts as deficient, so the Need
+    /// stays unmet until the floor is actually laid, but the planner never orders it twice. An unknown census
+    /// measures nothing. Throws <see cref="DomainException"/> where Go returned an error.
     /// </summary>
-    public static FlooringReview ReviewFlooring(Fact<FlooringObservation> fact, Fact<RoomObservation> rooms, IReadOnlyList<string> previous, FlooringPolicy p)
+    public static FlooringReview ReviewFlooring(Fact<FlooringObservation> fact, Fact<RoomObservation> rooms, FlooringPolicy p)
     {
         DomainException.Require(p.IsValid, "invalid flooring policy");
         if (!fact.TryGetValue(out var v))
         {
-            var held = previous.Order(StringComparer.Ordinal).ToList();
-            return new FlooringReview { Active = held.Count > 0, Latched = held };
+            return new FlooringReview();
         }
         v.Validate();
         var census = new Dictionary<string, Room>(StringComparer.Ordinal);
@@ -590,7 +581,6 @@ public static partial class PolicyFunctions
             }
         }
         var deficits = new List<FloorDeficit>();
-        var latched = new List<string>();
         var roomed = new HashSet<Cell>();
         foreach (var room in v.Rooms)
         {
@@ -640,13 +630,11 @@ public static partial class PolicyFunctions
                     Pending = pending,
                 }
             );
-            latched.Add(key);
         }
-        var (traffic, trafficOk) = TrafficDeficit(v, roomed, previous.Contains(TrafficKey), p);
+        var (traffic, trafficOk) = TrafficDeficit(v, roomed, p);
         if (trafficOk)
         {
             deficits.Add(traffic);
-            latched.Add(traffic.Key);
         }
         if (v.Firebreak.Count > 0)
         {
@@ -661,12 +649,10 @@ public static partial class PolicyFunctions
             if (cells.Count > 0)
             {
                 deficits.Add(new FloorDeficit { Key = FirebreakKey, Tier = FloorTier.Firebreak, Cells = SortedCells(cells) });
-                latched.Add(FirebreakKey);
             }
         }
         var ordered = deficits.OrderBy(d => FloorTierRank(d.Tier)).ThenBy(d => d.Key, StringComparer.Ordinal).ToList();
-        latched.Sort(StringComparer.Ordinal);
-        return new FlooringReview { Known = true, Active = ordered.Count > 0, Deficits = ordered, Latched = latched };
+        return new FlooringReview { Known = true, Active = ordered.Count > 0, Deficits = ordered };
     }
 
     private static List<Cell> SortedCells(List<Cell> cells)
@@ -754,11 +740,6 @@ public static partial class PolicyFunctions
         var deferred = FlooringMethod.None;
         foreach (var d in review.Deficits)
         {
-            if (d.Unknown)
-            {
-                deferred = FirstFlooringReason(deferred, FlooringMethod.Unknown);
-                continue;
-            }
             if (d.Cells.Count == 0)
             {
                 deferred = FirstFlooringReason(deferred, FlooringMethod.Pending);

@@ -79,7 +79,7 @@ AteRawHumanlikeMeat	memory	ritual xml:Core/Defs/PreceptDefs/Precepts_Cannibalism
 AteRottenFood	memory	ingest FoodUtility.ThoughtsFromIngesting	other	
 AteTwistedMeat	memory	other xml:Anomaly/Defs/ThingDefs_Items/Items_Various.xml	other	
 AteVeneratedAnimalMeat	memory	other unreferenced	other	
-AteWithoutTable	memory	ingest Toils_Ingest.FinalizeIngest	need:food;room;room_stat:Impressiveness	EnsureComfort
+AteWithoutTable	memory	ingest Toils_Ingest.FinalizeIngest	need:food;room;room_stat:Impressiveness	rooms/comfort
 AttendedConcert	memory	other LordJob_Joinable_Concert	other	
 AttendedParty	memory	ritual LordJob_Joinable_Party	other	
 AttendedWedding	memory	social LordJob_Joinable_MarriageCeremony.WeddingSucceeded	other	
@@ -303,7 +303,7 @@ EnslavedPrisoner_Know_Horrible	memory	other unreferenced	other
 EnslavedPrisoner_Know_Horrible_Mood	memory	other unreferenced	other	
 EntityInRoom	situational	ThoughtWorker_EntityInRoom	other	
 EnvironmentCold	situational	ThoughtWorker_Cold	temperature	EnsureTemperatureSafety
-EnvironmentDark	situational	ThoughtWorker_Dark	light	MaintainLighting
+EnvironmentDark	situational	ThoughtWorker_Dark	light	rooms/lighting
 EnvironmentHot	situational	ThoughtWorker_Hot	temperature	EnsureTemperatureSafety
 ExecutedColonist_Know_Abhorrent_Mood	memory	other unreferenced	other	
 ExecutedGuest_Know_Abhorrent_Mood	memory	other unreferenced	other	
@@ -646,7 +646,7 @@ NeedBeauty	situational	ThoughtWorker_NeedBeauty	need:beauty
 NeedComfort	situational	ThoughtWorker_NeedComfort	need:comfort	
 NeedFood	situational	ThoughtWorker_NeedFood	hediff;hediff:Malnutrition;need:food	
 NeedIndoors	situational	ThoughtWorker_NeedIndoors	need:indoors	
-NeedJoy	situational	ThoughtWorker_NeedJoy	need:joy	EnsureComfort
+NeedJoy	situational	ThoughtWorker_NeedJoy	need:joy	rooms/comfort
 NeedLearning	situational	ThoughtWorker_NeedLearning	need:learning	
 NeedNeuralSupercharge	situational	ThoughtWorker_NeedNeuralSupercharge	other	
 NeedOutdoors	situational	ThoughtWorker_NeedOutdoors	need:outdoors	

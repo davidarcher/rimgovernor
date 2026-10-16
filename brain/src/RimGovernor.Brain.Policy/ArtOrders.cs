@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // Go: art_orders.go
-// MaintainArt declares its pinned sculpture batches to the work ledger (OrderDeclarer): the ledger places a
+// The rooms/art Need declares its pinned sculpture batches to the work ledger (OrderDeclarer): the ledger places a
 // missing one, keeps a standing one and removes the rest, so a sculpture pinned to someone who is no longer an
 // artist is simply no longer declared. Sculptures to sell are MaintainTrade's.
 
@@ -27,7 +27,7 @@ public sealed record ArtOrderRequest
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// MaintainArt's wanted sculpture orders. While the need is open (an inspired artist or a bedroom below
+    /// The rooms/art Need's wanted sculpture orders. While the need is open (an inspired artist or a bedroom below
     /// target) every active sculpture bill pinned to a current artist is declared as it stands, and each artist
     /// lacking one is given the bill the art selectors choose; a need known to be gone declares nothing, so the
     /// ledger removes the sculptures. Abstain while the artists or the need are unread, or a standing sculpture

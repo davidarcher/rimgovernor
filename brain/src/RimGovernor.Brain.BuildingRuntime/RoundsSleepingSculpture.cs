@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static partial class BuildingRuntimePackage
 {
-    /// <summary>The review's MaintainArt room input: a bedroom below target, weakest in beauty, with a free cell.</summary>
+    /// <summary>The rooms/art Need's room input: a bedroom below target, weakest in beauty, with a free cell.</summary>
     internal static Fact<bool> SculptureRoomsOwedOf(Observation.ColonyProjection facts)
     {
         var rk = facts.Rooms.TryGetValue(out var rooms);
@@ -77,7 +77,7 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>
-    /// The beauty lever after pots and floors: a finished packed sculpture (MaintainArt's pinned bill)
+    /// The beauty lever after pots and floors: a finished packed sculpture (the rooms/art Need's pinned bill)
     /// installed (a RelocateIntent on the packed item's inner building) on free floor in the room, once per
     /// Episode. due is false when the lever has nothing to do.
     /// </summary>

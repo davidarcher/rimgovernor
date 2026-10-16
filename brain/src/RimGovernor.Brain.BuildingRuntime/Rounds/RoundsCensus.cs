@@ -293,19 +293,7 @@ public sealed partial class Rounder
             return cached;
         }
         var reading = await ObservationApi.ObserveRoundsOwned(source, Clock, expected, MaxAge, claims, definitions, ct).ConfigureAwait(false);
-        reading = reading.WithProjection(ServeAndReview(reading.Projection));
-        if (Player is not null)
-        {
-            var state = Player.Session.State();
-            if (state.ObservationKnown && state.Snapshot.IsValid)
-            {
-                if (MethodEnabled(PolicyApi.HoldGatherings))
-                {
-                    reading = ReviewGathering(reading, state.Snapshot);
-                }
-            }
-        }
-        return reading;
+        return reading.WithProjection(ServeAndReview(reading.Projection));
     }
 
     /// <summary>The remembered layout and royalty served into a fresh projection, then the food plan, meals, reserve and baby feeding reviews (Go ran them in place on <c>&amp;reading.Projection</c>).</summary>

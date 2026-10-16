@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // Go: art.go
-// MaintainArt keeps a small sculpture on the way for every room that needs one: a bedroom below its quality
+// The rooms/art Need keeps a small sculpture on the way for every room that needs one: a bedroom below its quality
 // target whose weakest stat is beauty. Each qualifying artist gets their own fixed-count bill, pinned to them,
 // at an art bench; the finished sculpture is installed by the bedroom upkeep's sculpture step.
 
@@ -58,12 +58,8 @@ public static class ArtExtensions
 
 public static partial class PolicyFunctions
 {
-    /// <summary>
-    /// MaintainArt keeps a small sculpture on the way for every room that needs one.
-    /// </summary>
-    public static readonly ConcernId MaintainArt = new("MaintainArt");
 
-    /// <summary>MaintainArt's bill purpose: one small sculpture pinned to the artist named in ProductionBillContext.Artists.</summary>
+    /// <summary>The rooms/art Need's bill purpose: one small sculpture pinned to the artist named in ProductionBillContext.Artists.</summary>
     public static readonly BillPurpose ArtBill = new("art");
 
     /// <summary>The InspirationDef an inspired artist carries; their next art piece gets a quality boost.</summary>

@@ -5,7 +5,7 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>light/dark</c> (Go <c>light/light.go</c>): the MaintainLighting vertical on the lab contract. An enclosed roofed
+/// <c>light/dark</c> (Go <c>light/light.go</c>): the rooms/lighting Need vertical on the lab contract. An enclosed roofed
 /// room on the blank lab holds a fuelled stove whose interaction cell native measures dark, with no lamp in reach. The
 /// service must latch the bench from the measured glow, admit exactly one affordable lamp (a TorchLamp: the colony has no
 /// power source) on a free cell of the room within the placement radius, the colonists build it, and the next measured
@@ -25,7 +25,7 @@ internal static class LightDark
     internal static AcceptanceCase Case() => new()
     {
         Name = "light/dark",
-        Scope = "Native MaintainLighting vertical on the lab: a measured-dark stove interaction cell in an enclosed room "
+        Scope = "Native rooms/lighting Need vertical on the lab: a measured-dark stove interaction cell in an enclosed room "
             + "drives the live Go rounder/planner to admit one affordable lamp beside it; "
             + "the measured glow, not the receipt, releases the latch, confirmed by an independent native read.",
         Start = new FixtureStart { Op = "test/lighting_prepare", Args = new JsonObject { ["scenario"] = "dark" }, On = new LabStart() },
@@ -106,9 +106,9 @@ internal static class LightDark
         // match the controller's own assignment, which only the work family applies.
         var run = await RoutineService.StartAsync(s, Prefix, ["lighting", "work"], cancellationToken).ConfigureAwait(false);
         started(run);
-        var concern = PolicyFunctions.MaintainLighting.Value;
+        var concern = RoomsFamily.Lighting.Value;
 
-        // The review must bind MaintainLighting.
+        // The review must bind the rooms/lighting Need.
         _ = await run.WaitBoundAsync(concern, TimeSpan.FromMinutes(3), cancellationToken).ConfigureAwait(false);
 
         // One lighting method from commitment through the build to the measured census releasing the latch: one lamp

@@ -86,7 +86,7 @@ public static partial class PolicyFunctions
         {
             return ConstructionTier.Secure;
         }
-        if (concern == EnsureComfort)
+        if (RoomsFamily.ComfortStep(concern))
         {
             return ConstructionTier.Comfort;
         }

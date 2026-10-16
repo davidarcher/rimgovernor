@@ -4,6 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
 {
+    /// <summary>The rooms/hosting Need's planner: hosting room furniture and proof of use.</summary>
     public static RoundsBuildingPlanner NewRoundsComfortPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
         if (reviewer is null || native is null)
@@ -14,8 +15,28 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsComfortPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureComfort, Phase = Pol.Phase.ComfortRanked };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Hosting.FilingKey, Need = RoomsFamily.Hosting, Phase = Pol.Phase.ComfortRanked };
     }
+
+    /// <summary>The rooms/party-spot Need's planner: one PartySpot placed in, or retired from, the shared rooms.</summary>
+    public static RoundsBuildingPlanner NewRoundsPartySpotPlanner(Rounder reviewer, IRoundsBuildingSource native)
+    {
+        if (reviewer is null || native is null)
+        {
+            throw new ControlException("NewRoundsPartySpotPlanner: reviewer or native is missing");
+        }
+        if (native is not IRoundsSource)
+        {
+            throw new ControlException("NewRoundsPartySpotPlanner: native is not a rounds source");
+        }
+        return new RoundsBuildingPlanner
+        {
+            Reviewer = reviewer, Native = native, Concern = RoomsFamily.PartySpot.FilingKey, Need = RoomsFamily.PartySpot, Phase = Pol.Phase.ComfortSpot,
+            Definition = PartySpotDefinition, Environment = Pol.PlacementEnvironment.Indoors,
+        };
+    }
+
+    /// <summary>The rooms/comfort Need's planner: a reachable table, seat and recreation source.</summary>
 
     public static RoundsBuildingPlanner NewRoundsBasicComfortPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
@@ -27,7 +48,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsBasicComfortPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureComfort, Phase = Pol.Phase.ComfortBasic };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Comfort.FilingKey, Need = RoomsFamily.Comfort, Phase = Pol.Phase.ComfortBasic };
     }
 
     /// <summary>The planner resolved to the comfort furniture the ranked review selects, or the verdict that explains why none is wanted.</summary>

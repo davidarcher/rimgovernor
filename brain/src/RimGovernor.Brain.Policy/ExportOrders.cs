@@ -238,7 +238,7 @@ public static partial class PolicyFunctions
     // batches pinned to the best capable worker; the trade planner then sells what they make as surplus
     // (ExportSaleSurplus, SaleGearSurplus). Ownership is split by floor: MaintainResource owns a bill whose
     // product has a floor; MaintainTrade owns the sale goods with none, and never acquires anything: it spends
-    // only UsableIngredients. MaintainArt keeps room decoration only.
+    // only UsableIngredients. The rooms/art Need keeps room decoration only.
     public static readonly ConcernId MaintainTrade = new("MaintainTrade");
 
     /// <summary>

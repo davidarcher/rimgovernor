@@ -4,9 +4,9 @@ public sealed partial class RoundsBuildingPlanner
 {
     public static RoundsBuildingPlanner NewRoundsLightingPlanner(Rounder reviewer, IRoundsBuildingSource native)
     {
-        if (reviewer is null || native is null || !reviewer.MethodEnabled(PolicyFunctions.MaintainLighting))
+        if (reviewer is null || native is null)
         {
-            throw new ControlException("NewRoundsLightingPlanner: reviewer, native or method disabled");
+            throw new ControlException("NewRoundsLightingPlanner: reviewer or native is missing");
         }
 
         if (native is not IRoundsSource)
@@ -14,7 +14,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("NewRoundsLightingPlanner: native is not a rounds source");
         }
 
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyFunctions.MaintainLighting, Definition = "TorchLamp" };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Lighting.FilingKey, Need = RoomsFamily.Lighting, Definition = "TorchLamp" };
     }
 
     internal static Fact<EquatableArray<int>> PlanLitRooms(ColonyProjection facts) =>
@@ -35,12 +35,16 @@ public sealed partial class RoundsBuildingPlanner
         return output;
     }
 
+    /// <summary>The lighting review of <paramref name="facts"/> with the plan's unlit rooms folded in, measured fresh: the rooms/lighting Need's evidence.</summary>
+    internal static LightingReview LightingReviewOf(ColonyProjection facts, LightingPolicy p) =>
+        PolicyFunctions.ReviewLighting(facts.Facts.Upkeep.Lighting, p, PolicyFunctions.SkyDarkHold(facts.Facts.DisasterConditions, facts.Facts.OutdoorsDark))
+            .WithPlanned(PlanLitRooms(facts));
+
     /// <summary>The planner resolved to the lighting method the policy picked, or the verdict that says why none applies.</summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectLighting(ColonyProjection facts, RoundsLatches latches)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectLighting(ColonyProjection facts)
     {
         var p = Reviewer.Policy.Lighting;
-        var review = PolicyFunctions.ReviewLighting(facts.Facts.Upkeep.Lighting, latches.Lighting, p, PolicyFunctions.SkyDarkHold(facts.Facts.DisasterConditions, facts.Facts.OutdoorsDark));
-        review = review.WithPlanned(PlanLitRooms(facts));
+        var review = LightingReviewOf(facts, p);
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);

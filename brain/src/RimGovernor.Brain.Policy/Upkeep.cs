@@ -20,10 +20,10 @@ public sealed record UpkeepObservation
     /// <summary>The measured room census of the same read.</summary>
     public Fact<RoomObservation> Rooms { get; init; }
 
-    /// <summary>The measured work-cell illumination census MaintainLighting reviews; unknown when native could not read it.</summary>
+    /// <summary>The measured work-cell illumination census the rooms/lighting Need reviews; unknown when native could not read it.</summary>
     public Fact<LightingObservation> Lighting { get; init; }
 
-    /// <summary>The measured room terrain census MaintainFlooring reviews; unknown when native could not read it.</summary>
+    /// <summary>The measured room terrain census the rooms/flooring Need reviews; unknown when native could not read it.</summary>
     public Fact<FlooringObservation> Flooring { get; init; }
 
     /// <summary>The measured facility reachability and traffic census MaintainRoutes reviews.</summary>

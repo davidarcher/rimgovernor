@@ -40,10 +40,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsBuildingPlanner? Sleeping { get; init; }
 
-    public RoundsBuildingPlanner? Comfort { get; init; }
-
-    public RoundsBuildingPlanner? BasicComfort { get; init; }
-
     public RoundsBuildingPlanner? Workshop { get; init; }
 
     public RoundsHospitalPlanner? Hospital { get; init; }
@@ -55,10 +51,6 @@ public sealed class ClockSchedulerConfig
     public RoundsBuildingPlanner? Power { get; init; }
 
     public RoundsBuildingPlanner? Temperature { get; init; }
-
-    public RoundsBuildingPlanner? Lighting { get; init; }
-
-    public RoundsBuildingPlanner? Flooring { get; init; }
 
     public RoundsBuildingPlanner? Routes { get; init; }
 
@@ -82,7 +74,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsPermitsPlanner? Permits { get; init; }
 
-    public RoundsGatheringPlanner? Gathering { get; init; }
 
     public RoundsStockpilePlanner? Stockpiles { get; init; }
 

@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 //   - space weakest: nothing is added, since every furniture tile costs the room 0.9 space and the weakest
 //     stat carries about half the score; the owner is given a suite instead (SuiteClaims);
 //   - otherwise the slots go in lever order (end table, dresser, then the lamp), each adding wealth.
-// Flooring is not a lever here: MaintainFlooring already floors every bedroom at the living tier. A room
+// Flooring is not a lever here: The rooms/flooring Need already floors every bedroom at the living tier. A room
 // marked NeverUpgrade, or at or above its Max, is never touched.
 
 /// <summary>Names one input of the native Impressiveness stat.</summary>
