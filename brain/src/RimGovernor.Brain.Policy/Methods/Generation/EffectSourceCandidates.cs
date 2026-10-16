@@ -71,7 +71,11 @@ internal static class EffectSourceCandidates
         var truncated = false; var budget = facts.Budget;
         foreach (var card in cards.Where(_ => shortfall.Count > 0).OrderBy(c => c.Def, StringComparer.Ordinal))
         {
-            if (!card.Live) { findings.Add("effect_source_card_unverified:" + card.Def); continue; }
+            if (!card.Live)
+            {
+                findings.Add((card.Status == MechanicCardStatus.Unreachable ? "effect_source_card_unreachable:" : "effect_source_card_unverified:") + card.Def);
+                continue;
+            }
             var memories = Memories(card, facts, findings);
             if (!memories.Any(m => shortfall.Contains(m.Pawn))) continue;
             foreach (var site in card.Sites.OrderBy(s => s.Site, StringComparer.Ordinal))

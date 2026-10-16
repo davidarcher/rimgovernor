@@ -43,6 +43,10 @@ internal static class GuardOutput
     /// <summary>The reason that explains a non-resolved def: the most frequent unknown-leaf reason, ties broken ordinally.</summary>
     public static string PrimaryReason(Card c)
     {
+        if (c.Status == GuardCards.Unreachable)
+        {
+            return GuardCards.NoWriterOnCallerPath;
+        }
         var leaves = c.Sites.SelectMany(s => s.Guards).SelectMany(g => Exprs.Unknowns(g.Cond)).Select(u => Category(u.Reason)).ToList();
         var structural = c.Reasons.Where(r => r is "xml-granted" or "no-code-or-xml-reference" or "worker-not-in-sources" or "conditions-in-callers" or "event-driven").ToList();
         if (structural.Count > 0 && (leaves.Count == 0 || c.Sites.Count == 0))
@@ -99,7 +103,8 @@ internal static class GuardOutput
     /// <summary>
     /// The shipped card file (<c>brain/src/RimGovernor.Brain.Policy/mechanic_cards.json</c>, #3220): the given cards with typed
     /// XML numbers and only the fields the brain's records read. A card is <c>verified</c> only when its def is in
-    /// <paramref name="verified"/> (its drift hash matches a row of the verified-cards table, #3222), else <c>extracted</c>.
+    /// <paramref name="verified"/> (its drift hash matches a row of the verified-cards table, #3222), else <c>extracted</c>;
+    /// a card with an unreachable guard on every site (#3243) ships <c>unreachable</c>.
     /// </summary>
     public static string Shipped(string game, IReadOnlyList<Card> cards, IReadOnlySet<string> verified)
     {
@@ -115,7 +120,7 @@ internal static class GuardOutput
                 w.WriteStartObject();
                 w.WriteString("def", c.Def);
                 w.WriteString("kind", c.Kind);
-                w.WriteString("status", verified.Contains(c.Def) ? "verified" : "extracted");
+                w.WriteString("status", c.Status == GuardCards.Unreachable ? GuardCards.Unreachable : verified.Contains(c.Def) ? "verified" : "extracted");
                 w.WriteStartObject("xml");
                 foreach (var name in ShippedNumbers.Where(c.Data.Fields.ContainsKey))
                 {
@@ -273,6 +278,10 @@ internal static class GuardOutput
         }
         w.WritePropertyName("expr");
         WriteExpr(w, g.Cond);
+        if (g.Unreachable is not null)
+        {
+            w.WriteString("unreachable", g.Unreachable);
+        }
         w.WriteEndObject();
     }
 

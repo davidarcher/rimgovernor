@@ -122,7 +122,8 @@ internal static class ThoughtAuditCommand
         IReadOnlyList<VerifiedRow> rows;
         try
         {
-            rows = VerifiedCards.Parse(tsv, live.Select(c => c.Def).ToHashSet(StringComparer.Ordinal));
+            rows = VerifiedCards.Parse(tsv, live.Select(c => c.Def).ToHashSet(StringComparer.Ordinal),
+                live.Where(c => c.Status == GuardCards.Unreachable).Select(c => c.Def).ToHashSet(StringComparer.Ordinal));
         }
         catch (InvalidDataException e)
         {

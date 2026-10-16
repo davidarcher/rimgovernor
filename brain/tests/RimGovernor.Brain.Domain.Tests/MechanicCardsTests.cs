@@ -15,7 +15,7 @@ public sealed class MechanicCardsTests
     {
         var card = MechanicCards.ByDef["KnowBuriedInSarcophagus"];
 
-        Assert.Equal(MechanicCardStatus.Extracted, card.Status);
+        Assert.Equal(MechanicCardStatus.Unreachable, card.Status);
         Assert.False(card.Live);
         Assert.Equal(4, card.Xml.StackLimit);
         Assert.Equal(8, card.Xml.DurationDays);
@@ -37,8 +37,30 @@ public sealed class MechanicCardsTests
         Assert.Equal("!everNonEmpty", Assert.Single(fields["Building_Sarcophagus.thisIsFirstBodyEver"].Writers).Value);
     }
 
+    // #3242/#3243: thisIsFirstBodyEver is set only by TryAcceptThing, which no hauling caller of Notify_HauledTo runs.
+    [Fact]
+    public void EmbeddedSarcophagusCardIsUnreachableAtTheFirstBodyGuardOnly()
+    {
+        var site = Assert.Single(MechanicCards.ByDef["KnowBuriedInSarcophagus"].Sites);
+
+        var dead = Assert.Single(site.Guards, g => g.Unreachable is not null);
+        Assert.Equal("Building_Sarcophagus.thisIsFirstBodyEver", dead.Expr.Decl);
+        Assert.Contains("writers: Building_Sarcophagus.TryAcceptThing;", dead.Unreachable, StringComparison.Ordinal);
+        Assert.Contains("Toils_Haul.DepositHauledThingInContainer", dead.Unreachable, StringComparison.Ordinal);
+        Assert.Contains("not modelled", dead.Unreachable, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void MinimalFileParses() => Assert.Equal("memory", Parse(Minimal)["D"].Kind);
+
+    [Fact]
+    public void UnreachableStatusParsesAndIsNeverLive()
+    {
+        var card = Parse(Minimal.Replace("\"extracted\"", "\"unreachable\"", StringComparison.Ordinal))["D"];
+
+        Assert.Equal(MechanicCardStatus.Unreachable, card.Status);
+        Assert.False(card.Live);
+    }
 
     [Theory]
     [InlineData("{")]

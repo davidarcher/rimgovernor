@@ -73,6 +73,82 @@ public sealed class GuardAnalysisTests
         Assert.Contains(unknown, u => u.Reason == "virtual-call" && u.Text == "Building.Allowed()");
     }
 
+    // #3243: the sarcophagus shape. firstBody is written only by TryAccept; the site's caller (Haul.Deposit) either never
+    // calls it (unreachable) or calls it first (reachable).
+    private const string Casket = """
+        namespace Game;
+
+        public class ThoughtDef { }
+        public static class ThoughtDefOf { public static ThoughtDef Know; }
+        public class Pawn { public void Gain(ThoughtDef def) { } }
+        public class Casket
+        {
+            private bool everNonEmpty;
+            private bool firstBody;
+
+            public bool TryAccept()
+            {
+                firstBody = !everNonEmpty;
+                everNonEmpty = true;
+                return true;
+            }
+
+            public void HauledTo(Pawn hauler)
+            {
+                if (!firstBody)
+                {
+                    return;
+                }
+                hauler.Gain(ThoughtDefOf.Know);
+            }
+        }
+        public static class Haul
+        {
+            public static void Deposit(Casket casket, Pawn hauler)
+            {
+                DEPOSIT
+                casket.HauledTo(hauler);
+            }
+        }
+        """;
+
+    private static Card CasketCard(string deposit)
+    {
+        var index = SourceIndex.Build([("casket.cs", Casket.Replace("DEPOSIT", deposit, StringComparison.Ordinal))]);
+        var def = new ThoughtDef("Know", "", "", new Dictionary<string, System.Xml.Linq.XElement>());
+        return Assert.Single(new GuardCards(index, ".", new HashSet<string> { "Know" }).Build([def], new Dictionary<string, string>(), new Dictionary<string, IReadOnlyList<string>>()));
+    }
+
+    [Fact]
+    public void AFieldWrittenOnlyOffTheCallerPathIsUnreachable()
+    {
+        var card = CasketCard("");
+
+        Assert.Equal(GuardCards.Unreachable, card.Status);
+        Assert.Contains(GuardCards.NoWriterOnCallerPath, card.Reasons);
+        var guard = Assert.Single(Assert.Single(card.Sites).Guards);
+        Assert.Equal("firstBody", Exprs.Render(guard.Cond));
+        Assert.Contains("writers: Casket.TryAccept;", guard.Unreachable, StringComparison.Ordinal);
+        Assert.Contains("callers checked: Casket.HauledTo, Haul.Deposit", guard.Unreachable, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACallerThatCallsTheWriterFirstKeepsTheGuardReachable()
+    {
+        var card = CasketCard("casket.TryAccept();");
+
+        Assert.Equal("resolved", card.Status);
+        Assert.Null(Assert.Single(Assert.Single(card.Sites).Guards).Unreachable);
+    }
+
+    [Fact]
+    public void ASiteReachableThroughADelegateIsNeverClaimedUnreachable()
+    {
+        var card = CasketCard("System.Action<Pawn> later = casket.HauledTo;");
+
+        Assert.Equal("resolved", card.Status);
+    }
+
     [Fact]
     public void TheSameSourceYieldsTheSameHash()
     {

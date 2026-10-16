@@ -4,8 +4,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace RimGovernor.Tools.Commands.ThoughtAudit;
 
-/// <summary>An assignment to a guard field: the method, the value written, and the guards on that method's path to it.</summary>
-internal sealed record Writer(string Method, string Hash, string Kind, Expr Value, IReadOnlyList<Guard> Guards, bool ReceiverUnresolved);
+/// <summary>An assignment to a guard field: the method, the value written, and the guards on that method's path to it. InMethod: the write is in a method, not a constructor, accessor or initializer.</summary>
+internal sealed record Writer(string Method, string Hash, string Kind, Expr Value, IReadOnlyList<Guard> Guards, bool ReceiverUnresolved, bool InMethod);
 
 /// <summary>A guard field with every writer found in the sources; Following holds the fields its writers copy from; Derived a computed property's inputs.</summary>
 internal sealed record FieldWriters(string Field, string Kind, int Total, IReadOnlyList<Writer> Writers, IReadOnlyList<FieldWriters> Following, IReadOnlyList<string> Derived);
@@ -21,10 +21,16 @@ internal sealed class GuardCards
 {
     private const int MaxWriters = 25;
 
+    /// <summary>The status of a card whose every site has an unreachable guard (#3243).</summary>
+    public const string Unreachable = "unreachable";
+
+    /// <summary>The card reason, and primary coverage reason, of an unreachable card.</summary>
+    public const string NoWriterOnCallerPath = "no-writer-on-caller-path";
+
     private readonly SourceIndex index;
     private readonly GuardAnalysis analysis;
     private readonly string root;
-    private readonly Dictionary<string, int> callers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<SyntaxNode>> callers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<SyntaxNode>> writes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<SyntaxNode>> grants = new(StringComparer.Ordinal);
 
@@ -59,7 +65,13 @@ internal sealed class GuardCards
             }
             var guards = sites.SelectMany(s => s.Guards).ToList();
             var unknown = guards.Count(g => !Exprs.Resolved(g.Cond));
-            var status = sites.Count == 0 || (guards.Count == 0 && reasons.Count > 0) ? "unknown"
+            var dead = sites.Count > 0 && sites.All(s => s.Guards.Any(g => g.Unreachable is not null));
+            if (dead)
+            {
+                reasons.Add(NoWriterOnCallerPath);
+            }
+            var status = dead ? Unreachable
+                : sites.Count == 0 || (guards.Count == 0 && reasons.Count > 0) ? "unknown"
                 : unknown == 0 && reasons.Count == 0 ? "resolved"
                 : unknown == guards.Count && guards.Count > 0 ? "unknown"
                 : guards.Count - unknown > 0 ? "partial" : "unknown";
@@ -84,10 +96,7 @@ internal sealed class GuardCards
                     MemberAccessExpressionSyntax a => a.Name.Identifier.Text,
                     _ => "",
                 };
-                if (name.Length > 0)
-                {
-                    callers[name] = callers.GetValueOrDefault(name) + 1;
-                }
+                Add(callers, name, GuardAnalysis.MemberOf(inv));
                 if (name is "GetNamed" or "GetNamedSilentFail" or "Named" && inv.ArgumentList.Arguments.FirstOrDefault()?.Expression is LiteralExpressionSyntax lit
                     && lit.IsKind(SyntaxKind.StringLiteralExpression) && defNames.Contains(lit.Token.ValueText))
                 {
@@ -236,7 +245,7 @@ internal sealed class GuardCards
     {
         var name = GuardAnalysis.NameOf(member);
         var simple = name[(name.LastIndexOf('.') + 1)..];
-        var count = callers.GetValueOrDefault(simple);
+        var count = callers.GetValueOrDefault(simple)?.Count ?? 0;
         if (guards.Count == 0)
         {
             reasons.Add(count > 0 ? "conditions-in-callers" : "event-driven");
@@ -257,8 +266,57 @@ internal sealed class GuardCards
                 fields.Add(w);
             }
         }
+        guards = [.. guards.Select(g => UnreachableReason(member, simple, g, fields) is { } why ? g with { Unreachable = why } : g)];
         return new Site(name, file, GuardAnalysis.Hash(member), mods, count, guards, fields);
     }
+
+    /// <summary>
+    /// Why the guard can never hold at the site (#3243), or null. Shallow by design: the path is the site's own member,
+    /// the members holding its direct call sites (a call in a lambda counts as its enclosing member) and the methods those
+    /// members call directly, all matched by simple name. It is claimed only for a guard that is a bool field needing true,
+    /// with no initializer, no serialization writer and every writer listed in a method with a resolved receiver, and at
+    /// least one such writer (a field no code writes, such as a def field, is set by the XML loader), when the site is a
+    /// method with at least one call site and no method-group reference, and no writer is on the path.
+    /// </summary>
+    private string? UnreachableReason(SyntaxNode member, string simple, Guard guard, IReadOnlyList<FieldWriters> fields)
+    {
+        if (guard.Cond is not Sym { Kind: "field", Type: "bool" } sym || member is not MethodDeclarationSyntax
+            || !callers.TryGetValue(simple, out var sites) || Find(fields, sym.Decl) is not { Kind: "field" } field
+            || field.Total != field.Writers.Count || field.Writers.Count == 0
+            || field.Writers.Any(w => w.Kind is "init" or "serialization" || w.ReceiverUnresolved || !w.InMethod))
+        {
+            return null;
+        }
+        var path = sites.Prepend(member).Distinct().ToList();
+        var names = path.Select(GuardAnalysis.NameOf).ToHashSet(StringComparer.Ordinal);
+        var callees = path.SelectMany(m => m.DescendantNodes().OfType<InvocationExpressionSyntax>()).Select(CalledName).ToHashSet(StringComparer.Ordinal);
+        if (field.Writers.Any(w => names.Contains(w.Method) || callees.Contains(w.Method[(w.Method.LastIndexOf('.') + 1)..])) || MethodGroupReferenced(simple))
+        {
+            return null;
+        }
+        var writers = string.Join(", ", field.Writers.Select(w => w.Method).Distinct(StringComparer.Ordinal));
+        return $"no writer on the site's direct caller path (writers: {writers}; callers checked: {string.Join(", ", names.Order(StringComparer.Ordinal))}, "
+            + "and the methods they call directly); writes in earlier, separate calls on the same instance are not modelled";
+    }
+
+    private static FieldWriters? Find(IEnumerable<FieldWriters> fields, string decl) =>
+        fields.Select(f => f.Field == decl ? f : Find(f.Following, decl)).FirstOrDefault(f => f is not null);
+
+    private static string CalledName(InvocationExpressionSyntax inv) => inv.Expression switch
+    {
+        IdentifierNameSyntax i => i.Identifier.Text,
+        MemberAccessExpressionSyntax a => a.Name.Identifier.Text,
+        _ => "",
+    };
+
+    /// <summary>
+    /// Whether the method name is used anywhere other than in a plain call (<c>Name(...)</c> or <c>x.Name(...)</c>, the forms
+    /// counted as call sites) or a method declaration: a delegate, <c>?.</c> or generic call could reach it unseen.
+    /// </summary>
+    private bool MethodGroupReferenced(string name) => index.Trees.Any(t => t.GetRoot().DescendantTokens()
+        .Any(tok => tok.IsKind(SyntaxKind.IdentifierToken) && tok.ValueText == name && tok.Parent is not MethodDeclarationSyntax
+            && !(tok.Parent is IdentifierNameSyntax id
+                && (id.Parent is MemberAccessExpressionSyntax ma && ma.Name == id ? ma.Parent : id.Parent) is InvocationExpressionSyntax)));
 
     private FieldWriters? WritersOf(string decl, int depth, HashSet<string> seen)
     {
@@ -287,7 +345,7 @@ internal sealed class GuardCards
             }
             total++;
             var m = GuardAnalysis.MemberOf(node);
-            writers.Add(new Writer(GuardAnalysis.NameOf(m), GuardAnalysis.Hash(m), WriteKind(node), ValueOf(m, node), analysis.GuardsAt(node), unresolved));
+            writers.Add(new Writer(GuardAnalysis.NameOf(m), GuardAnalysis.Hash(m), WriteKind(node), ValueOf(m, node), analysis.GuardsAt(node), unresolved, m is MethodDeclarationSyntax));
         }
         writers = [.. writers.OrderBy(w => w.Method, StringComparer.Ordinal).ThenBy(w => w.Kind, StringComparer.Ordinal).Take(MaxWriters)];
         var following = new List<FieldWriters>();

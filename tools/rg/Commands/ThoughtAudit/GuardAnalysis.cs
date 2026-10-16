@@ -19,8 +19,11 @@ internal sealed record Op(string Name, IReadOnlyList<Expr> Args) : Expr;
 /// <summary>An unresolved piece: a stable reason category (unresolved-symbol, external-type, virtual-call, ...) and the source text.</summary>
 internal sealed record Unknown(string Reason, string Text) : Expr;
 
-/// <summary>One condition on the path to a node, with the polarity already applied and the syntax it came from.</summary>
-internal sealed record Guard(Expr Cond, string Origin);
+/// <summary>
+/// One condition on the path to a node, with the polarity already applied and the syntax it came from. Unreachable is set
+/// (#3243) when no writer on the site's direct caller path can make the guard hold; its text says what was checked.
+/// </summary>
+internal sealed record Guard(Expr Cond, string Origin, string? Unreachable = null);
 
 /// <summary>Renders, and inspects, expression trees.</summary>
 internal static class Exprs

@@ -46,6 +46,17 @@ under different namespaces is `ambiguous-type`.
 | `resolved` | At least one site, and every guard in every site is fully resolved. |
 | `partial` | Some guards resolved and some contain an unknown leaf. |
 | `unknown` | No analyzable site, or no resolved guard. |
+| `unreachable` | Every site has a guard no writer on its direct caller path can make hold (#3243); primary reason `no-writer-on-caller-path`. |
+
+**Unreachable guards (#3243).** A guard that is a bool field needing `true` is marked `unreachable`, with a reason
+naming the writers and the callers checked, when the field has no initializer, no serialization writer and at least
+one writer (a field no code writes is set by the XML loader), every writer is listed, in a method, with a resolved
+receiver, and none of them is on the site's direct caller path. That path is the site's own member, the members
+holding its direct call sites (a call in a lambda counts as its enclosing member) and the methods those members call
+directly, all matched by simple name. The site must be a method with at least one call site and no delegate, `?.` or
+generic reference to its name. Writes in earlier, separate calls on the same instance are not modelled, so the rule is
+shallow by design: a transitive caller walk explodes through `JobDriver.SetupToils` and `Pawn_JobTracker.StartJob`
+(5,804 members at depth 8). Probes remain the final word.
 
 `resolved` is a claim about the granting member only. It does not cover conditions in callers (each site carries its
 caller count), the bodies of resolved calls and properties (a call is a symbol, not an inlined condition), a def
@@ -68,11 +79,16 @@ two runs). Regenerate with `RimGovernor.cmd thoughtaudit -guards`.
 
 | | Defs | Share |
 | --- | ---: | ---: |
-| resolved | 136 | 14.7% |
+| resolved | 135 | 14.6% |
 | partial | 293 | 31.7% |
 | unknown | 494 | 53.5% |
+| unreachable | 1 | 0.1% |
 
-By kind: memory 99 resolved / 37 partial / 443 unknown (579 defs); situational 37 / 256 / 51 (344 defs). Over the
+By kind: memory 98 resolved / 37 partial / 443 unknown / 1 unreachable (579 defs); situational 37 / 256 / 51 / 0 (344
+defs). The unreachable check (#3243) moved one def, `KnowBuriedInSarcophagus`, from `resolved`; no other def and no
+other owned lever changed. Only one other guard met the check's field conditions apart from its writers:
+`BuildingProperties.bed_crib` (`ThoughtWorker_CribQuality`), which no code writes (the Biotech XML sets it), so it is
+excluded. Over the
 749 sites found, 1667 of 2410 guards (69.2%) resolved.
 
 Dominant reasons a def is not `resolved` (the most frequent unknown reason of the def):
@@ -96,7 +112,11 @@ cheap to model; `external-type` and `virtual-call` are not and stay unknown by d
 
 ### Benchmarks
 
-`KnowBuriedInSarcophagus` (memory, `resolved`) matches the hand-verified facts of #2209:
+`KnowBuriedInSarcophagus` (memory, `unreachable` since #3243, `resolved` before) matches the code facts of #2209, but
+not its conclusion: the `thisIsFirstBodyEver` guard is `unreachable` because its only writer, `TryAcceptThing`, is not
+on the path from `Notify_HauledTo`'s caller `Toils_Haul.DepositHauledThingInContainer`, which inserts through
+`ThingOwner.TryTransferToContainer`. A native probe confirmed that hauling never grants the memory (#3242). This is the
+Gate 1 negative benchmark.
 
 - Site `Building_Sarcophagus.Notify_HauledTo` (`public override`, 3 callers); XML `stackLimit` 4, `durationDays` 8,
   one stage, `baseMoodEffect` 4.
@@ -129,7 +149,8 @@ threshold):
 
 1. Sarcophagus card: met. Site, four guards, writer chain and XML fields match #2209, with no hand edits.
 2. Two further owned thoughts: met (`AteWithoutTable`, `EnvironmentDark`; 9 of 16 owned defs resolve).
-3. Coverage and reasons stated above: 136 resolved, 293 partial, 494 unknown of 923; dominant unknown reasons listed.
+3. Coverage and reasons: 136 resolved, 293 partial, 494 unknown of 923 at Gate 0 (one resolved def is now
+   `unreachable`, see above); dominant unknown reasons listed.
 
 What the spike does not show, for Gate 1 grooming: `resolved` stops at the granting member, so caller-side
 conditions (for example who may haul to a sarcophagus) are still unknown and need either caller analysis or probes;
@@ -141,7 +162,7 @@ and an extracted card is still unverified.
 The spike is self-contained: delete `tools/rg/Commands/ThoughtAudit/Guard*.cs`, the `-guards` branch of
 `ThoughtAuditCommand`, the `Fields` member of `ThoughtDef`, the `Microsoft.CodeAnalysis.CSharp` reference in
 `tools/rg/rg.csproj` (its version repeats the central pin in `brain/Directory.Packages.props`, because `tools/` sits
-outside that file's scope), `GuardAnalysisTests.cs` with its two `Compile Include` lines in the domain test project,
+outside that file's scope), `GuardAnalysisTests.cs` with the `ThoughtAudit` `Compile Include` lines in the domain test project,
 this page and the two generated files. Since Gate 1 the extraction also feeds the shipped `mechanic_cards.json` and its
 `MechanicCards` loader in Brain.Policy, which would have to go with it, as would `MechanicCardGuards` (#3223) and its
 tests.

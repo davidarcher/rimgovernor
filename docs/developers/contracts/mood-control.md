@@ -147,6 +147,19 @@ unknown or missing field, an unknown status or a schema other than `MechanicCard
 empty catalog. A card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
 and consumers ignore it for live play. Nothing consumes the cards yet.
 
+A card is `unreachable` (#3243) when every site has a guard that no writer on the site's direct caller path can make
+hold; the guard carries an `unreachable` reason naming the writers and the callers checked. The check is shallow: the
+path is the site's own member, the members holding its direct call sites (a call inside a lambda counts as its
+enclosing member) and the methods those members call directly, matched by simple name. It applies only to a bool
+field guard needing `true` whose field has no initializer, no serialization writer and at least one listed writer, all
+in methods with a resolved receiver, at a method site with a call site and no delegate, `?.` or generic reference.
+Writes in earlier, separate calls on the same instance are not modelled, so probes stay the final word. An
+`unreachable` card ships so the brain knows the lever is dead: `Live` is false, the verified table rejects a row for
+it, and the effect-source search reports `effect_source_card_unreachable:<def>` instead of a candidate.
+`KnowBuriedInSarcophagus` is `unreachable`: `thisIsFirstBodyEver` is written only by
+`Building_Sarcophagus.TryAcceptThing`, which neither `Notify_HauledTo` nor its caller
+`Toils_Haul.DepositHauledThingInContainer` runs (#3242).
+
 `MechanicCardGuards.Evaluate` (pure, #3223) evaluates one card site's guards for one target (`CardGuardFacts`: the
 target corpse, the container instance, the waste census, the colonists) to `holds`, `fails`, `achievable` (action kind
 and actor constraint) or `unknown` (reason). Existing things and target properties bind through the hand-kept
@@ -166,7 +179,7 @@ newlines; any change to one of those methods changes it. The hand-appended
 not embedded) records each observed probe pass. `thoughtaudit -guards` prints every live card's drift hash and ships
 the card `verified` when a row matches def and hash. Otherwise the card ships `extracted` and the tool prints the
 def's stale rows (a game update changed a method), so the probe is re-run and a new row appended. A row whose def has
-no card fails the tool. To verify a card: run its probe case once, append the row with the printed drift hash and the
+no card, or whose card is `unreachable`, fails the tool. To verify a card: run its probe case once, append the row with the printed drift hash and the
 run evidence, and rerun `thoughtaudit -guards`.
 
 The probe for `KnowBuriedInSarcophagus` is `burial/stranger_sarcophagus`. It records the observed vanilla fact: a

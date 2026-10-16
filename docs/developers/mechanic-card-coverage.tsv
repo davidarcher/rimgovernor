@@ -538,7 +538,7 @@ KilledMySon	memory		unknown	0	0	0	xml-granted
 KilledMySpouse	memory		unknown	0	0	0	xml-granted
 KindWords	memory		unknown	0	0	0	xml-granted
 KindWordsMood	memory		unknown	0	0	0	no-code-or-xml-reference
-KnowBuriedInSarcophagus	memory		resolved	1	6	0	
+KnowBuriedInSarcophagus	memory		unreachable	1	6	0	no-writer-on-caller-path
 KnowButcheredHumanlikeCorpse	memory		unknown	0	0	0	xml-granted
 KnowColonistDied	memory		resolved	1	15	0	
 KnowColonistExecuted	memory		unknown	0	0	0	xml-granted

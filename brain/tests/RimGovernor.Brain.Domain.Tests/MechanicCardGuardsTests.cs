@@ -39,13 +39,16 @@ public sealed class MechanicCardGuardsTests
     }
 
     [Fact]
-    public void ExtractedCardIsNeverUsableEvenWhenEveryGuardHolds()
+    public void ExtractedOrUnreachableCardIsNeverUsableEvenWhenEveryGuardHolds()
     {
-        var e = Evaluate(Shipped, Fresh(Corpse(CorpseOf.Stranger)));
+        Assert.Equal(MechanicCardStatus.Unreachable, Shipped.Status);
+        foreach (var card in new[] { Shipped, Shipped with { Status = MechanicCardStatus.Extracted } })
+        {
+            var e = Evaluate(card, Fresh(Corpse(CorpseOf.Stranger)));
 
-        Assert.Equal(MechanicCardStatus.Extracted, Shipped.Status);
-        Assert.DoesNotContain(e.Guards, g => g.Verdict is CardGuardVerdict.Fails or CardGuardVerdict.Unknown);
-        Assert.False(e.Usable);
+            Assert.DoesNotContain(e.Guards, g => g.Verdict is CardGuardVerdict.Fails or CardGuardVerdict.Unknown);
+            Assert.False(e.Usable);
+        }
     }
 
     [Fact]

@@ -6,13 +6,15 @@
     "defs": 923,
     "status": {
       "partial": 293,
-      "resolved": 136,
-      "unknown": 494
+      "resolved": 135,
+      "unknown": 494,
+      "unreachable": 1
     },
     "kindStatus": {
       "memory/partial": 37,
-      "memory/resolved": 99,
+      "memory/resolved": 98,
       "memory/unknown": 443,
+      "memory/unreachable": 1,
       "situational/partial": 256,
       "situational/resolved": 37,
       "situational/unknown": 51
@@ -25,6 +27,7 @@
       "indexer": 14,
       "lambda": 3,
       "no-code-or-xml-reference": 266,
+      "no-writer-on-caller-path": 1,
       "pattern": 6,
       "state-expression": 65,
       "switch": 4,
@@ -463,8 +466,10 @@
     {
       "def": "KnowBuriedInSarcophagus",
       "kind": "memory",
-      "status": "resolved",
-      "reasons": [],
+      "status": "unreachable",
+      "reasons": [
+        "no-writer-on-caller-path"
+      ],
       "xml": {
         "durationDays": "8",
         "stackLimit": "4",
@@ -493,7 +498,8 @@
                 "kind": "field",
                 "decl": "Building_Sarcophagus.thisIsFirstBodyEver",
                 "type": "bool"
-              }
+              },
+              "unreachable": "no writer on the site's direct caller path (writers: Building_Sarcophagus.TryAcceptThing; callers checked: Building_Sarcophagus.Notify_HauledTo, Toils_Haul.DepositHauledThingInContainer, and the methods they call directly); writes in earlier, separate calls on the same instance are not modelled"
             },
             {
               "origin": "early-exit",

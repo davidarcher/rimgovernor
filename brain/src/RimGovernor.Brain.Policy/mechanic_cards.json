@@ -5,7 +5,7 @@
     {
       "def": "KnowBuriedInSarcophagus",
       "kind": "memory",
-      "status": "extracted",
+      "status": "unreachable",
       "xml": {
         "durationDays": 8,
         "stackLimit": 4,
@@ -31,7 +31,8 @@
                 "kind": "field",
                 "decl": "Building_Sarcophagus.thisIsFirstBodyEver",
                 "type": "bool"
-              }
+              },
+              "unreachable": "no writer on the site's direct caller path (writers: Building_Sarcophagus.TryAcceptThing; callers checked: Building_Sarcophagus.Notify_HauledTo, Toils_Haul.DepositHauledThingInContainer, and the methods they call directly); writes in earlier, separate calls on the same instance are not modelled"
             },
             {
               "origin": "early-exit",

@@ -43,4 +43,11 @@ public sealed class VerifiedCardsTests
         Assert.Throws<InvalidDataException>(() => VerifiedCards.Parse(VerifiedCards.Header + "\nKnowBuriedInSarcophagus\tx\n", Cards));
         Assert.Empty(VerifiedCards.Parse("", Cards));
     }
+
+    [Fact]
+    public void ARowForAnUnreachableCardIsRejected()
+    {
+        var e = Assert.Throws<InvalidDataException>(() => VerifiedCards.Parse(Table("x"), Cards, Cards));
+        Assert.Contains("KnowBuriedInSarcophagus is unreachable", e.Message, StringComparison.Ordinal);
+    }
 }

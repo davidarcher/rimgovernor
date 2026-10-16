@@ -27,8 +27,12 @@ internal static class VerifiedCards
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(joined)))[..16].ToLowerInvariant();
     }
 
-    /// <summary>Parses the table; throws <see cref="InvalidDataException"/> on a bad header, a malformed row or a def absent from <paramref name="cardDefs"/>.</summary>
-    public static IReadOnlyList<VerifiedRow> Parse(string tsv, IReadOnlySet<string> cardDefs)
+    /// <summary>
+    /// Parses the table; throws <see cref="InvalidDataException"/> on a bad header, a malformed row, a def absent from
+    /// <paramref name="cardDefs"/> or a def in <paramref name="unreachable"/> (#3243: a card whose guard can never hold has no
+    /// positive path for a probe to verify).
+    /// </summary>
+    public static IReadOnlyList<VerifiedRow> Parse(string tsv, IReadOnlySet<string> cardDefs, IReadOnlySet<string>? unreachable = null)
     {
         var lines = tsv.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         if (tsv.Length == 0)
@@ -54,6 +58,10 @@ internal static class VerifiedCards
             if (!cardDefs.Contains(f[0]))
             {
                 throw new InvalidDataException($"line {i + 1}: {f[0]} is not a card in the card file");
+            }
+            if (unreachable?.Contains(f[0]) == true)
+            {
+                throw new InvalidDataException($"line {i + 1}: {f[0]} is unreachable and cannot be verified");
             }
             rows.Add(new VerifiedRow(i + 1, f[0], f[1], f[2], f[3], f[4]));
         }

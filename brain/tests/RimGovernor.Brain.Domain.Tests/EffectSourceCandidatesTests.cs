@@ -110,11 +110,22 @@ public sealed class EffectSourceCandidatesTests
     [Fact]
     public void ExtractedCardGivesNoCandidate()
     {
-        var result = Generate(Facts(), new Dictionary<string, MechanicCard> { [Def] = Shipped });
+        var result = Generate(Facts(), new Dictionary<string, MechanicCard> { [Def] = Shipped with { Status = MechanicCardStatus.Extracted } });
 
-        Assert.Equal(MechanicCardStatus.Extracted, Shipped.Status);
         Assert.Empty(result.Roots);
         Assert.Contains("effect_source_card_unverified:" + Def, result.Family.Findings);
+    }
+
+    // #3243: the shipped sarcophagus card is unreachable (no writer of thisIsFirstBodyEver on the haul path).
+    [Fact]
+    public void UnreachableCardGivesNoCandidate()
+    {
+        var result = Generate(Facts(), new Dictionary<string, MechanicCard> { [Def] = Shipped });
+
+        Assert.Equal(MechanicCardStatus.Unreachable, Shipped.Status);
+        Assert.Empty(result.Roots);
+        Assert.Empty(result.Steps);
+        Assert.Contains("effect_source_card_unreachable:" + Def, result.Family.Findings);
     }
 
     [Fact]
