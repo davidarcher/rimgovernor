@@ -169,11 +169,10 @@ def's stale rows (a game update changed a method), so the probe is re-run and a 
 no card fails the tool. To verify a card: run its probe case once, append the row with the printed drift hash and the
 run evidence, and rerun `thoughtaudit -guards`.
 
-The probe for `KnowBuriedInSarcophagus` is `burial/stranger_sarcophagus`: the first burial is the positive path, and
-each `Notify_HauledTo` guard has a negative in which no colonist gains the memory: `thisIsFirstBodyEver` (a used
-sarcophagus), `Humanlike` (an animal corpse), `!everBuriedInSarcophagus` (a flagged corpse in a fresh sarcophagus) and
-`hauler.IsColonist` (a non-colonist on a forced haul). Who may haul to a sarcophagus is covered by the observed
-positive path, not by caller analysis.
+The probe for `KnowBuriedInSarcophagus` is `burial/stranger_sarcophagus`. It records the observed vanilla fact: a
+colonist's native haul of a stranger corpse into a fresh sarcophagus gives no colonist the memory and leaves the
+corpse's `everBuriedInSarcophagus` false, because `Notify_HauledTo` returns unless `thisIsFirstBodyEver`, which only
+`TryAcceptThing` sets and no haul path calls (#3242).
 
 `PolicyFunctions.GenerateEffectSources` (pure, #3224; not yet wired into `GenerateCoupledActivities`) searches backward
 from a mood shortfall: pawns whose no-change `ForecastMoodTimeline` has break risk or threshold exposure. For each

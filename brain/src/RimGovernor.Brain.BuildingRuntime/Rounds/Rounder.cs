@@ -392,7 +392,6 @@ public sealed partial class Rounder
             reading = reading.WithProjection(reading.Projection with { Isolation = CreepJoinerIsolation(reading.Projection, reading.Frame, reading.Catalog, creepRecord) });
         }
         reading = ReviewChildRooms(reading);
-        reading = reading.WithProjection(ReviewStrangers(state.Snapshot, reading.Projection, ct));
         reading = reading.WithProjection(await ReviewLayoutPlanAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false));
         reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
         if (reading.Projection.LayoutPlan.TryGetValue(out var layoutPlan))

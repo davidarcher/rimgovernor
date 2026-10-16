@@ -177,9 +177,6 @@ public sealed partial record ColonyProjection
     /// <summary>The creepjoiner isolation room's inputs, set by the rounds.</summary>
     public IsolationPlanning Isolation { get; init; } = new();
 
-    /// <summary>What the tomb reads to stage stranger corpses, set by the rounds; the zero value stages none.</summary>
-    public StrangerTomb Strangers { get; init; } = new();
-
     /// <summary>The catalog's piece shapes and the furniture its rules choose (DefinitionCatalog.PieceShapes), set when a catalog is read; the zero value without one.</summary>
     public PieceShapes Shapes { get; init; } = new();
 
@@ -383,41 +380,6 @@ public sealed partial record ColonyProjection
             }
         }
         return null;
-    }
-
-    /// <summary>
-    /// Whether the colony stock, net of holds, covers one allowed stuff's cost list for one of the definition
-    /// (the next sarcophagus). An unknown stock census is not funded.
-    /// </summary>
-    public bool StuffFunded(string name, IReadOnlyDictionary<Resource, long> holds)
-    {
-        if (!Resources.TryGetValue(out var stock))
-        {
-            return false;
-        }
-        foreach (var d in Definitions)
-        {
-            if (d.Name != name)
-            {
-                continue;
-            }
-            foreach (var option in d.StuffOptions)
-            {
-                var covered = option.Costs.Count > 0;
-                foreach (var cost in option.Costs)
-                {
-                    if (cost.Count > 0 && stock.GetValueOrDefault(cost.Resource) - holds.GetValueOrDefault(cost.Resource) < cost.Count)
-                    {
-                        covered = false;
-                    }
-                }
-                if (covered)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     /// <summary>One planning definition's native availability, unknown when the census did not describe it.</summary>

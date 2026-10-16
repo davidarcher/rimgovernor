@@ -688,6 +688,5 @@ psycast of the highest family (heal, then stun, burst, defensive).
 
 ## Fixed values that stay
 
-`raidGiveUpTicks` (38000, the vanilla window raiders leave within), the
-sarcophagus memory stack of four (`StrangerTombStackCap`) and the other surviving
+`raidGiveUpTicks` (38000, the vanilla window raiders leave within) and the other surviving
 constants are listed once, with reasons, in [kept constants](kept-constants.md).

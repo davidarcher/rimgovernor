@@ -192,15 +192,15 @@ namespace HomeBridge.BridgeTools
                 return (object)new { success = true, tick = Find.TickManager.TicksGame, things };
             }, cancellationToken);
 
-        // Stranger sarcophagus loop acceptance: one fresh Sarcophagus
+        // The KnowBuriedInSarcophagus probe (#3242): one fresh Sarcophagus
         // accepting any humanlike corpse, a fresh stranger corpse (a humanlike
         // pawn of no faction) a few cells away, and every colonist hauling.
-        [Tool("test/tomb_stage", Description = "Disposable fixture (#2338): a fresh sarcophagus and a fresh stranger corpse near the first colonist. Test builds only.")]
+        [Tool("test/tomb_stage", Description = "Disposable fixture (#3242): a fresh sarcophagus and a fresh stranger corpse near the first colonist. Test builds only.")]
         public async Task<object> TombStage(IRimBridgeContext ctx, CancellationToken cancellationToken)
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
-                var (sarcophagus, corpseCell) = FreshSarcophagus(map, ThingCategoryDefOf.CorpsesHumanlike);
+                var (sarcophagus, corpseCell) = FreshSarcophagus(map);
                 var corpse = TombCorpse(map, corpseCell);
                 foreach (var colonist in map.mapPawns.FreeColonistsSpawned)
                     colonist.workSettings?.SetPriority(WorkTypeDefOf.Hauling, 1);
@@ -208,14 +208,16 @@ namespace HomeBridge.BridgeTools
                 return (object)new { success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken,
                     mapId = map.uniqueID, tick = Find.TickManager.TicksGame,
                     sarcophagus = sarcophagus.GetUniqueLoadID(), corpse = corpse.GetUniqueLoadID(),
-                    sarcophagusX = sarcophagus.Position.x, sarcophagusZ = sarcophagus.Position.z,
                     colonists = map.mapPawns.FreeColonistsSpawned.Count };
             }, cancellationToken);
 
         // A fresh (never filled) player sarcophagus on an open 1x2 near the
-        // first colonist, accepting category and every special filter, plus
-        // a free cell more than four cells off for the corpse it will receive.
-        private static (Building_Grave Sarcophagus, IntVec3 CorpseCell) FreshSarcophagus(Map map, ThingCategoryDef category)
+        // first colonist, accepting every humanlike corpse and special filter,
+        // plus a free cell more than four cells off for the corpse it will
+        // receive. Spawned, not accepted through TryAcceptThing, so its
+        // thisIsFirstBodyEver is false (it is unsaved and only TryAcceptThing
+        // sets it), as for every sarcophagus a colonist builds.
+        private static (Building_Grave Sarcophagus, IntVec3 CorpseCell) FreshSarcophagus(Map map)
         {
             var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).First();
             var open = GenRadial.RadialCellsAround(pawn.Position, 20, true).Where(c => c.InBounds(map)
@@ -234,70 +236,11 @@ namespace HomeBridge.BridgeTools
             GenSpawn.Spawn(sarcophagus, sarcophagusCell, map, Rot4.North);
             var filter = sarcophagus.GetStoreSettings().filter;
             filter.SetDisallowAll();
-            filter.SetAllow(category, true);
+            filter.SetAllow(ThingCategoryDefOf.CorpsesHumanlike, true);
             foreach (var special in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.Where(d => d.configurable))
                 filter.SetAllow(special, true);
             return (sarcophagus, corpseCell);
         }
-
-        // The KnowBuriedInSarcophagus probe's negatives (#3222): each stages a
-        // fresh sarcophagus, so thisIsFirstBodyEver holds, and fails exactly
-        // one other Building_Sarcophagus.Notify_HauledTo guard. Every other
-        // spawned corpse is forbidden so only the staged one can arrive.
-        //   animal:  a fresh animal corpse (not Humanlike), hauled by colonists.
-        //   flagged: the given corpse, already everBuriedInSarcophagus, unforbidden for colonists.
-        //   visitor: a fresh stranger corpse, forbidden to colonists, carried in by a
-        //            non-colonist humanlike on a forced HaulToContainer job.
-        [Tool("test/tomb_fresh", Description = "Disposable fixture (#3222): a fresh sarcophagus and one corpse that fails one KnowBuriedInSarcophagus guard (kind animal, flagged or visitor). Test builds only.")]
-        public async Task<object> TombFresh(IRimBridgeContext ctx, CancellationToken cancellationToken, string kind, string corpse = "")
-            => await ctx.MainThread.InvokeAsync(() =>
-            {
-                var map = Find.CurrentMap;
-                var category = kind == "animal" ? ThingCategoryDefOf.CorpsesAnimal : ThingCategoryDefOf.CorpsesHumanlike;
-                var (sarcophagus, cell) = FreshSarcophagus(map, category);
-                Corpse staged;
-                Pawn hauler = null;
-                var ordered = false;
-                switch (kind)
-                {
-                    case "animal":
-                        var dead = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.AllDefsListForReading.First(k => k.race.defName == "Squirrel"), null);
-                        GenSpawn.Spawn(dead, cell, map);
-                        dead.Kill(null);
-                        staged = dead.Corpse;
-                        if (staged.Spawned) staged.DeSpawn(DestroyMode.Vanish);
-                        GenPlace.TryPlaceThing(staged, cell, map, ThingPlaceMode.Direct, out var placed);
-                        if (placed != staged || !staged.Spawned) throw new System.InvalidOperationException($"Fixture animal corpse displaced from {cell}.");
-                        break;
-                    case "flagged":
-                        staged = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>().FirstOrDefault(c => c.GetUniqueLoadID() == corpse && c.Spawned)
-                            ?? throw new System.InvalidOperationException($"No spawned corpse {corpse}.");
-                        if (!staged.everBuriedInSarcophagus) throw new System.InvalidOperationException($"Corpse {corpse} is not everBuriedInSarcophagus.");
-                        break;
-                    case "visitor":
-                        staged = TombCorpse(map, cell);
-                        var faction = Find.FactionManager.AllFactionsListForReading.FirstOrDefault(f => !f.IsPlayer && !f.defeated && f.def.humanlikeFaction && !f.HostileTo(Faction.OfPlayer));
-                        hauler = PawnGenerator.GeneratePawn(PawnKindDefOf.Villager, faction);
-                        GenSpawn.Spawn(hauler, CellFinder.StandableCellNear(cell, map, 3f), map);
-                        break;
-                    default:
-                        throw new System.ArgumentException($"kind must be animal, flagged or visitor, not {kind}.");
-                }
-                foreach (var other in map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).Where(c => c.Spawned))
-                    other.SetForbidden(other != staged || kind == "visitor", false);
-                if (hauler != null)
-                {
-                    var job = JobMaker.MakeJob(JobDefOf.HaulToContainer, staged, sarcophagus);
-                    job.count = 1;
-                    job.haulMode = HaulMode.ToContainer;
-                    ordered = hauler.jobs.TryTakeOrderedJob(job, JobTag.Misc);
-                }
-                return (object)new { success = true, tick = Find.TickManager.TicksGame, kind,
-                    sarcophagus = sarcophagus.GetUniqueLoadID(), corpse = staged.GetUniqueLoadID(),
-                    humanlike = staged.InnerPawn.def.race.Humanlike, everBuried = staged.everBuriedInSarcophagus,
-                    hauler = hauler?.GetUniqueLoadID() ?? "", haulerColonist = hauler?.IsColonist ?? false,
-                    haulerFaction = hauler?.Faction?.def.defName ?? "", ordered };
-            }, cancellationToken);
 
         // A fresh stranger corpse exactly on cell, unforbidden.
         private static Corpse TombCorpse(Map map, IntVec3 cell)
@@ -314,30 +257,10 @@ namespace HomeBridge.BridgeTools
             return corpse;
         }
 
-        // The second burial: the buried corpse is ejected and forbidden so
-        // nothing hauls it back, and a second fresh stranger corpse lies out
-        // for the same, now used, sarcophagus.
-        [Tool("test/tomb_second", Description = "Disposable fixture (#2338): eject the sarcophagus contents, forbid them and stage a second stranger corpse. Test builds only.")]
-        public async Task<object> TombSecond(IRimBridgeContext ctx, CancellationToken cancellationToken, string sarcophagus)
-            => await ctx.MainThread.InvokeAsync(() =>
-            {
-                var map = Find.CurrentMap;
-                var grave = map.listerBuildings.allBuildingsColonist.OfType<Building_Grave>().FirstOrDefault(g => g.GetUniqueLoadID() == sarcophagus)
-                    ?? throw new System.InvalidOperationException($"No sarcophagus {sarcophagus}.");
-                var first = grave.Corpse ?? throw new System.InvalidOperationException("The sarcophagus holds no corpse to eject.");
-                grave.EjectContents();
-                first.SetForbidden(true, false);
-                var cell = GenRadial.RadialCellsAround(grave.Position, 12, true).Where(c => c.InBounds(map) && c.Standable(map)
-                    && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)
-                    && c.DistanceToSquared(grave.Position) > 16).OrderBy(c => c.DistanceToSquared(grave.Position)).First();
-                var second = TombCorpse(map, cell);
-                return (object)new { success = true, tick = Find.TickManager.TicksGame, first = first.GetUniqueLoadID(), second = second.GetUniqueLoadID() };
-            }, cancellationToken);
-
         // Where the sarcophagus, each colonist's KnowBuriedInSarcophagus
         // memories and each listed corpse stand.
-        [Tool("test/tomb_read", Description = "Disposable fixture (#2338): the sarcophagus, every colonist's KnowBuriedInSarcophagus memories and the listed corpses. Test builds only.")]
-        public async Task<object> TombRead(IRimBridgeContext ctx, CancellationToken cancellationToken, string sarcophagus, string ids = "", string hauler = "")
+        [Tool("test/tomb_read", Description = "Disposable fixture (#3242): the sarcophagus, every colonist's KnowBuriedInSarcophagus memories and the listed corpses. Test builds only.")]
+        public async Task<object> TombRead(IRimBridgeContext ctx, CancellationToken cancellationToken, string sarcophagus, string ids = "")
             => await ctx.MainThread.InvokeAsync(() =>
             {
                 var map = Find.CurrentMap;
@@ -351,13 +274,10 @@ namespace HomeBridge.BridgeTools
                     var held = grave?.Corpse != null && grave.Corpse.GetUniqueLoadID() == id ? grave.Corpse : null;
                     var corpse = spawned ?? held;
                     return new { id, found = corpse != null, spawned = spawned != null, inSarcophagus = held != null,
-                        everBuried = corpse?.everBuriedInSarcophagus ?? false,
-                        rot = corpse?.TryGetComp<CompRottable>()?.Stage.ToString() ?? "",
-                        x = spawned?.Position.x ?? -1, z = spawned?.Position.z ?? -1 };
+                        everBuried = corpse?.everBuriedInSarcophagus ?? false };
                 }).ToList();
-                var carrier = hauler.Length == 0 ? null : map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == hauler);
                 return (object)new { success = true, tick = Find.TickManager.TicksGame, present = grave != null && !grave.Destroyed,
-                    holds = grave?.HasAnyContents ?? false, colonists, corpses, haulerJob = carrier?.CurJobDef?.defName ?? "" };
+                    holds = grave?.HasAnyContents ?? false, colonists, corpses };
             }, cancellationToken);
 
         // The permanent ColonyFacts equality probe: the snapshot read

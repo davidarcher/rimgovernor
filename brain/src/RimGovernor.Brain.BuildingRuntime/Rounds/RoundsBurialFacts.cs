@@ -1,25 +1,5 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed partial class Rounder
-{
-    /// <summary>Reads the stranger tomb facts into the projection: the live buried stacks and whether the sarcophagus stuff is funded.</summary>
-    internal ColonyProjection ReviewStrangers(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
-    {
-        projection = projection with { Strangers = new StrangerTomb() };
-        var (live, ok) = PolicyApi.KnowBuriedStacks(projection.Facts.MoodPawns);
-        if (!ok)
-        {
-            return projection;
-        }
-        if (live >= PolicyApi.StrangerTombStackCap)
-        {
-            return projection with { Strangers = new StrangerTomb { Live = live } };
-        }
-        var targets = ResourceTargets(snapshot);
-        return projection with { Strangers = new StrangerTomb { Live = live, Funded = projection.StuffFunded(projection.Shapes.Furniture.Sarcophagus, targets) } };
-    }
-}
-
 internal static partial class BuildingRuntimePackage
 {
     internal static readonly string[] BurialDefinitions = ["Wall", "Door", PolicyApi.GraveDefinition];
@@ -34,11 +14,11 @@ internal static partial class BuildingRuntimePackage
         facts.LayoutPlan.TryGetValue(out var plan);
         facts.Facts.Waste.TryGetValue(out var waste);
         facts.Facts.CurrentConstruction.TryGetValue(out var built);
-        return PolicyApi.NextTombStep(plan ?? new LayoutPlan(), waste, built?.Buildings ?? [], facts.Shapes, available, facts.Strangers);
+        return PolicyApi.NextTombStep(plan ?? new LayoutPlan(), waste, built?.Buildings ?? [], facts.Shapes, available);
     }
 
     internal static Fact<bool> TombOwed(ColonyProjection facts) =>
-        PolicyApi.TombOwed(facts.Shapes, SarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction, facts.Strangers);
+        PolicyApi.TombOwed(facts.Shapes, SarcophagusAvailable(facts), facts.LayoutPlan, facts.Rooms, facts.Facts.Waste, facts.Facts.CurrentConstruction);
 
     internal static Fact<bool> SarcophagusAvailable(ColonyProjection facts)
     {

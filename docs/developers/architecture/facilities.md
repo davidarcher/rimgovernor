@@ -877,21 +877,13 @@ Outdoor roles.
 (`policy.StoreOwner`); it asks layout for no room. With no grave site the
 preview accepts, the body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
 `MorguePriority` (Normal), below the graves and sarcophagi that take a colonist
-corpse by vanilla hauling (acceptance case `burial/grave_over_morgue`). Stranger
-corpses are owed a fresh sarcophagus too, for the mood memory only, while
-fewer than 4 `KnowBuriedInSarcophagus` stacks are live across the colonists (read
-from the mood census, `policy.KnowBuriedStacks`) and the next sarcophagus is
-funded (`StrangerTomb`: accessible stock net of the MaintainResource floors covers
-one allowed stuff's cost list). Over the cap, unfunded or with the thoughts
-unread, a stranger waits in the morgue; the plain grave never takes one. Once a stranger lies in
-a planned tomb's sarcophagus and the memory is live, `NextTombStep` returns
-`TombDispose` and MaintainBurial raises the plain Deconstruction of that
-sarcophagus (once per sarcophagus per Episode; `StrangerDisposals`): native ejects
-the corpse beside the cell, and the slot is free in the plan. A sarcophagus holding a colonist, a
-grave or one outside the planned tomb is never touched. The native physics (one
-memory per colonist from the first body ever, none from a second burial, the
-ejected corpse beside the cell) is acceptance case `burial/stranger_sarcophagus`
-.
+corpse by vanilla hauling (acceptance case `burial/grave_over_morgue`). A
+stranger corpse waits in the morgue: neither the tomb nor the plain grave counts
+one. No sarcophagus burial gives a mood memory: vanilla grants
+`KnowBuriedInSarcophagus` only through `Building_Sarcophagus.TryAcceptThing`,
+which no haul path calls, so a native haul into a fresh sarcophagus gives none
+(acceptance probe `burial/stranger_sarcophagus`, #3242). The sarcophagus stays
+the colonist tomb once it can be had.
 
 Rotten things and waste have no room of their own (#3232): they store in the materials yard
 (see [storage](storage.md)).

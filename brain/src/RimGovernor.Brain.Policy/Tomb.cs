@@ -1,39 +1,16 @@
 namespace RimGovernor.Brain.Policy;
 
-// Staging the tomb. A dead colonist in a sarcophagus gives every colonist KnowBuriedInSarcophagus (+4 mood, 8
-// days, stacking), so once ComplexFurniture makes the sarcophagus available, a colonist corpse with no empty
-// grave waiting raises a planned tomb's shell and then reconciles its room (ReconcileRoom) to the next free
-// template sarcophagus: the ring, the floor and the piece, installed from packed stock first. The memory comes
-// only from a sarcophagus's first burial, so a filled one is never reused: when every planned tomb is full the
-// plan grows another. Where no sarcophagus can be had (research or stuff) a plain Grave takes the body instead,
-// one grave per unburied dead owed, placed on open ground near the base (GraveSites), not in a room. Once a
-// sarcophagus can be had new burials go to the tomb; standing graves stay. Vanilla haulers inter colonist
-// corpses in any empty grave on their own; nothing here hauls.
+// Staging the tomb. Once ComplexFurniture makes the sarcophagus available, a colonist corpse with no empty grave
+// waiting raises a planned tomb's shell and then reconciles its room (ReconcileRoom) to the next free template
+// sarcophagus: the ring, the floor and the piece, installed from packed stock first. A filled sarcophagus is never
+// reused: when every planned tomb is full the plan grows another. Where no sarcophagus can be had (research or
+// stuff) a plain Grave takes the body instead, one grave per unburied dead owed, placed on open ground near the
+// base (GraveSites), not in a room. Once a sarcophagus can be had new burials go to the tomb; standing graves stay.
+// Vanilla haulers inter colonist corpses in any empty grave on their own; nothing here hauls.
 //
-// Stranger corpses (raiders, visitors, prisoners) feed the tomb too, for the mood memory alone: a stranger is
-// owed a fresh sarcophagus only while fewer than StrangerTombStackCap KnowBuriedInSarcophagus stacks are live
-// across the colonists and the next sarcophagus is funded from stock (StrangerTomb). Over the cap, unfunded or
-// with the mood thoughts unread, a stranger keeps the morgue path; the plain grave never takes one.
-//
-// A stranger's burial in a fresh sarcophagus is its first body ever, so the memory has fired: while the memory
-// is live the filled sarcophagus is deconstructed (TombDispose, StrangerDisposals). Native ejects the corpse
-// next to the cell, where the incinerator's burnable filter takes it, and the cell is a free tomb slot again.
-// Only a sarcophagus in a planned tomb that holds nothing but strangers is touched; a colonist's sarcophagus and
-// every grave stay.
-
-/// <summary>
-/// What the tomb reads to count stranger corpses: the live memory stacks and whether the next sarcophagus is
-/// funded from stock. The default value (unread thoughts, or unfunded) stages no stranger.
-/// </summary>
-public sealed record StrangerTomb
-{
-    public int Live { get; init; }
-
-    public bool Funded { get; init; }
-
-    /// <summary>How many stranger corpses are owed a sarcophagus.</summary>
-    public int Allowed() => Funded ? Math.Max(PolicyFunctions.StrangerTombStackCap - Live, 0) : 0;
-}
+// No sarcophagus burial gives a mood memory: vanilla's KnowBuriedInSarcophagus fires only for a body placed by
+// Building_Sarcophagus.TryAcceptThing, which no haul path calls (burial/stranger_sarcophagus, #3242). Strangers
+// keep the morgue path; the tomb and the plain grave count colonists only.
 
 /// <summary>The next tomb step.</summary>
 public enum TombStepKind
@@ -52,10 +29,6 @@ public enum TombStepKind
     /// <summary>No sarcophagus can be had and the dead outnumber the empty graves: place one plain grave near the base (GraveSites).</summary>
     [WireName("grave")]
     Grave,
-
-    /// <summary>Disposal are filled stranger sarcophagi whose memory has fired; the planner deconstructs one.</summary>
-    [WireName("dispose")]
-    Dispose,
 
     /// <summary>Every planned tomb's slots are taken; the plan owes another tomb room.</summary>
     [WireName("full")]
@@ -80,127 +53,29 @@ public sealed record TombStep
 
     /// <summary>The plain graves standing.</summary>
     public int Graves { get; init; }
-
-    /// <summary>A Dispose's filled stranger sarcophagi, in census order.</summary>
-    public IReadOnlyList<CurrentBuilding> Disposal { get; init; } = [];
 }
 
 public static partial class PolicyFunctions
 {
-    /// <summary>The memory a colonist gains when the first body ever is hauled into a sarcophagus; it stacks (4, 2, 1, 0.5) for 8 days.</summary>
+    /// <summary>
+    /// The memory vanilla gives every colonist when a sarcophagus takes its first body through TryAcceptThing; no haul
+    /// path calls that, so a hauled burial never gives it (burial/stranger_sarcophagus reads it).
+    /// </summary>
     public const string KnowBuriedInSarcophagusThought = "KnowBuriedInSarcophagus";
-
-    /// <summary>
-    /// The most live KnowBuriedInSarcophagus stacks the tomb feeds strangers for. Kept: the memory's stack depth
-    /// is the game's (docs/developers/contracts/kept-constants.md).
-    /// </summary>
-    public const int StrangerTombStackCap = 4;
-
-    /// <summary>A colonist's summed memory offset at 1, 2, 3 and 4 live stacks.</summary>
-    private static readonly double[] KnowBuriedStackTotals = [4, 6, 7, 7.5];
-
-    /// <summary>
-    /// The live KnowBuriedInSarcophagus stacks across the colonists: the most any colonist carries, read from the
-    /// summed memory offset. Unknown while any colonist's thoughts, or the census, are unread.
-    /// </summary>
-    public static (int Live, bool Ok) KnowBuriedStacks(Fact<EquatableArray<MoodPawn>> pawns)
-    {
-        if (!pawns.TryGetValue(out var rows))
-        {
-            return (0, false);
-        }
-        var live = 0;
-        foreach (var p in rows)
-        {
-            if (!p.Thoughts.TryGetValue(out var thoughts))
-            {
-                return (0, false);
-            }
-            foreach (var t in thoughts)
-            {
-                if (t.Def != KnowBuriedInSarcophagusThought)
-                {
-                    continue;
-                }
-                var n = 0;
-                foreach (var total in KnowBuriedStackTotals)
-                {
-                    if (t.Offset >= total - 0.01)
-                    {
-                        n++;
-                    }
-                }
-                live = Math.Max(live, n);
-            }
-        }
-        return (live, true);
-    }
 
     /// <summary>Core's plain grave: 1x2, no stuff, no research.</summary>
     public const string GraveDefinition = "Grave";
 
     /// <summary>
-    /// The standing sarcophagi to deconstruct: in a planned tomb, holding a buried stranger and no colonist,
-    /// while the memory is live (strangers.Live &gt; 0; unread thoughts leave it zero). Graves and any
-    /// sarcophagus outside the plan are never listed.
+    /// Counts the unburied colonist dead, the empty graves and the plain graves, and returns the cells graves stand
+    /// on. A buried body, colonist or stranger, fills its grave.
     /// </summary>
-    public static IReadOnlyList<CurrentBuilding> StrangerDisposals(
-        LayoutPlan plan,
-        IReadOnlyList<WasteItem> waste,
-        IReadOnlyList<CurrentBuilding> built,
-        string sarcophagus,
-        StrangerTomb strangers
-    )
-    {
-        if (strangers.Live <= 0)
-        {
-            return [];
-        }
-        var tomb = new HashSet<Cell>();
-        foreach (var r in plan.RoomsOf(PlannedRole.Tomb))
-        {
-            foreach (var c in RectCells(r.Region.Bounds()))
-            {
-                tomb.Add(c);
-            }
-        }
-        // holds[grave] is true while every buried corpse in it is a stranger.
-        var holds = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var item in waste)
-        {
-            if (item.State != WasteState.Buried || item.Grave.Length == 0)
-            {
-                continue;
-            }
-            var stranger = item.CorpseOf == CorpseOf.Stranger;
-            holds[item.Grave] = holds.TryGetValue(item.Grave, out var prior) ? prior && stranger : stranger;
-        }
-        var output = new List<CurrentBuilding>();
-        foreach (var b in built)
-        {
-            if (b.Building!.Definition != sarcophagus || !holds.GetValueOrDefault(b.Id) || b.Cells.Count == 0)
-            {
-                continue;
-            }
-            if (b.Cells.All(tomb.Contains))
-            {
-                output.Add(b);
-            }
-        }
-        return output;
-    }
-
-    /// <summary>
-    /// Counts the dead, the empty graves and the plain graves, and returns the cells graves stand on. Strangers
-    /// count as dead only up to strangers (StrangerTomb.Allowed); a buried body of either kind fills its grave.
-    /// </summary>
-    private static (TombStep Step, HashSet<Cell> Taken) TombCensus(IReadOnlyList<WasteItem> waste, IReadOnlyList<CurrentBuilding> built, string sarcophagus, int strangers)
+    private static (TombStep Step, HashSet<Cell> Taken) TombCensus(IReadOnlyList<WasteItem> waste, IReadOnlyList<CurrentBuilding> built, string sarcophagus)
     {
         var dead = 0;
         var empty = 0;
         var graves = 0;
         var filled = new HashSet<string>(StringComparer.Ordinal);
-        var stranded = 0;
         foreach (var item in waste)
         {
             if (item.CorpseOf != CorpseOf.Colonist && item.CorpseOf != CorpseOf.Stranger)
@@ -215,16 +90,7 @@ public static partial class PolicyFunctions
             {
                 dead++;
             }
-            else if (item.EverBuriedInSarcophagus)
-            {
-                // Vanilla fires no memory on a re-burial: the morgue's.
-            }
-            else
-            {
-                stranded++;
-            }
         }
-        dead += Math.Min(stranded, strangers);
         var taken = new HashSet<Cell>();
         foreach (var b in built)
         {
@@ -288,17 +154,10 @@ public static partial class PolicyFunctions
         IReadOnlyList<WasteItem> waste,
         IReadOnlyList<CurrentBuilding> built,
         PieceShapes shapes,
-        bool sarcophagus,
-        StrangerTomb strangers
+        bool sarcophagus
     )
     {
-        var dispose = StrangerDisposals(plan, waste, built, shapes.Furniture.Sarcophagus, strangers);
-        if (dispose.Count > 0)
-        {
-            return new TombStep { Kind = TombStepKind.Dispose, Disposal = dispose };
-        }
-        var allowed = sarcophagus ? strangers.Allowed() : 0;
-        var (step, taken) = TombCensus(waste, built, shapes.Furniture.Sarcophagus, allowed);
+        var (step, taken) = TombCensus(waste, built, shapes.Furniture.Sarcophagus);
         if (step.Dead == 0 || step.Empty >= step.Dead)
         {
             return new TombStep();
@@ -344,8 +203,7 @@ public static partial class PolicyFunctions
         Fact<LayoutPlan> plan,
         Fact<RoomObservation> rooms,
         Fact<EquatableArray<WasteItem>> waste,
-        Fact<CurrentConstruction> built,
-        StrangerTomb strangers
+        Fact<CurrentConstruction> built
     )
     {
         var ak = available.TryGetValue(out var a);
@@ -363,12 +221,12 @@ public static partial class PolicyFunctions
         }
         if (ak && !a)
         {
-            return Known(NextTombStep(p!, w!, b.Buildings, shapes, false, strangers).Kind != TombStepKind.None);
+            return Known(NextTombStep(p!, w!, b.Buildings, shapes, false).Kind != TombStepKind.None);
         }
         if (!ak || !rk)
         {
             return Unknown<bool>();
         }
-        return Known(NextTombStep(p!, w!, b.Buildings, shapes, true, strangers).Kind != TombStepKind.None);
+        return Known(NextTombStep(p!, w!, b.Buildings, shapes, true).Kind != TombStepKind.None);
     }
 }

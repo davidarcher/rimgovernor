@@ -107,12 +107,12 @@ public sealed class GraveSitingTests
     {
         var corpse = new WasteItem { Id = "ann", Kind = "Corpse", State = WasteState.Exposed, Eligible = true, Cell = new Cell(5, 5), CorpseOf = CorpseOf.Colonist };
         var shapes = new PieceShapes { Furniture = new RoomFurniture { Sarcophagus = "Sarcophagus" } };
-        var step = NextTombStep(Plan, [corpse], [], shapes, false, new StrangerTomb());
+        var step = NextTombStep(Plan, [corpse], [], shapes, false);
         Assert.Equal(TombStepKind.Grave, step.Kind);
         Assert.Equal(0, step.Room.Id);
         Assert.Empty(step.Template);
 
         var empty = new CurrentBuilding { Id = "g1", Building = new Building(GraveDefinition, new Cell(3, 20), Rotation.North, ""), Cells = [new Cell(3, 20), new Cell(3, 21)] };
-        Assert.Equal(TombStepKind.None, NextTombStep(Plan, [corpse], [empty], shapes, false, new StrangerTomb()).Kind);
+        Assert.Equal(TombStepKind.None, NextTombStep(Plan, [corpse], [empty], shapes, false).Kind);
     }
 }

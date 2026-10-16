@@ -7,7 +7,7 @@ public sealed class RoundsBurialResult : IPlannerMethod
     public Verdict Verdict { get; init; }
 }
 
-/// <summary>Plans the morgue and tomb rooms, the plain graves near the base and the disposal of the tombs the colony no longer needs.</summary>
+/// <summary>Plans the morgue and tomb rooms and the plain graves near the base.</summary>
 public sealed class RoundsBurialPlanner
 {
     private readonly Rounder _reviewer;
@@ -66,14 +66,9 @@ public sealed class RoundsBurialPlanner
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), BurialDefinitions, call).ConfigureAwait(false);
-        reading = reading.WithProjection(_reviewer.ReviewStrangers(state.Snapshot, reading.Projection, call));
         var step = TombStep(reading.Projection);
         var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
         RoundsBuildingResult result;
-        if (step.Kind == TombStepKind.Dispose)
-        {
-            return await DisposeAsync(state, review, goal, reading, step.Disposal[0], call, epoch).ConfigureAwait(false);
-        }
         if (step.Kind == TombStepKind.None)
         {
             var (morgue, owed) = PlannedMorgue(reading.Projection);
@@ -99,13 +94,6 @@ public sealed class RoundsBurialPlanner
         {
             return new RoundsBurialResult();
         }
-        return new RoundsBurialResult { Verdict = result.Verdict };
-    }
-
-    private async Task<RoundsBurialResult> DisposeAsync(ControlState state, RoundsReview review, StandardState goal, RoundsReading reading, CurrentBuilding b, CancellationToken call, CancellationToken epoch)
-    {
-        var building = b.Building ?? throw new InvalidOperationException("a standing tomb row carries its building");
-        var result = await _building!.RetireBuildingAsync(state, review, goal, reading.Reading, b.Id, building.Definition, building.Cell, "tomb-dispose", "tomb_disposal", call, epoch).ConfigureAwait(false);
         return new RoundsBurialResult { Verdict = result.Verdict };
     }
 
