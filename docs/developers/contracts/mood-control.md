@@ -144,7 +144,7 @@ Unresolved leaves stay `unknown` with their reason. Modded defs get no cards.
 
 `MechanicCards.ByDef` embeds the file and parses it on first use into `MechanicCard` records. A malformed file, an
 unknown or missing field, an unknown status or a schema other than `MechanicCards.Schema` throws; it never yields an
-empty catalog. Every card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
+empty catalog. A card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
 and consumers ignore it for live play. Nothing consumes the cards yet.
 
 `MechanicCardGuards.Evaluate` (pure, #3223) evaluates one card site's guards for one target (`CardGuardFacts`: the
@@ -158,6 +158,22 @@ by a writer with no reset makes the instance `Exhausted` after one grant. Actor 
 map (site -> existing action kind and constraint; the sarcophagus haul is `Haul` by a colonist). A card is `Usable` only
 when `Live` and every guard holds or is achievable. `thoughtaudit -guards` fails when a table row names a decl or site
 absent from the shipped cards or the decompiled sources (`GuardTableCheck`, also run over the embedded cards by a test).
+
+A card is `verified` only for the code it was probed against. Its drift hash is the first 16 hex digits of SHA-256
+over the `bodyHash` of every site and every writer (follows included), distinct, sorted ordinally and joined by
+newlines; any change to one of those methods changes it. The hand-appended
+`brain/src/RimGovernor.Brain.Policy/mechanic_cards_verified.tsv` (`def`, `drift_hash`, `probe`, `game`, `evidence`;
+not embedded) records each observed probe pass. `thoughtaudit -guards` prints every live card's drift hash and ships
+the card `verified` when a row matches def and hash. Otherwise the card ships `extracted` and the tool prints the
+def's stale rows (a game update changed a method), so the probe is re-run and a new row appended. A row whose def has
+no card fails the tool. To verify a card: run its probe case once, append the row with the printed drift hash and the
+run evidence, and rerun `thoughtaudit -guards`.
+
+The probe for `KnowBuriedInSarcophagus` is `burial/stranger_sarcophagus`: the first burial is the positive path, and
+each `Notify_HauledTo` guard has a negative in which no colonist gains the memory: `thisIsFirstBodyEver` (a used
+sarcophagus), `Humanlike` (an animal corpse), `!everBuriedInSarcophagus` (a flagged corpse in a fresh sarcophagus) and
+`hauler.IsColonist` (a non-colonist on a forced haul). Who may haul to a sarcophagus is covered by the observed
+positive path, not by caller analysis.
 
 ### Mood ledger
 

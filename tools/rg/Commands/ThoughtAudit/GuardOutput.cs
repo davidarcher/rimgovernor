@@ -98,9 +98,10 @@ internal static class GuardOutput
 
     /// <summary>
     /// The shipped card file (<c>brain/src/RimGovernor.Brain.Policy/mechanic_cards.json</c>, #3220): the given cards with typed
-    /// XML numbers and only the fields the brain's records read. Every card is <c>extracted</c> until a probe verifies it.
+    /// XML numbers and only the fields the brain's records read. A card is <c>verified</c> only when its def is in
+    /// <paramref name="verified"/> (its drift hash matches a row of the verified-cards table, #3222), else <c>extracted</c>.
     /// </summary>
-    public static string Shipped(string game, IReadOnlyList<Card> cards)
+    public static string Shipped(string game, IReadOnlyList<Card> cards, IReadOnlySet<string> verified)
     {
         using var ms = new MemoryStream();
         using (var w = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true, NewLine = "\n", Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
@@ -114,7 +115,7 @@ internal static class GuardOutput
                 w.WriteStartObject();
                 w.WriteString("def", c.Def);
                 w.WriteString("kind", c.Kind);
-                w.WriteString("status", "extracted");
+                w.WriteString("status", verified.Contains(c.Def) ? "verified" : "extracted");
                 w.WriteStartObject("xml");
                 foreach (var name in ShippedNumbers.Where(c.Data.Fields.ContainsKey))
                 {
@@ -150,6 +151,13 @@ internal static class GuardOutput
             w.WriteEndObject();
         }
         return Encoding.UTF8.GetString(ms.ToArray()) + "\n";
+    }
+
+    /// <summary>The body hashes a card's drift hash covers: each grant site and each writer, follows included.</summary>
+    public static IEnumerable<string> MemberHashes(Card c)
+    {
+        static IEnumerable<string> Of(FieldWriters f) => f.Writers.Select(x => x.Hash).Concat(f.Following.SelectMany(Of));
+        return c.Sites.SelectMany(s => s.Writers.SelectMany(Of).Prepend(s.Hash));
     }
 
     private static void WriteAny(Utf8JsonWriter w, object value)
