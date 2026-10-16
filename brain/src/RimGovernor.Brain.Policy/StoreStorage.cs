@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
 // The Storage department's stores: the warehouse over the whole interior of each planned storage room, and the
-// materials yard over the whole interior of each planned yard. Each is one zone, sized once; a full store asks
-// layout for a further room through RoomDemand.
+// materials yard over the whole interior of each planned yard. Each is one zone, sized once. Layout sizes the
+// storage rooms from held stock; a full yard asks for a further yard through RoomDemand.
 
 /// <summary>The Storage department.</summary>
 internal sealed class StorageOwner : IStoreOwner
@@ -32,7 +32,6 @@ internal sealed class StorageOwner : IStoreOwner
                     Filter = StockpileFilter.GeneralFilter(),
                     Priority = StockpilePriority.Low,
                 },
-                Further = PlannedRole.Storage,
             });
         }
         foreach (var room in v.Layout.RoomsOf(PlannedRole.Yard))
@@ -53,14 +52,5 @@ internal sealed class StorageOwner : IStoreOwner
         return output;
     }
 
-    /// <summary>DeclaredDemand over the stores, held while a gear room the plan holds is not yet standing: it will take gear out of the warehouse.</summary>
-    public RoomDemand RoomDemand(StoreView v)
-    {
-        var demand = PolicyFunctions.DeclaredDemand(v, Stores(v));
-        if (v.Layout is not null && v.Rooms is not null && v.GearRoomPending(new MilitaryOwner().RoomDemand(v)))
-        {
-            demand = demand with { Storage = 0 };
-        }
-        return demand;
-    }
+    public RoomDemand RoomDemand(StoreView v) => PolicyFunctions.DeclaredDemand(v, Stores(v));
 }

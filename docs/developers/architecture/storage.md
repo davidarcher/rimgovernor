@@ -64,13 +64,11 @@ in older saves are deleted.
 
 ## Gear rooms
 
-When every warehouse zone is at 85% used (the state that
-also asks for a further storage room), the Military department raises `RoomDemand` for each
+When every gear store is at 85% used (`StockpileFurtherRoomFill`), the Military department raises `RoomDemand` for each
 kind of serviceable gear the colony holds (armory for weapons and armor,
 wardrobe for clothing) and layout adds the room: the armory beside the
 storage room, the wardrobe beside the workshop with the tailor bench, with no
-wealth gate and no item-count threshold. A planned gear room not yet standing
-holds back the further storage room. Layout keeps the armory and every prison
+wealth gate and no item-count threshold. Layout keeps the armory and every prison
 out of each other's weapon clearance; a standing armory with no free cell clear
 of a prison is `ErrArmoryNearPrison` in `StoreDeclaration.Err`, logged by the
 reviewer. A catalog naming no armor def fails the stockpile review with
@@ -78,10 +76,14 @@ reviewer. A catalog naming no armor def fails the stockpile review with
 
 ## Headroom
 
-When every zone of a store is at 85% used (`StockpileFurtherRoomFill`), the
-department's `RoomDemand` asks layout for a further room (`Storage`, `Yard`,
-armory, wardrobe or graveyard, one more than the plan holds) and that room's
-zone is created once it is planned and open.
+Storage rooms are not asked for by a fill reading: the layout graph sizes the
+storage and cold-store nodes from held stock (stacks over the station's slots),
+and an outgrown room gets a successor ([facilities](facilities.md#station-plan-and-successor-rooms)).
+When every zone of a yard, armory or wardrobe store is at 85% used
+(`StockpileFurtherRoomFill`), the department's `RoomDemand` asks layout for a
+further room (`Yard`, armory or wardrobe, one more than the plan holds; graveyards
+use the same fill against grave slots) and that room's zone is created once it is
+planned and open.
 
 ## Planned rooms
 

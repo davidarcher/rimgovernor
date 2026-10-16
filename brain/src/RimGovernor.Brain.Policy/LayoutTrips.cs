@@ -228,13 +228,6 @@ public sealed partial record LayoutPlan
 {
     /// <summary>The ids of the plan's rooms that another room of the plan replaces.</summary>
     internal HashSet<int> Superseded() => [.. Rooms.Where(r => r.Replaces != 0).Select(r => r.Replaces)];
-
-    /// <summary>How many rooms of role the plan holds, a room and the successors that replace it counting as one.</summary>
-    public int RoomChains(PlannedRole role)
-    {
-        var gone = Superseded();
-        return RoomsOf(role).Count(r => !gone.Contains(r.Id));
-    }
 }
 
 public static partial class PolicyFunctions

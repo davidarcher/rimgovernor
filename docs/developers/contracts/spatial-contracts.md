@@ -590,7 +590,7 @@ never claims a furnished cell.
 
 Geometry maintenance preserves blockers, unknown ground, exclusions, unrelated
 zones and separate store sites. Fixed-size stores retain their requested size.
-A store whose zones are 85% used asks layout for a further room. A role-less legacy claim
+A yard, armory or wardrobe store whose zones are 85% used asks layout for a further room; storage rooms are sized from held stock. A role-less legacy claim
 stands as created. A source answers nothing while the fact it judges by is unknown.
 
 `RoundsStockpilePlanner` commits the edits as one plan per cycle, each action under

@@ -108,10 +108,6 @@ public sealed record StoreDeclaration
     public RoomDemand Apply(RoomDemand old)
     {
         var next = old;
-        if (Covers.Contains(PlannedRole.Storage))
-        {
-            next = next with { Storage = Demand.Storage, StorageIdle = Demand.StorageIdle };
-        }
         if (Covers.Contains(PlannedRole.Yard))
         {
             next = next with { Yard = Demand.Yard };
@@ -187,9 +183,7 @@ public static partial class PolicyFunctions
             {
                 Armory = demand.Armory || got.Armory,
                 Wardrobe = demand.Wardrobe || got.Wardrobe,
-                Storage = Math.Max(demand.Storage, got.Storage),
                 Yard = Math.Max(demand.Yard, got.Yard),
-                StorageIdle = demand.StorageIdle || got.StorageIdle,
                 Graveyards = Math.Max(demand.Graveyards, got.Graveyards),
                 Ranges = Math.Max(demand.Ranges, got.Ranges),
                 Rings = Math.Max(demand.Rings, got.Rings),
@@ -207,17 +201,13 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The capacity-based room demand of stores: an armory or wardrobe store at capacity asks for its room
-    /// (Known: a gear store reads the gear census, a storage or yard store does not); storage and yard stores
-    /// ask for one more room than the plan holds once every one stands and is full. A store whose room does not
-    /// stand yet is a wait, never a demand or an idle reading.
+    /// (Known: a gear store reads the gear census, a yard store does not); yard stores ask for one more room
+    /// than the plan holds once every one stands and is full. A store whose room does not stand yet is a wait,
+    /// never a demand. Warehouse rooms are sized from held stock by the layout graph, not asked for here.
     /// </summary>
     public static RoomDemand DeclaredDemand(StoreView view, IReadOnlyList<Store> stores)
     {
         var demand = new RoomDemand();
-        var storage = 0;
-        var full = 0;
-        var idle = false;
-        var pending = false;
         var yards = 0;
         var fullYards = 0;
         var waiting = false;
@@ -230,21 +220,6 @@ public static partial class PolicyFunctions
             var reading = s.Reading(view.Zones);
             switch (s.Further)
             {
-                case PlannedRole.Storage:
-                    storage++;
-                    if (!reading.Standing)
-                    {
-                        pending = true;
-                    }
-                    else if (reading.Full)
-                    {
-                        full++;
-                    }
-                    else
-                    {
-                        idle = true;
-                    }
-                    break;
                 case PlannedRole.Yard:
                     yards++;
                     if (reading.Full)
@@ -260,11 +235,6 @@ public static partial class PolicyFunctions
                     demand = demand with { Known = true, Wardrobe = demand.Wardrobe || reading.Full };
                     break;
             }
-        }
-        demand = demand with { StorageIdle = idle };
-        if (storage > 0 && !pending && !idle && full == storage)
-        {
-            demand = demand with { Storage = view.StorageRoomChains() + 1 };
         }
         if (yards > 0 && !waiting && fullYards == yards)
         {

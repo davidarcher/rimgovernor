@@ -76,30 +76,3 @@ public static partial class PolicyFunctions
         return (StockpileFilter.ArmoryFilter(defs), StockpileFilter.WardrobeFilter(defs));
     }
 }
-
-public sealed partial record StoreView
-{
-    /// <summary>
-    /// Reports a gear room demand asks for that the plan holds but does not yet stand: it will take gear out of
-    /// the warehouse, so the warehouse waits before asking for another storage room.
-    /// </summary>
-    internal bool GearRoomPending(RoomDemand demand)
-    {
-        if (Layout is null || Rooms is null)
-        {
-            return false;
-        }
-        foreach (var planned in Layout.Rooms)
-        {
-            if ((planned.Role == PlannedRole.Armory && demand.Armory) || (planned.Role == PlannedRole.Wardrobe && demand.Wardrobe))
-            {
-                // Census: pending until the room is a roofed room a zone can bind to.
-                if (!PolicyFunctions.CensusRoomIn(planned, Rooms).Ok)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-}

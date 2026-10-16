@@ -80,9 +80,6 @@ public sealed record RoomDemand
 
     public bool Wardrobe { get; init; }
 
-    /// <summary>The storage rooms the plan should hold, 0 for no demand (a further warehouse).</summary>
-    public int Storage { get; init; }
-
     /// <summary>The graveyards the plan should hold, 0 for no demand (a further graveyard; see GraveyardsWanted).</summary>
     public int Graveyards { get; init; }
 
@@ -97,10 +94,4 @@ public sealed record RoomDemand
 
     /// <summary>Set when the gear census was read, so a false Armory or Wardrobe is a reading and not a gap.</summary>
     public bool Known { get; init; }
-
-    /// <summary>
-    /// Set when a standing storage room has warehouse space to spare: a true no-demand reading, unlike a Storage
-    /// of 0 that waits on a planned room not yet built.
-    /// </summary>
-    public bool StorageIdle { get; init; }
 }

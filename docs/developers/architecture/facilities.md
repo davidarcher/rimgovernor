@@ -426,7 +426,7 @@ room is never demolished. A bedroom the successor replaces stays while a pawn
 owns a bed in it (`SleptBedrooms`) and its sleepers move one pawn a step, each
 straight to a vacant bed (`NextMigrateStep`); a suite's owner moves into the
 larger suite, never into an ordinary bedroom. A `Replaces` chain counts as one
-room (`RoomChains`). Stock drains from the old zone as vanilla re-hauls it; bills
+room. Stock drains from the old zone as vanilla re-hauls it; bills
 and packed furniture are #2881.
 
 The replan (`policy.ReplanLayout`, #3005, J4 of #2965) is the tiled plan of this
