@@ -154,20 +154,34 @@ try {
             [System.IO.File]::SetLastWriteTimeUtc($taskTouched, $taskNow)
         }
     }
-    $taskHostArgs = @('build', (Join-Path $taskWork 'integrations/rimgovernor-host/src/Host/RimGovernor.Host.csproj'),
-        '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskWorkHostCompiled/",
-        "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
+    # Each project is published win-x64 ReadyToRun (#3291): the game's runtime runs the precompiled code, so the
+    # bridge and brain start without JIT-compiling ~27 MB of IL first (measured 3-4 s off a headless boot). OutputPath
+    # still receives the plain build of the whole graph; PublishDir receives the ReadyToRun copies of the publish set.
+    $taskPublishArgs = @('-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', '-r', 'win-x64', '--self-contained', 'false',
+        '-p:PublishReadyToRun=true', "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
+    $taskWorkPublished = Join-Path $taskWork '_out/published'
+    $taskHostArgs = @('publish', (Join-Path $taskWork 'integrations/rimgovernor-host/src/Host/RimGovernor.Host.csproj'),
+        "-p:OutputPath=$taskWorkHostCompiled/", "-p:PublishDir=$taskWorkPublished/host/") + $taskPublishArgs
     & $taskCompiler @taskHostArgs *> (Join-Path $taskBuild 'host-build.log')
     if ($LASTEXITCODE) { throw "Host build failed; inspect $taskBuild/host-build.log" }
-    $taskArgs = @('build', (Join-Path $taskWork 'integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj'),
-        '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskWorkCompiled/",
-        "-p:RimWorldDir=$RimWorldDir", "-p:HarmonyAssembly=$HarmonyAssembly")
-    foreach ($taskFlag in $taskFixtures) { $taskArgs += "-p:${taskFlag}=true" }
-    & $taskCompiler @taskArgs *> (Join-Path $taskBuild 'build.log')
-    if ($LASTEXITCODE) { throw "Native build failed; inspect $taskBuild/build.log" }
+    # The Bridge publish set holds the Bridge and the brain assemblies; RimGovernor.Runtime is a private=false
+    # reference (it ships in Assemblies/), so it is published on its own with the same global properties.
+    $taskFixtureArgs = @($taskFixtures | ForEach-Object { "-p:${_}=true" })
+    foreach ($taskPublished in @(@{ Name = 'bridge'; Project = 'Bridge/RimGovernor.Bridge.csproj' }, @{ Name = 'runtime'; Project = 'Runtime/RimGovernor.Runtime.csproj' })) {
+        $taskArgs = @('publish', (Join-Path $taskWork ('integrations/rimgovernor-native/src/' + $taskPublished.Project)),
+            "-p:OutputPath=$taskWorkCompiled/", "-p:PublishDir=$taskWorkPublished/$($taskPublished.Name)/") + $taskPublishArgs + $taskFixtureArgs
+        & $taskCompiler @taskArgs *>> (Join-Path $taskBuild 'build.log')
+        if ($LASTEXITCODE) { throw "Native build failed; inspect $taskBuild/build.log" }
+    }
     # Another worktree's build may reuse this directory the moment the lock is released: take this build's output first.
     Copy-TaskTree $taskWorkCompiled $taskCompiled -ExcludeDirs @()
     Copy-TaskTree $taskWorkHostCompiled $taskHostCompiled -ExcludeDirs @()
+    # Our own assemblies ship as their ReadyToRun copies; NuGet runtime DLLs ship as restored.
+    foreach ($taskOverlay in @(@{ From = 'bridge'; To = $taskCompiled }, @{ From = 'runtime'; To = $taskCompiled }, @{ From = 'host'; To = $taskHostCompiled })) {
+        foreach ($taskDll in Get-ChildItem -LiteralPath (Join-Path $taskWorkPublished $taskOverlay.From) -Filter 'RimGovernor.*.dll' -File) {
+            if (Test-Path -LiteralPath (Join-Path $taskOverlay.To $taskDll.Name) -PathType Leaf) { Copy-Item -LiteralPath $taskDll.FullName -Destination $taskOverlay.To -Force }
+        }
+    }
     # Work directories of fixture sets nobody has built for a while would otherwise pile up.
     foreach ($taskStale in Get-ChildItem -LiteralPath (Split-Path $taskWork -Parent) -Directory | Where-Object { $_.FullName -ne $taskWork -and $_.LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-7) }) {
         Remove-Item -LiteralPath $taskStale.FullName -Recurse -Force -ErrorAction Continue

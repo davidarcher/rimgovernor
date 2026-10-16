@@ -7,6 +7,8 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Restored with the Bridge's win-x64 RID when the native build publishes ReadyToRun (#3291). -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DebugType>none</DebugType>
@@ -20,4 +22,14 @@
     <Reference Include="Waylith"><HintPath>$(RimWorldDir)/Waylith.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="0Harmony"><HintPath>$(HarmonyAssembly)</HintPath><Private>false</Private></Reference>
   </ItemGroup>
+  <!-- ReadyToRun (#3291): crossgen2 references only the publish set and the runtime pack. The game's assemblies and the
+       other private references ship elsewhere; without them every method that touches their types stays IL. -->
+  <Target Name="ReadyToRunReferencePrivateAssemblies" BeforeTargets="_CreateR2RImages">
+    <ItemGroup>
+      <_ReadyToRunPrivateReference Include="@(ReferencePath)" Condition="'%(ReferencePath.Private)' == 'false' And '%(ReferencePath.FrameworkReferenceName)' == ''" />
+    </ItemGroup>
+    <PropertyGroup>
+      <PublishReadyToRunCrossgen2ExtraArgs>@(_ReadyToRunPrivateReference->'-r:&quot;%(FullPath)&quot;')</PublishReadyToRunCrossgen2ExtraArgs>
+    </PropertyGroup>
+  </Target>
 </Project>

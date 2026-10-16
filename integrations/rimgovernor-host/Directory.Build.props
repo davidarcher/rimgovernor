@@ -7,6 +7,8 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- The native build publishes the host win-x64 ReadyToRun (#3291); declaring the RID keeps the lock files stable. -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <DebugType>none</DebugType>
     <HostVersion>3.0.0</HostVersion>
     <Version>$(HostVersion)</Version>
@@ -16,4 +18,14 @@
     <RimWorldDir Condition="'$(RimWorldDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld</RimWorldDir>
     <HarmonyAssembly Condition="'$(HarmonyAssembly)' == ''">C:/Program Files (x86)/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyAssembly>
   </PropertyGroup>
+  <!-- ReadyToRun (#3291): crossgen2 references only the publish set and the runtime pack. The game's assemblies and the
+       other private references ship elsewhere; without them every method that touches their types stays IL. -->
+  <Target Name="ReadyToRunReferencePrivateAssemblies" BeforeTargets="_CreateR2RImages">
+    <ItemGroup>
+      <_ReadyToRunPrivateReference Include="@(ReferencePath)" Condition="'%(ReferencePath.Private)' == 'false' And '%(ReferencePath.FrameworkReferenceName)' == ''" />
+    </ItemGroup>
+    <PropertyGroup>
+      <PublishReadyToRunCrossgen2ExtraArgs>@(_ReadyToRunPrivateReference->'-r:&quot;%(FullPath)&quot;')</PublishReadyToRunCrossgen2ExtraArgs>
+    </PropertyGroup>
+  </Target>
 </Project>

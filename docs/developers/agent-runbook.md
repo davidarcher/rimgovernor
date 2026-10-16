@@ -100,6 +100,9 @@ the install root beside `Data/`, `Rendering/` and `Assets.zip`, with Harmony 3
 from the Workshop item's `1.7/Assemblies`. The native mod, host and probes
 target net10.0 and compile against that root, passed as `RimWorldDir`
 (`-RimWorldDir` for `scripts/build_native_mod.ps1`; setup supplies it).
+The script publishes the mod's own assemblies (Bridge, brain, host, Runtime) win-x64 ReadyToRun against the
+stock .NET 10 runtime pack, with the game's assemblies passed to crossgen2 as references; NuGet runtime DLLs ship
+as restored. The game's runtime runs that precompiled code, which took 3–4 s off a headless boot (#3291).
 
 The game runs windowless and GPU-less only with `-Headless` (the one predicate
 the mod's startup and patches share); `-batchmode` and `-nographics` do nothing.
