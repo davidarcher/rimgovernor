@@ -292,6 +292,43 @@ internal sealed class PlannerWave : IDisposable
         }
     }
 
+    /// <summary>Each returned family run's Need progress (#3231 decision 18), in return order; see <see cref="NeedProgressOf"/>.</summary>
+    public IReadOnlyList<FamilyProgress> NeedProgress()
+    {
+        lock (_mu)
+        {
+            var output = new List<FamilyProgress>();
+            foreach (var name in _finished)
+            {
+                if (_reasons.ContainsKey(name) && _results[name].Families.TryGetValue(name, out var run) && NeedProgressOf(name, run) is { } progress)
+                {
+                    output.Add(progress);
+                }
+            }
+            return output;
+        }
+    }
+
+    /// <summary>
+    /// What one family run files on <c>Rounds.Progress</c>: every reported Need with its filed note and the Method it
+    /// works, met when its standing is. Null for a run that judged nothing (no review, switched off), so its rows stand.
+    /// </summary>
+    internal static FamilyProgress? NeedProgressOf(string family, FamilyRun run)
+    {
+        if (run.Standings.Count == 0 && !run.Complete)
+        {
+            return null;
+        }
+        var met = run.Standings.Where(s => s.Readiness == NeedReadiness.Met).Select(s => s.Need.Id).ToHashSet();
+        var needs = new List<NeedProgress>(run.Reports.Count);
+        foreach (var report in run.Reports)
+        {
+            var note = PlannerReasons.RecordReason(report.Verdict) ?? new PlannerNote();
+            needs.Add(new NeedProgress(report.Need, met.Contains(report.Need) && report.Method.IsEmpty, note, report.Method));
+        }
+        return new FamilyProgress(family, run.Complete, needs);
+    }
+
     /// <summary>Whether the named planner was queued into this wave's critical cycle, promotion included: a pending one holds admission instead of being recorded as having missed the cutoff.</summary>
     public bool QueuedCritical(string name)
     {

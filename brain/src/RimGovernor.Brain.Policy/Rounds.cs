@@ -659,8 +659,6 @@ public sealed record RoundsLatches
 
     public bool Hot { get; set; }
 
-    public UpkeepHistory Upkeep { get; set; } = new();
-
     /// <summary>The planned outdoor dash window (#2765), held until its bound; zero when none is open.</summary>
     public DashWindow Dash { get; set; } = new();
 
@@ -956,7 +954,6 @@ public static partial class PolicyFunctions
         c.Medicine = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve);
         c.Refrigeration = ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage);
         c.Refrigeration = c.Refrigeration.WithWarmRooms(f.WarmRooms);
-        c.Upkeep = ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued);
         c.Lighting = ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark));
         c.Lighting = c.Lighting.WithPlanned(f.PlanLit);
         c.Flooring = ReviewFlooring(f.Upkeep.Flooring, f.Upkeep.Rooms, previous.Flooring, p.Flooring);
@@ -1013,7 +1010,6 @@ public static partial class PolicyFunctions
             Lighting = EquatableArray.From(c.Lighting.Dark),
             Flooring = EquatableArray.From(c.Flooring.Latched),
             Routes = c.Routes.Latched,
-            Upkeep = c.Upkeep.History,
             Dash = DashLatch(f.Dash),
             Food = LatchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
             Cold = LatchValue(previous.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
@@ -1079,19 +1075,6 @@ public static partial class PolicyFunctions
                 if (!available.Contains(concern.Id))
                 {
                     concern.MethodUnavailable = true;
-                }
-            }
-            // Each upkeep need's method is its own serve family; an undeclared one is recorded as unavailable.
-            var declarable = new HashSet<ConcernId>();
-            foreach (var n in c.Upkeep.Needs)
-            {
-                declarable.Add(n.Concern);
-            }
-            foreach (var a in r.Assessments)
-            {
-                if (declarable.Contains(a.Id) && !available.Contains(a.Id))
-                {
-                    a.MethodUnavailable = true;
                 }
             }
         }

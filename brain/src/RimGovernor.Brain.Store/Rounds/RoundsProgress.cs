@@ -154,7 +154,50 @@ public sealed partial class Store
             }
             output.Add(record);
         }
+        // Need rows are the family runs' (RecordPlannerReasons): the review keeps them as they stand, with a
+        // rewound clock clamped to this review's tick.
+        foreach (var p in old.Values)
+        {
+            if (NeedKey(p.Concern) && output.Count < MaxRoundsStandards)
+            {
+                output.Add(p.LastProgress > request.Tick ? p with { LastProgress = request.Tick } : p);
+            }
+        }
         return EquatableArray.From(output);
+    }
+
+    /// <summary>Whether a progress key is a NeedId's filing key (a family's row) rather than a Concern id.</summary>
+    private static bool NeedKey(ConcernId key) => new NeedId(key.Value).IsValid;
+
+    /// <summary>
+    /// A reported Need's progress row: the Method it works (by label) or, with none, the filed note as its blocked
+    /// reason. The clock restarts on a new row, a changed Method or a rewound tick. Need rows carry no deadline or
+    /// deficit fraction: the family owns rotation (its refusal budget) and its deficit unit.
+    /// </summary>
+    private static ConcernProgress NeedProgressRow(ConcernProgress? previous, NeedProgress need, Tick tick)
+    {
+        var method = need.Method.IsEmpty ? "" : MethodLabel(need.Method);
+        var fresh = previous is null || previous.Method != method || previous.LastProgress > tick;
+        var row = new ConcernProgress
+        {
+            Concern = need.Need.FilingKey,
+            Method = method,
+            Expected = method.Length == 0 ? "" : "the need's predicate is met",
+            LastProgress = fresh ? tick : previous!.LastProgress,
+            Blocked = method.Length == 0 ? need.Note.Blocked() : default,
+            Planner = need.Note.Cause,
+            PlannerSubject = need.Note.Subject,
+            Open = method.Length != 0,
+        };
+        try
+        {
+            PolicyFunctions.ValidateConcernProgress(row, tick);
+        }
+        catch (DomainException e)
+        {
+            throw new DomainException($"{need.Need.Value}: {e.Message}");
+        }
+        return row;
     }
 
     /// <summary>
@@ -246,14 +289,40 @@ public sealed partial class Store
     /// Files each goal's latest planner refusal on its progress record (<c>ConcernProgress.Planner</c>); the zero
     /// note clears it (the planner admitted or found work). A record with no method, or one already naming a
     /// planner refusal or wait, is relabelled at once so the strip names the reason before the next review; held
-    /// records keep their hold. Standards without a record are skipped. Reports whether anything changed and each
-    /// filed goal's current method (its record's Method, empty when it has none).
+    /// records keep their hold. Standards without a record are skipped.
+    /// <para>
+    /// Need rows (#3231 decision 18) come from <paramref name="families"/>, not <paramref name="reasons"/>: each
+    /// reported Need that is not met gets a row keyed by its <see cref="NeedId.FilingKey"/> (inserted, or updated
+    /// in place), a met Need's row is pruned, and a complete run prunes its family's rows for Needs it no longer
+    /// reported. Rows of families that did not run, or ran partially (the immediate pass), stand.
+    /// </para>
+    /// Reports whether anything changed and each filed goal's and reported Need's current method (its record's
+    /// Method, empty when it has none).
     /// </summary>
-    public (bool Changed, IReadOnlyDictionary<ConcernId, string> Methods) RecordPlannerReasons(IReadOnlyDictionary<ConcernId, PlannerNote> reasons, CancellationToken cancellationToken)
+    public (bool Changed, IReadOnlyDictionary<ConcernId, string> Methods) RecordPlannerReasons(
+        IReadOnlyDictionary<ConcernId, PlannerNote> reasons,
+        IReadOnlyList<FamilyProgress> families,
+        CancellationToken cancellationToken
+    )
     {
-        if (reasons.Count == 0)
+        if (reasons.Count == 0 && families.Count == 0)
         {
             return (false, new Dictionary<ConcernId, string>());
+        }
+        var reported = new Dictionary<ConcernId, NeedProgress>();
+        var complete = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var family in families)
+        {
+            if (family.Complete)
+            {
+                complete.Add(family.Family);
+            }
+            foreach (var need in family.Needs)
+            {
+                need.Need.Validate();
+                DomainException.Require(need.Need.Family == family.Family, $"need {need.Need} reported by family {family.Family}");
+                reported[need.Need.FilingKey] = need;
+            }
         }
         return Run<(bool Changed, IReadOnlyDictionary<ConcernId, string> Methods)>(
             tx =>
@@ -261,10 +330,33 @@ public sealed partial class Store
                 var review = LoadRounds(tx);
                 var changed = false;
                 var methods = new Dictionary<ConcernId, string>();
-                var progress = new List<ConcernProgress>(review.Progress.Count);
+                var progress = new List<ConcernProgress>(review.Progress.Count + reported.Count);
+                var pending = new Dictionary<ConcernId, NeedProgress>(reported);
                 foreach (var record in review.Progress)
                 {
                     var p = record;
+                    if (NeedKey(p.Concern))
+                    {
+                        if (pending.Remove(p.Concern, out var need))
+                        {
+                            methods[p.Concern] = "";
+                            if (need.Met)
+                            {
+                                changed = true;
+                                continue;
+                            }
+                            p = NeedProgressRow(record, need, review.Tick);
+                            methods[p.Concern] = p.Method;
+                            changed = changed || p != record;
+                        }
+                        else if (complete.Contains(new NeedId(p.Concern.Value).Family))
+                        {
+                            changed = true;
+                            continue;
+                        }
+                        progress.Add(p);
+                        continue;
+                    }
                     if (!reasons.TryGetValue(p.Concern, out var note))
                     {
                         progress.Add(p);
@@ -291,6 +383,18 @@ public sealed partial class Store
                     }
                     progress.Add(p);
                 }
+                foreach (var need in pending.Values.OrderBy(n => n.Need))
+                {
+                    methods[need.Need.FilingKey] = "";
+                    if (need.Met || progress.Count >= MaxRoundsStandards)
+                    {
+                        continue;
+                    }
+                    var row = NeedProgressRow(null, need, review.Tick);
+                    methods[row.Concern] = row.Method;
+                    progress.Add(row);
+                    changed = true;
+                }
                 if (!changed)
                 {
                     return (false, methods);
@@ -304,6 +408,16 @@ public sealed partial class Store
 
     public Task<(bool Changed, IReadOnlyDictionary<ConcernId, string> Methods)> RecordPlannerReasonsAsync(
         IReadOnlyDictionary<ConcernId, PlannerNote> reasons,
+        IReadOnlyList<FamilyProgress> families,
         CancellationToken cancellationToken
-    ) => Task.Run(() => RecordPlannerReasons(reasons, cancellationToken), cancellationToken);
+    ) => Task.Run(() => RecordPlannerReasons(reasons, families, cancellationToken), cancellationToken);
 }
+
+/// <summary>
+/// One family run's Need progress (#3231 decision 18): the family, whether the run derived every Need of the family
+/// (then a Need it did not report is gone and its row is pruned), and each reported Need.
+/// </summary>
+public sealed record FamilyProgress(string Family, bool Complete, IReadOnlyList<NeedProgress> Needs);
+
+/// <summary>Where one reported Need stands on its progress row: met (no row), the note its verdict files, and the Method it works (empty when none).</summary>
+public readonly record struct NeedProgress(NeedId Need, bool Met, PlannerNote Note, MethodId Method);

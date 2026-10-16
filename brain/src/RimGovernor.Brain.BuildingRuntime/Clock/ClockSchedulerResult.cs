@@ -43,8 +43,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsArmoryResult? Armory { get; set; }
 
-    public RoundsClearanceResult? Clearance { get; set; }
-
     public RoundsBuildingResult? Sleeping { get; set; }
 
     public RoundsBuildingResult? Cooking { get; set; }
@@ -80,8 +78,6 @@ public sealed class ClockSchedulerResult
     public RoundsRescueResult? Rescue { get; set; }
 
     public RoundsEquipResult? Equip { get; set; }
-
-    public RoundsRepairResult? Repair { get; set; }
 
     public RoundsGearResult? Gear { get; set; }
 
@@ -186,7 +182,6 @@ public sealed class ClockSchedulerResult
         GeneBank = other.GeneBank ?? GeneBank;
         Ledger = other.Ledger ?? Ledger;
         Armory = other.Armory ?? Armory;
-        Clearance = other.Clearance ?? Clearance;
         Sleeping = other.Sleeping ?? Sleeping;
         Cooking = other.Cooking ?? Cooking;
         Comfort = other.Comfort ?? Comfort;
@@ -205,7 +200,6 @@ public sealed class ClockSchedulerResult
         Tend = other.Tend ?? Tend;
         Rescue = other.Rescue ?? Rescue;
         Equip = other.Equip ?? Equip;
-        Repair = other.Repair ?? Repair;
         Gear = other.Gear ?? Gear;
         Medical = other.Medical ?? Medical;
         Surgery = other.Surgery ?? Surgery;

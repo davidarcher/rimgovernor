@@ -106,6 +106,9 @@ public sealed partial class Rounder
     /// <summary>Draws the layout plan as a native overlay; the overlay fields record the last draw.</summary>
     internal bool LayoutOverlay;
 
+    /// <summary>Whether the review reads the clearance census (RoundsCapabilities.ClearanceCensus).</summary>
+    internal bool ClearanceCensus;
+
     internal string OverlayKey = "";
     internal Tick OverlayDrawn;
     internal bool OverlayCleared;
@@ -243,6 +246,7 @@ public sealed partial class Rounder
         var methods = Unknown<EquatableArray<ConcernId>>();
         var reviewerOverlay = false;
         IActionsWriter? undraftWriter = null;
+        var clearanceCensus = false;
         if (capabilities.Length > 1)
         {
             throw new ControlException("NewRounder: len(capabilities) > 1");
@@ -251,6 +255,7 @@ public sealed partial class Rounder
         {
             reviewerOverlay = capabilities[0].LayoutOverlay;
             undraftWriter = capabilities[0].Undraft;
+            clearanceCensus = capabilities[0].ClearanceCensus;
             methods = Known<EquatableArray<ConcernId>>([.. capabilities[0].Methods]);
             PolicyApi.InspectRounds(new RoundsFacts { AvailableMethods = methods }, new RoundsLatches(), thresholds);
         }
@@ -262,6 +267,7 @@ public sealed partial class Rounder
         MaxAge = maxAge;
         LayoutOverlay = reviewerOverlay;
         Undraft = undraftWriter;
+        ClearanceCensus = clearanceCensus;
     }
 
     public async Task<RoundsResult> StepAsync(CancellationToken ct)
@@ -637,7 +643,7 @@ public sealed partial class Rounder
         }
         // Manual cancels ctx before waiting for this gate, then invalidates any completed review before
         // returning. Never hold the local stop mutex for SQL.
-        if (MethodEnabled(PolicyApi.ClearHomeObstructions))
+        if (ClearanceCensus)
         {
             if (Native is not IClearanceSource clearanceSource)
             {
@@ -736,6 +742,12 @@ public sealed record RoundsCapabilities
 
     /// <summary>Draws the layout plan as a native overlay layer (serve --layout-overlay).</summary>
     public bool LayoutOverlay { get; init; }
+
+    /// <summary>
+    /// Reads the clearance census each review (#3253): the recovery queue, the room obstructions and the retired
+    /// ground drop rest on it. Set when the home-upkeep family runs clearance.
+    /// </summary>
+    public bool ClearanceCensus { get; init; }
 
     /// <summary>Sends the undraft sweep's Draft intents; null never undrafts.</summary>
     public IActionsWriter? Undraft { get; init; }

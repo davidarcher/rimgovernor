@@ -2266,7 +2266,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
             Food = e.Bool("Food"),
             Cold = e.Bool("Cold"),
             Hot = e.Bool("Hot"),
-            Upkeep = e.Get<UpkeepHistory>("Upkeep", o),
             Dash = e.Get<DashWindow>("Dash", o),
             Housing = e.Get<Phase>("Housing", o),
             Comfort = e.Get<Phase>("Comfort", o),
@@ -2288,7 +2287,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         w.WriteBoolean("Food", v.Food);
         w.WriteBoolean("Cold", v.Cold);
         w.WriteBoolean("Hot", v.Hot);
-        w.Put("Upkeep", v.Upkeep, o);
         w.Put("Dash", v.Dash, o);
         w.Put("Housing", v.Housing, o);
         w.Put("Comfort", v.Comfort, o);
@@ -2607,22 +2605,6 @@ internal sealed class TransitionConverter : ObjectCodec<Transition>
         {
             w.Put("Refusal", vRefusal, o);
         }
-    }
-}
-
-internal sealed class UpkeepHistoryConverter : ObjectCodec<UpkeepHistory>
-{
-    protected override UpkeepHistory Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Clearance = e.Bool("Clearance"),
-            Repairs = e.Bool("Repairs"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, UpkeepHistory v, Codecs o)
-    {
-        w.WriteBoolean("Clearance", v.Clearance);
-        w.WriteBoolean("Repairs", v.Repairs);
     }
 }
 

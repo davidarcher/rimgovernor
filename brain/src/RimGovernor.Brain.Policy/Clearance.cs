@@ -90,9 +90,6 @@ public sealed record ClearanceCensus
 
 public static partial class PolicyFunctions
 {
-    /// <summary>A Standard whose target is no outstanding work (#1024): no obstruction left standing on home ground.</summary>
-    public static readonly ConcernId ClearHomeObstructions = new("ClearHomeObstructions");
-
     /// <summary>
     /// The census row's own native verdict, wherever it stands: empty when nothing about the thing itself
     /// refuses its removal.

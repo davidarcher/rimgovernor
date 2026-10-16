@@ -8,8 +8,6 @@ public sealed partial class Store
     /// <summary>The upkeep goals whose unresolved effects still count as an issued obligation.</summary>
     private static readonly ConcernId[] UpkeepIssuedConcerns =
     [
-        PolicyFunctions.ClearHomeObstructions,
-        PolicyFunctions.MaintainEssentialRepairs,
         PolicyFunctions.MaintainMedicalReserves,
         PolicyFunctions.MaintainAnimalContainment,
         PolicyFunctions.MaintainHousing,

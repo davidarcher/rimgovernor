@@ -261,6 +261,11 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             return SampleIncident(review, need, sample, ct);
         }
 
+        if (new NeedId(need.Value) is { IsValid: true } needId)
+        {
+            return SampleNeed(review, needId, sample, ct);
+        }
+
         if (BoundStandard(review, need) is not { } standard)
         {
             sample["concern_bound"] = false;
@@ -309,6 +314,28 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
         }
 
         sample["retired_plans"] = retired;
+        return sample;
+    }
+
+    /// <summary>
+    /// A family Need's sample (#3253): a Need is derived, never stored, so the sample holds its owner's unretired
+    /// Methods in the review's world; it is bound once the review exists.
+    /// </summary>
+    private JsonObject SampleNeed(ReviewRecord review, NeedId need, JsonObject sample, CancellationToken ct)
+    {
+        sample["concern_bound"] = review.Revision != 0;
+        if (review.Revision == 0)
+        {
+            return sample;
+        }
+        var owner = _store.LoadNeed(need, review.Snapshot, ct);
+        sample["method_count"] = owner.Methods.Count;
+        var plans = new JsonArray();
+        foreach (var method in owner.Methods)
+        {
+            plans.Add(DescribeMethod(method.Method, method.Plan, ct));
+        }
+        sample["plans"] = plans;
         return sample;
     }
 

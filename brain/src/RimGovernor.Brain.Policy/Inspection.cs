@@ -60,8 +60,6 @@ internal static class InspectionRegistry
         new(MaintainResource, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony, FactFamily.Definitions, FactFamily.Research, FactFamily.Pawns], InspectResource),
         new(TradeWithCaravan, ConcernType.IncidentConcern, Department.Industry, [FactFamily.World, FactFamily.Colony, FactFamily.Definitions, FactFamily.Pawns], InspectTrade),
         new(EnsureDefensiveLayout, ConcernType.OnceConcern, Department.Military, [], InspectDefensiveLayout),
-        new(MaintainEssentialRepairs, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony], UpkeepInspection(MaintainEssentialRepairs, null)),
-        new(ClearHomeObstructions, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony], UpkeepInspection(ClearHomeObstructions, HoldClearance)),
         new(MaintainHomeCoverage, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony, FactFamily.World], InspectHomeCoverage),
         new(MaintainStoneShell, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony, FactFamily.Research], InspectStoneShell),
         new(MaintainMedicalReserves, ConcernType.StandardConcern, Department.Medical, [FactFamily.Pawns, FactFamily.Colony], InspectMedicalReserves),

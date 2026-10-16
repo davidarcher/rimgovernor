@@ -210,7 +210,9 @@ public sealed partial class ClockScheduler
         {
             PlannerReasons.FileReason(filings, report.Key, report.Verdict);
         }
-        if (filings.Count == 0)
+        // Each family's Needs insert, update and prune their own progress rows (#3231 decision 18).
+        var needs = wave.NeedProgress();
+        if (filings.Count == 0 && needs.Count == 0)
         {
             return;
         }
@@ -223,7 +225,7 @@ public sealed partial class ClockScheduler
         IReadOnlyDictionary<ConcernId, string> methods = new Dictionary<ConcernId, string>();
         try
         {
-            methods = (await journal.RecordPlannerReasonsAsync(notes, ct).ConfigureAwait(false)).Methods;
+            methods = (await journal.RecordPlannerReasonsAsync(notes, needs, ct).ConfigureAwait(false)).Methods;
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

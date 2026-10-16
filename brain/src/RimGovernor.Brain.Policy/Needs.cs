@@ -150,7 +150,21 @@ public sealed record Need
 /// Need yields the same MethodId, so a repeat continues the open Method), the planner's short why, and the plan
 /// built from the plan id the runtime mints (actions are conventionally <c>{plan}-{n}</c>).
 /// </summary>
-public sealed record NeedMethod(NeedId Need, MethodId Method, string Reason, Func<PlanId, PlanSpec> Plan);
+public sealed record NeedMethod(NeedId Need, MethodId Method, string Reason, Func<PlanId, PlanSpec> Plan)
+{
+    /// <summary>
+    /// Set when the family holds the ready Need instead of proposing work: nothing is committed and the runtime
+    /// files the hold as the Need's awaiting-plan reason. Build one with <see cref="Held"/>.
+    /// </summary>
+    public NeedHold? Hold { get; init; }
+
+    /// <summary>A hold for <paramref name="need"/>: a stable subject (for example <c>unsupported_forecast_repair</c>) and its detail.</summary>
+    public static NeedMethod Held(NeedId need, string subject, string detail) =>
+        new(need, default, detail, _ => throw new DomainException($"need {need} is held: {subject}")) { Hold = new NeedHold(subject, detail) };
+}
+
+/// <summary>Why a family holds a ready Need without a Method: a stable refusal subject and its detail.</summary>
+public sealed record NeedHold(string Subject, string Detail);
 
 /// <summary>Where a derived Need stands before proposing: met, unknown, waiting on a precondition, or ready for a Method.</summary>
 public enum NeedReadiness

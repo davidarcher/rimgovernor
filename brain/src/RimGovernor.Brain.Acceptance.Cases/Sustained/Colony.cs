@@ -48,7 +48,7 @@ internal static class SustainedColonyCase
         PolicyFunctions.EnsureBasicDefense.Value,
         PolicyFunctions.EnsureResearch.Value,
         PolicyFunctions.EnsureComfort.Value,
-        PolicyFunctions.MaintainEssentialRepairs.Value,
+        HomeUpkeepFamily.Repairs.Value,
     ];
 
     internal static AcceptanceCase Colony(string name, QuietMode quiet, string scope) => new()

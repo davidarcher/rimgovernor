@@ -709,7 +709,7 @@ An unreadable scan is unavailable, never sampled; the brain treats an explicit u
 native stub as an unknown fact, distinct from a complete empty census. Required
 safety booleans cannot be omitted. The observation context must match the expected
 load, map, generation and fresh tick. The read admits nothing itself;
-`ClearHomeObstructions` consumes it ([upkeep contracts](upkeep-contracts.md)).
+The `home-upkeep/clearance` Need consumes it ([upkeep contracts](upkeep-contracts.md)).
 
 Optional heat facts (visible roof-connected interior,
 independent of building ownership: measured temperatures, enclosure, colonist

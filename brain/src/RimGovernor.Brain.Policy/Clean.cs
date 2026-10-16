@@ -33,7 +33,7 @@ public sealed record CleanCandidateFacts
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// Pairs the highest-priority filth (callers pass filth already ordered the way ReviewUpkeep sorts it:
+    /// Pairs the highest-priority filth (callers pass filth already ordered:
     /// critical rooms first, then stable ID) with the lowest-ID eligible cleaner. It is a proposal only; the
     /// native preview at dispatch still owns whether the job is actually accepted.
     /// </summary>

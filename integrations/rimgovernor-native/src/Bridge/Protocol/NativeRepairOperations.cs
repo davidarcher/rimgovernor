@@ -11,7 +11,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // GiveJobIntent Repair, the bounded repair response of
-    // MaintainEssentialRepairs: an exact damaged player building, an
+    // home-upkeep/repairs: an exact damaged player building, an
     // undrafted eligible worker who can reach it at NativeOrderDanger,
     // WorkGiver_Repair's own HasJobOnThing (home area, reservable, not
     // burning, no deconstruct/uninstall designation), then the work giver's

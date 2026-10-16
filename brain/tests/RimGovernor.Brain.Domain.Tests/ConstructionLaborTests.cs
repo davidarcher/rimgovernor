@@ -26,7 +26,8 @@ public sealed class ConstructionLaborTests
     {
         Assert.True(Held(Shelter, MaintainStockpiles, ActionKind.ZoneCellEdit, ActionKind.Building));
         Assert.True(Held(Shelter, EnsureDefensiveLayout, ActionKind.CoverClearance));
-        Assert.True(Held(Shelter, ClearHomeObstructions, ActionKind.Deconstruction));
+        // A Need owner reports no Concern of its own (the home-upkeep clearance Need, #3253).
+        Assert.True(Held(Shelter, default, ActionKind.Deconstruction));
         Assert.False(Held(Standing, MaintainStockpiles, ActionKind.ZoneCellEdit, ActionKind.Building));
     }
 

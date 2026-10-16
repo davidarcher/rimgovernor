@@ -109,8 +109,22 @@ admit a Method (Admitted, Continued or Conflict on a held claim). BuildingRuntim
 `FamilyRunner<TFacts>` runs a family as a planner entry
 (`ClockPlannerCatalog.WithFamilies`, from `ClockSchedulerConfig.Families`): one
 `planner_step` row and one ledger report per Need, and a family with
-SeriousHarm reads also runs in the immediate pass on those reads only. No real
-family is wired yet; each migrating slice adds its family.
+SeriousHarm reads also runs in the immediate pass on those reads only. Each
+migrating slice adds its family (food stores, #3251, and home upkeep, #3253, are wired).
+
+**Need progress (#3231 decision 18).** A Need reaches launcher progress
+(`/api/routines`) as a row in `Rounds.Progress` keyed by `NeedId.FilingKey`; there
+is no second progress source. After each wave `PlannerWave.NeedProgress` turns
+every returned family run into a `FamilyProgress` (each Need's filed planner note
+and the Method it works, from `NeedReport.Method`), and
+`Store.RecordPlannerReasons` applies it: an unmet or unknown Need's row is
+inserted or updated (the Method label with `Open`, or with no Method the note as
+its blocker), a met Need's row is pruned, and a complete run (`FamilyRun.Complete`,
+the full pass) prunes its family's rows for Needs it no longer derives. The
+immediate pass and a run that judged nothing prune nothing. The review rebuild
+(`Store.RoundsProgress`) keeps NeedId rows as they stand. Need rows carry no
+deadline or deficit fraction: the family owns rotation through its refusal budget.
+A new family needs no progress code.
 
 **Implemented (#3279).** The shared building planner takes any work owner: Store
 `IWorkOwner` (`StandardState` or `NeedOwner`) with `OwnerMethodPlan`,
@@ -296,7 +310,8 @@ them instead of open work. Refrigeration stays a Concern until #3280.
 6. Re-key ledger declarers and bill purposes to `NeedId.FilingKey`, giving them the
    Need's standing (`PurposeReport.Need`); re-key operation labels, essential
    service owners (`ServiceTarget.ForNeed`, `NeedCoverage`), progress
-   prerequisites and work-lending (`LoadNeedIn` with `StandardOpenWork`).
+   prerequisites and work-lending (`LoadNeedIn` with `StandardOpenWork`). Launcher
+   progress rows need nothing: the family's runs file them ([Need progress](#method-journal-claim-admission)).
 7. Test the pure Need (met, unmet without hysteresis, unknown), admission and
    continuation under the Need owner, two Methods side by side, and a claim
    conflict; then update the contract docs that named the Concern.
@@ -310,7 +325,7 @@ three ways.
 | --- | --- |
 | Food stores | food-stores/storage (was MaintainFoodStorage, #3251), MaintainRefrigeration |
 | Food | EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight |
-| Home upkeep | MaintainEssentialRepairs, ClearHomeObstructions (MaintainFireSafety deleted) |
+| Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |
 | Layout | MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope, EnsureDefensiveLayout |
 | Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |

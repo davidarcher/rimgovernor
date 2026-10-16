@@ -29,7 +29,7 @@ public sealed partial class BrainComposition
         RoundsBlightPlanner? cfgBlight = null;
         RoundsBurialPlanner? cfgBurial = null;
         RoundsBuildingPlanner? cfgButcher = null;
-        RoundsClearancePlanner? cfgClearance = null;
+        var families = new List<FamilyRunner>();
         RoundsBuildingPlanner? cfgComfort = null;
         RoundsBuildingPlanner? cfgCooking = null;
         RoundsCreepJoinerPlanner? cfgCreepJoiners = null;
@@ -43,7 +43,6 @@ public sealed partial class BrainComposition
         RoundsFirebreakPlanner? cfgFirebreak = null;
         RoundsBuildingPlanner? cfgFlooring = null;
         RoundsAcquisitionPlanner? cfgFoodAcquisition = null;
-        List<FamilyRunner> families = [];
         RoundsGatheringPlanner? cfgGathering = null;
         RoundsGearPlanner? cfgGear = null;
         RoundsGeneBankPlanner? cfgGeneBank = null;
@@ -68,7 +67,6 @@ public sealed partial class BrainComposition
         RoundsPsylinkPlanner? cfgPsylink = null;
         RoundsRecoveryPlanner? cfgRecovery = null;
         RoundsBuildingPlanner? cfgRefrigeration = null;
-        RoundsRepairPlanner? cfgRepair = null;
         RoundsRescuePlanner? cfgRescue = null;
         RoundsResearchPlanner? cfgResearch = null;
         RoundsResourcePlanner? cfgResource = null;
@@ -221,13 +219,10 @@ public sealed partial class BrainComposition
         {
             cfgEquip = new RoundsEquipPlanner(reviewer);
         }
-        if (repair)
+        if (repair || clearance)
         {
-            cfgRepair = RoundsRepairPlanner.NewRoundsRepairPlanner(reviewer, client);
-        }
-        if (clearance)
-        {
-            cfgClearance = new RoundsClearancePlanner(reviewer, client);
+            // The repair and clearance toggles compose the home-upkeep family's two Needs (#3253).
+            families.Add(HomeUpkeepReader.Runner(reviewer, client, repair, clearance));
         }
         if (armory)
         {
@@ -459,13 +454,13 @@ public sealed partial class BrainComposition
             WorldReady = context.WorldReady,
             RoundsMethods = context.Session.RoundsMethodsEnabled(),
             Faults = faults,
+            Families = families,
             AnimalContainment = cfgAnimalContainment,
             Armory = cfgArmory,
             BasicComfort = cfgBasicComfort,
             Blight = cfgBlight,
             Burial = cfgBurial,
             Butcher = cfgButcher,
-            Clearance = cfgClearance,
             Comfort = cfgComfort,
             Cooking = cfgCooking,
             CreepJoiners = cfgCreepJoiners,
@@ -479,7 +474,6 @@ public sealed partial class BrainComposition
             Firebreak = cfgFirebreak,
             Flooring = cfgFlooring,
             FoodAcquisition = cfgFoodAcquisition,
-            Families = families,
             Gathering = cfgGathering,
             Gear = cfgGear,
             GeneBank = cfgGeneBank,
@@ -504,7 +498,6 @@ public sealed partial class BrainComposition
             Psylink = cfgPsylink,
             Recovery = cfgRecovery,
             Refrigeration = cfgRefrigeration,
-            Repair = cfgRepair,
             Rescue = cfgRescue,
             Research = cfgResearch,
             Resource = cfgResource,
@@ -607,12 +600,10 @@ public sealed partial class BrainComposition
         Add(sc.Comfort, EnsureComfort);
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
         Add(sc.AnimalContainment, MaintainAnimalContainment);
-        Add(sc.Repair, MaintainEssentialRepairs);
         Add(sc.Burial, MaintainBurial);
         Add(sc.Training, MaintainTraining);
         Add(sc.Envelope, MaintainClimateEnvelope);
         Add(sc.Gear, MaintainEquipment);
-        Add(sc.Clearance, ClearHomeObstructions);
         Add(sc.Blight, RemoveBlight);
         Add(sc.Recovery, RecoverDisasterServices);
         Add(sc.Husbandry, MaintainHerd);
@@ -650,6 +641,6 @@ public sealed partial class BrainComposition
         Add(sc.Trade, TradeWithCaravan);
         // The equip planner supplies EnsureBasicDefense's method capability.
         Add(sc.Equip, EnsureBasicDefense);
-        return (thresholds, new RoundsCapabilities { Methods = methods, LayoutOverlay = layoutOverlay });
+        return (thresholds, new RoundsCapabilities { Methods = methods, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance });
     }
 }

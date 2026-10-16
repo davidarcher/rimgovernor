@@ -156,6 +156,30 @@ public sealed class FoodStoresFamilyTests
     }
 
     [Fact]
+    public void TheStorageNeedReachesRoundsProgressAndIsPrunedWhenItsFamilyStopsReportingIt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        File(colony, colony.Run());
+        var row = Row(colony);
+        Assert.NotNull(row);
+        Assert.Equal(("food-reserve", true), (row.Method, row.Open));
+
+        // The review rebuild keeps the row; a complete run that no longer derives the Need prunes it.
+        colony.Journal.ReviewRounds(new() { Current = World, Tick = new(200), Enabled = true, Policy = DefaultRoundsPolicy(), Revision = colony.Journal.LoadRounds(ct).Revision,
+            Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) } }, ct);
+        Assert.Equal(row, Row(colony));
+        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [new FamilyProgress("food-stores", true, [])], ct);
+        Assert.Null(Row(colony));
+    }
+
+    private static void File(Colony colony, FamilyRun run) =>
+        colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [PlannerWave.NeedProgressOf("food-stores", run)!], TestContext.Current.CancellationToken);
+
+    private static ConcernProgress? Row(Colony colony) =>
+        colony.Journal.LoadRounds(TestContext.Current.CancellationToken).Progress.SingleOrDefault(p => p.Concern == FoodStorageNeed.FilingKey);
+
+    [Fact]
     public void TheLarderMethodIsAdmittedBesideAnOpenReservePlan()
     {
         var ct = TestContext.Current.CancellationToken;

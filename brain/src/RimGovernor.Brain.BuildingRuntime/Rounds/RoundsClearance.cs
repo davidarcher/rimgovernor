@@ -6,135 +6,117 @@ public interface IRoundsClearanceSource : IColonySource, IClearanceSource, IFiel
 {
 }
 
-public sealed class RoundsClearanceResult : IPlannerMethod
-{
-    public Verdict Verdict { get; init; }
-
-    public PlanId Plan { get; init; }
-}
-
-/// <summary>Clears the home obstructions: roof, furniture, doors, walls and floors in the way of the planned ground.</summary>
-public sealed partial class RoundsClearancePlanner
+/// <summary>
+/// The runtime half of the home-upkeep family (#3253): one colony read gives the damaged-structure census, and when
+/// clearance runs, the clearance census on the planned ground, its planned-ground work and the next clearance step
+/// (the recovery queue's batch first, then the planned-ground step, with already designated targets dropped).
+/// </summary>
+public sealed partial class HomeUpkeepReader
 {
     private readonly Rounder _reviewer;
-    internal Rounder Reviewer => _reviewer;
     private readonly IRoundsClearanceSource _native;
+    private readonly bool _repairs;
+    private readonly bool _clearance;
 
-    public RoundsClearancePlanner(Rounder reviewer, IRoundsClearanceSource native)
+    public HomeUpkeepReader(Rounder reviewer, IRoundsClearanceSource native, bool repairs, bool clearance)
     {
         if (reviewer is null || native is null)
         {
-            throw new ControlException("NewRoundsClearancePlanner: reviewer == nil || native == nil");
+            throw new ControlException("HomeUpkeepReader: reviewer == nil || native == nil");
         }
         _reviewer = reviewer;
         _native = native;
+        _repairs = repairs;
+        _clearance = clearance;
     }
 
-    internal async Task<RoundsClearanceResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    /// <summary>The family's scheduler entry: it wakes on its reads and on deconstruction, uninstall, roof and floor removal outcomes.</summary>
+    public static FamilyRunner<HomeUpkeepFacts> Runner(Rounder reviewer, IRoundsClearanceSource native, bool repairs, bool clearance)
     {
-        var p = _reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsClearanceResult { Verdict = BuildingReasonDisabled };
-        }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid)
-        {
-            throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
-        }
-        var review = p.Journal.LoadRounds(call);
-        if (!review.Enabled || !review.Snapshot.Matches(state.Snapshot))
-        {
-            return new RoundsClearanceResult { Verdict = BuildingReasonNoReview };
-        }
-        using var recorded = PlannerSnapshot.RecordPlannerStep(PolicyApi.ClearHomeObstructions, state.Snapshot, review.Tick);
-        try
-        {
-            return await StepRecordedAsync(p, state, review, call, epoch).ConfigureAwait(false);
-        }
-        finally
-        {
-            recorded.Finish();
-        }
+        var reader = new HomeUpkeepReader(reviewer, native, repairs, clearance);
+        return new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(repairs, clearance), reader.ReadAsync, Schedule);
     }
 
-    private async Task<RoundsClearanceResult> StepRecordedAsync(Player p, ControlState state, RoundsReview review, CancellationToken call, CancellationToken epoch)
+    /// <summary>An optional entry woken by the outcomes of repairs and of every clearance step kind.</summary>
+    public static FamilySchedule Schedule { get; } = new()
     {
-        var (goal, workable) = p.Journal.Workable(review, PolicyApi.ClearHomeObstructions, call);
-        if (goal is null || !workable)
+        Class = PlannerClass.Optional,
+        Kinds = [ActionKind.Repair, ActionKind.Deconstruction, ActionKind.UninstallBuilding, ActionKind.RemoveRoof, ActionKind.FloorRemoval],
+    };
+
+    internal async Task<HomeUpkeepFacts> ReadAsync(FamilyReadScope scope, CancellationToken call)
+    {
+        if (scope.Immediate)
         {
-            return new RoundsClearanceResult { Verdict = BuildingReasonNoDeficit };
+            // No SeriousHarm Needs: the immediate pass reads nothing.
+            return new HomeUpkeepFacts();
         }
-        foreach (var method in goal.Methods)
-        {
-            var plan0 = p.Journal.LoadPlan(method.Plan, call);
-            if (StorePackage.PlanOpen(plan0))
-            {
-                return new RoundsClearanceResult { Verdict = BuildingReasonExistingWork };
-            }
-        }
-        var started = _reviewer.Clock.Now();
+        var review = _reviewer.Player.Journal.LoadRounds(call);
         var identity = (await _native.IdentityAsync(call).ConfigureAwait(false)).Reply;
         var expected = ObservationApi.DecodeIdentity(identity);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
-            throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
+            throw new ControlException("home upkeep: the native boundary moved");
         }
         var colony = await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
+        var facts = new HomeUpkeepFacts();
+        if (_repairs)
+        {
+            facts = facts with { Structures = colony.Projection.Facts.Upkeep.Structures };
+        }
+        if (!_clearance)
+        {
+            return facts;
+        }
         var ground = PlannedGround(colony.Projection);
         var read = await ObservationApi.ObserveClearanceCensusOnGround(_native, expected, true, ground, call).ConfigureAwait(false);
         if (!read.TryGetValue(out var census))
         {
-            return new RoundsClearanceResult { Verdict = WaitFor(Cause.MethodUsed, "clearance_census_unknown") };
+            return facts;
         }
         var (others, player) = PolicyApi.SplitGroundRows(census.Targets);
-        var step = await RecoveryStepAsync(Boundary.Identity(state.Snapshot), review.RecoveryQueue, others, colony.Projection, call).ConfigureAwait(false);
-        var id = PlanIds.MintPlanId();
-        string prefix;
-        IReadOnlyList<DomainAction> actions;
+        var wants = _reviewer.ClearFloors(colony.Projection);
+        facts = facts with
+        {
+            Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]),
+            Ground = Known<EquatableArray<string>>([.. PlannedGroundWork(colony.Projection, player, census.Floors, wants)]),
+        };
+        var step = await RecoveryStepAsync(Boundary.Identity(scope.World), review.RecoveryQueue, others, colony.Projection, call).ConfigureAwait(false);
+        Func<PlanId, GroundStep, (string Prefix, IReadOnlyList<DomainAction> Actions)> method;
         if (step.Roof.Count > 0 || step.Targets.Count > 0)
         {
             step = PendingClearanceStep(step);
             if (step.Roof.Count + step.Targets.Count == 0)
             {
-                return new RoundsClearanceResult { Verdict = BuildingReasonExistingWork };
+                return facts;
             }
-            (prefix, actions) = RecoveryStepMethod(id, step);
+            method = RecoveryStepMethod;
         }
         else
         {
-            var (planned, ok) = PlannedGroundStep(colony.Projection, StampPacking(player, colony.Projection), census.Floors, _reviewer.ClearFloors(colony.Projection));
+            var (planned, ok) = PlannedGroundStep(colony.Projection, StampPacking(player, colony.Projection), census.Floors, wants);
             if (!ok)
             {
-                return new RoundsClearanceResult { Verdict = BuildingReasonNoDeficit };
+                return facts;
             }
             step = PendingClearanceStep(planned);
             if (step.Roof.Count + step.Targets.Count + step.Floors.Count == 0)
             {
-                return new RoundsClearanceResult { Verdict = BuildingReasonExistingWork };
+                return facts;
             }
-            (prefix, actions) = GroundStepMethod(id, step);
+            method = GroundStepMethod;
         }
-        if (actions.Any(a => a.Deconstruction is { ReplacesWithWall: true }))
-            return new RoundsClearanceResult { Verdict = AwaitingPlan("unsupported_forecast_wall_replacement",
-                "Door-to-wall labor requires shared observed worker and construction obligations.") };
-        var (verdict, admitted) = AdmitSubject(p.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
-        if (!admitted)
+        // The MethodId names the step, not the plan: the same step continues its open Method.
+        var (prefix, probe) = method(PlanIds.MintPlanId(), step);
+        var chosen = step;
+        return facts with
         {
-            return new RoundsClearanceResult { Verdict = verdict };
-        }
-        var methodId = NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode));
-        var spec = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
-        var elapsed = _reviewer.Clock.Now() - started;
-        if (p.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
-        {
-            throw new ControlException("step: p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
-        }
-        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, methodId, spec, call);
-        return new RoundsClearanceResult { Verdict = BuildingReasonAdmitted, Plan = id };
+            Candidate = new ClearanceCandidate(
+                new MethodId(prefix.EndsWith('-') ? prefix[..^1] : prefix),
+                probe.Any(a => a.Deconstruction is { ReplacesWithWall: true }),
+                id => method(id, chosen).Actions),
+        };
     }
-
 }
 
 internal static partial class BuildingRuntimePackage

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed partial class RoundsClearancePlanner
+public sealed partial class HomeUpkeepReader
 {
     internal async Task<GroundStep> RecoveryStepAsync(C.Identity identity, RecoveryQueue? queue, IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony, CancellationToken call)
     {

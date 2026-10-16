@@ -32,8 +32,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 
     public RefrigerationReview Refrigeration { get; set; } = default!;
 
-    public UpkeepReview Upkeep { get; set; } = default!;
-
     public LightingReview Lighting { get; set; } = default!;
 
     public FlooringReview Flooring { get; set; } = default!;
@@ -458,42 +456,6 @@ public static partial class PolicyFunctions
         }
         c.Assess(EnsureDefensiveLayout, recovered);
     }
-
-    /// <summary>Serves one of the direct upkeep goals: ReviewUpkeep files a need for each, and hold is the goal's extra method hold.</summary>
-    internal static Action<RoundsRun> UpkeepInspection(ConcernId id, Func<RoundsRun, bool>? hold) => c =>
-    {
-        foreach (var n in c.Upkeep.Needs)
-        {
-            if (n.Concern != id)
-            {
-                continue;
-            }
-            var recovered = Unknown<bool>();
-            var targetsKnown = false;
-            if (n.Targets.TryGetValue(out _))
-            {
-                recovered = Known(!n.Active);
-                targetsKnown = true;
-            }
-            c.Assess(id, recovered);
-            if (!Positive(recovered))
-            {
-                var g = c.Raise(id);
-                // These needs are binary, so a confirmed active deficit reports Known(1.0) rather than a partial fraction.
-                if (targetsKnown)
-                {
-                    g.Deficit = Known(1.0);
-                }
-                // Both direct upkeep goals have composed dispatch methods; hold only orders clearance behind repairs.
-                g.MethodUnavailable = hold is not null && hold(c);
-            }
-        }
-    };
-
-    /// <summary>
-    /// Clearance ranks below repairs and above direct cleaning.
-    /// </summary>
-    internal static bool HoldClearance(RoundsRun c) => c.Upkeep.History.Repairs;
 
     /// <summary>
     /// Serves a home-area facility goal: a binary need, like the upkeep goals. A confirmed deficit ranks at

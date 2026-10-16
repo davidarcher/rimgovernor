@@ -68,7 +68,6 @@ internal sealed partial class FacadeNativeClient :
     IRoundsCustodySource,
     IRoundsPsylinkSource,
     IRoundsMonumentPreviewSource,
-    IRoundsRepairSource,
     IRoundsResearchSource,
     IRoundsResourceSource,
     IResourceRunwaySource,

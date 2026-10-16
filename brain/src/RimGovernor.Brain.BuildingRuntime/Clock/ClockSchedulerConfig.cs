@@ -50,8 +50,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsArmoryPlanner? Armory { get; init; }
 
-    public RoundsClearancePlanner? Clearance { get; init; }
-
     public RoundsBuildingPlanner? Sleeping { get; init; }
 
     public RoundsBuildingPlanner? Cooking { get; init; }
@@ -87,8 +85,6 @@ public sealed class ClockSchedulerConfig
     public RoundsRescuePlanner? Rescue { get; init; }
 
     public RoundsEquipPlanner? Equip { get; init; }
-
-    public RoundsRepairPlanner? Repair { get; init; }
 
     public RoundsGearPlanner? Gear { get; init; }
 

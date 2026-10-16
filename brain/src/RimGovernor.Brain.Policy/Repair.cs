@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>
     /// Pairs the highest-priority damaged structure (callers pass structures already ordered the way
-    /// ReviewUpkeep sorts them: repair priority first, then lowest health fraction, then stable ID) with the
+    /// HomeUpkeepFamily.DamagedStructures sorts them: repair priority first, then lowest health fraction, then stable ID) with the
     /// lowest-ID eligible repairer. It is a proposal only; the native preview at dispatch still owns whether
     /// the job is actually accepted.
     /// </summary>

@@ -13,9 +13,9 @@ public sealed class HomeFireTests
     public void NoConcernOrImmediateReviewOwnsAHomeFire()
     {
         Assert.DoesNotContain(AllInspections(), i => i.Concern.Value == "MaintainFireSafety");
-        // The direct upkeep review files only repairs and clearance; a home fire raises nothing that could hold development.
-        var upkeep = ReviewUpkeep(new UpkeepObservation(), new UpkeepHistory(), null);
-        Assert.Equal([MaintainEssentialRepairs, ClearHomeObstructions], upkeep.Needs.Select(n => n.Concern));
+        // The home-upkeep family derives only repairs and clearance; a home fire raises nothing that could hold development.
+        var upkeep = new HomeUpkeepFamily().Derive(new HomeUpkeepFacts());
+        Assert.Equal([HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance], upkeep.Select(n => n.Id));
         var immediate = InspectImmediateRounds(new RoundsFacts(), new RoundsLatches(), DefaultRoundsPolicy());
         Assert.DoesNotContain(immediate.All(), a => a.Id.Value.Contains("Fire", StringComparison.Ordinal));
     }

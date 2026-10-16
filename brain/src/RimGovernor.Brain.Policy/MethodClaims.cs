@@ -21,6 +21,7 @@ public static partial class PolicyFunctions
     /// <item>dressing (apparel policy, gear replacement, equip): <c>gear/&lt;pawn&gt;</c> and the item;</item>
     /// <item>work assignments and pawn settings: <c>settings/&lt;pawn&gt;</c>;</item>
     /// <item>deconstruction and uninstalling: the cell and the thing;</item>
+    /// <item>roof removal: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);</item>
     /// <item>assignments (a bed, a throne), bed use and building claims: the thing;</item>
     /// <item>supply allow and forbid: the stack.</item>
     /// </list>
@@ -105,6 +106,8 @@ public static partial class PolicyFunctions
         else if (a.PawnSettings is { } settings) yield return "settings/" + settings.Pawn.Value;
         else if (a.Deconstruction is { } cut) { yield return CellClaimTarget(cut.Cell); yield return cut.Target; }
         else if (a.UninstallBuilding is { } uninstall) yield return CellClaimTarget(uninstall.Cell);
+        else if (a.RemoveRoof is { } roof) { foreach (var c in roof.Cells) yield return "roof/" + c.X + "/" + c.Z; }
+        else if (a.FloorRemoval is { } floor) yield return "floor/" + floor.Cell.X + "/" + floor.Cell.Z;
         else if (a.Assign is { } assign) yield return assign.Thing;
         else if (a.BedUse is { } bed) yield return bed.Thing;
         else if (a.ClaimBuilding is { } claimed) yield return claimed.Thing;

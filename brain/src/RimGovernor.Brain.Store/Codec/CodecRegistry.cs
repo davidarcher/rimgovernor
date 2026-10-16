@@ -257,7 +257,6 @@ internal static class CodecRegistry
         codecs.Register(new TradeParticipantConverter());
         codecs.Register(new TraitEffectsConverter());
         codecs.Register(new TransitionConverter());
-        codecs.Register(new UpkeepHistoryConverter());
         codecs.Register(new UseItemConverter());
         codecs.Register(new WaitDoorConverter());
         codecs.Register(new WallCellConverter());

@@ -39,10 +39,13 @@ public sealed record FamilyRun : IPlannerMethod
     public IReadOnlyList<PlanId> SeriousHarmPlans { get; init; } = [];
 
     public IReadOnlyList<FactFamily> UndeclaredReads { get; init; } = [];
+
+    /// <summary>The run derived every Need of the family (a reviewed full pass): a Need it did not report no longer exists. False for the immediate pass, which judges only SeriousHarm Needs, and for a run that judged nothing.</summary>
+    public bool Complete { get; init; }
 }
 
-/// <summary>A verdict filed under one NeedId.</summary>
-public readonly record struct NeedReport(NeedId Need, Verdict Verdict);
+/// <summary>A verdict filed under one NeedId and the Method the Need works (admitted, continued or still open; empty when none).</summary>
+public readonly record struct NeedReport(NeedId Need, Verdict Verdict, MethodId Method = default);
 
 /// <summary>What one family step runs against: the journal, the world, the pass and the fence a commit runs behind.</summary>
 internal sealed record FamilyStep
@@ -236,30 +239,51 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         }
 
         var methods = new List<FamilyMethod>();
+        var working = new Dictionary<NeedId, MethodId>();
         if (ready.Count > 0)
         {
             var readyIds = ready.Select(n => n.Id).ToHashSet();
+            var proposed = new HashSet<NeedId>();
             foreach (var candidate in _family.Propose(ready, facts.Facts))
             {
                 if (!readyIds.Contains(candidate.Need))
                 {
                     throw new ControlException($"family {_family.Id} proposed for {candidate.Need}, which is not ready");
                 }
-                var (verdict, method) = Commit(step, candidate, call);
+                var (verdict, method) = await Task.Run(() => Commit(step, candidate, call), call).ConfigureAwait(false);
                 if (method is { } committed)
                 {
                     methods.Add(committed);
+                    working.TryAdd(committed.Need, committed.Method);
                 }
-                reports[candidate.Need] = Stronger(reports[candidate.Need], verdict);
+                // The first candidate's verdict replaces the no-method default; later ones only strengthen it.
+                reports[candidate.Need] = proposed.Add(candidate.Need) ? verdict : Stronger(reports[candidate.Need], verdict);
             }
-
             if (_work is not null)
             {
                 foreach (var need in ready)
                 {
                     var (verdict, worked) = await Work(step, need, facts.Facts, call).ConfigureAwait(false);
                     methods.AddRange(worked);
+                    if (worked.Count > 0)
+                    {
+                        working[need.Id] = worked[^1].Method;
+                    }
                     reports[need.Id] = Stronger(reports[need.Id], verdict);
+                }
+            }
+
+            foreach (var need in ready.Where(n => !proposed.Contains(n.Id) && !working.ContainsKey(n.Id)))
+            {
+                // Nothing new proposed or worked while earlier Methods are still at work: the Need works them, and
+                // waits on them unless its step said something stronger than no method.
+                if (await Task.Run(() => OpenMethod(step, need.Id, call), call).ConfigureAwait(false) is { IsEmpty: false } open)
+                {
+                    working[need.Id] = open;
+                    if (reports[need.Id] == Verdict.AwaitingPlan(need.Id.Value, "no_method"))
+                    {
+                        reports[need.Id] = BuildingRuntimePackage.BuildingReasonExistingWork;
+                    }
                 }
             }
         }
@@ -274,7 +298,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             }
         }
 
-        var filed = standings.Select(s => new NeedReport(s.Need.Id, reports[s.Need.Id])).ToList();
+        var filed = standings.Select(s => new NeedReport(s.Need.Id, reports[s.Need.Id], working.GetValueOrDefault(s.Need.Id))).ToList();
         return new FamilyRun
         {
             Verdict = EntryVerdict(filed),
@@ -283,6 +307,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             Methods = methods,
             SeriousHarmPlans = seriousHarm,
             UndeclaredReads = facts.Undeclared,
+            Complete = !step.Immediate,
         };
     }
 
@@ -317,9 +342,31 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         }
     }
 
-    /// <summary>Mints the plan, fences and commits one candidate through the Need owner.</summary>
+    /// <summary>The latest Method bound to the Need that still has open work; empty when none does.</summary>
+    private static MethodId OpenMethod(FamilyStep step, NeedId need, CancellationToken call) =>
+        step.Journal.LoadNeed(need, step.World, call).Methods.LastOrDefault(m => Standard.WorkOpen(step.Journal.LoadPlan(m.Plan, call).Progress))?.Method ?? default;
+
+    /// <summary>
+    /// Files a hold, or checks the Method's refusal budget, mints the plan, fences and commits one candidate through
+    /// the Need owner. The budget runs over every earlier attempt of the MethodId, keyed by it, unless an attempt is
+    /// still open work (the commit then continues it).
+    /// </summary>
     private static (Verdict Verdict, FamilyMethod? Method) Commit(FamilyStep step, NeedMethod candidate, CancellationToken call)
     {
+        if (candidate.Hold is { } hold)
+        {
+            return (Verdict.AwaitingPlan(hold.Subject, hold.Detail), null);
+        }
+        var owner = step.Journal.LoadNeed(candidate.Need, step.World, call);
+        if (!owner.Methods.Any(m => m.Method == candidate.Method && Standard.WorkOpen(step.Journal.LoadPlan(m.Plan, call).Progress)))
+        {
+            var attempts = step.Journal.OwnerMethodHistory(owner, call).Where(m => m.Method == candidate.Method).Select(m => m.Plan).ToList();
+            var (refused, admitted) = BuildingRuntimePackage.AdmitSubject(step.Journal, candidate.Method.Value, attempts, step.World, call);
+            if (!admitted)
+            {
+                return (refused, null);
+            }
+        }
         var id = PlanIds.MintPlanId();
         var plan = candidate.Plan(id);
         if (plan.Id != id)
@@ -336,6 +383,15 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         {
             // A Safeguard vetoes routine work: the Need waits on nothing it can do.
             return (Verdict.Refuse(Cause.SharedAdmission, e.Message, ""), null);
+        }
+        catch (ConstructionLaborException)
+        {
+            // The initial shelter holds the builders: this Need waits, its siblings still run.
+            return (Verdict.AwaitingPlan("construction_labor", "initial_shelter"), null);
+        }
+        catch (ProductionMaterialException)
+        {
+            return (Verdict.AwaitingPlan("production_material", "insufficient_unknown_or_bounded"), null);
         }
         switch (commit.Outcome)
         {

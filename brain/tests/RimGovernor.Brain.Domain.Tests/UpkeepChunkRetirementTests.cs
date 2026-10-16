@@ -4,41 +4,43 @@ using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
+/// <summary>The home-upkeep clearance Need (#3253) retires on a known empty census and never on an unknown one.</summary>
 public sealed class UpkeepChunkRetirementTests
 {
+    private static Need Clearance(HomeUpkeepFacts facts) =>
+        Assert.Single(new HomeUpkeepFamily(repairs: false).Derive(facts), n => n.Id == HomeUpkeepFamily.Clearance);
+
     [Fact]
     public void KnownEmptyBuildingCensusClearsPreviousChunkOnlyDeficit()
     {
-        var result = PolicyFunctions.ReviewUpkeep(new UpkeepObservation
+        var need = Clearance(new HomeUpkeepFacts
         {
             Clearance = Fact.Known(default(EquatableArray<ClearanceTarget>)),
             Ground = Fact.Known(default(EquatableArray<string>)),
-        }, new UpkeepHistory { Clearance = true }, null);
-        var need = Assert.Single(result.Needs, n => n.Concern == PolicyFunctions.ClearHomeObstructions);
-        Assert.False(need.Active);
-        Assert.True(need.Targets.IsKnown);
-        Assert.Empty(need.Targets.Value);
+        });
+        Assert.Equal(Satisfaction.Met, need.Satisfaction);
+        Assert.Equal(0.0, need.Deficit.Value);
     }
 
     [Fact]
     public void BuildingAndPlannedGroundWorkRemainClearanceDemand()
     {
-        var result = PolicyFunctions.ReviewUpkeep(new UpkeepObservation
+        var need = Clearance(new HomeUpkeepFacts
         {
             Clearance = Fact.Known(EquatableArray.From(new[] { new ClearanceTarget { EntityId = "wall", Deconstructible = true, InHome = true } })),
             Ground = Fact.Known<EquatableArray<string>>(["floor"]),
-        }, new UpkeepHistory(), null);
-        var need = Assert.Single(result.Needs, n => n.Concern == PolicyFunctions.ClearHomeObstructions);
-        Assert.True(need.Active);
-        Assert.Equal<string>(["wall", "floor"], need.Targets.Value);
+        });
+        Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
+        Assert.Equal(2.0, need.Deficit.Value);
+        Assert.Equal<string>(["wall", "floor"], HomeUpkeepFamily.ClearanceTargets(
+            [new ClearanceTarget { EntityId = "wall", Deconstructible = true, InHome = true }], Fact.Known<EquatableArray<string>>(["floor"])));
     }
 
     [Fact]
     public void UnknownBuildingCensusCannotCertifyPriorClearanceComplete()
     {
-        var result = PolicyFunctions.ReviewUpkeep(new UpkeepObservation(), new UpkeepHistory { Clearance = true }, null);
-        var need = Assert.Single(result.Needs, n => n.Concern == PolicyFunctions.ClearHomeObstructions);
-        Assert.True(need.Active);
-        Assert.False(need.Targets.IsKnown);
+        var need = Clearance(new HomeUpkeepFacts { Ground = Fact.Known(default(EquatableArray<string>)) });
+        Assert.Equal(Satisfaction.Unknown, need.Satisfaction);
+        Assert.False(need.Deficit.IsKnown);
     }
 }

@@ -170,7 +170,7 @@ defenders' doorway, sized from defenders and turrets, no door on the raiders' ro
   Placement, spacing and conduit routing are the planner's; an unroutable turret is dropped.
   A layout without turrets re-probes once per game hour. A standing unpowered turret is a
   deficit (`unpowered`) owned by `EnsureBasicPower`'s network; damage is
-  `MaintainEssentialRepairs`'. While every tier stands the concern reports a known zero
+  the `home-upkeep/repairs` Need's. While every tier stands the concern reports a known zero
   deficit so other upkeep concerns take the free slot.
 - An observed empty barrel (`unfuelled`) is a tier deficit. With fuel in stock the concern
   issues one forced `recovery_service` refuel per step on an available Hauling-enabled
@@ -196,24 +196,31 @@ maintenance cost factor, which scales `fuelMultiplier` for a `factorByDifficulty
 
 ### Clearance
 
-`ClearHomeObstructions` (the `clearance` family) admits one non-player building inside
-Home at a time, nearest the colony center first.
+The `home-upkeep/clearance` Need (the `home-upkeep` family, #3253; composed by the
+`clearance` toggle) is met when the clearance census holds no removable non-player
+building inside Home and no planned-ground work is left; its deficit is that target
+count. Its Method is the next clearance step, keyed by the step (`deconstruct-<id>[-xN]`,
+`pack-…`, `swap-door-…`, `roof-off-…`, `ground-walls-…`, `ground-floors-…`): the same
+step continues its open Method, independent steps run side by side, and a step whose
+cells or targets overlap an open Method is refused by claim (`claim_conflict`).
 
 - A fresh clearance census must report deconstructible geometry with no roof blocker,
   ancient danger or casket. A standing deconstruct designation is no hold: the admitted
-  Deconstruction adopts it. Repairs precede clearance,
-  and shared emergency admission still wins. Removals run through the
-  recovery queue (tier 1 room obstructions first, then nearest); the roof-first batch
-  takes a roof off before its holders. Each held target and reason is a held
-  `RecoveryQueue` entry.
+  Deconstruction adopts it, and a step whose targets are all designated proposes nothing.
+  Clearance does not wait on repairs, and shared emergency admission still wins. Removals
+  run through the recovery queue (tier 1 room obstructions first, then nearest); the
+  roof-first batch takes a roof off before its holders. Each held target and reason is a
+  held `RecoveryQueue` entry. Roof removal claims `roof/x/z` and floor removal `floor/x/z`.
+- A door-to-wall swap is held as `unsupported_forecast_wall_replacement`. A refused step
+  spends the shared retry budget under its MethodId before a new attempt is admitted.
 - Useful chunk acquisition follows actual material demand through the
   [support portfolio](support-work.md#delivery-and-chunks). A store accepting chunks
   does not prove a reason to haul every chunk. Native definitions retain their
   normal haulability; forbidden items and native legality remain authoritative.
-- Unknown observations preserve the previous need. Recovery needs no eligible candidate
-  and no unresolved issued action; recurrence keeps the concern identity. Native rechecks
-  eligibility at apply; the action completes on its applied result and the census
-  decides recovery. Salvage uses ordinary hauling and does not gate the concern.
+- An unknown census leaves the Need unknown, never met, and proposes nothing. The Need
+  is derived fresh each run, so recurrence keeps its id. Native rechecks eligibility at
+  apply; the action completes on its applied result and the census decides whether the
+  Need is met. Salvage uses ordinary hauling and does not gate the Need.
 - Remote clearance considers visible abandoned buildings outside Home only when
   their observed safe route is not held and native salvage yield scores
   against unmet resource demand with storage headroom. Roof-support blockers, caskets
@@ -225,14 +232,12 @@ Home at a time, nearest the colony center first.
 
 ### Repairs, bench cleaning
 
-- `MaintainEssentialRepairs` keeps its concern identity across recovery and recurrence. Any observed target enters
-  maintenance; recovery needs no deficit and no unresolved issued action. Missing
-  evidence retains active risk; a first unavailable read is an ordinary visible blocker,
-  not an invented emergency.
+- The `home-upkeep/repairs` Need (Wellbeing; composed by the `repair` toggle) is met
+  when no player building inside Home is damaged; its deficit is the missing hit points.
+  An unknown structure census leaves it unknown. Repairs are not yet a supported forecast
+  outcome, so an unmet Need is held as `unsupported_forecast_repair` and commits nothing.
 - No concern owns fire. A home fire neither raises a need nor pauses development work;
   native firefighting answers it.
-- A pending, never-issued repair is cancelled on the next repair step, before the need
-  gate, once the concern recovered or its hold says the structure is ineligible.
 - Methods inspect at most eight targets and eight enabled, available workers per
   review; stable IDs break ties. Medicine and rot deadlines rank hauling; native medical
   beds, temperature controls and generators lead repairs, then roof holders, beds and
