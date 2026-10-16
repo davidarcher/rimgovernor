@@ -599,6 +599,11 @@ its target's fresh CAS token: `stockpile_patch` (zone or shelf), `zone_cell_edit
 create is a native zone preview and a `zone_create` method. Each is a
 `layout`/`stockpiles` clock event.
 
+**Shelves** stand inside a store's zone on free floor, never on a planned walkway (a cell a
+layout route crosses, `policy.PlannedWalkways` over `CheckRoutes`' per-cell path counts) nor
+beside a doorway; every store a shelf can hold gets candidates (`policy.ShelfCandidates`; see
+[storage](../architecture/storage.md#shelves)), and the warehouse shelf step builds them one at a time.
+
 **Waste** has no store of its own (#3232): the materials yard's `outdoor_safe_waste` preset takes rotten
 things and waste beside the items safe outside. Warehouse gear (apparel or weapons in a
 `general` zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`);

@@ -140,6 +140,12 @@ public sealed record StockpileRequest
     /// <summary>Names the zones whose shelf attempts are used up.</summary>
     public IReadOnlyDictionary<string, bool> ShelfSpent { get; init; } = new Dictionary<string, bool>();
 
+    /// <summary>The layout plan's walkways (PlannedWalkways): no shelf stands on them. Unknown while the plan is unread or its routes fail.</summary>
+    public Fact<EquatableArray<Cell>> Walkways { get; init; }
+
+    /// <summary>The stacks one Shelf holds (the catalog station's item slots); unknown without the catalog.</summary>
+    public Fact<int> ShelfStacks { get; init; }
+
     /// <summary>Whether a Shelf is buildable (researched) and the planner can place it.</summary>
     public bool ShelfAvailable { get; init; }
 
@@ -181,6 +187,9 @@ public sealed record StockpileReview
 
     /// <summary>The shelf upgrade: the next shelf for the warehouse. It ranks after every zone edit, so the planner places it only when none stands.</summary>
     public ShelfStep Shelf { get; init; } = new();
+
+    /// <summary>Every shelf site a declared store could take, with its effect in stacks (ShelfCandidates). Generation only: nothing chooses from it yet.</summary>
+    public IReadOnlyList<ShelfCandidate> ShelfCandidates { get; init; } = [];
 
     public string Reason { get; init; } = "";
 }
@@ -467,6 +476,7 @@ public static partial class PolicyFunctions
             Rooms = r.Rooms,
             Edits = edits,
             Shelf = shelf,
+            ShelfCandidates = ShelfCandidates(r),
             Active = active,
             Reason = active ? "" : "stockpiles fit their contents",
         };
@@ -474,11 +484,12 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The shelf upgrade: the next shelf for the standing warehouse (the general store) once a Shelf is
-    /// buildable. A retired store's zone and a zone whose shelf attempts are spent get none.
+    /// buildable, off the planned walkways (none while those are unknown). A retired store's zone and a zone
+    /// whose shelf attempts are spent get none.
     /// </summary>
     private static ShelfStep NextWarehouseShelf(StockpileRequest r, IReadOnlyList<StockpileZone> zones)
     {
-        if (!r.ShelfAvailable)
+        if (!r.ShelfAvailable || !r.Walkways.TryGetValue(out var walkways))
         {
             return new ShelfStep();
         }
@@ -500,6 +511,7 @@ public static partial class PolicyFunctions
         var request = new ShelfRequest
         {
             Cells = r.Cells,
+            Walkways = new HashSet<Cell>(walkways),
             Available = true,
             Zones = shelfZones,
             Shelves = [.. r.ShelfRecords.Where(s => ids.Contains(s.Zone))],

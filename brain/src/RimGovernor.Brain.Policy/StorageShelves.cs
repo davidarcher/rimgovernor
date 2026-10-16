@@ -52,7 +52,26 @@ public sealed record ShelfRequest
 
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
+    /// <summary>The planned route cells (<see cref="PolicyFunctions.PlannedWalkways"/>) no shelf may stand on.</summary>
+    public IReadOnlySet<Cell> Walkways { get; init; } = new HashSet<Cell>();
+
     public bool Available { get; init; }
+}
+
+/// <summary>
+/// One shelf a declared store could take: the zone it would stand in, the store's role, the 2x1 site and the
+/// stacks the store gains (the shelf's stacks less the floor stacks its cells give up: 6 - 2 = +4 for Core's
+/// Shelf); unknown when either count is.
+/// </summary>
+public sealed record ShelfCandidate
+{
+    public string Zone { get; init; } = "";
+
+    public string Role { get; init; } = "";
+
+    public required InteriorPiece Piece { get; init; }
+
+    public Fact<int> Stacks { get; init; }
 }
 
 // Shelves. Core's Shelf (Buildings_Furniture.xml, StorageShelfBase) is a 2x1 Building_Storage that holds
@@ -94,7 +113,7 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var pieces = ShelfSites(z.Cells, r.Cells);
+            var pieces = ShelfSites(z.Cells, r.Cells, r.Walkways);
             if (pieces.Count > 0)
             {
                 return new ShelfStep { Kind = ShelfStepKind.Build, Zone = z, Pieces = pieces };
@@ -117,12 +136,86 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Lists the 2x1 shelf placements inside a zone's cells, the wall-backed ones first. A site's cells must be
-    /// free, walkable floor away from any doorway; every shelf cell must keep a walkable zone neighbour to be
-    /// reached from; and the zone left over must stay non-empty and contiguous, since a split zone is not the
-    /// zone the planner owns.
+    /// Every shelf site of every declared, non-retired store a shelf can hold (<see cref="ShelfHolds"/>), zone
+    /// by zone (by id), each with its effect in stacks. Generation only: which to build is chosen elsewhere
+    /// (NextWarehouseShelf today). None while the planned walkways are unknown.
     /// </summary>
-    public static List<InteriorPiece> ShelfSites(IReadOnlyList<Cell> zone, IReadOnlyList<SiteCell> cells)
+    public static List<ShelfCandidate> ShelfCandidates(StockpileRequest r)
+    {
+        var output = new List<ShelfCandidate>();
+        if (!r.Walkways.TryGetValue(out var walkways))
+        {
+            return output;
+        }
+        var avoid = new HashSet<Cell>(walkways);
+        var census = new Dictionary<Cell, SiteCell>(r.Cells.Count);
+        foreach (var c in r.Cells)
+        {
+            census[c.Cell] = c;
+        }
+        foreach (var z in r.Zones.OrderBy(z => z.Id, StringComparer.Ordinal))
+        {
+            if (StoreOfZone(r.Stores, z) is not { Retired: false } store || !ShelfHolds(store.Site.Filter))
+            {
+                continue;
+            }
+            foreach (var piece in ShelfSites(z.Cells, r.Cells, avoid))
+            {
+                var (floor, _) = StorageStacks(RectCells(piece.Rect), census);
+                var stacks = r.ShelfStacks.TryGetValue(out var shelf) && floor.TryGetValue(out var given) ? Known(shelf - given) : Unknown<int>();
+                output.Add(new ShelfCandidate { Zone = z.Id, Role = store.Role, Piece = piece, Stacks = stacks });
+            }
+        }
+        return output;
+    }
+
+    // The categories a shelf's fixed storage settings exclude (Core's StorageShelfBase disallows Chunks, Plants
+    // and Buildings), with Chunks' stone child.
+    private static readonly HashSet<string> ShelfExcludedCategories = new(StringComparer.Ordinal) { "Chunks", "StoneChunks", "Plants", "Buildings" };
+
+    /// <summary>
+    /// Whether a shelf can hold some of what a store's filter allows: any preset base does (each lists items
+    /// beyond chunks, plants and buildings); a Nothing base does when it allows a thing def or a category the
+    /// shelf does not exclude. A chunk-only filter, or a store declaring no filter, gets no shelf.
+    /// </summary>
+    public static bool ShelfHolds(StockpileFilter? f)
+    {
+        if (f is null)
+        {
+            return false;
+        }
+        if (f.Base != FilterBase.Nothing)
+        {
+            return true;
+        }
+        foreach (var s in f.Allow)
+        {
+            if (s.Kind == SelectorKind.ThingDef || (s.Kind == SelectorKind.CategoryDef && !ShelfExcludedCategories.Contains(s.Name)))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// The layout plan's walkways: every cell a planned route crosses (<see cref="CheckRoutes"/>' per-cell path
+    /// counts). A shelf costs 50 to path over and is pass-through only, so none stands there. Unknown when the
+    /// plan's routes fail.
+    /// </summary>
+    public static Fact<EquatableArray<Cell>> PlannedWalkways(LayoutPlan plan)
+    {
+        var routes = CheckRoutes(plan);
+        return routes.Ok ? Known(EquatableArray.From(StockpileSorted(routes.Traffic.Keys))) : Unknown<EquatableArray<Cell>>();
+    }
+
+    /// <summary>
+    /// Lists the 2x1 shelf placements inside a zone's cells, the wall-backed ones first. A site's cells must be
+    /// free, walkable floor off the planned walkways and away from any doorway; every shelf cell must keep a
+    /// walkable zone neighbour to be reached from; and the zone left over must stay non-empty and contiguous,
+    /// since a split zone is not the zone the planner owns.
+    /// </summary>
+    public static List<InteriorPiece> ShelfSites(IReadOnlyList<Cell> zone, IReadOnlyList<SiteCell> cells, IReadOnlySet<Cell> walkways)
     {
         var @in = new HashSet<Cell>(zone);
         var site = new Dictionary<Cell, SiteCell>();
@@ -133,7 +226,7 @@ public static partial class PolicyFunctions
 
         bool Free(Cell c)
         {
-            if (!site.TryGetValue(c, out var s) || !@in.Contains(c))
+            if (!site.TryGetValue(c, out var s) || !@in.Contains(c) || walkways.Contains(c))
             {
                 return false;
             }

@@ -141,6 +141,21 @@ public sealed partial class Rounder
         return projection;
     }
 
+    /// <summary>The stacks one Shelf holds: the load catalog's Shelf station item slots; unknown without the catalog or the station.</summary>
+    private async Task<Fact<int>> ShelfStacksAsync(GenerationSnapshot snapshot, CancellationToken ct)
+    {
+        if (Native is not Observation.IDefinitionSource source)
+        {
+            return Unknown<int>();
+        }
+        var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
+        if (catalog is null || !catalog.StationCatalog().Stations.TryGetValue(ShelfDefinition, out var shelf) || shelf.Capacity.Kind != Pol.CapacityKind.Items)
+        {
+            return Unknown<int>();
+        }
+        return Known(shelf.Capacity.Slots);
+    }
+
     /// <summary>Assembles the maintenance request; the string names the fact still unread (empty when the request is whole).</summary>
     internal async Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
@@ -167,6 +182,8 @@ public sealed partial class Rounder
         var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells);
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && ShelfAvailable(projection) };
+        request = request with { Walkways = projection.LayoutPlan.TryGetValue(out var layout) ? Pol.PolicyFunctions.PlannedWalkways(layout) : Unknown<EquatableArray<Cell>>() };
+        request = request with { ShelfStacks = await ShelfStacksAsync(snapshot, ct).ConfigureAwait(false) };
         var cells = CensusByCell(projection);
         var shelfSpent = new Dictionary<string, bool>();
         var shelfRecords = new List<Pol.ShelfRecord>();

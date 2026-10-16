@@ -100,6 +100,25 @@ headroom is unknown, or when a zero-headroom row of unknown safety names the
 store. The runway work of the storage capacity options (#3227) reads it; nothing
 acts on it yet.
 
+### Shelves
+
+Every declared, non-retired store whose filter a shelf can hold is a shelf
+candidate (`policy.ShelfCandidates`, on the review as `ShelfCandidates`): the
+yard (unroofed shelves are allowed), bench ingredient stores, meal and medicine
+stores, and the warehouse zones, gear included. A shelf's fixed settings exclude
+chunks, plants and buildings, so a filter allowing only those gets none
+(`policy.ShelfHolds`; any preset base, a thing def or another category holds).
+A candidate is a 2x1 site inside the store's zone (`policy.ShelfSites`): free
+walkable floor, off the layout plan's walkways (`policy.PlannedWalkways`: every
+cell a planned route crosses, since a shelf costs 50 to path over and is
+pass-through only) and not beside a doorway, leaving the zone contiguous. Each
+reports its effect in stacks: the catalog Shelf's item slots less the floor
+stacks its cells give up (6 - 2 = +4); unknown when either count is. While the
+walkways are unknown (plan unread, or its routes fail) there is no candidate.
+Candidates are generation only. The one-at-a-time warehouse shelf
+(`NextWarehouseShelf`, one open shelf, at most a third of the footprint) still
+chooses what is built until the storage options portfolio (#3239) replaces it.
+
 ## Planned rooms
 
 Layout plans the storage rooms;
