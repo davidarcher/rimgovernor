@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -18,7 +21,8 @@ public readonly record struct StaleHunt(PlanId Plan, ActionId Action);
 /// What the military family reads (#3259). Defense: the hostiles standing, the armed and unarmed fighters and the
 /// colonist count the foothold sizes for. Pests: the pest census, the Need's own undispatched hunts whose animal
 /// left the census, the next hunt and whether an outdoor hazard holds hunting. Training: the assigned combat
-/// capability review. A section the run does not read stays unknown.
+/// capability review. Equipment: the gear census, the crafting spot owed down and the mortar shell review. A
+/// section the run does not read stays unknown.
 /// </summary>
 public sealed record MilitaryFacts
 {
@@ -52,7 +56,16 @@ public sealed record MilitaryFacts
 
     public Fact<TrainingReview> Training { get; init; }
 
-    /// <summary>The defense and training facts a review already holds; the pest section stays unread.</summary>
+    /// <summary>The colonists' gear census (loadouts, apparel policies, outfits) the equipment Need is judged on.</summary>
+    public Fact<GearObservation> Gear { get; init; }
+
+    /// <summary>A weapon bench stands beside the crafting spot that stood in for it: the spot is owed its deconstruction.</summary>
+    public Fact<bool> CraftingSpotRetireOwed { get; init; }
+
+    /// <summary>A built mortar's shell stock is below half its target (<see cref="PolicyFunctions.ShellsShort"/>).</summary>
+    public Fact<bool> ShellsShort { get; init; }
+
+    /// <summary>The defense, training and equipment facts a review already holds; the pest section stays unread.</summary>
     public static MilitaryFacts From(RoundsFacts f) => new()
     {
         Hostiles = f.Hostiles,
@@ -60,13 +73,16 @@ public sealed record MilitaryFacts
         Unarmed = f.Unarmed,
         Foothold = PolicyFunctions.FootholdCount(f),
         Training = PolicyFunctions.ReviewTraining(f),
+        Gear = f.Gear,
+        CraftingSpotRetireOwed = f.CraftingSpotRetireOwed,
+        ShellsShort = f.ShellsShort,
     };
 }
 
 /// <summary>
-/// The military family (#3259): basic defense, pest clearing and combat training. It replaced the
-/// EnsureBasicDefense, ClearPests and MaintainTraining Concerns, their inspections and the equip, pest acquisition
-/// and training planners.
+/// The military family (#3259): basic defense, pest clearing, combat training and equipment upkeep. It replaced
+/// the EnsureBasicDefense, ClearPests, MaintainTraining and MaintainEquipment Concerns, their inspections and the
+/// equip, pest acquisition, training, gear and armory planners.
 /// <list type="bullet">
 /// <item><c>military/defense</c> (Wellbeing): no hostile stands, the foothold's armed fighters are armed, and no
 /// fighting-capable colonist stands unarmed. Arming is not yet a supported forecast outcome, so an unmet Need is
@@ -76,9 +92,15 @@ public sealed record MilitaryFacts
 /// refused by its claim.</item>
 /// <item><c>military/training</c> (Development): no assigned combat-capability holder is forecast below its
 /// requirement. Its Methods are the range and ring rooms the runtime's work step builds.</item>
+/// <item><c>military/equipment</c> (Wellbeing): every colonist's loadout and apparel policy is recovered, no crafting
+/// spot is owed down beside a weapon bench and no built mortar is short of shells. Its proposed Methods are one
+/// apparel policy per pawn (claimed by <c>gear/&lt;pawn&gt;</c>, so two pawns run side by side and a second policy
+/// for one pawn is refused) and, once no policy is proposed, the outfit prune (claimed by <c>policy/Outfit</c>).
+/// The runtime's work step places or retires the crafting spot and walks the workshop ladder for replacement
+/// gear; worn-gear replacement itself is not a supported forecast outcome.</item>
 /// </list>
 /// </summary>
-public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool training = true) : IFamily<MilitaryFacts>
+public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool training = true, bool equipment = true) : IFamily<MilitaryFacts>
 {
     public const string FamilyId = "military";
 
@@ -88,18 +110,26 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
 
     public static readonly NeedId Training = NeedId.Of(FamilyId, "training");
 
+    public static readonly NeedId Equipment = NeedId.Of(FamilyId, "equipment");
+
     /// <summary>The stable refusal subject of an unmet defense Need.</summary>
     public const string UnsupportedEquipment = "unsupported_forecast_equipment";
 
+    /// <summary>The stable refusal subject of worn or missing gear no proposed Method replaces.</summary>
+    public const string UnsupportedApparelReplacement = "unsupported_forecast_apparel_replacement";
+
+    /// <summary>The most apparel policies one run proposes.</summary>
+    public const int MaxApparelPolicies = 16;
+
     public string Id => FamilyId;
 
-    public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony, FactFamily.Pawns, FactFamily.Rooms, FactFamily.Emergency, FactFamily.World];
+    public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony, FactFamily.Pawns, FactFamily.Rooms, FactFamily.Emergency, FactFamily.World, FactFamily.Research];
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
     public IReadOnlyList<Need> Derive(MilitaryFacts facts)
     {
-        var needs = new List<Need>(3);
+        var needs = new List<Need>(4);
         if (defense)
         {
             needs.Add(DefenseNeed(facts));
@@ -112,10 +142,17 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         {
             needs.Add(TrainingNeed(facts.Training));
         }
+        if (equipment)
+        {
+            needs.Add(EquipmentNeed(facts));
+        }
         return needs;
     }
 
-    /// <summary>Defense is held; pests proposes its next hunt unless hunting is held; training builds in the work step.</summary>
+    /// <summary>
+    /// Defense is held; pests proposes its next hunt unless hunting is held; equipment proposes its apparel
+    /// policies, else its outfit prune; training and the equipment buildings are the work step's.
+    /// </summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, MilitaryFacts facts)
     {
         var output = new List<NeedMethod>();
@@ -130,9 +167,120 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             {
                 output.Add(new NeedMethod(Pests, hunt.Method, "pest " + hunt.Rows[0].Definition, id => HuntPlan(id, hunt)));
             }
+            else if (need.Id == Equipment)
+            {
+                output.AddRange(EquipmentMethods(facts.Gear));
+            }
         }
         return output;
     }
+
+    /// <summary>
+    /// The equipment Need's proposals: the apparel policy each unblocked pawn's role and loadout want and it does
+    /// not hold, at most <see cref="MaxApparelPolicies"/>; with none, the prune of every outfit no pawn keeps. A
+    /// Method is named by its value alone, so the same policy continues its open Method.
+    /// </summary>
+    public static IReadOnlyList<NeedMethod> EquipmentMethods(Fact<GearObservation> gear)
+    {
+        if (!gear.TryGetValue(out var census))
+        {
+            return [];
+        }
+        var output = new List<NeedMethod>();
+        foreach (var pawn in census.Pawns)
+        {
+            if (output.Count == MaxApparelPolicies)
+            {
+                break;
+            }
+            if (pawn.Blocked || !PolicyFunctions.DesiredApparelPolicy(pawn, out var desired) || desired is not { } value)
+            {
+                continue;
+            }
+            output.Add(new NeedMethod(Equipment, ValueMethod("apparel-policy", ApparelPolicyEncoded(value)), "apparel policy",
+                id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewApparelPolicyAction(new ActionId(id.Value + "-0"), value)])));
+        }
+        if (output.Count > 0)
+        {
+            return output;
+        }
+        var drop = census.OutfitsToPrune();
+        if (drop.Count > 0)
+        {
+            var prune = new PolicyPrune(PolicyDatabase.Outfit, drop);
+            output.Add(new NeedMethod(Equipment, ValueMethod("outfit-prune", "[" + string.Join(" ", prune.Ids) + "]"), "outfit prune",
+                id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPolicyPruneAction(new ActionId(id.Value + "-0"), prune)])));
+        }
+        return output;
+    }
+
+    /// <summary>
+    /// The equipment predicate: the gear review recovered, no crafting spot owed down and no mortar short of
+    /// shells. A retire or a shell shortage is unmet whatever the gear census says; otherwise an unknown gear review
+    /// is unknown.
+    /// </summary>
+    public static Fact<bool> EquipmentMet(MilitaryFacts f)
+    {
+        if (Positive(f.CraftingSpotRetireOwed) || Positive(f.ShellsShort))
+        {
+            return Known(false);
+        }
+        return PolicyFunctions.ReviewGear(f.Gear).Recovered;
+    }
+
+    private static Need EquipmentNeed(MilitaryFacts f)
+    {
+        var gear = PolicyFunctions.ReviewGear(f.Gear);
+        var evidence = EquatableArray.From<NeedEvidence>([
+            new("gear_recovered", Flag(gear.Recovered)),
+            new("crafting_spot_retire", Flag(f.CraftingSpotRetireOwed)),
+            new("shells_short", Flag(f.ShellsShort)),
+        ]);
+        if (!EquipmentMet(f).TryGetValue(out var ok))
+        {
+            return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Evidence = evidence };
+        }
+        // The gear review's deficit while gear is short; a retire or a shell shortage alone is a whole deficit.
+        var deficit = ok ? Known(0.0) : gear.Recovered.TryGetValue(out var recovered) && !recovered ? gear.Deficit : Known(1.0);
+        return new Need { Id = Equipment, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit, Evidence = evidence };
+    }
+
+    /// <summary>
+    /// The apparel policy's JSON spec (definitions sorted), the seed of its MethodId. Doubles print shortest
+    /// round-trip over the 0..1 HP range.
+    /// </summary>
+    public static string ApparelPolicyEncoded(ApparelPolicy policy)
+    {
+        var s = policy.Spec;
+        using var buffer = new MemoryStream();
+        using (var w = new Utf8JsonWriter(buffer))
+        {
+            w.WriteStartObject();
+            w.WriteString("Pawn", s.Pawn.Value);
+            w.WriteString("Token", s.Token);
+            w.WriteString("Name", s.Name);
+            w.WriteStartArray("Definitions");
+            foreach (var d in s.Definitions)
+            {
+                w.WriteStringValue(d);
+            }
+            w.WriteEndArray();
+            w.WriteNumber("MinHP", s.MinHP);
+            w.WriteNumber("MaxHP", s.MaxHP);
+            w.WriteNumber("MinQuality", s.MinQuality);
+            w.WriteNumber("MaxQuality", s.MaxQuality);
+            w.WriteEndObject();
+        }
+        return Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length);
+    }
+
+    /// <summary>A MethodId named by its value alone: <c>&lt;prefix&gt;-&lt;hash of the value&gt;</c>.</summary>
+    private static MethodId ValueMethod(string prefix, string value) =>
+        new(prefix + "-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)).AsSpan(0, 16)));
+
+    private static bool Positive(Fact<bool> v) => v.TryGetValue(out var b) && b;
+
+    private static Fact<string> Flag(Fact<bool> v) => v.TryGetValue(out var b) ? Known(b ? "true" : "false") : default;
 
     /// <summary>
     /// The basic-defense predicate: the foothold's armed fighters (<see cref="PolicyFunctions.ArmedTarget"/>) with

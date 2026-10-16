@@ -54,7 +54,6 @@ public static partial class PolicyFunctions
         [EnsureMechCharger] = 1,
 
         // Military
-        [MaintainEquipment] = 1,
         [EnsureDefensiveLayout] = 1,
 
         // Medical

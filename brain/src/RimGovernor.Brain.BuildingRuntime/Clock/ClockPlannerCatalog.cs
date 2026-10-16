@@ -124,8 +124,6 @@ internal static class ClockPlannerCatalog
     private static readonly FactSection[] SectionsWork = [FactSection.Pawns, FactSection.Population, FactSection.Emergency, FactSection.Colony, FactSection.Buildings];
     private static readonly FactSection[] SectionsRecovery = [FactSection.Pawns, FactSection.Emergency, FactSection.Colony];
     private static readonly FactSection[] SectionsResource = [FactSection.Colony, FactSection.Bills, FactSection.Buildings, FactSection.Zones];
-    // The bills and threat sets plus the research census the armory tier is capped by.
-    private static readonly FactSection[] SectionsArmory = [FactSection.Colony, FactSection.Bills, FactSection.Pawns, FactSection.Emergency, FactSection.Research];
 
     // The sectionless families planners declare beside their sections.
     private static readonly FactFamily[] FamiliesEmergency = [FactFamily.Emergency];
@@ -229,14 +227,10 @@ internal static class ClockPlannerCatalog
             c => c.GeneBank is not null, (s, ct, e, a) => s.Config.GeneBank!.StepAsync(a, ct, e), (o, m) => o.GeneBank = m, MaintainGeneBank),
         E("workLedger", O, [ActionKind.ProductionBill, ActionKind.RemoveProductionBill], SectionsBills,
             c => c.Ledger is not null, (s, ct, e, a) => s.Config.Ledger!.StepAsync(a, ct, e), (o, m) => o.Ledger = m, MaintainWorkLedger),
-        E("armory", O, [ActionKind.Building], SectionsArmory,
-            c => c.Armory is not null, (s, ct, e, a) => s.Config.Armory!.StepAsync(a, ct, e), (o, m) => o.Armory = m),
         E("envelope", O, [ActionKind.Building, ActionKind.BuildRoof], SectionsBuilding,
             c => c.Envelope is not null, (s, ct, e, a) => s.Config.Envelope!.StepAsync(a, ct, e), (o, m) => o.Envelope = m, MaintainClimateEnvelope),
         E("moodRelief", O, [ActionKind.Ability], SectionsPawns,
             c => c.MoodRelief is not null, (s, ct, e, a) => s.Config.MoodRelief!.StepAsync(a, ct, e), (o, m) => o.MoodRelief = m),
-        E("gear", O, [ActionKind.GearReplace, ActionKind.ApparelPolicy, ActionKind.PolicyPrune], SectionsMedical,
-            c => c.Gear is not null, (s, ct, e, a) => s.Config.Gear!.StepAsync(a, ct, e), (o, m) => o.Gear = m, MaintainEquipment),
         E("recovery", C, [ActionKind.RecoveryService, ActionKind.WorkAssignment, ActionKind.Husbandry], SectionsRecovery,
             c => c.Recovery is not null, (s, ct, e, a) => s.Config.Recovery!.StepAsync(a, ct, e), (o, m) => o.Recovery = m, immediate: true),
         E("dialog", C, [ActionKind.DialogAnswer], SectionsColony,

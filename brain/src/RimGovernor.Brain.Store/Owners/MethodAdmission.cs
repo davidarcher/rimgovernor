@@ -132,12 +132,11 @@ public sealed partial class Store
             throw new ConflictException($"bill method needs a current autopilot review and at most {MaxBillPlanActions} actions");
         }
         // Bills serve the resource-target goals whose production path stages a bench and then
-        // a StockTarget bill on it, the equipment goal whose replacement is a StockTarget bill on a standing bench,
-        // the art goal's pinned sculpture bills, the mech goal's gestation bills and the surgery goal's part bills.
-        // The work ledger goal commits the round's whole reconcile plan: places and removals together.
+        // a StockTarget bill on it, the art goal's pinned sculpture bills, the mech goal's gestation bills and the
+        // surgery goal's part bills. The work ledger goal commits the round's whole reconcile plan: places and
+        // removals together.
         var bound = owner.OwnerNeed(review, out var need)
             && (need == MaintainResource
-                || need == MaintainEquipment
                 || need == MaintainArt
                 || need == MaintainMechs
                 || need == MaintainSurgery
@@ -459,96 +458,6 @@ public sealed partial class Store
     /// <summary>Replacement is observed and guarded natively by owned bill identity and unchanged settings.</summary>
     private static bool MealReplacementOpenWorkExempt(StandardState goal, PlanSpec plan) =>
         plan.Actions.Count == 1 && plan.Actions[0].ProductionBill is { Mode: BillMode.FoodTarget } bill && bill.Replaces.Length != 0;
-
-    /// <summary>Independent pawn dressing may share a review; a bill remains exclusive.</summary>
-    private static bool GearOpenWorkExempt(StoreTransaction tx, StandardState goal, PlanSpec plan)
-    {
-        var review = LoadRounds(tx);
-        if (!review.Standards.Any(b => b.Standard == goal.Standard.Id && b.Concern == MaintainEquipment))
-        {
-            return false;
-        }
-        var pawns = new HashSet<PawnId>();
-        var items = new HashSet<string>(StringComparer.Ordinal);
-
-        bool Add(PlanSpec spec)
-        {
-            foreach (var a in spec.Actions)
-            {
-                PawnId pawn;
-                if (a.GearReplace is { } gear)
-                {
-                    pawn = gear.Pawn;
-                    if (!items.Add(gear.Thing))
-                    {
-                        return false;
-                    }
-                }
-                else if (a.ApparelPolicy is { } apparel)
-                {
-                    pawn = apparel.Pawn;
-                }
-                else
-                {
-                    return false;
-                }
-                if (!pawns.Add(pawn))
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        if (!Add(plan))
-        {
-            return false;
-        }
-        // No slot limit: open work only has to stay off the pawns and items this plan touches.
-        foreach (var m in goal.Methods)
-        {
-            var p = LoadIn(tx, m.Plan);
-            if (Standard.WorkOpen(p.Progress) && !Add(p.Spec))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static bool CraftingSpotAction(DomainAction action) =>
-        action.Building is { } building
-            ? building.Definition == CraftingSpotDefinition
-            : action.Deconstruction is { } cut && cut.Definition == CraftingSpotDefinition;
-
-    /// <summary>
-    /// Lets MaintainEquipment's crafting spot (its placement in the planned workshop, its deconstruction) be
-    /// committed beside the goal's bills and dressing. A plan made only of spot actions is blocked only by an open
-    /// spot action.
-    /// </summary>
-    private static bool CraftingSpotOpenWorkExempt(StoreTransaction tx, StandardState goal, PlanSpec plan)
-    {
-        if (plan.Actions.Count == 0 || !plan.Actions.All(CraftingSpotAction))
-        {
-            return false;
-        }
-        var review = LoadRounds(tx);
-        if (!review.Standards.Any(b => b.Standard == goal.Standard.Id && b.Concern == MaintainEquipment))
-        {
-            return false;
-        }
-        foreach (var m in goal.Methods)
-        {
-            foreach (var progress in LoadIn(tx, m.Plan).Progress)
-            {
-                if (CraftingSpotAction(progress.Action) && Standard.WorkOpen([progress]))
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
 
     private static readonly HashSet<string> ShelterBunkMethods = new HashSet<string>(StringComparer.Ordinal)
     {

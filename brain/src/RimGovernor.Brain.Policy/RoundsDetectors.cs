@@ -229,40 +229,6 @@ public static partial class PolicyFunctions
         c.Assess(EnsureComfort, recovered);
     }
 
-    internal static void InspectEquipment(RoundsRun c)
-    {
-        var f = c.F;
-        var gear = ReviewGear(f.Gear);
-        foreach (var l in gear.Loadouts)
-        {
-            if (l.SearchBudgetExhausted)
-            {
-                c.R.GearBudgetPawns.Add(l.Pawn);
-            }
-        }
-        // A crafting spot beside the weapon bench it stood in for keeps the goal open for its deconstruction.
-        var retire = Positive(f.CraftingSpotRetireOwed);
-        if (!Positive(gear.Recovered) || retire)
-        {
-            var g = c.Raise(MaintainEquipment);
-            g.Deficit = gear.Deficit;
-            if (retire && Positive(gear.Recovered))
-            {
-                g.Deficit = Known(1.0);
-            }
-        }
-        var equipped = gear.Recovered;
-        if (retire)
-        {
-            equipped = Known(false);
-        }
-        if (f.ShellsShort.TryGetValue(out var shellsShort) && shellsShort)
-        {
-            equipped = Known(false);
-        }
-        c.Assess(MaintainEquipment, equipped);
-    }
-
     /// <summary>
     /// MaintainResource is an operator-configured target whose deficit is measured against native facts read in
     /// this review: no target configured is certain recovery, a configured target with missing facts is unknown,

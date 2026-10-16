@@ -228,7 +228,7 @@ public sealed class PrisonersFamilyTests
     /// <summary>The Need ids a thought owner may name besides a registered Concern: the migrated families' Needs.</summary>
     private static readonly NeedId[] OwnerNeeds =
     [
-        HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance, FoodStorageNeed, CookingNeed, PrisonersFamily.Recruit, PrisonersFamily.Custody,
+        HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance, FoodStorageNeed, CookingNeed, PrisonersFamily.Recruit, PrisonersFamily.Custody, MilitaryFamily.Equipment,
     ];
 
     [Fact]

@@ -31,8 +31,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsLedgerResult? Ledger { get; set; }
 
-    public RoundsArmoryResult? Armory { get; set; }
-
     public RoundsBuildingResult? Sleeping { get; set; }
 
     public RoundsBuildingResult? Comfort { get; set; }
@@ -62,8 +60,6 @@ public sealed class ClockSchedulerResult
     public RoundsTendResult? Tend { get; set; }
 
     public RoundsRescueResult? Rescue { get; set; }
-
-    public RoundsGearResult? Gear { get; set; }
 
     public RoundsMedicalResult? Medical { get; set; }
 
@@ -136,7 +132,6 @@ public sealed class ClockSchedulerResult
         MechCharger = other.MechCharger ?? MechCharger;
         GeneBank = other.GeneBank ?? GeneBank;
         Ledger = other.Ledger ?? Ledger;
-        Armory = other.Armory ?? Armory;
         Sleeping = other.Sleeping ?? Sleeping;
         Comfort = other.Comfort ?? Comfort;
         BasicComfort = other.BasicComfort ?? BasicComfort;
@@ -152,7 +147,6 @@ public sealed class ClockSchedulerResult
         Defense = other.Defense ?? Defense;
         Tend = other.Tend ?? Tend;
         Rescue = other.Rescue ?? Rescue;
-        Gear = other.Gear ?? Gear;
         Medical = other.Medical ?? Medical;
         Surgery = other.Surgery ?? Surgery;
         Recovery = other.Recovery ?? Recovery;

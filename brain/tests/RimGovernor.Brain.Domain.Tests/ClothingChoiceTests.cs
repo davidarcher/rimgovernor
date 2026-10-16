@@ -194,7 +194,7 @@ public sealed class ClothingChoiceTests
         var path = Path.Combine(Path.GetTempPath(), "rg-clothing-" + Guid.NewGuid().ToString("N") + ".db");
         BridgeFunctions.RegisterIntentKinds();
         using var journal = Journal.Open(path, ct);
-        var review = journal.ReviewRounds(new RoundsRequest
+        journal.ReviewRounds(new RoundsRequest
         {
             Current = world,
             Tick = new(100),
@@ -202,11 +202,10 @@ public sealed class ClothingChoiceTests
             Policy = DefaultRoundsPolicy(),
             Facts = Facts() with { Gear = Known(Census()) }
         }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainEquipment);
         var batch = Start(Census(), Read(Option("Cloth")), journal.WorkResources(world, ct), out _)!;
         Assert.NotNull(batch);
         var plan = new PlanSpec(new("make-clothing"), new(1), [DomainAction.NewPawnActivitiesAction(new("recipe-action"), batch)]);
-        journal.CommitMethod(owner.Standard.Id, owner.Revision, new("clothing"), plan, ct);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(MilitaryFamily.Equipment, world, new("clothing"), "", plan, ct).Outcome);
         var stored = journal.LoadPlan(plan.Id, ct).Spec.Actions[0];
         var intent = BridgeFunctions.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
         Assert.Equal("Cloth", Recipe(intent).Stuff);

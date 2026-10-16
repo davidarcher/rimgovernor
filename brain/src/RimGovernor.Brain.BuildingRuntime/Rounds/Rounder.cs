@@ -547,7 +547,8 @@ public sealed partial class Rounder
         reading.Projection.ApplyFieldBudget(Seasonal(reading.Projection.Facts).FoodTargetDays);
         // The workshop ladder's recorded research rung is the derived economy/research target; it is journal
         // evidence, not a native read, so a review costs no extra call for it.
-        var needs = RoundsResearchNeeds(p.Journal, Policy, reading.Projection.Facts.Items, state.Snapshot, ct);
+        NoteEquipment(state.Snapshot, reading.Projection.Facts);
+        var needs = RoundsResearchNeeds(p.Journal, Policy, reading.Projection.Facts.Items, state.Snapshot, EquipmentOwed(state.Snapshot), ct);
         needs = CensusResearchNeeds(needs);
         reading = reading.WithFacts(rf => rf with { ResearchNeeds = [.. needs] });
         reading = reading.WithFacts(rf => rf with { DefensiveLayoutStanding = RoundsDefensiveLayoutStanding(p.Journal, Policy, state.Snapshot, ct) });
@@ -679,7 +680,10 @@ public sealed partial class Rounder
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));
         ClockEvents.Event("routine", "rounds_review", "rounds ran", [.. attrs]);
-        LogGearSearch(result.Needs.GearBudgetPawns, ct);
+        if (Needs.Contains(MilitaryFamily.Equipment))
+        {
+            LogGearSearch(PolicyApi.ReviewGear(reading.Projection.Facts.Gear).Loadouts.Where(l => l.SearchBudgetExhausted).Select(l => l.Pawn), ct);
+        }
         RecordRoundsSnapshot(state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection, ct);
         await DrawSafetyOverlayAsync(state.Snapshot, reading.Projection, reading.Emergency, ct).ConfigureAwait(false);
         await DrawStockOverlayAsync(state.Snapshot, reading.Projection, result, ct).ConfigureAwait(false);

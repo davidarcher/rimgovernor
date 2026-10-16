@@ -38,7 +38,7 @@ planning estimates, with conservative class defaults for other defs.
   (`WeaponDef.Hunts`: ranged, a plain projectile, any range, the same rule as the hunt gate). A hunter
   without one (unarmed, melee, or a flame or explosive primary) is demand like an unarmed fighter,
   returned apart from the fighters' demand because food owns that craft: while the `food/supply` Need is
-  unmet the bill serves it, otherwise it is `MaintainEquipment`'s. A hunter's
+  unmet the bill serves it, otherwise it is the `military/equipment` Need's. A hunter's
   upgrade of an adequate weapon stays an ordinary fighter's. An unarmed colonist is not a hunter until
   work assignment gives them Hunting: a hunt row held only for want of a hunter's weapon is priced by
   the food plan as a hunt candidate with the craft as upfront work and a `needs_weapon` term

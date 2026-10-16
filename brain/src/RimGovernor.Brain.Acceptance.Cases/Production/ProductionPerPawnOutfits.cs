@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>production/per-pawn-outfits</c> (Go <c>per_pawn_outfits.go</c>): MaintainEquipment puts every lab colonist on its own
+/// <c>production/per-pawn-outfits</c> (Go <c>per_pawn_outfits.go</c>): The military/equipment Need puts every lab colonist on its own
 /// outfit, labelled with its short name, then prunes every other outfit, the vanilla ones included (#1302). End-to-end signal
 /// over the ApparelPolicyIntent and PolicyPruneIntent: the filters themselves are policy/apparel_policy_test.go.
 /// </summary>
@@ -12,7 +12,7 @@ internal static class ProductionPerPawnOutfits
     internal static AcceptanceCase Case() => new()
     {
         Name = "production/per-pawn-outfits",
-        Scope = "MaintainEquipment puts every lab colonist on its own outfit, labelled with its short name, then prunes every "
+        Scope = "The military/equipment Need puts every lab colonist on its own outfit, labelled with its short name, then prunes every "
             + "other outfit, the vanilla ones included (#1302). End-to-end signal over the ApparelPolicyIntent and "
             + "PolicyPruneIntent: the filters themselves are policy/apparel_policy_test.go.",
         Start = new LabStart(),

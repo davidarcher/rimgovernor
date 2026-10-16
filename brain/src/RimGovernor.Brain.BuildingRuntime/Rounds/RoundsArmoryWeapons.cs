@@ -80,19 +80,22 @@ public sealed partial class RoundsArmoryPlanner
         return (fighters, hunters, PolicyApi.UnarmedFighters(pawns, candidates));
     }
 
-    /// <summary>Places the crafting spot through the building planner; the verdict names a missing weapon bench.</summary>
-    internal async Task<RoundsArmoryResult> PlaceCraftingSpotAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// Places or retires the crafting spot through the building planner under the equipment Need while the last
+    /// declaration wanted it; the verdict names a missing weapon bench, and nothing wanted is no deficit.
+    /// </summary>
+    internal async Task<Verdict> PlaceCraftingSpotAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
+        if (!SpotWanted())
+        {
+            return BuildingReasonNoDeficit;
+        }
         if (_spot is null)
         {
-            return new RoundsArmoryResult { Verdict = BuildingReasonNoWeaponBench };
+            return BuildingReasonNoWeaponBench;
         }
-        var result = await _spot.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-        if (result.Decision?.Admitted == true)
-        {
-            return new RoundsArmoryResult { Verdict = BuildingReasonAdmitted };
-        }
-        return new RoundsArmoryResult { Verdict = result.Verdict };
+        var result = await _spot.Copy().StepAsync(arbiter, call, epoch).ConfigureAwait(false);
+        return result.Decision?.Admitted == true ? BuildingReasonAdmitted : result.Verdict;
     }
 }
 

@@ -180,7 +180,7 @@ public sealed record GearObservation
 }
 
 /// <summary>
-/// The census MaintainEquipment is judged on. Recovered and Deficit follow the loadout model's gaps and the
+/// The census the military/equipment Need is judged on. Recovered and Deficit follow the loadout model's gaps and the
 /// outfit policy; WornOut and Uncovered are the apparel-condition census (the fraction of pawns wearing any
 /// garment at or under the tattered threshold, and the fraction with a core body-part group uncovered), known
 /// only when every pawn's worn apparel was observed.
@@ -405,7 +405,7 @@ public static partial class PolicyFunctions
     /// <summary>
     /// The definitions the census asks a bench to produce for pawns in deficit (replacement needs with no loose
     /// candidate to wear), sorted and deduplicated. Empty unless the census is known, valid and not recovered,
-    /// so the work planner enables a bench's work type exactly while MaintainEquipment is in deficit and could
+    /// so the work planner enables a bench's work type exactly while the equipment Need is unmet and could
     /// raise a bill. A pawn the loadout model refuses throws, not an empty answer.
     /// </summary>
     public static IReadOnlyList<Resource> GearReplacementNeeds(Fact<GearObservation> f)

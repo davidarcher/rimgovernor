@@ -412,8 +412,14 @@ a claim (`AdmitAcquisitionMethod`), so hunts of other animals run side by side; 
 work step cancels hunts whose animal is gone. Training (Development) is unmet
 while an assigned combat-capability holder is forecast below requirement; its
 work step builds the range and ring rooms under the Need (the review reads their
-definitions when `RoundsCapabilities.Needs` lists it). ActiveCombat,
-RestoreWorkers and MaintainEquipment are not migrated yet.
+definitions when `RoundsCapabilities.Needs` lists it). Equipment (Wellbeing)
+replaces MaintainEquipment: it is unmet while the gear review finds gear not
+recovered, a crafting spot is owed retirement or a mortar is short of shells. Each
+unblocked pawn's wanted apparel policy is its own Method claimed by `gear/<pawn>`,
+so two pawns are dressed together and a second policy for one pawn is held; the
+outfit prune claims `policy/Outfit`. Its work step stands or retires the crafting
+spot and runs the gear workshop ladder under the Need, and the gear and armory
+ledger orders file under it. ActiveCombat and RestoreWorkers are not migrated yet.
 
 **Colony admin, creep joiners (#3264).** `ManageCreepJoiners` is now the
 `admin/creep-joiners` Need (`ColonyAdmin.cs`, `AdminRounds`), a Wellbeing Need of
@@ -522,7 +528,7 @@ three ways (prisoners, joiners, anomaly).
 | Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |
 | Power | EnsureBasicPower |
 | Medical | CriticalMedicine, MaintainMedicalReserves, MaintainSurgery |
-| Military | `military`: Needs `defense`, `pests`, `training` (#3259); ActiveCombat, RestoreWorkers, MaintainEquipment |
+| Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259); ActiveCombat, RestoreWorkers |
 | Animals | `animals`: Needs `herd`, `containment`, `ward`, `sterilize` (#3260) |
 | Ideology | `ideology`: Needs `roles`, `rituals`, `reform` (#3260) |
 | Biotech | MaintainMechs, EnsureMechCharger, MaintainGeneBank, ManagePollution |

@@ -38,8 +38,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsLedgerPlanner? Ledger { get; init; }
 
-    public RoundsArmoryPlanner? Armory { get; init; }
-
     public RoundsBuildingPlanner? Sleeping { get; init; }
 
     public RoundsBuildingPlanner? Comfort { get; init; }
@@ -69,8 +67,6 @@ public sealed class ClockSchedulerConfig
     public RoundsTendPlanner? Tend { get; init; }
 
     public RoundsRescuePlanner? Rescue { get; init; }
-
-    public RoundsGearPlanner? Gear { get; init; }
 
     public RoundsMedicalPlanner? Medical { get; init; }
 

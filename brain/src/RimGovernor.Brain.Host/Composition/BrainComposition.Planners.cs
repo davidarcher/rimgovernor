@@ -38,7 +38,6 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? cfgFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
         RoundsGatheringPlanner? cfgGathering = null;
-        RoundsGearPlanner? cfgGear = null;
         RoundsGeneBankPlanner? cfgGeneBank = null;
         RoundsHomeCoveragePlanner? cfgHomeCoverage = null;
         RoundsHospitalPlanner? cfgHospital = null;
@@ -198,20 +197,26 @@ public sealed partial class BrainComposition
         {
             cfgRescue = RoundsRescuePlanner.NewRoundsRescuePlanner(reviewer, client);
         }
-        if (equip || acquisition || training)
+        if (armory)
         {
-            // The equip, acquisition and training toggles compose the military family's defense, pests and training Needs (#3259).
-            families.Add(new MilitaryRounds(reviewer, equip, acquisition, training).Runner());
+            cfgArmory = new RoundsArmoryPlanner(reviewer, client);
+            reviewer.AddOrderDeclarer(new RoundsArmoryDeclarer(cfgArmory));
+        }
+        if (gear)
+        {
+            reviewer.AddOrderDeclarer(new RoundsGearDeclarer());
+        }
+        if (equip || acquisition || training || gear)
+        {
+            // The equip, acquisition, training and gear toggles compose the military family's defense, pests, training
+            // and equipment Needs (#3259); the equipment Need places the armory's crafting spot and walks the
+            // workshop ladder for replacement gear.
+            families.Add(new MilitaryRounds(reviewer, equip, acquisition, training, gear, gear ? cfgArmory : null, gear && workshop).Runner());
         }
         if (repair || clearance)
         {
             // The repair and clearance toggles compose the home-upkeep family's two Needs (#3253).
             families.Add(HomeUpkeepReader.Runner(reviewer, client, repair, clearance));
-        }
-        if (armory)
-        {
-            cfgArmory = new RoundsArmoryPlanner(reviewer, client);
-            reviewer.AddOrderDeclarer(new RoundsArmoryDeclarer(cfgArmory));
         }
         if (envelope)
         {
@@ -220,11 +225,6 @@ public sealed partial class BrainComposition
         if (moodRelief)
         {
             cfgMoodRelief = RoundsMoodReliefPlanner.NewRoundsMoodReliefPlanner(reviewer);
-        }
-        if (gear)
-        {
-            cfgGear = RoundsGearPlanner.NewRoundsGearPlanner(reviewer, client);
-            reviewer.AddOrderDeclarer(new RoundsGearDeclarer());
         }
         if (medical)
         {
@@ -426,7 +426,6 @@ public sealed partial class BrainComposition
             RoundsMethods = context.Session.RoundsMethodsEnabled(),
             Faults = faults,
             Families = families,
-            Armory = cfgArmory,
             BasicComfort = cfgBasicComfort,
             Comfort = cfgComfort,
             Defense = cfgDefense,
@@ -438,7 +437,6 @@ public sealed partial class BrainComposition
             Firebreak = cfgFirebreak,
             Flooring = cfgFlooring,
             Gathering = cfgGathering,
-            Gear = cfgGear,
             GeneBank = cfgGeneBank,
             HomeCoverage = cfgHomeCoverage,
             Hospital = cfgHospital,
@@ -548,7 +546,6 @@ public sealed partial class BrainComposition
         Add(sc.Comfort, EnsureComfort);
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
         Add(sc.Envelope, MaintainClimateEnvelope);
-        Add(sc.Gear, MaintainEquipment);
         Add(sc.Recovery, RecoverDisasterServices);
         Add(sc.Pollution, ManagePollution);
         Add(sc.MechCharger, EnsureMechCharger);
@@ -574,7 +571,7 @@ public sealed partial class BrainComposition
         Add(sc.Medical, MaintainMedicalReserves, MaintainSurgery);
         Add(sc.Trade, TradeWithCaravan);
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
-        // food supply's plan, fields and butchery, cooking's kitchen and meal review.
+        // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census.
         var needs = new List<NeedId>();
         if (sc.Refrigeration)
         {
@@ -583,6 +580,10 @@ public sealed partial class BrainComposition
         if (sc.Training)
         {
             needs.Add(MilitaryFamily.Training);
+        }
+        if (sc.Gear)
+        {
+            needs.Add(MilitaryFamily.Equipment);
         }
         if (sc.Acquisition || sc.Field || sc.Bill)
         {

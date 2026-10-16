@@ -80,7 +80,7 @@ need method remains, the proposal is the explicit `unowned_thought_pressure` blo
 naming the largest instead of `no_measured_correctable_need`; measured relief runs
 first. Social memories are unowned in this sense but stay native relief and recovery
 evidence. The apparel thoughts `ApparelDamaged` (ratty and tattered), `DeadMansApparel`
-(tainted) and `WrongApparelGender` are owned by `MaintainEquipment`: its levers already
+(tainted) and `WrongApparelGender` are owned by the `military/equipment` Need: its levers already
 exist (the outfit excludes tainted gear, floors hit points at `apparelMinHP`, offers only
 gender-correct definitions, and `ClothingRunway` replaces garments before they tatter),
 so dominant apparel pressure raises that concern's deficit and adds no new action.

@@ -230,10 +230,10 @@ internal static partial class BuildingRuntimePackage
     /// <summary>
     /// The set of definitions RoundsDeficitWork covers benches for: the operator's resource targets while
     /// MaintainResource is in deficit, and the replacement needs the equipment census reports (a shirt for a
-    /// tattered or missing layer) while MaintainEquipment is in deficit. The gear planner previews its bill
+    /// tattered or missing layer) while the military/equipment Need is unmet. The gear batch previews its bill
     /// against native admission, which refuses a bench nobody works, so the tailoring work type must be enabled
     /// before the bill is proposed, exactly as a resource deficit's bench work is. An unknown census
-    /// contributes nothing: the equipment goal is not in deficit then.
+    /// contributes nothing: the equipment Need is not unmet then.
     /// </summary>
     internal static Dictionary<Pol.Resource, long> RoundsDeficitTargets(IReadOnlyDictionary<Pol.Resource, long> resources, bool resourceDeficit, Fact<Pol.GearObservation> gear)
     {
@@ -290,34 +290,19 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>
     /// The research the workshop ladder recorded as gating a bench for a still-targeted resource or active
-    /// equipment deficit: the economy/research Need's target.
+    /// equipment deficit: the economy/research Need's target. An equipment rung is owed only while the last review
+    /// in <paramref name="snapshot"/>'s world found the military/equipment Need unmet (<paramref name="equipmentOwed"/>).
     /// </summary>
-    internal static IReadOnlyList<string> RoundsResearchNeeds(StoreJournal journal, Pol.RoundsPolicy p, Pol.ItemFacts items, GenerationSnapshot snapshot, CancellationToken ct)
+    internal static IReadOnlyList<string> RoundsResearchNeeds(StoreJournal journal, Pol.RoundsPolicy p, Pol.ItemFacts items, GenerationSnapshot snapshot, bool equipmentOwed, CancellationToken ct)
     {
         var ladder = journal.LoadProductionLadder(new Sto.World(snapshot.Colony, snapshot.Load, snapshot.Map), ct);
         if (ladder is null)
         {
             return [];
         }
-        if (ladder.Concern == MaintainEquipment)
+        if (ladder.Concern == MilitaryFamily.Equipment.FilingKey)
         {
-            var review = journal.LoadRounds(ct);
-            if (!review.Enabled || !review.Snapshot.Matches(snapshot))
-            {
-                return [];
-            }
-            foreach (var binding in review.Standards)
-            {
-                if (binding.Concern == MaintainEquipment)
-                {
-                    var goal = journal.LoadStandard(binding.Standard, ct);
-                    if (goal.Standard.Status == StandardStatus.Open && goal.Standard.Finding == Finding.Unmet)
-                    {
-                        return ladder.Research;
-                    }
-                }
-            }
-            return [];
+            return equipmentOwed ? ladder.Research : [];
         }
         return ladder.Research;
     }

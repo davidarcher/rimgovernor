@@ -127,7 +127,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (1, new MethodId("comfort-" + Definition), default);
         }
-        if (c == PolicyApi.MaintainResource || c == PolicyApi.MaintainEquipment)
+        if (c == PolicyApi.MaintainResource || c == MilitaryFamily.Equipment.FilingKey)
         {
             if (CraftingSpot)
             {
@@ -245,7 +245,7 @@ public sealed partial class RoundsBuildingPlanner
 
     internal bool ButcherFacility() => Concern == PolicyApi.FoodSupplyNeed.FilingKey;
 
-    internal bool WorkshopLadder() => (Concern == PolicyApi.MaintainResource || Concern == PolicyApi.MaintainEquipment) && !CraftingSpot;
+    internal bool WorkshopLadder() => (Concern == PolicyApi.MaintainResource || GearLadder()) && !CraftingSpot;
 }
 
 internal static partial class BuildingRuntimePackage

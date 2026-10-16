@@ -38,7 +38,7 @@ public sealed partial class RoundsBuildingPlanner
     /// </summary>
     internal NeedId Need { get; set; }
 
-    /// <summary>MaintainEquipment's stand-in planner: the spot goes in the planned workshop and leaves when a weapon bench stands.</summary>
+    /// <summary>The military/equipment Need's stand-in planner: the spot goes in the planned workshop and leaves when a weapon bench stands.</summary>
     internal bool CraftingSpot { get; set; }
 
     internal string Definition { get; set; } = "";

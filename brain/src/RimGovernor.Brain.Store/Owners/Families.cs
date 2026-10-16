@@ -268,7 +268,7 @@ public sealed record ProductionLadderRecord
     public void Validate()
     {
         World.Validate();
-        DomainException.Require(Concern.Value.Length == 0 || Concern == PolicyFunctions.MaintainEquipment || Concern == PolicyFunctions.MaintainResource, "invalid production ladder standard");
+        DomainException.Require(Concern.Value.Length == 0 || Concern == MilitaryFamily.Equipment.FilingKey || Concern == PolicyFunctions.MaintainResource, "invalid production ladder standard");
         DomainException.Require(
             Tick.Value >= 0 && Families.ValidIdentity(Resource.Value) && (Bench.Length == 0 || Families.ValidIdentity(Bench)) && (Recipe.Length == 0 || Families.ValidIdentity(Recipe)) && Research.Count <= 256,
             "invalid production ladder record"

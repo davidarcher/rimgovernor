@@ -2,8 +2,8 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md) · [Apparel policy operation](apparel-policy.md) · [Weapon planner](weapon-planner.md)
 
-`MaintainEquipment` is a maintained development concern in the shared ColonyPlan.
-Emergencies suspend it. Hands issues its actions; neither the native read nor an
+The `military/equipment` Need (#3259, formerly the `MaintainEquipment` concern) keeps
+gear in the shared ColonyPlan. Hands issues its actions; neither the native read nor an
 adviser independently starts work. Missing observations remain unknown. Selected ordinary tailoring and construction activities are scheduled by policy; bounded Methods
 and pawn/item claims prevent duplicate work. The [pawn profile](work-assignment.md#pawn-profile) exports the
 per-pawn apparel and weapon flags (Nudist, Ascetic, Brawler's `MeleeOnly`) the
@@ -242,7 +242,7 @@ weapon demand joins after colony-wide loose-weapon assignment. Each review admit
 at most one bill and up to sixteen independent pawn orders;
 pawn and item identities cannot be claimed twice by open dressing methods.
 
-When a colonist is unarmed and no bench hosts a weapon recipe, `MaintainEquipment` stands a
+When a colonist is unarmed and no bench hosts a weapon recipe, the equipment Need stands a
 free `CraftingSpot` in the planned shelter's template slot while a shelter is planned, and in the
 planned workshop once it has left the plan (the workshop's plan interior, built or not; with none
 planned the step waits on `workshop_room`). Once another usable bench hosts a weapon recipe the
@@ -257,7 +257,7 @@ stockpile space before the standing stock bill. Spares default to disabled.
 
 ## Live clothing requirement selection
 
-Ordinary textile/leather garments use the normal `MaintainEquipment` review,
+Ordinary textile/leather garments use the normal equipment Need review,
 normal shared candidate generation, ColonyForecast comparison, Method journal and Hands.
 The equipment loadout model owns demand. Generation reads every eligible
 `GearLoadoutInput.Options` garment/stuff option, not only the loadout winner's

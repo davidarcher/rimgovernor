@@ -24,7 +24,7 @@ AnyBodyPartCovered_Disapproved_Male	situational		partial	1	4	2	external-type
 AnyBodyPartCovered_Disapproved_Memory	memory		unknown	0	0	0	no-code-or-xml-reference
 AnyBodyPartCovered_Disapproved_Social_Female	situational		partial	1	4	2	external-type
 AnyBodyPartCovered_Disapproved_Social_Male	situational		partial	1	4	2	external-type
-ApparelDamaged	situational	MaintainEquipment	partial	2	6	4	indexer
+ApparelDamaged	situational	military/equipment	partial	2	6	4	indexer
 ArtifactMoodBoost	memory		resolved	1	3	0	
 Ascetic	situational		partial	3	8	3	state-expression
 AteBabyFood	memory		unknown	0	0	0	xml-granted
@@ -254,7 +254,7 @@ Darklight_Preferred_BlindingLight	situational		partial	1	4	2	external-type
 Darklight_Preferred_Darklight	situational		partial	1	4	2	external-type
 Darklight_Preferred_IndoorLight	situational		partial	1	4	2	external-type
 DarknessLifted	memory		unknown	1	0	0	conditions-in-callers
-DeadMansApparel	situational	MaintainEquipment	resolved	2	2	0	
+DeadMansApparel	situational	military/equipment	resolved	2	2	0	
 DeadlifeDust	situational		resolved	3	14	0	
 DeathPall	memory		unknown	0	0	0	xml-granted
 DeathRefusalSickness	situational		unknown	1	1	1	unsupported-syntax
@@ -917,7 +917,7 @@ WitnessedDeathBloodlust	memory		resolved	1	9	0
 WitnessedDeathFamily	memory		partial	1	10	1	external-type
 WitnessedDeathNonAlly	memory		resolved	1	11	0	
 Woman	situational		partial	6	25	5	state-expression
-WrongApparelGender	situational	MaintainEquipment	unknown	2	3	3	external-type
+WrongApparelGender	situational	military/equipment	unknown	2	3	3	external-type
 XenogermHarvested_Prisoner	memory		resolved	1	3	0	
 YayoHigh	situational		unknown	1	1	1	unsupported-syntax
 YoungstersHappy	situational		resolved	1	5	0	

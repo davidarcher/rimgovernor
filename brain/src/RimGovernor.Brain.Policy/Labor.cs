@@ -26,9 +26,6 @@ public static partial class PolicyFunctions
         Set([WorkType.Art, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MaintainTrade);
         Set([WorkType.Mining, WorkType.PlantCutting, WorkType.Crafting], MaintainResource);
 
-        // A wear order is a forced job any pawn carries; the replacement bill needs the bench's work type.
-        // Construction keeps the workshop rung available before a bench exists to request its crafting work.
-        Set([WorkType.Construction, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MaintainEquipment);
         Set([WorkType.Hauling], ManagePollution);
 
         // Vents are built over standing walls and roofs are designated for builders.

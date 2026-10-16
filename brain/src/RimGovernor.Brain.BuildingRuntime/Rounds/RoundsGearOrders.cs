@@ -18,10 +18,14 @@ internal static partial class BuildingRuntimePackage
     }
 }
 
-public sealed partial class RoundsGearPlanner
+/// <summary>
+/// The gear batches' work-ledger declarer (#2597), filed under the military/equipment Need. The apparel policies and
+/// outfit prune its planner once committed are that Need's proposals (#3259).
+/// </summary>
+public static class RoundsGearPlanner
 {
     public static Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        DeclareOrdersInner(snapshot, projection, benches, ct).For(PolicyFunctions.MaintainEquipment);
+        DeclareOrdersInner(snapshot, projection, benches, ct).For(MilitaryFamily.Equipment.FilingKey);
 
     internal static Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         PolicyFunctions.DeclareGearOrders(GearRequest(projection, benches));
@@ -30,7 +34,7 @@ public sealed partial class RoundsGearPlanner
 public sealed partial class RoundsArmoryPlanner
 {
     public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(PolicyFunctions.MaintainEquipment);
+        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(MilitaryFamily.Equipment.FilingKey);
 
     internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {

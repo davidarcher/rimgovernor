@@ -19,6 +19,7 @@ public static partial class PolicyFunctions
     /// <item>zones: their cells (<c>cell/x/z</c>, the namespace buildings use), and an existing zone by id (<c>zone/&lt;id&gt;</c>);</item>
     /// <item>area edits: the edited cells of the area (<c>area/&lt;name&gt;/x/z</c>), or the whole area for create and delete;</item>
     /// <item>dressing (apparel policy, gear replacement, equip): <c>gear/&lt;pawn&gt;</c> and the item;</item>
+    /// <item>policy prunes: the pruned database (<c>policy/&lt;database&gt;</c>);</item>
     /// <item>work assignments and pawn settings: <c>settings/&lt;pawn&gt;</c>;</item>
     /// <item>deconstruction and uninstalling: the cell and the thing;</item>
     /// <item>roof removal: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);</item>
@@ -109,6 +110,7 @@ public static partial class PolicyFunctions
         else if (a.ApparelPolicy is { } apparel) yield return "gear/" + apparel.Pawn.Value;
         else if (a.GearReplace is { } gear) { yield return "gear/" + gear.Pawn.Value; yield return gear.Thing; }
         else if (a.Equip is { } equip) { yield return "gear/" + equip.Pawn.Value; yield return equip.Thing; }
+        else if (a.PolicyPrune is { } prune) yield return "policy/" + prune.Database;
         else if (a.WorkAssignment is { } assignment) yield return "settings/" + assignment.Pawn.Value;
         else if (a.PawnSettings is { } settings) yield return "settings/" + settings.Pawn.Value;
         else if (a.Deconstruction is { } cut) { yield return CellClaimTarget(cut.Cell); yield return cut.Target; }

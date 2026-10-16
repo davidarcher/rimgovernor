@@ -5,8 +5,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>
 /// The runtime half of the military family (#3259). The read gives the defense facts (the owned census with the
 /// hostiles of its emergency read), the training review (the room census with the range and ring definitions) and
-/// the pest facts (the acquisition census, the Need's own hunts and the next hunt). The work step cancels stale pest
-/// hunts and files why no hunt was proposed, and builds the training range and ring rooms under the training Need.
+/// the pest facts (the acquisition census, the Need's own hunts and the next hunt), and the equipment facts (the
+/// gear census, the crafting spot owed down and the mortar shell review). The work step cancels stale pest hunts and
+/// files why no hunt was proposed, builds the training range and ring rooms under the training Need, and places or
+/// retires the crafting spot and walks the replacement-gear workshop ladder under the equipment Need.
 /// </summary>
 public sealed class MilitaryRounds
 {
@@ -14,35 +16,57 @@ public sealed class MilitaryRounds
     private readonly bool _defense;
     private readonly bool _pests;
     private readonly bool _training;
+    private readonly bool _equipment;
 
     // Stages the training rooms; null for a source that cannot preview buildings.
     private readonly RoundsBuildingPlanner? _building;
 
-    public MilitaryRounds(Rounder reviewer, bool defense, bool pests, bool training)
+    // The armory's crafting spot, wanted by its ledger declaration; null without the armory.
+    private readonly RoundsArmoryPlanner? _armory;
+
+    // The workshop ladder for replacement gear; null without the workshop or a workshop source.
+    private readonly RoundsBuildingPlanner? _workshop;
+
+    /// <summary>
+    /// The defense, pests and training toggles compose those Needs; <paramref name="equipment"/> composes
+    /// military/equipment, whose work step places the <paramref name="armory"/>'s crafting spot and, with
+    /// <paramref name="workshop"/>, walks the replacement-gear workshop ladder.
+    /// </summary>
+    public MilitaryRounds(Rounder reviewer, bool defense, bool pests, bool training, bool equipment = false, RoundsArmoryPlanner? armory = null, bool workshop = false)
     {
         if (reviewer is null || reviewer.Native is null)
         {
             throw new ControlException("MilitaryRounds: reviewer == nil || reviewer.native == nil");
         }
+        if (!equipment && (armory is not null || workshop))
+        {
+            throw new ControlException("MilitaryRounds: equipment work is composed without the military/equipment Need");
+        }
         _reviewer = reviewer;
         _defense = defense;
         _pests = pests;
         _training = training;
+        _equipment = equipment;
+        _armory = armory;
         if (training && reviewer.Native is IRoundsBuildingSource source)
         {
             _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source };
         }
+        if (workshop && reviewer.Native is IRoundsWorkshopSource and Observation.IRoundsSource)
+        {
+            _workshop = RoundsBuildingPlanner.NewRoundsGearWorkshopPlanner(reviewer, (IRoundsBuildingSource)reviewer.Native);
+        }
     }
 
-    /// <summary>The family's scheduler entry: it wakes on its reads and on hunt, building and equip outcomes.</summary>
+    /// <summary>The family's scheduler entry: it wakes on its reads and on hunt, building, equip and dressing outcomes.</summary>
     public FamilyRunner Runner() =>
-        new FamilyRunner<MilitaryFacts>(new MilitaryFamily(_defense, _pests, _training), ReadAsync, Schedule, WorkAsync);
+        new FamilyRunner<MilitaryFacts>(new MilitaryFamily(_defense, _pests, _training, _equipment), ReadAsync, Schedule, WorkAsync);
 
-    /// <summary>An optional entry woken by the outcomes of pest hunts, training buildings and arming.</summary>
+    /// <summary>An optional entry woken by the outcomes of pest hunts, buildings, arming, apparel policies and outfit prunes.</summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
-        Kinds = [ActionKind.Acquisition, ActionKind.Building, ActionKind.Equip],
+        Kinds = [ActionKind.Acquisition, ActionKind.Building, ActionKind.Equip, ActionKind.ApparelPolicy, ActionKind.PolicyPrune, ActionKind.Deconstruction],
     };
 
     /// <summary>The definitions the range step reads availability and stuff for: the range's own buildings.</summary>
@@ -65,13 +89,20 @@ public sealed class MilitaryRounds
             throw new ControlException("military read: the scope is another world or older than the review");
         }
         var facts = new MilitaryFacts();
-        if (_defense || _training)
+        if (_defense || _training || _equipment)
         {
             var reading = _training
                 ? await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), TrainingDefinitions, call).ConfigureAwait(false)
                 : await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), call).ConfigureAwait(false);
             var f = reading.Projection.Facts;
             var emergency = EmergencySnapshot.New(scope.World, expected.Tick, reading.Emergency);
+            if (_equipment)
+            {
+                // The crafting spot owed down and the shell review, as the review derives them.
+                var retire = await _reviewer.CraftingSpotRetireOwedAsync(scope.World, reading.Projection, call).ConfigureAwait(false);
+                var shells = await ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Projection, call).ConfigureAwait(false);
+                f = f with { CraftingSpotRetireOwed = retire, ShellsShort = PolicyApi.ShellsShort(shells, reading.Projection.Resources) };
+            }
             facts = MilitaryFacts.From(f with { Hostiles = PolicyApi.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles });
         }
         if (_pests)
@@ -134,7 +165,10 @@ public sealed class MilitaryRounds
         return facts with { Hunt = new PestHunt(new MethodId("pest-hunt-" + HashHex16(hash.ToString())), [.. selected]) };
     }
 
-    /// <summary>The work step of a ready Need: pests cancels its stale hunts and says why it proposed none; training builds its rooms.</summary>
+    /// <summary>
+    /// The work step of a ready Need: pests cancels its stale hunts and says why it proposed none; training builds
+    /// its rooms; equipment places or retires its crafting spot and walks its workshop ladder.
+    /// </summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, MilitaryFacts facts, CancellationToken call)
     {
         if (work.Need.Id == MilitaryFamily.Pests)
@@ -145,7 +179,60 @@ public sealed class MilitaryRounds
         {
             return await TrainingWorkAsync(work, call).ConfigureAwait(false);
         }
+        if (work.Need.Id == MilitaryFamily.Equipment)
+        {
+            return await EquipmentWorkAsync(work, facts, call).ConfigureAwait(false);
+        }
         return NoMethod(work.Need.Id);
+    }
+
+    /// <summary>
+    /// The equipment Need's buildings: the crafting spot its armory declaration wants, then the workshop ladder for
+    /// replacement gear, each held only by its claims and its own MethodIds. The Need reports the first admission,
+    /// else the first step that names its reason; with neither, gear still short is the unsupported replacement.
+    /// </summary>
+    private async Task<Verdict> EquipmentWorkAsync(NeedWork work, MilitaryFacts facts, CancellationToken call)
+    {
+        var verdicts = new List<Verdict>();
+        if (_armory is not null)
+        {
+            verdicts.Add(await _armory.PlaceCraftingSpotAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false));
+        }
+        if (_workshop is not null)
+        {
+            var result = await _workshop.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false);
+            verdicts.Add(result.Decision?.Admitted == true ? BuildingReasonAdmitted : result.Verdict);
+        }
+        return EquipmentVerdict(verdicts, PolicyApi.ReviewGear(facts.Gear).Recovered);
+    }
+
+    /// <summary>
+    /// The first admission among the equipment steps' verdicts, else the first that is more than nothing to do;
+    /// otherwise gear the review does not find recovered is held as the unsupported apparel replacement, and the
+    /// rest (shells, which the ledger orders) is no method.
+    /// </summary>
+    internal static Verdict EquipmentVerdict(IReadOnlyList<Verdict> verdicts, Fact<bool> gearRecovered)
+    {
+        foreach (var verdict in verdicts)
+        {
+            if (verdict == BuildingReasonAdmitted)
+            {
+                return verdict;
+            }
+        }
+        foreach (var verdict in verdicts)
+        {
+            if (verdict != BuildingReasonNoDeficit && verdict != BuildingReasonDisabled && verdict != BuildingReasonExistingFacility)
+            {
+                return verdict;
+            }
+        }
+        if (gearRecovered.TryGetValue(out var recovered) && !recovered)
+        {
+            return AwaitingPlan(MilitaryFamily.UnsupportedApparelReplacement,
+                "Observed apparel replacement demand requires shared forecast worker, timing and outcome alternatives.");
+        }
+        return NoMethod(MilitaryFamily.Equipment);
     }
 
     private Verdict PestWork(NeedWork work, MilitaryFacts facts, CancellationToken call)

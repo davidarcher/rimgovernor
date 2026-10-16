@@ -418,7 +418,7 @@ ever journaled; `attemptsKnown` false means the seed could not be read yet. No r
 
 Orphan removal covers every bill of a production recipe kind: one no plan placed (a
 player's, or placed before a restart) is an orphan like any other, and the journal
-keeps no placement record. The first migration (#2597) is `MaintainEquipment`:
+keeps no placement record. The first migration (#2597) was `MaintainEquipment` (now the `military/equipment` Need):
 `RoundsGearPlanner` declares the apparel batches and `RoundsArmoryPlanner` the
 weapon batches, armor ladder and mortar-shell stock (`policy.DeclareGearOrders`,
 `DeclareArmoryOrders`); both keep only their non-bill work (wear orders, apparel

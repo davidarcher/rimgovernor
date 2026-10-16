@@ -239,7 +239,7 @@ public sealed record RoundsFacts
     /// <summary>A stove kitchen supersedes a cooking campfire; it keeps the food/cooking Need unmet.</summary>
     public Fact<bool> CampfireRetireOwed { get; init; }
 
-    /// <summary>A weapon bench stands beside the crafting spot that stood in for it; it keeps MaintainEquipment open for the deconstruction.</summary>
+    /// <summary>A weapon bench stands beside the crafting spot that stood in for it; it keeps the military/equipment Need unmet for the deconstruction.</summary>
     public Fact<bool> CraftingSpotRetireOwed { get; init; }
 
     /// <summary>A heat campfire's auto-refuel should switch, or a sleeping room sits unheated below its sleepers' comfort minimum (TemperatureOwed); it holds EnsureTemperatureSafety open.</summary>
@@ -370,7 +370,7 @@ public sealed record RoundsFacts
     /// <summary>The void monolith's state; unknown without Anomaly.</summary>
     public Fact<MonolithFacts> Monolith { get; init; }
 
-    /// <summary>The armory shell review: a built mortar's shell stock below half its target puts MaintainEquipment in deficit.</summary>
+    /// <summary>The armory shell review: a built mortar's shell stock below half its target keeps the military/equipment Need unmet.</summary>
     public Fact<bool> ShellsShort { get; init; }
 
     /// <summary>The colonists' and powered turrets' observed combat strength in raid-point units (DefenseCapacity).</summary>
@@ -648,7 +648,7 @@ public sealed record RoundsLatches
 }
 
 /// <summary>
-/// One review's findings. Concerns, Assessments, Incidents, NoOps and GearBudgetPawns are accumulators the
+/// One review's findings. Concerns, Assessments, Incidents and NoOps are accumulators the
 /// inspections append to, so they stay lists; the Go slices share their backing arrays the same way.
 /// </summary>
 public sealed record RoundsFindings
@@ -673,9 +673,6 @@ public sealed record RoundsFindings
     /// <summary>The review's one resource-demand value (Needs are the effective MaintainResource stock targets the review held the census to; the stock overlay tints stockpiles by them).</summary>
     public DerivedDemand ResourceDemand { get; set; } = new();
     public EssentialServiceReview? EssentialServices { get; set; }
-
-    /// <summary>The pawns whose gear loadout search spent GearSearchBudget and kept the best ensemble found (journaled as gear_search).</summary>
-    public List<PawnId> GearBudgetPawns { get; set; } = [];
 
     /// <summary>Every assessment, goal needs then incident kinds.</summary>
     public List<RoundsAssessment> All() => [.. Assessments, .. Incidents];
@@ -716,7 +713,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
     public static readonly ConcernId MaintainMedicalReserves = new("MaintainMedicalReserves");
     public static readonly ConcernId EnsureComfort = new("EnsureComfort");
-    public static readonly ConcernId MaintainEquipment = new("MaintainEquipment");
     public static readonly ConcernId MaintainResource = new("MaintainResource");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     public static readonly ConcernId TradeWithCaravan = new("TradeWithCaravan");
@@ -1095,7 +1091,7 @@ public static partial class PolicyFunctions
         return Known(!(f.ButcherTableAffordable.TryGetValue(out var affordable) && affordable));
     }
 
-    /// <summary>The free, instant bench that hosts the club and short bow recipes; MaintainEquipment stands one in the planned workshop until a real weapon bench is built.</summary>
+    /// <summary>The free, instant bench that hosts the club and short bow recipes; the military/equipment Need stands one in the planned workshop until a real weapon bench is built.</summary>
     public const string CraftingSpotDefinition = "CraftingSpot";
 
     /// <summary>The free, instant butcher bench that stands in the planned butchery until the table is built.</summary>

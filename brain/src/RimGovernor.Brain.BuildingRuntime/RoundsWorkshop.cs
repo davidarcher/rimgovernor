@@ -35,25 +35,23 @@ internal sealed class WorkshopSelection
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>
-    /// Shares the facility ladder between replacement gear and resource targets. An admitted project or
-    /// research prerequisite owns this step.
+    /// The facility ladder for resource targets. Replacement gear walks the same ladder under the
+    /// military/equipment Need (<see cref="NewRoundsGearWorkshopPlanner"/>).
     /// </summary>
-    internal async Task<RoundsBuildingResult> StepWorkshopsAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> StepWorkshopsAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch) =>
+        await StepAsync(arbiter, call, epoch).ConfigureAwait(false);
+
+    /// <summary>The workshop ladder for replacement gear, owned by the military/equipment Need (#3259).</summary>
+    public static RoundsBuildingPlanner NewRoundsGearWorkshopPlanner(Rounder? reviewer, IRoundsBuildingSource? native)
     {
-        var gear = Copy();
-        gear.Concern = MaintainEquipment;
-        var result = await gear.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-        if (result.Decision?.Admitted == true || result.Verdict == BuildingReasonWorkshopResearch)
-        {
-            return result;
-        }
-        var resource = await StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-        if (resource.Verdict == BuildingReasonNoDeficit || resource.Verdict == BuildingReasonDisabled)
-        {
-            return result;
-        }
-        return resource;
+        var planner = NewRoundsWorkshopPlanner(reviewer, native);
+        planner.Concern = MilitaryFamily.Equipment.FilingKey;
+        planner.Need = MilitaryFamily.Equipment;
+        return planner;
     }
+
+    /// <summary>Whether this ladder is the equipment Need's, for replacement gear, rather than a resource target's.</summary>
+    internal bool GearLadder() => Concern == MilitaryFamily.Equipment.FilingKey;
 
     /// <summary>
     /// Stages a production bench for a resource deficit. The scheduler also runs its ladder for replacement
@@ -88,7 +86,7 @@ public sealed partial class RoundsBuildingPlanner
     /// </summary>
     internal async Task<(WorkshopSelection? Selection, Verdict Verdict)> PrepareWorkshopAsync(ControlState state, Sto.Rounds review, CancellationToken call)
     {
-        if (Concern != MaintainEquipment)
+        if (!GearLadder())
         {
             var wanted = Reviewer.ResourceTargets(state.Snapshot);
             if (wanted.Count == 0)
@@ -101,7 +99,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("prepareWorkshop: !ok");
         }
         var identity = Boundary.Identity(state.Snapshot);
-        var (reply, _) = await source.ReadColonyFactsAsync(identity, Concern == MaintainEquipment, call).ConfigureAwait(false);
+        var (reply, _) = await source.ReadColonyFactsAsync(identity, GearLadder(), call).ConfigureAwait(false);
         var observed = reply.Outcome?.Observed;
         if (observed is null)
         {
@@ -134,7 +132,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         Pol.Resource resource;
         List<Pol.Resource> products = [];
-        if (Concern == MaintainEquipment)
+        if (GearLadder())
         {
             var gear = observed.Planning?.Outcome?.Observed?.Gear;
             if (gear is null)

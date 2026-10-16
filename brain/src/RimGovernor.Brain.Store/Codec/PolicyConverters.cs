@@ -1796,8 +1796,13 @@ internal sealed class PodDoorConverter : ObjectCodec<PodDoor>
 
 internal sealed class ProductionLadderRecordConverter : ObjectCodec<ProductionLadderRecord>
 {
-    protected override ProductionLadderRecord Read(JsonElement e, Codecs o) =>
-        new()
+    /// <summary>The retired Concern an equipment rung was filed under before the military/equipment Need (#3259).</summary>
+    private static readonly ConcernId LegacyEquipment = new("MaintainEquipment");
+
+    protected override ProductionLadderRecord Read(JsonElement e, Codecs o)
+    {
+        var concern = e.Get<ConcernId>("Concern", o);
+        return new()
         {
             World = e.Get<World>("World", o),
             Tick = e.Get<Tick>("Tick", o),
@@ -1805,8 +1810,10 @@ internal sealed class ProductionLadderRecordConverter : ObjectCodec<ProductionLa
             Bench = e.Str("Bench"),
             Recipe = e.Str("Recipe"),
             Research = e.Get<IReadOnlyList<string>>("Research", o),
-            Concern = e.Get<ConcernId>("Concern", o),
+            // A rung saved before the Need reads as the Need's.
+            Concern = concern == LegacyEquipment ? MilitaryFamily.Equipment.FilingKey : concern,
         };
+    }
 
     protected override void WriteFields(Utf8JsonWriter w, ProductionLadderRecord v, Codecs o)
     {

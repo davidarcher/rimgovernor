@@ -98,7 +98,7 @@ public static partial class PolicyFunctions
         foreach (var route in support.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         findings.UnionWith(food.Findings); findings.UnionWith(construction.Findings); findings.UnionWith(composed.Findings); findings.UnionWith(support.Findings);
         truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
-        if (Enabled(MaintainEquipment) && facts.Gear.TryGetValue(out var gear))
+        if (NeedEnabled(MilitaryFamily.Equipment) && facts.Gear.TryGetValue(out var gear))
             AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
                 checked(read.Tick + (long)horizon), resources));
         else findings.Add("unknown_clothing_requirements");

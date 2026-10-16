@@ -9,8 +9,8 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The military family (#3259): defense, pests and training are Needs with pure met, unmet and unknown predicates;
-/// pest hunts are Need-owned Methods admitted by claims, side by side for different animals.
+/// The military family (#3259): defense, pests, training and equipment are Needs with pure met, unmet and unknown predicates;
+/// pest hunts and apparel policies are Need-owned Methods admitted by claims, side by side for different animals or pawns.
 /// </summary>
 public sealed class MilitaryFamilyTests
 {
@@ -69,7 +69,85 @@ public sealed class MilitaryFamilyTests
     [Fact]
     public void DisabledNeedsAreNotDerived()
     {
-        Assert.Equal([MilitaryFamily.Pests], new MilitaryFamily(defense: false, training: false).Derive(new MilitaryFacts()).Select(n => n.Id));
+        Assert.Equal([MilitaryFamily.Pests], new MilitaryFamily(defense: false, training: false, equipment: false).Derive(new MilitaryFacts()).Select(n => n.Id));
+    }
+
+    [Fact]
+    public void EquipmentIsUnmetByARetireOrShellShortageAndOtherwiseUnknownWithoutTheGearReview()
+    {
+        var unknown = Derive(new MilitaryFacts(), MilitaryFamily.Equipment);
+        Assert.Equal((Satisfaction.Unknown, NeedTier.Wellbeing), (unknown.Satisfaction, unknown.Tier));
+        Assert.False(unknown.Deficit.IsKnown);
+        // A census with no pawns reviews nothing: still unknown, never met by default.
+        Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts { Gear = Known(new GearObservation()) }, MilitaryFamily.Equipment).Satisfaction);
+
+        var retire = Derive(new MilitaryFacts { CraftingSpotRetireOwed = Known(true) }, MilitaryFamily.Equipment);
+        Assert.Equal((Satisfaction.Unmet, 1.0), (retire.Satisfaction, retire.Deficit.Value));
+        Assert.Contains(retire.Evidence, e => e.Fact == "crafting_spot_retire" && e.Value.Value == "true");
+
+        var shells = Derive(new MilitaryFacts { ShellsShort = Known(true), CraftingSpotRetireOwed = Known(false) }, MilitaryFamily.Equipment);
+        Assert.Equal(Satisfaction.Unmet, shells.Satisfaction);
+        Assert.Contains(shells.Evidence, e => e.Fact == "shells_short" && e.Value.Value == "true");
+
+        Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts { ShellsShort = Known(false), CraftingSpotRetireOwed = Known(false) }, MilitaryFamily.Equipment).Satisfaction);
+    }
+
+    [Fact]
+    public void EquipmentProposesNothingWithoutAGearCensus()
+    {
+        Assert.Empty(MilitaryFamily.EquipmentMethods(default));
+        Assert.Empty(MilitaryFamily.EquipmentMethods(Known(new GearObservation())));
+    }
+
+    private static DomainAction Dress(string id, string pawn, string def = "Apparel_Parka") =>
+        DomainAction.NewApparelPolicyAction(new(id), new(new ApparelPolicySpec(new(pawn), "token-" + id, "policy-" + id, [def], 0, 1, 0, 6)));
+
+    private static NeedCommit Commit(Journal journal, string method, DomainAction action) =>
+        journal.CommitClaimedMethod(MilitaryFamily.Equipment, World, new(method), "", new PlanSpec(new(method + "-plan"), new(1), [action]), TestContext.Current.CancellationToken);
+
+    [Fact]
+    public void ApparelPoliciesForTwoPawnsAreAdmittedTogetherAndASecondForOnePawnIsHeldByItsClaim()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        Assert.Equal(ClaimOutcome.Admitted, Commit(colony.Journal, "apparel-policy-a", Dress("d1", "a")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, Commit(colony.Journal, "apparel-policy-b", Dress("d2", "b")).Outcome);
+        Assert.Equal(2, colony.Journal.LoadNeed(MilitaryFamily.Equipment, World, ct).Methods.Count);
+
+        // The same policy (same MethodId) continues; a different policy for pawn a is refused with nothing written.
+        Assert.Equal(ClaimOutcome.Continued, Commit(colony.Journal, "apparel-policy-a", Dress("d1", "a")).Outcome);
+        var refused = Commit(colony.Journal, "apparel-policy-a2", Dress("d3", "a", "Apparel_Duster"));
+        Assert.Equal(ClaimOutcome.Conflict, refused.Outcome);
+        Assert.Equal("gear/a", refused.Conflict!.Claim);
+        Assert.Equal(2, colony.Journal.LoadNeed(MilitaryFamily.Equipment, World, ct).Methods.Count);
+
+        // An outfit prune claims the outfit database: a second prune is held while the first is open.
+        Assert.Equal(ClaimOutcome.Admitted, Commit(colony.Journal, "outfit-prune-1", DomainAction.NewPolicyPruneAction(new("p1"), new(PolicyDatabase.Outfit, ["1"]))).Outcome);
+        var prune = Commit(colony.Journal, "outfit-prune-2", DomainAction.NewPolicyPruneAction(new("p2"), new(PolicyDatabase.Outfit, ["2"])));
+        Assert.Equal(("policy/Outfit", ClaimOutcome.Conflict), (prune.Conflict?.Claim, prune.Outcome));
+    }
+
+    [Fact]
+    public void ApparelPolicyMethodsAreNamedByTheirValue()
+    {
+        var a = new ApparelPolicy(new ApparelPolicySpec(new("a"), "t", "policy-a", ["Apparel_Parka"], 0, 1, 0, 6));
+        var b = a with { };
+        Assert.Equal(MilitaryFamily.ApparelPolicyEncoded(a), MilitaryFamily.ApparelPolicyEncoded(b));
+        var other = new ApparelPolicy(new ApparelPolicySpec(new("a"), "t", "policy-a", ["Apparel_Duster"], 0, 1, 0, 6));
+        Assert.NotEqual(MilitaryFamily.ApparelPolicyEncoded(a), MilitaryFamily.ApparelPolicyEncoded(other));
+    }
+
+    [Fact]
+    public void EquipmentWorkReportsTheFirstAdmissionThenAnyRealVerdictThenTheUnsupportedReplacement()
+    {
+        var spot = BuildingRuntimePackage.BuildingReasonNoDeficit;
+        var bench = BuildingRuntimePackage.BuildingReasonAdmitted;
+        Assert.Equal(bench, MilitaryRounds.EquipmentVerdict([spot, bench], Known(false)));
+        var held = MilitaryRounds.EquipmentVerdict([spot, BuildingRuntimePackage.BuildingReasonDisabled], Known(false));
+        Assert.True(held.Is(Cause.AwaitingPlan));
+        Assert.Equal(MilitaryFamily.UnsupportedApparelReplacement, held.Refusal.Subject);
+        Assert.Equal(MilitaryFamily.Equipment.Value, MilitaryRounds.EquipmentVerdict([spot], Known(true)).Refusal.Subject);
+        Assert.Equal(MilitaryFamily.Equipment.Value, MilitaryRounds.EquipmentVerdict([spot], default).Refusal.Subject);
     }
 
     private static AcquisitionSource Pest(string id, int x) =>
@@ -203,7 +281,9 @@ public sealed class MilitaryFamilyTests
         Assert.Contains(ActionKind.Building, entry.Kinds);
         Assert.Contains(ActionKind.Equip, entry.Kinds);
         Assert.Contains(RimGovernor.Brain.Facts.Section.Emergency, entry.Sections);
-        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "equip" or "pestAcquisition" or "training");
+        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "equip" or "pestAcquisition" or "training" or "gear" or "armory");
+        Assert.Contains(ActionKind.ApparelPolicy, entry.Kinds);
+        Assert.Contains(ActionKind.PolicyPrune, entry.Kinds);
         Assert.False(entry.Immediate);
     }
 }

@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>production/gear-ledger</c> (Go <c>gear_ledger.go</c>): MaintainEquipment and the armory declare their gear batches to
+/// <c>production/gear-ledger</c> (Go <c>gear_ledger.go</c>): The military/equipment Need and the armory declare their gear batches to
 /// the work ledger (#2597): the lab colony's missing apparel or weapons become a gear_batch bill the ledger planner places
 /// under a ledger-* method, and the journal records it completed.
 /// </summary>
@@ -10,7 +10,7 @@ internal static class ProductionGearLedger
     internal static AcceptanceCase Case() => new()
     {
         Name = "production/gear-ledger",
-        Scope = "MaintainEquipment and the armory declare their gear batches to the work ledger (#2597): the lab colony's "
+        Scope = "The military/equipment Need and the armory declare their gear batches to the work ledger (#2597): the lab colony's "
             + "missing apparel or weapons become a gear_batch bill the ledger planner places under a ledger-* method, and the "
             + "journal records it completed. Nightly tier: the bill finishing and an undeclared bill being "
             + "removed after policy.OrphanGraceRounds are pinned by the buildingruntime ledger tests.",

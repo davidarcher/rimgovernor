@@ -3,7 +3,7 @@
 [Documentation](../../README.md) · [Equipment and apparel upkeep](equipment-upkeep.md) · [Weapon planner](weapon-planner.md)
 
 `ApparelPolicyIntent` on Actions/Apply (`NativeApparelPolicyOperations`) is how
-`MaintainEquipment` keeps one outfit per pawn, labelled with the pawn's short
+the `military/equipment` Need keeps one outfit per pawn, labelled with the pawn's short
 name, before selecting individual wear or production work. It lets vanilla's
 apparel optimizer do the many-pawn dressing between reviews and retires tainted
 raid drops without a wear order.
@@ -32,7 +32,8 @@ back; applied is terminal, refused replans.
 
 Once every pawn is on its own outfit, the gear planner prunes every other outfit
 (vanilla and player-made) with a [`PolicyPruneIntent`](action-contracts.md) on the
-outfit database; the owed prune keeps `MaintainEquipment` in deficit until it lands.
+outfit database; the prune is one Method claimed by `policy/Outfit`, proposed only while no pawn's
+policy is, and lands under the equipment Need.
 
 `GearSnapshot.apparel_policy` carries, per pawn: the outfit's token, load id,
 label, allowed definitions, hit-point and quality ranges, whether it excludes

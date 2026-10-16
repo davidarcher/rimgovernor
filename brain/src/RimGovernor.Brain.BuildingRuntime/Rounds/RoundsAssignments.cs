@@ -106,7 +106,7 @@ public sealed class RoundsWorkPlanner
             return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("bench_work") });
         }
         required = MergeWorkRequirements([.. required], benchRows);
-        var needs = RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Projection.Facts.Items, state.Snapshot, call);
+        var needs = RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Projection.Facts.Items, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
         needs = _reviewer.CensusResearchNeeds(needs);
         required = MergeWorkRequirements([.. required], RoundsResearchWork(needs, read.Projection.Facts.Research));
         required = MergeWorkRequirements([.. required], FishingWork(read.Projection));
