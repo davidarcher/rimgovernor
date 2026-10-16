@@ -8,6 +8,14 @@ a WinForms window hosting WebView2, published as one file,
 the brain solution and references the acceptance harness
 (`brain/src/RimGovernor.Brain.Acceptance`) for setup and case runs. 
 
+A double-click publishes only when the launcher is stale: `RimGovernor.cmd`
+brings the tool host up to date, then runs `rg launcher-stale`, which compares
+the sources (`tools/launcher` including `ui/index.html`, its project-reference
+closure and the shared `brain/` build files) with the stamp
+`.rimgovernor/launcher-build/current`, written after a successful publish and
+copy. The check is `SelfBuild`, the same mtime logic the tool host uses on
+itself.
+
 It embeds one WebView2 page (`ui/index.html`, an embedded resource) without a
 web server or frontend build. C# owns the view models and the game's HTTP calls;
 the page renders them through bound functions (`MainForm` defines each as a

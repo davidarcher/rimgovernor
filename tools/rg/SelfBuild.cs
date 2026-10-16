@@ -3,20 +3,31 @@ using System.Text.RegularExpressions;
 namespace RimGovernor.Tools;
 
 /// <summary>
-/// Detects that the tool binary is older than its sources. RimGovernor.cmd publishes the tool into
-/// <c>.rimgovernor/tools/&lt;version&gt;/</c> and writes the version into <c>.rimgovernor/tools/current</c> once the
-/// publish succeeded; a binary cannot replace itself while running, so a stale one exits with
-/// <see cref="StaleExitCode"/> before doing anything and the shim rebuilds and runs the command again.
-/// A binary run from anywhere else (dotnet run, the build output) has no <c>current</c> file and is never stale.
-/// The sources are <c>tools/rg</c>, every project it references (the brain/ acceptance harness and what it builds on,
-/// found by following the <c>ProjectReference</c> closure) and the shared brain build files above them.
+/// Detects that a published binary is older than its sources, by file modification time against a stamp file written
+/// after the publish succeeded. Two binaries use it:
+/// <list type="bullet">
+/// <item>The tool host itself. RimGovernor.cmd publishes it into <c>.rimgovernor/tools/&lt;version&gt;/</c> and writes the
+/// version into <c>.rimgovernor/tools/current</c>; a binary cannot replace itself while running, so a stale one exits
+/// with <see cref="StaleExitCode"/> before doing anything and the shim rebuilds and runs the command again. A binary
+/// run from anywhere else (dotnet run, the build output) has no <c>current</c> file and is never stale.</item>
+/// <item>The launcher (<c>launcher-stale</c>). RimGovernor.cmd's double-click path publishes <c>tools/launcher</c> only
+/// when this reports it stale, then writes <c>.rimgovernor/launcher-build/current</c>.</item>
+/// </list>
+/// A project's sources are its directory, every project it references (found by following the <c>ProjectReference</c>
+/// closure) and the shared brain build files above them (<c>brain/Directory.Build.props</c>, ...).
 /// </summary>
 internal static partial class SelfBuild
 {
-    /// <summary>Reserved: no tool returns it as its own result.</summary>
+    /// <summary>
+    /// Reserved: no tool returns it as its own result, except <c>launcher-stale</c>, which RimGovernor.cmd runs on the
+    /// published binary directly (not through the rebuild shim) after the tool host is known to be current.
+    /// </summary>
     public const int StaleExitCode = 75;
 
     private static readonly string[] SourceExtensions = [".cs", ".csproj", ".props", ".targets", ".editorconfig", ".js", ".css"];
+
+    /// <summary>The launcher also embeds its page, <c>tools/launcher/ui/index.html</c>.</summary>
+    private static readonly string[] LauncherExtensions = [".html"];
 
     public static bool IsStale()
     {
@@ -29,26 +40,59 @@ internal static partial class SelfBuild
             return false;
         }
         var root = Path.GetDirectoryName(Path.GetDirectoryName(toolsDir));
-        var sources = root is null ? null : Path.Combine(root, "tools", "rg");
-        if (root is null || sources is null || !Directory.Exists(sources))
+        var project = root is null ? null : Path.Combine(root, "tools", "rg", "rg.csproj");
+        if (root is null || project is null || !File.Exists(project))
         {
             return false;
         }
-        var built = File.GetLastWriteTimeUtc(stamp);
-        if (NewerThan(sources, built))
+        return IsStale(root, project, [], stamp);
+    }
+
+    /// <summary>
+    /// <c>RimGovernor.cmd launcher-stale</c>: <see cref="StaleExitCode"/> when the launcher needs a publish (no stamp,
+    /// no root <c>RimGovernorLauncher.exe</c>, or a source newer than the stamp), 0 when the root exe is current.
+    /// </summary>
+    public static int LauncherStale()
+    {
+        var root = Common.Repo.Find(AppContext.BaseDirectory);
+        if (root is null)
+        {
+            return StaleExitCode; // cannot tell: publish, as before the check existed
+        }
+        var project = Path.Combine(root, "tools", "launcher", "launcher.csproj");
+        var stamp = Path.Combine(root, ".rimgovernor", "launcher-build", "current");
+        var stale = !File.Exists(Path.Combine(root, "RimGovernorLauncher.exe")) || IsStale(root, project, LauncherExtensions, stamp);
+        return stale ? StaleExitCode : 0;
+    }
+
+    /// <summary>
+    /// Whether any source of <paramref name="projectFile"/> (its directory, its project references, the shared brain
+    /// build files), counting <paramref name="extraExtensions"/> as sources too, is newer than <paramref name="stamp"/>.
+    /// A missing stamp is stale.
+    /// </summary>
+    private static bool IsStale(string root, string projectFile, string[] extraExtensions, string stamp)
+    {
+        if (!File.Exists(stamp))
         {
             return true;
         }
-        foreach (var dir in ReferencedProjectDirectories(Path.Combine(sources, "rg.csproj")))
+        string[] extensions = [.. SourceExtensions, .. extraExtensions];
+        var built = File.GetLastWriteTimeUtc(stamp);
+        var projectDir = Path.GetDirectoryName(Path.GetFullPath(projectFile)) ?? root;
+        if (NewerThan(projectDir, built, extensions))
         {
-            if (NewerThan(dir, built))
+            return true;
+        }
+        foreach (var dir in ReferencedProjectDirectories(projectFile))
+        {
+            if (NewerThan(dir, built, extensions))
             {
                 return true;
             }
         }
         // Shared build files that change every brain project (Directory.Build.props, Directory.Packages.props, ...).
         var brain = Path.Combine(root, "brain");
-        return Directory.Exists(brain) && TopLevelNewerThan(brain, built);
+        return Directory.Exists(brain) && TopLevelNewerThan(brain, built, extensions);
     }
 
     /// <summary>The directories of every project the project file references, transitively (not the project itself).</summary>
@@ -87,11 +131,11 @@ internal static partial class SelfBuild
     [GeneratedRegex("""<ProjectReference\s+Include="(?<path>[^"]+)""", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
     private static partial Regex ProjectReference();
 
-    private static bool TopLevelNewerThan(string dir, DateTime built)
+    private static bool TopLevelNewerThan(string dir, DateTime built, string[] extensions)
     {
         foreach (var entry in new DirectoryInfo(dir).EnumerateFiles())
         {
-            if (SourceExtensions.Contains(entry.Extension, StringComparer.OrdinalIgnoreCase) && entry.LastWriteTimeUtc > built)
+            if (extensions.Contains(entry.Extension, StringComparer.OrdinalIgnoreCase) && entry.LastWriteTimeUtc > built)
             {
                 return true;
             }
@@ -99,8 +143,12 @@ internal static partial class SelfBuild
         return false;
     }
 
-    private static bool NewerThan(string dir, DateTime built)
+    private static bool NewerThan(string dir, DateTime built, string[] extensions)
     {
+        if (!Directory.Exists(dir))
+        {
+            return false;
+        }
         foreach (var entry in new DirectoryInfo(dir).EnumerateFileSystemInfos())
         {
             if (entry is DirectoryInfo sub)
@@ -109,12 +157,12 @@ internal static partial class SelfBuild
                 {
                     continue;
                 }
-                if (NewerThan(sub.FullName, built))
+                if (NewerThan(sub.FullName, built, extensions))
                 {
                     return true;
                 }
             }
-            else if (SourceExtensions.Contains(entry.Extension, StringComparer.OrdinalIgnoreCase) && entry.LastWriteTimeUtc > built)
+            else if (extensions.Contains(entry.Extension, StringComparer.OrdinalIgnoreCase) && entry.LastWriteTimeUtc > built)
             {
                 return true;
             }

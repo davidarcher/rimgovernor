@@ -26,6 +26,7 @@ internal static class Program
           thoughtaudit  regenerate the thought-to-trigger table from the installed game
           colonyreview  render a colony-week recording into an HTML report or a site index
           pawnactivity  report pawn time and gaps from the OTLP ring
+          launcher-stale  exit 75 when RimGovernorLauncher.exe is older than its sources, 0 when current
 
         <tool> -help shows a tool's flags.
         """;
@@ -46,6 +47,10 @@ internal static class Program
         if (args[0] == "--check-stale")
         {
             return 0; // reaching here means not stale
+        }
+        if (args[0] == "launcher-stale")
+        {
+            return SelfBuild.LauncherStale();
         }
 
         using var cts = new CancellationTokenSource();

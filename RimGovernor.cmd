@@ -1,6 +1,6 @@
 @echo off
 rem RimGovernor.cmd
-rem   no arguments:  double-click to play. Builds the launcher (seconds when nothing changed) and opens it.
+rem   no arguments:  double-click to play. Publishes the launcher when its sources changed (rg launcher-stale) and opens it.
 rem   with arguments: runs the repo tool host (tools\rg), e.g.  RimGovernor.cmd issue 3086
 rem                   tools: land, test, issue, affected, acceptance   (RimGovernor.cmd -help)
 rem The tool host is published ReadyToRun into .rimgovernor\tools\<version>\ and .rimgovernor\tools\current names the
@@ -73,9 +73,23 @@ goto :eof
 :launcher
 rem Already open: a running exe cannot be rebuilt, and one window is enough.
 tasklist /fi "imagename eq RimGovernorLauncher.exe" | find /i "RimGovernorLauncher.exe" >nul && exit /b 0
-rem Published single-file into a staging directory, then copied over the root exe (tools\launcher, #3098).
-dotnet publish "%~dp0tools\launcher\launcher.csproj" -c Release -r win-x64 --no-self-contained --nologo -v q -o "%~dp0.rimgovernor\launcher-build" || goto :fail
-copy /y "%~dp0.rimgovernor\launcher-build\RimGovernorLauncher.exe" "%~dp0RimGovernorLauncher.exe" >nul || goto :fail
+setlocal EnableExtensions
+set "LBUILD=%~dp0.rimgovernor\launcher-build"
+rem The tool host decides whether the launcher's sources changed since the last publish (tools\rg\SelfBuild.cs, #3295).
+rem Bringing the tool host up to date first means a 75 from launcher-stale can only mean the launcher is stale.
+call "%~f0" --check-stale || goto :fail
+set "CUR="
+if exist "%~dp0.rimgovernor\tools\current" set /p CUR=<"%~dp0.rimgovernor\tools\current"
+if not defined CUR goto :fail
+"%~dp0.rimgovernor\tools\%CUR%\rg.exe" launcher-stale
+if "%ERRORLEVEL%"=="0" goto :startlauncher
+if not "%ERRORLEVEL%"=="75" goto :fail
+rem Published single-file into a staging directory, then copied over the root exe (tools\launcher, #3098). The stamp
+rem is written only after both succeed, so a failed publish stays stale.
+dotnet publish "%~dp0tools\launcher\launcher.csproj" -c Release -r win-x64 --no-self-contained -p:NodeReuse=false --nologo -v q -o "%LBUILD%" || goto :fail
+copy /y "%LBUILD%\RimGovernorLauncher.exe" "%~dp0RimGovernorLauncher.exe" >nul || goto :fail
+>"%LBUILD%\current" echo %DATE% %TIME%
+:startlauncher
 start "" "%~dp0RimGovernorLauncher.exe"
 exit /b 0
 
