@@ -580,8 +580,10 @@ the trade routine still read it.
    step reads a construction census and passes it to `MethodOnce`, so a
    destroyed product is re-issued ([decision 19](#method-journal-claim-admission)).
 5. Delete the Concern constant and every registry row: Inspection, Department,
-   Labor, ConstructionTier, `RoundsConcern` deficit, latches and their codec
-   fields, `UpkeepIssuedConcerns`, the acceptance concern samplers.
+   ConstructionTier, `RoundsConcern` deficit, latches and their codec
+   fields, `UpkeepIssuedConcerns`, the acceptance concern samplers. Re-key the
+   Concern's `Labor.cs` profile to the Need (`SetNeeds`, read by `NeedLabor`)
+   rather than deleting it: profiles are keyed by filing key (#3231 decision 22).
 6. Re-key ledger declarers and bill purposes to `NeedId.FilingKey`, giving them the
    Need's standing (`PurposeReport.Need`); re-key operation labels, essential
    service owners (`ServiceTarget.ForNeed`, `NeedCoverage`), progress
