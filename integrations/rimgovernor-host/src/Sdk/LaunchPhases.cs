@@ -35,11 +35,13 @@ namespace RimGovernor.Host.Sdk
     /// The game-side launch waterfall (#3286), buffered as plain data until the brain's span listener exists: the
     /// host records RimWorld's load stages and its own startup here, the bridge records the brain's waits, and the
     /// bridge replays <see cref="Snapshot"/> as the <c>launch</c> spans once the brain has started. Always on; the
-    /// buffer is bounded, so a game that never starts a brain holds at most <see cref="Capacity"/> small records.
+    /// buffer grows as phases are recorded and is bounded, so a game that never starts a brain holds at most
+    /// <see cref="Capacity"/> small records. The cap is headroom (#3308): the host already skips RimWorld's per-def
+    /// stages, so a normal boot records far fewer.
     /// </summary>
     public static class LaunchPhases
     {
-        public const int Capacity = 512;
+        public const int Capacity = 262144;
 
         private static readonly object Gate = new object();
         private static readonly List<LaunchPhase> Done = new List<LaunchPhase>();

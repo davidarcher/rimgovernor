@@ -43,6 +43,10 @@
     <Compile Include="../../../tools/launcher/Settings.cs" Link="Launcher/Settings.cs" />
     <Compile Include="../../../tools/launcher/LauncherJson.cs" Link="Launcher/LauncherJson.cs" />
   </ItemGroup>
+  <!-- The launch waterfall's DeepProfiler label filter (#3308) is pure; compiled in to pin which RimWorld stages it skips. -->
+  <ItemGroup>
+    <Compile Include="../../../integrations/rimgovernor-host/src/Host/LaunchStageFilter.cs" Link="Host/LaunchStageFilter.cs" />
+  </ItemGroup>
   <!-- The thoughtaudit guard analysis (#3218 spike) is pure syntax analysis; compiled in to pin its unknown handling without the game. -->
   <ItemGroup>
     <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardIndex.cs" Link="ThoughtAudit/GuardIndex.cs" />

@@ -14,7 +14,8 @@ namespace RimGovernor.Host;
 /// <c>Prefs.LogVerbose</c>; a prefix still sees every call. Installed from the mod constructor, so the stages already
 /// open then (<c>LoadAllPlayData</c>, "Load all active mods.", <c>CreateModClasses()</c>) are not seen and their
 /// <c>End</c> calls find this thread's stack empty. Only stages at depth 0 and 1 of that stack on a thread that is not
-/// a pool thread are recorded: <c>Parallel.ForEach</c> workers and deeper nesting would only add noise. The time
+/// a pool thread are recorded: <c>Parallel.ForEach</c> workers and deeper nesting would only add noise. Per-def and
+/// per-patch stages (<see cref="LaunchStageFilter"/>) are skipped with everything nested in them. The time
 /// from process start to the mod constructor is recorded as <c>launch.pre_mods</c>.
 /// </summary>
 internal static class LaunchStagePatches
@@ -73,7 +74,10 @@ internal static class LaunchStagePatches
     public static void StartPrefix(string label)
     {
         var open = stack ??= new Stack<Open>();
-        var recorded = open.Count < RecordedDepth && !Thread.CurrentThread.IsThreadPoolThread;
+        var recorded = open.Count < RecordedDepth
+            && !Thread.CurrentThread.IsThreadPoolThread
+            && (open.Count == 0 || open.Peek().Recorded)
+            && !LaunchStageFilter.IsPerDefNoise(label);
         var parent = open.Count == 0 ? 0 : open.Peek().Id;
         open.Push(new Open
         {

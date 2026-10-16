@@ -212,7 +212,7 @@ Every in-process run writes the game-side launch waterfall to `traces.jsonl`,
 regardless of DevMode. The span listener exists only once the brain starts, so
 the host mod and the bridge buffer each phase as plain data
 (`RimGovernor.Host.Sdk.LaunchPhases`: id, parent id, name, UTC start and end,
-512 phases at most). `BrainBootstrap` replays them through
+262144 phases at most, grown on demand). `BrainBootstrap` replays them through
 `LaunchSpans.Replay` (`Telemetry/LaunchSpans.cs`) right after
 `BrainHost.StartAsync`, with the recorded start and end times. Scope
 `.../launch`.
@@ -235,7 +235,11 @@ RimWorld stages come from a Harmony prefix on `Verse.DeepProfiler.Start`/`End`
 installed in the mod constructor, so stages already open then (`LoadAllPlayData`,
 `Load all active mods.`, `CreateModClasses()`) are not seen. Only the first two
 levels of the stages opened afterwards on non-pool threads are recorded; the
-prefixes are removed once play data has loaded. Spans may overlap (host phases
+prefixes are removed once play data has loaded. RimWorld's per-def and per-patch
+stages (`Register*WantsCrossRef*`, `<PatchOperation type> Worker`, and queued
+def-hook lambdas such as `Verse.ThingDef -> Void <PostLoad>b__…()`; thousands
+per boot) are skipped with everything nested in them, by label pattern, so a new
+coarse stage still appears. Spans may overlap (host phases
 run inside RimWorld stages). A phase whose parent was not recorded sits under
 the root. Phases past the buffer are dropped and the count is logged as a
 warning.
