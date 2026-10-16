@@ -27,8 +27,9 @@ The mod publishes its facade through a module initializer (`NativeFacadeBootstra
 assembly by file and gives plugins no startup hook. The brain reads `NativeFacadeRegistry.Current`.
 
 Shared types must resolve from one place: the host's `AssemblyResolve` binds by simple name to an
-assembly already loaded, so the first copy of `RimGovernor.Brain.NativeFacade` wins. Loading the brain in a
-collectible context (#3084) has to keep these three in the default context. Not exercised in a running game yet.
+assembly already loaded, so the first copy of `RimGovernor.Brain.NativeFacade` wins. A collectible brain
+context (#3294) has to keep these three in the default context. The brain itself loads in the default context
+today (see [brain host](brain-host.md)).
 
 ## `INativeFacade`
 
