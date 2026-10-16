@@ -84,7 +84,6 @@ internal static partial class BuildingRuntimePackage
         var storage = StoreView(projection, request.Protected);
         storage = storage with { Gear = gear };
         storage = storage with { Zones = request.Zones };
-        storage = storage with { Incinerator = StandingIncinerator(projection) };
         storage = storage with { BenchInputs = inputs };
         storage = storage with { Benches = benches };
         storage = storage with { Burial = BurialCensus(projection) };

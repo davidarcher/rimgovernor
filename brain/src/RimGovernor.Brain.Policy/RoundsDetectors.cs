@@ -486,7 +486,7 @@ public static partial class PolicyFunctions
                 {
                     g.Deficit = Known(1.0);
                 }
-                // MaintainEssentialRepairs, ClearHomeObstructions and ClearAncientShrine have composed
+                // MaintainEssentialRepairs and ClearHomeObstructions have composed
                 // dispatch methods; the rest of the direct upkeep orders remain visible-only until their
                 // own dispatch verticals land.
                 g.MethodUnavailable = hold is not null && hold(c);
@@ -499,22 +499,9 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Clearance ranks below repairs and above direct cleaning. Safety goals already suspend all development
-    /// work through the shared emergency gate. While the shrine breach is issued, obstruction clearance
-    /// waits so the construction hand is the breacher, not a wanderer past the trap line.
+    /// work through the shared emergency gate.
     /// </summary>
-    internal static bool HoldClearance(RoundsRun c) =>
-        c.Upkeep.History.Repairs || c.F.IsIssued(ClearAncientShrine);
-
-    /// <summary>Repairs hold the shrine only when their method is served: a repair deficit nothing can serve must not hold the breach forever.</summary>
-    internal static bool HoldShrine(RoundsRun c)
-    {
-        var repairsHold = c.Upkeep.History.Repairs;
-        if (c.F.AvailableMethods.TryGetValue(out var methods) && repairsHold)
-        {
-            repairsHold = methods.Contains(MaintainEssentialRepairs);
-        }
-        return repairsHold;
-    }
+    internal static bool HoldClearance(RoundsRun c) => c.Upkeep.History.Repairs;
 
     /// <summary>
     /// Serves a home-area facility goal: a binary need, like the upkeep goals. A confirmed deficit ranks at
@@ -903,7 +890,7 @@ public static partial class PolicyFunctions
         var questKnown = QuestDeficit(f).TryGetValue(out var questDeficit);
         var letterKnown = JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).TryGetValue(out var letterDeficit);
         var ceremonyStarts = CeremonyStartOf(f.Royalty) is not null;
-        if (!ShrineArrestTarget(f).IsEmpty || LanceTarget(f) is not null || EntityCaptureOwed(f.Containment) || EntityDoorOwed(f.Containment) || EntityTendOwed(f.Containment)
+        if (LanceTarget(f) is not null || EntityCaptureOwed(f.Containment) || EntityDoorOwed(f.Containment) || EntityTendOwed(f.Containment)
             || EntityBioferriteOwed(f.Containment, f.Research) || MonolithAdvanceOwedNow(f) || (prisonerDeficitKnown && prisonerDeficit)
             || (custodyDeficitKnown && custodyDeficit) || (joinerDeficitKnown && joinerDeficit) || (questKnown && questDeficit) || (letterKnown && letterDeficit)
             || ceremonyStarts || DecreeDeficit(f) || MonumentDeficit(f) || DepartureDeficit(f) || RefugeeDeficit(f) || GravInspectionDeficit(f))

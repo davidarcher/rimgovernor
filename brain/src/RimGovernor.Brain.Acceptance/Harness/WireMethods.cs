@@ -54,7 +54,6 @@ public static class WireMethods
         ["presentation_notifications"] = (typeof(W.Presentation.NotificationsRequest), typeof(W.Presentation.NotificationsReply)),
         ["observations_read_population"] = (typeof(W.Observations.PopulationRequest), typeof(W.Observations.PopulationReply)),
         ["observations_list_resource_sources"] = (typeof(W.Observations.ResourceSourcesRequest), typeof(W.Observations.ResourceSourcesReply)),
-        ["observations_get_ancient_shrines"] = (typeof(W.Observations.AncientShrinesRequest), typeof(W.Observations.AncientShrinesReply)),
         ["observations_read_spatial_access"] = (typeof(W.Observations.SpatialAccessRequest), typeof(W.Observations.SpatialAccessReply)),
         ["observations_evaluate_stat"] = (typeof(W.Observations.EvaluateStatRequest), typeof(W.Observations.EvaluateStatReply)),
         ["observations_read_trade_acquisition"] = (typeof(W.Observations.TradeAcquisitionRequest), typeof(W.Observations.TradeAcquisitionReply)),

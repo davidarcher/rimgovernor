@@ -85,7 +85,6 @@ public static partial class BridgeFunctions
         [ActionKind.Repair] = RepairAction,
         [ActionKind.PawnActivities] = a => new Op.Action { Intent = new Op.PawnActivitiesIntent { Batch = a.PawnActivities } },
         [ActionKind.Clean] = CleanAction,
-        [ActionKind.OpenCasket] = OpenCasketAction,
         [ActionKind.Tend] = TendAction,
         [ActionKind.Equip] = EquipAction,
         [ActionKind.DropEquipment] = DropEquipmentAction,

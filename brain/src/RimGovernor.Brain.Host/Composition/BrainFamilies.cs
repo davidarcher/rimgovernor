@@ -82,9 +82,6 @@ public sealed record BrainFamilies
     /// <summary>The <c>envelope</c> family.</summary>
     public bool Envelope { get; init; } = true;
 
-    /// <summary>The <c>incineration</c> family.</summary>
-    public bool Incineration { get; init; } = true;
-
     /// <summary>The <c>blight</c> family.</summary>
     public bool Blight { get; init; } = true;
 
@@ -102,9 +99,6 @@ public sealed record BrainFamilies
 
     /// <summary>The <c>clearance</c> family.</summary>
     public bool Clearance { get; init; } = true;
-
-    /// <summary>The <c>shrine</c> family.</summary>
-    public bool Shrine { get; init; } = true;
 
     /// <summary>The <c>stockpiles</c> family.</summary>
     public bool Stockpiles { get; init; } = true;
@@ -228,14 +222,12 @@ public sealed record BrainFamilies
         new("burial", f => f.Burial, (f, on) => f with { Burial = on }),
         new("training", f => f.Training, (f, on) => f with { Training = on }),
         new("envelope", f => f.Envelope, (f, on) => f with { Envelope = on }),
-        new("incineration", f => f.Incineration, (f, on) => f with { Incineration = on }),
         new("blight", f => f.Blight, (f, on) => f with { Blight = on }),
         new("pollution", f => f.Pollution, (f, on) => f with { Pollution = on }),
         new("mechcharger", f => f.MechCharger, (f, on) => f with { MechCharger = on }),
         new("genebank", f => f.GeneBank, (f, on) => f with { GeneBank = on }),
         new("armory", f => f.Armory, (f, on) => f with { Armory = on }),
         new("clearance", f => f.Clearance, (f, on) => f with { Clearance = on }),
-        new("shrine", f => f.Shrine, (f, on) => f with { Shrine = on }),
         new("stockpiles", f => f.Stockpiles, (f, on) => f with { Stockpiles = on }),
         new("mood", f => f.Mood, (f, on) => f with { Mood = on }),
         new("gear", f => f.Gear, (f, on) => f with { Gear = on }),

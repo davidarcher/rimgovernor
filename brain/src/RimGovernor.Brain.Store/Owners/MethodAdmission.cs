@@ -29,7 +29,7 @@ public sealed partial class Store
                     or ActionKind.RecoveryService or ActionKind.Ritual or ActionKind.Ignite
                     or ActionKind.Equip or ActionKind.GearReplace or ActionKind.Gathering
                     or ActionKind.UseItem or ActionKind.DropEquipment or ActionKind.Movement
-                    or ActionKind.OpenCasket or ActionKind.Capture or ActionKind.GiveItem or ActionKind.CommsTradeRequest
+                    or ActionKind.Capture or ActionKind.GiveItem or ActionKind.CommsTradeRequest
                     or ActionKind.Rescue or ActionKind.Tend
                     || action.Deconstruction is { ReplacesWithWall: true }
                     || action.CaravanDeparture is { Mode: CaravanDepartureMode.Formation }

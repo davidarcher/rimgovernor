@@ -157,7 +157,6 @@ internal static class CodecRegistry
         codecs.Register(new NativeRefusalConverter());
         codecs.Register(new NoOpRecordConverter());
         codecs.Register(new ObservationConverter());
-        codecs.Register(new OpenCasketConverter());
         codecs.Register(new OutsideTripConverter());
         codecs.Register(new OwnedDraftConverter());
         codecs.Register(new PawnBiotechConverter());
@@ -229,11 +228,9 @@ internal static class CodecRegistry
         codecs.Register(new RoundsRecoveryRestrictionConverter());
         codecs.Register(new RoundsRecoverySafetyConverter());
         codecs.Register(new RoundsRecoveryWorkerConverter());
-        codecs.Register(new RoundsShrineStepConverter());
         codecs.Register(new RoundsStandardConverter());
         codecs.Register(new RowRunConverter());
         codecs.Register(new SafeguardProposalConverter());
-        codecs.Register(new ShrineHoldConverter());
         codecs.Register(new SiteLaneConverter());
         codecs.Register(new SleepingHistoryConverter());
         codecs.Register(new SleepingUseConverter());

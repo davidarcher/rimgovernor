@@ -86,7 +86,6 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
             ActionKind.MoveBuilding => DomainAction.NewMoveBuildingAction(id, Payload<MoveBuilding>()),
             ActionKind.UninstallBuilding => DomainAction.NewUninstallBuildingAction(id, Payload<MoveBuilding>()),
             ActionKind.Movement => DomainAction.NewMovementAction(id, Payload<Movement>()),
-            ActionKind.OpenCasket => DomainAction.NewOpenCasketAction(id, Payload<OpenCasket>()),
             ActionKind.OwnedDraft => DomainAction.NewOwnedDraftAction(id, Payload<OwnedDraft>()),
             ActionKind.PawnSettings => DomainAction.NewPawnSettingsAction(id, Payload<PawnSettings>()),
             ActionKind.PolicyPrune => DomainAction.NewPolicyPruneAction(id, Payload<PolicyPrune>()),

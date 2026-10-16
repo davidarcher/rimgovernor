@@ -95,9 +95,6 @@ internal sealed partial class FacadeNativeClient
     Task<(BedUseTarget Target, BridgeResult Result)> IRoundsHospitalSource.ReadBedUseTargetAsync(C.Identity identity, string bed, CancellationToken ct) =>
         ReadBedUseTargetAsync(identity, bed, ct);
 
-    Task<(ClaimBuildingTarget Target, BridgeResult Result)> IRoundsShrineSource.ReadClaimBuildingTargetAsync(C.Identity identity, string entity, CancellationToken ct) =>
-        ReadClaimBuildingTargetAsync(identity, entity, ct);
-
     Task<(WallUpgradeSites Sites, BridgeResult Result)> IRoundsStoneShellSource.ReadWallUpgradeSitesAsync(C.Identity identity, string wall, CancellationToken ct) =>
         ReadWallUpgradeSitesAsync(identity, wall, ct);
 
@@ -134,9 +131,6 @@ internal sealed partial class FacadeNativeClient
     Task<(DefenseSite Site, BridgeResult Result)> IDefenseSiteReader.ReadDefenseSiteAsync(C.Identity identity, CellRect region, CancellationToken ct) =>
         ReadDefenseSiteAsync(identity, region, ct);
 
-    Task<(DefenseSite Site, BridgeResult Result)> IShrineReadinessNative.ReadDefenseSiteAsync(C.Identity identity, CellRect region, CancellationToken ct) =>
-        ReadDefenseSiteAsync(identity, region, ct);
-
     Task<(BridgeSpatialAccess Access, BridgeResult Result)> IRoundsDefenseLayoutSource.ReadSpatialAccessAsync(C.Identity identity, IReadOnlyList<Cell> from, IReadOnlyList<Cell> toCells, IReadOnlyList<string> kinds, CancellationToken ct) =>
         ReadSpatialAccessAsync(identity, from, toCells, kinds, ct);
 
@@ -163,9 +157,6 @@ internal sealed partial class FacadeNativeClient
     Task<BridgeEmergencyObservation> IRoundsFireSafetySource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         Only(ReadEmergencyAsync(identity, FramePawnsAsync, ct));
 
-    Task<(EmergencyObservation Emergency, BridgeResult Result)> IRoundsIncinerationSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
-
     Task<(EmergencyObservation Emergency, BridgeResult Result)> IRoundsRepairSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
@@ -173,9 +164,6 @@ internal sealed partial class FacadeNativeClient
         ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
     Task<(EmergencyObservation Observation, BridgeResult Result)> IRoundsTendSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        ReadEmergencyAsync(identity, FramePawnsAsync, ct);
-
-    Task<(EmergencyObservation Observed, BridgeResult Result)> IShrineReadinessNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
     Task<(O.ListPawnsReply Reply, BridgeResult Result)> IRoundsDefenseLayoutSource.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
@@ -187,14 +175,8 @@ internal sealed partial class FacadeNativeClient
     Task<(O.ListPawnsReply Reply, BridgeResult Result)> IRoundsRescueSource.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
         ReadCombatPawnsAsync(identity, ids, ct);
 
-    Task<(O.ListPawnsReply Reply, BridgeResult Result)> IShrineReadinessNative.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawns, CancellationToken ct) =>
-        ReadCombatPawnsAsync(identity, pawns, ct);
-
     Task<O.ListPawnsReply> IRoundsFireSafetySource.ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
         Only(ReadTendPawnsAsync(identity, ids, ct));
-
-    Task<(O.ListPawnsReply Reply, BridgeResult Result)> IRoundsIncinerationSource.ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> pawns, CancellationToken ct) =>
-        ReadTendPawnsAsync(identity, pawns, ct);
 
     Task<(O.ListPawnsReply Reply, BridgeResult Result)> IRoundsRepairSource.ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
         ReadTendPawnsAsync(identity, ids, ct);

@@ -10,7 +10,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // GiveJobIntent Clean, the incineration planner's ash cleaning:
+    // GiveJobIntent Clean:
     // exact spawned filth, an
     // undrafted worker who can reach it at NativeOrderDanger, plus
     // WorkGiver_CleanFilth's own HasJobOnThing (reservable, thickened at

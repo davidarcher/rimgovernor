@@ -53,7 +53,6 @@ public sealed partial class BrainComposition
         RoundsHusbandryPlanner? cfgHusbandry = null;
         RoundsIdeoRolesPlanner? cfgIdeoRoles = null;
         RoundsIdeoligionPlanner? cfgIdeoligion = null;
-        RoundsIncinerationPlanner? cfgIncineration = null;
         RoundsLedgerPlanner? cfgLedger = null;
         RoundsBuildingPlanner? cfgLighting = null;
         MaintainShelterPlanner? cfgMaintainShelter = null;
@@ -78,7 +77,6 @@ public sealed partial class BrainComposition
         RoundsRitualsPlanner? cfgRituals = null;
         Rounder? cfgRounds = null;
         RoundsBuildingPlanner? cfgRoutes = null;
-        RoundsShrinePlanner? cfgShrine = null;
         RoundsBuildingPlanner? cfgSleeping = null;
         RoundsSleepingUpkeepPlanner? cfgSleepingUpkeep = null;
         RoundsStockpilePlanner? cfgStockpiles = null;
@@ -124,14 +122,12 @@ public sealed partial class BrainComposition
         var equip = sc.Equip;
         var repair = sc.Repair;
         var fireSafety = sc.FireSafety;
-        var incineration = sc.Incineration;
         var blight = sc.Blight;
         var pollution = sc.Pollution;
         var mechCharger = sc.MechCharger;
         var geneBank = sc.GeneBank;
         var armory = sc.Armory;
         var clearance = sc.Clearance;
-        var shrine = sc.Shrine;
         var moodRelief = sc.Mood;
         var gear = sc.Gear;
         var medical = sc.Medical;
@@ -155,7 +151,7 @@ public sealed partial class BrainComposition
         var training = sc.Training;
         var envelope = sc.Envelope;
 
-        if (!routine && (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || incineration || blight || pollution || mechCharger || geneBank || armory || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
+        if (!routine && (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || blight || pollution || mechCharger || geneBank || armory || clearance || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
         {
             throw new InvalidOperationException("building plans require rounds");
         }
@@ -239,10 +235,6 @@ public sealed partial class BrainComposition
         {
             cfgClearance = new RoundsClearancePlanner(reviewer, client);
         }
-        if (shrine)
-        {
-            cfgShrine = RoundsShrinePlanner.Create(reviewer, client);
-        }
         if (armory)
         {
             cfgArmory = new RoundsArmoryPlanner(reviewer, client);
@@ -263,10 +255,6 @@ public sealed partial class BrainComposition
         if (envelope)
         {
             cfgEnvelope = new RoundsEnvelopePlanner(reviewer);
-        }
-        if (incineration)
-        {
-            cfgIncineration = RoundsIncinerationPlanner.NewRoundsIncinerationPlanner(reviewer, client);
         }
         if (moodRelief)
         {
@@ -506,7 +494,6 @@ public sealed partial class BrainComposition
             Husbandry = cfgHusbandry,
             IdeoRoles = cfgIdeoRoles,
             Ideoligion = cfgIdeoligion,
-            Incineration = cfgIncineration,
             Ledger = cfgLedger,
             Lighting = cfgLighting,
             MaintainShelter = cfgMaintainShelter,
@@ -531,7 +518,6 @@ public sealed partial class BrainComposition
             Rituals = cfgRituals,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
-            Shrine = cfgShrine,
             Sleeping = cfgSleeping,
             SleepingUpkeep = cfgSleepingUpkeep,
             Stockpiles = cfgStockpiles,
@@ -633,10 +619,8 @@ public sealed partial class BrainComposition
         Add(sc.Burial, MaintainBurial);
         Add(sc.Training, MaintainTraining);
         Add(sc.Envelope, MaintainClimateEnvelope);
-        Add(sc.Incineration, MaintainIncineration);
         Add(sc.Gear, MaintainEquipment);
         Add(sc.Clearance, ClearHomeObstructions);
-        Add(sc.Shrine, ClearAncientShrine);
         Add(sc.Blight, RemoveBlight);
         Add(sc.Recovery, RecoverDisasterServices);
         Add(sc.Husbandry, MaintainHerd);

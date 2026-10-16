@@ -13,7 +13,7 @@ internal static partial class Occupancy
     [GeneratedRegex(@"^(?:plan-dig-[^-]+-[^-]+|bedroom-[^-]+|[^-]+-shell|(?:tomb|jail)-place)-([0-9]+)-([0-9]+)(?:-.*)?\z", RegexOptions.CultureInvariant)]
     private static partial Regex RoomMethodPattern();
 
-    // Matches the method ids of the plans keyed by a planned room's id: its ring, bedroom and incinerator shells.
+    // Matches the method ids of the plans keyed by a planned room's id: its ring and bedroom shells.
     [GeneratedRegex(@"^[^-]+-shell-room([0-9]+)(?:-.*)?\z", RegexOptions.CultureInvariant)]
     private static partial Regex RoomIdPattern();
 

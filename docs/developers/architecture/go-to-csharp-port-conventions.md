@@ -158,7 +158,7 @@ A port child works through this in order. `internal/domain` is the worked exampl
    goroutine launches, its `(T, error)` returns, its package-level state and its
    `init` registrations. *Domain:* no goroutines; one `init` registry
    (`RegisterIntentKind`); one generic type (`Fact[T]`); package vars `ErrDependency`,
-   `ErrWriteUnsent`; closed variant `Action` with 77 kinds.
+   `ErrWriteUnsent`; closed variant `Action` with 76 kinds.
 2. **Create the project.** `src/RimGovernor.Brain.<Pkg>`, add it to the solution and
    the Taskfile, reference only already-ported packages. *Domain:* no references.
 3. **Write the foundation first.** Ids, `Fact<T>`, exceptions, enum conventions

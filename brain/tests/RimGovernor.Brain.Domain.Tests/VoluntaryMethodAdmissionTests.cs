@@ -24,7 +24,6 @@ public sealed class VoluntaryMethodAdmissionTests
     [InlineData("neuroformer")]
     [InlineData("drop")]
     [InlineData("movement")]
-    [InlineData("casket")]
     [InlineData("wall-replacement")]
     [InlineData("capture")]
     [InlineData("rescue")]
@@ -106,7 +105,6 @@ public sealed class VoluntaryMethodAdmissionTests
         "neuroformer" => DomainAction.NewUseItemAction(new("direct-action"), new(new("pawn"), "neuroformer", new("pawn"))),
         "drop" => DomainAction.NewDropEquipmentAction(new("direct-action"), new(new("pawn"), "weapon")),
         "movement" => DomainAction.NewMovementAction(new("direct-action"), new(new("pawn"), new(1, 1), new("draft"))),
-        "casket" => DomainAction.NewOpenCasketAction(new("direct-action"), new(new("pawn"), "casket", new(1, 1))),
         "wall-replacement" => DomainAction.NewDeconstructionAction(new("direct-action"), new Deconstruction("door", "Door", new(1, 1)).WithWallReplacement()),
         "capture" => DomainAction.NewCaptureAction(new("direct-action"), new(new("pawn"), new("patient"))),
         "rescue" => DomainAction.NewRescueAction(new("direct-action"), new(new("pawn"), new("patient"))),

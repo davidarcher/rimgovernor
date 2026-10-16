@@ -18,7 +18,7 @@ public static partial class PolicyFunctions
         }
         Set(
             [WorkType.Construction],
-            ClearHomeObstructions, ClearAncientShrine, EnsureBasicDefense, EnsureComfort, MaintainHousing, MaintainEssentialRepairs, MaintainStoneShell,
+            ClearHomeObstructions, EnsureBasicDefense, EnsureComfort, MaintainHousing, MaintainEssentialRepairs, MaintainStoneShell,
             MaintainFoodStorage, MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
         Set([WorkType.PlantCutting], RemoveBlight);
         Set([WorkType.Art], MaintainArt);
@@ -31,7 +31,7 @@ public static partial class PolicyFunctions
         // A wear order is a forced job any pawn carries; the replacement bill needs the bench's work type.
         // Construction keeps the workshop rung available before a bench exists to request its crafting work.
         Set([WorkType.Construction, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MaintainEquipment);
-        Set([WorkType.Hauling], MaintainIncineration, ManagePollution);
+        Set([WorkType.Hauling], ManagePollution);
 
         // The shell, sarcophagus and graves are built; vanilla haulers carry the corpses.
         Set([WorkType.Construction], MaintainBurial);

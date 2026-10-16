@@ -210,8 +210,6 @@ Home at a time, nearest the colony center first.
   [support portfolio](support-work.md#delivery-and-chunks). A store accepting chunks
   does not prove a reason to haul every chunk. Native definitions retain their
   normal haulability; forbidden items and native legality remain authoritative.
-- `ClearAncientShrine` (the `shrine` family) holds the clearance concern while it has work
-  (see the breach concern in `controller-contracts.md`).
 - Unknown observations preserve the previous need. Recovery needs no eligible candidate
   and no unresolved issued action; recurrence keeps the concern identity. Native rechecks
   eligibility at apply; the action completes on its applied result and the census

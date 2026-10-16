@@ -66,20 +66,12 @@ public sealed partial class RoundsPopulationCustodyPlanner
         var started = reviewer.Clock.Now();
         var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var choice = PolicyFunctions.SelectCustodyMethod(read.Projection.Facts.Custody);
-        var arrestTarget = PolicyFunctions.ShrineArrestTarget(read.Projection.Facts);
-        if (arrestTarget.Value != "")
+        if (PolicyFunctions.LanceCandidate(read.Projection.Facts) is { } lanceTarget && lanceTarget.Value != "")
         {
-            choice = new CustodyChoice { Pawn = (PawnId)arrestTarget };
-        }
-        else
-        {
-            if (PolicyFunctions.LanceCandidate(read.Projection.Facts) is { } lanceTarget && lanceTarget.Value != "")
+            var (lance, handled) = await StepLanceAsync(p, state, started, goal, review.Tick, lanceTarget, arbiter, call, epoch).ConfigureAwait(false);
+            if (handled)
             {
-                var (lance, handled) = await StepLanceAsync(p, state, started, goal, review.Tick, lanceTarget, arbiter, call, epoch).ConfigureAwait(false);
-                if (handled)
-                {
-                    return lance;
-                }
+                return lance;
             }
         }
 
@@ -101,7 +93,7 @@ public sealed partial class RoundsPopulationCustodyPlanner
             return new RoundsPopulationCustodyResult { Verdict = Verdict.FieldUnavailable("custody") };
         }
 
-        if (arrestTarget.Value == "" && choice.Decision == CustodyDecision.Rescue)
+        if (choice.Decision == CustodyDecision.Rescue)
             return new RoundsPopulationCustodyResult { Verdict = Verdict.AwaitingPlan("dependent_rescue_incident_owner",
                 "Critical eligible dependent rescue belongs to CriticalMedicine; other custody transport requires shared forecast support.") };
 
@@ -154,10 +146,8 @@ public sealed partial class RoundsPopulationCustodyPlanner
             throw new ControlException("step: pawn count differs from the requested ids");
         }
 
-        var needed = (await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false)).Select(id => id).ToHashSet();
         var arms = await BuildingRuntimePackage.ReadArmamentAsync(native, identityCtx, call).ConfigureAwait(false);
         var catalog = arms.Catalog;
-        var squad = new List<ShrineDefenderFacts>();
         var profiles = new List<PawnProfile>();
         O.PawnState? patient = null;
         var seen = new HashSet<string>();
@@ -175,8 +165,6 @@ public sealed partial class RoundsPopulationCustodyPlanner
                 continue;
             }
 
-            var ranged = BuildingRuntimePackage.RangedWeaponEquipped(row.Equipment, arms);
-            squad.Add((ShrineDefenderFacts)BuildingRuntimePackage.SquadDefenderFactsFrom(new ShrineDefenderFacts(), row, needed, ranged));
             var work = ObservationPackage.WorkPawnRow(row, catalog, arms.Things);
             profiles.Add(PolicyFunctions.BuildProfile(work));
         }
@@ -184,11 +172,6 @@ public sealed partial class RoundsPopulationCustodyPlanner
         if (patient is null)
         {
             throw new ControlException("step: patient == nil");
-        }
-
-        if (arrestTarget.Value != "")
-        {
-            return CommitArrest(p, state, started, goal, read.Projection.Facts, squad, arrestTarget, arbiter, call, epoch);
         }
 
         switch (choice.Decision)

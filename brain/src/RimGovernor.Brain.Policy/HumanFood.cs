@@ -18,16 +18,6 @@ public sealed record HeldPrecepts
     public IReadOnlyList<string> Defs { get; init; } = [];
 }
 
-/// <summary>Where a stranger corpse (raider, prisoner, visitor) goes.</summary>
-public enum StrangerRoute
-{
-    [WireName("butcher")]
-    Butcher,
-
-    [WireName("incinerate")]
-    Incinerate,
-}
-
 public enum HumanMeatRoute
 {
     [WireName("animal_feed")]
@@ -228,13 +218,6 @@ public static partial class PolicyFunctions
         }
         return false;
     }
-
-    /// <summary>
-    /// Butchers a corpse that is still fresh while butchery is open and burns every other in the incinerator: a
-    /// rotting or desiccated one is never hauled to the butchery. An unread rot stage is not spoiled.
-    /// </summary>
-    public static StrangerRoute RouteStranger(RotStage rot, bool butcheryOpen) =>
-        butcheryOpen && !rot.Spoiled() ? StrangerRoute.Butcher : StrangerRoute.Incinerate;
 
     /// <summary>
     /// Whether the existing human-butcher gate would take a stranger corpse now: a usable butchery whose recipe is

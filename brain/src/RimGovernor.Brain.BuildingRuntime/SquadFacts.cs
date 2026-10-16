@@ -164,8 +164,7 @@ internal static partial class BuildingRuntimePackage
         SquadDefenderFactsFrom(new Pol.SquadDefenderFacts(), row, needed, ranged);
 
     /// <summary>
-    /// SquadDefenderFacts over a seed: a derived record (the shrine defender) stays its own type through the copies,
-    /// which stands in for Go embedding the squad facts in it.
+    /// SquadDefenderFacts over a seed: a derived record stays its own type through the copies.
     /// </summary>
     internal static Pol.SquadDefenderFacts SquadDefenderFactsFrom(Pol.SquadDefenderFacts seed, ObservationsPb.PawnState row, IReadOnlySet<Domain.PawnId> needed, Fact<bool> ranged)
     {

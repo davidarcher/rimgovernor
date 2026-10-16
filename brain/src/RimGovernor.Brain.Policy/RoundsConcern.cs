@@ -133,10 +133,6 @@ public static partial class PolicyFunctions
             // Census-driven: a tomb, grave or morgue step due is a full deficit.
             return OwedDeficit(f.BurialOwed);
         }
-        else if (id == MaintainIncineration)
-        {
-            return OwedDeficit(f.IncinerationOwed);
-        }
         else if (id == RemoveBlight)
         {
             // Census-driven like waste: any standing blighted plant is a full deficit until the census is empty.

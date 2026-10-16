@@ -12,7 +12,7 @@ public sealed partial class Rounder
     internal bool RoomsEnabled() =>
         // MaintainHousing: suite claims and the plan's suite wing read the census's standing bedrooms.
         // MaintainShelter: the Safe area covers the census's enclosed roofed rooms.
-        TemperatureEnabled() || MethodEnabled(MaintainShelter) || MethodEnabled(MaintainHousing) || MethodEnabled(EnsureComfort) || MethodEnabled(MaintainRefrigeration) || MethodEnabled(MaintainLighting) || MethodEnabled(MaintainFlooring) || MethodEnabled(MaintainRoutes) || MethodEnabled(MaintainBurial) || MethodEnabled(MaintainClimateEnvelope) || MethodEnabled(MaintainTraining) || MethodEnabled(MaintainIncineration) || MethodEnabled(MaintainStockpiles);
+        TemperatureEnabled() || MethodEnabled(MaintainShelter) || MethodEnabled(MaintainHousing) || MethodEnabled(EnsureComfort) || MethodEnabled(MaintainRefrigeration) || MethodEnabled(MaintainLighting) || MethodEnabled(MaintainFlooring) || MethodEnabled(MaintainRoutes) || MethodEnabled(MaintainBurial) || MethodEnabled(MaintainClimateEnvelope) || MethodEnabled(MaintainTraining) || MethodEnabled(MaintainStockpiles);
 
     internal bool MethodEnabled(ConcernId goal)
     {
@@ -135,7 +135,7 @@ internal static partial class BuildingRuntimePackage
             }
         }
         // Campfires burn wood: a finite stock unless a tree species can be sown.
-        return cooling with { HeatFuelFinite = !ResourceGrowable(CropChoices(facts), new Pol.Resource(BurnFuelStuff), facts.CropClimate.Biome, GrowerSkill(facts.WorkPawns)) };
+        return cooling with { HeatFuelFinite = !ResourceGrowable(CropChoices(facts), PolicyFunctions.ConstructionWoodLog, facts.CropClimate.Biome, GrowerSkill(facts.WorkPawns)) };
     }
 
     /// <summary>The planning definitions the temperature planner reads: every method it can place, so availability and draw are known before one is chosen.</summary>

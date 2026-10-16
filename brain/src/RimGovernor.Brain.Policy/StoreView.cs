@@ -68,9 +68,6 @@ public sealed partial record StoreView
 
     /// <summary>The markers the sparring ring should hold (see TrainingRings); asked while two fighters are below the melee ceiling.</summary>
     public Fact<int> TrainingRings { get; init; }
-
-    /// <summary>The planned incinerator room once its walls and door stand; null before. The Sanitation store declares its zone.</summary>
-    public PlannedRoom? Incinerator { get; init; }
 }
 
 /// <summary>

@@ -45,8 +45,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsClearanceResult? Clearance { get; set; }
 
-    public RoundsShrineResult? Shrine { get; set; }
-
     public RoundsBuildingResult? Sleeping { get; set; }
 
     public RoundsBuildingResult? Cooking { get; set; }
@@ -143,8 +141,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsEnvelopeResult? Envelope { get; set; }
 
-    public RoundsIncinerationResult? Incineration { get; set; }
-
     public RoundsMoodReliefResult? MoodRelief { get; set; }
 
     public RoundsDialogResult? Dialog { get; set; }
@@ -192,7 +188,6 @@ public sealed class ClockSchedulerResult
         Ledger = other.Ledger ?? Ledger;
         Armory = other.Armory ?? Armory;
         Clearance = other.Clearance ?? Clearance;
-        Shrine = other.Shrine ?? Shrine;
         Sleeping = other.Sleeping ?? Sleeping;
         Cooking = other.Cooking ?? Cooking;
         Comfort = other.Comfort ?? Comfort;
@@ -241,7 +236,6 @@ public sealed class ClockSchedulerResult
         Burial = other.Burial ?? Burial;
         Training = other.Training ?? Training;
         Envelope = other.Envelope ?? Envelope;
-        Incineration = other.Incineration ?? Incineration;
         MoodRelief = other.MoodRelief ?? MoodRelief;
         Dialog = other.Dialog ?? Dialog;
         Trade = other.Trade ?? Trade;

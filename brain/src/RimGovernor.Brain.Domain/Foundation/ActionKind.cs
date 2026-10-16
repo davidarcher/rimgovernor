@@ -47,7 +47,6 @@ public enum ActionKind
     MineAcquisition,
     MoveBuilding,
     Movement,
-    OpenCasket,
     OwnedDraft,
     PawnSettings,
     PawnActivities,

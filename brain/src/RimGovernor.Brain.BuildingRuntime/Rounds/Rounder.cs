@@ -334,7 +334,7 @@ public sealed partial class Rounder
         {
             readDefinitions = [.. readDefinitions, .. HerdDefinitions];
         }
-        if (MethodEnabled(PolicyConstants.MaintainIncineration) || MethodEnabled(PolicyApi.MaintainBurial))
+        if (MethodEnabled(PolicyApi.MaintainBurial))
         {
             readDefinitions = [.. readDefinitions, .. BurialDefinitions];
         }
@@ -407,7 +407,6 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { BedroomsOwed = BedroomsOwedOf(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { BurialOwed = BurialOwed(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = ButcherTableAffordable(reading.Projection) });
-        reading = reading.WithFacts(rf => rf with { IncinerationOwed = IncinerationOwed(reading.Projection) });
         // The herd furniture is read only when the containment method is on (readDefinitions above); a review without it owes no herd step.
         if (MethodEnabled(PolicyApi.MaintainAnimalContainment))
         {
@@ -656,19 +655,6 @@ public sealed partial class Rounder
                 reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
                 reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
             }
-        }
-        if (MethodEnabled(PolicyApi.ClearAncientShrine))
-        {
-            if (Native is not IShrineSource shrineSource)
-            {
-                throw new ControlException("step: !ok");
-            }
-            var vShrines = await ObservationApi.ObserveShrines(shrineSource, expected, ct).ConfigureAwait(false);
-            reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Shrines = vShrines } });
-            // The breach judgement is journalled beside the review so the hold reason and the chosen wall are
-            // readable; the planner re-reads before drafting anyone. The reads only happen for a sealed shrine with a breach wall.
-            var (shrineHolds, shrinePolicy) = await RoundsShrineHoldsAsync(Native, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
-            reading = reading.WithFacts(rf => rf with { ShrineHolds = [.. shrineHolds], Upkeep = rf.Upkeep with { ShrinePolicy = shrinePolicy } });
         }
         reading = reading.WithFacts(rf => rf with { AvailableMethods = Methods });
         var vLedgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);

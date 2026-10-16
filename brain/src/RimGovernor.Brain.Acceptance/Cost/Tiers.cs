@@ -28,7 +28,7 @@ public static class Tiers
     {
         "combatlab/native-hold",
         "coordination/food-delegated", "coordination/food-carried-recovery", "coordination/construction-delegated",
-        "campaign/foothold", "campaign/recovery", "clearance/shrine-breach",
+        "campaign/foothold", "campaign/recovery",
         "defense/perimeter", "food/reserve", "food/starving-tribal-recovery", "production/ladder",
         "shelter/bunks-first", "startup/labor",
         "shelter/retirement", "shelter/climate-mild", "shelter/climate-cold", "shelter/climate-hot", "shelter/solo-cold", "solo/sea-ice-stock", "solo/sea-ice-rhadamant",

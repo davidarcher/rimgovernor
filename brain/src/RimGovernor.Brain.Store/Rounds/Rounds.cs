@@ -34,11 +34,6 @@ public sealed record Rounds
     /// <summary>The one recovery queue: the clearance planner executes its removals against a fresh native census; its held entries are the journalled hold reasons.</summary>
     public RecoveryQueue? RecoveryQueue { get; init; }
 
-    public EquatableArray<ShrineHold> ShrineHolds { get; init; }
-
-    /// <summary>The shrine planner's last step: the shrine it held on and why, and the candidates it passed over. A world change clears it; otherwise a review keeps the last one.</summary>
-    public RoundsShrineStep? ShrineStep { get; init; }
-
     public RoundsRecovery? Recovery { get; init; }
 
     public DisasterHistory? Disaster { get; init; }

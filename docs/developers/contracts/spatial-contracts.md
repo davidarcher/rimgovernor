@@ -453,7 +453,7 @@ idle.
   no flow door from a room with beds to a non-circulation room while one stands; the
   corridor's group links carry no flow weight, so `Trips` are unchanged. Colonies whose
   private rooms do not outnumber the public ones get no corridor.
-  **Outskirts rooms (#2882).** The tomb, morgue, graveyard, waste yard and incinerator
+  **Outskirts rooms (#2882).** The tomb, morgue, graveyard and waste yard
   are station-less room nodes of the same graph (`OutskirtsRoomNodes`,
   `LayoutOutskirts.cs`): each asks the floor its slot gives and keeps its role's
   interior template, and clustering makes a `Planned` group of it. No distance band sits on
@@ -464,7 +464,7 @@ idle.
   reaches, the enclosure it adds to the base. The repo has no corpse or waste volume
   model, so these rooms carry no flow yet: they are unpriced by distance, never forced
   near or far and never guessed. An unpriced room (`embedder.unpriced`: no link of
-  positive weight, so the incinerator beside the waste yard counts) is placed by the cell
+  positive weight) is placed by the cell
   terms (soil, edge, centre) plus the marginal Wall and Footprint of the plan score
   (`enclosureCost`, `LayoutEmbedEnclosure.cs`, `planWeights`, no new constant): the base
   pays a wall ring for its size, so a room standing apart pays a ring of its own and one
@@ -472,8 +472,7 @@ idle.
   killbox yard and `perimeterThick`, only on ground a wall can stand on) and ignores
   closing, hole filling and shoreline detours, which the plan's own score still prices.
   The morgue is cold, so it
-  carries the cooler any cold group carries; the incinerator is required beside the waste
-  yard. Wind is not a constraint: it has no game effect here. The tiler gives the
+  carries the cooler any cold group carries. Wind is not a constraint: it has no game effect here. The tiler gives the
   unfenced graveyard and waste yard no wall, door or entrance. The siting reasons and the perimeter overlap checks are #2886.
   **Training rooms (#2887).** The range and the sparring ring are station-less nodes too
   (`TrainingRoomNodes`, `LayoutTrainingNodes.cs`; `StationGraphInput.TrainingStands`
@@ -600,8 +599,7 @@ create is a native zone preview and a `zone_create` method. Each is a
 `layout`/`stockpiles` clock event.
 
 **Waste dump** (`wastedump`) is the Sanitation department's declared store: one Low zone over
-the waste yard interior outside the incinerator outline, allowing all storable items except
-the native not-burnable special (`domain.DumpFilter`). Warehouse gear (apparel or weapons in a
+the waste yard interior, allowing all storable items. Warehouse gear (apparel or weapons in a
 `general` zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`);
 unknown hit points or quality is not sale gear.
 
@@ -703,26 +701,6 @@ native stub as an unknown fact, distinct from a complete empty census. Required
 safety booleans cannot be omitted. The observation context must match the expected
 load, map, generation and fresh tick. The read admits nothing itself;
 `ClearHomeObstructions` consumes it ([upkeep contracts](upkeep-contracts.md)).
-
-## Ancient shrine observations
-
-`Observations.GetAncientShrines` is a read-only census of ancient-danger rooms, one
-row per shrine rather than per flagged wall. A row carries the room rectangle,
-`sealed` (interior fogged, no open roof, not on the map edge), whether any room cell
-is in Home, every cryptosleep casket with its hit points, `has_contents` and player
-claim, the hostile pawns and hives inside once the interior is unfogged
-(`guards_known`; a sealed shrine never reports guards), and the perimeter walls the
-player may deconstruct without a roof-support blocker. For a visible neutral wall on
-a sealed shrine, roof structure is inspected inside that bounded room and its border
-despite fog; unsupported roofs, pending collapse and fog outside that footprint still
-block. This check reveals no occupants and never unfogs the room.
-
-The occupant of a filled casket is unknown until it opens; a casket under 20% hit
-points explodes, so hit points are a safety reading. The census has no
-count caps on shrines, caskets, guards or breach walls; an
-unreadable scan is unavailable, never sampled. Nothing in this read admits a breach,
-a casket order or a claim: readiness, the breach concern and casket
-handling decide.
 
 Optional heat facts (visible roof-connected interior,
 independent of building ownership: measured temperatures, enclosure, colonist

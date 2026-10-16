@@ -198,12 +198,6 @@ internal static class ReadProjections
         IReadOnlyList<ColonyStockpileDto>? stockpiles = v.Stockpiles.TryGetValue(out var zones)
             ? [.. zones.Select(z => new ColonyStockpileDto(z.Role, z.Zones, z.Cells, z.Used))]
             : null;
-        IReadOnlyList<ColonyShrineDto>? shrines = null;
-        if (v.Shrines.TryGetValue(out var shrineRows))
-        {
-            shrines = [.. shrineRows.Select(shrine => Shrine(shrine, v.ShrineReadiness))];
-        }
-
         var downed = 0;
         var moodSum = 0.0;
         var moodCount = 0;
@@ -248,34 +242,12 @@ internal static class ReadProjections
             Value(v.Threat.WealthPawns),
             v.PlayerTechLevel.TryGetValue(out var level) ? level : null,
             v.TechTier.TryGetValue(out var tier) ? tier.ToString() : null,
-            shrines,
             stockpiles,
             Value(v.ForbiddenSupplies),
             downed,
             moodCount > 0 ? moodSum / moodCount : null,
             v.MoodLedger.TryGetValue(out var ledger) ? MoodLedgerRow(ledger) : null,
             pawns);
-    }
-
-    private static ColonyShrineDto Shrine(AncientShrine shrine, IReadOnlyList<ShrineReadinessReport> readiness)
-    {
-        bool? ready = null;
-        string? reason = null;
-        string? wall = null;
-        var squad = 0;
-        var traps = 0;
-        foreach (var judged in readiness)
-        {
-            if (judged.Shrine != shrine.Id)
-            {
-                continue;
-            }
-
-            (ready, reason, squad, traps) = (judged.Readiness.Ready, judged.Readiness.Reason, judged.Readiness.Squad.Count, judged.Readiness.Traps);
-            wall = judged.Readiness.Wall.EntityId.Length == 0 ? null : judged.Readiness.Wall.EntityId;
-        }
-
-        return new ColonyShrineDto(shrine.Id, shrine.Sealed, shrine.InHome, shrine.Caskets.Count, shrine.FilledCaskets(), shrine.GuardsKnown, shrine.GuardsAlive(), shrine.BreachWalls.Count, ready, reason, wall, squad, traps);
     }
 
     private static MoodLedgerDto MoodLedgerRow(MoodLedger l)

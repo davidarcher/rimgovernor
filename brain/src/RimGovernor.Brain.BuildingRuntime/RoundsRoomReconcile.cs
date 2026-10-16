@@ -29,8 +29,8 @@ internal sealed class RoomReconcile
 
     /// <summary>
     /// Reconciles the ring and its doors alone: no furniture template, floors or wall-stuff swaps, and no
-    /// clearance read, so a caller that holds no packed stock (dining, kitchen, the gear rooms, the
-    /// incinerator) can use it. A ring cell the native refuses is no_space, as for an outdoor ring.
+    /// clearance read, so a caller that holds no packed stock (dining, kitchen, the gear rooms) can use it.
+    /// A ring cell the native refuses is no_space, as for an outdoor ring.
     /// </summary>
     public bool RingOnly { get; init; }
 
@@ -40,7 +40,7 @@ internal sealed class RoomReconcile
     /// </summary>
     public bool ClimateOnly { get; init; }
 
-    /// <summary>Overrides the wall's and door's stuff (the incinerator's fireproof choice); null builds both from the one shared shell stuff.</summary>
+    /// <summary>Overrides the wall's and door's stuff; null builds both from the one shared shell stuff.</summary>
     public ShellStuff? Stuff { get; init; }
 }
 

@@ -144,8 +144,6 @@ public interface INativeFacade
 
     Task<Obs.ResourceSourcesReply> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.AncientShrinesReply> ReadAncientShrinesAsync(Obs.AncientShrinesRequest request, CancellationToken cancellationToken);
-
     Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken);
 
     Task<Obs.EvaluateStatReply> EvaluateStatAsync(Obs.EvaluateStatRequest request, CancellationToken cancellationToken);

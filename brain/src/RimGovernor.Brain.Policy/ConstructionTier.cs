@@ -38,7 +38,6 @@ public static partial class PolicyFunctions
         [PlannedRole.Yard] = ConstructionTier.Expand,
         [PlannedRole.Tomb] = ConstructionTier.Expand,
         [PlannedRole.Morgue] = ConstructionTier.Expand,
-        [PlannedRole.Incinerator] = ConstructionTier.Expand,
         [PlannedRole.Prison] = ConstructionTier.Expand,
         [PlannedRole.Reserve] = ConstructionTier.Expand,
         [PlannedRole.Circulation] = ConstructionTier.Expand,

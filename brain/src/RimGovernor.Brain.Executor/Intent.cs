@@ -83,7 +83,6 @@ public sealed partial class Executor
         ActionKind.AutoHomeArea,
         ActionKind.Repair,
         ActionKind.Clean,
-        ActionKind.OpenCasket,
         ActionKind.Tend,
         ActionKind.OwnedDraft,
         ActionKind.Subdue,

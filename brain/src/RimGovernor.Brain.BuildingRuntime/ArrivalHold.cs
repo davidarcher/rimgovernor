@@ -15,7 +15,7 @@ public sealed partial class Worker
 {
     /// <summary>
     /// Names the undispatched actions that depend on a completed move whose pawn does not yet stand on its
-    /// destination. A move's receipt only says the order was given; the shrine plan's breach or opening waits here,
+    /// destination. A move's receipt only says the order was given; a plan's dependent actions wait here,
     /// in the worker, until every mover has arrived. A drafted pawn idle away from its cell has lost its order, so
     /// its move is sent again (the intent is idempotent). An unreadable position holds.
     /// </summary>

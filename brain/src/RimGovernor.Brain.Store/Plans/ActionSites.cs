@@ -41,7 +41,6 @@ internal static class ActionSites
             Haul p => Site(p.Pawn, p.Thing, p.Cell),
             Equip p => Site(p.Pawn, p.Thing, p.Cell),
             GearReplace p => Site(p.Pawn, p.Thing, null),
-            OpenCasket p => Site(p.Pawn, p.Casket, p.Cell),
             Repair p => Site(p.Pawn, p.Structure, p.Cell),
             Clean p => Site(p.Pawn, p.Filth, p.Cell),
             RecoveryService p => Site(p.Pawn, p.Thing, null),

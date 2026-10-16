@@ -141,7 +141,7 @@ Decisions:
   preview stays the authority at admission, and Admitted and Owed take over once pieces are placed, so a
   pricing error corrects itself. A native preview per piece was rejected: one game-thread call per piece,
   hundreds per review for a whole plan, stale when it lands.
-- **Key by room id (built).** Shell, bedroom, incinerator and `RoomName` methods carry the room id instead of the
+- **Key by room id (built).** Shell, bedroom and `RoomName` methods carry the room id instead of the
   room's coordinates, and `Occupancy.RoomMethodIds` maps them to in-flight rooms. Dig, tomb and jail methods still
   carry coordinates.
 - **No new persisted state.** Per `AGENTS.md`, state has one owner. The plan is the journal's, the world is

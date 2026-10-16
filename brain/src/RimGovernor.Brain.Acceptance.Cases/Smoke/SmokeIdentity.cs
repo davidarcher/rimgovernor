@@ -80,11 +80,6 @@ internal static class SmokeIdentity
         var (_, observed) = Harness.Outcome(clearance, "observed");
         _ = Decode<RimGovernor.Contracts.Wire.Observations.ClearanceTargetsSnapshot>("clearance targets", observed, identity);
         s.Report["clearance"] = observed.DeepClone();
-
-        var shrines = await h.WireAsync("shrines", "observations_get_ancient_shrines", scope.DeepClone(), cancellationToken).ConfigureAwait(false);
-        (_, observed) = Harness.Outcome(shrines, "observed");
-        _ = Decode<RimGovernor.Contracts.Wire.Observations.AncientShrinesSnapshot>("ancient shrines", observed, identity);
-        s.Report["shrines"] = observed.DeepClone();
     }
 
     // Go decoded the section into its protobuf type (strict about unknown fields) and ran the bridge validator, whose

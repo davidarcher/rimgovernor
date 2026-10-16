@@ -153,12 +153,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             },
             cancellationToken);
 
-    public Task<IReadOnlyList<string>> ShrineHoldsAsync(CancellationToken cancellationToken) =>
-        ReadAsync(
-            "shrine holds",
-            ct => (IReadOnlyList<string>)[.. _store.LoadRounds(ct).ShrineHolds.Select(h => $"{h.Shrine}:{h.Reason}:{h.Wall}")],
-            cancellationToken);
-
     async Task<(ulong Revision, ulong Tick)?> IPhaseStore.LoadRoundsAsync(CancellationToken cancellationToken)
     {
         var review = await ReadAsync("read rounds", ct => _store.LoadRounds(ct), cancellationToken).ConfigureAwait(false);

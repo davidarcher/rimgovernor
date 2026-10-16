@@ -75,42 +75,6 @@ public sealed class ResourceRunwayRecordConverter : ObjectCodec<ResourceRunwayRe
     }
 }
 
-public sealed class RoundsShrineStepConverter : ObjectCodec<RoundsShrineStep>
-{
-    protected override RoundsShrineStep Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Tick = e.Get<Tick>("Tick", o),
-            Reason = e.Str("Reason"),
-            Shrine = e.StrOr("Shrine"),
-            Hold = e.StrOr("Hold"),
-            Plan = e.GetOr("Plan", default(PlanId), o),
-            Skipped = e.GetOr("Skipped", default(EquatableArray<ShrineHold>), o),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, RoundsShrineStep v, Codecs o)
-    {
-        w.Put("Tick", v.Tick, o);
-        w.WriteString("Reason", v.Reason);
-        if (v.Shrine.Length != 0)
-        {
-            w.WriteString("Shrine", v.Shrine);
-        }
-        if (v.Hold.Length != 0)
-        {
-            w.WriteString("Hold", v.Hold);
-        }
-        if (v.Plan.Value.Length != 0)
-        {
-            w.Put("Plan", v.Plan, o);
-        }
-        if (v.Skipped.Count > 0)
-        {
-            w.Put("Skipped", v.Skipped, o);
-        }
-    }
-}
-
 public sealed class RoundsRecoveryRestrictionConverter : ObjectCodec<RoundsRecoveryRestriction>
 {
     protected override RoundsRecoveryRestriction Read(JsonElement e, Codecs o) =>

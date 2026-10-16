@@ -110,8 +110,6 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
 
     public Task<Obs.ResourceSourcesReply> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken) => Count("observations_list_resource_sources", () => inner.ListResourceSourcesAsync(request, cancellationToken));
 
-    public Task<Obs.AncientShrinesReply> ReadAncientShrinesAsync(Obs.AncientShrinesRequest request, CancellationToken cancellationToken) => Count("observations_get_ancient_shrines", () => inner.ReadAncientShrinesAsync(request, cancellationToken));
-
     public Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken) => Count("observations_read_spatial_access", () => inner.ReadSpatialAccessAsync(request, cancellationToken));
 
     public Task<Obs.EvaluateStatReply> EvaluateStatAsync(Obs.EvaluateStatRequest request, CancellationToken cancellationToken) => Count("observations_evaluate_stat", () => inner.EvaluateStatAsync(request, cancellationToken));

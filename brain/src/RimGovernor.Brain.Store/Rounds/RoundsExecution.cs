@@ -38,7 +38,6 @@ public sealed partial class Store
         ActionKind.Repair,
         ActionKind.Clean,
         ActionKind.MineAcquisition,
-        ActionKind.OpenCasket,
         ActionKind.BuildingTemperature,
         ActionKind.BedUse,
         ActionKind.GrowerCrop,

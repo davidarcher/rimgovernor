@@ -209,9 +209,6 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ResourceSourcesReply> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken)
             => Read("observations_list_resource_sources", request, () => NativeResourceSourcesTool.HandleListResourceSources(request), cancellationToken);
 
-        public Task<Obs.AncientShrinesReply> ReadAncientShrinesAsync(Obs.AncientShrinesRequest request, CancellationToken cancellationToken)
-            => Read("observations_get_ancient_shrines", request, () => NativeShrineObservationTools.HandleAncientShrines(request), cancellationToken);
-
         public Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken)
             => Read("observations_read_spatial_access", request, () => NativeSpatialAccessTool.HandleReadSpatialAccess(request), cancellationToken);
 

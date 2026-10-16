@@ -99,10 +99,6 @@ public sealed partial class Store
         {
             throw new StoreCorruptException("invalid routine roster history");
         }
-        if (r.ShrineStep is { } step && !step.IsValid(r.Tick))
-        {
-            throw new StoreCorruptException("invalid routine shrine step");
-        }
         if (r.Progress.Count > MaxRoundsStandards)
         {
             throw new StoreCorruptException("invalid routine progress history");
@@ -408,10 +404,6 @@ public sealed partial class Store
             }
         }
         r = r with { Comfort = comfort, Sleeping = sleeping, Mood = MoodRecord(mood), Roster = RoundsRoster(request, previous, reset) };
-        if (!reset)
-        {
-            r = r with { ShrineStep = previous.ShrineStep };
-        }
         r = r with { ResourceRunways = ResourceRunwayRecords(request.Facts.ResourceRunways) };
         if (!request.Enabled && !reset)
         {
@@ -508,18 +500,6 @@ public sealed partial class Store
         else if (!reset)
         {
             r = r with { RecoveryQueue = previous.RecoveryQueue };
-        }
-        if (request.Facts.Upkeep.Shrines.TryGetValue(out _))
-        {
-            r = r with { ShrineHolds = request.Facts.ShrineHolds };
-        }
-        else if (!reset)
-        {
-            r = r with { ShrineHolds = previous.ShrineHolds };
-        }
-        if (!request.Immediate)
-        {
-            r = r with { ShrineHolds = MarkShrineHolds(r.ShrineHolds, r.ShrineStep) };
         }
         var result = new RoundsResult
         {

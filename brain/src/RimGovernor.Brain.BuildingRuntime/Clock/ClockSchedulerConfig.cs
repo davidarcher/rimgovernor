@@ -52,8 +52,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsClearancePlanner? Clearance { get; init; }
 
-    public RoundsShrinePlanner? Shrine { get; init; }
-
     public RoundsBuildingPlanner? Sleeping { get; init; }
 
     public RoundsBuildingPlanner? Cooking { get; init; }
@@ -149,8 +147,6 @@ public sealed class ClockSchedulerConfig
     public RoundsTrainingPlanner? Training { get; init; }
 
     public RoundsEnvelopePlanner? Envelope { get; init; }
-
-    public RoundsIncinerationPlanner? Incineration { get; init; }
 
     public RoundsMoodReliefPlanner? MoodRelief { get; init; }
 

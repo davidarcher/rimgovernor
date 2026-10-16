@@ -2168,8 +2168,6 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             ReserveSupplies = e.Get<EquatableArray<ReserveSupply>>("ReserveSupplies", o),
             LarderSupplies = e.Get<EquatableArray<StartingSupply>>("LarderSupplies", o),
             RecoveryQueue = e.GetOr<RecoveryQueue?>("RecoveryQueue", null, o),
-            ShrineHolds = e.Get<EquatableArray<ShrineHold>>("ShrineHolds", o),
-            ShrineStep = e.GetOr<RoundsShrineStep?>("ShrineStep", null, o),
             Recovery = e.GetOr<RoundsRecovery?>("Recovery", null, o),
             Disaster = e.GetOr<DisasterHistory?>("Disaster", null, o),
             Mood = e.GetOr<RoundsMood?>("Mood", null, o),
@@ -2207,11 +2205,6 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
         if (v.RecoveryQueue is { } vRecoveryQueue)
         {
             w.Put("RecoveryQueue", vRecoveryQueue, o);
-        }
-        w.Put("ShrineHolds", v.ShrineHolds, o);
-        if (v.ShrineStep is { } vShrineStep)
-        {
-            w.Put("ShrineStep", vShrineStep, o);
         }
         if (v.Recovery is { } vRecovery)
         {
@@ -2348,30 +2341,6 @@ internal sealed class SafeguardProposalConverter : ObjectCodec<SafeguardProposal
     protected override void WriteFields(Utf8JsonWriter w, SafeguardProposal v, Codecs o)
     {
         w.Put("Need", v.Need, o);
-    }
-}
-
-internal sealed class ShrineHoldConverter : ObjectCodec<ShrineHold>
-{
-    protected override ShrineHold Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Shrine = e.Str("Shrine"),
-            Reason = e.Str("Reason"),
-            Wall = e.Str("Wall"),
-            Casket = e.Str("Casket"),
-            Occupant = e.Str("Occupant"),
-            Planner = e.Str("Planner"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, ShrineHold v, Codecs o)
-    {
-        w.WriteString("Shrine", v.Shrine);
-        w.WriteString("Reason", v.Reason);
-        w.WriteString("Wall", v.Wall);
-        w.WriteString("Casket", v.Casket);
-        w.WriteString("Occupant", v.Occupant);
-        w.WriteString("Planner", v.Planner);
     }
 }
 
@@ -2649,7 +2618,6 @@ internal sealed class UpkeepHistoryConverter : ObjectCodec<UpkeepHistory>
         new()
         {
             Clearance = e.Bool("Clearance"),
-            Shrine = e.Bool("Shrine"),
             Fire = e.Bool("Fire"),
             Repairs = e.Bool("Repairs"),
         };
@@ -2657,7 +2625,6 @@ internal sealed class UpkeepHistoryConverter : ObjectCodec<UpkeepHistory>
     protected override void WriteFields(Utf8JsonWriter w, UpkeepHistory v, Codecs o)
     {
         w.WriteBoolean("Clearance", v.Clearance);
-        w.WriteBoolean("Shrine", v.Shrine);
         w.WriteBoolean("Fire", v.Fire);
         w.WriteBoolean("Repairs", v.Repairs);
     }

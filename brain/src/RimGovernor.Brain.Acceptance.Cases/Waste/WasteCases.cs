@@ -8,6 +8,5 @@ public static class WasteCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(WasteEquality.Case());
         registry.Register(WasteBurnable.Case());
-        registry.Register(WasteIncineration.Case());
     }
 }

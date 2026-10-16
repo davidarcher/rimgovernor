@@ -105,7 +105,6 @@ public static partial class PolicyFunctions
             [PlannedTomb] = St(PlanGray, "tomb"),
             [PlannedMorgue] = St(PlanCyan, "morgue"),
             [PlannedWasteYard] = St(PlanRed, "waste yard"),
-            [PlannedRole.Incinerator] = St(PlanRed, "incinerator"),
             [PlannedGraveyard] = St(PlanGreen, "graveyard"),
             [PlannedTrainingRange] = St(PlanBrown, "training range"),
             [PlannedSparringRing] = St(PlanBrown, "sparring ring"),

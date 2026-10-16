@@ -23,7 +23,7 @@ internal static class StrangerSarcophagus
         Scope = "Issue #2338 stranger sarcophagus loop (epic #2209): a colonist hauls a stranger corpse into a fresh sarcophagus and every "
             + "colonist gains exactly one KnowBuriedInSarcophagus; the corpse carries everBuriedInSarcophagus; a second stranger corpse buried "
             + "in the same, now used, sarcophagus gives nothing; a DECONSTRUCT designation (the planner's TombDispose action) ejects the corpse "
-            + "beside the cell, spawned, ready for the incinerator path (waste/incineration owns the burn). Vanilla Building_Sarcophagus.Notify_HauledTo, everNonEmpty and "
+            + "beside the cell, spawned. Vanilla Building_Sarcophagus.Notify_HauledTo, everNonEmpty and "
             + "Building_Casket.Destroy physics that no snapshot test over recorded facts covers; the planner decision (TombDispose, cap, funding, "
             + "no re-staging of a flagged corpse) is snapshot-tested in policy and buildingruntime.",
         Start = new FixtureStart { Op = TombStage, On = new LabStart() },

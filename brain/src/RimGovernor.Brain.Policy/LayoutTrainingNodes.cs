@@ -50,7 +50,7 @@ public static partial class PolicyFunctions
 
     /// <summary>The roles of the rooms the graph sites by their own terms, not as part of the base: the outskirts rooms, the training rooms and the shelter.</summary>
     private static bool ApartFromBase(PlannedRole role) =>
-        role == PlannedTomb || role == PlannedMorgue || role == PlannedGraveyard || role == PlannedWasteYard || role == PlannedRole.Incinerator
+        role == PlannedTomb || role == PlannedMorgue || role == PlannedGraveyard || role == PlannedWasteYard
         || role == PlannedTrainingRange || role == PlannedSparringRing || role == PlannedShelter;
 
     /// <summary>The bounding box of the placed blocks of the groups outside the rooms that stand apart: the base a facing group points away from. Null while none is placed.</summary>

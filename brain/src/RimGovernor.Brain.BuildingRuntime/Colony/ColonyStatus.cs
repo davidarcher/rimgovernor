@@ -59,12 +59,6 @@ public sealed record ColonyStatusReport
     /// <summary>The census's wealth split and raid points; unknown under a native build that does not report the section.</summary>
     public ColonyThreat Threat { get; init; } = new();
 
-    /// <summary>The ancient shrine census; unknown under a native build that does not serve it.</summary>
-    public Fact<EquatableArray<AncientShrine>> Shrines { get; init; }
-
-    /// <summary>Each shrine's breach judgement, one per Shrines row; empty while the census or its inputs are unknown.</summary>
-    public IReadOnlyList<ShrineReadinessReport> ShrineReadiness { get; init; } = [];
-
     /// <summary>The player faction's native TechLevel name.</summary>
     public Fact<string> PlayerTechLevel { get; init; }
 
@@ -133,17 +127,12 @@ public sealed class ColonyStatus
             FoodRunwayDays = OptionalFact(observed.FoodRunwayDays is not null, observed.FoodRunwayDays.GetValueOrDefault()),
             PendingFoodNutrition = OptionalFact(observed.PendingFoodNutrition is not null, observed.PendingFoodNutrition.GetValueOrDefault()),
             Threat = BridgeApi.ProjectColonyThreat(observed),
-            Shrines = Unknown<EquatableArray<AncientShrine>>(),
             PlayerTechLevel = observed.PlayerTechLevel is not null ? Known((observed.PlayerTechLevel ?? "")) : Unknown<string>(),
             TechTier = Unknown<TechTier>(),
             Stockpiles = Unknown<EquatableArray<StockpileRoleCount>>(),
             ForbiddenSupplies = Unknown<bool>(),
             MoodLedger = Unknown<MoodLedger>(),
         };
-        if (Native is IShrineSource source)
-        {
-            report = report with { Shrines = await ObservationApi.ObserveShrines(source, decoded, call).ConfigureAwait(false) };
-        }
         if (_food is not null && FactStore.TryGet<ColonyProjection>(_food, FactSection.Colony, out var held))
         {
             var id = held.Value.Identity;
@@ -188,13 +177,6 @@ public sealed class ColonyStatus
             rows.Add(pawn);
         }
         report = report with { Pawns = rows };
-        if (report.Shrines.TryGetValue(out var shrines) && shrines.Count > 0 && Native is IShrineReadinessNative readiness)
-        {
-            var colonists = rows.Select(pawn => pawn.Id.Value).ToList();
-            var bounds = new Bounds((int)(observed.MapSize?.Width ?? 0), (int)(observed.MapSize?.Height ?? 0));
-            var center = new Cell(observed.Center?.X ?? 0, observed.Center?.Z ?? 0);
-            report = report with { ShrineReadiness = await ShrineReadinessAsync(readiness, identity, shrines, colonists, report.Threat.RaidPoints, center, bounds, call).ConfigureAwait(false) };
-        }
         return report;
     }
 

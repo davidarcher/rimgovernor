@@ -180,7 +180,7 @@ alone does not grant a parallel execution permission.
 ## Audited routine labor admission boundary
 
 A controlled Standard Method cannot directly admit repair, clean, haul,
-recovery_service, ritual, ignite, equip, gear_replace, gathering, use_item, drop_equipment, movement, open_casket, capture, rescue, tend, give_item or comms_trade_request. The journal rejects these with
+recovery_service, ritual, ignite, equip, gear_replace, gathering, use_item, drop_equipment, movement, capture, rescue, tend, give_item or comms_trade_request. The journal rejects these with
 unsupported_voluntary_method:<action-kind> before creating the plan or binding
 its Method. This protects existing coupled pawn/resource claims; naming a
 routine action "recovery" does not make it an emergency.
@@ -195,7 +195,6 @@ committing orders. Their Concerns remain unmet:
 | Population acquisition with a lance | unsupported_forecast_population_lance |
 | Precautionary disarm | unsupported_forecast_precautionary_disarm |
 | Door passage | unsupported_forecast_door_passage |
-| Shrine opening / breach / arrest | unsupported_forecast_shrine_open / unsupported_forecast_shrine_breach / unsupported_forecast_shrine_arrest |
 | Population capture | unsupported_forecast_population_capture |
 | Quest gift delivery | unsupported_forecast_quest_gift |
 | Comms trade request | unsupported_forecast_trade_request |
@@ -211,7 +210,6 @@ committing orders. Their Concerns remain unmet:
 | Quest monument delivery | unsupported_forecast_monument_delivery |
 | Empty throne-room light | unsupported_forecast_throne_refuel |
 | Routine turret refuel | unsupported_forecast_turret_refuel |
-| Incinerator ash / ignition | unsupported_forecast_incinerator_cleaning / unsupported_forecast_incinerator_ignition |
 | Ideology ritual / bestowing | unsupported_forecast_ritual / unsupported_forecast_bestowing |
 | Monolith interaction | unsupported_forecast_monolith |
 | Quest grav inspection / site help | unsupported_forecast_grav_inspection / unsupported_forecast_site_help |
@@ -251,7 +249,6 @@ Additional affected-case disposition:
 | production/art | Rewrite: two prepared finished packed sculptures and a native exotic trader replace the long production precondition. Normal review reports unsupported trade labor with no Trade admission; explicit signed sale must move the exact packed item to trader inventory and increase colony silver. Native room/quality observations remain. Autonomous art manufacture and installation are unsupported and unproven; prepared art is not production evidence. |
 | ideology/first-ritual | Rewrite: normal review must report unsupported ritual labor with no admitted Ritual action. A separate explicit intent carries native dialog assignments; after authority release the native lord completes and advances the ritual's finished tick. No automatic participant-selection claim. |
 | mood/gathering | Rewrite: normal review must report unsupported gathering labor with no admitted Gathering action. Explicit native Party intent uses an observed legal organizer; assert exactly one native lord at the prepared spot. |
-| waste/incineration | Rewrite: LabStart and a bounded normal layout review, followed by fixture construction of that disposal shell and six burnable cells. Normal stockpile policy and unsupported ignition remain exercised. Explicit Equip/Draft/Ignite/Clean operations must produce actual disposal and ash removal, retain the fresh corpse, and preserve zone geometry/filter/priority and nonflammable-room assertions. No automatic burner, cleaner or construction claim. |
 
 These registered cases require their stated native outcomes; source migration alone
 does not establish a passing gameplay run. No outcome acceptance is inferred from

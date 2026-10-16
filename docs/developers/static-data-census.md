@@ -145,7 +145,7 @@ Converted (Go evaluates the rule over the mirrored `ThingDef`/`TerrainDef` rows;
 - `WallUpgradeSite.replacement_materials` and `QuestMonumentPiece.allowed_stuffs`/`build_options`: `StuffMaterials`/`AllowedStuffs`, `AdjustedCosts` and `StatValue(WorkToBuild)` (terrain pieces use `TerrainAdjustedCosts`/`TerrainWorkToBuild`).
 - `TradeLine.food` and `category`: `TradeFood` now reads the `Nutrition` stat from the row too.
 
-Deleted as dead (no Go reader): `ConstructionState.total_work` (work left and percent complete remain live), `ShrineCasket.max_hit_points`, `ThreatBuilding.max_hit_points`, `UpkeepItem.hit_points`/`max_hit_points`/`deterioration_rate`, `UpkeepBed.slots`, `UpkeepStructure.holds_roof`, `WallUpgradeSite.costs`, and `DefenseSiteSnapshot.cover_threshold` (always 0, now the Go constant `defenseCoverFillThreshold`: any positive fill blocks).
+Deleted as dead (no Go reader): `ConstructionState.total_work` (work left and percent complete remain live), `ThreatBuilding.max_hit_points`, `UpkeepItem.hit_points`/`max_hit_points`/`deterioration_rate`, `UpkeepBed.slots`, `UpkeepStructure.holds_roof`, `WallUpgradeSite.costs`, and `DefenseSiteSnapshot.cover_threshold` (always 0, now the Go constant `defenseCoverFillThreshold`: any positive fill blocks).
 
 Kept, reason recorded:
 - `ConstructionState.minimum_finishing_skill`, `QuestSiteCargo.unit_mass`/`market_value`/`nutrition`: the value is the game worker's output for the live frame or quest, not a stat row read.
@@ -192,7 +192,7 @@ Kept, reason recorded:
 | NativeCaravanOperations.cs | 246 | code | FormCaravanIntent handler: builds the dialog, selects crew and cargo, runs the game form/reform caravan call. |  |  |
 | NativeChoiceDialogOperations.cs | 50 | state | DialogIntent: activates one exact option of the open force-pausing choice dialog. |  |  |
 | NativeClaimBuilding.cs | 92 | state | BuildingPatchIntent claim arm: eligibility check, CAS token and SetFaction on a live building. |  |  |
-| NativeCleanOperations.cs | 75 | state | GiveJob Clean order on one exact filth using WorkGiver_CleanFilth rules (incineration ash); also hosts the Giver BenchCleaningGuard uses. |  |  |
+| NativeCleanOperations.cs | 75 | state | GiveJob Clean order on one exact filth using WorkGiver_CleanFilth rules; also hosts the Giver BenchCleaningGuard uses. |  |  |
 | NativeClearCover.cs | 47 | state | Classifies a map thing as plant/mineable/chunk/building cover and reads standing removal designations. | Mine/CutPlant/Haul/Deconstruct const strings (4 entries) | none needed; designation names are protocol tokens |
 | NativeClearanceObservationTools.cs | 428 | mixed | Clearance target census with salvage evidence cache, ancient-danger and hive-danger checks; mostly live state. | Classify() ThingDefOf.ShipChunk/Wall checks (3 defs); HiveDangerRadius=14; salvageSignatureEveryTicks=60 | Go rule over ThingDef rows (ShipChunk/Wall by defName/thingClass); HiveDangerRadius into GameConstants (#2626) |
 | NativeClockEventProjection.cs | 212 | code | Projects clock-journal event rows into typed Clock.Event protos; clock transport infrastructure. |  |  |
@@ -255,7 +255,6 @@ Kept, reason recorded:
 | NativeObservationTools.cs | 389 | mixed | Status, cells and excavation-site read tools plus the threat, pawn-row, job-row and thing-row builders. | HiveBoundaryCells=10 hardcoded hive trespass radius; HostileBuilding rule (building.combatPower>0 or IsMortar, or Hive) | GameConstants (#2626) for the hive boundary radius if it mirrors a game value (else Go policy constant); BuildingProperties.combatPower/isMortar rows for the hostile-building rule |
 | NativeOdysseyColony.cs | 89 | excluded | Odyssey colony reads (not read). |  |  |
 | NativeOdysseyFacts.cs | 100 | excluded | Odyssey building hack and portal state and colony-map mutators (state); the catalog biome-animal and stockpile-type reads were deleted in #2632. |  |  |
-| NativeOpenCasketOperations.cs | 80 | state | Open job on an ancient cryptosleep casket with a temporary Open designation. |  |  |
 | NativeOperationTools.cs | 83 | code | Per-game operation state ledger holder and zone preview and receipt lookup tool entry points. |  |  |
 | NativeOrderDanger.cs | 16 | static | One constant: Danger.Deadly used for forced-order reach checks. | OrderDanger = Danger.Deadly | GameConstants (#2626): the Danger level vanilla float menu passes to CanReach |
 | NativePawnControlObservation.cs | 35 | state | Attaches the native pawn control snapshot ref (or an issue) to a pawn row. |  |  |
@@ -302,8 +301,6 @@ Kept, reason recorded:
 | NativeRitual.cs | 243 | code | RitualIntent: starts bestowing ceremony via the bestower toil gizmo and begins held ritual precepts through Command_Ritual and Dialog_BeginRitual. |  |  |
 | NativeRoomObservationTools.cs | 221 | state | Room census with geometry, temperature, beds, doors, stockpile membership and room stats. | Fixed list of 5 RoomStatDefOf (Cleanliness, Wealth, Space, Beauty, Impressiveness) read per room | RoomStatDef rows (stat names only; values stay live) |
 | NativeRoyaltyColony.cs | 110 | mixed | Royalty colony section: player thrones, pending bestowing ceremonies, and neuroformer/neurotrainer stock. | ReadNeuroformers def enumeration (PsychicAmplifier plus ThingCategory NeurotrainersPsycast defs), TeachesPsycast from CompProperties_UseEffect_GainAbility, Craftable (any recipe product), Tradeable (def.tradeability), ~20 lines | ThingDef.thingCategories + ThingDef.comps (use-effect ability) + ThingDef.tradeability; Craftable = Go rule over RecipeDef.products; Held count and ceremonies stay state |
-| NativeShrineBreachSafety.cs | 38 | code | Computes structural cells of ancient shrine rooms around a candidate breach wall for the roof-support check. |  |  |
-| NativeShrineObservationTools.cs | 160 | state | Ancient shrine census: casket groups, room rect, guards, occupants and safe breach walls. |  |  |
 | NativeSiteExtraction.cs | 62 | code | Quest site extraction facts: crew, exit cells, caravan carry capacity, food days, cargo and home routes via caravan dialog and path finders. |  |  |
 | NativeSiteSecurity.cs | 124 | mixed | Quest site security facts: initial threat points, active/dormant threat, traps, pending raid points from site parts and linked quests. | ClosedPart switch (about 14 SitePartDef defNames mapped to expected workerClass), LoadedGroundPart switch (8 opportunity-site defNames), InitialBudget special cases GravshipWreckage/BanditGang, SleepingMechCurve read by reflection from QuestPart_SleepingMechs; ~35 lines | SitePartDef.workerClass (defs.proto SitePartDef field 11) with a Go set of defNames; SleepingMechCurve and MinPointsToGenerate from GameConstants (#2626) |
 | NativeSpatialAccessTool.cs | 146 | code | Single-frame pawn spatial access audit: BFS reachability over walkable cells with blocked cells vs native CanReach. |  |  |
@@ -371,15 +368,6 @@ Kept, reason recorded:
 | ClearanceTargetsRequest | message | 102 | 7 | code | Request with planned ground and Go-supplied salvage time budgets |  |  |
 | ClearanceTargetsSnapshot | message | 116 | 4 | state | Snapshot of clearance targets chunks and floors |  |  |
 | ClearanceTargetsReply | message | 122 | 3 | state | Reply envelope oneof snapshot or unavailable or failure |  |  |
-| ShrineGuardKind | enum | 134 | 7 | code | Tag for guard category derived from pawn race and kind |  | Go rule over PawnKindDef/ThingDef race |
-| ShrineCasket | message | 143 | 7 | mixed | Ancient casket with hit points contents and claim state | max_hit_points | ThingDef.statBases MaxHitPoints for the casket def (no stuff) |
-| ShrineGuard | message | 152 | 4 | state | Hostile pawn or hive inside a shrine room |  |  |
-| ShrineOccupant | message | 160 | 6 | state | Non-player humanlike or corpse inside the room |  |  |
-| ShrineBreachWall | message | 168 | 4 | state | Perimeter wall the player may deconstruct plus outside cell |  |  |
-| AncientShrine | message | 174 | 9 | state | One sealed or opened ancient-danger room as a unit |  |  |
-| AncientShrinesRequest | message | 185 | 1 | state | Read scope request |  |  |
-| AncientShrinesSnapshot | message | 186 | 2 | state | Snapshot of ancient shrines |  |  |
-| AncientShrinesReply | message | 190 | 3 | state | Reply envelope |  |  |
 | MapSize | message | 195 | 2 | state | Map width and height |  |  |
 | DefinitionRef | message | 196 | 1 | state | Def name reference (label deleted, #2657) |  |  |
 | EntityRef | message | 197 | 5 | state | Instance id def name label map id and position |  |  |

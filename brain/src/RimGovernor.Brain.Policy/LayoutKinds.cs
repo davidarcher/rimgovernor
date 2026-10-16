@@ -96,9 +96,6 @@ public enum PlannedRole
     [WireName("wardrobe")]
     Wardrobe,
 
-    [WireName("incinerator")]
-    Incinerator,
-
     [WireName("isolation-room")]
     IsolationRoom,
 

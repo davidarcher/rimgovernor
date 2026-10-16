@@ -68,7 +68,6 @@ public static partial class PolicyFunctions
         [MaintainEquipment] = 1,
         [MaintainTraining] = 1,
         [EnsureDefensiveLayout] = 1,
-        [ClearAncientShrine] = 1,
 
         // Medical
         [MaintainMedicalReserves] = 1,

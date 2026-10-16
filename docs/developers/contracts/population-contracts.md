@@ -171,12 +171,6 @@ otherwise. A pawn no longer observable anywhere stays unknown.
   holding-platform order: native sets the entity's `targetHolder` to the available platform of highest
   containment strength and gives the carrier `CarryToEntityHolder`. The deciding rule is in
   [facilities](../architecture/facilities.md).
-- Standing neutral shrine ancients use the `Arrest` operation through the Capture action: the
-  journal's `OccupantCapture` decision and known JoinerCapacity create a MaintainPopulation deficit.
-  The custody planner runs before routine work, wakes after casket opening, reserves an exact vacant
-  prisoner bed and couples arrest to a plan-owned draft (the open plan keeps the arrester out of the
-  undraft sweep). Native completion requires living custody in that bed; no second Arrest order kind
-  exists.
 - Rescue is the ordinary rescue path. Unknown prerequisites block new commitments.
 
 ## Completion and integration

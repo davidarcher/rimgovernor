@@ -221,9 +221,6 @@ public sealed record RoundsFacts
     /// <summary>A tomb, grave or morgue step is due; it keeps MaintainBurial open while a corpse waits on one.</summary>
     public Fact<bool> BurialOwed { get; init; }
 
-    /// <summary>The waste yard or incinerator shell, a due burn or ash to clean waits; it keeps MaintainIncineration open.</summary>
-    public Fact<bool> IncinerationOwed { get; init; }
-
     /// <summary>The warm standing tombs, morgues and meal closets (WarmCoolingRooms); they join MaintainRefrigeration's rooms.</summary>
     public Fact<EquatableArray<string>> WarmRooms { get; init; }
 
@@ -420,9 +417,6 @@ public sealed record RoundsFacts
     public Fact<EquatableArray<ConcernId>> AvailableMethods { get; init; }
 
     public UpkeepObservation Upkeep { get; init; } = new();
-
-    /// <summary>Each Upkeep.Shrines row's breach judgement as the reviewer read it, journalled beside the review; empty while the census is unknown.</summary>
-    public EquatableArray<ShrineHold> ShrineHolds { get; init; }
 
     public IReadOnlyDictionary<ConcernId, bool>? UpkeepIssued { get; init; }
 

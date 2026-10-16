@@ -21,12 +21,6 @@ public enum FloorTier
     /// <summary>The firebreak ring's settled pave cells: the cheapest affordable floor with zero flammability.</summary>
     Firebreak,
 
-    /// <summary>
-    /// The standing incinerator's interior: every cell needs ground that neither burns nor grows (zero
-    /// flammability and fertility) so the burn leaves nothing to spread on.
-    /// </summary>
-    Incinerator,
-
     /// <summary>The throne room: every cell needs a floor whose terrain carries one of the title's required tags.</summary>
     Throne,
 }
@@ -34,7 +28,7 @@ public enum FloorTier
 public static class FloorTierExtensions
 {
     /// <summary>Go <c>FloorTier.fireproof</c>: true for the tiers that lay only floors with zero flammability.</summary>
-    public static bool Fireproof(this FloorTier t) => t is FloorTier.Firebreak or FloorTier.Incinerator;
+    public static bool Fireproof(this FloorTier t) => t is FloorTier.Firebreak;
 }
 
 /// <summary>Go <c>FlooringPolicy</c>.</summary>
@@ -129,9 +123,6 @@ public sealed record FlooringObservation
     /// <summary>The firebreak ring's pave cells (PlanFirebreak) that are still natural ground with no floor ordered, as the caller reads them.</summary>
     public IReadOnlyList<Cell> Firebreak { get; init; } = [];
 
-    /// <summary>The standing incinerator's interior with the terrain under each cell, read by the caller (the native census lists only roofed rooms).</summary>
-    public IReadOnlyList<FloorCell> Incinerator { get; init; } = [];
-
     internal FloorTerrain TerrainOf(string name) => Terrains.GetValueOrDefault(name) ?? new FloorTerrain();
 
     /// <summary>Throws <see cref="DomainException"/> when the census is malformed.</summary>
@@ -160,13 +151,6 @@ public sealed record FlooringObservation
                     "invalid floor cell"
                 );
             }
-        }
-        foreach (var c in Incinerator)
-        {
-            DomainException.Require(
-                Terrains.ContainsKey(c.Terrain) && cells.Add(c.Cell) && !(c.Pending.Length != 0 && !PolicyFunctions.FoodId(c.Pending)),
-                "invalid incinerator cell"
-            );
         }
         var traffic = new HashSet<(TrafficLayer, Cell)>();
         foreach (var t in Traffic)
@@ -376,9 +360,6 @@ public static partial class PolicyFunctions
     // latch releases only on a measured census with no deficient cell left. The traffic tier floors the natural
     // home cells colonists are observed to walk where the floor pays for itself within PaybackDays.
     public static readonly ConcernId MaintainFlooring = new("MaintainFlooring");
-
-    /// <summary>The latch key of the single incinerator deficit.</summary>
-    private const string IncineratorKey = "incinerator";
 
     /// <summary>The latch key of the single firebreak deficit.</summary>
     private const string FirebreakKey = "firebreak";
@@ -683,30 +664,6 @@ public static partial class PolicyFunctions
                 latched.Add(FirebreakKey);
             }
         }
-        if (v.Incinerator.Count > 0)
-        {
-            var cells = new List<Cell>();
-            var pending = 0;
-            foreach (var c in v.Incinerator)
-            {
-                var t = v.TerrainOf(c.Terrain);
-                if (t.Flammability <= 0 && t.Fertility <= 0)
-                {
-                    continue;
-                }
-                if (c.Pending.Length != 0)
-                {
-                    pending++;
-                    continue;
-                }
-                cells.Add(c.Cell);
-            }
-            if (cells.Count > 0 || pending > 0)
-            {
-                deficits.Add(new FloorDeficit { Key = IncineratorKey, Tier = FloorTier.Incinerator, Cells = SortedCells(cells), Pending = pending });
-                latched.Add(IncineratorKey);
-            }
-        }
         var ordered = deficits.OrderBy(d => FloorTierRank(d.Tier)).ThenBy(d => d.Key, StringComparer.Ordinal).ToList();
         latched.Sort(StringComparer.Ordinal);
         return new FlooringReview { Known = true, Active = ordered.Count > 0, Deficits = ordered, Latched = latched };
@@ -724,7 +681,6 @@ public static partial class PolicyFunctions
             FloorTier.Clean => 0,
             FloorTier.Barn => 1,
             FloorTier.Living or FloorTier.Throne => 2,
-            FloorTier.Incinerator => 3,
             FloorTier.Firebreak => 4,
             _ => 5,
         };
@@ -843,7 +799,7 @@ public static partial class PolicyFunctions
         {
             FloorTier.Living or FloorTier.Throne => p.Living,
             FloorTier.Traffic => p.Traffic,
-            FloorTier.Firebreak or FloorTier.Incinerator => FirebreakWeights,
+            FloorTier.Firebreak => FirebreakWeights,
             _ => p.Clean,
         };
         string? bestName = null;

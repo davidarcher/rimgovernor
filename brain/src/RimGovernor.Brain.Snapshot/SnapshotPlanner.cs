@@ -21,12 +21,6 @@ public sealed class SnapshotPlanner
     /// <summary>Every native excavation site read, in order.</summary>
     public List<ExcavationRead> Sites { get; } = [];
 
-    /// <summary>Every shrine defender read, in order.</summary>
-    public List<IReadOnlyList<ShrineDefenderFacts>> ShrineSquads { get; } = [];
-
-    /// <summary>Every ShrineBreachReadiness request.</summary>
-    public List<ShrineReadinessRequest> ShrineReadiness { get; } = [];
-
     /// <summary>Every SelectResourceMethod request: the fresh bench census and ingredient stock a production bill is chosen from.</summary>
     public List<ResourceMethodRequest> ResourceMethods { get; } = [];
 
@@ -36,7 +30,7 @@ public sealed class SnapshotPlanner
     /// <summary>Every research selection's fresh census.</summary>
     public List<ResearchCall> Research { get; } = [];
 
-    internal bool IsEmpty => Excavation.Count + Sites.Count + ShrineSquads.Count + ShrineReadiness.Count + ResourceMethods.Count + Workshops.Count + Research.Count == 0;
+    internal bool IsEmpty => Excavation.Count + Sites.Count + ResourceMethods.Count + Workshops.Count + Research.Count == 0;
 }
 
 /// <summary>One research selection's inputs: the staged policy (armor rungs applied), the recorded research needs and the native research read without its observation context.</summary>
@@ -151,12 +145,6 @@ public static partial class SnapshotPackage
         site = site with { Context = null };
         Add(p => p.Sites.Add(new ExcavationRead(purpose, target, [.. cells], site)));
     }
-
-    /// <summary>Records a shrine defender read.</summary>
-    public static void NoteShrineSquad(IReadOnlyList<ShrineDefenderFacts> squad) => Add(p => p.ShrineSquads.Add(squad));
-
-    /// <summary>Records a shrine breach readiness request.</summary>
-    public static void NoteShrineReadiness(ShrineReadinessRequest r) => Add(p => p.ShrineReadiness.Add(r));
 
     /// <summary>Records a production bill selection's request.</summary>
     public static void NoteResourceMethod(ResourceMethodRequest r) => Add(p => p.ResourceMethods.Add(r));

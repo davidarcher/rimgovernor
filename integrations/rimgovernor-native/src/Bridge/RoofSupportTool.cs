@@ -22,8 +22,7 @@ namespace HomeBridge.BridgeTools
         // assumedHolders are open cells counted as roof holders the removal
         // would find standing: the stone-shell census lists a fresh candidate
         // only when its backups, once built, keep every roof up.
-        internal static string? Blocker(Building building, ICollection<IntVec3>? assumedHolders, out int checkedRoofs,
-            ICollection<IntVec3>? structuralCells = null)
+        internal static string? Blocker(Building building, ICollection<IntVec3>? assumedHolders, out int checkedRoofs)
         {
             checkedRoofs = 0;
             if (building?.Map == null || !building.Spawned) return "Observed building is unavailable";
@@ -38,7 +37,7 @@ namespace HomeBridge.BridgeTools
                 (near, root) => near.InHorDistOf(root, radius),
                 c => c.InBounds(map), c => c.Fogged(map), c => c.Roofed(map),
                 c => c.GetEdifice(map)?.def.holdsRoof == true || assumedHolders?.Contains(c) == true,
-                c => map.roofCollapseBuffer.IsMarkedToCollapse(c), out checkedRoofs, structuralCells);
+                c => map.roofCollapseBuffer.IsMarkedToCollapse(c), out checkedRoofs);
         }
     }
 }

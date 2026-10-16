@@ -70,18 +70,6 @@ public sealed class MovementConverter : ObjectCodec<Movement>
     }
 }
 
-public sealed class OpenCasketConverter : ObjectCodec<OpenCasket>
-{
-    protected override OpenCasket Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Pawn", o), e.Str("Casket"), e.Get<Cell>("Cell", o));
-
-    protected override void WriteFields(Utf8JsonWriter w, OpenCasket v, Codecs o)
-    {
-        w.Put("Pawn", v.Pawn, o);
-        w.WriteString("Casket", v.Casket);
-        w.Put("Cell", v.Cell, o);
-    }
-}
-
 public sealed class OwnedDraftConverter : ObjectCodec<OwnedDraft>
 {
     protected override OwnedDraft Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Pawn", o));

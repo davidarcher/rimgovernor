@@ -13,12 +13,6 @@ public sealed record UpkeepObservation
     /// <summary>The clearance rows standing on the ground of a planned room (RoomObstructionIDs): tier 1 of the recovery queue.</summary>
     public IReadOnlySet<string> RoomObstructions { get; init; } = new HashSet<string>();
 
-    /// <summary>The ancient shrine census ClearAncientShrine measures; unknown under a native without the read.</summary>
-    public Fact<EquatableArray<AncientShrine>> Shrines { get; init; }
-
-    /// <summary>The operator's casket stance, filled by the review from RoundsPolicy the way CleaningContext fills the cleaning inputs, so every ReviewUpkeep caller measures the same targets.</summary>
-    public ShrinePolicy ShrinePolicy { get; init; } = new();
-
     public Fact<EquatableArray<UpkeepStructure>> Structures { get; init; }
 
     public Fact<EquatableArray<UpkeepFire>> Fires { get; init; }
@@ -87,8 +81,6 @@ public sealed record UpkeepFilth
 public sealed record UpkeepHistory
 {
     public bool Clearance { get; init; }
-
-    public bool Shrine { get; init; }
 
     public bool Fire { get; init; }
 
@@ -239,20 +231,6 @@ public static partial class PolicyFunctions
             clearanceTargets = Known(EquatableArray.From(selected));
         }
         history = history with { Clearance = Add(ClearHomeObstructions, previous.Clearance, clearanceTargets, Unknown<double>(), false) };
-        var shrineTargets = Unknown<EquatableArray<string>>();
-        if (v.Shrines.TryGetValue(out var shrines))
-        {
-            var seen = new HashSet<string>();
-            foreach (var row in shrines)
-            {
-                if (!Valid(seen, row.Id))
-                {
-                    throw new DomainException("invalid shrine");
-                }
-            }
-            shrineTargets = Known(EquatableArray.From(ShrineClearanceTargets(shrines, v.ShrinePolicy)));
-        }
-        history = history with { Shrine = Add(ClearAncientShrine, previous.Shrine, shrineTargets, Unknown<double>(), false) };
         return Result();
     }
 }

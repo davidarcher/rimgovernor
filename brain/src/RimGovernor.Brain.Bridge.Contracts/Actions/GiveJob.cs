@@ -10,7 +10,6 @@ public static partial class BridgeFunctions
     public const string JobInspectGravEngine = "InspectGravEngine";
     public const string JobRepair = "Repair";
     public const string JobClean = "Clean";
-    public const string JobOpen = "Open";
     public const string JobTendPatient = "TendPatient";
     public const string JobEquip = "Equip";
 
@@ -103,12 +102,6 @@ public static partial class BridgeFunctions
     {
         var v = action.Clean ?? throw Contract("not a clean action");
         return GiveJob(v.Pawn, JobClean, v.Filth);
-    }
-
-    private static Op.Action OpenCasketAction(DomainAction action)
-    {
-        var v = action.OpenCasket ?? throw Contract("not an open casket action");
-        return GiveJob(v.Pawn, JobOpen, v.Casket);
     }
 
     private static Op.Action TendAction(DomainAction action)

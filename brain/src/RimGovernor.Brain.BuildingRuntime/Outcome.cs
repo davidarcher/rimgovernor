@@ -201,9 +201,6 @@ internal static partial class BuildingRuntimePackage
     /// <summary>The choice dialog's own interactivity delay has not elapsed; the next review re-reads it.</summary>
     public static readonly Verdict BuildingReasonNotInteractive = Verdict.WaitOn(Cause.Dialog);
 
-    /// <summary>The shrine planner's answer while every target shrine holds; the shrine result's hold carries the reason.</summary>
-    public static readonly Verdict BuildingReasonHeld = Verdict.WaitOn(Cause.BreachHeld);
-
     public static readonly Verdict BuildingReasonComfortWait = Verdict.WaitOn(Cause.ComfortUse);
     public static readonly Verdict BuildingReasonTemperatureWait = Verdict.WaitOn(Cause.RoomTemperature);
     public static readonly Verdict BuildingReasonExistingFacility = Verdict.WaitOn(Cause.Facility);

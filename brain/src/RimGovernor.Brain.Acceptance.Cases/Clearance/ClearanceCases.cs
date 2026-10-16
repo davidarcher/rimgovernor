@@ -14,7 +14,5 @@ public static class ClearanceCases
         {
             registry.Register(recovery);
         }
-
-        registry.Register(ClearanceShrineBreach.Case());
     }
 }

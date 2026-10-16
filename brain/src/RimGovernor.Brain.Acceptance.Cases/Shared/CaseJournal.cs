@@ -36,12 +36,6 @@ public interface ICaseJournal : IWatchStore, IDisposable
     /// no such row.
     /// </summary>
     Task<JsonObject?> RecoveryEntryAsync(string id, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// The latest persisted review's shrine holds, each as <c>shrine:reason:occupant</c> (Go <c>review.ShrineHolds</c>);
-    /// empty when there is no review or no hold.
-    /// </summary>
-    Task<IReadOnlyList<string>> ShrineHoldsAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>Opens and reads the case journal.</summary>

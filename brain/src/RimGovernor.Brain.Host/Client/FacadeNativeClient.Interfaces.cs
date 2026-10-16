@@ -22,7 +22,6 @@ internal sealed partial class FacadeNativeClient :
     IRoundsSource,
     IGroundClearanceSource,
     IRefrigerationSource,
-    IShrineSource,
     IZonesNative,
     // Building runtime: clock and colony natives.
     IClockNative,
@@ -66,7 +65,6 @@ internal sealed partial class FacadeNativeClient :
     IRoundsMedicalSource,
     IFrameThingsSource,
     IRoundsHospitalSource,
-    IRoundsIncinerationSource,
     IOverRockPreviewer,
     IRoundsCustodySource,
     IRoundsPsylinkSource,
@@ -77,7 +75,6 @@ internal sealed partial class FacadeNativeClient :
     IResourceRunwaySource,
     IConsumptionSource,
     IShellBatchPreviewer,
-    IRoundsShrineSource,
     IWeaponCensus,
     IRoundsStoneShellSource,
     IRoundsSupplySource,
@@ -153,9 +150,6 @@ internal sealed partial class FacadeNativeClient :
 
     Task<(O.ListBuildingsReply Reply, BridgeResult Receipt)> IRefrigerationSource.ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadConstructionBuildingsAsync(identity, ids, cancellationToken);
-
-    Task<(O.AncientShrinesReply Reply, BridgeResult Receipt)> IShrineSource.ReadAncientShrinesAsync(C.Identity identity, CancellationToken cancellationToken) =>
-        ReadAncientShrinesAsync(identity, cancellationToken);
 
     Task<(ZonesRead Read, BridgeResult Receipt)> IZonesNative.ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken) =>
         ReadZoneSectionAsync(identity, cancellationToken);

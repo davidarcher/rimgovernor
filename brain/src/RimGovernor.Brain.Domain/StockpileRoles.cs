@@ -32,9 +32,6 @@ public static partial class DomainConstants
     /// <summary>The waste yard's one dump zone, a Sanitation store.</summary>
     public const string DumpRole = "wastedump";
 
-    /// <summary>The walled incinerator's zone, a Sanitation store.</summary>
-    public const string IncineratorRole = "incinerator";
-
     /// <summary>
     /// Gear stockpiles keep serviceable gear only: at least half its hit points and Normal quality. What falls
     /// below is burnable waste or sale gear.
@@ -115,19 +112,4 @@ public sealed partial record StockpileFilter
         disallow.AddRange(armor.Select(FilterSelector.ThingDef));
         return GearFilter([FilterSelector.CategoryDef("Apparel")], disallow);
     }
-
-    /// <summary>
-    /// The waste yard dump's filter: all storable items except what the native rule calls not burnable, so the
-    /// burnable waste lies there for the incinerator and the rest stays in the warehouse. It is the incinerator's
-    /// filter at Low priority.
-    /// </summary>
-    public static StockpileFilter DumpFilter() => IncineratorFilter();
-
-    /// <summary>
-    /// What the incinerator takes: everything the mod's native burnable rule does not refuse
-    /// (<see cref="DomainConstants.NotBurnableFilterDef"/>). Burnable is defined once, natively: rottables past
-    /// Fresh except colonist and slave corpses, and gear below the static silver cutoff. The zone outranks the Low
-    /// dump, so waste hauls in from it.
-    /// </summary>
-    public static StockpileFilter IncineratorFilter() => new(FilterBase.Everything, null, [FilterSelector.SpecialFilter(DomainConstants.NotBurnableFilterDef)]);
 }

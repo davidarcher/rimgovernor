@@ -188,7 +188,6 @@ internal sealed record ColonyStatusDto(
     double? WealthPawns,
     string? PlayerTechLevel,
     string? TechTier,
-    IReadOnlyList<ColonyShrineDto>? Shrines,
     IReadOnlyList<ColonyStockpileDto>? Stockpiles,
     bool? ForbiddenSupplies,
     int Downed,
@@ -197,21 +196,6 @@ internal sealed record ColonyStatusDto(
     IReadOnlyList<ColonyStatusPawnDto> Pawns);
 
 internal sealed record ColonyStockpileDto(string Role, int Zones, int Cells, int Used);
-
-internal sealed record ColonyShrineDto(
-    string Id,
-    bool Sealed,
-    bool InHome,
-    int Caskets,
-    int FilledCaskets,
-    bool GuardsKnown,
-    bool GuardsAlive,
-    int BreachWalls,
-    bool? Ready,
-    string? Reason,
-    string? Wall,
-    int Squad,
-    int Traps);
 
 internal sealed record ColonyStatusPawnDto(
     string Id,

@@ -219,6 +219,8 @@ public static partial class PolicyFunctions
 
     internal static bool Finite(double v) => !double.IsNaN(v) && !double.IsInfinity(v);
 
+    internal static int Sign(int v) => v < 0 ? -1 : v > 0 ? 1 : 0;
+
     /// <summary>The definition of the sheet's currency row: the coin both sides' cash and every price are in. A sheet with no known currency row has none.</summary>
     public static (string Currency, bool Ok) TradeCurrency(IReadOnlyList<TradeSheetRowFact> rows)
     {

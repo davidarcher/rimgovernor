@@ -34,50 +34,6 @@ public sealed partial class RoundsBuildingPlanner
     /// </summary>
     public void SetFirebreakPave(Func<IReadOnlyList<Cell>> pave) => FirebreakPave = pave;
 
-    /// <summary>
-    /// Reads the terrain under the standing incinerator's interior: the native flooring census lists only roofed
-    /// rooms, so the nine cells come from one defense-site read. Empty when no incinerator stands, the source
-    /// cannot read a site, or a cell is fogged or stands on terrain the catalog does not price.
-    /// </summary>
-    internal async Task<IReadOnlyList<FloorCell>> IncineratorFloorAsync(GenerationSnapshot current, ColonyProjection facts, IReadOnlyDictionary<string, FloorTerrain> terrains, CancellationToken call)
-    {
-        var room = StandingIncinerator(facts);
-        if (room is null || Native is not IDefenseSiteReader reader)
-        {
-            return [];
-        }
-
-        var inner = room.Region.Bounds();
-        var region = new CellRect(new Cell(inner.X, inner.Z), new Cell(inner.X + inner.Width - 1, inner.Z + inner.Height - 1));
-        var (site, _) = await reader.ReadDefenseSiteAsync(Boundary.Identity(current), region, call).ConfigureAwait(false);
-        try
-        {
-            Boundary.Context(site.Context, current);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ControlException("incinerator floor: defense site context", e);
-        }
-
-        if (new Tick(site.Context?.Tick ?? 0) < facts.Identity.Tick)
-        {
-            throw new ControlException("incinerator floor: defense site context");
-        }
-
-        var output = new List<FloorCell>();
-        foreach (var cell in site.Cells)
-        {
-            if (cell.Fogged || !terrains.ContainsKey(cell.Terrain))
-            {
-                return [];
-            }
-
-            output.Add(new FloorCell { Cell = cell.Cell, Terrain = cell.Terrain });
-        }
-
-        return output;
-    }
-
     /// <summary>Lists every floor the policy may choose so the census read carries each one's availability, stats and cost list.</summary>
     internal IReadOnlyList<string> FlooringDefinitions() => Reviewer.Policy.Flooring.Floors;
 
@@ -96,7 +52,6 @@ public sealed partial class RoundsBuildingPlanner
                 v = v with { Firebreak = FirebreakPave() };
             }
 
-            v = v with { Incinerator = await IncineratorFloorAsync(current, facts, v.Terrains, call).ConfigureAwait(false) };
             census = Known(v);
         }
 

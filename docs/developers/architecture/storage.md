@@ -15,7 +15,7 @@ storage room or freezer stands, then deleted so its contents haul to the better
 stores; it is only the patch because the placement search treats zoned cells as
 unplaceable, so a whole-interior zone starved the campfire slot, tracked by the
 layout epic), Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (armory, wardrobe),
-People (tomb, morgue, graveyard) and Sanitation (waste dump, incinerator); the
+People (tomb, morgue, graveyard) and Sanitation (waste dump); the
 animal feed store belongs to Husbandry.
 
 A store is a rectangle placement over its planned room, created once the room's
@@ -51,15 +51,14 @@ separate rectangle drags and excluded from growth.
 | Medicine store | `medicine:*` | A 2x2 in the planned hospital, nearest the template's bed slots by walking distance (nearest the door without slots), from plan time | Important | Medicine |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
 | Gear | `apparel`, `weapons` | The storage room (apparel) and armory (weapons) | Preferred | Clothing and armor, weapons |
-| Waste dump | `wastedump` | The waste yard interior outside the incinerator outline (the Sanitation department's declared store, planned room cover from plan time) | Low | Everything storable except the native not-burnable special |
+| Waste dump | `wastedump` | The waste yard interior (the Sanitation department's declared store, planned room cover from plan time) | Low | Everything storable except the native not-burnable special |
 
 Low priority on the warehouse and yard is deliberate: the higher-priority
 workstation and medicine stockpiles draw their items first, and
 hauling (which RimWorld owns) moves the rest to the warehouse or yard.
 
 The one waste dump is a declared store over the yard, so waste
-hauls to it from anywhere and the incinerator zone (Preferred) draws the
-burnable part off it. Fresh animal corpses use the freezer shelf and the
+hauls to it from anywhere. Fresh animal corpses use the freezer shelf and the
 butchery; there is no dump role for them. Zones of the retired `dump:*` roles
 in older saves are deleted.
 

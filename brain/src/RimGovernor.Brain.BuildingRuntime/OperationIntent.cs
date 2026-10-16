@@ -36,7 +36,6 @@ public static class OperationIntent
         [EnsureMechCharger] = "Mech charger",
         [MaintainGeneBank] = "Gene bank",
         [MaintainWorkLedger] = "Production orders",
-        [MaintainIncineration] = "Incineration",
         [MaintainTraining] = "Training",
         [MaintainClimateEnvelope] = "Climate envelope",
         [MaintainHerd] = "Herd",

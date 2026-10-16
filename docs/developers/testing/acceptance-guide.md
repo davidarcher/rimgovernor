@@ -31,7 +31,7 @@ the nightly tier. The nightly-tier subset is `Tiers.EndToEnd` in `brain/src/RimG
 
 - combatlab/native-hold
 - coordination/food-delegated, coordination/food-carried-recovery, coordination/construction-delegated
-- campaign/foothold, campaign/recovery, clearance/shrine-breach
+- campaign/foothold, campaign/recovery
 - defense/perimeter, food/reserve, food/starving-tribal-recovery, production/ladder
 - shelter/bunks-first, shelter/retirement, shelter/climate-mild, shelter/climate-cold, shelter/climate-hot, shelter/solo-cold
 - startup/labor, solo/sea-ice-stock, solo/sea-ice-rhadamant

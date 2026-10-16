@@ -5,7 +5,7 @@
 The waste census is a native read the observation layer decodes into `WasteItem` rows
 (`WasteState` exposed, relocated or buried; `CorpseOf`; `RotStage`). It carries no concern of its
 own: `MorgueWaiting` and `RouteStranger` read it, and the Sanitation concerns
-(`MaintainBurial`, `MaintainIncineration`) own the tomb, morgue, incinerator and burn.
+(`MaintainBurial`) own the tomb and morgue.
 
 ## Read
 

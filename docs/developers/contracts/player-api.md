@@ -34,9 +34,6 @@ read-only service exposes none of these player routes.
 - the living home roster: each colonist's `id`, `label`, `downed`, `mood`, `food`;
 - raid points and the wealth split: `raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`,
   `wealthPawns`;
-- the ancient shrine census `shrines`: id, `sealed`, `inHome`, `caskets`, `filledCaskets`,
-  `guardsKnown`, `guardsAlive`, `breachWalls`, plus the breach judgement `ready`, `reason`, `wall`,
-  `squad`, `traps`.
 
 Mutations require JSON and the process token in `X-RimGovernor-Player`. Bodies are bounded to 8192
 bytes; duplicate, unknown, null, malformed and trailing fields are rejected. Errors keep the sanitized

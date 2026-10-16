@@ -83,7 +83,7 @@ public sealed record ConstructionDemandInput
 
 public static partial class PolicyFunctions
 {
-    internal static readonly Resource ConstructionWoodLog = new("WoodLog");
+    public static readonly Resource ConstructionWoodLog = new("WoodLog");
 
     /// <summary>
     /// The stock MaintainResource must reach for construction, per resource: the plan's unbuilt walls and doors, a blueprint's owed material, the
