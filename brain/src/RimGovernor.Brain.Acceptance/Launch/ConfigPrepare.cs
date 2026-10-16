@@ -12,11 +12,16 @@ public sealed partial class Config
     {
         var expansions = Expansions ?? Brain.Acceptance.Expansions.FromEnvironment();
         string configuration;
+        IReadOnlyList<string> active;
         try
         {
             configuration = Headless
                 ? HeadlessProfile.Prepare(Root, FixtureOps, expansions, Graphics)
                 : HeadlessProfile.PrepareRendered(Root, FixtureOps, expansions);
+
+            // A null request activates every installed expansion, so the cache is keyed on what the prepared profile
+            // activates, not on the request: a save recorded under all DLC is then not stale against "".
+            active = HeadlessProfile.ActiveExpansions(Path.Combine(HeadlessProfile.SaveDataFolder(configuration), "Config", "ModsConfig.xml"));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -24,7 +29,7 @@ public sealed partial class Config
         }
 
         Configuration = configuration;
-        ProfileStartCache.Current.Configure(HeadlessProfile.MustAbs(Root), Headless, expansions ?? []);
+        ProfileStartCache.Current.Configure(HeadlessProfile.MustAbs(Root), Headless, active);
     }
 
     /// <summary>Reads back <c>games.&lt;GameId&gt;</c> from the resolved configuration directory's config.json, e.g. to recover workingDir for the package files.</summary>

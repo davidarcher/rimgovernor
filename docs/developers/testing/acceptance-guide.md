@@ -141,6 +141,13 @@ The baseline is generated from `BaselineStart` on first use and stamped
 beside its save; a changed spec regenerates it. A retained seed/save/fixture hash
 identifies the input actually exercised.
 
+The lab and debug starts cache as `RimGovernor-lab-*` and `RimGovernor-debug-*`
+saves in `profile/Saves`, named for the expansions the prepared profile
+activates (all installed ones when nothing narrows them). A lab save carries a
+`.stamp` with the installed package's hash, so a mod rebuild regenerates it.
+Suite and sweep worker roots receive copies of these files, so workers load the
+cache instead of generating a start.
+
 ## Reusing one game across acceptance cases
 
 The runner keeps a fixture-enabled game by default. Declare `NoKeep` for a case

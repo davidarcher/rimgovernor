@@ -14,6 +14,15 @@ namespace RimGovernor.Brain.Acceptance;
 /// </summary>
 public static class LabStarts
 {
+    /// <summary>The prefix of every lab cache save's name (<see cref="LabCacheName"/>).</summary>
+    public const string LabPrefix = "RimGovernor-lab-";
+
+    /// <summary>The suffix of the file beside a lab cache save holding its package stamp.</summary>
+    public const string StampSuffix = ".stamp";
+
+    /// <summary>The suffix of the file beside a lab cache save holding its recorded lab reply.</summary>
+    public const string ReplySuffix = ".lab.json";
+
     /// <summary>The colonists a lab start makes: zero or less is <see cref="LabWorld.DefaultLabColonist"/>.</summary>
     public static int Colonists(LabStart start)
     {
@@ -43,18 +52,14 @@ public static class LabStarts
     public static string LabCacheName(IStartCache cache, int colonists)
     {
         ArgumentNullException.ThrowIfNull(cache);
-        var name = string.Create(CultureInfo.InvariantCulture, $"RimGovernor-lab-{LabWorld.LabMapSize}");
-        if (cache.Expansions.Count > 0)
-        {
-            name += "-" + string.Join('-', cache.Expansions).ToLowerInvariant();
-        }
-
+        var name = string.Create(CultureInfo.InvariantCulture, $"{LabPrefix}{LabWorld.LabMapSize}");
+        name += ProfileStartCache.ExpansionSuffix(cache.Expansions);
         if (colonists != LabWorld.DefaultLabColonist)
         {
             name += string.Create(CultureInfo.InvariantCulture, $"-c{colonists}");
         }
 
-        return name.Replace('.', '_');
+        return ProfileStartCache.FitName(name);
     }
 
     /// <summary>The hash over the installed package's files (the report's package_files), the cache key a rebuild of the mod or its fixtures changes.</summary>
@@ -169,10 +174,10 @@ public static class LabStarts
 
     private static string SavesDir(IStartCache cache) => Path.Combine(cache.Root, "profile", "Saves");
 
-    private static string LabStampPath(IStartCache cache, string name) => Path.Combine(SavesDir(cache), name + ".stamp");
+    private static string LabStampPath(IStartCache cache, string name) => Path.Combine(SavesDir(cache), name + StampSuffix);
 
     /// <summary>The test/lab_start reply (centre, colonist ids) the cached save was made with: a cached load replies it as the lab start's Prepared.</summary>
-    private static string LabReplyPath(IStartCache cache, string name) => Path.Combine(SavesDir(cache), name + ".lab.json");
+    private static string LabReplyPath(IStartCache cache, string name) => Path.Combine(SavesDir(cache), name + ReplySuffix);
 
     /// <summary>Whether the cached lab save exists, was recorded under the profile's expansions and carries <paramref name="stamp"/>.</summary>
     private static bool LabCacheFresh(IStartCache cache, string name, string stamp)

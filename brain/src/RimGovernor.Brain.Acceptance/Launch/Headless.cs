@@ -391,6 +391,10 @@ public static partial class HeadlessProfile
         return [.. active.Elements("li").Select(li => Casefold(li.DirectText()))];
     }
 
+    /// <summary>The official expansions a ModsConfig.xml activates, casefolded, in its load order.</summary>
+    public static IReadOnlyList<string> ActiveExpansions(string modsConfigXmlPath) =>
+        [.. ActiveMods(modsConfigXmlPath).Where(id => id.StartsWith(Expansions.ExpansionPrefix, StringComparison.Ordinal))];
+
     /// <summary>
     /// Snapshots the installed package's hashes to <see cref="LaunchedPackageFile"/>. Called only right before a fresh
     /// launch, like <see cref="RecordLaunchedMods"/>; a missing config, profile or package is not an error.
@@ -629,6 +633,20 @@ public static partial class HeadlessProfile
             }
         }
 
+        // The cached lab and debug starts travel too, the lab's with its stamp and recorded reply, so a worker loads them
+        // instead of generating its own; LabStarts and the start cache still judge each copy's freshness.
+        var saves = Path.Combine(source, "profile", "Saves");
+        if (Directory.Exists(saves))
+        {
+            foreach (var file in Directory.EnumerateFiles(saves).Select(Path.GetFileName).Order(StringComparer.Ordinal))
+            {
+                if (IsCachedStartFile(file!))
+                {
+                    required.Add(Path.Combine("profile", "Saves", file!));
+                }
+            }
+        }
+
         foreach (var relative in required)
         {
             CopyFile(Path.Combine(source, relative), Path.Combine(destination, relative));
@@ -636,6 +654,12 @@ public static partial class HeadlessProfile
 
         return destination;
     }
+
+    /// <summary>Whether a profile/Saves file belongs to a cached lab start (save, stamp, reply) or a cached debug start (save).</summary>
+    private static bool IsCachedStartFile(string file) =>
+        (file.StartsWith(LabStarts.LabPrefix, StringComparison.Ordinal)
+            && (file.EndsWith(".rws", StringComparison.Ordinal) || file.EndsWith(LabStarts.StampSuffix, StringComparison.Ordinal) || file.EndsWith(LabStarts.ReplySuffix, StringComparison.Ordinal)))
+        || (file.StartsWith(ProfileStartCache.DebugPrefix, StringComparison.Ordinal) && file.EndsWith(".rws", StringComparison.Ordinal));
 
     /// <summary>Copies one regular file, creating the destination directory and replacing the destination.</summary>
     public static void CopyFile(string source, string destination) => Checkpoints.CopyFile(source, destination);

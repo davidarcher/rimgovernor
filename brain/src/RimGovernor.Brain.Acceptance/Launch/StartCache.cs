@@ -28,6 +28,9 @@ public sealed class ProfileStartCache : IStartCache
     /// <summary>The longest save name lifecycle_new_colony accepts.</summary>
     public const int MaxSaveName = 64;
 
+    /// <summary>The prefix of every cached debug start's save name (<see cref="NameFor"/>).</summary>
+    public const string DebugPrefix = "RimGovernor-debug-";
+
     private string _root = "";
     private bool _headless;
     private IReadOnlyList<string> _expansions = [];
@@ -50,7 +53,11 @@ public sealed class ProfileStartCache : IStartCache
     /// <summary>The cached save the last debug start loaded, empty when it generated.</summary>
     public string Save { get; set; } = "";
 
-    /// <summary>Records the prepared profile (what <see cref="Config.PrepareConfig"/> does with its result).</summary>
+    /// <summary>
+    /// Records the prepared profile (what <see cref="Config.PrepareConfig"/> does with its result).
+    /// <paramref name="expansions"/> are the expansions the prepared profile actually activates, never the unresolved
+    /// "all installed" null: the cache names and staleness check compare against them.
+    /// </summary>
     public void Configure(string root, bool headless, IReadOnlyList<string> expansions)
     {
         ArgumentNullException.ThrowIfNull(expansions);
@@ -66,15 +73,12 @@ public sealed class ProfileStartCache : IStartCache
     public string NameFor(DebugStartSize start, bool quiet)
     {
         ArgumentNullException.ThrowIfNull(start);
-        var name = new StringBuilder("RimGovernor-debug-")
+        var name = new StringBuilder(DebugPrefix)
             .Append(start.MapSize.ToString(CultureInfo.InvariantCulture))
             .Append('-')
             .Append(start.PlanetCoverage.ToString(CultureInfo.InvariantCulture))
             .ToString();
-        if (_expansions.Count > 0)
-        {
-            name += "-" + string.Join('-', _expansions).ToLowerInvariant();
-        }
+        name += ExpansionSuffix(_expansions);
 
         // A biome preference is part of what the save satisfies: a start pinned to a food-bearing biome must not load a
         // plain roll's save.
@@ -94,10 +98,35 @@ public sealed class ProfileStartCache : IStartCache
         }
 
         name += quiet ? "-quiet" : "-loud";
+        return FitName(name);
+    }
+
+    /// <summary>
+    /// The expansions part of a cached start's name: "-royalty-ideology-..." in the given (load) order, using each
+    /// expansion's short name, or "" for a Core-only profile.
+    /// </summary>
+    public static string ExpansionSuffix(IReadOnlyList<string> expansions)
+    {
+        ArgumentNullException.ThrowIfNull(expansions);
+        var name = new StringBuilder();
+        foreach (var expansion in expansions)
+        {
+            name.Append('-').Append(NormalizeExpansion(expansion)[Brain.Acceptance.Expansions.ExpansionPrefix.Length..]);
+        }
+
+        return name.ToString();
+    }
+
+    /// <summary>
+    /// Makes a cached start's name a valid save name: dots become underscores, and a name over <see cref="MaxSaveName"/>
+    /// (the op's limit) keeps a readable prefix with the whole name's hash as the tail.
+    /// </summary>
+    public static string FitName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
         name = name.Replace('.', '_');
         if (name.Length > MaxSaveName)
         {
-            // The op's save names are at most 64 characters: keep a readable prefix and make the whole name's hash the tail.
             var sum = SHA256.HashData(Encoding.UTF8.GetBytes(name));
             name = name[..(MaxSaveName - 9)] + "-" + Convert.ToHexStringLower(sum.AsSpan(0, 4));
         }
