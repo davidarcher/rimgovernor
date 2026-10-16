@@ -366,7 +366,7 @@ public sealed partial class Rounder
             // The planned kitchen, freezer and jail shells; the jail bed is a furniture rule's, read with every catalog.
             readDefinitions = [.. readDefinitions, "Wall", "Door"];
         }
-        if (MethodEnabled(PolicyApi.MaintainStockpiles))
+        if (Needs.Contains(AdminFamily.Stockpiles))
         {
             // The warehouse shelf upgrade needs the Shelf's availability.
             readDefinitions = [.. readDefinitions, PolicyApi.ShelfDefinition];

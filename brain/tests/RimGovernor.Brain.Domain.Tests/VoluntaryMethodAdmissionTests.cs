@@ -38,9 +38,9 @@ public sealed class VoluntaryMethodAdmissionTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") with { Stockpiles = StandardTestFacts.StockpileEditOwed } }, ct);
+            Policy = StandardTestFacts.LayoutOwed, Facts = WorkResourceTestFacts.Create("pawn") }, ct);
         var labor = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainRoutes);
-        var other = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainStockpiles);
+        var other = Assert.Single(review.Standards, s => s.Standard.Kind == EnsureDefensiveLayout);
         var held = new PlanSpec(new("coupled-plan"), new(1),
             [DomainAction.NewPawnActivitiesAction(new("coupled-action"), new(1,
                 [new("pawn", "assignment", "coupled-method", 0, 1, false,

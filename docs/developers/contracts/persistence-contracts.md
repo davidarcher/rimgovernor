@@ -225,7 +225,7 @@ tick rewind in the same load) invalidates the previous bindings, cancels their p
 starts fresh Rounds under the new world's root plan; only already dispatched work keeps its recovery
 requirement. A pause in the same world suspends the bindings and leaves their work open; the next
 enabled review reactivates the same Standards. The stores the departments declare (`policy.DeclareStores`, the desired room-bound
-stockpiles) are re-derived on every `MaintainStockpiles` pass; the standing zones are
+stockpiles) are re-derived on every `admin/stockpiles` review; the standing zones are
 their only record. Durable Standards come back from the save blobs, so nothing needs a restore step.
 
 The save still writes every unretired Standard as `standard/<id>`, but `RebuildStandards` re-inserts only the

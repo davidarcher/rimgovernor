@@ -62,7 +62,7 @@ public static partial class PolicyFunctions
         SetNeeds([WorkType.PlantCutting, WorkType.Construction], LayoutFamily.Firebreak);
 
         // A resized or retargeted stockpile is refilled by haulers.
-        Set([WorkType.Hauling], MaintainStockpiles);
+        SetNeeds([WorkType.Hauling], AdminFamily.Stockpiles);
 
         // A medicine bill at a crafting bench, or a wild healroot harvest.
         SetNeeds([WorkType.Crafting, WorkType.PlantCutting], MedicalReservesNeed);

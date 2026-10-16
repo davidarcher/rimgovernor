@@ -134,6 +134,54 @@ public sealed class AdminFamilyTests
         Assert.Equal(Satisfaction.Unknown, Ledger(new AdminFacts()).Satisfaction);
     }
 
+    [Fact]
+    public void StockpilesIsMetUnmetOrUnknownByTheReviewsProposal()
+    {
+        var stockpiles = new AdminFamily(new AdminNeeds { Stockpiles = true });
+        Need Stores(AdminFacts facts) => Assert.Single(stockpiles.Derive(facts));
+
+        var met = Stores(new AdminFacts { Stockpiles = Known(false) });
+        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing, "admin/stockpiles"), (met.Satisfaction, met.Deficit.Value, met.Tier, met.Id.Value));
+        var unmet = Stores(new AdminFacts { Stockpiles = Known(true) });
+        Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit.Value));
+        // A world the review has not planned (or a review missing a fact) is Unknown, never met.
+        Assert.Equal(Satisfaction.Unknown, Stores(new AdminFacts { Stockpiles = Unknown<bool>() }).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Stores(new AdminFacts()).Satisfaction);
+    }
+
+    private static readonly StockpileFilter Everything = new(FilterBase.Nothing);
+
+    private static Func<ActionId, DomainAction> Store(params (int X, int Z)[] cells) =>
+        a => DomainAction.NewZoneCreateAction(a, ZoneCreate.NewFilteredStockpileCellsZone(Everything, StockpilePriority.Normal, cells.Select(c => new Cell(c.X, c.Z))).WithRole("general"));
+
+    private static Func<ActionId, DomainAction> Patch(string zone) =>
+        a => DomainAction.NewStockpilePatchAction(a, new StockpilePatch(StorageTargetKind.Zone, zone, Everything, StockpilePriority.Important, "general"));
+
+    [Fact]
+    public void StockpileZonesAreTheStockpilesNeedsAloneAndEachEditClaimsItsZone()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        BridgeFunctions.RegisterIntentKinds();
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-stockpiles-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+
+        var create = journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, new MethodId("stockpile-create-a"), "", Bills(Store((1, 1), (1, 2))), ct);
+        Assert.Equal(ClaimOutcome.Admitted, create.Outcome);
+        Assert.Equal(AdminFamily.Stockpiles.FilingKey, journal.PlanMethod(create.Owner.Methods[0].Plan, ct)!.Concern);
+        Assert.Equal(ClaimOutcome.Continued, journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, new MethodId("stockpile-create-a"), "", Bills(Store((1, 1), (1, 2))), ct).Outcome);
+        // A second zone over a cell the open one holds waits on that cell's claim.
+        Assert.Equal(ClaimOutcome.Conflict, journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, new MethodId("stockpile-create-b"), "", Bills(Store((1, 2), (1, 3))), ct).Outcome);
+        // No other Need places a stockpile zone.
+        Assert.ThrowsAny<Exception>(() => journal.CommitClaimedMethod(AdminFamily.Burial, World, new MethodId("store"), "", Bills(Store((5, 5))), ct));
+
+        // A zone edit claims its zone: another edit of the same zone is held, another zone's is admitted.
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, RoundsStockpilePlanner.EditsMethod, "", Bills(Patch("Zone_1")), ct).Outcome);
+        var held = journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, new MethodId("stockpile-edits-other"), "", Bills(Patch("Zone_1")), ct);
+        Assert.Equal(ClaimOutcome.Conflict, held.Outcome);
+        Assert.Equal("zone/Zone_1", held.Conflict!.Claim);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.Stockpiles, World, new MethodId("stockpile-edits-other"), "", Bills(Patch("Zone_2")), ct).Outcome);
+    }
+
     private static PlanSpec Bills(Func<ActionId, DomainAction> action)
     {
         var id = PlanIds.MintPlanId();

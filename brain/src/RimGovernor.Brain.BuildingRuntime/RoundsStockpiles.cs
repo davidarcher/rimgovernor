@@ -27,13 +27,29 @@ internal sealed class StockpileMemory
             return _demandWorld != world ? new Pol.RoomDemand() : _demand;
         }
     }
-}
 
-public sealed class RoundsStockpileResult : IPlannerMethod
-{
-    public Verdict Verdict { get; init; }
-    public PlanId Plan { get; init; }
-    public int Edits { get; init; }
+    // Whether the latest review in activeWorld proposed stockpile work: the admin/stockpiles Need reads it.
+    private Fact<bool> _active;
+    private GenerationSnapshot _activeWorld;
+
+    /// <summary>Records whether the review in <paramref name="world"/> proposed stockpile work; unknown when its request was incomplete.</summary>
+    public void SetActive(GenerationSnapshot world, Fact<bool> active)
+    {
+        lock (_gate)
+        {
+            _active = active;
+            _activeWorld = world;
+        }
+    }
+
+    /// <summary>Whether the latest review in <paramref name="world"/> proposed stockpile work; unknown for another world or before a review.</summary>
+    public Fact<bool> Active(GenerationSnapshot world)
+    {
+        lock (_gate)
+        {
+            return _activeWorld == world ? _active : Unknown<bool>();
+        }
+    }
 }
 
 internal static partial class BuildingRuntimePackage
@@ -42,7 +58,7 @@ internal static partial class BuildingRuntimePackage
         string.Create(CultureInfo.InvariantCulture, $"{s.Colony}/{s.Load}/{s.Map}");
 
     /// <summary>
-    /// Builds the MaintainStockpiles input from the projection's planning cells (a zone's cells are those naming
+    /// Builds the stockpile review input from the projection's planning cells (a zone's cells are those naming
     /// it; its stacks count its built shelves' cells too) and the colony's stockpile claims, their
     /// settings superseded by the latest patch of each; the registered roles judge on the projection and benches.
     /// </summary>
@@ -74,7 +90,7 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>
-    /// The MaintainStockpiles review's edits commit as one plan per cycle, one action per zone under that zone's
+    /// The admin/stockpiles edits commit as one Method per cycle, one action per zone under that zone's
     /// fresh CAS token. A telemetry row (family stockpile) records a stockpile edit proposed, admitted or refused:
     /// target the zone or role, reason the refusal code, attrs the edit kind, plan and detail.
     /// </summary>
@@ -179,20 +195,21 @@ public sealed partial class Rounder
         {
             return projection;
         }
-        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.PolicyFunctions.StockpileRoleCounts(OwnedStockpileZones(projection, owned, null, ShelfPlans(owned, projection, ct).Shelves))]) } };
+        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.PolicyFunctions.StockpileRoleCounts(OwnedStockpileZones(projection, owned, null, ShelfPlans(snapshot, owned, projection, ct).Shelves))]) } };
     }
 
     /// <summary>
-    /// Serves the MaintainStockpiles review on the projection when the method is served; otherwise the fact stays
-    /// unknown and the goal is never assessed active.
+    /// Serves the stockpile review on the projection when the admin/stockpiles Need is composed, and records whether
+    /// it proposes work for the Need's read; otherwise, or while a fact is unread, the review stays unknown.
     /// </summary>
     internal async Task<Observation.ColonyProjection> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
     {
         projection = projection with { Facts = projection.Facts with { Stockpiles = Unknown<Pol.StockpileReview>() } };
-        if (!MethodEnabled(MaintainStockpiles))
+        if (!Needs.Contains(AdminFamily.Stockpiles))
         {
             return projection;
         }
+        Stockpiles.SetActive(snapshot, Unknown<bool>());
         var (request, missing) = await StockpileRequestAsync(snapshot, projection, ct).ConfigureAwait(false);
         if (missing != "")
         {
@@ -200,6 +217,7 @@ public sealed partial class Rounder
         }
         Stockpiles.SetDemand(StockpileWorld(snapshot), request.RoomDemand);
         var review = Pol.PolicyFunctions.PlanStockpileMaintenance(request);
+        Stockpiles.SetActive(snapshot, review.Known ? Known(review.Active) : Unknown<bool>());
         projection = projection with { Facts = projection.Facts with { Stockpiles = Known(review) } };
         foreach (var e in review.Edits)
         {
@@ -246,7 +264,7 @@ public sealed partial class Rounder
         }
         var gear = GearStore(projection);
         var protectedCells = ReservedGround(snapshot, projection, ct);
-        var (plans, spent) = ShelfPlans(owned, projection, ct);
+        var (plans, spent) = ShelfPlans(snapshot, owned, projection, ct);
         var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells);
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && ShelfAvailable(projection) };
@@ -321,29 +339,34 @@ public sealed partial class Rounder
     }
 
     /// <summary>
-    /// The shelf plans of each owned stockpile zone (ZoneShelves under the zone's owning goal), built or in flight,
-    /// and whether the zone's shelf attempts are used up.
+    /// The shelf plans of each owned stockpile zone (ZoneShelves under the admin/stockpiles Need in
+    /// <paramref name="snapshot"/>'s world, and a Standard-linked zone's Standard), built or in flight, and whether
+    /// the zone's shelf attempts are used up.
     /// </summary>
-    internal (Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent) ShelfPlans(IReadOnlyList<Sto.OwnedZone> owned, Observation.ColonyProjection projection, CancellationToken ct)
+    internal (Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent) ShelfPlans(GenerationSnapshot snapshot, IReadOnlyList<Sto.OwnedZone> owned, Observation.ColonyProjection projection, CancellationToken ct)
     {
-        var zoneGoal = new Dictionary<string, StandardId>();
+        var zoneGoal = new Dictionary<string, StandardId?>();
         foreach (var z in owned)
         {
             if (z.Kind == Domain.ZoneKind.Stockpile)
             {
-                zoneGoal[z.Id] = z.Owner;
+                zoneGoal[z.Id] = z.Standard;
             }
         }
+        var need = StockpileNeedOwner(snapshot);
         var shelves = new Dictionary<string, List<Pol.ShelfRecord>>();
         var spent = new Dictionary<string, bool>();
-        foreach (var (zone, goal) in zoneGoal)
+        foreach (var (zone, legacy) in zoneGoal)
         {
-            var (records, next) = ZoneShelves(Player.Journal, goal, zone, projection.Facts.CurrentConstruction, ct);
+            var (records, next) = ZoneShelves(Player.Journal, need, legacy, zone, projection.Facts.CurrentConstruction, ct);
             shelves[zone] = records;
             spent[zone] = next >= MaxShelvesPerZone;
         }
         return (shelves, spent);
     }
+
+    /// <summary>The admin/stockpiles Need's owner key in <paramref name="snapshot"/>'s world, for its Method history reads.</summary>
+    internal static Sto.NeedOwner StockpileNeedOwner(GenerationSnapshot snapshot) => new(AdminFamily.Stockpiles, snapshot, []);
 
     /// <summary>
     /// The ground no stockpile site takes: the footprints of held building reservations and the unroofed floor
@@ -394,13 +417,18 @@ public sealed partial class Rounder
 }
 
 /// <summary>
-/// Commits the MaintainStockpiles review's edits as one plan per cycle, one action per zone under that zone's
-/// fresh CAS token: zone_cell_edit to grow or shrink, stockpile_patch to retarget a zone or configure a shelf like
-/// its zone, zone_delete to delete or merge. A missing fixed-role zone is a zone_create admitted alone once no
-/// other edit stands. A plan still open holds the next cycle.
+/// The admin/stockpiles step (#3304): commits the stockpile review's edits as one Method, <c>stockpile-edits</c>,
+/// one action per zone under that zone's fresh CAS token: zone_cell_edit to grow or shrink, stockpile_patch to
+/// retarget a zone or configure a shelf like its zone, zone_delete to delete or merge. Missing fixed-role zones are
+/// one zone_create Method (<c>stockpile-create-&lt;roles&gt;</c>) admitted alone once no other edit stands. A
+/// zone-edit Method still open holds the next run. Every commit is a claimed Need commit: each edit claims its zone,
+/// each created zone its cells.
 /// </summary>
-public sealed partial class RoundsStockpilePlanner
+internal sealed partial class RoundsStockpilePlanner
 {
+    /// <summary>The MethodId of a cycle's standing-zone edits: open work continues, a released one is issued again.</summary>
+    internal static readonly MethodId EditsMethod = new("stockpile-edits");
+
     private readonly Rounder _reviewer;
     private readonly IRoundsStockpileSource _native;
     private readonly StockpileZones _zones;
@@ -412,70 +440,61 @@ public sealed partial class RoundsStockpilePlanner
     {
         if (reviewer is null || native is null || reviewer.Native is null)
         {
-            throw new ControlException("NewRoundsStockpilePlanner: reviewer == nil || native == nil || reviewer.native == nil");
+            throw new ControlException("RoundsStockpilePlanner: reviewer, native or reviewer.Native is missing");
         }
         _reviewer = reviewer;
         _native = native;
         _zones = new StockpileZones(reviewer, native);
         if (reviewer.Native is IRoundsBuildingSource source)
         {
-            _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = MaintainStockpiles, Definition = ShellWallDefinition };
+            _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = AdminFamily.Stockpiles.FilingKey, Need = AdminFamily.Stockpiles, Definition = ShellWallDefinition };
         }
     }
 
     /// <summary>
     /// Raises the shell of the planned room module through the planned-room shell path (the storage planner's
     /// rooms, and the materials yard's ring). Handled is true when the shell was admitted or failed; false leaves
-    /// the zone edits to go on this step (the room stands, its shell was tried this Episode, no space, refused or
-    /// a fact is missing). Zoning is instant and needs no builder, so a room waiting on its shell never holds the
-    /// stores' zones back.
+    /// the zone edits to go on this step (the room stands, its shell was tried, no space, refused or a fact is
+    /// missing). Zoning is instant and needs no builder, so a room waiting on its shell never holds the stores'
+    /// zones back.
     /// </summary>
-    private async Task<(RoundsStockpileResult Result, bool Handled)> RaiseRoomAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading read, Pol.PlannedRole module, CancellationToken call, CancellationToken epoch)
+    private async Task<(Verdict Verdict, bool Handled)> RaiseRoomAsync(NeedWork work, Sto.Rounds review, Observation.RoundsReading read, Pol.PlannedRole module, CancellationToken call)
     {
         if (_building is null)
         {
-            return (new RoundsStockpileResult { Verdict = FieldUnavailable("building_source") }, false);
+            return (FieldUnavailable("building_source"), false);
         }
         var (room, owed) = PlannedRoomOwed(read.Projection, module);
         if (!owed)
         {
-            return (new RoundsStockpileResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "stockpile_room_built") }, false);
+            return (WaitFor(Pol.Cause.MethodUsed, "stockpile_room_built"), false);
         }
-        var result = await _building.ReconcileRoomAsync(state, review, goal, read, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value, Reason = "storage-planner room" }, call, epoch).ConfigureAwait(false);
+        var result = await _building.ReconcileRoomAsync(work.State, review, work.Owner, read, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value, Reason = "storage-planner room" }, call, work.Epoch).ConfigureAwait(false);
         Tel.Decide(StockpileEditDecision("proposed", result.Verdict.ToString() ?? "", Wire.Name(module), new Dictionary<string, object?> { ["kind"] = "room" }));
-        return (new RoundsStockpileResult { Verdict = result.Verdict }, result.Verdict == BuildingReasonAdmitted);
+        return (result.Verdict, result.Verdict == BuildingReasonAdmitted);
     }
 
-    internal async Task<RoundsStockpileResult> StepAsync(StepArbiter? _, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// The ready Need's step: a fresh read of the zones, the review's proposal on it, then the planned room, the
+    /// standing zones' edits, the missing zones or the next shelf, in that order.
+    /// </summary>
+    internal async Task<Verdict> StepAsync(NeedWork work, CancellationToken call)
     {
         var p = _reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsStockpileResult { Verdict = BuildingReasonDisabled };
-        }
-        if (!state.ObservationKnown)
-        {
-            throw new ControlException("step: !state.ObservationKnown");
-        }
+        var state = work.State;
         var review = p.Journal.LoadRounds(call);
         if (!review.Enabled || review.Snapshot != state.Snapshot)
         {
-            return new RoundsStockpileResult { Verdict = BuildingReasonNoReview };
+            return BuildingReasonNoReview;
         }
-        var (goal, workable) = p.Journal.Workable(review, MaintainStockpiles, call);
-        if (!workable || goal is null)
+        if (OpenEditPlan(p.Journal, work.Owner, call))
         {
-            return new RoundsStockpileResult { Verdict = BuildingReasonNoDeficit };
-        }
-        if (OpenEditPlan(p.Journal, goal, call))
-        {
-            return new RoundsStockpileResult { Verdict = BuildingReasonExistingWork };
+            return BuildingReasonExistingWork;
         }
         var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
-            throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
+            throw new ControlException("stockpiles: the scope is another world or older than the review");
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         // The medicine store reads the medical beds, so the census carries them. The planned rooms are shelled from
@@ -488,44 +507,34 @@ public sealed partial class RoundsStockpilePlanner
         var (request, missing) = await _reviewer.StockpileRequestAsync(state.Snapshot, projection, call).ConfigureAwait(false);
         if (missing != "")
         {
-            return new RoundsStockpileResult { Verdict = FieldUnavailable(missing) };
+            return FieldUnavailable(missing);
         }
         var proposal = Pol.PolicyFunctions.PlanStockpileMaintenance(request);
         if (!proposal.Active)
         {
-            return new RoundsStockpileResult { Verdict = BuildingReasonNoDeficit };
+            return BuildingReasonNoDeficit;
         }
         Verdict waiting = default;
         // A planned room not yet standing is raised first; while its shell waits (already tried, no space,
         // refused) the zone edits go on.
         if (proposal.Rooms.Count > 0)
         {
-            var (roomResult, handled) = await RaiseRoomAsync(state, review, goal, read, proposal.Rooms[0], call, epoch).ConfigureAwait(false);
+            var (roomVerdict, handled) = await RaiseRoomAsync(work, review, read, proposal.Rooms[0], call).ConfigureAwait(false);
             if (handled)
             {
-                return roomResult;
+                return roomVerdict;
             }
-            waiting = roomResult.Verdict;
+            waiting = roomVerdict;
         }
         if (proposal.Edits.Count == 0)
         {
             if (proposal.Shelf.Kind == Pol.ShelfStepKind.Build)
             {
-                return await ShelveAsync(state, review, goal, read, proposal.Shelf, call, epoch).ConfigureAwait(false);
+                return await ShelveAsync(work, review, read, proposal.Shelf, call).ConfigureAwait(false);
             }
-            return new RoundsStockpileResult { Verdict = waiting };
+            return waiting;
         }
-        var tick = projection.Identity.Tick;
-        var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"stockpiles-{tick.Value}"));
         var id = PlanIds.MintPlanId();
-        try
-        {
-            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
-            return new RoundsStockpileResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "stockpile_edits") };
-        }
-        catch (Sto.NotFoundException)
-        {
-        }
         var identity = Boundary.Identity(state.Snapshot);
         var actions = new List<DomainAction>();
         var creates = new List<Pol.StockpileEdit>();
@@ -555,20 +564,24 @@ public sealed partial class RoundsStockpilePlanner
         if (actions.Count == 0 && creates.Count > 0)
         {
             // The new zones are admitted together, previewed, once the edits of standing zones are done.
-            return await _zones.CreateAsync(state, goal, projection, read.StartedAt, creates, call, epoch).ConfigureAwait(false);
+            return await _zones.CreateAsync(state, work.Owner, projection, read.StartedAt, creates, call, work.Epoch).ConfigureAwait(false);
         }
         if (actions.Count == 0)
         {
-            return new RoundsStockpileResult { Verdict = FieldUnavailable("stockpile_edit_targets") };
+            return FieldUnavailable("stockpile_edit_targets");
         }
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
+        p.Current(call, work.Epoch);
         var now = _reviewer.Clock.Now();
         if (p.Session.State() != state || now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
         {
-            throw new ControlException("step: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge");
+            throw new ControlException("stockpiles: the session moved or the read took too long");
         }
-        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
+        var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, EditsMethod, "stockpile edits", plan, call);
+        if (commit.Outcome != ClaimOutcome.Admitted)
+        {
+            return AdminRounds.OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonExistingWork;
+        }
         foreach (var e in proposal.Edits)
         {
             if (e.Kind == Pol.StockpileEditKind.Create)
@@ -577,6 +590,6 @@ public sealed partial class RoundsStockpilePlanner
             }
             Tel.Decide(StockpileEditDecision("admitted", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
         }
-        return new RoundsStockpileResult { Verdict = BuildingReasonAdmitted, Plan = id, Edits = actions.Count };
+        return BuildingReasonAdmitted;
     }
 }

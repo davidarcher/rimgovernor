@@ -262,14 +262,9 @@ public static partial class PolicyFunctions
     /// store's size, a zone whose role's desired filter or priority changed is patched, a zone whose role's
     /// purpose is gone is deleted, and a store no zone serves is created. Whole-footprint stores grow over
     /// cleared ground and consolidate compatible owned fragments. It acts on the zones the colony created
-    /// (store.OwnedZone), role-keyed; a role-less legacy claim stands as created. It is a Standard whose target
+    /// (store.OwnedZone), role-keyed; a role-less legacy claim stands as created. The admin/stockpiles Need's target
     /// is no outstanding work: no zone edit due.
     /// </summary>
-    public static readonly ConcernId MaintainStockpiles = new("MaintainStockpiles");
-
-    /// <summary>The deficit a standing edit ranks with: small, like the tidy's, so it never outranks real shortfalls.</summary>
-    internal const double StockpileDeficit = 0.1;
-
     /// <summary>
     /// Patches every shelf whose settings differ from its zone's desired ones: its declared store's, else the
     /// zone's own settings. A shelf of a zone that is gone or retiring waits.

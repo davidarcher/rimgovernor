@@ -567,9 +567,14 @@ built keeps the shelter as its permanent home.
 
 ### Stockpile maintenance
 
-`MaintainStockpiles` (family `stockpiles`) applies the stores the departments declare
+The `admin/stockpiles` Need (#3304; toggle `stockpiles`) applies the stores the departments declare
 (`policy.DeclareStores`; see [storage](../architecture/storage.md)) against the colony's
-own zones (`store.OwnedZone`, role-keyed) every review cycle, at any tier. A store is one
+own zones (`store.OwnedZone`, role-keyed) every review cycle, at any tier. The Need is unmet while the
+review proposes an edit, room or shelf, and unknown until the review planned this world. Its zones are
+the ones its own zone_create Methods made (a zone made under the retired MaintainStockpiles Standard stays
+owned through that Standard's link until #3265). The standing-zone edits are one Method, `stockpile-edits`,
+the missing zones one `stockpile-create-<roles>` Method and each shelf `storage-shelf-<zone>-<i>`; an edit
+claims its zone (`zone/<id>`), a shelf patch its shelf, a create its cells. A store is one
 zone over its declared site; the edits are:
 
 | Edit | Rule |

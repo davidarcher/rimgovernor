@@ -365,7 +365,7 @@ public sealed record RoundsFacts
     /// <summary>Whether more genepacks lie loose than the standing gene banks have room for (GeneBankNeed); unknown without Biotech or a complete gene-building read, and then the biotech/gene-bank Need is unknown.</summary>
     public Fact<bool> GeneBankOwed { get; init; }
 
-    /// <summary>The MaintainStockpiles review: this cycle's stockpile edits and the planned rooms owed a shell, or why none stands.</summary>
+    /// <summary>The stockpile review (the admin/stockpiles Need): this cycle's stockpile edits and the planned rooms owed a shell, or why none stands.</summary>
     public Fact<StockpileReview> Stockpiles { get; init; }
 
     /// <summary>Counts the owned stockpile zones by role kind for the colony status census; unknown until the zone claims are read.</summary>

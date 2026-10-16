@@ -36,8 +36,6 @@ public sealed class ClockSchedulerConfig
     public RoundsRecoveryPlanner? Recovery { get; init; }
 
 
-    public RoundsStockpilePlanner? Stockpiles { get; init; }
-
     public RoundsDefenseLayoutPlanner? DefenseLayout { get; init; }
 
     public RoundsMoodReliefPlanner? MoodRelief { get; init; }

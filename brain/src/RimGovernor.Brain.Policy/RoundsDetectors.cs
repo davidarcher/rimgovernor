@@ -191,21 +191,6 @@ public static partial class PolicyFunctions
     }
 
 
-    /// <summary>A standing stockpile edit is the deficit; availability is gated through AvailableMethods.</summary>
-    internal static void InspectStockpiles(RoundsRun c)
-    {
-        var recovered = Unknown<bool>();
-        if (c.F.Stockpiles.TryGetValue(out var review) && review.Known)
-        {
-            recovered = Known(!review.Active);
-        }
-        c.Assess(MaintainStockpiles, recovered);
-        if (!Positive(recovered))
-        {
-            c.Raise(MaintainStockpiles);
-        }
-    }
-
     /// <summary>
     /// A pawn's mood is an EnsureMood incident keyed by the pawn, never a development goal. Its relief is
     /// optional and a mental break ends only as ticks pass, so it never suspends other work.

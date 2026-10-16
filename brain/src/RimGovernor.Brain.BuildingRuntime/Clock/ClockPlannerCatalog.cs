@@ -177,8 +177,6 @@ internal static class ClockPlannerCatalog
             c => c.Dialog is not null, (s, ct, e, a) => s.Config.Dialog!.StepAsync(a, ct, e), (o, m) => o.Dialog = m),
         E("trade", O, [ActionKind.Trade, ActionKind.CommsTradeRequest], SectionsColony,
             c => c.Trade is not null, (s, ct, e, a) => s.Config.Trade!.StepAsync(a, ct, e), (o, m) => o.Trade = m, families: FamiliesWorld),
-        E("stockpiles", O, [ActionKind.ZoneCellEdit, ActionKind.StockpilePatch, ActionKind.ZoneDelete, ActionKind.ZoneCreate, ActionKind.Building], SectionsBuilding,
-            c => c.Stockpiles is not null, (s, ct, e, a) => s.Config.Stockpiles!.StepAsync(a, ct, e), (o, m) => o.Stockpiles = m, MaintainStockpiles),
         E("defenseLayout", O, [ActionKind.Building, ActionKind.RecoveryService, ActionKind.CoverClearance, ActionKind.FoundationRemoval], SectionsBuilding,
             c => c.DefenseLayout is not null, (s, ct, e, a) => s.Config.DefenseLayout!.StepAsync(a, ct, e), (o, m) => o.DefenseLayout = m, EnsureDefensiveLayout),
     ];

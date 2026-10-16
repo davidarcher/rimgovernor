@@ -45,6 +45,9 @@ public sealed record AdminFacts
 
     /// <summary>Whether the work ledger's reconcile diff places or removes a bill (LedgerDiffOwed); unknown unless the ledger has declarers and read every bench's bills.</summary>
     public Fact<bool>? WorkLedger { get; init; }
+
+    /// <summary>Whether the stockpile review proposes a zone edit, a storage room or a shelf; unknown while the zone claims or the site cells are unread.</summary>
+    public Fact<bool>? Stockpiles { get; init; }
 }
 
 /// <summary>Which of the colony admin family's Needs the runtime composes.</summary>
@@ -57,6 +60,8 @@ public sealed record AdminNeeds
     public bool Burial { get; init; }
 
     public bool WorkLedger { get; init; }
+
+    public bool Stockpiles { get; init; }
 }
 
 /// <summary>
@@ -75,6 +80,10 @@ public sealed record AdminNeeds
 /// <item><c>admin/work-ledger</c> (Wellbeing): the benches' production bills equal the orders the declarers want, so
 /// the ledger's reconcile places and removes nothing. It replaced the MaintainWorkLedger Concern; the runtime step
 /// commits the reconcile's places and removals, one Method per diff, each bill claiming its bench and recipe.</item>
+/// <item><c>admin/stockpiles</c> (Wellbeing): the zones the colony created match the stores the departments
+/// declare, so the stockpile review proposes no zone edit, storage room or shelf. It replaced the MaintainStockpiles
+/// Concern; the runtime step raises a planned storage room, commits the standing zones' edits, creates the missing
+/// zones or builds the next shelf, and the zones it creates are Need-linked (decision 20).</item>
 /// </list>
 /// </summary>
 public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
@@ -88,6 +97,8 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     public static readonly NeedId Burial = NeedId.Of(FamilyId, "burial");
 
     public static readonly NeedId WorkLedger = NeedId.Of(FamilyId, "work-ledger");
+
+    public static readonly NeedId Stockpiles = NeedId.Of(FamilyId, "stockpiles");
 
     /// <summary>The stable refusal subject of a creepjoiner weapon drop.</summary>
     public const string UnsupportedDisarm = "unsupported_forecast_precautionary_disarm";
@@ -108,7 +119,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
 
     public IReadOnlyList<Need> Derive(AdminFacts facts)
     {
-        var needs = new List<Need>(4);
+        var needs = new List<Need>(5);
         if (composed.CreepJoiners)
         {
             needs.Add(CreepJoinersNeed(facts.CreepJoiners ?? new CreepJoinerWork()));
@@ -124,6 +135,10 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         if (composed.WorkLedger)
         {
             needs.Add(WorkLedgerNeed(facts.WorkLedger ?? Fact.Unknown<bool>()));
+        }
+        if (composed.Stockpiles)
+        {
+            needs.Add(StockpilesNeed(facts.Stockpiles ?? Fact.Unknown<bool>()));
         }
         return needs;
     }
@@ -214,6 +229,23 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Satisfaction = diff ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(diff ? 1.0 : 0.0),
             Evidence = [new("ledger_diff", Fact.Known(diff ? "true" : "false"))],
+        };
+    }
+
+    /// <summary>Unmet while the stockpile review proposes work, unknown while it cannot be read, met otherwise.</summary>
+    public static Need StockpilesNeed(Fact<bool> active)
+    {
+        if (!active.TryGetValue(out var owed))
+        {
+            return new Need { Id = Stockpiles, Tier = NeedTier.Wellbeing, Evidence = [new("stockpile_work", default)] };
+        }
+        return new Need
+        {
+            Id = Stockpiles,
+            Tier = NeedTier.Wellbeing,
+            Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Fact.Known(owed ? 1.0 : 0.0),
+            Evidence = [new("stockpile_work", Fact.Known(owed ? "true" : "false"))],
         };
     }
 

@@ -1,31 +1,41 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed partial class RoundsStockpilePlanner
+internal sealed partial class RoundsStockpilePlanner
 {
     /// <summary>
-    /// The stockpiles planner's shelf upgrade: the review's next warehouse shelf, placed once no zone edit
-    /// stands. NextShelfStep picked the step (one open shelf at a time, a third of the footprint at most);
-    /// MaintainStockpiles configures every built shelf like its zone (StockpileShelfPatch, role shelf:buildingId).
+    /// The stockpiles step's shelf upgrade: the review's next warehouse shelf, placed once no zone edit stands.
+    /// NextShelfStep picked the step (one open shelf at a time, a third of the footprint at most); the
+    /// admin/stockpiles Need configures every built shelf like its zone (StockpileShelfPatch, role shelf:buildingId).
     /// </summary>
-    private async Task<RoundsStockpileResult> ShelveAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ShelfStep step, CancellationToken call, CancellationToken epoch)
+    private async Task<Verdict> ShelveAsync(NeedWork work, Sto.Rounds review, Observation.RoundsReading reading, Pol.ShelfStep step, CancellationToken call)
     {
         if (_building is null)
         {
-            return new RoundsStockpileResult { Verdict = FieldUnavailable("building_source") };
+            return FieldUnavailable("building_source");
         }
-        var (_, index) = ZoneShelves(_reviewer.Player.Journal, goal.Standard.Id, step.Zone?.Zone ?? throw new InvalidOperationException("a shelf step names the zone it shelves"), reading.Projection.Facts.CurrentConstruction, call);
+        var zone = step.Zone?.Zone ?? throw new InvalidOperationException("a shelf step names the zone it shelves");
+        // A zone created under the MaintainStockpiles Standard keeps that Standard's shelves (until #3265).
+        StandardId? legacy = null;
+        if (_reviewer.Player.Journal.ZoneClaims(work.State.Snapshot, reading.Projection.Identity.Tick, call).TryGetValue(out var owned))
+        {
+            legacy = owned.FirstOrDefault(z => z.Id == zone)?.Standard;
+        }
+        var (_, index) = ZoneShelves(_reviewer.Player.Journal, work.Owner, legacy, zone, reading.Projection.Facts.CurrentConstruction, call);
         if (index >= MaxShelvesPerZone)
         {
-            return new RoundsStockpileResult { Verdict = Refuse(Pol.Cause.RetriesSpent, "maxShelvesPerZone", "") };
+            return Refuse(Pol.Cause.RetriesSpent, "maxShelvesPerZone", "");
         }
-        return await BuildShelfAsync(state, review, goal, reading, step, index, call, epoch).ConfigureAwait(false);
+        return await BuildShelfAsync(work, review, reading, step, index, call).ConfigureAwait(false);
     }
 
     /// <summary>Previews the step's candidate sites in turn and admits the first native accepts as the zone's next shelf.</summary>
-    private async Task<RoundsStockpileResult> BuildShelfAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.ShelfStep step, int index, CancellationToken call, CancellationToken epoch)
+    private async Task<Verdict> BuildShelfAsync(NeedWork work, Sto.Rounds review, Observation.RoundsReading reading, Pol.ShelfStep step, int index, CancellationToken call)
     {
         var shelfZone = step.Zone?.Zone ?? throw new InvalidOperationException("a shelf step names the zone it shelves");
         var p = _reviewer.Player;
+        var state = work.State;
+        var goal = work.Owner;
+        var epoch = work.Epoch;
         var facts = reading.Projection;
         var stuff = facts.BuildStuff(ShelfDefinition);
         var snapshot = state.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
@@ -37,7 +47,7 @@ public sealed partial class RoundsStockpilePlanner
                 throw new ControlException("build: p.session.State() != state");
             }
         }
-        var building = new RoundsBuildingPlanner { Reviewer = _reviewer, Native = _building!.Native, Concern = MaintainStockpiles, Definition = ShelfDefinition };
+        var building = new RoundsBuildingPlanner { Reviewer = _reviewer, Native = _building!.Native, Concern = AdminFamily.Stockpiles.FilingKey, Need = AdminFamily.Stockpiles, Definition = ShelfDefinition };
         foreach (var piece in step.Pieces)
         {
             Check();
@@ -57,22 +67,13 @@ public sealed partial class RoundsStockpilePlanner
                 var (access, ok) = Pol.PolicyFunctions.RockAccess(dig, facts.Cells);
                 if (!ok)
                 {
-                    return new RoundsStockpileResult { Verdict = RockNotDug(ShelfDefinition, "no_open_cell_beside_footprint") };
+                    return RockNotDug(ShelfDefinition, "no_open_cell_beside_footprint");
                 }
                 var rockMethod = ShelfMethod(shelfZone, index);
                 var (dug, handled) = await building.AdmitRockStepAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading.Reading }, planned, access, rockMethod, [value], Check, call, epoch).ConfigureAwait(false);
                 if (handled)
                 {
-                    var outcome = new RoundsStockpileResult { Verdict = dug.Verdict };
-                    PlanId plan = default;
-                    foreach (var m in dug.Decision?.Owner.OpenMethods ?? [])
-                    {
-                        if (m.Method == rockMethod)
-                        {
-                            plan = m.Plan;
-                        }
-                    }
-                    return new RoundsStockpileResult { Verdict = outcome.Verdict, Plan = plan };
+                    return dug.Verdict;
                 }
             }
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-0")), value, ConstructionTier.Sustain);
@@ -88,13 +89,9 @@ public sealed partial class RoundsStockpilePlanner
             stock = MergeRoundsStock(stock, preview.Stock, true);
             var method = ShelfMethod(shelfZone, index);
             var result = await building.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Reason = "shelf for zone " + shelfZone, Snapshot = snapshot, Selected = [v], Stock = stock, Purpose = Pol.Purpose.Rounds }, call, epoch).ConfigureAwait(false);
-            if (result.Verdict != BuildingReasonAdmitted)
-            {
-                return new RoundsStockpileResult { Verdict = result.Verdict };
-            }
-            return new RoundsStockpileResult { Verdict = BuildingReasonAdmitted, Plan = snapshot.Plan };
+            return result.Verdict;
         }
-        return new RoundsStockpileResult { Verdict = NoSpace("storage_shelf") };
+        return NoSpace("storage_shelf");
     }
 }
 
@@ -103,24 +100,40 @@ internal static partial class BuildingRuntimePackage
     /// <summary>Bounds the shelves a zone may ever be given.</summary>
     internal const int MaxShelvesPerZone = 8;
 
-    /// <summary>Keys a zone shelf under the stockpiles goal; epoch-free, so a shelf placed under one goal episode is still found in the next.</summary>
+    /// <summary>Keys a zone shelf by its zone and index: the shelf it names.</summary>
     internal static MethodId ShelfMethod(string zone, int index) =>
         new(string.Create(CultureInfo.InvariantCulture, $"storage-shelf-{zone}-{index}"));
 
-    /// <summary>Reads back the zone's shelf plans in index order: the shelves built or in flight, and the next free index.</summary>
-    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(StoreJournal journal, StandardId goal, string zone, Fact<Pol.CurrentConstruction> census, CancellationToken ct)
+    /// <summary>
+    /// Reads back the zone's shelf plans in index order: the shelves built or in flight, and the next free index.
+    /// A shelf is the admin/stockpiles Need's latest attempt of its MethodId, else, for a zone created under the
+    /// MaintainStockpiles Standard (<paramref name="legacy"/>, until #3265), the Standard's plan of it.
+    /// </summary>
+    internal static (List<Pol.ShelfRecord> Shelves, int Next) ZoneShelves(StoreJournal journal, Sto.NeedOwner need, StandardId? legacy, string zone, Fact<Pol.CurrentConstruction> census, CancellationToken ct)
     {
         var output = new List<Pol.ShelfRecord>();
         for (var index = 0; index < MaxShelvesPerZone; index++)
         {
+            var method = ShelfMethod(zone, index);
             PlanId id;
-            try
+            if (journal.OwnerMethodPlan(need, method, ct) is { } attempt)
             {
-                id = journal.LatestMethodPlan(goal, ShelfMethod(zone, index), ct);
+                id = attempt;
             }
-            catch (Sto.NotFoundException)
+            else
             {
-                return (output, index);
+                if (legacy is not { } standard)
+                {
+                    return (output, index);
+                }
+                try
+                {
+                    id = journal.LatestMethodPlan(standard, method, ct);
+                }
+                catch (Sto.NotFoundException)
+                {
+                    return (output, index);
+                }
             }
             var plan = journal.LoadPlan(id, ct);
             var record = new Pol.ShelfRecord { Zone = zone };

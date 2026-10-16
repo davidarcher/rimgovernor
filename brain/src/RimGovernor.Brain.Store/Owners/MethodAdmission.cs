@@ -8,6 +8,9 @@ public sealed partial class Store
 {
     private const int MaxBillPlanActions = StorePackage.MaxBillPlanActions;
 
+    /// <summary>The stockpile-zone creations one admin/stockpiles Method may carry.</summary>
+    private const int MaxStockpileCreates = 16;
+
     private static readonly HashSet<ActionKind> RoundsSettingsKinds = new HashSet<ActionKind> { ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy };
 
     /// <summary>
@@ -171,7 +174,8 @@ public sealed partial class Store
         var review = LoadRounds(tx);
         // A growing-field or fishing method places a bounded batch (the food/supply Need), a royal decree's harvest
         // field (the joiners/decrees Need, #3302) or the hay, social and resource crops (the economy/resource Need).
-        // A stockpile zone is admitted for any concern that owns stores (StockpileZoneLimit), bounded per owner.
+        // A stockpile zone is admitted for the admin/stockpiles Need alone, which applies every store the departments
+        // declare in one batch (decision 20).
         var limit = 32;
         if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot)
         {
@@ -182,12 +186,15 @@ public sealed partial class Store
         if (owner is NeedOwner { Need: var held })
         {
             resource = held == EconomyFamily.Resource;
-            bound = !stockpile && (held == FoodSupplyNeed || held == JoinersFamily.Decrees || resource);
-        }
-        else if (owner.OwnerNeed(review, out var need) && stockpile)
-        {
-            limit = StockpileZoneLimit(need);
-            bound = limit > 0;
+            if (stockpile)
+            {
+                bound = held == AdminFamily.Stockpiles;
+                limit = MaxStockpileCreates;
+            }
+            else
+            {
+                bound = held == FoodSupplyNeed || held == JoinersFamily.Decrees || resource;
+            }
         }
         if (!bound || plan.Actions.Count > limit)
         {

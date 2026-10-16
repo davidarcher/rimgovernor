@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // planned freezer: Critical because vanilla ranks Preferred below Important, and only a rank above the starter
 // Important food zone hauls raw food into the cold.
 //
-// All are fixed-size: MaintainStockpiles never resizes them.
+// All are fixed-size: the admin/stockpiles Need never resizes them.
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>The fewest meals a day the colony eats before a warm spot by the table pays: fewer, and the meals wait in the store.</summary>

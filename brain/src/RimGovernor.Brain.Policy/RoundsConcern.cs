@@ -71,18 +71,6 @@ public static partial class PolicyFunctions
             }
             return Known(1.0);
         }
-        else if (id == MaintainStockpiles)
-        {
-            if (!f.Stockpiles.TryGetValue(out var review) || !review.Known)
-            {
-                return Unknown<double>();
-            }
-            if (!review.Active)
-            {
-                return Known(0.0);
-            }
-            return Known(StockpileDeficit);
-        }
         else
         {
             return Unknown<double>();

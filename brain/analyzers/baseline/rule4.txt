@@ -65,10 +65,8 @@ BuildingRuntime/Rounds/RoundsResourceRunway.cs|Rounder.ResourceSurfaceOreAsync
 BuildingRuntime/RoundsSleeping.cs|RoundsBuildingPlanner.AdmitPreviewsAsync
 BuildingRuntime/RoundsSleepingShellBed.cs|RoundsSleepingUpkeepPlanner.PackShellBedAsync
 BuildingRuntime/RoundsSleepingUpgrade.cs|BuildingRuntimePackage.PieceStuff
-BuildingRuntime/RoundsStockpiles.cs|RoundsStockpilePlanner.StepAsync
 BuildingRuntime/RoundsTradeAcquisition.cs|Rounder.PlanFoodAcquisitionAsync
 BuildingRuntime/RoundsTradeExport.cs|RoundsTradeExportPlanner.DeclareOrdersInnerAsync
-BuildingRuntime/StockpileZones.cs|StockpileZones.CreateAsync
 BuildingRuntime/Worker.cs|Worker.Flush
 BuildingRuntime/Worker.cs|Worker.RunStep
 BuildingRuntime/Worker.cs|Worker.Steps

@@ -47,7 +47,6 @@ internal static class InspectionRegistry
         new(EnsureDefensiveLayout, ConcernType.OnceConcern, Department.Military, [], InspectDefensiveLayout),
         new(MaintainRoutes, ConcernType.StandardConcern, Department.Shelter, [FactFamily.World, FactFamily.Colony], InspectRoutes),
         new(MaintainTrade, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony, FactFamily.Pawns, FactFamily.Definitions, FactFamily.World], InspectExport),
-        new(MaintainStockpiles, ConcernType.StandardConcern, Department.Storage, [FactFamily.Colony], InspectStockpiles),
         new(EnsureMood, ConcernType.IncidentConcern, Department.People, [FactFamily.Pawns], InspectMood),
         new(RecoverDisasterServices, ConcernType.IncidentConcern, Department.Shelter, [FactFamily.Emergency, FactFamily.Colony, FactFamily.World], InspectDisaster),
     ];

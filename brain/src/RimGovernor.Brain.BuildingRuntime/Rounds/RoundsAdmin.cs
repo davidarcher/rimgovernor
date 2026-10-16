@@ -12,13 +12,17 @@ public sealed partial class AdminRounds
     private readonly AdminNeeds _needs;
     private readonly IRoundsSupplySource? _supplies;
     private readonly RoundsBuildingPlanner? _building;
+    private readonly RoundsStockpilePlanner? _stockpiles;
 
     public AdminRounds(Rounder reviewer, bool creepJoiners) : this(reviewer, new AdminNeeds { CreepJoiners = creepJoiners }, null)
     {
     }
 
-    /// <summary>The family with <paramref name="needs"/> composed; supply safety reads and writes through <paramref name="supplies"/>.</summary>
-    public AdminRounds(Rounder reviewer, AdminNeeds needs, IRoundsSupplySource? supplies)
+    /// <summary>
+    /// The family with <paramref name="needs"/> composed; supply safety reads and writes through <paramref name="supplies"/>,
+    /// the stockpiles Need its zone edits through <paramref name="stockpiles"/>.
+    /// </summary>
+    public AdminRounds(Rounder reviewer, AdminNeeds needs, IRoundsSupplySource? supplies, IRoundsStockpileSource? stockpiles = null)
     {
         _reviewer = reviewer ?? throw new ControlException("AdminRounds: reviewer is missing");
         _needs = needs ?? throw new ControlException("AdminRounds: needs are missing");
@@ -27,6 +31,10 @@ public sealed partial class AdminRounds
             throw new ControlException("AdminRounds: supply safety needs a supply source");
         }
         _supplies = supplies;
+        if (needs.Stockpiles)
+        {
+            _stockpiles = new RoundsStockpilePlanner(reviewer, stockpiles ?? throw new ControlException("AdminRounds: stockpiles need a stockpile source"));
+        }
         if (needs.Burial && reviewer.Native is IRoundsBuildingSource source)
         {
             _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source };
@@ -36,14 +44,14 @@ public sealed partial class AdminRounds
     }
 
     /// <summary>
-    /// An optional entry woken by the outcomes of its surgeries, area moves, supply batches and burial buildings.
+    /// An optional entry woken by the outcomes of its surgeries, area moves, supply batches, burial buildings and zone edits.
     /// The runner is critical while supply safety is composed, as its own planner was.
     /// </summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
         Kinds = [ActionKind.Surgery, ActionKind.WorkAssignment, ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.Building,
-            ActionKind.ProductionBill, ActionKind.RemoveProductionBill],
+            ActionKind.ProductionBill, ActionKind.RemoveProductionBill, ActionKind.ZoneCreate, ActionKind.ZoneCellEdit, ActionKind.ZoneDelete, ActionKind.StockpilePatch],
     };
 
     /// <summary>The family's scheduler entry; with the work ledger composed it also files the ledger's purpose verdicts.</summary>
@@ -97,6 +105,11 @@ public sealed partial class AdminRounds
         {
             facts = facts with { WorkLedger = _reviewer.LedgerOwedIn(scope.World) };
         }
+        if (_needs.Stockpiles)
+        {
+            // Whether the review's stockpile proposal is active in this world; unknown until it reviewed this world.
+            facts = facts with { Stockpiles = _reviewer.Stockpiles.Active(scope.World) };
+        }
         return facts;
     }
 
@@ -118,6 +131,10 @@ public sealed partial class AdminRounds
         if (work.Need.Id == AdminFamily.WorkLedger && _needs.WorkLedger)
         {
             return await WorkLedgerStepAsync(work, ct).ConfigureAwait(false);
+        }
+        if (work.Need.Id == AdminFamily.Stockpiles && _stockpiles is not null)
+        {
+            return await _stockpiles.StepAsync(work, ct).ConfigureAwait(false);
         }
         return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
     }

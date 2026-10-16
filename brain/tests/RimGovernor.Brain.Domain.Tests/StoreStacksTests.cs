@@ -17,7 +17,7 @@ public sealed class StoreStacksTests
     private const string ZoneId = "Zone_Stockpile_1";
 
     private static readonly OwnedZone Owned = new(
-        ZoneId, ZoneKind.Stockpile, "", EquatableArray.From(new List<Cell>()), "general", new StandardId("MaintainStockpiles"),
+        ZoneId, ZoneKind.Stockpile, "", EquatableArray.From(new List<Cell>()), "general", AdminFamily.Stockpiles.FilingKey,
         new StockpileFilter(FilterBase.Nothing), StockpilePriority.Normal);
 
     // A 4-cell floor zone (0..3, 0) holding 1 stack, and a built 2x1 shelf on (0..1, 1) holding 2 then 0 stacks.

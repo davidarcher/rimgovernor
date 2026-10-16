@@ -35,28 +35,4 @@ public static partial class PolicyFunctions
     /// <summary>Tags id with its colony area; an unknown id is Department.Unknown.</summary>
     public static Department DepartmentOf(ConcernId id) =>
         InspectionRegistry.Index.TryGetValue(id, out var entry) ? entry.Department : Department.Unknown;
-
-    /// <summary>
-    /// The number of stockpile-zone creations one method of each Standard Concern that owns stores may carry.
-    /// MaintainStockpiles applies every
-    /// declaration of the storage planner in one batch. A concern absent from the table owns no store.
-    /// </summary>
-    internal static readonly IReadOnlyDictionary<ConcernId, int> StockpileZoneLimits = new Dictionary<ConcernId, int>
-    {
-        [MaintainStockpiles] = 16,
-
-        // Industry
-        [MaintainTrade] = 1,
-
-        // Military
-        [EnsureDefensiveLayout] = 1,
-
-        // Medical
-
-        // People
-        [EnsureWorkAssignments] = 1,
-    };
-
-    /// <summary>The number of stockpile-zone creations one method of concern may carry; zero means the concern owns no store.</summary>
-    public static int StockpileZoneLimit(ConcernId concern) => StockpileZoneLimits.GetValueOrDefault(concern);
 }

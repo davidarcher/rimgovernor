@@ -5,7 +5,7 @@
 Each department owns its stockpiles. A Department that holds stock is a
 `policy.StoreOwner` (registered in `storeOwners`): it declares its `Stores` (a
 `policy.Store`: role, planned room or rectangle, filter, priority) and its
-`RoomDemand` (the yard's further room is asked from runway; see Headroom). `MaintainStockpiles` is
+`RoomDemand` (the yard's further room is asked from runway; see Headroom). The `admin/stockpiles` Need is
 the one applier, through the ordinary zone create, cell-edit, patch and delete actions; the
 standing zones are the only record (see
 [persistence contracts](../contracts/persistence-contracts.md)). Rooms stay

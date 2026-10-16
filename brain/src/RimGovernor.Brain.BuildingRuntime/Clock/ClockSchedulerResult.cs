@@ -35,8 +35,6 @@ public sealed class ClockSchedulerResult
 
 
 
-    public RoundsStockpileResult? Stockpiles { get; set; }
-
     public RoundsDefenseLayoutResult? DefenseLayout { get; set; }
 
     public RoundsMoodReliefResult? MoodRelief { get; set; }
@@ -79,7 +77,6 @@ public sealed class ClockSchedulerResult
         Routes = other.Routes ?? Routes;
         Defense = other.Defense ?? Defense;
         Recovery = other.Recovery ?? Recovery;
-        Stockpiles = other.Stockpiles ?? Stockpiles;
         DefenseLayout = other.DefenseLayout ?? DefenseLayout;
         MoodRelief = other.MoodRelief ?? MoodRelief;
         Dialog = other.Dialog ?? Dialog;

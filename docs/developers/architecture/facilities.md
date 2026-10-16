@@ -44,10 +44,10 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    allow-list store of that bench's recipe ingredients
    (`policy.DeriveBenchInputs`) on the free roofed 2x2 patch in the bench's room
    nearest it; hauling brings the inputs to the bench. All stores are declared by
-   their departments and applied by `MaintainStockpiles`: see
+   their departments and applied by the `admin/stockpiles` Need: see
    [storage](storage.md). Once ComplexFurniture is researched and no zone edit
    stands, `RoundsStockpilePlanner` upgrades the warehouse (the general store)
-   with a Shelf inside it, up to a third of its footprint, one at a time.  `MaintainStockpiles` patches each built shelf with its zone's filter and
+   with a Shelf inside it, up to a third of its footprint, one at a time. The Need patches each built shelf with its zone's filter and
    priority (role `shelf:<buildingID>`). Native storage
    capacity counts a shelf cell's free slots (three stacks per cell).
 6. **Bill**: `RoundsResourcePlanner` dispatches the bill and native readback

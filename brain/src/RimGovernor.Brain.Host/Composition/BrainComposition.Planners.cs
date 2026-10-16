@@ -42,7 +42,6 @@ public sealed partial class BrainComposition
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
         Rounder? cfgRounds = null;
         RoundsBuildingPlanner? cfgRoutes = null;
-        RoundsStockpilePlanner? cfgStockpiles = null;
         FactStore? cfgStore = null;
         RoundsTradePlanner? cfgTrade = null;
         RoundsWorkPlanner? cfgWork = null;
@@ -267,11 +266,11 @@ public sealed partial class BrainComposition
             // The role, ritual and reform toggles compose the ideology family's three Needs (#3260).
             families.Add(IdeologyReader.Runner(reviewer, sc.IdeoRoles, sc.Rituals, sc.Ideoligion));
         }
-        var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial, WorkLedger = workLedger };
-        if (admin.CreepJoiners || admin.SupplySafety || admin.Burial || admin.WorkLedger)
+        var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial, WorkLedger = workLedger, Stockpiles = stockpiles };
+        if (admin.CreepJoiners || admin.SupplySafety || admin.Burial || admin.WorkLedger || admin.Stockpiles)
         {
-            // The colony admin family (#3264, #3304): creep joiners, supply safety, burial and the work ledger.
-            families.Add(new AdminRounds(reviewer, admin, supplies ? client : null).Runner());
+            // The colony admin family (#3264, #3304): creep joiners, supply safety, burial, the work ledger and stockpiles.
+            families.Add(new AdminRounds(reviewer, admin, supplies ? client : null, stockpiles ? client : null).Runner());
         }
         if (sleeping || shelter || expansion || temperature || sc.Sheltering)
         {
@@ -292,10 +291,6 @@ public sealed partial class BrainComposition
             // The home-coverage, firebreak, stone-shell and envelope toggles compose the layout family's Needs (#3256).
             layoutRounds = new LayoutRounds(reviewer, layout, sc.Firebreak ? client : null, stoneShell ? client : null);
             families.Add(layoutRounds.Runner());
-        }
-        if (stockpiles)
-        {
-            cfgStockpiles = new RoundsStockpilePlanner(reviewer, client);
         }
         if (defensiveLayout)
         {
@@ -376,7 +371,6 @@ public sealed partial class BrainComposition
             Recovery = cfgRecovery,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
-            Stockpiles = cfgStockpiles,
             Store = cfgStore,
             Trade = cfgTrade,
             Work = cfgWork,
@@ -450,7 +444,6 @@ public sealed partial class BrainComposition
         Add(sc.Art, MaintainTrade);
         Add(sc.Routes, MaintainRoutes);
         Add(sc.Recovery, RecoverDisasterServices);
-        Add(sc.Stockpiles, MaintainStockpiles);
         if (sc.DefensiveLayout)
         {
             thresholds = thresholds with { DefensiveLayout = true };
@@ -510,6 +503,11 @@ public sealed partial class BrainComposition
         if (sc.Burial)
         {
             needs.Add(AdminFamily.Burial);
+        }
+        if (sc.Stockpiles)
+        {
+            // The stockpile review's zones, rooms and shelves (#3304).
+            needs.Add(AdminFamily.Stockpiles);
         }
         if (sc.Psylink)
         {

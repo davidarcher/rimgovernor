@@ -48,9 +48,15 @@ public sealed record BuildingMethodDecision(bool Admitted, IWorkOwner Owner, IRe
 
 /// <summary>
 /// One zone this colony created, by native zone identity: the completed zone_create's kind, crop, cells and
-/// stockpile role key. Role is empty for a legacy role-less claim.
+/// stockpile role key. Role is empty for a legacy role-less claim. <see cref="Owner"/> is the owner's filing key
+/// (decision 20): a Need-linked zone's NeedId.FilingKey, or a Standard-linked zone's Concern (until #3265), whose
+/// Standard is <see cref="Standard"/>.
 /// </summary>
-public sealed record OwnedZone(string Id, ZoneKind Kind, string Crop, EquatableArray<Cell> Cells, string Role, StandardId Owner, StockpileFilter? Filter, StockpilePriority? Priority);
+public sealed record OwnedZone(string Id, ZoneKind Kind, string Crop, EquatableArray<Cell> Cells, string Role, ConcernId Owner, StockpileFilter? Filter, StockpilePriority? Priority)
+{
+    /// <summary>The Standard a Standard-linked zone was created under; null for a Need-linked zone.</summary>
+    public StandardId? Standard { get; init; }
+}
 
 /// <summary>The last completed autopilot stockpile_patch on one storage target, as of <see cref="Tick"/>.</summary>
 public sealed record AppliedStockpile(string Target, StorageTargetKind Kind, StockpileFilter Filter, StockpilePriority Priority, string Role, Tick Tick);
@@ -255,6 +261,15 @@ public sealed partial class Store
              ORDER BY m.plan_id {tail}
             """;
 
+    /// <summary>The Need-owned plans of the current world holding an <paramref name="actionKind"/> action past <paramref name="transition"/>, with their NeedId.</summary>
+    private static string NeedPlanLinks(string actionKind, string transition, string tail) =>
+        $"""
+            SELECT m.plan_id,m.need_id FROM need_methods m
+             WHERE m.colony=$colony AND m.load_token=$load AND m.map_id=$map
+             AND EXISTS(SELECT 1 FROM actions a JOIN transitions t ON t.action_id=a.id WHERE a.plan_id=m.plan_id AND a.kind='{actionKind}' AND {transition})
+             ORDER BY m.plan_id {tail}
+            """;
+
     private static List<(PlanId Plan, string Owner)> OwnedPlanLinks(StoreTransaction tx, string sql, GenerationSnapshot current) =>
         tx.Query(sql, [("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map)], r => (Plan: new PlanId(r.GetString(0)), Owner: r.GetString(1)));
 
@@ -354,14 +369,33 @@ public sealed partial class Store
 
     /// <summary>
     /// Every completed autopilot zone_create of the current world scope by the native zone identity its receipt
-    /// returned; the layout tidy reads a zone's kind and crop from these when it has one.
+    /// returned; the layout tidy reads a zone's kind and crop from these when it has one. A Need-owned plan's zones
+    /// are filed under the Need's key (decision 20); a Standard's under its Concern, with the Standard, until #3265.
     /// </summary>
     internal static Fact<EquatableArray<OwnedZone>> ZoneClaimsIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
     {
-        var links = OwnedPlanLinks(tx, StandardPlanLinks("zone_create", "", ObservedOrReceipted, ""), current);
         var result = new List<OwnedZone>();
+        void Add(PlanId plan, ConcernId owner, StandardId? standard)
+        {
+            foreach (var progress in LoadIn(tx, plan).Progress)
+            {
+                var v = progress.View;
+                if (progress.Action.ZoneCreate is not { } zone || !CompletedInScope(v, current, tick))
+                {
+                    continue;
+                }
+                if (v.Stockpiles.TryGetValue(out var placements))
+                {
+                    result.AddRange(placements.Rows.Select(created => new OwnedZone(created.Id, zone.Kind, "", created.Cells, zone.Role, owner, zone.Filter, zone.Priority) { Standard = standard }));
+                }
+                else if (v.Zone.TryGetValue(out var id))
+                {
+                    result.Add(new OwnedZone(id, zone.Kind, zone.Crop, zone.Cells, zone.Role, owner, zone.Filter, zone.Priority) { Standard = standard });
+                }
+            }
+        }
         var owners = new Dictionary<string, OwnerSummary>(StringComparer.Ordinal);
-        foreach (var link in links)
+        foreach (var link in OwnedPlanLinks(tx, StandardPlanLinks("zone_create", "", ObservedOrReceipted, ""), current))
         {
             if (!owners.TryGetValue(link.Owner, out var g))
             {
@@ -372,23 +406,11 @@ public sealed partial class Store
             {
                 continue;
             }
-            var owner = new StandardId(link.Owner);
-            foreach (var progress in LoadIn(tx, link.Plan).Progress)
-            {
-                var v = progress.View;
-                if (progress.Action.ZoneCreate is not { } zone || !CompletedInScope(v, current, tick))
-                {
-                    continue;
-                }
-                if (v.Stockpiles.TryGetValue(out var placements))
-                {
-                    result.AddRange(placements.Rows.Select(created => new OwnedZone(created.Id, zone.Kind, "", created.Cells, zone.Role, owner, zone.Filter, zone.Priority)));
-                }
-                else if (v.Zone.TryGetValue(out var id))
-                {
-                    result.Add(new OwnedZone(id, zone.Kind, zone.Crop, zone.Cells, zone.Role, owner, zone.Filter, zone.Priority));
-                }
-            }
+            Add(link.Plan, g.Kind, new StandardId(link.Owner));
+        }
+        foreach (var link in OwnedPlanLinks(tx, NeedPlanLinks("zone_create", ObservedOrReceipted, ""), current))
+        {
+            Add(link.Plan, new NeedId(link.Owner).FilingKey, null);
         }
         return Fact.Known(EquatableArray.From(result));
     }
@@ -408,12 +430,15 @@ public sealed partial class Store
 
     /// <summary>
     /// The latest completed autopilot stockpile_patch of the current world scope at or before <paramref name="tick"/>,
-    /// per target id, zones and storage buildings alike.
+    /// per target id, zones and storage buildings alike, of Need-owned plans and (until #3265) Standard-owned ones.
     /// </summary>
     internal static Dictionary<string, AppliedStockpile> StockpilePatchesIn(StoreTransaction tx, GenerationSnapshot current, Tick tick)
     {
         var result = new Dictionary<string, AppliedStockpile>(StringComparer.Ordinal);
-        foreach (var (plan, _) in OwnedPlanLinks(tx, StandardPlanLinks("stockpile_patch", "", ObservedOrReceipted, "LIMIT " + (MaxStockpilePatchPlans + 1)), current))
+        var limit = "LIMIT " + (MaxStockpilePatchPlans + 1);
+        var links = OwnedPlanLinks(tx, StandardPlanLinks("stockpile_patch", "", ObservedOrReceipted, limit), current)
+            .Concat(OwnedPlanLinks(tx, NeedPlanLinks("stockpile_patch", ObservedOrReceipted, limit), current));
+        foreach (var (plan, _) in links)
         {
             foreach (var progress in LoadIn(tx, plan).Progress)
             {

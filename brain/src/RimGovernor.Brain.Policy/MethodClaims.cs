@@ -16,7 +16,8 @@ public static partial class PolicyFunctions
     /// <list type="bullet">
     /// <item>bills: <c>bill/&lt;bench&gt;/&lt;recipe&gt;</c> and the bill they replace or remove (<c>bill/&lt;id&gt;</c>);</item>
     /// <item>forage, hunts, hauls, grower crops, plant cuts: the source thing;</item>
-    /// <item>zones: their cells (<c>cell/x/z</c>, the namespace buildings use), and an existing zone by id (<c>zone/&lt;id&gt;</c>);</item>
+    /// <item>zones: their cells (<c>cell/x/z</c>, the namespace buildings use), and an existing zone by id (<c>zone/&lt;id&gt;</c>);
+    /// a stockpile patch its zone (<c>zone/&lt;id&gt;</c>) or its shelf;</item>
     /// <item>area edits: the edited cells of the area (<c>area/&lt;name&gt;/x/z</c>), or the whole area for create and delete;</item>
     /// <item>dressing (apparel policy, gear replacement, equip): <c>gear/&lt;pawn&gt;</c> and the item;</item>
     /// <item>policy prunes: the pruned database (<c>policy/&lt;database&gt;</c>);</item>
@@ -105,6 +106,7 @@ public static partial class PolicyFunctions
         }
         else if (a.ZoneCellEdit is { } edit) yield return "zone/" + edit.Zone;
         else if (a.ZoneDelete is { } deleted) yield return "zone/" + deleted.Zone;
+        else if (a.StockpilePatch is { } patch) yield return patch.TargetKind == StorageTargetKind.Zone ? "zone/" + patch.Target : patch.Target;
         else if (a.Area is { } area)
         {
             var name = "area/" + (area.PollutionClear ? "pollution" : area.Home ? "home" : "allowed:" + area.Key);

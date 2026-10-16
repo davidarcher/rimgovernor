@@ -79,7 +79,7 @@ public sealed record ShelfCandidate
 // research and cannot overlap zones: when its blueprint spawns on a stockpile the zone gives up those cells
 // (ZoneManager.Notify_NoZoneOverlapThingSpawned), so a shelf sited inside a zone trades its two floor stacks for
 // six shelf stacks. Its default settings (Preferred, every category) are replaced by the served zone's desired
-// filter and priority by MaintainStockpiles (StockpileEditKind.ShelfPatch).
+// filter and priority by the admin/stockpiles Need (StockpileEditKind.ShelfPatch).
 public static partial class PolicyFunctions
 {
     public const string ShelfDefinition = "Shelf";

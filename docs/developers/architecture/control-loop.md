@@ -648,7 +648,7 @@ anomaly).
 | Joiners and quests | `joiners`: Needs `offers`, `letters`, `ceremony`, `quests`, `decrees`, `monuments`, `departures`, `grav-inspection` (#3302) |
 | Anomaly | `anomaly`: Needs `doors`, `capture`, `tend`, `lance`, `bioferrite`, `monolith` (#3302) |
 | Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted); MaintainTrade, TradeWithCaravan, trade missions |
-| Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger` (#3304); EnsureWorkAssignments, MaintainStockpiles |
+| Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger`, `stockpiles` (#3304); EnsureWorkAssignments |
 | People | EnsureMood, AnswerDialog |
 | Disaster | RecoverDisasterServices |
 

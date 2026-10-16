@@ -55,7 +55,7 @@ public sealed class ClaimAdmissionTests
                     new("TestBed", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 1)])) { Size = Known(new Cell(1, 2)) }]),
             },
         };
-        var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = StandardTestFacts.LayoutOwed, Facts = facts }, ct);
         return new() { Journal = journal, Review = review };
     }
 
@@ -210,11 +210,11 @@ public sealed class ClaimAdmissionTests
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
         Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "ledger", Delivery("l1", "a", "ledger")).Outcome);
-        var other = colony.Commit(MaintainStockpiles, "art", Delivery("a1", "a", "art"));
+        var other = colony.Commit(EnsureDefensiveLayout, "art", Delivery("a1", "a", "art"));
         Assert.Equal(ClaimOutcome.Conflict, other.Outcome);
         Assert.Equal("pawn/a", other.Conflict!.Claim);
         Assert.Equal("ledger", other.Conflict.Method.Value);
-        Assert.Empty(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainStockpiles), ct));
+        Assert.Empty(colony.Journal.LoadOwnerMethods(colony.Owner(EnsureDefensiveLayout), ct));
         // Opted in, a disjoint second Method beside the owner's own open one is admitted ...
         Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainRoutes, "ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
         // ... while the ordinary commit keeps the one-open-Method gate.

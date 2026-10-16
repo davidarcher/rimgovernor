@@ -3,10 +3,10 @@ using System.Text;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// The stockpile helper: the mechanics every stockpile-owning concern shares. A concern reads its owned zones
+// The stockpile helper: the mechanics the admin/stockpiles Need applies its stores with. It reads its owned zones
 // (OwnedStockpileZones), decides its edits, and applies them through StockpileZones: Create admits previewed
 // zones, EditTargetPresent and StockpileEditAction retarget or delete standing ones, and OpenEditPlan gates a
-// concern on its own plan still in flight.
+// Need on its own zone-edit Method still in flight.
 
 /// <summary>Refreshes one zone's presence and CAS token for each edit.</summary>
 public interface IRoundsStockpileSource
@@ -32,7 +32,7 @@ public interface IZonePreviewSource
     Task<(OperationsPb.ZonePreviewReply Reply, BridgeResult Result)> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
 }
 
-/// <summary>Applies zone edits for any owning concern.</summary>
+/// <summary>Applies zone edits for the stockpile owner.</summary>
 internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource native)
 {
     /// <summary>
@@ -58,28 +58,22 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
     /// Admits the missing zones as one method of owner: each zone is previewed natively on the review's zone map
     /// token, a refused one is dropped, and the accepted ones are admitted together with their footprints
     /// reserved, like every routine zone. Zoning is instant and needs no worker, so a fresh colony's zones land
-    /// in one step.
+    /// in one step. The Method is named by the roles it creates (<c>stockpile-create-&lt;hash&gt;</c>): the same
+    /// zones still open continue, and once released they are created again only if the review still finds them
+    /// missing.
     /// </summary>
-    public async Task<RoundsStockpileResult> CreateAsync(ControlState state, Sto.StandardState owner, Observation.ColonyProjection projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits, CancellationToken call, CancellationToken epoch)
+    public async Task<Verdict> CreateAsync(ControlState state, Sto.IWorkOwner owner, Observation.ColonyProjection projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         if (native is not IZonePreviewSource preview)
         {
-            return new RoundsStockpileResult { Verdict = FieldUnavailable("zone_preview") };
+            return FieldUnavailable("zone_preview");
         }
         var tick = projection.Identity.Tick;
         var roles = edits.Select(e => e.Role);
-        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"{owner.Standard.Id}/{owner.Standard.Episode}/create/{string.Join(",", roles)}/{tick.Value}")));
+        var digest = SHA256.HashData(Encoding.UTF8.GetBytes("create/" + string.Join(",", roles)));
         var id = PlanIds.MintPlanId();
         var method = new MethodId("stockpile-create-" + Convert.ToHexString(digest, 0, 8).ToLowerInvariant());
-        try
-        {
-            p.Journal.LoadMethod(owner.Standard.Id, owner.Standard.Episode, method, call);
-            return new RoundsStockpileResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "stockpile_create") };
-        }
-        catch (Sto.NotFoundException)
-        {
-        }
         var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
         var actions = new List<DomainAction>();
         var previews = new List<Pol.Preview>();
@@ -126,7 +120,7 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
         }
         if (actions.Count == 0)
         {
-            return new RoundsStockpileResult { Verdict = NoSpace("stockpile_zone") };
+            return NoSpace("stockpile_zone");
         }
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
         p.Current(call, epoch);
@@ -149,13 +143,13 @@ internal sealed class StockpileZones(Rounder reviewer, IRoundsStockpileSource na
         }, call).ConfigureAwait(false);
         if (!decision.Admitted)
         {
-            return new RoundsStockpileResult { Verdict = AdmissionLog.AdmissionRefused(decision) };
+            return AdmissionLog.AdmissionRefused(decision);
         }
         foreach (var e in admitted)
         {
             Tel.Decide(StockpileEditDecision("admitted", "", e.Role, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["role"] = e.Role, ["cells"] = e.Cells().Count, ["plan"] = id.ToString(), ["detail"] = e.Explanation }));
         }
-        return new RoundsStockpileResult { Verdict = BuildingReasonAdmitted, Plan = id, Edits = actions.Count };
+        return BuildingReasonAdmitted;
     }
 }
 
@@ -253,9 +247,9 @@ internal static partial class BuildingRuntimePackage
     /// Reports whether one of the owner's methods holds a zone-edit plan still open. A room shell is building
     /// work that takes days; zoning is instant, so only an open zone-edit plan holds the next edits.
     /// </summary>
-    internal static bool OpenEditPlan(StoreJournal journal, Sto.StandardState owner, CancellationToken ct)
+    internal static bool OpenEditPlan(StoreJournal journal, Sto.IWorkOwner owner, CancellationToken ct)
     {
-        foreach (var method in owner.Methods)
+        foreach (var method in owner.OpenMethods)
         {
             var plan = journal.LoadPlan(method.Plan, ct);
             if (IsStockpileEditPlan(plan.Spec) && StorePackage.PlanOpen(plan))
