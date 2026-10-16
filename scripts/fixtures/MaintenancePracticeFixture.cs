@@ -23,7 +23,7 @@ public sealed class MaintenancePracticeFixture
     private static string realWeapon = "";
     private static Map? map;
 
-    [Tool("test/maintenance_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare an actual assigned native combat role just below its minimum, with practice facilities and no selected activity. Test builds only.")]
+    [Tool("test/maintenance_prepare", Description="UNSAFE FOR MODEL EXECUTION. Prepare an actual assigned native combat role just below its minimum. Vanilla unassigns such a pawn on the next precept tick, so the fixture suppresses that revalidation for its own role, with practice facilities and no selected activity. Test builds only.")]
     public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken ct, bool melee = false)
     {
         var center = await ctx.MainThread.InvokeAsync(() => Find.CurrentMap.Center, ct);
@@ -42,7 +42,7 @@ public sealed class MaintenancePracticeFixture
             if (!ideology.PreceptsListForReading.Contains(role)) ideology.AddPrecept(role, true);
             holder = map.mapPawns.FreeColonistsSpawned.Where(p => !p.WorkTagIsDisabled(WorkTags.Violent)
                 && !p.skills.GetSkill(skill).TotallyDisabled).OrderBy(p => p.thingIDNumber).First();
-            foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned.ToArray())
             {
                 pawn.ideo.SetIdeo(ideology);
                 pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
@@ -62,11 +62,15 @@ public sealed class MaintenancePracticeFixture
             {
                 new Harmony("rimgovernor.fixture.maintenance").Patch(AccessTools.Method(typeof(JobDriver), "DriverTick"),
                     postfix: new HarmonyMethod(typeof(MaintenancePracticeFixture), nameof(Sample)));
+                foreach (var type in new[] { typeof(Precept_RoleSingle), typeof(Precept_RoleMulti) })
+                    new Harmony("rimgovernor.fixture.maintenance.role").Patch(AccessTools.Method(type, "RecacheActivity"), prefix: new HarmonyMethod(typeof(MaintenancePracticeFixture), nameof(KeepRole)));
                 patched = true;
             }
-            return new { ready = true, pawn = holder.GetUniqueLoadID(), role = role.GetUniqueLoadID(), skill = skill.defName, floor };
+            return new { success = true, ready = true, pawn = holder.GetUniqueLoadID(), role = role.GetUniqueLoadID(), skill = skill.defName, floor };
         }, ct);
     }
+    // Test-only: the game drops a role holder below the requirement on the same tick; this is the state under test.
+    private static bool KeepRole(Precept_Role __instance) => __instance != role;
     private static void SetDeficit()
     {
         var record = holder!.skills.GetSkill(skill);
@@ -93,7 +97,7 @@ public sealed class MaintenancePracticeFixture
         if (holder == null) throw new InvalidOperationException("Prepare first.");
         if (drafted && holder.equipment.Primary?.def.defName == realWeapon) restored = true;
         return new { tick = Find.TickManager.TicksGame, elapsed = Find.TickManager.TicksGame - started,
-            methods = methods.ToArray(), earned, level = holder.skills.GetSkill(skill).Level, floor, drafted, restored,
+            methods = methods.ToArray(), assigned = role != null && role.ChosenPawns().Contains(holder), earned, level = holder.skills.GetSkill(skill).Level, floor, drafted, restored,
             released, activity = NativePawnActivities.Read(holder)?.State ?? "unowned", job = holder.CurJobDef?.defName ?? "" };
     }, ct);
     [Tool("test/maintenance_disturb", Description="UNSAFE FOR MODEL EXECUTION. Rearm below-floor maintenance and draft during native gear swap, or remove the assigned role. No work is selected. Test builds only.")]

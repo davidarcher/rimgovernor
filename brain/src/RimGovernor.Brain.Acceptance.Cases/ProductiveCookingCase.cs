@@ -13,7 +13,8 @@ internal static class ProductiveCookingCase
         Scope = "Prepared useful simple-meal demand enters normal selection, journal and Hands. Native reads compare all per-level cooking rates against actual native stats without changing live observations; observe productive learning, physical meal output and subsequent work. Unit tests prove allocation tradeoffs; this case proves native mechanics and execution without a fixture-selected winner.",
         Start = new FixtureStart { Op = "test/productive_cooking_prepare", On = new LabStart() },
         RequiredOps = ["test/productive_cooking_prepare", "test/productive_cooking_read"],
-        Keep = ["Food"], QuietWorld = true, Crew = new Crew { Size = 3 }, Service = true,
+        Keep = ["Food"], QuietWorld = true, Crew = new Crew { Size = 3, Ordinary = true }, Service = true,
+        Reason = "Superpawns at skill 20 would make the prepared level-5 cooking skill and its learning unobservable.",
         NoCheckpoint = true, Budget = TimeSpan.FromMinutes(5), Stall = TimeSpan.FromSeconds(45),
         Run = async (s, ct) =>
         {

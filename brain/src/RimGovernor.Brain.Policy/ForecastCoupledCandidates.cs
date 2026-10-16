@@ -156,7 +156,7 @@ public static partial class PolicyFunctions
         var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1
             && needTasks.All(n => n.Task != c.ActivityCompletions[0])
             && practice.Practice.All(p => p.Task != c.ActivityCompletions[0])).ToArray();
-        var delayed = 0;
+        var delayed = 0; var delayedTasks = new HashSet<string>(StringComparer.Ordinal);
         foreach (var root in productiveRoots)
             foreach (var recovery in needTasks.ToArray())
             {
@@ -165,14 +165,18 @@ public static partial class PolicyFunctions
                 if (!options.Any(o => o.Activity == original.Id && o.Pawn == recovery.Pawn)
                     || Ancestor(recovery.Task, original.Id)) continue;
                 var id = original.Id + "/after/" + recovery.Task;
-                tasks.Add(original with { Id = id, Prerequisites = [.. original.Prerequisites, recovery.Task] });
-                foreach (var option in options.Where(o => o.Activity == original.Id).ToArray())
+                // Distinct roots can share one completion task: build the delayed task once, and keep each root's own alternative.
+                if (delayedTasks.Add(id))
                 {
-                    options.Add(option with { Activity = id });
-                    if (bindings.TryGetValue((original.Id, option.Pawn), out var binding))
-                        bindings[(id, option.Pawn)] = binding with { Id = id, Prerequisites = EquatableArray.From(original.Prerequisites.Append(recovery.Task)) };
+                    tasks.Add(original with { Id = id, Prerequisites = [.. original.Prerequisites, recovery.Task] });
+                    foreach (var option in options.Where(o => o.Activity == original.Id).ToArray())
+                    {
+                        options.Add(option with { Activity = id });
+                        if (bindings.TryGetValue((original.Id, option.Pawn), out var binding))
+                            bindings[(id, option.Pawn)] = binding with { Id = id, Prerequisites = EquatableArray.From(original.Prerequisites.Append(recovery.Task)) };
+                    }
                 }
-                alternatives.Add(root with { Id = id, ActivityCompletions = [id] }); delayed++;
+                alternatives.Add(root with { Id = root.Id == original.Id ? id : root.Id + "/after/" + recovery.Task, ActivityCompletions = [id] }); delayed++;
             }
         bool Ancestor(string task, string ancestor)
         {

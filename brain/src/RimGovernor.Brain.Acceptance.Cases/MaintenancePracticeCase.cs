@@ -11,7 +11,8 @@ internal static class MaintenancePracticeCase
         Scope = "An actual assigned Ideology combat requirement below its native floor enters ordinary shared selection, Method journal and Hands. Observe native skill recovery, selected participant ownership, draft interruption with original gear restoration, and release after removing the role. Unit tests cannot prove native practice, gear restoration or competing-writer cutover.",
         Start = new FixtureStart { Op = "test/maintenance_prepare", Args = new JsonObject { ["melee"] = melee }, On = new LabStart() },
         RequiredOps = ["test/maintenance_prepare", "test/maintenance_read", "test/maintenance_disturb"],
-        QuietWorld = true, Crew = new Crew { Size = 3 }, Service = true, NoCheckpoint = true,
+        QuietWorld = true, Crew = new Crew { Size = 3, Ordinary = true }, Service = true, NoCheckpoint = true,
+        Reason = "Superpawns would lift the assigned role holder above its native skill floor and erase the deficit the fixture prepares.",
         Budget = TimeSpan.FromMinutes(5), Stall = TimeSpan.FromSeconds(45),
         Run = async (s, ct) =>
         {
