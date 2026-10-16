@@ -315,7 +315,7 @@ block), the clustering's conflicts and the embedding report; `skipped`
 
 A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`); the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`facts_unknown` on an unread fact, `no_core` when the map holds no shelter) or `failed` (`chain_error`). Facts the live ledger has not read leave the plan at the seed rooms (`StationAdvice.SeedOnly`). The chain places the power sites (`EmbedSites`); a replan is the tiled plan too (below).
 
-The replan is the tiled plan of the chain (`policy.ReplanLayout`, #3005, J4 of #2965; the diff rows are #3002). `policy.ReplanTileFacts` gives the tiler the review's facts (Built, Pinned, the plan's retired ground) over a fresh survey's zones with the core, as the derive lays them, and only the geothermal reservations; the chain places the power sites again, and the perimeter is laid over the tiled plan after it. `policy.DiffReplanTile` compares the tiled rooms with the plan the colony held and writes the `layout_replan_tiled` row. A standing room the embedding keeps is claimed through its block (`Built`); the rest are matched by role. The standing rooms with no node (`unmatched_built`) are what J2 (#3003) turns into nodes. A room node's room (`roomNodeRoles`: circulation, tomb, morgue, graveyard, waste yard, the training range and ring, the shelter and the throne room) is a `BuiltRegion` matched to its group by planned role, outdoor or with no native role as it may be, so the embedding keeps it as the block of its node: a plan that holds a shelter keeps a shelter node until the review's `ShelterRetirable` (`StationFacts.RetireShelter`), and one that holds a throne room keeps a throne node at the size it stands or the title asks. The training range and ring take the larger of the demand's stands and markers (`StationFacts.Demand`, the review's `RoomDemand`) and what the plan's range and ring stand at, and each graveyard beyond the outskirts' first is a node of its own (`GraveyardRoomNodes`). On the replay fixtures with every room built none of those is unmatched. The playroom, classroom, deathrest chamber, worship room, containment cell and isolation room (`ChildRoomNodes`, from `StationFacts.Child`, the review's `ChildRoomShapes`) are nodes while the demand or a need asks for them or the plan holds one, a standing one at no less than the floor it has. Storage and the core demand rooms (hospital, lab, rec, butchery, prison) are the station groups' own (stock, patients, orders, prisoners); the pens and yards are room nodes of the chain (`HerdRoomNodes`, keyed to their herd by `RoomNode.Herd`, a standing one pinned at the floor it has; `YardRoomNodes`); a standing pen is a node of the floor it has and the tiler keeps it like any room. Still unmatched are the outdoor rooms with no node (yard, pen) and any other room with no group of its role; the diff shows a room the tiler builds of its own as a rebuild (`tile_unpinned_built`) or a drop. Bedrooms and suites are nodes of the tiled replan too (#3004, J3): the sleepers' node, one node per suite wish (`StationFacts.Suites`, #2939), each standing bedroom or suite pinned as the block of its node. More colonists show as new bedrooms, a new wish as a new suite that takes a bed off the sleepers, fewer colonists as standing bedrooms with no node (`tile_no_node`, retirement-eligible), and a raised suite target as the row's `short` cells (the embedding keeps a standing room where it stands and does not grow it). The tile pins only `policy.TilePinned` (rooms an open plan works on, superseded bedrooms a pawn still owns a bed in, rooms of an ended role in use, a rebuild's pair). A pinned standing room that no group carries (a surplus bedroom still slept in, a role with no group left, an outdoor room) is held (#3019): `EmbedInput.Standing` makes it an obstacle no block or field overlaps and `Embedding.Held` returns it, `TileStations` tiles it as a stationless group at its own bounds so it stays a room of the tiled plan until it stops being pinned; no group the tiler cannot place is made (#3017): the clustering refuses a merge into a room no planned room carries (several beds read as a barracks) even under a pair rule, and the regrouping adds no such group; the old growing replanner is deleted, and the tiler is the only replan. The tile costs 0.3 to 2 s on a 3-colonist map and about 1.7 s at 100 colonists (#3009, #3010, #3012) and runs inside the review.
+The replan is the tiled plan of the chain (`policy.ReplanLayout`, #3005, J4 of #2965; the diff rows are #3002). `policy.ReplanTileFacts` gives the tiler the review's facts (Built, Pinned, the plan's retired ground) over a fresh survey's zones with the core, as the derive lays them, and only the geothermal reservations; the chain places the power sites again, and the perimeter is laid over the tiled plan after it. `policy.DiffReplanTile` compares the tiled rooms with the plan the colony held and writes the `layout_replan_tiled` row. A standing room the embedding keeps is claimed through its block (`Built`); the rest are matched by role. The standing rooms with no node (`unmatched_built`) are what J2 (#3003) turns into nodes. A room node's room (`roomNodeRoles`: circulation, tomb, morgue, waste yard, the training range and ring, the shelter and the throne room) is a `BuiltRegion` matched to its group by planned role, outdoor or with no native role as it may be, so the embedding keeps it as the block of its node: a plan that holds a shelter keeps a shelter node until the review's `ShelterRetirable` (`StationFacts.RetireShelter`), and one that holds a throne room keeps a throne node at the size it stands or the title asks. The training range and ring take the larger of the demand's stands and markers (`StationFacts.Demand`, the review's `RoomDemand`) and what the plan's range and ring stand at,. On the replay fixtures with every room built none of those is unmatched. The playroom, classroom, deathrest chamber, worship room, containment cell and isolation room (`ChildRoomNodes`, from `StationFacts.Child`, the review's `ChildRoomShapes`) are nodes while the demand or a need asks for them or the plan holds one, a standing one at no less than the floor it has. Storage and the core demand rooms (hospital, lab, rec, butchery, prison) are the station groups' own (stock, patients, orders, prisoners); the pens and yards are room nodes of the chain (`HerdRoomNodes`, keyed to their herd by `RoomNode.Herd`, a standing one pinned at the floor it has; `YardRoomNodes`); a standing pen is a node of the floor it has and the tiler keeps it like any room. Still unmatched are the outdoor rooms with no node (yard, pen) and any other room with no group of its role; the diff shows a room the tiler builds of its own as a rebuild (`tile_unpinned_built`) or a drop. Bedrooms and suites are nodes of the tiled replan too (#3004, J3): the sleepers' node, one node per suite wish (`StationFacts.Suites`, #2939), each standing bedroom or suite pinned as the block of its node. More colonists show as new bedrooms, a new wish as a new suite that takes a bed off the sleepers, fewer colonists as standing bedrooms with no node (`tile_no_node`, retirement-eligible), and a raised suite target as the row's `short` cells (the embedding keeps a standing room where it stands and does not grow it). The tile pins only `policy.TilePinned` (rooms an open plan works on, superseded bedrooms a pawn still owns a bed in, rooms of an ended role in use, a rebuild's pair). A pinned standing room that no group carries (a surplus bedroom still slept in, a role with no group left, an outdoor room) is held (#3019): `EmbedInput.Standing` makes it an obstacle no block or field overlaps and `Embedding.Held` returns it, `TileStations` tiles it as a stationless group at its own bounds so it stays a room of the tiled plan until it stops being pinned; no group the tiler cannot place is made (#3017): the clustering refuses a merge into a room no planned room carries (several beds read as a barracks) even under a pair rule, and the regrouping adds no such group; the old growing replanner is deleted, and the tiler is the only replan. The tile costs 0.3 to 2 s on a 3-colonist map and about 1.7 s at 100 colonists (#3009, #3010, #3012) and runs inside the review.
 
 #### Derive-time facts and the seed rooms (#2958)
 
@@ -847,27 +847,35 @@ Royalty, no throne room is owed.
 ### Tomb, jail and morgue
 
 The tomb and the morgue are planned from the start in the outskirts cluster
-(#2185): the tomb, morgue, graveyard and waste yard
+(#2185): the tomb, morgue and waste yard
 are room nodes of the station graph, so the first corpse has a store.
 The morgue is shelled when any human corpse waits (`MorgueWaiting`), cooling
 never gates a shell, and `WarmCoolingRooms` owes a cooler to every standing
 tomb, morgue and meal closet that measures above `TombMaxC`, empty or not.
 
-The graveyard (`LayoutGraveyard.cs`, #2186) is the cluster's first-slot Outdoor
-room: `PlannedGraveyard`, unfenced (`PlannedRoom.Unfenced`: no ring, gate, roof or floor
-owed; graves need diggable soil). `GraveyardSlots` is its template: 12
-plain graves (`GraveDefinition`, 1x2) in two bands of six on an 11x7 interior,
-each beside an aisle column joined by the aisle rows. It never grows; a further
-graveyard is the burial concern's request (`RoomDemand.Graveyards`,
-`GraveyardsWanted`): while no sarcophagus can be had, when fewer free grave
-slots remain than the unburied colonist corpses still owed a grave, or the
-graveyards are 0.85 used. `PlannedRole.IsOutdoor` lists the Outdoor roles.
+There is no graveyard room (#3229). While no sarcophagus can be had, each
+unburied colonist corpse with no empty grave waiting owes one plain grave
+(`GraveDefinition`, 1x2): `NextTombStep` returns `TombGrave` with no room, so
+the demand is the dead owed, never a room's fill. `GraveSites` (`GraveSiting.cs`)
+proposes the sites: `FreeSites` cells (walkable, unoccupied, unzoned, so never
+on a crop field or a stockpile, the food stores among them) outside the ground
+`GraveProtected` keeps (every planned room with its walls and a one-cell margin,
+reserve rooms included, the reservations, perimeter sites and planned zones,
+each entrance with the cells around it, and the observed traffic cells when the
+routes census is read), ranked by walking distance from the plan's entrances
+(`HaulCosts`); a site no entrance reaches is dropped. The runtime previews the
+nearest few and admits the first legal one as one building method per grave
+count (`grave-<n>`); a grave blueprint or frame standing is the step in
+flight. Once a sarcophagus can be had new burials go to the tomb; standing
+graves stay, and nothing deconstructs a grave. A graveyard room in an older
+saved plan no longer decodes (the role is gone), so the review derives a fresh
+plan without it; its graves stand untouched. `PlannedRole.IsOutdoor` lists the
+Outdoor roles.
 
-`MaintainBurial` (People, #2196) stages the tomb, graveyard and morgue
+`MaintainBurial` (People, #2196) stages the tomb, the graves and the morgue
 (`RoundsBurialPlanner`) and its `burialOwner` declares the tomb and morgue stores
-(`policy.StoreOwner`). A plain grave is placed only in the next free
-`GraveyardSlots` slot; with no slot free the
-body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
+(`policy.StoreOwner`); it asks layout for no room. With no grave site the
+preview accepts, the body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
 `MorguePriority` (Normal), below the graves and sarcophagi that take a colonist
 corpse by vanilla hauling (acceptance case `burial/grave_over_morgue`). Stranger
 corpses are owed a fresh sarcophagus too, for the mood memory only, while
@@ -892,8 +900,8 @@ the dump.
 The tomb, the jail and the morgue use the same shared build side as the throne
 room (`reconcileRoom`); their steps shrink to a furniture template.
 `NextTombStep` reports `TombReconcile` with the next free sarcophagus slot as
-the template (`TombFull` stays; a grave is a `TombReconcile` of the graveyard with
-the next free grave as the template); `NextJailStep` reports
+the template (`TombFull` stays; a grave is `TombGrave`, placed by siting, not
+reconciled); `NextJailStep` reports
 `JailReconcile` with the next free bed (`JailMark` stays: it flags a standing
 bed, found through `CensusRoomIn`); the morgue holds no furniture, so
 `MorgueRoomOwed` is just "the ring does not match the ground" and its template
@@ -960,8 +968,8 @@ gate, door, roof or floor, so `GroundMatches` is always true, `ShellDoors` is
 empty, `RoomGround` is the interior alone and `Reconcile` diffs only the
 template and the foreign things on the interior. Its blocked footprint
 (`roomWalls`) is the interior with a one-cell margin; no ground behind the dummies
-is kept free, since the drill's shots never hit a pawn (#2938). It is demand-sized,
-like a further graveyard: `RoomDemand.Ranges` (the stand count, merged by the
+is kept free, since the drill's shots never hit a pawn (#2938). It is demand-sized:
+`RoomDemand.Ranges` (the stand count, merged by the
 store department; `StoreView.TrainingStands`) sizes its room node (`TrainingRoomNodes`) and the
 tiler places it on free ground. A site on a side of the core faces away from it; when
 the sites on the dummy axis are taken (map edge, cliff, water), a site beside the

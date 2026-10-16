@@ -99,7 +99,6 @@ public sealed record StoreDeclaration
         }
         return next with
         {
-            Graveyards = Demand.Graveyards,
             Ranges = Demand.Ranges,
             Rings = Demand.Rings,
         };
@@ -146,7 +145,6 @@ public static partial class PolicyFunctions
             demand = demand with
             {
                 Yard = Math.Max(demand.Yard, got.Yard),
-                Graveyards = Math.Max(demand.Graveyards, got.Graveyards),
                 Ranges = Math.Max(demand.Ranges, got.Ranges),
                 Rings = Math.Max(demand.Rings, got.Rings),
             };

@@ -189,9 +189,6 @@ public sealed record StationGraphInput
     /// <summary>The ring markers the colony asks for (RoomDemand.Rings); zero asks for no such room (#2887).</summary>
     public int TrainingMarkers { get; init; }
 
-    /// <summary>The graveyards the plan holds or the burial demand asks for (RoomDemand.Graveyards): each beyond the outskirts' first is a node of its own (#3003).</summary>
-    public int Graveyards { get; init; }
-
     /// <summary>The further station-less rooms the plan holds or the colony asks for: the gear rooms and the child rooms (#3003).</summary>
     public IReadOnlyList<RoomNode> Rooms { get; init; } = [];
 
@@ -1122,7 +1119,6 @@ public static partial class PolicyFunctions
     private static List<RoomNode> StationRoomNodes(StationGraphInput input)
     {
         var nodes = new List<RoomNode>(OutskirtsRoomNodes());
-        nodes.AddRange(GraveyardRoomNodes(input.Graveyards));
         nodes.AddRange(TrainingRoomNodes(input.TrainingStands, input.TrainingMarkers));
         nodes.AddRange(input.Rooms);
         nodes.AddRange(SeedRoomNodes(input.Seed));

@@ -65,7 +65,6 @@ internal static partial class BuildingRuntimePackage
         storage = storage with { Zones = request.Zones };
         storage = storage with { BenchInputs = inputs };
         storage = storage with { Benches = benches };
-        storage = storage with { Burial = BurialCensus(projection) };
         var (stands, rings) = RoundsTrainingPlanner.TrainingDemand(projection);
         storage = storage with { TrainingStands = stands, TrainingRings = rings };
         var declared = Pol.PolicyFunctions.DeclareStores(storage);

@@ -227,7 +227,6 @@ public sealed record StationFacts
             Seed = seed,
             TrainingStands = stands,
             TrainingMarkers = markers,
-            Graveyards = Math.Max(Demand.Graveyards, Plan.RoomsOf(PolicyFunctions.PlannedGraveyard).Count),
             Rooms = RoomNodes(),
             Races = Races,
             Pasture = Pasture,

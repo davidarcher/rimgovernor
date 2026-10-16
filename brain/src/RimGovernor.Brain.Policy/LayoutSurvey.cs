@@ -112,5 +112,4 @@ public static partial class PolicyFunctions
     public static PlannedRole PlannedMorgue => PlannedRole.Morgue;
 
     /// <summary>The unfenced, unfloored Outdoor room of graves, planned from the start in the outskirts cluster.</summary>
-    public static PlannedRole PlannedGraveyard => PlannedRole.Graveyard;
 }

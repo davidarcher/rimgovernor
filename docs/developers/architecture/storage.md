@@ -15,7 +15,7 @@ storage room or freezer stands, then deleted so its contents haul to the better
 stores; it is only the patch because the placement search treats zoned cells as
 unplaceable, so a whole-interior zone starved the campfire slot, tracked by the
 layout epic), Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (the weapons and apparel zones),
-People (tomb, morgue, graveyard) and Sanitation (waste dump); the
+People (tomb, morgue) and Sanitation (waste dump); the
 animal feed store belongs to Husbandry.
 
 A store is a rectangle placement over its planned room, created once the room's
@@ -80,8 +80,7 @@ storage and cold-store nodes from held stock (stacks over the station's slots),
 and an outgrown room gets a successor ([facilities](facilities.md#station-plan-and-successor-rooms)).
 When every zone of a yard store is at 85% used
 (`StockpileFurtherRoomFill`), the department's `RoomDemand` asks layout for a
-further room (`Yard`, one more than the plan holds; graveyards
-use the same fill against grave slots) and that room's zone is created once it is
+further room (`Yard`, one more than the plan holds) and that room's zone is created once it is
 planned and open.
 
 ## Planned rooms

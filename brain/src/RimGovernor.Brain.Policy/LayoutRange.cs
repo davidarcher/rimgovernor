@@ -3,13 +3,12 @@ namespace RimGovernor.Brain.Policy;
 public sealed partial record PlannedRoom
 {
     /// <summary>
-    /// Whether the room has no ring: a training range, sparring ring, graveyard or yard stands in open air with nothing
+    /// Whether the room has no ring: a training range, sparring ring, waste yard or yard stands in open air with nothing
     /// built round it, so it owes no wall, fence, gate, roof or floor and has no Door. Only the animal pen keeps a fence.
     /// </summary>
     public bool Unfenced() =>
         Role == PolicyFunctions.PlannedTrainingRange
         || Role == PolicyFunctions.PlannedSparringRing
-        || Role == PolicyFunctions.PlannedGraveyard
         || Role == PolicyFunctions.PlannedWasteYard
         || Role == PolicyFunctions.PlannedYard
         || Role == PlannedRole.Airlock
@@ -22,9 +21,25 @@ public sealed partial record LayoutPlan
     public List<PlannedRoom> RangeRooms() => RoomsOf(PolicyFunctions.PlannedTrainingRange);
 }
 
+public static partial class PolicyConstants
+{
+    /// <summary>The roles planned as an Outdoor room (PlannedRoom.Outdoor): no ring, no roof, no floor owed.</summary>
+    internal static readonly IReadOnlySet<PlannedRole> OutdoorRoles = new HashSet<PlannedRole>
+    {
+        PlannedRole.Pen,
+        PlannedRole.WasteYard,
+        PlannedRole.Yard,
+        PlannedRole.TrainingRange,
+        PlannedRole.SparringRing,
+    };
+}
+
 /// <summary>Ports <c>layout_range.go</c>: the training range, a planned Outdoor room with no ring at all.</summary>
 public static partial class PolicyFunctions
 {
+    /// <summary>Reports whether a room of role is planned as an Outdoor room.</summary>
+    public static bool IsOutdoor(this PlannedRole role) => OutdoorRoles.Contains(role);
+
     /// <summary>The training range's plan role.</summary>
     public static PlannedRole PlannedTrainingRange => PlannedRole.TrainingRange;
 

@@ -80,18 +80,6 @@ internal static partial class BuildingRuntimePackage
         return tk ? Known(false) : Unknown<bool>();
     }
 
-    internal static BurialCensus? BurialCensus(ColonyProjection facts)
-    {
-        var wk = facts.Facts.Waste.TryGetValue(out var waste);
-        var bk = facts.Facts.CurrentConstruction.TryGetValue(out var built);
-        var ak = SarcophagusAvailable(facts).TryGetValue(out var available);
-        if (!wk || !bk || !built!.Colony || !ak)
-        {
-            return null;
-        }
-        return new BurialCensus { Waste = waste!, Built = built.Buildings, Shapes = facts.Shapes, Sarcophagus = available };
-    }
-
     internal static (PlannedRoom Room, Fact<bool> Owed) PlannedMealCloset(ColonyProjection facts)
     {
         var ak = facts.DefinitionAvailable("Cooler").TryGetValue(out var available);

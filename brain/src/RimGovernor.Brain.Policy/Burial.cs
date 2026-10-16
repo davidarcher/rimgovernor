@@ -1,25 +1,9 @@
 namespace RimGovernor.Brain.Policy;
 
 // Go: burial.go
-// MaintainBurial is the People department's burial: the tomb's sarcophagus or plain-grave step, the morgue's
-// shell and the graveyard's fence and graves, and the tomb, morgue and graveyard stores. It is a Standard
-// whose target is no human corpse owed a shell, a sarcophagus or a grave. Vanilla haulers carry the corpses;
-// nothing here hauls.
-
-/// <summary>
-/// What the burial concern reads of the colony: the plan, the waste census, the colony's buildings and
-/// whether a sarcophagus can be had.
-/// </summary>
-public sealed record BurialCensus
-{
-    public EquatableArray<WasteItem> Waste { get; init; }
-
-    public EquatableArray<CurrentBuilding> Built { get; init; }
-
-    public required PieceShapes Shapes { get; init; }
-
-    public bool Sarcophagus { get; init; }
-}
+// MaintainBurial is the People department's burial: the tomb's sarcophagus or the plain grave near the base,
+// the morgue's shell, and the tomb and morgue stores. It is a Standard whose target is no human corpse owed a
+// shell, a sarcophagus or a grave. Vanilla haulers carry the corpses; nothing here hauls.
 
 public static partial class PolicyFunctions
 {
@@ -47,44 +31,11 @@ public static partial class PolicyFunctions
             c.Raise(MaintainBurial);
         }
     }
-
-    /// <summary>
-    /// The graveyards the plan should hold: 0 for no demand, else the planned count plus one. A further
-    /// graveyard is asked for only while no sarcophagus can be had (once one can, the tomb rooms take new
-    /// burials) and when the empty graves run out: fewer free grave slots than the unburied dead still owed
-    /// one, or the graveyards at StockpileFurtherRoomFill of their slots.
-    /// </summary>
-    public static int GraveyardsWanted(
-        LayoutPlan plan,
-        IReadOnlyList<WasteItem> waste,
-        IReadOnlyList<CurrentBuilding> built,
-        PieceShapes shapes,
-        bool sarcophagus
-    )
-    {
-        var have = plan.RoomsOf(PlannedRole.Graveyard).Count;
-        if (have == 0 || sarcophagus)
-        {
-            return 0;
-        }
-
-        var (standing, slots) = GravesStanding(plan, built);
-
-        // No sarcophagus can be had here, so no stranger is staged (StrangerTomb).
-        var (step, _) = TombCensus(waste, built, shapes.Furniture.Sarcophagus, 0);
-        var owed = Math.Max(step.Dead - step.Empty, 0);
-        if (owed > slots - standing || standing >= StockpileFurtherRoomFill * slots)
-        {
-            return have + 1;
-        }
-
-        return 0;
-    }
 }
 
 /// <summary>
-/// The People department's stores: the tomb and the morgue; the graveyard's graves are buildings and need no
-/// zone. The graveyard's room demand is the further graveyard (<see cref="PolicyFunctions.GraveyardsWanted"/>).
+/// The People department's stores: the tomb and the morgue. A plain grave is a building that stores its one
+/// corpse and needs no zone, and the burial asks layout for no room (graves are sited near the base, GraveSites).
 /// </summary>
 public sealed class BurialOwner : IStoreOwner
 {
@@ -130,14 +81,5 @@ public sealed class BurialOwner : IStoreOwner
         return output;
     }
 
-    public RoomDemand RoomDemand(StoreView view)
-    {
-        if (view.Layout is null || view.Burial is null)
-        {
-            return new RoomDemand();
-        }
-
-        var b = view.Burial;
-        return new RoomDemand { Graveyards = PolicyFunctions.GraveyardsWanted(view.Layout, b.Waste.Items, b.Built.Items, b.Shapes, b.Sarcophagus) };
-    }
+    public RoomDemand RoomDemand(StoreView view) => new();
 }

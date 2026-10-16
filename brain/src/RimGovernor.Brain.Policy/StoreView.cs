@@ -60,9 +60,6 @@ public sealed partial record StoreView
     /// <summary>The standing stockpile zones, read for the warehouse siting.</summary>
     public IReadOnlyList<StockpileZone> Zones { get; init; } = [];
 
-    /// <summary>The burial census; null while the waste or construction census is unread (see BurialCensus).</summary>
-    public BurialCensus? Burial { get; init; }
-
     /// <summary>The stands the range should hold (see TrainingStands); the Military store asks for a training range while it is open.</summary>
     public Fact<int> TrainingStands { get; init; }
 
@@ -75,9 +72,6 @@ public sealed partial record StoreView
 /// </summary>
 public sealed record RoomDemand
 {
-    /// <summary>The graveyards the plan should hold, 0 for no demand (a further graveyard; see GraveyardsWanted).</summary>
-    public int Graveyards { get; init; }
-
     /// <summary>The stands the plan's training range should hold, 0 for no demand (the training concern, #2619).</summary>
     public int Ranges { get; init; }
 

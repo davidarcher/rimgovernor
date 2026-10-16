@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
     // The floor requirement a PlannedRoom's whole interior carries: the tier its role asks for, the throne room's title tags.
     private static (FloorDeficit Deficit, bool Ok) RoomFloorDeficit(PlannedRoom room, IReadOnlyList<string> tags)
     {
-        // A planned role with no census role (morgue, graveyard, waste yard, ...) asks for no floor.
+        // A planned role with no census role (morgue, waste yard, ...) asks for no floor.
         if (!ModuleRoomRoles.TryGetValue(room.Role, out var role))
         {
             return (new FloorDeficit(), false);

@@ -29,7 +29,7 @@ is distinct from tier 0.
 | 1 Sustain | Private bedrooms, hospital, butchery, food stores (storage rooms and shelves), lab (owed only when no standing room can host research; a solo colony keeps its bench in the shelter or a bedroom), cooler/freezer and its power, stonecutter |
 | 2 Comfort | Dining and rec rooms, throne/worship rooms, suites, animal shelter |
 | 3 Produce | Other workshops and their bench input stores |
-| 4 Expand | Graveyard, waste yard, outskirts, anything unlisted |
+| 4 Expand | Graves, waste yard, outskirts, anything unlisted |
 | 5 Secure | Defense ring, turrets and conduits, killbox, gates, mortars, IEDs, bait, wall support (#2527) |
 
 Power for something other than the cooler/freezer takes the tier of what it

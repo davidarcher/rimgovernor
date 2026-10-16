@@ -6,10 +6,9 @@ namespace RimGovernor.Brain.Policy;
 // template sarcophagus: the ring, the floor and the piece, installed from packed stock first. The memory comes
 // only from a sarcophagus's first burial, so a filled one is never reused: when every planned tomb is full the
 // plan grows another. Where no sarcophagus can be had (research or stuff) a plain Grave takes the body instead,
-// placed only in the next free slot of a planned graveyard (GraveyardSlots); the graveyard's fence and gate are
-// raised with the grave. When the graveyard has no slot left the body waits in the morgue and the department
-// asks layout for a further graveyard (GraveyardsWanted). Vanilla haulers inter colonist corpses in any empty
-// grave on their own; nothing here hauls.
+// one grave per unburied dead owed, placed on open ground near the base (GraveSites), not in a room. Once a
+// sarcophagus can be had new burials go to the tomb; standing graves stay. Vanilla haulers inter colonist
+// corpses in any empty grave on their own; nothing here hauls.
 //
 // Stranger corpses (raiders, visitors, prisoners) feed the tomb too, for the mood memory alone: a stranger is
 // owed a fresh sarcophagus only while fewer than StrangerTombStackCap KnowBuriedInSarcophagus stacks are live
@@ -44,12 +43,15 @@ public enum TombStepKind
     None,
 
     /// <summary>
-    /// Reconcile Room, the planned tomb, to Template, its next free sarcophagus, or Room, the planned
-    /// graveyard, to Template, its next free grave (ReconcileRoom): the ring, the floor and the piece, whatever
-    /// the diff still owes. There is no shell or place step.
+    /// Reconcile Room, the planned tomb, to Template, its next free sarcophagus (ReconcileRoom): the ring, the
+    /// floor and the piece, whatever the diff still owes. There is no shell or place step.
     /// </summary>
     [WireName("reconcile")]
     Reconcile,
+
+    /// <summary>No sarcophagus can be had and the dead outnumber the empty graves: place one plain grave near the base (GraveSites).</summary>
+    [WireName("grave")]
+    Grave,
 
     /// <summary>Disposal are filled stranger sarcophagi whose memory has fired; the planner deconstructs one.</summary>
     [WireName("dispose")]
@@ -67,7 +69,7 @@ public sealed record TombStep
 
     public PlannedRoom Room { get; init; } = new();
 
-    /// <summary>A Reconcile's wanted furniture: the next free sarcophagus or grave in its slot.</summary>
+    /// <summary>A Reconcile's wanted furniture: the next free sarcophagus in its slot.</summary>
     public IReadOnlyList<WantedPiece> Template { get; init; } = [];
 
     /// <summary>The unburied colonist corpses.</summary>
@@ -278,9 +280,8 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Picks the next tomb step from the plan, the waste census and the colony's built buildings. sarcophagus is
-    /// false when none can be had (unresearched, no stuff), which leaves a grave in the planned graveyard; with
-    /// no free grave slot there is no step, the body waits and the graveyard is asked for again
-    /// (GraveyardsWanted).
+    /// false when none can be had (unresearched, no stuff), which owes a plain grave near the base (Grave): the
+    /// unburied dead owed one are the demand, never a room's fill.
     /// </summary>
     public static TombStep NextTombStep(
         LayoutPlan plan,
@@ -304,15 +305,7 @@ public static partial class PolicyFunctions
         }
         if (!sarcophagus)
         {
-            foreach (var r in plan.RoomsOf(PlannedRole.Graveyard))
-            {
-                var (piece, ok) = GraveSlot(r, taken);
-                if (ok)
-                {
-                    return step with { Room = r, Kind = TombStepKind.Reconcile, Template = [piece!.Wanted()] };
-                }
-            }
-            return new TombStep();
+            return step with { Kind = TombStepKind.Grave };
         }
         foreach (var r in plan.Rooms)
         {

@@ -453,7 +453,7 @@ idle.
   no flow door from a room with beds to a non-circulation room while one stands; the
   corridor's group links carry no flow weight, so `Trips` are unchanged. Colonies whose
   private rooms do not outnumber the public ones get no corridor.
-  **Outskirts rooms (#2882).** The tomb, morgue, graveyard and waste yard
+  **Outskirts rooms (#2882).** The tomb, morgue and waste yard
   are station-less room nodes of the same graph (`OutskirtsRoomNodes`,
   `LayoutOutskirts.cs`): each asks the floor its slot gives and keeps its role's
   interior template, and clustering makes a `Planned` group of it. No distance band sits on
@@ -473,7 +473,7 @@ idle.
   closing, hole filling and shoreline detours, which the plan's own score still prices.
   The morgue is cold, so it
   carries the cooler any cold group carries. Wind is not a constraint: it has no game effect here. The tiler gives the
-  unfenced graveyard and waste yard no wall, door or entrance. The siting reasons and the perimeter overlap checks are #2886.
+  unfenced waste yard no wall, door or entrance. The siting reasons and the perimeter overlap checks are #2886.
   **Training rooms (#2887).** The range and the sparring ring are station-less nodes too
   (`TrainingRoomNodes`, `LayoutTrainingNodes.cs`; `StationGraphInput.TrainingStands`
   and `TrainingMarkers` ask for them, zero asks for none). Each asks its exact floor
