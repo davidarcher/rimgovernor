@@ -137,7 +137,7 @@ Real-game runs under the normal planner (no fixture-selected winner) at the #316
 | `production/productive-cooking` | passes (ordinary crew, prepared level-5 cooking skill) | the planner plans and cooks, a meal is produced, and the level-5 skill is observed rather than boosted |
 | `production/maintenance-range`, `production/maintenance-sparring` | pass | an assigned role floor with a real deficit is maintained by existing range and sparring |
 | `production/coupled-needs`, `lifecycle/load` | pass | normal harvest/ingestion and load preserve ownership |
-| `shelter/service-investment` | fails: reviews run, no shelter investment is selected (#3245) | food/shelter investment is **not** observed in the real game; the pure paired tests still cover the decision |
+| `shelter/service-investment` | passes (#3245): the cold-room heater frame is selected, built, powered and warms the room, with the paired decision explained | food/shelter investment is observed. The cause was search order: a construction root rejected for lacking supported service relief was never paired with the sleep that gives it relief, because hundreds of sleep-time roots sorted ahead of it and spent the budget. Need roots now sort last and an unserved construction root seeds the extension |
 | `production/coupled-thermal` | fails: the first review supplies no small bedroom (#3246) | thermal evidence is **not** observed |
 | `service/restart` | cannot run locally: the harness does not start the game with the case's routine families (#3268) | restart evidence is **not** observed |
 

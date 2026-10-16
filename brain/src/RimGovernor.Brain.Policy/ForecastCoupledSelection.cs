@@ -65,9 +65,13 @@ public static partial class PolicyFunctions
         findings.UnionWith(baselineScenario.Findings);
         if (baseline.Feasible != Known(true)) findings.Add("baseline_unassessed_or_infeasible");
         var evidence = new List<ForecastPortfolioEvidence>();
+        // A construction root rejected only for lacking supported service relief is not a leader, yet it is the one a service root completes.
+        var unserved = new List<string[]>();
         // Establish the incumbent before spending optional search; report that mandatory work as well.
         var expansions = baselineScenario.Expansions; var truncated = baselineScenario.Truncated;
-        var alternatives = candidates.Alternatives.Concat(candidates.Incumbents).OrderBy(c => c.Id, StringComparer.Ordinal).ToArray();
+        // Need roots come in dozens of time variants per pawn; ordered by id they would spend the budget before any investment root is reached.
+        var alternatives = candidates.Alternatives.Concat(candidates.Incumbents).OrderBy(c => c.ExclusiveOutcome.StartsWith("need/", StringComparison.Ordinal) ? 1 : 0)
+            .ThenBy(c => c.Id, StringComparer.Ordinal).ToArray();
         if (alternatives.Select(c => c.Id).Distinct().Count() != alternatives.Length)
             throw new DomainException("duplicate portfolio candidate");
         // A graph-only root adds nothing when another selected root already includes all its
@@ -126,7 +130,9 @@ public static partial class PolicyFunctions
                     && (binding.SiteDefinition.Length != 0 || binding.Job == "BuildRoof"))
                     && (!outcome.StationaryThermalRelief.IsKnown || outcome.StationaryThermalRelief.Value <= 0))
                 {
-                    evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "construction_without_supported_service_relief"));
+                    if (unserved.Count < 4 && additions.Length == 1) unserved.Add([additions[0].Id]);
+                    evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "construction_without_supported_service_relief" + string.Concat(outcome.Findings.Where(f => f.Reason.StartsWith("thermal_relief_unassessed", StringComparison.Ordinal)).Select(f => ":" + f.Reason))
+                        + (outcome.StationaryThermalRelief.IsKnown ? ":relief=" + outcome.StationaryThermalRelief.Value : "")));
                     continue;
                 }
                 var rank = CompareConsequences(vector, bestVector);
@@ -169,7 +175,8 @@ public static partial class PolicyFunctions
             var members = leader.ToHashSet(StringComparer.Ordinal);
             var rank = alternatives.Select((c, i) => (c.Id, i)).ToDictionary(p => p.Id, p => p.i, StringComparer.Ordinal);
             var seed = alternatives.Where(c => members.Contains(c.Id)).ToArray();
-            foreach (var root in alternatives.Where(c => !members.Contains(c.Id)))
+            // Roots are ordered by id, so the unserved construction a leader would complete sits behind hundreds of service roots and the budget ends first.
+            foreach (var root in alternatives.Where(c => !members.Contains(c.Id)).OrderBy(c => unserved.Any(u => u[0] == c.Id) ? 0 : 1))
             {
                 var portfolio = seed.Append(root).OrderBy(c => rank[c.Id]).ToArray();
                 if (!CompatiblePortfolio(portfolio)) continue;
@@ -187,6 +194,10 @@ public static partial class PolicyFunctions
             seedLimit = int.MaxValue; leafBound = PortfolioBound;
             if (!continueSearch) truncated = true;
         }
+        // Pair each unserved construction root with the other roots (service, rest, food) so the investment is judged with its use.
+        if (continueSearch && bestIsBaseline)
+            foreach (var leader in unserved.ToArray())
+                if (!Extend(leader)) { continueSearch = false; truncated = true; break; }
         if (continueSearch && !bestIsBaseline)
         {
             // Greedy to a fixpoint: a portfolio that beat the leader becomes the leader and is extended in turn, so

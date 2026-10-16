@@ -175,6 +175,8 @@ public static partial class PolicyFunctions
         var horizon = request.HorizonDays * GameTime.TicksPerDay;
         var findings = new List<ForecastFinding>();
         var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        if (plan.Allocations.GroupBy(a => a.Activity, StringComparer.Ordinal).FirstOrDefault(g => g.Count() > 1) is { } twice)
+            throw new DomainException("schedule allocates one activity more than once: " + twice.Key + " to " + string.Join(",", twice.Select(a => a.Pawn + "@" + a.Start)));
         var allocations = plan.Allocations.ToDictionary(a => a.Activity, StringComparer.Ordinal);
         var effects = new List<ForecastStockChange>();
         var completed = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
@@ -439,6 +441,10 @@ public static partial class PolicyFunctions
             ForecastShelters(existingRooms, plan, horizon), horizon);
         var reliefKnown = changedUse.Any(t => t.AssessedTicks > 0) && changedUse.Count == unchanged.Count && changedUse.Zip(unchanged)
             .All(pair => pair.First.Pawn == pair.Second.Pawn && pair.First.AssessedTicks == pair.Second.AssessedTicks);
+        if (!reliefKnown && shelters.Count != 0)
+            Finding("thermal_relief_unassessed:changed=" + string.Join(",", changedUse.Select(t => t.Pawn + "/" + Math.Round(t.AssessedTicks))) + ";unchanged="
+                + string.Join(",", unchanged.Select(t => t.Pawn + "/" + Math.Round(t.AssessedTicks))) + ";shelters="
+                + string.Join(",", shelters.Select(s => (s.CompleteAt.IsKnown ? "c" : "-") + (s.TemperatureAtHorizon.IsKnown ? "t" : "-") + ":" + string.Join("|", s.Findings))), "thermal", 0);
         var maintenance = ForecastMaintenance(context.MaintenanceRequirements, context.PracticeTasks, plan, completed, horizon);
         foreach (var group in context.PracticeTasks.Where(p => allocations.ContainsKey(p.Task)).GroupBy(p => p.Requirement))
         {

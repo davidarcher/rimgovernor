@@ -157,7 +157,7 @@ public static partial class PolicyFunctions
         var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1
             && needTasks.All(n => n.Task != c.ActivityCompletions[0])
             && practice.Practice.All(p => p.Task != c.ActivityCompletions[0])).ToArray();
-        var delayed = 0; var delayedTasks = new HashSet<string>(StringComparer.Ordinal);
+        var delayed = 0; var delayedTasks = new HashSet<string>(StringComparer.Ordinal); var delayedRoots = new HashSet<string>(StringComparer.Ordinal);
         foreach (var root in productiveRoots)
             foreach (var recovery in needTasks.ToArray())
             {
@@ -178,7 +178,10 @@ public static partial class PolicyFunctions
                             bindings[(id, option.Pawn)] = binding with { Id = id, Prerequisites = EquatableArray.From(original.Prerequisites.Append(recovery.Task)) };
                     }
                 }
-                alternatives.Add(root with { Id = first ? id : root.Id + "/after/" + recovery.Task, ActivityCompletions = [id] }); delayed++;
+                var alternativeId = id;
+                for (var attempt = 0; !delayedRoots.Add(alternativeId); attempt++)
+                    alternativeId = root.Id + "/after/" + recovery.Task + (attempt == 0 ? "" : "/" + attempt);
+                alternatives.Add(root with { Id = alternativeId, ActivityCompletions = [id] }); delayed++;
             }
         bool Ancestor(string task, string ancestor)
         {
@@ -188,13 +191,22 @@ public static partial class PolicyFunctions
         var equipment = options.SelectMany(o => o.Equipment).Distinct().Order(StringComparer.Ordinal)
             .Select(id => new ForecastEquipmentCapacity(id, tasks.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity) is var equipmentTask && equipmentTask.EquipmentLocation.Length != 0 ? equipmentTask.EquipmentLocation : equipmentTask.Location, resources.Claims.Targets.Contains(id)
                 ? Known<EquatableArray<ForecastTimeWindow>>([]) : Known<EquatableArray<ForecastTimeWindow>>([new(0, horizon)]))).ToArray();
+        // A task reached by two generation paths is one task; two different tasks under one id cannot be scheduled.
+        var distinctTasks = new List<ForecastActivity>();
+        foreach (var group in tasks.GroupBy(t => t.Id, StringComparer.Ordinal))
+        {
+            var first = group.First();
+            if (group.Skip(1).Any(other => !other.Equals(first)))
+                throw new DomainException("coupled generation produced different activities under one id: " + group.Key);
+            distinctTasks.Add(first);
+        }
         if (truncated) findings.Add("coupled_generation_truncated");
         return new(new()
         {
             Activities = new()
             {
-                Activities = tasks.ToArray(),
-                Options = options.ToArray(),
+                Activities = distinctTasks.ToArray(),
+                Options = options.Distinct().ToArray(),
                 Routes = routes.Values.ToArray(),
                 Pawns = needs.Pawns.Select(p => p.VoluntaryControlBlockers.Count == 0
                     ? NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity
@@ -217,8 +229,22 @@ public static partial class PolicyFunctions
             NeedTasks = EquatableArray.From(needTasks),
             Findings = EquatableArray.From(findings)
         },
-            EquatableArray.From(alternatives), EquatableArray.From(findings), truncated)
+            EquatableArray.From(DistinctAlternatives(alternatives)), EquatableArray.From(findings), truncated)
         { CompositionExpansions = composed.Expansions };
+
+        // The same root reached by two generation paths is one alternative; different roots cannot share an id.
+        static List<ForecastCommitment> DistinctAlternatives(List<ForecastCommitment> roots)
+        {
+            var distinct = new List<ForecastCommitment>();
+            foreach (var group in roots.GroupBy(r => r.Id, StringComparer.Ordinal))
+            {
+                var first = group.First();
+                if (group.Skip(1).Any(other => !other.Equals(first)))
+                    throw new DomainException("coupled generation produced different alternatives under one id: " + group.Key);
+                distinct.Add(first);
+            }
+            return distinct;
+        }
 
         void AppendFamily(Methods.CoordinatedMethodCandidates family)
         {
