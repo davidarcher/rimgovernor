@@ -33,7 +33,14 @@ public sealed partial record SiteCell
 
     public Fact<bool> Indoors { get; init; }
 
-    public Fact<bool> StorageEmpty { get; init; }
+    /// <summary>The item stacks on the cell (0 for none); unknown is never 0.</summary>
+    public Fact<int> StorageStacks { get; init; }
+
+    /// <summary>
+    /// The stacks the cell can hold: a storage building's maxItemsInCell (3 on a shelf), 0 under any other edifice,
+    /// 1 on open ground.
+    /// </summary>
+    public Fact<int> StorageCapacity { get; init; }
 
     /// <summary>
     /// Reports a door, or a door blueprint or frame, on the cell; indoor furnishing keeps the cells beside a

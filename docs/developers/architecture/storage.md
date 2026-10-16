@@ -76,7 +76,13 @@ stock drains by vanilla hauling.
 Storage rooms are not asked for by a fill reading: the layout graph sizes the
 storage and cold-store nodes from held stock (stacks over the station's slots),
 and an outgrown room gets a successor ([facilities](facilities.md#station-plan-and-successor-rooms)).
-When every zone of a yard store is at 85% used
+A store's capacity and use are counted in stacks, from the native per-cell
+`storage_stacks` and `storage_capacity` grid columns: one stack per zone cell,
+plus `maxItemsInCell` (3) per cell of each built shelf serving the zone (a
+shelf's cells leave the zone natively, so they are added back). A cell whose
+count is unknown leaves the store's count unknown, never 0, and an unknown
+store never reads as full.
+When every zone of a yard store has 85% of its stacks used
 (`StockpileFurtherRoomFill`), the department's `RoomDemand` asks layout for a
 further room (`Yard`, one more than the plan holds) and that room's zone is created once it is
 planned and open.

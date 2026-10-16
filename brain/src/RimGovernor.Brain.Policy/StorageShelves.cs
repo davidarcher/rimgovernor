@@ -64,7 +64,6 @@ public sealed record ShelfRequest
 public static partial class PolicyFunctions
 {
     public const string ShelfDefinition = "Shelf";
-    public const int ShelfItemsPerCell = 3;
 
     /// <summary>The stockpile role key a configured shelf is claimed by.</summary>
     public static string ShelfRole(string building) => "shelf:" + building;

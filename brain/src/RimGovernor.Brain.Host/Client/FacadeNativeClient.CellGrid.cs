@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Host;
 /// <summary>
 /// Go <c>cellgrid.Grid</c> (cellgrid.go, things.go): a decoded whole-map grid, one array per <see cref="P.SiteCell"/>
 /// field over a rectangle, with the wire's sentinels (cell 0 not held, 1 held; bools 0 unknown, 1 false, 2 true;
-/// floats NaN unknown; strings 0 unknown, k for strings[k-1]) and the per-cell thing lists. A grid is never changed
+/// floats NaN unknown, stack counts among them; strings 0 unknown, k for strings[k-1]) and the per-cell thing lists. A grid is never changed
 /// once built. Every grid the native facade hands over is a keyframe (<c>CellGridEncoder.AttachWhole</c>), so only
 /// the keyframe decode of Go's <c>Apply</c> is ported: a delta grid is refused by <see cref="Complete"/> and never
 /// reaches <see cref="Apply"/>.
@@ -30,16 +30,16 @@ internal sealed class FrameCellGrid
     // The arrays in the wire's field order (presence first), as Go's `arrays`.
     private static readonly ArrayKind[] Kinds =
     [
-        ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code,
+        ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Number, ArrayKind.Code,
         ArrayKind.Number, ArrayKind.Code, ArrayKind.Number, ArrayKind.Index, ArrayKind.Index, ArrayKind.Index, ArrayKind.Index,
-        ArrayKind.Code, ArrayKind.Index, ArrayKind.Number, ArrayKind.Code, ArrayKind.Code,
+        ArrayKind.Code, ArrayKind.Index, ArrayKind.Number, ArrayKind.Code, ArrayKind.Code, ArrayKind.Number,
     ];
 
     private static readonly Func<PbMirror.CellGrid, PbMirror.FieldArray?>[] Slots =
     [
-        g => g.Cell, g => g.Walkable, g => g.Zone, g => g.Roofed, g => g.Indoors, g => g.StorageEmpty, g => g.Doorway,
+        g => g.Cell, g => g.Walkable, g => g.Zone, g => g.Roofed, g => g.Indoors, g => g.StorageStacks, g => g.Doorway,
         g => g.Fertility, g => g.Polluted, g => g.Glow, g => g.Roof, g => g.ZoneId, g => g.Room, g => g.Terrain,
-        g => g.InHome, g => g.BaseTerrain, g => g.SnowDepth, g => g.TopLayerRemovable, g => g.FoundationRemoval,
+        g => g.InHome, g => g.BaseTerrain, g => g.SnowDepth, g => g.TopLayerRemovable, g => g.FoundationRemoval, g => g.StorageCapacity,
     ];
 
     private readonly byte[][] _codes = new byte[Kinds.Length][];
@@ -184,7 +184,7 @@ internal sealed class FrameCellGrid
             Zone = BoolAt(2, j),
             Roofed = BoolAt(3, j),
             Indoors = BoolAt(4, j),
-            StorageEmpty = BoolAt(5, j),
+            StorageStacks = CountAt(5, j),
             Doorway = BoolAt(6, j),
             Fertility = NumberAt(7, j),
             Polluted = BoolAt(8, j),
@@ -198,6 +198,7 @@ internal sealed class FrameCellGrid
             SnowDepth = NumberAt(16, j),
             TopLayerRemovable = BoolAt(17, j),
             FoundationRemoval = BoolAt(18, j),
+            StorageCapacity = CountAt(19, j),
             Things = _things is not null && _things[j] is { } list ? list : [],
         };
 
@@ -211,6 +212,9 @@ internal sealed class FrameCellGrid
 
     private Fact<double> NumberAt(int array, int j) =>
         double.IsNaN(_numbers[array][j]) ? Fact.Unknown<double>() : Fact.Known(_numbers[array][j]);
+
+    private Fact<int> CountAt(int array, int j) =>
+        double.IsNaN(_numbers[array][j]) ? Fact.Unknown<int>() : Fact.Known((int)_numbers[array][j]);
 
     private Fact<string> StringAt(int array, int j) =>
         _indexes[array][j] == 0 ? Fact.Unknown<string>() : Fact.Known(_strings[_indexes[array][j] - 1]);

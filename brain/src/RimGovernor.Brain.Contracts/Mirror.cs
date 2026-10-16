@@ -880,7 +880,10 @@ public sealed record CellGrid
 
     public FieldArray? Indoors { get; init; }
 
-    public FieldArray? StorageEmpty { get; init; }
+    /// <summary>
+    /// numbers: the item stacks on the cell (0 for none; up to storage_capacity)
+    /// </summary>
+    public FieldArray? StorageStacks { get; init; }
 
     public FieldArray? Doorway { get; init; }
 
@@ -929,6 +932,12 @@ public sealed record CellGrid
     /// bool codes: a RemoveFoundation designation stands on the cell
     /// </summary>
     public FieldArray? FoundationRemoval { get; init; }
+
+    /// <summary>
+    /// numbers: the stacks the cell can hold: a storage building's maxItemsInCell (3 on a shelf), 0 under any other
+    /// edifice, 1 on open ground
+    /// </summary>
+    public FieldArray? StorageCapacity { get; init; }
 }
 
 /// <summary>

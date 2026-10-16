@@ -157,12 +157,14 @@ internal static partial class BuildingRuntimePackage
 {
     /// <summary>
     /// The owned-zone view: each journal zone claim of kind stockpile that the projection's planning cells still
-    /// name, with the zone's cells (a cell whose storage-empty flag is false holds things) and its settings
-    /// superseded by the latest patch of each.
+    /// name, with the zone's cells, its stack capacity and held stacks over those cells and its built shelves'
+    /// cells (<paramref name="shelves"/>, keyed by zone: a shelf's cells leave the zone natively, so they are added
+    /// back), and its settings superseded by the latest patch of each.
     /// </summary>
-    internal static List<Pol.StockpileZone> OwnedStockpileZones(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches)
+    internal static List<Pol.StockpileZone> OwnedStockpileZones(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> shelves)
     {
-        var byZone = new Dictionary<string, (List<Cell> All, List<Cell> Stored)>();
+        var census = CensusByCell(projection);
+        var byZone = new Dictionary<string, List<Cell>>();
         foreach (var cell in projection.Cells)
         {
             if (!cell.ZoneId.TryGetValue(out var id) || id == "")
@@ -171,14 +173,10 @@ internal static partial class BuildingRuntimePackage
             }
             if (!byZone.TryGetValue(id, out var entry))
             {
-                entry = ([], []);
+                entry = [];
                 byZone[id] = entry;
             }
-            entry.All.Add(cell.Cell);
-            if (cell.StorageEmpty.TryGetValue(out var empty) && !empty)
-            {
-                entry.Stored.Add(cell.Cell);
-            }
+            entry.Add(cell.Cell);
         }
         var zones = new List<Pol.StockpileZone>();
         foreach (var z in owned)
@@ -187,7 +185,16 @@ internal static partial class BuildingRuntimePackage
             {
                 continue;
             }
-            var zone = new Pol.StockpileZone { Id = z.Id, Role = z.Role, Cells = entry.All, Stored = entry.Stored, Filter = zoneFilter, Priority = z.Priority ?? default };
+            var storeCells = new List<Cell>(entry);
+            foreach (var s in shelves.GetValueOrDefault(z.Id) ?? [])
+            {
+                if (BuiltShelf(s))
+                {
+                    storeCells.AddRange(s.Cells);
+                }
+            }
+            var (capacity, used) = Pol.PolicyFunctions.StorageStacks(storeCells, census);
+            var zone = new Pol.StockpileZone { Id = z.Id, Role = z.Role, Cells = entry, Capacity = capacity, Used = used, Filter = zoneFilter, Priority = z.Priority ?? default };
             if (patches is not null && patches.TryGetValue(z.Id, out var patch) && patch.Kind == StorageTargetKind.Zone)
             {
                 zone = zone with { Filter = patch.Filter };
@@ -200,6 +207,20 @@ internal static partial class BuildingRuntimePackage
             zones.Add(zone);
         }
         return zones;
+    }
+
+    /// <summary>A shelf record standing built: named and with no open work.</summary>
+    internal static bool BuiltShelf(Pol.ShelfRecord s) => s.Building != "" && !s.Open;
+
+    /// <summary>The planning census keyed by cell.</summary>
+    internal static Dictionary<Cell, Pol.SiteCell> CensusByCell(Observation.ColonyProjection projection)
+    {
+        var census = new Dictionary<Cell, Pol.SiteCell>(projection.Cells.Count);
+        foreach (var cell in projection.Cells)
+        {
+            census[cell.Cell] = cell;
+        }
+        return census;
     }
 
     /// <summary>

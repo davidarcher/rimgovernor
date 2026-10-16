@@ -3,8 +3,9 @@ using System.Globalization;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One owned stockpile as the census holds it now: its cells (the planning cells naming it), the cells holding
-/// things (Stored: the census' storage-empty flag false) and the settings the governor last applied.
+/// One owned stockpile as the census holds it now: its cells (the planning cells naming it), its stack capacity
+/// and held stacks (<see cref="PolicyFunctions.StorageStacks"/> over its cells and its built shelves' cells) and
+/// the settings the governor last applied.
 /// </summary>
 public sealed record StockpileZone
 {
@@ -14,17 +15,26 @@ public sealed record StockpileZone
 
     public IReadOnlyList<Cell> Cells { get; init; } = [];
 
-    public IReadOnlyList<Cell> Stored { get; init; } = [];
+    /// <summary>
+    /// The stacks the store can hold: one per zone cell plus each built shelf cell's (3); shelf cells leave the
+    /// zone natively, so they are added back. Unknown when any of those cells' capacity is.
+    /// </summary>
+    public Fact<int> Capacity { get; init; }
+
+    /// <summary>The item stacks held on the zone's and its built shelves' cells; unknown when any cell's count is.</summary>
+    public Fact<int> Used { get; init; }
 
     public required StockpileFilter Filter { get; init; }
 
     public StockpilePriority Priority { get; init; }
 
-    /// <summary>Counts the cells holding things.</summary>
-    public int Used() => Stored.Count;
+    /// <summary>The used-stack fraction; a zone without capacity is 0, unknown while either count is.</summary>
+    public Fact<double> Fill() =>
+        !Capacity.TryGetValue(out var capacity) || !Used.TryGetValue(out var used) ? Unknown<double>()
+        : Known(capacity == 0 ? 0 : (double)used / capacity);
 
-    /// <summary>The used-cell fraction; an empty zone is 0.</summary>
-    public double Fill() => Cells.Count == 0 ? 0 : (double)Used() / Cells.Count;
+    /// <summary>The held stacks for an explanation: the count, or "unknown".</summary>
+    internal string UsedText() => Used.TryGetValue(out var used) ? used.ToString(CultureInfo.InvariantCulture) : "unknown";
 }
 
 public enum StockpileEditKind
@@ -144,7 +154,11 @@ public sealed record StockpileShelf
 
     public string Zone { get; init; } = "";
 
-    public int Cells { get; init; }
+    /// <summary>The stacks the shelf's cells hold at most (maxItemsInCell each); unknown when any cell's capacity is.</summary>
+    public Fact<int> Capacity { get; init; }
+
+    /// <summary>The item stacks on the shelf's cells; unknown when any cell's count is.</summary>
+    public Fact<int> Used { get; init; }
 
     public bool Patched { get; init; }
 
@@ -173,7 +187,8 @@ public sealed record StockpileReview
 
 /// <summary>
 /// The owned zones of one role kind (the role key up to its colon: general, yard, medicine, meals ...; untagged
-/// for a zone no planner claimed): how many, their cells and the cells holding things.
+/// for a zone no planner claimed): how many, their zone cells, and their stack capacity and held stacks (built
+/// shelves included), each unknown when any zone's is.
 /// </summary>
 public sealed record StockpileRoleCount
 {
@@ -183,7 +198,9 @@ public sealed record StockpileRoleCount
 
     public int Cells { get; init; }
 
-    public int Used { get; init; }
+    public Fact<int> Capacity { get; init; }
+
+    public Fact<int> Used { get; init; }
 }
 
 /// <summary>
@@ -234,7 +251,7 @@ public static partial class PolicyFunctions
     /// <summary>The deficit a standing edit ranks with: small, like the tidy's, so it never outranks real shortfalls.</summary>
     internal const double StockpileDeficit = 0.1;
 
-    /// <summary>The used-cell fraction at which a store's standing zones count as full and the department asks layout for further room.</summary>
+    /// <summary>The used-stack fraction at which a store's standing zones count as full and the department asks layout for further room.</summary>
     public const double StockpileFurtherRoomFill = 0.85;
 
     /// <summary>
@@ -271,7 +288,6 @@ public static partial class PolicyFunctions
             {
                 continue;
             }
-            var hauls = s.Cells * ShelfItemsPerCell;
             output.Add(new StockpileEdit
             {
                 Kind = StockpileEditKind.ShelfPatch,
@@ -281,7 +297,7 @@ public static partial class PolicyFunctions
                 Priority = priority,
                 Explanation = string.Create(
                     CultureInfo.InvariantCulture,
-                    $"shelf {s.Building} in stockpile {z.Id} ({z.Role}): configure like its zone (priority {Wire.Name(priority)}); up to {hauls} stacks may rehome"
+                    $"shelf {s.Building} in stockpile {z.Id} ({z.Role}): configure like its zone (priority {Wire.Name(priority)}); {(s.Used.TryGetValue(out var held) ? held.ToString(CultureInfo.InvariantCulture) : "unknown")} held stacks may rehome"
                 ),
             });
         }
@@ -317,7 +333,7 @@ public static partial class PolicyFunctions
     /// <summary>Counts the owned zones by role kind, sorted by role.</summary>
     public static List<StockpileRoleCount> StockpileRoleCounts(IReadOnlyList<StockpileZone> zones)
     {
-        var byRole = new Dictionary<string, (int Zones, int Cells, int Used)>(StringComparer.Ordinal);
+        var byRole = new Dictionary<string, (int Zones, int Cells, Fact<int> Capacity, Fact<int> Used)>(StringComparer.Ordinal);
         foreach (var z in zones)
         {
             var kind = StockpileRolePrefix(z.Role);
@@ -325,15 +341,55 @@ public static partial class PolicyFunctions
             {
                 kind = "untagged";
             }
-            byRole.TryGetValue(kind, out var count);
-            byRole[kind] = (count.Zones + 1, count.Cells + z.Cells.Count, count.Used + z.Used());
+            if (!byRole.TryGetValue(kind, out var count))
+            {
+                count = (0, 0, Known(0), Known(0));
+            }
+            byRole[kind] = (count.Zones + 1, count.Cells + z.Cells.Count, Sum(count.Capacity, z.Capacity), Sum(count.Used, z.Used));
         }
         return
         [
             .. byRole
-                .Select(kv => new StockpileRoleCount { Role = kv.Key, Zones = kv.Value.Zones, Cells = kv.Value.Cells, Used = kv.Value.Used })
+                .Select(kv => new StockpileRoleCount { Role = kv.Key, Zones = kv.Value.Zones, Cells = kv.Value.Cells, Capacity = kv.Value.Capacity, Used = kv.Value.Used })
                 .OrderBy(c => c.Role, StringComparer.Ordinal),
         ];
+
+        static Fact<int> Sum(Fact<int> a, Fact<int> b) =>
+            a.TryGetValue(out var x) && b.TryGetValue(out var y) ? Known(x + y) : Unknown<int>();
+    }
+
+    /// <summary>
+    /// The stack capacity and held stacks of a store's cells (its zone cells and its built shelves' cells) in the
+    /// planning census: each unknown when any cell is not in the census or its count is unknown, never 0.
+    /// </summary>
+    public static (Fact<int> Capacity, Fact<int> Used) StorageStacks(IEnumerable<Cell> cells, IReadOnlyDictionary<Cell, SiteCell> census)
+    {
+        int capacity = 0, used = 0;
+        bool capacityKnown = true, usedKnown = true;
+        foreach (var c in cells)
+        {
+            if (!census.TryGetValue(c, out var site))
+            {
+                return (Unknown<int>(), Unknown<int>());
+            }
+            if (site.StorageCapacity.TryGetValue(out var slots))
+            {
+                capacity += slots;
+            }
+            else
+            {
+                capacityKnown = false;
+            }
+            if (site.StorageStacks.TryGetValue(out var stacks))
+            {
+                used += stacks;
+            }
+            else
+            {
+                usedKnown = false;
+            }
+        }
+        return (capacityKnown ? Known(capacity) : Unknown<int>(), usedKnown ? Known(used) : Unknown<int>());
     }
 
     /// <summary>
@@ -461,7 +517,7 @@ public static partial class PolicyFunctions
                 Kind = StockpileEditKind.Delete,
                 Zone = z.Id,
                 Role = z.Role,
-                Explanation = string.Create(CultureInfo.InvariantCulture, $"stockpile {z.Id} ({z.Role}): role retired, delete; {z.Used()} used cells rehome"),
+                Explanation = string.Create(CultureInfo.InvariantCulture, $"stockpile {z.Id} ({z.Role}): role retired, delete; {z.UsedText()} held stacks rehome"),
             };
         }
         if (Equals(s.Site.Filter, z.Filter) && s.Site.Priority == z.Priority)
@@ -477,7 +533,7 @@ public static partial class PolicyFunctions
             Priority = s.Site.Priority,
             Explanation = string.Create(
                 CultureInfo.InvariantCulture,
-                $"stockpile {z.Id} ({z.Role}): desired settings changed (priority {Wire.Name(z.Priority)} -> {Wire.Name(s.Site.Priority)}), patch; {z.Used()} used cells may rehome"
+                $"stockpile {z.Id} ({z.Role}): desired settings changed (priority {Wire.Name(z.Priority)} -> {Wire.Name(s.Site.Priority)}), patch; {z.UsedText()} held stacks may rehome"
             ),
         };
     }

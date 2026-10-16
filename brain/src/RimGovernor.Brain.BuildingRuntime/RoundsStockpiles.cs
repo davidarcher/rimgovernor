@@ -43,10 +43,10 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>
     /// Builds the MaintainStockpiles input from the projection's planning cells (a zone's cells are those naming
-    /// it; a cell whose storage-empty flag is false holds things) and the colony's stockpile claims, their
+    /// it; its stacks count its built shelves' cells too) and the colony's stockpile claims, their
     /// settings superseded by the latest patch of each; the registered roles judge on the projection and benches.
     /// </summary>
-    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, Fact<IReadOnlyDictionary<string, bool>> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
+    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> shelves, Fact<IReadOnlyDictionary<string, bool>> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
     {
         var request = new Pol.StockpileRequest { Tick = projection.Identity.Tick, Cells = projection.Cells, Bounds = projection.Bounds, Protected = protectedCells, Loot = projection.Facts.EventLoot };
         var rooms = new List<Pol.PlannedRole>();
@@ -59,7 +59,7 @@ internal static partial class BuildingRuntimePackage
             }
         }
         request = request with { Rooms = rooms };
-        request = request with { Zones = OwnedStockpileZones(projection, owned, patches) };
+        request = request with { Zones = OwnedStockpileZones(projection, owned, patches, shelves) };
         var storage = StoreView(projection, request.Protected);
         storage = storage with { Gear = gear };
         storage = storage with { Zones = request.Zones };
@@ -111,7 +111,7 @@ public sealed partial class Rounder
         {
             return projection;
         }
-        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.PolicyFunctions.StockpileRoleCounts(OwnedStockpileZones(projection, owned, null))]) } };
+        return projection with { Facts = projection.Facts with { StockpileZones = Known<EquatableArray<Pol.StockpileRoleCount>>([.. Pol.PolicyFunctions.StockpileRoleCounts(OwnedStockpileZones(projection, owned, null, ShelfPlans(owned, projection, ct).Shelves))]) } };
     }
 
     /// <summary>
@@ -161,31 +161,29 @@ public sealed partial class Rounder
         {
             benches[row.Bench.Id] = true;
         }
-        var zoneGoal = new Dictionary<string, StandardId>();
-        foreach (var z in owned)
-        {
-            zoneGoal[z.Id] = z.Owner;
-        }
         var gear = GearStore(projection);
         var protectedCells = ReservedGround(snapshot, projection, ct);
-        var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells);
+        var (plans, spent) = ShelfPlans(owned, projection, ct);
+        var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, plans, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells);
         var canBuild = Native is IRoundsBuildingSource;
         request = request with { ShelfAvailable = canBuild && ShelfAvailable(projection) };
+        var cells = CensusByCell(projection);
         var shelfSpent = new Dictionary<string, bool>();
         var shelfRecords = new List<Pol.ShelfRecord>();
         var shelfRows = new List<Pol.StockpileShelf>();
         foreach (var z in request.Zones)
         {
-            var (shelves, next) = ZoneShelves(Player.Journal, zoneGoal.GetValueOrDefault(z.Id), z.Id, projection.Facts.CurrentConstruction, ct);
+            var shelves = plans.GetValueOrDefault(z.Id) ?? [];
             shelfRecords.AddRange(shelves);
-            shelfSpent[z.Id] = next >= MaxShelvesPerZone;
+            shelfSpent[z.Id] = spent.GetValueOrDefault(z.Id);
             foreach (var s in shelves)
             {
-                if (s.Building == "" || s.Open)
+                if (!BuiltShelf(s))
                 {
                     continue;
                 }
-                var shelf = new Pol.StockpileShelf { Building = s.Building, Zone = z.Id, Cells = s.Cells.Count };
+                var (capacity, used) = Pol.PolicyFunctions.StorageStacks(s.Cells, cells);
+                var shelf = new Pol.StockpileShelf { Building = s.Building, Zone = z.Id, Capacity = capacity, Used = used };
                 if (patches.TryGetValue(s.Building, out var applied) && applied.Kind == StorageTargetKind.Building)
                 {
                     shelf = shelf with { Patched = true };
@@ -199,6 +197,31 @@ public sealed partial class Rounder
         request = request with { ShelfRecords = shelfRecords };
         request = request with { Shelves = shelfRows };
         return (request, "");
+    }
+
+    /// <summary>
+    /// The shelf plans of each owned stockpile zone (ZoneShelves under the zone's owning goal), built or in flight,
+    /// and whether the zone's shelf attempts are used up.
+    /// </summary>
+    internal (Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent) ShelfPlans(IReadOnlyList<Sto.OwnedZone> owned, Observation.ColonyProjection projection, CancellationToken ct)
+    {
+        var zoneGoal = new Dictionary<string, StandardId>();
+        foreach (var z in owned)
+        {
+            if (z.Kind == Domain.ZoneKind.Stockpile)
+            {
+                zoneGoal[z.Id] = z.Owner;
+            }
+        }
+        var shelves = new Dictionary<string, List<Pol.ShelfRecord>>();
+        var spent = new Dictionary<string, bool>();
+        foreach (var (zone, goal) in zoneGoal)
+        {
+            var (records, next) = ZoneShelves(Player.Journal, goal, zone, projection.Facts.CurrentConstruction, ct);
+            shelves[zone] = records;
+            spent[zone] = next >= MaxShelvesPerZone;
+        }
+        return (shelves, spent);
     }
 
     /// <summary>

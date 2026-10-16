@@ -183,7 +183,7 @@
       }).join('') + '</p>';
     }
     if (f.z && f.z.length || f.fb) {
-      h += '<p class="muted">Storage: ' + (f.z || []).map(function (z) { return esc(z.r) + ' ' + z.z + (z.c ? ' (' + z.u + '/' + z.c + ' cells)' : ''); }).join(' · ') +
+      h += '<p class="muted">Storage: ' + (f.z || []).map(function (z) { return esc(z.r) + ' ' + z.z + (z.k != null ? ' (' + (z.u != null ? z.u : '?') + '/' + z.k + ' stacks)' : ''); }).join(' · ') +
         (f.fb ? ' · <span class="warn">starting supplies forbidden</span>' : '') + '</p>';
     }
     $('now').innerHTML = h;

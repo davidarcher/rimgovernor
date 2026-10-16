@@ -40,7 +40,7 @@ public sealed record Store
             if (Serves(z))
             {
                 standing = true;
-                full = full && z.Fill() >= PolicyFunctions.StockpileFurtherRoomFill;
+                full = full && z.Fill().TryGetValue(out var fill) && fill >= PolicyFunctions.StockpileFurtherRoomFill;
             }
         }
         return new StoreReading(standing, full && standing);
@@ -105,7 +105,7 @@ public sealed record StoreDeclaration
     }
 }
 
-/// <summary>A store's capacity now: Standing when a zone serves it, Full when every serving zone is at StockpileFurtherRoomFill. A sized-once store has no room to grow onto, so full is the whole reading.</summary>
+/// <summary>A store's capacity now: Standing when a zone serves it, Full when every serving zone's used stacks (its built shelves' included) are known at StockpileFurtherRoomFill. A sized-once store has no room to grow onto, so full is the whole reading.</summary>
 public readonly record struct StoreReading(bool Standing, bool Full);
 
 public static partial class PolicyFunctions

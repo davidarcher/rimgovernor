@@ -25,9 +25,10 @@ namespace HomeBridge.BridgeTools
         // The CellGrid arrays in field order (cell first); Read fills its
         // columns by these positions.
         internal const int Cell = 0, Walkable = 1, Zone = 2, Roofed = 3, Indoors = 4,
-            StorageEmpty = 5, Doorway = 6, Fertility = 7, Polluted = 8, Glow = 9, Roof = 10, ZoneId = 11,
+            StorageStacks = 5, Doorway = 6, Fertility = 7, Polluted = 8, Glow = 9, Roof = 10, ZoneId = 11,
             Room = 12, Terrain = 13, InHome = 14,
-            BaseTerrain = 15, SnowDepth = 16, TopLayerRemovable = 17, FoundationRemoval = 18;
+            BaseTerrain = 15, SnowDepth = 16, TopLayerRemovable = 17, FoundationRemoval = 18,
+            StorageCapacity = 19;
 
         private static readonly (string Name, Kind Kind, Func<Mirror.CellGrid, Mirror.FieldArray, Mirror.CellGrid> Set)[] Fields =
         {
@@ -36,7 +37,7 @@ namespace HomeBridge.BridgeTools
             ("zone", Kind.Code, (g, a) => g with { Zone = a }),
             ("roofed", Kind.Code, (g, a) => g with { Roofed = a }),
             ("indoors", Kind.Code, (g, a) => g with { Indoors = a }),
-            ("storage_empty", Kind.Code, (g, a) => g with { StorageEmpty = a }),
+            ("storage_stacks", Kind.Number, (g, a) => g with { StorageStacks = a }),
             ("doorway", Kind.Code, (g, a) => g with { Doorway = a }),
             ("fertility", Kind.Number, (g, a) => g with { Fertility = a }),
             ("polluted", Kind.Code, (g, a) => g with { Polluted = a }),
@@ -50,6 +51,7 @@ namespace HomeBridge.BridgeTools
             ("snow_depth", Kind.Number, (g, a) => g with { SnowDepth = a }),
             ("top_layer_removable", Kind.Code, (g, a) => g with { TopLayerRemovable = a }),
             ("foundation_removal", Kind.Code, (g, a) => g with { FoundationRemoval = a }),
+            ("storage_capacity", Kind.Number, (g, a) => g with { StorageCapacity = a }),
         };
 
         internal static string FieldName(int field) => Fields[field].Name;
@@ -133,30 +135,31 @@ namespace HomeBridge.BridgeTools
                     var j = z * w + x;
                     if (cell.Fogged(map)) continue;
                     c[Cell].Codes![j] = 1;
-                    byte walkable, doorway, storageEmpty; string? terrainName, baseName; Room? room;
+                    byte walkable, doorway; int stacks, capacity; string? terrainName, baseName; Room? room;
                     if (cache != null && cache.Valid[j])
                     {
-                        walkable = cache.Walkable[j]; doorway = cache.Doorway[j]; storageEmpty = cache.StorageEmpty[j];
+                        walkable = cache.Walkable[j]; doorway = cache.Doorway[j]; stacks = cache.Stacks[j]; capacity = cache.Capacity[j];
                         terrainName = cache.Terrain[j]; baseName = cache.BaseTerrain[j]; room = cache.Room[j];
                     }
                     else
                     {
                         walkable = B(cell.Walkable(map));
-                        CellThingFlags(map, cell, out var isDoorway, out var isEmpty);
-                        doorway = B(isDoorway); storageEmpty = B(isEmpty);
+                        CellThingFacts(map, cell, out var isDoorway, out stacks, out capacity);
+                        doorway = B(isDoorway);
                         var terrain = terrainGrid.TerrainAt(cell);
                         terrainName = Identifier(terrain.defName);
                         baseName = Identifier(terrainGrid.BaseTerrainAt(cell).defName);
                         room = cell.GetRoom(map);
                         if (cache != null)
                         {
-                            cache.Walkable[j] = walkable; cache.Doorway[j] = doorway; cache.StorageEmpty[j] = storageEmpty;
+                            cache.Walkable[j] = walkable; cache.Doorway[j] = doorway; cache.Stacks[j] = stacks; cache.Capacity[j] = capacity;
                             cache.Terrain[j] = terrainName; cache.BaseTerrain[j] = baseName; cache.Room[j] = room; cache.Valid[j] = true;
                         }
                     }
                     c[Walkable].Codes![j] = walkable;
                     c[Doorway].Codes![j] = doorway;
-                    c[StorageEmpty].Codes![j] = storageEmpty;
+                    c[StorageStacks].Numbers![j] = stacks;
+                    c[StorageCapacity].Numbers![j] = capacity;
                     c[Terrain].Strings![j] = terrainName;
                     c[BaseTerrain].Strings![j] = baseName;
                     var roof = map.roofGrid.RoofAt(cell);
@@ -188,22 +191,26 @@ namespace HomeBridge.BridgeTools
             return read;
         }
 
-        // NativeObservationTools.CellDoorway and NativeZoneCreation.StorageEmpty
-        // in one pass over the cell's thing list, without their LINQ allocations.
-        private static void CellThingFlags(Map map, IntVec3 cell, out bool doorway, out bool storageEmpty)
+        // NativeObservationTools.CellDoorway and the cell's storage stacks in
+        // one pass over its thing list, without LINQ allocations. stacks counts
+        // the item stacks on the cell; capacity is the stacks it can hold: a
+        // storage building's maxItemsInCell (3 on a shelf), 0 under any other
+        // edifice, 1 on open ground.
+        private static void CellThingFacts(Map map, IntVec3 cell, out bool doorway, out int stacks, out int capacity)
         {
-            doorway = cell.GetDoor(map) != null; storageEmpty = true;
+            doorway = cell.GetDoor(map) != null; stacks = 0;
             var list = cell.GetThingList(map);
             for (int i = 0; i < list.Count; i++)
             {
                 var t = list[i];
                 if (t is Blueprint || t is Frame)
                 {
-                    storageEmpty = false;
                     if (!doorway && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)) doorway = true;
                 }
-                else if (t is Plant || t is Verse.Building || t.def.category == ThingCategory.Item) storageEmpty = false;
+                else if (t.def.category == ThingCategory.Item) stacks++;
             }
+            var edifice = cell.GetEdifice(map);
+            capacity = edifice == null ? 1 : edifice is Building_Storage ? edifice.def.building.maxItemsInCell : 0;
         }
 
         private static ulong wholeSeq;

@@ -384,7 +384,7 @@ internal static class LayoutStorageSuccessor
         var held = new HashSet<Cell>();
         foreach (var c in grid.Cells())
         {
-            if (c.StorageEmpty is false)
+            if (c.StorageStacks > 0)
             {
                 held.Add(c.Cell);
             }

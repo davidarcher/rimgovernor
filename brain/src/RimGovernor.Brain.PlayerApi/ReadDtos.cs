@@ -195,7 +195,7 @@ internal sealed record ColonyStatusDto(
     MoodLedgerDto? MoodLedger,
     IReadOnlyList<ColonyStatusPawnDto> Pawns);
 
-internal sealed record ColonyStockpileDto(string Role, int Zones, int Cells, int Used);
+internal sealed record ColonyStockpileDto(string Role, int Zones, int Cells, int? Capacity, int? Used);
 
 internal sealed record ColonyStatusPawnDto(
     string Id,

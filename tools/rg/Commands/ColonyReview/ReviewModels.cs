@@ -22,7 +22,10 @@ internal sealed record Pawn
     public double? Food { get; init; }
 }
 
-/// <summary>One role kind's owned zones in a census (general, yard, medicine, meals ...): how many, their cells and the cells holding things.</summary>
+/// <summary>
+/// One role kind's owned zones in a census (general, yard, medicine, meals ...): how many, their zone cells, and
+/// their stack capacity and held stacks (built shelves included; null when unknown or recorded before stacks).
+/// </summary>
 internal sealed record Stockpile
 {
     [JsonPropertyName("role")]
@@ -34,8 +37,11 @@ internal sealed record Stockpile
     [JsonPropertyName("cells")]
     public int Cells { get; init; }
 
+    [JsonPropertyName("capacity")]
+    public int? Capacity { get; init; }
+
     [JsonPropertyName("used")]
-    public int Used { get; init; }
+    public int? Used { get; init; }
 }
 
 /// <summary>One thought's colony total in the status route's mood ledger.</summary>

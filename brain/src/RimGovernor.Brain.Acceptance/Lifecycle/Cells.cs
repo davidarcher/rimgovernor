@@ -23,7 +23,7 @@ public sealed record GridCell
 
     public bool? Indoors { get; init; }
 
-    public bool? StorageEmpty { get; init; }
+    public int? StorageStacks { get; init; }
 
     public bool? Doorway { get; init; }
 
@@ -50,6 +50,8 @@ public sealed record GridCell
     public bool? TopLayerRemovable { get; init; }
 
     public bool? FoundationRemoval { get; init; }
+
+    public int? StorageCapacity { get; init; }
 }
 
 /// <summary>
@@ -74,9 +76,9 @@ public sealed class MapCellGrid
     // The arrays in the wire's field order (presence first).
     private static readonly ArrayKind[] Kinds =
     [
-        ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code,
+        ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Code, ArrayKind.Number, ArrayKind.Code,
         ArrayKind.Number, ArrayKind.Code, ArrayKind.Number, ArrayKind.Index, ArrayKind.Index, ArrayKind.Index, ArrayKind.Index,
-        ArrayKind.Code, ArrayKind.Index, ArrayKind.Number, ArrayKind.Code, ArrayKind.Code,
+        ArrayKind.Code, ArrayKind.Index, ArrayKind.Number, ArrayKind.Code, ArrayKind.Code, ArrayKind.Number,
     ];
 
     private readonly byte[][] _codes = new byte[Kinds.Length][];
@@ -120,9 +122,9 @@ public sealed class MapCellGrid
         var result = new MapCellGrid(rect.X.GetValueOrDefault(), rect.Z.GetValueOrDefault(), width, height, strings);
         Mirror.FieldArray?[] slots =
         [
-            grid.Cell, grid.Walkable, grid.Zone, grid.Roofed, grid.Indoors, grid.StorageEmpty, grid.Doorway,
+            grid.Cell, grid.Walkable, grid.Zone, grid.Roofed, grid.Indoors, grid.StorageStacks, grid.Doorway,
             grid.Fertility, grid.Polluted, grid.Glow, grid.Roof, grid.ZoneId, grid.Room, grid.Terrain,
-            grid.InHome, grid.BaseTerrain, grid.SnowDepth, grid.TopLayerRemovable, grid.FoundationRemoval,
+            grid.InHome, grid.BaseTerrain, grid.SnowDepth, grid.TopLayerRemovable, grid.FoundationRemoval, grid.StorageCapacity,
         ];
         for (var i = 0; i < Kinds.Length; i++)
         {
@@ -190,7 +192,7 @@ public sealed class MapCellGrid
         Zone = BoolAt(2, j),
         Roofed = BoolAt(3, j),
         Indoors = BoolAt(4, j),
-        StorageEmpty = BoolAt(5, j),
+        StorageStacks = CountAt(5, j),
         Doorway = BoolAt(6, j),
         Fertility = NumberAt(7, j),
         Polluted = BoolAt(8, j),
@@ -204,6 +206,7 @@ public sealed class MapCellGrid
         SnowDepth = NumberAt(16, j),
         TopLayerRemovable = BoolAt(17, j),
         FoundationRemoval = BoolAt(18, j),
+        StorageCapacity = CountAt(19, j),
     };
 
     private bool? BoolAt(int array, int j) => _codes[array][j] switch
@@ -214,6 +217,8 @@ public sealed class MapCellGrid
     };
 
     private double? NumberAt(int array, int j) => double.IsNaN(_numbers[array][j]) ? null : _numbers[array][j];
+
+    private int? CountAt(int array, int j) => double.IsNaN(_numbers[array][j]) ? null : (int)_numbers[array][j];
 
     private string? StringAt(int array, int j) => _indexes[array][j] == 0 ? null : _strings[_indexes[array][j] - 1];
 

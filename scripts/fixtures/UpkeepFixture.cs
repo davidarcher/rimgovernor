@@ -79,17 +79,18 @@ namespace HomeBridge.BridgeTools
 
         // The thing list probe: spawns one of each thing category on a
         // row of seven cells from cell ("x,z") eastward (item, wall, wall
-        // blueprint, wall frame, plant, filth, corpse) and replies the row as
+        // blueprint, wall frame, plant, filth, corpse), then a shelf on the
+        // next two holding two stacks on its first, and replies the row as
         // a keyframe grid (base64 mirror.CellGrid), for the case to decode on
         // the brain side and compare with what was spawned. Also replies the
         // timed capture of the whole map (ms).
-        [Tool("test/grid_things", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2261): spawn one of each thing category on seven cells east of cell (\"x,z\") and reply that row as a base64 mirror.CellGrid keyframe plus the whole-map read and encode cost. Test builds only.")]
+        [Tool("test/grid_things", Description = "UNSAFE FOR MODEL EXECUTION. Disposable probe (#2261): spawn one of each thing category on seven cells east of cell (\"x,z\") and a shelf holding two stacks on the next two, and reply that row as a base64 mirror.CellGrid keyframe plus the whole-map read and encode cost. Test builds only.")]
         public async Task<object> GridThings(IRimBridgeContext ctx, CancellationToken cancellationToken, string cell)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var p = (cell ?? "").Split(',');
-                if (map == null || p.Length != 2 || !int.TryParse(p[0], out var x) || !int.TryParse(p[1], out var z) || !new IntVec3(x + 6, 0, z).InBounds(map) || !new IntVec3(x, 0, z).InBounds(map))
-                    return new { success = false, error = "Expected one in-bounds x,z cell with six cells free to its east on the current map" };
+                if (map == null || p.Length != 2 || !int.TryParse(p[0], out var x) || !int.TryParse(p[1], out var z) || !new IntVec3(x + 8, 0, z).InBounds(map) || !new IntVec3(x, 0, z).InBounds(map))
+                    return new { success = false, error = "Expected one in-bounds x,z cell with eight cells free to its east on the current map" };
                 IntVec3 At(int i) => new IntVec3(x + i, 0, z);
                 var steel = ThingMaker.MakeThing(ThingDefOf.Steel); steel.stackCount = 25;
                 GenSpawn.Spawn(steel, At(0), map);
@@ -108,7 +109,15 @@ namespace HomeBridge.BridgeTools
                 var animal = PawnGenerator.GeneratePawn(PawnKindDef.Named("Muffalo"));
                 GenSpawn.Spawn(animal, At(6), map);
                 animal.Kill(null);
-                var row = CellGridEncoder.Encode(CellGridEncoder.Read(map, x, z, 7, 1), null)!;
+                // A 2x1 shelf on cells 7 and 8 holding two stacks on cell 7 (#3233).
+                var shelf = (Building)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Shelf"), ThingDefOf.WoodLog);
+                shelf.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(shelf, At(7), map, Rot4.North);
+                var shelfSteel = ThingMaker.MakeThing(ThingDefOf.Steel); shelfSteel.stackCount = 10;
+                GenSpawn.Spawn(shelfSteel, At(7), map);
+                var shelfWood = ThingMaker.MakeThing(ThingDefOf.WoodLog); shelfWood.stackCount = 10;
+                GenSpawn.Spawn(shelfWood, At(7), map);
+                var row = CellGridEncoder.Encode(CellGridEncoder.Read(map, x, z, 9, 1), null)!;
                 var watch = System.Diagnostics.Stopwatch.StartNew();
                 var whole = CellGridEncoder.Read(map);
                 var readMs = watch.Elapsed.TotalMilliseconds;

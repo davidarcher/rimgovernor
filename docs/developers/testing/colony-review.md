@@ -45,8 +45,8 @@ report to GitHub Pages for a person (or a model) to skim for bugs.
   Flags mark hours worth a
   look: a colonist lost, food runway under two days, a downed colonist, low
   mood, a concern in deficit twelve hours, starting supplies still forbidden after a day. The storage
-  section lists the final zone count per role from the census's
-  `stockpiles` block, counted from the standing owned zones each round (see [storage](../architecture/storage.md)). Flags gate
+  section lists the final zone count and used of capacity stacks per role from the census's
+  `stockpiles` block (`capacity`, `used`: built shelves included, null when unknown), counted from the standing owned zones each round (see [storage](../architecture/storage.md)). Flags gate
   nothing.
 - **Score** `run.json` carries `score`: `components` computed from the
   timeline plus a weighted `scalar` (0-100) for ranking. Signal only. Each

@@ -102,8 +102,9 @@ namespace HomeBridge.BridgeTools
             ground = false;
             return true;
         }
-        // StorageEmpty is the cell census's inventory occupancy fact. It is
-        // used for stockpile fill, not vanilla stockpile placement eligibility.
+        // StorageEmpty is supervised play's stockpile occupancy count (the cell
+        // census reports stacks per cell instead), not vanilla stockpile
+        // placement eligibility.
         internal static bool StorageEmpty(IntVec3 c, Map map)
         {
             return !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item);

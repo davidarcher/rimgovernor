@@ -176,7 +176,7 @@ internal static class ReviewPages
             b.Append("<table>");
             foreach (var z in zones)
             {
-                b.Append(CultureInfo.InvariantCulture, $"<tr><td>{Enc(z.Role)}</td><td>{z.Zones} zone{(z.Zones != 1 ? "s" : "")}</td><td>{z.Used} of {z.Cells} cells in use</td></tr>");
+                b.Append(CultureInfo.InvariantCulture, $"<tr><td>{Enc(z.Role)}</td><td>{z.Zones} zone{(z.Zones != 1 ? "s" : "")}</td><td>{(z.Capacity is { } capacity ? $"{(z.Used is { } used ? used.ToString(CultureInfo.InvariantCulture) : "?")} of {capacity} stacks in use" : $"{z.Cells} cells")}</td></tr>");
             }
             b.Append("</table>\n");
             var supplies = s.SuppliesForbidden ? "<span class=\"warn\">still forbidden</span>" : "allowed";
@@ -210,7 +210,7 @@ internal static class ReviewPages
                 Wealth = c.WealthTotal,
                 Tier = NullIfEmpty(c.TechTier ?? ""),
                 Pawns = c.Pawns is { Count: > 0 } ps ? [.. ps.Select(p => new FramePawn { Label = p.Label, Mood = p.Mood, Food = p.Food, Downed = p.Downed == true })] : null,
-                Zones = c.Stockpiles is { Count: > 0 } zs ? [.. zs.Select(z => new FrameZone { Role = z.Role, Zones = z.Zones, Cells = z.Cells, Used = z.Used })] : null,
+                Zones = c.Stockpiles is { Count: > 0 } zs ? [.. zs.Select(z => new FrameZone { Role = z.Role, Zones = z.Zones, Capacity = z.Capacity, Used = z.Used })] : null,
                 Forbid = c.ForbiddenSupplies == true,
                 Ledger = c.MoodLedger,
                 Flags = r.Flags.Count > 0 ? [.. r.Flags.Select(f => new FrameFlag { Severity = f.Severity, Text = f.Text })] : null,
@@ -343,11 +343,11 @@ internal sealed record FrameZone
     [JsonPropertyName("z")]
     public int Zones { get; init; }
 
-    [JsonPropertyName("c")]
-    public int Cells { get; init; }
+    [JsonPropertyName("k")]
+    public int? Capacity { get; init; }
 
     [JsonPropertyName("u")]
-    public int Used { get; init; }
+    public int? Used { get; init; }
 }
 
 /// <summary>A reviewer flag in a frame.</summary>

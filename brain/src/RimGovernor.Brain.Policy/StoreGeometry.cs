@@ -16,7 +16,7 @@ public static partial class PolicyFunctions
             }
             c.Walkable.TryGetValue(out var walkable);
             c.Roofed.TryGetValue(out var roofed);
-            c.StorageEmpty.TryGetValue(out var empty);
+            var empty = c.StorageStacks.TryGetValue(out var stacks) && stacks == 0;
             if (walkable && roofed && empty && !c.Occupied())
             {
                 output.Add(c.Cell);

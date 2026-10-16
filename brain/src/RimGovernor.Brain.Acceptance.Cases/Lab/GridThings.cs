@@ -12,9 +12,9 @@ internal static class LabGridThings
     {
         Name = "lab/grid-things",
         Scope = "Native thing read (#2261): test/grid_things spawns an item, wall, wall blueprint, wall frame, plant, "
-            + "filth and animal corpse on seven cells and replies that row as a native-encoded keyframe; the Go "
-            + "decoder must read each category, flag, faction and state as the native side meant it, and the tile "
-            + "columns must be known. Reports the whole-map read and encode cost. A Go snapshot test cannot see "
+            + "filth and animal corpse on seven cells and a shelf holding two stacks on the next two, and replies that "
+            + "row as a native-encoded keyframe; the Go decoder must read each category, flag, faction and state as the "
+            + "native side meant it, the tile columns must be known, and the shelf must hold 2 of 3 stacks (#3233). Reports the whole-map read and encode cost. A Go snapshot test cannot see "
             + "which flags and states the native encoder writes for real game things.",
         Start = new LabStart { Colonists = 1 },
         RequiredOps = ["test/grid_things"],
@@ -57,9 +57,19 @@ internal static class LabGridThings
 
         var grid = MapCellGrid.Apply(wire);
         var cells = grid.Cells();
-        if (cells.Count != 7)
+        if (cells.Count != 9)
         {
-            throw new AcceptanceException($"grid_things: {cells.Count} held cells, want 7");
+            throw new AcceptanceException($"grid_things: {cells.Count} held cells, want 9");
+        }
+
+        // Per-cell storage stacks (#3233): the steel cell holds 1 of 1, the wall cell holds none of 0, and the
+        // shelf holds 2 of 3 on its first cell and 0 of 3 on its second.
+        foreach (var (i, stacks, capacity) in new[] { (0, 1, 1), (1, 0, 0), (7, 2, 3), (8, 0, 3) })
+        {
+            if (cells[i].StorageStacks != stacks || cells[i].StorageCapacity != capacity)
+            {
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"grid_things: cell {i} holds {cells[i].StorageStacks?.ToString(CultureInfo.InvariantCulture) ?? "unknown"} of {cells[i].StorageCapacity?.ToString(CultureInfo.InvariantCulture) ?? "unknown"} stacks, want {stacks} of {capacity}"));
+            }
         }
 
         for (var i = 0; i < cells.Count; i++)

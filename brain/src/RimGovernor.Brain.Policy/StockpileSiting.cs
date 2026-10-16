@@ -244,7 +244,7 @@ public static partial class PolicyFunctions
                 After = after,
                 Explanation = string.Create(
                     CultureInfo.InvariantCulture,
-                    $"stockpile {z.Id} ({z.Role}): its site moved to {serving.Role}, delete; {z.Used()} used cells rehome"
+                    $"stockpile {z.Id} ({z.Role}): its site moved to {serving.Role}, delete; {z.UsedText()} held stacks rehome"
                 ),
             });
         }
