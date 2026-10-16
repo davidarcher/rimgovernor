@@ -18,7 +18,10 @@ source-generated `System.Text.Json` context; nothing is generated at build time.
 `scripts/build_native_mod.ps1` copies `brain/Directory.Build.props`, `brain/Directory.Packages.props` and the
 three project directories into its private build copy and ships `RimGovernor.Brain.*.dll` beside the Bridge in
 `BridgeTools/RimGovernor/`. `brain/src/RimGovernor.Brain.Acceptance/CaseKit/NativeSourceInputs.cs` lists the same inputs, so the
-staleness hash (`sourceTree`) still reproduces the script's. Edit the two together.
+staleness hash (`sourceTree`) still reproduces the script's. Edit the two together. The tools compute that hash
+behind a fingerprint of each input's path, length and last-write time (rg's `SelfBuild` trust model): an unchanged
+fingerprint returns the last hash from process memory or `.rimgovernor/source-tree.stamp` without reading contents,
+so an edit that keeps both a file's size and its timestamp is not seen.
 
 The mod publishes its facade through a module initializer (`NativeFacadeBootstrap`), because the host loads the
 assembly by file and gives plugins no startup hook. The brain reads `NativeFacadeRegistry.Current`.

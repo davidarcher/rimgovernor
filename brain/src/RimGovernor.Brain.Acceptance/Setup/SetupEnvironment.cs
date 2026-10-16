@@ -58,6 +58,9 @@ public sealed class SetupOptions
     /// <summary>Forces a mod build even when the installed one is current.</summary>
     public bool Rebuild { get; init; }
 
+    /// <summary>The worktree's sourceTree hash when the caller already computed it (<see cref="SetupPackage.SourceTreeHash"/>); null computes it.</summary>
+    public string? SourceTree { get; init; }
+
     /// <summary>Leaves the installed mod alone (no build, no install).</summary>
     public bool SkipMod { get; init; }
 
@@ -522,7 +525,7 @@ public static partial class SetupEnvironment
         var wanted = o.Fixtures ?? AllFixtures(l.Repo);
         s.Fixtures = ExpectedFixtures(wanted);
         var installed = Path.Combine(l.GameCopy, "Mods", "RimGovernor");
-        var current = SetupPackage.SourceTreeHash(l.Repo);
+        var current = o.SourceTree ?? SetupPackage.SourceTreeHash(l.Repo);
         var reason = "no installed build";
         SetupPackageManifest? manifest = null;
         try

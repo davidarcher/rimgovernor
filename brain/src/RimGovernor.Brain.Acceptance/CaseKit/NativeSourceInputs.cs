@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -69,7 +70,7 @@ public static partial class NativeSourceInputs
         new("THIRD_PARTY.md", "THIRD_PARTY.md"),
     ];
 
-    /// <summary>The paths build_native_mod.ps1 copies from, repo-relative with forward slashes (the same rules <see cref="SourceTreeHash"/> walks).</summary>
+    /// <summary>The paths build_native_mod.ps1 copies from, repo-relative with forward slashes (the same rules <see cref="SourceTreeHash(string)"/> walks).</summary>
     public static IReadOnlyList<string> NativeSourceRoots() => [.. Inputs.Select(input => input.Repo)];
 
     /// <summary>
@@ -77,40 +78,152 @@ public static partial class NativeSourceInputs
     /// one <c>"&lt;path&gt;\t&lt;sha256&gt;\n"</c> line each with the path relative to the copy root (forward
     /// slashes), it is the hex SHA-256 of those lines. Computed over the worktree at <paramref name="repo"/>, it
     /// equals the manifest's when the installed build was made from these exact sources.
+    /// <para>
+    /// Reading every input costs up to a second, so a fingerprint of the input set -- each file's copy path, length
+    /// and last-write time -- stands in front of the content hash (the trust model of rg's <c>SelfBuild</c>, #3296).
+    /// When it matches the last computation's, that computation's hash is returned without reading any file: from this
+    /// process's memory, else from <see cref="StampFile"/> under the worktree's <c>.rimgovernor/</c>. An edit that keeps
+    /// both a file's length and its last-write time is therefore not seen; any change of size or time, or an added or
+    /// removed file, recomputes.
+    /// </para>
     /// </summary>
-    public static string SourceTreeHash(string repo)
+    public static string SourceTreeHash(string repo) => SourceTreeHash(repo, File.ReadAllBytes);
+
+    /// <summary>The worktree-relative file that carries the last fingerprint and hash across processes.</summary>
+    public const string StampFile = ".rimgovernor/source-tree.stamp";
+
+    private const string StampVersion = "source-tree-stamp v1";
+
+    private static readonly Lock CacheLock = new();
+
+    private static readonly Dictionary<string, (string Fingerprint, string Hash)> Cached = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary><see cref="SourceTreeHash(string)"/> with the file reader injected, so tests can count content reads.</summary>
+    internal static string SourceTreeHash(string repo, Func<string, byte[]> read)
     {
-        var lines = new Dictionary<string, string>(StringComparer.Ordinal);
+        var key = Path.GetFullPath(repo);
+        // The fingerprint is taken before any content is read: a file changed mid-hash then fails the next match
+        // instead of pairing a new fingerprint with old content.
+        var files = InputFiles(repo);
+        var fingerprint = Fingerprint(files);
+        lock (CacheLock)
+        {
+            if (Cached.TryGetValue(key, out var hit) && hit.Fingerprint == fingerprint)
+            {
+                return hit.Hash;
+            }
+        }
+
+        var stamp = Path.Combine(repo, StampFile.Replace('/', Path.DirectorySeparatorChar));
+        var hash = ReadStamp(stamp, fingerprint);
+        if (hash is null)
+        {
+            var lines = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var (copy, file) in files)
+            {
+                lines[copy] = Convert.ToHexStringLower(SHA256.HashData(read(file.FullName)));
+            }
+
+            hash = HashLines(lines);
+            _ = WriteStamp(stamp, fingerprint, hash);
+        }
+
+        lock (CacheLock)
+        {
+            Cached[key] = (fingerprint, hash);
+        }
+
+        return hash;
+    }
+
+    /// <summary>Drops this process's remembered hashes (tests of the cross-process stamp).</summary>
+    internal static void ForgetCachedHashes()
+    {
+        lock (CacheLock)
+        {
+            Cached.Clear();
+        }
+    }
+
+    /// <summary>The build's copied source files under <paramref name="repo"/>, keyed by their path relative to the copy root.</summary>
+    private static SortedDictionary<string, FileInfo> InputFiles(string repo)
+    {
+        var files = new SortedDictionary<string, FileInfo>(StringComparer.Ordinal);
         foreach (var input in Inputs)
         {
             var root = Path.Combine(repo, input.Repo.Replace('/', Path.DirectorySeparatorChar));
-            if (File.Exists(root))
+            var single = new FileInfo(root);
+            if (single.Exists)
             {
-                lines[input.Copy] = FileHash(root);
+                files[input.Copy] = single;
                 continue;
             }
 
-            if (!Directory.Exists(root))
+            var dir = new DirectoryInfo(root);
+            if (!dir.Exists)
             {
                 throw new AcceptanceException($"native build input {input.Repo}: not found");
             }
 
-            foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            foreach (var file in dir.EnumerateFiles("*", SearchOption.AllDirectories))
             {
-                var relative = Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/');
+                var relative = Path.GetRelativePath(root, file.FullName).Replace(Path.DirectorySeparatorChar, '/');
                 if (input.Keep is not null && !input.Keep(relative))
                 {
                     continue;
                 }
 
-                lines[input.Copy + "/" + relative] = FileHash(path);
+                files[input.Copy + "/" + relative] = file;
             }
         }
 
-        return HashLines(lines);
+        return files;
     }
 
-    /// <summary>Hashes a path to sha256 map the way <see cref="SourceTreeHash"/> describes.</summary>
+    private static string Fingerprint(SortedDictionary<string, FileInfo> files)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var (copy, file) in files)
+        {
+            hash.AppendData(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"{copy}\t{file.Length}\t{file.LastWriteTimeUtc.Ticks}\n")));
+        }
+
+        return Convert.ToHexStringLower(hash.GetHashAndReset());
+    }
+
+    /// <summary>The stamp's hash when it records <paramref name="fingerprint"/>; null when absent, unreadable or for other inputs.</summary>
+    private static string? ReadStamp(string stamp, string fingerprint)
+    {
+        try
+        {
+            var lines = File.ReadAllLines(stamp);
+            return lines.Length == 3 && lines[0] == StampVersion && lines[1] == fingerprint && lines[2].Length == 64 ? lines[2] : null;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Records the pair for the next process; false when the write failed, which only costs that process a full
+    /// hash. A torn or concurrent write fails <see cref="ReadStamp"/>'s shape check and reads as no stamp.
+    /// </summary>
+    private static bool WriteStamp(string stamp, string fingerprint, string hash)
+    {
+        try
+        {
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(stamp)!);
+            File.WriteAllText(stamp, $"{StampVersion}\n{fingerprint}\n{hash}\n");
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Hashes a path to sha256 map the way <see cref="SourceTreeHash(string)"/> describes.</summary>
     private static string HashLines(Dictionary<string, string> lines)
     {
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -121,8 +234,6 @@ public static partial class NativeSourceInputs
 
         return Convert.ToHexStringLower(hash.GetHashAndReset());
     }
-
-    private static string FileHash(string path) => Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path)));
 
     /// <summary>
     /// Walks up from <paramref name="dir"/> to the checkout root (the directory holding <c>.git</c>, a directory in

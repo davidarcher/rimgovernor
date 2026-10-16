@@ -74,7 +74,7 @@ public static class SetupPackage
 
     private static string Str(JsonObject o, string key) => o[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
 
-    /// <summary>The sourceTree hash of the build inputs under <paramref name="repo"/> (<see cref="NativeSourceInputs.SourceTreeHash"/>), a missing input reported as a <see cref="SetupException"/>.</summary>
+    /// <summary>The sourceTree hash of the build inputs under <paramref name="repo"/> (<see cref="NativeSourceInputs.SourceTreeHash(string)"/>), a missing input reported as a <see cref="SetupException"/>.</summary>
     public static string SourceTreeHash(string repo)
     {
         try

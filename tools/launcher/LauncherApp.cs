@@ -436,7 +436,7 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         {
             using var sink = new LineSink(Write);
             _ = await SetupEnvironment.RunAsync(
-                new SetupOptions { Layout = Layout, Inputs = inputs, Fixtures = [], Log = sink },
+                new SetupOptions { Layout = Layout, Inputs = inputs, Fixtures = [], SourceTree = current, Log = sink },
                 CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)

@@ -30,7 +30,7 @@ public static class StalePackage
     /// Fails, before any game is launched, when <paramref name="pkg"/> (the installed Mods/RimGovernor) was built from
     /// native sources that differ from the worktree the harness runs in. A stale build otherwise surfaces minutes later and
     /// obliquely: a missing fixture op, an INVALID_REQUEST refusal, a receipt shape the harness no longer decodes. The
-    /// check compares the manifest's sourceTree with <see cref="NativeSourceInputs.SourceTreeHash"/> over the worktree; a
+    /// check compares the manifest's sourceTree with <see cref="NativeSourceInputs.SourceTreeHash(string)"/> over the worktree; a
     /// build recorded before sourceTree existed falls back to git (the build revision against the worktree over the same
     /// inputs). It is skipped, and says so in the summary, when there is no manifest, no enclosing checkout, no usable
     /// git, or <see cref="AllowStaleModEnv"/> is set. <paramref name="fixtureOps"/> are the test ops the run's Start calls
