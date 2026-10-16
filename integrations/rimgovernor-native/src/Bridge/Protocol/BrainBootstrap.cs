@@ -1,11 +1,14 @@
 #nullable enable
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.HttpChannel;
+using RimGovernor.Brain.Telemetry;
+using RimGovernor.Host.Sdk;
 using Verse;
 
 namespace HomeBridge.BridgeTools
@@ -44,7 +47,9 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
+                var defsStart = LaunchPhases.UtcNow;
                 var saveData = await WaitForDefsAsync().ConfigureAwait(false);
+                LaunchPhases.Record(LaunchPhases.NextId(), 0, "brain.defs_wait", defsStart, LaunchPhases.UtcNow);
                 if (saveData == null)
                 {
                     Log.Warning("[RimGovernor] The in-process brain did not start: the game's Defs were not loaded in time.");
@@ -59,7 +64,9 @@ namespace HomeBridge.BridgeTools
                 _ = Directory.CreateDirectory(inputs.ProfileDirectory);
                 _ = Directory.CreateDirectory(inputs.OtlpDirectory);
 
+                var routesStart = LaunchPhases.UtcNow;
                 var routes = await WaitForRoutesAsync().ConfigureAwait(false);
+                LaunchPhases.Record(LaunchPhases.NextId(), 0, "brain.routes_wait", routesStart, LaunchPhases.UtcNow);
                 if (routes == null)
                     Log.Warning($"[RimGovernor] The in-process brain runs without the player API: the HTTP channel is not running ({HttpChannelBootstrap.DirectoryVariable} is unset or the channel did not start).");
 
@@ -75,6 +82,7 @@ namespace HomeBridge.BridgeTools
                     CatalogFactory = NativeCatalogFactory.Create,
                     StartingIdeoligion = NativeCatalogFactory.StartingIdeoligion,
                 });
+                var hostStart = LaunchPhases.UtcNow;
                 var started = await BrainHost.StartAsync(new BrainHostOptions
                 {
                     StatePath = inputs.StatePath,
@@ -87,6 +95,9 @@ namespace HomeBridge.BridgeTools
                     AutoResume = inputs.AutoResume,
                     Routes = routes,
                 }, CancellationToken.None).ConfigureAwait(false);
+                var brainStarted = LaunchPhases.UtcNow;
+                LaunchPhases.Record(LaunchPhases.NextId(), 0, "brain.host_start", hostStart, brainStarted);
+                ReplayLaunch(brainStarted);
                 host = started;
                 await ProtoBoundary.OnGameThread("brain/activity", () => { PawnActivityTracker.Attach(started.Telemetry); return started; }, CancellationToken.None, MainThreadAdmission.Observation).ConfigureAwait(false);
                 AppDomain.CurrentDomain.ProcessExit += (_, _) => StopOnExit(started);
@@ -95,6 +106,25 @@ namespace HomeBridge.BridgeTools
             catch (Exception e)
             {
                 Log.Warning($"[RimGovernor] The in-process brain did not start: {e}");
+            }
+        }
+
+        /// <summary>
+        /// Writes the launch waterfall the host and this bootstrap buffered (#3286) now that the brain's span listener
+        /// exists. Diagnostics only: a failure is logged and the brain keeps running.
+        /// </summary>
+        private static void ReplayLaunch(DateTime brainStarted)
+        {
+            try
+            {
+                var phases = LaunchPhases.Snapshot().Select(p => new LaunchInterval(p.Id, p.Parent, p.Name, p.StartUtc, p.EndUtc)).ToList();
+                _ = LaunchSpans.Replay(phases, brainStarted);
+                if (LaunchPhases.Dropped > 0)
+                    Log.Warning($"[RimGovernor] The launch waterfall dropped {LaunchPhases.Dropped} phases past its {LaunchPhases.Capacity}-phase buffer.");
+            }
+            catch (Exception e)
+            {
+                Log.Warning($"[RimGovernor] The launch waterfall was not written: {e.Message}");
             }
         }
 

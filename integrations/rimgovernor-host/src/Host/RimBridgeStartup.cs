@@ -1,5 +1,5 @@
 using System;
-using System.Diagnostics;
+using RimGovernor.Host.Sdk;
 using System.Reflection;
 using UnityEngine;
 using Verse;
@@ -39,6 +39,14 @@ internal static class RimBridgeStartup
 
         if (shouldLog)
         {
+            try
+            {
+                LaunchStagePatches.Remove();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[RimBridge] The launch-stage prefixes stay installed: {ex.Message}");
+            }
             Log.Message(alreadyStarted
                 ? "[RimBridge] Play-data load complete; bridge services are already available."
                 : "[RimBridge] Startup conditions satisfied after play-data load; initializing bridge services.");
@@ -59,9 +67,9 @@ internal static class RimBridgeStartup
 
         try
         {
-            using (RimBridgeStartupTiming.Phase("bridge-start.total"))
+            using (LaunchPhases.Phase("bridge-start.total"))
             {
-                using (RimBridgeStartupTiming.Phase("capabilities.initialize"))
+                using (LaunchPhases.Phase("capabilities.initialize"))
                     RimBridgeCapabilities.Initialize();
                 // Mod diagnostics reach Unity's log as warnings only: Log.Error pauses the game.
                 RimGovernor.Host.Sdk.ModLog.Sink = (level, component, tick, trace, message, suppressed) =>
@@ -69,11 +77,11 @@ internal static class RimBridgeStartup
                     if (level >= RimGovernor.Host.Sdk.ModLogLevel.Warn)
                         Log.Warning($"[{component}] {message}");
                 };
-                using (RimBridgeStartupTiming.Phase("logs.initialize"))
+                using (LaunchPhases.Phase("logs.initialize"))
                     RimBridgeLogs.Initialize(RimBridgeCapabilities.LogJournal);
-                using (RimBridgeStartupTiming.Phase("application.run-in-background"))
+                using (LaunchPhases.Phase("application.run-in-background"))
                     Application.runInBackground = true;
-                using (RimBridgeStartupTiming.Phase("debug.playback-defaults"))
+                using (LaunchPhases.Phase("debug.playback-defaults"))
                 {
                     typeof(DebugViewSettings)
                         .GetField("showTpsCounter", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
@@ -93,61 +101,6 @@ internal static class RimBridgeStartup
 
             Log.Error($"[RimBridge] STARTUP_INIT_FAILURE: {ex}");
             Log.Error($"[RimBridge] Failed to initialize bridge services: {ex}");
-        }
-    }
-}
-
-internal static class RimBridgeStartupTiming
-{
-    private static readonly Stopwatch Clock = Stopwatch.StartNew();
-
-    public static long ElapsedMilliseconds => Clock.ElapsedMilliseconds;
-
-    public static IDisposable Phase(string name)
-    {
-        return new PhaseScope(name, Clock.ElapsedMilliseconds);
-    }
-
-    public static void LogCompletedPhase(string name, long startedElapsedMilliseconds)
-    {
-        if (!IsDebugTimingEnabled())
-            return;
-
-        var ended = Clock.ElapsedMilliseconds;
-        Log.Warning($"[RimBridge] STARTUP_TIMING phase={name} durationMs={ended - startedElapsedMilliseconds} elapsedMs={ended}");
-    }
-
-    private static bool IsDebugTimingEnabled()
-    {
-        try
-        {
-            return Prefs.DevMode;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private sealed class PhaseScope : IDisposable
-    {
-        private readonly string _name;
-        private readonly long _startedElapsedMilliseconds;
-        private bool _disposed;
-
-        public PhaseScope(string name, long startedElapsedMilliseconds)
-        {
-            _name = string.IsNullOrWhiteSpace(name) ? "unknown" : name;
-            _startedElapsedMilliseconds = startedElapsedMilliseconds;
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-                return;
-
-            _disposed = true;
-            LogCompletedPhase(_name, _startedElapsedMilliseconds);
         }
     }
 }

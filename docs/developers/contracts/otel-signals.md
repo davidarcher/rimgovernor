@@ -206,6 +206,40 @@ metric) rather than blocking the brain. The acceptance and postmortem readers us
 Add a kind only with its reader. Keep stable reason words and structured attrs
 so filtering, repeat collapse and diagnostics do not depend on prose parsing.
 
+## Launch spans
+
+Every in-process run writes the game-side launch waterfall to `traces.jsonl`,
+regardless of DevMode. The span listener exists only once the brain starts, so
+the host mod and the bridge buffer each phase as plain data
+(`RimGovernor.Host.Sdk.LaunchPhases`: id, parent id, name, UTC start and end,
+512 phases at most). `BrainBootstrap` replays them through
+`LaunchSpans.Replay` (`Telemetry/LaunchSpans.cs`) right after
+`BrainHost.StartAsync`, with the recorded start and end times. Scope
+`.../launch`.
+
+```text
+launch                              root; earliest phase start → brain started
+  launch.pre_mods                   process start → host mod constructor (inferred: nothing can be patched earlier)
+  rimworld/<DeepProfiler label>     a RimWorld load stage, e.g. rimworld/LoadModXML(), rimworld/Resolve references.,
+    rimworld/<label>                rimworld/Static constructor calls; one nesting level below it
+  mod-constructor.total             the host mod constructor
+    main-thread.initialize, harmony.startup-patches, startup.on-mod-constructed
+  bridge-start.total                bridge services after play data loaded
+    capabilities.initialize, logs.initialize, application.run-in-background, debug.playback-defaults
+  brain.defs_wait                   brain bootstrap waiting for loaded Defs
+  brain.routes_wait                 brain bootstrap waiting for the HTTP channel's routes
+  brain.host_start                  BrainHost.StartAsync; ends when the root ends
+```
+
+RimWorld stages come from a Harmony prefix on `Verse.DeepProfiler.Start`/`End`
+installed in the mod constructor, so stages already open then (`LoadAllPlayData`,
+`Load all active mods.`, `CreateModClasses()`) are not seen. Only the first two
+levels of the stages opened afterwards on non-pool threads are recorded; the
+prefixes are removed once play data has loaded. Spans may overlap (host phases
+run inside RimWorld stages). A phase whose parent was not recorded sits under
+the root. Phases past the buffer are dropped and the count is logged as a
+warning.
+
 ## Pawn activity
 
 The [pawn activity contract](../architecture/pawn-activity.md) owns these event kinds:

@@ -1,4 +1,5 @@
 using System;
+using RimGovernor.Host.Sdk;
 using Verse;
 
 namespace RimGovernor.Host;
@@ -10,16 +11,26 @@ public class RimGovernorHostMod : Mod
     {
         try
         {
-            using (RimBridgeStartupTiming.Phase("mod-constructor.total"))
+            LaunchStagePatches.Apply();
+        }
+        catch (Exception ex)
+        {
+            // The waterfall is diagnostics: the bridge starts without it.
+            Log.Warning($"[RimBridge] The launch waterfall has no RimWorld stages: {ex.Message}");
+        }
+
+        try
+        {
+            using (LaunchPhases.Phase("mod-constructor.total"))
             {
-                using (RimBridgeStartupTiming.Phase("main-thread.initialize"))
+                using (LaunchPhases.Phase("main-thread.initialize"))
                 {
                     RimBridgeMainThread.Initialize();
                     RimGovernor.Host.Sdk.RimBridgeMainThreadAccess.Current = new RimBridgeMainThreadClient();
                 }
-                using (RimBridgeStartupTiming.Phase("harmony.startup-patches"))
+                using (LaunchPhases.Phase("harmony.startup-patches"))
                     RimBridgePatches.Apply();
-                using (RimBridgeStartupTiming.Phase("startup.on-mod-constructed"))
+                using (LaunchPhases.Phase("startup.on-mod-constructed"))
                     RimBridgeStartup.OnModConstructed();
             }
         }

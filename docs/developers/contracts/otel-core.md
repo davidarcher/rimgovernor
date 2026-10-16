@@ -108,6 +108,9 @@ worker.step                         child of the scheduler step that woke it
 clock.poll                          root of its own
 ```
 
+The launch waterfall is a separate `launch` tree, replayed once per run
+([launch spans](otel-signals.md#launch-spans)).
+
 Critical protection is the `class=critical` planner spans. Attribute keys are prefixed `rimgovernor.`.
 
 ### Wire to the companion
