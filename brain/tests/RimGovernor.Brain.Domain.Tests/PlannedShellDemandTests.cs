@@ -73,6 +73,22 @@ public sealed class PlannedShellDemandTests
     }
 
     [Fact]
+    public void AnOwedRoofIsPricedAtNoMaterial()
+    {
+        // The ring stands and the roofed room is open to the sky: the roof is owed (#3275) and costs nothing.
+        var room = Plan().Rooms[0];
+        var plan = new LayoutPlan { Rooms = [room], Roofed = room.Region };
+        var ground = new GroundCensus();
+        foreach (var c in room.Region.Walls().Cells())
+        {
+            ground.Walls.Add(c);
+        }
+        var owed = Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = ground, Rows = [], Unroofed = room.Region.Cells().ToHashSet() }).Owed;
+        Assert.Equal(9, owed.Single(o => o.Kind == OpKind.RoofIn).Cells.Count);
+        Assert.Empty(PlannedOwedCost([(room, owed)], Price, Price, Price, "Vent", new HashSet<(string, Cell)>()));
+    }
+
+    [Fact]
     public void AnUnavailableDefAddsNothing() =>
         Assert.Empty(Owed(Plan(), new GroundCensus(), _ => null));
 

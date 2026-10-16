@@ -389,8 +389,42 @@ the same plan the shared construction demand reads, so the two cannot disagree.
 Not modelled: nothing is placed yet, so there is no work amount, route or finish time to schedule and labor is
 declared in `UnsupportedEffects` (`planned_construction_labor`). Scheduling planned rooms against pawn capacity
 needs a planned-site notion with a work estimate and a legality read. Native provides both through the
-construction activity read's [planned sites](../contracts/forecast-contracts.md#planned-construction-sites);
-Rounds do not request them yet. A wall, door, vent or piece with a blueprint or frame already placed is left out of the planned claim: the standing site owes its outstanding material through the construction census, so nothing is claimed twice.
+construction activity read's [planned sites](../contracts/forecast-contracts.md#planned-construction-sites).
+No activity is generated from them yet (#3276). A wall, door, vent or piece with a blueprint or frame already placed is left out of the planned claim: the standing site owes its outstanding material through the construction census, so nothing is claimed twice.
+
+The plan also owes a roof (`RoofIn`): `PlannedConstructionOf` passes the ring input's open-sky cells, so a
+roofed-set cell still open to the sky is owed once the room's ring stands (the reconcile owes no roof before
+that). A roof costs no material.
+
+### Planned-site facts
+
+Every round, `Rounder.PlannedSitesAsync` turns the same owed diff into `RoundsFacts.PlannedSites`
+(`PlannedSiteFacts`: `Sites` and `Findings`). `PlannedSitesOf` makes one `PlannedBuildSite` per owed operation
+and stuff:
+
+- walls, doors and vents: one site per ring stuff, for up to `PlannedRingStuffCount` (2) stuffs per room. These
+  are the stocked stuffs the wall and door can both be made from, cheapest first, or else the cheapest stuff.
+  With every scope of the first stuff, that covers the 4 alternatives per room.
+- floors: one site per floor def.
+- pieces: one site per piece, in the bulk chooser's stuff.
+- roof: one site.
+
+Shared ring cells go to the lowest room id. Ring cells and pieces with a blueprint or frame placed are left out,
+as `PlannedOwedCost` counts them. `Material` is the op's cost list times its pieces. The stockpile review's
+unplaced `ShelfCandidates` are added as one-piece sites (`ShelfPlannedSites`, room 0, the candidate's zone).
+
+`PlannedSiteBatches` asks native `PlannedSitesPerRead` (4) sites per construction activity read.
+`JoinPlannedSites` attaches each answer's `CanPlace`, `Rejections`, `Blockers` (unclassified, as native reports
+them) and per pawn x source `Options` by site id. A site stays unknown when:
+
+- no answer names it;
+- its read is missing or unknown (`planned_site_read_unknown`);
+- its read is truncated (`planned_site_read_truncated`), because the shared row budget may have cut any site's
+  rows;
+- it has more positions than the read takes (`planned_site_positions_exceeded`). Such a site is not asked.
+
+The roof has no native placement and is never asked. Its work per cell is the coupled read's
+`ThermalWorker.RoofCellWorkTicks`, which the generator joins.
 
 ## Review inputs and pawn windows
 

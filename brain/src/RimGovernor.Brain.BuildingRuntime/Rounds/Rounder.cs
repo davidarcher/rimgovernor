@@ -457,7 +457,9 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { FabricableParts = PolicyApi.FabricableParts(benches) });
         }
         CensusStockpileZones(state.Snapshot, reading.Projection, ct);
-        await ReviewStockpilesAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
+        // The review's shelf candidates become planned sites below; the review itself is not kept in the facts here.
+        var stockpileReview = (await ReviewStockpilesAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false)).Facts.Stockpiles;
+        IReadOnlyList<ShelfCandidate> shelfCandidates = stockpileReview.TryGetValue(out var shelfReview) ? shelfReview.ShelfCandidates : [];
         var vResourceConsumption = await ResourceConsumptionAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceConsumption = vResourceConsumption });
         var vResourceSurfaceOre = await ResourceSurfaceOreAsync(state.Snapshot, reading.Projection.Facts.Items, reading.Projection.Facts.ResourceConsumption, ct).ConfigureAwait(false);
@@ -486,6 +488,8 @@ public sealed partial class Rounder
             PlannedConstruction = PlannedConstructionOf(reading.Projection, Policy.Flooring),
             PlannedShelters = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? EquatableArray.From(layout.Rooms.Where(r => !r.Outdoor)) : []
         });
+        var vPlannedSites = await PlannedSitesAsync(state.Snapshot, reading.Projection, Policy.Flooring, shelfCandidates, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(rf => rf with { PlannedSites = vPlannedSites });
         if (Firebreak is not null)
         {
             var vFirebreakOwed = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
@@ -873,15 +877,11 @@ internal static partial class BuildingRuntimePackage
     /// <summary>
     /// What the whole plan still owes, per room id: the reconciler's owed operations over the plan (PlannedOwedCost), priced from the def catalog with
     /// the stuff the shell chooser takes (ShellSharedStuff) for the ring and the bulk chooser's for pieces; unknown while the plan or the construction census is.
+    /// A roofed-set cell still open to the sky is owed a roof (RoofIn) once the ring stands; a roof costs no material.
     /// </summary>
     internal static Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstructionOf(ColonyProjection colony, FlooringPolicy flooring)
     {
-        if (!colony.LayoutPlan.TryGetValue(out var plan))
-        {
-            return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
-        }
-        var (_, groundKnown) = ColonyGround(colony);
-        if (!groundKnown)
+        if (PlannedOwedOf(colony, flooring) is not { } owed)
         {
             return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
         }
@@ -909,18 +909,30 @@ internal static partial class BuildingRuntimePackage
             }
             return null;
         }
-        IReadOnlyList<Amount>? PiecePrice(string name)
+        IReadOnlyList<Amount>? PiecePrice(string name) => PlannedPiecePrice(colony, name)?.Costs;
+        return Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
+            PolicyApi.PlannedOwedCost(owed.Rooms, Price, PiecePrice, owed.FloorPrice, ClimateDefs().VentDef, owed.Placed)
+                .ToDictionary(e => e.Key, e => (IReadOnlyDictionary<Resource, long>)e.Value));
+    }
+
+    /// <summary>The plan's owed operations per built room, the placed sites the census owes instead and the floor prices.</summary>
+    internal sealed record PlannedOwed(IReadOnlyList<(PlannedRoom Room, IReadOnlyList<Operation> Owed)> Rooms, IReadOnlySet<(string Def, Cell Cell)> Placed,
+        Func<string, IReadOnlyList<Amount>?> FloorPrice);
+
+    /// <summary>
+    /// The reconciler's owed diff over every built room of the plan, read against the colony's standing buildings and floors
+    /// (PlannedConstructionOf, PlannedSitesAsync); null while the plan or the construction census is unknown.
+    /// </summary>
+    internal static PlannedOwed? PlannedOwedOf(ColonyProjection colony, FlooringPolicy flooring)
+    {
+        if (!colony.LayoutPlan.TryGetValue(out var plan))
         {
-            if (AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
-            {
-                return null;
-            }
-            if (def.StuffOptions.Count == 0)
-            {
-                return def.Costs.TryGetValue(out var costs) ? costs : null;
-            }
-            var stuff = colony.BulkBuildStuff(name, 1);
-            return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff)?.Costs;
+            return null;
+        }
+        var (_, groundKnown) = ColonyGround(colony);
+        if (!groundKnown)
+        {
+            return null;
         }
         var flooringFacts = FlooringFactsOf(colony) with { Stock = Unknown<IReadOnlyDictionary<Resource, long>>() };
         IReadOnlyList<Amount>? FloorPrice(string name) =>
@@ -962,12 +974,12 @@ internal static partial class BuildingRuntimePackage
             var (input, known) = RoomRingInput(colony, plan, room);
             if (!known)
             {
-                return Unknown<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>();
+                return null;
             }
+            // The ring input's open-sky cells stay, so the roof is owed (#3275).
             input = input with
             {
                 Cells = null,
-                Unroofed = null,
                 Rows = rows,
                 Floors = floors,
                 Furniture = plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Select(p => p.Wanted())] : [],
@@ -975,9 +987,22 @@ internal static partial class BuildingRuntimePackage
             };
             owed.Add((room, PolicyApi.Reconcile(input).Owed));
         }
-        return Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
-            PolicyApi.PlannedOwedCost(owed, Price, PiecePrice, FloorPrice, ClimateDefs().VentDef, placed)
-                .ToDictionary(e => e.Key, e => (IReadOnlyDictionary<Resource, long>)e.Value));
+        return new PlannedOwed(owed, placed, FloorPrice);
+    }
+
+    /// <summary>The stuff a planned piece is built from (the bulk chooser's, "" for a def made from no stuff) and its cost list; null where the def is unavailable.</summary>
+    internal static (string Stuff, IReadOnlyList<Amount> Costs)? PlannedPiecePrice(ColonyProjection colony, string name)
+    {
+        if (AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
+        {
+            return null;
+        }
+        if (def.StuffOptions.Count == 0)
+        {
+            return def.Costs.TryGetValue(out var costs) ? ("", costs) : null;
+        }
+        var stuff = colony.BulkBuildStuff(name, 1);
+        return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option ? (stuff, option.Costs) : null;
     }
 
     /// <summary>The recorded plan's retired ground with its kept rooms' walls; empty while the plan is unknown.</summary>

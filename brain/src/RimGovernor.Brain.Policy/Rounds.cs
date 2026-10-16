@@ -197,6 +197,12 @@ public sealed record RoundsFacts
     /// <summary>The material the whole layout plan still owes its walls, doors, floors and stations, per room id (PlannedShellDemandByRoom and kin); unknown while the plan or the construction census is.</summary>
     public Fact<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>> PlannedConstruction { get; init; }
 
+    /// <summary>
+    /// The same owed operations as hypothetical sites, one per op x stuff, plus the unplaced shelf candidates, each joined to
+    /// the native planned-site read (PlannedSitesOf, JoinPlannedSites); unknown while the plan or the construction census is.
+    /// </summary>
+    public Fact<PlannedSiteFacts> PlannedSites { get; init; }
+
     /// <summary>Live bill jobs' promised ingredients, per working pawn (MaterialBudget).</summary>
     public Fact<EquatableArray<IngredientReservation>> BillReservations { get; init; }
 

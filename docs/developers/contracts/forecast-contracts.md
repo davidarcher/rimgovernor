@@ -231,7 +231,7 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
 Caps per read: 16 planned sites, 16 colonists, 16 sources per site, 128 positions
 per site, 32 rejections and 32 blockers per site and 128 rows over all planned
 sites (placed sites have their own 128). Excess sets `Truncated`; the caller
-batches. The coupled census passes no planned sites. The prepared
+batches. The coupled census passes no planned sites; Rounds ask them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)). The prepared
 `observations/planned-site` case checks open-ground walls, a door and a shelf, and
 rejection on a standing wall and on deep water.
 
