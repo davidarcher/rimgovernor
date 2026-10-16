@@ -291,6 +291,47 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(!thresholdKnown || evaluated.MoodDepth.Value < result.BaselineVector.MoodDepth.Value);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void EffectSourceBuildAndHaulWinsOnlyWhenItsMaterialIsFunded(bool funded)
+    {
+        // #3224: the generated build -> haul chain spliced in as the family hook will; the build's wood is a timed input.
+        var facts = Review(level: 1, fall: 0);
+        if (funded)
+        {
+            facts = facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 60)]) };
+            facts = ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+            facts = facts with { CoupledAlternatives = GenerateCoupledActivities(facts, Horizon) };
+        }
+        var candidates = facts.CoupledAlternatives!;
+        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = Known(.28), MoodTarget = Known(.28), MoodUnclampedTarget = Known(.28) };
+        var generated = GenerateEffectSources(EffectSourceCandidatesTests.Facts() with { Needs = candidates.Context.Needs with { Pawns = [pawn] } },
+            new Dictionary<string, MechanicCard> { ["KnowBuriedInSarcophagus"] = MechanicCards.ByDef["KnowBuriedInSarcophagus"] with { Status = MechanicCardStatus.Verified } });
+        var family = generated.Family.Problem!;
+        var root = Assert.Single(generated.Roots);
+        var problem = candidates.Context.Activities;
+        facts = facts with { CoupledAlternatives = candidates with
+        {
+            Alternatives = [root], // against no-change only, as the mood-memory test isolates its alternatives
+            Context = candidates.Context with
+            {
+                Needs = candidates.Context.Needs with { Pawns = [pawn] },
+                Activities = problem with { Activities = [.. problem.Activities, .. family.Activities], Options = [.. problem.Options, .. family.Options],
+                    Routes = [.. problem.Routes, .. family.Routes] }
+            }
+        } };
+        var result = Select(facts);
+        if (funded)
+        {
+            Assert.Equal([root.Id], result.Selection.Selected);
+            Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+            return;
+        }
+        Assert.DoesNotContain(root.Id, result.Selection.Selected);
+        Assert.Contains(result.Rejected, r => r.Commitments.Contains(root.Id) && r.Reason == "infeasible_or_unassessed");
+    }
+
     [Fact]
     public void ExhaustedSearchPreservesFeasibleCurrentCommitmentAndExposesBound()
     {

@@ -175,6 +175,19 @@ sarcophagus), `Humanlike` (an animal corpse), `!everBuriedInSarcophagus` (a flag
 `hauler.IsColonist` (a non-colonist on a forced haul). Who may haul to a sarcophagus is covered by the observed
 positive path, not by caller analysis.
 
+`PolicyFunctions.GenerateEffectSources` (pure, #3224; not yet wired into `GenerateCoupledActivities`) searches backward
+from a mood shortfall: pawns whose no-change `ForecastMoodTimeline` has break risk or threshold exposure. For each
+usable memory card with a positive stage, each colonist's marginal stack (`baseMoodEffect * stackedEffectMultiplier^live`,
+live read from the summed offset of the def; none at `stackLimit`; unread thoughts give none) is the memory granted.
+Over unburied eligible targets and the caller's layout slots of the site's container class, in def, target and slot
+order, it chains at most three steps: the site's action (from `SiteActions`), preceded by a fresh `Building` on a free
+slot when the fresh instance is usable, or by `Deconstruction` of an exhausted occupant (no unknown guard, a known
+refund, no colonist inside) and a fresh build in its slot. A colonist's body is burial's, never a target. Build tasks
+carry the catalog cost as timed inputs and disposals the refund as outputs, so an unfunded chain is infeasible in the
+coupled forecast; each root commitment carries the memories as `MoodMemories`, and a card's roots share one
+`ExclusiveOutcome`. A node budget reports `effect_source_generation_truncated`. Steps (`EffectSourceStep`: action kind,
+target, slot, actor constraint) describe execution for the wiring.
+
 ### Mood ledger
 
 `policy.BuildMoodLedger` (pure) turns pawns' thought rows (`MoodLedgerPawn`: the
