@@ -7,13 +7,10 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>lifecycle/shutdown</c> (Go <c>lifecycle.go</c> runShutdown, the former shutdownaccept): an orderly end of the game
 /// revokes native authority as REVOCATION_REASON_SHUTDOWN, which a controller can tell apart from the lease lapse a
 /// vanished bot leaves behind. The case grants Auto, ends the game the way the player's quit-to-menu does (the
-/// <c>test/shutdown_unload</c> fixture op), and reads authority for the ended game's identity once no game is loaded.
+/// production <c>lifecycle_menu</c> op), and reads authority for the ended game's identity once no game is loaded.
 /// </summary>
 internal static class LifecycleShutdown
 {
-    /// <summary>Returns the loaded game to the main menu without saving and reports the tick it ended at (ShutdownFixture).</summary>
-    private const string UnloadTool = "test/shutdown_unload";
-
     internal static AcceptanceCase Case() => new()
     {
         Name = "lifecycle/shutdown",
@@ -30,11 +27,7 @@ internal static class LifecycleShutdown
     {
         var h = s.Harness;
         var report = s.Report;
-        LifecycleCases.RequireTools(s, "rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/lifecycle_read_identity");
-        if (!Dyn.Contains(s.Names, UnloadTool))
-        {
-            throw new AcceptanceException($"missing {UnloadTool} in discovery; rebuild the native mod with -Fixture ShutdownFixture");
-        }
+        LifecycleCases.RequireTools(s, "rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_menu", "rimgovernor/lifecycle_read_menu");
 
         // The runner opened the game paused; this is the identity the unload ends.
         var identity = s.Identity;
@@ -55,15 +48,16 @@ internal static class LifecycleShutdown
 
         report["setup"] = new JsonObject { ["generationBefore"] = generation, ["generationGranted"] = granted };
 
-        // Case 1: end the game with Auto still granted. The unload is queued as a long event, so the read is polled until
-        // no game is loaded and the retained state answers for the ended identity.
-        var unloaded = await h.CallAsync("unload", UnloadTool, new JsonObject(), cancellationToken).ConfigureAwait(false);
-        if (unloaded["success"].AsBool() != true)
+        // Case 1: end the game with Auto still granted. The game is paused, so the tick read now is the tick it ends at.
+        // The return to the menu is polled until the process is at a fresh main menu; the retained state then answers for
+        // the ended identity.
+        var (_, _, readTick) = await LifecycleCases.ReadIdentityAsync(h, "unload-tick", cancellationToken).ConfigureAwait(false);
+        var unloadTick = (long)readTick;
+        var menu = await Game.ReturnToMenuAsync(h, "unload", cancellationToken).ConfigureAwait(false);
+        if (menu["unloaded"].AsBool() != true)
         {
-            throw new AcceptanceException($"unload refused: {unloaded.ToJson()}");
+            throw new AcceptanceException($"unload: expected the loaded game to be ended, got {menu.ToJson()}");
         }
-
-        var unloadTick = (long)unloaded["tick"].AsNumber();
         var (afterGeneration, inactive, tick) = await WaitShutdownAsync(h, identity, "status-after-unload", cancellationToken).ConfigureAwait(false);
         if (inactive["reason"].AsString() != "REVOCATION_REASON_SHUTDOWN")
         {

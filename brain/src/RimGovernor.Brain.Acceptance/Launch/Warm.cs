@@ -325,11 +325,23 @@ public sealed class Game : IGameHold
 
         // A harness of its own over the same session, so the unloads number their evidence under the warm directory; it is
         // never closed here because that would end the session.
-        var h = new Harness(Harness.Transport, _output);
+        _ = await ReturnToMenuAsync(new Harness(Harness.Transport, _output), label, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Ends whatever game is loaded through the production return-to-menu op (#3298) and polls it until the process is at
+    /// a fresh main menu, returning the <c>completed</c> outcome (its <c>unloaded</c> is false when nothing was loaded).
+    /// A start refused as unavailable while another long event finishes is asked again; any other refusal, or no
+    /// completion within the ceiling, is an <see cref="AcceptanceException"/>.
+    /// </summary>
+    public static async Task<JsonObject> ReturnToMenuAsync(Harness h, string label, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(h);
         var requestId = string.Create(CultureInfo.InvariantCulture, $"{label}-{DateTime.UtcNow.Ticks}");
         var started = false;
         var attempt = 0;
         JsonObject? last = null;
+        JsonObject? completed = null;
         try
         {
             await new Wait { Ceiling = MenuCeiling, Interval = MenuInterval }.WaitProgressAsync(
@@ -340,8 +352,9 @@ public sealed class Game : IGameHold
                         ? await h.WireAsync(step + "-read", MenuReadMethod, new JsonObject { ["requestId"] = requestId }, ct).ConfigureAwait(false)
                         : await h.WireAsync(step + "-menu", MenuMethod, await MenuRequestAsync(h, step, requestId, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
                     last = reply;
-                    if (reply["completed"].AsMap() is not null)
+                    if (reply["completed"].AsMap() is { } done)
                     {
+                        completed = done;
                         return ("", true);
                     }
 
@@ -367,6 +380,8 @@ public sealed class Game : IGameHold
         {
             throw new AcceptanceException($"{MenuMethod} did not reach the main menu; last reply {last?.ToJson()}: {e.Message}", e);
         }
+
+        return completed!;
     }
 
     /// <summary>

@@ -118,7 +118,7 @@ public static partial class SetupEnvironment
     public static readonly IReadOnlyList<string> JunctionDirs = ["Data"];
 
     /// <summary>What the build script adds to any fixture build.</summary>
-    private static readonly string[] AlwaysFixtures = ["QuietStorytellerFixture", "DebugStartFixture", "LetterFixture", "FreezeNeedsFixture", "ShutdownFixture"];
+    private static readonly string[] AlwaysFixtures = ["QuietStorytellerFixture", "DebugStartFixture", "LetterFixture", "FreezeNeedsFixture"];
 
     /// <summary>Enough of a Prefs.xml for RimWorld to launch and TrimPrefs to fill in; the game writes the rest on first run.</summary>
     private const string MinimalPrefs = """

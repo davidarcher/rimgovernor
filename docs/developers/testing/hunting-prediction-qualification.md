@@ -55,7 +55,7 @@ trials after the first failure. Retain rejected and unresolved trials.
 ## Commands and artifacts
 
 Build the existing RealCombat Host in Release and install the native fixture with
-`acceptance setup -rebuild -fixture DebugStartFixture,FreezeNeedsFixture,LetterFixture,QuietStorytellerFixture,ShutdownFixture`.
+`acceptance setup -rebuild -fixture DebugStartFixture,FreezeNeedsFixture,LetterFixture,QuietStorytellerFixture`.
 Run a cell with `acceptance run combatlab/hunting-grid-<cell> -root <abs> -output <abs fresh dir> -run-seed <n>`
 or `acceptance sweep hunting-grid-<cell> -workers 1 -seeds a,b,c -root <abs> -output <abs fresh dir>`
 (one case per call, fresh output directory each). Aggregate with:

@@ -8,7 +8,7 @@ param(
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
         'DeepResourcesFixture', 'FoodChannelFixture', 'FishingFixture', 'LedgerFixture', 'HuntLedgerFixture', 'UpkeepFixture', 'TradeFixture',
         'EmergencyDevelopmentFixture',
-        'PawnControlFixture', 'PawnActivityFixture', 'ForecastFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'MapScopeFixture', 'BuildingTemperatureFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'ApplyRefusalFixture', 'RefrigerationFixture', 'PowerFixture', 'DefenseFixture', 'LightingFixture', 'FlooringFixture', 'RoutesFixture', 'HutShellFixture', 'QuietStorytellerFixture', 'DebugStartFixture', 'LetterFixture', 'FreezeNeedsFixture', 'WallUpgradeFixture', 'ShutdownFixture', 'FarmEnvironmentFixture', 'DialogFixture', 'ProductionLadderFixture', 'BlightFixture', 'PlantationFixture', 'LatticeSowFixture', 'NonFoodFieldFixture','WinterFixture', 'SubdueFixture', 'TrainingFixture','SparringFixture', 'SparringWatchFixture','ArrestFixture', 'LayoutGridFixture', 'HazardFixture', 'StartupLaborFixture', 'BuriedSteelFixture', 'ArtFixture', 'ShelterFixture', 'ColonyReviewFixture', 'BabyCareFixture', 'MechGestationFixture', 'FirstRitualFixture', 'HorrorIncidentFixture', 'EntityHoldFixture', 'PlanStageFixture', 'MonolithAwakenFixture')]
+        'PawnControlFixture', 'PawnActivityFixture', 'ForecastFixture', 'DraftFaultFixture', 'RuntimeFaultFixture', 'MapScopeFixture', 'BuildingTemperatureFixture', 'CaravanDepartureFixture', 'RecoveryServiceFixture', 'QuestAcceptFixture', 'RecoveryAreaFixture', 'BedAssignFixture', 'ZoneDeleteFixture', 'ApplyRefusalFixture', 'RefrigerationFixture', 'PowerFixture', 'DefenseFixture', 'LightingFixture', 'FlooringFixture', 'RoutesFixture', 'HutShellFixture', 'QuietStorytellerFixture', 'DebugStartFixture', 'LetterFixture', 'FreezeNeedsFixture', 'WallUpgradeFixture', 'FarmEnvironmentFixture', 'DialogFixture', 'ProductionLadderFixture', 'BlightFixture', 'PlantationFixture', 'LatticeSowFixture', 'NonFoodFieldFixture','WinterFixture', 'SubdueFixture', 'TrainingFixture','SparringFixture', 'SparringWatchFixture','ArrestFixture', 'LayoutGridFixture', 'HazardFixture', 'StartupLaborFixture', 'BuriedSteelFixture', 'ArtFixture', 'ShelterFixture', 'ColonyReviewFixture', 'BabyCareFixture', 'MechGestationFixture', 'FirstRitualFixture', 'HorrorIncidentFixture', 'EntityHoldFixture', 'PlanStageFixture', 'MonolithAwakenFixture')]
     [string[]]$Fixture = @()
 )
 $ErrorActionPreference = 'Stop'
@@ -20,7 +20,7 @@ $taskHostProject = Join-Path $taskHostSource 'src/Host/RimGovernor.Host.csproj'
 $taskFixtures = @($Fixture | Sort-Object -Unique)
 # Every fixture build carries test/quiet_storyteller: the acceptance harnesses
 # quiet the debug colony through it by default .
-if ($taskFixtures.Count) { $taskFixtures = @(($taskFixtures + 'QuietStorytellerFixture' + 'DebugStartFixture' + 'LetterFixture' + 'FreezeNeedsFixture' + 'ShutdownFixture') | Sort-Object -Unique) }
+if ($taskFixtures.Count) { $taskFixtures = @(($taskFixtures + 'QuietStorytellerFixture' + 'DebugStartFixture' + 'LetterFixture' + 'FreezeNeedsFixture') | Sort-Object -Unique) }
 $taskRole = if ($taskFixtures.Count) { 'fixture' } else { 'production' }
 if (-not $OutputRoot) {
     $OutputRoot = Join-Path $taskRepo ('.rimgovernor/native-builds/' + $taskRole + '-' + [guid]::NewGuid().ToString('N'))
