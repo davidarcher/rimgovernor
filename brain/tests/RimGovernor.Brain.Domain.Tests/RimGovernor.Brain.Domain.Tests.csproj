@@ -5,6 +5,9 @@
     <IsPackable>false</IsPackable>
     <RootNamespace>RimGovernor.Brain.Domain.Tests</RootNamespace>
     <AssemblyName>RimGovernor.Brain.Domain.Tests</AssemblyName>
+    <!-- The allocation-heavy portfolio tests run alongside each other; on the workstation GC they contend and the suite
+         took about twice as long (45-55 s vs 25-34 s), for about 330 MB more peak memory. -->
+    <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />

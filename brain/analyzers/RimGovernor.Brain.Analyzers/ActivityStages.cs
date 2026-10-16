@@ -21,6 +21,8 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
         context.EnableConcurrentExecution();
         context.RegisterSyntaxNodeAction(c =>
         {
+            // Binding every identifier in every project dominated compile time; only fenced owners need it.
+            if (!IsFenced(c.ContainingSymbol)) return;
             var symbol = c.SemanticModel.GetSymbolInfo(c.Node, c.CancellationToken).Symbol;
             if (symbol is IAliasSymbol alias) symbol = alias.Target;
             Check(c.ContainingSymbol, symbol, c.Node.GetLocation(), c.ReportDiagnostic);
@@ -54,9 +56,9 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
 
     private static void Check(ISymbol? owner, ISymbol? target, Location location, Action<Diagnostic> report)
     {
+        if (!IsFenced(owner) || target is null) return;
         var source = owner?.ContainingNamespace?.ToDisplayString() ?? "";
         var lifecycle = IsLifecycle(owner);
-        if ((!lifecycle && !source.StartsWith(Root + ".", StringComparison.Ordinal)) || target is null) return;
         if (target is not (INamedTypeSymbol or IMethodSymbol or IPropertySymbol or IFieldSymbol or IEventSymbol)
             || target is IMethodSymbol { MethodKind: MethodKind.LocalFunction }) return;
         var stage = lifecycle ? "Lifecycle" : source.Substring(Root.Length + 1).Split('.')[0];
@@ -85,6 +87,9 @@ public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
         else if (stage == "Evaluation" && ns.StartsWith("RimGovernor.Contracts", StringComparison.Ordinal)) allowed = false;
         if (!allowed) report(Diagnostic.Create(Descriptor, location, stage, target.ToDisplayString()));
     }
+
+    private static bool IsFenced(ISymbol? owner) => IsLifecycle(owner)
+        || (owner?.ContainingNamespace?.ToDisplayString() ?? "").StartsWith(Root + ".", StringComparison.Ordinal);
 
     private static bool IsLifecycle(ISymbol? owner)
     {

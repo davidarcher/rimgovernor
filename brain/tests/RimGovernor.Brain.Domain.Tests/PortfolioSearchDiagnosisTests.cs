@@ -13,7 +13,6 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// traversal. <c>TraversalReplica</c> mirrors the subset order of CompareActivityOutcomes so that coverage can be counted;
 /// a test ties it to the production search. Findings: docs/developers/testing/portfolio-allocations.md.
 /// </summary>
-[Collection("Portfolio allocation baseline")]
 public sealed class PortfolioSearchDiagnosisTests
 {
     private static readonly int[] Budgets = [1024, 4096, 8192, 16384, 65536, 262144];

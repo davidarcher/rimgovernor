@@ -14,8 +14,7 @@ using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-// Run alone for measurement: see docs/developers/testing/portfolio-allocations.md.
-[Collection("Portfolio allocation baseline")]
+// Measurement runs alone through its own -method/-parallel none command: see docs/developers/testing/portfolio-allocations.md.
 public sealed class PortfolioAllocationTests
 {
     private static readonly int[] Budgets = [1024, 4096, 8192, 16384, 65536, 262144];
@@ -220,6 +219,3 @@ public sealed class PortfolioAllocationTests
         }
     }
 }
-
-[CollectionDefinition("Portfolio allocation baseline", DisableParallelization = true)]
-public sealed class PortfolioAllocationGroup;

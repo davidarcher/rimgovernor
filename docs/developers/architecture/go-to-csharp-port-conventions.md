@@ -41,9 +41,11 @@ brain/
 ## Compiler settings
 
 `brain/Directory.Build.props` sets `Nullable=enable`, `TreatWarningsAsErrors=true`,
-`WarningLevel=9999`, `AnalysisLevel=latest-recommended`, `EnforceCodeStyleInBuild`,
-`ImplicitUsings` and `RestorePackagesWithLockFile` (commit each `packages.lock.json`;
-the Taskfile restores with `--locked-mode`). A port does not add `#pragma` or
+`WarningLevel=9999`, `AnalysisLevel=latest-recommended`, `ImplicitUsings` and
+`RestorePackagesWithLockFile` (commit each `packages.lock.json`; the Taskfile restores
+with `--locked-mode`). Code-style (IDE) analyzers do not run in the build: with no
+`.editorconfig` raising them they report nothing, yet IDE0005 alone took 18 s of
+Policy's analyzer time. A port does not add `#pragma` or
 `SuppressMessage` to get green; fix the code. A rule that is wrong for the whole
 solution is turned off once, in `brain/.editorconfig`, with a one-line reason.
 
