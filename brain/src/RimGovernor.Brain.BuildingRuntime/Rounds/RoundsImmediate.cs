@@ -136,9 +136,7 @@ public sealed partial class Rounder
         f = f with { DangerHaulers = PolicyFunctions.DangerHaulers(projection.WorkPawns) };
         f = f with { Tick = expected.Tick };
         f = f with { Dash = PolicyFunctions.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, PolicyFunctions.PublishedHypothermiaTuning) };
-        var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, ctx).ConfigureAwait(false);
-        var stray = DraftNeeds.IdleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed);
-        f = f with { CleanupPawns = Known(stray.Count > 0), AvailableMethods = Methods, AvailableNeeds = AvailableNeeds };
+        f = f with { AvailableMethods = Methods, AvailableNeeds = AvailableNeeds };
         projection = projection with { Facts = f };
         reading = reading with { Reading = reading.Reading with { Projection = projection } };
         p.Current(ctx, epoch);
@@ -305,6 +303,9 @@ public sealed partial class ClockScheduler
 
         var actions = new List<ActionId>();
         var kinds = new HashSet<ActionKind>();
+        // A family's SeriousHarm Needs are its protection: the plans its latest immediate run saw open, watched for
+        // the family's own kinds beside the planners'. Its kinds do not widen the watch on the planners' plans.
+        var familyKinds = new Dictionary<PlanId, HashSet<ActionKind>>();
         foreach (var entry in Queue.Entries())
         {
             if (!ImmediatePlanner(entry))
@@ -312,10 +313,17 @@ public sealed partial class ClockScheduler
                 continue;
             }
 
-            // A family's SeriousHarm Needs are its protection: the plans its latest immediate run saw open.
-            foreach (var plan in entry.Family?.SeriousHarmPlans ?? [])
+            if (entry.Family is { } family)
             {
-                plans.Add(plan);
+                foreach (var plan in family.SeriousHarmPlans)
+                {
+                    if (!familyKinds.TryGetValue(plan, out var own))
+                    {
+                        familyKinds[plan] = own = [];
+                    }
+                    own.UnionWith(entry.Kinds.Where(k => k != ActionKind.RecoveryService));
+                }
+                continue;
             }
 
             foreach (var kind in entry.Family?.Schedule.ProtectionKinds ?? entry.Kinds)
@@ -326,15 +334,17 @@ public sealed partial class ClockScheduler
                 }
             }
         }
+        plans.UnionWith(familyKinds.Keys);
 
         // Plans are visited in id order so the result does not depend on set iteration.
         foreach (var id in plans.OrderBy(i => i))
         {
             var plan = Player.Journal.LoadPlan(id, ct);
+            HashSet<ActionKind> watched = familyKinds.TryGetValue(id, out var own) ? [.. kinds, .. own] : kinds;
             foreach (var p in plan.Progress)
             {
                 var v = p.View;
-                if (!plan.Retired && kinds.Contains(p.Action.Kind) && (v.Stage == Stage.Pending || v.Stage == Stage.Prepared))
+                if (!plan.Retired && watched.Contains(p.Action.Kind) && (v.Stage == Stage.Pending || v.Stage == Stage.Prepared))
                 {
                     actions.Add(p.View.Action);
                 }

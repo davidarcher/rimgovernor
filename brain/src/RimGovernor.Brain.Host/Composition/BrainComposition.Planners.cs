@@ -192,13 +192,10 @@ public sealed partial class BrainComposition
         {
             reviewer.AddOrderDeclarer(new RoundsGearDeclarer());
         }
-        if (equip || acquisition || training || gear)
-        {
-            // The equip, acquisition, training and gear toggles compose the military family's defense, pests, training
-            // and equipment Needs (#3259); the equipment Need places the armory's crafting spot and walks the
-            // workshop ladder for replacement gear.
-            families.Add(new MilitaryRounds(reviewer, equip, acquisition, training, gear, gear ? cfgArmory : null, gear && workshop).Runner());
-        }
+        // The equip, acquisition, training and gear toggles compose the military family's defense, pests, training
+        // and equipment Needs (#3259); the equipment Need places the armory's crafting spot and walks the workshop
+        // ladder for replacement gear. Restore-workers, the undraft sweep, is always composed (#3311).
+        families.Add(new MilitaryRounds(reviewer, equip, acquisition, training, gear, gear ? cfgArmory : null, gear && workshop).Runner());
         if (repair || clearance)
         {
             // The repair and clearance toggles compose the home-upkeep family's two Needs (#3253).

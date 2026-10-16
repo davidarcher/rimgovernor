@@ -90,16 +90,6 @@ public static partial class PolicyFunctions
         }
     }
 
-    internal static void InspectRestoreWorkers(RoundsRun c)
-    {
-        var f = c.F;
-        if (Positive(Measured(f.Hostiles, n => n == 0)) && Positive(f.CleanupPawns))
-        {
-            c.Raise(RestoreWorkers);
-        }
-        c.Assess(RestoreWorkers, NotFact(f.CleanupPawns));
-    }
-
     internal static void InspectWorkAssignments(RoundsRun c)
     {
         var f = c.F;

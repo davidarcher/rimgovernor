@@ -469,7 +469,13 @@ unblocked pawn's wanted apparel policy is its own Method claimed by `gear/<pawn>
 so two pawns are dressed together and a second policy for one pawn is held; the
 outfit prune claims `policy/Outfit`. Its work step stands or retires the crafting
 spot and runs the gear workshop ladder under the Need, and the gear and armory
-ledger orders file under it. ActiveCombat and RestoreWorkers are not migrated yet.
+ledger orders file under it. Restore-workers (SeriousHarm, #3311) replaced the
+RestoreWorkers Concern and the `undraft` planner: it is unmet while a drafted
+colonist no live plan needs stands and no hostile does, unknown while the colonist
+census is unread, and has no Methods. Its work step is the undraft sweep; the
+family is immediate, so the sweep runs in both passes, and its undrafts are logged
+under `military/restore-workers`. The family's own kinds widen the protection
+watch only on its own SeriousHarm plans. ActiveCombat is not migrated yet.
 
 **Colony admin, creep joiners (#3264).** `ManageCreepJoiners` is now the
 `admin/creep-joiners` Need (`ColonyAdmin.cs`, `AdminRounds`), a Wellbeing Need of
@@ -608,7 +614,7 @@ three ways (prisoners, joiners, anomaly).
 | Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |
 | Power | EnsureBasicPower |
 | Medical | `medical`: Needs `critical/<pawn>`, `care`, `reserves`, `surgery` (#3258; CriticalMedical, MaintainMedicalReserves, MaintainSurgery deleted) |
-| Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259); ActiveCombat, RestoreWorkers |
+| Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259), `restore-workers` (#3311; RestoreWorkers and the undraft planner deleted); ActiveCombat |
 | Animals | `animals`: Needs `herd`, `containment`, `ward`, `sterilize` (#3260) |
 | Ideology | `ideology`: Needs `roles`, `rituals`, `reform` (#3260) |
 | Biotech | MaintainMechs, EnsureMechCharger, MaintainGeneBank, ManagePollution |
@@ -973,8 +979,8 @@ once it has reviewed the hold.
 
 ### Drafts
 
-Drafts are plan-owned. The census-based cleanup undrafts colonists no live plan
-or open fight needs, while protecting native arrest/capture jobs. A suspended
+Drafts are plan-owned. The census-based cleanup (the `military/restore-workers`
+work step) undrafts colonists no live plan or open fight needs, while protecting native arrest/capture jobs. A suspended
 plan retains drafts needed by unfinished work; subsequent orders still check
 that a pawn remains drafted.
 

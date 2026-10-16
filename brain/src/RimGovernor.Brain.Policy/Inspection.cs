@@ -42,7 +42,6 @@ internal static class InspectionRegistry
     [
         new(AnswerDialog, ConcernType.IncidentConcern, Department.System, [FactFamily.Emergency], InspectAnswerDialog),
         new(ActiveCombat, ConcernType.IncidentConcern, Department.Military, [FactFamily.Emergency, FactFamily.Colony], InspectActiveCombat),
-        new(RestoreWorkers, ConcernType.IncidentConcern, Department.People, [FactFamily.Emergency, FactFamily.Pawns], InspectRestoreWorkers),
         new(EnsureWorkAssignments, ConcernType.OnceConcern, Department.People, [FactFamily.Pawns, FactFamily.Identity, FactFamily.Emergency], InspectWorkAssignments),
         new(MaintainHousing, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony, FactFamily.Rooms, FactFamily.Pawns], InspectHousing),
         new(EnsureTemperatureSafety, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony, FactFamily.Rooms, FactFamily.World], InspectTemperatureSafety),

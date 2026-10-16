@@ -661,7 +661,6 @@ public static partial class PolicyFunctions
 {
     public static readonly ConcernId AnswerDialog = new("AnswerDialog");
     public static readonly ConcernId ActiveCombat = new("ActiveCombat");
-    public static readonly ConcernId RestoreWorkers = new("RestoreWorkers");
     public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
     public static readonly ConcernId MaintainHousing = new("MaintainHousing");
     public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");

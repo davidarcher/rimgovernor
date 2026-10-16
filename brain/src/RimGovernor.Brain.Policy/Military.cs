@@ -65,6 +65,12 @@ public sealed record MilitaryFacts
     /// <summary>A built mortar's shell stock is below half its target (<see cref="PolicyFunctions.ShellsShort"/>).</summary>
     public Fact<bool> ShellsShort { get; init; }
 
+    /// <summary>
+    /// The drafted colonists no live plan needs (the undraft sweep's candidates); none while a threat holds the
+    /// drafts, unknown while the colonist census is unread or incomplete.
+    /// </summary>
+    public Fact<int> StrayDrafts { get; init; }
+
     /// <summary>The defense, training and equipment facts a review already holds; the pest section stays unread.</summary>
     public static MilitaryFacts From(RoundsFacts f) => new()
     {
@@ -98,9 +104,12 @@ public sealed record MilitaryFacts
 /// for one pawn is refused) and, once no policy is proposed, the outfit prune (claimed by <c>policy/Outfit</c>).
 /// The runtime's work step places or retires the crafting spot and walks the workshop ladder for replacement
 /// gear; worn-gear replacement itself is not a supported forecast outcome.</item>
+/// <item><c>military/restore-workers</c> (SeriousHarm, #3311): no drafted colonist stands that no live plan needs
+/// while no hostile does; unknown while the census is unread. It has no Methods: its work step is the undraft
+/// sweep, which replaced the RestoreWorkers Concern and the undraft planner.</item>
 /// </list>
 /// </summary>
-public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool training = true, bool equipment = true) : IFamily<MilitaryFacts>
+public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool training = true, bool equipment = true, bool restoreWorkers = true) : IFamily<MilitaryFacts>
 {
     public const string FamilyId = "military";
 
@@ -111,6 +120,8 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     public static readonly NeedId Training = NeedId.Of(FamilyId, "training");
 
     public static readonly NeedId Equipment = NeedId.Of(FamilyId, "equipment");
+
+    public static readonly NeedId RestoreWorkers = NeedId.Of(FamilyId, "restore-workers");
 
     /// <summary>The stable refusal subject of an unmet defense Need.</summary>
     public const string UnsupportedEquipment = "unsupported_forecast_equipment";
@@ -125,11 +136,16 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
 
     public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Colony, FactFamily.Pawns, FactFamily.Rooms, FactFamily.Emergency, FactFamily.World, FactFamily.Research];
 
-    public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
+    /// <summary>Restore-workers reads the colonist rows and the emergency census in the immediate pass.</summary>
+    public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = restoreWorkers ? [FactFamily.Pawns, FactFamily.Emergency] : [];
 
     public IReadOnlyList<Need> Derive(MilitaryFacts facts)
     {
-        var needs = new List<Need>(4);
+        var needs = new List<Need>(5);
+        if (restoreWorkers)
+        {
+            needs.Add(RestoreWorkersNeed(facts));
+        }
         if (defense)
         {
             needs.Add(DefenseNeed(facts));
@@ -318,6 +334,40 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             deficit = Known(share);
         }
         return new Need { Id = Defense, Tier = NeedTier.Wellbeing, Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet, Deficit = deficit, Evidence = evidence };
+    }
+
+    /// <summary>
+    /// The restore-workers predicate: unmet while a stray draft stands and no hostile does; met with no stray draft
+    /// or while a hostile stands (the fight owns the drafts); unknown while either census is unread.
+    /// </summary>
+    public static Fact<bool> RestoreWorkersMet(MilitaryFacts f)
+    {
+        if (!f.StrayDrafts.TryGetValue(out var stray))
+        {
+            return Unknown<bool>();
+        }
+        if (stray == 0)
+        {
+            return Known(true);
+        }
+        return Measured(f.Hostiles, n => n > 0);
+    }
+
+    private static Need RestoreWorkersNeed(MilitaryFacts f)
+    {
+        var evidence = EquatableArray.From<NeedEvidence>([new("stray_drafts", f.StrayDrafts.TryGetValue(out var n) ? Count(n) : default), new("hostiles", Text(f.Hostiles))]);
+        if (!RestoreWorkersMet(f).TryGetValue(out var ok))
+        {
+            return new Need { Id = RestoreWorkers, Tier = NeedTier.SeriousHarm, Evidence = evidence };
+        }
+        return new Need
+        {
+            Id = RestoreWorkers,
+            Tier = NeedTier.SeriousHarm,
+            Satisfaction = ok ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = Known(ok ? 0.0 : n),
+            Evidence = evidence,
+        };
     }
 
     private static Need PestsNeed(MilitaryFacts f)

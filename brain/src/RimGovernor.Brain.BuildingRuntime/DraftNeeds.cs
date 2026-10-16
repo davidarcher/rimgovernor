@@ -106,6 +106,13 @@ internal static class DraftNeeds
     }
 
     /// <summary>
+    /// The stray drafts of a frame for <c>military/restore-workers</c> (#3311): the undraft candidates' count, none
+    /// while a threat holds the drafts, unknown while the colonist census is incomplete or the pawns are unread.
+    /// </summary>
+    public static Fact<int> StrayDrafts(ControlState state, EmergencyFacts emergency, PbObservations.PawnSnapshot? observed, HashSet<PawnId> needed) =>
+        emergency.ColonistsComplete != Known(true) || observed is null ? Unknown<int>() : Known(IdleDrafts(state, emergency, observed, needed).Count);
+
+    /// <summary>
     /// Sends one Draft intent per pawn, drafted false, keyed by tick. A refusal (the pawn died or left) is logged
     /// and retried by the next review's sweep if it still stands.
     /// </summary>
@@ -134,7 +141,7 @@ internal static class DraftNeeds
                 level = TelemetryLevel.Warn;
                 detail = failed.Detail;
             }
-            BuildingRuntimePackage.DefenseAction("undraft-sweep", level, verdict, "undraft", pawns[i].Value, new Dictionary<string, object?> { ["detail"] = detail }, ct);
+            BuildingRuntimePackage.DefenseAction(MilitaryFamily.RestoreWorkers.Value, level, verdict, "undraft", pawns[i].Value, new Dictionary<string, object?> { ["detail"] = detail }, ct);
         }
     }
 }
@@ -142,17 +149,21 @@ internal static class DraftNeeds
 public sealed partial class Rounder
 {
     /// <summary>
-    /// Undrafts every drafted colonist no live plan needs. Reads a fresh frame, holds the pawns against the
-    /// step's other planners and sends the Draft intents directly: an undraft owns no plan. A reviewer without
-    /// an actions writer never undrafts.
+    /// The <c>military/restore-workers</c> work step (#3311): undrafts every drafted colonist no live plan needs.
+    /// Reads a fresh frame, holds the pawns against the step's other planners and sends the Draft intents
+    /// directly: an undraft owns no plan. A reviewer without an actions writer never undrafts.
     /// </summary>
-    internal async Task SweepDraftsAsync(StepArbiter arbiter, CancellationToken ct, CancellationToken epoch)
+    internal async Task<Verdict> SweepDraftsAsync(StepArbiter arbiter, CancellationToken ct, CancellationToken epoch)
     {
         var p = Player;
         var state = p.State();
-        if (Undraft is null || !state.Enabled)
+        if (!state.Enabled)
         {
-            return;
+            return BuildingRuntimePackage.BuildingReasonDisabled;
+        }
+        if (Undraft is null)
+        {
+            return Verdict.FieldUnavailable("undraft_writer");
         }
         if (!state.ObservationKnown)
         {
@@ -178,9 +189,13 @@ public sealed partial class Rounder
         }
         var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, ct).ConfigureAwait(false);
         var pawns = DraftNeeds.IdleDrafts(state, frame.Emergency.Facts, frame.Pawns, needed);
-        if (pawns.Count == 0 || !arbiter.TryClaim(pawns))
+        if (pawns.Count == 0)
         {
-            return;
+            return BuildingRuntimePackage.BuildingReasonNoDeficit;
+        }
+        if (!arbiter.TryClaim(pawns))
+        {
+            return Verdict.WaitFor(Cause.Claim, "undraft_pawns");
         }
         p.Current(ct, epoch);
         var elapsed = Clock.Now() - started;
@@ -189,5 +204,6 @@ public sealed partial class Rounder
             throw new ControlException("sweepDrafts: session changed or read too old");
         }
         await DraftNeeds.UndraftAsync(Undraft, Boundary.Identity(state.Snapshot), new Tick((long)(frame.Context?.Tick ?? 0)), pawns, ct).ConfigureAwait(false);
+        return BuildingRuntimePackage.BuildingReasonCombatOrders;
     }
 }

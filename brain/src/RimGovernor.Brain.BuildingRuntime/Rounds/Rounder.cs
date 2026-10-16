@@ -526,7 +526,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { UrgentPatients = PolicyApi.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
         var (amputationCritical, amputationUrgent) = PolicyApi.AmputationNeeds(emergency, reading.Projection.Facts.MedicalPawns, reading.Projection.Facts.CriticalPatients, reading.Projection.Facts.UrgentPatients);
         reading = reading.WithFacts(rf => rf with { CriticalPatients = amputationCritical, UrgentPatients = amputationUrgent });
-        // RestoreWorkers stands while a drafted colonist no live plan needs waits for the undraft sweep. A draft
+        // EnsureWorkAssignments waits while a drafted colonist no live plan needs waits for the undraft sweep. A draft
         // its plan still holds is working, not stranded.
         var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, ct).ConfigureAwait(false);
         var stray = DraftNeeds.IdleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed);

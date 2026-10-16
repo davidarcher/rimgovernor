@@ -17,6 +17,7 @@ public sealed class MilitaryRounds
     private readonly bool _pests;
     private readonly bool _training;
     private readonly bool _equipment;
+    private readonly bool _restoreWorkers;
 
     // Stages the training rooms; null for a source that cannot preview buildings.
     private readonly RoundsBuildingPlanner? _building;
@@ -32,7 +33,7 @@ public sealed class MilitaryRounds
     /// military/equipment, whose work step places the <paramref name="armory"/>'s crafting spot and, with
     /// <paramref name="workshop"/>, walks the replacement-gear workshop ladder.
     /// </summary>
-    public MilitaryRounds(Rounder reviewer, bool defense, bool pests, bool training, bool equipment = false, RoundsArmoryPlanner? armory = null, bool workshop = false)
+    public MilitaryRounds(Rounder reviewer, bool defense, bool pests, bool training, bool equipment = false, RoundsArmoryPlanner? armory = null, bool workshop = false, bool restoreWorkers = true)
     {
         if (reviewer is null || reviewer.Native is null)
         {
@@ -47,6 +48,7 @@ public sealed class MilitaryRounds
         _pests = pests;
         _training = training;
         _equipment = equipment;
+        _restoreWorkers = restoreWorkers;
         _armory = armory;
         if (training && reviewer.Native is IRoundsBuildingSource source)
         {
@@ -60,13 +62,17 @@ public sealed class MilitaryRounds
 
     /// <summary>The family's scheduler entry: it wakes on its reads and on hunt, building, equip and dressing outcomes.</summary>
     public FamilyRunner Runner() =>
-        new FamilyRunner<MilitaryFacts>(new MilitaryFamily(_defense, _pests, _training, _equipment), ReadAsync, Schedule, WorkAsync);
+        new FamilyRunner<MilitaryFacts>(new MilitaryFamily(_defense, _pests, _training, _equipment, _restoreWorkers), ReadAsync, Schedule, WorkAsync);
 
-    /// <summary>An optional entry woken by the outcomes of pest hunts, buildings, arming, apparel policies and outfit prunes.</summary>
+    /// <summary>
+    /// An optional entry (critical in the immediate pass) woken by the outcomes of pest hunts, buildings, arming,
+    /// apparel policies and outfit prunes, and by the end of any plan's owned draft, which re-runs the
+    /// restore-workers sweep.
+    /// </summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
-        Kinds = [ActionKind.Acquisition, ActionKind.Building, ActionKind.Equip, ActionKind.ApparelPolicy, ActionKind.PolicyPrune, ActionKind.Deconstruction],
+        Kinds = [ActionKind.Acquisition, ActionKind.Building, ActionKind.Equip, ActionKind.ApparelPolicy, ActionKind.PolicyPrune, ActionKind.Deconstruction, ActionKind.OwnedDraft],
     };
 
     /// <summary>The definitions the range step reads availability and stuff for: the range's own buildings.</summary>
@@ -74,13 +80,13 @@ public sealed class MilitaryRounds
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world. Throws when the scope is another world or older
-    /// than the review. The immediate pass reads nothing: the family has no SeriousHarm Needs yet.
+    /// than the review. The immediate pass reads only the restore-workers facts.
     /// </summary>
     internal async Task<MilitaryFacts> ReadAsync(FamilyReadScope scope, CancellationToken call)
     {
         if (scope.Immediate)
         {
-            return new MilitaryFacts();
+            return _restoreWorkers ? await RestoreFactsAsync(scope.World, new MilitaryFacts(), call).ConfigureAwait(false) : new MilitaryFacts();
         }
         var review = await _reviewer.Player.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
         var expected = await StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
@@ -115,7 +121,37 @@ public sealed class MilitaryRounds
         {
             facts = await PestFactsAsync(scope.World, review, facts, call).ConfigureAwait(false);
         }
+        if (_restoreWorkers)
+        {
+            facts = await RestoreFactsAsync(scope.World, facts, call).ConfigureAwait(false);
+        }
         return facts;
+    }
+
+    /// <summary>
+    /// The restore-workers section from the frame the sweep reads: the drafts no live plan needs and, unless the
+    /// defense read already holds them, the hostiles of its emergency census.
+    /// </summary>
+    private async Task<MilitaryFacts> RestoreFactsAsync(GenerationSnapshot world, MilitaryFacts facts, CancellationToken call)
+    {
+        var state = _reviewer.Player.State();
+        var frame = await _reviewer.Native.ReadRoundsFrameAsync(Boundary.Identity(world), call).ConfigureAwait(false);
+        try
+        {
+            Boundary.Context(frame.Context, world);
+        }
+        catch (DomainException)
+        {
+            throw new ControlException("military read: frame context mismatch");
+        }
+        var needed = await DraftNeeds.PlannedDraftsAsync(_reviewer.Player.Journal, call).ConfigureAwait(false);
+        var hostiles = facts.Hostiles;
+        if (!hostiles.IsKnown)
+        {
+            var tick = new Tick((long)(frame.Context?.Tick ?? 0));
+            hostiles = PolicyApi.EmergencyNeeds(EmergencySnapshot.New(world, tick, frame.Emergency.Facts), world, tick).Hostiles;
+        }
+        return facts with { Hostiles = hostiles, StrayDrafts = DraftNeeds.StrayDrafts(state, frame.Emergency.Facts, frame.Pawns, needed) };
     }
 
     /// <summary>
@@ -188,6 +224,10 @@ public sealed class MilitaryRounds
         if (work.Need.Id == MilitaryFamily.Equipment)
         {
             return await EquipmentWorkAsync(work, facts, call).ConfigureAwait(false);
+        }
+        if (work.Need.Id == MilitaryFamily.RestoreWorkers)
+        {
+            return await _reviewer.SweepDraftsAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false);
         }
         return NoMethod(work.Need.Id);
     }

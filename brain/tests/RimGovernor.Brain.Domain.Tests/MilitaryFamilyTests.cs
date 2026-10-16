@@ -69,7 +69,23 @@ public sealed class MilitaryFamilyTests
     [Fact]
     public void DisabledNeedsAreNotDerived()
     {
-        Assert.Equal([MilitaryFamily.Pests], new MilitaryFamily(defense: false, training: false, equipment: false).Derive(new MilitaryFacts()).Select(n => n.Id));
+        Assert.Equal([MilitaryFamily.Pests], new MilitaryFamily(defense: false, training: false, equipment: false, restoreWorkers: false).Derive(new MilitaryFacts()).Select(n => n.Id));
+        Assert.Empty(new MilitaryFamily(restoreWorkers: false).SeriousHarmReads);
+    }
+
+    [Fact]
+    public void RestoreWorkersIsUnmetByAStrayDraftWithNoHostileAndUnknownWhileTheCensusIsUnread()
+    {
+        var unmet = Derive(new MilitaryFacts { StrayDrafts = Known(2), Hostiles = Known(0L) }, MilitaryFamily.RestoreWorkers);
+        Assert.Equal((Satisfaction.Unmet, 2.0, NeedTier.SeriousHarm), (unmet.Satisfaction, unmet.Deficit.Value, unmet.Tier));
+        Assert.Contains(unmet.Evidence, e => e.Fact == "stray_drafts" && e.Value.Value == "2");
+
+        // A standing hostile owns the drafts; no stray draft is met whatever the hostiles.
+        Assert.Equal(Satisfaction.Met, Derive(new MilitaryFacts { StrayDrafts = Known(2), Hostiles = Known(1L) }, MilitaryFamily.RestoreWorkers).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Derive(new MilitaryFacts { StrayDrafts = Known(0) }, MilitaryFamily.RestoreWorkers).Satisfaction);
+
+        Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts { Hostiles = Known(0L) }, MilitaryFamily.RestoreWorkers).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts { StrayDrafts = Known(1) }, MilitaryFamily.RestoreWorkers).Satisfaction);
     }
 
     [Fact]
@@ -172,8 +188,8 @@ public sealed class MilitaryFamilyTests
 
         public void Dispose() => Journal.Dispose();
 
-        public FamilyRun Run() =>
-            Runner.RunAsync(new FamilyStep { Journal = Journal, World = World }, TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+        public FamilyRun Run(bool immediate = false) =>
+            Runner.RunAsync(new FamilyStep { Journal = Journal, World = World, Immediate = immediate }, TestContext.Current.CancellationToken).GetAwaiter().GetResult();
 
         public static Verdict Report(FamilyRun run, NeedId need) => Assert.Single(run.Reports, r => r.Need == need).Verdict;
     }
@@ -277,6 +293,20 @@ public sealed class MilitaryFamilyTests
     }
 
     [Fact]
+    public void TheImmediatePassJudgesOnlyRestoreWorkersAndItsRowReachesRoundsProgress()
+    {
+        using var colony = Open();
+        colony.Facts = Unmet(Hunt("pest-hunt-a", Pest("rat-a", 5))) with { StrayDrafts = Known(1) };
+        var run = colony.Run(immediate: true);
+        Assert.Equal([MilitaryFamily.RestoreWorkers], run.Standings.Select(s => s.Need.Id));
+        Assert.Empty(run.Methods);
+        Assert.Empty(run.SeriousHarmPlans);
+        colony.File(run);
+        Assert.NotNull(colony.Row(MilitaryFamily.RestoreWorkers));
+        Assert.Empty(colony.Journal.LoadNeed(MilitaryFamily.RestoreWorkers, World, TestContext.Current.CancellationToken).Methods);
+    }
+
+    [Fact]
     public void TheFamilyIsOneDueQueueEntryReplacingTheEquipPestAndTrainingPlanners()
     {
         var entry = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<MilitaryFacts>(new MilitaryFamily(), (_, _) => Task.FromResult(new MilitaryFacts()), MilitaryRounds.Schedule));
@@ -288,6 +318,10 @@ public sealed class MilitaryFamilyTests
         Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name is "equip" or "pestAcquisition" or "training" or "gear" or "armory");
         Assert.Contains(ActionKind.ApparelPolicy, entry.Kinds);
         Assert.Contains(ActionKind.PolicyPrune, entry.Kinds);
-        Assert.False(entry.Immediate);
+        // Restore-workers is a SeriousHarm Need: the family runs in the immediate pass, woken by any draft's end,
+        // and replaced the undraft planner (#3311).
+        Assert.True(entry.Immediate);
+        Assert.Contains(ActionKind.OwnedDraft, entry.Kinds);
+        Assert.DoesNotContain(ClockPlannerCatalog.Entries, e => e.Name == "undraft");
     }
 }

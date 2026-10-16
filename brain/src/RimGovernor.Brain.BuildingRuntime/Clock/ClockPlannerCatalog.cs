@@ -163,18 +163,6 @@ internal static class ClockPlannerCatalog
     /// <summary>Lists every routine planner in queue order. Planners start in this order.</summary>
     public static readonly IReadOnlyList<PlannerEntry> Entries =
     [
-        // undraft owns no plan: its OwnedDraft kind is a deliberate wake dependency, the end of another
-        // planner's draft re-running the sweep.
-        new PlannerEntry
-        {
-            Name = "undraft", Class = C, Immediate = true, Kinds = [ActionKind.OwnedDraft], Sections = SectionsThreat,
-            Configured = c => c.Rounds is not null,
-            Run = async (s, ct, epoch, _, arbiter) =>
-            {
-                await s.Config.Rounds!.SweepDraftsAsync(arbiter, ct, epoch).ConfigureAwait(false);
-                return default;
-            },
-        },
         E("work", O, [ActionKind.WorkAssignment, ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.Building], SectionsWork,
             c => c.Work is not null, (s, ct, e, a) => s.Config.Work!.StepAsync(a, ct, e), (o, m) => o.Work = m, EnsureWorkAssignments),
         E("sleeping", O, [ActionKind.Building, ActionKind.Deconstruction], SectionsBuilding,
