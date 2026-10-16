@@ -78,6 +78,11 @@ public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, Equatab
 
 public sealed partial class Store
 {
+    /// <summary>
+    /// The capacity guard on a Need's unretired Methods. Settled plans retire, and the whole unretired plan catalog is
+    /// already bounded at 256 by <see cref="RetireRoundsPlans"/>, so no Need legitimately holds more; its released and
+    /// retired history is unbounded and read through <see cref="OwnerMethodHistory"/> and <see cref="OwnerMethodPlan"/>.
+    /// </summary>
     private const int MaxNeedMethods = 256;
 
     /// <summary>The Need's owner in <paramref name="world"/>: its unretired Methods.</summary>

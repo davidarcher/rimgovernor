@@ -131,7 +131,12 @@ A new family needs no progress code.
 `OwnerMethodHistory` and `CommitOwnerWork`. A Standard keeps its episode lookup,
 open-work gate and revision check; a Need commits through `CommitClaimedMethod`.
 A claim conflict or continued MethodId is a verdict (`claim`, open work), never an
-exception. Building work runs as the family's async step: `FamilyRunner<TFacts>`
+exception. A Need's `need_methods` rows are never trimmed (#3310), so its reads stay
+bounded at any history length: `OwnerMethodPlan` is its latest attempt of one
+MethodId (the once-check and the refusal budget, `AdmitLatestAttempt`), and
+`OwnerMethodHistory` is the latest attempt of each of its 256 most recently bound
+MethodIds. Only its unretired Methods keep a capacity guard (`LoadNeed`), which the
+store-wide bound on unretired plans already implies. Building work runs as the family's async step: `FamilyRunner<TFacts>`
 takes an optional `work(NeedWork, facts, ct)` that runs per ready Need after the
 pure proposals, with the Need, its `NeedOwner`, the step's `ControlState`, epoch
 and arbiter; it calls the planner (`CommitBuildsAsync`, `CommitRoof`,
@@ -313,7 +318,7 @@ perishable nutrition warmer than `ChilledExitC` (5 C) reaches
 warm, or while the planned meal closet waits for its shell; unknown when the census
 is unread; otherwise met. The `Refrigeration` and `RefrigerationSince` latches and
 the native cooling time they lent are gone: the cooling window runs only over
-coolers the Need itself committed in its world (`OwnerMethodHistory`). Its building
+coolers the Need itself recently committed in its world (`OwnerMethodHistory`). Its building
 work is the family runner's `work` step (`FoodStoresRounds.WorkAsync` calling
 `RoundsBuildingPlanner.RefrigerationStepAsync` with the Need owner): the meal
 closet ring, a cooler setpoint, the freezer ring, the exhaust dig and the cooler,

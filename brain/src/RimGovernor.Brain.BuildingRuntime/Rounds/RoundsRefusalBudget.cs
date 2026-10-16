@@ -67,6 +67,14 @@ internal static partial class BuildingRuntimePackage
         return BudgetVerdict(budget, subject, world);
     }
 
+    /// <summary>
+    /// The refusal budget of <paramref name="method"/> over the plan of its latest attempt under <paramref name="owner"/>
+    /// (#3310). An earlier attempt's permanent refusal would have kept the MethodId from being admitted again, and its
+    /// transient refusal's world is past, so the latest attempt alone carries the budget at any history length.
+    /// </summary>
+    internal static (Verdict Verdict, bool Admitted) AdmitLatestAttempt(StoreJournal journal, IWorkOwner owner, MethodId method, GenerationSnapshot world, CancellationToken ct) =>
+        AdmitSubject(journal, method.Value, journal.OwnerMethodPlan(owner, method, ct) is { } latest ? [latest] : [], world, ct);
+
     internal static MethodId NextMethodId(string prefix, IReadOnlyList<MethodId> taken)
     {
         var used = taken.ToHashSet();

@@ -135,7 +135,7 @@ public sealed partial class JoinersRounds
     }
 
     /// <summary>
-    /// The MethodId's refusal budget over its earlier attempts under the Need, unless an attempt is still open work
+    /// The MethodId's refusal budget over its latest attempt under the Need, unless an attempt is still open work
     /// (the commit then continues it).
     /// </summary>
     private (Verdict Verdict, bool Admitted) AdmitMethod(NeedWork work, MethodId method, CancellationToken call)
@@ -145,8 +145,7 @@ public sealed partial class JoinersRounds
         {
             return (default, true);
         }
-        var attempts = journal.OwnerMethodHistory(work.Owner, call).Where(m => m.Method == method).Select(m => m.Plan).ToList();
-        return BuildingRuntimePackage.AdmitSubject(journal, method.Value, attempts, work.State.Snapshot, call);
+        return BuildingRuntimePackage.AdmitLatestAttempt(journal, work.Owner, method, work.State.Snapshot, call);
     }
 
     /// <summary>Throws when the world or the session moved since the read, or the read is older than the review's age bound.</summary>

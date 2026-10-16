@@ -350,8 +350,8 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
 
     /// <summary>
     /// Files a hold, or checks the Method's refusal budget, mints the plan, fences and commits one candidate through
-    /// the Need owner. The budget runs over every earlier attempt of the MethodId, keyed by it, unless an attempt is
-    /// still open work (the commit then continues it).
+    /// the Need owner. The budget runs over the MethodId's latest attempt, keyed by it, unless an attempt is still open
+    /// work (the commit then continues it).
     /// </summary>
     private static (Verdict Verdict, FamilyMethod? Method) Commit(FamilyStep step, NeedMethod candidate, CancellationToken call)
     {
@@ -362,8 +362,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         var owner = step.Journal.LoadNeed(candidate.Need, step.World, call);
         if (!owner.Methods.Any(m => m.Method == candidate.Method && Standard.WorkOpen(step.Journal.LoadPlan(m.Plan, call).Progress)))
         {
-            var attempts = step.Journal.OwnerMethodHistory(owner, call).Where(m => m.Method == candidate.Method).Select(m => m.Plan).ToList();
-            var (refused, admitted) = BuildingRuntimePackage.AdmitSubject(step.Journal, candidate.Method.Value, attempts, step.World, call);
+            var (refused, admitted) = BuildingRuntimePackage.AdmitLatestAttempt(step.Journal, owner, candidate.Method, step.World, call);
             if (!admitted)
             {
                 return (refused, null);

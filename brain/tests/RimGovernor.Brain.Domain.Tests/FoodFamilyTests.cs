@@ -413,6 +413,92 @@ public sealed class FoodFamilyTests
         Assert.Empty(BlightRefusedOf(journal));
     }
 
+    [Fact]
+    public void ANeedPastTwoHundredFiftySixReleasedAttemptsStillRunsAndNumbersItsNextAttempt()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var journal = Reviewed();
+        FoodFacts facts = Census(Blighted("plant-1", 1));
+        var family = new FoodFamily(false, false, blight: true);
+        var batch = Assert.Single(family.Propose([.. family.Derive(facts)], facts)).Method;
+        var runner = new FamilyRunner<FoodFacts>(family, (_, _) => Task.FromResult(facts),
+            FoodRounds.Schedule, (work, _, _) => Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method")));
+        using var colony = new Colony { Journal = journal, Runner = runner };
+
+        // 300 attempts committed and released under the Need: every third the batch's MethodId again, the rest each
+        // its own MethodId.
+        for (var i = 0; i < 300; i++)
+        {
+            _ = CommitReleased(journal, i % 3 == 0 ? batch : new MethodId($"forage-{i}"), i);
+        }
+        var owner = journal.LoadNeed(BlightNeed, World, ct);
+        Assert.Empty(owner.Methods);
+        var history = journal.OwnerMethodHistory(owner, ct);
+        Assert.Equal(201, history.Count);
+        Assert.Single(history, m => m.Method == batch);
+
+        // The family run budgets and commits the batch as its 101st attempt.
+        var run = colony.Run();
+        Assert.Equal(Outcome.Admitted, Colony.Report(run, BlightNeed).Outcome);
+        var admitted = Assert.Single(run.Methods);
+        Assert.Equal(admitted.Plan, journal.OwnerMethodPlan(owner, batch, ct));
+        Assert.Equal(101L, Assert.Single(journal.LoadNeed(BlightNeed, World, ct).Methods).Attempt);
+        var latest = journal.OwnerMethodHistory(owner, ct);
+        Assert.Equal(201, latest.Count);
+        Assert.Equal((batch, admitted.Plan), (latest[^1].Method, latest[^1].Plan));
+    }
+
+    [Fact]
+    public void ANeedsHistoryIsTheLatestAttemptOfEachOfItsMostRecentlyBoundMethodIds()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Reviewed();
+        var first = CommitReleased(journal, new("forage-first"), 0);
+        var once = CommitReleased(journal, new("forage-1"), 1);
+        for (var i = 2; i <= 256; i++)
+        {
+            _ = CommitReleased(journal, new($"forage-{i}"), i);
+        }
+        var again = CommitReleased(journal, new("forage-1"), 300);
+        var owner = journal.LoadNeed(BlightNeed, World, ct);
+        // 257 MethodIds: the oldest falls outside the window, and forage-1 is its re-issued attempt, the newest row.
+        var history = journal.OwnerMethodHistory(owner, ct);
+        Assert.Equal(256, history.Count);
+        Assert.DoesNotContain(history, m => m.Plan == first || m.Plan == once);
+        Assert.Equal((new MethodId("forage-1"), again), (history[^1].Method, history[^1].Plan));
+        Assert.Equal(new MethodId("forage-2"), history[0].Method);
+        // The once-check reads any MethodId's latest attempt, inside the window or not.
+        Assert.Equal(first, journal.OwnerMethodPlan(owner, new("forage-first"), ct));
+        Assert.Equal(again, journal.OwnerMethodPlan(owner, new("forage-1"), ct));
+    }
+
+    /// <summary>
+    /// Commits the blight cut of plant-1 as <paramref name="method"/> under the blight Need and cancels it; every
+    /// hundredth commit a review retires the cancelled plans, as reviews do in play. The <c>need_methods</c> rows stay.
+    /// </summary>
+    private static PlanId CommitReleased(Journal journal, MethodId method, int i)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var facts = Census(Blighted("plant-1", 1));
+        var family = new FoodFamily(false, false, blight: true);
+        var plan = Assert.Single(family.Propose([.. family.Derive(facts)], facts)).Plan(PlanIds.MintPlanId());
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(BlightNeed, World, method, "", plan, ct).Outcome);
+        foreach (var action in plan.Actions)
+        {
+            journal.Cancel(plan.Id, action.Id, ct);
+        }
+        if (i % 100 == 99)
+        {
+            var tick = new Tick(200 + i);
+            journal.ReviewRounds(new()
+            {
+                Revision = journal.LoadRounds(ct).Revision, Current = World, Tick = tick, Enabled = true, Policy = DefaultRoundsPolicy(),
+                Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Tick = tick },
+            }, ct);
+        }
+        return plan.Id;
+    }
+
     private static EquatableArray<string> BlightRefusedOf(Journal journal) =>
         FoodRounds.BlightRefused(journal, World, TestContext.Current.CancellationToken);
 }

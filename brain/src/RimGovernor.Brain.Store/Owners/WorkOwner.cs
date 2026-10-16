@@ -63,8 +63,12 @@ public sealed partial class Store
     }
 
     /// <summary>
-    /// Every Method <paramref name="owner"/> has bound, retired plans included: a Standard's current episode, a Need's
-    /// every attempt in its world. Planners that number attempts or read past work count these, not the open ones.
+    /// The Methods <paramref name="owner"/> has bound, retired plans included, in admission order: a Standard's current
+    /// episode; a Need's latest attempt of each MethodId in its world, over its <see cref="MaxOwnerHistory"/> most
+    /// recently bound MethodIds. A Need's rows are never trimmed and its MethodIds are re-issued (decision 19) or minted
+    /// per subject, so its whole history is unbounded over a long game (#3310): this is the recent past work
+    /// planners read (stages, departures, cooling windows). A budget or once-check over one MethodId reads
+    /// <see cref="OwnerMethodPlan"/>, which is exact at any history length.
     /// </summary>
     public IReadOnlyList<OwnedMethod> OwnerMethodHistory(IWorkOwner owner, CancellationToken cancellationToken)
     {
@@ -73,11 +77,17 @@ public sealed partial class Store
             case StandardState standard:
                 return [.. LoadOwnerMethods(standard, cancellationToken).Select(m => new OwnedMethod(m.MethodId, m.Plan))];
             case NeedOwner need:
-                var rows = Run(tx => tx.Query(
-                    "SELECT method_id,plan_id FROM need_methods WHERE colony=$colony AND load_token=$load AND map_id=$map AND need_id=$need ORDER BY rowid LIMIT 257",
-                    [("$colony", need.Snapshot.Colony), ("$load", need.Snapshot.Load), ("$map", need.Snapshot.Map), ("$need", need.Need.Value)],
+                return Run(tx => tx.Query(
+                    """
+                    SELECT method_id,plan_id FROM (
+                        SELECT m.rowid AS bound,m.method_id,m.plan_id FROM need_methods m
+                        WHERE m.colony=$colony AND m.load_token=$load AND m.map_id=$map AND m.need_id=$need
+                          AND m.attempt=(SELECT MAX(l.attempt) FROM need_methods l WHERE l.colony=m.colony AND l.load_token=m.load_token AND l.map_id=m.map_id AND l.need_id=m.need_id AND l.method_id=m.method_id)
+                        ORDER BY m.rowid DESC LIMIT $limit)
+                    ORDER BY bound
+                    """,
+                    [("$colony", need.Snapshot.Colony), ("$load", need.Snapshot.Load), ("$map", need.Snapshot.Map), ("$need", need.Need.Value), ("$limit", MaxOwnerHistory)],
                     r => new OwnedMethod(new MethodId(r.GetString(0)), new PlanId(r.GetString(1)))), cancellationToken);
-                return rows.Count > MaxOwnerHistory ? throw new DomainException("need method history exceeds bound") : rows;
             default:
                 throw new DomainException("unsupported work owner");
         }
