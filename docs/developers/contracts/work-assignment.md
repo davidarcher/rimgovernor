@@ -85,10 +85,10 @@ For each:
   already owned. Construction owners are ordered by raw level first; a hunter
   who already owns Growing or Cooking loses the field.
 - **Owners** are the top `Demand` candidates at priority 1. **Secondaries**
-  at 2 are the next-best backup when the type has demand and every passion
-  within five levels of the weakest owner, so it trains beside the specialist.
-  A skill above 10 that no owner or secondary slot exercises is flagged
-  `Decaying`; a pawn owning nothing keeps it exercised at 2.
+  at 2 are the next-best backup when the type has demand. The roster never
+  assigns work to train a skill: practice and maintenance are chosen by the
+  coupled selection and executed through Hands, so a pawn owning nothing is
+  not given a slot to keep a skill exercised.
 - **Everyone capable** takes 3 (level 8 or unskilled work) or 4 under manual
   priorities, enabled in checkbox mode. Firefighter, Patient, BedRest and
   Childcare stay 1; Hauling, Cleaning and BasicWorker 3, Hauling and Cleaning

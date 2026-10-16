@@ -166,7 +166,8 @@ public static partial class PolicyFunctions
                     || Ancestor(recovery.Task, original.Id)) continue;
                 var id = original.Id + "/after/" + recovery.Task;
                 // Distinct roots can share one completion task: build the delayed task once, and keep each root's own alternative.
-                if (delayedTasks.Add(id))
+                var first = delayedTasks.Add(id);
+                if (first)
                 {
                     tasks.Add(original with { Id = id, Prerequisites = [.. original.Prerequisites, recovery.Task] });
                     foreach (var option in options.Where(o => o.Activity == original.Id).ToArray())
@@ -176,7 +177,7 @@ public static partial class PolicyFunctions
                             bindings[(id, option.Pawn)] = binding with { Id = id, Prerequisites = EquatableArray.From(original.Prerequisites.Append(recovery.Task)) };
                     }
                 }
-                alternatives.Add(root with { Id = root.Id == original.Id ? id : root.Id + "/after/" + recovery.Task, ActivityCompletions = [id] }); delayed++;
+                alternatives.Add(root with { Id = first ? id : root.Id + "/after/" + recovery.Task, ActivityCompletions = [id] }); delayed++;
             }
         bool Ancestor(string task, string ancestor)
         {

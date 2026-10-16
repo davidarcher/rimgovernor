@@ -441,7 +441,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The roster planner: every work type native reports gets owners by fitness (level, passion, trait work speed,
-    /// incumbency), growth secondaries (a passion within five levels of the weakest owner) and, under numbered
+    /// incumbency), a next-best backup when the type has demand and, under numbered
     /// priorities, every capable pawn at 3 or 4, never what a trait forbids. A temporary disease rest hold zeroes a
     /// resting pawn's work. Governor owns every priority: no player edit is exempt. This is a proposal/readback
     /// comparison, never permission to change pawn settings. Throws on an invalid row.
@@ -773,17 +773,7 @@ public static partial class PolicyFunctions
                 capacity = false;
             }
 
-            // Secondaries: the next-best backup when the type has demand, and every passion within five levels of
-            // the weakest owner so it trains beside the specialist (growth).
-            var weakest = -1;
-            foreach (var o in workOwners)
-            {
-                var l = o.Profile.Skill(SkillOf(work)).Level;
-                if (weakest < 0 || l < weakest)
-                {
-                    weakest = l;
-                }
-            }
+            // Secondaries: the next-best backup when the type has demand.
             var backupChosen = false;
             for (var i = 0; i < candidates.Count; i++)
             {
@@ -792,8 +782,7 @@ public static partial class PolicyFunctions
                 {
                     continue;
                 }
-                var passion = SkillOf(work).Length != 0 && c.Worker.Profile.Skill(SkillOf(work)).Passion.Length != 0;
-                if ((want > 0 && !backupChosen) || (passion && weakest >= 0 && c.Level >= weakest - 5))
+                if (want > 0 && !backupChosen)
                 {
                     c.Worker.Owns[work] = 2;
                     backupChosen = true;
@@ -817,63 +806,6 @@ public static partial class PolicyFunctions
                 byId[id].Owns[WorkType.Construction] = 4;
             }
             help = rec;
-        }
-        if (demand.Construction)
-        {
-            // Apprentices: a passionate pawn one level under the floor builds at the lowest rank while builds wait,
-            // so the passion trains it past the floor instead of leaving two owners to build alone.
-            foreach (var w in workers)
-            {
-                if (w.Owned(WorkType.Construction) != 0 || Able(w, WorkType.Construction))
-                {
-                    continue;
-                }
-                if (w.Profile.SkillFor(WorkType.Construction).Passion.Length != 0 && AbleAt(w, WorkType.Construction, FloorOf(WorkType.Construction) - 1))
-                {
-                    w.Owns[WorkType.Construction] = 4;
-                }
-            }
-        }
-
-        // Decay: a skill above 10 no owner or secondary slot exercises; a pawn owning nothing keeps it exercised at 2.
-        foreach (var w in workers)
-        {
-            foreach (var name in SortedSkills(w.Profile))
-            {
-                var s = w.Profile.Skills[name];
-                if (s.Level <= 10 || s.Disabled)
-                {
-                    continue;
-                }
-                var exercised = false;
-                var maintain = WorkType.None;
-                foreach (var work in types)
-                {
-                    if (SkillOf(work) != name)
-                    {
-                        continue;
-                    }
-                    var p = w.Owned(work);
-                    if (p is 1 or 2)
-                    {
-                        exercised = true;
-                    }
-                    if (maintain == WorkType.None && Able(w, work))
-                    {
-                        maintain = work;
-                    }
-                }
-                if (exercised || maintain == WorkType.None)
-                {
-                    continue;
-                }
-                if (w.Load == 0)
-                {
-                    w.Owns[maintain] = 2;
-                    continue;
-                }
-                decaying.Add(new DecayingSkill(w.Pawn.Id, name, s.Level));
-            }
         }
         var matches = true;
         var assignments = new List<PawnWorkAssignment>();
