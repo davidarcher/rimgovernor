@@ -50,15 +50,16 @@ ticks limit comparisons. Compiler-generated types are mapped to their actual
 method names by reflection. General framework types do not supply call stacks.
 
 Without the environment variable, measurement/profile methods do no work. The
-normal test gate does run both six-budget deterministic quality tests. To run
-those alone, use `-method '*BudgetMatrixPreservesPhysicalChoicesAndConsequences'`.
-Their embedded [original](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/productive.quality.json)
+recorded [original](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/productive.quality.json)
 and [larger](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/four-workers.quality.json)
-expectations pin physical identities, participants, travel/wait/work/timing,
+six-budget snapshots hold physical identities, participants, travel/wait/work/timing,
 learning, complete baseline/selected consequence vectors, findings, expansions
-and truncation. JSON `null` means unknown, never zero. An explicit output run
-writes candidate snapshots outside the source tree; it does not replace approved
-expectations. Keep raw outputs and traces uncommitted.
+and truncation. JSON `null` means unknown, never zero. The gate no longer compares
+them with a fresh selection: that test cost 23–40 s per run and was deleted. Only
+`ReferenceIsNeverWorseThanAnyRecordedIncumbent` still reads the larger snapshot, so
+treat both as records of their last re-recording, not as current output. The
+measurement run's `*.measurements.json` carries the same quality rows for a fresh
+comparison. Keep raw outputs and traces uncommitted.
 
 ## Workloads
 
@@ -546,8 +547,8 @@ search is truncated.
 | 393,216 *(opt-in)* | 393,216 | 2 | `[75, 34.375, 200, 400, 0]` | 2 | 220 | 250 | 1, 2 |
 | 524,288 / 1,048,576 *(opt-in)* | same as above | 2 | same | 2 | 220 | 250 | 1, 2 |
 
-This matches the embedded `four-workers.quality.json` expectations at the six matrix
-budgets, which the gate pins, so the baselines are not stale. The 65,536 and 262,144
+This matched the embedded `four-workers.quality.json` expectations at the six matrix
+budgets, which the gate pinned at the time, so the baselines were not stale then. The 65,536 and 262,144
 selections (the incumbent plus `food/14/delivery/1/eat/pawn/0`) beat the default's
 second diner meal lexicographically (`75 < 325`) with `Needs[4]` 2 against 1, as recorded
 in the #3197 section. Both budgets above the default serve the same two ingestions; the opt-in budgets drop the one-ingestion

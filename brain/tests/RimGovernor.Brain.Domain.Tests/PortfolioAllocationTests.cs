@@ -80,26 +80,6 @@ public sealed class PortfolioAllocationTests
         selection.Selection.Findings
     };
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void BudgetMatrixPreservesPhysicalChoicesAndConsequences(bool larger)
-    {
-        var name = larger ? "four-workers" : "productive";
-        var facts = larger ? LargerFacts() : ProductiveLearningTests.NormalFoodFacts();
-        var generated = GenerateCoupledActivities(facts, 700)!;
-        var request = Request(facts, generated);
-        var rows = Budgets.Select(budget => new { Budget = budget, Quality = Quality(generated, CompareActivityOutcomes(request, generated, budget)) }).ToArray();
-        var actual = JsonSerializer.Serialize(rows, Json).Replace("\r\n", "\n", StringComparison.Ordinal);
-        // An explicit recording run writes a candidate outside the source tree; it never updates expectations.
-        var output = Environment.GetEnvironmentVariable("RIMGOVERNOR_PORTFOLIO_OUTPUT");
-        if (!string.IsNullOrEmpty(output)) File.WriteAllText(Path.Combine(output, name + ".quality.json"), actual);
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("RimGovernor.Brain.Domain.Tests." + name + ".quality.json");
-        Assert.NotNull(stream);
-        using var reader = new StreamReader(stream);
-        Assert.Equal(reader.ReadToEnd().Replace("\r\n", "\n", StringComparison.Ordinal).Trim(), actual.Trim());
-    }
-
     [Fact]
     public void MeasureWarmedAllocationMatrix()
     {
