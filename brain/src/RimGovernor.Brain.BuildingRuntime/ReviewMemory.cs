@@ -1,31 +1,33 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The resource demand the latest review of one world derived (<c>ResourceDemandOf</c>, as the detectors read
-/// it): derived state the Rounder keeps in memory, empty until the first review after a restart. Every planner
-/// and the work coverage read it.
+/// A value the latest review of one world derived: derived state the Rounder keeps in memory, <c>empty</c> until the first
+/// review after a restart and for another world. The resource demand (<c>ResourceDemandOf</c>, as the detectors read it;
+/// every planner and the work coverage read it) and the per-pawn gear-filter outcome (GearFilterChoices, #3285; the
+/// military read stamps it onto GearPawn.AllowTainted) are two.
 /// </summary>
-internal sealed class ResourceDemandMemory
+internal sealed class ReviewMemory<T>(T empty)
 {
     private readonly object _mu = new();
+    private readonly T _empty = empty;
     private GenerationSnapshot _snapshot;
-    private DerivedDemand _demand = new();
+    private T _value = empty;
 
-    public void Set(GenerationSnapshot snapshot, DerivedDemand demand)
+    public void Set(GenerationSnapshot snapshot, T value)
     {
         lock (_mu)
         {
             _snapshot = snapshot;
-            _demand = demand;
+            _value = value;
         }
     }
 
-    /// <summary>The demand the review of <paramref name="snapshot"/>'s world derived; none for another world.</summary>
-    public DerivedDemand Get(GenerationSnapshot snapshot)
+    /// <summary>The value the review of <paramref name="snapshot"/>'s world derived; empty for another world.</summary>
+    public T Get(GenerationSnapshot snapshot)
     {
         lock (_mu)
         {
-            return _snapshot != snapshot ? new DerivedDemand() : _demand;
+            return _snapshot != snapshot ? _empty : _value;
         }
     }
 }

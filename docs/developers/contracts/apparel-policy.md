@@ -5,8 +5,8 @@
 `ApparelPolicyIntent` on Actions/Apply (`NativeApparelPolicyOperations`) is how
 the `military/equipment` Need keeps one outfit per pawn, labelled with the pawn's short
 name, before selecting individual wear or production work. It lets vanilla's
-apparel optimizer do the many-pawn dressing between reviews and retires tainted
-raid drops without a wear order.
+apparel optimizer do the many-pawn dressing between reviews and, where the outfit
+disallows them, retires tainted raid drops without a wear order.
 
 The outfit's filter is the pawn's [loadout role](equipment-upkeep.md#loadout-model)
 base plus its hard requirements:
@@ -19,9 +19,12 @@ base plus its hard requirements:
   nothing covering torso or legs unless required.
 - Only definitions the pawn can wear (body parts, body type, genes, stage,
   gender) are listed.
-- Tainted apparel is excluded; hit points 51-100% (swap before the tattered
-  thought); the quality floor rises Awful -> Normal -> Good while every slot the
-  pawn wears still has a garment at that quality worn or on hand.
+- Tainted apparel is excluded unless `allowTainted` is set: the coupled
+  comparator rejected disallowing it for this pawn
+  ([tainted apparel](equipment-upkeep.md#tainted-apparel)); hit points 51-100%
+  (swap before the tattered thought); the quality floor rises Awful -> Normal ->
+  Good while every slot the pawn wears still has an allowed garment at that
+  quality worn or on hand.
 
 Pawns still choose by temperature inside the filter. Autonomous control replaces
 manual assignments and clears forced/locked apparel. It is an intent-mode kind:
@@ -52,5 +55,8 @@ the standing [clothing material demand](equipment-upkeep.md#clothing-material-de
 `production/apparel-policy` is a short native smoke case (create/update/assign,
 reapply, manual-policy override, clearing forced/locked apparel);
 `production/per-pawn-outfits` is the end-to-end signal that every lab colonist ends
-on its own outfit and the rest are pruned. The tainted-apparel decision replays
-from colony snapshots (see [equipment upkeep](equipment-upkeep.md#acceptance)).
+on its own outfit and the rest are pruned. `apparel/tainted_filter` (#3285) is the
+end-to-end signal for the tainted-apparel choice: a content colonist in a cold
+snap whose only parka is tainted ends on its own outfit with tainted apparel
+allowed. The choice itself is covered by domain parity tests
+(`ForecastCoupledSelectionTests`, `EffectSourceCandidatesTests`).

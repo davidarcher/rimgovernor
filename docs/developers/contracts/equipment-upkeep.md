@@ -146,10 +146,11 @@ The complete product-catalog requirement still applies to modeled loadouts.
 Targets cover skin torso, skin legs, middle torso, outer, belt, headgear and
 primary weapon. An exact bounded ensemble search rejects shared layer AND body
 group conflicts and preserves locked items. It scores armor, current ambient
-thermal needs, movement, condition, cost, coverage and taint. Coverage requires
+thermal needs, condition and coverage. Coverage requires
 legs for men and legs plus chest for women; nudists prefer no body apparel.
-Taint costs 5/8/11/14 points for one/two/three/four-or-more items, except for
-Bloodlust and Inhuman. Replacements cannot assume a separate strip order.
+The planner prices no mood: it plans inside the pawn's outfit filter, which
+excludes tainted apparel unless the coupled comparator left it allowed
+([tainted apparel](#tainted-apparel)). Replacements cannot assume a separate strip order.
 
 Roles use existing work priorities, skills and trait facts plus explicit child,
 slave, prisoner, unrevealed-creepjoiner, incapable-of-violence and drafted-squad
@@ -159,10 +160,8 @@ workers reject movement penalties, indoor workers reduce thermal weight,
 soldiers favor sharp then blunt armor with helmets gated by Smithing and
 shields restricted to melee, children select Kid/Apparel_Kid definitions, and
 slaves, prisoners and unrevealed creepjoiners take the constraint mode:
-cover legs and torso, meet min(thermal need, item capacity) from the comfort
-band against the seasonal range, then pick minimum acquisition cost (worn gear
-is free). Tainted (dead-man) apparel is excluded unless the wearer is
-taint-free, slave-only apparel (the def's `slaveApparel`) goes only to slaves,
+cover legs and torso and meet min(thermal need, item capacity) from the comfort
+band against the seasonal range (ties keep worn gear). Slave-only apparel (the def's `slaveApparel`) goes only to slaves,
 and weapons are never planned. Garment stats and conflict metadata determine combinations
 such as a flak vest beneath a duster; definitions are not hard-coded.
 
@@ -194,6 +193,24 @@ candidate list; native gain admits the item, while model gain orders it. An
 unavailable admission stays blocked. Existing production resource checks and
 shared Hands execution remain authoritative.
 
+### Tainted apparel
+
+Whether a pawn's outfit allows tainted (dead man's) apparel is the coupled
+comparator's choice, not a planner rule (#3285, epic #3217 Gate 1). Behind the
+equipment Need, the coupled generator offers one labor-free candidate per pawn
+that a verified count card (`DeadMansApparel`) prices negative for its worn
+apparel: `gear-filter/<pawn>/disallow-<def>`, carrying the card's mood change and
+the gear planner's predicted insulation change
+([mood control](mood-control.md#mechanic-cards-now-live)). After the review,
+`GearFilterChoices` reads the outcome: a selected candidate keeps tainted
+disallowed; one an assessed portfolio held and the comparator rejected allows it;
+no candidate, or one never assessed, keeps the default (disallowed). The Rounder
+keeps that per-pawn set in derived memory for the review's world (`ReviewMemory`,
+empty after a restart), the military read stamps it onto `GearPawn.AllowTainted`,
+and the bit drives `DesiredApparelPolicy` (`ApparelPolicyIntent.allowTainted`),
+`ApparelQualityFloor`, `OutfitKeep` and the planner's filter in `PlanColonyGear`.
+Other gear readers (bill demand, the gear search log) plan with the default.
+
 ## Dispatch, completion and interruption
 
 The native gear operation requires a paused game, exact pawn and target identities,
@@ -224,8 +241,7 @@ not trigger unlimited replacement bills under the same loadout prerequisite.
 
 The gear planner's decisions replay from recorded colony snapshots: the season lookahead
 asks every colonist for a cloth parka or jacket plus a tuque before the
-first winter twelfth; tainted apparel moves everyone to the worker
-policy and never orders the tainted parka; a stripped twelve-pawn roster
+first winter twelfth; a stripped twelve-pawn roster
 is dressed from stored spares, each pawn and each item once, with
 no bill while an offer stands. The soldier loadout is covered
 by [weapon planner](weapon-planner.md#acceptance). The single
@@ -262,7 +278,7 @@ normal shared candidate generation, ColonyForecast comparison, Method journal an
 The equipment loadout model owns demand. Generation reads every eligible
 `GearLoadoutInput.Options` garment/stuff option, not only the loadout winner's
 `Replacements`. Physical replacement execution needs a shared activity adapter.
-Nudist, taint, outfit, coverage and climate constraints remain equipment policy.
+Nudist, outfit, coverage and climate constraints remain equipment policy.
 
 `ClothingMethodCandidates` exposes transient recipe/delivery candidates to the
 shared ColonyForecast comparator before binding. Each observed bench recipe,

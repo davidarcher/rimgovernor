@@ -24,7 +24,7 @@ public sealed class EffectSourceCandidatesTests
     };
 
     // A pawn in a dead man's parka (cold insulation 30) over a clean shirt and pants; the only other parka is worse (10).
-    internal static EffectSourcePawn Pawn(string id = "pawn", bool locked = false, string[]? traits = null, string[]? disallowed = null) =>
+    internal static EffectSourcePawn Pawn(string id = "pawn", bool locked = false, string[]? traits = null) =>
         new(id, new GearLoadoutInput
         {
             Ambient = -10, ComfortableMin = 10, ComfortableMax = 30,
@@ -34,8 +34,7 @@ public sealed class EffectSourceCandidatesTests
         }, new CardPawnFacts
         {
             Traits = Known<EquatableArray<string>>([.. traits ?? []]), Hediffs = Known<EquatableArray<string>>([]), AnomalyActive = Known(false),
-        })
-        { Disallowed = Known<EquatableArray<string>>([.. disallowed ?? []]) };
+        });
 
     internal static EffectSourceFacts Facts(int budget = 32, params EffectSourcePawn[] pawns) =>
         new() { Pawns = pawns.Length == 0 ? [Pawn()] : pawns, Budget = budget };
@@ -55,21 +54,8 @@ public sealed class EffectSourceCandidatesTests
         // The -5 stage goes away; the thin parka insulates 20 less, so the comfortable minimum rises by 20.
         Assert.Equal([new ForecastSituationalChange("pawn", Def, 5)], root.SituationalChanges);
         Assert.Equal([new ForecastComfortShift("pawn", 20, 0)], root.ComfortShifts);
-        Assert.Equal([new EffectSourceStep(root.Id, ActionKind.ApparelPolicy, "pawn", Def, true)], result.Steps);
         Assert.Empty(result.Findings);
         Assert.False(result.Truncated);
-    }
-
-    [Fact]
-    public void AFilterThatAlreadyDisallowsGivesTheAllowVariantOnly()
-    {
-        // A pawn still in a tainted parka under a disallowing filter (it has not changed yet): the other variant is allow,
-        // whose predicted outfit keeps the better parka, so nothing changes.
-        var root = Assert.Single(Generate(Facts(pawns: Pawn(disallowed: ["Apparel.WornByCorpse"]))).Roots);
-
-        Assert.Equal("gear-filter/pawn/allow-" + Def, root.Id);
-        Assert.Equal([new ForecastSituationalChange("pawn", Def, 0)], root.SituationalChanges);
-        Assert.Equal([new ForecastComfortShift("pawn", 0, 0)], root.ComfortShifts);
     }
 
     [Fact]
@@ -121,15 +107,6 @@ public sealed class EffectSourceCandidatesTests
     }
 
     [Fact]
-    public void AnUnreadFilterGivesNoCandidateAndAnUnknownFinding()
-    {
-        var result = Generate(Facts(pawns: Pawn() with { Disallowed = Unknown<EquatableArray<string>>() }));
-
-        Assert.Empty(result.Roots);
-        Assert.Equal(["effect_source_filter_unknown:" + Def + "/pawn"], result.Findings);
-    }
-
-    [Fact]
     public void IdenticalInputsInAnyOrderGiveIdenticalOutputInPawnOrder()
     {
         var facts = Facts(pawns: [Pawn("b"), Pawn("a"), Pawn("c", traits: ["Bloodlust"])]);
@@ -151,8 +128,49 @@ public sealed class EffectSourceCandidatesTests
         Assert.Equal("gear-filter/a/disallow-" + Def, Assert.Single(result.Roots).Id);
     }
 
+    // #3285: the census facts the coupled generator builds. Hediffs come from the medical read; unread, the card's offset is
+    // unknown, so the pawn gets a finding and no candidate (its filter keeps the default).
+    [Fact]
+    public void CensusFactsReadHediffsFromTheMedicalRead()
+    {
+        var model = Pawn().Gear;
+        model = model with { Role = model.Role with { Work = model.Role.Work with { Traits = Known<EquatableArray<PawnTrait>>([new() { Name = "Kind" }]) } } };
+        var gear = new GearObservation { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true }] };
+        var care = new CarePawn { Id = new("pawn"), Conditions = Known<EquatableArray<CareCondition>>([new() { DefName = Known("Flu") }]) };
+
+        var facts = EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]));
+        var read = Assert.Single(facts.Pawns);
+        Assert.Equal(Known<EquatableArray<string>>(["Flu"]), read.Card.Hediffs);
+        Assert.Equal("gear-filter/pawn/disallow-" + Def, Assert.Single(Generate(facts).Roots).Id);
+
+        var unread = Generate(EffectSourceFactsOf(gear, Unknown<EquatableArray<CarePawn>>()));
+        Assert.Empty(unread.Roots);
+        Assert.Equal(["effect_source_offset_unknown:" + Def + "/pawn"], unread.Findings);
+    }
+
+    // #3285 parity, the default: a pawn the comparator did not leave allowed plans and dresses with tainted apparel out.
+    [Fact]
+    public void ByDefaultNoPawnIsAllowedTaintedApparel()
+    {
+        var model = Pawn().Gear;
+        var state = new ApparelPolicyState
+        {
+            Token = "t", PawnName = "pawn", PolicyID = "outfit-1",
+            Definitions = [new() { Name = "Apparel_parka", Adult = true }, new() { Name = "Apparel_shirt", Adult = true }, new() { Name = "Apparel_pants", Adult = true }],
+            Current = new(new("pawn"), "t", "pawn", ["Apparel_pants", "Apparel_parka", "Apparel_shirt"], .51, 1, 2, 6),
+            ExcludesTainted = true,
+        };
+        var pawn = new GearPawn { Pawn = new("pawn"), Policy = Known(state), LoadoutModel = Known(model) };
+
+        Assert.False(DesiredApparelPolicy(pawn, out _));
+        Assert.DoesNotContain(PlanColonyGear([pawn]).Loadouts[0].Target, o => o.ID == "parka");
+
+        Assert.True(DesiredApparelPolicy(pawn with { AllowTainted = true }, out var allowed));
+        Assert.True(allowed!.Spec.AllowTainted);
+        Assert.Contains(PlanColonyGear([pawn with { AllowTainted = true }]).Loadouts[0].Target, o => o.ID == "parka");
+    }
+
     private static string Signature(EffectSourceResult result) => string.Join("\n",
-        result.Steps.Select(s => s.ToString())
-            .Concat(result.Roots.Select(r => r.Id + "|" + r.ExclusiveOutcome + "|" + string.Join(",", r.SituationalChanges) + "|" + string.Join(",", r.ComfortShifts)))
+        result.Roots.Select(r => r.Id + "|" + r.ExclusiveOutcome + "|" + string.Join(",", r.SituationalChanges) + "|" + string.Join(",", r.ComfortShifts))
             .Concat(result.Findings));
 }

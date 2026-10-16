@@ -99,8 +99,13 @@ public static partial class PolicyFunctions
         findings.UnionWith(food.Findings); findings.UnionWith(construction.Findings); findings.UnionWith(composed.Findings); findings.UnionWith(support.Findings);
         truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
         if (NeedEnabled(MilitaryFamily.Equipment) && facts.Gear.TryGetValue(out var gear))
+        {
             AppendFamily(Methods.Generation.ClothingMethodCandidates.Generate(read.Clothing, ClothingActivityRequirements(gear).Alternatives,
                 checked(read.Tick + (long)horizon), resources));
+            // The effect-source family (#3285): one labor-free apparel-filter candidate per pawn a verified card prices (GearFilterChoices).
+            var effects = GenerateEffectSources(EffectSourceFactsOf(gear, facts.MedicalPawns));
+            alternatives.AddRange(effects.Roots); findings.UnionWith(effects.Findings); truncated |= effects.Truncated;
+        }
         else findings.Add("unknown_clothing_requirements");
         var practice = Methods.Generation.PracticeMethodCandidates.Generate(facts, read.Practice, horizon, AssignedCombatCapabilities(facts.Ideology),
             facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients.IsKnown && facts.CriticalPatients.Value == 0

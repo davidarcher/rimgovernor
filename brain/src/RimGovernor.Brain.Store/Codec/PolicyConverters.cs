@@ -2532,7 +2532,6 @@ internal sealed class TraitEffectsConverter : ObjectCodec<TraitEffects>
             Sociable = e.I32("Sociable"),
             Execution = e.Bool("Execution"),
             SurgeonSafe = e.Bool("SurgeonSafe"),
-            TaintFree = e.Bool("TaintFree"),
             HumanButcher = e.Bool("HumanButcher"),
             Nudist = e.Bool("Nudist"),
             Ascetic = e.Bool("Ascetic"),
@@ -2559,7 +2558,6 @@ internal sealed class TraitEffectsConverter : ObjectCodec<TraitEffects>
         w.WriteNumber("Sociable", v.Sociable);
         w.WriteBoolean("Execution", v.Execution);
         w.WriteBoolean("SurgeonSafe", v.SurgeonSafe);
-        w.WriteBoolean("TaintFree", v.TaintFree);
         w.WriteBoolean("HumanButcher", v.HumanButcher);
         w.WriteBoolean("Nudist", v.Nudist);
         w.WriteBoolean("Ascetic", v.Ascetic);

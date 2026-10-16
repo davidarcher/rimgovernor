@@ -42,7 +42,10 @@ public sealed partial class Rounder
     internal FactStore? Store;
 
     /// <summary>The latest review's derived resource demand (derived state, empty until the first review after a restart).</summary>
-    internal ResourceDemandMemory Demand = new();
+    internal ReviewMemory<DerivedDemand> Demand = new(new());
+
+    /// <summary>The pawns whose outfit filter the latest review left allowing tainted apparel (GearFilterChoices; derived state, none until the first review after a restart).</summary>
+    internal ReviewMemory<EquatableArray<string>> GearFilters = new([]);
 
     /// <summary>The per-world first-seen record of humanlike pawns: derived, in memory only, empty after a restart.</summary>
     internal FirstSeenRecord FirstSeen = new();
@@ -667,6 +670,7 @@ public sealed partial class Rounder
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
+        GearFilters.Set(result.Review.Snapshot, PolicyApi.GearFilterChoices(reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection));
         AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };
         attrs.AddRange(RoundsFoodAttrs(reading.Projection.Facts, Seasonal(reading.Projection.Facts)));

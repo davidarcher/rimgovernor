@@ -81,7 +81,8 @@ naming the largest instead of `no_measured_correctable_need`; measured relief ru
 first. Social memories are unowned in this sense but stay native relief and recovery
 evidence. The apparel thoughts `ApparelDamaged` (ratty and tattered), `DeadMansApparel`
 (tainted) and `WrongApparelGender` are owned by the `military/equipment` Need: its levers already
-exist (the outfit excludes tainted gear, floors hit points at `apparelMinHP`, offers only
+exist (the outfit excludes tainted gear unless the comparator chose otherwise, see
+[mechanic cards: now live](#mechanic-cards-now-live), floors hit points at `apparelMinHP`, offers only
 gender-correct definitions, and `ClothingRunway` replaces garments before they tatter),
 so dominant apparel pressure raises that concern's deficit and adds no new action.
 Cosmetic preferences and Ideology apparel precepts stay unowned. The pain and
@@ -148,7 +149,7 @@ stay `unknown` with their reason. Modded defs get no cards.
 `MechanicCards.ByDef` embeds the file and parses it on first use into `MechanicCard` records. A malformed file, an
 unknown or missing field, an unknown status or a schema other than `MechanicCards.Schema` throws; it never yields an
 empty catalog. A card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
-and consumers ignore it for live play. `DeadMansApparel` ships `verified` (`Live`) since #3283; only the unwired effect-source generator consumes the cards yet.
+and consumers ignore it for live play. `DeadMansApparel` ships `verified` (`Live`) since #3283 and drives the tainted-apparel choice since #3285.
 
 A card is `unreachable` (#3243) when every site has a guard that no writer on the site's direct caller path can make
 hold; the guard carries an `unreachable` reason naming the writers and the callers checked. The check is shallow: the
@@ -163,16 +164,9 @@ it, and the effect-source search reports `effect_source_card_unreachable:<def>` 
 `Building_Sarcophagus.TryAcceptThing`, which neither `Notify_HauledTo` nor its caller
 `Toils_Haul.DepositHauledThingInContainer` runs (#3242).
 
-`MechanicCardGuards.Evaluate` (pure, #3223) evaluates one card site's guards for one target (`CardGuardFacts`: the
-target corpse, the container instance, the waste census, the colonists) to `holds`, `fails`, `achievable` (action kind
-and actor constraint) or `unknown` (reason). Existing things and target properties bind through the hand-kept
-`Bindings` table (decl -> typed observation; empty since #3284 deleted the sarcophagus rows, so the evaluator's tests
-supply them as a fixture); an unmapped symbol is unknown. A field of the site's own type with a writer
-entry is the container's state, reasoned from its writers: a planned fresh instance (empty `Instance`) starts from
-defaults, an existing one reads the followed field through `Bindings`. A followed field set
-by a writer with no reset makes the instance `Exhausted` after one grant. Actor guards bind through the `SiteActions`
-map (site -> existing action kind and constraint). A card is `Usable` only
-when `Live` and every guard holds or is achievable. A `SiteActions` row with the constraint `disallow-counted`
+`MechanicCardGuards.SiteActions` (#3223) maps a card site to the existing action kind that makes its guards false and
+the constraint it acts under; #3285 deleted the per-target guard evaluator and its binding tables, which no live
+consumer read. A `SiteActions` row with the constraint `disallow-counted`
 (`MechanicCardGuards.DisallowCounted`) is a prevention row: its action disallows the items the site's count guard
 counts, which makes the count 0. The one row maps `ThoughtWorker_ApparelThought.CurrentStateInternal` (the
 `DeadMansApparel` sites) to `ApparelPolicy`; the tool check requires every guard of such a site to be a count. `thoughtaudit -guards` fails when a table row names a decl or site
@@ -187,7 +181,7 @@ and the offset is that stage's `baseMoodEffect` (`DeadMansApparel`: -5, -8, -11,
 when a nullifying trait or hediff is present or no site holds (a count of 0), and unknown when a binding, an
 observation or a modelled guard is missing. A hediff only Anomaly adds (`AnomalyHediffs`: `Inhumanized`) is absent
 while Anomaly is inactive, even when the hediff list is unread. It does not check `Live`; only a verified card may
-drive play. The effect-source prevention branch consumes it (not yet wired, #3285). `MechanicCardGuards.Counts` says
+drive play. The effect-source prevention branch consumes it. `MechanicCardGuards.Counts` says
 whether a card counts one item (some site's `where` holds), unknown when a binding is missing.
 
 A card is `verified` only for the code it was probed against. Its drift hash is the first 16 hex digits of SHA-256
@@ -214,22 +208,35 @@ and records the observed stage against the card's clamp. With Bloodlust the situ
 offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. The case
 declares `VanillaColonists`: without a service the voluntary-control hold stops the scenario clock on the idle colonist.
 
-`PolicyFunctions.GenerateEffectSources` (pure, #3224; prevention branch #3284; not yet wired into
-`GenerateCoupledActivities`, #3285) turns a verified negative count card into per-pawn apparel filter candidates. A
-card matches a pawn when it is `Live`, every site maps to a `disallow-counted` `SiteActions` row, its count guards count
-one bound decl, and `CardStageOffset` for the pawn's worn apparel (its `GearLoadoutInput.Worn`, primary weapon excluded)
-is known and negative. The pawn's current filter (`EffectSourcePawn.Disallowed`: the item decls its apparel filter
-disallows) names the current variant; the other one (counted items allowed, or disallowed) is the candidate. The gear
-planner predicts the variant's outfit: `PlanGearLoadout`'s `disallowed` predicate drops matching worn items (unless
-locked) and options, and replaces the hand `TaintFree` flag for the call. The candidate is one labor-free
-`ForecastCommitment` `gear-filter/<pawn>/<allow|disallow>-<def>` with `ExclusiveOutcome` `gear-filter/<pawn>`, so a
-pawn's variants never combine (#3282 makes two changes to one thought unassessed). It carries the card's offset for the
-predicted outfit minus the worn one as a `ForecastSituationalChange`, and the summed quality-scaled insulation change as
-a `ForecastComfortShift` (minimum by minus the cold change, maximum by the heat change). Candidates are in pawn, then
-card order; a budget reports `effect_source_generation_truncated`. A card that is not live, an unknown offset, an unread
-filter or an unknown counted item gives a finding and no candidate. `EffectSourceStep` (candidate, `ApparelPolicy`,
-pawn, card, disallow) describes execution for the wiring. The comparator, not the generator, decides whether the mood
-change is worth the warmth.
+`PolicyFunctions.GenerateEffectSources` (pure, #3224; prevention branch #3284) turns a verified negative count card
+into per-pawn apparel filter candidates. A card matches a pawn when it is `Live`, every site maps to a
+`disallow-counted` `SiteActions` row, its count guards count one bound decl, and `CardStageOffset` for the pawn's worn
+apparel (its `GearLoadoutInput.Worn`, primary weapon excluded) is known and negative. The candidate is always the
+disallow variant, whatever the pawn's current filter (decided 2026-10-16): the gear planner predicts its outfit, with
+`PlanGearLoadout`'s `disallowed` predicate dropping matching worn items (unless locked) and options. It is one
+labor-free `ForecastCommitment` `gear-filter/<pawn>/disallow-<def>` with `ExclusiveOutcome` `gear-filter/<pawn>`, so a
+pawn's card changes never combine (#3282 makes two changes to one thought unassessed). It carries the card's offset for
+the predicted outfit minus the worn one as a `ForecastSituationalChange`, and the summed quality-scaled insulation
+change as a `ForecastComfortShift` (minimum by minus the cold change, maximum by the heat change). Candidates are in
+pawn, then card order; a budget reports `effect_source_generation_truncated`. A card that is not live, an unknown
+offset or an unknown counted item gives a finding and no candidate. The comparator, not the generator, decides whether
+the mood change is worth the warmth.
+
+##### Mechanic cards: now live
+
+Since #3285 (epic #3217 Gate 1) the cards drive play. `GenerateCoupledActivities` appends the effect-source family
+next to the clothing family, behind the same `military/equipment` Need enablement and gear census
+(`EffectSourceFactsOf`: every unblocked pawn with a loadout model, under its climate, its trait def names from the
+work facts and its hediff def names from the medical read's `CareConditions`; an unread list leaves the offset unknown,
+so the pawn gets `effect_source_offset_unknown` and no candidate). After the review, `GearFilterChoices` reads the
+comparator's outcome per pawn: the disallow candidate selected keeps tainted disallowed; held by an assessed portfolio
+the comparator rejected allows it; absent or never assessed keeps the default (disallowed). The Rounder keeps that set
+in derived memory for the review's world and the military read stamps it onto `GearPawn.AllowTainted`, which drives
+the outfit filter ([tainted apparel](equipment-upkeep.md#tainted-apparel)). Nothing else decides tainted apparel: the
+gear planner's hand mood curve, its constraint-mode mood tier, the `TaintFree` trait flag and the always-exclude rule
+are deleted. What came from the card: the stage offsets, the count predicate (`Apparel.WornByCorpse`) and the
+nullifying traits and hediffs. What came from generic machinery: the gear planner's outfit prediction, the
+comparator's break-risk and cold-exposure ranking and the apparel policy write.
 
 ### Mood ledger
 

@@ -70,7 +70,8 @@ public sealed class ApparelPolicyConverter : ObjectCodec<ApparelPolicy>
                 e.Dbl("MinHP"),
                 e.Dbl("MaxHP"),
                 e.I32("MinQuality"),
-                e.I32("MaxQuality")
+                e.I32("MaxQuality"),
+                e.BoolOr("AllowTainted")
             )
         );
 
@@ -84,6 +85,7 @@ public sealed class ApparelPolicyConverter : ObjectCodec<ApparelPolicy>
         w.WriteNumber("MaxHP", v.Spec.MaxHP);
         w.WriteNumber("MinQuality", v.Spec.MinQuality);
         w.WriteNumber("MaxQuality", v.Spec.MaxQuality);
+        w.WriteBoolean("AllowTainted", v.Spec.AllowTainted);
     }
 }
 

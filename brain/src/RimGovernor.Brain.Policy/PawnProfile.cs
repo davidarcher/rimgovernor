@@ -73,9 +73,6 @@ public sealed record TraitEffects
     /// <summary>A surgeon who harvests without a mood loss.</summary>
     public bool SurgeonSafe { get; init; }
 
-    /// <summary>Wears a dead man's apparel without the mood loss (each trait nullifies the thought).</summary>
-    public bool TaintFree { get; init; }
-
     /// <summary>A pawn who butchers a human without the mood loss (the trait nullifies the butchered-humanlike thought).</summary>
     public bool HumanButcher { get; init; }
 
@@ -114,7 +111,6 @@ public sealed record TraitEffects
         Sociable = Sociable + o.Sociable,
         Execution = Execution || o.Execution,
         SurgeonSafe = SurgeonSafe || o.SurgeonSafe,
-        TaintFree = TaintFree || o.TaintFree,
         HumanButcher = HumanButcher || o.HumanButcher,
         Nudist = Nudist || o.Nudist,
         Ascetic = Ascetic || o.Ascetic,
@@ -146,7 +142,6 @@ public sealed record TraitEffects
         Add(Pyromaniac, nameof(Pyromaniac));
         Add(Execution, nameof(Execution));
         Add(SurgeonSafe, nameof(SurgeonSafe));
-        Add(TaintFree, nameof(TaintFree));
         Add(HumanButcher, nameof(HumanButcher));
         Add(Nudist, nameof(Nudist));
         Add(Ascetic, nameof(Ascetic));

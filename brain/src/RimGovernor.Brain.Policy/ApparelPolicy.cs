@@ -56,10 +56,10 @@ public static partial class PolicyFunctions
     /// <summary>
     /// The pawn's own outfit, labelled with its short name: the definitions its role permits (stage-compatible;
     /// combat armor for soldiers only; nothing covering torso or legs for a nude pawn) plus every definition its
-    /// title, role or precepts require. All roles exclude tainted and tattered gear; pawns still choose by
-    /// temperature inside the filter.
+    /// title, role or precepts require. All roles exclude tattered gear, and tainted gear unless
+    /// <paramref name="allowTainted"/>; pawns still choose by temperature inside the filter.
     /// </summary>
-    public static bool RoleApparelPolicy(PawnId pawn, GearRole role, ApparelPolicyState state, out ApparelPolicy? policy)
+    public static bool RoleApparelPolicy(PawnId pawn, GearRole role, ApparelPolicyState state, out ApparelPolicy? policy, bool allowTainted = false)
     {
         var s = new ApparelPolicySpec(
             pawn,
@@ -69,7 +69,8 @@ public static partial class PolicyFunctions
             ApparelMinHP,
             1,
             QualityAwful,
-            QualityLegendary
+            QualityLegendary,
+            allowTainted
         );
         try
         {
@@ -102,13 +103,13 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Raises the outfit's minimum quality from Awful to Normal to Good as stock allows: the highest floor at
-    /// which every slot the pawn now wears an allowed garment in still has an allowed, untainted, untattered
-    /// garment worn or on hand (loose or stored) at that quality.
+    /// which every slot the pawn now wears an allowed garment in still has an allowed, untattered garment (untainted
+    /// unless <paramref name="allowTainted"/>) worn or on hand (loose or stored) at that quality.
     /// </summary>
-    internal static int ApparelQualityFloor(GearLoadoutInput model, IReadOnlyCollection<string> allowed)
+    internal static int ApparelQualityFloor(GearLoadoutInput model, IReadOnlyCollection<string> allowed, bool allowTainted = false)
     {
         bool Permits(GearOption o) =>
-            allowed.Contains(o.Definition.ToString()) && !o.Tainted && o.Condition >= ApparelMinHP && o.Source != GearSource.Bill;
+            allowed.Contains(o.Definition.ToString()) && (allowTainted || !o.Tainted) && o.Condition >= ApparelMinHP && o.Source != GearSource.Bill;
 
         var slots = new HashSet<GearSlot>();
         foreach (var w in model.Worn)
@@ -160,7 +161,7 @@ public static partial class PolicyFunctions
             role = DeriveGearRole(model!.Role);
         }
 
-        if (!RoleApparelPolicy(p.Pawn, role, state, out desired))
+        if (!RoleApparelPolicy(p.Pawn, role, state, out desired, p.AllowTainted))
         {
             desired = null;
             return false;
@@ -169,7 +170,7 @@ public static partial class PolicyFunctions
         var spec = desired!.Spec;
         if (modelled)
         {
-            spec = spec with { MinQuality = ApparelQualityFloor(model!, spec.Definitions) };
+            spec = spec with { MinQuality = ApparelQualityFloor(model!, spec.Definitions, p.AllowTainted) };
             try
             {
                 desired = new Domain.ApparelPolicy(spec);
@@ -191,7 +192,7 @@ public static partial class PolicyFunctions
             && current.MaxHP == spec.MaxHP
             && current.MinQuality == spec.MinQuality
             && current.MaxQuality == spec.MaxQuality
-            && state.ExcludesTainted
+            && state.ExcludesTainted != spec.AllowTainted
             && !state.Overrides
         )
         {

@@ -97,7 +97,7 @@ namespace HomeBridge.BridgeTools
             return v != null && p.outfits != null && !PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Any(o => o != p && o.outfits?.CurrentApparelPolicy == v) && p.outfits.forcedHandler.ForcedApparel.Count == 0 && !p.apparel.AnyApparelLocked && v.label == (c.Name ?? "") && v.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).SequenceEqual(c.AllowedDefs.OrderBy(d => d))
                 && v.filter.AllowedHitPointsPercents.min == c.MinHitPoints.GetValueOrDefault() && v.filter.AllowedHitPointsPercents.max == c.MaxHitPoints.GetValueOrDefault()
                 && (int)v.filter.AllowedQualityLevels.min == c.MinQuality.GetValueOrDefault() && (int)v.filter.AllowedQualityLevels.max == c.MaxQuality.GetValueOrDefault()
-                && !v.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) && v.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel);
+                && v.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) == c.AllowTainted && v.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel);
         }
 
         // Writes the named filter and assignment unless they already match,
@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
                 outfit.filter.AllowedHitPointsPercents = new FloatRange(c.MinHitPoints.GetValueOrDefault(), c.MaxHitPoints.GetValueOrDefault());
                 outfit.filter.AllowedQualityLevels = new QualityRange((QualityCategory)c.MinQuality.GetValueOrDefault(), (QualityCategory)c.MaxQuality.GetValueOrDefault());
                 outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowNonDeadmansApparel, true);
-                outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, false);
+                outfit.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, c.AllowTainted);
                 p.outfits.CurrentApparelPolicy = outfit;
                 p.outfits.forcedHandler.Reset(); p.apparel.UnlockAll();
                 foreach (var pawn in PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive.Where(v => v.outfits?.CurrentApparelPolicy == outfit)) pawn.mindState?.Notify_OutfitChanged();

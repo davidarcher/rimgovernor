@@ -379,6 +379,7 @@ public static partial class BridgeFunctions
                 MaxHitPoints = (float)s.MaxHP,
                 MinQuality = s.MinQuality,
                 MaxQuality = s.MaxQuality,
+                AllowTainted = s.AllowTainted,
             },
         };
     }

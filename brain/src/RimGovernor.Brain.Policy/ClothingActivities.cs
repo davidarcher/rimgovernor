@@ -22,7 +22,7 @@ public static partial class PolicyFunctions
             if (physical.Count != 0) { findings.Add("physical_clothing_available:" + pawn.Pawn.Value); continue; }
             input = input with { Climate = pawn.Climate ?? input.Climate };
             foreach (var trait in input.Role.Work.Traits.ValueOrDefault)
-                input = input with { Nudist = input.Nudist || trait.Effects.Nudist, TaintFree = input.TaintFree || trait.Effects.TaintFree };
+                input = input with { Nudist = input.Nudist || trait.Effects.Nudist };
             foreach (var option in input.Options.Where(o => o.Source == GearSource.Bill && !ArmoryArmor(o.Definition)
                 && GearEligible(input, o)).OrderBy(o => o.Definition.Value, StringComparer.Ordinal).ThenBy(o => o.Stuff.Value, StringComparer.Ordinal))
             {

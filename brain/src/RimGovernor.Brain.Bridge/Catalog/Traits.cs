@@ -114,7 +114,6 @@ public sealed partial class DefinitionCatalog
             Nudist = Listed(ThoughtNaked, false),
             MeleeOnly = Listed(ThoughtRangedCarried, true),
             SurgeonSafe = Listed(ThoughtOrganHarvested, false),
-            TaintFree = Listed(ThoughtTaintedApparel, false),
             Greedy = Listed(ThoughtGreedy, true),
             Ascetic = Listed(ThoughtAscetic, true),
             Jealous = Listed(ThoughtJealous, true),

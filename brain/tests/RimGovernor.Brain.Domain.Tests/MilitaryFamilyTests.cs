@@ -135,6 +135,10 @@ public sealed class MilitaryFamilyTests
         Assert.Equal(MilitaryFamily.ApparelPolicyEncoded(a), MilitaryFamily.ApparelPolicyEncoded(b));
         var other = new ApparelPolicy(new ApparelPolicySpec(new("a"), "t", "policy-a", ["Apparel_Duster"], 0, 1, 0, 6));
         Assert.NotEqual(MilitaryFamily.ApparelPolicyEncoded(a), MilitaryFamily.ApparelPolicyEncoded(other));
+        // #3285: the default filter keeps its MethodId; allowing tainted apparel is another value.
+        Assert.DoesNotContain("AllowTainted", MilitaryFamily.ApparelPolicyEncoded(a), StringComparison.Ordinal);
+        var allowed = new ApparelPolicy(a.Spec with { AllowTainted = true });
+        Assert.NotEqual(MilitaryFamily.ApparelPolicyEncoded(a), MilitaryFamily.ApparelPolicyEncoded(allowed));
     }
 
     [Fact]

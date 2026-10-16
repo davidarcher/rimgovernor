@@ -269,6 +269,11 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             w.WriteNumber("MaxHP", s.MaxHP);
             w.WriteNumber("MinQuality", s.MinQuality);
             w.WriteNumber("MaxQuality", s.MaxQuality);
+            // Written only when set, so a default policy keeps its MethodId.
+            if (s.AllowTainted)
+            {
+                w.WriteBoolean("AllowTainted", true);
+            }
             w.WriteEndObject();
         }
         return Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length);

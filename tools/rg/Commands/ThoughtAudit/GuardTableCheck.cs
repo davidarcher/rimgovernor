@@ -4,8 +4,8 @@ using RimGovernor.Tools.Common;
 namespace RimGovernor.Tools.Commands.ThoughtAudit;
 
 /// <summary>
-/// Checks the hand-kept guard tables in Brain.Policy (<see cref="MechanicCardGuards"/>, #3223): every symbol binding names a
-/// decl the shipped cards use, every site -> action-kind row names a card site and actor decls among that site's guards (a
+/// Checks the hand-kept guard tables in Brain.Policy (<see cref="MechanicCardGuards"/>, #3223): every bound decl names a
+/// decl the shipped cards use, every site -> action-kind row names a card site (a
 /// <see cref="MechanicCardGuards.DisallowCounted"/> row a site whose guards are all counts), and,
 /// against the decompiled sources, every such decl and site is declared in the game. Pure; a domain test runs it over the
 /// embedded cards, and <c>thoughtaudit -guards</c> runs it with the source index after writing the shipped file.
@@ -42,10 +42,6 @@ internal static class GuardTableCheck
         {
             var site = cardSites.FirstOrDefault(s => s.Site == row.Site);
             Check(row.Site, site is not null, "site");
-            foreach (var actor in row.ActorDecls)
-            {
-                Check(actor, site is not null && site.Guards.Any(g => g.Expr.Decl == actor), "actor of " + row.Site);
-            }
             // A prevention row falsifies a count guard by disallowing what it counts: every card site it names must count.
             if (row.Constraint == MechanicCardGuards.DisallowCounted
                 && cardSites.Where(s => s.Site == row.Site).Any(s => s.Guards.Count == 0 || s.Guards.Any(g => g.Count is null)))

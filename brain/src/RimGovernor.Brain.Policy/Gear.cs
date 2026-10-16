@@ -54,6 +54,12 @@ public sealed record GearPawn
 
     public string ModelRefusal { get; init; } = "";
     public PawnId Pawn { get; init; }
+
+    /// <summary>
+    /// Whether the pawn's outfit allows tainted apparel: the latest review's coupled comparator compared disallowing it
+    /// for this pawn and rejected that (GearFilterChoices, stamped by the military read). False otherwise, the default.
+    /// </summary>
+    public bool AllowTainted { get; init; }
     public string Loadout { get; init; } = "";
     public bool Blocked { get; init; }
 

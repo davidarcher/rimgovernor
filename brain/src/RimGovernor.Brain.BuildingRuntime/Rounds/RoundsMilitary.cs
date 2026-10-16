@@ -102,6 +102,12 @@ public sealed class MilitaryRounds
                 var retire = await _reviewer.CraftingSpotRetireOwedAsync(scope.World, reading.Projection, call).ConfigureAwait(false);
                 var shells = await ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Projection, call).ConfigureAwait(false);
                 f = f with { CraftingSpotRetireOwed = retire, ShellsShort = PolicyApi.ShellsShort(shells, reading.Projection.Resources) };
+                // Each pawn's outfit filter as the latest review's comparator left it (#3285): allowed only where it rejected disallowing.
+                if (f.Gear.TryGetValue(out var gear))
+                {
+                    var allowed = _reviewer.GearFilters.Get(scope.World);
+                    f = f with { Gear = Known(gear with { Pawns = [.. gear.Pawns.Select(p => p with { AllowTainted = allowed.Contains(p.Pawn.Value) })] }) };
+                }
             }
             facts = MilitaryFacts.From(f with { Hostiles = PolicyApi.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles });
         }

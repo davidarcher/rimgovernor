@@ -154,7 +154,6 @@ public sealed record GearLoadoutInput
     public GearRoleInput Role { get; init; } = new();
     public bool Female { get; init; }
     public bool Nudist { get; init; }
-    public bool TaintFree { get; init; }
 
     /// <summary>The finished research census; an option is eligible only once every project its Research names is finished.</summary>
     public EquatableArray<string> Research { get; init; }
@@ -396,10 +395,8 @@ public static partial class PolicyFunctions
     /// </summary>
     private static bool GearConstrained(GearRole role) => role is GearRole.Slave or GearRole.Prisoner;
 
-    // Constraint tiers, each dominating the one below it and any sum of costs: coverage, then mood (a tainted
-    // garment the wearer minds), then degrees of unmet thermal need.
+    // Constraint tiers, each dominating the one below it: coverage, then degrees of unmet thermal need.
     private const double GearCoveragePenalty = 1e9;
-    private const double GearMoodPenalty = 1e8;
     private const double GearThermalPenalty = 1e6;
 
     private static bool GearMelee(GearLoadoutInput p)
@@ -478,8 +475,7 @@ public static partial class PolicyFunctions
         }
         if (GearConstrained(role))
         {
-            // Apparel that hurts the wearer's mood: read from the def's flags and the item's corpse history, never a name list.
-            if ((o.Tainted && !p.TaintFree) || (o.SlaveOnly && role != GearRole.Slave) || o.Slot == GearSlot.Primary)
+            if ((o.SlaveOnly && role != GearRole.Slave) || o.Slot == GearSlot.Primary)
             {
                 return false;
             }
@@ -562,22 +558,12 @@ public static partial class PolicyFunctions
         var role = DeriveGearRole(p.Role);
         if (GearConstrained(role))
         {
-            // Cost of acquiring the item; a worn garment is already paid for.
-            var cost = 0.0;
-            if (o.Source != GearSource.Worn)
-            {
-                cost = -o.Cost;
-            }
-            if (o.Condition <= GearTatteredCondition)
-            {
-                cost -= 20;
-            }
-            return cost;
+            return o.Condition <= GearTatteredCondition ? -20 : 0;
         }
         var armor = (o.Sharp * 2 + o.Blunt) * a * o.Condition;
         var (low, high) = p.Climate.TemperatureRange(p.Ambient);
         var thermal = Math.Min(Math.Max(0, p.ComfortableMin - low), o.Cold * i) + Math.Min(Math.Max(0, high - p.ComfortableMax), o.Heat * i);
-        var score = armor + thermal + o.MoveSpeed * 10 - o.Cost * .001;
+        var score = armor + thermal;
         if (o.Slot == GearSlot.Primary)
         {
             // A primary is worth its quality-scaled damage, so the armory's crafted upgrade outscores the worn
@@ -627,24 +613,19 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Ranks an ensemble for the constraint mode: minus its acquisition cost, minus a tiered penalty for uncovered
-    /// legs or torso, worn tainted gear, and degrees of thermal need the items' insulation does not meet. The need
-    /// is the comfort band against the seasonal temperature range, so an ensemble that reaches the most insulation
-    /// the options allow, up to the need, outranks any cheaper one, and cost decides among those that tie.
+    /// Ranks an ensemble for the constraint mode: minus a tiered penalty for uncovered legs or torso and degrees of
+    /// thermal need the items' insulation does not meet, and minus tattered items. The need is the comfort band
+    /// against the seasonal temperature range, so an ensemble that reaches the most insulation the options allow, up
+    /// to the need, outranks any other; ties keep worn gear, then stable item identity.
     /// </summary>
     private static double GearConstrainedScore(GearLoadoutInput p, IReadOnlyList<GearOption> items)
     {
         var score = 0.0;
-        var tainted = 0;
         var dressed = false;
         var (cold, heat) = GearInsulation(items);
         foreach (var o in items)
         {
             score += GearItemScore(p, o);
-            if (o.Tainted)
-            {
-                tainted++;
-            }
             dressed = dressed || (o.Slot != GearSlot.Belt && o.Slot != GearSlot.Headgear);
         }
         if (p.Nudist)
@@ -663,10 +644,6 @@ public static partial class PolicyFunctions
         if (!chest)
         {
             score -= GearCoveragePenalty;
-        }
-        if (!p.TaintFree)
-        {
-            score -= GearMoodPenalty * tainted;
         }
         var (low, high) = p.Climate.TemperatureRange(p.Ambient);
         score -= GearThermalPenalty * (Math.Max(0, Math.Max(0, p.ComfortableMin - low) - cold) + Math.Max(0, Math.Max(0, high - p.ComfortableMax) - heat));
@@ -694,21 +671,12 @@ public static partial class PolicyFunctions
             return GearConstrainedScore(p, items);
         }
         var score = 0.0;
-        var tainted = 0;
         var dressed = false;
         var (legs, chest) = GearCoverage(items);
         foreach (var o in items)
         {
             score += GearItemScore(p, o);
-            if (o.Tainted)
-            {
-                tainted++;
-            }
             dressed = dressed || (o.Slot != GearSlot.Belt && o.Slot != GearSlot.Headgear && o.Slot != GearSlot.Primary);
-        }
-        if (!p.TaintFree && tainted > 0)
-        {
-            score -= 5 + 3 * (Math.Min(tainted, 4) - 1);
         }
         if (p.Nudist)
         {
@@ -751,22 +719,20 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Searches compatible ensembles, retaining forced/locked items. Equal scores retain worn gear, then stable item identity. No input is mutated.
-    /// <paramref name="disallowed"/> is an apparel filter variant (#3284): the pawn drops a matching worn item unless it is
-    /// locked and never picks a matching option. A variant replaces the hand TaintFree flag for the call, since the
-    /// comparator prices the mood from the card.
+    /// <paramref name="disallowed"/> is the pawn's apparel filter (#3284, #3285): the pawn drops a matching worn item unless it
+    /// is locked and never picks a matching option. The planner prices no mood; the coupled comparator decides the filter.
     /// </summary>
     public static GearLoadout PlanGearLoadout(GearLoadoutInput p, Func<GearOption, bool>? disallowed = null)
     {
         p.Validate();
         foreach (var t in p.Role.Work.Traits.ValueOrDefault)
         {
-            p = p with { Nudist = p.Nudist || t.Effects.Nudist, TaintFree = p.TaintFree || t.Effects.TaintFree };
+            p = p with { Nudist = p.Nudist || t.Effects.Nudist };
         }
         if (disallowed is not null)
         {
             p = p with
             {
-                TaintFree = true,
                 Worn = EquatableArray.From(p.Worn.Where(o => o.Locked || !disallowed(o))),
                 Options = EquatableArray.From(p.Options.Where(o => !disallowed(o))),
             };
@@ -1011,7 +977,10 @@ public static partial class PolicyFunctions
             .ToList();
     }
 
-    /// <summary>Allocates physical supplies once in stable pawn order. Bill options remain reusable; their resulting quantities are aggregated separately.</summary>
+    /// <summary>
+    /// Allocates physical supplies once in stable pawn order. Bill options remain reusable; their resulting quantities are
+    /// aggregated separately. Each pawn plans inside its outfit filter (GearPawn.AllowTainted).
+    /// </summary>
     public static (IReadOnlyList<GearLoadout> Loadouts, Fact<EquatableArray<GearDemand>> Demand) PlanColonyGear(IReadOnlyList<GearPawn> pawns)
     {
         var seen = new HashSet<PawnId>();
@@ -1038,7 +1007,8 @@ public static partial class PolicyFunctions
                 input = input with { Climate = p.Climate };
             }
             input = input with { Options = EquatableArray.From(input.Options.Where(o => o.Source == GearSource.Bill || !used.Contains(o.ID))) };
-            var l = PlanGearLoadout(input) with { Pawn = p.Pawn };
+            // The pawn's outfit filter: tainted apparel is out unless the comparator allowed it (DesiredApparelPolicy).
+            var l = PlanGearLoadout(input, p.AllowTainted ? null : o => o.Tainted) with { Pawn = p.Pawn };
             @out.Add(l);
             foreach (var g in l.Gaps)
             {

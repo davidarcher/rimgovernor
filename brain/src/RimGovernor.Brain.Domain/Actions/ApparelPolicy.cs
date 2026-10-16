@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// The complete desired native filter. Token binds the observed assignment and filter state; intervening edits
-/// invalidate it.
+/// invalidate it. AllowTainted allows tainted apparel; it is false unless the coupled comparator rejected disallowing it.
 /// </summary>
 public sealed record ApparelPolicySpec(
     PawnId Pawn,
@@ -13,7 +13,8 @@ public sealed record ApparelPolicySpec(
     double MinHP,
     double MaxHP,
     int MinQuality,
-    int MaxQuality
+    int MaxQuality,
+    bool AllowTainted = false
 );
 
 /// <summary>An apparel policy action payload: a validated <see cref="ApparelPolicySpec"/> with sorted, unique definitions.</summary>

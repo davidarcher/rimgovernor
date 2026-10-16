@@ -2327,12 +2327,16 @@ public sealed record ResearchIntent
 
 /// <summary>
 /// Create or update the named role apparel policy and assign it to one free
-/// colonist; tainted apparel is always excluded and forced or locked apparel
-/// is released. A pawn already on a matching policy is applied again.
+/// colonist; tainted apparel is excluded unless allow_tainted is set, and
+/// forced or locked apparel is released. A pawn already on a matching policy
+/// is applied again.
 /// </summary>
 public sealed record ApparelPolicyIntent
 {
     public string? PawnId { get; init; }
+
+    /// <summary>Allow tainted (dead man's) apparel: the comparator rejected disallowing it for this pawn (#3285).</summary>
+    public bool AllowTainted { get; init; }
 
     public string? Name { get; init; }
 

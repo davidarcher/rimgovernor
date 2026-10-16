@@ -358,7 +358,8 @@ public sealed class ForecastCoupledSelectionTests
     [InlineData(false)]
     public void TaintedParkaFilterWinsNearABreakAndLosesForAContentPawnWorkingOutsideInTheCold(bool nearBreak)
     {
-        // #3284: the generated "tainted not allowed" candidate (+5 mood, 20 less cold insulation) spliced in as #3285 will.
+        // #3284: the generated "tainted not allowed" candidate (+5 mood, 20 less cold insulation). #3285 parity: near the break
+        // the candidate is selected and the pawn's filter keeps tainted disallowed; the content pawn's is rejected, so allowed.
         var root = Assert.Single(GenerateEffectSources(EffectSourceCandidatesTests.Facts(),
             new Dictionary<string, MechanicCard> { ["DeadMansApparel"] = MechanicCards.ByDef["DeadMansApparel"] with { Status = MechanicCardStatus.Verified } }).Roots);
         // Near the break the pawn is fed; the content pawn is hungry, so it takes the outdoor harvest work.
@@ -386,14 +387,17 @@ public sealed class ForecastCoupledSelectionTests
             }
         } };
         var result = Select(facts);
+        var allowed = GearFilterChoices(facts.CoupledAlternatives, result);
         if (nearBreak)
         {
             Assert.Equal([root.Id], result.Selection.Selected);
             Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+            Assert.Empty(allowed);
             return;
         }
         Assert.NotEmpty(result.Selection.Selected);
         Assert.DoesNotContain(root.Id, result.Selection.Selected);
+        Assert.Equal(["pawn"], allowed);
         // The content pawn's break risk does not move, and with the selected outdoor work the thinner parka adds cold exposure.
         Assert.Equal(result.BaselineVector.BreakRisk, result.Rejected.First(r => r.Commitments.SequenceEqual([root.Id])).Consequences!.BreakRisk);
         var work = facts.CoupledAlternatives!.Alternatives.Where(c => result.Selection.Selected.Contains(c.Id)).ToArray();
@@ -401,6 +405,36 @@ public sealed class ForecastCoupledSelectionTests
                 facts, new(), new() { Work = ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(add) }))
             .Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true)).ThermalExposure.Single().AssessedColdDegreeTicks;
         Assert.True(Cold([.. work, root]) > Cold(work));
+    }
+
+    [Fact]
+    public void TheCoupledGeneratorOffersTheShippedCardsFilterCandidateBesideTheClothingFamily()
+    {
+        // #3285: the shipped (verified) DeadMansApparel card over the gear census, behind the equipment Need's enablement.
+        var model = EffectSourceCandidatesTests.Pawn().Gear;
+        model = model with { Role = model.Role with { Work = model.Role.Work with { Traits = Known<EquatableArray<PawnTrait>>([]) } } };
+        var facts = Review() with
+        {
+            Gear = Known(new GearObservation { Stored = Known<EquatableArray<RimGovernor.Brain.Policy.GearStock>>([]), Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model), Candidates = Known<EquatableArray<RimGovernor.Brain.Policy.GearCandidate>>([]) }] }),
+            MedicalPawns = Known<EquatableArray<CarePawn>>([new() { Id = new("pawn"), Conditions = Known<EquatableArray<CareCondition>>([]) }]),
+        };
+        var root = Assert.Single(GenerateCoupledActivities(facts, Horizon)!.Alternatives, a => a.ExclusiveOutcome == "gear-filter/pawn");
+        Assert.Equal("gear-filter/pawn/disallow-DeadMansApparel", root.Id);
+        var disabled = facts with { AvailableNeeds = Known<EquatableArray<NeedId>>([]) };
+        Assert.DoesNotContain(GenerateCoupledActivities(disabled, Horizon)!.Alternatives, a => a.ExclusiveOutcome.StartsWith("gear-filter/", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ABloodlustPawnHasNoCandidateSoItsFilterKeepsTheDefault()
+    {
+        // #3285 parity: the card is nullified, so nothing is compared and the pawn keeps tainted disallowed.
+        var generated = GenerateEffectSources(EffectSourceCandidatesTests.Facts(pawns: EffectSourceCandidatesTests.Pawn(traits: ["Bloodlust"])),
+            new Dictionary<string, MechanicCard> { ["DeadMansApparel"] = MechanicCards.ByDef["DeadMansApparel"] with { Status = MechanicCardStatus.Verified } });
+        Assert.Empty(generated.Roots);
+        var facts = Review();
+        facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Alternatives = [.. facts.CoupledAlternatives.Alternatives, .. generated.Roots] } };
+        Assert.Empty(GearFilterChoices(facts.CoupledAlternatives, Select(facts)));
+        Assert.Empty(GearFilterChoices(null, null));
     }
 
     [Fact]
