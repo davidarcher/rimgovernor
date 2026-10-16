@@ -32,8 +32,8 @@ public sealed partial class PawnControlFixture
         {
             thermalActive = false;
             var map = Find.CurrentMap;
-            if (!Find.TickManager.Paused || width < 2 || height < 2 || width * height < 6 || width > 4 || height > 4)
-                throw new InvalidOperationException("A paused planned rectangular room with sides 2..4 and at least 6 cells is required.");
+            if (!Find.TickManager.Paused || width < 2 || height < 2 || width * height < 6 || width > 5 || height > 5)
+                throw new InvalidOperationException("A paused planned rectangular room with sides 2..5 and at least 6 cells is required.");
             thermalInterior = new CellRect(x, z, width, height);
             var bedCell = new IntVec3(x + width - 1, 0, z + height - 2);
             var heaterCell = new IntVec3(x, 0, z + height - 1);

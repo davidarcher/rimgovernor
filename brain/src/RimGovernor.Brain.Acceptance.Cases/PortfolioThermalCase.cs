@@ -38,12 +38,12 @@ internal static class PortfolioThermalCase
                     ["x"] = b.X, ["z"] = b.Z, ["width"] = b.Width, ["height"] = b.Height,
                     ["cells"] = r.Region.Cells().Count, ["doorX"] = r.Door.X, ["doorZ"] = r.Door.Z };
             }).ToArray());
-            var room = layout!.Rooms.Where(r => !r.Outdoor).OrderBy(r => r.Id).Take(4)
-                .Where(r => r.Role == PolicyFunctions.PlannedBedroom)
-                .Where(r => r.Region.Bounds() is var b && b.Width >= 2 && b.Height >= 2 && b.Width * b.Height >= 6 && b.Width <= 4 && b.Height <= 4
+            var room = layout!.Rooms.Where(r => !r.Outdoor).OrderBy(r => r.Id).Take(8)
+                .Where(r => r.Role == PolicyFunctions.PlannedBedroom || r.Role == PolicyFunctions.PlannedShelter)
+                .Where(r => r.Region.Bounds() is var b && b.Width >= 2 && b.Height >= 2 && b.Width * b.Height >= 6 && b.Width <= 5 && b.Height <= 5
                     && r.Region.Cells().Count == b.Width * b.Height)
                 .OrderBy(r => r.Region.Cells().Count).ThenBy(r => r.Id).FirstOrDefault()
-                ?? throw new AcceptanceException("Normal first review supplied no supported small rectangular bedroom; thermal setup cannot invent planner geometry.");
+                ?? throw new AcceptanceException("Normal first review supplied no supported small rectangular sleeping room; thermal setup cannot invent planner geometry.");
             var bounds = room.Region.Bounds();
             var prepared = await s.Harness.CallAsync("thermal-stage", "test/portfolio_thermal_prepare", new JsonObject
             {
