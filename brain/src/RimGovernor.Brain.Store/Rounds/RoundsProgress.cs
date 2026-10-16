@@ -21,8 +21,7 @@ public sealed partial class Store
     /// <summary>
     /// Records every active goal's progress from the evidence this review holds: the goal's open plans (a settled
     /// effect or observed construction since the last record is native progress; a dispatched order with no
-    /// capable available pawn is blocked), the labor census, the foothold gates (the food ladder's prerequisite)
-    /// and the deficit the review measured. Records are keyed by need, the id the launcher names concerns by; a
+    /// capable available pawn is blocked), the labor census and the deficit the review measured. Records are keyed by need, the id the launcher names concerns by; a
     /// concern that is recovered, cancelled or invalidated drops its record. <paramref name="states"/> holds each
     /// assessment's row in assessment order (Go <c>roundsProgress</c>).
     /// </summary>
@@ -48,8 +47,6 @@ public sealed partial class Store
         {
             deficits[g.Id] = g.Deficit;
         }
-        // The food ladder's store rung waits on the food-stores/storage Need while that Need has open work.
-        var storageOpen = StandardOpenWork(tx, LoadNeedIn(tx, PolicyFunctions.FoodStorageNeed, request.Current));
         var output = new List<ConcernProgress>();
         for (var i = 0; i < needs.Assessments.Count; i++)
         {
@@ -121,11 +118,6 @@ public sealed partial class Store
                 workerAvailable = Known(available);
             }
             var contract = PolicyFunctions.ConcernProgressContract(MethodLabel(method), request.Policy);
-            var prerequisite = default(ConcernId);
-            if (n.Id == PolicyFunctions.EnsureFoodSupply)
-            {
-                (contract, prerequisite, observed) = PolicyFunctions.FoodProgress(request.Facts, request.Policy, storageOpen);
-            }
             var evidence = new ProgressEvidence
             {
                 Advanced = advanced,
@@ -134,7 +126,6 @@ public sealed partial class Store
                 Unresolved = unresolved,
                 WorkerAvailable = workerAvailable,
                 NativeIneligible = nativeIneligible,
-                Prerequisite = prerequisite,
                 Observed = observed,
             };
             var record = PolicyFunctions.ReviewConcernProgress(last, n.Id, contract, evidence, request.Tick);
@@ -188,6 +179,9 @@ public sealed partial class Store
             Planner = need.Note.Cause,
             PlannerSubject = need.Note.Subject,
             Open = method.Length != 0,
+            // The Need's planners key stalled targets out on its row (RecordProgressCooldown); a cooldown outlives
+            // the run that rebuilt the row until its own bound.
+            Cooldowns = previous is null ? default : EquatableArray.From(previous.Cooldowns.Where(c => c.Until > tick)),
         };
         try
         {

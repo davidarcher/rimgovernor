@@ -30,7 +30,7 @@ internal static class CampaignFootholdCase
                         Watch = TimeSpan.FromMinutes(35),
                         Window = window,
                         PollTicks = 5000,
-                        Concern = PolicyFunctions.EnsureFoodSupply.Value,
+                        Concern = PolicyFunctions.FoodSupplyNeed.Value,
                         Extra = CampaignRun.CampaignConcerns,
                         FailFast = new FailFast { Disabled = true },
                     },

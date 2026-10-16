@@ -221,7 +221,7 @@ internal static class SoloSeaIce
                         Watch = PerSegmentWall,
                         Window = window,
                         Poll = TimeSpan.FromSeconds(10),
-                        Concern = PolicyFunctions.EnsureFoodSupply.Value,
+                        Concern = PolicyFunctions.FoodSupplyNeed.Value,
                         Extra = SustainedColonyCase.ColonyConcerns,
 
                         // A refusal is part of what the year records, never a reason to cut it.

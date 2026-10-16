@@ -255,7 +255,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             }
         }
 
-        sample["latch_food"] = review.Latches.Food;
         if (PolicyFunctions.IsIncidentKind(need))
         {
             return SampleIncident(review, need, sample, ct);

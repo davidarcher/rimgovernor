@@ -52,7 +52,7 @@ public sealed record WatchConfig
     /// </summary>
     public Func<LogRow, bool>? Wake { get; init; }
 
-    /// <summary>The maintained Concern the timeline samples (default EnsureFoodSupply).</summary>
+    /// <summary>The maintained Concern or Need the timeline samples (default the food/supply Need).</summary>
     public string Concern { get; init; } = "";
 
     /// <summary>Further goals each sample also reads, under the goal id.</summary>
@@ -90,7 +90,7 @@ public interface IWatchStore
     /// <summary>
     /// Reads one maintained goal's current binding (if any) and its committed methods' plan stages, mirroring exactly
     /// what a routine planner's step itself reads (Go <c>SampleStandard</c>): <c>at</c>, <c>method_count</c>,
-    /// <c>review_revision</c>, <c>review_tick</c>, <c>blocked</c>, <c>latch_food</c>, <c>emergency</c> (array of
+    /// <c>review_revision</c>, <c>review_tick</c>, <c>blocked</c>, <c>emergency</c> (array of
     /// strings), <c>concern_bound</c>, <c>status</c>, <c>need</c>, <c>priority</c>, <c>vetoed</c>, <c>epoch</c>,
     /// <c>plans</c> and <c>retired_plans</c> (each <c>{plan, method, actions, stages, kinds, unsuccessful}</c>, an
     /// unsuccessful row <c>{action, kind, reason}</c>), or the incident shape for an incident kind. Throws
@@ -296,7 +296,7 @@ public static partial class SustainedFood
         var events = new List<JsonObject>();
         var lastMethodCount = -1;
         var lastNeed = "";
-        var concernId = cfg.Concern.Length > 0 ? cfg.Concern : "EnsureFoodSupply";
+        var concernId = cfg.Concern.Length > 0 ? cfg.Concern : "food/supply";
         var watchStarted = DateTimeOffset.UtcNow;
         var watchDeadline = watchStarted + cfg.Watch;
         var pending = new List<WatchCheckpoint>();

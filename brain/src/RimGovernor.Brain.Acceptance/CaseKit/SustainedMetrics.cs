@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// A contiguous span of samples where EnsureFoodSupply has a committed method but all its Progress rows remain
+/// A contiguous span of samples where the food/supply Need has a committed method but all its Progress rows remain
 /// pending: Attempt is zero and Snapshot is unstamped (Go <c>sustainedfood.StallWindow</c>).
 /// </summary>
 public sealed record StallWindow(DateTimeOffset StartedAt, DateTimeOffset EndedAt, string Need, int Samples)

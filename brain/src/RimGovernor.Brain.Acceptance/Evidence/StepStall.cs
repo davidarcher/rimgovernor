@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>
 /// The fail-fast verdict when a run's step-stall budget elapsed without any scheduler step running a clock
 /// step. It names the family selection the service ran with and the last step failure the clock worker recorded,
-/// so a starved step budget reads as such instead of as twenty minutes of an unchanged EnsureFoodSupply timeline.
+/// so a starved step budget reads as such instead of as twenty minutes of an unchanged food/supply timeline.
 /// </summary>
 public sealed class StepStallException : AcceptanceException
 {

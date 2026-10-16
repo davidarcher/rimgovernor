@@ -132,7 +132,7 @@ public static partial class PolicyFunctions
     ///
     /// A hunter (WeaponRole.Hunter) wants a hunting weapon (WeaponDef.Hunts), so one unarmed or armed without it
     /// is demand like any unarmed colonist. Those weapons are returned apart as hunters: food owns that craft
-    /// (EnsureFoodSupply). A hunter's upgrade stays an ordinary fighter's.
+    /// (the food/supply Need). A hunter's upgrade stays an ordinary fighter's.
     /// </summary>
     public static (IReadOnlyList<Amount> Fighters, IReadOnlyList<Amount> Hunters) ArmoryWeaponDemand(
         ArmoryTier tier,

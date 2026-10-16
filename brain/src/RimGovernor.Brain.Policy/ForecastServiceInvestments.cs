@@ -68,7 +68,7 @@ public static partial class PolicyFunctions
         var foodTasks = Dependencies(context.NeedTasks.Where(n => n.Kind == "food" && food.Contains(n.Pawn)
             && selected.Plan.Allocations.Any(a => a.Activity == n.Task)).Select(n => n.Task));
         if (food.Length != 0 && foodTasks.Count != 0)
-            result.Add(new(new(EnsureFoodSupply, "", "owner_observed_recovery", Known(horizon / GameTime.TicksPerDay)),
+            result.Add(new(ServiceTarget.ForNeed(FoodSupplyNeed, horizonDays: Known(horizon / GameTime.TicksPerDay)),
                 EquatableArray.From(food), foodTasks, horizon, "food_threshold_ticks",
                 Known(food.Sum(p => baseline.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks.Value
                     - selected.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks.Value)),

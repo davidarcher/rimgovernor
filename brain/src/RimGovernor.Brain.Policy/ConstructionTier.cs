@@ -76,8 +76,8 @@ public static partial class PolicyFunctions
         {
             return ConstructionTier.Survive;
         }
-        // EnsureFoodSupply builds only the butcher facility.
-        if (concern == EnsureFoodSupply || concern == MaintainMedicalReserves || concern == RefrigerationNeed.FilingKey
+        // The food/supply Need builds only the butcher facility.
+        if (concern == FoodSupplyNeed.FilingKey || concern == MaintainMedicalReserves || concern == RefrigerationNeed.FilingKey
             || concern == MaintainStockpiles)
         {
             return ConstructionTier.Sustain;

@@ -76,7 +76,7 @@ public sealed class ServiceInvestmentTests
         ForecastCoupledSelection Select(RoundsFacts f) => CompareActivityOutcomes(CoupledForecastRequestOf(new("world", 100),
             300d / GameTime.TicksPerDay, f, new(), new() { Work = ForecastWorkInputsOf(f) }, [], new()), f.CoupledAlternatives!);
         var proposal = Assert.Single(Select(facts).ServiceInvestments);
-        Assert.Equal(EnsureFoodSupply, proposal.Target.Owner);
+        Assert.Equal(FoodSupplyNeed.FilingKey, proposal.Target.Owner);
         Assert.Equal("pawn", Assert.Single(proposal.Beneficiaries));
         Assert.True(proposal.AvoidedExposure.Value > 0);
         Assert.Empty(Select(ForecastCoupledSelectionTests.Review(level: 1, fall: 0)).ServiceInvestments);
@@ -86,7 +86,7 @@ public sealed class ServiceInvestmentTests
     public void DisabledShelterControlCannotGenerateRoofOrFinishWork()
     {
         var facts = ForecastThermalPortfolioTests.Review(-10) with
-        { AvailableMethods = Known<EquatableArray<ConcernId>>([EnsureWorkAssignments, EnsureFoodSupply]) };
+        { AvailableMethods = Known<EquatableArray<ConcernId>>([EnsureWorkAssignments]), AvailableNeeds = Known<EquatableArray<NeedId>>([FoodSupplyNeed]) };
         var generated = GenerateCoupledActivities(facts, 1000)!;
         Assert.DoesNotContain(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("shelter/", StringComparison.Ordinal)
             || c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal));

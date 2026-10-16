@@ -138,7 +138,7 @@ public sealed partial class Rounder
         f = f with { Dash = PolicyFunctions.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, PolicyFunctions.PublishedHypothermiaTuning) };
         var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, ctx).ConfigureAwait(false);
         var stray = DraftNeeds.IdleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed);
-        f = f with { CleanupPawns = Known(stray.Count > 0), AvailableMethods = Methods };
+        f = f with { CleanupPawns = Known(stray.Count > 0), AvailableMethods = Methods, AvailableNeeds = AvailableNeeds };
         projection = projection with { Facts = f };
         reading = reading with { Reading = reading.Reading with { Projection = projection } };
         p.Current(ctx, epoch);

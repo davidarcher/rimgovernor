@@ -46,7 +46,6 @@ internal static class InspectionRegistry
         new(RestoreWorkers, ConcernType.IncidentConcern, Department.People, [FactFamily.Emergency, FactFamily.Pawns], InspectRestoreWorkers),
         new(ManageSupplySafety, ConcernType.StandardConcern, Department.Storage, [FactFamily.Emergency, FactFamily.Colony], InspectManageSupplySafety),
         new(EnsureWorkAssignments, ConcernType.OnceConcern, Department.People, [FactFamily.Pawns, FactFamily.Identity, FactFamily.Emergency], InspectWorkAssignments),
-        new(EnsureFoodSupply, ConcernType.StandardConcern, Department.Food, [FactFamily.Colony, FactFamily.Pawns, FactFamily.Rooms], InspectFoodSupply),
         new(MaintainHousing, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony, FactFamily.Rooms, FactFamily.Pawns], InspectHousing),
         new(EnsureTemperatureSafety, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Colony, FactFamily.Rooms, FactFamily.World], InspectTemperatureSafety),
         new(EnsureBasicPower, ConcernType.OnceConcern, Department.Industry, [FactFamily.Colony, FactFamily.World], InspectBasicPower),

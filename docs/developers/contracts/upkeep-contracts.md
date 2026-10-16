@@ -248,7 +248,7 @@ cells or targets overlap an open Method is refused by claim (`claim_conflict`).
   No bill hook substitutes cleaning, and no tend finalizer selects cleanup. Native
   legality and player ownership still veto exact orders. Post-care cleaning needs
   remaining demand; it cannot retroactively improve completed treatment.
-- Butcher placements never share a room with a cooking bench. EnsureFoodSupply owns the
+- Butcher placements never share a room with a cooking bench. The `food/supply` Need owns the
   butcher facility and owes it whatever the food runway: the planned butchery (beside the
   freezer) takes a `ButcherSpot` first, so hunts have a bench at once, then the real
   `TableButcher` once the wood and a builder allow, and the spot is deconstructed when the

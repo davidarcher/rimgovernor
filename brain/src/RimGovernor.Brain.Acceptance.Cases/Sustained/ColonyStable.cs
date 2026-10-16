@@ -46,7 +46,7 @@ internal static class SustainedStableCase
                     Watch = Watch,
                     Window = ColonyStableTicks,
                     Poll = TimeSpan.FromSeconds(10),
-                    Concern = PolicyFunctions.EnsureFoodSupply.Value,
+                    Concern = PolicyFunctions.FoodSupplyNeed.Value,
                     Extra = SustainedColonyCase.ColonyConcerns,
                     FailFast = new FailFast { Disabled = true },
                 },

@@ -17,7 +17,11 @@ public interface IFieldNative
     Task<(OP.ZonePreviewReply Reply, BridgeResult Result)> PreviewZoneAsync(C.Identity identity, ZoneCreate zone, CancellationToken ct);
 }
 
-/// <summary>Opens and grows the colony's fields, retargets the grower crops and keeps the other resources' fields in step with the food plan.</summary>
+/// <summary>
+/// Opens and grows the colony's fields. The food/supply Need's part (fishing zones, grower crops, shrinking surplus
+/// zones and new food fields) runs in the food family's work step under the Need, admitted by claims; the clock
+/// slot keeps the other resources' fields (hay, social crops and MaintainResource's opened fields).
+/// </summary>
 public sealed partial class RoundsFieldPlanner
 {
     internal const double FieldLampGrowthRadius = 5.8;
@@ -38,7 +42,11 @@ public sealed partial class RoundsFieldPlanner
         _native = native;
     }
 
-    internal async Task<RoundsFieldResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// One step. Without <paramref name="food"/> it places only the other resources' fields; with it, the food/supply
+    /// Need's owner, it places only the Need's food work.
+    /// </summary>
+    internal async Task<RoundsFieldResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch, IWorkOwner? food = null)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -55,14 +63,6 @@ public sealed partial class RoundsFieldPlanner
         {
             return new RoundsFieldResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(review, PolicyApi.EnsureFoodSupply, call);
-        var idle = BuildingReasonNoDeficit;
-        var blocked = false;
-        foreach (var method in goal?.Methods ?? [])
-        {
-            var plan0 = p.Journal.LoadPlan(method.Plan, call);
-            blocked = blocked || FieldBlockingWork(method.MethodId, plan0.Progress);
-        }
         var plans = p.Journal.LoadPlans(call);
         var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
         var crops = await _reviewer.SowableCropsAsync(state.Snapshot, call).ConfigureAwait(false);
@@ -77,9 +77,9 @@ public sealed partial class RoundsFieldPlanner
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
         var projection = read.Projection;
-        PlannerSnapshot.RecordStepRead("field", PolicyApi.EnsureFoodSupply, state.Snapshot, projection);
+        PlannerSnapshot.RecordStepRead("field", food is null ? PolicyApi.MaintainResource : PolicyFunctions.FoodSupplyNeed.FilingKey, state.Snapshot, projection);
         var protectedCells = _reviewer.FieldProtected(state, review, projection, claims, call);
-        var others = await OtherFieldShortfallsAsync(state, review, projection, call).ConfigureAwait(false);
+        var others = food is null ? await OtherFieldShortfallsAsync(state, review, projection, call).ConfigureAwait(false) : [];
         if (LayoutProtected.FieldAnchor(projection) is not { } anchor)
         {
             return new RoundsFieldResult { Verdict = BuildingReasonNoLayoutPlan };
@@ -95,23 +95,14 @@ public sealed partial class RoundsFieldPlanner
             return new RoundsFieldResult { Verdict = reason };
         }
 
-        if (!workable || goal is null)
+        if (food is not { } goal)
         {
-            return await PlaceOthersAsync(idle).ConfigureAwait(false);
+            return await PlaceOthersAsync(BuildingReasonNoDeficit).ConfigureAwait(false);
         }
         var (fished, handled) = await FishingAsync(state, goal, read, call, epoch).ConfigureAwait(false);
         if (handled)
         {
             return fished;
-        }
-        if (blocked)
-        {
-            var openPlans = new List<PlanState>();
-            foreach (var method in goal.Methods)
-            {
-                openPlans.Add(p.Journal.LoadPlan(method.Plan, call));
-            }
-            blocked = !FoodPlanFieldRoom(projection, openPlans);
         }
         var reserveDays = _reviewer.Seasonal(projection.Facts).FoodTargetDays;
         var (request, choices) = FieldSiteRequest(projection, protectedCells, reserveDays);
@@ -127,10 +118,6 @@ public sealed partial class RoundsFieldPlanner
                     return result1;
                 }
             }
-        }
-        if (blocked)
-        {
-            return await PlaceOthersAsync(BuildingReasonExistingWork).ConfigureAwait(false);
         }
         var shrunk = await ShrinkAsync(state, goal, projection, read, request.Field, call, epoch).ConfigureAwait(false);
         if (shrunk is not null)
@@ -158,11 +145,8 @@ public sealed partial class RoundsFieldPlanner
             bool tried;
             if (candidate.Kind == SiteKind.Outdoor && candidate.Buildings.Count == 0)
             {
-                var food = new FieldShortfall(goal, LayoutFieldPlanning.FieldBlockOptions(candidate, selection.Candidates), "food");
-                var ledger = new List<FieldShortfall> { food };
-                ledger.AddRange(others);
-                (result, tried) = await PlaceLedgerAsync(state, projection, read, ledger, request.Field.Site.Anchor, protectedCells, call, epoch).ConfigureAwait(false);
-                others = [];
+                var shortfall = new FieldShortfall(goal, LayoutFieldPlanning.FieldBlockOptions(candidate, selection.Candidates), "food");
+                (result, tried) = await PlaceLedgerAsync(state, projection, read, [shortfall], request.Field.Site.Anchor, protectedCells, call, epoch).ConfigureAwait(false);
             }
             else
             {
@@ -182,20 +166,20 @@ public sealed partial class RoundsFieldPlanner
         var p = _reviewer.Player;
         (StandardState? Goal, bool Ready) Ready(ConcernId kind)
         {
-            var (goal, workable) = p.Journal.Workable(review, kind, call);
-            if (!workable || goal is null)
+            var (owner, workable) = p.Journal.Workable(review, kind, call);
+            if (!workable || owner is null)
             {
-                return (goal, false);
+                return (owner, false);
             }
-            foreach (var method in goal.Methods)
+            foreach (var method in owner.Methods)
             {
                 var plan = p.Journal.LoadPlan(method.Plan, call);
                 if (StorePackage.PlanOpen(plan))
                 {
-                    return (goal, false);
+                    return (owner, false);
                 }
             }
-            return (goal, true);
+            return (owner, true);
         }
         var output = new List<FieldShortfall>();
         var (hay, hayOk) = HayShortfall(projection);
@@ -246,7 +230,7 @@ public sealed partial class RoundsFieldPlanner
             }
             var lead = s.Options[0];
             bool tried;
-            (result, tried) = await EnactBlockAsync(state, s.Standard, projection, read, new SiteTypeCandidate { Kind = SiteKind.Outdoor, Crop = lead.Crop, Needed = lead.Needed }, s.Options, anchor, protectedCells, call, epoch).ConfigureAwait(false);
+            (result, tried) = await EnactBlockAsync(state, s.Owner, projection, read, new SiteTypeCandidate { Kind = SiteKind.Outdoor, Crop = lead.Crop, Needed = lead.Needed }, s.Options, anchor, protectedCells, call, epoch).ConfigureAwait(false);
             if (tried)
             {
                 return (result, tried);
@@ -255,20 +239,15 @@ public sealed partial class RoundsFieldPlanner
         return (result, false);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var crop = candidate.Crop;
         var text = string.Create(CultureInfo.InvariantCulture, $"{candidate.Kind}/{crop.Name}/{string.Join(";", candidate.Sites.Patches)}/{string.Join(";", candidate.Buildings)}");
         var method = new MethodId("fields-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)).AsSpan(0, 16)));
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
             return (new RoundsFieldResult { Verdict = WaitFor(Cause.MethodUsed, "field_method") }, true);
-        }
-        catch (NotFoundException)
-        {
-            // Not yet used: enact it.
         }
         var id = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
@@ -378,7 +357,7 @@ public sealed partial class RoundsFieldPlanner
         Costs = Known(EquatableArray.From(new List<Amount>())),
     };
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> AdmitAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> AdmitAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
@@ -424,7 +403,7 @@ public sealed partial class RoundsFieldPlanner
         return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var (planned, reason) = LayoutFieldPlanning.PlanFieldBlock(projection, anchor, options, protectedCells);
@@ -435,14 +414,9 @@ public sealed partial class RoundsFieldPlanner
         }
         var text = string.Create(CultureInfo.InvariantCulture, $"block/{edit.Zone}/{edit.Crop}/{string.Join(";", edit.Cells)}");
         var method = new MethodId("fields-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)).AsSpan(0, 16)));
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
             return (new RoundsFieldResult { Verdict = WaitFor(Cause.MethodUsed, "field_block_method") }, true);
-        }
-        catch (NotFoundException)
-        {
-            // Not yet used: grow the block.
         }
         var id = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
@@ -457,7 +431,11 @@ public sealed partial class RoundsFieldPlanner
             {
                 throw new ControlException("enactBlock: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge");
             }
-            p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan0, call);
+            var grown = p.Journal.CommitOwnerWork(goal, method, "", plan0, call);
+            if (grown.Outcome != ClaimOutcome.Admitted)
+            {
+                return (new RoundsFieldResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(grown) }, false);
+            }
             ClockEvents.Event("layout", "fields", "field block grown", ("zone", edit.Zone), ("crop", edit.Crop), ("cells", edit.Cells.Count), ("plan", id.Value));
             return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
         }
@@ -487,7 +465,7 @@ public sealed partial class RoundsFieldPlanner
         return await AdmitAsync(state, goal, projection, read, method, id, snapshot, stock, [action], [preview], "block " + edit.Crop, call, epoch).ConfigureAwait(false);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> RecropAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, GrowerCropChoice choice, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> RecropAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, GrowerCropChoice choice, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         if (_native is not IFieldGrowerCrop native)
         {
@@ -495,14 +473,9 @@ public sealed partial class RoundsFieldPlanner
         }
         var p = _reviewer.Player;
         var method = new MethodId("fields-recrop-" + choice.Grower);
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
             return (new RoundsFieldResult { Verdict = WaitFor(Cause.MethodUsed, "recrop_method") }, false);
-        }
-        catch (NotFoundException)
-        {
-            // Not yet used: recrop.
         }
         var (target, _) = await native.ReadGrowerCropTargetAsync(Boundary.Identity(state.Snapshot), choice.Grower, call).ConfigureAwait(false);
         try
@@ -535,8 +508,12 @@ public sealed partial class RoundsFieldPlanner
         {
             throw new ControlException("recrop: p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge");
         }
+        var commit = p.Journal.CommitOwnerWork(goal, method, "", plan, call);
+        if (commit.Outcome != ClaimOutcome.Admitted)
+        {
+            return (new RoundsFieldResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) }, false);
+        }
         FieldEdit("admitted", "recrop", choice.Grower, new Dictionary<string, object?> { ["from"] = choice.Current, ["to"] = choice.Crop.Name, ["detail"] = choice.Reason }, call);
-        p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
         return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
@@ -557,29 +534,6 @@ public sealed partial class RoundsFieldPlanner
             }
         }
         return true;
-    }
-
-    internal static bool FieldBlockingWork(MethodId method, IReadOnlyList<Progress> progress)
-    {
-        if (StorePackage.IsRoomShellMethod(method))
-        {
-            return false;
-        }
-        foreach (var p in progress)
-        {
-            var zone = p.Action.ZoneCreate is not null || p.Action.ZoneCellEdit is not null;
-            var building = p.Action.Building;
-            var isBuilding = building is not null;
-            if (building is not null && ButcherBenchDefinition(building.Definition))
-            {
-                continue;
-            }
-            if ((zone || isBuilding) && PendingWork(p))
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     internal static List<string> UniqueFieldDefinitions(IEnumerable<string> values)

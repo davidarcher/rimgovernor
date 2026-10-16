@@ -8,7 +8,7 @@ public static class OperationIntent
     // The in-game names of Concerns whose split identifier reads poorly; every other kind falls back to its words.
     private static readonly Dictionary<ConcernId, string> ConcernLabels = new()
     {
-        [EnsureFoodSupply] = "Food supply",
+        [FoodSupplyNeed.FilingKey] = "Food supply",
         [FoodStorageNeed.FilingKey] = "Food storage",
         [MaintainResource] = "Resource",
         [MaintainTrade] = "Export goods",

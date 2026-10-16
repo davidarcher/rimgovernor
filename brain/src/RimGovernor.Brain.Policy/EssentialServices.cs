@@ -70,7 +70,7 @@ public static partial class PolicyFunctions
         if (requirements.Any(r => r!.Coverage != ServiceCoverage.Adequate)) return DevelopmentReviewState.Unknown;
         // Portfolio delivery is a projection. Only the owning observed service recovery can retire its goal.
         if (previous.Requirements.Any(t => t.Predicate == "food_plan_gap") && !current.Coverage.Any(c =>
-            c.Target.Owner == EnsureFoodSupply && c.Target.Predicate == "owner_observed_recovery" && c.Coverage == ServiceCoverage.Adequate))
+            c.Target.Owner == FoodSupplyNeed.FilingKey && c.Target.Predicate == "need_satisfied" && c.Coverage == ServiceCoverage.Adequate))
             return DevelopmentReviewState.Unknown;
         foreach (var old in previous.StressEvidence)
         {
@@ -119,8 +119,9 @@ public static partial class PolicyFunctions
             var result = assess();
             stress.Add(new(target, unavailable, result.Coverage, result.Missing));
         }
-        Owner(EssentialService.Food, EnsureFoodSupply);
-        NeedOwner(EssentialService.Cooking, CookingNeedOf(FoodFacts.From(facts)));
+        var food = FoodFacts.From(facts, policy);
+        NeedOwner(EssentialService.Food, FoodSupplyNeedOf(food));
+        NeedOwner(EssentialService.Cooking, CookingNeedOf(food));
         Owner(EssentialService.Medical, CriticalMedicine);
         Owner(EssentialService.Medical, MaintainSurgery);
         Owner(EssentialService.Medical, MaintainMedicalReserves);
@@ -144,11 +145,11 @@ public static partial class PolicyFunctions
         if (!inactive)
         {
             // Inventory-level food adequacy and alternative channels belong to FoodPlan, not an invented source ranking.
-            if (facts.FoodPlan.TryGetValue(out var food))
-                rows.Add(new(EssentialService.Food, Target(EnsureFoodSupply, "", "food_plan_gap", Known(food.HorizonDays)),
-                    food.DemandPerDay == 0 ? ServiceCoverage.NotApplicable : food.GapPerDay > 0 ? ServiceCoverage.Shortfall : ServiceCoverage.Adequate,
-                    food.Forecast.Consumers.Select(c => c.Id.Value).ToImmutableArray(), []));
-            else rows.Add(new(EssentialService.Food, Target(EnsureFoodSupply, "", "food_plan_gap"), ServiceCoverage.Unknown, beneficiaries, ["food_plan"]));
+            if (facts.FoodPlan.TryGetValue(out var plan))
+                rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodSupplyNeed, "", "food_plan_gap", Known(plan.HorizonDays)),
+                    plan.DemandPerDay == 0 ? ServiceCoverage.NotApplicable : plan.GapPerDay > 0 ? ServiceCoverage.Shortfall : ServiceCoverage.Adequate,
+                    plan.Forecast.Consumers.Select(c => c.Id.Value).ToImmutableArray(), []));
+            else rows.Add(new(EssentialService.Food, ServiceTarget.ForNeed(FoodSupplyNeed, "", "food_plan_gap"), ServiceCoverage.Unknown, beneficiaries, ["food_plan"]));
 
             AssessServiceMedical(facts, rows, Scenario);
             AssessServiceCooking(facts, demand, rows, Scenario);

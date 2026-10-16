@@ -12,6 +12,10 @@ public sealed partial class Rounder
 
     /// <summary>The migrated families' Needs the runtime composes (#3280); the review reads their facts as it read their Concerns'.</summary>
     internal IReadOnlySet<NeedId> Needs = new HashSet<NeedId>();
+
+    /// <summary>The composed Needs as the review's facts carry them: known whenever the method capabilities are.</summary>
+    internal Fact<EquatableArray<NeedId>> AvailableNeeds =>
+        Methods.IsKnown ? Known<EquatableArray<NeedId>>([.. Needs.OrderBy(n => n.Value, StringComparer.Ordinal)]) : Unknown<EquatableArray<NeedId>>();
     internal Player Player;
     internal IRoundsSource Native;
     internal IClock Clock;
@@ -645,7 +649,7 @@ public sealed partial class Rounder
                 reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
             }
         }
-        reading = reading.WithFacts(rf => rf with { AvailableMethods = Methods });
+        reading = reading.WithFacts(rf => rf with { AvailableMethods = Methods, AvailableNeeds = AvailableNeeds });
         var vLedgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { LedgerOwed = vLedgerOwed });
         // The Grafana ledger dashboard reads a derived copy of the review's view.

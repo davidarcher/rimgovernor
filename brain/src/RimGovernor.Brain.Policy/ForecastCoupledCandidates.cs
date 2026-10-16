@@ -23,6 +23,7 @@ public static partial class PolicyFunctions
             return null; // A mixed frame cannot certify a consequence; caller retains absence explicitly.
         // A gate is keyed by its owner: a Concern id, or a migrated family's NeedId under its FilingKey (#3250).
         bool Enabled(ConcernId concern) => !facts.AvailableMethods.TryGetValue(out var available) || available.Contains(concern);
+        bool NeedEnabled(NeedId need) => !facts.AvailableNeeds.TryGetValue(out var available) || available.Contains(need);
         if (!Enabled(EnsureWorkAssignments)) return null;
         read = read with
         {
@@ -32,7 +33,7 @@ public static partial class PolicyFunctions
                 && !resources.Claims.Targets.Contains(o.Source) && !resources.Claims.Targets.Contains(o.Bench)
                 && !resources.Claims.Targets.Contains(o.Bill)))
         };
-        if (!Enabled(EnsureFoodSupply) || OutdoorAcquisitionHeld(facts))
+        if (!NeedEnabled(FoodSupplyNeed) || OutdoorAcquisitionHeld(facts))
             read = read with { Food = read.Food with { Options = [] }, FoodConversions = [] };
         var shelterEnabled = Enabled(MaintainHousing) || Enabled(MaintainShelter) || Enabled(EnsureTemperatureSafety);
         if (!shelterEnabled)

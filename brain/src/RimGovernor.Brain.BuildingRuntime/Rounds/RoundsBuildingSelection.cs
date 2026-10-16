@@ -28,7 +28,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsButcherPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureFoodSupply, Definition = "TableButcher", Environment = PlacementEnvironment.Anywhere };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.FoodSupplyNeed.FilingKey, Need = PolicyApi.FoodSupplyNeed, Definition = "TableButcher", Environment = PlacementEnvironment.Anywhere };
     }
 
     /// <summary>The count the concern wants built, the method that builds it, or the verdict that explains why none is wanted.</summary>
@@ -39,7 +39,7 @@ public sealed partial class RoundsBuildingPlanner
             return (0, default, FieldUnavailable("colonists"));
         }
         var c = Concern;
-        if (c == PolicyApi.EnsureFoodSupply)
+        if (c == PolicyApi.FoodSupplyNeed.FilingKey)
         {
             if (Definition != "TableButcher")
             {
@@ -243,7 +243,7 @@ public sealed partial class RoundsBuildingPlanner
         return (0, default, FieldUnavailable("concern_selection"));
     }
 
-    internal bool ButcherFacility() => Concern == PolicyApi.EnsureFoodSupply;
+    internal bool ButcherFacility() => Concern == PolicyApi.FoodSupplyNeed.FilingKey;
 
     internal bool WorkshopLadder() => (Concern == PolicyApi.MaintainResource || Concern == PolicyApi.MaintainEquipment) && !CraftingSpot;
 }

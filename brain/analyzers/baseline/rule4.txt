@@ -47,7 +47,6 @@ BuildingRuntime/Authorize.cs|PlanAuthorizer.AuthorizeRoundsPlanAsync
 BuildingRuntime/Clock/ClockScheduler.cs|ClockScheduler.RunPlannerWaveAsync
 BuildingRuntime/Colony/ColonyPlan.cs|Rounder.DrawLayoutOverlayAsync
 BuildingRuntime/Colony/ColonyStationAdvice.cs|StationFactsBuilder.StationFactsOf
-BuildingRuntime/Layout/LayoutFieldsShrink.cs|RoundsFieldPlanner.ShrinkAsync
 BuildingRuntime/Planner/PlannerGroup.cs|PlannerGroup.RunQueueAsync
 BuildingRuntime/PlannerSnapshot.cs|PlannerRecording.Finish
 BuildingRuntime/PlannerSnapshot.cs|PlannerSnapshot.RecordStepRead
@@ -61,10 +60,6 @@ BuildingRuntime/Rounds/RoundsDeepDrill.cs|RoundsResourcePlanner.DeepDrillAsync
 BuildingRuntime/Rounds/RoundsDefenseLayoutTiers.cs|RoundsDefenseLayoutPlanner.ProposeAsync
 BuildingRuntime/Rounds/RoundsDefenseTier.cs|RoundsDefenseLayoutPlanner.Retier
 BuildingRuntime/Rounds/RoundsDefenseTiers.cs|RoundsDefenseLayoutPlanner.AdviseBlocksAsync
-BuildingRuntime/Rounds/RoundsField.cs|RoundsFieldPlanner.EnactAsync
-BuildingRuntime/Rounds/RoundsField.cs|RoundsFieldPlanner.EnactBlockAsync
-BuildingRuntime/Rounds/RoundsField.cs|RoundsFieldPlanner.RecropAsync
-BuildingRuntime/Rounds/RoundsFishing.cs|RoundsFieldPlanner.FishingAsync
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Rounder.ReviewReserve
 BuildingRuntime/Rounds/RoundsGeneBank.cs|RoundsGeneBankPlanner.StepAsync
 BuildingRuntime/Rounds/RoundsHospital.cs|RoundsHospitalPlanner.StepAsync

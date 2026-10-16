@@ -118,7 +118,7 @@ internal static class ReviewColonyWeek
                     Window = days * 60000,
                     Poll = TimeSpan.FromSeconds(30),
                     PollTicks = 2500,
-                    Concern = PolicyFunctions.EnsureFoodSupply.Value,
+                    Concern = PolicyFunctions.FoodSupplyNeed.Value,
                     Extra = SustainedColonyCase.ColonyConcerns,
 
                     // A review records whatever happens; nothing ends it early but a stalled clock.

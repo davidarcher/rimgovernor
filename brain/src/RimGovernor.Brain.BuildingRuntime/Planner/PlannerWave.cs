@@ -90,7 +90,7 @@ internal sealed class PlannerWave : IDisposable
             }
             catch (StaleOwnerException)
             {
-                // Planners share a standard (foodAcquisition and fields), so a sibling's admission in the same
+                // Planners share a standard (resourceAcquisition and fields), so a sibling's admission in the same
                 // wave moves the owner under a slow planner; it waits for the next round, not a failure.
                 reason = Verdict.AwaitingPlan("owner", "revision_changed");
             }

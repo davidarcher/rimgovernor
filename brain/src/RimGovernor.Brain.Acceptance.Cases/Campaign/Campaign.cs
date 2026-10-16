@@ -87,7 +87,7 @@ internal sealed class CampaignRun
     };
 
     /// <summary>
-    /// The Concerns every campaign sample reads beside EnsureFoodSupply: the foothold gates and the wood stock the
+    /// The Concerns every campaign sample reads beside the food/supply Need: the foothold gates and the wood stock the
     /// recovery campaign breaches.
     /// </summary>
     internal static readonly IReadOnlyList<string> CampaignConcerns =
@@ -238,7 +238,7 @@ internal sealed class CampaignRun
             Record("acquire-" + label, false, new JsonObject { ["kind"] = "authority", ["launch"] = _launches, ["restart"] = _launches > 1 });
             var cfg = watch with
             {
-                Concern = watch.Concern.Length == 0 ? PolicyFunctions.EnsureFoodSupply.Value : watch.Concern,
+                Concern = watch.Concern.Length == 0 ? PolicyFunctions.FoodSupplyNeed.Value : watch.Concern,
                 Poll = watch.Poll <= TimeSpan.Zero ? TimeSpan.FromSeconds(10) : watch.Poll,
             };
             var report = new Report();

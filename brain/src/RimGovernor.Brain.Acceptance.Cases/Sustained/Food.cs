@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// The constants, window and serve spec the sustained cases share, and the <c>sustained/food</c> diagnostic that
-/// records EnsureFoodSupply timelines for the baseline colony and its save variants (Go <c>sustained/food.go</c>).
+/// records food/supply timelines for the baseline colony and its save variants (Go <c>sustained/food.go</c>).
 /// Diagnostic cases fail on harness errors, not poor food outcomes, so unfavorable outcomes remain visible in
 /// reports. <c>sustained/winter</c> separately asserts seasonal reserve survival across the first non-growing day.
 /// </summary>
@@ -38,7 +38,7 @@ internal static class SustainedFoodCase
     }
 
     /// <summary>
-    /// The serve spec every food-pipeline observation launches: EnsureFoodSupply's own families only (field growing,
+    /// The serve spec every food-pipeline observation launches: the food/supply Need's own families only (field growing,
     /// food storage, harvest/wood acquisition, cooking bills, starting supplies), so the food outcome under diagnosis
     /// is not confounded by other families and every family shares one step budget. StepStall fails fast when no
     /// scheduler step runs.
@@ -93,7 +93,7 @@ internal static class SustainedFoodCase
     internal static AcceptanceCase Case(string name, string save, string prefix, ulong ticks) => new()
     {
         Name = name,
-        Scope = "Diagnostic: EnsureFoodSupply standard-state timeline against the " + save +
+        Scope = "Diagnostic: food/supply timeline against the " + save +
             " save under the live rounder/field planner, evidence for issue #1's eight-colonist crop labor / interim food deficit. Not a pass/fail acceptance gate.",
         Start = new SaveStart { Name = save },
         Keep = [NeedDef.Food.Value],

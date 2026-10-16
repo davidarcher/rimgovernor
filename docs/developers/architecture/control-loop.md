@@ -343,7 +343,27 @@ Need, and the recipe-capability target is `ServiceTarget.ForNeed(food/cooking,
 "recipe-capability", "recipe_eligibility_and_inputs")`. The food bill purposes'
 verdicts file under subject keys of their Need (`food/cooking/bills`,
 `food-stores/storage/bills`, `food-stores/refrigeration/bills`), never a Concern
-id. Supply, baby feeding and blight are still Concerns.
+id. Baby feeding and blight are still Concerns.
+
+**Food, supply (#3254).** EnsureFoodSupply is now the `food/supply` Need
+(`FoodSupplyNeedOf`), a Wellbeing Need of the same `food` entry, composed by the
+acquisition, field or bill toggle. It is a plain threshold over six checks: no
+human-food route of the food plan holds nutrition, the runway covers the
+foothold's days and the season's target days (no latch), the growing cells cover
+the foothold, the fields cover the plan's share, and a butcher bench stands. A
+known failing check makes it unmet; otherwise an unread check makes it unknown.
+The family read applies the season's field budget to the room census. Its work
+step runs, under the Need owner and admitted by claims, the butcher building
+planner, the food acquisition planner (forage, hunts, stall withdrawals) and the
+food part of the field planner (fishing zones, grower crops, shrinking surplus
+zones, new food fields); each step's Methods are independent, so a second field
+batch is admitted beside the first, and the old open-work gates (FoodPlanFieldRoom,
+FieldBlockingWork, the butcher and hunt exemptions) are deleted. The `fields`
+clock slot keeps the hay, social and MaintainResource fields and files under
+MaintainResource. Its stall cooldowns live on the Need's progress row and outlive
+the run that rebuilds it. The ButcherFood bill reports the Need's standing under
+`food/supply/bills`, and the forecast Food owner row and food-plan-gap rows are
+keyed to the Need; the coupled-candidate gate reads `RoundsFacts.AvailableNeeds`.
 
 **Military, first part (#3259).** `EnsureBasicDefense`, `ClearPests` and
 `MaintainTraining` are the `military/defense`, `military/pests` and
@@ -439,7 +459,7 @@ three ways.
 | Family | Today's Concerns |
 | --- | --- |
 | Food stores | food-stores/storage (was MaintainFoodStorage, #3251), food-stores/refrigeration (#3280) |
-| Food | `food`: Need `cooking` (#3254; EnsureCooking deleted); EnsureFoodSupply, MaintainBabyFeeding, RemoveBlight |
+| Food | `food`: Needs `supply`, `cooking` (#3254; EnsureFoodSupply, EnsureCooking deleted); MaintainBabyFeeding, RemoveBlight |
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |
 | Layout | MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope, EnsureDefensiveLayout |

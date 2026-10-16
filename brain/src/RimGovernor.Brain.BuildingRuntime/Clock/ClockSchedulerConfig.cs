@@ -7,8 +7,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public sealed class ClockSchedulerConfig
 {
-    public RoundsBuildingPlanner? Butcher { get; init; }
-
     public RoundsFieldPlanner? Fields { get; init; }
 
     /// <summary>The oldest a read may be when it is used.</summary>
@@ -27,8 +25,6 @@ public sealed class ClockSchedulerConfig
     public FactStore? Store { get; init; }
 
     public Rounder? Rounds { get; init; }
-
-    public RoundsAcquisitionPlanner? FoodAcquisition { get; init; }
 
     public RoundsAcquisitionPlanner? ResourceAcquisition { get; init; }
 
@@ -85,7 +81,6 @@ public sealed class ClockSchedulerConfig
     public RoundsSurgeryPlanner? Surgery { get; init; }
 
     public RoundsRecoveryPlanner? Recovery { get; init; }
-
 
     public RoundsPopulationCustodyPlanner? PopulationCustody { get; init; }
 

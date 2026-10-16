@@ -35,7 +35,7 @@ internal static class SustainedColonyCase
     }
 
     /// <summary>
-    /// The Concerns every colony sample reads beside EnsureFoodSupply: the foothold gates and the first
+    /// The Concerns every colony sample reads beside the food/supply Need: the foothold gates and the first
     /// maintenance-tier projects, so the timeline shows which one stalls, thrashes or starves the others.
     /// </summary>
     internal static readonly IReadOnlyList<string> ColonyConcerns =
@@ -82,7 +82,7 @@ internal static class SustainedColonyCase
                         Watch = SustainedFoodCase.Window(),
                         Window = ColonyWindow(),
                         Poll = TimeSpan.FromSeconds(10),
-                        Concern = PolicyFunctions.EnsureFoodSupply.Value,
+                        Concern = PolicyFunctions.FoodSupplyNeed.Value,
                         Extra = ColonyConcerns,
 
                         // A diagnostic, not a gate: a refusal is part of what the long window records, never a

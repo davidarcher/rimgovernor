@@ -53,7 +53,9 @@ public sealed partial class RoundsTradePlanner
     internal async Task<(RoundsTradeResult Result, bool Handled)> RequestAsync(ControlState state, Sto.Rounds review, CancellationToken call, CancellationToken epoch)
     {
         var journal = Reviewer.Player.Journal;
-        (string Name, ConcernId Concern)[] owners = [("food", EnsureFoodSupply), ("resources", MaintainResource)];
+        // The food supply is a Need since #3254 and holds no Standard to record a request on; its trade owner is the
+        // economy family's to re-key (#3263), so only the resource Standard's requests are recovered here.
+        (string Name, ConcernId Concern)[] owners = [("resources", MaintainResource)];
         // Recover outstanding attempts from the owning saved Concern's linked shared method, before considering
         // proposals from either supply owner. This also fences a restart before native's queued job becomes visible.
         var settled = new List<(string Owner, string Id)>();

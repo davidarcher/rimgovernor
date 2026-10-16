@@ -23,6 +23,10 @@ public sealed class ClaimAdmissionTests
         public void Dispose() => Journal.Dispose();
         public StandardState Owner(ConcernId kind) =>
             Journal.LoadStandard(Assert.Single(Review.Standards, s => s.Standard.Kind == kind).Standard.Id, TestContext.Current.CancellationToken);
+        /// <summary>Commits under the food/supply Need, admitted by claims in the review's world.</summary>
+        public NeedCommit Food(string method, params DomainAction[] actions) =>
+            Journal.CommitClaimedMethod(FoodSupplyNeed, World, new(method), "",
+                new PlanSpec(new(method + "-plan-" + Guid.NewGuid().ToString("N")[..8]), new(1), EquatableArray.From(actions)), TestContext.Current.CancellationToken);
         public ClaimCommit Commit(ConcernId kind, string method, params DomainAction[] actions)
         {
             var owner = Owner(kind);
@@ -71,24 +75,24 @@ public sealed class ClaimAdmissionTests
     public void SecondForageIsAdmittedOnOtherSourcesAndRefusedOnAnOpenOne()
     {
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(EnsureFoodSupply, "forage-1", Forage("f1", "berry-1")).Outcome);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(EnsureFoodSupply, "forage-2", Forage("f2", "berry-2")).Outcome);
-        var refused = colony.Commit(EnsureFoodSupply, "forage-3", Forage("f3", "berry-1"));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Food("forage-1", Forage("f1", "berry-1")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Food("forage-2", Forage("f2", "berry-2")).Outcome);
+        var refused = colony.Food("forage-3", Forage("f3", "berry-1"));
         Assert.Equal(ClaimOutcome.Conflict, refused.Outcome);
         Assert.Equal("berry-1", refused.Conflict!.Claim);
         Assert.Equal("forage-1", refused.Conflict.Method.Value);
-        Assert.StartsWith("standard ", refused.Conflict.Holder);
+        Assert.StartsWith("need ", refused.Conflict.Holder);
         Assert.Contains("claim_conflict: berry-1", refused.Conflict.Reason);
-        Assert.Equal(2, colony.Journal.LoadOwnerMethods(colony.Owner(EnsureFoodSupply), TestContext.Current.CancellationToken).Count);
+        Assert.Equal(2, colony.Journal.LoadNeed(FoodSupplyNeed, World, TestContext.Current.CancellationToken).Methods.Count);
     }
 
     [Fact]
     public void SecondFieldBatchIsAdmittedOnOtherCellsAndRefusedOnSharedCells()
     {
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(EnsureFoodSupply, "field-1", Field("z1", (10, 10), (10, 11))).Outcome);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(EnsureFoodSupply, "field-2", Field("z2", (12, 10), (12, 11))).Outcome);
-        var refused = colony.Commit(EnsureFoodSupply, "field-3", Field("z3", (10, 11), (10, 12)));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Food("field-1", Field("z1", (10, 10), (10, 11))).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Food("field-2", Field("z2", (12, 10), (12, 11))).Outcome);
+        var refused = colony.Food("field-3", Field("z3", (10, 11), (10, 12)));
         Assert.Equal(ClaimOutcome.Conflict, refused.Outcome);
         Assert.Equal("cell/10/11", refused.Conflict!.Claim);
     }

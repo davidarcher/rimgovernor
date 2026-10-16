@@ -46,7 +46,6 @@ public static partial class PolicyFunctions
         [MaintainStockpiles] = 16,
 
         // Food
-        [EnsureFoodSupply] = 1,
         [MaintainBabyFeeding] = 1,
         [RemoveBlight] = 1,
 

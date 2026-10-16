@@ -12,9 +12,6 @@ public sealed partial class Store
 
     private static readonly HashSet<ActionKind> RoundsSettingsKinds = new HashSet<ActionKind> { ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy };
 
-    /// <summary>The free, instant bench EnsureFoodSupply builds so a hunt's corpse can be butchered.</summary>
-    private const string ButcherSpotDefinition = "ButcherSpot";
-
     /// <summary>
     /// The per-family admission checks every owner shares, then the plan itself; the caller then writes the
     /// methods row (Go <c>admitOwnerMethod</c>).
@@ -134,14 +131,13 @@ public sealed partial class Store
         {
             throw new ConflictException($"bill method needs a current autopilot review and at most {MaxBillPlanActions} actions");
         }
-        // Bills serve the food goal, the resource-target goals whose production path stages a bench and then
+        // Bills serve the resource-target goals whose production path stages a bench and then
         // a StockTarget bill on it, the equipment goal whose replacement is a StockTarget bill on a standing bench,
         // the art goal's pinned sculpture bills, the baby feeding goal's baby food bill, the mech goal's gestation
         // bills and the surgery goal's part bills. The work ledger goal
         // commits the round's whole reconcile plan: places and removals together.
         var bound = owner.OwnerNeed(review, out var need)
-            && (need == EnsureFoodSupply
-                || need == MaintainResource
+            && (need == MaintainResource
                 || need == MaintainEquipment
                 || need == MaintainArt
                 || need == MaintainBabyFeeding
@@ -183,8 +179,9 @@ public sealed partial class Store
             return;
         }
         var review = LoadRounds(tx);
-        // A growing-field method places a bounded batch (EnsureFoodSupply) or the social crops (MaintainResource).
-        // A stockpile zone is admitted for any concern that owns stores (StockpileZoneLimit), bounded per owner.
+        // A growing-field or fishing method places a bounded batch (the food/supply Need) or the social crops
+        // (MaintainResource). A stockpile zone is admitted for any concern that owns stores (StockpileZoneLimit),
+        // bounded per owner.
         var limit = 32;
         if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot)
         {
@@ -192,7 +189,11 @@ public sealed partial class Store
         }
         var bound = false;
         var resource = false;
-        if (owner.OwnerNeed(review, out var need))
+        if (owner is NeedOwner { Need: var held })
+        {
+            bound = !stockpile && held == FoodSupplyNeed;
+        }
+        else if (owner.OwnerNeed(review, out var need))
         {
             if (stockpile)
             {
@@ -201,7 +202,7 @@ public sealed partial class Store
             }
             else
             {
-                bound = need == EnsureFoodSupply || need == MaintainResource;
+                bound = need == MaintainResource;
                 resource = need == MaintainResource;
             }
         }
@@ -242,10 +243,11 @@ public sealed partial class Store
         {
             throw new ConflictException();
         }
-        // The military pests Need hunts its pests (#3259); a Need owner reads as no Concern.
+        // The military pests Need hunts its pests (#3259) and the food/supply Need forages and hunts (#3254); a Need
+        // owner reads as no Concern.
         var bound = owner is NeedOwner { Need: var held }
-            ? held == MilitaryFamily.Pests
-            : owner.OwnerNeed(review, out var need) && (need == EnsureFoodSupply || need == MaintainMedicalReserves || need == MaintainResource);
+            ? held == MilitaryFamily.Pests || held == FoodSupplyNeed
+            : owner.OwnerNeed(review, out var need) && (need == MaintainMedicalReserves || need == MaintainResource);
         if (!bound)
         {
             throw new ConflictException();
@@ -393,19 +395,12 @@ public sealed partial class Store
         {
             return false;
         }
-        // EnsureFoodSupply's hunt-only plan passes the goal's open plant harvests: a forage batch runs for days and
-        // the hunt rows the butcher spot and bill were placed for would otherwise wait behind it.
-        var hunts = goal.Standard.Kind == EnsureFoodSupply && plan.Actions.All(a => a.Acquisition is { Hunt: true });
         foreach (var m in goal.Methods)
         {
             foreach (var progress in LoadIn(tx, m.Plan).Progress)
             {
                 var action = progress.Action;
-                if (AcquisitionIndependentWork(m.MethodId, action))
-                {
-                    continue;
-                }
-                if (hunts && action.Kind == ActionKind.Acquisition)
+                if (AcquisitionIndependentWork(action))
                 {
                     continue;
                 }
@@ -419,9 +414,8 @@ public sealed partial class Store
     }
 
     /// <summary>The action kinds whose open progress does not block a fresh acquisition method for the same goal.</summary>
-    private static bool AcquisitionIndependentWork(MethodId method, DomainAction action) =>
+    private static bool AcquisitionIndependentWork(DomainAction action) =>
         action.Kind is ActionKind.ProductionBill or ActionKind.CommsTradeRequest
-        || ButcherFacilityWork(method, action)
         || action.ZoneCreate is { Kind: ZoneKind.Growing };
 
     /// <summary>
@@ -449,7 +443,7 @@ public sealed partial class Store
             foreach (var progress in LoadIn(tx, m.Plan).Progress)
             {
                 var kind = progress.Action.Kind;
-                if (kind != ActionKind.Acquisition && kind != ActionKind.ProductionBill && !ButcherFacilityWork(m.MethodId, progress.Action) && Standard.WorkOpen([progress]))
+                if (kind != ActionKind.Acquisition && kind != ActionKind.ProductionBill && Standard.WorkOpen([progress]))
                 {
                     return false;
                 }
@@ -467,64 +461,6 @@ public sealed partial class Store
     /// <summary>Replacement is observed and guarded natively by owned bill identity and unchanged settings.</summary>
     private static bool MealReplacementOpenWorkExempt(StandardState goal, PlanSpec plan) =>
         plan.Actions.Count == 1 && plan.Actions[0].ProductionBill is { Mode: BillMode.FoodTarget } bill && bill.Replaces.Length != 0;
-
-    private static bool ButcherBenchAction(DomainAction action) =>
-        action.Building is { } building
-            ? building.Definition == ButcherSpotDefinition || building.Definition == PolicyConstants.ButcherTableDefinition
-            : action.Deconstruction is { } cut && cut.Definition == ButcherSpotDefinition;
-
-    /// <summary>An action of the butcher facility under <paramref name="method"/>: a bench action, or any action of the planned butchery's ring wave.</summary>
-    private static bool ButcherFacilityWork(MethodId method, DomainAction action) => StorePackage.IsRoomShellMethod(method) || ButcherBenchAction(action);
-
-    /// <summary>
-    /// Lets EnsureFoodSupply's butcher facility (the spot, the table, the planned butchery's ring and the spot's
-    /// removal) and its production bills be committed while the goal's fields, foraging and hunts stay open.
-    /// </summary>
-    private static bool FoodFacilityOpenWorkExempt(StoreTransaction tx, StandardState goal, MethodId method, PlanSpec plan)
-    {
-        if (plan.Actions.Count == 0 || goal.Standard.Kind != EnsureFoodSupply)
-        {
-            return false;
-        }
-        var spot = false;
-        var bill = false;
-        var ring = StorePackage.IsRoomShellMethod(method);
-        foreach (var action in plan.Actions)
-        {
-            if (ButcherFacilityWork(method, action))
-            {
-                spot = true;
-            }
-            else if (action.Kind == ActionKind.ProductionBill)
-            {
-                bill = true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        if (spot == bill)
-        {
-            return false;
-        }
-        foreach (var m in goal.Methods)
-        {
-            foreach (var progress in LoadIn(tx, m.Plan).Progress)
-            {
-                var own = (spot && ButcherFacilityWork(m.MethodId, progress.Action) && StorePackage.IsRoomShellMethod(m.MethodId) == ring) || (bill && progress.Action.Kind == ActionKind.ProductionBill);
-                if (progress.Action.ProductionBill is { Mode: BillMode.ButcherForever } && plan.Actions.Any(a => a.ProductionBill is { Mode: BillMode.HumanButcherForever }))
-                {
-                    own = false;
-                }
-                if (own && Standard.WorkOpen([progress]))
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
 
     /// <summary>Independent pawn dressing may share a review; a bill remains exclusive.</summary>
     private static bool GearOpenWorkExempt(StoreTransaction tx, StandardState goal, PlanSpec plan)

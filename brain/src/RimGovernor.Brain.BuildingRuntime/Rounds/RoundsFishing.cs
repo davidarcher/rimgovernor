@@ -121,10 +121,10 @@ public sealed partial class Rounder
 public sealed partial class RoundsFieldPlanner
 {
     /// <summary>
-    /// Fishing uses the shared food goal and the ordinary zone Hands handler. The footprint offers access;
+    /// Fishing is the food/supply Need's work, committed under it through the ordinary zone Hands handler. The footprint offers access;
     /// native population-floor settings govern catches.
     /// </summary>
-    internal async Task<(RoundsFieldResult Result, bool Handled)> FishingAsync(ControlState state, StandardState goal, RoundsReading read, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Handled)> FishingAsync(ControlState state, IWorkOwner goal, RoundsReading read, CancellationToken call, CancellationToken epoch)
     {
         var p = read.Projection;
         var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
@@ -164,13 +164,9 @@ public sealed partial class RoundsFieldPlanner
 
                 var method = new MethodId("fishing-" + entry.Channel.Id);
                 var journal = _reviewer.Player.Journal;
-                try
+                if (journal.OwnerMethodPlan(goal, method, call) is not null)
                 {
-                    journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
                     continue;
-                }
-                catch (NotFoundException)
-                {
                 }
 
                 var zone = ZoneCreate.NewFishingZone(region.ProposedCells);

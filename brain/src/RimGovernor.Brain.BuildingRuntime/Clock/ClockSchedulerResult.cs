@@ -17,11 +17,7 @@ public sealed class ClockSchedulerResult
 
     public RoundsResult? Rounds { get; set; }
 
-    public RoundsBuildingResult? Butcher { get; set; }
-
     public RoundsFieldResult? Fields { get; set; }
-
-    public RoundsAcquisitionResult? FoodAcquisition { get; set; }
 
     public RoundsAcquisitionResult? ResourceAcquisition { get; set; }
 
@@ -78,7 +74,6 @@ public sealed class ClockSchedulerResult
     public RoundsSurgeryResult? Surgery { get; set; }
 
     public RoundsRecoveryResult? Recovery { get; set; }
-
 
     public RoundsPopulationCustodyResult? PopulationCustody { get; set; }
 
@@ -144,9 +139,7 @@ public sealed class ClockSchedulerResult
     /// <summary>Copies every planner result <paramref name="other"/> holds into this one, leaving the ones it does not.</summary>
     internal void MergeFrom(ClockSchedulerResult other)
     {
-        Butcher = other.Butcher ?? Butcher;
         Fields = other.Fields ?? Fields;
-        FoodAcquisition = other.FoodAcquisition ?? FoodAcquisition;
         ResourceAcquisition = other.ResourceAcquisition ?? ResourceAcquisition;
         Work = other.Work ?? Work;
         Supplies = other.Supplies ?? Supplies;

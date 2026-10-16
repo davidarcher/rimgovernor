@@ -163,7 +163,7 @@ internal static class LayoutFieldShrink
 public sealed partial class RoundsFieldPlanner
 {
     /// <summary>Gives up one surplus zone's bare cells with remove-cells, committed directly like a grow. Returns null when nothing was shrunk (no surplus, no bare cell, the method already committed).</summary>
-    internal async Task<RoundsFieldResult?> ShrinkAsync(ControlState state, StandardState goal, ColonyProjection projection, RoundsReading read, FieldRequest field, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsFieldResult?> ShrinkAsync(ControlState state, IWorkOwner goal, ColonyProjection projection, RoundsReading read, FieldRequest field, CancellationToken call, CancellationToken epoch)
     {
         if (LayoutFieldShrink.PlanFieldShrink(projection, LayoutFieldShrink.FieldTargets(projection, field)) is not { } plan)
         {
@@ -177,13 +177,9 @@ public sealed partial class RoundsFieldPlanner
         var p = _reviewer.Player;
         var digest = SHA256.HashData(Encoding.UTF8.GetBytes(string.Create(CultureInfo.InvariantCulture, $"shrink/{plan.Id}/[{string.Join(" ", cells.Select(c => $"{{{c.X} {c.Z}}}"))}]")));
         var method = new MethodId("fields-" + Convert.ToHexStringLower(digest.AsSpan(0, 16)));
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            await p.Journal.LoadMethodAsync(goal.Standard.Id, goal.Standard.Episode, method, call).ConfigureAwait(false);
             return null;
-        }
-        catch (NotFoundException)
-        {
         }
         var id = PlanIds.MintPlanId();
         var value = new ZoneCellEdit(plan.Id, CellEditMode.Remove, cells);
@@ -195,8 +191,11 @@ public sealed partial class RoundsFieldPlanner
         {
             throw new ControlException("shrink: stale state or read");
         }
-        await p.Journal.CommitMethodReasonAsync(goal.Standard.Id, goal.Revision, method, "", committed, call).ConfigureAwait(false);
-        ClockEvents.Event("layout", "fields", "field block shrunk", ("zone", plan.Id), ("crop", plan.Crop), ("cells", cells.Count), ("plan", id.Value));
-        return new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id };
+        var commit = p.Journal.CommitOwnerWork(goal, method, "", committed, call);
+        if (commit.Outcome == ClaimOutcome.Admitted)
+        {
+            ClockEvents.Event("layout", "fields", "field block shrunk", ("zone", plan.Id), ("crop", plan.Crop), ("cells", cells.Count), ("plan", id.Value));
+        }
+        return new RoundsFieldResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = commit.Outcome == ClaimOutcome.Admitted ? id : default };
     }
 }

@@ -10,9 +10,9 @@ public sealed class RoundsAcquisitionResult : IPlannerMethod
 }
 
 /// <summary>
-/// Plans one acquisition goal: EnsureFoodSupply harvests and hunts toward its food plan;
-/// MaintainResource chops, forages and hunts toward its ranked floors through the acquisition catalog, beside
-/// RoundsResourcePlanner's bills and mines.
+/// Plans one acquisition goal: the food family's supply Need harvests and hunts toward its food plan, committed
+/// under the Need and admitted by claims; MaintainResource chops, forages and hunts toward its ranked floors through
+/// the acquisition catalog, beside RoundsResourcePlanner's bills and mines.
 /// </summary>
 public sealed class RoundsAcquisitionPlanner
 {
@@ -20,17 +20,22 @@ public sealed class RoundsAcquisitionPlanner
     internal Rounder Reviewer => _reviewer;
     private readonly ConcernId _need;
 
+    /// <summary>A planner for <paramref name="need"/>: MaintainResource, or the food/supply Need's filing key.</summary>
     public RoundsAcquisitionPlanner(Rounder reviewer, ConcernId need)
     {
-        if (reviewer is null || (need != PolicyApi.EnsureFoodSupply && need != PolicyApi.MaintainResource))
+        if (reviewer is null || (need != PolicyFunctions.FoodSupplyNeed.FilingKey && need != PolicyApi.MaintainResource))
         {
-            throw new ControlException("NewRoundsAcquisitionPlanner: reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.MaintainResource)");
+            throw new ControlException("NewRoundsAcquisitionPlanner: reviewer == nil || need is neither food/supply nor MaintainResource");
         }
         _reviewer = reviewer;
         _need = need;
     }
 
-    internal async Task<RoundsAcquisitionResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// One step. MaintainResource commits under its workable Standard; the food planner commits under
+    /// <paramref name="owner"/>, the food/supply Need its family's work step passes.
+    /// </summary>
+    internal async Task<RoundsAcquisitionResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch, IWorkOwner? owner = null)
     {
         var p = _reviewer.Player;
         var state = p.Session.State();
@@ -47,25 +52,32 @@ public sealed class RoundsAcquisitionPlanner
         {
             return new RoundsAcquisitionResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(review, _need, call);
-        if (goal is null || !workable)
+        var food = _need == PolicyFunctions.FoodSupplyNeed.FilingKey;
+        StandardState? resourceGoal = null;
+        if (food)
         {
-            return new RoundsAcquisitionResult { Verdict = BuildingReasonNoDeficit };
+            if (owner is not NeedOwner)
+            {
+                throw new ControlException("food acquisition: the step runs only under the food/supply Need");
+            }
+        }
+        else
+        {
+            var (goal, workable) = p.Journal.Workable(review, _need, call);
+            if (goal is null || !workable)
+            {
+                return new RoundsAcquisitionResult { Verdict = BuildingReasonNoDeficit };
+            }
+            owner = resourceGoal = goal;
         }
 
         var (expected, projection) = await _reviewer.AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
-        if (_need == PolicyApi.EnsureFoodSupply && goal.Methods.Any(m =>
-            p.Journal.LoadPlan(m.Plan, call) is { Retired: false } existingPlan
-            && existingPlan.Progress.Any(a => a.Action.PawnActivities is { } batch && batch.Orders.Any(o => !o.Release)
-                && a.View.Stage is not (Stage.Unsuccessful or Stage.Cancelled))))
-            return new RoundsAcquisitionResult { Verdict = BuildingReasonExistingWork };
         // An outdoor hazard holds chop, hunt and forage like it holds remote work.
         if (PolicyApi.OutdoorAcquisitionHeld(projection.Facts))
         {
             return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, PolicyConstants.RemoteHoldHazard) };
         }
-        var stockGoal = _need == PolicyApi.MaintainResource;
-        var food = _need == PolicyApi.EnsureFoodSupply;
+        var stockGoal = resourceGoal is not null;
         var huntOnly = false;
         var stalledSources = new HashSet<string>(StringComparer.Ordinal);
         // A source a stall rotated away from stays keyed out for its contract's bounded cooldown: the goal's
@@ -90,7 +102,7 @@ public sealed class RoundsAcquisitionPlanner
             }
         }
 
-        foreach (var method in goal.Methods)
+        foreach (var method in owner.OpenMethods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);
             foreach (var thing in UndispatchedAcquisitions(plan.Progress))
@@ -114,13 +126,9 @@ public sealed class RoundsAcquisitionPlanner
             {
                 stalledSources.Add(row.Id);
                 var (method, plan) = StallWithdraw(row);
-                try
+                if (p.Journal.OwnerMethodPlan(owner, method, call) is not null)
                 {
-                    p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
                     continue;
-                }
-                catch (NotFoundException)
-                {
                 }
                 Cool(contract, row.Id);
                 p.Current(call, epoch);
@@ -128,15 +136,15 @@ public sealed class RoundsAcquisitionPlanner
                 {
                     throw new ControlException("step: p.session.State() != state");
                 }
-                p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "withdraw stalled " + row.Resource, plan, call);
-                return new RoundsAcquisitionResult { Verdict = BuildingReasonAdmitted, Plan = plan.Id };
+                var withdraw = p.Journal.CommitOwnerWork(owner, method, "withdraw stalled " + row.Resource, plan, call);
+                return new RoundsAcquisitionResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(withdraw), Plan = withdraw.Outcome == ClaimOutcome.Conflict ? default : plan.Id };
             }
         }
         var held = CooledSources(projection.Acquisition, _reviewer.ChopMinGrowth(projection), id => cooled.Contains(id) || AcquisitionCooled(progress, _reviewer.Policy, id, expected.Tick));
         // Blocking reads the census, not the journal: a designated row the goal would plan is its ExistingWork. A
         // source this step cancelled or cooled still reads designated until native withdraws it, and never
         // blocks.
-        // EnsureFoodSupply's hunts are the exception: a forage batch harvests one bush at a time for days while
+        // The food Need's hunts are the exception: a forage batch harvests one bush at a time for days while
         // the hunt rows the butcher spot and bill were placed for wait behind it, so designated plant harvests
         // leave the hunt slots plannable and only hunts are admitted over them. MaintainResource skips a
         // designated resource in resourceSelection instead; its other targets still plan.
@@ -173,7 +181,7 @@ public sealed class RoundsAcquisitionPlanner
         {
             if (stockGoal)
             {
-                var supply = await _reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
+                var supply = await _reviewer.ResourceSupplyAsync(state, review, resourceGoal!, call).ConfigureAwait(false);
                 (selected, existing) = ResourceSelection(supply, busy);
             }
             else
@@ -209,13 +217,9 @@ public sealed class RoundsAcquisitionPlanner
             prefix = "resource-acquire";
         }
         var methodId = new MethodId($"{prefix}-{HashHex16(hash.ToString())}");
-        try
+        if (p.Journal.OwnerMethodPlan(owner, methodId, call) is not null)
         {
-            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, methodId, call);
             return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.MethodUsed, "acquisition_method") };
-        }
-        catch (NotFoundException)
-        {
         }
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
@@ -231,8 +235,8 @@ public sealed class RoundsAcquisitionPlanner
         {
             throw new ControlException("step: p.session.State() != state");
         }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, methodId, AcquisitionReason(food, runway, selected), spec, call);
-        return new RoundsAcquisitionResult { Verdict = BuildingReasonAdmitted, Plan = id };
+        var commit = p.Journal.CommitOwnerWork(owner, methodId, AcquisitionReason(food, runway, selected), spec, call);
+        return new RoundsAcquisitionResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = commit.Outcome == ClaimOutcome.Conflict ? default : id };
     }
 }
 

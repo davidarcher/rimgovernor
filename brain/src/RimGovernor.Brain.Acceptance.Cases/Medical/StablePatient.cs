@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// test/medical_management_setup fixture (two tendable Flu patients plus a fourth colonist forced into
 /// GoJuiceAddiction's withdrawal stage) and test/routine_production_prepare (a pre-grown rice zone and fueled campfire
 /// bill), the live service with both the tend/medical and food routine families on, and the durable store's
-/// CriticalMedicine and EnsureFoodSupply goal-state timelines over a wall-clock window: evidence for whether ordinary
+/// CriticalMedicine and food/supply goal-state timelines over a wall-clock window: evidence for whether ordinary
 /// triage/feeding and concurrent crop-replacement production progress together rather than one starving the other of
 /// pawn time. A diagnostic, not a pass/fail gate: it fails only when the harness itself could not complete.
 /// </summary>
@@ -21,7 +21,7 @@ internal static class StablePatient
     {
         Name = "medical/stable-patient",
         Scope = "Diagnostic: CriticalMedicine (two Flu patients plus a forced GoJuiceAddiction "
-            + "withdrawal patient) and EnsureFoodSupply (concurrent pre-seeded growing zone/campfire bill) standard-state "
+            + "withdrawal patient) and food/supply (concurrent pre-seeded growing zone/campfire bill) standard-state "
             + "timelines under the live rounder/field planner, evidence for issue #1's stable-patient feeding "
             + "acceptance extension to withdrawal recovery and concurrent food production. Not a pass/fail acceptance gate.",
         Start = new FixtureStart
@@ -35,7 +35,7 @@ internal static class StablePatient
 
         // Medical: tend for the two Flu patients and the forced withdrawal patient's CriticalMedicine deficit, plus
         // medicine-reserve replenishment so tend never runs the fixture's stocked medicine dry. Food: the same
-        // EnsureFoodSupply pipeline sustained/food exercises, to prove the pre-seeded growing zone/campfire bill keeps
+        // food/supply pipeline sustained/food exercises, to prove the pre-seeded growing zone/campfire bill keeps
         // advancing concurrently with medical dispatch.
         Serve = new ServeSpec
         {
@@ -65,7 +65,7 @@ internal static class StablePatient
                 {
                     Watch = Window,
                     Concern = PolicyFunctions.CriticalMedicine.Value,
-                    Extra = [PolicyFunctions.EnsureFoodSupply.Value],
+                    Extra = [PolicyFunctions.FoodSupplyNeed.Value],
                 },
                 Prepare = async (h, report, ct) =>
                 {
@@ -84,7 +84,7 @@ internal static class StablePatient
                     var store = await ObservedSession.OpenStoreAsync(s.Config, ct).ConfigureAwait(false);
                     try
                     {
-                        var food = await store.SampleStandardAsync(PolicyFunctions.EnsureFoodSupply.Value, ct).ConfigureAwait(false);
+                        var food = await store.SampleStandardAsync(PolicyFunctions.FoodSupplyNeed.Value, ct).ConfigureAwait(false);
                         report["food_final"] = food;
                         var medical = await store.SampleStandardAsync(PolicyFunctions.CriticalMedicine.Value, ct).ConfigureAwait(false);
                         report["medical_final"] = medical;

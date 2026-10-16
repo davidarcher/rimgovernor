@@ -15,7 +15,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
     /// </summary>
     internal static readonly ConcernId CookingBillsKey = Subject(PolicyApi.CookingNeed, "bills");
     internal static readonly ConcernId PreservationBillsKey = Subject(PolicyApi.FoodStorageNeed, "bills");
-    internal static readonly ConcernId ButcherBillsKey = new("butcherBills");
+    internal static readonly ConcernId ButcherBillsKey = Subject(PolicyApi.FoodSupplyNeed, "bills");
     internal static readonly ConcernId CookAheadBillsKey = Subject(PolicyApi.RefrigerationNeed, "bills");
 
     private static ConcernId Subject(NeedId need, string subject) => NeedId.Of(need.Family, need.Kind, subject).FilingKey;
@@ -32,7 +32,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         {
             throw new ControlException("NewRoundsBillPlanner: reviewer == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood)");
         }
-        var need = PolicyApi.EnsureFoodSupply;
+        var need = PolicyApi.FoodSupplyNeed.FilingKey;
         if (purpose == PolicyConstants.CookFood)
         {
             need = PolicyApi.CookingNeed.FilingKey;
@@ -87,43 +87,17 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         }
     }
 
-    /// <summary>Whether an owner's plans hold open bill work of this purpose.</summary>
-    internal bool OpenWork(StoreJournal journal, StandardState owner, CancellationToken ct)
-    {
-        foreach (var method in owner.Methods)
-        {
-            var plan = journal.LoadPlan(method.Plan, ct);
-            if (_need == PolicyApi.EnsureFoodSupply)
-            {
-                foreach (var progress in plan.Progress)
-                {
-                    if (progress.Action.Kind == ActionKind.ProductionBill && Standard.WorkOpen([progress]))
-                    {
-                        if (progress.Action.ProductionBill is { } b && _purpose == PolicyConstants.ButcherFood && b.Mode == BillMode.ButcherForever)
-                        {
-                            continue;
-                        }
-                        return true;
-                    }
-                }
-                continue;
-            }
-        }
-        return false;
-    }
-
     internal PurposeReport FoodReport(FoodOrderRequest request, ColonyProjection projection)
     {
         var order = PolicyApi.SelectFoodOrder(request);
-        // The cooking, preservation and cook-ahead bills serve Needs: the Need's standing, not an owner's open work,
-        // gates the report.
+        // Every food bill serves a Need: the Need's standing, not an owner's open work, gates the report.
         var report = _purpose == PolicyConstants.CookFood
-            ? new PurposeReport { Need = PolicyApi.CookingNeedOf(FoodRounds.Facts(projection)) }
+            ? new PurposeReport { Need = PolicyApi.CookingNeedOf(FoodRounds.Facts(projection, _reviewer.Policy)) }
             : _purpose == PolicyConstants.PreserveFood
                 ? new PurposeReport { Need = PolicyApi.FoodStorageNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
             : _purpose == PolicyConstants.CookAheadFood
                 ? new PurposeReport { Need = PolicyApi.RefrigerationNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
-                : new PurposeReport { OpenWork = OpenWork };
+                : new PurposeReport { Need = PolicyApi.FoodSupplyNeedOf(FoodRounds.Facts(projection, _reviewer.Policy)) };
         switch (order.Gap)
         {
             case FoodOrderGap.Plan:

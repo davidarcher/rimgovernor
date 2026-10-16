@@ -27,7 +27,7 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? cfgBasicComfort = null;
         RoundsBlightPlanner? cfgBlight = null;
         RoundsBurialPlanner? cfgBurial = null;
-        RoundsBuildingPlanner? cfgButcher = null;
+        RoundsBuildingPlanner? foodButcher = null;
         var families = new List<FamilyRunner>();
         RoundsBuildingPlanner? cfgComfort = null;
         RoundsDefensePlanner? cfgDefense = null;
@@ -38,7 +38,7 @@ public sealed partial class BrainComposition
         RoundsFieldPlanner? cfgFields = null;
         RoundsFirebreakPlanner? cfgFirebreak = null;
         RoundsBuildingPlanner? cfgFlooring = null;
-        RoundsAcquisitionPlanner? cfgFoodAcquisition = null;
+        RoundsAcquisitionPlanner? foodAcquisition = null;
         RoundsGatheringPlanner? cfgGathering = null;
         RoundsGearPlanner? cfgGear = null;
         RoundsGeneBankPlanner? cfgGeneBank = null;
@@ -160,7 +160,7 @@ public sealed partial class BrainComposition
             {
                 reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, purpose));
             }
-            cfgButcher = RoundsBuildingPlanner.NewRoundsButcherPlanner(reviewer, client);
+            foodButcher = RoundsBuildingPlanner.NewRoundsButcherPlanner(reviewer, client);
         }
         if (sc.Art)
         {
@@ -175,7 +175,7 @@ public sealed partial class BrainComposition
         }
         if (acquisition)
         {
-            cfgFoodAcquisition = new RoundsAcquisitionPlanner(reviewer, EnsureFoodSupply);
+            foodAcquisition = new RoundsAcquisitionPlanner(reviewer, FoodSupplyNeed.FilingKey);
             cfgResourceAcquisition = new RoundsAcquisitionPlanner(reviewer, MaintainResource);
         }
         if (work)
@@ -258,10 +258,13 @@ public sealed partial class BrainComposition
             }
             families.Add(foodStores.Runner());
         }
-        if (cooking || bills)
+        if (cooking || bills || acquisition || fields)
         {
-            // The cooking and bill toggles compose the food family's cooking Need (#3254).
-            families.Add(new FoodRounds(reviewer, RoundsBuildingPlanner.NewRoundsCookingPlanner(reviewer, client)).Runner());
+            // The acquisition, field and bill toggles compose the food family's supply Need with its hunts and
+            // forage, food fields and butcher bench; the cooking and bill toggles its cooking Need (#3254).
+            var supply = acquisition || fields || bills;
+            families.Add(new FoodRounds(reviewer, supply, foodButcher, foodAcquisition, supply ? cfgFields : null,
+                cooking || bills ? RoundsBuildingPlanner.NewRoundsCookingPlanner(reviewer, client) : null).Runner());
         }
         if (husbandry || animalContainment)
         {
@@ -437,7 +440,6 @@ public sealed partial class BrainComposition
             BasicComfort = cfgBasicComfort,
             Blight = cfgBlight,
             Burial = cfgBurial,
-            Butcher = cfgButcher,
             Comfort = cfgComfort,
             Defense = cfgDefense,
             DefenseLayout = cfgDefenseLayout,
@@ -447,7 +449,6 @@ public sealed partial class BrainComposition
             Fields = cfgFields,
             Firebreak = cfgFirebreak,
             Flooring = cfgFlooring,
-            FoodAcquisition = cfgFoodAcquisition,
             Gathering = cfgGathering,
             Gear = cfgGear,
             GeneBank = cfgGeneBank,
@@ -549,7 +550,6 @@ public sealed partial class BrainComposition
             }
         }
 
-        Add(sc.Acquisition || sc.Field || sc.Bill, EnsureFoodSupply);
         Add(sc.Work, EnsureWorkAssignments);
         Add(sc.Acquisition, MaintainResource);
         Add(sc.Bill, MaintainBabyFeeding);
@@ -593,7 +593,7 @@ public sealed partial class BrainComposition
         Add(sc.Medical, MaintainMedicalReserves, MaintainSurgery);
         Add(sc.Trade, TradeWithCaravan);
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
-        // cooking's kitchen and meal review.
+        // food supply's plan, fields and butchery, cooking's kitchen and meal review.
         var needs = new List<NeedId>();
         if (sc.Refrigeration)
         {
@@ -602,6 +602,10 @@ public sealed partial class BrainComposition
         if (sc.Training)
         {
             needs.Add(MilitaryFamily.Training);
+        }
+        if (sc.Acquisition || sc.Field || sc.Bill)
+        {
+            needs.Add(FoodSupplyNeed);
         }
         if (sc.Cooking || sc.Bill)
         {

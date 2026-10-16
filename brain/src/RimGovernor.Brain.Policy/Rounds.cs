@@ -400,6 +400,9 @@ public sealed record RoundsFacts
     /// <summary>Supplied by the configured runtime, never native facts.</summary>
     public Fact<EquatableArray<ConcernId>> AvailableMethods { get; init; }
 
+    /// <summary>The migrated families' Needs the runtime composes; supplied by the configured runtime, never native facts.</summary>
+    public Fact<EquatableArray<NeedId>> AvailableNeeds { get; init; }
+
     public UpkeepObservation Upkeep { get; init; } = new();
 
     public IReadOnlyDictionary<ConcernId, bool>? UpkeepIssued { get; init; }
@@ -591,7 +594,7 @@ public sealed record RoundsFacts
     /// <summary>True while the game is force-paused by a choice dialog it opened by itself; AnswerDialog is the goal that answers it.</summary>
     public Fact<bool> ChoiceDialog { get; init; }
 
-    /// <summary>The standing butcher benches and the room each stands in; EnsureFoodSupply's butcher facility is met once a table stands outside the kitchen.</summary>
+    /// <summary>The standing butcher benches and the room each stands in; the food/supply Need's butcher facility is met once a table stands outside the kitchen.</summary>
     public Fact<EquatableArray<ButcherBench>> ButcherBenches { get; init; }
 
     public Fact<bool> Cooking { get; init; }
@@ -625,8 +628,6 @@ public sealed record RoundsLatches
 
     /// <summary>Holds the facility IDs MaintainRoutes last measured unreachable.</summary>
     public EquatableArray<string> Routes { get; set; }
-
-    public bool Food { get; set; }
 
     public bool Cold { get; set; }
 
@@ -710,7 +711,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId RestoreWorkers = new("RestoreWorkers");
     public static readonly ConcernId ManageSupplySafety = new("ManageSupplySafety");
     public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
-    public static readonly ConcernId EnsureFoodSupply = new("EnsureFoodSupply");
     public static readonly ConcernId MaintainHousing = new("MaintainHousing");
     public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
@@ -964,7 +964,6 @@ public static partial class PolicyFunctions
             Flooring = EquatableArray.From(c.Flooring.Latched),
             Routes = c.Routes.Latched,
             Dash = DashLatch(f.Dash),
-            Food = LatchValue(previous.Food, f.FoodDays, p.FoodMinDays, p.FoodTargetDays, false),
             Cold = LatchValue(previous.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
             Hot = LatchValue(previous.Hot, Fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
         };
@@ -1049,7 +1048,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// EnsureFoodSupply's butcher-facility recovery. A bench must stand apart from the kitchen: a butcher
+    /// The food/supply Need's butcher-facility check. A bench must stand apart from the kitchen: a butcher
     /// bench inside it keeps the colony fed but not clean. The butcher spot stands in the planned butchery
     /// until the table is built; while the stock cannot pay for the table the spot alone is enough, and a table standing beside
     /// its spot owes the spot's removal. It is wanted whatever the food runway, because hunts and hides are

@@ -397,43 +397,6 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// EnsureFoodSupply's rung order: acquire food, cook it, store it, grow it. Names the rung the gates leave
-    /// owed, what advancing it looks like and the goal a rung waits on: cooking needs the food/cooking Need's bench,
-    /// storing waits on the food-stores/storage Need (filed under its NeedId) while that Need has open work. The cooking prerequisite is surfaced whenever the bench is
-    /// known missing, whichever rung is current, because the ladder cannot pass "cook" without it. An unknown
-    /// gate is no evidence of a missing bench and blocks nothing. The observable is the food runway's shortfall
-    /// against FoodTargetDays, so a day of food gained reads as progress whichever rung is current.
-    /// </summary>
-    public static (ProgressContract Contract, ConcernId Prerequisite, Fact<double> Observed) FoodProgress(RoundsFacts f, RoundsPolicy p, bool storageOpen)
-    {
-        static bool Owed(Fact<bool> v) => v.TryGetValue(out var b) && !b;
-        var observed = Unknown<double>();
-        if (f.FoodDays.TryGetValue(out var days) && p.FoodTargetDays > 0)
-        {
-            observed = Known(Math.Max(0, Math.Min(1, 1 - (days / p.FoodTargetDays))));
-        }
-        ConcernId prerequisite = default;
-        if (Owed(f.Cooking))
-        {
-            prerequisite = CookingNeed.FilingKey;
-        }
-        var deadline = new Tick(p.ConcernStallTicks);
-        if (HumanFoodPending(f.FoodPlan) || !Positive(FootholdFood(f, p)))
-        {
-            return (new ProgressContract { Method = "acquire", Expected = "food days rise toward the target", Deadline = deadline }, prerequisite, observed);
-        }
-        if (Owed(f.Cooking))
-        {
-            return (new ProgressContract { Method = "cook", Expected = "meals cooked at a bench", Deadline = deadline }, prerequisite, observed);
-        }
-        if (Owed(FoodStorageStanding(f)) && storageOpen)
-        {
-            return (new ProgressContract { Method = "store", Expected = "raw food stored under a roof", Deadline = deadline }, FoodStorageNeed.FilingKey, observed);
-        }
-        return (new ProgressContract { Method = "grow", Expected = "growing zone planted to the field target", Deadline = deadline }, prerequisite, observed);
-    }
-
-    /// <summary>
     /// The default contract for a Standard's method: the method id as the method, the Standard's deficit as the
     /// observable, RoundsPolicy.ConcernStallTicks (scaled by colony stage) without progress as the deadline.
     /// </summary>

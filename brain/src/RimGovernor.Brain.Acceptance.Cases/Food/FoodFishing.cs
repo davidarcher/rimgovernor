@@ -147,7 +147,7 @@ internal static class FoodFishing
         }
     }
 
-    // The standard method for EnsureFoodSupply must be one plan with a single zone_create. The player API's plan read
+    // The food/supply Need's fishing method must be one plan with a single zone_create. The player API's plan read
     // carries the action kind, not the zone's kind or footprint, so the zone itself is judged on the native side.
     private static async Task<string> WaitZoneCreateAsync(BrainRun create, CancellationToken cancellationToken)
     {
@@ -156,7 +156,7 @@ internal static class FoodFishing
             "fishing method",
             async ct =>
             {
-                var method = await create.Service.WaitMethodAsync(PolicyFunctions.EnsureFoodSupply.Value, null, ct).ConfigureAwait(false);
+                var method = await create.Service.WaitMethodAsync(PolicyFunctions.FoodSupplyNeed.Value, null, ct).ConfigureAwait(false);
                 var (state, _) = await create.Service.WaitPlanTerminalAsync(method.Plan, ct).ConfigureAwait(false);
                 return (method.Plan, state);
             },

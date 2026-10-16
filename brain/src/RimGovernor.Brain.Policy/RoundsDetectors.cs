@@ -147,24 +147,6 @@ public static partial class PolicyFunctions
         c.Assess(EnsureWorkAssignments, workMet);
     }
 
-    internal static void InspectFoodSupply(RoundsRun c)
-    {
-        var f = c.F;
-        var l = c.L;
-        var foodMet = FootholdFood(f, c.P);
-        var productionMet = FootholdProduction(f);
-        var fieldsCovered = Measured(f.FieldCoverage, v => v >= 1 - 1e-9);
-        // The butcher facility (spot, then table, in the planned butchery) is owed whatever the food
-        // runway; an unread bench census raises nothing and recovers nothing.
-        var butcherMet = ButcherFacilityMet(f);
-        var butcherOwed = butcherMet.TryGetValue(out var met) && !met;
-        if (HumanFoodPending(f.FoodPlan) || l.Food || !Positive(foodMet) || !Positive(productionMet) || !Positive(fieldsCovered) || butcherOwed)
-        {
-            c.Raise(EnsureFoodSupply);
-        }
-        c.Assess(EnsureFoodSupply, AllFacts(Known(!HumanFoodPending(f.FoodPlan)), foodMet, productionMet, fieldsCovered, butcherMet, LatchRecovered(l.Food, f.FoodDays)));
-    }
-
     internal static void InspectHousing(RoundsRun c)
     {
         var housing = ReviewHousing(c.F, c.Previous, c.P, c.SleepingActive);

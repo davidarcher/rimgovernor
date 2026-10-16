@@ -2246,7 +2246,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
             Lighting = e.Get<EquatableArray<string>>("Lighting", o),
             Flooring = e.Get<EquatableArray<string>>("Flooring", o),
             Routes = e.Get<EquatableArray<string>>("Routes", o),
-            Food = e.Bool("Food"),
             Cold = e.Bool("Cold"),
             Hot = e.Bool("Hot"),
             Dash = e.Get<DashWindow>("Dash", o),
@@ -2264,7 +2263,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         w.Put("Lighting", v.Lighting, o);
         w.Put("Flooring", v.Flooring, o);
         w.Put("Routes", v.Routes, o);
-        w.WriteBoolean("Food", v.Food);
         w.WriteBoolean("Cold", v.Cold);
         w.WriteBoolean("Hot", v.Hot);
         w.Put("Dash", v.Dash, o);
