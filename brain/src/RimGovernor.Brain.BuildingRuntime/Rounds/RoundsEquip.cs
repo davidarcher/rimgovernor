@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The native reads of the equip planner.</summary>
+/// <summary>The native equipment reads: emergency, combat pawns, map bounds and weapons.</summary>
 public interface IRoundsEquipSource : Observation.IDefinitionSource
 {
     Task<(EmergencyObservation Observation, BridgeResult Result)> ReadEmergencyAsync(C.Identity identity, CancellationToken ct);
@@ -13,61 +13,9 @@ public interface IRoundsEquipSource : Observation.IDefinitionSource
 
 }
 
-public sealed class RoundsEquipResult : IPlannerMethod
+/// <summary>The equip candidate facts the armory and combat loadout read from native weapon and pawn rows.</summary>
+internal static class EquipCandidates
 {
-    public Verdict Verdict { get; init; }
-
-    public PlanId Plan { get; init; }
-}
-
-/// <summary>Reports ordinary arming demand until the shared forecast has an equipment adapter.</summary>
-public sealed class RoundsEquipPlanner
-{
-    private readonly Rounder _reviewer;
-
-    public RoundsEquipPlanner(Rounder reviewer)
-    {
-        if (reviewer is null)
-        {
-            throw new ControlException("NewRoundsEquipPlanner: reviewer == nil");
-        }
-        _reviewer = reviewer;
-    }
-
-    internal async Task<RoundsEquipResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
-    {
-        var p = _reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsEquipResult { Verdict = BuildingReasonDisabled };
-        }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid)
-        {
-            throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
-        }
-        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        if (!review.Enabled || review.Snapshot != state.Snapshot)
-        {
-            return new RoundsEquipResult { Verdict = BuildingReasonNoReview };
-        }
-        var (goal, workable) = await p.Journal.WorkableAsync(review, PolicyApi.EnsureBasicDefense, call).ConfigureAwait(false);
-        if (!workable || goal is null)
-        {
-            return new RoundsEquipResult { Verdict = BuildingReasonNoDeficit };
-        }
-        foreach (var method in goal.Methods)
-        {
-            var plan0 = p.Journal.LoadPlan(method.Plan, call);
-            if (StorePackage.PlanOpen(plan0))
-            {
-                return new RoundsEquipResult { Verdict = BuildingReasonExistingWork };
-            }
-        }
-        return new RoundsEquipResult { Verdict = AwaitingPlan("unsupported_forecast_equipment",
-            "Observed equipment demand requires shared forecast worker, timing and outcome alternatives.") };
-    }
-
     internal static EquipCandidateWeapon EquipCandidateWeaponOf(DefinitionCatalog catalog, BridgeEquipCandidate w)
     {
         var facts = catalog.WeaponOf(w.Definition);

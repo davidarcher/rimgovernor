@@ -71,17 +71,6 @@ public static partial class PolicyFunctions
             target++;
             known = f.IndoorCapacity.TryGetValue(out stock);
         }
-        else if (id == EnsureBasicDefense)
-        {
-            var countKnown = f.Colonists.TryGetValue(out target);
-            target = Math.Min(target, 2);
-            known = f.Armed.TryGetValue(out stock);
-            known = known && countKnown;
-            if (known && f.Unarmed.TryGetValue(out var unarmed) && unarmed > 0)
-            {
-                target = Math.Max(target, stock + unarmed);
-            }
-        }
         else if (id == EnsureDefensiveLayout)
         {
             // A configured layout is owed until every tier is observed standing.

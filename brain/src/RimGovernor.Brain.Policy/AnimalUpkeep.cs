@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record UpkeepAnimal
 {
-    /// <summary>The race row's flag (AnimalRace.Pest): a wild animal ClearPests hunts for what it destroys.</summary>
+    /// <summary>The race row's flag (AnimalRace.Pest): a wild animal military/pests hunts for what it destroys.</summary>
     public bool Pest { get; init; }
 
     public Fact<bool> SupportsAreas { get; init; }

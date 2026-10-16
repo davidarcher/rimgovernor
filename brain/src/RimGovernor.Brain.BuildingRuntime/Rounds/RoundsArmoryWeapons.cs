@@ -33,7 +33,7 @@ public sealed partial class RoundsArmoryPlanner
         var catalog = await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false) ?? throw new InvalidOperationException("native served no definition catalog");
         foreach (var p in observed.Pawns)
         {
-            pawns.Add(RoundsEquipPlanner.EquipCandidatePawnFacts(p, catalog, things));
+            pawns.Add(EquipCandidates.EquipCandidatePawnFacts(p, catalog, things));
             if (ArmoryPrimaryOf(p, things, catalog) is { } primary)
             {
                 primaries[new Domain.PawnId(p.Pawn?.Id ?? "")] = primary;
@@ -52,7 +52,7 @@ public sealed partial class RoundsArmoryPlanner
         var candidates = new List<EquipCandidateWeapon>();
         foreach (var w in weapons.Targets)
         {
-            candidates.Add(RoundsEquipPlanner.EquipCandidateWeaponOf(catalog, w));
+            candidates.Add(EquipCandidates.EquipCandidateWeaponOf(catalog, w));
         }
         var recipes = new List<GearRecipe>();
         var products = new Dictionary<Resource, WeaponDef>();

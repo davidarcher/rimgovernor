@@ -20,9 +20,11 @@ public sealed record TrainingReview
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Facilities for justified assigned capability maintenance; unlocked ceilings constrain feasibility only.</summary>
-    public static readonly ConcernId MaintainTraining = new("MaintainTraining");
-
+    /// <summary>
+    /// The military/training predicate's review (#3259): the assigned combat-capability holders forecast below their
+    /// requirement, with supported Shooting or Melee practice. Facilities follow actual requirements only; unlocked
+    /// ceilings constrain feasibility.
+    /// </summary>
     public static Fact<TrainingReview> ReviewTraining(RoundsFacts facts)
     {
         if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) return Unknown<TrainingReview>();
@@ -45,16 +47,6 @@ public static partial class PolicyFunctions
         return Known(new TrainingReview { Capable = requirements.Select(r => r.Pawn).Distinct().Count(),
             Below = active.Select(a => a.Pawn).Distinct().Count(), ShootingBelow = active.Where(a => a.Skill == "Shooting").Select(a => a.Pawn).Distinct().Count(),
             MeleeBelow = active.Where(a => a.Skill == "Melee").Select(a => a.Pawn).Distinct().Count() });
-    }
-    /// <summary>Raises MaintainTraining for assigned holders with a forecast shortfall; deficit is their share of assigned holders.</summary>
-    internal static void InspectTraining(RoundsRun c)
-    {
-        var review = ReviewTraining(c.F);
-        c.Assess(MaintainTraining, Measured(review, r => r.Below == 0));
-        if (review.TryGetValue(out var r) && r.Below > 0)
-        {
-            c.Raise(MaintainTraining).Deficit = Known((double)r.Below / r.Capable);
-        }
     }
 
     /// <summary>

@@ -247,8 +247,8 @@ public static partial class PolicyFunctions
     /// up to four opponents and eight defenders, with a ranged opponent requiring a ranged-equipped defender.
     /// This proposal covers the general N-opponent case only; the single-raider tribal
     /// 3-defender/85%-health sub-case is the caller's separate SelectTribalRaiderDefense preference, and an
-    /// unarmed defender is never sent to melee and is not equipped inline (RoundsEquipPlanner arms colonists on
-    /// its own independently-scheduled goal).
+    /// unarmed defender is never sent to melee and is not equipped inline (arming is the
+    /// military/defense Need's).
     ///
     /// Assignments are a proposal only; native (melee intents) and EvaluateRangedDefense re-validate each
     /// chosen (defender, target) pair against fresh facts before dispatch, and downed/dead opponents drop out
@@ -477,8 +477,8 @@ public static partial class PolicyFunctions
     /// Mirrors single_raider_defense's tribal branch: a lone humanlike, non-ranged opponent is bounded tighter
     /// than the general N-opponent case above: three healthy (&gt;=85%, not needing tend) already-armed
     /// defenders instead of two. There is no synchronous per-encounter weapon fetch: an unarmed candidate is
-    /// simply excluded here rather than equipped inline: EnsureBasicDefense arms colonists on its own
-    /// independently-scheduled goal (see RoundsEquipPlanner), so this method just holds (via the caller falling
+    /// simply excluded here rather than equipped inline: arming is the military/defense Need's
+    /// (see MilitaryFamily), so this method just holds (via the caller falling
     /// back to SelectSquadDefense's general, unarmed-tolerant bound) until enough defenders are already armed.
     /// </summary>
     public static (IReadOnlyList<SquadAssignment> Assignments, bool Ok) SelectTribalRaiderDefense(

@@ -18,7 +18,7 @@ public static partial class PolicyFunctions
         }
         Set(
             [WorkType.Construction],
-            EnsureBasicDefense, EnsureComfort, MaintainHousing, MaintainStoneShell,
+            EnsureComfort, MaintainHousing, MaintainStoneShell,
             MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
         Set([WorkType.PlantCutting], RemoveBlight);
         Set([WorkType.Art], MaintainArt);
@@ -35,8 +35,6 @@ public static partial class PolicyFunctions
         // The shell, sarcophagus and graves are built; vanilla haulers carry the corpses.
         Set([WorkType.Construction], MaintainBurial);
 
-        // The range shell and its stands are built; the native training job (#2610) spends the trainees' own hours.
-        Set([WorkType.Construction], MaintainTraining);
         Set([WorkType.Handling], MaintainHerd);
         Set([WorkType.Cooking], MaintainBabyFeeding);
 

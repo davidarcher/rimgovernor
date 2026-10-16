@@ -60,10 +60,7 @@ public static partial class PolicyFunctions
         [EnsureMechCharger] = 1,
 
         // Military
-        [EnsureBasicDefense] = 1,
-        [ClearPests] = 1,
         [MaintainEquipment] = 1,
-        [MaintainTraining] = 1,
         [EnsureDefensiveLayout] = 1,
 
         // Medical

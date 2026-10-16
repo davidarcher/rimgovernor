@@ -82,7 +82,7 @@ public static partial class PolicyFunctions
         {
             return ConstructionTier.Sustain;
         }
-        if (concern == EnsureBasicDefense || concern == EnsureDefensiveLayout)
+        if (concern == EnsureDefensiveLayout)
         {
             return ConstructionTier.Secure;
         }

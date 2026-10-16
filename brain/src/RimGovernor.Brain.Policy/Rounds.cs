@@ -493,7 +493,7 @@ public sealed record RoundsFacts
 
     public Fact<long> Armed { get; init; }
 
-    /// <summary>Counts living, conscious colonists able to fight who hold no weapon; EnsureBasicDefense stays owed while it is positive.</summary>
+    /// <summary>Counts living, conscious colonists able to fight who hold no weapon; military/defense stays unmet while it is positive.</summary>
     public Fact<long> Unarmed { get; init; }
 
     public Fact<double> FoodDays { get; init; }
@@ -730,10 +730,8 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");
     public static readonly ConcernId EnsureCooking = new("EnsureCooking");
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
-    public static readonly ConcernId EnsureBasicDefense = new("EnsureBasicDefense");
     public static readonly ConcernId MaintainMedicalReserves = new("MaintainMedicalReserves");
     public static readonly ConcernId EnsureComfort = new("EnsureComfort");
-    public static readonly ConcernId ClearPests = new("ClearPests");
     public static readonly ConcernId MaintainEquipment = new("MaintainEquipment");
     public static readonly ConcernId MaintainResource = new("MaintainResource");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
@@ -815,16 +813,6 @@ public static partial class PolicyFunctions
 
     /// <summary>The armed fighters a colony of n colonists owes: two, every colonist when fewer, never below one. The only place the number lives.</summary>
     internal static long ArmedTarget(long n) => Math.Max(1, Math.Min(2, n));
-
-    /// <summary>ArmedTarget fighters.</summary>
-    internal static Fact<bool> FootholdArmed(RoundsFacts f)
-    {
-        if (FootholdCount(f).TryGetValue(out var n))
-        {
-            return Measured(f.Armed, v => v >= Math.Min(2, n));
-        }
-        return Unknown<bool>();
-    }
 
     /// <summary>The survival services ReviewDisaster tracks, read live from the review's facts (infrastructure is its own).</summary>
     public static Dictionary<DisasterService, Fact<bool>> DisasterServiceFacts(RoundsFacts f, RoundsPolicy p) => new()

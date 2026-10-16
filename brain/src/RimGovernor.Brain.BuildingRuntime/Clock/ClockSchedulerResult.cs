@@ -25,8 +25,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsAcquisitionResult? ResourceAcquisition { get; set; }
 
-    public RoundsAcquisitionResult? PestAcquisition { get; set; }
-
     public RoundsWorkResult? Work { get; set; }
 
     public RoundsSupplyResult? Supplies { get; set; }
@@ -75,8 +73,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsRescueResult? Rescue { get; set; }
 
-    public RoundsEquipResult? Equip { get; set; }
-
     public RoundsGearResult? Gear { get; set; }
 
     public RoundsMedicalResult? Medical { get; set; }
@@ -121,8 +117,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsBurialResult? Burial { get; set; }
 
-    public RoundsTrainingResult? Training { get; set; }
-
     public RoundsEnvelopeResult? Envelope { get; set; }
 
     public RoundsMoodReliefResult? MoodRelief { get; set; }
@@ -165,7 +159,6 @@ public sealed class ClockSchedulerResult
         Fields = other.Fields ?? Fields;
         FoodAcquisition = other.FoodAcquisition ?? FoodAcquisition;
         ResourceAcquisition = other.ResourceAcquisition ?? ResourceAcquisition;
-        PestAcquisition = other.PestAcquisition ?? PestAcquisition;
         Work = other.Work ?? Work;
         Supplies = other.Supplies ?? Supplies;
         Blight = other.Blight ?? Blight;
@@ -190,7 +183,6 @@ public sealed class ClockSchedulerResult
         Defense = other.Defense ?? Defense;
         Tend = other.Tend ?? Tend;
         Rescue = other.Rescue ?? Rescue;
-        Equip = other.Equip ?? Equip;
         Gear = other.Gear ?? Gear;
         Medical = other.Medical ?? Medical;
         Surgery = other.Surgery ?? Surgery;
@@ -213,7 +205,6 @@ public sealed class ClockSchedulerResult
         Stockpiles = other.Stockpiles ?? Stockpiles;
         DefenseLayout = other.DefenseLayout ?? DefenseLayout;
         Burial = other.Burial ?? Burial;
-        Training = other.Training ?? Training;
         Envelope = other.Envelope ?? Envelope;
         MoodRelief = other.MoodRelief ?? MoodRelief;
         Dialog = other.Dialog ?? Dialog;

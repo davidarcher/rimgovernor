@@ -970,12 +970,12 @@ embedder keeps it where it stands unless the switching price pays for a move; th
 in-place widening is gone. `RangeTemplate(room)` turns the layout into
 the `[]WantedPiece` the room reconciler builds.
 
-`MaintainTraining` requests facilities only for actual assigned capability requirements
+The `military/training` Need requests facilities only for actual assigned capability requirements
 threatened by bounded native decay. Held Ideology role requirements preserve OR skill
 branches; unlocked tiers constrain feasibility rather than desired proficiency. A range
 serves supported Shooting maintenance; a ring provides at least two markers when an
 assigned melee holder needs a partner. Existing facilities remain grow-only.
-`RoundsTrainingPlanner` reconciles those facilities. Shared coupled selection chooses the
+The military family's training work step (`MilitaryRounds`) reconciles those facilities. Shared coupled selection chooses the
 actual sessions, participants and opportunity costs through ordinary Method/Hands actions.
 See [assigned capability maintenance](../contracts/capability-maintenance.md).
 
@@ -1073,7 +1073,7 @@ slot n is always the same cell. `PlannedRoom.Markers`
 (omitempty) is the node's marker count, `RoomDemand.Rings` clamped to 4 to 12
 (`RingMarkersFor`), in the slots in order. `RingTemplate(room)` is one
 `RimGovernor_SparringMarker` (`Defs/ThingDefs/SparringMarker.xml`) per marker.
-`RoundsTrainingPlanner` reconciles the ring beside the range (see `MaintainTraining`
+The training work step reconciles the ring beside the range (see `military/training`
 above); the ring's 4 to 12 markers seat bouts of 2 to 4, one marker per pawn.
 
 **Bout formation (#2708, `Runtime/Training/Sparring/`).** `WorkGiver_Spar`
@@ -1128,7 +1128,7 @@ a higher ceiling and nothing else; vanilla pays the XP. The table is owned by th
 mirrored in the brain as [`policy.SparringTiers`](../../../brain/src/RimGovernor.Brain.Policy/SparringTier.cs);
 the XML is the owner. A pawn spars only while its Melee is
 under the unlocked tier's ceiling (`SparringRules.Ceiling`), and only if Melee is
-the skill it trains (see `MaintainTraining`). The weapons and the
+the skill it trains (see `military/training`). The weapons and the
 `Apparel_Practice*` pieces have no recipe, category or trade tag and are never
 owned: the spar job issues them. When a fight starts, the pawn's real weapon moves to
 its inventory and every unlocked worn apparel piece moves there too (still the

@@ -111,7 +111,7 @@ creepjoiner.
   by side, the same order continues its open Method, and an overlapping claim is refused.
 - **Arms consumers.** The equipment planner, the armory's weapon demand and the fight loadout set
   `EquipCandidatePawn.NoArms` from the same check ([weapon planner](weapon-planner.md)); the
-  basic-defense unarmed count skips the colonist so `EnsureBasicDefense` does not stay open for it.
+  basic-defense unarmed count skips the colonist so `military/defense` does not stay unmet for it.
 - **Surgical inspection** ([wiki](https://rimworldwiki.com/wiki/Doctoring#Surgical_inspection)): it
   reveals crumbling mind, organ decay and psychic agony early (their hediffs become visible) and
   nothing else. The game keeps no "inspected" flag; a clean one leaves a letter, an Anesthetic hediff

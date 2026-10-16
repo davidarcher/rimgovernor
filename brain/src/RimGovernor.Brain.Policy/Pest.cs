@@ -4,11 +4,11 @@ using static RimGovernor.Brain.Policy.PolicyFunctions;
 
 namespace RimGovernor.Brain.Policy;
 
-// A pest is a wild animal ClearPests hunts for what it destroys rather than for meat: an alphabeaver pack
+// A pest is a wild animal military/pests hunts for what it destroys rather than for meat: an alphabeaver pack
 // arrives as a NegativeEvent letter, is factionless, never hostile and not a predator, so no emergency census
 // answers it while it defoliates the map. The race rows say which races are pests (AnimalRace.Pest: an animal
 // that eats trees); native's NativeHuntAcquisition.PestRace applies the same rule to decide which animals the
-// hunt census offers as pest rows, and this decides which rows of the wild-animal census count as the goal's
+// hunt census offers as pest rows, and this decides which rows of the wild-animal census count toward the Need.s
 // deficit.
 public static partial class PolicyFunctions
 {

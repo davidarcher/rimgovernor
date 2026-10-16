@@ -314,7 +314,7 @@ public static partial class ObservationPackage
     /// <summary>
     /// Compares independent same-tick censuses before deriving available armed capacity. Missing or contradictory
     /// pawn details must not recover a defense deficit. The second count is the living, conscious colonists able
-    /// to fight who hold no weapon: EnsureBasicDefense stays owed while any remain, so a loose starting club is
+    /// to fight who hold no weapon: military/defense stays unmet while any remain, so a loose starting club is
     /// equipped (or a weapon crafted) for every one of them, not only the first two. A row without its biography
     /// leaves it unknown.
     /// </summary>
@@ -355,7 +355,7 @@ public static partial class ObservationPackage
                 continue;
             }
             // A colonist held back from arms (a creepjoiner whose downside has not shown) is owed no weapon:
-            // counting it would hold EnsureBasicDefense open for good.
+            // counting it would hold military/defense unmet for good.
             if (downsides.ArmsHold(CreepJoinerPawn(row)) != "")
             {
                 continue;

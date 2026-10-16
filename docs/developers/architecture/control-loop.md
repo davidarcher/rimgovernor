@@ -324,6 +324,23 @@ serialize. `ConstructionClaimsIn` reads Need-owned building plans too. A Need's
 MethodIds are once per Need history, so a destroyed bench is not rebuilt under
 the same id. MaintainResource and trade stay Concerns until the rest of #3263.
 
+**Military, first part (#3259).** `EnsureBasicDefense`, `ClearPests` and
+`MaintainTraining` are the `military/defense`, `military/pests` and
+`military/training` Needs (`Military.cs`), run by the `military` catalog entry
+(`MilitaryRounds.Runner`), which replaces the `equip`, `pestAcquisition` and
+`training` planners. Defense (Wellbeing) is met with no hostile standing, the
+foothold's armed fighters armed and nobody fighting-capable unarmed; while arming
+has no forecast adapter an unmet Need is held as `unsupported_forecast_equipment`.
+Pests (Wellbeing) is unmet while the wild-animal census lists a pest or a hunt of
+the Need's own has lost its animal; its Method is the next hunt selection,
+`pest-hunt-<hash of the rows>`, admitted under the Need owner with each animal as
+a claim (`AdmitAcquisitionMethod`), so hunts of other animals run side by side; the
+work step cancels hunts whose animal is gone. Training (Development) is unmet
+while an assigned combat-capability holder is forecast below requirement; its
+work step builds the range and ring rooms under the Need (the review reads their
+definitions when `RoundsCapabilities.Needs` lists it). ActiveCombat,
+RestoreWorkers and MaintainEquipment are not migrated yet.
+
 **Colony admin, creep joiners (#3264).** `ManageCreepJoiners` is now the
 `admin/creep-joiners` Need (`ColonyAdmin.cs`, `AdminRounds`), a Wellbeing Need of
 the `admin` family entry. Its Standard `Record` moved to the
@@ -390,7 +407,7 @@ three ways.
 | Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |
 | Power | EnsureBasicPower |
 | Medical | CriticalMedicine, MaintainMedicalReserves, MaintainSurgery |
-| Military | ActiveCombat, RestoreWorkers, EnsureBasicDefense, MaintainEquipment, MaintainTraining, ClearPests |
+| Military | `military`: Needs `defense`, `pests`, `training` (#3259); ActiveCombat, RestoreWorkers, MaintainEquipment |
 | Animals | MaintainHerd, MaintainAnimalContainment |
 | Ideology | MaintainIdeoRoles, MaintainRituals, ImproveIdeoligion |
 | Biotech | MaintainMechs, EnsureMechCharger, MaintainGeneBank, ManagePollution |

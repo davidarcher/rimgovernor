@@ -122,7 +122,6 @@ public sealed partial class ClockScheduler
             (c.Butcher, c.Butcher?.Reviewer, c.Butcher?.Concern, EnsureFoodSupply),
             (c.Fields, c.Fields?.Reviewer, null, null),
             (c.FoodAcquisition, c.FoodAcquisition?.Reviewer, null, null),
-            (c.PestAcquisition, c.PestAcquisition?.Reviewer, null, null),
             (c.ResourceAcquisition, c.ResourceAcquisition?.Reviewer, null, null),
             (c.Work, c.Work?.Reviewer, null, null),
             (c.Supplies, c.Supplies?.Reviewer, null, null),

@@ -224,29 +224,6 @@ public static partial class PolicyFunctions
         c.Assess(EnsureBasicPower, powerMet);
     }
 
-    internal static void InspectBasicDefense(RoundsRun c)
-    {
-        var f = c.F;
-        var defenseMet = AllFacts(FootholdArmed(f), Measured(f.Hostiles, v => v == 0));
-        var defense = BasicDefenseRecovered(defenseMet, f.Unarmed);
-        if (!Positive(defense))
-        {
-            var g = c.Raise(EnsureBasicDefense);
-            var k = FootholdCount(f).TryGetValue(out var n);
-            var sk = f.Armed.TryGetValue(out var stock);
-            if (k && sk && n > 0)
-            {
-                var deficit = Math.Max(0, (double)(ArmedTarget(n) - stock) / ArmedTarget(n));
-                if (f.Unarmed.TryGetValue(out var unarmed) && unarmed > 0 && deficit == 0)
-                {
-                    deficit = (double)unarmed / (unarmed + stock);
-                }
-                g.Deficit = Known(deficit);
-            }
-        }
-        c.Assess(EnsureBasicDefense, defense);
-    }
-
     internal static void InspectComfort(RoundsRun c)
     {
         var f = c.F;
@@ -288,21 +265,6 @@ public static partial class PolicyFunctions
             }
         }
         c.Assess(EnsureComfort, recovered);
-    }
-
-    internal static void InspectPests(RoundsRun c)
-    {
-        // A recognised pest on the map (an alphabeaver pack eating the trees) is a foothold deficit answered
-        // by hunting, priority 2: it is not an emergency (the census never holds the clock for a docile
-        // animal) but it outranks every ranked project while it lasts. Only a known census with a pest
-        // opens the goal: an unknown wild census (beyond the native bound) has nothing to hunt and must not
-        // hold the startup ladder for good.
-        var pests = PestCensus(c.F.AnimalUpkeep.WildAnimals);
-        if (pests.TryGetValue(out var n) && n > 0)
-        {
-            c.Raise(ClearPests).Deficit = Known(1.0);
-        }
-        c.Assess(ClearPests, Measured(pests, v => v == 0));
     }
 
     internal static void InspectEquipment(RoundsRun c)

@@ -354,9 +354,9 @@ public sealed partial class Rounder
         {
             readDefinitions = [.. readDefinitions, .. BurialDefinitions];
         }
-        if (MethodEnabled(PolicyApi.MaintainTraining))
+        if (Needs.Contains(MilitaryFamily.Training))
         {
-            readDefinitions = [.. readDefinitions, .. RoundsTrainingPlanner.TrainingDefinitions];
+            readDefinitions = [.. readDefinitions, .. MilitaryRounds.TrainingDefinitions];
         }
         if (MethodEnabled(PolicyApi.EnsureCooking) || Needs.Contains(PolicyApi.RefrigerationNeed) || JailShell)
         {

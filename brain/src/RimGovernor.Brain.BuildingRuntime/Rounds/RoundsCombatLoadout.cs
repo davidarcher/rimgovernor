@@ -35,7 +35,7 @@ public sealed partial class RoundsDefensePlanner
             EquipCandidatePawn facts;
             try
             {
-                facts = RoundsEquipPlanner.EquipCandidatePawnFacts(row, catalog, things);
+                facts = EquipCandidates.EquipCandidatePawnFacts(row, catalog, things);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -122,7 +122,7 @@ public sealed partial class RoundsDefensePlanner
         var output = new List<EquipCandidateWeapon>(read.Targets.Count);
         foreach (var w in read.Targets)
         {
-            output.Add(RoundsEquipPlanner.EquipCandidateWeaponOf(catalog, w));
+            output.Add(EquipCandidates.EquipCandidateWeaponOf(catalog, w));
         }
         return output;
     }

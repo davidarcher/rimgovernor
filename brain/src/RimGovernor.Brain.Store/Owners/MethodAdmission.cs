@@ -243,7 +243,10 @@ public sealed partial class Store
         {
             throw new ConflictException();
         }
-        var bound = owner.OwnerNeed(review, out var need) && (need == EnsureFoodSupply || need == MaintainMedicalReserves || need == ClearPests || need == MaintainResource);
+        // The military pests Need hunts its pests (#3259); a Need owner reads as no Concern.
+        var bound = owner is NeedOwner { Need: var held }
+            ? held == MilitaryFamily.Pests
+            : owner.OwnerNeed(review, out var need) && (need == EnsureFoodSupply || need == MaintainMedicalReserves || need == MaintainResource);
         if (!bound)
         {
             throw new ConflictException();
@@ -391,7 +394,6 @@ public sealed partial class Store
         {
             return false;
         }
-        var pest = goal.Standard.Kind == ClearPests;
         // EnsureFoodSupply's hunt-only plan passes the goal's open plant harvests: a forage batch runs for days and
         // the hunt rows the butcher spot and bill were placed for would otherwise wait behind it.
         var hunts = goal.Standard.Kind == EnsureFoodSupply && plan.Actions.All(a => a.Acquisition is { Hunt: true });
@@ -400,7 +402,7 @@ public sealed partial class Store
             foreach (var progress in LoadIn(tx, m.Plan).Progress)
             {
                 var action = progress.Action;
-                if (AcquisitionIndependentWork(m.MethodId, action) || (pest && action.Kind == ActionKind.Acquisition))
+                if (AcquisitionIndependentWork(m.MethodId, action))
                 {
                     continue;
                 }

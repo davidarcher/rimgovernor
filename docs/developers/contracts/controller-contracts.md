@@ -464,9 +464,9 @@ A recognised pest is a wild animal hunted for what it destroys
 (`NativeHuntAcquisition.PestDefinitions` and `policy.PestDefinition` name the same
 set, today `Alphabeaver`). Pests arrive factionless, so no emergency census answers them.
 
-- `ClearPests` opens at foothold priority (2) with deficit one while the known
-  wild-animal census counts a pest anywhere; recovers at none; an unknown census neither
-  opens nor recovers it.
+- The `military/pests` Need is unmet, deficit the pest count, while the known wild-animal
+  census counts a pest anywhere or a hunt of its own has lost its animal; met at none; an
+  unknown census leaves it unknown.
 - The census offers each eligible pest as a hunt row after food prey (nearest first):
   one unit of the pest's corpse, `food` false, no nutrition. Native waives the 100-cell
   distance, safe-prey and butcher-bill rules; the hunter still needs Hunting active, a

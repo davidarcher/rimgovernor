@@ -32,8 +32,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsAcquisitionPlanner? ResourceAcquisition { get; init; }
 
-    public RoundsAcquisitionPlanner? PestAcquisition { get; init; }
-
     public RoundsWorkPlanner? Work { get; init; }
 
     public RoundsSupplyPlanner? Supplies { get; init; }
@@ -82,8 +80,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsRescuePlanner? Rescue { get; init; }
 
-    public RoundsEquipPlanner? Equip { get; init; }
-
     public RoundsGearPlanner? Gear { get; init; }
 
     public RoundsMedicalPlanner? Medical { get; init; }
@@ -127,8 +123,6 @@ public sealed class ClockSchedulerConfig
     public RoundsDefenseLayoutPlanner? DefenseLayout { get; init; }
 
     public RoundsBurialPlanner? Burial { get; init; }
-
-    public RoundsTrainingPlanner? Training { get; init; }
 
     public RoundsEnvelopePlanner? Envelope { get; init; }
 

@@ -36,7 +36,6 @@ public sealed partial class BrainComposition
         RoundsDefenseLayoutPlanner? cfgDefenseLayout = null;
         RoundsDialogPlanner? cfgDialog = null;
         RoundsEnvelopePlanner? cfgEnvelope = null;
-        RoundsEquipPlanner? cfgEquip = null;
         RoundsBuildingPlanner? cfgExpansion = null;
         RoundsFieldPlanner? cfgFields = null;
         RoundsFirebreakPlanner? cfgFirebreak = null;
@@ -57,7 +56,6 @@ public sealed partial class BrainComposition
         RoundsMedicalPlanner? cfgMedical = null;
         RoundsMoodReliefPlanner? cfgMoodRelief = null;
         RoundsPermitsPlanner? cfgPermits = null;
-        RoundsAcquisitionPlanner? cfgPestAcquisition = null;
         RoundsPollutionPlanner? cfgPollution = null;
         RoundsPopulationCustodyPlanner? cfgPopulationCustody = null;
         RoundsPopulationJoinerPlanner? cfgPopulationJoiner = null;
@@ -80,7 +78,6 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? cfgTemperature = null;
         RoundsTendPlanner? cfgTend = null;
         RoundsTradePlanner? cfgTrade = null;
-        RoundsTrainingPlanner? cfgTraining = null;
         RoundsWorkPlanner? cfgWork = null;
         RoundsBuildingPlanner? cfgWorkshop = null;
 
@@ -185,7 +182,6 @@ public sealed partial class BrainComposition
         if (acquisition)
         {
             cfgFoodAcquisition = new RoundsAcquisitionPlanner(reviewer, EnsureFoodSupply);
-            cfgPestAcquisition = new RoundsAcquisitionPlanner(reviewer, ClearPests);
             cfgResourceAcquisition = new RoundsAcquisitionPlanner(reviewer, MaintainResource);
         }
         if (work)
@@ -211,9 +207,10 @@ public sealed partial class BrainComposition
         {
             cfgRescue = RoundsRescuePlanner.NewRoundsRescuePlanner(reviewer, client);
         }
-        if (equip)
+        if (equip || acquisition || training)
         {
-            cfgEquip = new RoundsEquipPlanner(reviewer);
+            // The equip, acquisition and training toggles compose the military family's defense, pests and training Needs (#3259).
+            families.Add(new MilitaryRounds(reviewer, equip, acquisition, training).Runner());
         }
         if (repair || clearance)
         {
@@ -232,10 +229,6 @@ public sealed partial class BrainComposition
         if (burial)
         {
             cfgBurial = new RoundsBurialPlanner(reviewer);
-        }
-        if (training)
-        {
-            cfgTraining = RoundsTrainingPlanner.Create(reviewer);
         }
         if (envelope)
         {
@@ -468,7 +461,6 @@ public sealed partial class BrainComposition
             DefenseLayout = cfgDefenseLayout,
             Dialog = cfgDialog,
             Envelope = cfgEnvelope,
-            Equip = cfgEquip,
             Expansion = cfgExpansion,
             Fields = cfgFields,
             Firebreak = cfgFirebreak,
@@ -489,7 +481,6 @@ public sealed partial class BrainComposition
             Medical = cfgMedical,
             MoodRelief = cfgMoodRelief,
             Permits = cfgPermits,
-            PestAcquisition = cfgPestAcquisition,
             Pollution = cfgPollution,
             PopulationCustody = cfgPopulationCustody,
             PopulationJoiner = cfgPopulationJoiner,
@@ -512,7 +503,6 @@ public sealed partial class BrainComposition
             Temperature = cfgTemperature,
             Tend = cfgTend,
             Trade = cfgTrade,
-            Training = cfgTraining,
             Work = cfgWork,
             Workshop = cfgWorkshop,
         };
@@ -583,7 +573,7 @@ public sealed partial class BrainComposition
 
         Add(sc.Acquisition || sc.Field || sc.Bill, EnsureFoodSupply);
         Add(sc.Work, EnsureWorkAssignments);
-        Add(sc.Acquisition, MaintainResource, ClearPests);
+        Add(sc.Acquisition, MaintainResource);
         Add(sc.Bill, EnsureCooking, MaintainBabyFeeding);
         Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);
         Add(sc.Temperature, EnsureTemperatureSafety);
@@ -597,7 +587,6 @@ public sealed partial class BrainComposition
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
         Add(sc.AnimalContainment, MaintainAnimalContainment);
         Add(sc.Burial, MaintainBurial);
-        Add(sc.Training, MaintainTraining);
         Add(sc.Envelope, MaintainClimateEnvelope);
         Add(sc.Gear, MaintainEquipment);
         Add(sc.Blight, RemoveBlight);
@@ -630,8 +619,16 @@ public sealed partial class BrainComposition
         }
         Add(sc.Medical, MaintainMedicalReserves, MaintainSurgery);
         Add(sc.Trade, TradeWithCaravan);
-        // The equip planner supplies EnsureBasicDefense's method capability.
-        Add(sc.Equip, EnsureBasicDefense);
-        return (thresholds, new RoundsCapabilities { Methods = methods, Needs = sc.Refrigeration ? [RefrigerationNeed] : [], LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
+        // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions.
+        var needs = new List<NeedId>();
+        if (sc.Refrigeration)
+        {
+            needs.Add(RefrigerationNeed);
+        }
+        if (sc.Training)
+        {
+            needs.Add(MilitaryFamily.Training);
+        }
+        return (thresholds, new RoundsCapabilities { Methods = methods, Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
     }
 }

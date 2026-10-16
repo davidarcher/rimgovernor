@@ -96,7 +96,7 @@ internal sealed class CampaignRun
         PolicyFunctions.EnsureCooking.Value,
         PolicyFunctions.EnsureTemperatureSafety.Value,
         PolicyFunctions.MaintainResource.Value,
-        PolicyFunctions.EnsureBasicDefense.Value,
+        MilitaryFamily.Defense.Value,
     ];
 
     internal static CampaignRun Create(ISession s)

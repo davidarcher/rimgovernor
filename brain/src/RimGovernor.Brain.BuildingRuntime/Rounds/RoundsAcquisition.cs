@@ -10,8 +10,7 @@ public sealed class RoundsAcquisitionResult : IPlannerMethod
 }
 
 /// <summary>
-/// Plans one acquisition goal: EnsureFoodSupply harvests and hunts toward its food plan; ClearPests hunts every
-/// recognised pest the wild-animal census reports, one hunt method per admission, until none remain;
+/// Plans one acquisition goal: EnsureFoodSupply harvests and hunts toward its food plan;
 /// MaintainResource chops, forages and hunts toward its ranked floors through the acquisition catalog, beside
 /// RoundsResourcePlanner's bills and mines.
 /// </summary>
@@ -23,9 +22,9 @@ public sealed class RoundsAcquisitionPlanner
 
     public RoundsAcquisitionPlanner(Rounder reviewer, ConcernId need)
     {
-        if (reviewer is null || (need != PolicyApi.EnsureFoodSupply && need != PolicyApi.ClearPests && need != PolicyApi.MaintainResource))
+        if (reviewer is null || (need != PolicyApi.EnsureFoodSupply && need != PolicyApi.MaintainResource))
         {
-            throw new ControlException("NewRoundsAcquisitionPlanner: reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.ClearPests && need != policy.Maintain");
+            throw new ControlException("NewRoundsAcquisitionPlanner: reviewer == nil || (need != policy.EnsureFoodSupply && need != policy.MaintainResource)");
         }
         _reviewer = reviewer;
         _need = need;
@@ -65,11 +64,9 @@ public sealed class RoundsAcquisitionPlanner
         {
             return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, PolicyConstants.RemoteHoldHazard) };
         }
-        var pest = _need == PolicyApi.ClearPests;
         var stockGoal = _need == PolicyApi.MaintainResource;
         var food = _need == PolicyApi.EnsureFoodSupply;
         var huntOnly = false;
-        var pests = PolicyApi.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals);
         var stalledSources = new HashSet<string>(StringComparer.Ordinal);
         // A source a stall rotated away from stays keyed out for its contract's bounded cooldown: the goal's
         // progress record carries the key, and RecordProgressCooldown adds one under this review's revision.
@@ -96,15 +93,6 @@ public sealed class RoundsAcquisitionPlanner
         foreach (var method in goal.Methods)
         {
             var plan = p.Journal.LoadPlan(method.Plan, call);
-            if (pest)
-            {
-                // An unissued pest hunt follows its animal wherever the census reports it; one whose animal died
-                // to the defense or left the map would be held forever and the goal behind it, so it is cancelled at once.
-                foreach (var action in GonePestHunts(plan.Progress, projection.Facts.AnimalUpkeep.WildAnimals))
-                {
-                    p.Journal.Cancel(method.Plan, action, call);
-                }
-            }
             foreach (var thing in UndispatchedAcquisitions(plan.Progress))
             {
                 undispatched.Add(thing);
@@ -112,57 +100,47 @@ public sealed class RoundsAcquisitionPlanner
         }
         // Stalls are read from the census alone: any designated row of the goal's kind, untaken past its contract
         // since native first saw it, the player's own included. Each is withdrawn by its own one-action method,
-        // admitted before re-selection and using up this step's admission. A pest hunt follows its animal and
-        // native settles it on the animal's death or departure, so the hunt-stall rule is not its exit: the pest
-        // goal withdraws nothing.
-        if (!pest)
+        // admitted before re-selection and using up this step's admission.
+        Func<AcquisitionSource, bool> mine = row => food && row.Food;
+        if (stockGoal)
         {
-            Func<AcquisitionSource, bool> mine = row => food && row.Food;
-            if (stockGoal)
+            var targets = _reviewer.ResourceTargets(state.Snapshot);
+            mine = row => targets.ContainsKey(new Resource(row.Resource));
+        }
+        foreach (var hunt in new[] { false, true })
+        {
+            var contract = hunt ? _reviewer.Policy.HuntProgress() : _reviewer.Policy.AcquisitionProgress();
+            foreach (var row in StalledDesignations(projection.Acquisition, hunt, expected.Tick, contract, mine))
             {
-                var targets = _reviewer.ResourceTargets(state.Snapshot);
-                mine = row => targets.ContainsKey(new Resource(row.Resource));
-            }
-            foreach (var hunt in new[] { false, true })
-            {
-                var contract = hunt ? _reviewer.Policy.HuntProgress() : _reviewer.Policy.AcquisitionProgress();
-                foreach (var row in StalledDesignations(projection.Acquisition, hunt, expected.Tick, contract, mine))
+                stalledSources.Add(row.Id);
+                var (method, plan) = StallWithdraw(row);
+                try
                 {
-                    stalledSources.Add(row.Id);
-                    var (method, plan) = StallWithdraw(row);
-                    try
-                    {
-                        p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
-                        continue;
-                    }
-                    catch (NotFoundException)
-                    {
-                    }
-                    Cool(contract, row.Id);
-                    p.Current(call, epoch);
-                    if (p.Session.State() != state)
-                    {
-                        throw new ControlException("step: p.session.State() != state");
-                    }
-                    p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "withdraw stalled " + row.Resource, plan, call);
-                    return new RoundsAcquisitionResult { Verdict = BuildingReasonAdmitted, Plan = plan.Id };
+                    p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
+                    continue;
                 }
+                catch (NotFoundException)
+                {
+                }
+                Cool(contract, row.Id);
+                p.Current(call, epoch);
+                if (p.Session.State() != state)
+                {
+                    throw new ControlException("step: p.session.State() != state");
+                }
+                p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, method, "withdraw stalled " + row.Resource, plan, call);
+                return new RoundsAcquisitionResult { Verdict = BuildingReasonAdmitted, Plan = plan.Id };
             }
         }
-        var held = new Dictionary<string, bool>(StringComparer.Ordinal);
-        if (!pest)
-        {
-            held = CooledSources(projection.Acquisition, _reviewer.ChopMinGrowth(projection), id => cooled.Contains(id) || AcquisitionCooled(progress, _reviewer.Policy, id, expected.Tick));
-        }
+        var held = CooledSources(projection.Acquisition, _reviewer.ChopMinGrowth(projection), id => cooled.Contains(id) || AcquisitionCooled(progress, _reviewer.Policy, id, expected.Tick));
         // Blocking reads the census, not the journal: a designated row the goal would plan is its ExistingWork. A
         // source this step cancelled or cooled still reads designated until native withdraws it, and never
-        // blocks. ClearPests is never blocked: a hunt already designated holds its own animal (held, below) and
-        // counts against the two outstanding hunts (slots), but does not stop the next animal being planned.
+        // blocks.
         // EnsureFoodSupply's hunts are the exception: a forage batch harvests one bush at a time for days while
         // the hunt rows the butcher spot and bill were placed for wait behind it, so designated plant harvests
         // leave the hunt slots plannable and only hunts are admitted over them. MaintainResource skips a
         // designated resource in resourceSelection instead; its other targets still plan.
-        if (!pest && !stockGoal)
+        if (!stockGoal)
         {
             var (block, plants) = CensusBlocking(projection.Acquisition, food, held, undispatched);
             if (block)
@@ -188,7 +166,7 @@ public sealed class RoundsAcquisitionPlanner
             projection = projection with { Acquisition = foodSources };
             deficit = foodDeficit;
         }
-        var (slots, noHunter) = RoundsResourcePlanner.HuntSlots(projection);
+        var (slots, _) = RoundsResourcePlanner.HuntSlots(projection);
         IReadOnlyList<AcquisitionSource> selected;
         var existing = false;
         try
@@ -197,10 +175,6 @@ public sealed class RoundsAcquisitionPlanner
             {
                 var supply = await _reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
                 (selected, existing) = ResourceSelection(supply, busy);
-            }
-            else if (pest)
-            {
-                selected = PolicyApi.SelectPestAcquisition(projection.Acquisition, pests, held, slots);
             }
             else
             {
@@ -214,7 +188,7 @@ public sealed class RoundsAcquisitionPlanner
         }
         catch (DomainException)
         {
-            return new RoundsAcquisitionResult { Verdict = FieldUnavailable(UnreadAcquisitionFact(projection.Acquisition, deficit, pending, pest || stockGoal)) };
+            return new RoundsAcquisitionResult { Verdict = FieldUnavailable(UnreadAcquisitionFact(projection.Acquisition, deficit, pending, stockGoal)) };
         }
         if (selected.Count == 0 && existing)
         {
@@ -222,7 +196,7 @@ public sealed class RoundsAcquisitionPlanner
         }
         if (selected.Count == 0)
         {
-            return new RoundsAcquisitionResult { Verdict = NoAcquisition(_need, noHunter, deficit, pending) };
+            return new RoundsAcquisitionResult { Verdict = NoAcquisition(_need, deficit, pending) };
         }
         var hash = new System.Text.StringBuilder();
         foreach (var row in selected)
@@ -230,13 +204,6 @@ public sealed class RoundsAcquisitionPlanner
             hash.Append(CultureInfo.InvariantCulture, $"{row.Id}/{row.Resource}/{row.Token}/{row.Cell.X}/{row.Cell.Z}\n");
         }
         var prefix = "acquire";
-        if (pest)
-        {
-            // Every admission the goal ever made salts the pest method: a cancelled hunt of an animal that came
-            // back to the same cell in the same state rehashes to a fresh method instead of reading as already used.
-            hash.Append(CultureInfo.InvariantCulture, $"#{goal.Admitted}\n");
-            prefix = "pest-hunt";
-        }
         if (stockGoal)
         {
             prefix = "resource-acquire";
@@ -264,7 +231,7 @@ public sealed class RoundsAcquisitionPlanner
         {
             throw new ControlException("step: p.session.State() != state");
         }
-        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, methodId, AcquisitionReason(food, pest, runway, selected), spec, call);
+        p.Journal.CommitMethodReason(goal.Standard.Id, goal.Revision, methodId, AcquisitionReason(food, runway, selected), spec, call);
         return new RoundsAcquisitionResult { Verdict = BuildingReasonAdmitted, Plan = id };
     }
 }
@@ -526,18 +493,13 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>
-    /// The admitted method's short why for Operation.intent: the food runway the plan budgets against, the
-    /// animal a pest hunt targets, or the stock a resource method gathers.
+    /// The admitted method's short why for Operation.intent: the food runway the plan budgets against or the stock a resource method gathers.
     /// </summary>
-    internal static string AcquisitionReason(bool food, bool pest, Fact<double> runway, IReadOnlyList<AcquisitionSource> selected)
+    internal static string AcquisitionReason(bool food, Fact<double> runway, IReadOnlyList<AcquisitionSource> selected)
     {
         if (selected.Count == 0)
         {
             return "";
-        }
-        if (pest)
-        {
-            return "pest " + selected[0].Definition;
         }
         if (food)
         {
@@ -547,15 +509,10 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>
-    /// Says why the selection chose no source although the goal is owed: a pest hunt waits for a ranged hunter
-    /// or has every pest already hunted, food in flight already covers the deficit, or no source stands.
+    /// Says why the selection chose no source although the goal is owed: food in flight already covers the deficit, or no source stands.
     /// </summary>
-    internal static Verdict NoAcquisition(ConcernId need, bool noHunter, Fact<double> deficit, Fact<double> pending)
+    internal static Verdict NoAcquisition(ConcernId need, Fact<double> deficit, Fact<double> pending)
     {
-        if (need == PolicyApi.ClearPests)
-        {
-            return noHunter ? NoWorker("hunter") : BuildingReasonNoDeficit;
-        }
         var owedKnown = deficit.TryGetValue(out var owed);
         var inFlightKnown = pending.TryGetValue(out var inFlight);
         if (owedKnown && inFlightKnown && inFlight >= owed)
@@ -598,23 +555,27 @@ internal static partial class BuildingRuntimePackage
 public sealed partial class Rounder
 {
     /// <summary>The owned review reading an acquisition step plans on, its census without the sources a field plan reserves.</summary>
-    internal async Task<(Identity Expected, ColonyProjection Projection)> AcquisitionReadingAsync(ControlState state, RoundsReview review, CancellationToken call)
+    internal Task<(Identity Expected, ColonyProjection Projection)> AcquisitionReadingAsync(ControlState state, RoundsReview review, CancellationToken call) =>
+        AcquisitionReadingAsync(state.Snapshot, review, call);
+
+    /// <summary>The owned review reading of <paramref name="world"/> an acquisition plans on, its census without the sources a field plan reserves.</summary>
+    internal async Task<(Identity Expected, ColonyProjection Projection)> AcquisitionReadingAsync(GenerationSnapshot world, RoundsReview review, CancellationToken call)
     {
         var p = Player;
         var plans = p.Journal.LoadPlans(call);
-        var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(state.Snapshot), call);
-        var definitions = RoundsProjectDefinitions(plans, state.Snapshot, playerPlans);
-        var crops = await SowableCropsAsync(state.Snapshot, call).ConfigureAwait(false);
+        var playerPlans = p.Journal.PlayerPlans(Player.PlayerWorld(world), call);
+        var definitions = RoundsProjectDefinitions(plans, world, playerPlans);
+        var crops = await SowableCropsAsync(world, call).ConfigureAwait(false);
         var unique = RoundsFieldPlanner.UniqueFieldDefinitions([.. definitions, .. crops]);
         var expected = await StepScopeAsync(Native, call).ConfigureAwait(false);
-        if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
+        if (!RoundsBuildingBoundary(expected, world, review.Tick))
         {
-            throw new ControlException("acquisitionReading: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
+            throw new ControlException("acquisitionReading: !roundsBuildingBoundary(expected, world, review.Tick)");
         }
-        var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
+        var claims = p.Journal.ConstructionClaims(world, expected.Tick, call);
         var read = await ObserveOwnedAsync(Native, expected, claims, unique, call).ConfigureAwait(false);
         var projection = read.Projection;
-        projection = projection with { Acquisition = WithoutFieldSources(projection.Acquisition, projection, plans, state.Snapshot) };
+        projection = projection with { Acquisition = WithoutFieldSources(projection.Acquisition, projection, plans, world) };
         return (expected, projection);
     }
 }
