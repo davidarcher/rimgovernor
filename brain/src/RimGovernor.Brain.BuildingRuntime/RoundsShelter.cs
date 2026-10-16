@@ -44,7 +44,7 @@ public sealed partial class RoundsBuildingPlanner
     /// </summary>
     internal bool FacilityLadder()
     {
-        if (Concern == MaintainResource || Concern == MilitaryFamily.Equipment.FilingKey || Concern == MaintainMedicalReserves || Concern == EconomyFamily.Research.FilingKey)
+        if (Concern == EconomyFamily.Resource.FilingKey || Concern == MilitaryFamily.Equipment.FilingKey || Concern == MaintainMedicalReserves || Concern == EconomyFamily.Research.FilingKey)
         {
             return true;
         }

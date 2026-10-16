@@ -2,7 +2,7 @@
 
 [Documentation](../../README.md) · [Space and resources](../architecture/space-and-resources.md)
 
-`MaintainResource` uses the shared concern, plan, reservations and Hands path. A native resource census
+`economy/resource` uses the shared concern, plan, reservations and Hands path. A native resource census
 ranks eligible sources by distance and stable identity. Whether a mine opens at all is the Round's
 [supply plan](../architecture/space-and-resources.md#resource-demand-and-acquisition-scoring): the
 planner dispatches only the mine sources the plan opened for the deficit, in rank order, and a
@@ -38,7 +38,7 @@ Plasteel quantity stays unknown.
 
 - Unknown consumption or ore keeps the forecast unknown. At a known zero consumption rate days left
   is unknown, and stock below reserve still raises a deficit.
-- These targets reuse `MaintainResource`. The routines API and development panel expose the forecast,
+- These targets reuse `economy/resource`. The routines API and development panel expose the forecast,
   including unknown values.
 - Component fabrication needs a measured component deficit, a researched native recipe and a suitable
   bench, staged through the workshop prerequisites. Each additional component budgets twelve usable
@@ -120,7 +120,7 @@ haul eligibility stays authoritative; storage capacity is not completed hauling.
 
 ## Deep extraction
 
-`MaintainResource` with `deep_extraction` needs explicit player direction accepting native drilling
+`economy/resource` with `deep_extraction` needs explicit player direction accepting native drilling
 infestation risk. The census also reports installed scanner/drill definitions, costs, research,
 drill readiness and visible deep deposits when the native scanner overlay is available.
 

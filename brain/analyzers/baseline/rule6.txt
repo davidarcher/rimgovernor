@@ -108,7 +108,6 @@ BuildingRuntime/RoundsTemperature.cs|RoundsBuildingPlanner.SelectTemperature|"Ca
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"Door"
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"Wall"
 BuildingRuntime/RoundsTierStyle.cs|BuildingRuntimePackage.ShellStyleOf|"WoodLog"
-BuildingRuntime/RoundsTradeRequests.cs|BuildingRuntimePackage.RequestRecordPending|360000
 BuildingRuntime/RoundsWorkProjects.cs|BuildingRuntimePackage.RoundsDeficitWork|"Beer"
 BuildingRuntime/RoundsWorkshop.cs|RoundsBuildingPlanner.PrepareWorkshopAsync|"Beer"
 BuildingRuntime/RoundsWorkshop.cs|RoundsBuildingPlanner.PrepareWorkshopAsync|"FermentingBarrel"
@@ -321,8 +320,6 @@ Store/Codec/PolicyConverters.cs|WaitDoorConverter.Read|"Door"
 Store/Codec/PolicyConverters.cs|WaitDoorConverter.WriteFields|"Door"
 Store/Codec/PolicyConverters.cs|WorldConverter.Read|"Map"
 Store/Codec/PolicyConverters.cs|WorldConverter.WriteFields|"Map"
-Store/Owners/MethodAdmission.cs|Store.FieldInfrastructure|"Heater"
-Store/Owners/MethodAdmission.cs|Store.FieldInfrastructure|"HydroponicsBasin"
 Store/Plans/BuildingDependency.cs|Store.WallCellsIn|"Wall"
 Telemetry/Otlp/MetricAggregator.cs|MetricAggregator.s_defaultBounds|2500
 Telemetry/Otlp/MetricAggregator.cs|MetricAggregator.s_defaultBounds|5000

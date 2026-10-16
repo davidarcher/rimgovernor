@@ -10,7 +10,7 @@ public sealed class EssentialServicesTests
 {
     private static readonly ConcernId[] Owners = [CriticalMedicine, MaintainSurgery,
         MaintainMedicalReserves, MaintainHousing, MaintainShelter, EnsureTemperatureSafety,
-        EnsureBasicPower, MaintainRoutes, MaintainResource];
+        EnsureBasicPower, MaintainRoutes];
     private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
     private static EssentialServiceReview Review(RoundsFacts facts, int budget = 128, params ConcernId[] shortfalls) =>
         ReviewEssentialServices(facts, DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick },
@@ -164,8 +164,14 @@ public sealed class EssentialServicesTests
         var facts = Facts() with { Resources = Known<EquatableArray<Amount>>([]), Fuel = Known<EquatableArray<FuelConsumer>>([
             new() { Id = "heater", Fuel = Known(0.0), Target = Known(10.0), OutOfFuel = Known(true), Fuels = [new("fuel")],
                 Burn = Known(new FuelBurn { PerDay = 1, UnitsPerItem = 1 }) }]) };
-        var review = Review(facts, 128, MaintainResource);
-        var proposal = Assert.Single(review.Proposals, p => p.Target.Owner == MaintainResource);
+        // The materials row is the economy/resource Need's, unmet while a derived target is short of stock (#3303).
+        var review = ReviewEssentialServices(facts, DefaultRoundsPolicy(), new()
+        {
+            Work = new() { Tick = facts.Tick },
+            MaterialAvailability = Known<IReadOnlyDictionary<Resource, Fact<double>>>(new Dictionary<Resource, Fact<double>> { [new("grain")] = Known(20.0) }),
+            Needs = new Dictionary<Resource, long> { [new("fuel")] = 10 },
+        }, Owners.Select(o => new RoundsAssessment { Id = o, Finding = Finding.Met }).ToArray());
+        var proposal = Assert.Single(review.Proposals, p => p.Target.Owner == EconomyFamily.Resource.FilingKey);
         Assert.Contains(EssentialService.Fuel, proposal.Services);
         Assert.Contains(EssentialService.Materials, proposal.Services);
         Assert.Equal(2, proposal.Requirements.Count);

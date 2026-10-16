@@ -37,7 +37,7 @@ internal record struct SourceSelection
     public bool None { get; set; }
 }
 
-/// <summary>Composes MaintainResource: ranks the resource targets and mines, produces or tunnels toward the first one short.</summary>
+/// <summary>The economy/resource Need's mining work: ranks the resource targets and mines, produces or tunnels toward the first one short.</summary>
 public sealed partial class RoundsResourcePlanner
 {
     internal const string ResourceSourceSubject = "resource_source";
@@ -85,8 +85,16 @@ public sealed partial class RoundsResourcePlanner
 
     internal static Verdict NoResourceSource(Resource resource) => Verdict.AwaitingPlan(ResourceSourceSubject, resource.Value);
 
-    internal async Task<RoundsResourceResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// One step under <paramref name="owner"/>, the economy/resource Need its family's work step passes. Its mines,
+    /// tunnels and deep drills are Methods of the Need, admitted by their claims beside the Need's other work.
+    /// </summary>
+    internal async Task<RoundsResourceResult> StepAsync(StepArbiter arbiter, IWorkOwner owner, CancellationToken call, CancellationToken epoch)
     {
+        if (owner is not NeedOwner { Need: var need } || need != EconomyFamily.Resource)
+        {
+            throw new ControlException("resource step: the step runs only under the economy/resource Need");
+        }
         var p = reviewer.Player;
         var state = p.Session.State();
         if (!state.Enabled)
@@ -111,10 +119,10 @@ public sealed partial class RoundsResourcePlanner
             return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
         }
 
-        using var recorded = PlannerSnapshot.RecordPlannerStep(PolicyFunctions.MaintainResource, state.Snapshot, review.Tick);
+        using var recorded = PlannerSnapshot.RecordPlannerStep(EconomyFamily.Resource.FilingKey, state.Snapshot, review.Tick);
         try
         {
-            return await StepRecordedAsync(state, review, call, epoch).ConfigureAwait(false);
+            return await StepRecordedAsync(state, review, owner, call, epoch).ConfigureAwait(false);
         }
         finally
         {
@@ -122,38 +130,12 @@ public sealed partial class RoundsResourcePlanner
         }
     }
 
-    private async Task<RoundsResourceResult> StepRecordedAsync(ControlState state, RoundsReview review, CancellationToken call, CancellationToken epoch)
+    private async Task<RoundsResourceResult> StepRecordedAsync(ControlState state, RoundsReview review, IWorkOwner goal, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
-        var (goal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainResource, call);
-        if (!workable || goal is null)
-        {
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
-        }
-
+        // A Need-owned step has no whole-owner guard: each mine, tunnel and drill is admitted by its own claims, and
+        // a MethodId already committed is not re-issued.
         BuildingRuntimePackage.CancelStalledExcavation(p.Journal, goal, review.Tick, call);
-        foreach (var method in goal.Methods)
-        {
-            var plan = p.Journal.LoadPlan(method.Plan, call);
-            if (!StorePackage.PlanOpen(plan))
-            {
-                continue;
-            }
-
-            var requestOnly = plan.Spec.Actions.Count != 0;
-            foreach (var action in plan.Spec.Actions)
-            {
-                requestOnly = requestOnly && action.Kind == ActionKind.CommsTradeRequest;
-            }
-
-            if (requestOnly)
-            {
-                continue;
-            }
-
-            return new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
-        }
-
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
         var (reply, _) = await native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
@@ -253,7 +235,7 @@ public sealed partial class RoundsResourcePlanner
         return (PolicyFunctions.SelectResourceMethod(request), supply);
     }
 
-    internal async Task<RoundsResourceResult> DispatchResourceConcernAsync(ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsResourceResult> DispatchResourceConcernAsync(ControlState state, IWorkOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (resource.Value == "Beer")
         {
@@ -278,7 +260,7 @@ public sealed partial class RoundsResourcePlanner
         return result;
     }
 
-    internal async Task<RoundsResourceResult> DispatchSuppliedAsync(ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsResourceResult> DispatchSuppliedAsync(ControlState state, IWorkOwner goal, Tick reviewTick, C.Identity identity, ResourceSupplyState supply, Resource resource, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (!supply.Rows.TryGetValue(resource, out var row) || row is null)
         {
@@ -328,7 +310,7 @@ public sealed partial class RoundsResourcePlanner
         return result;
     }
 
-    internal async Task<(RoundsResourceResult Result, bool Dispatched)> AcquireFromSourcesAsync(ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, SourceSelection? pre, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsResourceResult Result, bool Dispatched)> AcquireFromSourcesAsync(ControlState state, IWorkOwner goal, Tick reviewTick, C.Identity identity, Resource resource, long target, Fact<EquatableArray<Amount>> stock, DateTimeOffset started, SourceSelection? pre, CancellationToken call, CancellationToken epoch)
     {
         if (pre is null)
         {
@@ -455,7 +437,7 @@ public sealed partial class RoundsResourcePlanner
         return (new RoundsResourceResult { Verdict = Verdict.NoSpace("material_storage") }, true);
     }
 
-    internal (RoundsResourceResult Result, bool Dispatched) DispatchMineSource(ControlState state, StandardState goal, Resource resource, IReadOnlyList<ResourceSource> sources, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal (RoundsResourceResult Result, bool Dispatched) DispatchMineSource(ControlState state, IWorkOwner goal, Resource resource, IReadOnlyList<ResourceSource> sources, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         foreach (var source in sources)
         {
@@ -466,7 +448,8 @@ public sealed partial class RoundsResourcePlanner
 
             var p = reviewer.Player;
             var acquisitionValue = new Acquisition(source.ThingId, resource.Value, source.Cell);
-            var baseKey = $"{goal.Standard.Id}/{goal.Standard.Episode}/mine/{source.ThingId}/{source.Cell.X}/{source.Cell.Z}";
+            // The MethodId names the mined source: the Need's history in its world, not a Standard episode, keys it.
+            var baseKey = $"{goal.OwnerKey}/mine/{source.ThingId}/{source.Cell.X}/{source.Cell.Z}";
             MethodId MineMethod(int attempt)
             {
                 var key = attempt > 0 ? $"{baseKey}/{attempt}" : baseKey;
@@ -475,12 +458,9 @@ public sealed partial class RoundsResourcePlanner
             }
 
             var plansByMethod = new Dictionary<MethodId, PlanId>();
-            foreach (var m in goal.History)
+            foreach (var m in p.Journal.OwnerMethodHistory(goal, call))
             {
-                if (m.Episode == goal.Standard.Episode)
-                {
-                    plansByMethod[m.MethodId] = m.Plan;
-                }
+                plansByMethod[m.Method] = m.Plan;
             }
 
             var earlier = new List<PlanId>();
@@ -489,6 +469,12 @@ public sealed partial class RoundsResourcePlanner
             {
                 earlier.Add(bound);
                 attempt++;
+            }
+
+            if (earlier.Count > 0 && StorePackage.PlanOpen(p.Journal.LoadPlan(earlier[^1], call)))
+            {
+                // This source's mine is still at work; the other sources go on beside it.
+                continue;
             }
 
             var (_, admitted) = BuildingRuntimePackage.AdmitSubject(p.Journal, baseKey, earlier, state.Snapshot, call);
@@ -508,16 +494,23 @@ public sealed partial class RoundsResourcePlanner
                 throw new ControlException("dispatchMineSource: session state changed or the read took too long");
             }
 
+            WorkCommit commit;
             try
             {
-                p.Journal.CommitMethod(goal.Standard.Id, goal.Revision, methodId, plan, call);
+                commit = p.Journal.CommitOwnerWork(goal, methodId, "mine " + resource.Value, plan, call);
             }
             catch (MethodBoundException)
             {
                 continue;
             }
 
-            return (new RoundsResourceResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
+            if (commit.Outcome == Sto.ClaimOutcome.Conflict)
+            {
+                // Another Method holds the source: the next source is tried.
+                continue;
+            }
+
+            return (new RoundsResourceResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = id }, true);
         }
 
         return (default, false);

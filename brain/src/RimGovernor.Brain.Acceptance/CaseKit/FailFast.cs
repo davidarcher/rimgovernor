@@ -33,7 +33,7 @@ public sealed record FailFast
 
     /// <summary>
     /// Treats a review whose row reads method_unavailable as neutral for the no-method count: neither a count nor a
-    /// reset. A goal whose methods are exhausted by design (MaintainResource while the project gating its bench is
+    /// reset. A goal whose methods are exhausted by design (the economy/resource Need while the project gating its bench is
     /// unfinished) returns method_unavailable and waits for the next review, which reads like a planner that found no
     /// method, so the case that knows the design opts in.
     /// </summary>
@@ -41,7 +41,7 @@ public sealed record FailFast
 
     /// <summary>
     /// Reasons the unsuccessful shape skips like interrupted and cancelled: a goal serving several resources retries a
-    /// shortfall on one of them (a MedicineHerbal acquisition ending outcome_not_achieved under MaintainResource)
+    /// shortfall on one of them (a MedicineHerbal acquisition ending outcome_not_achieved under the economy/resource Need)
     /// without the case failing.
     /// </summary>
     public IReadOnlyList<string> RetryableUnsuccessful { get; init; } = [];

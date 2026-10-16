@@ -60,7 +60,7 @@ public sealed record OpenBill
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// The stock MaintainResource must reach for the open bills' ingredients, per resource, counted where the
+    /// The stock the economy/resource Need must reach for the open bills' ingredients, per resource, counted where the
     /// stock falls short of the bills' total. Each slot is demanded at its cheapest filtered member (lowest
     /// count, then name), whether or not native would run the bill now. A bill with unknown slots, or a slot
     /// the filter leaves no member of, contributes nothing; the demand is an absolute stock level like

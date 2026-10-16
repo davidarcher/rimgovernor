@@ -498,13 +498,13 @@ public sealed record RoundsFacts
     /// <summary>The refuelable buildings of the power census (FuelRunway).</summary>
     public Fact<EquatableArray<FuelConsumer>> Fuel { get; init; }
 
-    /// <summary>The open costs of admitted methods, from the last review's live records: an open shortfall raises a MaintainResource floor for the bounded difference.</summary>
+    /// <summary>The open costs of admitted methods, from the last review's live records: an open shortfall raises an economy/resource floor for the bounded difference.</summary>
     public EquatableArray<AdmittedCost> Admitted { get; init; }
 
     /// <summary>The player's unfinished gear bills with their recipe slots (OpenBillDemand): ingredient demand ResourceDemandOf counts.</summary>
     public EquatableArray<OpenBill> OpenBills { get; init; }
 
-    /// <summary>The generic reachable, unforbidden player item census (the same colony facts rows Wood is taken from), so MaintainResource's deficit is measured at review time instead of assumed from config.</summary>
+    /// <summary>The generic reachable, unforbidden player item census (the same colony facts rows Wood is taken from), so the economy/resource Need's deficit is measured at review time instead of assumed from config.</summary>
     public Fact<EquatableArray<Amount>> Resources { get; init; }
 
     public IReadOnlyDictionary<Resource, Fact<long>>? ResourceSurfaceOre { get; init; }
@@ -528,7 +528,7 @@ public sealed record RoundsFacts
 
     /// <summary>
     /// The derived stock floors other goals' recorded evidence asks for (the defensive layout's turret fuel
-    /// the census found no stock of); ResourceGoalTargets merges them into the operator's MaintainResource
+    /// the census found no stock of); ResourceGoalTargets merges them into the operator's the economy/resource Need
     /// targets, never lowering a configured floor.
     /// </summary>
     public IReadOnlyDictionary<Resource, long> ResourceNeeds { get; init; } = new Dictionary<Resource, long>();
@@ -632,7 +632,7 @@ public sealed record RoundsFindings
     /// <summary>Every detector that raised nothing, with the typed reason, in registry order.</summary>
     public List<NoOpRecord> NoOps { get; set; } = [];
 
-    /// <summary>The review's one resource-demand value (Needs are the effective MaintainResource stock targets the review held the census to; the stock overlay tints stockpiles by them).</summary>
+    /// <summary>The review's one resource-demand value (Needs are the effective the economy/resource Need stock targets the review held the census to; the stock overlay tints stockpiles by them).</summary>
     public DerivedDemand ResourceDemand { get; set; } = new();
     public EssentialServiceReview? EssentialServices { get; set; }
 
@@ -674,7 +674,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
     public static readonly ConcernId MaintainMedicalReserves = new("MaintainMedicalReserves");
-    public static readonly ConcernId MaintainResource = new("MaintainResource");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
     public static readonly ConcernId TradeWithCaravan = new("TradeWithCaravan");
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>

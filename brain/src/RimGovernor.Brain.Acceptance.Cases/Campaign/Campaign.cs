@@ -95,7 +95,7 @@ internal sealed class CampaignRun
         PolicyFunctions.MaintainHousing.Value,
         PolicyFunctions.CookingNeed.Value,
         PolicyFunctions.EnsureTemperatureSafety.Value,
-        PolicyFunctions.MaintainResource.Value,
+        EconomyFamily.Resource.Value,
         MilitaryFamily.Defense.Value,
     ];
 

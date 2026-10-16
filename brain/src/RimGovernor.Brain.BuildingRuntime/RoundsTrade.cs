@@ -154,7 +154,7 @@ public sealed partial class RoundsTradePlanner
         {
             return missionResult;
         }
-        var (requestResult, requestHandled) = await RequestAsync(state, review, call, epoch).ConfigureAwait(false);
+        var (requestResult, requestHandled) = await RequestAsync(state, call).ConfigureAwait(false);
         if (requestHandled)
         {
             return requestResult;
@@ -452,7 +452,7 @@ public sealed partial class RoundsTradePlanner
             throw new ControlException($"selection: err != nil: {e.Message}");
         }
         var floors = Pol.PolicyFunctions.RoundsTradeFloors(seasonal, construction.StillNeed);
-        // MaintainResource's floors (the wood floor, shortfall edges) are the catalog's trade demand: a caravan selling one buys it.
+        // The economy/resource Need's floors (the wood floor, shortfall edges) are the catalog's trade demand: a caravan selling one buys it.
         var targets = Reviewer.ResourceTargets(state.Snapshot);
         // A wealth-driven sale keeps what the review's demand retains: the stock the trade detector held the sale to.
         var retained = Reviewer.Demand.Get(state.Snapshot).Retained;

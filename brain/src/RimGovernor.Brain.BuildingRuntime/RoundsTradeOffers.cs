@@ -130,14 +130,14 @@ public sealed partial class RoundsTradePlanner
         Reviewer.TradeOffers.Record(state.Snapshot, offers);
     }
 
-    /// <summary>The units of each resource the Round's supply plan opened to buy from trader, empty when MaintainResource has no work.</summary>
+    /// <summary>The units of each resource the Round's supply plan opened to buy from trader, empty without resource targets.</summary>
     private async Task<IReadOnlyDictionary<Pol.Resource, long>> PlannedPurchasesAsync(ControlState state, Sto.Rounds review, string trader, CancellationToken call)
     {
-        var (goal, workable) = Reviewer.Player.Journal.Workable(review, MaintainResource, call);
-        if (!workable || goal is null)
+        if (Reviewer.ResourceTargets(state.Snapshot).Count == 0)
         {
             return new Dictionary<Pol.Resource, long>();
         }
+        var goal = Reviewer.Player.Journal.LoadNeed(EconomyFamily.Resource, state.Snapshot, call);
         var supply = await Reviewer.ResourceSupplyAsync(state, review, goal, call).ConfigureAwait(false);
         return supply.TradeLines(trader);
     }
@@ -146,7 +146,7 @@ public sealed partial class RoundsTradePlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>
-    /// Keeps the resource purchases of need (a MaintainResource shortfall, the component target) and its food
+    /// Keeps the resource purchases of need (an economy/resource shortfall, the component target) and its food
     /// nutrition (what the food plan opened to buy from this trader) only as far as the plans opened them;
     /// medicine, surgery parts, ingredient upgrades and every sale stay.
     /// </summary>

@@ -3,8 +3,8 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
-// MaintainResource-* pure primitives: ingredient deficits, mining progress, resource method, and stock
-// selection. The dispatch vertical built on top of these is a single config-only policy.MaintainResource
+// economy/resource pure primitives: ingredient deficits, mining progress, resource method, and stock
+// selection. The dispatch vertical built on top of these is a single config-only economy/resource Need
 // goal, whose method is a generic bench/recipe StockTarget production bill exactly like
 // GearProduce/MaintainMedicalReserves dispatch through. Native mining-source acquisition
 // (SelectResourceSources below), and material-storage zoning remain unwired to any native call.
@@ -125,7 +125,7 @@ public sealed record ResourceTarget
     public long Target { get; init; }
 }
 
-/// <summary>Names the shape of one proposed MaintainResource method.</summary>
+/// <summary>Names the shape of one proposed the economy/resource Need method.</summary>
 public enum ResourceMethodKind
 {
     [WireName("")]
@@ -193,7 +193,7 @@ public static partial class PolicyFunctions
     public static bool MineSafe(string safety) => safety is MineSafetyOpenSurface or MineSafetySupportedRoof;
 
     /// <summary>
-    /// The deposit MaintainResource tunnels to when no mine source can be selected directly: the nearest
+    /// The deposit the economy/resource Need tunnels to when no mine source can be selected directly: the nearest
     /// undesignated, MineSafe, buried mine row with yield left. Nothing is returned while a known threat or
     /// urgent competing work would hold any mining.
     /// </summary>
@@ -397,7 +397,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// MaintainResource's dynamic-target selection: given every operator-configured resource target and a
+    /// the economy/resource Need's dynamic-target selection: given every operator-configured resource target and a
     /// fresh native stock census, it picks the single resource whose stock is furthest below its own target
     /// (by proportion, so a small target is not starved behind a large one merely stuck a few units short). A
     /// configured resource absent from the census is treated as fully unstocked rather than refused. Ok is

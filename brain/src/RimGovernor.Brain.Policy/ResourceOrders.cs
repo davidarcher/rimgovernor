@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One stock floor MaintainResource wants a bench to hold.</summary>
+/// <summary>One stock floor the economy/resource Need wants a bench to hold.</summary>
 public sealed record ResourceFloor
 {
     /// <summary>The product a recipe must make: the floor's own resource, or the wort of the beer reserve.</summary>
@@ -16,7 +16,7 @@ public sealed record ResourceFloor
 }
 
 /// <summary>
-/// The declaration request of MaintainResource's bench production: the floors, the stock census and the
+/// The declaration request of the economy/resource Need's bench production: the floors, the stock census and the
 /// ledger's bench readback.
 /// </summary>
 public sealed record ResourceOrderRequest
@@ -31,7 +31,7 @@ public sealed record ResourceOrderRequest
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// MaintainResource's wanted bench orders. A floor below its target declares the first producing recipe's
+    /// the economy/resource Need's wanted bench orders. A floor below its target declares the first producing recipe's
     /// stock target (the dispatcher sizes how many benches carry it); a bill that already makes the resource
     /// is declared as it stands, which keeps it, so a floor whose stock recovered does not churn its bill.
     /// Bench choice is the ledger's: the order names the bench kind only. A floor with no producing recipe

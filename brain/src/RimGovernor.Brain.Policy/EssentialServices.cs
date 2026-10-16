@@ -132,11 +132,11 @@ public static partial class PolicyFunctions
         NeedOwner(EssentialService.Food, RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         Owner(EssentialService.Power, EnsureBasicPower);
         Owner(EssentialService.Logistics, MaintainRoutes);
-        Owner(EssentialService.Materials, MaintainResource);
+        NeedOwner(EssentialService.Materials, ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.
         var fuel = facts.FuelRunway().Projection;
-        rows.Add(new(EssentialService.Fuel, Target(MaintainResource, "", "shared_resource_targets", Known(MaintenanceHorizonDays)),
+        rows.Add(new(EssentialService.Fuel, ServiceTarget.ForNeed(EconomyFamily.Resource, "", "shared_resource_targets", Known(MaintenanceHorizonDays)),
             facts.Fuel.TryGetValue(out var consumers) && consumers.Count == 0 ? ServiceCoverage.NotApplicable
                 : fuel.TryGetValue(out var runway) ? runway.Resources.Any(r => r.MissingItems > 0) ? ServiceCoverage.Shortfall
                     : runway.Gaps.Count > 0 ? ServiceCoverage.Unknown : ServiceCoverage.Adequate : ServiceCoverage.Unknown,

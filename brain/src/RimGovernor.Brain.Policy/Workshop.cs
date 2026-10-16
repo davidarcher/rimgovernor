@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: workshop.go and workshop_further.go.
 
-/// <summary>What a MaintainResource deficit needs from the building ladder before a bill can be dispatched for it.</summary>
+/// <summary>What an economy/resource deficit needs from the building ladder before a bill can be dispatched for it.</summary>
 public enum WorkshopMethod
 {
     /// <summary>A native fact the choice depends on is unobserved.</summary>

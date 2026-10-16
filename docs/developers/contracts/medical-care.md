@@ -117,7 +117,7 @@ already set applies again. A refused write is replanned from fresh facts on the
 next review.
 
 While the medicine reserve is low it contributes the configured herbal target per
-colonist to `MaintainResource`; explicit higher floors stay authoritative. The
+colonist to `economy/resource`; explicit higher floors stay authoritative. The
 reserve's bill and wild-healroot methods continue to work.
 
 ## Surgery

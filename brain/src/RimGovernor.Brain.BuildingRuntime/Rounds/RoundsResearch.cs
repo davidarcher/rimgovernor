@@ -5,29 +5,65 @@ public interface IRoundsResearchSource : Observation.IResearchSource
 }
 
 /// <summary>
-/// The runtime half of the economy family's research Need (#3263): its read (the research the colony's evidence
-/// waits on, then the native research census) and its building work, the laboratory benches raised under the
-/// <c>economy/research</c> Need through the shared building planner and admitted by claims.
+/// The economy/resource Need's composed work steps (#3303): its mines, tunnels and deep drills, its chops, forage and
+/// hunts, its hay, social and supply-plan fields, and its production bench. Each is optional; the composition passes
+/// the ones its toggles enable.
+/// </summary>
+public sealed record EconomyResourceSteps
+{
+    public RoundsResourcePlanner? Resource { get; init; }
+
+    public RoundsAcquisitionPlanner? Acquisition { get; init; }
+
+    public RoundsFieldPlanner? Fields { get; init; }
+
+    public RoundsBuildingPlanner? Workshop { get; init; }
+}
+
+/// <summary>
+/// The runtime half of the economy family (#3263, #3303). For the research Need: its read (the research the colony's
+/// evidence waits on, then the native research census) and its building work, the laboratory benches raised under
+/// the <c>economy/research</c> Need through the shared building planner. For the resource Need: the review's derived
+/// stock targets, the stock census and the runway forecasts, and its composed work steps. Every Method is the Need's,
+/// admitted by its claims.
 /// </summary>
 public sealed class EconomyRounds
 {
     private readonly Rounder _reviewer;
     private readonly IRoundsResearchSource _native;
     private readonly RoundsBuildingPlanner? _building;
+    private readonly bool _research;
+    private readonly EconomyResourceSteps? _resource;
 
-    public EconomyRounds(Rounder reviewer, IRoundsResearchSource native)
+    /// <param name="reviewer">The rounder the family reviews through.</param>
+    /// <param name="native">The research census source.</param>
+    /// <param name="research">Compose the research Need.</param>
+    /// <param name="resource">The resource Need's steps; null leaves the Need out.</param>
+    public EconomyRounds(Rounder reviewer, IRoundsResearchSource native, bool research = true, EconomyResourceSteps? resource = null)
     {
         _reviewer = reviewer ?? throw new ControlException("EconomyRounds: reviewer is missing");
         _native = native ?? throw new ControlException("EconomyRounds: native is missing");
-        if (native is IRoundsBuildingSource source && native is IRoundsSource)
+        _research = research;
+        _resource = resource;
+        if (research && native is IRoundsBuildingSource source && native is IRoundsSource)
         {
             _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = EconomyFamily.Research.FilingKey, Need = EconomyFamily.Research };
         }
     }
 
-    /// <summary>The family's scheduler entry: it wakes on its reads and on its research selection and bench outcomes.</summary>
+    /// <summary>The outcomes the family's work commits: research selection, buildings, mines, deconstructions, zones and acquisitions.</summary>
+    public static FamilySchedule Schedule { get; } = new()
+    {
+        Kinds =
+        [
+            ActionKind.ResearchSelect, ActionKind.Building, ActionKind.MineAcquisition, ActionKind.Deconstruction, ActionKind.Excavation,
+            ActionKind.ZoneCreate, ActionKind.ZoneCellEdit, ActionKind.Acquisition, ActionKind.AcquisitionWithdraw,
+        ],
+    };
+
+    /// <summary>The family's scheduler entry: it wakes on its reads and on its Methods' outcomes.</summary>
     public FamilyRunner Runner() =>
-        new FamilyRunner<EconomyFacts>(new EconomyFamily(), ReadAsync, new FamilySchedule { Kinds = [ActionKind.ResearchSelect, ActionKind.Building] }, WorkAsync);
+        new FamilyRunner<EconomyFacts>(new EconomyFamily(_research, _resource is not null), ReadAsync, Schedule, WorkAsync);
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the research needs (the production ladder's
@@ -55,30 +91,52 @@ public sealed class EconomyRounds
         needs = _reviewer.CensusResearchNeeds(needs);
         needs = PolicyFunctions.DeepDrillingResearch(needs, review.ResourceRunwayState(), items);
         var facts = new EconomyFacts { ResearchNeeds = [.. needs] };
-        if (needs.Count == 0)
+        if (needs.Count != 0)
         {
-            // Nothing owed: the Need is met without the census.
-            return facts;
+            var (read, _) = await _native.ReadResearchAsync(Boundary.Identity(scope.World), ct).ConfigureAwait(false);
+            try
+            {
+                Boundary.Context(read.Context, scope.World);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                throw new ControlException("economy read: research context", e);
+            }
+            if ((read.Context?.Tick ?? 0) < review.Tick.Value)
+            {
+                throw new ControlException("economy read: research read older than the review");
+            }
+            facts = facts with { Research = Known(read.Census()) };
         }
-        var (read, _) = await _native.ReadResearchAsync(Boundary.Identity(scope.World), ct).ConfigureAwait(false);
-        try
+        if (_resource is not null)
         {
-            Boundary.Context(read.Context, scope.World);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ControlException("economy read: research context", e);
-        }
-        if ((read.Context?.Tick ?? 0) < review.Tick.Value)
-        {
-            throw new ControlException("economy read: research read older than the review");
+            facts = facts with { Resource = await ReadResourceAsync(scope, review, expected, facts, ct).ConfigureAwait(false) };
         }
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
             throw new ControlException("economy read: the read took too long");
         }
-        return facts with { Research = Known(read.Census()) };
+        return facts;
+    }
+
+    /// <summary>
+    /// The resource Need's facts: the review's derived targets and works, the colony's stock census and wood, the
+    /// review's runway forecasts, and the research the recorded needs name first.
+    /// </summary>
+    private async Task<ResourceFacts> ReadResourceAsync(FamilyReadScope scope, RoundsReview review, Identity expected, EconomyFacts economy, CancellationToken ct)
+    {
+        var demand = _reviewer.Demand.Get(scope.World);
+        var claims = _reviewer.Player.Journal.ConstructionClaims(scope.World, expected.Tick, ct);
+        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
+        var research = economy.Research.TryGetValue(out var census) ? Known(PolicyFunctions.ResearchSummary(census!)) : Unknown<ResearchFacts>();
+        var observed = reading.Projection.Facts with
+        {
+            ResourceRunways = review.ResourceRunwayState(),
+            ResearchNeeds = economy.ResearchNeeds,
+            Research = research,
+        };
+        return ResourceFacts.From(observed, demand);
     }
 
     /// <summary>
@@ -91,6 +149,11 @@ public sealed class EconomyRounds
     internal async Task<Verdict> WorkAsync(NeedWork work, EconomyFacts facts, CancellationToken ct)
     {
         var idle = Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
+        if (work.Need.Id == EconomyFamily.Resource && _resource is { } steps)
+        {
+            // A held resource Need (the research gate) has no work of its own: its pure hold stands.
+            return PolicyFunctions.ResourceHold(facts.Resource) is not null ? idle : await ResourceWorkAsync(work, steps, ct).ConfigureAwait(false);
+        }
         if (work.Need.Id != EconomyFamily.Research || _building is null)
         {
             return idle;
@@ -115,6 +178,32 @@ public sealed class EconomyRounds
             }
         }
         return result;
+    }
+
+    /// <summary>
+    /// The resource Need's steps, independent work under one Need: each runs, held only by its claims and its own
+    /// MethodIds. The Need reports the first admission, else the first step's reason.
+    /// </summary>
+    private static async Task<Verdict> ResourceWorkAsync(NeedWork work, EconomyResourceSteps steps, CancellationToken ct)
+    {
+        var verdicts = new List<Verdict>();
+        if (steps.Resource is { } resource)
+        {
+            verdicts.Add((await resource.StepAsync(work.Arbiter!, work.Owner, ct, work.Epoch).ConfigureAwait(false)).Verdict);
+        }
+        if (steps.Acquisition is { } acquisition)
+        {
+            verdicts.Add((await acquisition.StepAsync(work.Arbiter!, ct, work.Epoch, work.Owner).ConfigureAwait(false)).Verdict);
+        }
+        if (steps.Fields is { } fields)
+        {
+            verdicts.Add((await fields.StepAsync(work.Arbiter!, work.Owner, ct, work.Epoch).ConfigureAwait(false)).Verdict);
+        }
+        if (steps.Workshop is { } workshop)
+        {
+            verdicts.Add((await workshop.Copy().StepAsync(work.Arbiter!, ct, work.Epoch).ConfigureAwait(false)).Verdict);
+        }
+        return FoodRounds.SupplyVerdict(work.Need.Id, verdicts);
     }
 
     private async Task<Verdict> BenchAsync(NeedWork work, bool advanced, CancellationToken ct)

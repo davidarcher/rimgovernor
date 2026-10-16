@@ -168,7 +168,7 @@ public sealed partial class BrainComposition
         if (acquisition)
         {
             foodAcquisition = new RoundsAcquisitionPlanner(reviewer, FoodSupplyNeed.FilingKey);
-            cfgResourceAcquisition = new RoundsAcquisitionPlanner(reviewer, MaintainResource);
+            cfgResourceAcquisition = new RoundsAcquisitionPlanner(reviewer, EconomyFamily.Resource.FilingKey);
         }
         if (work)
         {
@@ -320,11 +320,6 @@ public sealed partial class BrainComposition
         {
             cfgDefenseLayout = new RoundsDefenseLayoutPlanner(reviewer, client);
         }
-        if (research)
-        {
-            // The research toggle composes the economy family's research Need (#3263).
-            families.Add(new EconomyRounds(reviewer, client).Runner());
-        }
         if (dialog)
         {
             cfgDialog = new RoundsDialogPlanner(reviewer, client, new DialogAnswerPolicy(EquatableArray.From(DefaultDialogAnswerPrefer)));
@@ -405,6 +400,16 @@ public sealed partial class BrainComposition
             // The lighting, flooring, art, comfort and gathering toggles compose the rooms family's Needs (#3255).
             families.Add(new RoomsRounds(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsPartySpot, sc.Art, sc.Gathering).Runner());
         }
+        if (research || resourceTargets || acquisition)
+        {
+            // The research toggle composes the economy family's research Need (#3263); the resource targets and
+            // acquisition toggles its resource Need, whose mines, chops and hunts, hay, social and supply fields
+            // and production bench are the Need's Methods (#3303).
+            var resourceSteps = resourceTargets || acquisition
+                ? new EconomyResourceSteps { Resource = cfgResource, Acquisition = cfgResourceAcquisition, Fields = cfgFields, Workshop = cfgWorkshop }
+                : null;
+            families.Add(new EconomyRounds(reviewer, client, research, resourceSteps).Runner());
+        }
 
         var config = new ClockSchedulerConfig
         {
@@ -419,7 +424,6 @@ public sealed partial class BrainComposition
             DefenseLayout = cfgDefenseLayout,
             Dialog = cfgDialog,
             Expansion = cfgExpansion,
-            Fields = cfgFields,
             GeneBank = cfgGeneBank,
             Hospital = cfgHospital,
             Ledger = cfgLedger,
@@ -433,8 +437,6 @@ public sealed partial class BrainComposition
             Psylink = cfgPsylink,
             Recovery = cfgRecovery,
             Rescue = cfgRescue,
-            Resource = cfgResource,
-            ResourceAcquisition = cfgResourceAcquisition,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
             Sleeping = cfgSleeping,
@@ -446,7 +448,6 @@ public sealed partial class BrainComposition
             Tend = cfgTend,
             Trade = cfgTrade,
             Work = cfgWork,
-            Workshop = cfgWorkshop,
         };
         var scheduler = new ClockScheduler(context.Player, client, config, SystemClock.Instance);
         var clock = CreateClock(context, client, scheduler, new FacadeClockWriter(client.Facade));
@@ -514,7 +515,6 @@ public sealed partial class BrainComposition
         }
 
         Add(sc.Work, EnsureWorkAssignments);
-        Add(sc.Acquisition, MaintainResource);
         Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);
         Add(sc.Temperature, EnsureTemperatureSafety);
         Add(sc.Power, EnsureBasicPower);
@@ -534,11 +534,6 @@ public sealed partial class BrainComposition
         {
             thresholds = thresholds with { DefensiveLayout = true };
             methods.Add(EnsureDefensiveLayout);
-        }
-        if (sc.ResourceTargetsConfigured && !methods.Contains(MaintainResource))
-        {
-            // Acquisition already declares it (the construction demand).
-            methods.Add(MaintainResource);
         }
         Add(sc.Medical, MaintainMedicalReserves, MaintainSurgery);
         Add(sc.Trade, TradeWithCaravan);
@@ -565,6 +560,11 @@ public sealed partial class BrainComposition
         if (sc.Cooking || sc.Bill)
         {
             needs.Add(CookingNeed);
+        }
+        if (sc.ResourceTargetsConfigured || sc.Acquisition)
+        {
+            // The resource Need's derived stock targets and supply plan (#3303).
+            needs.Add(EconomyFamily.Resource);
         }
         if (sc.Lighting)
         {

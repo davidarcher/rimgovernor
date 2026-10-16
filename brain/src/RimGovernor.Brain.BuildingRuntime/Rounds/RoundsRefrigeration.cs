@@ -179,7 +179,7 @@ public sealed partial class RoundsBuildingPlanner
             return previewReason;
         }
         // Admission never checks stock: RimWorld places the blueprints regardless and the frames hold natively for
-        // materials, which MaintainResource then reads as the deficit.
+        // materials, which the economy/resource Need then reads as the deficit.
         var admitted = await r.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Snapshot = snapshot, Selected = selected, Stock = stock, Purpose = Purpose.Rounds }, call, epoch).ConfigureAwait(false);
         return admitted.Verdict;
     }

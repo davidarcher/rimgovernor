@@ -175,50 +175,6 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// MaintainResource is an operator-configured target whose deficit is measured against native facts read in
-    /// this review: no target configured is certain recovery, a configured target with missing facts is unknown,
-    /// and RoundsResourcePlanner still re-reads native state immediately before proposing a method.
-    /// </summary>
-    internal static void InspectResource(RoundsRun c)
-    {
-        var f = c.F;
-        var l = c.L;
-        // The review's resource demand (construction, bills, clothing, fuel, animal feed, runway targets,
-        // evidence needs) is a stock floor on MaintainResource.
-        var stock = new StockReader { Resources = f.Resources, Wood = f.Wood };
-        var resourceTargets = c.Demand.Needs;
-        var (resourceRecovered, resourceDeficit) = ResourceTargetNeed(resourceTargets, stock.Census(resourceTargets));
-        foreach (var runway in f.ResourceRunways)
-        {
-            var deficitKnown = runway.Deficit.TryGetValue(out var runwayDeficit);
-            if (!deficitKnown && runway.WindowDays >= 1 && Positive(resourceRecovered))
-            {
-                resourceRecovered = Unknown<bool>();
-                resourceDeficit = Unknown<double>();
-            }
-            if (deficitKnown && runwayDeficit)
-            {
-                resourceRecovered = Known(false);
-                if (runway.DaysLeft.TryGetValue(out var days))
-                {
-                    resourceDeficit.TryGetValue(out var old);
-                    resourceDeficit = Known(Math.Max(old, 1 - days / MaintenanceHorizonDays));
-                }
-            }
-        }
-        if (!Positive(resourceRecovered))
-        {
-            var g = c.Raise(MaintainResource);
-            g.Deficit = resourceDeficit;
-            // The ladder's research rung: while a project the workshop recorded as gating the bench is
-            // unfinished, the goal has no method of its own and holds no slot; the economy/research Need works
-            // the project. Construction demand is chopped or mined meanwhile.
-            g.MethodUnavailable = ResearchConcernTarget("", f.ResearchNeeds, f.Research) != "" && c.Demand.Works.Count == 0;
-        }
-        c.Assess(MaintainResource, resourceRecovered);
-    }
-
-    /// <summary>
     /// TradeWithCaravan is a Response: an incident per caravan visit, never a development goal. It needs a
     /// negotiator's conversation, not a development slot, and recovers by itself when the caravan leaves or
     /// nothing is left worth trading. Restore parts a bench could make do not stand the goal.

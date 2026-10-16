@@ -86,7 +86,7 @@ public static partial class PolicyFunctions
     public static readonly Resource ConstructionWoodLog = new("WoodLog");
 
     /// <summary>
-    /// The stock MaintainResource must reach for construction, per resource: the plan's unbuilt walls and doors, a blueprint's owed material, the
+    /// The stock the economy/resource Need must reach for construction, per resource: the plan's unbuilt walls and doors, a blueprint's owed material, the
     /// open costs of admitted methods (each action once), each counted where the stock falls short of it, merged by maximum. It is an absolute stock level;
     /// the supply plan measures its shortfall against the stock of the moment.
     /// </summary>

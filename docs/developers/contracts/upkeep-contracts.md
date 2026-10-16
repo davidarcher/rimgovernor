@@ -190,7 +190,7 @@ whatever its rate and needs its refill to target. A comp that burns per use
 (`consumeFuelOnlyWhenUsed`, a turret per shot) holding fuel has no daily rate: it is
 listed in `FuelProjection.Gaps`. Any consumer whose fuel level, burn, gate or fuel item is
 unknown makes the projection unknown and asks for nothing. The shortfall is the
-projector's `Fuel` domain (`ShadowFuel`, under `MaintainResource`). Difficulty's
+projector's `Fuel` domain (`ShadowFuel`, under `economy/resource`). Difficulty's
 maintenance cost factor, which scales `fuelMultiplier` for a `factorByDifficulty` comp
 (turret barrels), is not observed; the def's own multiplier is used.
 
@@ -392,7 +392,7 @@ worst-quadrum pasture (per pen the lesser of demand and pasture, shared between 
 proportion to consumption) offsets it, and the unheld edible stock every animal of the
 group can eat covers the rest for a runway of days against `ProjectionHorizonDays`. A
 shorter runway demands the items the missing nutrition takes (the stock's lowest-defName
-item, else the cheapest `FeedItems` a bench makes) as a `MaintainResource` stock level,
+item, else the cheapest `FeedItems` a bench makes) as a `economy/resource` stock level,
 merged into the Rounder's construction memory like the fuel needs; kibble and hay are made
 on any bench and the old bench-reachability and delivery-fallback constraints are gone.
 Missing animals, pens, stock or forecast leave the projection unknown, never defaulted. A

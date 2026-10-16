@@ -43,7 +43,7 @@ Ideology is active. Execution and non-exclusive toggles are player-only.
   stay at herbal care at most: MaintainSurgery pins a prisoner above `HerbalOrWorse` back to it through
   a care-only `WorkSettingsIntent` (native accepts it on a living colony prisoner) and never raises it.
   A harvest or part recovery blocked only by the limit is logged as refused and adds a `MedicineHerbal`
-  want to MaintainResource's targets.
+  want to economy/resource's targets.
 - **Peg legs.** A colony prisoner carries `withdrawal` (a drug addiction a prisoner cannot feed). A
   legless prisoner is never released until MaintainSurgery puts a peg leg back.
 

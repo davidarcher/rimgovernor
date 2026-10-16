@@ -480,7 +480,7 @@ the Need or concern would compete with them for its one winning cause and relabe
 strip with another purpose's reason. A purpose that serves a Need reads the Need's
 standing (`PurposeReport.Need`) instead of open work.
 
-`MaintainResource` (#2601) is migrated too: `RoundsResourcePlanner` declares
+`economy/resource` (#2601) is migrated too: `RoundsResourcePlanner` declares
 `policy.DeclareResourceOrders` (a stock-target order, with `Product` and
 `Class` for the dispatcher, per floor below its target, the beer reserve as a
 `BeerReserve` order, and a standing bill that makes a floor's resource as it
@@ -508,7 +508,7 @@ the crafting game time and the harvest and hunt decrees.
 `RoundsTradeExportPlanner.DeclareOrders` (`policy.DeclareExportOrders`) ranks
 craftable sale goods and declares the winners as finite `GearBatch` orders
 (priority 3) pinned to the best capable worker. One owner per bill spec:
-`MaintainResource` owns products with a floor; `MaintainTrade` owns floorless
+`economy/resource` owns products with a floor; `MaintainTrade` owns floorless
 sale goods, never acquires, and never declares a floor product. It spends only
 `policy.UsableIngredients`; score is (expected sale value minus raw ingredient
 value) per (crafting ticks plus ingredient units times acquisition ticks), the
@@ -605,7 +605,7 @@ assignment operation remain available for explicit operations and native readbac
 Undispatched drug writes belonging to an old work-assignment Method are cancelled
 under that exact owner; completed operations and player policies are not undone.
 
-After Brewing finishes, MaintainResource requests 12 beer and 12 smokeleaf joints.
+After Brewing finishes, economy/resource requests 12 beer and 12 smokeleaf joints.
 Once food fields are sufficient, the field planner adds at most nine cells each
 of hops and smokeleaf, accounting for existing fields and native season, soil and
 sowing availability. These crops never contribute food coverage. The workshop

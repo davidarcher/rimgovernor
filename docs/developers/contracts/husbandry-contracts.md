@@ -347,7 +347,7 @@ containment. Each pen is a `PlannedPen` (below), claimed by one `PenMarker`; the
 **Herd units.** A race is a herd at a fertile breeding pair or `herdMinAnimals` (5) animals, provided it has a policy ceiling (a founder or companion has none and stays misc); its pens are sized from that ceiling and not its headcount. Pens are matched to herds by key: every pen of a herd, a top-up included, carries the herd's race in `PlannedRoom.Herd` (saved with the layout plan); the misc unit's carry none. A plan saved with barns (as rooms, or as reservations before pens and yards were rooms) loads without them and the links that joined them; its reservation-form pens and yards turn into rooms (`WithLegacySites`). There is no vet room: a sick or to-be-sterilized animal is treated in the hospital, which holds `AnimalBed` stations (`policy.WardBeds` sizes them from the animals needing tending, at least one while a sterilize is wanted; `policy.WardSlots` places them on the free floor outside the hospital's human template). Assigning animals to units is not planned here.
 
 An explicit feed resource, or observed feed used exclusively by animals, creates an
-owned `MaintainResource` concern through the existing acquisition/production methods.
+owned `economy/resource` concern through the existing acquisition/production methods.
 The stock target uses native per-item nutrition and demand from competing eligible
 eaters. Missing suitable feed, production prerequisites, handlers, access or storage
 remain visible blockers. Cancelling the herd stops its unissued feed work. Acquiring
@@ -395,7 +395,7 @@ The portfolio explains `animals/herd <race>` and its effective floor. Both herd
 review and dispatch use the plan's policy, including the existing feed gate
 before taming.
 
-`MaintainResource` compares the seasonal harvest gap with each enclosed pen's
+`economy/resource` compares the seasonal harvest gap with each enclosed pen's
 native worst-quadrum pasture rate and stored feed. A negative balance can add a
 `Plant_Haygrass` field through the existing soil planner, zone preview and Hands
 admission. Existing hay-field capacity offsets new planting; a short season or

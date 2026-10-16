@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One unmet MaintainResource floor and the candidates that can cover it: mines, bench bills, chops,
+/// One unmet the economy/resource Need floor and the candidates that can cover it: mines, bench bills, chops,
 /// harvests, hunts, deep drills and a caravan's offers.
 /// </summary>
 public sealed record ResourceSupplyInput

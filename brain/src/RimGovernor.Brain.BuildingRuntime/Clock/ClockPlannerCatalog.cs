@@ -123,8 +123,6 @@ internal static class ClockPlannerCatalog
     // Adds the population census for the owned-pawn names and the colony facts for the reading, drug and food policies.
     private static readonly FactSection[] SectionsWork = [FactSection.Pawns, FactSection.Population, FactSection.Emergency, FactSection.Colony, FactSection.Buildings];
     private static readonly FactSection[] SectionsRecovery = [FactSection.Pawns, FactSection.Emergency, FactSection.Colony];
-    private static readonly FactSection[] SectionsResource = [FactSection.Colony, FactSection.Bills, FactSection.Buildings, FactSection.Zones];
-
     // The sectionless families planners declare beside their sections.
     private static readonly FactFamily[] FamiliesEmergency = [FactFamily.Emergency];
     private static readonly FactFamily[] FamiliesWorld = [FactFamily.World];
@@ -180,11 +178,6 @@ internal static class ClockPlannerCatalog
         },
         E("work", O, [ActionKind.WorkAssignment, ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.Building], SectionsWork,
             c => c.Work is not null, (s, ct, e, a) => s.Config.Work!.StepAsync(a, ct, e), (o, m) => o.Work = m, EnsureWorkAssignments),
-        // The food family places the food/supply Need's fields; this slot keeps the hay, social and resource fields.
-        E("fields", O, [ActionKind.Building, ActionKind.ZoneCreate, ActionKind.ZoneCellEdit], SectionsBuilding,
-            c => c.Fields is not null, (s, ct, e, a) => s.Config.Fields!.StepAsync(a, ct, e), (o, m) => o.Fields = m, MaintainResource),
-        E("resourceAcquisition", O, [ActionKind.Acquisition, ActionKind.AcquisitionWithdraw], SectionsColony,
-            c => c.ResourceAcquisition is not null, (s, ct, e, a) => s.Config.ResourceAcquisition!.StepAsync(a, ct, e), (o, m) => o.ResourceAcquisition = m, MaintainResource),
         E("sleeping", O, [ActionKind.Building, ActionKind.Deconstruction], SectionsBuilding,
             c => c.Sleeping is not null, (s, ct, e, a) => s.Config.Sleeping!.StepAsync(a, ct, e), (o, m) => o.Sleeping = m, MaintainHousing),
         E("power", O, [ActionKind.Building], SectionsBuilding,
@@ -193,8 +186,6 @@ internal static class ClockPlannerCatalog
             c => c.Temperature is not null, (s, ct, e, a) => s.Config.Temperature!.StepAsync(a, ct, e), (o, m) => o.Temperature = m, EnsureTemperatureSafety),
         E("routes", O, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
             c => c.Routes is not null, (s, ct, e, a) => s.Config.Routes!.StepAsync(a, ct, e), (o, m) => o.Routes = m, MaintainRoutes),
-        E("workshop", O, [ActionKind.Building], SectionsBuilding,
-            c => c.Workshop is not null, (s, ct, e, a) => s.Config.Workshop!.StepWorkshopsAsync(a, ct, e), (o, m) => o.Workshop = m),
         E("hospital", C, [ActionKind.Building, ActionKind.BedUse], SectionsBuilding,
             c => c.Hospital is not null, (s, ct, e, a) => s.Config.Hospital!.StepAsync(a, ct, e), (o, m) => o.Hospital = m),
         E("sleepingUpkeep", C, [ActionKind.Building, ActionKind.Assign, ActionKind.MoveBuilding, ActionKind.UninstallBuilding, ActionKind.RecoveryService], SectionsThrone,
@@ -227,8 +218,6 @@ internal static class ClockPlannerCatalog
             c => c.Dialog is not null, (s, ct, e, a) => s.Config.Dialog!.StepAsync(a, ct, e), (o, m) => o.Dialog = m),
         E("trade", O, [ActionKind.Trade, ActionKind.CommsTradeRequest], SectionsColony,
             c => c.Trade is not null, (s, ct, e, a) => s.Config.Trade!.StepAsync(a, ct, e), (o, m) => o.Trade = m, families: FamiliesWorld),
-        E("resource", O, [ActionKind.MineAcquisition, ActionKind.Building, ActionKind.Deconstruction], SectionsResource,
-            c => c.Resource is not null, (s, ct, e, a) => s.Config.Resource!.StepAsync(a, ct, e), (o, m) => o.Resource = m, MaintainResource),
         E("maintainShelter", O, [ActionKind.Area], SectionsBuilding,
             c => c.MaintainShelter is not null, (s, ct, e, a) => s.Config.MaintainShelter!.StepAsync(a, ct, e), (o, m) => o.MaintainShelter = m, MaintainShelter, immediate: true),
         E("psylink", O, [ActionKind.UseItem], SectionsBuilding,

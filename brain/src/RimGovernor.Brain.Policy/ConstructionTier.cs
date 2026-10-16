@@ -90,7 +90,7 @@ public static partial class PolicyFunctions
         {
             return ConstructionTier.Comfort;
         }
-        if (concern == MaintainResource)
+        if (concern == EconomyFamily.Resource.FilingKey)
         {
             return ConstructionTier.Produce;
         }

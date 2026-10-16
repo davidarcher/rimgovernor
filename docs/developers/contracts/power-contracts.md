@@ -79,7 +79,7 @@ check on the model: a consumer that actually loses power is a deficit whatever t
     `DefinitionCatalog.ProductInputCost`); an unknown recipe prices nothing and list order breaks
     ties. Cost, nominal watts and fuel come from the catalog (`DefinitionCatalog.GeneratorRow`).
     Renewability is read from the colony's sowable crops rather than the Round's supply plan: that
-    plan holds rows only for unmet `MaintainResource` floors, so a stocked fuel has none. Ranked
+    plan holds rows only for unmet `economy/resource` floors, so a stocked fuel has none. Ranked
     runners-up travel as `Alternatives`: a definition no site accepts yields to the next under the
     same method key.
   - A `WindTurbine` site is searched within twelve cells of the consumer and accepted only when the

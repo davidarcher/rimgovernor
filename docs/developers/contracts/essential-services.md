@@ -18,7 +18,7 @@ operation is created by assessment.
 | Medical care | CriticalMedicine, MaintainSurgery and MaintainMedicalReserves; served procedures use the surgery owner's failure cap, native per-doctor chances and ingredient availability |
 | Usable shelter and temperature | MaintainHousing, MaintainShelter and EnsureTemperatureSafety, including their observed recovery and latch predicates |
 | Power | EnsureBasicPower and the power owner's same-network coverage calculation |
-| Material and fuel dependencies | MaintainResource's single merged demand; FuelRunway's native consumption gates, stocks and maintenance horizon |
+| Material and fuel dependencies | economy/resource's single merged demand; FuelRunway's native consumption gates, stocks and maintenance horizon |
 | Logistics | MaintainRoutes and native per-facility reachability |
 
 Baseline coverage and stress coverage are separate. Known baseline adequacy or

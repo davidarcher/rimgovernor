@@ -9,7 +9,7 @@ public static partial class PolicyConstants
     /// MaintainPsylink observes unmet psylink and level-up requirements for willing colonists below MaxPsylinkLevel
     /// (PsylinkLevelUps; Deserter route excluded). Ordinary item use remains unsupported until shared forecast
     /// admission owns its labor and consequences. Acquiring the neuroformer
-    /// is MaintainResource's: NeuroformerNeeds raises a stock floor of one, which the resource ladder meets
+    /// is the economy/resource Need's: NeuroformerNeeds raises a stock floor of one, which the resource ladder meets
     /// with a production bill when the recipe is available and a trade buy when a trader sells it. Psyfocus is
     /// an explicit unsupported ordinary-control state until a shared meditation Method exists.
     /// </summary>

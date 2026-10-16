@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// One end-to-end non-food field case (Go <c>nonfood.go</c>): the lab colony has no stock of the product, no wild plant
-/// harvesting it, and a standing MaintainResource demand for it, so the only way to serve the demand is the generic field
+/// harvesting it, and a standing economy/resource demand for it, so the only way to serve the demand is the generic field
 /// path: the supply plan prices a field, the field step places the growing zone, the colonists sow it and, once the
 /// fixture has matured the crop (its grow days are not what is under test), harvest it. Registers
 /// <c>farm/cotton-field</c> and <c>farm/healroot-field</c>.
@@ -46,7 +46,7 @@ internal sealed class FarmNonFood
                 + "growing zone, the colonists sow it, and the matured crop is harvested into cloth (#2288).",
             "Plant_Cotton",
             "Cloth",
-            PolicyFunctions.MaintainResource).Build();
+            EconomyFamily.Resource.FilingKey).Build();
         yield return new FarmNonFood(
             "farm/healroot-field",
             "Medicine reserve with no medicine and no wild healroot on the map: the generic field path opens a Plant_Healroot "

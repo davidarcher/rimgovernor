@@ -426,33 +426,7 @@ public sealed partial class Store
         }
         AdmitRoundsSafeguards(tx, state);
         AdmitRoundsReview(tx, summary);
-        var open = StandardOpenWork(tx, state);
-        if (open)
-        {
-            // An uncertain remote request earns no stock and cannot monopolize its supply owner. Ordinary local
-            // methods may proceed while its separate Hands attempt remains unresolved.
-            var onlyRequests = true;
-            foreach (var linked in state.Methods)
-            {
-                var pending = LoadIn(tx, linked.Plan);
-                foreach (var progress in pending.Progress)
-                {
-                    if (Standard.WorkOpen([progress]) && progress.Action.Kind != ActionKind.CommsTradeRequest)
-                    {
-                        onlyRequests = false;
-                    }
-                }
-            }
-            if (plan.Actions.Any(a => a.Kind == ActionKind.CommsTradeRequest))
-            {
-                onlyRequests = false;
-            }
-            if (onlyRequests)
-            {
-                open = false;
-            }
-        }
-        if (open && !OpenWorkExempt(tx, state, method, plan))
+        if (StandardOpenWork(tx, state) && !OpenWorkExempt(tx, state, method, plan))
         {
             throw new OpenMethodException();
         }
@@ -469,7 +443,6 @@ public sealed partial class Store
     /// <summary>Whether one of the open-work exemptions admits <paramref name="plan"/> beside the owner's open work.</summary>
     private static bool OpenWorkExempt(StoreTransaction tx, StandardState state, MethodId method, PlanSpec plan) =>
         AcquisitionOpenWorkExempt(tx, state, plan)
-        || FieldOpenWorkExempt(tx, state, plan)
         || GrowerCropOpenWorkExempt(plan)
         || MealReplacementOpenWorkExempt(state, plan)
         || ShelterOpenWorkExempt(tx, state, method, plan)

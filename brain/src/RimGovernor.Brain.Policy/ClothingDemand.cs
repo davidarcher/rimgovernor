@@ -32,7 +32,7 @@ public sealed record ClothingDemandInput
 
 /// <summary>
 /// The material the worn garments about to wear out take to replace: <see cref="Needs"/> the stock levels
-/// MaintainResource must reach, and <see cref="Serves"/> each stuff that may serve a demanded stuff (the
+/// the economy/resource Need must reach, and <see cref="Serves"/> each stuff that may serve a demanded stuff (the
 /// loadout stuff and the stuffs sharing a catalog category with it, gearFilter's rule) mapped to the cheapest
 /// member the demand names.
 /// </summary>

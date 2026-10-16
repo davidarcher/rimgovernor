@@ -38,7 +38,7 @@ future danger or certify that a pawn will perform the work.
 
 ## Resource demand and acquisition scoring
 
-`policy.BuildResourceDemand` combines MaintainResource stock targets, the output
+`policy.BuildResourceDemand` combines economy/resource stock targets, the output
 of `EconomicReserves`, and remaining planned construction bills of materials.
 Overlapping stock targets use their maximum; construction costs are additive.
 Do not supply a commitment twice through both economic floors and planned costs.
@@ -48,8 +48,8 @@ acquisition yield is not inventory. Priorities are 1–100, higher first; econom
 floors default to 1 and a merged row retains its highest priority.
 
 Every Round plans the resource deficits once. `Rounder.resourceSupply` builds one
-`policy.PlanResourceSupply` over the unmet MaintainResource floors, cached per
-observed tick, invalidation generation and MaintainResource revision like the food
+`policy.PlanResourceSupply` over the unmet economy/resource floors, cached per
+observed tick, invalidation generation and economy/resource revision like the food
 plan, and plans them after food against the labor food leaves (`workers * 20000`
 ticks per day less the work of the channels food keeps open; unknown workers do
 not ration it). Each floor is a stock demand wanted now, reduced by the yield of
@@ -114,7 +114,7 @@ recorded in `testdata/resource-matrix-baseline.json`, which only shrinks.
 
 ## Material runway
 
-`MaintainResource` reviews Steel and ComponentIndustrial over the last 15 game
+`economy/resource` reviews Steel and ComponentIndustrial over the last 15 game
 days of journal history (at least one day). No consumption is charged to that
 window: a bill intent's receipt is terminal, so nothing observes what its
 iterations spent, and the rate reads zero. A deficit is then stock below
@@ -124,7 +124,7 @@ Usable stock is stock above the larger configured acquisition/reserve floor.
 `stockDays` divides usable stock by daily consumption; `daysLeft` also includes
 the mining census's safe open-surface ore. Unknown ore is not zero, and a zero
 consumption rate has no finite days-left value. Below five days, the review
-raises a maintenance deficit and an ordinary `MaintainResource` target covering
+raises a maintenance deficit and an ordinary `economy/resource` target covering
 five days plus the existing floor (bounded by the target limit of 10,000).
 Existing resource methods consume that target; the forecast issues no orders.
 
@@ -165,7 +165,7 @@ roofed); the ladder and the per-role matrix (`policy.FacilityCatalog`) are in
 [facilities](facilities.md).
 
 The workshop row is the first production facility on that ladder: a
-`MaintainResource` deficit that no existing bench can produce discovers, from the
+`economy/resource` deficit that no existing bench can produce discovers, from the
 native recipe catalog, which buildable benches host a recipe for the resource.
 The bench is furnished into a Workshop-hosting room (a Workshop, a generic Room, or
 the starter shell once sleeping spots have made it a Barracks, since a second ring

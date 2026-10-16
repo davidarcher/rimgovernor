@@ -27,6 +27,44 @@ public sealed record EconomyFacts
     public EquatableArray<string> ResearchNeeds { get; init; }
 
     public Fact<ResearchCensus> Research { get; init; }
+
+    /// <summary>The resource Need's facts; with no target (the default) the Need is met.</summary>
+    public ResourceFacts Resource { get; init; } = new();
+}
+
+/// <summary>
+/// What the economy family's resource Need reads (#3303): the review's derived stock targets (every source's
+/// floor: construction, bills, clothing, fuel, animal feed, runways, evidence needs) and whether the colony's own
+/// works demand any stock, the usable stock census with the wood fact, the review's runway forecasts, and the
+/// research project the recorded research needs name first.
+/// </summary>
+public sealed record ResourceFacts
+{
+    public IReadOnlyDictionary<Resource, long> Targets { get; init; } = new Dictionary<Resource, long>();
+
+    /// <summary>Whether the colony's own works (construction, open bills, clothing, fuel, feed) demand some stock: stock a chop or a mine provides.</summary>
+    public bool Works { get; init; }
+
+    public Fact<EquatableArray<Amount>> Stock { get; init; }
+
+    /// <summary>The wood fact WoodLog is counted from; unknown counts WoodLog from the census.</summary>
+    public Fact<long> Wood { get; init; }
+
+    public EquatableArray<ResourceRunway> Runways { get; init; }
+
+    /// <summary>The unfinished project the recorded research needs name first (the workshop ladder's rung among them); empty when none gates.</summary>
+    public string ResearchGate { get; init; } = "";
+
+    /// <summary>The resource facts of a review: its facts and the demand it derived from them.</summary>
+    public static ResourceFacts From(RoundsFacts f, DerivedDemand demand) => new()
+    {
+        Targets = demand.Needs,
+        Works = demand.Works.Count > 0,
+        Stock = f.Resources,
+        Wood = f.Wood,
+        Runways = f.ResourceRunways,
+        ResearchGate = PolicyFunctions.ResearchConcernTarget("", f.ResearchNeeds, f.Research),
+    };
 }
 
 /// <summary>What the research Need's Method is now: a project to select, a hold, and the bench work the runtime does beside it.</summary>
@@ -37,40 +75,55 @@ public sealed record EconomyFacts
 public sealed record ResearchStep(string Select, NeedHold? Hold, bool Bench, bool BuildAhead);
 
 /// <summary>
-/// The economy family (#3263), research only so far: one colony-wide Need, <c>economy/research</c>
-/// (Development), met while no recorded research need is unfinished. It replaced the EnsureResearch Concern, its
-/// inspection and its planner. Its pure Method selects the next project (or an empty knowledge slot's); the
-/// laboratory benches are the family's building work, run by the runtime under the same Need and admitted by
-/// claims, so selecting a project and raising a bench go side by side.
+/// The economy family (#3263, #3303). Its Needs: <c>economy/research</c> (Development), met while no recorded
+/// research need is unfinished, which replaced EnsureResearch; and <c>economy/resource</c> (Wellbeing), met while
+/// every derived stock target is held and no runway is short, which replaced the resource Standard. The research Need's
+/// pure Method selects the next project; its laboratory benches, and all of the resource Need's work (mines,
+/// tunnels and deep drills, chops and hunts, resource fields, the production bench), are the family's runtime work
+/// under the Need, admitted by claims, so they go side by side.
 /// </summary>
-public sealed class EconomyFamily : IFamily<EconomyFacts>
+/// <param name="research">Derive the research Need.</param>
+/// <param name="resource">Derive the resource Need.</param>
+public sealed class EconomyFamily(bool research = true, bool resource = false) : IFamily<EconomyFacts>
 {
     public const string FamilyId = "economy";
 
     public static readonly NeedId Research = NeedId.Of(FamilyId, "research");
 
+    public static readonly NeedId Resource = NeedId.Of(FamilyId, "resource");
+
     public string Id => FamilyId;
 
-    public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Research, FactFamily.Colony, FactFamily.Rooms];
+    public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Research, FactFamily.Colony, FactFamily.Rooms, FactFamily.Definitions];
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
-    public IReadOnlyList<Need> Derive(EconomyFacts facts) => [ResearchNeed(facts)];
+    public IReadOnlyList<Need> Derive(EconomyFacts facts) =>
+        [.. research ? [ResearchNeed(facts)] : Array.Empty<Need>(), .. resource ? [PolicyFunctions.ResourceNeedOf(facts.Resource)] : Array.Empty<Need>()];
 
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, EconomyFacts facts)
     {
+        var methods = new List<NeedMethod>();
+        if (ready.Any(n => n.Id == Resource) && PolicyFunctions.ResourceHold(facts.Resource) is { } held)
+        {
+            methods.Add(NeedMethod.Held(Resource, held.Subject, held.Detail));
+        }
         if (!ready.Any(n => n.Id == Research))
         {
-            return [];
+            return methods;
         }
         var step = PolicyFunctions.ResearchStepOf(facts);
         if (step.Select.Length != 0)
         {
             var project = step.Select;
-            return [new NeedMethod(Research, new MethodId("research-" + project), "", id =>
-                new PlanSpec(id, new PlanRevision(1), [DomainAction.NewResearchSelectAction(new ActionId(id.Value + "-0"), new ResearchSelect(project))]))];
+            methods.Add(new NeedMethod(Research, new MethodId("research-" + project), "", id =>
+                new PlanSpec(id, new PlanRevision(1), [DomainAction.NewResearchSelectAction(new ActionId(id.Value + "-0"), new ResearchSelect(project))])));
         }
-        return step.Hold is { } hold ? [NeedMethod.Held(Research, hold.Subject, hold.Detail)] : [];
+        else if (step.Hold is { } hold)
+        {
+            methods.Add(NeedMethod.Held(Research, hold.Subject, hold.Detail));
+        }
+        return methods;
     }
 
     /// <summary>
@@ -112,6 +165,75 @@ public sealed class EconomyFamily : IFamily<EconomyFacts>
 
 public static partial class PolicyFunctions
 {
+    /// <summary>
+    /// Why the resource Need has no Method of its own: while a recorded research need is unfinished (the workshop
+    /// ladder's rung among them) and the colony's own works demand nothing a chop or a mine provides, the
+    /// economy/research Need works the project. Null when the runtime works the Need.
+    /// </summary>
+    public static NeedHold? ResourceHold(ResourceFacts f) =>
+        f.ResearchGate.Length != 0 && !f.Works ? new NeedHold("research", f.ResearchGate) : null;
+
+    /// <summary>
+    /// The resource Need, a plain threshold with no latch: met with no target short and no runway short; unmet while
+    /// the worst-covered target is short or a runway is known short; unknown while the stock census is unread, or a
+    /// runway over a day's window is unread with nothing short. Its deficit is the worst target's shortfall fraction,
+    /// raised to a short runway's missing share of the maintenance horizon.
+    /// </summary>
+    public static Need ResourceNeedOf(ResourceFacts f)
+    {
+        var census = new StockReader(f.Stock, f.Wood).Census(f.Targets);
+        var (recovered, deficit) = ResourceTargetNeed(f.Targets, census);
+        var shortRunways = new List<string>();
+        foreach (var runway in f.Runways)
+        {
+            var deficitKnown = runway.Deficit.TryGetValue(out var runwayDeficit);
+            if (!deficitKnown && runway.WindowDays >= 1 && Positive(recovered))
+            {
+                recovered = Unknown<bool>();
+                deficit = Unknown<double>();
+            }
+            if (deficitKnown && runwayDeficit)
+            {
+                shortRunways.Add(runway.Resource.Value);
+                recovered = Known(false);
+                if (runway.DaysLeft.TryGetValue(out var days))
+                {
+                    deficit.TryGetValue(out var old);
+                    deficit = Known(Math.Max(old, 1 - days / MaintenanceHorizonDays));
+                }
+            }
+        }
+        var satisfaction = !recovered.TryGetValue(out var met) ? Satisfaction.Unknown : met ? Satisfaction.Met : Satisfaction.Unmet;
+        var worst = Unknown<string>();
+        if (census.IsKnown)
+        {
+            try
+            {
+                var (resource, _, found) = SelectResourceTarget(f.Targets, census);
+                worst = Known(found ? resource.Value : "");
+            }
+            catch (DomainException)
+            {
+                // A census the selector cannot rank names no worst target.
+                worst = Unknown<string>();
+            }
+        }
+        return new Need
+        {
+            Id = EconomyFamily.Resource,
+            Tier = NeedTier.Wellbeing,
+            Satisfaction = satisfaction,
+            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : deficit,
+            Evidence =
+            [
+                new("resource_targets", Known(f.Targets.Count.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+                new("worst_target", worst),
+                new("short_runways", Known(string.Join("+", shortRunways))),
+                new("research_gate", Known(f.ResearchGate)),
+            ],
+        };
+    }
+
     /// <summary>The review-shaped summary of a research census: current project and its bench lock, listed and finished projects, and the knowledge pick.</summary>
     public static ResearchFacts ResearchSummary(ResearchCensus read)
     {

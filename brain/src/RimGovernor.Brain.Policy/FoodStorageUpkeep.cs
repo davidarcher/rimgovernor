@@ -161,7 +161,7 @@ public sealed record FoodStorageSite
 /// The outcome SelectFoodStorageMethod proposes: Stuck when a covered/enclosed site already has room (no order
 /// is planned; vanilla hauling owns the move), or, when no site has room, a StockTarget-style production bill
 /// request for more preserved/non-perishable food (Resource/Target only; bench and recipe selection is the
-/// routine planner's job, the same deferral GearProduce/MaintainResource already use). (Go <c>FoodStorageMethod</c>.)
+/// routine planner's job, the same deferral GearProduce/the economy/resource Need already use). (Go <c>FoodStorageMethod</c>.)
 /// </summary>
 public sealed record FoodStorageMethod
 {

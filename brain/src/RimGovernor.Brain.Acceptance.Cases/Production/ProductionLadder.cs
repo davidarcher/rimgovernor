@@ -39,16 +39,16 @@ internal static class ProductionLadder
     // Includes the workshop, research and ingredient-stockpile stages plus emergency responders: injury, predators and
     // choice dialogs can block development until handled. Shelter and sleeping stay off because the fixture already
     // provides a hut and sleeping spots; additional shells compete with the workshop for floor space. An unserved
-    // priority-2 shelter goal gates comfort, never MaintainResource.
+    // priority-2 shelter goal gates comfort, never the economy/resource Need.
     private static readonly string[] Families =
     [
         "temperature", "comfort", "work", "power", "supply", "defense", "tend", "rescue", "medical", "field", "stockpiles",
         "acquisition", "cooking", "resource", "workshop", "research", "gear", "armory", "dialog",
     ];
 
-    // Keeps the watch's fail-fast on but lets MaintainResource sit method_unavailable through the research rung: while the
+    // Keeps the watch's fail-fast on but lets the economy/resource Need sit held through the research rung: while the
     // project the workshop recorded as gating the bench is unfinished the goal holds no method of its own by design
-    // (RoundsFindings), so those reviews are not the planner committing nothing under a slot it was handed. MaintainResource
+    // (its research hold), so those reviews are not the planner committing nothing under a slot it was handed. The Need
     // also keeps other resources (medicine) stocked, and one of those acquisitions falling short (outcome_not_achieved) is
     // retried, not the ladder failing; so is an acquisition native refused on a stale census.
     private static readonly FailFast LadderFailFast = new()
@@ -60,7 +60,7 @@ internal static class ProductionLadder
     internal static AcceptanceCase Case() => new()
     {
         Name = "production/ladder",
-        Scope = string.Create(CultureInfo.InvariantCulture, $"MaintainResource {PolicyFunctions.ComponentResource.Value}:{Target} walks research ({Project}) -> fabrication bench -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4)."),
+        Scope = string.Create(CultureInfo.InvariantCulture, $"economy/resource {PolicyFunctions.ComponentResource.Value}:{Target} walks research ({Project}) -> fabrication bench -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4)."),
         Start = new FixtureStart
         {
             Op = Prepare,
@@ -80,7 +80,7 @@ internal static class ProductionLadder
     private static async Task RunAsync(ISession s, CancellationToken cancellationToken)
     {
         var observed = ObservedSession.Of(s);
-        var concern = PolicyFunctions.MaintainResource.Value;
+        var concern = EconomyFamily.Resource.Value;
         await s.StageAsync(
             BenchStage,
             async ct =>
@@ -182,14 +182,14 @@ internal static class ProductionLadder
     }
 
     /// <summary>
-    /// Reports a sample whose MaintainResource goal holds or held a production bill plan with every action completed: the
+    /// Reports a sample whose economy/resource Need holds or held a production bill plan with every action completed: the
     /// first product landed.
     /// </summary>
     private static bool BillProduced(JsonObject sample) =>
         PlanCompleted(sample, (_, kinds, actions) => (int)kinds["production_bill"].AsNumber() == actions);
 
     /// <summary>
-    /// Reports a sample whose MaintainResource goal holds or held (retired_plans: a completed method leaves the goal at the
+    /// Reports a sample whose economy/resource Need holds or held (retired_plans: a completed method leaves the goal at the
     /// next review) a workshop bench plan with every action completed: the bench stands.
     /// </summary>
     private static bool BenchBuilt(JsonObject sample) =>
@@ -228,12 +228,8 @@ internal static class ProductionLadder
     /// <summary>Compares the journal's goals with the live research state, bench, stockpile and item count after the service has stopped.</summary>
     private static async Task AuditAsync(Harness h, IWatchStore journal, Report report, double baseline, CancellationToken cancellationToken)
     {
-        var resource = PolicyFunctions.MaintainResource.Value;
-        var goal = await journal.StandardSummaryAsync(resource, cancellationToken).ConfigureAwait(false)
-            ?? throw new AcceptanceException($"{resource} was never bound in the rounds");
-        report[resource.ToLowerInvariant() + "_standard"] = goal;
-
-        // Research is the economy family's Need (#3263): its sample, not a Standard.
+        // Resource (#3303) and research (#3263) are the economy family's Needs: their samples, not Standards.
+        report["economy_resource_need"] = await journal.SampleStandardAsync(EconomyFamily.Resource.Value, cancellationToken).ConfigureAwait(false);
         report["economy_research_need"] = await journal.SampleStandardAsync(EconomyFamily.Research.Value, cancellationToken).ConfigureAwait(false);
         report["production_ladder"] = await journal.ProductionLadderAsync(cancellationToken).ConfigureAwait(false);
 

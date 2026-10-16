@@ -229,7 +229,7 @@ internal static partial class BuildingRuntimePackage
 
     /// <summary>
     /// The set of definitions RoundsDeficitWork covers benches for: the operator's resource targets while
-    /// MaintainResource is in deficit, and the replacement needs the equipment census reports (a shirt for a
+    /// the economy/resource Need is in deficit, and the replacement needs the equipment census reports (a shirt for a
     /// tattered or missing layer) while the military/equipment Need is unmet. The gear batch previews its bill
     /// against native admission, which refuses a bench nobody works, so the tailoring work type must be enabled
     /// before the bill is proposed, exactly as a resource deficit's bench work is. An unknown census

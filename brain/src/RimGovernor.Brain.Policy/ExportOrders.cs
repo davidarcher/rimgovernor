@@ -236,7 +236,7 @@ public static partial class PolicyFunctions
     // MaintainTrade closes the colony's silver gap with goods the bench crafts: while SilverGap is positive it
     // ranks the craftable sale goods and declares the winners to the work ledger (OrderDeclarer) as finite
     // batches pinned to the best capable worker; the trade planner then sells what they make as surplus
-    // (ExportSaleSurplus, SaleGearSurplus). Ownership is split by floor: MaintainResource owns a bill whose
+    // (ExportSaleSurplus, SaleGearSurplus). Ownership is split by floor: the economy/resource Need owns a bill whose
     // product has a floor; MaintainTrade owns the sale goods with none, and never acquires anything: it spends
     // only UsableIngredients. The rooms/art Need keeps room decoration only.
     public static readonly ConcernId MaintainTrade = new("MaintainTrade");
@@ -299,7 +299,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Reports whether a recipe's product is one MaintainTrade may rank. A product with a floor or a need, food,
-    /// stone blocks, components and the currency are others' (MaintainResource's), never MaintainTrade's.
+    /// stone blocks, components and the currency are others' (the economy/resource Need's), never MaintainTrade's.
     /// </summary>
     private static bool ExportProduct(ExportRequest r, Resource product)
     {

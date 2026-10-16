@@ -10,7 +10,7 @@ public static class OperationIntent
     {
         [FoodSupplyNeed.FilingKey] = "Food supply",
         [FoodStorageNeed.FilingKey] = "Food storage",
-        [MaintainResource] = "Resource",
+        [EconomyFamily.Resource.FilingKey] = "Resource",
         [MaintainTrade] = "Export goods",
         [RoomsFamily.Flooring.FilingKey] = "Flooring",
         [RoomsFamily.Lighting.FilingKey] = "Lighting",

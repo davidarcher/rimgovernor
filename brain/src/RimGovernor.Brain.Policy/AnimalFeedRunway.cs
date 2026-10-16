@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 // Animal feed runway. Each race group of the kept herd eats NutritionPerDay (the food forecast's per-animal
 // rate); the pasture of the pens feeds part of it and the unheld stock every animal of the group can eat the
 // rest. The runway is that stock over the net daily consumption, against MaintenanceHorizonDays. The shortfall is
-// a forward-projector domain and the feed to stock ahead of it is a MaintainResource level in the Rounder's
+// a forward-projector domain and the feed to stock ahead of it is an economy/resource level in the Rounder's
 // construction memory, like FuelRunway. Unknown consumption, pasture, stock or feed leaves the projection
 // unknown, never defaulted.
 //
@@ -78,7 +78,7 @@ public sealed record AnimalFeedProjection
     public bool IsShort() => ShortfallDays > 0;
 }
 
-/// <summary>The review's animal feed runway: Needs the stock levels MaintainResource must reach, the projection beside them.</summary>
+/// <summary>The review's animal feed runway: Needs the stock levels the economy/resource Need must reach, the projection beside them.</summary>
 public sealed record AnimalFeedRunway
 {
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();

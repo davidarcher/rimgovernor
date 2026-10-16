@@ -237,7 +237,7 @@ public sealed partial class Store
 
     /// <summary>
     /// The last review's still-live admitted-method costs against its goal bindings, read before <c>DetectRounds</c>
-    /// so an open shortfall raises its MaintainResource floor (Go <c>priorAdmitted</c>).
+    /// so an open shortfall raises its the economy/resource Need floor (Go <c>priorAdmitted</c>).
     /// </summary>
     internal static List<AdmittedCost> PriorAdmitted(StoreTransaction tx, Rounds previous, Tick tick)
     {

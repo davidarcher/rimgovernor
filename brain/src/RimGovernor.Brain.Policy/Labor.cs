@@ -23,7 +23,6 @@ public static partial class PolicyFunctions
 
         // A sale batch at any crafting bench: sculpture, apparel, weapon.
         Set([WorkType.Art, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MaintainTrade);
-        Set([WorkType.Mining, WorkType.PlantCutting, WorkType.Crafting], MaintainResource);
 
         Set([WorkType.Hauling], ManagePollution);
 

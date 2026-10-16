@@ -79,7 +79,7 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Further restricts furnishing to these observed cells (the sleeping planner's warm hosting rooms); null imposes no restriction.</summary>
     internal IReadOnlyList<Cell>? Cells { get; set; }
 
-    /// <summary>Holds the MaintainResource pre-observation reads (deficit resource, bench census, recipe catalog) for this step only.</summary>
+    /// <summary>Holds the resource workshop's pre-observation reads (deficit resource, bench census, recipe catalog) for this step only.</summary>
     internal WorkshopSelection? Workshop { get; set; }
 
     /// <summary>Holds the housing bedroom choice this step builds for.</summary>
@@ -842,7 +842,7 @@ public sealed partial class RoundsBuildingPlanner
             return new RoundsBuildingResult { Verdict = previewReason };
         }
         // Admission never checks stock: RimWorld places the blueprints regardless and the frames hold natively for
-        // materials, which MaintainResource then reads as the deficit.
+        // materials, which the economy/resource Need then reads as the deficit.
         var purpose = Pol.Purpose.Rounds;
         if (r.Power is { Method: Pol.PowerMethod.Shelter })
         {
@@ -957,7 +957,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             reason = BuildingReasonAdmitted;
             // A shell admitted short of a material records each shortfall so the construction demand
-            // MaintainResource supplies covers it. The review keeps a record only while its actions stay open.
+            // the economy/resource Need supplies covers it. The review keeps a record only while its actions stay open.
             // A Need owner (the planned kitchen's shell under the food/cooking Need) has no Episodes: the record
             // names them, so it records none until its family carries the demand (#3279).
             if (a.Purpose == Pol.Purpose.Shelter && decision.Owner is Sto.StandardState { Standard.Id.IsEmpty: false } held)

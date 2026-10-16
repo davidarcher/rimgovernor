@@ -55,7 +55,7 @@ public sealed partial class RoundsResourcePlanner
     internal const int TunnelMaxCorridor = 16;
 
     /// <summary>Digs a corridor to ore the surface sources cannot reach; dispatched when an excavation method was driven.</summary>
-    internal async Task<(RoundsResourceResult Result, bool Dispatched)> TunnelToBuriedOreAsync(ControlState state, StandardState goal, Tick reviewTick, C.Identity identity, Resource resource, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsResourceResult Result, bool Dispatched)> TunnelToBuriedOreAsync(ControlState state, IWorkOwner goal, Tick reviewTick, C.Identity identity, Resource resource, CancellationToken call, CancellationToken epoch)
     {
         if (native is not IRoundsExcavationSource source)
         {
@@ -63,7 +63,7 @@ public sealed partial class RoundsResourcePlanner
         }
 
         var p = reviewer.Player;
-        var dig = new RoundsBuildingPlanner { Reviewer = reviewer, Concern = PolicyFunctions.MaintainResource, Excavation = source };
+        var dig = new RoundsBuildingPlanner { Reviewer = reviewer, Concern = EconomyFamily.Resource.FilingKey, Need = EconomyFamily.Resource, Excavation = source };
         var review = p.Journal.LoadRounds(call);
         var (last, _) = await native.IdentityAsync(call).ConfigureAwait(false);
         Identity expected;

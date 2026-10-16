@@ -366,7 +366,28 @@ raises the laboratory benches (`laboratory-<def>`, the high-tech bench and the
 analyzer) under the same Need owner beside the selection, so the two no longer
 serialize. `ConstructionClaimsIn` reads Need-owned building plans too. The bench
 step reads the room census, so a destroyed bench is raised again under the same
-`laboratory-<def>` as the next attempt (decision 19). MaintainResource and trade stay Concerns until the rest of #3263.
+`laboratory-<def>` as the next attempt (decision 19).
+
+**Economy, resources (#3303).** MaintainResource is now the `economy/resource`
+Need (`ResourceNeedOf`), a Wellbeing Need of the same `economy` entry, composed
+by the resource-target or acquisition toggle. It is a plain threshold with no
+latch: unmet while the worst-covered derived stock target is short or a runway
+is known short; unknown while the stock census, or a runway over a day's window
+with nothing short, is unread; otherwise met. Its deficit is the worst target's
+shortfall fraction raised to a short runway's missing horizon share. While a
+recorded research need is unfinished and the colony's works demand nothing a
+chop or mine provides, the Need is held on `research` (the economy/research Need
+works the project). Its work step runs, under the Need owner and admitted by
+claims with no whole-owner guard, the mines, tunnels and deep drills, the stock
+acquisitions (chops, forage, hunts), the hay, social and supply-plan fields, and
+the production bench (the workshop ladder for resource targets; replacement gear
+walks it under military/equipment). The `fields`, `resource`,
+`resourceAcquisition` and `workshop` clock slots are deleted. The production ladder's check in `Families.cs` reads the
+Need, and the ladder's old concern record is dropped on load. The Comms trade
+request's StandardState carve-out and its recovery record are deleted: the
+request holds `unsupported_forecast_trade_request` unless an economy/resource
+Method is open. Trade (MaintainTrade, TradeWithCaravan, trade missions) stays
+a Concern for now.
 
 **Food, cooking (#3254).** EnsureCooking (a Once) is now the `food/cooking` Need
 (`Food.cs`, `CookingNeedOf`), a Wellbeing Need of the `food` family entry
@@ -403,9 +424,8 @@ planner, the food acquisition planner (forage, hunts, stall withdrawals) and the
 food part of the field planner (fishing zones, grower crops, shrinking surplus
 zones, new food fields); each step's Methods are independent, so a second field
 batch is admitted beside the first, and the old open-work gates (FoodPlanFieldRoom,
-FieldBlockingWork, the butcher and hunt exemptions) are deleted. The `fields`
-clock slot keeps the hay, social and MaintainResource fields and files under
-MaintainResource. Its stall cooldowns live on the Need's progress row and outlive
+FieldBlockingWork, the butcher and hunt exemptions) are deleted. The hay, social
+and supply-plan fields are the economy/resource Need's (#3303). Its stall cooldowns live on the Need's progress row and outlive
 the run that rebuilds it. The ButcherFood bill reports the Need's standing under
 `food/supply/bills`, and the forecast Food owner row and food-plan-gap rows are
 keyed to the Need; the coupled-candidate gate reads `RoundsFacts.AvailableNeeds`.
@@ -566,7 +586,7 @@ three ways (prisoners, joiners, anomaly).
 | Prisoners | `prisoners`: Needs `recruit`, `custody` (#3262) |
 | Joiners and quests | `joiners`: Needs `offers`, `letters`, `ceremony`, `quests`, `decrees`, `monuments`, `departures`, `grav-inspection` (#3302) |
 | Anomaly | `anomaly`: Needs `doors`, `capture`, `tend`, `lance`, `bioferrite`, `monolith` (#3302) |
-| Economy | `economy`: Need `research` (#3263; EnsureResearch deleted); MaintainResource, MaintainTrade, TradeWithCaravan, trade missions |
+| Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted); MaintainTrade, TradeWithCaravan, trade missions |
 | Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial` (#3304); EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles |
 | People | EnsureMood, AnswerDialog |
 | Disaster | RecoverDisasterServices |

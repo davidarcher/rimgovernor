@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
     // compacted steel deposits: one on the face, bordering open ground, and
     // one buried five cells in, fogged with the rest of the interior. A steel
     // stockpile stands beside the colonists and every need is frozen, so the
-    // only work the run owes is MaintainResource's steel: mine the face
+    // only work the run owes is economy/resource's steel: mine the face
     // deposit, tunnel to the buried one and mine it, all under the roof.
     // The fixture never designates, mines or builds anything itself.
     public sealed class BuriedSteelFixture

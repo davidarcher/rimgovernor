@@ -24,7 +24,7 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    cannot be staged leaves the existing bench in use. Each further bench is
    its own `workshop-<def>-<n>` method. The case needs a colony whose demand
    outruns one bench, so it is proven by the nightly tier, not by a dedicated `production/ladder` fixture.
-2. **Research**: when the first bench that could produce a `MaintainResource`
+2. **Research**: when the first bench that could produce a `economy/resource`
    deficit is gated only by unfinished research, the workshop planner records
    the projects on the `production_ladder` journal record and steps aside. The
    next rounds read that record as the derived `economy/research`

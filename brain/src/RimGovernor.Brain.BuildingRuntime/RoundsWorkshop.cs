@@ -34,13 +34,6 @@ internal sealed class WorkshopSelection
 
 public sealed partial class RoundsBuildingPlanner
 {
-    /// <summary>
-    /// The facility ladder for resource targets. Replacement gear walks the same ladder under the
-    /// military/equipment Need (<see cref="NewRoundsGearWorkshopPlanner"/>).
-    /// </summary>
-    internal async Task<RoundsBuildingResult> StepWorkshopsAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch) =>
-        await StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-
     /// <summary>The workshop ladder for replacement gear, owned by the military/equipment Need (#3259).</summary>
     public static RoundsBuildingPlanner NewRoundsGearWorkshopPlanner(Rounder? reviewer, IRoundsBuildingSource? native)
     {
@@ -54,8 +47,8 @@ public sealed partial class RoundsBuildingPlanner
     internal bool GearLadder() => Concern == MilitaryFamily.Equipment.FilingKey;
 
     /// <summary>
-    /// Stages a production bench for a resource deficit. The scheduler also runs its ladder for replacement
-    /// gear. For a product no existing bench can produce: it discovers which player-buildable benches host a
+    /// Stages a production bench for a resource deficit, a Method of the economy/resource Need admitted by its
+    /// claims (#3303); replacement gear walks the same ladder under the military/equipment Need. For a product no existing bench can produce: it discovers which player-buildable benches host a
     /// recipe for the resource, records the research still gating the first of them (the review turns that into
     /// the economy/research Need's target), furnishes a room whose native role can host a Workshop, and when no such room
     /// exists stages a starter shell first, the same ladder the rooms/comfort Need walks. A powered bench is staged when
@@ -76,7 +69,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsWorkshopPlanner: !ok");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = MaintainResource };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = EconomyFamily.Resource.FilingKey, Need = EconomyFamily.Resource };
     }
 
     /// <summary>

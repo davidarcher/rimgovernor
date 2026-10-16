@@ -297,7 +297,7 @@ public sealed record BrainFamilies
     /// <summary>Whether the economy family's research Need is composed (Go <c>researchPlans</c>).</summary>
     public bool ResearchPlans => Research;
 
-    /// <summary>Whether MaintainResource runs (Go <c>resourceTargetsConfigured</c>).</summary>
+    /// <summary>Whether the economy/resource Need runs (Go <c>resourceTargetsConfigured</c>).</summary>
     public bool ResourceTargetsConfigured => Resource;
 
     /// <summary>Whether the workshop planner is composed: it needs a resource target or the gear family (Go <c>workshopPlans</c>).</summary>

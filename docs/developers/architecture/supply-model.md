@@ -316,7 +316,7 @@ plan revision, so the food plan (built from the frame's trader census) and the
 resource plan read one record.
 
 Trade buys only what the plan opened: `RoundsTradePlanner.selection` limits the
-MaintainResource shortfall and the component target to the units the plan opened
+economy/resource shortfall and the component target to the units the plan opened
 for that trader (`resourceSupply.tradeLines`) and the food nutrition to the food
 plan's opened candidate for that trader; medicine, surgery parts, ingredient
 upgrades and every sale are not plan-opened and are untouched. The live sheet is read

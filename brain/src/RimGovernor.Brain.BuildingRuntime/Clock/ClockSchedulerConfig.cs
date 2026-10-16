@@ -7,8 +7,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// </summary>
 public sealed class ClockSchedulerConfig
 {
-    public RoundsFieldPlanner? Fields { get; init; }
-
     /// <summary>The oldest a read may be when it is used.</summary>
     public TimeSpan MaxAge { get; init; }
 
@@ -26,8 +24,6 @@ public sealed class ClockSchedulerConfig
 
     public Rounder? Rounds { get; init; }
 
-    public RoundsAcquisitionPlanner? ResourceAcquisition { get; init; }
-
     public RoundsWorkPlanner? Work { get; init; }
 
     public RoundsPollutionPlanner? Pollution { get; init; }
@@ -39,8 +35,6 @@ public sealed class ClockSchedulerConfig
     public RoundsLedgerPlanner? Ledger { get; init; }
 
     public RoundsBuildingPlanner? Sleeping { get; init; }
-
-    public RoundsBuildingPlanner? Workshop { get; init; }
 
     public RoundsHospitalPlanner? Hospital { get; init; }
 
@@ -65,8 +59,6 @@ public sealed class ClockSchedulerConfig
     public RoundsSurgeryPlanner? Surgery { get; init; }
 
     public RoundsRecoveryPlanner? Recovery { get; init; }
-
-    public RoundsResourcePlanner? Resource { get; init; }
 
     public MaintainShelterPlanner? MaintainShelter { get; init; }
 

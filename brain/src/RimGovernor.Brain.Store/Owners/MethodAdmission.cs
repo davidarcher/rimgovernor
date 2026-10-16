@@ -8,8 +8,6 @@ public sealed partial class Store
 {
     private const int MaxBillPlanActions = StorePackage.MaxBillPlanActions;
 
-    private static readonly HashSet<string> FieldInfrastructure = new HashSet<string>(StringComparer.Ordinal) { "SunLamp", "HydroponicsBasin", "Heater" };
-
     private static readonly HashSet<ActionKind> RoundsSettingsKinds = new HashSet<ActionKind> { ActionKind.PawnSettings, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy };
 
     /// <summary>
@@ -131,12 +129,11 @@ public sealed partial class Store
         {
             throw new ConflictException($"bill method needs a current autopilot review and at most {MaxBillPlanActions} actions");
         }
-        // Bills serve the resource-target goals whose production path stages a bench and then
-        // a StockTarget bill on it, the mech goal's gestation bills and the surgery goal's part bills.
-        // The work ledger goal commits the round's whole reconcile plan: places and removals together.
+        // Bills serve the mech goal's gestation bills and the surgery goal's part bills. The work ledger goal commits
+        // the round's whole reconcile plan (the economy/resource Need's stock bills among them): places and removals
+        // together.
         var bound = owner.OwnerNeed(review, out var need)
-            && (need == MaintainResource
-                || need == MaintainMechs
+            && (need == MaintainMechs
                 || need == MaintainSurgery
                 || need == MaintainWorkLedger);
         if (!bound)
@@ -175,8 +172,8 @@ public sealed partial class Store
         }
         var review = LoadRounds(tx);
         // A growing-field or fishing method places a bounded batch (the food/supply Need), a royal decree's harvest
-        // field (the joiners/decrees Need, #3302) or the social crops (MaintainResource). A stockpile zone is admitted for any concern that owns stores (StockpileZoneLimit),
-        // bounded per owner.
+        // field (the joiners/decrees Need, #3302) or the hay, social and resource crops (the economy/resource Need).
+        // A stockpile zone is admitted for any concern that owns stores (StockpileZoneLimit), bounded per owner.
         var limit = 32;
         if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot)
         {
@@ -186,20 +183,13 @@ public sealed partial class Store
         var resource = false;
         if (owner is NeedOwner { Need: var held })
         {
-            bound = !stockpile && (held == FoodSupplyNeed || held == JoinersFamily.Decrees);
+            resource = held == EconomyFamily.Resource;
+            bound = !stockpile && (held == FoodSupplyNeed || held == JoinersFamily.Decrees || resource);
         }
-        else if (owner.OwnerNeed(review, out var need))
+        else if (owner.OwnerNeed(review, out var need) && stockpile)
         {
-            if (stockpile)
-            {
-                limit = StockpileZoneLimit(need);
-                bound = limit > 0;
-            }
-            else
-            {
-                bound = need == MaintainResource;
-                resource = need == MaintainResource;
-            }
+            limit = StockpileZoneLimit(need);
+            bound = limit > 0;
         }
         if (!bound || plan.Actions.Count > limit)
         {
@@ -239,10 +229,11 @@ public sealed partial class Store
             throw new ConflictException();
         }
         // The military pests Need hunts its pests (#3259), the food/supply Need forages and hunts (#3254) and the
-        // joiners/decrees Need hunts a royal decree's animals (#3302); a Need owner reads as no Concern.
+        // joiners/decrees Need hunts a royal decree's animals (#3302) and the economy/resource Need chops, forages and
+        // hunts toward its floors (#3303); a Need owner reads as no Concern.
         var bound = owner is NeedOwner { Need: var held }
-            ? held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees
-            : owner.OwnerNeed(review, out var need) && (need == MaintainMedicalReserves || need == MaintainResource);
+            ? held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees || held == EconomyFamily.Resource
+            : owner.OwnerNeed(review, out var need) && need == MaintainMedicalReserves;
         if (!bound)
         {
             throw new ConflictException();
@@ -410,42 +401,8 @@ public sealed partial class Store
 
     /// <summary>The action kinds whose open progress does not block a fresh acquisition method for the same goal.</summary>
     private static bool AcquisitionIndependentWork(DomainAction action) =>
-        action.Kind is ActionKind.ProductionBill or ActionKind.CommsTradeRequest
+        action.Kind is ActionKind.ProductionBill
         || action.ZoneCreate is { Kind: ZoneKind.Growing };
-
-    /// <summary>
-    /// The mirror of <see cref="AcquisitionOpenWorkExempt"/>: a method made only of growing-zone creations or farm
-    /// infrastructure may be committed while the goal's open work is nothing but dispatched acquisitions or
-    /// production bills. Open zone work or any other family's open work still blocks, so field batches stay
-    /// strictly sequential.
-    /// </summary>
-    private static bool FieldOpenWorkExempt(StoreTransaction tx, StandardState goal, PlanSpec plan)
-    {
-        if (plan.Actions.Count == 0)
-        {
-            return false;
-        }
-        foreach (var action in plan.Actions)
-        {
-            if (action.ZoneCreate is { Kind: ZoneKind.Growing or ZoneKind.Fishing } || (action.Building is { } building && FieldInfrastructure.Contains(building.Definition)))
-            {
-                continue;
-            }
-            return false;
-        }
-        foreach (var m in goal.Methods)
-        {
-            foreach (var progress in LoadIn(tx, m.Plan).Progress)
-            {
-                var kind = progress.Action.Kind;
-                if (kind != ActionKind.Acquisition && kind != ActionKind.ProductionBill && Standard.WorkOpen([progress]))
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
 
     /// <summary>
     /// A method made only of grower re-crops may be committed under any open work: it re-crops a grower that already

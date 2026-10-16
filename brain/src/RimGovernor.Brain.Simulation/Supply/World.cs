@@ -238,7 +238,7 @@ public sealed partial record World
     /// <summary>The stock ceiling per good; absent means unbounded.</summary>
     public IReadOnlyDictionary<Good, double> Capacity { get; init; } = new Dictionary<Good, double>();
 
-    /// <summary>Latched stock floors a planner reads (MaintainResource).</summary>
+    /// <summary>Latched stock floors a planner reads (the economy/resource Need).</summary>
     public IReadOnlyList<Floor> Floors { get; init; } = [];
 
     /// <summary>Construction shortfall edges.</summary>

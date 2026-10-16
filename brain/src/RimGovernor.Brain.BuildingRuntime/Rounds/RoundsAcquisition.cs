@@ -10,8 +10,8 @@ public sealed class RoundsAcquisitionResult : IPlannerMethod
 }
 
 /// <summary>
-/// Plans one acquisition goal: the food family's supply Need harvests and hunts toward its food plan, committed
-/// under the Need and admitted by claims; MaintainResource chops, forages and hunts toward its ranked floors through
+/// Plans one acquisition goal: the food family's supply Need harvests and hunts toward its food plan; the economy/resource Need
+/// chops, forages and hunts toward its ranked floors through
 /// the acquisition catalog, beside RoundsResourcePlanner's bills and mines.
 /// </summary>
 public sealed class RoundsAcquisitionPlanner
@@ -20,20 +20,20 @@ public sealed class RoundsAcquisitionPlanner
     internal Rounder Reviewer => _reviewer;
     private readonly ConcernId _need;
 
-    /// <summary>A planner for <paramref name="need"/>: MaintainResource, or the food/supply Need's filing key.</summary>
+    /// <summary>A planner for <paramref name="need"/>: the economy/resource or the food/supply Need's filing key.</summary>
     public RoundsAcquisitionPlanner(Rounder reviewer, ConcernId need)
     {
-        if (reviewer is null || (need != PolicyFunctions.FoodSupplyNeed.FilingKey && need != PolicyApi.MaintainResource))
+        if (reviewer is null || (need != PolicyFunctions.FoodSupplyNeed.FilingKey && need != EconomyFamily.Resource.FilingKey))
         {
-            throw new ControlException("NewRoundsAcquisitionPlanner: reviewer == nil || need is neither food/supply nor MaintainResource");
+            throw new ControlException("NewRoundsAcquisitionPlanner: reviewer == nil || need is neither food/supply nor economy/resource");
         }
         _reviewer = reviewer;
         _need = need;
     }
 
     /// <summary>
-    /// One step. MaintainResource commits under its workable Standard; the food planner commits under
-    /// <paramref name="owner"/>, the food/supply Need its family's work step passes.
+    /// One step under <paramref name="owner"/>, the planner's own Need its family's work step passes: its Methods
+    /// are admitted by their claims beside the Need's other work.
     /// </summary>
     internal async Task<RoundsAcquisitionResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch, IWorkOwner? owner = null)
     {
@@ -53,22 +53,9 @@ public sealed class RoundsAcquisitionPlanner
             return new RoundsAcquisitionResult { Verdict = BuildingReasonNoReview };
         }
         var food = _need == PolicyFunctions.FoodSupplyNeed.FilingKey;
-        StandardState? resourceGoal = null;
-        if (food)
+        if (owner is not NeedOwner { Need: var ownNeed } || ownNeed.FilingKey != _need)
         {
-            if (owner is not NeedOwner)
-            {
-                throw new ControlException("food acquisition: the step runs only under the food/supply Need");
-            }
-        }
-        else
-        {
-            var (goal, workable) = p.Journal.Workable(review, _need, call);
-            if (goal is null || !workable)
-            {
-                return new RoundsAcquisitionResult { Verdict = BuildingReasonNoDeficit };
-            }
-            owner = resourceGoal = goal;
+            throw new ControlException("acquisition: the step runs only under its own Need (food/supply or economy/resource)");
         }
 
         var (expected, projection) = await _reviewer.AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
@@ -77,7 +64,7 @@ public sealed class RoundsAcquisitionPlanner
         {
             return new RoundsAcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, PolicyConstants.RemoteHoldHazard) };
         }
-        var stockGoal = resourceGoal is not null;
+        var stockGoal = !food;
         var huntOnly = false;
         var stalledSources = new HashSet<string>(StringComparer.Ordinal);
         // A source a stall rotated away from stays keyed out for its contract's bounded cooldown: the goal's
@@ -146,7 +133,7 @@ public sealed class RoundsAcquisitionPlanner
         // blocks.
         // The food Need's hunts are the exception: a forage batch harvests one bush at a time for days while
         // the hunt rows the butcher spot and bill were placed for wait behind it, so designated plant harvests
-        // leave the hunt slots plannable and only hunts are admitted over them. MaintainResource skips a
+        // leave the hunt slots plannable and only hunts are admitted over them. The resource Need skips a
         // designated resource in resourceSelection instead; its other targets still plan.
         if (!stockGoal)
         {
@@ -158,7 +145,7 @@ public sealed class RoundsAcquisitionPlanner
             huntOnly = plants;
         }
         // A designated or undispatched source is held: it is not planned again. Its resource is busy for
-        // MaintainResource unless a cooldown held it.
+        // the resource Need unless a cooldown held it.
         var busy = HoldWorked(projection.Acquisition, undispatched, held);
         var pending = WithoutStalled(projection.PendingFoodNutrition, projection.Acquisition, stalledSources, food);
         var deficit = Unknown<double>();
@@ -181,7 +168,7 @@ public sealed class RoundsAcquisitionPlanner
         {
             if (stockGoal)
             {
-                var supply = await _reviewer.ResourceSupplyAsync(state, review, resourceGoal!, call).ConfigureAwait(false);
+                var supply = await _reviewer.ResourceSupplyAsync(state, review, owner, call).ConfigureAwait(false);
                 (selected, existing) = ResourceSelection(supply, busy);
             }
             else
@@ -243,7 +230,7 @@ public sealed class RoundsAcquisitionPlanner
 internal static partial class BuildingRuntimePackage
 {
     /// <summary>
-    /// MaintainResource's census selection: the chop, harvest and hunt sources the Round's supply plan opened,
+    /// The resource Need's census selection: the chop, harvest and hunt sources the Round's supply plan opened,
     /// for the first floor (worst covered first) that has some and no designated work in flight. existing
     /// reports a floor passed over for its designated work (busy).
     /// </summary>

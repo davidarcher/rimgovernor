@@ -209,8 +209,13 @@ public sealed partial class Store
                     {
                         var r = Codecs.Default.Read<ProductionLadderRecord>(ladder.Record);
                         r = r with { Research = [.. r.Research.Order(StringComparer.Ordinal)] };
-                        r.Validate();
-                        PutSingleton(tx, "production_ladder", r, MaxProductionLadderBytes);
+                        // A ladder its retired owner recorded (the resource and equipment Concerns their Needs replaced in #3303 and #3259) is dropped:
+                        // the workshop re-records its rung under the owner that now runs it.
+                        if (ProductionLadderRecord.LadderOwner(r.Concern))
+                        {
+                            r.Validate();
+                            PutSingleton(tx, "production_ladder", r, MaxProductionLadderBytes);
+                        }
                     }
                     if (blobs.TryGetValue(GovernorSoldierSquadKey, out var squad))
                     {

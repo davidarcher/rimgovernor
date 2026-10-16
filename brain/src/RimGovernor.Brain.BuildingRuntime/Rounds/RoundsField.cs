@@ -19,8 +19,8 @@ public interface IFieldNative
 
 /// <summary>
 /// Opens and grows the colony's fields. The food/supply Need's part (fishing zones, grower crops, shrinking surplus
-/// zones and new food fields) runs in the food family's work step under the Need, admitted by claims; the clock
-/// slot keeps the other resources' fields (hay, social crops and MaintainResource's opened fields).
+/// zones and new food fields) runs in the food family's work step under the Need, admitted by claims; the economy
+/// family's resource Need places the other resources' fields (hay, social crops and the supply plan's opened fields).
 /// </summary>
 public sealed partial class RoundsFieldPlanner
 {
@@ -43,11 +43,17 @@ public sealed partial class RoundsFieldPlanner
     }
 
     /// <summary>
-    /// One step. Without <paramref name="food"/> it places only the other resources' fields; with it, the food/supply
-    /// Need's owner, it places only the Need's food work.
+    /// One step under <paramref name="owner"/>: the economy/resource Need's owner places only the other resources'
+    /// fields; the food/supply Need's owner places only the Need's food work.
     /// </summary>
-    internal async Task<RoundsFieldResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch, IWorkOwner? food = null)
+    internal async Task<RoundsFieldResult> StepAsync(StepArbiter arbiter, IWorkOwner owner, CancellationToken call, CancellationToken epoch)
     {
+        IWorkOwner? food = owner switch
+        {
+            NeedOwner { Need: var n } when n == PolicyFunctions.FoodSupplyNeed => owner,
+            NeedOwner { Need: var n } when n == EconomyFamily.Resource => null,
+            _ => throw new ControlException("field step: the step runs only under the food/supply or economy/resource Need"),
+        };
         var p = _reviewer.Player;
         var state = p.Session.State();
         if (!state.Enabled)
@@ -77,9 +83,9 @@ public sealed partial class RoundsFieldPlanner
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
         var projection = read.Projection;
-        PlannerSnapshot.RecordStepRead("field", food is null ? PolicyApi.MaintainResource : PolicyFunctions.FoodSupplyNeed.FilingKey, state.Snapshot, projection);
+        PlannerSnapshot.RecordStepRead("field", food is null ? EconomyFamily.Resource.FilingKey : PolicyFunctions.FoodSupplyNeed.FilingKey, state.Snapshot, projection);
         var protectedCells = _reviewer.FieldProtected(state, review, projection, claims, call);
-        var others = food is null ? await OtherFieldShortfallsAsync(state, review, projection, call).ConfigureAwait(false) : [];
+        var others = food is null ? await OtherFieldShortfallsAsync(state, review, projection, owner, call).ConfigureAwait(false) : [];
         if (LayoutProtected.FieldAnchor(projection) is not { } anchor)
         {
             return new RoundsFieldResult { Verdict = BuildingReasonNoLayoutPlan };
@@ -161,55 +167,37 @@ public sealed partial class RoundsFieldPlanner
         return await PlaceOthersAsync(NoSpace("field_candidates")).ConfigureAwait(false);
     }
 
-    internal async Task<List<FieldShortfall>> OtherFieldShortfallsAsync(ControlState state, RoundsReview review, ColonyProjection projection, CancellationToken call)
+    /// <summary>
+    /// The economy/resource Need's field shortfalls (hay, social crops, the supply plan's opened fields). While one of
+    /// the Need's field Methods is still open the next waits for it, as the field's growth is what the next shortfall
+    /// reads; the Need's other work (mines, chops, bills) runs beside it.
+    /// </summary>
+    internal async Task<List<FieldShortfall>> OtherFieldShortfallsAsync(ControlState state, RoundsReview review, ColonyProjection projection, IWorkOwner rgoal, CancellationToken call)
     {
         var p = _reviewer.Player;
-        (StandardState? Goal, bool Ready) Ready(ConcernId kind)
-        {
-            var (owner, workable) = p.Journal.Workable(review, kind, call);
-            if (!workable || owner is null)
-            {
-                return (owner, false);
-            }
-            foreach (var method in owner.Methods)
-            {
-                var plan = p.Journal.LoadPlan(method.Plan, call);
-                if (StorePackage.PlanOpen(plan))
-                {
-                    return (owner, false);
-                }
-            }
-            return (owner, true);
-        }
         var output = new List<FieldShortfall>();
+        foreach (var method in rgoal.OpenMethods)
+        {
+            if (method.Method.Value.StartsWith("fields-", StringComparison.Ordinal) && StorePackage.PlanOpen(p.Journal.LoadPlan(method.Plan, call)))
+            {
+                return output;
+            }
+        }
         var (hay, hayOk) = HayShortfall(projection);
         if (hayOk)
         {
-            var (goal, ready) = Ready(PolicyApi.MaintainResource);
-            if (ready && goal is not null)
-            {
-                output.Add(new FieldShortfall(goal, [hay], "hay"));
-            }
+            output.Add(new FieldShortfall(rgoal, [hay], "hay"));
         }
         if (review.BrewingFinished && PolicyApi.BrewingFinished(projection.Facts.Research))
         {
             var (opts, known) = SocialShortfalls(projection);
             if (known && opts.Count > 0)
             {
-                var (goal, ready) = Ready(PolicyApi.MaintainResource);
                 foreach (var opt in opts)
                 {
-                    if (ready && goal is not null)
-                    {
-                        output.Add(new FieldShortfall(goal, [opt], "social"));
-                    }
+                    output.Add(new FieldShortfall(rgoal, [opt], "social"));
                 }
             }
-        }
-        var (rgoal, workable) = Ready(PolicyApi.MaintainResource);
-        if (!workable || rgoal is null)
-        {
-            return output;
         }
         var supply = await _reviewer.ResourceSupplyAsync(state, review, rgoal, call).ConfigureAwait(false);
         foreach (var plan in supply.OpenedFields())

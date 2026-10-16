@@ -251,7 +251,7 @@ review sets `CraftingSpotRetireOwed`, which keeps the goal open until the spot i
 Fixture checks, native scripted pawn outcomes and sustained seasonal campaigns
 are different evidence levels.
 
-These targets bind to `MaintainResource`: its workshop ladder stages missing
+These targets bind to `economy/resource`: its workshop ladder stages missing
 benches, and its storage prerequisite creates covered, reachable allow-listed
 stockpile space before the standing stock bill. Spares default to disabled.
 

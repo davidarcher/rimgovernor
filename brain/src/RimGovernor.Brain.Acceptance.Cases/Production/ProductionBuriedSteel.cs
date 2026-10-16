@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>production/buried-steel</c> and <c>production/buried-steel-stockpile</c> (Go <c>buried_steel.go</c>): mines compacted
 /// steel under a thick mountain roof. test/buried_steel raises a granite block east of the lab colonists with one two-cell
 /// steel deposit on the face (bordering open ground) and one buried five cells in, fogged. The steel runway target
-/// (recurring spend over the horizon) is short from zero, both deposits together hold less than it, so MaintainResource must
+/// (recurring spend over the horizon) is short from zero, both deposits together hold less than it, so the economy/resource Need must
 /// mine the face deposit as supported_roof and tunnel to the buried one and mine it too. Why not a snapshot test: the
 /// roof-support verdict is native ExcavationSafety.Check reading the true map through fog, and the roof holding is vanilla
 /// physics; only a live game shows the roof stay up.
@@ -66,7 +66,7 @@ internal static class ProductionBuriedSteel
             new SustainedObservation
             {
                 // Three in-game days: a face deposit, a five-cell granite corridor and a second deposit for three lab colonists.
-                Watch = new WatchConfig { Watch = TimeSpan.FromMinutes(11), Window = 180000, Concern = PolicyFunctions.MaintainResource.Value },
+                Watch = new WatchConfig { Watch = TimeSpan.FromMinutes(11), Window = 180000, Concern = EconomyFamily.Resource.Value },
                 Prepare = async (h, rep, ct) =>
                 {
                     var before = await h.CallAsync("audit-before", Op, new JsonObject { ["action"] = "audit" }, ct).ConfigureAwait(false);

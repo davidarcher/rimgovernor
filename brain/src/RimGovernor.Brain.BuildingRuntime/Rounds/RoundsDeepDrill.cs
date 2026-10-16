@@ -47,21 +47,23 @@ internal sealed class DeepDrillReading
 public sealed partial class RoundsResourcePlanner
 {
     /// <summary>Deconstructs the first exhausted, undesignated deep drill that has no method yet.</summary>
-    internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(ControlState state, StandardState goal, ColonyProjection f, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(ControlState state, IWorkOwner goal, ColonyProjection f, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         if (!f.DeepResources.TryGetValue(out var deep))
         {
             return (new RoundsResourceResult(), false);
         }
+        var history = reviewer.Player.Journal.OwnerMethodHistory(goal, call);
         foreach (var drill in ExhaustedDrills(deep))
         {
             var prefix = $"deconstruct-drill-{drill.ID}-";
-            var (_, ok) = AdmitSubject(reviewer.Player.Journal, prefix, StandardMethodPlans(goal.History, goal.Standard.Episode, prefix), state.Snapshot, call);
+            var plans = history.Where(m => m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
+            var (_, ok) = AdmitSubject(reviewer.Player.Journal, prefix, plans, state.Snapshot, call);
             if (!ok)
             {
                 continue;
             }
-            var method = NextMethodId(prefix, HistoryMethodIds(goal.History, goal.Standard.Episode));
+            var method = NextMethodId(prefix, [.. history.Select(m => m.Method)]);
             var planId = PlanIds.MintPlanId();
             var action = DomainAction.NewDeconstructionAction(new ActionId(planId.Value + "-0"), new Deconstruction(drill.ID, drill.Definition, drill.Position));
             var spec = new PlanSpec(planId, new PlanRevision(1), [action]);
@@ -72,8 +74,12 @@ public sealed partial class RoundsResourcePlanner
             {
                 throw new ControlException("removeExhaustedDrill: player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge");
             }
-            player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, spec, call);
-            return (new RoundsResourceResult { Verdict = BuildingReasonAdmitted, Plan = planId }, true);
+            var commit = player.Journal.CommitOwnerWork(goal, method, "deconstruct exhausted drill", spec, call);
+            if (commit.Outcome == Sto.ClaimOutcome.Conflict)
+            {
+                continue;
+            }
+            return (new RoundsResourceResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = planId }, true);
         }
         return (new RoundsResourceResult(), false);
     }
@@ -125,7 +131,7 @@ public sealed partial class RoundsResourcePlanner
             finishedNames.Add(new ResearchProjectId(name));
         }
         f = f with { Facts = f.Facts with { Research = Known(new ResearchFacts { Finished = [.. finishedNames] }) } };
-        PlannerSnapshot.RecordStepRead("deepdrill", PolicyApi.MaintainResource, state.Snapshot, f);
+        PlannerSnapshot.RecordStepRead("deepdrill", EconomyFamily.Resource.FilingKey, state.Snapshot, f);
         var output = new DeepDrillReading { Native = deepNative, F = f };
         output.Sites = DeepDrillSites(f, review.ResourceRunwayState(), items);
         if (output.Sites.Count == 0)
@@ -171,7 +177,7 @@ public sealed partial class RoundsResourcePlanner
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var building = new Building("DeepDrill", site.Centre, Rotation.North, "");
-        var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, PolicyApi.PlannerTier(PolicyApi.MaintainResource, Pol.Phase.None));
+        var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, PolicyApi.PlannerTier(EconomyFamily.Resource.FilingKey, Pol.Phase.None));
         var preview = (await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false)).Preview;
         var p = preview.Preview;
         var fk = p.Footprint.TryGetValue(out var footprint);
@@ -195,7 +201,7 @@ public sealed partial class RoundsResourcePlanner
     }
 
     /// <summary>Admits the deep drill placement the supply plan opens, once per site; handled when the planner settled the step.</summary>
-    internal async Task<(RoundsResourceResult Result, bool Handled)> DeepDrillAsync(ControlState state, StandardState goal, RoundsReview review, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsResourceResult Result, bool Handled)> DeepDrillAsync(ControlState state, IWorkOwner goal, RoundsReview review, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var items = await reviewer.ItemFactsAsync(state.Snapshot, call).ConfigureAwait(false);
         if (PolicyApi.DeepDrillingResearch([], review.ResourceRunwayState(), items).Count == 0)
@@ -231,13 +237,9 @@ public sealed partial class RoundsResourcePlanner
             {
                 continue;
             }
-            try
+            if (reviewer.Player.Journal.OwnerMethodPlan(goal, new MethodId(place.Id), call) is not null)
             {
-                reviewer.Player.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, new MethodId(place.Id), call);
                 return (new RoundsResourceResult { Verdict = WaitFor(Cause.MethodUsed, "deep_drill_method") }, true);
-            }
-            catch (NotFoundException)
-            {
             }
             var player = reviewer.Player;
             player.Current(call, epoch);

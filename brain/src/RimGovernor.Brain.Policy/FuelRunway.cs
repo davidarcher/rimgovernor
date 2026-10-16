@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Fuel runway. A refuelable building (a generator, a turret barrel) holds fuel units and burns them at its def's
 // rate; the runway is the fuel it holds and the stock behind it over that burn, against MaintenanceHorizonDays.
-// The shortfall is a forward-projector domain and the items to stock ahead of it are a MaintainResource level in
+// The shortfall is a forward-projector domain and the items to stock ahead of it are an economy/resource level in
 // the Rounder's construction memory, like ClothingRunway.
 
 /// <summary>
@@ -144,7 +144,7 @@ public sealed record FuelProjection
     public IReadOnlyList<string> Gaps { get; init; } = [];
 }
 
-/// <summary>The review's fuel runway: Needs the stock levels MaintainResource must reach, the projection beside them. (Go <c>FuelRunway</c>.)</summary>
+/// <summary>The review's fuel runway: Needs the stock levels the economy/resource Need must reach, the projection beside them. (Go <c>FuelRunway</c>.)</summary>
 public sealed record FuelRunway
 {
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();

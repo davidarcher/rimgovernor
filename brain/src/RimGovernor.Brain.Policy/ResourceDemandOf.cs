@@ -11,7 +11,7 @@ public sealed record DerivedDemand
 
     /// <summary>Free material after construction and reconciled production/native promises; absent keys mean zero.</summary>
     public Fact<IReadOnlyDictionary<Resource, Fact<double>>> MaterialAvailability { get; init; }
-    /// <summary>Every stock level some source asks for, per resource: the targets MaintainResource and the trade stock against.</summary>
+    /// <summary>Every stock level some source asks for, per resource: the targets the economy/resource Need and the trade stock against.</summary>
     public IReadOnlyDictionary<Resource, long> Needs { get; init; } = new Dictionary<Resource, long>();
 
     /// <summary>

@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Go: trade_routine.go. The routine trade goal: while a tradeable caravan stands on the map and the colony has
 // something to buy from it (the medicine shortfall MaintainMedicalReserves already reports, or a component
-// shortfall under the derived component need) or to sell to it (stock above a MaintainResource target),
+// shortfall under the derived component need) or to sell to it (stock above an economy/resource target),
 // RoundsTradePlanner opens one bounded session per caravan and settles it. It is config-only work like a
 // configuration push: a negotiator's conversation, not a development project, so it holds no development slot.
 
@@ -40,7 +40,7 @@ public sealed record WealthFacts(double Items, double Buildings, double Pawns, d
 
 /// <summary>
 /// What the review measured worth trading for: the medicine units MaintainMedicalReserves wants, the components
-/// short of the target, each MaintainResource target's stock above its floor, and each raw-material hoard
+/// short of the target, each the economy/resource Need target's stock above its floor, and each raw-material hoard
 /// WealthSurplus sells down. Retained is the stock every Surplus row keeps after its sale (the target, or the
 /// wealth rule's floor).
 /// </summary>
@@ -56,7 +56,7 @@ public sealed record TradeNeed
 
     public IReadOnlyDictionary<Resource, long> Retained { get; init; } = new Dictionary<Resource, long>();
 
-    /// <summary>Each MaintainResource floor stock is below: a caravan selling it is the catalog's trade method.</summary>
+    /// <summary>Each the economy/resource Need floor stock is below: a caravan selling it is the catalog's trade method.</summary>
     public IReadOnlyList<Amount> Shortfall { get; init; } = [];
 
     /// <summary>Set while the colony can host one more colonist (JoinerCapacity): a caravan offering a slave or prisoner is worth opening for.</summary>

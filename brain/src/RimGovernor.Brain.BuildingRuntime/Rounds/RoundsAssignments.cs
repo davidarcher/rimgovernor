@@ -49,16 +49,6 @@ public sealed class RoundsWorkPlanner
         {
             return new RoundsWorkResult { Verdict = BuildingReasonNoReview };
         }
-        var deficit = false;
-        foreach (var binding in review.Standards)
-        {
-            if (binding.Concern != PolicyApi.MaintainResource)
-            {
-                continue;
-            }
-            var resource = p.Journal.LoadStandard(binding.Standard, call);
-            deficit = resource.Deficit;
-        }
         var (goal, deficitProject) = p.Journal.Workable(review, PolicyApi.EnsureWorkAssignments, call);
         if (goal is null || !deficitProject)
         {
@@ -99,6 +89,8 @@ public sealed class RoundsWorkPlanner
             return Existing(new RoundsWorkResult { Verdict = FieldUnavailable("project_work") });
         }
         var resourceTargets = _reviewer.ResourceTargets(state.Snapshot);
+        // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
+        var deficit = PolicyApi.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered.TryGetValue(out var recovered) && !recovered;
         var targets = RoundsDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear);
         var benchWork = await RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, playerPlans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
         if (!benchWork.TryGetValue(out var benchRows))

@@ -265,10 +265,18 @@ public sealed record ProductionLadderRecord
 
     public ConcernId Concern { get; init; }
 
+    /// <summary>
+    /// Whether <paramref name="owner"/> may own a ladder: none, the military family's equipment Need (#3259), or the economy family's
+    /// resource Need (#3303) under its filing key. A saved ladder of a retired owner is dropped on load; the workshop
+    /// re-records its rung on its next step.
+    /// </summary>
+    public static bool LadderOwner(ConcernId owner) =>
+        owner.Value.Length == 0 || owner == MilitaryFamily.Equipment.FilingKey || owner == EconomyFamily.Resource.FilingKey;
+
     public void Validate()
     {
         World.Validate();
-        DomainException.Require(Concern.Value.Length == 0 || Concern == MilitaryFamily.Equipment.FilingKey || Concern == PolicyFunctions.MaintainResource, "invalid production ladder standard");
+        DomainException.Require(LadderOwner(Concern), "invalid production ladder standard");
         DomainException.Require(
             Tick.Value >= 0 && Families.ValidIdentity(Resource.Value) && (Bench.Length == 0 || Families.ValidIdentity(Bench)) && (Recipe.Length == 0 || Families.ValidIdentity(Recipe)) && Research.Count <= 256,
             "invalid production ladder record"

@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Prisoner medicine: a harvest target holds herbal care at most (the care cap, MedicalCareChanges). A harvest
 // or part recovery that only the care limit blocks (better medicine stocked, no herbal) is refused with a
-// reason naming the limit, and asks MaintainResource for herbal medicine through ResourceNeeds (healroot
+// reason naming the limit, and asks the economy/resource Need for herbal medicine through ResourceNeeds (healroot
 // growing, trade buys).
 
 public static partial class PolicyConstants

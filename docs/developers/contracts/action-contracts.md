@@ -200,7 +200,7 @@ until it arrives.
 **Policy trades** select bounded purchases and surplus sales from the fresh native sheet.
 Each sheet read of an open session also records the trader's priced offers in memory
 ([trade offers](../architecture/supply-model.md#trade-offers)); a resource purchase
-(MaintainResource shortfall, component target) is staged only as far as the Round's supply
+(economy/resource shortfall, component target) is staged only as far as the Round's supply
 plan opened that trader's offer, re-priced by the live sheet and the price floors.
 Purchases carry no unit-price ceiling, target-count cap or per-resource target cap: the silver above the reserve and the trader's stock bound them. selection owns the silver reserve, retained targets and what may sell (food only as the
 authorized crop surplus; gear and animals only through their sale plans) and never stages a
@@ -210,7 +210,7 @@ capacity, and reports the game's refusal text. Unknown or truncated
 inventory prevents selection. A policy with no eligible affordable lines cancels its own
 session without an exchange. Neither cancellation nor acceptance takes a trader quest.
 Trade is routine-only (the `trade` family, its silver reserve and item-wealth-share settings); there is no player trade command. Sales come from stock
-above a MaintainResource target and, once the item share of colony wealth passes
+above a economy/resource target and, once the item share of colony wealth passes
 the item-wealth share, from raw-material hoards (steel, plasteel, gold, uranium,
 jade) sold down to the highest of the target, the economic floor and a retained minimum
 (`policy.WealthSurplus`); an unknown wealth split sells nothing on that rule. Gear

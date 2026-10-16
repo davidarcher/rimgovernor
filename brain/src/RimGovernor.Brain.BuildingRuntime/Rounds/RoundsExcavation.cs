@@ -290,11 +290,11 @@ internal static partial class BuildingRuntimePackage
     }
 
     /// <summary>Cancels the pending excavation actions held for an hour or more by an unsupported roof, a changed geometry or a not-ready hold.</summary>
-    internal static void CancelStalledExcavation(StoreJournal journal, StandardState goal, Tick now, CancellationToken ct)
+    internal static void CancelStalledExcavation(StoreJournal journal, IWorkOwner goal, Tick now, CancellationToken ct)
     {
-        foreach (var method in goal.Methods)
+        foreach (var method in goal.OpenMethods)
         {
-            if (!RoundsBuildingPlanner.IsExcavationMethod(method.MethodId))
+            if (!RoundsBuildingPlanner.IsExcavationMethod(method.Method))
             {
                 continue;
             }

@@ -269,7 +269,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Measures MaintainResource against the generic resource census: the deficit is the worst-covered
+    /// Measures the economy/resource Need against the generic resource census: the deficit is the worst-covered
     /// configured target's shortfall fraction, the same proportion SelectResourceTarget dispatches on. No
     /// configured target is certain recovery; unknown stock stays unknown.
     /// </summary>

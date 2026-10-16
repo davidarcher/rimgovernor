@@ -121,7 +121,7 @@ picks the first rung above the holder's with a throne.
 
 - `MaintainPsylink` (`policy.PsylinkCandidates`): gives a psylink to each available
   colonist with a needs block and no psylink level. The neuroformer is acquired by
-  MaintainResource (stock floor of one, `policy.NeuroformerNeeds`, while a candidate
+  economy/resource (stock floor of one, `policy.NeuroformerNeeds`, while a candidate
   waits, none is held and royalty marks it `craftable` or `tradeable`). With one held,
   `UseItem` targets the colonist, at most twice per colonist per Episode. Level-ups
   (`policy.PsylinkLevelUps`: psycaster below level 6, no royal title) follow
@@ -243,7 +243,7 @@ hunts, forage and butcher bench are Methods of the Need, admitted by their
 batch is admitted beside the first on other cells, hunting and foraging run beside open
 fields, and a batch on a cell an open Method holds is a claim conflict. The food family's
 work step places only the Need's fields; the `fields` clock slot keeps the hay, social and
-`MaintainResource` fields.
+`economy/resource` fields.
 
 **Site types** (`policy.PlanSiteType`, over the planning window `ColonyProjection.Cells`
 and `ColonyProjection.Environment` / `policy.ControlledEnvironment`, observed only and

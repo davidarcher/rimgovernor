@@ -37,7 +37,7 @@ public static partial class PolicyFunctions
     internal static Fact<double> CatalogLabor(CandidateKind kind, long units) =>
         Known(AcquisitionLaborPerUnit.GetValueOrDefault(kind) * Math.Max(units, 1));
 
-    /// <summary>The one-row demand a MaintainResource floor ranks candidates against.</summary>
+    /// <summary>The one-row demand an economy/resource floor ranks candidates against.</summary>
     public static Fact<EquatableArray<ResourceDemand>> ResourceDeficitDemand(Resource resource, long deficit)
     {
         if (deficit <= 0)

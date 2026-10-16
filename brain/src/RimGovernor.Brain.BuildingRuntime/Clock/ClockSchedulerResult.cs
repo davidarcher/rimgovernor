@@ -17,10 +17,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsResult? Rounds { get; set; }
 
-    public RoundsFieldResult? Fields { get; set; }
-
-    public RoundsAcquisitionResult? ResourceAcquisition { get; set; }
-
     public RoundsWorkResult? Work { get; set; }
 
     public RoundsPollutionResult? Pollution { get; set; }
@@ -32,8 +28,6 @@ public sealed class ClockSchedulerResult
     public RoundsLedgerResult? Ledger { get; set; }
 
     public RoundsBuildingResult? Sleeping { get; set; }
-
-    public RoundsBuildingResult? Workshop { get; set; }
 
     public RoundsBuildingResult? Hospital { get; set; }
 
@@ -59,7 +53,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsRecoveryResult? Recovery { get; set; }
 
-    public RoundsResourceResult? Resource { get; set; }
 
     public MaintainShelterResult? MaintainShelter { get; set; }
 
@@ -108,15 +101,12 @@ public sealed class ClockSchedulerResult
     /// <summary>Copies every planner result <paramref name="other"/> holds into this one, leaving the ones it does not.</summary>
     internal void MergeFrom(ClockSchedulerResult other)
     {
-        Fields = other.Fields ?? Fields;
-        ResourceAcquisition = other.ResourceAcquisition ?? ResourceAcquisition;
         Work = other.Work ?? Work;
         Pollution = other.Pollution ?? Pollution;
         MechCharger = other.MechCharger ?? MechCharger;
         GeneBank = other.GeneBank ?? GeneBank;
         Ledger = other.Ledger ?? Ledger;
         Sleeping = other.Sleeping ?? Sleeping;
-        Workshop = other.Workshop ?? Workshop;
         Hospital = other.Hospital ?? Hospital;
         SleepingUpkeep = other.SleepingUpkeep ?? SleepingUpkeep;
         Expansion = other.Expansion ?? Expansion;
@@ -129,7 +119,6 @@ public sealed class ClockSchedulerResult
         Medical = other.Medical ?? Medical;
         Surgery = other.Surgery ?? Surgery;
         Recovery = other.Recovery ?? Recovery;
-        Resource = other.Resource ?? Resource;
         MaintainShelter = other.MaintainShelter ?? MaintainShelter;
         Psylink = other.Psylink ?? Psylink;
         Permits = other.Permits ?? Permits;

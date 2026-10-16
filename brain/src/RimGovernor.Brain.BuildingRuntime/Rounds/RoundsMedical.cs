@@ -224,9 +224,11 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var review = p.Journal.LoadRounds(call);
-        var (supplyGoal, workable) = p.Journal.Workable(review, PolicyFunctions.MaintainResource, call);
-        if (workable && supplyGoal is not null)
+        // The economy/resource Need's supply plan routes medicine to a field when it opened one: its Need owner is
+        // read, not worked, here.
+        if (reviewer.ResourceTargets(state.Snapshot).Count > 0)
         {
+            var supplyGoal = p.Journal.LoadNeed(EconomyFamily.Resource, state.Snapshot, call);
             var supply = await reviewer.ResourceSupplyAsync(state, review, supplyGoal, call).ConfigureAwait(false);
             if (supply.FieldRoute(medicineResource))
             {
