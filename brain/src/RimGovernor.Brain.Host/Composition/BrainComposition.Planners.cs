@@ -144,7 +144,7 @@ public sealed partial class BrainComposition
         {
             // The rooms/art Need's pinned sculpture bills are the ledger's, filed under the Need (#3255).
             reviewer.AddOrderDeclarer(new RoundsArtPlanner(reviewer));
-            // MaintainTrade's export batches are the ledger's too: the silver gap answered with sale goods (#2607).
+            // The economy/trade Need's export batches are the ledger's too: the silver gap answered with sale goods (#3316).
             reviewer.AddOrderDeclarer(new RoundsTradeExportPlanner(reviewer));
         }
         if (fields)
@@ -344,15 +344,16 @@ public sealed partial class BrainComposition
             // The lighting, flooring, art, comfort and gathering toggles compose the rooms family's Needs (#3255).
             families.Add(new RoomsRounds(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsPartySpot, sc.Art, sc.Gathering).Runner());
         }
-        if (research || resourceTargets || acquisition)
+        if (research || resourceTargets || acquisition || sc.Art || trade)
         {
             // The research toggle composes the economy family's research Need (#3263); the resource targets and
             // acquisition toggles its resource Need, whose mines, chops and hunts, hay, social and supply fields
-            // and production bench are the Need's Methods (#3303).
+            // and production bench are the Need's Methods (#3303). The art toggle composes its trade Need, whose
+            // export batches the ledger declares, and the trade toggle its caravan and trade-mission Needs (#3316).
             var resourceSteps = resourceTargets || acquisition
                 ? new EconomyResourceSteps { Resource = cfgResource, Acquisition = cfgResourceAcquisition, Fields = cfgFields, Workshop = cfgWorkshop }
                 : null;
-            families.Add(new EconomyRounds(reviewer, client, research, resourceSteps).Runner());
+            families.Add(new EconomyRounds(reviewer, client, research, resourceSteps, sc.Art, cfgTrade).Runner());
         }
 
         var config = new ClockSchedulerConfig
@@ -372,7 +373,6 @@ public sealed partial class BrainComposition
             Rounds = cfgRounds,
             Routes = cfgRoutes,
             Store = cfgStore,
-            Trade = cfgTrade,
             Work = cfgWork,
         };
         var scheduler = new ClockScheduler(context.Player, client, config, SystemClock.Instance);
@@ -441,7 +441,6 @@ public sealed partial class BrainComposition
         }
 
         Add(sc.Work, EnsureWorkAssignments);
-        Add(sc.Art, MaintainTrade);
         Add(sc.Routes, MaintainRoutes);
         Add(sc.Recovery, RecoverDisasterServices);
         if (sc.DefensiveLayout)
@@ -449,7 +448,6 @@ public sealed partial class BrainComposition
             thresholds = thresholds with { DefensiveLayout = true };
             methods.Add(EnsureDefensiveLayout);
         }
-        Add(sc.Trade, TradeWithCaravan);
         // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
         // food supply's plan, fields and butchery, cooking's kitchen and meal review, equipment's gear census, the
         // rooms family's room census, beauty definitions, floors and sculpture rooms, and psylink's royalty read and
@@ -479,6 +477,16 @@ public sealed partial class BrainComposition
         {
             // The resource Need's derived stock targets and supply plan (#3303).
             needs.Add(EconomyFamily.Resource);
+        }
+        if (sc.Art)
+        {
+            // The trade Need's silver gap and export batches (#3316).
+            needs.Add(EconomyFamily.Trade);
+        }
+        if (sc.Trade)
+        {
+            // The caravan Need's trader census and the trade-mission Need's settlement trips (#3316).
+            needs.AddRange([EconomyFamily.Caravan, EconomyFamily.TradeMission]);
         }
         if (sc.Lighting)
         {

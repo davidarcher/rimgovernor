@@ -292,7 +292,7 @@ the record. #2166 presents traders on the model from the same records.
 
 Browsing is general: the Round marks every tradeable caravan on the census with
 no fresh record `TraderFacts.Unpriced` (`Rounder.markUnpriced`), and
-`TradeRecovered` keeps the TradeWithCaravan Concern standing while one is present,
+`TradeRecovered` keeps the `economy/caravan` Need unmet while one is present,
 whatever the colony needs. The negotiator opens a session, the sheet read
 records the offers and the plan is rebuilt; lines stage only for what the plan
 (or a sale) opened, and otherwise the session is cancelled. A caravan whose

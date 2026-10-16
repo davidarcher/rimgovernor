@@ -32,8 +32,41 @@ internal sealed class ReviewMemory<T>(T empty)
     }
 }
 
+/// <summary>
+/// The trade review the latest review of one world measured (#3316): the silver gap and whether the caravans on the
+/// map are traded out. The economy family's trade and caravan Needs read it; unknown for another world or before the
+/// first review after a restart.
+/// </summary>
+internal sealed class TradeReviewMemory
+{
+    private readonly object _mu = new();
+    private GenerationSnapshot _snapshot;
+    private TradeReview _review = new();
+
+    public void Set(GenerationSnapshot snapshot, TradeReview review)
+    {
+        lock (_mu)
+        {
+            _snapshot = snapshot;
+            _review = review;
+        }
+    }
+
+    /// <summary>The trade review of <paramref name="snapshot"/>'s world; all unknown for another world.</summary>
+    public TradeReview Get(GenerationSnapshot snapshot)
+    {
+        lock (_mu)
+        {
+            return _snapshot != snapshot ? new TradeReview() : _review;
+        }
+    }
+}
+
 public sealed partial class Rounder
 {
+    /// <summary>The latest review's trade measures, read by the economy family's trade and caravan Needs (#3316).</summary>
+    internal TradeReviewMemory TradeMemory { get; } = new();
+
     /// <summary>The stock targets every resource planner dispatches on: the review's demand.</summary>
     internal IReadOnlyDictionary<Resource, long> ResourceTargets(GenerationSnapshot snapshot) => Demand.Get(snapshot).Needs;
 

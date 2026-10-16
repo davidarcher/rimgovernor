@@ -87,9 +87,6 @@ internal static partial class BuildingRuntimePackage
         return found;
     }
 
-    internal static bool MissionAttempted(Sto.StandardState p, string method) =>
-        p.History.Any(row => row.MethodId.Value.StartsWith(method + "-", StringComparison.Ordinal));
-
     internal static Fact<T> MissionOptional<T>(T v, bool known) => known ? Fact.Known(v) : Fact.Unknown<T>();
 
     internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog? catalog, string def, string stat)
@@ -109,57 +106,66 @@ internal static partial class BuildingRuntimePackage
     }
 }
 
+/// <summary>
+/// The mission one economy/trade-mission step drives: the Need's owner, the record it was read from and the mission's
+/// minted id. Its Methods are <c>&lt;phase&gt;-&lt;mission id&gt;</c>, once per mission phase in a load.
+/// </summary>
+internal sealed record MissionStep(Sto.NeedOwner Owner, Sto.TradeMissionsRecord Record, string Id)
+{
+    public MethodId Method(string phase) => new(phase + "-" + Id);
+}
+
 public sealed partial class RoundsTradePlanner
 {
-    internal async Task<(RoundsTradeResult Result, bool Handled)> MissionAsync(ControlState state, Sto.Rounds review, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// The economy/trade-mission Need's work (#3316): with no mission under way, start the settlement trip the supply
+    /// plan proposed; otherwise advance the mission in <c>family/economy/trade_missions</c> one phase edge from the
+    /// world progression read. A mission leaves the record once delivered or ended, which meets the Need.
+    /// </summary>
+    internal async Task<RoundsTradeResult> MissionAsync(NeedWork work, CancellationToken call)
     {
-        if (!state.Enabled)
+        var (state, current, verdict) = Current(call);
+        if (current is not { } review)
         {
-            return (new RoundsTradeResult { Verdict = BuildingReasonDisabled }, true);
+            return new RoundsTradeResult { Verdict = verdict };
         }
         if (Native is not ITradeMissionNative source)
         {
-            return (new RoundsTradeResult(), false);
+            return new RoundsTradeResult { Verdict = FieldUnavailable("world_progression") };
         }
         var player = Reviewer.Player;
-        var projects = player.Journal.OpenStandards(Concerns.TradeMission, call);
-        if (projects.Count == 0)
+        var record = player.Journal.LoadTradeMissions(Player.PlayerWorld(state.Snapshot), call);
+        if (record.Missions.Count == 0)
         {
-            return CreateMission(state, review, call);
+            return CreateMission(record, call);
         }
-        var project = projects[0];
-        var m = project.Standard.Mission ?? throw new DomainException("standard carries no trade mission");
+        var step = new MissionStep(work.Owner, record, record.Missions[0].Id);
+        var m = record.Missions[0].Mission;
         var (world, _) = await source.ReadWorldProgressionAsync(Boundary.Identity(state.Snapshot), false, call).ConfigureAwait(false);
         if (!TradeMissionCurrentRead(state.Snapshot, world))
         {
             throw new ControlException("mission: world progression read is not current");
         }
-        project = player.Journal.ReviewStandard(project.Standard.Id, project.Revision, state.Snapshot, Finding.Unmet, call);
         // Shared Hands owns dispatch and uncertain work. Never create a second formation or purchase while its
         // method remains live.
-        foreach (var method in project.Methods)
+        if (OpenWork(work.Owner, call))
         {
-            var plan = player.Journal.LoadPlan(method.Plan, call);
-            if (StorePackage.PlanOpen(plan))
-            {
-                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
-            }
+            return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
         }
         var caravan = MissionCaravan(m, world);
         if (m.Phase == TradeMissionPhase.Planned)
         {
             var (observedPhase, _, observed) = TradeMissions.TradeMissionDepartureEvidence(m, world);
-            if (observed) return MissionRecord(project, m with { Phase = observedPhase }, call);
-            return (new RoundsTradeResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
-                "Caravan packing and departure require shared forecast labor admission.") }, true);
+            if (observed) return MissionRecord(step, m with { Phase = observedPhase }, call);
+            return new RoundsTradeResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
+                "Caravan packing and departure require shared forecast labor admission.") };
         }
         if (m.Phase is TradeMissionPhase.Departing or TradeMissionPhase.Outbound)
         {
             var (phase, _, known) = TradeMissions.TradeMissionDepartureEvidence(m, world);
             if (known && phase != m.Phase)
             {
-                m = m with { Phase = phase };
-                return MissionRecord(project, m, call);
+                return MissionRecord(step, m with { Phase = phase }, call);
             }
         }
         if (caravan is null)
@@ -170,50 +176,27 @@ public sealed partial class RoundsTradePlanner
                 var (cargo, _) = await source.ReadPawnCargoAsync(Boundary.Identity(state.Snapshot), crew, call).ConfigureAwait(false);
                 if (TradeMissions.TradeMissionDelivered(m, world, cargo))
                 {
-                    m = m with { Phase = TradeMissionPhase.Delivered };
+                    return MissionRecord(step, m with { Phase = TradeMissionPhase.Delivered }, call);
                 }
-                else if (!m.PurchaseCommitted)
+                if (!m.PurchaseCommitted)
                 {
-                    m = m with { Phase = TradeMissionPhase.Ended };
+                    return MissionRecord(step, m with { Phase = TradeMissionPhase.Ended }, call);
                 }
-                else
-                {
-                    // Vanilla unloads individually after home entry. If a read missed held cargo, delivery
-                    // remains unknown; loose stock is no substitute.
-                    return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
-                }
-                var (recorded, _) = MissionRecord(project, m, call);
-                var saved = player.Journal.LoadStandard(project.Standard.Id, call);
-                player.Journal.ReviewStandard(saved.Standard.Id, saved.Revision, state.Snapshot, Finding.Met, call);
-                return (recorded, true);
+                // Vanilla unloads individually after home entry. If a read missed held cargo, delivery
+                // remains unknown; loose stock is no substitute.
+                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
             }
             // Crew explicitly dead or absent everywhere ends without delivery.
-            var visible = false;
-            foreach (var row in world.Maps)
-            {
-                visible = visible || m.Crew.Any(id => row.PawnIds.Contains(id.Value));
-            }
-            foreach (var row in world.Assemblies)
-            {
-                visible = visible || m.Crew.Any(id => row.PawnIds.Contains(id.Value));
-            }
-            foreach (var row in world.Caravans)
-            {
-                visible = visible || m.Crew.Any(id => row.PawnIds.Contains(id.Value));
-            }
-            if (!visible)
-            {
-                m = m with { Phase = TradeMissionPhase.Ended };
-                var (recorded, _) = MissionRecord(project, m, call);
-                var saved = player.Journal.LoadStandard(project.Standard.Id, call);
-                player.Journal.ReviewStandard(saved.Standard.Id, saved.Revision, state.Snapshot, Finding.Met, call);
-                return (recorded, true);
-            }
-            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+            var visible = world.Maps.Any(row => m.Crew.Any(id => row.PawnIds.Contains(id.Value)))
+                || world.Assemblies.Any(row => m.Crew.Any(id => row.PawnIds.Contains(id.Value)))
+                || world.Caravans.Any(row => m.Crew.Any(id => row.PawnIds.Contains(id.Value)));
+            return visible
+                ? new RoundsTradeResult { Verdict = BuildingReasonExistingWork }
+                : MissionRecord(step, m with { Phase = TradeMissionPhase.Ended }, call);
         }
         if (m.Phase == TradeMissionPhase.Buying)
         {
-            return await MissionTradeAsync(state, review, project, m, caravan, call, epoch).ConfigureAwait(false);
+            return await MissionTradeAsync(state, review, step, m, caravan, call, work.Epoch).ConfigureAwait(false);
         }
         if (m.Phase == TradeMissionPhase.Returning)
         {
@@ -221,26 +204,25 @@ public sealed partial class RoundsTradePlanner
             var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
             if (session.Trader == target.Key())
             {
-                if (MissionAttempted(project, "trade-end"))
+                if (MissionAttempted(step, "trade-end", call))
                 {
-                    return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+                    return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
                 }
                 var value = Trade.NewTradeEnd(target.Key(), m.Negotiator, TradeEndKind.Cancel, false).WithParticipant(target);
-                return MissionTradeCommit(state, project, m, value, call, epoch);
+                return MissionTradeCommit(state, step, m, value, call, work.Epoch);
             }
             if (caravan.Moving && caravan.Destination == m.HomeTile)
             {
-                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
             }
             if (!TradeMissions.TradeMissionReturnSafe(m, caravan))
             {
-                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
             }
-            CaravanDeparture? departure;
-            var departureValid = CaravanDeparture.TryCreate(m.Crew, [], m.HomeTile, out departure);
-            if (MissionAttempted(project, "trade-return"))
+            var departureValid = CaravanDeparture.TryCreate(m.Crew, [], m.HomeTile, out var departure);
+            if (MissionAttempted(step, "trade-return", call))
             {
-                return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
             }
             if (!departureValid)
             {
@@ -248,15 +230,20 @@ public sealed partial class RoundsTradePlanner
             }
             var id = PlanIds.MintPlanId();
             var action = DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-home"), departure! with { Mode = CaravanDepartureMode.ExistingRoute });
-            return MissionCommit(state, project, m, id, action, "trade-return", call, epoch);
+            return MissionCommit(state, step, m, id, action, "trade-return", call, work.Epoch);
         }
-        return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+        return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
     }
 
-    internal (RoundsTradeResult Result, bool Handled) MissionRecord(Sto.StandardState p, TradeMission m, CancellationToken ct)
+    /// <summary>Whether the mission's <paramref name="phase"/> Method was committed in this load.</summary>
+    private bool MissionAttempted(MissionStep step, string phase, CancellationToken ct) =>
+        Reviewer.Player.Journal.OwnerMethodPlan(step.Owner, step.Method(phase), ct) is not null;
+
+    /// <summary>Records the mission's new phase; one that is over leaves the record and releases its acquisition claim.</summary>
+    internal RoundsTradeResult MissionRecord(MissionStep step, TradeMission m, CancellationToken ct)
     {
-        Reviewer.Player.Journal.RecordStandard(p.Standard.Id, p.Revision, m, ct);
-        if (m.Phase is TradeMissionPhase.Delivered or TradeMissionPhase.Ended)
+        Reviewer.Player.Journal.SaveTradeMissions(step.Record.With(step.Id, m), ct);
+        if (m.Over)
         {
             var memory = Reviewer.TradeAcquisition;
             lock (memory.Mu)
@@ -267,16 +254,11 @@ public sealed partial class RoundsTradePlanner
                 }
             }
         }
-        return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+        return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
     }
 
-    internal (RoundsTradeResult Result, bool Handled) MissionCommit(
-        ControlState state,
-        Sto.StandardState p,
-        TradeMission m,
-        PlanId id,
-        DomainAction a,
-        string method, CancellationToken call, CancellationToken epoch)
+    /// <summary>Commits one mission phase as the Need's Method, with the mission intent it carries in the same transaction.</summary>
+    internal RoundsTradeResult MissionCommit(ControlState state, MissionStep step, TradeMission m, PlanId id, DomainAction a, string phase, CancellationToken call, CancellationToken epoch)
     {
         var plan = new PlanSpec(id, new PlanRevision(1), [a]);
         Reviewer.Player.Current(call, epoch);
@@ -284,21 +266,23 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException("missionCommit: session state changed");
         }
-        Reviewer.Player.Journal.CommitMethodRecord(p.Standard.Id, p.Revision, new MethodId(string.Create(CultureInfo.InvariantCulture, $"{method}-{p.Admitted}")), "", plan, m, call);
-        return (new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
+        var commit = Reviewer.Player.Journal.CommitTradeMissionMethod(step.Owner.Need, state.Snapshot, step.Method(phase), "", plan, step.Record.With(step.Id, m), call);
+        return commit.Outcome == Sto.ClaimOutcome.Admitted
+            ? new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id }
+            : new RoundsTradeResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(new Sto.WorkCommit(commit.Outcome, commit.Conflict)) };
     }
 
-    internal (RoundsTradeResult Result, bool Handled) MissionTradeCommit(ControlState state, Sto.StandardState p, TradeMission m, Trade value, CancellationToken call, CancellationToken epoch)
+    internal RoundsTradeResult MissionTradeCommit(ControlState state, MissionStep step, TradeMission m, Trade value, CancellationToken call, CancellationToken epoch)
     {
         var id = PlanIds.MintPlanId();
         var a = DomainAction.NewTradeAction(new ActionId(id.Value + "-trade"), value);
-        return MissionCommit(state, p, m, id, a, "trade-" + Wire.Name(value.Kind), call, epoch);
+        return MissionCommit(state, step, m, id, a, "trade-" + Wire.Name(value.Kind), call, epoch);
     }
 
-    internal async Task<(RoundsTradeResult Result, bool Handled)> MissionTradeAsync(
+    internal async Task<RoundsTradeResult> MissionTradeAsync(
         ControlState state,
         Sto.Rounds review,
-        Sto.StandardState p,
+        MissionStep step,
         TradeMission m,
         CaravanJourney caravan, CancellationToken call, CancellationToken epoch)
     {
@@ -307,32 +291,30 @@ public sealed partial class RoundsTradePlanner
         var (session, _) = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         if (m.PurchaseCommitted)
         {
-            m = m with { Phase = TradeMissionPhase.Returning };
-            return MissionRecord(p, m, call);
+            return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
         }
         if (session.Trader.Length != 0 && session.Trader != trader)
         {
-            return (new RoundsTradeResult(), false);
+            // Native holds another session (a visiting caravan's, the economy/caravan Need's): the mission waits it out.
+            return new RoundsTradeResult { Verdict = WaitFor(Pol.Cause.ExistingWork, "trade_session") };
         }
         if (session.Trader != trader)
         {
-            if (MissionAttempted(p, "trade-open"))
+            if (MissionAttempted(step, "trade-open", call))
             {
-                m = m with { Phase = TradeMissionPhase.Returning };
-                return MissionRecord(p, m, call);
+                return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
             }
             var (census, _) = await Native.ListTradersAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             if (!census.Traders.Any(row => row.Id == trader && row.CanTrade))
             {
-                m = m with { Phase = TradeMissionPhase.Returning };
-                return MissionRecord(p, m, call);
+                return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
             }
             var open = Trade.NewTradeOpen(trader, m.Negotiator, false).WithParticipant(target);
-            return MissionTradeCommit(state, p, m, open, call, epoch);
+            return MissionTradeCommit(state, step, m, open, call, epoch);
         }
         if (!session.Open)
         {
-            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+            return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
         }
         var (sheet, _) = await Native.ReadTradeSheetAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         IReadOnlyList<TradeLine> lines;
@@ -343,34 +325,31 @@ public sealed partial class RoundsTradePlanner
         }
         catch (Pol.TradeMissionFoodDemandUnknownException)
         {
-            return (new RoundsTradeResult { Verdict = FieldUnavailable("food_plan") }, true);
+            return new RoundsTradeResult { Verdict = FieldUnavailable("food_plan") };
         }
         if (sheet.Trader != trader || !sheet.CanTradeNow || lines.Count == 0)
         {
-            m = m with { Phase = TradeMissionPhase.Returning };
-            return MissionRecord(p, m, call);
+            return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
         }
         if (TradeStagedLines(sheet).Count == 0)
         {
-            if (MissionAttempted(p, "trade-set_lines"))
+            if (MissionAttempted(step, "trade-set_lines", call))
             {
-                m = m with { Phase = TradeMissionPhase.Returning };
-                return MissionRecord(p, m, call);
+                return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
             }
             var set = Trade.NewTradeSetLines(trader, m.Negotiator, lines, false).WithParticipant(target);
-            return MissionTradeCommit(state, p, m, set, call, epoch);
+            return MissionTradeCommit(state, step, m, set, call, epoch);
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Rows);
         if (!SameTradeLines(lines, TradeStagedLines(sheet)) || !sheet.ColonyCanAfford
             || !Pol.PolicyFunctions.TradeMissionPaymentSafe(m.SilverBudget, MissionOptional(silver, known), MissionOptional(sheet.Balance, sheet.BalanceKnown))
             || sheet.DealSignature.Length == 0)
         {
-            m = m with { Phase = TradeMissionPhase.Returning };
-            return MissionRecord(p, m, call);
+            return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
         }
         m = m with { ReturnGoods = EquatableArray.From(goods), PurchaseCommitted = true };
         var accept = Trade.NewTradeAccept(trader, m.Negotiator, sheet.DealSignature, false, false).WithParticipant(target);
-        return MissionTradeCommit(state, p, m, accept, call, epoch);
+        return MissionTradeCommit(state, step, m, accept, call, epoch);
     }
 
     /// <summary>
@@ -436,29 +415,40 @@ public sealed partial class RoundsTradePlanner
         });
     }
 
-    internal (RoundsTradeResult Result, bool Handled) CreateMission(ControlState state, Sto.Rounds review, CancellationToken ct)
+    /// <summary>
+    /// Starts the settlement trip the supply plan proposed for food or resources: claims the acquisition and records
+    /// the planned mission in <c>family/economy/trade_missions</c> under a minted id.
+    /// </summary>
+    internal RoundsTradeResult CreateMission(Sto.TradeMissionsRecord record, CancellationToken ct)
     {
         foreach (var owner in new[] { "food", "resources" })
         {
-            var proposal = Reviewer.TradeAcquisitionPlan(owner).Proposal;
-            if (proposal is null || proposal.Option.Kind != Pol.TradeAcquisitionKind.Settlement)
+            if (ProposedMission(owner) is not { } proposed || !Reviewer.ClaimTradeAcquisition(owner, proposed.Option))
             {
                 continue;
             }
-            TradeMission? m;
-            lock (Reviewer.TradeAcquisition.Mu)
-            {
-                Reviewer.TradeAcquisition.Missions.TryGetValue(proposal.Option.ID, out m);
-            }
-            if (m is null || !Reviewer.ClaimTradeAcquisition(owner, proposal.Option.ID))
-            {
-                continue;
-            }
-            var id = new StandardId("trade-mission-" + PlanIds.MintPlanId().Value);
-            var standard = Standard.NewTradeMissionStandard(id, state.Snapshot, m);
-            Reviewer.Player.Journal.SeedStandard(standard, ct);
-            return (new RoundsTradeResult { Verdict = BuildingReasonExistingWork }, true);
+            Reviewer.Player.Journal.SaveTradeMissions(record.With(PlanIds.MintPlanId().Value, proposed.Mission), ct);
+            return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
         }
-        return (new RoundsTradeResult(), false);
+        return new RoundsTradeResult { Verdict = BuildingReasonNoDeficit };
+    }
+
+    /// <summary>
+    /// Whether the supply plan proposes a settlement trip for food or resources with a planned mission: the
+    /// economy/trade-mission Need's want while no mission is under way.
+    /// </summary>
+    internal bool MissionProposed() => ProposedMission("food") is not null || ProposedMission("resources") is not null;
+
+    private (string Option, TradeMission Mission)? ProposedMission(string owner)
+    {
+        var proposal = Reviewer.TradeAcquisitionPlan(owner).Proposal;
+        if (proposal is null || proposal.Option.Kind != Pol.TradeAcquisitionKind.Settlement)
+        {
+            return null;
+        }
+        lock (Reviewer.TradeAcquisition.Mu)
+        {
+            return Reviewer.TradeAcquisition.Missions.TryGetValue(proposal.Option.ID, out var m) && m is not null ? (proposal.Option.ID, m) : null;
+        }
     }
 }

@@ -2410,6 +2410,33 @@ internal sealed class CreepJoinersRecordConverter : ObjectCodec<CreepJoinersReco
     }
 }
 
+internal sealed class TradeMissionEntryConverter : ObjectCodec<TradeMissionEntry>
+{
+    protected override TradeMissionEntry Read(JsonElement e, Codecs o) => new(e.Str("Id"), e.Get<TradeMission>("Mission", o));
+
+    protected override void WriteFields(Utf8JsonWriter w, TradeMissionEntry v, Codecs o)
+    {
+        w.WriteString("Id", v.Id);
+        w.Put("Mission", v.Mission, o);
+    }
+}
+
+internal sealed class TradeMissionsRecordConverter : ObjectCodec<TradeMissionsRecord>
+{
+    protected override TradeMissionsRecord Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            World = e.Get<World>("World", o),
+            Missions = e.Get<IReadOnlyList<TradeMissionEntry>>("Missions", o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, TradeMissionsRecord v, Codecs o)
+    {
+        w.Put("World", v.World, o);
+        w.Put("Missions", v.Missions, o);
+    }
+}
+
 internal sealed class StartingSupplyConverter : ObjectCodec<StartingSupply>
 {
     protected override StartingSupply Read(JsonElement e, Codecs o) =>

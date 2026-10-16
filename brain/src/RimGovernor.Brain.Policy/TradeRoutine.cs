@@ -292,7 +292,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// TradeWithCaravan's recovered fact: known true when no tradeable or arriving caravan is present or nothing
+    /// The economy/caravan Need's recovered fact: known true when no tradeable or arriving caravan is present or nothing
     /// is worth trading, known false while both hold or while a tradeable caravan is unpriced (the always-browse
     /// session), unknown while the need is. A caravan still travelling counts as present so the goal stands (and
     /// the planner keeps the clock moving) until it arrives. An unknown trader census (a source without a trader

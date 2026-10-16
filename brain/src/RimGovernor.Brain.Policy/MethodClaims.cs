@@ -35,7 +35,9 @@ public static partial class PolicyFunctions
     /// <item>research selection: the project (<c>research/&lt;project&gt;</c>);</item>
     /// <item>prisoner interaction modes: <c>prisoner/&lt;pawn&gt;</c>;</item>
     /// <item>tends and rescues: both pawns (<c>care/&lt;pawn&gt;</c>), so one patient has one care order open and a
-    /// doctor or rescuer one patient.</item>
+    /// doctor or rescuer one patient;</item>
+    /// <item>trade phases: the session's participant (<c>trade/&lt;participant&gt;</c>);</item>
+    /// <item>caravan departures: each crew pawn (<c>caravan/&lt;pawn&gt;</c>).</item>
     /// </list>
     /// Any other kind claims nothing beyond its MethodId.
     /// </summary>
@@ -139,5 +141,7 @@ public static partial class PolicyFunctions
         else if (a.PrisonerInteraction is { } prisoner) yield return "prisoner/" + prisoner.Pawn.Value;
         else if (a.Tend is { } tend) { yield return "care/" + tend.Doctor.Value; yield return "care/" + tend.Patient.Value; }
         else if (a.Rescue is { } rescue) { yield return "care/" + rescue.Rescuer.Value; yield return "care/" + rescue.Patient.Value; }
+        else if (a.Trade is { } trade) yield return "trade/" + trade.Participant.Key();
+        else if (a.CaravanDeparture is { } departure) { foreach (var pawn in departure.Crew) yield return "caravan/" + pawn.Value; }
     }
 }

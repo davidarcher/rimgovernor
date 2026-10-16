@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -9,16 +10,26 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// Saved <c>standard/&lt;id&gt;</c> rows across a save and reload (#3249): the review after a load mints new
-/// load-token-hashed ids, so a routine row is never re-bound and is no longer re-inserted. Trade missions and
-/// Record-carrying rows still load.
+/// load-token-hashed ids, so a routine row is never re-bound and is no longer re-inserted. Record-carrying rows
+/// still load; an older save's trade-mission Standard is dropped, its mission now the
+/// <c>family/economy/trade_missions</c> record (#3316, decision 12).
 /// </summary>
 public sealed class OrphanStandardTests
 {
+    private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
+
+    private static TradeMission Mission(GenerationSnapshot world) => new()
+    {
+        HomeColony = world.Colony, HomeMap = world.Map, HomeTile = 1, Settlement = "settlement", SettlementTile = 2,
+        Crew = [new("a")], Negotiator = new("a"), SilverBudget = 10, Demand = [new("Rice", 5)], Pack = [new("Silver", 10)],
+        Phase = TradeMissionPhase.Outbound, ReturnHome = true,
+    };
+
     [Fact]
-    public void ReloadNeverRebindsSavedRoutineRowsAndKeepsOnlyRecordsAndMissions()
+    public void ReloadNeverRebindsSavedRoutineRowsAndKeepsOnlyRecords()
     {
         var ct = TestContext.Current.CancellationToken;
-        var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
+        var world = World;
         var facts = WorkResourceTestFacts.Create("a", "b");
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-orphan-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = source.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -28,20 +39,12 @@ public sealed class OrphanStandardTests
             [new(PawnActivityKind.Deliver, "stack", "", "", 1, 500) { Destination = new(2, 2) }])]));
         source.CommitMethodRecord(ledger.Standard.Id, ledger.Revision, new("record-method"), "",
             new PlanSpec(new("record-plan"), new(1), [delivery]), "{\"kept\":true}", ct);
-        var mission = new TradeMission
-        {
-            HomeColony = world.Colony, HomeMap = world.Map, HomeTile = 1, Settlement = "settlement", SettlementTile = 2,
-            Crew = [new("a")], Negotiator = new("a"), SilverBudget = 10, Demand = [new("Rice", 5)], Pack = [new("Silver", 10)],
-            Phase = TradeMissionPhase.Planned, ReturnHome = true,
-        };
-        source.SeedStandard(Standard.NewTradeMissionStandard(new("trade-mission-1"), world, mission), ct);
 
         var saved = source.GovernorStateBlobs(ct);
         var savedIds = saved.Keys.Where(k => k.StartsWith(Journal.GovernorStandardKeyPrefix, StringComparison.Ordinal))
             .Select(k => k[Journal.GovernorStandardKeyPrefix.Length..]).ToHashSet(StringComparer.Ordinal);
         Assert.Contains(ledger.Standard.Id.Value, savedIds);
-        Assert.Contains("trade-mission-1", savedIds);
-        Assert.True(savedIds.Count > 2);
+        Assert.True(savedIds.Count > 1);
 
         // The load sequence (GovernorState.WorldRebuild): standards, families, then rounds reset, then a review.
         using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-orphan-" + Guid.NewGuid().ToString("N") + ".db"), ct);
@@ -56,11 +59,63 @@ public sealed class OrphanStandardTests
         Assert.DoesNotContain(after.Standards, s => savedIds.Contains(s.Standard.Id.Value));
         Assert.All(after.Standards, s => Assert.Equal(reloaded.Load, s.Standard.Snapshot.Load));
 
-        // Only the trade mission and the Record row were re-inserted.
+        // Only the Record row was re-inserted.
         var kept = loaded.GovernorStateBlobs(ct).Keys.Where(k => k.StartsWith(Journal.GovernorStandardKeyPrefix, StringComparison.Ordinal))
-            .Select(k => k[Journal.GovernorStandardKeyPrefix.Length..]).Where(savedIds.Contains).Order(StringComparer.Ordinal).ToArray();
-        Assert.Equal(new[] { ledger.Standard.Id.Value, "trade-mission-1" }.Order(StringComparer.Ordinal), kept);
+            .Select(k => k[Journal.GovernorStandardKeyPrefix.Length..]).Where(savedIds.Contains).ToArray();
+        Assert.Equal(new[] { ledger.Standard.Id.Value }, kept);
         Assert.Equal("{\"kept\":true}", loaded.LoadStandard(ledger.Standard.Id, ct).Standard.Record);
-        Assert.Single(loaded.OpenStandards(Concerns.TradeMission, ct));
+    }
+
+    [Fact]
+    public void TradeMissionsRecordSurvivesSaveAndReload()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-missions-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        var home = new Store.World(World.Colony, World.Load, World.Map);
+        source.SaveTradeMissions(new TradeMissionsRecord { World = home }.With("m-1", Mission(World)), ct);
+
+        var saved = source.GovernorStateBlobs(ct);
+        Assert.Contains(Journal.GovernorTradeMissionsKey, saved.Keys);
+
+        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-missions-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        loaded.RebuildStandards(saved, null, ct);
+        loaded.RebuildFamilies(saved, ct);
+        var reloaded = home with { Load = new("load-2") };
+        var record = loaded.LoadTradeMissions(reloaded, ct);
+        var entry = Assert.Single(record.Missions);
+        Assert.Equal("m-1", entry.Id);
+        Assert.Equal(Mission(World), entry.Mission);
+        Assert.Equal(reloaded, record.World);
+
+        // Another colony's save holds none of this colony's missions; a mission that is over leaves the record.
+        Assert.Empty(loaded.LoadTradeMissions(home with { Colony = new("other") }, ct).Missions);
+        loaded.SaveTradeMissions(record.With("m-1", Mission(World) with { Phase = TradeMissionPhase.Ended }), ct);
+        Assert.Empty(loaded.LoadTradeMissions(reloaded, ct).Missions);
+        Assert.DoesNotContain(Journal.GovernorTradeMissionsKey, loaded.GovernorStateBlobs(ct).Keys);
+    }
+
+    [Fact]
+    public void OldSaveTradeMissionStandardBlobLoadsAndIsDropped()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        source.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a") }, ct);
+        var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct), StringComparer.Ordinal);
+        var routine = saved.First(kv => kv.Key.StartsWith(Journal.GovernorStandardKeyPrefix, StringComparison.Ordinal));
+
+        // An older save's trade-mission Standard: Kind trade-mission, its intent in a Mission field the codec no longer reads.
+        var blob = JsonNode.Parse(routine.Value)!;
+        var standard = blob["standard"]!;
+        standard["ID"] = "trade-mission-1";
+        standard["Kind"] = "trade-mission";
+        standard["Mission"] = new JsonObject { ["HomeColony"] = "colony", ["Settlement"] = "settlement", ["Phase"] = "outbound" };
+        saved[Journal.GovernorStandardKeyPrefix + "trade-mission-1"] = blob.ToJsonString();
+
+        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        loaded.RebuildStandards(saved, null, ct);
+        loaded.RebuildFamilies(saved, ct);
+
+        Assert.DoesNotContain(loaded.GovernorStateBlobs(ct).Keys, k => k == Journal.GovernorStandardKeyPrefix + "trade-mission-1");
+        Assert.Empty(loaded.LoadTradeMissions(new Store.World(World.Colony, new("load-2"), World.Map), ct).Missions);
     }
 }

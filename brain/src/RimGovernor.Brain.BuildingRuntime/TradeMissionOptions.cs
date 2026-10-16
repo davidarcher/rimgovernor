@@ -38,8 +38,8 @@ public sealed partial class Rounder
         }
         try
         {
-            var projects = Player.Journal.OpenStandards(Concerns.TradeMission, ct);
-            if (projects.Count != 0)
+            // One mission at a time: none is offered while the economy/trade-mission Need has one under way.
+            if (Player.Journal.LoadTradeMissions(Player.PlayerWorld(world), ct).Missions.Count != 0)
             {
                 return [];
             }

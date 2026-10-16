@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What an art bill sizes against: the impressiveness gap of the first owed room and the largest square side
 /// (1-3) free in it, the colony stock by definition, and each artist's Artistic level. Sculptures to sell are
-/// MaintainTrade's (export_orders.go), not art demand.
+/// the economy/trade Need's (export_orders.go), not art demand.
 /// </summary>
 public sealed record ArtDemand
 {

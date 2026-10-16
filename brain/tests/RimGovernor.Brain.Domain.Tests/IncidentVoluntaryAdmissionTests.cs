@@ -19,7 +19,7 @@ public sealed class IncidentVoluntaryAdmissionTests
     {
         var trade = Trade.NewTradeOpen("trader", new("pawn"), false)
             .WithParticipant(new(kind, "trader", kind == TradeParticipantKind.Settlement ? "caravan" : ""));
-        Verify(TradeWithCaravan, DomainAction.NewTradeAction(new("action"), trade), allowed, "unsupported_shared_trade_labor");
+        VerifyCaravan(DomainAction.NewTradeAction(new("action"), trade), allowed, "unsupported_shared_trade_labor");
     }
 
     [Theory]
@@ -35,7 +35,7 @@ public sealed class IncidentVoluntaryAdmissionTests
             TradeOperationKind.End => Trade.NewTradeEnd("trader", new("pawn"), TradeEndKind.Cancel, false),
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
-        Verify(TradeWithCaravan, DomainAction.NewTradeAction(new("action"), trade), true, "");
+        VerifyCaravan(DomainAction.NewTradeAction(new("action"), trade), true, "");
     }
 
     [Theory]
@@ -47,6 +47,31 @@ public sealed class IncidentVoluntaryAdmissionTests
             AbilityTarget.AbilityPawnTarget(new("target")));
         Verify(combat ? ActiveCombat : EnsureMood, DomainAction.NewAbilityAction(new("action"), ability),
             combat, "unsupported_forecast_mood_cast");
+    }
+
+    /// <summary>The economy/caravan Need (#3316) admits a trade phase as its Method, or refuses it with <paramref name="reason"/> and binds nothing.</summary>
+    private static void VerifyCaravan(DomainAction action, bool allowed, string reason)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-caravan-admission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
+            Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
+        var plan = new PlanSpec(new("plan"), new(1), [action]);
+        if (allowed)
+        {
+            var committed = journal.CommitClaimedMethod(EconomyFamily.Caravan, World, new("method"), "", plan, ct);
+            Assert.Equal(ClaimOutcome.Admitted, committed.Outcome);
+            Assert.Equal(plan.Id, Assert.Single(committed.Owner.Methods).Plan);
+            // The same MethodId while its plan is open continues; nothing is bound twice.
+            Assert.Equal(ClaimOutcome.Continued, journal.CommitClaimedMethod(EconomyFamily.Caravan, World, new("method"), "", new PlanSpec(new("plan-2"), new(1), [action]), ct).Outcome);
+        }
+        else
+        {
+            var error = Assert.Throws<NotAdmittedException>(() =>
+                journal.CommitClaimedMethod(EconomyFamily.Caravan, World, new("method"), "", plan, ct));
+            Assert.Contains(reason, error.Message);
+            Assert.Empty(journal.LoadNeed(EconomyFamily.Caravan, World, ct).Methods);
+        }
     }
 
     private static void Verify(ConcernId kind, DomainAction action, bool allowed, string reason)

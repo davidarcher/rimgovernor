@@ -37,14 +37,12 @@ public sealed partial class Store
         if (owner is StandardState assignments && assignments.Standard.Kind == EnsureWorkAssignments
             && plan.Actions.Any(a => a.PawnSettings is { Kind: SettingKind.SelfTend }))
             throw new NotAdmittedException("unsupported_assignment_self_tend_policy");
-        if (owner is IncidentState incident)
-        {
-            if (incident.Incident.Kind == TradeWithCaravan && plan.Actions.Any(a => a.Trade is
-                { Kind: TradeOperationKind.Open, Participant.Kind: not TradeParticipantKind.Settlement }))
-                throw new NotAdmittedException("unsupported_shared_trade_labor");
-            if (incident.Incident.Kind == EnsureMood && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
-                throw new NotAdmittedException("unsupported_forecast_mood_cast");
-        }
+        // A visiting trader's session draws a negotiator off the shared forecast; only a mission's settlement trade is ours.
+        if (owner is NeedOwner { Need: var held } && held == EconomyFamily.Caravan && plan.Actions.Any(a => a.Trade is
+            { Kind: TradeOperationKind.Open, Participant.Kind: not TradeParticipantKind.Settlement }))
+            throw new NotAdmittedException("unsupported_shared_trade_labor");
+        if (owner is IncidentState incident && incident.Incident.Kind == EnsureMood && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
+            throw new NotAdmittedException("unsupported_forecast_mood_cast");
         AdmitBillMethod(tx, owner, plan);
         AdmitZoneMethod(tx, owner, plan);
         AdmitAcquisitionMethod(tx, owner, plan);

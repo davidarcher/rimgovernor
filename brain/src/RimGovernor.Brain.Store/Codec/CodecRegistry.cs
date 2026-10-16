@@ -236,6 +236,8 @@ internal static class CodecRegistry
         codecs.Register(new SoldierSquadRecordConverter());
         codecs.Register(new IdeologyReformRecordConverter());
         codecs.Register(new CreepJoinersRecordConverter());
+        codecs.Register(new TradeMissionEntryConverter());
+        codecs.Register(new TradeMissionsRecordConverter());
         codecs.Register(new StandardConverter());
         codecs.Register(new StandardIdConverter());
         codecs.Register(new StartingSupplyConverter());

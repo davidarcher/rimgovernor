@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// What the latest declarations of one world derived for the sale path: the generic goods MaintainTrade ranks,
+/// What the latest declarations of one world derived for the sale path: the generic goods the economy/trade Need ranks,
 /// and the gear above demand (apparel from the export declaration, weapons from the armory's). Derived state in
 /// memory only, empty until the first declaration after a restart; a weapon surplus can be one review stale when
 /// the armory declares after the trade selection reads it.
@@ -129,7 +129,7 @@ public sealed partial class Rounder
 }
 
 /// <summary>
-/// MaintainTrade's OrderDeclarer. The export batches are the ledger's: DeclareOrders declares them and no bill
+/// The economy/trade Need's OrderDeclarer (#3316). The export batches are the ledger's, filed under the Need: DeclareOrders declares them and no bill
 /// method is committed here. What stays is the game time a batch takes, which a placed bill does not ask the
 /// clock for (PurposeReporter).
 /// </summary>
@@ -140,6 +140,9 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
 
     // Whether the latest declaration carries an export order.
     private bool _working;
+
+    // The silver gap of the latest declaration: the economy/trade Need's measure, unknown before the first.
+    private Fact<double> _gap = Unknown<double>();
 
     /// <summary>Reads every settlement of the world, whatever its distance.</summary>
     internal const double AllSettlementsRadius = 1e9;
@@ -161,9 +164,9 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         }
     }
 
-    /// <summary>The declaration owned by MaintainTrade.</summary>
+    /// <summary>The declaration owned by the economy/trade Need.</summary>
     public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct) =>
-        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(MaintainTrade.Value);
+        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(EconomyFamily.Trade.FilingKey.Value);
 
     /// <summary>Declares the export batches (OrderDeclarer) and files the sale path's inputs. Any unread input abstains: the ledger removes nothing.</summary>
     private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct)
@@ -181,6 +184,10 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         }
         var f = projection.Facts;
         var (gap, demand) = Pol.PolicyFunctions.RoundsSilverGap(f, rd.Policy, review.Latches.MedicalReserve);
+        lock (_gate)
+        {
+            _gap = gap;
+        }
         var candidateSources = new Dictionary<Pol.Resource, IReadOnlyList<Pol.SupplyCandidate>>();
         var request = new Pol.ExportRequest
         {
@@ -403,18 +410,22 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         return (output, true);
     }
 
-    /// <summary>Files under MaintainTrade itself: no other planner serves it.</summary>
-    public (ConcernId Key, ConcernId Need) ReportTarget() => (MaintainTrade, MaintainTrade);
+    /// <summary>The ledger key the export batches report under, a subject of the economy/trade Need.</summary>
+    internal static readonly ConcernId TradeBillsKey = NeedId.Of(EconomyFamily.FamilyId, "trade", "bills").FilingKey;
+
+    /// <summary>Files the export batches under the economy/trade Need.</summary>
+    public (ConcernId Key, ConcernId Need) ReportTarget() => (TradeBillsKey, EconomyFamily.Trade.FilingKey);
 
     public PurposeReport Report()
     {
         lock (_gate)
         {
+            var need = EconomyFamily.TradeNeed(new TradeReview { SilverGap = _gap });
             if (!_working)
             {
-                return new PurposeReport { Order = BuildingReasonNoDeficit };
+                return new PurposeReport { Need = need, Order = BuildingReasonNoDeficit };
             }
-            return new PurposeReport { Order = WaitFor(Pol.Cause.ExistingWork, "export") };
+            return new PurposeReport { Need = need, Order = WaitFor(Pol.Cause.ExistingWork, "export") };
         }
     }
 

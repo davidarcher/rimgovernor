@@ -56,7 +56,6 @@ public sealed class StandardConverter : ObjectCodec<Standard>
             Finding = e.Get<Finding>("Finding", o),
             RecoveryObserved = e.BoolOr("RecoveryObserved"),
             Once = e.BoolOr("Once"),
-            Mission = e.GetOr<TradeMission?>("Mission", null, o),
             Record = e.StrOr("Record") is { Length: > 0 } record ? record : null,
         };
 
@@ -70,10 +69,6 @@ public sealed class StandardConverter : ObjectCodec<Standard>
         w.Put("Finding", v.Finding, o);
         w.WriteBoolean("RecoveryObserved", v.RecoveryObserved);
         w.WriteBoolean("Once", v.Once);
-        if (v.Mission is { } mission)
-        {
-            w.Put("Mission", mission, o);
-        }
         if (!string.IsNullOrEmpty(v.Record))
         {
             w.WriteString("Record", v.Record);

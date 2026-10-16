@@ -495,6 +495,7 @@ internal static partial class StoreSchema
         CREATE TABLE combat_restoration(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
         CREATE TABLE ideology_reform(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
         CREATE TABLE admin_creep_joiners(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
+        CREATE TABLE economy_trade_missions(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
         """,
         [
             "SELECT singleton,payload FROM rounds LIMIT 0",
@@ -504,6 +505,7 @@ internal static partial class StoreSchema
             "SELECT singleton,payload FROM combat_restoration LIMIT 0",
             "SELECT singleton,payload FROM ideology_reform LIMIT 0",
             "SELECT singleton,payload FROM admin_creep_joiners LIMIT 0",
+            "SELECT singleton,payload FROM economy_trade_missions LIMIT 0",
         ]
     );
 }

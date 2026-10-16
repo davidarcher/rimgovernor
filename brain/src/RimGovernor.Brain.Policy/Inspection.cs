@@ -43,10 +43,8 @@ internal static class InspectionRegistry
         new(AnswerDialog, ConcernType.IncidentConcern, Department.System, [FactFamily.Emergency], InspectAnswerDialog),
         new(ActiveCombat, ConcernType.IncidentConcern, Department.Military, [FactFamily.Emergency, FactFamily.Colony], InspectActiveCombat),
         new(EnsureWorkAssignments, ConcernType.OnceConcern, Department.People, [FactFamily.Pawns, FactFamily.Identity, FactFamily.Emergency], InspectWorkAssignments),
-        new(TradeWithCaravan, ConcernType.IncidentConcern, Department.Industry, [FactFamily.World, FactFamily.Colony, FactFamily.Definitions, FactFamily.Pawns], InspectTrade),
         new(EnsureDefensiveLayout, ConcernType.OnceConcern, Department.Military, [], InspectDefensiveLayout),
         new(MaintainRoutes, ConcernType.StandardConcern, Department.Shelter, [FactFamily.World, FactFamily.Colony], InspectRoutes),
-        new(MaintainTrade, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony, FactFamily.Pawns, FactFamily.Definitions, FactFamily.World], InspectExport),
         new(EnsureMood, ConcernType.IncidentConcern, Department.People, [FactFamily.Pawns], InspectMood),
         new(RecoverDisasterServices, ConcernType.IncidentConcern, Department.Shelter, [FactFamily.Emergency, FactFamily.Colony, FactFamily.World], InspectDisaster),
     ];

@@ -386,8 +386,21 @@ walks it under military/equipment). The `fields`, `resource`,
 Need, and the ladder's old concern record is dropped on load. The Comms trade
 request's StandardState carve-out and its recovery record are deleted: the
 request holds `unsupported_forecast_trade_request` unless an economy/resource
-Method is open. Trade (MaintainTrade, TradeWithCaravan, trade missions) stays
-a Concern for now.
+Method is open.
+
+**Economy, trade (#3316).** The silver-gap trade Concern is now the
+`economy/trade` Need: it has no Method of its own, and its export batches are
+the work ledger's, filed under the Need (`economy/trade/bills`). The caravan
+Incident is now the `economy/caravan` Need: each session phase is a Method
+`trade-<phase>-<trader>`, an ended open re-admitted as the MethodId's next
+attempt, and claim admission refuses a map or orbital open under it
+(`unsupported_shared_trade_labor`). A caravan is settled for the load, not the
+occurrence. The trade-mission Standard is now the `economy/trade-mission` Need
+over the `family/economy/trade_missions` record (its Methods
+`<phase>-<mission id>`); an older save's trade-mission Standard is dropped on
+load (decision 12), so an in-flight mission is not resumed. The forecast trade
+request hold is the resource Need's work. The `trade` clock slot is deleted.
+The trade export bills are filed under `economy/trade` and the workshop resource bills under `economy/resource`, and the Labor table tags the trade Need with the crafting benches' work types.
 
 **Food, cooking (#3254).** EnsureCooking (a Once) is now the `food/cooking` Need
 (`Food.cs`, `CookingNeedOf`), a Wellbeing Need of the `food` family entry
@@ -647,7 +660,7 @@ anomaly).
 | Prisoners | `prisoners`: Needs `recruit`, `custody` (#3262) |
 | Joiners and quests | `joiners`: Needs `offers`, `letters`, `ceremony`, `quests`, `decrees`, `monuments`, `departures`, `grav-inspection` (#3302) |
 | Anomaly | `anomaly`: Needs `doors`, `capture`, `tend`, `lance`, `bioferrite`, `monolith` (#3302) |
-| Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted); MaintainTrade, TradeWithCaravan, trade missions |
+| Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted), `trade`, `caravan` and `trade-mission` (#3316; the trade Concern, caravan Incident and trade-mission Standard deleted) |
 | Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger`, `stockpiles` (#3304); EnsureWorkAssignments |
 | People | EnsureMood, AnswerDialog |
 | Disaster | RecoverDisasterServices |

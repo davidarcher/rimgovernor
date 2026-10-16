@@ -661,6 +661,7 @@ public sealed partial class Rounder
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
+        TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         GearFilters.Set(result.Review.Snapshot, PolicyApi.GearFilterChoices(reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection));
         AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         var attrs = new List<(string Key, object? Value)> { ("revision", result.Review.Revision), ("previous_revision", previous.Revision), ("tick", reading.Projection.Identity.Tick.Value), ("concerns", result.Standards.Count) };

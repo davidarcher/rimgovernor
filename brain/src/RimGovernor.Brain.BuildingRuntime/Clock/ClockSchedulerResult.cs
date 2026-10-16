@@ -41,8 +41,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsDialogResult? Dialog { get; set; }
 
-    public RoundsTradeResult? Trade { get; set; }
-
     /// <summary>Whether the step deferred its run to the Worker's turn.</summary>
     public bool Deferred { get; set; }
 
@@ -80,7 +78,6 @@ public sealed class ClockSchedulerResult
         DefenseLayout = other.DefenseLayout ?? DefenseLayout;
         MoodRelief = other.MoodRelief ?? MoodRelief;
         Dialog = other.Dialog ?? Dialog;
-        Trade = other.Trade ?? Trade;
         foreach (var (family, run) in other.Families)
         {
             Families[family] = run;

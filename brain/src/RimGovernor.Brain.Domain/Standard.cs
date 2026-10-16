@@ -77,23 +77,16 @@ public sealed partial record Standard
     public bool RecoveryObserved { get; init; }
 
     /// <summary>
-    /// Marks a build-once outcome (cooking, basic power, defensive layout, a trade mission): once settled it
+    /// Marks a build-once outcome (cooking, basic power, defensive layout): once settled it
     /// stays settled, an unknown measurement does not reopen it, and only a measured deficit with no work open
     /// starts a new Episode.
     /// </summary>
     public bool Once { get; init; }
 
     /// <summary>
-    /// The goal's own durable intent (Go's JSON <c>Record</c> text, here typed): what the world cannot show.
-    /// Only a trade-mission Standard carries one; null otherwise.
-    /// </summary>
-    public TradeMission? Mission { get; init; }
-
-    /// <summary>
     /// The goal's own durable intent as JSON text (Go <c>Standard.Record</c>), written and read by the goal's planner:
     /// what the world cannot show (a creep-joiner, ideoligion-reform or trade-request record). Null or empty for most
-    /// goals; a trade-mission Standard uses the typed <see cref="Mission"/> instead. Bounded by
-    /// <see cref="DomainConstants.MaxStandardRecord"/> bytes.
+    /// goals. Bounded by <see cref="DomainConstants.MaxStandardRecord"/> bytes.
     /// </summary>
     public string? Record { get; init; }
 
@@ -116,11 +109,6 @@ public sealed partial record Standard
     {
         DomainException.Require(Id.IsValid && Kind.IsValid && Snapshot.IsValid, "invalid standard");
         DomainException.Require(Record is null || System.Text.Encoding.UTF8.GetByteCount(Record) <= DomainConstants.MaxStandardRecord, "standard record exceeds bound");
-        if (Kind == Concerns.TradeMission)
-        {
-            DomainException.Require(Mission is not null && Once && Mission.HomeColony == Snapshot.Colony && Mission.HomeMap == Snapshot.Map, "invalid trade mission standard record");
-            Mission.Validate();
-        }
         DomainException.Require(Wire.IsDefined(Status), "invalid standard status");
         DomainException.Require(Wire.IsDefined(Finding), "invalid standard need");
         DomainException.Require(!(Status == StandardStatus.Settled && (Finding != Finding.Met || !RecoveryObserved)), "settled standard needs observed recovery");

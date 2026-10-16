@@ -11,7 +11,7 @@ public static class OperationIntent
         [FoodSupplyNeed.FilingKey] = "Food supply",
         [FoodStorageNeed.FilingKey] = "Food storage",
         [EconomyFamily.Resource.FilingKey] = "Resource",
-        [MaintainTrade] = "Export goods",
+        [EconomyFamily.Trade.FilingKey] = "Export goods",
         [RoomsFamily.Flooring.FilingKey] = "Flooring",
         [RoomsFamily.Lighting.FilingKey] = "Lighting",
         [RoomsFamily.Art.FilingKey] = "Art",
@@ -41,7 +41,7 @@ public static class OperationIntent
         [HomeUpkeepFamily.Repairs.FilingKey] = "Repairs",
         [HomeUpkeepFamily.Clearance.FilingKey] = "Clear home obstructions",
         [AdminFamily.CreepJoiners.FilingKey] = "Creep joiners",
-        [TradeWithCaravan] = "Trade",
+        [EconomyFamily.Caravan.FilingKey] = "Trade",
         [ActiveCombat] = "Combat",
         [BlightNeed.FilingKey] = "Blight",
         [BiotechFamily.Mechs.FilingKey] = "Mechs",
@@ -80,7 +80,7 @@ public static class OperationIntent
         [AnomalyFamily.Monolith.FilingKey] = "Monolith",
         [PrisonersFamily.Recruit.FilingKey] = "Prisoners",
         [PrisonersFamily.Custody.FilingKey] = "Custody",
-        [Concerns.TradeMission] = "Trade mission",
+        [EconomyFamily.TradeMission.FilingKey] = "Trade mission",
     };
 
     /// <summary>The readable name of a Concern.</summary>

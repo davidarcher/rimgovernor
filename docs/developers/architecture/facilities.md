@@ -1191,10 +1191,10 @@ opinion thought and none of the social-fight mental state. Lab:
 `lab/training-company`, the lone shooter in `lab/training-shooting`, the draft
 in `lab/training-raid`, and the per-member flag in `lab/sparring`.
 
-### Trade goods (MaintainTrade)
+### Trade goods (economy/trade)
 
-Goods made to sell (#2607) need no facility of their own: `MaintainTrade`
-declares ledger orders at the benches the ladder already builds, and the trade
+Goods made to sell (#2607) need no facility of their own: the `economy/trade`
+Need (#3316) declares ledger orders at the benches the ladder already builds, and the trade
 planner sells the products from stock. No depot or room is sited for them; see
 `work-assignment.md` for the ranking, ownership and sale path.
 

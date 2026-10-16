@@ -30,6 +30,12 @@ public sealed record EconomyFacts
 
     /// <summary>The resource Need's facts; with no target (the default) the Need is met.</summary>
     public ResourceFacts Resource { get; init; } = new();
+
+    /// <summary>The review's trade facts the trade and caravan Needs read; unknown before the first review.</summary>
+    public TradeReview Trade { get; init; } = new();
+
+    /// <summary>The trade-mission Need's facts; unknown (the default) when the record was not read.</summary>
+    public TradeMissionFacts Missions { get; init; } = new();
 }
 
 /// <summary>
@@ -84,7 +90,14 @@ public sealed record ResearchStep(string Select, NeedHold? Hold, bool Bench, boo
 /// </summary>
 /// <param name="research">Derive the research Need.</param>
 /// <param name="resource">Derive the resource Need.</param>
-public sealed class EconomyFamily(bool research = true, bool resource = false) : IFamily<EconomyFacts>
+/// <param name="trade">Derive the trade Need (#3316): the silver gap answered with ledger sale batches.</param>
+/// <param name="caravan">Derive the caravan and trade-mission Needs (#3316): caravan sessions and settlement missions.</param>
+/// <remarks>
+/// The trade Needs (#3316, <c>EconomyTrade.cs</c>): <c>economy/trade</c> (Development), the silver gap Concern before it;
+/// <c>economy/caravan</c> (Wellbeing), a caravan Incident before it; and <c>economy/trade-mission</c>
+/// (Development), whose mission is the <c>family/economy/trade_missions</c> record rather than a Standard.
+/// </remarks>
+public sealed partial class EconomyFamily(bool research = true, bool resource = false, bool trade = false, bool caravan = false) : IFamily<EconomyFacts>
 {
     public const string FamilyId = "economy";
 
@@ -94,12 +107,19 @@ public sealed class EconomyFamily(bool research = true, bool resource = false) :
 
     public string Id => FamilyId;
 
-    public IReadOnlyList<FactFamily> Reads { get; } = [FactFamily.Research, FactFamily.Colony, FactFamily.Rooms, FactFamily.Definitions];
+    public IReadOnlyList<FactFamily> Reads { get; } = trade || caravan
+        ? [FactFamily.Research, FactFamily.Colony, FactFamily.Rooms, FactFamily.Definitions, FactFamily.World, FactFamily.Pawns]
+        : [FactFamily.Research, FactFamily.Colony, FactFamily.Rooms, FactFamily.Definitions];
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
     public IReadOnlyList<Need> Derive(EconomyFacts facts) =>
-        [.. research ? [ResearchNeed(facts)] : Array.Empty<Need>(), .. resource ? [PolicyFunctions.ResourceNeedOf(facts.Resource)] : Array.Empty<Need>()];
+        [
+            .. research ? [ResearchNeed(facts)] : Array.Empty<Need>(),
+            .. resource ? [PolicyFunctions.ResourceNeedOf(facts.Resource)] : Array.Empty<Need>(),
+            .. trade ? [TradeNeed(facts.Trade)] : Array.Empty<Need>(),
+            .. caravan ? [CaravanNeed(facts.Trade), TradeMissionNeed(facts.Missions)] : Array.Empty<Need>(),
+        ];
 
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, EconomyFacts facts)
     {

@@ -103,6 +103,18 @@ public sealed partial class Store
     }
 
     /// <summary>
+    /// Every attempt's plan of <paramref name="method"/> under <paramref name="owner"/> in its world, retired plans
+    /// included, oldest first: a refusal budget's history over one re-admitted MethodId. A Method is admitted again
+    /// only after its last attempt was released, so the list grows by one per retry the budget allowed; it is capped
+    /// at <see cref="MaxOwnerHistory"/>, past which a budget is long spent.
+    /// </summary>
+    public IReadOnlyList<PlanId> OwnerMethodAttempts(NeedOwner owner, MethodId method, CancellationToken cancellationToken) =>
+        Run(tx => tx.Query(
+            "SELECT plan_id FROM need_methods WHERE colony=$colony AND load_token=$load AND map_id=$map AND need_id=$need AND method_id=$method ORDER BY attempt LIMIT $limit",
+            [("$colony", owner.Snapshot.Colony), ("$load", owner.Snapshot.Load), ("$map", owner.Snapshot.Map), ("$need", owner.Need.Value), ("$method", method), ("$limit", MaxOwnerHistory)],
+            r => new PlanId(r.GetString(0))), cancellationToken);
+
+    /// <summary>
     /// The guard a Need-owned plan's prepare and dispatch runs: the plan's world is the current one and no Safeguard
     /// vetoes routine work. Whether the Need is still unmet is the family's to judge on its next run.
     /// </summary>

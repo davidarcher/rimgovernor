@@ -11,9 +11,11 @@ namespace RimGovernor.Brain.Store;
 /// <c>schemaVersion</c>, and the shapes are those of the Go journal so saves written by either side load:
 /// <list type="bullet">
 /// <item><c>standard/&lt;id&gt;</c>: <c>{schemaVersion, standard, revision}</c>, one per unretired standard. On load
-/// only trade missions and standards carrying a <c>Record</c> are re-inserted (<see cref="RebuildStandards"/>).</item>
+/// only standards carrying a <c>Record</c> are re-inserted (<see cref="RebuildStandards"/>); an older save's
+/// trade-mission standards are dropped (#3316, decision 12).</item>
 /// <item><c>family/layout_plan</c>, <c>family/defense_layout</c>, <c>family/production_ladder</c>,
-/// <c>family/soldier_squad</c>, <c>family/combat_restoration</c>, <c>family/admin/creep_joiners</c>, <c>family/ideology/reform</c>: <c>{schemaVersion, scope?, record}</c>.
+/// <c>family/soldier_squad</c>, <c>family/combat_restoration</c>, <c>family/admin/creep_joiners</c>,
+/// <c>family/economy/trade_missions</c>, <c>family/ideology/reform</c>: <c>{schemaVersion, scope?, record}</c>.
 /// An older save's pending reform lives in its ImproveIdeoligion <c>standard/*</c> blob's <c>Record</c> instead; it
 /// is read once on load into <c>family/ideology/reform</c> when that blob is absent (#3260).</item>
 /// </list>
@@ -24,7 +26,7 @@ public sealed partial class Store
     /// <summary>Versions every governor state blob; a breaking change bumps it.</summary>
     public const int GovernorStateSchemaVersion = 6;
 
-    private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "admin_creep_joiners", "colony_extent_events", "ideology_reform"];
+    private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "admin_creep_joiners", "economy_trade_missions", "colony_extent_events", "ideology_reform"];
 
     /// <summary>The retired Concern whose Standard carried the pending reform before the ideology family (#3260).</summary>
     private static readonly ConcernId LegacyReformKind = new("ImproveIdeoligion");
@@ -106,6 +108,10 @@ public sealed partial class Store
                 {
                     output[GovernorCreepJoinersKey] = FamilyBlob(StoreJson.Serialize(creepJoiners), null);
                 }
+                if (LoadTradeMissionsIn(tx) is { } missions)
+                {
+                    output[GovernorTradeMissionsKey] = FamilyBlob(StoreJson.Serialize(missions), null);
+                }
                 return (IReadOnlyDictionary<string, string>)output;
             },
             cancellationToken
@@ -159,7 +165,7 @@ public sealed partial class Store
         var blobs = new Dictionary<string, FamilyBlobIn>(StringComparer.Ordinal);
         try
         {
-            foreach (var key in new[] { GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey, GovernorCombatRestorationKey, GovernorCreepJoinersKey, GovernorIdeologyReformKey })
+            foreach (var key in new[] { GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey, GovernorCombatRestorationKey, GovernorCreepJoinersKey, GovernorTradeMissionsKey, GovernorIdeologyReformKey })
             {
                 if (!saved.TryGetValue(key, out var raw))
                 {
@@ -242,6 +248,10 @@ public sealed partial class Store
                     if (blobs.TryGetValue(GovernorCreepJoinersKey, out var creepJoiners))
                     {
                         PutCreepJoinersIn(tx, Codecs.Default.Read<CreepJoinersRecord>(creepJoiners.Record));
+                    }
+                    if (blobs.TryGetValue(GovernorTradeMissionsKey, out var missions))
+                    {
+                        PutTradeMissionsIn(tx, Codecs.Default.Read<TradeMissionsRecord>(missions.Record));
                     }
                 },
                 cancellationToken
@@ -331,7 +341,9 @@ public sealed partial class Store
                 throw new StoreCorruptException($"{key}: standard identity mismatch");
             }
             // An ImproveIdeoligion Standard's reform record moved to family/ideology/reform (#3260, RebuildFamilies).
-            if ((standard.Kind != Concerns.TradeMission && string.IsNullOrEmpty(standard.Record)) || standard.Kind == LegacyReformKind)
+            // An older save's trade-mission Standard is dropped: its mission moved to family/economy/trade_missions (#3316,
+            // decision 12), and an in-flight mission is replanned.
+            if (string.IsNullOrEmpty(standard.Record) || standard.Kind == LegacyReformKind)
             {
                 continue;
             }

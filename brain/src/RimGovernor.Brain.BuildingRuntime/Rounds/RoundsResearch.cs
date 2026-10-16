@@ -24,8 +24,10 @@ public sealed record EconomyResourceSteps
 /// The runtime half of the economy family (#3263, #3303). For the research Need: its read (the research the colony's
 /// evidence waits on, then the native research census) and its building work, the laboratory benches raised under
 /// the <c>economy/research</c> Need through the shared building planner. For the resource Need: the review's derived
-/// stock targets, the stock census and the runway forecasts, and its composed work steps. Every Method is the Need's,
-/// admitted by its claims.
+/// stock targets, the stock census and the runway forecasts, and its composed work steps. For the trade Needs
+/// (#3316): the review's trade measures and the trade missions record; the trade Need's export batches are the work
+/// ledger's, the caravan Need's work is the caravan session phases and the trade-mission Need's the settlement trip.
+/// Every Method is the Need's, admitted by its claims.
 /// </summary>
 public sealed class EconomyRounds
 {
@@ -34,36 +36,46 @@ public sealed class EconomyRounds
     private readonly RoundsBuildingPlanner? _building;
     private readonly bool _research;
     private readonly EconomyResourceSteps? _resource;
+    private readonly bool _trade;
+    private readonly RoundsTradePlanner? _caravan;
+
+    /// <summary>The trade Need's work: none of the family's own. Its one remedy is the export batches the work ledger places.</summary>
+    internal static readonly Verdict ExportBillVerdict = Verdict.WaitFor(Cause.Facility, "export_bills");
 
     /// <param name="reviewer">The rounder the family reviews through.</param>
     /// <param name="native">The research census source.</param>
     /// <param name="research">Compose the research Need.</param>
     /// <param name="resource">The resource Need's steps; null leaves the Need out.</param>
-    public EconomyRounds(Rounder reviewer, IRoundsResearchSource native, bool research = true, EconomyResourceSteps? resource = null)
+    /// <param name="trade">Compose the trade Need, whose export batches the work ledger declares.</param>
+    /// <param name="caravan">The caravan and trade-mission Needs' planner; null leaves them out.</param>
+    public EconomyRounds(Rounder reviewer, IRoundsResearchSource native, bool research = true, EconomyResourceSteps? resource = null, bool trade = false, RoundsTradePlanner? caravan = null)
     {
         _reviewer = reviewer ?? throw new ControlException("EconomyRounds: reviewer is missing");
         _native = native ?? throw new ControlException("EconomyRounds: native is missing");
         _research = research;
         _resource = resource;
+        _trade = trade;
+        _caravan = caravan;
         if (research && native is IRoundsBuildingSource source && native is IRoundsSource)
         {
             _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source, Concern = EconomyFamily.Research.FilingKey, Need = EconomyFamily.Research };
         }
     }
 
-    /// <summary>The outcomes the family's work commits: research selection, buildings, mines, deconstructions, zones and acquisitions.</summary>
+    /// <summary>The outcomes the family's work commits: research selection, buildings, mines, deconstructions, zones, acquisitions, trade phases and caravan departures.</summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Kinds =
         [
             ActionKind.ResearchSelect, ActionKind.Building, ActionKind.MineAcquisition, ActionKind.Deconstruction, ActionKind.Excavation,
             ActionKind.ZoneCreate, ActionKind.ZoneCellEdit, ActionKind.Acquisition, ActionKind.AcquisitionWithdraw,
+            ActionKind.Trade, ActionKind.CommsTradeRequest, ActionKind.CaravanDeparture,
         ],
     };
 
     /// <summary>The family's scheduler entry: it wakes on its reads and on its Methods' outcomes.</summary>
     public FamilyRunner Runner() =>
-        new FamilyRunner<EconomyFacts>(new EconomyFamily(_research, _resource is not null), ReadAsync, Schedule, WorkAsync);
+        new FamilyRunner<EconomyFacts>(new EconomyFamily(_research, _resource is not null, _trade, _caravan is not null), ReadAsync, Schedule, WorkAsync);
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the research needs (the production ladder's
@@ -112,6 +124,15 @@ public sealed class EconomyRounds
         {
             facts = facts with { Resource = await ReadResourceAsync(scope, review, expected, facts, ct).ConfigureAwait(false) };
         }
+        if (_trade || _caravan is not null)
+        {
+            facts = facts with { Trade = _reviewer.TradeMemory.Get(scope.World) };
+        }
+        if (_caravan is not null)
+        {
+            var missions = await p.Journal.LoadTradeMissionsAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
+            facts = facts with { Missions = new TradeMissionFacts { Active = Known(missions.Missions.Count != 0), Proposed = _caravan.MissionProposed() } };
+        }
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
@@ -152,7 +173,19 @@ public sealed class EconomyRounds
         if (work.Need.Id == EconomyFamily.Resource && _resource is { } steps)
         {
             // A held resource Need (the research gate) has no work of its own: its pure hold stands.
-            return PolicyFunctions.ResourceHold(facts.Resource) is not null ? idle : await ResourceWorkAsync(work, steps, ct).ConfigureAwait(false);
+            return PolicyFunctions.ResourceHold(facts.Resource) is not null ? idle : await ResourceWorkAsync(work, steps, _caravan, ct).ConfigureAwait(false);
+        }
+        if (work.Need.Id == EconomyFamily.Trade)
+        {
+            return ExportBillVerdict;
+        }
+        if (work.Need.Id == EconomyFamily.Caravan && _caravan is not null)
+        {
+            return (await _caravan.CaravanAsync(work, ct).ConfigureAwait(false)).Verdict;
+        }
+        if (work.Need.Id == EconomyFamily.TradeMission && _caravan is not null)
+        {
+            return (await _caravan.MissionAsync(work, ct).ConfigureAwait(false)).Verdict;
         }
         if (work.Need.Id != EconomyFamily.Research || _building is null)
         {
@@ -182,11 +215,16 @@ public sealed class EconomyRounds
 
     /// <summary>
     /// The resource Need's steps, independent work under one Need: each runs, held only by its claims and its own
-    /// MethodIds. The Need reports the first admission, else the first step's reason.
+    /// MethodIds. The Need reports the first admission, else the first step's reason; a forecast trade request the
+    /// supply plan proposed is held first (<see cref="RoundsTradePlanner.RequestHold"/>).
     /// </summary>
-    private static async Task<Verdict> ResourceWorkAsync(NeedWork work, EconomyResourceSteps steps, CancellationToken ct)
+    private static async Task<Verdict> ResourceWorkAsync(NeedWork work, EconomyResourceSteps steps, RoundsTradePlanner? trade, CancellationToken ct)
     {
         var verdicts = new List<Verdict>();
+        if (trade?.RequestHold(work, ct) is { } hold)
+        {
+            verdicts.Add(hold);
+        }
         if (steps.Resource is { } resource)
         {
             verdicts.Add((await resource.StepAsync(work.Arbiter!, work.Owner, ct, work.Epoch).ConfigureAwait(false)).Verdict);

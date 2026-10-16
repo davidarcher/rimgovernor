@@ -405,7 +405,7 @@ and the `Cause` it lacked, worded by `policy.Wording`), every wanted order with 
 `placing`, or `unplaced` with `no_bench` or `bench_slots_full`), dispatch sizing,
 calibration window (predicted against observed stock gain) and shortfall, the
 orphans (grace Rounds left, `removing`, or held by an abstain), the excluded-kind
-bills, `UnmetThroughput` with the further-bench request and, from MaintainTrade's
+bills, `UnmetThroughput` with the further-bench request and, from the `economy/trade` Need's
 last declaration, the silver gap, the goods in flight netted off it, the best 10 scored
 export candidates plus any ordered, and the count of candidates dropped by reason (`no_buyer`,
 `no_ingredient`, `no_margin`, `runway_guard`; `Export`, nil until it declares in this world). The view
@@ -474,7 +474,7 @@ own reports existing work; otherwise it reports what its declaration noted
 reserve, sculpture or export bill runs. A journal read that fails reports the
 purpose unavailable and never fails bill placement. Art files under the
 `rooms/art` Need's subject key `rooms/art/bills` and reads that Need's standing; export
-files under `MaintainTrade`, which no other planner serves. The four food
+files under the `economy/trade` Need's subject key `economy/trade/bills` (#3316). The four food
 purposes file under subject keys of their own (`food/cooking/bills`,
 `food-stores/storage/bills`, `food/supply/bills`, `food-stores/refrigeration/bills`), because
 their owners carry the building, acquisition and storage notes: a bill verdict filed on
@@ -493,7 +493,7 @@ one-method-per-recipe history and the ingredient-credit cap on the bill target
 are gone: the order is judged again every Round at the floor's full target.
 
 The `rooms/art` Need (#2603, #3255) migrates the worker-pinned sculpture batches (room
-decoration only since #2607; sculptures to sell are `MaintainTrade`'s):
+decoration only since #2607; sculptures to sell are the `economy/trade` Need's):
 `RoundsArtPlanner.DeclareOrders` (`policy.DeclareArtOrders`) declares, while an
 inspired artist or an owed bedroom is open, every active sculpture
 bill pinned to a current artist as it stands plus the bill the art selectors
@@ -506,11 +506,11 @@ decrees of the `joiners/decrees` Need declare through
 funded batch, or the bill already making the item as it stands; the planner keeps
 the crafting game time and the harvest and hunt decrees.
 
-`MaintainTrade` (#2607) answers `SilverShort`: while the gap is open,
+The `economy/trade` Need (#2607, #3316) answers `SilverShort`: while the gap is open,
 `RoundsTradeExportPlanner.DeclareOrders` (`policy.DeclareExportOrders`) ranks
 craftable sale goods and declares the winners as finite `GearBatch` orders
 (priority 3) pinned to the best capable worker. One owner per bill spec:
-`economy/resource` owns products with a floor; `MaintainTrade` owns floorless
+`economy/resource` owns products with a floor; `economy/trade` owns floorless
 sale goods, never acquires, and never declares a floor product. It spends only
 `policy.UsableIngredients`; score is (expected sale value minus raw ingredient
 value) per (crafting ticks plus ingredient units times acquisition ticks), the

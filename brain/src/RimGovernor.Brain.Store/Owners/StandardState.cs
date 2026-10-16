@@ -281,39 +281,6 @@ public sealed partial class Store
     internal static bool PlanOpenWork(StoreTransaction tx, IMethodOwner owner) => owner.OwnerPlans.Any(plan => PlanOpen(LoadIn(tx, plan)));
 
     /// <summary>
-    /// Replaces the standard's trade mission at <paramref name="revision"/> (Go <c>RecordStandard</c>, whose
-    /// record was the mission's JSON text). The mission rides in the standard's own payload.
-    /// </summary>
-    public StandardState RecordStandard(StandardId id, ulong revision, TradeMission? mission, CancellationToken cancellationToken) =>
-        Run(
-            tx =>
-            {
-                var state = LoadStandard(tx, id);
-                return state.Revision != revision ? throw new ConflictException() : WriteStandardRecord(tx, state, mission);
-            },
-            cancellationToken
-        );
-
-    public Task<StandardState> RecordStandardAsync(StandardId id, ulong revision, TradeMission? mission, CancellationToken cancellationToken) =>
-        Task.Run(() => RecordStandard(id, revision, mission, cancellationToken), cancellationToken);
-
-    /// <summary>
-    /// <see cref="CommitMethodReason"/> that also replaces the standard's record in the same transaction, so a
-    /// method and the intent it carries are saved together or not at all.
-    /// </summary>
-    public StandardState CommitMethodRecord(StandardId id, ulong revision, MethodId method, string reason, PlanSpec plan, TradeMission? mission, CancellationToken cancellationToken)
-    {
-        plan.Validate();
-        return Run(tx => WriteStandardRecord(tx, CommitMethodIn(tx, id, revision, method, reason, plan), mission), cancellationToken);
-    }
-
-    public Task<StandardState> CommitMethodRecordAsync(StandardId id, ulong revision, MethodId method, string reason, PlanSpec plan, TradeMission? mission, CancellationToken cancellationToken) =>
-        Task.Run(() => CommitMethodRecord(id, revision, method, reason, plan, mission, cancellationToken), cancellationToken);
-
-    private static StandardState WriteStandardRecord(StoreTransaction tx, StandardState state, TradeMission? mission) =>
-        SaveStandard(tx, state, state.Standard with { Mission = mission });
-
-    /// <summary>
     /// Replaces the standard's planner record text at <paramref name="revision"/> (Go <c>RecordStandard</c> for the
     /// goals whose record is their own JSON: creep-joiner, ideoligion reform, trade requests). Empty clears it.
     /// </summary>
@@ -330,7 +297,10 @@ public sealed partial class Store
     public Task<StandardState> RecordStandardAsync(StandardId id, ulong revision, string record, CancellationToken cancellationToken) =>
         Task.Run(() => RecordStandard(id, revision, record, cancellationToken), cancellationToken);
 
-    /// <summary>The planner-record form of <see cref="CommitMethodRecord(StandardId, ulong, MethodId, string, PlanSpec, TradeMission?, CancellationToken)"/>.</summary>
+    /// <summary>
+    /// <see cref="CommitMethodReason"/> that also replaces the standard's planner record text in the same transaction,
+    /// so a method and the intent it carries are saved together or not at all.
+    /// </summary>
     public StandardState CommitMethodRecord(StandardId id, ulong revision, MethodId method, string reason, PlanSpec plan, string record, CancellationToken cancellationToken)
     {
         plan.Validate();

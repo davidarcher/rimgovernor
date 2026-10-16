@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // Go: work_ledger_view.go and work_ledger_rows.go. The ledger view is the read-only picture of one Round's work
 // ledger for the Grafana ledger dashboard: what each planner declared, where every wanted order stands against the
 // benches' bills, the orphans on their way out, the dispatcher's unmet throughput and calibration windows, and
-// MaintainTrade's silver gap. It is a projection of memory the Round already holds; Rows is its derived copy in the
+// the economy/trade Need's silver gap. It is a projection of memory the Round already holds; Rows is its derived copy in the
 // session store, and nothing is fed back to a planner.
 
 /// <summary>One planner's declaration with the planner's name.</summary>
@@ -387,7 +387,7 @@ public sealed record LedgerBillView
 /// <summary>A throughput shortfall in product units per day.</summary>
 public sealed record UnmetView(string BenchKind, double ShortPerDay, UnmetReason Reason);
 
-/// <summary>MaintainTrade's latest declaration: the silver gap, what in flight netted off it and the best scored candidates.</summary>
+/// <summary>The economy/trade Need's latest declaration: the silver gap, what in flight netted off it and the best scored candidates.</summary>
 public sealed record ExportView
 {
     public bool GapKnown { get; init; }

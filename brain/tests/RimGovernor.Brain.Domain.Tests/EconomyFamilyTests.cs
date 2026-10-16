@@ -243,4 +243,53 @@ public sealed class EconomyFamilyTests
         Assert.True(refused.Is(Cause.Claim), refused.ToString());
         Assert.Equal(2, journal.LoadNeed(EconomyFamily.Resource, World, ct).Methods.Count);
     }
+
+    [Fact]
+    public void TradeNeedsAreMetUnmetOrUnknownByTheReviewAndTheMissionRecord()
+    {
+        // The trade Need (#3316): the silver gap, unknown while unread.
+        Assert.Equal(Satisfaction.Unknown, EconomyFamily.TradeNeed(new TradeReview()).Satisfaction);
+        Assert.Equal(Satisfaction.Met, EconomyFamily.TradeNeed(new TradeReview { SilverGap = Known(0.0) }).Satisfaction);
+        var gap = EconomyFamily.TradeNeed(new TradeReview { SilverGap = Known(120.0) });
+        Assert.Equal((EconomyFamily.Trade, NeedTier.Development, Satisfaction.Unmet, 1.0), (gap.Id, gap.Tier, gap.Satisfaction, gap.Deficit.Value));
+        Assert.Contains(gap.Evidence, e => e.Fact == "silver_gap" && e.Value.Value == "120");
+
+        // The caravan Need: met once every caravan present is traded out.
+        Assert.Equal(Satisfaction.Unknown, EconomyFamily.CaravanNeed(new TradeReview()).Satisfaction);
+        Assert.Equal(Satisfaction.Met, EconomyFamily.CaravanNeed(new TradeReview { CaravanRecovered = Known(true) }).Satisfaction);
+        var caravan = EconomyFamily.CaravanNeed(new TradeReview { CaravanRecovered = Known(false) });
+        Assert.Equal((EconomyFamily.Caravan, NeedTier.Wellbeing, Satisfaction.Unmet), (caravan.Id, caravan.Tier, caravan.Satisfaction));
+
+        // The trade-mission Need: a mission under way or a proposed trip; unknown while the record is unread.
+        Assert.Equal(Satisfaction.Unknown, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Proposed = true }).Satisfaction);
+        Assert.Equal(Satisfaction.Met, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = Known(false) }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = Known(true) }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, EconomyFamily.TradeMissionNeed(new TradeMissionFacts { Active = Known(false), Proposed = true }).Satisfaction);
+
+        // The toggles compose them: the trade Need alone, or the caravan and trade-mission Needs together.
+        var facts = new EconomyFacts { Trade = new TradeReview { SilverGap = Known(1.0), CaravanRecovered = Known(false) }, Missions = new TradeMissionFacts { Active = Known(false) } };
+        Assert.Equal([EconomyFamily.Trade], new EconomyFamily(false, false, trade: true).Derive(facts).Select(n => n.Id));
+        Assert.Equal([EconomyFamily.Caravan, EconomyFamily.TradeMission], new EconomyFamily(false, false, caravan: true).Derive(facts).Select(n => n.Id));
+        Assert.Empty(new EconomyFamily(false, false).Derive(facts));
+        Assert.Empty(new EconomyFamily(false, false, true, true).Propose(new EconomyFamily(false, false, true, true).Derive(facts), facts));
+    }
+
+    [Fact]
+    public void CaravanTradePhasesAreTheNeedsMethodsHeldOnTheParticipantClaim()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-caravan-claim-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        var participant = new TradeParticipant(TradeParticipantKind.Settlement, "settlement", "caravan");
+        PlanSpec Open(string plan, string pawn) => new(new(plan), new(1), [DomainAction.NewTradeAction(new(plan + "-trade"),
+            Trade.NewTradeOpen(participant.Key(), new(pawn), false).WithParticipant(participant))]);
+
+        // The phase's MethodId names the trader and phase; another Need's open with the same participant is held on its claim.
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(EconomyFamily.Caravan, World, new("trade-open-a"), "", Open("p1", "a"), ct).Outcome);
+        var held = journal.CommitClaimedMethod(EconomyFamily.TradeMission, World, new("trade-open-m"), "", Open("p2", "b"), ct);
+        Assert.Equal(ClaimOutcome.Conflict, held.Outcome);
+        Assert.Equal("trade/" + participant.Key(), held.Conflict!.Claim);
+        Assert.Empty(journal.LoadNeed(EconomyFamily.TradeMission, World, ct).Methods);
+        Assert.Single(journal.OwnerMethodAttempts(journal.LoadNeed(EconomyFamily.Caravan, World, ct), new("trade-open-a"), ct));
+    }
 }

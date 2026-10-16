@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class PolicyFunctions
 {
-    // The silver gap MaintainTrade answers with export orders: a purchase need the colony's silver, after
+    // The silver gap the economy/trade Need answers with export orders: a purchase need the colony's silver, after
     // TradeSilverReserve, does not cover. Sold goods leave colony wealth, so raid headroom does not gate this
     // work. SelectTrade sells the goods as surplus.
 
@@ -93,7 +93,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The silver runway deficit: a purchase need exists and the silver on hand is below its rough price plus
-    /// TradeSilverReserve (a positive SilverGap). MaintainTrade's exports and sale organ harvests answer it;
+    /// TradeSilverReserve (a positive SilverGap). The economy/trade Need's exports and sale organ harvests answer it;
     /// unknown while any input is.
     /// </summary>
     public static Fact<bool> SilverShort(ItemFacts items, Fact<TradeNeed> need, Fact<long> silver, Fact<long> colonists)

@@ -25,10 +25,10 @@ native `CanTradeNow` and trader kind. Existing WorldRoute and CaravanState reads
 own routes, caravan crew, mass, food, rot and inventory.
 
 
-Normal TradeWithCaravan review reports unsupported_shared_trade_labor before
-opening map or orbital trade: negotiator travel and comms work require shared
-participant and opportunity alternatives. The Incident admission boundary rejects
-those Open actions as well. Already-open session operations and visiting-caravan
+The `economy/caravan` Need's work (#3316) reports unsupported_shared_trade_labor
+before opening map or orbital trade: negotiator travel and comms work require
+shared participant and opportunity alternatives. The Need's claim admission
+rejects those Open actions as well. Already-open session operations and visiting-caravan
 settlement sessions remain available; explicit native operations still exercise
 map/orbital legality. Incident classification alone does not make a trade
 opportunity emergency labor.
@@ -79,16 +79,16 @@ no tick change while the pawn's matching comms job is present establishes pendin
 A lost receipt without sufficient native evidence remains unknown and must not
 be retried merely to obtain a charge receipt. Arrival is reconciled separately.
 
-The outbound saved trade-mission Standard records home colony/map, settlement target, exact crew,
+The outbound mission, saved in the `family/economy/trade_missions` record (#3316), records home colony/map, settlement target, exact crew,
 silver budget, demanded definitions/counts and mission phase/return intent. The
-Standard must persist before departure, and departure remains inactive until return
+record must persist before departure, and departure remains inactive until return
 and completion exist. Native inventory, trade stock/prices, goodwill, cooldown,
 caravan position and routes stay native facts. Action attempts remain in the
 session journal. Goods bought away count as away inventory until native delivery
 at home is observed; request/scouting intent supplies no secured yield.
 
-`domain.TradeMission` is the bounded, strictly decoded `Standard.Record` for
-`trade-mission` Standards (Once). It adds home/settlement tiles for return/departure intent,
+`domain.TradeMission` is the bounded, validated entry of
+`family/economy/trade_missions`, driven by the `economy/trade-mission` Need. It adds home/settlement tiles for return/departure intent,
 the exact negotiator, definition/count demands and packed cargo. Phases are
 planned, departing, outbound, buying, returning, delivered and ended; return-home
 intent is mandatory. Caravan IDs are discovered from exact native crew, never
@@ -111,10 +111,10 @@ Exact observed assembly or player caravan reconstructs progress after a lost
 receipt or load. Missing/overlapping crew evidence never resets a departing
 mission to planned. A stopped player caravan on the settlement tile is available
 to the shared session through vanilla `SettlementVisitedNow`; arrival does not
-require an extra order. The shared trade planner drives saved Standards before
+require an extra order. The `economy/trade-mission` Need drives the saved mission before
 considering a new request or visit. Completed home staffing/defense facts admit
 exact packing options; the existing acquisition planner chooses without stock
-credit. Departure runs only after the Standard has been recorded.
+credit. Departure runs only after the mission has been recorded.
 
 Settlement purchases use live prices and current home demand, bounded by saved
 authorization, mission silver and native carry capacity. The existing supply

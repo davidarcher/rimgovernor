@@ -124,7 +124,6 @@ internal static class ClockPlannerCatalog
     private static readonly FactSection[] SectionsRecovery = [FactSection.Pawns, FactSection.Emergency, FactSection.Colony];
     // The sectionless families planners declare beside their sections.
     private static readonly FactFamily[] FamiliesEmergency = [FactFamily.Emergency];
-    private static readonly FactFamily[] FamiliesWorld = [FactFamily.World];
 
     private static PlannerEntry E<T>(
         string name,
@@ -175,8 +174,6 @@ internal static class ClockPlannerCatalog
             c => c.Recovery is not null, (s, ct, e, a) => s.Config.Recovery!.StepAsync(a, ct, e), (o, m) => o.Recovery = m, immediate: true),
         E("dialog", C, [ActionKind.DialogAnswer], SectionsColony,
             c => c.Dialog is not null, (s, ct, e, a) => s.Config.Dialog!.StepAsync(a, ct, e), (o, m) => o.Dialog = m),
-        E("trade", O, [ActionKind.Trade, ActionKind.CommsTradeRequest], SectionsColony,
-            c => c.Trade is not null, (s, ct, e, a) => s.Config.Trade!.StepAsync(a, ct, e), (o, m) => o.Trade = m, families: FamiliesWorld),
         E("defenseLayout", O, [ActionKind.Building, ActionKind.RecoveryService, ActionKind.CoverClearance, ActionKind.FoundationRemoval], SectionsBuilding,
             c => c.DefenseLayout is not null, (s, ct, e, a) => s.Config.DefenseLayout!.StepAsync(a, ct, e), (o, m) => o.DefenseLayout = m, EnsureDefensiveLayout),
     ];

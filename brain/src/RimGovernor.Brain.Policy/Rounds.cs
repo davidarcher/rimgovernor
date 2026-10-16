@@ -274,7 +274,7 @@ public sealed record RoundsFacts
     /// <summary>Counts the packed art no owed room reserves (SaleSculptures); read only while the wealth headroom is negative, it opens a trade as the shed_art need.</summary>
     public Fact<long> SaleArt { get; init; }
 
-    /// <summary>The generic goods MaintainTrade's last declaration could rank (ExportSaleProducts), held stacks of which sell as surplus while the silver gap is open (ExportSaleSurplus). Set from the Rounder's memory; empty before the first declaration of a world.</summary>
+    /// <summary>The generic goods the economy/trade Need's last declaration could rank (ExportSaleProducts), held stacks of which sell as surplus while the silver gap is open (ExportSaleSurplus). Set from the Rounder's memory; empty before the first declaration of a world.</summary>
     public EquatableArray<Resource> ExportProducts { get; init; }
 
     /// <summary>The part items a usable gear bench has a researched recipe for, read only while a medical pawn wants a part; the caravan assessment counts only parts no bench can make.</summary>
@@ -350,7 +350,7 @@ public sealed record RoundsFacts
     /// <summary>The exposed/eligible native item census (the same WasteReply the generic per-tick colony read already carries) that MorgueWaiting and RouteStranger read.</summary>
     public Fact<EquatableArray<WasteItem>> Waste { get; init; }
 
-    /// <summary>The map trader census (bridge.ListTraders) TradeWithCaravan needs; a source without the read leaves it unknown and the goal off.</summary>
+    /// <summary>The map trader census (bridge.ListTraders) the economy/caravan Need needs; a source without the read leaves it unknown and the goal off.</summary>
     public Fact<EquatableArray<TraderFacts>> Traders { get; init; }
 
     /// <summary>The food/blight Need's blighted-plant census (the colony read's plant things of the planning window), for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
@@ -509,7 +509,7 @@ public sealed record RoundsFacts
     /// <summary>The colonists whose drug policy permits each social drug (DrugUsers); it sets the drug runway's reserve before any dose is observed.</summary>
     public IReadOnlyDictionary<Resource, long>? DrugUsers { get; init; }
 
-    /// <summary>The colony wealth split TradeWithCaravan's wealth-driven surplus keys on; unknown leaves that surplus out.</summary>
+    /// <summary>The colony wealth split the economy/caravan Need's wealth-driven surplus keys on; unknown leaves that surplus out.</summary>
     public Fact<WealthFacts> Wealth { get; init; }
 
     /// <summary>The native research state read inside the same paused identity bracket as the other routine facts. Unknown when the source cannot read research; missing facts never meet the economy/research Need.</summary>
@@ -621,6 +621,10 @@ public sealed record RoundsFindings
 
     /// <summary>The review's one resource-demand value (Needs are the effective the economy/resource Need stock targets the review held the census to; the stock overlay tints stockpiles by them).</summary>
     public DerivedDemand ResourceDemand { get; set; } = new();
+
+    /// <summary>The review's trade facts (the silver gap, the caravans' standing) the economy family's trade Needs read; derived, not saved.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TradeReview Trade { get; set; } = new();
     public EssentialServiceReview? EssentialServices { get; set; }
 
     /// <summary>Every assessment, goal needs then incident kinds.</summary>
@@ -656,7 +660,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId ActiveCombat = new("ActiveCombat");
     public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
     public static readonly ConcernId EnsureDefensiveLayout = new("EnsureDefensiveLayout");
-    public static readonly ConcernId TradeWithCaravan = new("TradeWithCaravan");
     /// <summary>Supplies the routine inspection targets and budgets. Individual planners bound their orders; vanilla priorities schedule pawn work.</summary>
     public static RoundsPolicy DefaultRoundsPolicy() => new()
     {
@@ -926,6 +929,7 @@ public static partial class PolicyFunctions
                 r.Assessments.Add(a);
             }
         }
+        r.Trade = TradeReviewOf(c);
         r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, r.All(), medicineActive: c.L.MedicalReserve);
         return r;
     }

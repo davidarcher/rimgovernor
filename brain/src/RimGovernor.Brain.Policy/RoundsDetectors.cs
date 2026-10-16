@@ -102,11 +102,21 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// TradeWithCaravan is a Response: an incident per caravan visit, never a development goal. It needs a
-    /// negotiator's conversation, not a development slot, and recovers by itself when the caravan leaves or
-    /// nothing is left worth trading. Restore parts a bench could make do not stand the goal.
+    /// The review's trade facts the economy family's trade and caravan Needs read (#3316): the silver gap a
+    /// purchase need leaves open, and whether the caravans present leave nothing worth trading.
     /// </summary>
-    internal static void InspectTrade(RoundsRun c)
+    internal static TradeReview TradeReviewOf(RoundsRun c) => new()
+    {
+        SilverGap = ReviewSilverGap(c.F, c.P, c.Medicine, c.Demand),
+        CaravanRecovered = CaravanRecoveredOf(c),
+    };
+
+    /// <summary>
+    /// Whether a caravan visit leaves nothing to trade: known true when no tradeable caravan is present or nothing
+    /// is worth trading, unknown while the trader census or the need is unread. Restore parts a bench could make
+    /// do not count.
+    /// </summary>
+    internal static Fact<bool> CaravanRecoveredOf(RoundsRun c)
     {
         var f = c.F;
         var p = c.P;
@@ -136,7 +146,7 @@ public static partial class PolicyFunctions
         tradeNeed = FavorGoldNeed(tradeNeed, f.Traders, f.Resources, c.Demand.Needs, RoundsTradeFloors(p, null), c.Demand.Retained);
         var shortage = RoundsSilverShort(f, p, c.Medicine.Active).TryGetValue(out var silverShort) && silverShort;
         tradeNeed = FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
-        c.Assess(TradeWithCaravan, TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity()))));
+        return TradeRecovered(f.Traders, PopulationTradeNeed(tradeNeed, JoinerCapacity(f.JoinerCapacity())));
     }
 
     /// <summary>EnsureDefensiveLayout is config-only: opt-in activates the goal at priority 3 (after the storage gate) and the planner reports no work once every tier stands.</summary>
@@ -172,24 +182,6 @@ public static partial class PolicyFunctions
             }
         }
     }
-
-    /// <summary>MaintainTrade is owed while a purchase need's silver gap is open. A closed gap recovers it; an unread gap raises nothing.</summary>
-    internal static void InspectExport(RoundsRun c)
-    {
-        var recovered = Unknown<bool>();
-        var gap = ReviewSilverGap(c.F, c.P, c.Medicine, c.Demand);
-        if (gap.TryGetValue(out var g))
-        {
-            recovered = Known(!(g > 0));
-        }
-        c.Assess(MaintainTrade, recovered);
-        if (recovered.TryGetValue(out var v) && !v)
-        {
-            // Binary like the other upkeep needs: the silver amount is not a fraction.
-            c.Raise(MaintainTrade).Deficit = Known(1.0);
-        }
-    }
-
 
     /// <summary>
     /// A pawn's mood is an EnsureMood incident keyed by the pawn, never a development goal. Its relief is

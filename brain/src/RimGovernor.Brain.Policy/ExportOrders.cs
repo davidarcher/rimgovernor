@@ -61,7 +61,7 @@ public sealed record ExportPlan
     public Declared Declared { get; init; } = new();
 
     /// <summary>
-    /// The products MaintainTrade can rank (every craftable sale good its benches make, floors and the non-sale
+    /// The products the economy/trade Need can rank (every craftable sale good its benches make, floors and the non-sale
     /// kinds left out), the goods a held stack joins the sale surplus of while the gap is open.
     /// </summary>
     public IReadOnlyList<Resource> Products { get; init; } = [];
@@ -212,7 +212,7 @@ internal sealed class HorizonGuard : IExportRunwayGuard
     }
 }
 
-/// <summary>A recipe of a usable bench that MaintainTrade may rank. (Go <c>exportRecipe</c>.)</summary>
+/// <summary>A recipe of a usable bench that the economy/trade Need may rank. (Go <c>exportRecipe</c>.)</summary>
 internal sealed record ExportRecipe(
     GearBench Bench,
     GearRecipe Recipe,
@@ -232,14 +232,12 @@ internal readonly record struct ExportWorker(PawnId Id, int Skill);
 
 public static partial class PolicyFunctions
 {
-    /// <summary>Go <c>MaintainTrade</c>.</summary>
-    // MaintainTrade closes the colony's silver gap with goods the bench crafts: while SilverGap is positive it
-    // ranks the craftable sale goods and declares the winners to the work ledger (OrderDeclarer) as finite
-    // batches pinned to the best capable worker; the trade planner then sells what they make as surplus
+    // The economy/trade Need (#3316) closes the colony's silver gap with goods the bench crafts: while SilverGap is
+    // positive it ranks the craftable sale goods and declares the winners to the work ledger (OrderDeclarer) as
+    // finite batches pinned to the best capable worker; the caravan Need then sells what they make as surplus
     // (ExportSaleSurplus, SaleGearSurplus). Ownership is split by floor: the economy/resource Need owns a bill whose
-    // product has a floor; MaintainTrade owns the sale goods with none, and never acquires anything: it spends
+    // product has a floor; the trade Need owns the sale goods with none, and never acquires anything: it spends
     // only UsableIngredients. The rooms/art Need keeps room decoration only.
-    public static readonly ConcernId MaintainTrade = new("MaintainTrade");
 
     /// <summary>
     /// How far ahead ExportGuard keeps the colony's own use of an ingredient whole: an export may not draw a
@@ -298,8 +296,8 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Reports whether a recipe's product is one MaintainTrade may rank. A product with a floor or a need, food,
-    /// stone blocks, components and the currency are others' (the economy/resource Need's), never MaintainTrade's.
+    /// Reports whether a recipe's product is one the economy/trade Need may rank. A product with a floor or a need, food,
+    /// stone blocks, components and the currency are others' (the economy/resource Need's), never the economy/trade Need's.
     /// </summary>
     private static bool ExportProduct(ExportRequest r, Resource product)
     {
@@ -705,7 +703,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Go <c>DeclareExportOrders</c>: MaintainTrade's wanted orders. While the silver gap is open every standing
+    /// Go <c>DeclareExportOrders</c>: the economy/trade Need's wanted orders. While the silver gap is open every standing
     /// export batch is declared as it stands and, for what the goods held and in progress leave of the gap, one
     /// finite batch per free worker is added in descending score order, sized by the gap, the trader cash cap and
     /// the runway guard. A gap known closed declares nothing, so the ledger removes the batches. Abstain while
@@ -926,7 +924,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// Go <c>RankExports</c>: the candidates MaintainTrade would order against an open gap, best first, for the
+    /// Go <c>RankExports</c>: the candidates the economy/trade Need would order against an open gap, best first, for the
     /// reader: <see cref="DeclareExportOrders"/>' ranking without the gap's sizing.
     /// </summary>
     public static IReadOnlyList<ExportCandidate> RankExports(ExportRequest r)

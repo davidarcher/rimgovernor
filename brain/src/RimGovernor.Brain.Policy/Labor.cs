@@ -37,9 +37,11 @@ public static partial class PolicyFunctions
         SetNeeds([WorkType.PlantCutting], BlightNeed);
         SetNeeds([WorkType.Art], RoomsFamily.Art);
 
-        // A sale batch at any crafting bench: sculpture, apparel, weapon.
-        Set([WorkType.Art, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MaintainTrade);
+        // The trade Need's sale batch at any crafting bench: sculpture, apparel, weapon.
+        SetNeeds([WorkType.Art, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], EconomyFamily.Trade);
         SetNeeds([WorkType.Research], EconomyFamily.Research);
+
+        // The resource Need's mines, chops and workshop bench.
         SetNeeds([WorkType.Mining, WorkType.PlantCutting, WorkType.Crafting], EconomyFamily.Resource);
 
         // A wear order is a forced job any pawn carries; the replacement bill needs the bench's work type.

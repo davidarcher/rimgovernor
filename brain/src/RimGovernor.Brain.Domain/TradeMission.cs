@@ -1,11 +1,5 @@
 namespace RimGovernor.Brain.Domain;
 
-/// <summary>The Concern ids this package names itself.</summary>
-public static class Concerns
-{
-    public static readonly ConcernId TradeMission = new("trade-mission");
-}
-
 public enum TradeMissionPhase
 {
     Planned,
@@ -18,8 +12,9 @@ public enum TradeMissionPhase
 }
 
 /// <summary>
-/// Intent carried by <see cref="Standard.Mission"/>. It holds no native inventory, caravan identity, position,
-/// prices or routes. Go persisted it as JSON text; it is a typed value here.
+/// A settlement trade mission's intent, kept in the economy family's <c>family/economy/trade_missions</c> record
+/// (#3316; a trade-mission Standard carried it before). It holds no native inventory, caravan identity, position,
+/// prices or routes.
 /// </summary>
 public sealed record TradeMission
 {
@@ -105,25 +100,7 @@ public sealed record TradeMission
         Validate();
         return new CaravanDeparture(Crew, Pack, SettlementTile);
     }
-}
 
-public sealed partial record Standard
-{
-    /// <summary>A Once Standard whose Record is the mission (Go <c>NewTradeMissionStandard</c>).</summary>
-    public static Standard NewTradeMissionStandard(StandardId id, GenerationSnapshot snapshot, TradeMission m)
-    {
-        DomainException.Require(m.Phase == TradeMissionPhase.Planned && m.HomeColony == snapshot.Colony && m.HomeMap == snapshot.Map, "trade mission scope mismatch");
-        var g = new Standard
-        {
-            Id = id,
-            Kind = Concerns.TradeMission,
-            Snapshot = snapshot,
-            Status = StandardStatus.Open,
-            Finding = Finding.Unclear,
-            Once = true,
-            Mission = m,
-        };
-        g.Validate();
-        return g;
-    }
+    /// <summary>Whether the mission is over: delivered, or ended without delivery.</summary>
+    public bool Over => Phase is TradeMissionPhase.Delivered or TradeMissionPhase.Ended;
 }
