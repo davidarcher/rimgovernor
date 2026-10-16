@@ -50,6 +50,27 @@ public sealed class MechanicCardsTests
         Assert.Contains("not modelled", dead.Unreachable, StringComparison.Ordinal);
     }
 
+    // #3281: the Gate 1 lever, generated with no hand edits.
+    [Fact]
+    public void EmbeddedDeadMansApparelCardCountsTaintedWornApparel()
+    {
+        var card = MechanicCards.ByDef["DeadMansApparel"];
+
+        Assert.Equal("situational", card.Kind);
+        Assert.Equal([-5.0, -8, -11, -14], card.Xml.Stages.Select(s => s.BaseMoodEffect ?? 0));
+        Assert.Equal(["Bloodlust"], card.Xml.NullifyingTraits);
+        Assert.Equal(["Inhumanized"], card.Xml.NullifyingHediffs);
+        Assert.Equal(2, card.Sites.Count);
+        Assert.All(card.Sites, site =>
+        {
+            var guard = Assert.Single(site.Guards);
+            Assert.Equal("count", guard.Origin);
+            Assert.Equal("Pawn_ApparelTracker.WornApparel", guard.Count!.Over.Decl);
+            Assert.Equal("Apparel.WornByCorpse", guard.Count.Where.Decl);
+            Assert.Equal("ThoughtWorker_DeadMansApparel.ApparelCounts", guard.Count.Via);
+        });
+    }
+
     [Fact]
     public void MinimalFileParses() => Assert.Equal("memory", Parse(Minimal)["D"].Kind);
 

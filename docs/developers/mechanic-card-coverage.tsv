@@ -254,7 +254,7 @@ Darklight_Preferred_BlindingLight	situational		partial	1	4	2	external-type
 Darklight_Preferred_Darklight	situational		partial	1	4	2	external-type
 Darklight_Preferred_IndoorLight	situational		partial	1	4	2	external-type
 DarknessLifted	memory		unknown	1	0	0	conditions-in-callers
-DeadMansApparel	situational	MaintainEquipment	resolved	2	4	0	
+DeadMansApparel	situational	MaintainEquipment	resolved	2	2	0	
 DeadlifeDust	situational		resolved	3	14	0	
 DeathPall	memory		unknown	0	0	0	xml-granted
 DeathRefusalSickness	situational		unknown	1	1	1	unsupported-syntax

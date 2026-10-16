@@ -149,6 +149,109 @@ public sealed class GuardAnalysisTests
         Assert.Equal("resolved", card.Status);
     }
 
+    // #3281: the apparel-thought shape, generic. A base worker counts the worn items its virtual predicate accepts; the
+    // overrides resolve it or not. InlineWorker counts in an indexed for loop with the predicate written inline.
+    private const string Counter = """
+        namespace Game;
+
+        public struct ThoughtState { public static ThoughtState Inactive; public static ThoughtState ActiveAtStage(int i) => default; }
+        public class Item { public bool Tainted; }
+        public class Tracker { public List<Item> Worn; }
+        public class Pawn { public Tracker gear; }
+        public abstract class Worker { protected abstract ThoughtState CurrentStateInternal(Pawn p); }
+        public abstract class CountWorker : Worker
+        {
+            protected abstract bool Counts(Item item);
+
+            protected override ThoughtState CurrentStateInternal(Pawn p)
+            {
+                int n = 0;
+                foreach (var item in p.gear.Worn)
+                {
+                    if (Counts(item))
+                    {
+                        n++;
+                    }
+                }
+                if (n == 0)
+                {
+                    return ThoughtState.Inactive;
+                }
+                return ThoughtState.ActiveAtStage(n - 1);
+            }
+        }
+        public class TaintWorker : CountWorker { protected override bool Counts(Item item) => item.Tainted; }
+        public class BlockWorker : CountWorker { protected override bool Counts(Item item) { var t = item.Tainted; return t; } }
+        public class InlineWorker : Worker
+        {
+            protected override ThoughtState CurrentStateInternal(Pawn p)
+            {
+                var worn = p.gear.Worn;
+                int n = 0;
+                for (int i = 0; i < worn.Count; i++)
+                {
+                    if (worn[i].Tainted)
+                    {
+                        n++;
+                    }
+                }
+                return n >= 2;
+            }
+        }
+        """;
+
+    private static Card CounterCard(string worker)
+    {
+        var index = SourceIndex.Build([("counter.cs", Counter)]);
+        var def = new ThoughtDef("D", worker, "", new Dictionary<string, System.Xml.Linq.XElement>());
+        return Assert.Single(new GuardCards(index, ".", new HashSet<string> { "D" }).Build([def], new Dictionary<string, string>(), new Dictionary<string, IReadOnlyList<string>>()));
+    }
+
+    [Fact]
+    public void ACountLoopBecomesACountGuardWithThePredicateResolvedThroughTheWorkerOverride()
+    {
+        var card = CounterCard("TaintWorker");
+
+        Assert.Equal("resolved", card.Status);
+        var guard = Assert.Single(Assert.Single(card.Sites).Guards);
+        Assert.Equal("count", guard.Origin);
+        Assert.Equal("!(n == 0)", Exprs.Render(guard.Cond));
+        var count = Assert.IsType<CountSpec>(guard.Count);
+        Assert.Equal("Tracker.Worn", Assert.IsType<Sym>(count.Over).Decl);
+        Assert.Equal("Item.Tainted", Assert.IsType<Sym>(count.Where).Decl);
+        Assert.Equal("(n - 1)", Exprs.Render(count.Stage));
+        Assert.Equal("TaintWorker.Counts", count.Via);
+        Assert.NotNull(count.ViaHash);
+    }
+
+    [Fact]
+    public void AnIndexedLoopWithAnInlinePredicateBecomesACountGuard()
+    {
+        var card = CounterCard("InlineWorker");
+
+        Assert.Equal("resolved", card.Status);
+        var guard = Assert.Single(Assert.Single(card.Sites).Guards);
+        Assert.Equal(("count", "(n >= 2)"), (guard.Origin, Exprs.Render(guard.Cond)));
+        Assert.Equal("Tracker.Worn", Assert.IsType<Sym>(guard.Count!.Over).Decl);
+        Assert.Equal(("Item.Tainted", "worn[i].Tainted"), (Assert.IsType<Sym>(guard.Count.Where).Decl, Exprs.Render(guard.Count.Where)));
+        Assert.Equal("0", Exprs.Render(guard.Count.Stage));
+        Assert.Null(guard.Count.Via);
+    }
+
+    [Theory]
+    [InlineData("BlockWorker")]
+    [InlineData("CountWorker")]
+    public void APredicateNoWorkerOverrideResolvesIsAnUnknownCountGuard(string worker)
+    {
+        var card = CounterCard(worker);
+
+        Assert.Equal("unknown", card.Status);
+        var guard = Assert.Single(Assert.Single(card.Sites).Guards);
+        var where = Assert.IsType<Unknown>(guard.Count!.Where);
+        Assert.Equal(("virtual-call", "CountWorker.Counts()"), (where.Reason, where.Text));
+        Assert.Contains("virtual-call", card.Reasons);
+    }
+
     [Fact]
     public void TheSameSourceYieldsTheSameHash()
     {

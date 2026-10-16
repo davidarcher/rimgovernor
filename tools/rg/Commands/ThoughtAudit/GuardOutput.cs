@@ -10,8 +10,14 @@ internal static class GuardOutput
     private static readonly string[] Scalars =
     [
         "thoughtClass", "workerClass", "hediff", "durationDays", "stackLimit", "stackLimitForSameOtherPawn", "stackedEffectMultiplier",
-        "effectMultiplyingStat", "nullifiedIfNotColonist", "minExpectationForNegativeThought", "requiredTraits", "nullifyingTraits",
+        "effectMultiplyingStat", "nullifiedIfNotColonist", "minExpectationForNegativeThought",
     ];
+
+    /// <summary>The XML list fields, written as arrays of their <c>li</c> values (#3281; before, a list's text was glued into one string).</summary>
+    private static readonly string[] Lists = ["requiredTraits", "nullifyingTraits", "nullifyingHediffs"];
+
+    private static IEnumerable<string> Items(ThoughtDef d, string field) =>
+        d.Fields.TryGetValue(field, out var list) ? list.Elements("li").Select(li => li.Value.Trim()) : [];
 
     /// <summary>Per-def status plus the dominant reasons, as the summary written at the head of the card file.</summary>
     public static Dictionary<string, object> Summarize(IReadOnlyList<Card> all)
@@ -20,9 +26,9 @@ internal static class GuardOutput
         var byKind = all.GroupBy(c => c.Kind + "/" + c.Status).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
         var primary = all.Where(c => c.Status != "resolved").GroupBy(PrimaryReason).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
         var guards = all.SelectMany(c => c.Sites).SelectMany(s => s.Guards).ToList();
-        var guardReasons = guards.SelectMany(g => Exprs.Unknowns(g.Cond).Select(u => Category(u.Reason))).GroupBy(r => r)
+        var guardReasons = guards.SelectMany(g => Exprs.Unknowns(g).Select(u => Category(u.Reason))).GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
-        var external = guards.SelectMany(g => Exprs.Unknowns(g.Cond)).Where(u => u.Reason == "external-type").Select(u => u.Text.Split('.')[0])
+        var external = guards.SelectMany(g => Exprs.Unknowns(g)).Where(u => u.Reason == "external-type").Select(u => u.Text.Split('.')[0])
             .GroupBy(t => t).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).Take(15).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
         return new Dictionary<string, object>
         {
@@ -32,9 +38,9 @@ internal static class GuardOutput
             ["primaryReasonOfNonResolved"] = Sorted(primary),
             ["sites"] = all.Sum(c => c.Sites.Count),
             ["guards"] = guards.Count,
-            ["guardsResolved"] = guards.Count(g => Exprs.Resolved(g.Cond)),
+            ["guardsResolved"] = guards.Count(g => Exprs.Resolved(g)),
             ["unknownLeavesByReason"] = Sorted(guardReasons),
-            ["unsupportedSyntaxKinds"] = Sorted(guards.SelectMany(g => Exprs.Unknowns(g.Cond)).Where(u => u.Reason.StartsWith("unsupported-syntax:", StringComparison.Ordinal))
+            ["unsupportedSyntaxKinds"] = Sorted(guards.SelectMany(g => Exprs.Unknowns(g)).Where(u => u.Reason.StartsWith("unsupported-syntax:", StringComparison.Ordinal))
                 .GroupBy(u => u.Reason[19..]).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal)),
             ["topExternalTypes"] = external,
         };
@@ -47,7 +53,7 @@ internal static class GuardOutput
         {
             return GuardCards.NoWriterOnCallerPath;
         }
-        var leaves = c.Sites.SelectMany(s => s.Guards).SelectMany(g => Exprs.Unknowns(g.Cond)).Select(u => Category(u.Reason)).ToList();
+        var leaves = c.Sites.SelectMany(s => s.Guards).SelectMany(g => Exprs.Unknowns(g)).Select(u => Category(u.Reason)).ToList();
         var structural = c.Reasons.Where(r => r is "xml-granted" or "no-code-or-xml-reference" or "worker-not-in-sources" or "conditions-in-callers" or "event-driven").ToList();
         if (structural.Count > 0 && (leaves.Count == 0 || c.Sites.Count == 0))
         {
@@ -67,7 +73,7 @@ internal static class GuardOutput
         {
             var guards = c.Sites.SelectMany(s => s.Guards).ToList();
             sb.Append(c.Def).Append('\t').Append(c.Kind).Append('\t').Append(c.Owner).Append('\t').Append(c.Status).Append('\t')
-                .Append(c.Sites.Count).Append('\t').Append(guards.Count).Append('\t').Append(guards.Count(g => !Exprs.Resolved(g.Cond))).Append('\t')
+                .Append(c.Sites.Count).Append('\t').Append(guards.Count).Append('\t').Append(guards.Count(g => !Exprs.Resolved(g))).Append('\t')
                 .Append(c.Status == "resolved" ? "" : PrimaryReason(c)).Append('\n');
         }
         return sb.ToString();
@@ -126,12 +132,15 @@ internal static class GuardOutput
                 {
                     w.WriteNumber(name, double.Parse(c.Data.Fields[name].Value.Trim(), System.Globalization.CultureInfo.InvariantCulture));
                 }
-                w.WriteStartArray("nullifyingTraits");
-                foreach (var li in c.Data.Fields.TryGetValue("nullifyingTraits", out var traits) ? traits.Elements("li") : [])
+                foreach (var name in (string[])["nullifyingTraits", "nullifyingHediffs"])
                 {
-                    w.WriteStringValue(li.Value.Trim());
+                    w.WriteStartArray(name);
+                    foreach (var item in Items(c.Data, name))
+                    {
+                        w.WriteStringValue(item);
+                    }
+                    w.WriteEndArray();
                 }
-                w.WriteEndArray();
                 w.WriteStartArray("stages");
                 foreach (var li in c.Data.Fields.TryGetValue("stages", out var stages) ? stages.Elements("li") : [])
                 {
@@ -158,11 +167,11 @@ internal static class GuardOutput
         return Encoding.UTF8.GetString(ms.ToArray()) + "\n";
     }
 
-    /// <summary>The body hashes a card's drift hash covers: each grant site and each writer, follows included.</summary>
+    /// <summary>The body hashes a card's drift hash covers: each grant site, each worker override a count guard was resolved through (#3281) and each writer, follows included.</summary>
     public static IEnumerable<string> MemberHashes(Card c)
     {
         static IEnumerable<string> Of(FieldWriters f) => f.Writers.Select(x => x.Hash).Concat(f.Following.SelectMany(Of));
-        return c.Sites.SelectMany(s => s.Writers.SelectMany(Of).Prepend(s.Hash));
+        return c.Sites.SelectMany(s => s.Writers.SelectMany(Of).Concat(s.Guards.Select(g => g.Count?.ViaHash).OfType<string>()).Prepend(s.Hash));
     }
 
     private static void WriteAny(Utf8JsonWriter w, object value)
@@ -215,6 +224,15 @@ internal static class GuardOutput
         foreach (var name in Scalars.Where(c.Data.Fields.ContainsKey))
         {
             w.WriteString(name, string.Join(' ', c.Data.Fields[name].Value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+        }
+        foreach (var name in Lists.Where(c.Data.Fields.ContainsKey))
+        {
+            w.WriteStartArray(name);
+            foreach (var item in Items(c.Data, name))
+            {
+                w.WriteStringValue(item);
+            }
+            w.WriteEndArray();
         }
         w.WriteStartArray("stages");
         foreach (var li in c.Data.Fields.TryGetValue("stages", out var stages) ? stages.Elements("li") : [])
@@ -273,14 +291,30 @@ internal static class GuardOutput
         w.WriteString("origin", g.Origin);
         if (!shipped)
         {
-            w.WriteString("text", Exprs.Render(g.Cond));
-            w.WriteString("conditions", Exprs.Resolved(g.Cond) ? "resolved" : "unknown");
+            w.WriteString("text", Exprs.Render(g));
+            w.WriteString("conditions", Exprs.Resolved(g) ? "resolved" : "unknown");
         }
         w.WritePropertyName("expr");
         WriteExpr(w, g.Cond);
         if (g.Unreachable is not null)
         {
             w.WriteString("unreachable", g.Unreachable);
+        }
+        if (g.Count is { } c)
+        {
+            w.WriteStartObject("count");
+            w.WritePropertyName("over");
+            WriteExpr(w, c.Over);
+            w.WritePropertyName("where");
+            WriteExpr(w, c.Where);
+            w.WritePropertyName("stage");
+            WriteExpr(w, c.Stage);
+            if (c.Via is not null)
+            {
+                w.WriteString("via", c.Via);
+                w.WriteString("viaHash", c.ViaHash);
+            }
+            w.WriteEndObject();
         }
         w.WriteEndObject();
     }

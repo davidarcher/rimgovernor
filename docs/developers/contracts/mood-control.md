@@ -134,13 +134,16 @@ expectations reach the review only through the pawn's `HighExpectations` flag.
 #### Mechanic cards
 
 `brain/src/RimGovernor.Brain.Policy/mechanic_cards.json` holds a mechanic card for each ThoughtDef with a live
-consumer (an allowlist in `ThoughtAuditCommand`; today only `KnowBuriedInSarcophagus`, epic #3217). `RimGovernor.cmd
+consumer (an allowlist in `ThoughtAuditCommand`; today `KnowBuriedInSarcophagus` and the Gate 1 lever `DeadMansApparel`, epic #3217). `RimGovernor.cmd
 thoughtaudit -guards` regenerates it with the [spike's](../mechanic-card-spike.md) syntax-only extraction; the output is
 byte-identical for one decompiled tree. A card carries the def, its kind, the XML fields (`durationDays`, `stackLimit`,
-`stackedEffectMultiplier`, `nullifyingTraits`, stages with `baseMoodEffect`), and each granting site (member, access,
+`stackedEffectMultiplier`, the `nullifyingTraits` and `nullifyingHediffs` lists, stages with `baseMoodEffect`), and each granting site (member, access,
 caller count, `bodyHash` drift hash) with its guard expression trees and origins and the writers of the fields those
 guards read (method and `bodyHash`, write kind, value, guards, `resetWriters`, `writersFound`, followed fields).
-Unresolved leaves stay `unknown` with their reason. Modded defs get no cards.
+A count guard (origin `count`, #3281) also carries `count`: `over` (the collection a worker loop iterates), `where`
+(the per-element predicate, resolved through the def's `workerClass` override named by `via`) and `stage` (the stage
+index the site returns, over the count); its expression compares the count symbol with literals. Unresolved leaves
+stay `unknown` with their reason. Modded defs get no cards.
 
 `MechanicCards.ByDef` embeds the file and parses it on first use into `MechanicCard` records. A malformed file, an
 unknown or missing field, an unknown status or a schema other than `MechanicCards.Schema` throws; it never yields an
@@ -172,8 +175,19 @@ map (site -> existing action kind and constraint; the sarcophagus haul is `Haul`
 when `Live` and every guard holds or is achievable. `thoughtaudit -guards` fails when a table row names a decl or site
 absent from the shipped cards or the decompiled sources (`GuardTableCheck`, also run over the embedded cards by a test).
 
+`MechanicCardGuards.CardStageOffset` (pure, #3281) prices a count card for one pawn (`CardPawnFacts`: observed trait
+and hediff def names, whether Anomaly is active) and one outfit (its `GearOption` items). Each item is counted when the
+`where` predicate holds through the `ItemBindings` table (`Apparel.WornByCorpse` is `GearOption.Tainted`, native
+`NativeGearFacts`); `over` must be a `CountCollections` row (`Pawn_ApparelTracker.WornApparel`). The one site whose
+count condition holds gives the stage, clamped to the last defined stage as native `ThoughtState.StageIndexFor` does,
+and the offset is that stage's `baseMoodEffect` (`DeadMansApparel`: -5, -8, -11, then -14 for four or more). It is 0
+when a nullifying trait or hediff is present or no site holds (a count of 0), and unknown when a binding, an
+observation or a modelled guard is missing. A hediff only Anomaly adds (`AnomalyHediffs`: `Inhumanized`) is absent
+while Anomaly is inactive, even when the hediff list is unread. It does not check `Live`; only a verified card may
+drive play. Nothing consumes it yet (#3284, #3285).
+
 A card is `verified` only for the code it was probed against. Its drift hash is the first 16 hex digits of SHA-256
-over the `bodyHash` of every site and every writer (follows included), distinct, sorted ordinally and joined by
+over the `bodyHash` of every site, every count guard's `via` override and every writer (follows included), distinct, sorted ordinally and joined by
 newlines; any change to one of those methods changes it. The hand-appended
 `brain/src/RimGovernor.Brain.Policy/mechanic_cards_verified.tsv` (`def`, `drift_hash`, `probe`, `game`, `evidence`;
 not embedded) records each observed probe pass. `thoughtaudit -guards` prints every live card's drift hash and ships

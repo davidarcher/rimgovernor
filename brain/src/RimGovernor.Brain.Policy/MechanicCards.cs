@@ -33,7 +33,11 @@ public sealed record MechanicCard(string Def, string Kind, MechanicCardStatus St
 }
 
 /// <summary>The def's XML fields; a number absent from the XML is null (the game's default applies).</summary>
-public sealed record MechanicCardXml(IReadOnlyList<string> NullifyingTraits, IReadOnlyList<MechanicCardStage> Stages, double? DurationDays = null, int? StackLimit = null, double? StackedEffectMultiplier = null);
+public sealed record MechanicCardXml(IReadOnlyList<string> NullifyingTraits, IReadOnlyList<MechanicCardStage> Stages, double? DurationDays = null, int? StackLimit = null, double? StackedEffectMultiplier = null)
+{
+    /// <summary>The HediffDefs whose presence nullifies the thought (#3281); empty when the XML lists none.</summary>
+    public IReadOnlyList<string> NullifyingHediffs { get; init; } = [];
+}
 
 public sealed record MechanicCardStage(double? BaseMoodEffect = null);
 
@@ -43,8 +47,16 @@ public sealed record MechanicCardSite(string Site, string BodyHash, string Acces
 /// <summary>
 /// One condition on the path to a site or writer; <see cref="Origin"/> is the syntax it came from (early-exit, if, foreach, ...).
 /// <see cref="Unreachable"/>, when set, says why no writer on the site's direct caller path can make it hold (#3243).
+/// A count guard (origin <c>count</c>, #3281) carries <see cref="Count"/>, and its Expr compares the count symbol (kind <c>count</c>) with literals.
 /// </summary>
-public sealed record MechanicCardGuard(string Origin, MechanicCardExpr Expr, string? Unreachable = null);
+public sealed record MechanicCardGuard(string Origin, MechanicCardExpr Expr, string? Unreachable = null, MechanicCardCount? Count = null);
+
+/// <summary>
+/// What a count guard counts (#3281): the elements of <see cref="Over"/> for which <see cref="Where"/> holds; <see cref="Stage"/>
+/// is the stage index the site returns, as an expression over the count. <see cref="Via"/> names the worker override the
+/// predicate was resolved through, and <see cref="ViaHash"/> is its drift hash.
+/// </summary>
+public sealed record MechanicCardCount(MechanicCardExpr Over, MechanicCardExpr Where, MechanicCardExpr Stage, string? Via = null, string? ViaHash = null);
 
 /// <summary>
 /// A guard expression node: a symbol (<see cref="Sym"/> with Kind, Decl, Type), a literal (<see cref="Lit"/>), an

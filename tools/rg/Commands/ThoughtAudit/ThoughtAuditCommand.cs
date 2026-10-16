@@ -20,7 +20,7 @@ namespace RimGovernor.Tools.Commands.ThoughtAudit;
 /// <c>-guards</c> (#3218, a removable spike) instead leaves the table alone and parses the decompiled sources with Roslyn
 /// (syntax only) to write draft mechanic cards: each grant site's guard conditions and the writers of the fields they read,
 /// with anything unresolved emitted as <c>unknown</c> and a reason. It writes -cards (JSON, the -only defs, default the
-/// three Gate 0 benchmarks) and -coverage (TSV, every def) under <c>docs/developers/</c>; see
+/// Gate 0 benchmarks and the Gate 1 lever) and -coverage (TSV, every def) under <c>docs/developers/</c>; see
 /// <c>docs/developers/mechanic-card-spike.md</c>. It also writes -shipped (default
 /// <c>brain/src/RimGovernor.Brain.Policy/mechanic_cards.json</c>, #3220): the cards of the defs with a live consumer
 /// (<see cref="LiveConsumers"/>), which the policy assembly embeds. A shipped card is <c>verified</c> when its drift hash
@@ -37,10 +37,10 @@ internal static class ThoughtAuditCommand
 
     private static readonly string[] DefaultVerified = ["brain", "src", "RimGovernor.Brain.Policy", "mechanic_cards_verified.tsv"];
 
-    private static readonly string[] DefaultBenchmarks = ["KnowBuriedInSarcophagus", "AteWithoutTable", "EnvironmentDark"];
+    private static readonly string[] DefaultBenchmarks = ["KnowBuriedInSarcophagus", "AteWithoutTable", "EnvironmentDark", "DeadMansApparel"];
 
-    /// <summary>The defs whose cards ship in mechanic_cards.json: those with a live consumer (Gate 1 of #3217: the stranger sarcophagus).</summary>
-    private static readonly string[] LiveConsumers = ["KnowBuriedInSarcophagus"];
+    /// <summary>The defs whose cards ship in mechanic_cards.json: those with a live consumer (#3217: the stranger sarcophagus, now unreachable, and the Gate 1 lever, dead man's apparel, #3281).</summary>
+    private static readonly string[] LiveConsumers = ["KnowBuriedInSarcophagus", "DeadMansApparel"];
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {

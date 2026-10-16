@@ -1,7 +1,7 @@
 {
   "generator": "RimGovernor.cmd thoughtaudit -guards",
   "status": "draft: extracted from syntax only, no probe has verified any card",
-  "game": "1.7.4979 rev109",
+  "game": "1.7.4980 rev60",
   "coverage": {
     "defs": 923,
     "status": {
@@ -37,14 +37,15 @@
       "xml-granted": 156
     },
     "sites": 749,
-    "guards": 2410,
-    "guardsResolved": 1667,
+    "guards": 2408,
+    "guardsResolved": 1665,
     "unknownLeavesByReason": {
       "construction": 1,
       "depth-limit": 2,
-      "external-type": 222,
+      "external-type": 224,
       "indexer": 63,
       "lambda": 5,
+      "loop-local": 2,
       "pattern": 9,
       "state-expression": 200,
       "switch": 8,
@@ -60,7 +61,7 @@
       "SwitchExpression": 12
     },
     "topExternalTypes": {
-      "Color": 4,
+      "Color": 6,
       "HashSet": 144,
       "IEnumerable": 4,
       "List": 61,
@@ -79,7 +80,9 @@
       "xml": {
         "durationDays": "1",
         "stackLimit": "1",
-        "nullifyingTraits": "Ascetic",
+        "nullifyingTraits": [
+          "Ascetic"
+        ],
         "stages": [
           {
             "label": "ate without table",
@@ -312,6 +315,248 @@
       ]
     },
     {
+      "def": "DeadMansApparel",
+      "kind": "situational",
+      "owner": "MaintainEquipment",
+      "status": "resolved",
+      "reasons": [],
+      "xml": {
+        "workerClass": "ThoughtWorker_DeadMansApparel",
+        "nullifyingTraits": [
+          "Bloodlust"
+        ],
+        "nullifyingHediffs": [
+          "Inhumanized"
+        ],
+        "stages": [
+          {
+            "label": "tainted {0}",
+            "baseMoodEffect": "-5"
+          },
+          {
+            "label": "tainted {0} (+1)",
+            "baseMoodEffect": "-8"
+          },
+          {
+            "label": "tainted {0} (+2)",
+            "baseMoodEffect": "-11"
+          },
+          {
+            "label": "tainted {0} etc",
+            "baseMoodEffect": "-14"
+          }
+        ]
+      },
+      "sites": [
+        {
+          "site": "ThoughtWorker_ApparelThought.CurrentStateInternal",
+          "file": "RimWorld/ThoughtWorker_ApparelThought.cs",
+          "bodyHash": "e40fd9d1ffd7bf75",
+          "access": "protected override",
+          "callers": 14,
+          "guards": [
+            {
+              "origin": "count",
+              "text": "(!(num == 0) and (num >= 5)) [count p.apparel.WornApparel where apparel.WornByCorpse; stage 4]",
+              "conditions": "resolved",
+              "expr": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "not",
+                    "args": [
+                      {
+                        "op": "==",
+                        "args": [
+                          {
+                            "sym": "num",
+                            "kind": "count",
+                            "decl": "",
+                            "type": "int"
+                          },
+                          {
+                            "lit": "0"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": ">=",
+                    "args": [
+                      {
+                        "sym": "num",
+                        "kind": "count",
+                        "decl": "",
+                        "type": "int"
+                      },
+                      {
+                        "lit": "5"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "count": {
+                "over": {
+                  "sym": "p.apparel.WornApparel",
+                  "kind": "prop",
+                  "decl": "Pawn_ApparelTracker.WornApparel",
+                  "type": "List"
+                },
+                "where": {
+                  "sym": "apparel.WornByCorpse",
+                  "kind": "prop",
+                  "decl": "Apparel.WornByCorpse",
+                  "type": "bool"
+                },
+                "stage": {
+                  "lit": "4"
+                },
+                "via": "ThoughtWorker_DeadMansApparel.ApparelCounts",
+                "viaHash": "45ef33af47d07789"
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Pawn_ApparelTracker.WornApparel",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "ThingOwner.InnerListForReading"
+              ],
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Apparel.WornByCorpse",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "multi-statement getter"
+              ],
+              "writers": [],
+              "follows": []
+            }
+          ]
+        },
+        {
+          "site": "ThoughtWorker_ApparelThought.CurrentStateInternal",
+          "file": "RimWorld/ThoughtWorker_ApparelThought.cs",
+          "bodyHash": "e40fd9d1ffd7bf75",
+          "access": "protected override",
+          "callers": 14,
+          "guards": [
+            {
+              "origin": "count",
+              "text": "(!(num == 0) and !(num >= 5)) [count p.apparel.WornApparel where apparel.WornByCorpse; stage (num - 1)]",
+              "conditions": "resolved",
+              "expr": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "not",
+                    "args": [
+                      {
+                        "op": "==",
+                        "args": [
+                          {
+                            "sym": "num",
+                            "kind": "count",
+                            "decl": "",
+                            "type": "int"
+                          },
+                          {
+                            "lit": "0"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "not",
+                    "args": [
+                      {
+                        "op": ">=",
+                        "args": [
+                          {
+                            "sym": "num",
+                            "kind": "count",
+                            "decl": "",
+                            "type": "int"
+                          },
+                          {
+                            "lit": "5"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "count": {
+                "over": {
+                  "sym": "p.apparel.WornApparel",
+                  "kind": "prop",
+                  "decl": "Pawn_ApparelTracker.WornApparel",
+                  "type": "List"
+                },
+                "where": {
+                  "sym": "apparel.WornByCorpse",
+                  "kind": "prop",
+                  "decl": "Apparel.WornByCorpse",
+                  "type": "bool"
+                },
+                "stage": {
+                  "op": "-",
+                  "args": [
+                    {
+                      "sym": "num",
+                      "kind": "count",
+                      "decl": "",
+                      "type": "int"
+                    },
+                    {
+                      "lit": "1"
+                    }
+                  ]
+                },
+                "via": "ThoughtWorker_DeadMansApparel.ApparelCounts",
+                "viaHash": "45ef33af47d07789"
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Pawn_ApparelTracker.WornApparel",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "ThingOwner.InnerListForReading"
+              ],
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Apparel.WornByCorpse",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "derivedFrom": [
+                "multi-statement getter"
+              ],
+              "writers": [],
+              "follows": []
+            }
+          ]
+        }
+      ]
+    },
+    {
       "def": "EnvironmentDark",
       "kind": "situational",
       "owner": "MaintainLighting",
@@ -319,7 +564,10 @@
       "reasons": [],
       "xml": {
         "workerClass": "ThoughtWorker_Dark",
-        "nullifyingTraits": "NightOwlUndergrounder",
+        "nullifyingTraits": [
+          "NightOwl",
+          "Undergrounder"
+        ],
         "stages": [
           {
             "label": "darkness",

@@ -64,7 +64,7 @@ internal sealed class GuardCards
                 MemorySites(def, xmlFiles, sites, reasons);
             }
             var guards = sites.SelectMany(s => s.Guards).ToList();
-            var unknown = guards.Count(g => !Exprs.Resolved(g.Cond));
+            var unknown = guards.Count(g => !Exprs.Resolved(g));
             var dead = sites.Count > 0 && sites.All(s => s.Guards.Any(g => g.Unreachable is not null));
             if (dead)
             {
@@ -75,7 +75,7 @@ internal sealed class GuardCards
                 : unknown == 0 && reasons.Count == 0 ? "resolved"
                 : unknown == guards.Count && guards.Count > 0 ? "unknown"
                 : guards.Count - unknown > 0 ? "partial" : "unknown";
-            reasons.AddRange(guards.SelectMany(g => Exprs.Unknowns(g.Cond).Select(u => u.Reason)));
+            reasons.AddRange(guards.SelectMany(g => Exprs.Unknowns(g).Select(u => u.Reason)));
             cards.Add(new Card(def.Name, def.Worker.Length > 0 ? "situational" : "memory", owners.GetValueOrDefault(def.Name, ""), def, status, sites,
                 [.. reasons.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)]));
         }
@@ -193,11 +193,12 @@ internal sealed class GuardCards
             foreach (var m in methods.OrderBy(m => m.Name, StringComparer.Ordinal))
             {
                 var md = (MethodDeclarationSyntax)m.Node;
+                var loops = analysis.CountLoops(md, def.Worker);
                 foreach (var leaf in Leaves(md))
                 {
                     var guards = analysis.GuardsAt(leaf).ToList();
                     guards.AddRange(ReturnValueGuard(md, leaf));
-                    sites.Add(MakeSite(md, guards, reasons));
+                    sites.Add(MakeSite(md, CountGuards(md, leaf, guards, loops), reasons));
                 }
             }
             break;
@@ -206,6 +207,33 @@ internal sealed class GuardCards
         {
             reasons.Add("worker-not-in-sources");
         }
+    }
+
+    /// <summary>
+    /// Folds a leaf's guards on a counted local (#3281) into one count guard: their conjunction over the count symbol, with
+    /// what the loop counts and the leaf's stage (the <c>ActiveAtStage</c> index, else 0) over the count. A leaf before the
+    /// loop ends keeps its guards.
+    /// </summary>
+    private List<Guard> CountGuards(MethodDeclarationSyntax md, ExpressionSyntax leaf, List<Guard> guards, IReadOnlyList<CountLoop> loops)
+    {
+        foreach (var loop in loops.Where(l => l.End <= leaf.SpanStart))
+        {
+            Expr? Count(Sym s) => s is { Kind: "local" } && s.Path == loop.Local ? new Sym(loop.Local, "count", "", "int") : null;
+            bool Uses(Expr e) => Exprs.Syms(e).Any(s => Count(s) is not null);
+            var stage = leaf is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.Text: "ActiveAtStage" } } inv && inv.ArgumentList.Arguments.Count > 0
+                ? analysis.Evaluate(md, inv.ArgumentList.Arguments[0].Expression)
+                : new Lit("0");
+            var mine = guards.Where(g => g.Count is null && Uses(g.Cond)).ToList();
+            if (mine.Count == 0 && !Uses(stage))
+            {
+                continue;
+            }
+            var cond = mine.Select(g => Exprs.Replace(g.Cond, Count)).DefaultIfEmpty(new Lit("true")).Aggregate((a, b) => new Op("and", [a, b]));
+            var at = mine.Count > 0 ? guards.IndexOf(mine[0]) : guards.Count;
+            var count = new Guard(cond, "count", Count: new CountSpec(loop.Over, loop.Where, Exprs.Replace(stage, Count), loop.Via, loop.ViaHash));
+            guards = [.. guards.Take(at).Where(g => !mine.Contains(g)), count, .. guards.Skip(at).Where(g => !mine.Contains(g))];
+        }
+        return guards;
     }
 
     private static IEnumerable<ExpressionSyntax> Leaves(MethodDeclarationSyntax md)
@@ -259,7 +287,7 @@ internal sealed class GuardCards
         var file = Path.GetRelativePath(root, member.SyntaxTree.FilePath).Replace('\\', '/');
         var fields = new List<FieldWriters>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var sym in guards.SelectMany(g => Exprs.Syms(g.Cond)).Where(s => s.Kind is "field" or "prop"))
+        foreach (var sym in guards.SelectMany(g => Exprs.Syms(g)).Where(s => s.Kind is "field" or "prop"))
         {
             if (seen.Add(sym.Decl) && WritersOf(sym.Decl, 0, seen) is { } w)
             {

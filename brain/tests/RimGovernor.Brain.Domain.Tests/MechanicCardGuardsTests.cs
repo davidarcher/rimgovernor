@@ -110,9 +110,67 @@ public sealed class MechanicCardGuardsTests
         Assert.False(e.Usable);
     }
 
+    // #3281: the shipped DeadMansApparel count card priced for one pawn and one outfit.
+    private static readonly MechanicCard Tainted = MechanicCards.ByDef["DeadMansApparel"];
+
+    private static readonly CardPawnFacts Plain = new() { Traits = Known<EquatableArray<string>>(["Kind"]), Hediffs = Known<EquatableArray<string>>([]), AnomalyActive = Known(true) };
+
+    private static GearOption[] Wearing(int tainted) =>
+        [.. Enumerable.Range(0, tainted).Select(i => new GearOption { ID = "t" + i, Tainted = true }), new GearOption { ID = "clean" }];
+
+    private static Fact<double> Offset(int tainted, CardPawnFacts? pawn = null, IReadOnlyList<CardItemBinding>? bindings = null) =>
+        MechanicCardGuards.CardStageOffset(Tainted, pawn ?? Plain, Wearing(tainted), bindings);
+
+    // GearLoadout's hand curve: 5 + 3 * (min(n, 4) - 1) mood lost.
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void StageOffsetMatchesTheHandCurve(int tainted) => Assert.Equal(Known(-(5.0 + (3 * (tainted - 1)))), Offset(tainted));
+
+    // Native returns stage 4 for five or more; ThoughtState.StageIndexFor clamps it to the last defined stage (#3283 probes it).
+    [Theory]
+    [InlineData(5)]
+    [InlineData(7)]
+    public void FiveOrMoreClampToTheLastStage(int tainted) => Assert.Equal(Known(-14.0), Offset(tainted));
+
+    [Fact]
+    public void NoTaintedItemGivesZero() => Assert.Equal(Known(0.0), Offset(0));
+
+    [Fact]
+    public void BloodlustPawnGivesZero() => Assert.Equal(Known(0.0), Offset(2, Plain with { Traits = Known<EquatableArray<string>>(["Bloodlust"]) }));
+
+    [Fact]
+    public void InhumanizedPawnGivesZero() => Assert.Equal(Known(0.0), Offset(2, Plain with { Hediffs = Known<EquatableArray<string>>(["Inhumanized"]) }));
+
+    [Fact]
+    public void UnreadHediffsAreAbsentOnlyWhileAnomalyIsInactive()
+    {
+        var unread = Plain with { Hediffs = Unknown<EquatableArray<string>>() };
+
+        Assert.Equal(Known(-5.0), Offset(1, unread with { AnomalyActive = Known(false) }));
+        Assert.False(Offset(1, unread).IsKnown);
+        Assert.False(Offset(1, unread with { AnomalyActive = Unknown<bool>() }).IsKnown);
+    }
+
+    [Fact]
+    public void MissingBindingOrObservationIsUnknown()
+    {
+        Assert.False(Offset(2, bindings: []).IsKnown);
+        Assert.False(Offset(2, Plain with { Traits = Unknown<EquatableArray<string>>() }).IsKnown);
+    }
+
+    [Fact]
+    public void ExtractedCountCardIsNotLive()
+    {
+        Assert.Equal(MechanicCardStatus.Extracted, Tainted.Status);
+        Assert.False(Tainted.Live);
+    }
+
     [Fact]
     public void TablesMatchTheEmbeddedCards() =>
-        Assert.Empty(GuardTableCheck.Problems(MechanicCards.ByDef, MechanicCardGuards.Bindings.Select(b => b.Decl), MechanicCardGuards.SiteActions, null));
+        Assert.Empty(GuardTableCheck.Problems(MechanicCards.ByDef, MechanicCardGuards.BoundDecls, MechanicCardGuards.SiteActions, null, MechanicCardGuards.AnomalyHediffs));
 
     [Fact]
     public void TableCheckFailsOnADeclOrSiteAbsentFromTheCards()

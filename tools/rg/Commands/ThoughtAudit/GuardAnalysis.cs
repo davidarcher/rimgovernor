@@ -21,13 +21,46 @@ internal sealed record Unknown(string Reason, string Text) : Expr;
 
 /// <summary>
 /// One condition on the path to a node, with the polarity already applied and the syntax it came from. Unreachable is set
-/// (#3243) when no writer on the site's direct caller path can make the guard hold; its text says what was checked.
+/// (#3243) when no writer on the site's direct caller path can make the guard hold; its text says what was checked. A
+/// count guard (#3281, origin <c>count</c>) carries <see cref="Count"/>; its Cond compares the count symbol (kind
+/// <c>count</c>) with literals.
 /// </summary>
-internal sealed record Guard(Expr Cond, string Origin, string? Unreachable = null);
+internal sealed record Guard(Expr Cond, string Origin, string? Unreachable = null, CountSpec? Count = null);
+
+/// <summary>
+/// What a count guard counts (#3281): the elements of <see cref="Over"/> for which <see cref="Where"/> holds, and the stage
+/// index the site returns as an expression over the count. <see cref="Via"/> and <see cref="ViaHash"/> name the worker
+/// override the predicate was resolved through, when it was a virtual call.
+/// </summary>
+internal sealed record CountSpec(Expr Over, Expr Where, Expr Stage, string? Via = null, string? ViaHash = null);
+
+/// <summary>A local counted by a loop (#3281): <c>foreach (x in Over) if (Where(x)) Local++;</c> or the indexed-for form, ending at <see cref="End"/>.</summary>
+internal sealed record CountLoop(string Local, int End, Expr Over, Expr Where, string? Via, string? ViaHash);
 
 /// <summary>Renders, and inspects, expression trees.</summary>
 internal static class Exprs
 {
+    /// <summary>A guard's expressions: its condition and, for a count guard, what it counts and its stage.</summary>
+    public static IEnumerable<Expr> Parts(Guard g) => g.Count is { } c ? [g.Cond, c.Over, c.Where, c.Stage] : [g.Cond];
+
+    public static string Render(Guard g) => g.Count is { } c
+        ? Render(g.Cond) + " [count " + Render(c.Over) + " where " + Render(c.Where) + "; stage " + Render(c.Stage) + "]"
+        : Render(g.Cond);
+
+    public static IEnumerable<Unknown> Unknowns(Guard g) => Parts(g).SelectMany(Unknowns);
+
+    public static IEnumerable<Sym> Syms(Guard g) => Parts(g).SelectMany(Syms);
+
+    public static bool Resolved(Guard g) => !Unknowns(g).Any();
+
+    /// <summary>The tree with every symbol <paramref name="map"/> returns a replacement for replaced.</summary>
+    public static Expr Replace(Expr e, Func<Sym, Expr?> map) => e switch
+    {
+        Sym s => map(s) ?? s,
+        Op o => o with { Args = [.. o.Args.Select(a => Replace(a, map))] },
+        _ => e,
+    };
+
     public static string Render(Expr e) => e switch
     {
         Sym s => s.Path,
@@ -69,7 +102,12 @@ internal sealed class GuardAnalysis(SourceIndex index)
 
     private sealed record Res(Expr E, Ty? T);
 
+    /// <summary>The loop element while a count predicate is evaluated: the foreach variable or the indexed <c>C[i]</c>, by its text.</summary>
+    private sealed record Element(string Text, Res Res);
+
     private const int MaxDepth = 8;
+
+    private Element? element;
 
     /// <summary>The guards on the path from the node's member entry to the node, outermost first.</summary>
     public IReadOnlyList<Guard> GuardsAt(SyntaxNode node)
@@ -164,6 +202,250 @@ internal sealed class GuardAnalysis(SourceIndex index)
     /// <summary>The static type name of an expression, when the sources determine it.</summary>
     public string? TypeOf(SyntaxNode member, ExpressionSyntax e) => Eval(member, e, e.SpanStart, 0).T?.Name;
 
+    /// <summary>
+    /// The locals of <paramref name="md"/> counted by a loop (#3281), in source order. The pattern is generic: a local
+    /// initialised to 0 whose only write is one increment statement, reached from the body of a top-level
+    /// <c>foreach (x in C)</c> or <c>for (int i = 0; i &lt; C.Count; i++)</c> through if/else nesting only, with no jump
+    /// before it in an enclosing block and no break, return, goto, throw or yield in the loop. The predicate is the
+    /// conjunction of those if conditions over the element. A virtual call on this whose one argument is the element is
+    /// resolved through <paramref name="worker"/>'s override when that override returns a single expression; otherwise it
+    /// is an unknown virtual-call, never guessed; a local in the predicate is an unknown loop-local.
+    /// </summary>
+    public IReadOnlyList<CountLoop> CountLoops(MethodDeclarationSyntax md, string? worker)
+    {
+        var result = new List<CountLoop>();
+        if (md.Body is not { } body)
+        {
+            return result;
+        }
+        foreach (var v in body.DescendantNodes().OfType<VariableDeclaratorSyntax>())
+        {
+            var name = v.Identifier.Text;
+            var writes = body.DescendantNodes().Where(n => Writes(n, name)).ToList();
+            if (v.Initializer?.Value is not LiteralExpressionSyntax { Token.Text: "0" } || writes.Count != 1
+                || writes[0] is not ExpressionSyntax { Parent: ExpressionStatementSyntax step } inc || !Increments(inc)
+                || Enclosing(step) is not { } found || found.Loop.Parent != body
+                || found.Statement.DescendantNodesAndSelf().Any(n => n is BreakStatementSyntax or ReturnStatementSyntax or GotoStatementSyntax or ThrowStatementSyntax or YieldStatementSyntax))
+            {
+                continue;
+            }
+            ExpressionSyntax collection;
+            string text;
+            string? type;
+            switch (found.Loop)
+            {
+                case ForEachStatementSyntax f:
+                    (collection, text) = (f.Expression, f.Identifier.Text);
+                    type = f.Type is { IsVar: false } t ? SourceIndex.TypeName(t) : ElementType(md, f.Expression, f.SpanStart);
+                    break;
+                case ForStatementSyntax f when IndexedOver(f) is { } over:
+                    (collection, text) = (over.Collection, Squash(over.Collection) + "[" + over.Index + "]");
+                    type = ElementType(md, over.Collection, f.SpanStart);
+                    break;
+                default:
+                    continue;
+            }
+            var of = Over(md, collection, found.Loop.SpanStart);
+            element = new Element(text, new Res(new Sym(text, "element", "", type), type is null ? null : new Ty(type, false)));
+            try
+            {
+                string? via = null, viaHash = null;
+                Expr? where = null;
+                foreach (var (cond, positive) in found.Conds)
+                {
+                    var p = Predicate(md, cond, worker, ref via, ref viaHash);
+                    p = positive ? p : new Op("not", [p]);
+                    where = where is null ? p : new Op("and", [where, p]);
+                }
+                // A local in the predicate is a value the loop computes, which no element binding reaches.
+                where = Exprs.Replace(where ?? new Lit("true"), s => s.Kind == "local" ? new Unknown("loop-local", s.Path) : null);
+                result.Add(new CountLoop(name, found.Loop.Span.End, of, where, via, viaHash));
+            }
+            finally
+            {
+                element = null;
+            }
+        }
+        return result;
+    }
+
+    private static bool Writes(SyntaxNode n, string name)
+    {
+        var target = n switch
+        {
+            AssignmentExpressionSyntax a => a.Left,
+            PrefixUnaryExpressionSyntax p when p.IsKind(SyntaxKind.PreIncrementExpression) || p.IsKind(SyntaxKind.PreDecrementExpression) => p.Operand,
+            PostfixUnaryExpressionSyntax q when q.IsKind(SyntaxKind.PostIncrementExpression) || q.IsKind(SyntaxKind.PostDecrementExpression) => q.Operand,
+            ArgumentSyntax { RefKindKeyword.Text: "ref" or "out" } g => g.Expression,
+            _ => null,
+        };
+        return target is IdentifierNameSyntax i && i.Identifier.Text == name;
+    }
+
+    private static bool Increments(ExpressionSyntax e) =>
+        e.IsKind(SyntaxKind.PostIncrementExpression) || e.IsKind(SyntaxKind.PreIncrementExpression)
+        || e is AssignmentExpressionSyntax { RawKind: (int)SyntaxKind.AddAssignmentExpression, Right: LiteralExpressionSyntax { Token.Text: "1" } };
+
+    /// <summary>The loop whose body reaches <paramref name="step"/> through if/else nesting only, with the if conditions outermost first.</summary>
+    private static (StatementSyntax Loop, StatementSyntax Statement, List<(ExpressionSyntax Cond, bool Positive)> Conds)? Enclosing(StatementSyntax step)
+    {
+        var conds = new List<(ExpressionSyntax, bool)>();
+        SyntaxNode cur = step;
+        while (cur.Parent is { } parent)
+        {
+            switch (parent)
+            {
+                case IfStatementSyntax i when cur == i.Statement:
+                    conds.Add((i.Condition, true));
+                    break;
+                case ElseClauseSyntax { Parent: IfStatementSyntax i }:
+                    conds.Add((i.Condition, false));
+                    break;
+                case IfStatementSyntax i when cur == i.Else:
+                    break;
+                case BlockSyntax b when !b.Statements.TakeWhile(s => s != cur).Any(s => s.DescendantNodesAndSelf().Any(n => n is ContinueStatementSyntax or BreakStatementSyntax
+                    or ReturnStatementSyntax or GotoStatementSyntax or ThrowStatementSyntax or YieldStatementSyntax)):
+                    break;
+                case ForEachStatementSyntax f when cur == f.Statement:
+                    conds.Reverse();
+                    return (f, f.Statement, conds);
+                case ForStatementSyntax f when cur == f.Statement:
+                    conds.Reverse();
+                    return (f, f.Statement, conds);
+                default:
+                    return null;
+            }
+            cur = parent;
+        }
+        return null;
+    }
+
+    /// <summary>The collection and index variable of <c>for (int i = 0; i &lt; C.Count; i++)</c> (or <c>C.Length</c>) whose body never writes i.</summary>
+    private static (ExpressionSyntax Collection, string Index)? IndexedOver(ForStatementSyntax f)
+    {
+        if (f.Declaration is not { Variables.Count: 1 } d || d.Variables[0].Initializer?.Value is not LiteralExpressionSyntax { Token.Text: "0" }
+            || f.Condition is not BinaryExpressionSyntax { RawKind: (int)SyntaxKind.LessThanExpression, Left: IdentifierNameSyntax l, Right: MemberAccessExpressionSyntax r }
+            || r.Name.Identifier.Text is not ("Count" or "Length") || f.Incrementors.Count != 1 || !Increments(f.Incrementors[0]))
+        {
+            return null;
+        }
+        var i = d.Variables[0].Identifier.Text;
+        return l.Identifier.Text == i && Writes(f.Incrementors[0], i) && !f.Statement.DescendantNodes().Any(n => Writes(n, i)) ? (r.Expression, i) : null;
+    }
+
+    /// <summary>The collection a count loop iterates: a local's initializer when nothing else writes it, else the expression.</summary>
+    private Expr Over(SyntaxNode member, ExpressionSyntax collection, int at)
+    {
+        if (collection is IdentifierNameSyntax id && Local(member, id.Identifier.Text, at) is { Kind: "local" } local)
+        {
+            return local.Init is { } init && !member.DescendantNodes().Any(n => Writes(n, id.Identifier.Text))
+                ? Eval(member, init, local.Position, 0).E
+                : new Unknown("local-collection", Squash(collection));
+        }
+        return Eval(member, collection, at, 0).E;
+    }
+
+    private Expr Predicate(SyntaxNode member, ExpressionSyntax cond, string? worker, ref string? via, ref string? hash)
+    {
+        switch (cond)
+        {
+            case ParenthesizedExpressionSyntax p:
+                return Predicate(member, p.Expression, worker, ref via, ref hash);
+            case PrefixUnaryExpressionSyntax u when u.IsKind(SyntaxKind.LogicalNotExpression):
+                return new Op("not", [Predicate(member, u.Operand, worker, ref via, ref hash)]);
+            case BinaryExpressionSyntax b when b.IsKind(SyntaxKind.LogicalAndExpression) || b.IsKind(SyntaxKind.LogicalOrExpression):
+                var left = Predicate(member, b.Left, worker, ref via, ref hash);
+                var right = Predicate(member, b.Right, worker, ref via, ref hash);
+                return new Op(b.IsKind(SyntaxKind.LogicalAndExpression) ? "and" : "or", [left, right]);
+            case InvocationExpressionSyntax inv when Override(member, inv, worker) is { } o:
+                if (o.Via is not null && via is not null && via != o.Via)
+                {
+                    return new Unknown("virtual-call", "second override " + o.Via);
+                }
+                (via, hash) = o.Via is null ? (via, hash) : (o.Via, o.Hash);
+                return o.Expr;
+            default:
+                return Eval(member, cond, cond.SpanStart, 0).E;
+        }
+    }
+
+    /// <summary>
+    /// A virtual call on this whose one argument is the loop element, resolved through the def's worker class: the
+    /// override's single returned expression, or an unknown virtual-call. Null when the call is not of that shape.
+    /// </summary>
+    private (Expr Expr, string? Via, string? Hash)? Override(SyntaxNode member, InvocationExpressionSyntax inv, string? worker)
+    {
+        var name = inv.Expression switch
+        {
+            IdentifierNameSyntax i => i.Identifier.Text,
+            MemberAccessExpressionSyntax { Expression: ThisExpressionSyntax } m => m.Name.Identifier.Text,
+            _ => null,
+        };
+        if (name is null || element is null || inv.ArgumentList.Arguments.Count != 1 || Squash(inv.ArgumentList.Arguments[0].Expression) != element.Text)
+        {
+            return null;
+        }
+        var owner = SourceIndex.OwnerOf(member);
+        var declared = index.Find(owner, name, out _).Where(m => m.Node is MethodDeclarationSyntax md && Fits(md, 1)).ToList();
+        if (!declared.Any(m => m.Virtual))
+        {
+            return null;
+        }
+        var unknown = new Unknown("virtual-call", declared[0].Owner + "." + name + "()");
+        if (worker is null || !index.IsSubtype(worker, owner))
+        {
+            return (unknown, null, null);
+        }
+        var impl = index.Find(worker, name, out _).Where(m => m.Node is MethodDeclarationSyntax md && Fits(md, 1)).ToList();
+        if (impl.Count != 1 || impl[0].Node is not MethodDeclarationSyntax body
+            || (body.ExpressionBody?.Expression ?? (body.Body is { Statements: [ReturnStatementSyntax { Expression: { } r }] } ? r : null)) is not { } ret)
+        {
+            return (unknown, null, null);
+        }
+        return (Eval(body, ret, ret.SpanStart, 0).E, NameOf(body), Hash(body));
+    }
+
+    /// <summary>The element type of a collection whose declared type (a local's, field's or property's) is a one-argument generic or an array.</summary>
+    private string? ElementType(SyntaxNode member, ExpressionSyntax collection, int at)
+    {
+        var t = DeclaredType(member, collection, at, 0);
+        while (t is QualifiedNameSyntax q)
+        {
+            t = q.Right;
+        }
+        return t switch
+        {
+            GenericNameSyntax { TypeArgumentList.Arguments.Count: 1 } g => SourceIndex.TypeName(g.TypeArgumentList.Arguments[0]),
+            ArrayTypeSyntax a => SourceIndex.TypeName(a.ElementType),
+            NullableTypeSyntax { ElementType: GenericNameSyntax { TypeArgumentList.Arguments.Count: 1 } g } => SourceIndex.TypeName(g.TypeArgumentList.Arguments[0]),
+            _ => null,
+        };
+    }
+
+    private TypeSyntax? DeclaredType(SyntaxNode member, ExpressionSyntax e, int at, int depth)
+    {
+        if (depth > MaxDepth)
+        {
+            return null;
+        }
+        if (e is IdentifierNameSyntax id && Local(member, id.Identifier.Text, at) is { } local)
+        {
+            return local.Type is { IsVar: false } t ? t : local.Init is { } init ? DeclaredType(member, init, local.Position, depth + 1) : null;
+        }
+        if (Eval(member, e, at, 0).E is not Sym { Kind: "field" or "prop" } s)
+        {
+            return null;
+        }
+        var dot = s.Decl.LastIndexOf('.');
+        var found = index.Find(s.Decl[..dot], s.Decl[(dot + 1)..], out _);
+        return (found.Count > 0 ? found[0].Node : null) switch
+        {
+            VariableDeclaratorSyntax { Parent: VariableDeclarationSyntax vd } => vd.Type,
+            PropertyDeclarationSyntax p => p.Type,
+            _ => null,
+        };
+    }
+
     private static bool Exits(StatementSyntax s) => s switch
     {
         ReturnStatementSyntax or ThrowStatementSyntax or ContinueStatementSyntax or BreakStatementSyntax or GotoStatementSyntax => true,
@@ -206,6 +488,8 @@ internal sealed class GuardAnalysis(SourceIndex index)
         {
             case ParenthesizedExpressionSyntax p:
                 return Eval(member, p.Expression, at, d);
+            case IdentifierNameSyntax or ElementAccessExpressionSyntax when element is { } el && Squash(e) == el.Text:
+                return el.Res;
             case LiteralExpressionSyntax l:
                 return new Res(new Lit(l.Token.Text), null);
             case DefaultExpressionSyntax:

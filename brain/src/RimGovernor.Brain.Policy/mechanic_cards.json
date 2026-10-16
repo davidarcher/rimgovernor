@@ -1,7 +1,224 @@
 {
   "schema": 1,
-  "game": "1.7.4979 rev109",
+  "game": "1.7.4980 rev60",
   "cards": [
+    {
+      "def": "DeadMansApparel",
+      "kind": "situational",
+      "status": "extracted",
+      "xml": {
+        "nullifyingTraits": [
+          "Bloodlust"
+        ],
+        "nullifyingHediffs": [
+          "Inhumanized"
+        ],
+        "stages": [
+          {
+            "baseMoodEffect": -5
+          },
+          {
+            "baseMoodEffect": -8
+          },
+          {
+            "baseMoodEffect": -11
+          },
+          {
+            "baseMoodEffect": -14
+          }
+        ]
+      },
+      "sites": [
+        {
+          "site": "ThoughtWorker_ApparelThought.CurrentStateInternal",
+          "bodyHash": "e40fd9d1ffd7bf75",
+          "access": "protected override",
+          "callers": 14,
+          "guards": [
+            {
+              "origin": "count",
+              "expr": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "not",
+                    "args": [
+                      {
+                        "op": "==",
+                        "args": [
+                          {
+                            "sym": "num",
+                            "kind": "count",
+                            "decl": "",
+                            "type": "int"
+                          },
+                          {
+                            "lit": "0"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": ">=",
+                    "args": [
+                      {
+                        "sym": "num",
+                        "kind": "count",
+                        "decl": "",
+                        "type": "int"
+                      },
+                      {
+                        "lit": "5"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "count": {
+                "over": {
+                  "sym": "p.apparel.WornApparel",
+                  "kind": "prop",
+                  "decl": "Pawn_ApparelTracker.WornApparel",
+                  "type": "List"
+                },
+                "where": {
+                  "sym": "apparel.WornByCorpse",
+                  "kind": "prop",
+                  "decl": "Apparel.WornByCorpse",
+                  "type": "bool"
+                },
+                "stage": {
+                  "lit": "4"
+                },
+                "via": "ThoughtWorker_DeadMansApparel.ApparelCounts",
+                "viaHash": "45ef33af47d07789"
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Pawn_ApparelTracker.WornApparel",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Apparel.WornByCorpse",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            }
+          ]
+        },
+        {
+          "site": "ThoughtWorker_ApparelThought.CurrentStateInternal",
+          "bodyHash": "e40fd9d1ffd7bf75",
+          "access": "protected override",
+          "callers": 14,
+          "guards": [
+            {
+              "origin": "count",
+              "expr": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "not",
+                    "args": [
+                      {
+                        "op": "==",
+                        "args": [
+                          {
+                            "sym": "num",
+                            "kind": "count",
+                            "decl": "",
+                            "type": "int"
+                          },
+                          {
+                            "lit": "0"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "not",
+                    "args": [
+                      {
+                        "op": ">=",
+                        "args": [
+                          {
+                            "sym": "num",
+                            "kind": "count",
+                            "decl": "",
+                            "type": "int"
+                          },
+                          {
+                            "lit": "5"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              "count": {
+                "over": {
+                  "sym": "p.apparel.WornApparel",
+                  "kind": "prop",
+                  "decl": "Pawn_ApparelTracker.WornApparel",
+                  "type": "List"
+                },
+                "where": {
+                  "sym": "apparel.WornByCorpse",
+                  "kind": "prop",
+                  "decl": "Apparel.WornByCorpse",
+                  "type": "bool"
+                },
+                "stage": {
+                  "op": "-",
+                  "args": [
+                    {
+                      "sym": "num",
+                      "kind": "count",
+                      "decl": "",
+                      "type": "int"
+                    },
+                    {
+                      "lit": "1"
+                    }
+                  ]
+                },
+                "via": "ThoughtWorker_DeadMansApparel.ApparelCounts",
+                "viaHash": "45ef33af47d07789"
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Pawn_ApparelTracker.WornApparel",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Apparel.WornByCorpse",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            }
+          ]
+        }
+      ]
+    },
     {
       "def": "KnowBuriedInSarcophagus",
       "kind": "memory",
@@ -11,6 +228,7 @@
         "stackLimit": 4,
         "stackedEffectMultiplier": 0.5,
         "nullifyingTraits": [],
+        "nullifyingHediffs": [],
         "stages": [
           {
             "baseMoodEffect": 4

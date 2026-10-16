@@ -15,13 +15,24 @@ format or action kind. Gate 1 (#3220) ships the cards of the defs with a live co
 `-decompiled <dir>` reuses an existing decompilation) parses the decompiled `Assembly-CSharp` sources with Roslyn,
 syntax only, and for every vanilla ThoughtDef writes a draft card:
 
-- **XML data** from `ThoughtDefs` (stages, `stackLimit`, `durationDays`, `stackedEffectMultiplier`, mood offsets).
+- **XML data** from `ThoughtDefs` (stages, `stackLimit`, `durationDays`, `stackedEffectMultiplier`, mood offsets);
+  `requiredTraits`, `nullifyingTraits` and `nullifyingHediffs` are lists.
 - **Grant sites.** Memory thoughts: every reference to `ThoughtDefOf.<Def>` or `Named("<Def>")` that is not a removal,
   count, read or comparison. Situational thoughts: the active return points of the worker's `CurrentStateInternal`.
 - **Guards.** The conditions between the member's entry and the site, as expression trees over resolved symbols
   (enclosing `if`/`else`, ternary, `&&`/`||` operands, early `return`/`continue`/`break`/`throw` guards, `while`/`for`
   headers, `foreach` non-emptiness, and the returned condition of a worker). `&&` chains and negated `||` chains are
   split into one guard each.
+- **Count guards (#3281).** A worker local set to 0 whose only write is one increment, reached from a top-level
+  `foreach (x in C)` or `for (int i = 0; i < C.Count; i++)` body through `if`/`else` only (no jump before it, no
+  `break`/`return` in the loop), is a count. A situational site's guards on it fold into one guard, origin `count`,
+  whose condition compares the count symbol (kind `count`) with literals and which carries `over` (C, a local followed
+  to its initializer), `where` (the `if` conditions over the element) and `stage` (the site's `ActiveAtStage` index over
+  the count, else 0). A virtual call on `this` whose one argument is the element resolves through the def's
+  `workerClass` override when that returns one expression (`via`, and its body hash joins the drift hash); otherwise it
+  is an unknown `virtual-call`. A local in `where` is an unknown `loop-local`. The pattern is generic: besides
+  `DeadMansApparel` it matches `WearingColor_Favorite` and `WearingColor_Ideo` (still `unknown`: external casts and
+  loop-locals); no def changed status.
 - **Writers.** For each guard that ends in a field (or auto-property): every assignment, `++`/`--`, `ref`/`out`
   argument, serialization load and field initializer in the sources, with the written value, the guards on that
   writer's own path, and a `resetWriters` count; the fields a writer copies from are followed one level. A computed
@@ -68,14 +79,14 @@ verified it.
 
 | File | Content |
 | --- | --- |
-| [`mechanic-card-drafts.json`](mechanic-card-drafts.json) | Coverage summary plus the draft cards for `KnowBuriedInSarcophagus`, `AteWithoutTable` and `EnvironmentDark` (`-only` picks others). |
+| [`mechanic-card-drafts.json`](mechanic-card-drafts.json) | Coverage summary plus the draft cards for `KnowBuriedInSarcophagus`, `AteWithoutTable`, `EnvironmentDark` and `DeadMansApparel` (`-only` picks others). |
 | [`mechanic-card-coverage.tsv`](mechanic-card-coverage.tsv) | One line per ThoughtDef: kind, owner (read from `thought_triggers.tsv`), status, counts and primary unknown reason. |
 | [`mechanic_cards.json`](../../brain/src/RimGovernor.Brain.Policy/mechanic_cards.json) | The shipped cards (#3220): live-consumer defs only, typed XML numbers, status `extracted` or `verified` (`-shipped` overrides the path). |
 
 All are generated; two runs over the same decompiled tree are byte-identical (checked by comparing `sha256` of the
 two runs). Regenerate with `RimGovernor.cmd thoughtaudit -guards`.
 
-## Results (game 1.7.4979 rev109, 923 ThoughtDefs, 9254 decompiled files)
+## Results (game 1.7.4980 rev60 XML, 923 ThoughtDefs, 9217 decompiled sources)
 
 | | Defs | Share |
 | --- | ---: | ---: |
@@ -89,7 +100,7 @@ defs). The unreachable check (#3243) moved one def, `KnowBuriedInSarcophagus`, f
 other owned lever changed. Only one other guard met the check's field conditions apart from its writers:
 `BuildingProperties.bed_crib` (`ThoughtWorker_CribQuality`), which no code writes (the Biotech XML sets it), so it is
 excluded. Over the
-749 sites found, 1667 of 2410 guards (69.2%) resolved.
+749 sites found, 1665 of 2408 guards (69.1%) resolved.
 
 Dominant reasons a def is not `resolved` (the most frequent unknown reason of the def):
 
@@ -106,8 +117,8 @@ Dominant reasons a def is not `resolved` (the most frequent unknown reason of th
 | `pattern` 6, `unresolved-symbol` 5, `switch` 4, `event-driven` 3, `lambda` 3, `depth-limit` 1 | 22 |
 
 The two biggest blocks are not a parser limit: 422 memory defs have no grant in the code at all (156 appear in other
-def XML, 266 nowhere; the 266 were not investigated). The 743 unresolved guards hold 707 unknown leaves: `external-type` 222,
-`state-expression` 200, `virtual-call` 153, `unsupported-syntax` 69, `indexer` 63 (the remaining 36 are smaller). `?.` and `switch` expressions are
+def XML, 266 nowhere; the 266 were not investigated). The 743 unresolved guards hold 758 unknown leaves: `external-type` 224,
+`state-expression` 200, `virtual-call` 153, `unsupported-syntax` 69, `indexer` 63 (the remaining 49 are smaller). `?.` and `switch` expressions are
 cheap to model; `external-type` and `virtual-call` are not and stay unknown by design.
 
 ### Benchmarks
@@ -137,6 +148,13 @@ Two further owned-lever thoughts from the `thought_triggers.tsv` owner column re
   the deferred-delegate note.
 - `EnvironmentDark` (owner MaintainLighting; `resolved`): `ThoughtWorker_Dark.CurrentStateInternal` returns
   `p.Awake() && p.needs.mood.recentMemory.TicksSinceLastLight > 240 && !PawnUtility.IsBiologicallyOrArtificiallyBlind(p) && (p.Ideo == null || !p.Ideo.IdeoPrefersDarkness())`.
+
+The Gate 1 lever (#3217 re-grooming), `DeadMansApparel` (owner MaintainEquipment; `resolved`, shipped since #3281):
+`ThoughtWorker_ApparelThought.CurrentStateInternal` gives two sites, each one count guard over
+`p.apparel.WornApparel` (`Pawn_ApparelTracker.WornApparel`) where `apparel.WornByCorpse`, resolved through
+`ThoughtWorker_DeadMansApparel.ApparelCounts`: count != 0 and >= 5 at stage 4, count != 0 and < 5 at stage
+`count - 1`. Stages -5/-8/-11/-14; nullifiers `Bloodlust` and `Inhumanized` (Anomaly). Native clamps stage 4 to the last
+stage (`ThoughtState.StageIndexFor`); #3283 probes it.
 
 Across the 16 owned defs, 9 are `resolved` (also `SleptInBarracks`, `SleptOutside`, `EnvironmentCold`,
 `EnvironmentHot`, `DeadMansApparel`, `BabySick`, `Sick`), 6 `partial` and 1 `unknown`. All three benchmark cards were
