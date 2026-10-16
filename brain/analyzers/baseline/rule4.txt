@@ -67,7 +67,6 @@ BuildingRuntime/Rounds/RoundsField.cs|RoundsFieldPlanner.RecropAsync
 BuildingRuntime/Rounds/RoundsFishing.cs|RoundsFieldPlanner.FishingAsync
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Rounder.ReviewReserve
 BuildingRuntime/Rounds/RoundsGeneBank.cs|RoundsGeneBankPlanner.StepAsync
-BuildingRuntime/Rounds/RoundsHerdRooms.cs|RoundsAnimalContainmentPlanner.MarkHerdBedMedicalAsync
 BuildingRuntime/Rounds/RoundsHospital.cs|RoundsHospitalPlanner.StepAsync
 BuildingRuntime/Rounds/RoundsIdeoligion.cs|Rounder.ReformChoice
 BuildingRuntime/Rounds/RoundsMechCharger.cs|RoundsMechChargerPlanner.StepAsync

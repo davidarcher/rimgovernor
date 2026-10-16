@@ -59,15 +59,6 @@ public sealed record RitualPlan
 
 public static partial class PolicyFunctions
 {
-    /// <summary>
-    /// MaintainRituals holds each of the ideoligion's ritual precepts when it is due: it picks the spot, the
-    /// organizer and the attendees, and begins the ritual through the Ritual <c>begin</c> verb. This does not
-    /// supply a shared voluntary attendance Method. Cadence, cooldown,
-    /// required buildings and role slots are the catalog's ritual defs (IdeologyDefs.Rituals); no ritual,
-    /// building or role name is listed here.
-    /// </summary>
-    public static readonly ConcernId MaintainRituals = new("MaintainRituals");
-
     /// <summary>Whether the colony is calm enough to hold a ritual: known no hostile threat and no critical patient. Unknown stays unknown.</summary>
     public static Fact<bool> RitualCalm(Fact<long> hostiles, Fact<long> patients)
     {
@@ -251,16 +242,6 @@ public static partial class PolicyFunctions
             output.Add(plan);
         }
         return Known(EquatableArray.From(output));
-    }
-
-    /// <summary>Measures MaintainRituals: known false when no ritual can begin now, unknown while its inputs are.</summary>
-    public static Fact<bool> RitualsOwed(Fact<EquatableArray<RitualPlan>> plans)
-    {
-        if (!plans.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
-        return Known(rows.Count > 0);
     }
 
 }

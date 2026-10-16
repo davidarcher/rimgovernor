@@ -16,7 +16,7 @@ public static partial class PolicyFunctions
             if (current.Assigned == Known(false)) return true;
             if (current.Assigned != Known(true)) continue;
             var practice = task.Step.Practice!;
-            var requirement = new AssignedCapability(task.Id, new(MaintainIdeoRoles, practice.Role, "assigned_role_min_skill_any/" + practice.RequirementIndex, default),
+            var requirement = new AssignedCapability(task.Id, ServiceTarget.ForNeed(IdeologyFamily.Roles, practice.Role, "assigned_role_min_skill_any/" + practice.RequirementIndex),
                 new(practice.Beneficiary), EquatableArray.From(current.Alternatives.Select(a => new SkillRequirement(a.Skill, a.Minimum))), CapabilityDevelopmentKind.Maintenance);
             var skills = EquatableArray.From(current.Alternatives.Select(a => new WorkSkill { Name = a.Skill, Learning = a.Learning,
                 Disabled = a.Learning.Disabled == Known(true), Level = a.Learning.StoredLevel.IsKnown && a.Learning.Aptitude.IsKnown ? a.Learning.StoredLevel.Value + a.Learning.Aptitude.Value : 0 }));

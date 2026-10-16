@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>husbandry/dispatch</c> (Go <c>dispatch.go</c>): the MaintainHerd-* native husbandry vertical end to end. Each
+/// <c>husbandry/dispatch</c> (Go <c>dispatch.go</c>): the animals/herd native husbandry vertical end to end. Each
 /// direct-write animal order (train, slaughter, tame, release, allowed area, master, following and the designation
 /// cancels) is one HusbandryIntent on <c>operations_apply</c>, against animals read live through
 /// <c>observations_read_husbandry</c>. All of them are immediate settings writes with no native job, so applied is the
@@ -17,7 +17,7 @@ internal static class HusbandryDispatch
     internal static AcceptanceCase Case() => new()
     {
         Name = "husbandry/dispatch",
-        Scope = "Native MaintainHerd-* husbandry vertical: train/slaughter/tame/release HusbandryIntents applied through "
+        Scope = "Native animals/herd husbandry vertical: train/slaughter/tame/release HusbandryIntents applied through "
             + "operations_apply, pregnant-animal-protected and wrong-faction refusals, immediate settings readback (not a "
             + "native job), the wild census the tame planner reads, allowed-area/master/following writes with their "
             + "obedience and area-existence refusals, designation cancels, and resends of orders that already hold applying again.",

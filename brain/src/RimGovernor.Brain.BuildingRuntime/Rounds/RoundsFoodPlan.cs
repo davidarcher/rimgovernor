@@ -294,7 +294,7 @@ internal static partial class BuildingRuntimePackage
             return e with
             {
                 Terms = [.. e.Terms, new CandidateTerm("effective_herd_floor", floor)],
-                Reason = e.Reason + $"; MaintainHerd-{e.Channel.Id} floor {floor}",
+                Reason = e.Reason + $"; animals/herd {e.Channel.Id} floor {floor}",
             };
         }).ToList();
         return Known(plan with { Portfolio = portfolio });

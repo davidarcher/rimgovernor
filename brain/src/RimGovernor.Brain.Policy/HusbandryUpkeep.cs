@@ -1,21 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
-{
-    /// <summary>
-    /// Names MaintainHerd-*'s deficit: any observed, non-release/slaughter-flagged animal with an
-    /// available-but-untrained trainable; any race below its food-derived population floor with a
-    /// tameable wild animal on the map while the herd's feed forecast reports no shortfall; and any race
-    /// above its wealth-scaled cap (PlanHerd) with a removable animal (HerdSurplusCandidates). Removal
-    /// needs no opt-in: it is slaughter whenever SafeToSlaughter allows it, release only when slaughter
-    /// is refused and ReleaseAllowed allows it, and never breaks the last breeding pair. Native checks
-    /// eligibility again when the HusbandryIntent applies.
-    /// </summary>
-    public static readonly ConcernId MaintainHerd = new("MaintainHerd");
-}
-
 /// <summary>
-/// The per-race population band MaintainHerd plans from. PopulationMin drives tame designations on wild
+/// The per-race population band the animals family's herd Need plans from. PopulationMin drives tame designations on wild
 /// animals; PopulationMax drives surplus removal. A race missing from PopulationMax has no known cap and is
 /// never culled for surplus. FeedShort (pasture below pen demand) lets juveniles be culled.
 /// </summary>
@@ -43,7 +29,7 @@ public sealed record HerdPolicy
     public IReadOnlyDictionary<Resource, HerdLayer> Layers { get; init; } = new Dictionary<Resource, HerdLayer>();
 }
 
-/// <summary>Names why RoundsHusbandryPlanner did or did not propose a training write.</summary>
+/// <summary>Names why the herd Need did or did not propose a husbandry write.</summary>
 public enum HusbandryPlanReason
 {
     [WireName("")]

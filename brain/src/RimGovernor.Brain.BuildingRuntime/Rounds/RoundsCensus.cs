@@ -299,10 +299,6 @@ public sealed partial class Rounder
             var state = Player.Session.State();
             if (state.ObservationKnown && state.Snapshot.IsValid)
             {
-                if (MethodEnabled(PolicyApi.MaintainRituals))
-                {
-                    reading = ReviewRituals(reading, state.Snapshot);
-                }
                 if (MethodEnabled(PolicyApi.HoldGatherings))
                 {
                     reading = ReviewGathering(reading, state.Snapshot);

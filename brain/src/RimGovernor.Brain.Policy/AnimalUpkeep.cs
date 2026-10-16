@@ -34,7 +34,7 @@ public sealed record UpkeepAnimal
     public Fact<string> SuitablePen { get; init; }
 
     /// <summary>
-    /// MaintainHerd-*'s husbandry facts straight from the same generic census read that already decodes
+    /// the animals family's husbandry facts straight from the same generic census read that already decodes
     /// containment/feed facts; SafeToSlaughter (animal_food.go) decides.
     /// </summary>
     public SlaughterFacts SlaughterFacts { get; init; } = new();
@@ -53,7 +53,7 @@ public sealed record UpkeepAnimal
     /// <summary>The Animals level taming the wild animal needs (native's TrainableUtility.MinimumHandlingSkill); TamerFor answers whether the roster has it.</summary>
     public Fact<int> MinimumHandlingSkill { get; init; }
 
-    /// <summary>The sizing facts MaintainHerd culls and tames by.</summary>
+    /// <summary>The sizing facts the herd Need culls and tames by.</summary>
     public HerdFacts Herd { get; init; } = new();
 
     /// <summary>Care cap input: MedicalCareCategory name.</summary>
@@ -104,7 +104,7 @@ public sealed record AnimalUpkeepObservation
 
     public Fact<EquatableArray<UpkeepAnimal>> Animals { get; init; }
 
-    /// <summary>The factionless census MaintainHerd tames from; it carries no feed or pen facts.</summary>
+    /// <summary>The factionless census the herd Need tames from; it carries no feed or pen facts.</summary>
     public Fact<EquatableArray<UpkeepAnimal>> WildAnimals { get; init; }
 
     /// <summary>The load's race catalog, read with every routine reading.</summary>
@@ -115,16 +115,9 @@ public sealed record AnimalUpkeepObservation
     public EquatableArray<Resource> DirectedHerds { get; init; }
 }
 
-/// <summary>The containment latch MaintainAnimalContainment stays active on until its review next finds no uncontained animal.</summary>
-public sealed record AnimalUpkeepHistory
-{
-    public bool Containment { get; init; }
-}
-
+/// <summary>The animals family's containment read: the pen-bound animals not yet contained, unknown while a row is.</summary>
 public sealed record AnimalUpkeepReview
 {
-    public AnimalUpkeepHistory History { get; init; } = new();
-
     public Fact<EquatableArray<PawnId>> Containment { get; init; }
 }
 
@@ -366,13 +359,14 @@ public sealed record AnimalRaceCatalog
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId MaintainAnimalContainment = new("MaintainAnimalContainment");
-
-    /// <summary>Reviews containment: the pen-bound animals not yet contained. The herd's feed is the animal feed runway (PlanAnimalFeedRunway).</summary>
-    public static AnimalUpkeepReview ReviewAnimalUpkeep(AnimalUpkeepObservation v, AnimalUpkeepHistory previous)
+    /// <summary>
+    /// Reviews containment for the animals family's containment Need: the pen-bound animals not yet contained. No
+    /// history is kept; each read derives it afresh. The herd's feed is the animal feed runway (PlanAnimalFeedRunway).
+    /// </summary>
+    public static AnimalUpkeepReview ReviewAnimalUpkeep(AnimalUpkeepObservation v)
     {
-        var r = new AnimalUpkeepReview { History = previous };
-        const string Invalid = "invalid animal upkeep facts or history";
+        var r = new AnimalUpkeepReview();
+        const string Invalid = "invalid animal upkeep facts";
         for (var i = 0; i < v.DirectedHerds.Count; i++)
         {
             var race = v.DirectedHerds[i];
@@ -407,11 +401,7 @@ public static partial class PolicyFunctions
         if (containmentKnown)
         {
             containment.Sort();
-            r = r with
-            {
-                Containment = Known(EquatableArray.From(containment)),
-                History = r.History with { Containment = containment.Count > 0 },
-            };
+            r = r with { Containment = Known(EquatableArray.From(containment)) };
         }
 
         return r;

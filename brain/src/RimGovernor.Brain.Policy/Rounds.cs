@@ -263,31 +263,18 @@ public sealed record RoundsFacts
     /// <summary>A mechanitor can afford the next mech, a gestator is idle and no waste is uncleared (MechGestationOwed); it holds MaintainMechs open. Unknown unless the method is composed.</summary>
     public Fact<bool> MechGestationOwed { get; init; }
 
-    /// <summary>A pen or vet room step is due (NextHerdStep); it holds MaintainAnimalContainment open after the pen stands.</summary>
-    public Fact<bool> HerdRoomsOwed { get; init; }
-
     /// <summary>A willing colonist has no psylink and a psylink neuroformer is held (PsylinkOwed); it holds MaintainPsylink open. Unknown unless the method is composed.</summary>
     public Fact<bool> PsylinkOwed { get; init; }
 
-    /// <summary>An active ideoligion role has a free place and a fitting believer (RolesOwed); it holds MaintainIdeoRoles open.</summary>
-    public Fact<bool> RolesOwed { get; init; }
 
     /// <summary>The finished buildings the held rituals' patterns require (observation, from the frame's building census).</summary>
     public Fact<EquatableArray<RitualSite>> RitualSites { get; init; }
-
-    /// <summary>The rituals to begin now (PlanRituals); this observation does not schedule voluntary attendance.</summary>
-    public Fact<EquatableArray<RitualPlan>> RitualPlans { get; init; }
-
-    /// <summary>Holds MaintainRituals open. Unknown unless the method is composed.</summary>
-    public Fact<bool> RitualsOwed { get; init; }
 
     /// <summary>The party to start now (PlanGathering).</summary>
     public Fact<GatheringPlan> GatheringPlan { get; init; }
 
     /// <summary>Holds HoldGatherings open. Unknown unless the method is composed.</summary>
     public Fact<bool> GatheringOwed { get; init; }
-
-    public Fact<bool> ReformOwed { get; init; }
 
     /// <summary>The Safe allowed area's native load id, "" when the map has none (PlanSheltering).</summary>
     public Fact<string> ShelterArea { get; init; }
@@ -628,8 +615,6 @@ public sealed record RoundsLatches
 
     public bool Sleeping { get; set; }
 
-    public AnimalUpkeepHistory Animals { get; set; } = new();
-
     public bool MedicalReserve { get; set; }
 
     /// <summary>Holds the bench IDs MaintainLighting last measured dark.</summary>
@@ -922,7 +907,6 @@ public static partial class PolicyFunctions
         {
             Home = PlanHomeArea(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage),
             Stone = ReviewStoneShell(owned, f.StoneStructures),
-            Animals = ReviewAnimalUpkeep(f.AnimalUpkeep, previous.Animals),
         };
         var medicineFacts = f.MedicalReserve with { Colonists = f.Colonists };
         c.Medicine = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve);
@@ -976,7 +960,6 @@ public static partial class PolicyFunctions
             HomeCoverage = c.HomeActive,
             StoneShell = c.StoneActive,
             Sleeping = c.SleepingActive,
-            Animals = c.Animals.History,
             MedicalReserve = c.Medicine.Active,
             Lighting = EquatableArray.From(c.Lighting.Dark),
             Flooring = EquatableArray.From(c.Flooring.Latched),

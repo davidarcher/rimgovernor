@@ -79,11 +79,8 @@ public sealed class ClockSchedulerResult
 
     public RoundsSurgeryResult? Surgery { get; set; }
 
-    public RoundsAnimalContainmentResult? AnimalContainment { get; set; }
-
     public RoundsRecoveryResult? Recovery { get; set; }
 
-    public RoundsHusbandryResult? Husbandry { get; set; }
 
     public RoundsPopulationCustodyResult? PopulationCustody { get; set; }
 
@@ -100,12 +97,6 @@ public sealed class ClockSchedulerResult
     public RoundsPsylinkResult? Psylink { get; set; }
 
     public RoundsPermitsResult? Permits { get; set; }
-
-    public RoundsIdeoRolesResult? IdeoRoles { get; set; }
-
-    public RoundsIdeoligionResult? Ideoligion { get; set; }
-
-    public RoundsRitualsResult? Rituals { get; set; }
 
     public RoundsGatheringResult? Gathering { get; set; }
 
@@ -186,9 +177,7 @@ public sealed class ClockSchedulerResult
         Gear = other.Gear ?? Gear;
         Medical = other.Medical ?? Medical;
         Surgery = other.Surgery ?? Surgery;
-        AnimalContainment = other.AnimalContainment ?? AnimalContainment;
         Recovery = other.Recovery ?? Recovery;
-        Husbandry = other.Husbandry ?? Husbandry;
         PopulationCustody = other.PopulationCustody ?? PopulationCustody;
         PopulationJoiner = other.PopulationJoiner ?? PopulationJoiner;
         Resource = other.Resource ?? Resource;
@@ -197,9 +186,6 @@ public sealed class ClockSchedulerResult
         Firebreak = other.Firebreak ?? Firebreak;
         Psylink = other.Psylink ?? Psylink;
         Permits = other.Permits ?? Permits;
-        IdeoRoles = other.IdeoRoles ?? IdeoRoles;
-        Ideoligion = other.Ideoligion ?? Ideoligion;
-        Rituals = other.Rituals ?? Rituals;
         Gathering = other.Gathering ?? Gathering;
         StoneShell = other.StoneShell ?? StoneShell;
         Stockpiles = other.Stockpiles ?? Stockpiles;

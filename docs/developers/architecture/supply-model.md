@@ -227,7 +227,7 @@ net of the herd's feed per day (never below zero), ledger-counted under
 stock cap its meat nutrition, lead 0, 180 slaughter ticks as `UpfrontCost`, no
 steady labor. Herd floors, breeding-pair and slaughter exclusions stay policy
 ([husbandry contracts](../contracts/husbandry-contracts.md#food-channel-planning));
-`MaintainHerd` executes the open candidate. Candidates that acquire animals
+The `animals/herd` Need executes the open candidate. Candidates that acquire animals
 (taming, purchase) are not built yet.
 
 ### Crop candidates

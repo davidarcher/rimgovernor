@@ -655,7 +655,7 @@ namespace HomeBridge.BridgeTools
                 // Area reconciliation: the saved restriction.
                 if(eligible) {row = row with { MasterId = NativeHusbandryOperations.MasterId(pawn) };row = row with { AllowedAreaId = NativeHusbandryOperations.AreaId(pawn) };row = row with { SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(pawn) };}
             } else if(pawn.Faction==null) {
-                // The tame target facts a MaintainHerd tame write needs.
+                // The tame target facts an animals/herd tame write needs.
                 row = row with { Tameable = NativeHusbandryOperations.Tameable(pawn) };
                 row = row with { Tame = map?.designationManager?.DesignationOn(pawn,DesignationDefOf.Tame)!=null };
             }

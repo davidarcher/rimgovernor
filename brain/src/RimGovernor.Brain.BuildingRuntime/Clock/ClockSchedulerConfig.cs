@@ -86,11 +86,8 @@ public sealed class ClockSchedulerConfig
 
     public RoundsSurgeryPlanner? Surgery { get; init; }
 
-    public RoundsAnimalContainmentPlanner? AnimalContainment { get; init; }
-
     public RoundsRecoveryPlanner? Recovery { get; init; }
 
-    public RoundsHusbandryPlanner? Husbandry { get; init; }
 
     public RoundsPopulationCustodyPlanner? PopulationCustody { get; init; }
 
@@ -107,12 +104,6 @@ public sealed class ClockSchedulerConfig
     public RoundsPsylinkPlanner? Psylink { get; init; }
 
     public RoundsPermitsPlanner? Permits { get; init; }
-
-    public RoundsIdeoRolesPlanner? IdeoRoles { get; init; }
-
-    public RoundsIdeoligionPlanner? Ideoligion { get; init; }
-
-    public RoundsRitualsPlanner? Rituals { get; init; }
 
     public RoundsGatheringPlanner? Gathering { get; init; }
 

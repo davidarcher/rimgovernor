@@ -26,8 +26,8 @@ public static partial class PolicyFunctions
                 foreach (var pawn in role.Pawns.OrderBy(p => p.Value, StringComparer.Ordinal))
                 {
                     var id = role.Id + "/" + index + "/" + pawn.Value;
-                    result.Add(new(id, new(MaintainIdeoRoles, role.Id,
-                        "assigned_role_min_skill_any/" + index, default), pawn,
+                    result.Add(new(id, ServiceTarget.ForNeed(IdeologyFamily.Roles, role.Id,
+                        "assigned_role_min_skill_any/" + index), pawn,
                         EquatableArray.From(requirement.Skills), CapabilityDevelopmentKind.Maintenance));
                 }
             }

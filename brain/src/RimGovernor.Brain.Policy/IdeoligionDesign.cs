@@ -1,10 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
-{
-    public static readonly ConcernId ImproveIdeoligion = new("ImproveIdeoligion");
-}
-
 /// <summary>
 /// Orders concrete restrictions before worst known mood cost, then mandatory obligations. Benefits break
 /// ties; no mixed-unit weights.
@@ -138,8 +133,6 @@ public sealed record DesignComparison
 
 public static partial class PolicyFunctions
 {
-    internal static void InspectIdeoligion(RoundsRun c) => c.Owed(ImproveIdeoligion, c.F.ReformOwed);
-
     /// <summary>Assigned work and mood with complete believer coverage.</summary>
     public static Fact<DesignNeeds> IdeoligionNeeds(IdeoligionFacts ideo, Fact<EquatableArray<WorkPawn>> workers, Fact<EquatableArray<MoodPawn>> moods)
     {

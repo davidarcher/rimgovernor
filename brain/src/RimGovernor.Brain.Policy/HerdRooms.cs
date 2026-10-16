@@ -2,8 +2,8 @@ namespace RimGovernor.Brain.Policy;
 
 // The herd's rooms. A pen is a walled-off outdoor PlannedRoom of the plan, a room node of the station graph
 // (HerdRoomNodes) the tiler sites with the others (HerdPen). A pen carries the herd's key (PlannedRoom.Herd). The
-// planner (NextHerdStep) reconciles each pen's fence, gate and marker through the build-side reconciler
-// (ReconcileRoom), then the hospital's animal beds (HerdWard): a sick animal is treated in the hospital.
+// animals family reconciles each pen's fence, gate and marker (NextPenStep) through the build-side reconciler
+// (ReconcileRoom), and the hospital's animal beds (NextWardStep, HerdWard): a sick animal is treated in the hospital.
 
 /// <summary>The native shapes of the animal definitions the herd rooms are built from.</summary>
 public sealed record HerdFurniture
@@ -83,30 +83,12 @@ public static partial class PolicyFunctions
     public static PlannedRole PlannedPen => PlannedRole.Pen;
 
     /// <summary>
-    /// Picks the next pen or ward step for ward animal beds (WardBeds): a pen is reconciled while its fence, gate or
-    /// marker differ from the plan; the hospital, once it stands, holds the ward beds in the free floor beside its own
-    /// template, each flagged medical (sleeping's Medical fact says which are) first. The hospital's ring is the
-    /// hospital planner's, so the ward step waits for the room to stand. None for no pens and no ward demand, or once
-    /// every room matches and every bed stands and is flagged.
+    /// The next pen step (the animals family's containment Need, #3260): a pen is reconciled while its fence, gate
+    /// or marker differ from the plan. None once every pen matches.
     /// </summary>
-    public static HerdStep NextHerdStep(
-        LayoutPlan plan,
-        RoomObservation rooms,
-        GroundCensus ground,
-        IReadOnlyList<CurrentBuilding> built,
-        IReadOnlyList<SleepingBed> sleeping,
-        int ward,
-        HerdFurniture f
-    )
+    public static HerdStep NextPenStep(LayoutPlan plan, GroundCensus ground, IReadOnlyList<CurrentBuilding> built, HerdFurniture f)
     {
-        var taken = new HashSet<Cell>();
-        foreach (var b in built)
-        {
-            foreach (var c in b.Cells)
-            {
-                taken.Add(c);
-            }
-        }
+        var taken = BuiltCells(built);
         foreach (var room in plan.RoomsOf(PlannedPen))
         {
             var (piece, marked) = PenMarkerPiece(room, f.Marker, built, taken);
@@ -122,10 +104,29 @@ public static partial class PolicyFunctions
                 };
             }
         }
+        return new HerdStep();
+    }
+
+    /// <summary>
+    /// The next ward step for <paramref name="ward"/> animal beds (WardBeds; the animals family's ward Need, #3260):
+    /// the hospital, once it stands, holds the ward beds in the free floor beside its own template, each flagged
+    /// medical (sleeping's Medical fact says which are) first. The hospital's ring is the hospital planner's, so the
+    /// ward step waits for the room to stand. None for no ward demand, or once every bed stands and is flagged.
+    /// </summary>
+    public static HerdStep NextWardStep(
+        LayoutPlan plan,
+        RoomObservation rooms,
+        IReadOnlyList<CurrentBuilding> built,
+        IReadOnlyList<SleepingBed> sleeping,
+        int ward,
+        HerdFurniture f
+    )
+    {
         if (ward <= 0 || string.IsNullOrEmpty(f.Bed.Def))
         {
             return new HerdStep();
         }
+        var taken = BuiltCells(built);
         foreach (var room in plan.Hospitals())
         {
             var (_, standing) = CensusRoomIn(room, rooms);
@@ -162,5 +163,18 @@ public static partial class PolicyFunctions
             }
         }
         return new HerdStep();
+    }
+
+    private static HashSet<Cell> BuiltCells(IReadOnlyList<CurrentBuilding> built)
+    {
+        var taken = new HashSet<Cell>();
+        foreach (var b in built)
+        {
+            foreach (var c in b.Cells)
+            {
+                taken.Add(c);
+            }
+        }
+        return taken;
     }
 }

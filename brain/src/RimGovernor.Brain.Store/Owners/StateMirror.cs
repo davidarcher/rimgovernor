@@ -13,7 +13,9 @@ namespace RimGovernor.Brain.Store;
 /// <item><c>standard/&lt;id&gt;</c>: <c>{schemaVersion, standard, revision}</c>, one per unretired standard. On load
 /// only trade missions and standards carrying a <c>Record</c> are re-inserted (<see cref="RebuildStandards"/>).</item>
 /// <item><c>family/layout_plan</c>, <c>family/defense_layout</c>, <c>family/production_ladder</c>,
-/// <c>family/soldier_squad</c>, <c>family/combat_restoration</c>, <c>family/admin/creep_joiners</c>: <c>{schemaVersion, scope?, record}</c>.</item>
+/// <c>family/soldier_squad</c>, <c>family/combat_restoration</c>, <c>family/admin/creep_joiners</c>, <c>family/ideology/reform</c>: <c>{schemaVersion, scope?, record}</c>.
+/// An older save's pending reform lives in its ImproveIdeoligion <c>standard/*</c> blob's <c>Record</c> instead; it
+/// is read once on load into <c>family/ideology/reform</c> when that blob is absent (#3260).</item>
 /// </list>
 /// The layout plan is a world row, so its blob carries the scope (colony, map, tick) of the newest row written.
 /// </summary>
@@ -22,7 +24,10 @@ public sealed partial class Store
     /// <summary>Versions every governor state blob; a breaking change bumps it.</summary>
     public const int GovernorStateSchemaVersion = 6;
 
-    private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "admin_creep_joiners", "colony_extent_events"];
+    private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "admin_creep_joiners", "colony_extent_events", "ideology_reform"];
+
+    /// <summary>The retired Concern whose Standard carried the pending reform before the ideology family (#3260).</summary>
+    private static readonly ConcernId LegacyReformKind = new("ImproveIdeoligion");
 
     private static string Blob(Action<Utf8JsonWriter> body)
     {
@@ -93,6 +98,10 @@ public sealed partial class Store
                 {
                     output[GovernorCombatRestorationKey] = FamilyBlob(StoreJson.Serialize(restoration), null);
                 }
+                if (LoadIdeologyReformIn(tx) is { } reform)
+                {
+                    output[GovernorIdeologyReformKey] = FamilyBlob(StoreJson.Serialize(reform), null);
+                }
                 if (LoadCreepJoinersIn(tx) is { } creepJoiners)
                 {
                     output[GovernorCreepJoinersKey] = FamilyBlob(StoreJson.Serialize(creepJoiners), null);
@@ -150,7 +159,7 @@ public sealed partial class Store
         var blobs = new Dictionary<string, FamilyBlobIn>(StringComparer.Ordinal);
         try
         {
-            foreach (var key in new[] { GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey, GovernorCombatRestorationKey, GovernorCreepJoinersKey })
+            foreach (var key in new[] { GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey, GovernorCombatRestorationKey, GovernorCreepJoinersKey, GovernorIdeologyReformKey })
             {
                 if (!saved.TryGetValue(key, out var raw))
                 {
@@ -169,6 +178,7 @@ public sealed partial class Store
                 }
                 blobs[key] = new FamilyBlobIn(document, scope);
             }
+            var legacyReform = blobs.ContainsKey(GovernorIdeologyReformKey) ? null : LegacyReform(saved);
             Run(
                 tx =>
                 {
@@ -214,6 +224,16 @@ public sealed partial class Store
                         r.Validate();
                         PutSingleton(tx, "combat_restoration", r, MaxCombatRestorationBytes);
                     }
+                    if (blobs.TryGetValue(GovernorIdeologyReformKey, out var reform))
+                    {
+                        var r = Codecs.Default.Read<IdeologyReformRecord>(reform.Record);
+                        r.Validate();
+                        PutSingleton(tx, "ideology_reform", r, MaxIdeologyReformBytes);
+                    }
+                    else if (legacyReform is not null)
+                    {
+                        PutSingleton(tx, "ideology_reform", legacyReform, MaxIdeologyReformBytes);
+                    }
                     if (blobs.TryGetValue(GovernorCreepJoinersKey, out var creepJoiners))
                     {
                         PutCreepJoinersIn(tx, Codecs.Default.Read<CreepJoinersRecord>(creepJoiners.Record));
@@ -229,6 +249,43 @@ public sealed partial class Store
                 blob.Document.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    /// The pending reform an older save kept in its ImproveIdeoligion Standard's <c>Record</c>
+    /// (<c>{"Ideo","Expected","Target","Count"}</c>), scoped to that Standard's world; null when the save has none or
+    /// it does not decode, and the ideology family re-derives.
+    /// </summary>
+    private static IdeologyReformRecord? LegacyReform(IReadOnlyDictionary<string, string> saved)
+    {
+        foreach (var (key, raw) in saved.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            if (!key.StartsWith(GovernorStandardKeyPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+            using var document = ParseBlob(key, raw);
+            var standard = document.RootElement.Get<Standard>("standard", Codecs.Default);
+            if (standard.Kind != LegacyReformKind || string.IsNullOrEmpty(standard.Record))
+            {
+                continue;
+            }
+            try
+            {
+                using var record = JsonDocument.Parse(standard.Record);
+                var root = record.RootElement;
+                IdeoligionDesign Design(string name) => StoreJson.Deserialize<IdeoligionDesign>(root.GetProperty(name).GetRawText());
+                var reform = new IdeoligionReform(root.GetProperty("Ideo").GetString() ?? "", Design("Expected"), Design("Target"), root.GetProperty("Count").GetInt32());
+                var r = new IdeologyReformRecord { World = new World(standard.Snapshot.Colony, standard.Snapshot.Load, standard.Snapshot.Map), Reform = reform };
+                r.Validate();
+                return r;
+            }
+            catch (Exception e) when (e is JsonException or DomainException or KeyNotFoundException or InvalidOperationException or StoreCorruptException)
+            {
+                return null;
+            }
+        }
+        return null;
     }
 
     public Task RebuildFamiliesAsync(IReadOnlyDictionary<string, string> saved, CancellationToken cancellationToken) => Task.Run(() => RebuildFamilies(saved, cancellationToken), cancellationToken);
@@ -268,7 +325,8 @@ public sealed partial class Store
             {
                 throw new StoreCorruptException($"{key}: standard identity mismatch");
             }
-            if (standard.Kind != Concerns.TradeMission && string.IsNullOrEmpty(standard.Record))
+            // An ImproveIdeoligion Standard's reform record moved to family/ideology/reform (#3260, RebuildFamilies).
+            if ((standard.Kind != Concerns.TradeMission && string.IsNullOrEmpty(standard.Record)) || standard.Kind == LegacyReformKind)
             {
                 continue;
             }

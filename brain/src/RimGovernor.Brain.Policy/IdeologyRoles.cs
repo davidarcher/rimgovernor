@@ -1,17 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
-{
-    /// <summary>
-    /// MaintainIdeoRoles keeps the ideoligion's role precepts filled: each active role with a free place is
-    /// given to the believer who best fits it, through the shared Assign intent (the role precept's id is
-    /// the assignable thing). Which skills a role asks for, how many pawns it takes and when it is active
-    /// are the catalog's role defs (IdeologyDefs.Roles); no role or skill name is listed here. A pawn that
-    /// already holds a role is never moved.
-    /// </summary>
-    public static readonly ConcernId MaintainIdeoRoles = new("MaintainIdeoRoles");
-}
-
 /// <summary>One pawn taking one role precept. Role is the role precept's id (the thing Assign targets); Def its def.</summary>
 public sealed record RoleAssignment(PawnId Pawn, string Role, string Def);
 
@@ -116,18 +104,5 @@ public static partial class PolicyFunctions
             }
         }
         return Known(EquatableArray.From(output));
-    }
-
-    /// <summary>
-    /// Measures MaintainIdeoRoles: known false when no role has a fitting believer waiting, unknown while
-    /// the ideoligion or pawns are.
-    /// </summary>
-    public static Fact<bool> RolesOwed(Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns)
-    {
-        if (!RoleAssignments(ideology, pawns).TryGetValue(out var owed))
-        {
-            return Unknown<bool>();
-        }
-        return Known(owed.Count > 0);
     }
 }

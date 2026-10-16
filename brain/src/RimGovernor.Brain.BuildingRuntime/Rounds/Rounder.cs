@@ -346,10 +346,6 @@ public sealed partial class Rounder
             // The traffic tier prices its floor in the review.
             readDefinitions = [.. readDefinitions, .. Policy.Flooring.Floors];
         }
-        if (MethodEnabled(PolicyApi.MaintainAnimalContainment))
-        {
-            readDefinitions = [.. readDefinitions, .. HerdDefinitions];
-        }
         if (MethodEnabled(PolicyApi.MaintainBurial))
         {
             readDefinitions = [.. readDefinitions, .. BurialDefinitions];
@@ -421,11 +417,6 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { BedroomsOwed = BedroomsOwedOf(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { BurialOwed = BurialOwed(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = ButcherTableAffordable(reading.Projection) });
-        // The herd furniture is read only when the containment method is on (readDefinitions above); a review without it owes no herd step.
-        if (MethodEnabled(PolicyApi.MaintainAnimalContainment))
-        {
-            reading = reading.WithFacts(rf => rf with { HerdRoomsOwed = HerdRoomsOwed(reading.Projection) });
-        }
         reading = reading.WithFacts(rf => rf with { WarmRooms = WarmCoolingRooms(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { PlanLit = RoundsBuildingPlanner.PlanLitRooms(reading.Projection) });
         if (MethodEnabled(PolicyApi.MaintainClimateEnvelope))
@@ -504,21 +495,9 @@ public sealed partial class Rounder
             psylinkCandidates = candidates;
             reading = reading.WithFacts(rf => rf with { PsylinkOwed = psylinkOwed });
         }
-        if (MethodEnabled(PolicyConstants.MaintainIdeoRoles))
-        {
-            reading = reading.WithFacts(rf => rf with { RolesOwed = PolicyApi.RolesOwed(reading.Projection.Facts.Ideology, reading.Projection.WorkPawns) });
-        }
-        if (MethodEnabled(PolicyApi.MaintainRituals))
-        {
-            reading = ReviewRituals(reading, state.Snapshot);
-        }
         if (MethodEnabled(PolicyApi.HoldGatherings))
         {
             reading = ReviewGathering(reading, state.Snapshot);
-        }
-        if (MethodEnabled(PolicyConstants.ImproveIdeoligion))
-        {
-            ReviewIdeoligion(ref reading, state.Snapshot, ct);
         }
         if (reading.Projection.Facts.FoodPlan.TryGetValue(out var foodPlan))
         {

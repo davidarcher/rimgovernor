@@ -269,7 +269,9 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
                     {
                         working[need.Id] = worked[^1].Method;
                     }
-                    reports[need.Id] = Stronger(reports[need.Id], verdict);
+                    // A Need nothing was proposed for takes its work's verdict (a wait names what it waits on);
+                    // otherwise the work only strengthens what the proposals filed.
+                    reports[need.Id] = proposed.Contains(need.Id) ? Stronger(reports[need.Id], verdict) : verdict;
                 }
             }
 

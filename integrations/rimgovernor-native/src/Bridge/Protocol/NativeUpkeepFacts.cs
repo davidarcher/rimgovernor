@@ -436,7 +436,7 @@ namespace HomeBridge.BridgeTools
                 }).ToList();
                 result = result with { Animals = [.. result.Animals, .. values] };
             });
-            // The factionless animals a MaintainHerd tame write can target:
+            // The factionless animals an animals/herd tame write can target:
             // native tame eligibility only, no feed or pen facts. Every
             // spawned wild animal is listed: the census has no row bound.
             Read("wild_animals", () => {

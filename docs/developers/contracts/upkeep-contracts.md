@@ -362,11 +362,11 @@ floor beyond the reserve latch above.
 
 ### Animals
 
-`MaintainAnimalContainment` observes pen membership for eligible starting animals. Pets and
+The `animals/containment` Need (#3260) observes pen membership for eligible starting animals. Pets and
 animals marked for release or slaughter get no pen request. Suitable existing pens are
 reused through native handling (Handling joins shared allocation without overriding disabled
 work); with none, one pen marker claims the yard inside the defensive wall once it is closed, built through
-the supply-room enclosure checks. Fences or a marker do not complete the concern: the animal
+the supply-room enclosure checks. Fences or a marker do not meet the Need: the animal
 must be observed in a suitable pen. No breeding, bonding, master or removal setting changes.
 
 Herd layout: a pen per herd holding roamers (husbandry-contracts, Pens); there is no barn, for
@@ -374,14 +374,14 @@ animals sleep in the open. There is no vet room: the hospital holds
 `AnimalBed` stations sized from the injured animals (`policy.WardBeds`), and an animal enters
 it when carried or via the bot-owned `Hospital` allowed area (`HospitalAreaKey`).
 
-- Containment reconciles each pen and the hospital's animal ward (the plan's pen rooms, `policy.HospitalCells`)
-  through the shared build side (`policy.NextHerdStep` returns `HerdReconcile` with the
-  template: a pen's `PenMarker`, the ward's `AnimalBed`s;
-  `RoundsHerdRooms.cs` calls `reconcileRoom`), so a lost fence is rebuilt
-  like a first ring and the beds are installed from packed stock first; the concern stays
-  open while a step is due
-  (`HerdRoomsOwed`). A definition the live catalog lacks fails the review.
-- Each standing ward bed is flagged medical by a `BedUse` patch. Each bonded animal's master
+- The family's work step reconciles each pen (`animals/containment`, `policy.NextPenStep`) and the
+  hospital's animal ward (`animals/ward`, `policy.NextWardStep`, `policy.HospitalCells`) through the
+  shared build side (`ReconcileRoomAsync` under the Need owner, a `HerdReconcile` step with the
+  template: a pen's `PenMarker`, the ward's `AnimalBed`s), so a lost fence is rebuilt
+  like a first ring and the beds are installed from packed stock first; each Need is unmet
+  while its step is due. A pen no longer waits for an animal bed to be usable. A definition
+  the live catalog lacks fails the family's read.
+- Each standing ward bed is flagged medical by a `BedUse` patch (`herd-medical-<bed>`). Each bonded animal's master
   (`policy.CompanionMaster`) with a solo bedroom gets one `AnimalSleepingSpot` per animal
   (`policy.NextCompanionBed`, one per review). Pasture rotation is not built.
 

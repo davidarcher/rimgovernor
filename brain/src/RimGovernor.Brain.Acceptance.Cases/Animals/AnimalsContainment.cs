@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>animals/containment</c> (Go <c>containment.go</c>): the MaintainAnimalContainment native dispatch vertical end to
+/// <c>animals/containment</c> (Go <c>containment.go</c>): the animals/containment native dispatch vertical end to
 /// end. One <c>operations_apply</c> batch of building intents authors a durable Fence/FenceGate enclosure and one
 /// PenMarker inside it, then real game ticks build it and carry a genuinely uncontained, pen-requiring herd animal into
 /// that pen, observed through <c>observations_read_colony_facts</c> (Contained=true, a non-empty PenId), not just a
@@ -19,7 +19,7 @@ internal static class AnimalsContainment
     internal static AcceptanceCase Case() => new()
     {
         Name = "animals/containment",
-        Scope = "Native MaintainAnimalContainment dispatch: a real Fence/FenceGate enclosure and "
+        Scope = "Native animals/containment dispatch: a real Fence/FenceGate enclosure and "
             + "PenMarker authored as Actions/Apply building intents, then a genuinely uncontained "
             + "pen-requiring herd animal carried into that pen by real native ticks (observed via "
             + "observations_read_colony_facts, not just a receipt), while a non-pen-requiring pet is left alone.",

@@ -298,6 +298,24 @@ public sealed record SoldierSquadRecord
     }
 }
 
+/// <summary>
+/// The ideology family's pending ideoligion reform (#3260): the intent its <c>ideology/reform</c> Method committed,
+/// kept in the save as the <c>family/ideology/reform</c> blob until the reform is observed or the ideoligion moves on.
+/// It is what the world cannot show: the design the reform aimed at.
+/// </summary>
+public sealed record IdeologyReformRecord
+{
+    public World World { get; init; }
+
+    public IdeoligionReform? Reform { get; init; }
+
+    public void Validate()
+    {
+        World.Validate();
+        DomainException.Require(Reform is not null, "invalid ideology reform record");
+    }
+}
+
 internal static class Families
 {
     internal static bool ValidIdentity(string s) => s.Length is > 0 and <= 256;
@@ -310,10 +328,12 @@ public sealed partial class Store
     public const string GovernorDefenseLayoutKey = "family/defense_layout";
     public const string GovernorProductionLadderKey = "family/production_ladder";
     public const string GovernorSoldierSquadKey = "family/soldier_squad";
+    public const string GovernorIdeologyReformKey = "family/ideology/reform";
 
     private const int MaxDefenseLayoutBytes = 1024 * 1024;
     private const int MaxProductionLadderBytes = 64 * 1024;
     private const int MaxSoldierSquadBytes = 64 * 1024;
+    private const int MaxIdeologyReformBytes = 64 * 1024;
 
     /// <summary>Replaces the one row of a singleton table (a session cache of the save) with the record's JSON; <see cref="CapacityException"/> past the limit.</summary>
     internal static void PutSingleton<T>(StoreTransaction tx, string table, T record, int limit)
@@ -358,6 +378,12 @@ public sealed partial class Store
     {
         var r = LoadSingleton<SoldierSquadRecord>(tx, "soldier_squad", MaxSoldierSquadBytes);
         return r is null ? null : Validated(r, r.Validate, "soldier squad");
+    }
+
+    internal static IdeologyReformRecord? LoadIdeologyReformIn(StoreTransaction tx)
+    {
+        var r = LoadSingleton<IdeologyReformRecord>(tx, "ideology_reform", MaxIdeologyReformBytes);
+        return r is null ? null : Validated(r, r.Validate, "ideology reform");
     }
 
     private static T Validated<T>(T record, Action validate, string what)
@@ -424,6 +450,26 @@ public sealed partial class Store
 
     public Task SaveSoldierSquadAsync(SoldierSquadRecord r, CancellationToken cancellationToken) => Task.Run(() => SaveSoldierSquad(r, cancellationToken), cancellationToken);
 
+    /// <summary>The pending reform for the world's colony and map; null when none or when it belongs to another colony or map. A reload of the same colony keeps it.</summary>
+    public IdeologyReformRecord? LoadIdeologyReform(World w, CancellationToken cancellationToken) =>
+        Run(tx => LoadIdeologyReformIn(tx) is { } r && r.World.Colony == w.Colony && r.World.Map == w.Map ? r : null, cancellationToken);
+
+    public Task<IdeologyReformRecord?> LoadIdeologyReformAsync(World w, CancellationToken cancellationToken) => Task.Run(() => LoadIdeologyReform(w, cancellationToken), cancellationToken);
+
+    /// <summary>Replaces the pending reform; the singleton holds one colony's reform.</summary>
+    public void SaveIdeologyReform(IdeologyReformRecord r, CancellationToken cancellationToken)
+    {
+        r.Validate();
+        Run(tx => PutSingleton(tx, "ideology_reform", r, MaxIdeologyReformBytes), cancellationToken);
+    }
+
+    public Task SaveIdeologyReformAsync(IdeologyReformRecord r, CancellationToken cancellationToken) => Task.Run(() => SaveIdeologyReform(r, cancellationToken), cancellationToken);
+
+    /// <summary>Drops the pending reform: it was observed, or the ideoligion moved on.</summary>
+    public void ClearIdeologyReform(CancellationToken cancellationToken) => Run(tx => _ = tx.Execute("DELETE FROM ideology_reform"), cancellationToken);
+
+    public Task ClearIdeologyReformAsync(CancellationToken cancellationToken) => Task.Run(() => ClearIdeologyReform(cancellationToken), cancellationToken);
+
     /// <summary>Empties the rounds session cache on a world change; the next review recomputes it from revision zero.</summary>
     public void ResetRounds(CancellationToken cancellationToken) => Run(tx => _ = tx.Execute("DELETE FROM rounds"), cancellationToken);
 
@@ -439,6 +485,7 @@ internal static partial class StoreSchema
         CREATE TABLE production_ladder(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
         CREATE TABLE soldier_squad(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
         CREATE TABLE combat_restoration(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
+        CREATE TABLE ideology_reform(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
         CREATE TABLE admin_creep_joiners(singleton INTEGER PRIMARY KEY CHECK(singleton=1), payload TEXT NOT NULL) STRICT;
         """,
         [
@@ -447,6 +494,7 @@ internal static partial class StoreSchema
             "SELECT singleton,payload FROM production_ladder LIMIT 0",
             "SELECT singleton,payload FROM soldier_squad LIMIT 0",
             "SELECT singleton,payload FROM combat_restoration LIMIT 0",
+            "SELECT singleton,payload FROM ideology_reform LIMIT 0",
             "SELECT singleton,payload FROM admin_creep_joiners LIMIT 0",
         ]
     );

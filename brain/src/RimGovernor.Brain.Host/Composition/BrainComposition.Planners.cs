@@ -23,7 +23,6 @@ public sealed partial class BrainComposition
         var log = new HostLog(context.Telemetry, "clock-scheduler");
 
         // ClockSchedulerConfig is init-only, so the planners are built into locals and the config is made last.
-        RoundsAnimalContainmentPlanner? cfgAnimalContainment = null;
         RoundsArmoryPlanner? cfgArmory = null;
         RoundsBuildingPlanner? cfgBasicComfort = null;
         RoundsBlightPlanner? cfgBlight = null;
@@ -46,9 +45,6 @@ public sealed partial class BrainComposition
         RoundsGeneBankPlanner? cfgGeneBank = null;
         RoundsHomeCoveragePlanner? cfgHomeCoverage = null;
         RoundsHospitalPlanner? cfgHospital = null;
-        RoundsHusbandryPlanner? cfgHusbandry = null;
-        RoundsIdeoRolesPlanner? cfgIdeoRoles = null;
-        RoundsIdeoligionPlanner? cfgIdeoligion = null;
         RoundsLedgerPlanner? cfgLedger = null;
         RoundsBuildingPlanner? cfgLighting = null;
         MaintainShelterPlanner? cfgMaintainShelter = null;
@@ -65,7 +61,6 @@ public sealed partial class BrainComposition
         RoundsRescuePlanner? cfgRescue = null;
         RoundsResourcePlanner? cfgResource = null;
         RoundsAcquisitionPlanner? cfgResourceAcquisition = null;
-        RoundsRitualsPlanner? cfgRituals = null;
         Rounder? cfgRounds = null;
         RoundsBuildingPlanner? cfgRoutes = null;
         RoundsBuildingPlanner? cfgSleeping = null;
@@ -264,17 +259,15 @@ public sealed partial class BrainComposition
             }
             families.Add(foodStores.Runner());
         }
-        if (animalContainment)
+        if (husbandry || animalContainment)
         {
-            cfgAnimalContainment = new RoundsAnimalContainmentPlanner(reviewer, client);
+            // The husbandry toggle composes the animals family's herd and sterilize Needs, the containment toggle its
+            // containment and ward Needs (#3260).
+            families.Add(AnimalsReader.Runner(reviewer, client, husbandry, animalContainment));
         }
         if (recovery)
         {
             cfgRecovery = RoundsRecoveryPlanner.NewRoundsRecoveryPlanner(reviewer);
-        }
-        if (husbandry)
-        {
-            cfgHusbandry = RoundsHusbandryPlanner.NewRoundsHusbandryPlanner(reviewer);
         }
         if (prisonerInteraction || populationCustody)
         {
@@ -303,24 +296,15 @@ public sealed partial class BrainComposition
             // MaintainPermits plans from the review's royalty read.
             cfgPermits = RoundsPermitsPlanner.NewRoundsPermitsPlanner(reviewer);
         }
-        if (sc.IdeoRoles)
+        if (sc.IdeoRoles || sc.Rituals || sc.Ideoligion)
         {
-            // MaintainIdeoRoles plans from the review's ideology section and pawn rows.
-            cfgIdeoRoles = RoundsIdeoRolesPlanner.NewRoundsIdeoRolesPlanner(reviewer);
-        }
-        if (sc.Rituals)
-        {
-            // MaintainRituals plans from the review's ideology section, pawn rows, building table and emergency census.
-            cfgRituals = RoundsRitualsPlanner.NewRoundsRitualsPlanner(reviewer);
+            // The role, ritual and reform toggles compose the ideology family's three Needs (#3260).
+            families.Add(IdeologyReader.Runner(reviewer, sc.IdeoRoles, sc.Rituals, sc.Ideoligion));
         }
         if (sc.Gathering)
         {
             // HoldGatherings plans from the mood ledger, pawn rows, building table and emergency census.
             cfgGathering = RoundsGatheringPlanner.NewRoundsGatheringPlanner(reviewer);
-        }
-        if (sc.Ideoligion)
-        {
-            cfgIdeoligion = RoundsIdeoligionPlanner.NewRoundsIdeoligionPlanner(reviewer);
         }
         if (sc.CreepJoiner)
         {
@@ -449,7 +433,6 @@ public sealed partial class BrainComposition
             RoundsMethods = context.Session.RoundsMethodsEnabled(),
             Faults = faults,
             Families = families,
-            AnimalContainment = cfgAnimalContainment,
             Armory = cfgArmory,
             BasicComfort = cfgBasicComfort,
             Blight = cfgBlight,
@@ -471,9 +454,6 @@ public sealed partial class BrainComposition
             GeneBank = cfgGeneBank,
             HomeCoverage = cfgHomeCoverage,
             Hospital = cfgHospital,
-            Husbandry = cfgHusbandry,
-            IdeoRoles = cfgIdeoRoles,
-            Ideoligion = cfgIdeoligion,
             Ledger = cfgLedger,
             Lighting = cfgLighting,
             MaintainShelter = cfgMaintainShelter,
@@ -490,7 +470,6 @@ public sealed partial class BrainComposition
             Rescue = cfgRescue,
             Resource = cfgResource,
             ResourceAcquisition = cfgResourceAcquisition,
-            Rituals = cfgRituals,
             Rounds = cfgRounds,
             Routes = cfgRoutes,
             Sleeping = cfgSleeping,
@@ -585,13 +564,11 @@ public sealed partial class BrainComposition
         Add(sc.Routes, MaintainRoutes);
         Add(sc.Comfort, EnsureComfort);
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
-        Add(sc.AnimalContainment, MaintainAnimalContainment);
         Add(sc.Burial, MaintainBurial);
         Add(sc.Envelope, MaintainClimateEnvelope);
         Add(sc.Gear, MaintainEquipment);
         Add(sc.Blight, RemoveBlight);
         Add(sc.Recovery, RecoverDisasterServices);
-        Add(sc.Husbandry, MaintainHerd);
         Add(sc.PopulationCustody || sc.PopulationJoiner, MaintainPopulation);
         Add(sc.Pollution, ManagePollution);
         Add(sc.MechCharger, EnsureMechCharger);
@@ -601,10 +578,7 @@ public sealed partial class BrainComposition
         Add(sc.Firebreak, MaintainFirebreak);
         Add(sc.Psylink, MaintainPsylink);
         Add(sc.Permits, MaintainPermits);
-        Add(sc.IdeoRoles, MaintainIdeoRoles);
-        Add(sc.Rituals, MaintainRituals);
         Add(sc.Gathering, HoldGatherings);
-        Add(sc.Ideoligion, ImproveIdeoligion);
         Add(sc.StoneShell, MaintainStoneShell);
         Add(sc.Stockpiles, MaintainStockpiles);
         if (sc.DefensiveLayout)

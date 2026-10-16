@@ -27,7 +27,7 @@ ability, apparel, mental-break and mod effects are unavailable; mandatory ritual
 and other specialized meme choices are excluded when their feasibility cannot
 be established. The selector does not assume unknown obligations cost nothing.
 
-`ideoligion-reform` composes `ImproveIdeoligion` in People. It uses the same
+`ideoligion-reform` composes the `ideology/reform` Need (#3260). It uses the same
 evaluator and a current emergency census; Manual follows the shared suspension
 path. It considers one plain precept change at a time, preserving memes and
 special instances whose transition costs cannot be valued. Only strict cost
@@ -156,14 +156,15 @@ burning a corpse (`HistoryEventDefOf` has none), so those choices have nothing t
 
 ## Role assignment
 
-`MaintainIdeoRoles` (`policy.RoleAssignments`) keeps the role precepts
+The `ideology/roles` Need (`policy.RoleAssignments`) keeps the role precepts
 filled. Each review gives every active role with fewer holders than its def's
 `maxCount` to the available believer (same `ideo_id`, no role yet, skills
 read) who best fits it: a pawn must meet, for every role requirement that
 lists skills, one listed skill at its minimum level and enabled; the score is
 the sum of the best matching skill levels, ties go to higher certainty, then
 the lower pawn id. Requirements without skills are the game's to judge at
-apply. A pawn that holds a role is never moved. The planner commits one Assign
+apply. A pawn that holds a role is never moved. Each owed role is its own Method, `ideorole-<pawn>-<role>`, with the role as its
+claim, so independent roles run side by side; it commits one Assign
 whose `thing_id` is the role precept id and whose expected previous is none;
 the write is the shared Assign intent ([action contracts](action-contracts.md)),
 postcondition: the pawn holds the role. Native refusals follow the shared refusal budget
@@ -171,7 +172,7 @@ per pawn and role ([action contracts](action-contracts.md)). Composed by the `id
 
 ## Ritual scheduling
 
-`MaintainRituals` (`policy.PlanRituals`) begins each due ritual precept
+The `ideology/rituals` Need (`policy.PlanRituals`) plans each due ritual precept
 through the Ritual `begin` verb ([action contracts](action-contracts.md)).
 Every value is read from the game; no ritual, building or role name is listed
 in the brain.

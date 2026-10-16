@@ -85,7 +85,7 @@ public static partial class ObservationPackage
         return Known(EquatableArray.From(rows));
     }
 
-    /// <summary>Decodes the factionless census MaintainHerd tames from. A native section issue (bound exceeded, read failed) leaves it unknown.</summary>
+    /// <summary>Decodes the factionless census the herd Need tames from. A native section issue (bound exceeded, read failed) leaves it unknown.</summary>
     internal static Fact<EquatableArray<UpkeepAnimal>> ColonyWildAnimals(O.ColonyFactsSnapshot v, Pawns pawns, AnimalRaceCatalog races)
     {
         var u = v.Upkeep?.Outcome?.Observed;

@@ -71,14 +71,9 @@ public static partial class PolicyFunctions
         // People
         [EnsureWorkAssignments] = 1,
         [MaintainPsylink] = 1,
-        [MaintainIdeoRoles] = 1,
-        [ImproveIdeoligion] = 1,
-        [MaintainRituals] = 1,
         [HoldGatherings] = 1,
         [MaintainPermits] = 1,
-        [MaintainHerd] = 1,
         [MaintainPopulation] = 1,
-        [MaintainAnimalContainment] = 1,
         [MaintainBurial] = 1,
     };
 

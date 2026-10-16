@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The per-animal facts MaintainHerd sizes and culls by. The census fills age, life expectancy, sickness,
+/// The per-animal facts the herd Need sizes and culls by. The census fills age, life expectancy, sickness,
 /// adulthood, veneration and tame danger natively; MeatNutrition, FeedPerDay and Product merge in from the colony
 /// food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
 /// (<see cref="PolicyFunctions.ApplyHerdPrecepts"/>). Unknown age or sickness ranks an animal as ordinary (not old,
@@ -60,7 +60,7 @@ internal sealed record HerdRemoval(UpkeepAnimal Animal, HusbandryMethod Method);
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// Breeding pair MaintainHerd never culls below: one male and two females of each race, so a race can still
+    /// Breeding pair the herd Need never culls below: one male and two females of each race, so a race can still
     /// recover by breeding after any removal. Only fertile animals count toward it (<see cref="HerdFertile"/>).
     /// </summary>
     public const long HerdPairMales = 1;

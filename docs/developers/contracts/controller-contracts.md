@@ -136,9 +136,9 @@ picks the first rung above the holder's with a throne.
   read: native refuses (guards `entropy`, `cooldown`) and the shared refusal budget
   retries each caster-psycast pair per incident by the refusal's class. Combat, destination, healing and social psycasts
   are not used.
-- `MaintainIdeoRoles` (`policy.RoleAssignments`): see
+- `ideology/roles` (`policy.RoleAssignments`): see
   [ideology contracts](ideology-contracts.md#role-assignment).
-- `MaintainRituals` (`policy.PlanRituals`): see
+- `ideology/rituals` (`policy.PlanRituals`): see
   [ideology contracts](ideology-contracts.md#ritual-scheduling).
 - `HoldGatherings` (`policy.PlanGathering`): see
   [mood control](mood-control.md#holding-a-party).

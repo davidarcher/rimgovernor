@@ -17,8 +17,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// hand-written codecs, with no per-kind column checks; the Standard payload gained the planner's Record text.
     /// Version 14 adds the Need owner (#3250): <c>plan_owner</c> kind <c>need</c> and the <c>need_methods</c> table.
     /// Version 15 adds the <c>admin_creep_joiners</c> family record (#3264).
+    /// Version 16 adds the ideology family's pending reform (#3260): the <c>ideology_reform</c> singleton table.
     /// </summary>
-    public const int SchemaVersion = 15;
+    public const int SchemaVersion = 16;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

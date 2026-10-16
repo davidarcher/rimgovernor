@@ -12,7 +12,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // MaintainHerd's animal facts and eligibility rules, shared by the
+    // The herd Need's animal facts and eligibility rules, shared by the
     // husbandry census (NativeHusbandryObservation) and HusbandryIntent.
     // Master and following are refused unless Obedience is learned, because
     // RimWorld's own Master setter Log.ErrorOnce's (pausing the colony)
@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
             && !Designated(animal, DesignationDefOf.Tame) && !Designated(animal, DesignationDefOf.Hunt)
             && new Designator_Tame().CanDesignateThing(animal).Accepted;
 
-        // Herd sizing facts MaintainHerd reads from the colony census:
+        // Herd sizing facts the herd Need reads from the colony census:
         // age against RaceProps.lifeExpectancy, sickness, adulthood, tame
         // danger, and whether the player's primary ideo venerates the race.
         // What precepts make of slaughter and eating comes from the catalog's

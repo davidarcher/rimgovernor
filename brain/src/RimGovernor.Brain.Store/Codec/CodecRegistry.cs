@@ -32,7 +32,6 @@ internal static class CodecRegistry
         codecs.Register(new ActionIdConverter());
         codecs.Register(new AdmissionConverter());
         codecs.Register(new AnimalOrderConverter());
-        codecs.Register(new AnimalUpkeepHistoryConverter());
         codecs.Register(new ApparelPolicyConverter());
         codecs.Register(new AreaConverter());
         codecs.Register(new AreaPlantCutConverter());
@@ -235,6 +234,7 @@ internal static class CodecRegistry
         codecs.Register(new SleepingHistoryConverter());
         codecs.Register(new SleepingUseConverter());
         codecs.Register(new SoldierSquadRecordConverter());
+        codecs.Register(new IdeologyReformRecordConverter());
         codecs.Register(new CreepJoinersRecordConverter());
         codecs.Register(new StandardConverter());
         codecs.Register(new StandardIdConverter());

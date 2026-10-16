@@ -24,6 +24,9 @@ public static partial class PolicyFunctions
     /// <item>roof removal: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);</item>
     /// <item>assignments (a bed, a throne), bed use and building claims: the thing;</item>
     /// <item>supply allow and forbid: the stack;</item>
+    /// <item>husbandry (train, tame, slaughter, release, master, sterilize): the animal;</item>
+    /// <item>rituals: the ritual precept or bestowing kind (<c>ritual/&lt;kind&gt;</c>);</item>
+    /// <item>ideoligion reforms: the ideoligion (<c>ideoligion/&lt;id&gt;</c>);</item>
     /// <item>surgery bills: <c>surgery/&lt;patient&gt;/&lt;recipe&gt;/&lt;part&gt;</c>;</item>
     /// <item>research selection: the project (<c>research/&lt;project&gt;</c>);</item>
     /// <item>prisoner interaction modes: <c>prisoner/&lt;pawn&gt;</c>.</item>
@@ -115,6 +118,9 @@ public static partial class PolicyFunctions
         else if (a.BedUse is { } bed) yield return bed.Thing;
         else if (a.ClaimBuilding is { } claimed) yield return claimed.Thing;
         else if (a.SupplyAllow is { } supply) yield return supply.Thing;
+        else if (a.Husbandry is { } husbandry) yield return husbandry.Animal.Value;
+        else if (a.Ritual is { } ritual) yield return "ritual/" + ritual.Kind.Value;
+        else if (a.IdeoligionReform is { } reform) yield return "ideoligion/" + reform.IdeoId;
         else if (a.Surgery is { } surgery) yield return "surgery/" + surgery.Pawn.Value + "/" + surgery.Recipe + "/" + surgery.Part;
         else if (a.ResearchSelect is { } research) yield return "research/" + research.Project;
         else if (a.PrisonerInteraction is { } prisoner) yield return "prisoner/" + prisoner.Pawn.Value;

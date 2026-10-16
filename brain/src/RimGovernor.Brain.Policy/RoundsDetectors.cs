@@ -26,8 +26,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 
     public Fact<EquatableArray<string>> Stone { get; set; }
 
-    public AnimalUpkeepReview Animals { get; set; } = default!;
-
     public MedicalReserveReview Medicine { get; set; } = default!;
 
     public LightingReview Lighting { get; set; } = default!;
@@ -627,11 +625,6 @@ public static partial class PolicyFunctions
     /// <summary>MaintainPsylink: a held neuroformer waits for a willing colonist.</summary>
     internal static void InspectPsylink(RoundsRun c) => c.Owed(MaintainPsylink, c.F.PsylinkOwed);
 
-    /// <summary>MaintainIdeoRoles: a role place and a fitting believer.</summary>
-    internal static void InspectIdeoRoles(RoundsRun c) => c.Owed(MaintainIdeoRoles, c.F.RolesOwed);
-
-    /// <summary>MaintainRituals: a ritual is due, calm and ready to begin.</summary>
-    internal static void InspectRituals(RoundsRun c) => c.Owed(MaintainRituals, c.F.RitualsOwed);
 
     /// <summary>A colonist holds permit points for a permit worth taking. Unknown without the royalty read raises nothing.</summary>
     internal static void InspectPermits(RoundsRun c)
@@ -641,48 +634,6 @@ public static partial class PolicyFunctions
         if (owed)
         {
             c.Raise(MaintainPermits).Deficit = Known(1.0);
-        }
-    }
-
-    internal static void InspectHerd(RoundsRun c)
-    {
-        var f = c.F;
-        var herd = f.HerdPolicy();
-        var feedShort = HerdFeedShort(f.AnimalFeedRunway().Projection);
-        var recovered = Unknown<bool>();
-        if (AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, feedShort, herd).TryGetValue(out var deficit))
-        {
-            recovered = Known(!deficit);
-        }
-        if (FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, herd).Method == HusbandryMethod.Slaughter)
-        {
-            recovered = Known(false);
-        }
-        if (FoodTameChoice(f.FoodPlan, f.AnimalUpkeep.WildAnimals, feedShort, f.WorkProfiles).Method == HusbandryMethod.Tame)
-        {
-            recovered = Known(false);
-        }
-        var removal = ReconcileHerdRemoval(f.AnimalUpkeep.Animals, herd, f.FoodPlan);
-        if (removal.Method is not null)
-        {
-            recovered = Known(false);
-        }
-        else if (removal.Reason == HusbandryPlanReason.Unknown)
-        {
-            recovered = Unknown<bool>();
-        }
-        if (HerdMasterChoice(f.AnimalUpkeep.Animals, herd, f.WorkProfiles).Method is not null)
-        {
-            recovered = Known(false);
-        }
-        if (SterilizeChoice(f.AnimalUpkeep.Animals, herd, f.AnimalWard).Method is not null)
-        {
-            recovered = Known(false);
-        }
-        c.Assess(MaintainHerd, recovered);
-        if (!Positive(recovered))
-        {
-            c.Raise(MaintainHerd).MethodUnavailable = true;
         }
     }
 
@@ -716,46 +667,6 @@ public static partial class PolicyFunctions
             c.Raise(MaintainPopulation).MethodUnavailable = true;
         }
     }
-
-    /// <summary>
-    /// Serves an animal upkeep goal. It has a composed planner (RoundsAnimalContainmentPlanner); availability
-    /// is gated through AvailableMethods. The deficit is census-driven: any uncontained or unfed target is a
-    /// full deficit, so a known need ranks for a development slot.
-    /// </summary>
-    internal static void AnimalInspect(RoundsRun c, ConcernId id, Func<RoundsRun, Fact<bool>> recoveredOf, Func<RoundsRun, bool> active)
-    {
-        var recovered = recoveredOf(c);
-        if (c.F.IsIssued(id))
-        {
-            recovered = Known(false);
-        }
-        c.Assess(id, recovered);
-        if (!Positive(recovered))
-        {
-            var g = c.Raise(id);
-            if (recovered.TryGetValue(out _))
-            {
-                g.Deficit = Known(1.0);
-            }
-        }
-    }
-
-    internal static Action<RoundsRun> AnimalInspection(ConcernId id, Func<RoundsRun, Fact<bool>> recovered, Func<RoundsRun, bool> active) =>
-        c => AnimalInspect(c, id, recovered, active);
-
-    internal static void InspectAnimalContainment(RoundsRun c) => AnimalInspect(c, MaintainAnimalContainment, r =>
-    {
-        var recovered = Unknown<bool>();
-        if (r.Animals.Containment.TryGetValue(out var targets))
-        {
-            recovered = Known(targets.Count == 0);
-        }
-        if (r.F.HerdRoomsOwed.TryGetValue(out var owed) && owed)
-        {
-            recovered = Known(false);
-        }
-        return recovered;
-    }, r => r.Animals.History.Containment);
 
     /// <summary>Census-driven: any standing blighted plant is a full deficit; availability is gated through AvailableMethods.</summary>
     internal static void InspectBlight(RoundsRun c)

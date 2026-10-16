@@ -19,7 +19,7 @@ public static partial class PolicyFunctions
         Set(
             [WorkType.Construction],
             EnsureComfort, MaintainHousing, MaintainStoneShell,
-            MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
+            MaintainHomeCoverage, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
         Set([WorkType.PlantCutting], RemoveBlight);
         Set([WorkType.Art], MaintainArt);
 
@@ -35,7 +35,6 @@ public static partial class PolicyFunctions
         // The shell, sarcophagus and graves are built; vanilla haulers carry the corpses.
         Set([WorkType.Construction], MaintainBurial);
 
-        Set([WorkType.Handling], MaintainHerd);
         Set([WorkType.Cooking], MaintainBabyFeeding);
 
         // Vents are built over standing walls and roofs are designated for builders.

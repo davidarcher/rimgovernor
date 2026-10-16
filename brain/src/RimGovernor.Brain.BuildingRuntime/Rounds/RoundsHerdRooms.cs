@@ -53,8 +53,41 @@ internal static partial class BuildingRuntimePackage
         return (output, usable);
     }
 
-    /// <summary>The next herd-room step; unknown while any planning fact is unread, and a no-op step when there is nothing to house.</summary>
-    internal static (HerdStep Step, bool Known) HerdStepOf(ColonyProjection facts)
+    /// <summary>
+    /// The next pen step (the animals family's containment Need); unknown while any planning fact is unread, and a
+    /// no-op step with no animal or no planned pen. A pen is built from fence, gate and marker: the ward's bed does not
+    /// gate it.
+    /// </summary>
+    internal static (HerdStep Step, bool Known) PenStepOf(ColonyProjection facts)
+    {
+        var ak = facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals);
+        var pk = facts.LayoutPlan.TryGetValue(out var plan);
+        var ck = facts.Facts.CurrentConstruction.TryGetValue(out var census);
+        if (!ak || !pk || !ck || !census!.Colony)
+        {
+            return (default!, false);
+        }
+
+        if (animals!.Count == 0 || plan!.RoomsOf(PlannedRole.Pen).Count == 0)
+        {
+            return (new HerdStep(), true);
+        }
+
+        var (furniture, _) = HerdFurnitureOf(facts);
+        var (ground, gk) = ColonyGround(facts);
+        if (!gk)
+        {
+            return (default!, false);
+        }
+
+        return (PolicyFunctions.NextPenStep(plan, plan.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, furniture), true);
+    }
+
+    /// <summary>
+    /// The next hospital ward step (the animals family's ward Need); unknown while any planning fact is unread or the
+    /// animal bed is unusable, and a no-op step with no ward demand or no planned hospital.
+    /// </summary>
+    internal static (HerdStep Step, bool Known) WardStepOf(ColonyProjection facts)
     {
         var ak = facts.Facts.AnimalUpkeep.Animals.TryGetValue(out var animals);
         var pk = facts.LayoutPlan.TryGetValue(out var plan);
@@ -67,8 +100,7 @@ internal static partial class BuildingRuntimePackage
         }
 
         var ward = PolicyFunctions.WardBeds(animals!, facts.Facts.HerdPolicy());
-        var pens = plan!.RoomsOf(PlannedRole.Pen).Count;
-        if (animals!.Count == 0 || (pens == 0 && (ward == 0 || plan.RoomsOf(PlannedRole.Hospital).Count == 0)))
+        if (animals!.Count == 0 || ward == 0 || plan!.RoomsOf(PlannedRole.Hospital).Count == 0)
         {
             return (new HerdStep(), true);
         }
@@ -79,13 +111,7 @@ internal static partial class BuildingRuntimePackage
             return (default!, false);
         }
 
-        var (ground, gk) = ColonyGround(facts);
-        if (!gk)
-        {
-            return (default!, false);
-        }
-
-        return (PolicyFunctions.NextHerdStep(plan, rooms!, plan.GroundWithRock(ground, NaturalRock(facts)), census.Buildings, sleeping!.Beds, ward, furniture), true);
+        return (PolicyFunctions.NextWardStep(plan, rooms!, census.Buildings, sleeping!.Beds, ward, furniture), true);
     }
 
     internal static Fact<bool> WardReadyOf(ColonyProjection facts)
@@ -100,93 +126,5 @@ internal static partial class BuildingRuntimePackage
         }
 
         return PolicyFunctions.WardReady(plan!, rooms!, census.Buildings, sleeping!.Beds, facts.Shapes.Furniture.AnimalBed);
-    }
-
-    internal static Fact<bool> HerdRoomsOwed(ColonyProjection facts)
-    {
-        var (step, known) = HerdStepOf(facts);
-        return known ? Known(step.Owed()) : Unknown<bool>();
-    }
-}
-
-public sealed partial class RoundsAnimalContainmentPlanner
-{
-    internal async Task<RoundsAnimalContainmentResult> StageHerdRoomsAsync(ControlState state, Rounds review, StandardState goal, Identity expected, Fact<EquatableArray<ConstructionClaim>> claims, CancellationToken call, CancellationToken epoch)
-    {
-        var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, HerdDefinitions, call).ConfigureAwait(false);
-        var (step, known) = HerdStepOf(reading.Projection);
-        if (!known)
-        {
-            return new RoundsAnimalContainmentResult { Verdict = FieldUnavailable("herd_rooms") };
-        }
-
-        if (!step.Owed())
-        {
-            return new RoundsAnimalContainmentResult { Verdict = BuildingReasonNoDeficit };
-        }
-
-        RoundsBuildingResult result;
-        switch (step.Kind)
-        {
-            case HerdStepKind.Medical:
-                result = await MarkHerdBedMedicalAsync(state, goal, reading.Projection, step.Bed, call, epoch).ConfigureAwait(false);
-                break;
-            default:
-                var inner = step.Room.Region.Bounds();
-                var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
-                result = await _building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile
-                {
-                    Room = step.Room,
-                    Template = step.Template,
-                    Name = $"herd-{inner.X}-{inner.Z}",
-                    Reason = Wire.Name(step.Role),
-                }, call, epoch).ConfigureAwait(false);
-                break;
-        }
-
-        return new RoundsAnimalContainmentResult { Verdict = result.Verdict };
-    }
-
-    internal async Task<RoundsBuildingResult> MarkHerdBedMedicalAsync(ControlState state, StandardState goal, ColonyProjection facts, string bed, CancellationToken call, CancellationToken epoch)
-    {
-        var p = _reviewer.Player;
-        if (_reviewer.Native is not IRoundsHospitalSource native)
-        {
-            throw new ControlException("markHerdBedMedical: the native source cannot read bed use");
-        }
-
-        var method = new MethodId("herd-medical-" + bed);
-        try
-        {
-            p.Journal.LoadMethod(goal.Standard.Id, goal.Standard.Episode, method, call);
-            return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "herd_bed_medical_method") };
-        }
-        catch (NotFoundException)
-        {
-        }
-
-        var (target, _) = await native.ReadBedUseTargetAsync(Boundary.Identity(state.Snapshot), bed, call).ConfigureAwait(false);
-        try
-        {
-            Boundary.Context(target.Context, state.Snapshot);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ControlException("markHerdBedMedical: stale bed read", e);
-        }
-
-        if ((target.Context?.Tick ?? 0) < facts.Identity.Tick.Value)
-        {
-            throw new ControlException("markHerdBedMedical: stale bed read");
-        }
-
-        if (target.Medical)
-        {
-            return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "herd_bed_medical") };
-        }
-
-        var patch = BedUse.NewBedMedical(bed, true);
-        p.CommitBedPatch(state, goal, method, patch, null, call, epoch);
-        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
     }
 }

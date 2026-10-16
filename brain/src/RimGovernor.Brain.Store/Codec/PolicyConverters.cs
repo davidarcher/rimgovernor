@@ -63,20 +63,6 @@ internal sealed class AnimalOrderConverter : ObjectCodec<AnimalOrder>
     }
 }
 
-internal sealed class AnimalUpkeepHistoryConverter : ObjectCodec<AnimalUpkeepHistory>
-{
-    protected override AnimalUpkeepHistory Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Containment = e.Bool("Containment"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, AnimalUpkeepHistory v, Codecs o)
-    {
-        w.WriteBoolean("Containment", v.Containment);
-    }
-}
-
 internal sealed class BlockedReasonConverter() : StringCodec<BlockedReason>(s => new(s), v => v.Value);
 internal sealed class CastMarkConverter : ObjectCodec<CastMark>
 {
@@ -2256,7 +2242,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
             HomeCoverage = e.Bool("HomeCoverage"),
             StoneShell = e.Bool("StoneShell"),
             Sleeping = e.Bool("Sleeping"),
-            Animals = e.Get<AnimalUpkeepHistory>("Animals", o),
             MedicalReserve = e.Bool("MedicalReserve"),
             Lighting = e.Get<EquatableArray<string>>("Lighting", o),
             Flooring = e.Get<EquatableArray<string>>("Flooring", o),
@@ -2275,7 +2260,6 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         w.WriteBoolean("HomeCoverage", v.HomeCoverage);
         w.WriteBoolean("StoneShell", v.StoneShell);
         w.WriteBoolean("Sleeping", v.Sleeping);
-        w.Put("Animals", v.Animals, o);
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
         w.Put("Lighting", v.Lighting, o);
         w.Put("Flooring", v.Flooring, o);
@@ -2402,6 +2386,22 @@ internal sealed class SoldierSquadRecordConverter : ObjectCodec<SoldierSquadReco
     {
         w.Put("World", v.World, o);
         w.Put("Members", v.Members, o);
+    }
+}
+
+internal sealed class IdeologyReformRecordConverter : ObjectCodec<IdeologyReformRecord>
+{
+    protected override IdeologyReformRecord Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            World = e.Get<World>("World", o),
+            Reform = e.Get<global::RimGovernor.Brain.Domain.IdeoligionReform>("Reform", o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, IdeologyReformRecord v, Codecs o)
+    {
+        w.Put("World", v.World, o);
+        w.Put("Reform", v.Reform, o);
     }
 }
 

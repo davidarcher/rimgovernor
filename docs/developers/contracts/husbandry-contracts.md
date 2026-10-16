@@ -2,8 +2,14 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
-`MaintainHerd` creates a persistent, player-owned `MaintainHerd-<race>` concern in
-ColonyPlan. It sizes each race itself; there are no operator flags.
+The `animals/herd` Need of the `animals` family (#3260) keeps the herd plan: it is
+unmet while an animal is owed training, a race is under its floor with a tameable
+wild animal or over its cap with a removable one, the food plan asks for a slaughter
+or a tame, or an animal is owed a master; unknown while any of those reads an unread
+row. Its Method is the one husbandry write the choice chain picks, named
+`<method>-<animal>[-<trainable>]`, with the animal as its claim. It sizes each race
+itself; there are no operator flags. Sterilizing is the `animals/sterilize` Need,
+which waits on the hospital's animal ward (`animals/ward`).
 
 **Race catalog.** Static per-race facts (carrying capacity,
 trainability and trainables, wildness, body size, combat power, market value,
@@ -95,8 +101,8 @@ before. Raw facts only; policy decides.
 - **Plan output.** `HerdPlan.Roles` (job, preferred, founder, wanted sex,
   retiring) and `HerdPlan.Jobs` (ranked obtainable races, target, head count)
   are what the taming, training, sterilize, sale, purchase and pen issues read;
-  `HerdPlan.Policy` is the `HerdPolicy` band the `MaintainHerd-<race>` concerns
-  execute.
+  `HerdPlan.Policy` is the `HerdPolicy` band the `animals/herd` Need
+  executes.
 - **Sale.** `HerdSaleAnimals` lists the animals over a race's ceiling
   (all of a retired race) that are known unbonded and, outside a retired race,
   not trained for work; founders have no ceiling and never sell, and any
@@ -273,7 +279,7 @@ Auto safety facts: The brain assigns a roofed refuge during roof hazards (native
 food/work access. It skips pen-managed animals and unknown area/safety facts.
 Other settings methods remain available through the same husbandry action.
 Pen containment is not a husbandry method: pens are built by
-`MaintainAnimalContainment` and native handlers rope pen animals into any
+the `animals/containment` Need and native handlers rope pen animals into any
 suitable pen on their own.
 
 ## Ownership and population
@@ -385,7 +391,7 @@ An admitted productive race that beats the marginal crop's nutrition per work
 (`FoodHerdPolicy`) gives its job demand: its `productive_animals` term is a head
 count the herd plan sizes the job's target race for, so the floor lands on the
 best race for the job, not necessarily the race the channel was observed on.
-The portfolio explains `MaintainHerd-<race>` and its effective floor. Both herd
+The portfolio explains `animals/herd <race>` and its effective floor. Both herd
 review and dispatch use the plan's policy, including the existing feed gate
 before taming.
 
@@ -403,4 +409,4 @@ cost facts exclude the candidate. The plan sees one offered animal as a
 one-shot `slaughter:` candidate of kind `Slaughter` (stock cap its meat
 nutrition, lead 0, 180 native slaughter ticks upfront, no steady work), which
 the floor and breeding-pair protection above leave to policy;
-`MaintainHerd` dispatches it through its normal husbandry action.
+The `animals/herd` Need dispatches it through its normal husbandry action.

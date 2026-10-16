@@ -39,7 +39,7 @@ copy of a fact is a bug, not a cache.
 
 | Home | Holds | On reload |
 |---|---|---|
-| Native save, `GovernorState` blobs | Brain intent the world cannot show: Standards (`standard/<id>`; each carries the Concern it serves as `Kind`; a Standard's own intent in its `Record`), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`) and the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
+| Native save, `GovernorState` blobs | Brain intent the world cannot show: Standards (`standard/<id>`; each carries the Concern it serves as `Kind`; a Standard's own intent in its `Record`), family plans (`family/*`; the layout plan, `family/layout_plan`, keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`), the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264) and the ideology family's pending reform (`family/ideology/reform`, #3260); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |
 | Native save, other components | Exact non-autonomous `Bill_GovernorRecipe` intents and native unfinished garments (recipe, stuff, ingredients, remaining work and bound bill); only Hands provisions these after selecting a Method, and only owned bills without unfinished work are cleaned up. Colony identity, per-target construction settings, the finishing-skill floor (the brain chooses once; native transfers blueprint to frame and enforces every finishing order) and the mutable [construction tier](construction-tiers.md), and native tick guards (the guarded designations of `GuardState`: enclosure, mine safety, wall upgrade and acquisition; home coverage). Native observation rings, each one packed, versioned, append-only string: realized consumption (`ConsumptionState`, hourly spend per definition and reason, 60 days) and storage occupancy (`StorageOccupancyState`, hourly stacks held per player storage group by load id, 15 days); the brain derives rates from them and keeps no copy past the load | Follows the save; construction settings disappear with the exact cancelled/completed target, never transfer by cell |
 | SQLite, one database per launch (`RIMGOVERNOR_STATE`) | The session journal: actions (including selected productive task service-time bounds), transitions, admissions, clock inbox and cursors (native buffers clock events in memory only), request-ID replay | Not restored; read across launches only by postmortem |
 | memory, or SQLite tables replaced wholesale on every world change | Everything derivable: plans, receipts, snapshots, the definition catalog (rows read once per game fingerprint and shared by later loads; context and stat environment read per load token), the animal race catalog derived from its race rows, the material budget (free stock less construction and live bill-job holds, `policy.MaterialBudget`), equipment-owned requirement estimates on transient clothing candidates (derived from the current census, not bill identity or reservations); the `standards`, `methods` and family tables are such views of the save blobs (`RebuildStandards` rebuilds Standards under one orphan pass, `RebuildFamilies`) | Rebuilt from the save and the live world |
@@ -153,8 +153,10 @@ last save. On a world change (load token, not a native generation bump) the brai
 and rebuilds its views before the first review: the clock worker's step gate, the read poll and the
 flusher all call the same once-per-world rebuild.
 
-`ImproveIdeoligion.Record` carries pending reform intent: ideoligion id,
-expected and target designs, and expected reform count. It follows the save;
+The `family/ideology/reform` record (#3260) carries pending reform intent: ideoligion id,
+expected and target designs, and expected reform count, scoped to its colony and map. It
+follows the save; an older save's `ImproveIdeoligion` Standard `Record` is read into it once
+at load when the blob is absent, and that Standard is not restored;
 Methods and action attempts remain in the session journal. Current design,
 eligibility and scores are rebuilt from the keyed ideology section and catalog.
 
@@ -227,8 +229,8 @@ stockpiles) are re-derived on every `MaintainStockpiles` pass; the standing zone
 their only record. Durable Standards come back from the save blobs, so nothing needs a restore step.
 
 The save still writes every unretired Standard as `standard/<id>`, but `RebuildStandards` re-inserts only the
-rows that carry state: trade missions (read by kind through `OpenStandards`) and Standards with a `Record`.
-Rounds are reset on load and the next review mints load-token-hashed ids, so a routine row was never re-bound;
+rows that carry state: trade missions (read by kind through `OpenStandards`) and Standards with a `Record` (an `ImproveIdeoligion` row is never re-inserted: its
+Record is read into `family/ideology/reform`). Rounds are reset on load and the next review mints load-token-hashed ids, so a routine row was never re-bound;
 re-inserted, it only stayed Open toward the `MaxActiveStandards` cap (#3249, `OrphanStandardTests`). The Record
 readers still find their rows only through the review's bindings, which carry the new ids; moving those records
 to `family/*` is part of #3231.

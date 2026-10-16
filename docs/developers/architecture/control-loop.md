@@ -110,7 +110,7 @@ admit a Method (Admitted, Continued or Conflict on a held claim). BuildingRuntim
 (`ClockPlannerCatalog.WithFamilies`, from `ClockSchedulerConfig.Families`): one
 `planner_step` row and one ledger report per Need, and a family with
 SeriousHarm reads also runs in the immediate pass on those reads only. Each
-migrating slice adds its family (food stores, #3251, and home upkeep, #3253, are wired).
+migrating slice adds its family (food stores, #3251, home upkeep, #3253, and animals and ideology, #3260, are wired).
 
 **Need progress (#3231 decision 18).** A Need reaches launcher progress
 (`/api/routines`) as a row in `Rounds.Progress` keyed by `NeedId.FilingKey`; there
@@ -367,6 +367,24 @@ owed a rescue or capture; both are held (`dependent_rescue_incident_owner`,
 MaintainPopulation until their slices; `populationCustody` now carries only the
 anomaly half (lance, entity capture, containment).
 
+**Animals and ideology (#3260).** `MaintainHerd` and `MaintainAnimalContainment`
+are the `animals` family (`AnimalsFamily.cs`, `RoundsAnimals.cs`): `animals/herd`
+(the one husbandry write the choice chain picks, MethodId
+`<method>-<animal>[-<trainable>]`; the always-held MethodUnavailable flag is gone),
+`animals/containment` (pens, built by the work step through `ReconcileRoomAsync`;
+once they stand it waits on native delivery), `animals/ward` (the hospital's animal
+beds, built the same way and flagged medical by a `herd-medical-<bed>` BedUse
+Method) and `animals/sterilize`, whose precondition is `animals/ward`. The
+containment latch (`RoundsLatches.Animals`) is deleted. `MaintainIdeoRoles`,
+`MaintainRituals` and `ImproveIdeoligion` are the `ideology` family
+(`IdeologyFamily.cs`, `RoundsIdeology.cs`): one `ideorole-<pawn>-<role>` Method per
+owed role, rituals held as `unsupported_forecast_ritual`, and the reform Method
+`ideoligion-<reform count>`. The pending reform moved from the ImproveIdeoligion
+Standard's `Record` to the `family/ideology/reform` record: the work step saves the
+intent once its Method is open, the read clears it once the reform is observed or
+the ideoligion, count or expected design moves on, and an older save's Standard
+record is read once at load when the blob is absent.
+
 **Per-family migration checklist** (as followed for food-stores/storage):
 
 1. Write the facts record and `IFamily` in Policy: `Derive` from the Inspect body
@@ -408,8 +426,8 @@ three ways.
 | Power | EnsureBasicPower |
 | Medical | CriticalMedicine, MaintainMedicalReserves, MaintainSurgery |
 | Military | `military`: Needs `defense`, `pests`, `training` (#3259); ActiveCombat, RestoreWorkers, MaintainEquipment |
-| Animals | MaintainHerd, MaintainAnimalContainment |
-| Ideology | MaintainIdeoRoles, MaintainRituals, ImproveIdeoligion |
+| Animals | `animals`: Needs `herd`, `containment`, `ward`, `sterilize` (#3260) |
+| Ideology | `ideology`: Needs `roles`, `rituals`, `reform` (#3260) |
 | Biotech | MaintainMechs, EnsureMechCharger, MaintainGeneBank, ManagePollution |
 | Royalty | MaintainPermits, MaintainPsylink |
 | Prisoners | `prisoners`: Needs `recruit`, `custody` (#3262) |

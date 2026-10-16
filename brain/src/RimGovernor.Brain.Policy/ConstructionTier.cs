@@ -86,7 +86,7 @@ public static partial class PolicyFunctions
         {
             return ConstructionTier.Secure;
         }
-        if (concern == EnsureComfort || concern == MaintainAnimalContainment)
+        if (concern == EnsureComfort)
         {
             return ConstructionTier.Comfort;
         }
