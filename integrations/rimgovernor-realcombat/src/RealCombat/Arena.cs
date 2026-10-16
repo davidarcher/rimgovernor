@@ -240,7 +240,7 @@ public sealed class Arena : IDisposable
                 GenSpawn.Spawn(pawn, new IntVec3(spec.X, 0, spec.Z), _map);
                 if (pawn.drafter != null)
                 {
-                    pawn.drafter.Drafted = spec.Hunt.Length == 0; // native Hunt is an undrafted job; combat controllers own drafted actors
+                    pawn.drafter.Drafted = spec.Hunt.Length == 0 || GroupHunt(spec); // a lone native Hunt is an undrafted job; a group is drafted and focus-fires
                 }
 
                 fighters.Add((spec, pawn));
@@ -433,8 +433,13 @@ public sealed class Arena : IDisposable
         fighters.Any(f => f.Spec.Side == "wild" && !IsOut(f.Pawn) &&
             (fighters.Any(h => h.Spec.Hunt == f.Spec.Id && !IsOut(h.Pawn)) || f.Pawn.HostileTo(Faction.OfPlayer)));
 
-    // A hunter acts through the game's own Hunt job against the prey it names, re-ordered whenever the job has ended
-    // (finished, failed on its 5000 tick cap) while the prey is still up. The prey itself is never ordered.
+    // The game reserves a hunted animal for one pawn and a forced Hunt order steals that reservation, so several hunters
+    // ordered onto one prey interrupt each other forever. Two or more hunters on the same prey are a drafted squad instead.
+    private bool GroupHunt(RealPawn spec) => spec.Hunt.Length > 0 && _req.Pawns.Count(p => p.Hunt == spec.Hunt) > 1;
+
+    // A lone hunter acts through the game's own Hunt job against the prey it names; a group is drafted and attacks it with
+    // AttackStatic. Either is re-ordered whenever the job has ended (finished, failed on its 5000 tick cap) while the prey is
+    // still up. The prey itself is never ordered.
     private void Hunt(List<(RealPawn Spec, Pawn Pawn)> fighters)
     {
         foreach (var hunter in fighters.Where(f => f.Spec.Hunt.Length > 0 && !IsOut(f.Pawn)))
@@ -445,13 +450,14 @@ public sealed class Arena : IDisposable
                 continue;
             }
 
+            var jobDef = GroupHunt(hunter.Spec) ? JobDefOf.AttackStatic : JobDefOf.Hunt;
             var current = hunter.Pawn.CurJob;
-            if (current?.def == JobDefOf.Hunt && current.targetA.Thing == prey)
+            if (current?.def == jobDef && current.targetA.Thing == prey)
             {
                 continue;
             }
 
-            var job = JobMaker.MakeJob(JobDefOf.Hunt, prey);
+            var job = JobMaker.MakeJob(jobDef, prey);
             job.ignoreDesignations = true; // the game's hunt job also requires a Hunt designation; the request is the order
             hunter.Pawn.jobs.TryTakeOrderedJob(job);
         }

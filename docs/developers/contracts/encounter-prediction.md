@@ -55,8 +55,10 @@ The native schema-3 readback gate remains authoritative. A reconstruction mismat
 (including [#3159](https://github.com/davidarcher/rimgovernor/issues/3159)) is a failed
 request, never corrected terrain or an alternative engine. The adapter requires
 explicit positive equipment hit points/quality; native unknown definitions reject.
-The supported tactic is native Hunt with timed leave/flee departures; later
-arrivals, colony tactics, custom action sequences and unstated mechanics are
+The supported tactic is native Hunt with timed leave/flee departures. The game reserves a hunted
+animal for one pawn and a forced Hunt order steals that reservation, so two or more hunters naming
+the same prey act as a drafted squad focus-firing it (`AttackStatic`), as the colony squad hunt does; a
+lone hunter keeps the undrafted Hunt job. Later arrivals, colony tactics, custom action sequences and unstated mechanics are
 unsupported. The observed-environment input carries outdoor temperature and sky glow, held constant for the bounded encounter. Current schema does not represent changing weather/light or time of day,
 food/rest/mood, bonds, mental breaks, arbitrary gene/hediff runtime state or dynamic
 events. The observation producer must list such unrepresented effects in

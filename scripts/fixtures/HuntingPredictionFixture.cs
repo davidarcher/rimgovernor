@@ -21,19 +21,19 @@ public sealed class HuntingPredictionFixture
 {
     [Tool("test/hunting_prediction_trial", Description = "UNSAFE FOR MODEL EXECUTION. Prepared revenge-enabled native Hunt experiment with observed input and outcome; test builds only.")]
     public async Task<object> Trial(IRimBridgeContext ctx, CancellationToken cancellationToken, int seed = 1,
-        string stratum = "baseline", int horizon = 6000)
+        string stratum = "baseline", int horizon = 6000, string animal = "WildBoar", int preyCount = 0, int hunters = 0)
     {
-        return await ctx.MainThread.InvokeAsync<object>(() => Run(seed, stratum, horizon), cancellationToken);
+        return await ctx.MainThread.InvokeAsync<object>(() => Run(seed, stratum, horizon, animal, preyCount, hunters), cancellationToken);
     }
 
-    private static object Run(int seed, string stratum, int horizon)
+    private static object Run(int seed, string stratum, int horizon, string animal, int preyCount, int hunters)
     {
         var map = Find.CurrentMap;
         if (map == null || !Find.TickManager.Paused || map.Size.x != 100 || map.Size.z != 100 || horizon is < 1 or > 12000)
             throw new InvalidOperationException("Paused 100-cell disposable lab and bounded horizon required.");
-        if (!new[] { "baseline", "health", "distance", "terrain", "herd", "departure" }.Contains(stratum))
+        if (!new[] { "baseline", "health", "distance", "terrain", "herd", "departure", "probe" }.Contains(stratum))
             throw new ArgumentException("Unknown predeclared stratum.");
-        LabStart.Wipe(map, stratum == "departure" ? 2 : 1);
+        LabStart.Wipe(map, hunters > 0 ? hunters : stratum == "departure" ? 2 : 1);
         // Quiet incidents remain disabled; genuine revenge uses the engine's Rough difficulty value.
         var revenge = new Difficulty(DifficultyDefOf.Rough).manhunterChanceOnDamageFactor;
         Find.Storyteller.difficulty.manhunterChanceOnDamageFactor = revenge;
@@ -61,9 +61,9 @@ public sealed class HuntingPredictionFixture
         Rand.PushState(730);
         try
         {
-            for (var i = 0; i < (stratum == "herd" ? 3 : 1); i++)
+            for (var i = 0; i < (preyCount > 0 ? preyCount : stratum == "herd" ? 3 : 1); i++)
             {
-                var prey = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDef.Named("WildBoar"), null,
+                var prey = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDef.Named(animal), null,
                     fixedBiologicalAge: 3, fixedChronologicalAge: 3));
                 GenSpawn.Spawn(prey, new IntVec3(45 + i * 2, 0, stratum == "distance" ? 65 : 52), map);
                 actors.Add(prey);
@@ -87,7 +87,7 @@ public sealed class HuntingPredictionFixture
             Width = 100, Height = 100, Terrain = "Soil", Weather = "Clear", Ground = ground,
             Environment = new(map.mapTemperature.OutdoorTemp, map.skyManager.CurSkyGlow),
             HorizonTicks = horizon, Seeds = [1000001], SamplingReason = "independent paired native pilot",
-            Actors = actors.Select((p, i) => Observe(p, ids[p], i < hunterCount, stratum == "departure" && i == 1, stratum == "herd")).ToArray(),
+            Actors = actors.Select((p, i) => Observe(p, ids[p], i < hunterCount, stratum == "departure" && i == 1, stratum == "herd" || preyCount > 1)).ToArray(),
         };
         // Reject an unstated map layer rather than crediting a plausible-looking reconstruction.
         if (map.weatherManager.curWeather != WeatherDefOf.Clear || map.AllCells.Any(c =>
@@ -131,10 +131,15 @@ public sealed class HuntingPredictionFixture
                 foreach (var hunter in actors.Take(hunterCount).Where(p => p.Spawned && !p.Downed && !p.Dead))
                 {
                     var prey = actors[hunterCount];
+                    // Vanilla Hunt reserves its victim for one pawn, and a forced order steals that reservation, so several
+                    // Hunt-ordered pawns would interrupt each other forever. A group is drafted and focus-fires, as the colony squad does.
+                    var group = hunterCount > 1;
+                    if (group && !hunter.Drafted) hunter.drafter.Drafted = true;
+                    var jobDef = group ? JobDefOf.AttackStatic : JobDefOf.Hunt;
                     if (prey.Spawned && !prey.Dead && !prey.Downed &&
-                        (hunter.CurJob?.def != JobDefOf.Hunt || hunter.CurJob.targetA.Thing != prey))
+                        (hunter.CurJob?.def != jobDef || hunter.CurJob.targetA.Thing != prey))
                     {
-                        var job = JobMaker.MakeJob(JobDefOf.Hunt, prey);
+                        var job = JobMaker.MakeJob(jobDef, prey);
                         job.ignoreDesignations = true;
                         hunter.jobs.TryTakeOrderedJob(job);
                     }

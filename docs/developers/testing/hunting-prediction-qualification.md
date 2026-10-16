@@ -45,6 +45,20 @@ loads official content without starting a second Governor. The worker's exact
 content fingerprint enters engine identity. Qualification must review this
 specific source-to-predictor pair; a changed fingerprint invalidates its scope.
 
+## Hunter-count and prey variants
+
+The fixture tool also accepts `animal`, `preyCount` and `hunters` under the ad hoc `probe` stratum, for scenario
+studies that are not part of the six qualification strata. Two or more hunters are drafted and focus-fire (see the
+[encounter contract](../contracts/encounter-prediction.md)); the worker arena does the same, so a group request is
+modelled by the same mechanism as the native trial.
+
+Bounded pilot (3 native seeds per cell, native only; not qualification): against a grizzly, rhinoceros or elephant, revenge
+fired in every trial and one rifleman was downed in most, killed in some; three drafted riflemen killed the prey in about
+330-920 ticks versus 1000-5800 for one, with fewer deaths. A five-boar herd showed no harm and no clear time difference.
+Native duration is heavy-tailed (123-6000 ticks for one hunter and one boar), so no predictor can reach a 20% per-trial
+median duration error: the best constant per stratum has 29-51% on the calibration data. Treat that gate as unreachable
+as written until it is revised.
+
 ## Scoring and stopping
 
 Serious harm means hunter death/downing, a new missing part, or a new/worsened
