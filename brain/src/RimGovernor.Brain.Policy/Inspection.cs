@@ -70,7 +70,6 @@ internal static class InspectionRegistry
         new(MaintainPsylink, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Colony], InspectPsylink),
         new(HoldGatherings, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Colony, FactFamily.Emergency], InspectGathering),
         new(MaintainPermits, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Definitions, FactFamily.Colony], InspectPermits),
-        new(MaintainPopulation, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Colony, FactFamily.World], InspectPopulation),
         new(ManagePollution, ConcernType.StandardConcern, Department.Sanitation, [FactFamily.Colony, FactFamily.World], InspectPollution),
         new(EnsureMechCharger, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony, FactFamily.Pawns], InspectMechCharger),
         new(MaintainGeneBank, ConcernType.StandardConcern, Department.Medical, [FactFamily.Colony], InspectGeneBank),

@@ -22,14 +22,6 @@ public interface ICaseJournal : IWatchStore, IDisposable
     Task<IReadOnlyList<JsonObject>> PlanHistoryAsync(int limit, IReadOnlyList<string> methodPatterns, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Every plan the journal ever admitted for the standard bound to <paramref name="concern"/>, across all its epochs
-    /// (Go <c>LoadRounds</c> then <c>LoadStandard</c> and <c>LoadMethods</c> per epoch), in the same row shape as
-    /// <see cref="PlanHistoryAsync"/> plus <c>concern</c> (the standard id) and <c>epoch</c>. <c>Bound</c> says whether
-    /// the review binds the concern at all.
-    /// </summary>
-    Task<(bool Bound, IReadOnlyList<JsonObject> Plans)> ConcernPlansAsync(string concern, CancellationToken cancellationToken);
-
-    /// <summary>
     /// The recovery queue's row for <paramref name="id"/> in the latest persisted review (Go <c>LoadRounds</c> then
     /// <c>RecoveryQueue.Entries</c>): <c>{id, status, tier, short, reason}</c> with <c>status</c> and <c>tier</c> the
     /// lower-case enum names (<c>held</c>, <c>rest</c>...) and <c>short</c> an array. Null when the review has no queue or

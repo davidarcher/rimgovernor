@@ -78,10 +78,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsRecoveryPlanner? Recovery { get; init; }
 
-    public RoundsPopulationCustodyPlanner? PopulationCustody { get; init; }
-
-    public RoundsPopulationJoinerPlanner? PopulationJoiner { get; init; }
-
     public RoundsResourcePlanner? Resource { get; init; }
 
     public RoundsHomeCoveragePlanner? HomeCoverage { get; init; }

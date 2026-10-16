@@ -1,46 +1,49 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed partial class RoundsPopulationJoinerPlanner
+public sealed partial class JoinersRounds
 {
-    /// <summary>Assigns guest beds or loads the pickup shuttle for a hospitality quest; the result carries wait ticks even when not handled.</summary>
-    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitHospitality(ControlState state, StandardState goal, Rounds review, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    /// <summary>Assigns guest beds or loads the pickup shuttle for a hospitality quest; a wait is not handled.</summary>
+    internal (Verdict Verdict, bool Handled) AdmitHospitality(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
-        var work = PolicyFunctions.SelectHospitalityWork(read.Projection.Facts, read.Projection.Identity.Tick);
-        if (work.Quest.IsEmpty)
+        var step = PolicyFunctions.SelectHospitalityWork(read.Projection.Facts, read.Projection.Identity.Tick);
+        if (step.Quest.IsEmpty)
         {
             return (default, false);
         }
 
-        if (work.Reason != "")
+        if (step.Reason != "")
         {
-            reviewer.LogQuestSkip(new QuestSkip(work.Quest, "", work.Reason, ""), call);
-            if (!work.Waiting)
+            reviewer.LogQuestSkip(new QuestSkip(step.Quest, "", step.Reason, ""), call);
+            if (!step.Waiting)
             {
                 return (default, false);
             }
         }
 
-        if (work.Waiting)
+        if (step.Waiting)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.MethodUsed, "quest_hosting") }, false);
+            return (Verdict.WaitFor(Cause.MethodUsed, "quest_hosting"), false);
         }
 
-        if (work.Shuttle is { Loading: ShuttleLoading.ExplicitPawns } or { Loading: ShuttleLoading.Autoload, Autoload: true })
-            return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_shuttle_loading",
-                "Shuttle loading requires shared forecast participation and completion admission.") }, true);
+        if (step.Shuttle is { Loading: ShuttleLoading.ExplicitPawns } or { Loading: ShuttleLoading.Autoload, Autoload: true })
+        {
+            return (Verdict.AwaitingPlan("unsupported_forecast_shuttle_loading",
+                "Shuttle loading requires shared forecast participation and completion admission."), true);
+        }
+
         var id = PlanIds.MintPlanId();
         DomainAction? action = null;
-        var methodBase = "";
-        if (work.Assign is not null)
+        var method = default(MethodId);
+        if (step.Assign is not null)
         {
-            action = DomainAction.NewAssignAction(new ActionId(id.Value + "-0"), work.Assign);
-            methodBase = $"quest-guest-bed-{work.Quest}-{work.Assign.Pawn}-{work.Assign.Thing}";
+            action = DomainAction.NewAssignAction(new ActionId(id.Value + "-0"), step.Assign);
+            method = new MethodId($"quest-guest-bed-{step.Quest}-{step.Assign.Pawn}-{step.Assign.Thing}");
         }
 
-        if (work.Shuttle is not null)
+        if (step.Shuttle is not null)
         {
-            action = DomainAction.NewQuestShuttleAction(new ActionId(id.Value + "-0"), work.Shuttle);
-            methodBase = $"quest-pickup-{work.Quest}-{work.Shuttle.Loading}-{work.Shuttle.Launch.ToString().ToLowerInvariant()}";
+            action = DomainAction.NewQuestShuttleAction(new ActionId(id.Value + "-0"), step.Shuttle);
+            method = new MethodId($"quest-pickup-{step.Quest}-{step.Shuttle.Loading}-{step.Shuttle.Launch.ToString().ToLowerInvariant()}");
         }
 
         if (action is null)
@@ -48,27 +51,11 @@ public sealed partial class RoundsPopulationJoinerPlanner
             return (default, false);
         }
 
-        var prefix = methodBase + "-";
-        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
-        if (!admitted)
+        if (!Claim(work, [], $"quest:{step.Quest}"))
         {
-            return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
+            return (Verdict.WaitFor(Cause.Claim, "quest_hosting"), true);
         }
 
-        if (!arbiter.TryClaim([], $"quest:{work.Quest}"))
-        {
-            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_hosting") }, true);
-        }
-
-        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-        reviewer.Player.Current(call, epoch);
-        var elapsed = reviewer.Clock.Now() - started;
-        if (reviewer.Player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
-        {
-            throw new ControlException("admitHospitality: session state changed or the read took too long");
-        }
-
-        reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
+        return (Commit(work, method, new PlanSpec(id, new PlanRevision(1), [action]), started, "admitHospitality", call), true);
     }
 }

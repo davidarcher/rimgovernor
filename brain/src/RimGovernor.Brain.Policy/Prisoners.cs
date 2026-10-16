@@ -28,7 +28,8 @@ public sealed record PrisonersFacts
 }
 
 /// <summary>
-/// The prisoners family (#3262): the prisoner half of the old MaintainPopulation Concern.
+/// The prisoners family (#3262): the prisoner half of the old population Concern; the
+/// joiners and anomaly families are the rest (#3302).
 /// <list type="bullet">
 /// <item><c>prisoners/recruit</c> (Development): every living prisoner has the interaction the colony has a use for
 /// (recruit, convert, enslave or release, <see cref="PolicyFunctions.PrisonerRecruitDeficit"/>). Each Method sets one

@@ -71,10 +71,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsRecoveryResult? Recovery { get; set; }
 
-    public RoundsPopulationCustodyResult? PopulationCustody { get; set; }
-
-    public RoundsPopulationJoinerResult? PopulationJoiner { get; set; }
-
     public RoundsResourceResult? Resource { get; set; }
 
     public RoundsHomeCoverageResult? HomeCoverage { get; set; }
@@ -160,8 +156,6 @@ public sealed class ClockSchedulerResult
         Medical = other.Medical ?? Medical;
         Surgery = other.Surgery ?? Surgery;
         Recovery = other.Recovery ?? Recovery;
-        PopulationCustody = other.PopulationCustody ?? PopulationCustody;
-        PopulationJoiner = other.PopulationJoiner ?? PopulationJoiner;
         Resource = other.Resource ?? Resource;
         HomeCoverage = other.HomeCoverage ?? HomeCoverage;
         MaintainShelter = other.MaintainShelter ?? MaintainShelter;

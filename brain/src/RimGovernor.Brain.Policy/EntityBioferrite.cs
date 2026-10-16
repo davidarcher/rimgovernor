@@ -113,11 +113,4 @@ public static partial class PolicyFunctions
         }
         return (BioferriteYield(perDay) >= 1, "");
     }
-
-    /// <summary>
-    /// Whether a held entity's extract flag is to be set: a standing work for MaintainPopulation, whose custody
-    /// step carries it.
-    /// </summary>
-    internal static bool EntityBioferriteOwed(ContainmentPlanning p, Fact<ResearchFacts> research) =>
-        BioferriteHarvestOwed(p, research).Enable.Count > 0;
 }

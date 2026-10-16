@@ -640,8 +640,9 @@ platform census, door hit points) is neither captured nor killed and is
 logged at warn (`defense_action` reason `entity_capture_refused`). Capture is a `GiveJobIntent`
 Capture whose native side, for a pawn with `CompHoldingPlatformTarget`, sets
 the entity's `targetHolder` and gives the carrier `CarryToEntityHolder` to the
-available platform of highest strength (the game's own order); MaintainPopulation's
-custody step carries it. `ContainmentDefs.Predict` is the game's
+available platform of highest strength (the game's own order); the anomaly family's
+`anomaly/capture` Need owns it and holds it as `unsupported_forecast_population_capture`
+until capture outcomes are a shared forecast. `ContainmentDefs.Predict` is the game's
 `StatWorker_ContainmentStrength` (decompile): the
 holder's stat base plus facility offsets plus (lighting + wall + door +
 floor, each times 0.9 per other holder, + roof) times the holder's
@@ -679,22 +680,22 @@ as for any other consumer; there is no cell-specific conduit or source action.
 The predicted strength still counts no glow, so a lamp never makes a cell owed
 and the native strength read once built is the check.
 
-**Upkeep and breach response.** MaintainPopulation's custody step,
-once no capture or custody is owed, keeps a held entity contained
-(`RoundsPopulationContainment.cs`, facts in `EntityUpkeep.cs`).
+**Upkeep and breach response.** The anomaly family (#3302, `AnomalyFamily.cs`,
+facts in `EntityUpkeep.cs`) keeps a held entity contained; its Needs are
+independent and run side by side.
 Doors: the native holder row carries the room's `Building_Door`s
 (`EntityHolderState.doors`: open, hold_open, containment_breached,
 blocked_open). A holder with a held pawn whose door is held open owes one
-`door_control` action per door with hold-open false, which is the existing combat door CLOSE write
+`door_control` action per door with hold-open false, each its own `anomaly/doors`
+Method (`entity-door-<x>-<z>`), which is the existing combat door CLOSE write
 (`CombatOrders`, mode CLOSE) for that cell; CLOSE clears the hold. A breached
 door that is neither held nor blocked closes by itself (the game's
 `ContainmentBreached` is the door staying open past its delay), and a breached
 door that stays blocked open is reported only (`defense_action` reason `containment_upkeep_issue`),
 since no order clears a blockage. Unread door facts are reported, never
 guessed. Bleeding captives: a held, downed, living entity whose health reads
-`needs_tend` is tended through the ordinary Tend action (bleeding first, then
-by id) with a doctor chosen by `SelectTend`; no eligible pair logs
-`defense_action` reason `entity_tend_unavailable`. A breach has no dedicated tactic: an escaped entity
+`needs_tend` is owed by `anomaly/tend` (bleeding first, then by id), held as
+`dependent_care_incident_owner`: critical care belongs to CriticalMedicine. A breach has no dedicated tactic: an escaped entity
 is a live hostile and falls to the existing defense tactics
 (`TestEscapedEntityFallsToTheExistingDefense`).
 
@@ -713,9 +714,10 @@ a mode. A held entity whose held or studiable fact is unread makes the
 requirement unknown: the work review reports `study_work` unavailable and
 files a `routine_skip` row (`entity_study_unread`) at warn.
 
-**Monolith rule.** `policy.MonolithAdvanceOwed` advances the void
-monolith inside MaintainPopulation's custody step, after custody and
-containment upkeep. The game's own `CanActivate` (codex requirement, blocking
+**Monolith rule.** `policy.MonolithAdvanceOwed` decides the void
+monolith's next advance for the `anomaly/monolith` Need, which holds it as
+`unsupported_forecast_monolith` until its worker, duration and outcome are a
+shared forecast. The game's own `CanActivate` (codex requirement, blocking
 conditions) decides every level: an Inactive monolith is investigated
 (`InvestigateMonolith`, whose dialog's first option starts the activation) and
 every later level activated (`ActivateMonolith`), each as one recovery-service
@@ -916,14 +918,14 @@ spot, attendees). While one is accepted:
 
 An offered quest is how a title is claimed: when `NextTitleClaim` says claim
 (favor, the next rung's bedroom and throne room met), the review lists the
-quest in `RoundsFacts.TitleClaimQuests` and MaintainPopulation's
-`SelectEmpireQuestMethod` accepts it through the existing QuestAccept (quest
+quest in `RoundsFacts.TitleClaimQuests` and the `joiners/quests` Need's
+`SelectQuestMethod` accepts it through the existing QuestAccept (quest
 identified by the read's quest id, not its script def). The ritual starts
 only on the player's command (the bestower's Wait toil gizmo): once the
 bestower waits and the ritual is known not to have started
-(`CeremonyStart`), the same MaintainPopulation planner issues the generic
-`Ritual` action (`bestowing`/`start`) and native runs the gizmo's
-action. No draft avoidance beyond combat's own rules is applied (a raid
+(`CeremonyStart`), the `joiners/ceremony` Need is unmet; starting the generic
+`Ritual` action (`bestowing`/`start`, native runs the gizmo's action) is held as
+`unsupported_forecast_bestowing` until ceremony participation is a shared forecast. No draft avoidance beyond combat's own rules is applied (a raid
 outranks a ceremony).
 
 Content-gated rows are pursued only when their definitions exist in the

@@ -3,18 +3,8 @@ using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
-public static partial class PolicyConstants
-{
-    /// <summary>
-    /// MaintainPopulation names Population-*'s joiner and anomaly deficits (joiner offers, quest work, lance,
-    /// entity capture and containment) until their family slices. Prisoner use and humanlike custody are the
-    /// prisoners family's Needs (#3262, <see cref="PrisonersFamily"/>).
-    /// </summary>
-    public static readonly ConcernId MaintainPopulation = new("MaintainPopulation");
-}
-
 /// <summary>
-/// The slice of RoundsPolicy MaintainPopulation plans from. ReleaseAfterDays is how long a prisoner the
+/// The slice of RoundsPolicy the prisoners family plans from. ReleaseAfterDays is how long a prisoner the
 /// colony has no use for is fed while the food runway holds FoodTargetDays; below that target it is released
 /// at once. Zero releases a useless prisoner at once regardless.
 /// </summary>

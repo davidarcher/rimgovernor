@@ -73,7 +73,7 @@ public sealed record RoundsPolicy
     /// </summary>
     public bool DefensiveLayout { get; init; }
 
-    /// <summary>Is the MaintainPopulation slice of this policy.</summary>
+    /// <summary>Is the prisoners family's slice of this policy.</summary>
     public PrisonerPolicy Prisoners() => new() { ReleaseAfterDays = PrisonerReleaseAfterDays, FoodTargetDays = FoodTargetDays };
 
     /// <summary>Throws DomainException when the policy is invalid.</summary>
@@ -323,7 +323,7 @@ public sealed record RoundsFacts
     /// <summary>
     /// Carries Population-*'s capture/rescue candidate census: every observed humanlike from the same
     /// dedicated population read Prisoners uses, broadened past prisoners alone so
-    /// RoundsPopulationCustodyPlanner can detect and select a downed hostile or unadmitted guest to dispatch.
+    /// the prisoners family can detect and select a downed hostile or unadmitted guest to dispatch.
     /// </summary>
     public Fact<EquatableArray<CustodyFacts>> Custody { get; init; }
 
@@ -337,7 +337,7 @@ public sealed record RoundsFacts
     public Fact<EquatableArray<OwnedName>> OwnedNames { get; init; }
 
     /// <summary>
-    /// Carries MaintainPopulation's joiner census: every visible quest row
+    /// Carries the joiners family's quest census: every visible quest row
     /// (rimgovernor/observations_read_world_progression), read per cycle by a RoundsSource offering
     /// RoundsQuestSource, for JoinerDeficit to detect and SelectJoinerMethod to answer a joiner offer from.
     /// </summary>

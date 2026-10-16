@@ -88,7 +88,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// The prisoners (by pawn id) the colony can sell to the tribute collector: living, not recruitable-wanted
-    /// (HarvestEligible), no creepjoiner, no queued surgery or execution, not one MaintainPopulation would enslave
+    /// (HarvestEligible), no creepjoiner, no queued surgery or execution, not one the prisoners family would enslave
     /// and not one the organ harvest or part recovery would cut (judged row by row against the surgery planner's
     /// needs). Empty while any needed fact is unknown or the precepts do not plainly allow the sale.
     /// </summary>

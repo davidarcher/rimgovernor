@@ -271,7 +271,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// MaintainPopulation's wanted production orders: for every accepted produce-item decree of the
+    /// joiners/decrees' wanted production orders: for every accepted produce-item decree of the
     /// player's faction that is still open, the batch PlanDecreeProduction funds from the crafted count
     /// left, or the bill that already makes it, declared as it stands. A decree the quest has completed,
     /// expired or that no recipe can fund declares nothing, so the ledger removes its bill. Abstain while

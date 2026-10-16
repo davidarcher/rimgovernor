@@ -31,8 +31,8 @@ internal sealed class FoodStoresDeclarer(FoodStoresRounds planner) : IOrderDecla
         planner.DeclareOrdersAsync(snapshot, projection, benches, ct);
 }
 
-/// <summary>Declares the population joiner's decree orders to the work ledger.</summary>
-internal sealed class RoundsPopulationJoinerDeclarer(RoundsPopulationJoinerPlanner planner) : IOrderDeclarer
+/// <summary>Declares the joiners family's decree orders to the work ledger.</summary>
+internal sealed class JoinersDeclarer(JoinersRounds planner) : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         planner.DeclareOrdersAsync(snapshot, projection, benches, ct);

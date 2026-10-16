@@ -59,7 +59,7 @@ A missing census, unresolved pawn reference, or unknown capability/health fact i
 unknown care evidence, never an empty or recovered need. Duplicate membership and
 unknown population groups are contract errors. The native frame adds health detail
 for these patients through the existing pawn table; no patient store is introduced.
-MaintainPopulation no longer dispatches a parallel rescue or tend Method for these patients. Capability-approved critical care uses the existing Incident owner; noncritical dependent care and unsupported custody transport remain unmet pending shared forecast support.
+Neither the prisoners nor the anomaly family dispatches a parallel rescue or tend Method for these patients (`prisoners/custody` and `anomaly/tend` hold them). Capability-approved critical care uses the existing Incident owner; noncritical dependent care and unsupported custody transport remain unmet pending shared forecast support.
 
 ## Maintained care
 
@@ -229,7 +229,7 @@ prisoners:
   avoided (200, 400 in withdrawal) outweighs the removals, hand-feeding (25) and
   putting both pegs back later.
 - Release: a legless prisoner no longer controlled gets a peg leg back first;
-  MaintainPopulation holds Release until then, since vanilla cannot release a downed
+  the prisoners family holds Release until then, since vanilla cannot release a downed
   pawn.
 
 ### Clock allowances

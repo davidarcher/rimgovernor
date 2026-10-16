@@ -28,7 +28,7 @@ namespace HomeBridge.BridgeTools
     // ThreatReward_Raid_Joiner offer through the native storyteller path
     // (QuestUtility.GenerateQuestAndMakeAvailable at the map's default
     // threat points), plus the spare unowned sleeping spots and food the
-    // colony needs before MaintainPopulation may answer it; the quest's own
+    // colony needs before the joiners family may answer it; the quest's own
     // parts then walk the joiner in and bring the raid after them.
     public sealed class QuestAcceptFixture
     {

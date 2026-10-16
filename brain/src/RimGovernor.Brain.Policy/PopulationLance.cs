@@ -37,9 +37,6 @@ public static partial class PolicyFunctions
         return total;
     }
 
-    /// <summary>LanceCandidate while some colonist wears a lance (f.Gear): the review's MaintainPopulation deficit. Null when none.</summary>
-    public static PawnId? LanceTarget(RoundsFacts f) => LanceWorn(f.Gear) ? LanceCandidate(f) : null;
-
     /// <summary>
     /// The standing hostile humanlike a lance should down while the colony is below
     /// DomainConstants.PopulationTarget: known recruitable, not downed, not a prisoner, and the best skills;

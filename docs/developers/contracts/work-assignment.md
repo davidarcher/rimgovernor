@@ -498,8 +498,8 @@ choose for each artist lacking one. A sculpture pinned to someone who is no long
 artist, or any sculpture once the need is known gone, is undeclared and so
 removed after the grace rounds; an unread need or artist abstains. The declarer
 keeps no game-time hint. The produce-item quest
-decrees of `MaintainPopulation` declare through
-`RoundsPopulationJoinerPlanner.DeclareOrders` (`policy.DeclareDecreeOrders`): the
+decrees of the `joiners/decrees` Need declare through
+`JoinersRounds.DeclareOrdersAsync` (`policy.DeclareDecreeOrders`): the
 funded batch, or the bill already making the item as it stands; the planner keeps
 the crafting game time and the harvest and hunt decrees.
 

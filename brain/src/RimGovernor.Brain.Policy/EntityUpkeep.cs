@@ -85,12 +85,6 @@ public static partial class PolicyFunctions
         return new ContainmentUpkeep { CloseDoors = [.. close.OrderBy(c => c.Z).ThenBy(c => c.X)], Issues = issues };
     }
 
-    /// <summary>
-    /// Whether a held entity's cell door is to be closed: a standing work for MaintainPopulation, whose custody
-    /// step carries it.
-    /// </summary>
-    internal static bool EntityDoorOwed(ContainmentPlanning p) => ContainmentDoorUpkeep(p).CloseDoors.Count > 0;
-
     /// <summary>Go <c>ContainmentDoorTarget</c>: the first cell door to close, by position; null when none.</summary>
     public static Cell? ContainmentDoorTarget(ContainmentPlanning p)
     {
@@ -136,7 +130,4 @@ public static partial class PolicyFunctions
         }
         return best.IsEmpty ? null : best;
     }
-
-    /// <summary>Whether a held entity needs tending.</summary>
-    internal static bool EntityTendOwed(ContainmentPlanning p) => EntityTendTarget(p) is not null;
 }

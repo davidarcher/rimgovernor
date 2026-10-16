@@ -328,9 +328,6 @@ public static partial class PolicyFunctions
         return sk && spawned && (!hk || !horror);
     }
 
-    /// <summary>Whether the monolith is to be advanced now: a standing work for MaintainPopulation, whose custody step carries it.</summary>
-    internal static bool MonolithAdvanceOwedNow(RoundsFacts f) => MonolithAdvanceOwed(f.Monolith, MonolithGate(f)).Order != MonolithOrder.None;
-
     /// <summary>The advance gate the facts give.</summary>
     public static AwakenGate MonolithGate(RoundsFacts f) =>
         new()

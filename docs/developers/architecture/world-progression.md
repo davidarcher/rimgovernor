@@ -22,7 +22,7 @@ the acceptance action does not claim the quest objective is complete. Each
 visible quest row carries `script_def`, the root QuestScriptDef name, so a
 reader can tell a joiner offer (`ThreatReward_*_Joiner`) from a trade request
 without parsing its parts. Hidden `WandererJoins` offers instead appear in the
-colony census's typed `joiner_letters` section. MaintainPopulation answers their
+colony census's typed `joiner_letters` section. The `joiners/letters` Need answers their
 native Accept option using the same population capacity policy; see
 [population commitments](../contracts/population-contracts.md).
 

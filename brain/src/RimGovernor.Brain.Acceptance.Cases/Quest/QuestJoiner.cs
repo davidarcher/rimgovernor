@@ -7,15 +7,14 @@ using static RimGovernor.Brain.Acceptance.Cases.CaseJson;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// What the durable journal proves for a joiner or favor offer: the MaintainPopulation method whose plan carries a
+/// What the durable journal proves for a joiner, favor or quest offer: the joiners family Method whose plan carries a
 /// QuestAccept for it (Go <c>joinerAnswer</c>).
 /// </summary>
-internal sealed record JoinerAnswer(string Standard, ulong Episode, string Plan, int Reward, string Stage)
+internal sealed record JoinerAnswer(string Method, string Plan, int Reward, string Stage)
 {
     internal JsonObject ToJson() => new()
     {
-        ["concern"] = Standard,
-        ["epoch"] = Episode,
+        ["method"] = Method,
         ["plan"] = Plan,
         ["reward_choice"] = Reward,
         ["stage"] = Stage,
@@ -47,7 +46,7 @@ internal static class QuestJoiner
         Name = "quest/joiner",
         Scope = "Issue #250: a real ThreatReward_Raid_Joiner offer reads back in the quest census with its root " +
             "script_def and, with capacity under the bot's population target (#1032: food floor, a spare unowned bed), " +
-            "MaintainPopulation accepts it through the " +
+            "the joiners family accepts it through the " +
             "QuestAccept vertical and the joiner arrives natively.",
         Start = new FixtureStart { Op = PrepareTool, On = new LabStart() },
 
@@ -63,10 +62,13 @@ internal static class QuestJoiner
         Run = RunAsync,
     };
 
-    /// <summary>Every QuestAccept plan MaintainPopulation has ever admitted, across epochs, keyed by the accepted quest.</summary>
+    /// <summary>
+    /// Every QuestAccept plan the joiners family has admitted (its <c>joiner-accept-*</c> and <c>quest-accept-*</c>
+    /// Methods, #3302), keyed by the accepted quest; Found says whether any plan was admitted.
+    /// </summary>
     internal static async Task<(Dictionary<string, JoinerAnswer> Answers, bool Found)> AnswersAsync(ICaseJournal journal, CancellationToken cancellationToken)
     {
-        var (bound, plans) = await journal.ConcernPlansAsync(PolicyConstants.MaintainPopulation.Value, cancellationToken).ConfigureAwait(false);
+        var plans = await journal.PlanHistoryAsync(256, ["joiner-accept-*", "quest-accept-*"], cancellationToken).ConfigureAwait(false);
         var answers = new Dictionary<string, JoinerAnswer>(StringComparer.Ordinal);
         foreach (var plan in plans)
         {
@@ -80,15 +82,14 @@ internal static class QuestJoiner
 
                 var accept = row["action"].AsMap() ?? [];
                 answers[accept["quest"].AsString()] = new JoinerAnswer(
-                    plan["concern"].AsString(),
-                    (ulong)Num(plan["epoch"]),
+                    plan["method"].AsString(),
                     plan["plan"].AsString(),
                     (int)Num(accept["rewardChoice"]),
                     row["stage"].AsString());
             }
         }
 
-        return (answers, bound);
+        return (answers, plans.Count > 0);
     }
 
     internal static JsonObject AnswersJson(Dictionary<string, JoinerAnswer> answers)
@@ -176,7 +177,7 @@ internal static class QuestJoiner
         Dictionary<string, JoinerAnswer> answers = [];
         using (var journal = await CaseJournal.OpenAsync(s.Config, cancellationToken).ConfigureAwait(false))
         {
-            // MaintainPopulation admits one QuestAccept for the offer against the bot's own population target and the
+            // joiners/offers admits one QuestAccept for the offer against the bot's own population target and the
             // executor completes it against the live quest.
             var wait = new Wait { Ceiling = Ceiling, Stall = Wait.StallBudget(), Terminal = service.Exited };
             try
@@ -190,7 +191,7 @@ internal static class QuestJoiner
                         {
                             if (quest != questId)
                             {
-                                throw new AcceptanceException($"MaintainPopulation accepted quest {quest}, not the joiner offer {questId}");
+                                throw new AcceptanceException($"the joiners family accepted quest {quest}, not the joiner offer {questId}");
                             }
 
                             if (answer.Stage is "unsuccessful" or "cancelled")

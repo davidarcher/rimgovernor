@@ -50,8 +50,6 @@ public sealed partial class BrainComposition
         RoundsMoodReliefPlanner? cfgMoodRelief = null;
         RoundsPermitsPlanner? cfgPermits = null;
         RoundsPollutionPlanner? cfgPollution = null;
-        RoundsPopulationCustodyPlanner? cfgPopulationCustody = null;
-        RoundsPopulationJoinerPlanner? cfgPopulationJoiner = null;
         RoundsBuildingPlanner? cfgPower = null;
         RoundsPsylinkPlanner? cfgPsylink = null;
         RoundsRecoveryPlanner? cfgRecovery = null;
@@ -275,12 +273,15 @@ public sealed partial class BrainComposition
         }
         if (sc.PopulationJoiner)
         {
-            cfgPopulationJoiner = RoundsPopulationJoinerPlanner.NewRoundsPopulationJoinerPlanner(reviewer);
-            reviewer.AddOrderDeclarer(new RoundsPopulationJoinerDeclarer(cfgPopulationJoiner));
+            // The population-joiner toggle composes the joiners family; its decree batches are declared to the ledger (#3302).
+            var joiners = new JoinersRounds(reviewer);
+            reviewer.AddOrderDeclarer(new JoinersDeclarer(joiners));
+            families.Add(joiners.Runner());
         }
         if (populationCustody)
         {
-            cfgPopulationCustody = RoundsPopulationCustodyPlanner.NewRoundsPopulationCustodyPlanner(reviewer, client);
+            // The population-custody toggle also composes the anomaly family (#3302).
+            families.Add(new AnomalyRounds(reviewer, client).Runner());
         }
         if (sc.Firebreak)
         {
@@ -449,8 +450,6 @@ public sealed partial class BrainComposition
             MoodRelief = cfgMoodRelief,
             Permits = cfgPermits,
             Pollution = cfgPollution,
-            PopulationCustody = cfgPopulationCustody,
-            PopulationJoiner = cfgPopulationJoiner,
             Power = cfgPower,
             Psylink = cfgPsylink,
             Recovery = cfgRecovery,
@@ -551,7 +550,6 @@ public sealed partial class BrainComposition
         Add(sc.Envelope, MaintainClimateEnvelope);
         Add(sc.Gear, MaintainEquipment);
         Add(sc.Recovery, RecoverDisasterServices);
-        Add(sc.PopulationCustody || sc.PopulationJoiner, MaintainPopulation);
         Add(sc.Pollution, ManagePollution);
         Add(sc.MechCharger, EnsureMechCharger);
         Add(sc.GeneBank, MaintainGeneBank);

@@ -177,8 +177,8 @@ public sealed partial class Store
             return;
         }
         var review = LoadRounds(tx);
-        // A growing-field or fishing method places a bounded batch (the food/supply Need) or the social crops
-        // (MaintainResource). A stockpile zone is admitted for any concern that owns stores (StockpileZoneLimit),
+        // A growing-field or fishing method places a bounded batch (the food/supply Need), a royal decree's harvest
+        // field (the joiners/decrees Need, #3302) or the social crops (MaintainResource). A stockpile zone is admitted for any concern that owns stores (StockpileZoneLimit),
         // bounded per owner.
         var limit = 32;
         if (!review.Enabled || review.Snapshot != owner.OwnerSnapshot)
@@ -189,7 +189,7 @@ public sealed partial class Store
         var resource = false;
         if (owner is NeedOwner { Need: var held })
         {
-            bound = !stockpile && held == FoodSupplyNeed;
+            bound = !stockpile && (held == FoodSupplyNeed || held == JoinersFamily.Decrees);
         }
         else if (owner.OwnerNeed(review, out var need))
         {
@@ -241,10 +241,10 @@ public sealed partial class Store
         {
             throw new ConflictException();
         }
-        // The military pests Need hunts its pests (#3259) and the food/supply Need forages and hunts (#3254); a Need
-        // owner reads as no Concern.
+        // The military pests Need hunts its pests (#3259), the food/supply Need forages and hunts (#3254) and the
+        // joiners/decrees Need hunts a royal decree's animals (#3302); a Need owner reads as no Concern.
         var bound = owner is NeedOwner { Need: var held }
-            ? held == MilitaryFamily.Pests || held == FoodSupplyNeed
+            ? held == MilitaryFamily.Pests || held == FoodSupplyNeed || held == JoinersFamily.Decrees
             : owner.OwnerNeed(review, out var need) && (need == MaintainMedicalReserves || need == MaintainResource);
         if (!bound)
         {

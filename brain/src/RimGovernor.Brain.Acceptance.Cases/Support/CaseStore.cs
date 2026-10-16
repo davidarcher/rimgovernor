@@ -106,34 +106,6 @@ internal sealed class CaseStore : ICaseJournal, IPhaseStore
             ct => (IReadOnlyList<JsonObject>)[.. _store.PlanHistoryWithMethods(Math.Clamp(limit, 1, 256), methodPatterns, ct).Select(PlanRow)],
             cancellationToken);
 
-    public Task<(bool Bound, IReadOnlyList<JsonObject> Plans)> ConcernPlansAsync(string concern, CancellationToken cancellationToken) =>
-        ReadAsync<(bool, IReadOnlyList<JsonObject>)>(
-            "concern plans " + concern,
-            ct =>
-            {
-                var review = _store.LoadRounds(ct);
-                if (BoundStandard(review, new ConcernId(concern)) is not { } id)
-                {
-                    return (false, []);
-                }
-
-                var goal = _store.LoadStandard(id, ct);
-                var plans = new List<JsonObject>();
-                for (ulong epoch = 0; epoch <= goal.Standard.Episode; epoch++)
-                {
-                    foreach (var method in _store.LoadMethods(id, epoch, ct))
-                    {
-                        var row = PlanRow(_store.LoadPlan(method.Plan, ct), method.MethodId.Value);
-                        row["concern"] = id.Value;
-                        row["epoch"] = (long)epoch;
-                        plans.Add(row);
-                    }
-                }
-
-                return (true, plans);
-            },
-            cancellationToken);
-
     public Task<JsonObject?> RecoveryEntryAsync(string id, CancellationToken cancellationToken) =>
         ReadAsync(
             "recovery entry " + id,

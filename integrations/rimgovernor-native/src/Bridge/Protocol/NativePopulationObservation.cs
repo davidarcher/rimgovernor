@@ -72,7 +72,7 @@ namespace HomeBridge.BridgeTools
                     if (ModsConfig.IdeologyActive && p.IsPrisoner) person = person with { Will = Number(p.guest.will) };
                 }
                 if (p.Ideo != null) person = person with { IdeoId = NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID()) };
-                // Prospect facts: MaintainPopulation weighs a prisoner's
+                // Prospect facts: the prisoners family weighs a prisoner's
                 // skills, traits, age and health against the free colonists';
                 // a hostile's skills rank it as a lance target.
                 if (p.IsPrisonerOfColony || person.Admitted.GetValueOrDefault() || p.HostileTo(player))

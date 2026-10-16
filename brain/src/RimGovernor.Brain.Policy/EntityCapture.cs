@@ -183,12 +183,6 @@ public static partial class PolicyFunctions
         return new EntityVerdict(e.Pawn, EntityDecision.Capture);
     }
 
-    /// <summary>
-    /// Whether the rule has a downed entity to capture: a standing work for MaintainPopulation, whose custody
-    /// step carries it. A refusal or a kill is no deficit.
-    /// </summary>
-    internal static bool EntityCaptureOwed(ContainmentPlanning p) => EntityCaptureTarget(p) is not null;
-
     /// <summary>Go <c>EntityCaptureTarget</c>: the first downed entity the rule captures, by pawn ID; null when none.</summary>
     public static Domain.PawnId? EntityCaptureTarget(ContainmentPlanning p)
     {

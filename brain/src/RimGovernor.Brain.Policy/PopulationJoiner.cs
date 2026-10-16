@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One row of the visible quest census (bridge.QuestOffer, from rimgovernor/observations_read_world_progression)
-/// as MaintainPopulation reads it: enough to tell a joiner offer from every other quest and to build the
+/// as the joiners family reads it: enough to tell a joiner offer from every other quest and to build the
 /// QuestAccept write for it. The boundary re-reads the quest's CAS token and native CanAcceptQuest verdict
 /// immediately before dispatch; this only decides which already-observed offer to answer.
 /// </summary>

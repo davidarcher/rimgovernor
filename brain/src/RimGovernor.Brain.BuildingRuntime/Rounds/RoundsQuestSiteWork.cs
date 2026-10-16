@@ -1,9 +1,9 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed partial class RoundsPopulationJoinerPlanner
+public sealed partial class JoinersRounds
 {
     /// <summary>Works a quest site on the current map: survey relief, mining, help, recruiting or the return trip.</summary>
-    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitSiteWork(ControlState state, StandardState goal, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal (Verdict Verdict, bool Handled) AdmitSiteWork(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
         var f = read.Projection.Facts;
         if (!f.QuestSites.TryGetValue(out var siteRows) || !f.QuestOffers.TryGetValue(out var offers))
@@ -46,19 +46,19 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 var returning = false;
                 if (offer.ScriptDef == "SurveySite")
                 {
-                    var work = PolicyFunctions.SurveyWork(offer, site, f, f.AnimalUpkeep.Food, reviewer.Policy);
-                    if (work.Reason != "")
+                    var step = PolicyFunctions.SurveyWork(offer, site, f, f.AnimalUpkeep.Food, reviewer.Policy);
+                    if (step.Reason != "")
                     {
-                        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", work.Reason, ""), call);
+                        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", step.Reason, ""), call);
                     }
 
-                    if (work.Departure is not null)
+                    if (step.Departure is not null)
                     {
-                        action = DomainAction.NewCaravanDepartureAction(actionId, work.Departure);
-                        crew = work.Departure.Crew.ToPolicyIds();
+                        action = DomainAction.NewCaravanDepartureAction(actionId, step.Departure);
+                        crew = step.Departure.Crew.ToPolicyIds();
                         kind = "relief";
                     }
-                    else if (work.Return)
+                    else if (step.Return)
                     {
                         returning = true;
                     }
@@ -69,25 +69,25 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 }
                 else
                 {
-                    var work = PolicyFunctions.PlanCoreSiteWork(offer, site, f, current);
-                    if (work.Reason != "")
+                    var step = PolicyFunctions.PlanCoreSiteWork(offer, site, f, current);
+                    if (step.Reason != "")
                     {
-                        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", new QuestSkipReason(work.Reason), ""), call);
+                        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", new QuestSkipReason(step.Reason), ""), call);
                     }
 
-                    switch (work.Kind)
+                    switch (step.Kind)
                     {
                         case "mine":
-                            var mine = work.Mine ?? throw new ControlException("questSiteWork: mine work without an acquisition");
+                            var mine = step.Mine ?? throw new ControlException("questSiteWork: mine work without an acquisition");
                             action = DomainAction.NewMineAcquisitionAction(actionId, mine);
                             kind = "mine";
                             target = mine.Thing;
                             break;
                         case "help":
-                            return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_site_help",
-                                "Site help requires shared forecast worker, duration and outcome admission.") }, true);
+                            return (Verdict.AwaitingPlan("unsupported_forecast_site_help",
+                                "Site help requires shared forecast worker, duration and outcome admission."), true);
                         case "recruit":
-                            var recruit = work.Recruit ?? throw new ControlException("questSiteWork: recruit work without an interaction");
+                            var recruit = step.Recruit ?? throw new ControlException("questSiteWork: recruit work without an interaction");
                             action = DomainAction.NewPrisonerInteractionAction(actionId, recruit);
                             kind = "recruit";
                             target = recruit.Pawn.Value;
@@ -111,47 +111,33 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
                 if (returning)
                 {
-                    var work = PolicyFunctions.PlanSiteReturn(site, false);
-                    if (work.Departure is null)
+                    var step = PolicyFunctions.PlanSiteReturn(site, false);
+                    if (step.Departure is null)
                     {
-                        if (work.Reason != "")
+                        if (step.Reason != "")
                         {
-                            reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", work.Reason, ""), call);
+                            reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", step.Reason, ""), call);
                         }
 
                         continue;
                     }
 
-                    action = DomainAction.NewCaravanDepartureAction(actionId, work.Departure);
-                    crew = work.Departure.Crew.ToPolicyIds();
+                    action = DomainAction.NewCaravanDepartureAction(actionId, step.Departure);
+                    crew = step.Departure.Crew.ToPolicyIds();
                     kind = "return";
                 }
 
                 if (action?.CaravanDeparture is { Mode: CaravanDepartureMode.Formation })
-                    return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
-                        "Caravan packing and departure require shared forecast labor admission.") }, true);
-                if (crew.Count > 0 && !arbiter.TryClaim(crew, "quest:" + offer.Quest))
+                    return (Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
+                        "Caravan packing and departure require shared forecast labor admission."), true);
+                if (crew.Count > 0 && !Claim(work, crew, "quest:" + offer.Quest))
                 {
-                    return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_site") }, true);
+                    return (Verdict.WaitFor(Cause.Claim, "quest_site"), true);
                 }
 
                 var plan = new PlanSpec(id, new PlanRevision(1), [action!]);
-                var prefix = $"quest-site-{offer.Quest}-{site.Id}-{kind}-{target}-";
-                var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
-                if (!admitted)
-                {
-                    return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
-                }
-
-                reviewer.Player.Current(call, epoch);
-                var elapsed = reviewer.Clock.Now() - started;
-                if (reviewer.Player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
-                {
-                    throw new ControlException("admitSiteWork: session state changed or the read took too long");
-                }
-
-                reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-                return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
+                var method = new MethodId($"quest-site-{offer.Quest}-{site.Id}-{kind}-{target}");
+                return (Commit(work, method, plan, started, "admitSiteWork", call), true);
             }
         }
 

@@ -590,37 +590,6 @@ public static partial class PolicyFunctions
         }
     }
 
-    /// <summary>
-    /// The joiner and anomaly halves of the population; prisoners are their own family (#3262). An unknown
-    /// optional sub-step fact is not held against recovery: only a known deficit blocks it. joinerDeficit needs
-    /// the quest census (RoundsPopulationJoinerPlanner).
-    /// </summary>
-    internal static void InspectPopulation(RoundsRun c)
-    {
-        var f = c.F;
-        var recovered = Unknown<bool>();
-        var joinerDeficitKnown = JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity()), f).TryGetValue(out var joinerDeficit);
-        var questKnown = QuestDeficit(f).TryGetValue(out var questDeficit);
-        var letterKnown = JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).TryGetValue(out var letterDeficit);
-        var ceremonyStarts = CeremonyStartOf(f.Royalty) is not null;
-        if (LanceTarget(f) is not null || EntityCaptureOwed(f.Containment) || EntityDoorOwed(f.Containment) || EntityTendOwed(f.Containment)
-            || EntityBioferriteOwed(f.Containment, f.Research) || MonolithAdvanceOwedNow(f)
-            || (joinerDeficitKnown && joinerDeficit) || (questKnown && questDeficit) || (letterKnown && letterDeficit)
-            || ceremonyStarts || DecreeDeficit(f) || MonumentDeficit(f) || DepartureDeficit(f) || RefugeeDeficit(f) || GravInspectionDeficit(f))
-        {
-            recovered = Known(false);
-        }
-        else if (joinerDeficitKnown)
-        {
-            recovered = Known(!joinerDeficit);
-        }
-        c.Assess(MaintainPopulation, recovered);
-        if (!Positive(recovered))
-        {
-            c.Raise(MaintainPopulation).MethodUnavailable = true;
-        }
-    }
-
     /// <summary>Without the Biotech read the need is unknown and raises no goal. It is always assessed so the stored bindings match the set the review loader derives from empty facts.</summary>
     internal static void InspectPollution(RoundsRun c)
     {

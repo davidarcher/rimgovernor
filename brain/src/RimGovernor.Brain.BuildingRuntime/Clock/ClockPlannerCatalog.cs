@@ -123,7 +123,6 @@ internal static class ClockPlannerCatalog
     // Adds the population census for the owned-pawn names and the colony facts for the reading, drug and food policies.
     private static readonly FactSection[] SectionsWork = [FactSection.Pawns, FactSection.Population, FactSection.Emergency, FactSection.Colony, FactSection.Buildings];
     private static readonly FactSection[] SectionsRecovery = [FactSection.Pawns, FactSection.Emergency, FactSection.Colony];
-    private static readonly FactSection[] SectionsCustody = [FactSection.Pawns, FactSection.Population, FactSection.Emergency, FactSection.Colony];
     private static readonly FactSection[] SectionsResource = [FactSection.Colony, FactSection.Bills, FactSection.Buildings, FactSection.Zones];
     // The bills and threat sets plus the research census the armory tier is capped by.
     private static readonly FactSection[] SectionsArmory = [FactSection.Colony, FactSection.Bills, FactSection.Pawns, FactSection.Emergency, FactSection.Research];
@@ -240,12 +239,6 @@ internal static class ClockPlannerCatalog
             c => c.Gear is not null, (s, ct, e, a) => s.Config.Gear!.StepAsync(a, ct, e), (o, m) => o.Gear = m, MaintainEquipment),
         E("recovery", C, [ActionKind.RecoveryService, ActionKind.WorkAssignment, ActionKind.Husbandry], SectionsRecovery,
             c => c.Recovery is not null, (s, ct, e, a) => s.Config.Recovery!.StepAsync(a, ct, e), (o, m) => o.Recovery = m, immediate: true),
-        E("populationCustody", C, [ActionKind.Capture, ActionKind.UseItem, ActionKind.Rescue, ActionKind.Tend, ActionKind.DoorControl, ActionKind.RecoveryService], SectionsCustody,
-            c => c.PopulationCustody is not null, (s, ct, e, a) => s.Config.PopulationCustody!.StepAsync(a, ct, e), (o, m) => o.PopulationCustody = m),
-        E("populationJoiner", O,
-            [ActionKind.Tend, ActionKind.RecoveryService, ActionKind.QuestAccept, ActionKind.QuestShuttle, ActionKind.HackDesignation, ActionKind.GiveItem, ActionKind.Ritual, ActionKind.DialogAnswer, ActionKind.ZoneCreate, ActionKind.Acquisition, ActionKind.MineAcquisition, ActionKind.PrisonerInteraction, ActionKind.Building, ActionKind.MoveBuilding, ActionKind.Haul, ActionKind.CaravanDeparture],
-            SectionsMedical,
-            c => c.PopulationJoiner is not null, (s, ct, e, a) => s.Config.PopulationJoiner!.StepAsync(a, ct, e), (o, m) => o.PopulationJoiner = m),
         E("dialog", C, [ActionKind.DialogAnswer], SectionsColony,
             c => c.Dialog is not null, (s, ct, e, a) => s.Config.Dialog!.StepAsync(a, ct, e), (o, m) => o.Dialog = m),
         E("trade", O, [ActionKind.Trade, ActionKind.CommsTradeRequest], SectionsColony,

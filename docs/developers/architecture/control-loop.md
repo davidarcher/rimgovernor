@@ -425,7 +425,7 @@ owner, writing the record with each inspection it admits; surgery bills claim
 `surgery/<patient>/<recipe>/<part>`. A weapon drop stays held as an unsupported
 forecast outcome.
 
-**Prisoners (#3262).** The prisoner half of MaintainPopulation is the `prisoners`
+**Prisoners (#3262).** The prisoner half of the old population Concern is the `prisoners`
 family (`Prisoners.cs`, runtime `PrisonersRounds`), an Optional entry woken by
 PrisonerInteraction, Building and BedUse outcomes. `prisoners/recruit`
 (Development) is unmet while any living prisoner is owed an interaction change
@@ -437,9 +437,30 @@ While the Need is unmet its work step stages the jail (ring and next bed through
 the shared building planner, then the prisoner flag on each jail bed) under the
 Need owner. `prisoners/custody` (Wellbeing) is unmet while a downed humanlike is
 owed a rescue or capture; both are held (`dependent_rescue_incident_owner`,
-`unsupported_forecast_population_capture`). The joiner and anomaly halves stay on
-MaintainPopulation until their slices; `populationCustody` now carries only the
-anomaly half (lance, entity capture, containment).
+`unsupported_forecast_population_capture`).
+
+**Joiners and anomaly (#3302).** The rest of the population Concern is two
+families, and MaintainPopulation is deleted. `joiners` (`Joiners.cs`, runtime
+`JoinersRounds`) is an Optional entry with Development Needs, each unknown while
+its census is unread: `joiners/offers` and `joiners/letters` accept the
+lowest-id joiner offer (`joiner-accept-<quest>`) or letter
+(`joiner-letter-<id>`) while the colony has room; `joiners/ceremony` is held
+(`unsupported_forecast_bestowing`); `joiners/quests` accepts the best quest
+(`quest-accept-<quest>`) and its work step does the site, hack, expedition and
+hospitality work, refugees folding into its predicate; `joiners/decrees`,
+`joiners/monuments`, `joiners/departures` and `joiners/grav-inspection` do their
+quest work in the step under the Need owner, with stable MethodIds per quest
+and target. The decree ledger declares under `joiners/decrees`, and
+`MethodAdmission` admits that Need's harvest zones and hunts. `anomaly`
+(`AnomalyFamily.cs`, runtime `AnomalyRounds`) is a Critical entry woken by
+DoorControl and PawnSettings outcomes: `anomaly/doors` closes each held-open
+cell door as its own Method (`entity-door-<x>-<z>`), `anomaly/bioferrite` sets
+each owed extract flag (`entity-bioferrite-<pawn>`, claiming
+`settings/<pawn>`), and `anomaly/capture`, `anomaly/tend`, `anomaly/monolith`
+and `anomaly/lance` are held under their stable subjects; the lance is held
+only once the runtime's combat read finds an able wearer. The
+`population-joiner` and `population-custody` switches keep their names and now
+gate these families.
 
 **Animals and ideology (#3260).** `MaintainHerd` and `MaintainAnimalContainment`
 are the `animals` family (`AnimalsFamily.cs`, `RoundsAnimals.cs`): `animals/herd`
@@ -488,8 +509,8 @@ record is read once at load when the blob is absent.
 
 **Family map.** The grouping of the first consolidation pass sets the family
 boundaries: cooking and baby feeding join Food, MaintainShelter (the
-Safe-area edit) stays its own Need in Shelter, and MaintainPopulation splits
-three ways.
+Safe-area edit) stays its own Need in Shelter, and the population Concern split
+three ways (prisoners, joiners, anomaly).
 
 | Family | Today's Concerns |
 | --- | --- |
@@ -507,8 +528,8 @@ three ways.
 | Biotech | MaintainMechs, EnsureMechCharger, MaintainGeneBank, ManagePollution |
 | Royalty | MaintainPermits, MaintainPsylink |
 | Prisoners | `prisoners`: Needs `recruit`, `custody` (#3262) |
-| Joiners and quests | MaintainPopulation (joiners, quests, letters, ceremonies, decrees, monuments, departures, refugees, grav inspection) |
-| Anomaly | MaintainPopulation (entity capture, door, tend, bioferrite, monolith, lance) |
+| Joiners and quests | `joiners`: Needs `offers`, `letters`, `ceremony`, `quests`, `decrees`, `monuments`, `departures`, `grav-inspection` (#3302) |
+| Anomaly | `anomaly`: Needs `doors`, `capture`, `tend`, `lance`, `bioferrite`, `monolith` (#3302) |
 | Economy | `economy`: Need `research` (#3263; EnsureResearch deleted); MaintainResource, MaintainTrade, TradeWithCaravan, trade missions |
 | Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial` (#3304); EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles |
 | People | EnsureMood, AnswerDialog |

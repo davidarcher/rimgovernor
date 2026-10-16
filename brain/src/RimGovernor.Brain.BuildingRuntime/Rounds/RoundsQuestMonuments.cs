@@ -5,11 +5,12 @@ public interface IRoundsMonumentPreviewSource
     Task<(BuildingPreview Preview, BridgeResult Result)> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
 
-public sealed partial class RoundsPopulationJoinerPlanner
+public sealed partial class JoinersRounds
 {
     /// <summary>Installs, hauls or builds a quest monument; not handled when no monument work is owed.</summary>
-    internal async Task<(RoundsPopulationJoinerResult Result, bool Handled)> AdmitMonumentAsync(ControlState state, StandardState goal, Rounds review, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<(Verdict Verdict, bool Handled)> AdmitMonumentAsync(NeedWork work, Rounds review, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
+        var state = work.State;
         var cells = reviewer.FieldProtected(state, review, read.Projection, Unknown<EquatableArray<ConstructionClaim>>(), call);
         var protectedRects = cells.Select(c => new Rectangle(c.X, c.Z, 1, 1)).ToList();
         var stock = new Dictionary<Resource, long>();
@@ -35,7 +36,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
         if (choice.Kind is "protect" or "wait")
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, true);
+            return (BuildingRuntimePackage.BuildingReasonExistingWork, true);
         }
 
         var id = PlanIds.MintPlanId();
@@ -50,15 +51,15 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 var move = choice.Move ?? throw new ControlException("admitMonument: install choice without a move");
                 action = DomainAction.NewMoveBuildingAction(aid, move);
                 target = move.Thing;
-                if (!arbiter.TryClaim([], "move-building:" + move.Thing))
+                if (!Claim(work, [], "move-building:" + move.Thing))
                 {
-                    return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "monument_install") }, true);
+                    return (Verdict.WaitFor(Cause.Claim, "monument_install"), true);
                 }
 
                 break;
             case "haul":
-                return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_monument_delivery",
-                    "Monument delivery requires exact destination, quantity and shared worker alternatives.") }, true);
+                return (Verdict.AwaitingPlan("unsupported_forecast_monument_delivery",
+                    "Monument delivery requires exact destination, quantity and shared worker alternatives."), true);
             case "build":
             {
                 var build = choice.Build ?? throw new ControlException("admitMonument: build choice without a building");
@@ -78,45 +79,32 @@ public sealed partial class RoundsPopulationJoinerPlanner
         }
 
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-        var prefix = $"monument-{choice.Quest}-{choice.Kind}-{target}-";
-        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
+        var method = new MethodId($"monument-{choice.Quest}-{choice.Kind}-{target}");
+        if (choice.Kind != "build")
+        {
+            return (Commit(work, method, plan, started, "admitMonument", call), true);
+        }
+
+        var (refused, admitted) = AdmitMethod(work, method, call);
         if (!admitted)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
+            return (refused, true);
         }
 
-        reviewer.Player.Current(call, epoch);
-        var elapsed = reviewer.Clock.Now() - started;
-        if (reviewer.Player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
+        Fence(work, started, "admitMonument", call);
+        var built = preview ?? throw new ControlException("admitMonument: build without a preview");
+        var decision = await AdmissionLog.AdmitMethodAsync(reviewer.Player.Journal, new BuildingMethodRequest
         {
-            throw new ControlException("admitMonument: session state changed or the read took too long");
-        }
-
-        if (choice.Kind == "build")
-        {
-            var built = preview ?? throw new ControlException("admitMonument: build without a preview");
-            var decision = await AdmissionLog.AdmitMethodAsync(reviewer.Player.Journal, new BuildingMethodRequest
-            {
-                Owner = goal,
-                Method = method,
-                Plan = plan,
-                Current = snapshot,
-                Tick = read.Projection.Identity.Tick,
-                Bounds = Known(read.Projection.Bounds),
-                Stock = built.Stock,
-                Previews = [built.Preview],
-                Purpose = Purpose.Rounds,
-            }, call).ConfigureAwait(false);
-            if (!decision.Admitted)
-            {
-                return (new RoundsPopulationJoinerResult { Verdict = AdmissionLog.AdmissionRefused(decision) }, true);
-            }
-        }
-        else
-        {
-            reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-        }
-
-        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
+            Owner = work.Owner,
+            Method = method,
+            Plan = plan,
+            Current = snapshot,
+            Tick = read.Projection.Identity.Tick,
+            Bounds = Known(read.Projection.Bounds),
+            Stock = built.Stock,
+            Previews = [built.Preview],
+            Purpose = Purpose.Rounds,
+        }, call).ConfigureAwait(false);
+        return (decision.Admitted ? BuildingRuntimePackage.BuildingReasonAdmitted : AdmissionLog.AdmissionRefused(decision), true);
     }
 }

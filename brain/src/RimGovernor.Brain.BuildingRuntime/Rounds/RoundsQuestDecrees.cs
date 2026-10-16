@@ -1,10 +1,11 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed partial class RoundsPopulationJoinerPlanner
+public sealed partial class JoinersRounds
 {
     /// <summary>Works a royal decree quest: plant a harvest field or hunt animals; not handled when no decree is owed.</summary>
-    internal async Task<(RoundsPopulationJoinerResult Result, bool Handled)> AdmitDecreeAsync(ControlState state, StandardState goal, Rounds review, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal async Task<(Verdict Verdict, bool Handled)> AdmitDecreeAsync(NeedWork work, Rounds review, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
+        var state = work.State;
         var f = read.Projection.Facts;
         if (!f.QuestOffers.TryGetValue(out var known))
         {
@@ -140,7 +141,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
 
             if (reason == "existing_work")
             {
-                return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, true);
+                return (BuildingRuntimePackage.BuildingReasonExistingWork, true);
             }
 
             if (reason != "")
@@ -154,11 +155,11 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 continue;
             }
 
-            var prefix = $"decree-{offer.Quest}-{(int)objective.Kind}-{remaining}-";
-            var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
+            var method = new MethodId($"decree-{offer.Quest}-{(int)objective.Kind}-{remaining}");
+            var (refused, admitted) = AdmitMethod(work, method, call);
             if (!admitted)
             {
-                return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
+                return (refused, true);
             }
 
             var claims = new List<string>();
@@ -175,49 +176,36 @@ public sealed partial class RoundsPopulationJoinerPlanner
                 }
             }
 
-            if (!arbiter.TryClaim([], [.. claims]))
+            if (!Claim(work, [], [.. claims]))
             {
-                return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "decree_work") }, true);
+                return (Verdict.WaitFor(Cause.Claim, "decree_work"), true);
             }
 
             var plan = new PlanSpec(id, new PlanRevision(1), actions);
-            reviewer.Player.Current(call, epoch);
-            var elapsed = reviewer.Clock.Now() - started;
-            if (reviewer.Player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
+            Fence(work, started, "admitDecree", call);
+            if (previews.Count == 0)
             {
-                throw new ControlException("admitDecree: session state changed or the read took too long");
+                return (RoundsBuildingPlanner.OwnerCommitVerdict(reviewer.Player.Journal.CommitOwnerWork(work.Owner, method, "", plan, call)), true);
             }
 
-            if (previews.Count > 0)
+            var decision = await AdmissionLog.AdmitMethodAsync(reviewer.Player.Journal, new BuildingMethodRequest
             {
-                var decision = await AdmissionLog.AdmitMethodAsync(reviewer.Player.Journal, new BuildingMethodRequest
-                {
-                    Owner = goal,
-                    Method = method,
-                    Plan = plan,
-                    Current = snapshot,
-                    Tick = read.Projection.Identity.Tick,
-                    Bounds = Known(read.Projection.Bounds),
-                    Stock = new StockObservation { Snapshot = snapshot, Tick = read.Projection.Identity.Tick },
-                    Previews = previews,
-                    Purpose = Purpose.Rounds,
-                }, call).ConfigureAwait(false);
-                if (!decision.Admitted)
-                {
-                    return (new RoundsPopulationJoinerResult { Verdict = AdmissionLog.AdmissionRefused(decision) }, true);
-                }
-            }
-            else
-            {
-                reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-            }
-
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
+                Owner = work.Owner,
+                Method = method,
+                Plan = plan,
+                Current = snapshot,
+                Tick = read.Projection.Identity.Tick,
+                Bounds = Known(read.Projection.Bounds),
+                Stock = new StockObservation { Snapshot = snapshot, Tick = read.Projection.Identity.Tick },
+                Previews = previews,
+                Purpose = Purpose.Rounds,
+            }, call).ConfigureAwait(false);
+            return (decision.Admitted ? BuildingRuntimePackage.BuildingReasonAdmitted : AdmissionLog.AdmissionRefused(decision), true);
         }
 
         if (lending)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, true);
+            return (BuildingRuntimePackage.BuildingReasonExistingWork, true);
         }
 
         return (default, false);

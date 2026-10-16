@@ -1,18 +1,18 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-public sealed partial class RoundsPopulationJoinerPlanner
+public sealed partial class JoinersRounds
 {
-    /// <summary>Sends a caravan to a quest site, or brings a stopped one home; the result carries wait ticks even when not handled.</summary>
-    internal (RoundsPopulationJoinerResult Result, bool Handled) AdmitExpedition(ControlState state, StandardState goal, RoundsReading read, StepArbiter arbiter, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    /// <summary>Sends a caravan to a quest site, or brings a stopped one home; a wait is not handled.</summary>
+    internal (Verdict Verdict, bool Handled) AdmitExpedition(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
-        var work = PolicyFunctions.SelectExpedition(read.Projection.Facts, reviewer.Policy);
-        var tripsKnown = read.Projection.Facts.QuestExpeditionTrips.TryGetValue(out var trips);
-        var sitesKnown = read.Projection.Facts.QuestSites.TryGetValue(out var sites);
-        if (tripsKnown && sitesKnown)
+        var facts = read.Projection.Facts;
+        var expedition = PolicyFunctions.SelectExpedition(facts, reviewer.Policy);
+        if (facts.QuestExpeditionTrips.TryGetValue(out var trips) && facts.QuestSites.TryGetValue(out var sites))
         {
-            foreach (var method0 in goal.History)
+            // A caravan this Need sent that stopped short of its site comes home.
+            foreach (var sent in reviewer.Player.Journal.OwnerMethodHistory(work.Owner, call))
             {
-                var previous = reviewer.Player.Journal.LoadPlan(method0.Plan, call);
+                var previous = reviewer.Player.Journal.LoadPlan(sent.Plan, call);
                 foreach (var action0 in previous.Spec.Actions)
                 {
                     if (action0.CaravanDeparture is not { } departed)
@@ -20,7 +20,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                         continue;
                     }
 
-                    foreach (var site in sites!)
+                    foreach (var site in sites)
                     {
                         if (!site.Tile.TryGetValue(out var tile) || tile != departed.DestinationTile || site.QuestIds.Count == 0)
                         {
@@ -28,7 +28,7 @@ public sealed partial class RoundsPopulationJoinerPlanner
                         }
 
                         var crew = departed.Crew.ToPolicyIds();
-                        foreach (var (pawn, quest) in PolicyFunctions.QuestRefugeeIds(read.Projection.Facts.QuestOffers))
+                        foreach (var (pawn, quest) in PolicyFunctions.QuestRefugeeIds(facts.QuestOffers))
                         {
                             if (site.QuestIds.Contains(quest))
                             {
@@ -36,12 +36,12 @@ public sealed partial class RoundsPopulationJoinerPlanner
                             }
                         }
 
-                        foreach (var trip in trips!)
+                        foreach (var trip in trips)
                         {
                             var home = PolicyFunctions.PlanStoppedExpeditionReturn(trip, crew);
                             if (home is not null)
                             {
-                                work = new ExpeditionPlan { Quest = site.QuestIds[0], Site = site.Id, Departure = home };
+                                expedition = new ExpeditionPlan { Quest = site.QuestIds[0], Site = site.Id, Departure = home };
                                 break;
                             }
                         }
@@ -50,47 +50,35 @@ public sealed partial class RoundsPopulationJoinerPlanner
             }
         }
 
-        if (work.Quest.IsEmpty)
+        if (expedition.Quest.IsEmpty)
         {
             return (default, false);
         }
 
-        if (!work.Reason.IsNone)
+        if (!expedition.Reason.IsNone)
         {
-            reviewer.LogQuestSkip(new QuestSkip(work.Quest, "", work.Reason, ""), call);
+            reviewer.LogQuestSkip(new QuestSkip(expedition.Quest, "", expedition.Reason, ""), call);
         }
 
-        if (work.Departure is null)
+        if (expedition.Departure is null)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork }, false);
+            return (BuildingRuntimePackage.BuildingReasonExistingWork, false);
         }
 
-        if (work.Departure.Mode == CaravanDepartureMode.Formation)
-            return (new RoundsPopulationJoinerResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
-                "Caravan packing and departure require shared forecast labor admission.") }, true);
-        if (!arbiter.TryClaim(work.Departure.Crew.ToPolicyIds(), $"quest:{work.Quest}"))
+        if (expedition.Departure.Mode == CaravanDepartureMode.Formation)
         {
-            return (new RoundsPopulationJoinerResult { Verdict = Verdict.WaitFor(Cause.Claim, "quest_expedition") }, true);
+            return (Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
+                "Caravan packing and departure require shared forecast labor admission."), true);
+        }
+
+        if (!Claim(work, expedition.Departure.Crew.ToPolicyIds(), $"quest:{expedition.Quest}"))
+        {
+            return (Verdict.WaitFor(Cause.Claim, "quest_expedition"), true);
         }
 
         var id = PlanIds.MintPlanId();
-        var action = DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-0"), work.Departure);
-        var plan = new PlanSpec(id, new PlanRevision(1), [action]);
-        var prefix = $"quest-expedition-{work.Quest}-{work.Site}-";
-        var (method, verdict, admitted) = BuildingRuntimePackage.AdmitStandardMethod(reviewer.Player.Journal, goal, prefix, state.Snapshot, call);
-        if (!admitted)
-        {
-            return (new RoundsPopulationJoinerResult { Verdict = verdict }, true);
-        }
-
-        reviewer.Player.Current(call, epoch);
-        var elapsed = reviewer.Clock.Now() - started;
-        if (reviewer.Player.Session.State() != state || elapsed < TimeSpan.Zero || elapsed > reviewer.MaxAge)
-        {
-            throw new ControlException("admitExpedition: session state changed or the read took too long");
-        }
-
-        reviewer.Player.Journal.CommitMethod(goal.Standard.Id, goal.Revision, method, plan, call);
-        return (new RoundsPopulationJoinerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id }, true);
+        var plan = new PlanSpec(id, new PlanRevision(1), [DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-0"), expedition.Departure)]);
+        var method = new MethodId($"quest-expedition-{expedition.Quest}-{expedition.Site}");
+        return (Commit(work, method, plan, started, "admitExpedition", call), true);
     }
 }

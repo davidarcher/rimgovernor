@@ -70,8 +70,8 @@ rescue or capture is the `prisoners/custody` Need; both remain held (see
 ## Joiners
 
 The `population-joiner` routine family (on in the autonomous default; selected by
-`RIMGOVERNOR_ROUTINE_FAMILIES` like every family) lets the same concern answer joiner quests from
-population capacity. The shared gate: living admitted colonists plus guests and prisoners are below
+`RIMGOVERNOR_ROUTINE_FAMILIES` like every family) runs the `joiners` family (#3302), whose
+`joiners/offers` and `joiners/letters` Needs answer joiner quests and letters from population capacity. The shared gate: living admitted colonists plus guests and prisoners are below
 the population target, the food runway is at or above the food floor, and an unowned humanlike,
 non-medical, non-prisoner bed reads back. Without known capacity or room the offer is left to expire
 through its own native timeout; nothing is rejected natively. Expired, changed and unsupported offers
