@@ -83,7 +83,7 @@ and [persistence](developers/contracts/persistence-contracts.md) define its cons
 
 - [Native skill learning and decay](developers/contracts/skill-learning.md): recipe/range/sparring learning paths, native decay and conditional capability projection.
 
-- [Hunting prediction qualification](developers/testing/hunting-prediction-qualification.md): independent native CombatLab trials, frozen calibration/held-out protocol and scoring.
+- [Hunting prediction qualification](developers/testing/hunting-prediction-qualification.md): independent native CombatLab trials, the 15-cell hunter-set grid, ranking and harm calibration scoring.
 - [Assigned capability maintenance](developers/contracts/capability-maintenance.md): actual role requirements, native skill decay and selected practice.
 
 Food/shelter investment and unified construction adoption: [essential-service contract](developers/contracts/essential-services.md#autonomous-food-and-shelter-investment).

@@ -39,19 +39,21 @@ public static partial class SweepCommand
         if (args.Length != 2)
         { stderr.WriteLine("usage: acceptance sweep -hunting-report <retained-output-directory> <report.json>"); return 2; }
         var trials = new List<HuntingTrial>();
+        var predictions = new List<HuntingCellPrediction>();
         var missing = new List<string>();
         foreach (var file in Directory.EnumerateFiles(Path.GetFullPath(args[0]), "result.json", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
         {
             var data = JsonNode.Parse(File.ReadAllText(file))?.AsObject();
             if (data?["hunting_trial"] is { } trial) trials.Add(trial.Deserialize<HuntingTrial>(HuntingJson) ?? throw new InvalidDataException(file));
-            else if (file.Contains("hunting-prediction-", StringComparison.Ordinal)) missing.Add(file);
+            else if (data?["hunting_cell_prediction"] is { } cell) predictions.Add(cell.Deserialize<HuntingCellPrediction>(HuntingJson) ?? throw new InvalidDataException(file));
+            else if (file.Contains("hunting-grid-", StringComparison.Ordinal)) missing.Add(file);
         }
-        var score = HuntingQualification.Score(trials);
+        var score = HuntingQualification.Score(predictions, trials);
         if (missing.Count != 0) score = score with { Failures = [.. score.Failures, "missing_trial_artifacts:" + missing.Count] };
-        var report = new { score, missingTrials = missing, trials, qualificationAccepted = false,
+        var report = new { score, missingTrials = missing, predictions, trials, qualificationAccepted = false,
             review = "Accuracy alone does not pass runtime, reconstruction or scope review. No provider self-certification." };
         File.WriteAllText(Path.GetFullPath(args[1]), JsonSerializer.Serialize(report, HuntingJson));
-        stdout.WriteLine($"hunting trials={score.Trials}, applicable={score.Applicable}, safe={score.SafePredictions}, false-safe={score.FalseSafe}; accuracy={score.AccuracyPassed}");
+        stdout.WriteLine($"hunting trials={score.Trials}, cells={score.Cells.Count}, safe={score.SafeObservations}, false-safe={score.FalseSafe}, inversions={score.RankingInversions}; accuracy={score.AccuracyPassed}");
         return score.AccuracyPassed ? 0 : 1;
     }
 }

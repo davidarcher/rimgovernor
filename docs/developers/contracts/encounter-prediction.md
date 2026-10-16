@@ -76,8 +76,8 @@ exercise the independent consumer contract, but does not qualify the real engine
 
 The predeclared research gates remain: zero reconstruction defaults/mismatches;
 15-second cold start, 1-second warm request, 2-second cancellation/cleanup;
-median duration error at most 20%; at least 90% coverage for declared 90% intervals;
-correct ranking where observed intervals separate; zero observed false-safe cases,
+per-cell severe-harm and prey-downed calibration within 0.2, native median duration within the predictor interquartile range widened by 2;
+correct hunter-set ranking where observed harm rates separate; zero observed false-safe cases,
 with a one-sided 95% upper frequency bound at most 1%. Missed serious injury/death
 or contribution after departure fails the case. These are research proposals,
 **not colony risk weights or a safety policy**. One seed cannot establish these
@@ -97,7 +97,7 @@ and retained bundle/report lifecycle. Before a broader run, freeze the supported
 scenario class, prediction interval construction, serious-harm/false-safe event
 classification, held-out split and seed schedule. Retain rejected and unresolved
 scenarios as well as successful predictions so abstention cannot masquerade as
-accuracy. The worker exports samples; the [CombatLab qualification protocol](../testing/hunting-prediction-qualification.md) supplies independent native comparisons and split-conformal duration scoring. Collection and acceptance remain outstanding.
+accuracy. The worker exports samples; the [CombatLab qualification protocol](../testing/hunting-prediction-qualification.md) supplies independent native comparisons and hunter-set ranking, harm calibration and false-safe scoring (`hunt-native-v2`). Collection and acceptance remain outstanding.
 
 The required evidence is:
 

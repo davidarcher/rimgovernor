@@ -138,7 +138,7 @@ public static partial class SweepCommand
         var selected = new List<AcceptanceCase>();
         foreach (var f in opts.Fixtures)
         {
-            var c = registry.Lookup(f.StartsWith("hunting-prediction-", StringComparison.Ordinal) ? "combatlab/" + f : CasePrefix + f);
+            var c = registry.Lookup(f.StartsWith("hunting-grid-", StringComparison.Ordinal) ? "combatlab/" + f : CasePrefix + f);
             if (c is null)
             {
                 await stderr.WriteLineAsync($"unknown fixture \"{f}\" (no case {CasePrefix}{f})").ConfigureAwait(false);
@@ -180,7 +180,7 @@ public static partial class SweepCommand
         {
             foreach (var c in selected)
             {
-                if (c.Name.StartsWith("combatlab/hunting-prediction-", StringComparison.Ordinal))
+                if (c.Name.StartsWith("combatlab/hunting-grid-", StringComparison.Ordinal))
                 {
                     var huntingExit = await SweepHuntingAsync(c, opts, load, roots, stdout, stderr, cancellationToken).ConfigureAwait(false);
                     exit = Math.Max(exit, huntingExit);
