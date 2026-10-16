@@ -4,7 +4,7 @@ using System.Text;
 namespace RimGovernor.Brain.Policy;
 
 // MaintainRefrigeration makes the rooms that hold warm, soon-to-rot perishable food cold, where
-// MaintainFoodStorage moves such food into better storage. Both read the same FoodStorageObservation: a stock
+// the food-stores/storage Need moves such food into better storage. Both read the same FoodStorageObservation: a stock
 // is "warm at risk" when it is roofed (so a stockpile exists to cool), perishable, warmer than ChilledMaxC and
 // closer than SafeRotDays to rotting. The review latches on warm at-risk nutrition and releases once every
 // such room is measured at or below ChilledExitC (or the food is gone); the method then reuses an existing

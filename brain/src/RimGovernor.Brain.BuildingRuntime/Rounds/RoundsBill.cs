@@ -33,7 +33,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
         }
         else if (purpose == PolicyConstants.PreserveFood)
         {
-            need = PolicyApi.MaintainFoodStorage;
+            need = PolicyApi.FoodStorageNeed.FilingKey;
         }
         else if (purpose == PolicyConstants.CookAheadFood)
         {
@@ -102,7 +102,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
                 }
                 continue;
             }
-            if (_purpose != PolicyConstants.CookFood && StorePackage.PlanOpen(plan))
+            if (_purpose == PolicyConstants.CookAheadFood && StorePackage.PlanOpen(plan))
             {
                 return true;
             }
@@ -113,7 +113,10 @@ public sealed class RoundsBillPlanner : IPurposeReporter
     internal PurposeReport FoodReport(FoodOrderRequest request, ColonyProjection projection)
     {
         var order = PolicyApi.SelectFoodOrder(request);
-        var report = new PurposeReport { OpenWork = OpenWork };
+        // The preservation bills serve the food-stores/storage Need: its standing, not an owner's open work, gates the report.
+        var report = _purpose == PolicyConstants.PreserveFood
+            ? new PurposeReport { Need = PolicyApi.FoodStorageNeedOf(FoodStoresFacts.From(projection.Facts), _reviewer.Policy.FoodStorage) }
+            : new PurposeReport { OpenWork = OpenWork };
         switch (order.Gap)
         {
             case FoodOrderGap.Plan:

@@ -9,7 +9,7 @@ public static class OperationIntent
     private static readonly Dictionary<ConcernId, string> ConcernLabels = new()
     {
         [EnsureFoodSupply] = "Food supply",
-        [MaintainFoodStorage] = "Food storage",
+        [FoodStorageNeed.FilingKey] = "Food storage",
         [MaintainResource] = "Resource",
         [MaintainTrade] = "Export goods",
         [MaintainFlooring] = "Flooring",

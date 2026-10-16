@@ -39,7 +39,7 @@
 | Adequately stored (food) | A perishable stock observed sitting in a covered stockpile or an enclosed/cold room, as opposed to exposed to ordinary ambient rot. |
 | Store | A zone a department declares (`policy.Store`: role, planned room, filter, priority, further room): one clean zone over its whole room, sized once, deleted only when its purpose is gone. Applied by `MaintainStockpiles`; see [storage](architecture/storage.md). |
 | Warehouse / yard | The Storage department's two stores: one Low-priority zone over a planned storage room (`indoor_only` filter, no burnable) and one over a planned yard Outdoor room (`outdoor_safe_waste` filter: the items safe outside plus rotten things and waste). |
-| Spoilage buffer | The margin `MaintainFoodStorage` tries to keep positive: perishable nutrition already stored, above the configured minimum share of total perishable nutrition on hand. |
+| Spoilage buffer | The margin the `food-stores/storage` Need keeps: perishable nutrition already stored, at or above the target share (default 9/10) of total at-risk perishable nutrition on hand. |
 | Room / PlannedRoom | A Room is the game's own census room (`Room`, `RoomObservation`). A PlannedRoom is one room of the layout plan (`LayoutPlan.Rooms`), carrying a `PlannedRole`: the plan's intent, never an observation. |
 | Reconciler | The per-cell diff of a PlannedRoom's wanted ring, floor and furniture against the ground (`policy.Reconcile`, `ReconcileRoom`). Furniture off its slot is packed and the slot filled from packed stock or built on site; standing rooms are reconciled too. There is no separate tidy pass. |
 

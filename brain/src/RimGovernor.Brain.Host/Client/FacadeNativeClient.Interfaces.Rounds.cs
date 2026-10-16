@@ -34,9 +34,6 @@ internal sealed partial class FacadeNativeClient
     Task<(IReadOnlyList<GearBenchRead> Reads, BridgeResult Result)> IArtBenchSource.ReadGearBenchesAsync(C.Identity identity, CancellationToken ct) =>
         GearBenchesAsync(identity, ct);
 
-    Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> IRoundsFoodStorageUpkeepSource.ReadGearBenchesAsync(C.Identity identity, CancellationToken ct) =>
-        GearBenchesAsync(identity, ct);
-
     Task<(IReadOnlyList<GearBenchRead> Benches, BridgeResult Result)> IRoundsGearSource.ReadGearBenchesAsync(C.Identity identity, CancellationToken ct) =>
         GearBenchesAsync(identity, ct);
 
@@ -177,7 +174,7 @@ internal sealed partial class FacadeNativeClient
 
     // ---- Resources and supplies -----------------------------------------------------------------------------
 
-    Task<(IReadOnlyList<Policy.ResourceSource> Rows, Policy.ResourceStorage Storage, BridgeResult Result)> IRoundsFoodStorageUpkeepSource.ReadResourceSourcesAsync(C.Identity identity, string definition, CancellationToken ct) =>
+    Task<(IReadOnlyList<Policy.ResourceSource> Rows, Policy.ResourceStorage Storage, BridgeResult Result)> IRoundsFoodStoresSource.ReadResourceSourcesAsync(C.Identity identity, string definition, CancellationToken ct) =>
         ReadResourceSourcesAsync(identity, definition, ct);
 
     Task<(IReadOnlyList<Policy.ResourceSource> Sources, Policy.ResourceStorage Storage, BridgeResult Result)> IRoundsResourceSource.ReadResourceSourcesAsync(C.Identity identity, string resource, CancellationToken ct) =>

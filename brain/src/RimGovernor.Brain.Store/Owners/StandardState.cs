@@ -473,7 +473,6 @@ public sealed partial class Store
         || GrowerCropOpenWorkExempt(plan)
         || MealReplacementOpenWorkExempt(state, plan)
         || FoodFacilityOpenWorkExempt(tx, state, method, plan)
-        || ReserveAccessOpenWorkExempt(tx, state, plan)
         || GearOpenWorkExempt(tx, state, plan)
         || CraftingSpotOpenWorkExempt(tx, state, plan)
         || ShelterOpenWorkExempt(tx, state, method, plan)

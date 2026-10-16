@@ -413,11 +413,13 @@ census fields are removed.
 
 ### Food storage and refrigeration
 
-`MaintainFoodStorage` tracks perishable, not-yet-rotted nutrition split into stored
-(adequately covered or enclosed/cold) and not. It starts when unstored nutrition exceeds
-five units and the stored share of perishable nutrition is under the minimum fraction
-(default 1/2), and clears only past the target fraction (default 9/10). Non-perishable
-and rotted stock never counts.
+The `food-stores/storage` Need (#3251, formerly `MaintainFoodStorage`) tracks perishable,
+not-yet-rotted nutrition split into stored (adequately covered or enclosed/cold) and not.
+It is unmet while unstored nutrition exceeds five units and the stored share of
+perishable nutrition is under the target fraction (default 9/10), with no hysteresis,
+and unknown while the census is unread. Non-perishable and rotted stock never counts.
+Pending reserve access, a short reserve, a missing food stockpile and a due larder
+change also leave it unmet.
 
 - Preferred method: relocate at-risk stock into an existing covered/enclosed site with
   observed spare capacity (deterministic choice); only when every known site is unusable
@@ -635,7 +637,7 @@ threshold on its own.
 
 ## Corpse larder
 
-`MaintainFoodStorage` also reviews fresh animal corpses when ordinary storage has no
+The `food-stores/storage` Need also reviews fresh animal corpses when ordinary storage has no
 deficit. The journal admits only the corpse and
 forbid/allow direction the review selects. It releases forbidden corpses outside
 refrigeration, then hauls eligible loose corpses into native-selected frozen storage. With

@@ -635,8 +635,6 @@ public sealed record RoundsLatches
 
     public bool MedicalReserve { get; set; }
 
-    public bool FoodStorage { get; set; }
-
     public bool Refrigeration { get; set; }
 
     /// <summary>
@@ -748,7 +746,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
     public static readonly ConcernId EnsureBasicDefense = new("EnsureBasicDefense");
     public static readonly ConcernId MaintainMedicalReserves = new("MaintainMedicalReserves");
-    public static readonly ConcernId MaintainFoodStorage = new("MaintainFoodStorage");
     public static readonly ConcernId MaintainRefrigeration = new("MaintainRefrigeration");
     public static readonly ConcernId EnsureComfort = new("EnsureComfort");
     public static readonly ConcernId ClearPests = new("ClearPests");
@@ -957,7 +954,6 @@ public static partial class PolicyFunctions
         };
         var medicineFacts = f.MedicalReserve with { Colonists = f.Colonists };
         c.Medicine = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve);
-        c.FoodStorage = ReviewFoodStorage(f.FoodStorageUpkeep, previous.FoodStorage, p.FoodStorage);
         c.Refrigeration = ReviewRefrigeration(f.FoodStorageUpkeep, previous.Refrigeration, p.FoodStorage);
         c.Refrigeration = c.Refrigeration.WithWarmRooms(f.WarmRooms);
         c.Upkeep = ReviewUpkeep(f.Upkeep, previous.Upkeep, f.UpkeepIssued);
@@ -1013,7 +1009,6 @@ public static partial class PolicyFunctions
             Sleeping = c.SleepingActive,
             Animals = c.Animals.History,
             MedicalReserve = c.Medicine.Active,
-            FoodStorage = c.FoodStorage.Active,
             Refrigeration = c.Refrigeration.Active,
             Lighting = EquatableArray.From(c.Lighting.Dark),
             Flooring = EquatableArray.From(c.Flooring.Latched),

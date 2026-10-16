@@ -117,7 +117,6 @@ internal static class ClockPlannerCatalog
     // The ritual plan reads the ideoligion, the building sites, the colonists and the emergency census.
     private static readonly FactSection[] SectionsRituals = [FactSection.Colony, FactSection.Pawns, FactSection.Emergency, FactSection.Buildings, FactSection.Ideology];
     private static readonly FactSection[] SectionsBills = [FactSection.Colony, FactSection.Bills];
-    private static readonly FactSection[] SectionsZones = [FactSection.Colony, FactSection.Zones];
     private static readonly FactSection[] SectionsPawns = [FactSection.Pawns];
     private static readonly FactSection[] SectionsMedical = [FactSection.Pawns, FactSection.Colony];
     private static readonly FactSection[] SectionsThreat = [FactSection.Pawns, FactSection.Emergency];
@@ -263,8 +262,6 @@ internal static class ClockPlannerCatalog
             c => c.MoodRelief is not null, (s, ct, e, a) => s.Config.MoodRelief!.StepAsync(a, ct, e), (o, m) => o.MoodRelief = m),
         E("gear", O, [ActionKind.GearReplace, ActionKind.ApparelPolicy, ActionKind.PolicyPrune], SectionsMedical,
             c => c.Gear is not null, (s, ct, e, a) => s.Config.Gear!.StepAsync(a, ct, e), (o, m) => o.Gear = m, MaintainEquipment),
-        E("foodStorageUpkeep", O, [ActionKind.Haul, ActionKind.SupplyAllow, ActionKind.SupplyForbid], SectionsZones,
-            c => c.FoodStorageUpkeep is not null, (s, ct, e, a) => s.Config.FoodStorageUpkeep!.StepAsync(a, ct, e), (o, m) => o.FoodStorageUpkeep = m, MaintainFoodStorage),
         E("animalContainment", O, [ActionKind.Building], SectionsBuilding,
             c => c.AnimalContainment is not null, (s, ct, e, a) => s.Config.AnimalContainment!.StepAsync(a, ct, e), (o, m) => o.AnimalContainment = m, MaintainAnimalContainment),
         E("recovery", C, [ActionKind.RecoveryService, ActionKind.WorkAssignment, ActionKind.Husbandry], SectionsRecovery,

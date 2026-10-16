@@ -21,7 +21,8 @@ public static partial class PolicyFunctions
     /// <item>dressing (apparel policy, gear replacement, equip): <c>gear/&lt;pawn&gt;</c> and the item;</item>
     /// <item>work assignments and pawn settings: <c>settings/&lt;pawn&gt;</c>;</item>
     /// <item>deconstruction and uninstalling: the cell and the thing;</item>
-    /// <item>assignments (a bed, a throne), bed use and building claims: the thing.</item>
+    /// <item>assignments (a bed, a throne), bed use and building claims: the thing;</item>
+    /// <item>supply allow and forbid: the stack.</item>
     /// </list>
     /// Any other kind claims nothing beyond its MethodId.
     /// </summary>
@@ -107,5 +108,6 @@ public static partial class PolicyFunctions
         else if (a.Assign is { } assign) yield return assign.Thing;
         else if (a.BedUse is { } bed) yield return bed.Thing;
         else if (a.ClaimBuilding is { } claimed) yield return claimed.Thing;
+        else if (a.SupplyAllow is { } supply) yield return supply.Thing;
     }
 }

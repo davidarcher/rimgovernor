@@ -13,6 +13,9 @@ internal readonly record struct PurposeReport
     public Verdict Order { get; init; }
 
     public Func<StoreJournal, StandardState, CancellationToken, bool>? OpenWork { get; init; }
+
+    /// <summary>The Need a Need-keyed purpose serves, derived from the declaring projection; null when it could not be.</summary>
+    public Need? Need { get; init; }
 }
 
 internal interface IPurposeReporter : IOrderDeclarer
@@ -347,6 +350,19 @@ public sealed class RoundsLedgerPlanner
 
     private Verdict PurposeVerdict(Rounds review, LedgerPurpose purpose, CancellationToken call)
     {
+        // A purpose keyed by a NeedId reads its Need's standing: met is nothing to do, unknown is unmeasured, and
+        // unmet is the order's own verdict. Its bills share the ledger, so no owner's open work gates it.
+        if (new NeedId(purpose.Need.Value).IsValid)
+        {
+            return purpose.Report.Need?.Satisfaction switch
+            {
+                Satisfaction.Met => BuildingRuntimePackage.BuildingReasonNoDeficit,
+                Satisfaction.Unmet => purpose.Report.Order,
+                Satisfaction.Unknown => Verdict.FieldUnavailable(purpose.Need.Value),
+                _ => purpose.Report.Order,
+            };
+        }
+
         var journal = reviewer.Player.Journal;
         StandardState? owner;
         bool workable;

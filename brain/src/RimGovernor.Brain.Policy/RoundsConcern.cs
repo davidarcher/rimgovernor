@@ -95,23 +95,6 @@ public static partial class PolicyFunctions
             }
             return Known(1.0);
         }
-        else if (id == MaintainFoodStorage)
-        {
-            // Pending reserve access is observed as a full deficit.
-            if (!f.FoodReserve.TryGetValue(out var reserve))
-            {
-                return Unknown<double>();
-            }
-            if (reserve.Hold.Count > 0 || reserve.Release.Count > 0)
-            {
-                return Known(1.0);
-            }
-            if (reserve.TargetNutrition <= 0)
-            {
-                return Known(0.0);
-            }
-            return Known(Math.Min(1.0, Math.Max(0.0, reserve.DeficitNutrition / reserve.TargetNutrition)));
-        }
         else if (id == MaintainMedicalReserves)
         {
             // The reserve review supplies the measured stock and target.

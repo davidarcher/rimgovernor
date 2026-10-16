@@ -48,16 +48,8 @@ public sealed partial class Store
         {
             deficits[g.Id] = g.Deficit;
         }
-        var storageOpen = false;
-        for (var i = 0; i < needs.Assessments.Count; i++)
-        {
-            if (needs.Assessments[i].Id != PolicyFunctions.MaintainFoodStorage || !states[i].OwnerActive)
-            {
-                continue;
-            }
-            var open = StandardOpenWork(tx, states[i]);
-            storageOpen = storageOpen || open;
-        }
+        // The food ladder's store rung waits on the food-stores/storage Need while that Need has open work.
+        var storageOpen = StandardOpenWork(tx, LoadNeedIn(tx, PolicyFunctions.FoodStorageNeed, request.Current));
         var output = new List<ConcernProgress>();
         for (var i = 0; i < needs.Assessments.Count; i++)
         {

@@ -11,7 +11,6 @@ public sealed partial class Store
         PolicyFunctions.ClearHomeObstructions,
         PolicyFunctions.MaintainEssentialRepairs,
         PolicyFunctions.MaintainMedicalReserves,
-        PolicyFunctions.MaintainFoodStorage,
         PolicyFunctions.MaintainAnimalContainment,
         PolicyFunctions.MaintainHousing,
         PolicyFunctions.MaintainHomeCoverage,

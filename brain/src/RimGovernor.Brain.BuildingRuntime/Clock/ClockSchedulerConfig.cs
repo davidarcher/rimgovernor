@@ -96,8 +96,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsSurgeryPlanner? Surgery { get; init; }
 
-    public RoundsFoodStorageUpkeepPlanner? FoodStorageUpkeep { get; init; }
-
     public RoundsAnimalContainmentPlanner? AnimalContainment { get; init; }
 
     public RoundsRecoveryPlanner? Recovery { get; init; }

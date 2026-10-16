@@ -399,7 +399,7 @@ public static partial class PolicyFunctions
     /// <summary>
     /// EnsureFoodSupply's rung order: acquire food, cook it, store it, grow it. Names the rung the gates leave
     /// owed, what advancing it looks like and the goal a rung waits on: cooking needs EnsureCooking's bench,
-    /// storing needs MaintainFoodStorage's zone. The cooking prerequisite is surfaced whenever the bench is
+    /// storing waits on the food-stores/storage Need (filed under its NeedId) while that Need has open work. The cooking prerequisite is surfaced whenever the bench is
     /// known missing, whichever rung is current, because the ladder cannot pass "cook" without it. An unknown
     /// gate is no evidence of a missing bench and blocks nothing. The observable is the food runway's shortfall
     /// against FoodTargetDays, so a day of food gained reads as progress whichever rung is current.
@@ -428,7 +428,7 @@ public static partial class PolicyFunctions
         }
         if (Owed(FoodStorageStanding(f)) && storageOpen)
         {
-            return (new ProgressContract { Method = "store", Expected = "raw food stored under a roof", Deadline = deadline }, MaintainFoodStorage, observed);
+            return (new ProgressContract { Method = "store", Expected = "raw food stored under a roof", Deadline = deadline }, FoodStorageNeed.FilingKey, observed);
         }
         return (new ProgressContract { Method = "grow", Expected = "growing zone planted to the field target", Deadline = deadline }, prerequisite, observed);
     }

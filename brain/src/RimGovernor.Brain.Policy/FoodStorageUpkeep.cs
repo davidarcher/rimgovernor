@@ -38,9 +38,8 @@ public sealed record FoodStorageStock(FoodStock Stock)
 }
 
 /// <summary>
-/// The complete per-cycle census MaintainFoodStorage reviews. An unknown Stocks fact preserves the latch, the
-/// same posture MedicalReserveObservation's Items/Resources facts take in ReviewMedicalReserve.
-/// (Go <c>FoodStorageObservation</c>.)
+/// The complete per-cycle census the food stores family's storage Need reviews. An unknown Stocks fact leaves the
+/// Need unknown, never met. (Go <c>FoodStorageObservation</c>.)
 /// </summary>
 public sealed record FoodStorageObservation
 {
@@ -75,15 +74,12 @@ public sealed record FoodStorageObservation
 }
 
 /// <summary>
-/// Names the hysteresis band ReviewFoodStorage applies to the fraction of at-risk perishable nutrition that must
-/// be adequately stored, the same MinimumPerColonist/TargetPerColonist shape MedicalReservePolicy uses, plus a
-/// floor below which a tiny at-risk amount never activates the deficit (avoiding thrash over a single dropped
-/// ration). (Go <c>FoodStoragePolicy</c>.)
+/// Names the fraction of at-risk perishable nutrition ReviewFoodStorage wants adequately stored (a plain
+/// threshold, #3251), plus a floor below which a tiny at-risk amount never counts as a deficit (avoiding thrash
+/// over a single dropped ration). (Go <c>FoodStoragePolicy</c>.)
 /// </summary>
 public sealed record FoodStoragePolicy
 {
-    public double MinimumStoredFraction { get; init; }
-
     public double TargetStoredFraction { get; init; }
 
     public double AtRiskNutritionThreshold { get; init; }
@@ -98,20 +94,23 @@ public sealed record FoodStoragePolicy
     public double FreezerTargetC { get; init; }
 
     internal bool Valid =>
-        PolicyFunctions.FoodNumber(MinimumStoredFraction) && PolicyFunctions.FoodNumber(TargetStoredFraction) && PolicyFunctions.FoodNumber(AtRiskNutritionThreshold)
+        PolicyFunctions.FoodNumber(TargetStoredFraction) && PolicyFunctions.FoodNumber(AtRiskNutritionThreshold)
         && PolicyFunctions.FoodNumber(SafeRotDays) && PolicyFunctions.Celsius(ChilledExitC) && PolicyFunctions.Celsius(FreezerTargetC)
         && FreezerTargetC <= ChilledExitC
-        && MinimumStoredFraction < TargetStoredFraction && TargetStoredFraction <= 1;
+        && TargetStoredFraction > 0 && TargetStoredFraction <= 1;
 }
 
 /// <summary>
-/// A latching deficit review, the same shape MedicalReserveReview uses: Active only flips off once storage
-/// recovers past the (higher) TargetStoredFraction, and an unavailable read preserves the prior Active value
-/// rather than guessing. (Go <c>FoodStorageReview</c>.)
+/// The storage review over what stands now, with no latch (#3251): Active while the stored share is under
+/// TargetStoredFraction or a larder corpse change is due; an unknown census leaves the nutrition facts unknown
+/// and Active false, which the Need reads as unknown. (Go <c>FoodStorageReview</c>.)
 /// </summary>
 public sealed record FoodStorageReview
 {
     public bool Active { get; init; }
+
+    /// <summary>Whether the larder has a corpse change due (part of Active).</summary>
+    public bool Larder { get; init; }
 
     public Fact<double> StoredNutrition { get; init; }
 
@@ -221,7 +220,6 @@ public static partial class PolicyFunctions
     public static FoodStoragePolicy DefaultFoodStoragePolicy() =>
         new()
         {
-            MinimumStoredFraction = 0.5,
             TargetStoredFraction = 0.9,
             AtRiskNutritionThreshold = 5,
             SafeRotDays = 5,
@@ -231,17 +229,15 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Go <c>ReviewFoodStorage</c>: tallies perishable, not-yet-rotted nutrition across every observed stock,
-    /// splitting it into stored and unstored piles. It goes active when the unstored pile clears
-    /// AtRiskNutritionThreshold and the stored share of total perishable nutrition falls under the current
-    /// threshold (entry MinimumStoredFraction, or the higher TargetStoredFraction once already active), and
-    /// clears once storage recovers past that same higher bar. Non-perishable and already-rotted stock never
-    /// contributes: it is not at risk of being lost to inadequate storage. An unknown fact anywhere in the census
-    /// preserves the latch untouched, matching ReviewMedicalReserve. Throws <see cref="DomainException"/> where
-    /// Go returned an error.
+    /// splitting it into stored and unstored piles. It is active while the unstored pile clears
+    /// AtRiskNutritionThreshold and the stored share of total perishable nutrition is under TargetStoredFraction,
+    /// with no latch (#3251). Non-perishable and already-rotted stock never contributes: it is not at risk of being
+    /// lost to inadequate storage. An unknown fact anywhere in the census leaves the review unmeasured (inactive,
+    /// nutrition unknown). Throws <see cref="DomainException"/> where Go returned an error.
     /// </summary>
-    public static FoodStorageReview ReviewFoodStorage(FoodStorageObservation v, bool active, FoodStoragePolicy p)
+    public static FoodStorageReview ReviewFoodStorage(FoodStorageObservation v, FoodStoragePolicy p)
     {
-        var r = new FoodStorageReview { Active = active };
+        var r = new FoodStorageReview();
         DomainException.Require(p.Valid, "invalid food storage facts or thresholds");
         try
         {
@@ -293,13 +289,11 @@ public static partial class PolicyFunctions
         {
             return r with { Active = false, Target = Known(0.0), Deficit = Known(0.0) };
         }
-        var fraction = active ? p.TargetStoredFraction : p.MinimumStoredFraction;
-        var threshold = fraction * total;
+        var threshold = p.TargetStoredFraction * total;
         var isActive = unstored >= p.AtRiskNutritionThreshold && stored < threshold;
         var deficit = isActive ? Math.Min(unstored, Math.Max(0, threshold - stored)) : 0.0;
-        r = r with { Active = isActive, Target = Known(threshold), Deficit = Known(deficit) };
-        var larder = SelectCorpseLarder(v);
-        return r with { Active = r.Active || larder.Kind != default };
+        var larder = SelectCorpseLarder(v).Kind.Length != 0;
+        return r with { Active = isActive || larder, Larder = larder, Target = Known(threshold), Deficit = Known(deficit) };
     }
 
     private static MethodId FoodStorageMethodId(string kind, string resource, long target)

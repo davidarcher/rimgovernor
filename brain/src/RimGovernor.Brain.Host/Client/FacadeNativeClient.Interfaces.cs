@@ -59,7 +59,7 @@ internal sealed partial class FacadeNativeClient :
     IRoundsFirebreakSource,
     IDefenseSiteReader,
     IFoodReserveSupplyReader,
-    IRoundsFoodStorageUpkeepSource,
+    IRoundsFoodStoresSource,
     IRoundsGearSource,
     IRoundsMedicalSource,
     IFrameThingsSource,

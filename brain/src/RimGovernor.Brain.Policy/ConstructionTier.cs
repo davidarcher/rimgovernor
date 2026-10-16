@@ -78,7 +78,7 @@ public static partial class PolicyFunctions
         }
         // EnsureFoodSupply builds only the butcher facility.
         if (concern == EnsureFoodSupply || concern == MaintainMedicalReserves || concern == MaintainRefrigeration
-            || concern == MaintainStockpiles || concern == MaintainFoodStorage)
+            || concern == MaintainStockpiles)
         {
             return ConstructionTier.Sustain;
         }

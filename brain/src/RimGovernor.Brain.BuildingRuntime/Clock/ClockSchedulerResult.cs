@@ -89,8 +89,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsSurgeryResult? Surgery { get; set; }
 
-    public RoundsFoodStorageUpkeepResult? FoodStorageUpkeep { get; set; }
-
     public RoundsAnimalContainmentResult? AnimalContainment { get; set; }
 
     public RoundsRecoveryResult? Recovery { get; set; }
@@ -211,7 +209,6 @@ public sealed class ClockSchedulerResult
         Gear = other.Gear ?? Gear;
         Medical = other.Medical ?? Medical;
         Surgery = other.Surgery ?? Surgery;
-        FoodStorageUpkeep = other.FoodStorageUpkeep ?? FoodStorageUpkeep;
         AnimalContainment = other.AnimalContainment ?? AnimalContainment;
         Recovery = other.Recovery ?? Recovery;
         Husbandry = other.Husbandry ?? Husbandry;

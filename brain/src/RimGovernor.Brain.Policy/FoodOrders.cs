@@ -339,7 +339,7 @@ public static partial class PolicyFunctions
         a.Order(StringComparer.Ordinal).SequenceEqual(b.Order(StringComparer.Ordinal), StringComparer.Ordinal);
 
     /// <summary>
-    /// Go <c>FoodStorageMealOrder</c>: MaintainFoodStorage's produce fallback as an order: the stock-target bill
+    /// Go <c>FoodStorageMealOrder</c>: the food-stores/storage Need's produce fallback as an order: the stock-target bill
     /// of the choice's resource on the first bench (by id) whose recipe makes it, chosen as if no bill stood.
     /// Unknown while the bench recipes are unread; Ok is false when no bench can make the resource.
     /// </summary>

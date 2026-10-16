@@ -13,7 +13,7 @@ operation is created by assessment.
 
 | Service | Authoritative evidence |
 | --- | --- |
-| Food acquisition and access | EnsureFoodSupply; FoodPlan shared allocation and replenishment gap; MaintainFoodStorage and MaintainRefrigeration |
+| Food acquisition and access | EnsureFoodSupply; FoodPlan shared allocation and replenishment gap; the food-stores/storage Need and MaintainRefrigeration |
 | Food preparation | EnsureCooking; native production recipe availability and cooking floor, enabled available workers, shared fixed-batch ingredient feasibility |
 | Medical care | CriticalMedicine, MaintainSurgery and MaintainMedicalReserves; served procedures use the surgery owner's failure cap, native per-doctor chances and ingredient availability |
 | Usable shelter and temperature | MaintainHousing, MaintainShelter and EnsureTemperatureSafety, including their observed recovery and latch predicates |

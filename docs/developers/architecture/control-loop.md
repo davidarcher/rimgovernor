@@ -146,7 +146,7 @@ haul and forage, area edits, apparel policy).
 | Claims overlap an open Method of any owner | Refused with `ClaimConflict`, naming the holding Method and the overlapping claim; the family records it as a planner reason. No exception. |
 | Otherwise | Admitted. A released or completed MethodId may be admitted again when its Need is unmet again. |
 
-This replaces the one-open-Method gate, its eleven `*OpenWorkExempt` carve-outs
+This replaces the one-open-Method gate, its `*OpenWorkExempt` carve-outs
 and the families' whole-owner guards. Continuation, release and cleanup are
 unchanged ([Method continuation](../contracts/method-continuation.md)).
 
@@ -263,6 +263,44 @@ Two decisions travel with the migration rather than any one family:
   MaintainRefrigeration): both are Food owners in the forecast with real
   planners, and its slice deletes the ReserveAccess exemption.
 
+**Food stores, storage (#3251).** `MaintainFoodStorage` is now the
+`food-stores/storage` Need (`FoodStores.cs`, `FoodStorageNeedOf`), a Wellbeing
+Need run by the `food-stores` catalog entry (`FoodStoresRounds.Runner`). It is a
+plain threshold with no latch: unmet while reserve access is pending, the reserve
+is short outside an emergency, a food stockpile is known missing, a larder corpse
+change is due, or less than `TargetStoredFraction` (0.9) of at-risk perishable
+nutrition is stored; unknown when the census is unread; otherwise met. Its
+Methods are `food-reserve` (at most eight hold/release supply actions) and
+`corpse-larder-{allow|forbid}-{corpse}`, admitted under the Need owner with the
+supply stacks as claims; `AdmitSupplyMethod` binds the Need owner to the stacks the
+review lists. The stock-target meal order and the PreserveFood bill declare to the
+ledger under the Need's filing key, and the ledger reads the Need's standing for
+them instead of open work. Refrigeration stays a Concern until #3280.
+
+**Per-family migration checklist** (as followed for food-stores/storage):
+
+1. Write the facts record and `IFamily` in Policy: `Derive` from the Inspect body
+   (drop the latch; an unread census is Unknown, never Met), `Propose` from the
+   planners' method selection with stable MethodIds and no revision.
+2. Write the runtime read (`FamilyReadScope`): the owned census in the scope's
+   world, then any native reads its Methods need, each checked against the world,
+   the census tick and the review age bound.
+3. Register the runner in `ClockSchedulerConfig.Families`; delete the old catalog
+   slot, its scheduler-result merge and its planner classes.
+4. Bind the Method kinds' admission (`MethodAdmission`) to the `NeedOwner`; make
+   sure `MethodClaims.ActionSubjects` yields a subject for every action kind the
+   Methods carry; delete the `*OpenWorkExempt` the old owner used.
+5. Delete the Concern constant and every registry row: Inspection, Department,
+   Labor, ConstructionTier, `RoundsConcern` deficit, latches and their codec
+   fields, `UpkeepIssuedConcerns`, the acceptance concern samplers.
+6. Re-key ledger declarers and bill purposes to `NeedId.FilingKey`, giving them the
+   Need's standing (`PurposeReport.Need`); re-key operation labels, essential
+   service owners (`ServiceTarget.ForNeed`, `NeedCoverage`), progress
+   prerequisites and work-lending (`LoadNeedIn` with `StandardOpenWork`).
+7. Test the pure Need (met, unmet without hysteresis, unknown), admission and
+   continuation under the Need owner, two Methods side by side, and a claim
+   conflict; then update the contract docs that named the Concern.
+
 **Family map.** The grouping of the first consolidation pass sets the family
 boundaries: EnsureCooking and MaintainBabyFeeding join Food, MaintainShelter (the
 Safe-area edit) stays its own Need in Shelter, and MaintainPopulation splits
@@ -270,7 +308,7 @@ three ways.
 
 | Family | Today's Concerns |
 | --- | --- |
-| Food stores | MaintainFoodStorage, MaintainRefrigeration |
+| Food stores | food-stores/storage (was MaintainFoodStorage, #3251), MaintainRefrigeration |
 | Food | EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight |
 | Home upkeep | MaintainEssentialRepairs, ClearHomeObstructions (MaintainFireSafety deleted) |
 | Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |
@@ -326,7 +364,7 @@ The [glossary](../glossary.md) defines the shared terms.
 ### The one-open-Method gate
 
 A Standard admits a new Method only while none of its Methods has open work
-(`StandardOpenWork`; a refusal is `OpenMethodException`). Eleven
+(`StandardOpenWork`; a refusal is `OpenMethodException`). Ten
 `*OpenWorkExempt` carve-outs in `MethodAdmission.cs` let independent work through
 beside open work, and an uncertain trade request does not hold the gate. The gate
 is also the only same-MethodId duplicate guard for these owners. Owners opted

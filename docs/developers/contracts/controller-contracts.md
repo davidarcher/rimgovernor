@@ -553,7 +553,7 @@ prevent Allow (hostile exposure: weapon range plus five cells, twelve minimum fo
 This is a current observation, not a prediction. The planner re-reads every review and
 cancels a pending action the fresh census no longer supports. The native boundary applies
 Allow and Forbid with no safety rule of its own, because the flag has other owners (the
-reserve food and frozen corpses `MaintainFoodStorage` holds).
+reserve food and frozen corpses the `food-stores/storage` Need holds).
 
 Release is selective. A pawn death drops forbidden items and the census releases them
 one stack at a time. The review keeps a safe forbidden stack forbidden, recorded as a

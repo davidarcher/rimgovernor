@@ -41,7 +41,6 @@ internal static class SustainedColonyCase
     internal static readonly IReadOnlyList<string> ColonyConcerns =
     [
         PolicyFunctions.MaintainHousing.Value,
-        PolicyFunctions.MaintainFoodStorage.Value,
         PolicyFunctions.EnsureCooking.Value,
         PolicyFunctions.EnsureTemperatureSafety.Value,
         PolicyFunctions.MaintainResource.Value,

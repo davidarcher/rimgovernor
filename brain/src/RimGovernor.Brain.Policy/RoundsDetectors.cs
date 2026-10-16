@@ -30,8 +30,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
 
     public MedicalReserveReview Medicine { get; set; } = default!;
 
-    public FoodStorageReview FoodStorage { get; set; } = default!;
-
     public RefrigerationReview Refrigeration { get; set; } = default!;
 
     public UpkeepReview Upkeep { get; set; } = default!;
@@ -602,40 +600,7 @@ public static partial class PolicyFunctions
     }
 
     /// <summary>
-    /// MaintainFoodStorage is the one food storage goal: the foothold food stockpile (the storage gate)
-    /// first, then the larder, the reserve and the stored-food upkeep.
-    /// </summary>
-    internal static void InspectFoodStorage(RoundsRun c)
-    {
-        var f = c.F;
-        var reserveKnown = f.FoodReserve.TryGetValue(out var reserve);
-        var reserveAccess = reserveKnown && (reserve!.Hold.Count > 0 || reserve.Release.Count > 0);
-        var reserveRefill = reserveKnown && !reserve!.Emergency && reserve.DeficitNutrition > 0;
-        // Unread claims are not yet known, never "missing".
-        var stockpileOwed = Negative(FoodStorageStanding(f));
-        var active = c.FoodStorage.Active || f.IsIssued(MaintainFoodStorage) || reserveAccess || reserveRefill;
-        var recovered = Unknown<bool>();
-        var larder = SelectCorpseLarder(f.FoodStorageUpkeep);
-        // The stockpile, releasing cooking inputs and preserving fresh corpses must not wait behind
-        // development projects, just as refrigeration must not.
-        if (c.FoodStorage.StoredNutrition.TryGetValue(out _))
-        {
-            recovered = Known(!active);
-        }
-        if (reserveAccess || reserveRefill)
-        {
-            recovered = Known(false);
-        }
-        recovered = AllFacts(Known(!stockpileOwed), recovered);
-        c.Assess(MaintainFoodStorage, recovered);
-        if (!Positive(recovered))
-        {
-            c.Raise(MaintainFoodStorage).MethodUnavailable = !stockpileOwed && larder.Kind == "" && !reserveAccess && !reserveRefill;
-        }
-    }
-
-    /// <summary>
-    /// Answers the same at-risk perishable nutrition as MaintainFoodStorage by cooling the room the food
+    /// Answers the same at-risk perishable nutrition as the food-stores/storage Need by cooling the room the food
     /// already sits in. It runs at foothold priority like EnsureTemperatureSafety rather than as a ranked
     /// development project: the review only latches on food inside SafeRotDays of spoiling, and a cooler
     /// queued behind the project limit arrives after the food is gone.

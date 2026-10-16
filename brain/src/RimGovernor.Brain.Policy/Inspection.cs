@@ -67,7 +67,6 @@ internal static class InspectionRegistry
         new(MaintainMedicalReserves, ConcernType.StandardConcern, Department.Medical, [FactFamily.Pawns, FactFamily.Colony], InspectMedicalReserves),
         new(MaintainSurgery, ConcernType.StandardConcern, Department.Medical, [FactFamily.Pawns, FactFamily.Colony, FactFamily.Definitions], InspectSurgery),
         new(MaintainBabyFeeding, ConcernType.StandardConcern, Department.Food, [FactFamily.Pawns, FactFamily.Colony], InspectBabyFeeding),
-        new(MaintainFoodStorage, ConcernType.StandardConcern, Department.Food, [FactFamily.Colony], InspectFoodStorage),
         new(MaintainRefrigeration, ConcernType.StandardConcern, Department.Food, [FactFamily.Rooms, FactFamily.Colony], InspectRefrigeration),
         new(MaintainLighting, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Rooms, FactFamily.Colony, FactFamily.World], InspectLighting),
         new(MaintainClimateEnvelope, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Rooms, FactFamily.Colony], InspectClimateEnvelope),

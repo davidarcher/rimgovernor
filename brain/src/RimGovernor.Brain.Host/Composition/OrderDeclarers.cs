@@ -24,8 +24,8 @@ internal sealed class RoundsGearDeclarer : IOrderDeclarer
         Task.FromResult(RoundsGearPlanner.DeclareOrders(snapshot, projection, benches, ct));
 }
 
-/// <summary>Declares the food storage upkeep planner's orders to the work ledger.</summary>
-internal sealed class RoundsFoodStorageUpkeepDeclarer(RoundsFoodStorageUpkeepPlanner planner) : IOrderDeclarer
+/// <summary>Declares the food stores family's meal order to the work ledger.</summary>
+internal sealed class FoodStoresDeclarer(FoodStoresRounds planner) : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         planner.DeclareOrdersAsync(snapshot, projection, benches, ct);

@@ -26,7 +26,7 @@ internal static class FoodReserve
     internal static AcceptanceCase Case() => new()
     {
         Name = "food/reserve",
-        Scope = "MaintainFoodStorage holds unforbidden pemmican and fills the rest with a target-count pemmican bill that stops at the reserve while simple meals feed the colony (#428); deleting every other food releases the reserve and the colonists eat it.",
+        Scope = "The food-stores/storage Need holds unforbidden pemmican and fills the rest with a target-count pemmican bill that stops at the reserve while simple meals feed the colony (#428); deleting every other food releases the reserve and the colonists eat it.",
         Start = FoodFixture.EmptyChannels("MealSimple", 200),
         RequiredOps = [PrepareOp, ProbeOp],
         Keep = ["Food"],

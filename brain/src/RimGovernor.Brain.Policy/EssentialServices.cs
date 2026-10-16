@@ -105,6 +105,13 @@ public static partial class PolicyFunctions
             rows.Add(new(service, Target(owner), coverage, beneficiaries,
                 coverage == ServiceCoverage.Unknown ? ["owner_evidence:" + owner.Value] : []));
         }
+        void NeedOwner(EssentialService service, Need need)
+        {
+            var target = ServiceTarget.ForNeed(need.Id);
+            var coverage = inactive ? ServiceCoverage.NotApplicable : NeedCoverage(need);
+            rows.Add(new(service, target, coverage, beneficiaries,
+                coverage == ServiceCoverage.Unknown ? ["owner_evidence:" + target.Owner.Value] : []));
+        }
         void Scenario(ServiceTarget target, string unavailable, Func<(ServiceCoverage Coverage, EquatableArray<string> Missing)> assess)
         {
             if (spent == scenarioBudget) { truncated = true; return; }
@@ -120,7 +127,7 @@ public static partial class PolicyFunctions
         Owner(EssentialService.Shelter, MaintainHousing);
         Owner(EssentialService.Shelter, MaintainShelter);
         Owner(EssentialService.Temperature, EnsureTemperatureSafety);
-        Owner(EssentialService.Food, MaintainFoodStorage);
+        NeedOwner(EssentialService.Food, FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         Owner(EssentialService.Food, MaintainRefrigeration);
         Owner(EssentialService.Power, EnsureBasicPower);
         Owner(EssentialService.Logistics, MaintainRoutes);

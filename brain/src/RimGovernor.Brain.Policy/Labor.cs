@@ -19,7 +19,7 @@ public static partial class PolicyFunctions
         Set(
             [WorkType.Construction],
             ClearHomeObstructions, EnsureBasicDefense, EnsureComfort, MaintainHousing, MaintainEssentialRepairs, MaintainStoneShell,
-            MaintainFoodStorage, MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
+            MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
         Set([WorkType.PlantCutting], RemoveBlight);
         Set([WorkType.Art], MaintainArt);
 

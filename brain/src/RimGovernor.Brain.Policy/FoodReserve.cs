@@ -49,7 +49,7 @@ public static partial class PolicyFunctions
 
     /// <summary>
     /// Go <c>DropReserveHeld</c>: removes supply rows the food reserve owns, so the supplies planner never
-    /// re-allows reserve food MaintainFoodStorage forbade: a stack the reserve is about to hold, or a forbidden
+    /// re-allows reserve food the food-stores/storage Need forbade: a stack the reserve is about to hold, or a forbidden
     /// reserve-food stack it keeps (anything outside Release). Without it both planners flipped the same
     /// Pemmican stack forever, each ending "no longer has the requested forbid state".
     /// </summary>

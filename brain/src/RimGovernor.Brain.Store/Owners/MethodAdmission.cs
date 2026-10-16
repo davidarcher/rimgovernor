@@ -142,7 +142,6 @@ public sealed partial class Store
         var bound = owner.OwnerNeed(review, out var need)
             && (need == EnsureCooking
                 || need == EnsureFoodSupply
-                || need == MaintainFoodStorage
                 || need == MaintainResource
                 || need == MaintainEquipment
                 || need == MaintainRefrigeration
@@ -309,7 +308,10 @@ public sealed partial class Store
         }
     }
 
-    /// <summary>Admits only stacks the review's cohort still lists, each at the cell the census last reported.</summary>
+    /// <summary>
+    /// Admits only stacks the review's cohort still lists, each at the cell the census last reported: the event loot
+    /// for ManageSupplySafety, and the larder corpse and reserve stacks for the food-stores/storage Need.
+    /// </summary>
     private static void AdmitSupplyMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
     {
         if (!plan.Actions.Any(a => a.Kind is ActionKind.SupplyAllow or ActionKind.SupplyForbid))
@@ -324,14 +326,9 @@ public sealed partial class Store
         var bound = false;
         var reserve = new Dictionary<string, ReserveSupply>(StringComparer.Ordinal);
         IReadOnlyList<StartingSupply> cohort = [];
-        if (owner.OwnerNeed(review, out var need))
+        if (owner is NeedOwner { Need: var held })
         {
-            if (need == ManageSupplySafety)
-            {
-                bound = true;
-                cohort = review.EventLoot.Pending;
-            }
-            else if (need == MaintainFoodStorage)
+            if (held == FoodStorageNeed)
             {
                 bound = true;
                 cohort = review.LarderSupplies;
@@ -340,6 +337,11 @@ public sealed partial class Store
                     reserve[row.Thing] = row;
                 }
             }
+        }
+        else if (owner.OwnerNeed(review, out var need) && need == ManageSupplySafety)
+        {
+            bound = true;
+            cohort = review.EventLoot.Pending;
         }
         if (!bound)
         {
@@ -514,39 +516,6 @@ public sealed partial class Store
                     own = false;
                 }
                 if (own && Standard.WorkOpen([progress]))
-                {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    /// <summary>A standing refill bill must not delay access to food in an emergency.</summary>
-    private static bool ReserveAccessOpenWorkExempt(StoreTransaction tx, StandardState goal, PlanSpec plan)
-    {
-        var review = LoadRounds(tx);
-        var bound = review.Standards.Any(b => b.Standard == goal.Standard.Id && b.Concern == MaintainFoodStorage);
-        if (!bound || review.ReserveSupplies.Count == 0 || plan.Actions.Count == 0)
-        {
-            return false;
-        }
-        foreach (var action in plan.Actions)
-        {
-            if (action.SupplyAllow is not { } supply)
-            {
-                return false;
-            }
-            if (!review.ReserveSupplies.Any(row => row.Thing == supply.Thing && row.Definition == supply.Definition && row.Forbid == supply.Forbidden))
-            {
-                return false;
-            }
-        }
-        foreach (var method in goal.Methods)
-        {
-            foreach (var progress in LoadIn(tx, method.Plan).Progress)
-            {
-                if (progress.Action.Kind != ActionKind.ProductionBill && Standard.WorkOpen([progress]))
                 {
                     return false;
                 }

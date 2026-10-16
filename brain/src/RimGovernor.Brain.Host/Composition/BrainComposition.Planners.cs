@@ -43,7 +43,7 @@ public sealed partial class BrainComposition
         RoundsFirebreakPlanner? cfgFirebreak = null;
         RoundsBuildingPlanner? cfgFlooring = null;
         RoundsAcquisitionPlanner? cfgFoodAcquisition = null;
-        RoundsFoodStorageUpkeepPlanner? cfgFoodStorageUpkeep = null;
+        List<FamilyRunner> families = [];
         RoundsGatheringPlanner? cfgGathering = null;
         RoundsGearPlanner? cfgGear = null;
         RoundsGeneBankPlanner? cfgGeneBank = null;
@@ -266,8 +266,9 @@ public sealed partial class BrainComposition
         }
         if (foodStorageUpkeep)
         {
-            cfgFoodStorageUpkeep = RoundsFoodStorageUpkeepPlanner.NewRoundsFoodStorageUpkeepPlanner(reviewer, client);
-            reviewer.AddOrderDeclarer(new RoundsFoodStorageUpkeepDeclarer(cfgFoodStorageUpkeep));
+            var foodStores = new FoodStoresRounds(reviewer, client);
+            reviewer.AddOrderDeclarer(new FoodStoresDeclarer(foodStores));
+            families.Add(foodStores.Runner());
         }
         if (animalContainment)
         {
@@ -478,7 +479,7 @@ public sealed partial class BrainComposition
             Firebreak = cfgFirebreak,
             Flooring = cfgFlooring,
             FoodAcquisition = cfgFoodAcquisition,
-            FoodStorageUpkeep = cfgFoodStorageUpkeep,
+            Families = families,
             Gathering = cfgGathering,
             Gear = cfgGear,
             GeneBank = cfgGeneBank,
@@ -595,7 +596,6 @@ public sealed partial class BrainComposition
         Add(sc.Acquisition, MaintainResource, ClearPests);
         Add(sc.Bill, EnsureCooking, MaintainBabyFeeding);
         Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);
-        Add(sc.Bill || sc.FoodStorageUpkeep, MaintainFoodStorage);
         Add(sc.Temperature, EnsureTemperatureSafety);
         Add(sc.Power, EnsureBasicPower);
         Add(sc.Refrigeration, MaintainRefrigeration);

@@ -47,7 +47,7 @@ BuildingRuntime/Rounds/RoundsField.cs|RoundsFieldPlanner.StepAsync|"HydroponicsB
 BuildingRuntime/Rounds/RoundsFirebreak.cs|FirebreakMemory.FirebreakGroundOf|"WoodLog"
 BuildingRuntime/Rounds/RoundsFlooring.cs|RoundsBuildingPlanner.NewRoundsFlooringPlanner|"WoodPlankFloor"
 BuildingRuntime/Rounds/RoundsFoodPlan.cs|BuildingRuntimePackage.ReviewFoodPlan|20000
-BuildingRuntime/Rounds/RoundsFoodStorageUpkeep.cs|BuildingRuntimePackage.FoodStorageResourceDefinition|"MealSimple"
+BuildingRuntime/Rounds/RoundsFoodStores.cs|BuildingRuntimePackage.FoodStorageResourceDefinition|"MealSimple"
 BuildingRuntime/Rounds/RoundsHerdRooms.cs|BuildingRuntimePackage.HerdDefinitions|"Door"
 BuildingRuntime/Rounds/RoundsHerdRooms.cs|BuildingRuntimePackage.HerdDefinitions|"Wall"
 BuildingRuntime/Rounds/RoundsLighting.cs|RoundsBuildingPlanner.NewRoundsLightingPlanner|"TorchLamp"
