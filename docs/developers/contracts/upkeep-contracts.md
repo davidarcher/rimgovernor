@@ -27,7 +27,7 @@ non-damageable markers such as sleeping spots are never repair targets.
 
 ### Home coverage
 
-`MaintainHomeCoverage` uses the complete native building and stockpile geometry
+The `layout/home-coverage` Need uses the complete native building and stockpile geometry
 through `policy.PlanHomeArea`. A building anchors its occupied cells plus
 connected visible, enclosed, fully roofed rooms; traversal crosses usable colony
 doors only between enclosed rooms. A stockpile contributes its current footprint.
@@ -94,7 +94,7 @@ Home mask across a subsequent extent review.
 
 ### Stone shell and deconstruction
 
-`MaintainStoneShell` admits one wall upgrade after urgent needs, from currently observed
+The `layout/stone-shell` Need admits wall upgrades (one `wall-<digest>` Method per wall, side by side by claims) once the `layout/climate-envelope` Need is met, from currently observed
 colony walls only.
 
 - A straight-wall bundle reserves three stone backup walls, guarded removal of the original,

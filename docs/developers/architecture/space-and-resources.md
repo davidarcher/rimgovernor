@@ -180,7 +180,7 @@ and the admitted open costs) and the observed recurring spend, merged into the
 derived resource needs each review and planner step. No constant floor is kept
 for steel, components or blocks. The ladder then researches Stonecutting, stages a stonecutter's table in the
 Workshop room and keeps a do-until bill on it fed from the map's chunks —
-the block supply `MaintainStoneShell` and the stone flooring and defense
+the block supply the `layout/stone-shell` Need and the stone flooring and defense
 tiers spend. A map without stone chunks derives no target; the ladder does
 not mine rock for chunks. The chunk census that funds the bill counts every
 stack: a `list_supplies` stock row's units and ownership buckets cover all

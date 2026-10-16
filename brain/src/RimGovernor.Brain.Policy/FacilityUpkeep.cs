@@ -42,10 +42,6 @@ public sealed record StoneStructure
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId MaintainHomeCoverage = new("MaintainHomeCoverage");
-
-    public static readonly ConcernId MaintainStoneShell = new("MaintainStoneShell");
-
     /// <summary>The native project whose recipes cut the stone blocks a wall replacement needs.</summary>
     public const string StoneShellResearch = "Stonecutting";
 

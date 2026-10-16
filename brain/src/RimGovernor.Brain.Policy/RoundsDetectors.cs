@@ -22,10 +22,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
     /// <summary>The review's one resource-demand value (ResourceDemandOf).</summary>
     public DerivedDemand Demand { get; set; } = new();
 
-    public Fact<HomeAreaPlan> Home { get; set; }
-
-    public Fact<EquatableArray<string>> Stone { get; set; }
-
     public MedicalReserveReview Medicine { get; set; } = default!;
 
     public LightingReview Lighting { get; set; } = default!;
@@ -35,10 +31,6 @@ public sealed class RoundsRun(RoundsFacts f, RoundsLatches previous, RoundsPolic
     public RoutesReview Routes { get; set; } = default!;
 
     public bool SleepingActive { get; set; }
-
-    public bool HomeActive { get; set; }
-
-    public bool StoneActive { get; set; }
 
     /// <summary>Appends a Concern and returns it for the detector to adjust.</summary>
     public RoundsConcern Raise(ConcernId id)
@@ -322,47 +314,6 @@ public static partial class PolicyFunctions
         c.Assess(EnsureDefensiveLayout, recovered);
     }
 
-    /// <summary>
-    /// Serves a home-area facility goal: a binary need, like the upkeep goals. A confirmed deficit ranks at
-    /// Known(1.0); an unknown census stays DevelopmentUnknown. Method availability follows the composed
-    /// capability list, since both verticals dispatch.
-    /// </summary>
-    internal static void FacilityInspect(RoundsRun c, ConcernId id, Func<RoundsRun, Fact<bool>> recoveredOf, Func<RoundsRun, bool> active)
-    {
-        var recovered = recoveredOf(c);
-        if (c.F.IsIssued(id))
-        {
-            recovered = Known(false);
-        }
-        c.Assess(id, recovered);
-        if (!Positive(recovered))
-        {
-            var g = c.Raise(id);
-            if (recovered.TryGetValue(out _))
-            {
-                g.Deficit = Known(1.0);
-            }
-        }
-    }
-
-    internal static void InspectHomeCoverage(RoundsRun c) => FacilityInspect(c, MaintainHomeCoverage, r =>
-    {
-        if (r.Home.TryGetValue(out var diff))
-        {
-            return Known(diff.Empty());
-        }
-        return Unknown<bool>();
-    }, r => r.HomeActive);
-
-    internal static void InspectStoneShell(RoundsRun c) => FacilityInspect(c, MaintainStoneShell, r =>
-    {
-        if (r.Stone.TryGetValue(out var rows))
-        {
-            return Known(rows.Count == 0);
-        }
-        return Unknown<bool>();
-    }, r => r.StoneActive);
-
     internal static void InspectMedicalReserves(RoundsRun c)
     {
         var f = c.F;
@@ -534,9 +485,6 @@ public static partial class PolicyFunctions
     {
         c.Owed(MaintainShelter, c.F.SafeAreaOwed);
     }
-
-    /// <summary>MaintainFirebreak: ring work is owed.</summary>
-    internal static void InspectFirebreak(RoundsRun c) => c.Owed(MaintainFirebreak, c.F.FirebreakOwed);
 
     /// <summary>MaintainMechs: a mech is owed inside the bandwidth.</summary>
     internal static void InspectMechs(RoundsRun c) => c.Owed(MaintainMechs, c.F.MechGestationOwed);

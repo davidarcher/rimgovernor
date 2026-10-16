@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Snapshot;
 
 /// <summary>
-/// One MaintainFirebreak review as recorded: the ring request it planned from, the dwell clock it carried in, and
+/// One firebreak ring review (the layout/firebreak Need's read) as recorded: the ring request it planned from, the dwell clock it carried in, and
 /// the plant cut census and open wooden ruins it read over the plan. Request.Ground is cell-keyed, which a
 /// recording cannot carry as a map, so it is recorded as <see cref="Ground"/>.
 /// </summary>

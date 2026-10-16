@@ -62,7 +62,7 @@ public sealed partial class Rounder
     /// <summary>MaintainShelter's Safe area memory.</summary>
     internal SafeAreaMemory SafeArea = new();
 
-    /// <summary>MaintainFirebreak's review memory, set when its planner is composed.</summary>
+    /// <summary>The firebreak ring's review memory, set when the layout family composes layout/firebreak.</summary>
     internal FirebreakMemory? Firebreak;
 
     /// <summary>Set when the admin family runs admin/creep-joiners: the review reads its record for the isolation room.</summary>
@@ -422,10 +422,6 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = ButcherTableAffordable(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { WarmRooms = WarmCoolingRooms(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { PlanLit = RoundsBuildingPlanner.PlanLitRooms(reading.Projection) });
-        if (MethodEnabled(PolicyApi.MaintainClimateEnvelope))
-        {
-            reading = reading.WithFacts(rf => rf with { EnvelopeOwed = EnvelopeOwed(reading.Projection) });
-        }
         reading = reading.WithFacts(rf => rf with { MealClosetOwed = MealClosetOwed(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { CampfireRetireOwed = CampfireRetireOwed(reading.Projection) });
         var vCraftingSpotRetireOwed = await CraftingSpotRetireOwedAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
@@ -492,8 +488,8 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { PlannedSites = vPlannedSites });
         if (Firebreak is not null)
         {
-            var vFirebreakOwed = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
-            reading = reading.WithFacts(rf => rf with { FirebreakOwed = vFirebreakOwed });
+            // The ring plan's dwell clock advances every review; the layout family reads the work it leaves.
+            _ = await Firebreak.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, FirebreakBusy(plans, state.Snapshot, playerPlans), ct).ConfigureAwait(false);
         }
         Fact<EquatableArray<PawnId>> psylinkCandidates = default;
         if (Psylink is not null)

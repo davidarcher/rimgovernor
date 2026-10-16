@@ -10,8 +10,6 @@ public sealed partial class Store
     [
         PolicyFunctions.MaintainMedicalReserves,
         PolicyFunctions.MaintainHousing,
-        PolicyFunctions.MaintainHomeCoverage,
-        PolicyFunctions.MaintainStoneShell,
     ];
 
     /// <summary>

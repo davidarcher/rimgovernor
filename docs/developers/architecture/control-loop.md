@@ -330,6 +330,31 @@ and room definitions when `RoundsCapabilities.Needs` lists the Need (a Need has 
 registry row, so it is not a `Methods` entry). The CookAheadFood bill declares
 under the Need's filing key and reports the Need's standing.
 
+**Layout family (#3256).** MaintainHomeCoverage, MaintainFirebreak,
+MaintainClimateEnvelope and MaintainStoneShell are the `layout` entry's Needs
+(`Layout.cs`, `LayoutRounds`), each composed by its own toggle. The layout plan is
+unchanged. `layout/home-coverage` (Wellbeing) is unmet while `PlanHomeArea`
+leaves a Home diff; its pure Method is the diff's own `MethodId` (AutoHomeArea off
+when needed, then the Area set/clear). `layout/firebreak` (Wellbeing) is unmet
+while the ring review leaves cut cells or wooden ruins; its pure Method is
+`firebreak-<digest>` over the cells it orders, with AreaPlantCut claiming
+`cut/x/z` and CoverClearance its cell and thing, so disjoint orders run side by
+side. The ring's dwell clock stays in the review (`FirebreakMemory`); a tick the
+review did not plan the ring reads unknown. Firebreak has home-coverage as a
+precondition (as #3256 decided). `layout/climate-envelope`
+(Wellbeing) is unmet while a planned room owes a vent or roof; its work step
+reconciles each owed room ring-only and climate-only, one Method per room.
+`layout/stone-shell` (Development) is unmet while a flammable owned wall stands;
+its work step commits `wall-<digest>` bundles (BuildRoof claims `roof/x/z`,
+WallRemoval its cell and original), once per wall while the attempt is open or
+its product stands (decision 19). Stone shell has the climate envelope as a
+precondition: a wall upgrade needs the interior enclosed and roofed, which the old
+clock order (envelope before stone shell) only implied. Either precondition applies
+only when the other Need is composed. The HomeCoverage and StoneShell latches and
+their codec fields, the inspections, facility detectors, labor rows,
+`UpkeepIssuedConcerns` rows, clock slots and the four planners are deleted.
+EnsureDefensiveLayout is still a Concern.
+
 **Economy family, research (#3263).** `economy/research` (Development) replaced
 EnsureResearch: unmet while the first unfinished recorded research need (the
 workshop ladder's rung, planner waits, fishing and furniture requests, deep
@@ -529,7 +554,7 @@ three ways (prisoners, joiners, anomaly).
 | Food | `food`: Needs `supply`, `cooking`, `baby-feeding`, `blight` (#3254; EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight deleted) |
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |
-| Layout | MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope, EnsureDefensiveLayout |
+| Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted); EnsureDefensiveLayout |
 | Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |
 | Power | EnsureBasicPower |
 | Medical | CriticalMedicine, MaintainMedicalReserves, MaintainSurgery |

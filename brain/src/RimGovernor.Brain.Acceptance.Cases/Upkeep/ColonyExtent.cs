@@ -60,8 +60,8 @@ internal static class UpkeepColonyExtent
         try
         {
             using var journal = await UpkeepHomeCoverage.ServeStageAsync(s, service, s.Report, cancellationToken).ConfigureAwait(false);
-            await UpkeepSupport.FollowMethodsAsync(journal, PolicyFunctions.MaintainHomeCoverage, "home", _ => null, s.Report, cancellationToken).ConfigureAwait(false);
-            _ = await UpkeepSupport.WaitNeedAsync(journal, PolicyFunctions.MaintainHomeCoverage, Finding.Met, cancellationToken).ConfigureAwait(false);
+            await UpkeepSupport.FollowMethodsAsync(journal, LayoutFamily.HomeCoverage.FilingKey, "home", _ => null, s.Report, cancellationToken).ConfigureAwait(false);
+            await UpkeepSupport.WaitNeedRowAsync(journal, LayoutFamily.HomeCoverage, met: true, cancellationToken).ConfigureAwait(false);
         }
         finally
         {

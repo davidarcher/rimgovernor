@@ -69,11 +69,7 @@ public sealed class ClockSchedulerResult
 
     public RoundsResourceResult? Resource { get; set; }
 
-    public RoundsHomeCoverageResult? HomeCoverage { get; set; }
-
     public MaintainShelterResult? MaintainShelter { get; set; }
-
-    public RoundsFirebreakResult? Firebreak { get; set; }
 
     public RoundsPsylinkResult? Psylink { get; set; }
 
@@ -81,13 +77,9 @@ public sealed class ClockSchedulerResult
 
     public RoundsGatheringResult? Gathering { get; set; }
 
-    public RoundsStoneShellResult? StoneShell { get; set; }
-
     public RoundsStockpileResult? Stockpiles { get; set; }
 
     public RoundsDefenseLayoutResult? DefenseLayout { get; set; }
-
-    public RoundsEnvelopeResult? Envelope { get; set; }
 
     public RoundsMoodReliefResult? MoodRelief { get; set; }
 
@@ -151,16 +143,12 @@ public sealed class ClockSchedulerResult
         Surgery = other.Surgery ?? Surgery;
         Recovery = other.Recovery ?? Recovery;
         Resource = other.Resource ?? Resource;
-        HomeCoverage = other.HomeCoverage ?? HomeCoverage;
         MaintainShelter = other.MaintainShelter ?? MaintainShelter;
-        Firebreak = other.Firebreak ?? Firebreak;
         Psylink = other.Psylink ?? Psylink;
         Permits = other.Permits ?? Permits;
         Gathering = other.Gathering ?? Gathering;
-        StoneShell = other.StoneShell ?? StoneShell;
         Stockpiles = other.Stockpiles ?? Stockpiles;
         DefenseLayout = other.DefenseLayout ?? DefenseLayout;
-        Envelope = other.Envelope ?? Envelope;
         MoodRelief = other.MoodRelief ?? MoodRelief;
         Dialog = other.Dialog ?? Dialog;
         Trade = other.Trade ?? Trade;

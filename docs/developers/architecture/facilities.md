@@ -400,7 +400,7 @@ so it wins only for heat loads far above a stove's: about 100 heat/s on a
 sea-ice curve, 200 or more on a temperate one, never on a hot one; the freezer
 (no heat inside) and link vents (neighbour held at about 21 C) do not win. The
 advice map carries `vents` and `vent_issues`. The plan's vents are built through
-`MaintainClimateEnvelope`.
+the `layout/climate-envelope` Need.
 
 `MatchGroupRooms` matches the standing planned rooms of a native role
 (`BuiltRegions`, through the planned-role to native-role table) to the groups
@@ -473,7 +473,7 @@ the rest of the plan carries:
   `LayoutConduit.cs`). The power round reads the plan's net (`PlannedNetOf`,
   `RoundsPower.cs`).
 - **Climate envelope.** `PlanRoofed` sets `LayoutPlan.Roofed` on a bad-climate map and
-  `chooseVents` places vents; `MaintainClimateEnvelope` (`RoundsEnvelopePlanner`) builds
+  `chooseVents` places vents; the `layout/climate-envelope` Need (`LayoutRounds`) builds
   both.
 - **Lamps.** `LayoutPlan.Lamps` is what the lighting round builds.
 - **Perimeter.** `DeriveLayoutPlan` and `ReplanLayout` lay the ring and defense sites

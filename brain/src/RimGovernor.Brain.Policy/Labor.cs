@@ -18,8 +18,8 @@ public static partial class PolicyFunctions
         }
         Set(
             [WorkType.Construction],
-            EnsureComfort, MaintainHousing, MaintainStoneShell,
-            MaintainHomeCoverage, MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
+            EnsureComfort, MaintainHousing,
+            MaintainLighting, MaintainFlooring, MaintainRoutes, EnsureMechCharger, MaintainGeneBank);
         Set([WorkType.Art], MaintainArt);
 
         // A sale batch at any crafting bench: sculpture, apparel, weapon.
@@ -27,12 +27,6 @@ public static partial class PolicyFunctions
         Set([WorkType.Mining, WorkType.PlantCutting, WorkType.Crafting], MaintainResource);
 
         Set([WorkType.Hauling], ManagePollution);
-
-        // Vents are built over standing walls and roofs are designated for builders.
-        Set([WorkType.Construction], MaintainClimateEnvelope);
-
-        // Plants are cut by plant cutters, wooden ruins taken down by builders.
-        Set([WorkType.PlantCutting, WorkType.Construction], MaintainFirebreak);
 
         // A resized or retargeted stockpile is refilled by haulers.
         Set([WorkType.Hauling], MaintainStockpiles);

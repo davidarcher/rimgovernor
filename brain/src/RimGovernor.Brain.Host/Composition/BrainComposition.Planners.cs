@@ -31,15 +31,12 @@ public sealed partial class BrainComposition
         RoundsDefensePlanner? cfgDefense = null;
         RoundsDefenseLayoutPlanner? cfgDefenseLayout = null;
         RoundsDialogPlanner? cfgDialog = null;
-        RoundsEnvelopePlanner? cfgEnvelope = null;
         RoundsBuildingPlanner? cfgExpansion = null;
         RoundsFieldPlanner? cfgFields = null;
-        RoundsFirebreakPlanner? cfgFirebreak = null;
         RoundsBuildingPlanner? cfgFlooring = null;
         RoundsAcquisitionPlanner? foodAcquisition = null;
         RoundsGatheringPlanner? cfgGathering = null;
         RoundsGeneBankPlanner? cfgGeneBank = null;
-        RoundsHomeCoveragePlanner? cfgHomeCoverage = null;
         RoundsHospitalPlanner? cfgHospital = null;
         RoundsLedgerPlanner? cfgLedger = null;
         RoundsBuildingPlanner? cfgLighting = null;
@@ -60,7 +57,6 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? cfgSleeping = null;
         RoundsSleepingUpkeepPlanner? cfgSleepingUpkeep = null;
         RoundsStockpilePlanner? cfgStockpiles = null;
-        RoundsStoneShellPlanner? cfgStoneShell = null;
         FactStore? cfgStore = null;
         RoundsSurgeryPlanner? cfgSurgery = null;
         RoundsBuildingPlanner? cfgTemperature = null;
@@ -218,10 +214,6 @@ public sealed partial class BrainComposition
             // The repair and clearance toggles compose the home-upkeep family's two Needs (#3253).
             families.Add(HomeUpkeepReader.Runner(reviewer, client, repair, clearance));
         }
-        if (envelope)
-        {
-            cfgEnvelope = new RoundsEnvelopePlanner(reviewer);
-        }
         if (moodRelief)
         {
             cfgMoodRelief = RoundsMoodReliefPlanner.NewRoundsMoodReliefPlanner(reviewer);
@@ -283,10 +275,6 @@ public sealed partial class BrainComposition
             // The population-custody toggle also composes the anomaly family (#3302).
             families.Add(new AnomalyRounds(reviewer, client).Runner());
         }
-        if (sc.Firebreak)
-        {
-            cfgFirebreak = new RoundsFirebreakPlanner(reviewer, client);
-        }
         if (sc.Psylink)
         {
             cfgPsylink = RoundsPsylinkPlanner.NewRoundsPsylinkPlanner(reviewer, client);
@@ -321,13 +309,13 @@ public sealed partial class BrainComposition
         {
             cfgPollution = RoundsPollutionPlanner.NewRoundsPollutionPlanner(reviewer);
         }
-        if (homeCoverage)
+        var layout = new LayoutNeeds { HomeCoverage = homeCoverage, Firebreak = sc.Firebreak, StoneShell = stoneShell, ClimateEnvelope = envelope };
+        LayoutRounds? layoutRounds = null;
+        if (layout.Any)
         {
-            cfgHomeCoverage = RoundsHomeCoveragePlanner.NewRoundsHomeCoveragePlanner(reviewer);
-        }
-        if (stoneShell)
-        {
-            cfgStoneShell = RoundsStoneShellPlanner.Create(reviewer, client);
+            // The home-coverage, firebreak, stone-shell and envelope toggles compose the layout family's Needs (#3256).
+            layoutRounds = new LayoutRounds(reviewer, layout, sc.Firebreak ? client : null, stoneShell ? client : null);
+            families.Add(layoutRounds.Runner());
         }
         if (stockpiles)
         {
@@ -411,10 +399,10 @@ public sealed partial class BrainComposition
                 cfgHospital = RoundsHospitalPlanner.NewRoundsHospitalPlanner(reviewer, client);
             }
         }
-        if (cfgFlooring is not null && cfgFirebreak is { } firebreak)
+        if (cfgFlooring is not null && layout.Firebreak && layoutRounds is { } layoutPave)
         {
             // MaintainFlooring paves the settled ring cells the firebreak review found.
-            cfgFlooring.SetFirebreakPave(() => firebreak.Pave());
+            cfgFlooring.SetFirebreakPave(() => layoutPave.Pave());
         }
 
         var config = new ClockSchedulerConfig
@@ -431,14 +419,11 @@ public sealed partial class BrainComposition
             Defense = cfgDefense,
             DefenseLayout = cfgDefenseLayout,
             Dialog = cfgDialog,
-            Envelope = cfgEnvelope,
             Expansion = cfgExpansion,
             Fields = cfgFields,
-            Firebreak = cfgFirebreak,
             Flooring = cfgFlooring,
             Gathering = cfgGathering,
             GeneBank = cfgGeneBank,
-            HomeCoverage = cfgHomeCoverage,
             Hospital = cfgHospital,
             Ledger = cfgLedger,
             Lighting = cfgLighting,
@@ -459,7 +444,6 @@ public sealed partial class BrainComposition
             Sleeping = cfgSleeping,
             SleepingUpkeep = cfgSleepingUpkeep,
             Stockpiles = cfgStockpiles,
-            StoneShell = cfgStoneShell,
             Store = cfgStore,
             Surgery = cfgSurgery,
             Temperature = cfgTemperature,
@@ -545,18 +529,14 @@ public sealed partial class BrainComposition
         Add(sc.Routes, MaintainRoutes);
         Add(sc.Comfort, EnsureComfort);
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
-        Add(sc.Envelope, MaintainClimateEnvelope);
         Add(sc.Recovery, RecoverDisasterServices);
         Add(sc.Pollution, ManagePollution);
         Add(sc.MechCharger, EnsureMechCharger);
         Add(sc.GeneBank, MaintainGeneBank);
-        Add(sc.HomeCoverage, MaintainHomeCoverage);
         Add(sc.Sheltering, MaintainShelter);
-        Add(sc.Firebreak, MaintainFirebreak);
         Add(sc.Psylink, MaintainPsylink);
         Add(sc.Permits, MaintainPermits);
         Add(sc.Gathering, HoldGatherings);
-        Add(sc.StoneShell, MaintainStoneShell);
         Add(sc.Stockpiles, MaintainStockpiles);
         if (sc.DefensiveLayout)
         {
@@ -596,6 +576,10 @@ public sealed partial class BrainComposition
         if (sc.Burial)
         {
             needs.Add(AdminFamily.Burial);
+        }
+        if (sc.Envelope)
+        {
+            needs.Add(LayoutFamily.ClimateEnvelope);
         }
         return (thresholds, new RoundsCapabilities { Methods = methods, Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
     }

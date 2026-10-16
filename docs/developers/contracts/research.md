@@ -19,7 +19,7 @@ There is no fixed roadmap: with no need recorded nothing is researched and the c
 planner lends the clock ticks until the target finishes, and skips projects the installed game does not list.
 
 A concern whose only method is gated on research reports the project instead of no method:
-`EnsureBasicPower` with every generator definition unavailable and `MaintainStoneShell` with no
+`EnsureBasicPower` with every generator definition unavailable and the `layout/stone-shell` Need with no
 replacement material report `awaiting_plan:research:<project>` (`policy.ResearchGate`).
 
 ## Anomaly knowledge

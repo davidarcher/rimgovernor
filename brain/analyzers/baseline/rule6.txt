@@ -99,7 +99,7 @@ BuildingRuntime/RoundsSleepingShellBed.cs|RoundsSleepingUpkeepPlanner.PackShellB
 BuildingRuntime/RoundsSleepingUpgrade.cs|RoundsSleepingUpkeepPlanner.RemoveOldBedAsync|"Bed"
 BuildingRuntime/RoundsSleepingUpkeep.cs|RoundsSleepingUpkeepPlanner.DecideAsync|"Door"
 BuildingRuntime/RoundsSleepingUpkeep.cs|RoundsSleepingUpkeepPlanner.DecideAsync|"Wall"
-BuildingRuntime/RoundsStoneShell.cs|RoundsStoneShellPlanner.ProposeAsync|"Wall"
+BuildingRuntime/RoundsStoneShell.cs|LayoutRounds.ProposeAsync|"Wall"
 BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureCooling|"Cooler"
 BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureDefinitions|"Campfire"
 BuildingRuntime/RoundsTemperature.cs|BuildingRuntimePackage.TemperatureDefinitions|"Cooler"

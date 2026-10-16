@@ -214,7 +214,7 @@ public sealed record ProgressView
     /// <summary>
     /// The native zone an applied zone_create receipt identifies (the zone's unique load id,
     /// ZoneEffect.zone_id). It is the identity later native censuses name the zone by, which is how a
-    /// completed stockpile method owns its zone for MaintainHomeCoverage.
+    /// completed stockpile method owns its zone for the layout/home-coverage Need.
     /// </summary>
     public Fact<string> Zone { get; init; }
 

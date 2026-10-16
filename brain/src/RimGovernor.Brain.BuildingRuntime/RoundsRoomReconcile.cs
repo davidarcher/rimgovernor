@@ -557,9 +557,12 @@ public sealed partial class RoundsBuildingPlanner
     /// the next attempt. An open attempt, a product that stands, a census left unknown (the default) or an
     /// attempt that built nothing (a roof, a removal, a cancelled wave) holds it.
     /// </summary>
-    internal bool MethodOnce(Sto.IWorkOwner goal, MethodId method, CancellationToken call, Fact<Pol.CurrentConstruction> product = default)
+    internal bool MethodOnce(Sto.IWorkOwner goal, MethodId method, CancellationToken call, Fact<Pol.CurrentConstruction> product = default) =>
+        MethodOnce(Reviewer.Player.Journal, goal, method, call, product);
+
+    /// <summary><see cref="MethodOnce(Sto.IWorkOwner, MethodId, CancellationToken, Fact{Pol.CurrentConstruction})"/> against <paramref name="journal"/>, for a step without a building planner.</summary>
+    internal static bool MethodOnce(JournalStore journal, Sto.IWorkOwner goal, MethodId method, CancellationToken call, Fact<Pol.CurrentConstruction> product = default)
     {
-        var journal = Reviewer.Player.Journal;
         if (journal.OwnerMethodPlan(goal, method, call) is not { } prior)
         {
             return true;

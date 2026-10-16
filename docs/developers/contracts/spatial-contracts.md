@@ -280,7 +280,7 @@ Hot and NextRoomID.
   no outer climate wall: the envelope is the roofed rooms. Cells farther than `RoofMaxSupportDistance`
   from a wall stay in the set and are reported (`roof_unsupported`), never vetoed.
   `TileResult.RoofDecisions` carries the reasons. The runtime builds the set through
-  `MaintainClimateEnvelope` (Runtime, below).
+  the `layout/climate-envelope` Need (Runtime, below).
   **Tiler airlocks (#2916).** On a roofed map each room's exterior door is priced in
   sustained watts as a door pawns use (`OpeningDoor`: open for the share of the time its
   trips hold it) against an airlock (`attachAirlock`; the second door and two walls at
@@ -348,16 +348,16 @@ option; rock and a standing vent owe nothing; a vent row on a planned vent is no
 furniture to remove), and `OpRoofIn` roofs the room's `Roofed` cells that the mirror reads
 open to the sky (`ReconcileInput.Unroofed`), with its airlock children's vestibules, once
 the ring stands. An airlock's walls and outer door are the parent ring's. An owner
-reconciles only while its own predicate holds, so the plan-wide `MaintainClimateEnvelope`
-(Shelter, family `envelope`, `RoundsEnvelopePlanner`) asks the plan itself: it diffs every
+reconciles only while its own predicate holds, so the plan-wide `layout/climate-envelope`
+Need (layout family, `LayoutRounds`) asks the plan itself: it diffs every
 top-level planned room ring-only, keeps just its `OpVentIn` and `OpRoofIn`
 (`policy.EnvelopeOps`) and commits them through the same `reconcileRoom` path with
 `climateOnly`, whatever the owner is doing, and designates any roofed-set cell outside
 every room (`policy.EnvelopeHallwayRoof`; `PlanRoofed` roofs only room floors, so it is
 empty) that the mirror reads open. It is
-open while `RoundsFacts.EnvelopeOwed` is true and idle once every planned vent stands and
-every roofed-set cell is roofed; an unread plan or construction census is unknown, never
-idle.
+unmet while a planned room still owes a vent or roof and met once every planned vent stands
+and every roofed-set cell is roofed; an unread plan or construction census is unknown, never
+met. Each owed room's wave is its own Method, admitted beside the others by claims.
   **Lamps (#2945).** A roofed cell has no sky light, so a colonist working or walking on
   it loses speed (`StatPart_Glow`: x0.80 at glow 0 up to x1.00 at `LitGlow` 0.3, on
   `WorkSpeedGlobal` and `MoveSpeed`; `LightSpeed`). The tiler weighs that against lamps in

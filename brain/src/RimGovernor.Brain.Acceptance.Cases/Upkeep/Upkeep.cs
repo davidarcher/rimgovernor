@@ -252,6 +252,33 @@ internal static class UpkeepSupport
 
     // ---- journal helpers -----------------------------------------------------
 
+    /// <summary>
+    /// Polls until <paramref name="need"/> reports <paramref name="met"/>: unmet while the review carries the Need's
+    /// progress row, met once a later review has pruned it.
+    /// </summary>
+    internal static async Task WaitNeedRowAsync(ControllerJournal journal, NeedId need, bool met, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await new Wait { Stall = NeedStall, Interval = TimeSpan.FromSeconds(1) }.WaitProgressAsync(async ct =>
+            {
+                var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
+                var row = review.Progress.Any(p => p.Concern == need.FilingKey);
+                if (review.Revision != 0 && row != met)
+                {
+                    return ("", true);
+                }
+
+                // A parked or dead game stops producing reviews at new ticks.
+                return (string.Create(CultureInfo.InvariantCulture, $"tick={review.Tick.Value} revision={review.Revision}"), false);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (WaitError e)
+        {
+            throw new AcceptanceException($"{need.Value} never reported {(met ? "met" : "unmet")}: {e.Message}", e);
+        }
+    }
+
     /// <summary>Polls until need's goal binding reports state (deficit or recovered) and returns the goal.</summary>
     internal static async Task<RimGovernor.Brain.Store.StandardState> WaitNeedAsync(ControllerJournal journal, ConcernId need, Finding state, CancellationToken cancellationToken)
     {
@@ -322,6 +349,11 @@ internal static class UpkeepSupport
         async Task<bool> RecoveredAsync()
         {
             var review = await journal.LoadRoundsAsync(cancellationToken).ConfigureAwait(false);
+            if (new NeedId(need.Value).IsValid)
+            {
+                // A Need (its filing key) is met once the review prunes its progress row.
+                return review.Revision != 0 && !review.Progress.Any(p => p.Concern == need);
+            }
             foreach (var binding in review.Standards)
             {
                 if (binding.Concern != need)

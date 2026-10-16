@@ -169,15 +169,15 @@ internal static class UpkeepHomeCoverage
     {
         using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         bounded.CancelAfter(TimeSpan.FromSeconds(90));
-        _ = await UpkeepSupport.WaitNeedAsync(journal, PolicyFunctions.MaintainHomeCoverage, Finding.Unmet, bounded.Token).ConfigureAwait(false);
-        await UpkeepSupport.FollowMethodsAsync(journal, PolicyFunctions.MaintainHomeCoverage, "home", a =>
+        await UpkeepSupport.WaitNeedRowAsync(journal, LayoutFamily.HomeCoverage, met: false, bounded.Token).ConfigureAwait(false);
+        await UpkeepSupport.FollowMethodsAsync(journal, LayoutFamily.HomeCoverage.FilingKey, "home", a =>
             a.Area is { Home: true, Operation: AreaOperation.SetCells } ? null : "home method is not a home area set_cells", report, bounded.Token).ConfigureAwait(false);
         if (report["home_recovered_by"].AsString() != "controller_order")
         {
             throw new AcceptanceException("home extension lacks controller completion");
         }
 
-        _ = await UpkeepSupport.WaitNeedAsync(journal, PolicyFunctions.MaintainHomeCoverage, Finding.Met, bounded.Token).ConfigureAwait(false);
+        await UpkeepSupport.WaitNeedRowAsync(journal, LayoutFamily.HomeCoverage, met: true, bounded.Token).ConfigureAwait(false);
     }
 
     /// <summary>Audits the three corridor cells and the first cell beyond the margin against the native Home mask.</summary>

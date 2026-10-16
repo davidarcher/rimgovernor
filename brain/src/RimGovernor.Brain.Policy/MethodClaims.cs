@@ -22,7 +22,9 @@ public static partial class PolicyFunctions
     /// <item>policy prunes: the pruned database (<c>policy/&lt;database&gt;</c>);</item>
     /// <item>work assignments and pawn settings: <c>settings/&lt;pawn&gt;</c>;</item>
     /// <item>deconstruction and uninstalling: the cell and the thing;</item>
-    /// <item>roof removal: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);</item>
+    /// <item>roof removal and roof building: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);</item>
+    /// <item>area plant cuts: each cut cell (<c>cut/x/z</c>);</item>
+    /// <item>cover clearance and wall removal: the cell and the thing (a backup wall's removal has no thing yet);</item>
     /// <item>assignments (a bed, a throne), bed use and building claims: the thing;</item>
     /// <item>supply allow and forbid: the stack;</item>
     /// <item>husbandry (train, tame, slaughter, release, master, sterilize): the animal;</item>
@@ -116,6 +118,10 @@ public static partial class PolicyFunctions
         else if (a.Deconstruction is { } cut) { yield return CellClaimTarget(cut.Cell); yield return cut.Target; }
         else if (a.UninstallBuilding is { } uninstall) yield return CellClaimTarget(uninstall.Cell);
         else if (a.RemoveRoof is { } roof) { foreach (var c in roof.Cells) yield return "roof/" + c.X + "/" + c.Z; }
+        else if (a.BuildRoof is { } built) { foreach (var c in built.Cells) yield return "roof/" + c.X + "/" + c.Z; }
+        else if (a.AreaPlantCut is { } plants) { foreach (var c in plants.Cells) yield return "cut/" + c.X + "/" + c.Z; }
+        else if (a.CoverClearance is { } cover) { yield return CellClaimTarget(cover.Cell); yield return cover.Thing; }
+        else if (a.WallRemoval is { } wall) { yield return CellClaimTarget(wall.Cell); yield return wall.Original; }
         else if (a.FloorRemoval is { } floor) yield return "floor/" + floor.Cell.X + "/" + floor.Cell.Z;
         else if (a.Assign is { } assign) yield return assign.Thing;
         else if (a.BedUse is { } bed) yield return bed.Thing;

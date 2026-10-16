@@ -76,11 +76,7 @@ public sealed class ClockSchedulerConfig
 
     public RoundsResourcePlanner? Resource { get; init; }
 
-    public RoundsHomeCoveragePlanner? HomeCoverage { get; init; }
-
     public MaintainShelterPlanner? MaintainShelter { get; init; }
-
-    public RoundsFirebreakPlanner? Firebreak { get; init; }
 
     public RoundsPsylinkPlanner? Psylink { get; init; }
 
@@ -88,13 +84,9 @@ public sealed class ClockSchedulerConfig
 
     public RoundsGatheringPlanner? Gathering { get; init; }
 
-    public RoundsStoneShellPlanner? StoneShell { get; init; }
-
     public RoundsStockpilePlanner? Stockpiles { get; init; }
 
     public RoundsDefenseLayoutPlanner? DefenseLayout { get; init; }
-
-    public RoundsEnvelopePlanner? Envelope { get; init; }
 
     public RoundsMoodReliefPlanner? MoodRelief { get; init; }
 

@@ -257,12 +257,6 @@ public sealed record RoundsFacts
     /// <summary>The Safe allowed area differs from the enclosed roofed rooms (PlanSafeArea); it holds MaintainShelter open. Unknown unless the MaintainShelter method is composed.</summary>
     public Fact<bool> SafeAreaOwed { get; init; }
 
-    /// <summary>The firebreak ring has a cut cell with a standing plant or an undesignated wooden ruin (FirebreakOwed); it holds MaintainFirebreak open. Unknown unless the method is composed.</summary>
-    public Fact<bool> FirebreakOwed { get; init; }
-
-    /// <summary>A planned room is owed a vent or a roof, or the roofed hallway is open to the sky (#2962); it holds MaintainClimateEnvelope open. Unknown unless the method is composed.</summary>
-    public Fact<bool> EnvelopeOwed { get; init; }
-
     /// <summary>A mechanitor can afford the next mech, a gestator is idle and no waste is uncleared (MechGestationOwed); it holds MaintainMechs open. Unknown unless the method is composed.</summary>
     public Fact<bool> MechGestationOwed { get; init; }
 
@@ -613,10 +607,6 @@ public sealed record RoundsFacts
 
 public sealed record RoundsLatches
 {
-    public bool HomeCoverage { get; set; }
-
-    public bool StoneShell { get; set; }
-
     public bool Sleeping { get; set; }
 
     public bool MedicalReserve { get; set; }
@@ -897,12 +887,7 @@ public static partial class PolicyFunctions
             throw new DomainException("invalid calendar fact");
         }
         p = p.Seasonal(f.Calendar, f.DisasterConditions);
-        var owned = OwnedConstructions(f.ConstructionClaims, f.CurrentConstruction);
-        var c = new RoundsRun(f, previous, p)
-        {
-            Home = PlanHomeArea(f.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage),
-            Stone = ReviewStoneShell(owned, f.StoneStructures),
-        };
+        var c = new RoundsRun(f, previous, p);
         var medicineFacts = f.MedicalReserve with { Colonists = f.Colonists };
         c.Medicine = ReviewMedicalReserve(medicineFacts, previous.MedicalReserve, p.MedicalReserve);
         c.Lighting = ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, SkyDarkHold(f.DisasterConditions, f.OutdoorsDark));
@@ -940,20 +925,8 @@ public static partial class PolicyFunctions
         {
             c.SleepingActive = !recovered;
         }
-        c.HomeActive = previous.HomeCoverage;
-        c.StoneActive = previous.StoneShell;
-        if (c.Home.TryGetValue(out var diff))
-        {
-            c.HomeActive = !diff.Empty();
-        }
-        if (c.Stone.TryGetValue(out var rows))
-        {
-            c.StoneActive = rows.Count > 0;
-        }
         c.L = new RoundsLatches
         {
-            HomeCoverage = c.HomeActive,
-            StoneShell = c.StoneActive,
             Sleeping = c.SleepingActive,
             MedicalReserve = c.Medicine.Active,
             Lighting = EquatableArray.From(c.Lighting.Dark),
