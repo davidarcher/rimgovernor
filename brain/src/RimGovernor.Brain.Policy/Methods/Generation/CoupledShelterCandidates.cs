@@ -43,9 +43,15 @@ internal static class CoupledShelterCandidates
         if (truncated) findings.Add("shelter_geometry_truncated");
         return (unique.Take(4).ToArray(), EquatableArray.From(findings), truncated);
     }
+    /// <summary>
+    /// Shelter alternatives over observed and planned rooms. A planned room's unbuilt shell and roof are its planned
+    /// sites (#3277): planned is the round's planned-site facts and generated the sites PlannedRoomCandidates emitted,
+    /// whose operations the composer shares; a shelter requires their finishes and never repeats them.
+    /// </summary>
     internal static CoupledShelterCandidatesResult Generate(IEnumerable<ForecastShelterGeometry> rooms, Fact<RoomObservation> physicalRooms, CoupledThermalRead? read,
         IEnumerable<ForecastCompositionOperation> constructionOperations,
-        IReadOnlyDictionary<(string, string), ActivityTaskCandidate> constructionBindings, long deadline, double horizon)
+        IReadOnlyDictionary<(string, string), ActivityTaskCandidate> constructionBindings,
+        IReadOnlyList<PlannedBuildSite> planned, IReadOnlyList<PlannedSiteOperations> generated, long deadline, double horizon)
     {
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new Dictionary<(string, string, string), ForecastActivityRoute>();
@@ -88,17 +94,54 @@ internal static class CoupledShelterCandidates
                     Known(EquatableArray.From(available.Select(id => "completed-site/" + id))), Known(0d), Known(horizon)));
                 return true;
             }
+            // Planned shelter R is planned room R: its sites are planned/room{R}/... and complete at planned/room{R}.
+            var plannedRoom = room.Id.Source == ForecastShelterSource.Planned && int.TryParse(room.Id.Value, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var number) ? number : 0;
+            var roomSites = plannedRoom == 0 ? [] : planned.Where(s => s.Room == plannedRoom && s.Zone.Length == 0).ToArray();
+            var made = generated.Where(g => plannedRoom != 0 && g.Room == plannedRoom).ToDictionary(g => g.Site, g => g.Finish, StringComparer.Ordinal);
+            var roomLocation = "planned/room" + plannedRoom;
+            // One demand per planned kind (wall, door, roof), met by the finish of whichever generated site of it the
+            // selection builds: the ring stuffs exclude each other, so any one realizes the shell.
+            void RequirePlanned(string kind, IEnumerable<PlannedBuildSite> sites)
+            {
+                var id = roomLocation + "/" + kind;
+                if (demands.Any(r => r.Id == id)) return;
+                var ends = sites.Where(s => made.ContainsKey(s.Id)).Select(s => made[s.Id]).Distinct().Order(StringComparer.Ordinal).ToArray();
+                groups.Add(EquatableArray.From(ends));
+                demands.Add(new(id, capability, Known(1), roomLocation, ForecastRequirementKind.Reusable,
+                    Known(EquatableArray.From(ends.Select(f => "completed-site/" + f))), Known(0d), Known(horizon)));
+            }
             foreach (var cell in ring)
             {
                 if (!observed.TryGetValue(cell, out var row)) { notes.Add("missing_shelter_geometry"); continue; }
                 if (row.Solid && (!row.Door || row.DoorClosed)) continue;
-                if (!row.FutureSolid || row.FutureDoor && cell != room.Door || !RequireSite(row.Site)) notes.Add("unmodeled_shell_work");
+                if (row.FutureSolid)
+                {
+                    if (row.FutureDoor && cell != room.Door || !RequireSite(row.Site)) notes.Add("unmodeled_shell_work");
+                    continue;
+                }
+                var covering = roomSites.Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn && s.Positions.Contains(cell)).ToArray();
+                if (covering.Length == 0) notes.Add("unmodeled_shell_work");
+                else if (!covering.Any(s => made.ContainsKey(s.Id))) notes.Add("planned_shell_unvalued");
+                else
+                {
+                    var op = covering.First(s => made.ContainsKey(s.Id)).Op;
+                    RequirePlanned(op == OpKind.DoorIn ? "door" : "wall", roomSites.Where(s => s.Op == op));
+                }
             }
             var shell = EquatableArray.From(demands);
+            // A generated planned roof covers its cells as one site; the per-cell native path stays for the rest.
+            var plannedRoof = roomSites.Where(s => s.Op == OpKind.RoofIn && made.ContainsKey(s.Id)).ToArray();
             foreach (var cell in interior)
             {
                 if (!observed.TryGetValue(cell, out var row)) { notes.Add("missing_shelter_geometry"); continue; }
                 if (row.Roof == "thin") continue;
+                if (plannedRoof.Any(s => s.Positions.Contains(cell)))
+                {
+                    if (row.Roof != "none" || bounds.Width > 10 || bounds.Height > 10) notes.Add("unsupported_roof_geometry_or_designation");
+                    else RequirePlanned("roof", plannedRoof);
+                    continue;
+                }
                 if (row.Roof != "none" || !row.BuildRoof || bounds.Width > 10 || bounds.Height > 10)
                 { notes.Add("unsupported_roof_geometry_or_designation"); continue; }
                 var id = "roof/" + room.Id + "/" + cell.X + "/" + cell.Z;

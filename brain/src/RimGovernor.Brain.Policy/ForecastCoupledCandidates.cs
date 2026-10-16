@@ -84,7 +84,7 @@ public static partial class PolicyFunctions
         var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources);
         var shelter = Methods.Generation.CoupledShelterCandidates.Generate((shelterEnabled ? facts.PlannedShelters : []).OrderBy(r => r.Id).Select(r =>
             new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
-            facts.Upkeep.Rooms, read.Thermal, construction.Operations, construction.Bindings, deadline, horizon);
+            facts.Upkeep.Rooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);
         findings.UnionWith(shelter.Findings); truncated |= shelter.Truncated;
         foreach (var outcome in construction.Outcomes.Where(o => !construction.Bindings.Values.Any(b => b.Id == o.Completion)))
             findings.Add("construction_outcome_unbound:" + outcome.Id);

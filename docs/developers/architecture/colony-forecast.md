@@ -186,10 +186,36 @@ still apply.
 
 The concrete shelter alternative joins saved planned-room geometry to native
 shell, roof, standing construction and electric-heater facts. Missing shell or
-source work uses the same construction prerequisites and shared materials;
-missing designated roof cells add bounded roof labor. Protection starts only after
-enclosure, roof and heat-source prerequisites complete, followed by room warmup.
-A placed heater or roof alone earns no thermal benefit.
+source work uses the same construction prerequisites and shared materials.
+Protection starts only after enclosure, roof and heat-source prerequisites
+complete, followed by room warmup. A placed heater or roof alone earns no thermal
+benefit.
+
+A planned shelter is the planned room of the same id (`planned/room{R}`), so its
+unbuilt shell and roof are that room's [planned sites](#planned-rooms) (#3277), not
+a second construction path. Each open ring cell resolves in order:
+
+- a solid cell needs nothing;
+- a cell with a placed native site requires that site's finish, as before;
+- a cell inside a generated planned wall or door site requires one shared
+  `CompletedPhysicalSite` demand per kind at `planned/room{R}`, met by the finish of
+  whichever stuff's site the selection builds;
+- a cell inside a planned site that was not generated (unvalued, infeasible or
+  truncated) notes `planned_shell_unvalued`;
+- any other open cell notes `unmodeled_shell_work`.
+
+The roof follows the same rule: a generated `planned/room{R}/roof` site covers its
+cells as one shared demand, and no per-cell roof work is added there. The per-cell
+native roof labor (designated Build Roof cells only) remains for observed rooms and
+for planned rooms without a generated roof site. Either way the room's bounds stay
+within 10 cells. The composer shares the planned operations with the planned-room
+roots, so they are never duplicated. A planned roof over a natively placed ring has
+no ordering edge on that placed shell; this is a known approximation.
+
+Native reads thermal cells only near placed sites and heaters and has no heat facts
+for a planned heater. So a room with no placed shell is valued only when a heater or
+heater blueprint stands in it; other unstarted rooms stay explicitly unknown
+(`missing_shelter_geometry` or `unknown_heat_source`) until #3323.
 
 The supported estimate is a closed rectangular room with thin roof, under current
 outdoor temperature and current network supply. It uses observed native heat
