@@ -10,8 +10,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// Diagnosis for the four-worker fixture (#3196): why the bounded portfolio search serves one of four demanded meals.
 /// It observes the production search and scheduler through their public API only and changes no selection, budget or
-/// traversal. <c>TraversalReplica</c> mirrors the subset order of CompareActivityOutcomes so that coverage can be counted;
-/// a test ties it to the production search. Findings: docs/developers/testing/portfolio-allocations.md.
+/// traversal. <c>TraversalReplica</c> mirrors the pre-#3197 plain subset order so the opt-in measurement can count pair
+/// positions. Findings: docs/developers/testing/portfolio-allocations.md.
 /// </summary>
 public sealed class PortfolioSearchDiagnosisTests
 {
@@ -26,7 +26,6 @@ public sealed class PortfolioSearchDiagnosisTests
         public readonly ColonyForecastRequest Request;
         public readonly ForecastCommitment[] Roots; // in the order the search visits them
         public readonly ForecastCommitment[] ReferenceRoots; // one ingestion each: diner/0, pawn/0, diner/1, pawn/1
-        public readonly Lazy<(int Baseline, int[] Costs)> SingletonCosts;
 
         public Subject()
         {
@@ -36,14 +35,6 @@ public sealed class PortfolioSearchDiagnosisTests
             Roots = [.. Generated.Alternatives.Concat(Generated.Incumbents).OrderBy(c => c.Id, StringComparer.Ordinal)];
             var eats = PortfolioReferenceScheduleTests.Reference().Select(s => s.Activity).Where(a => a.Contains("/eat/", StringComparison.Ordinal)).ToHashSet();
             ReferenceRoots = [.. Roots.Where(r => r.ActivityCompletions.Any(eats.Contains))];
-            SingletonCosts = new(() =>
-            {
-                // The plain order's cost of one single root: one production Evaluate at the 4,096 per-portfolio bound is
-                // 1 + the scheduler's expansions, added to the baseline's. (Production now screens single roots at a
-                // smaller bound first, so a one-root universe no longer measures this.)
-                var baseline = Select([], 262144).Selection.Expansions;
-                return (baseline, [.. Roots.Select(r => 1 + ForecastColony(Replay(this, [r], 4096)).Baseline.Coupled!.Expansions)]);
-            });
         }
 
         public ForecastCoupledSelection Select(ForecastCommitment[] universe, int budget) =>
@@ -104,25 +95,6 @@ public sealed class PortfolioSearchDiagnosisTests
         }
     }
 
-    /// <summary>Expansions the production loop spends on the cardinality-1 sweep: one evaluation per root, in order.</summary>
-    private static (int Entered, int Completed, int Spent) SingletonReach((int Baseline, int[] Costs) sweep, int budget)
-    {
-        int spent = sweep.Baseline, entered = 0, completed = 0;
-        foreach (var cost in sweep.Costs)
-        {
-            if (spent >= budget) break;
-            entered++;
-            spent++;
-            var remaining = budget - spent;
-            if (remaining == 0) break;
-            var scheduler = Math.Min(cost - 1, remaining);
-            spent += scheduler;
-            if (scheduler < cost - 1) break;
-            completed++;
-        }
-        return (entered, completed, spent);
-    }
-
     private static double[] Flat(IEnumerable<Fact<double>> facts) => [.. facts.Select(x => x.IsKnown ? x.Value : -1)];
 
     private static string[] LastSubset(ForecastCoupledSelection selection) => [.. selection.Rejected[^1].Commitments];
@@ -149,41 +121,6 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(reference.Select(r => r.Activity).Order(StringComparer.Ordinal), closure.Order(StringComparer.Ordinal));
         var options = s.Generated.Context.Activities.Options.Select(o => (o.Activity, o.Pawn)).ToHashSet();
         Assert.All(reference, step => Assert.Contains((step.Activity, step.Worker), options));
-    }
-
-    [Fact]
-    public void PlainCardinalityOrderNeverLeavesTheSingleRootSweep()
-    {
-        // The #3196 diagnosis of plain cardinality order, which production followed until #3197 seeded an extension
-        // of the leader after a quarter of the budget. The replica and these counts are that order, kept as the measurement.
-        var s = Shared.Value;
-        var replica = new TraversalReplica(s.Roots, s.Generated.Context);
-        var counts = Enumerable.Range(1, 4).Select(size => replica.Subsets(size).LongCount()).ToArray();
-        var referenceIndexes = s.ReferenceRoots.Select(r => Array.IndexOf(s.Roots, r)).Order().ToArray();
-        var referenceRank = counts[..3].Sum() + replica.Subsets(4).TakeWhile(x => !x.SequenceEqual(referenceIndexes)).LongCount() + 1;
-        var sweep = s.SingletonCosts.Value;
-        var total = sweep.Costs.Sum(c => (long)c);
-        var reach = Budgets.Select(b => SingletonReach(sweep, b)).ToArray();
-        // The two-ingestion portfolio production ranks above the incumbent (see the last test): its position among the pairs.
-        var improving = new[] { Array.IndexOf(s.Roots, s.Roots.Single(r => r.Id == IncumbentRoot)), Array.IndexOf(s.Roots, s.ReferenceRoots[0]) };
-        var improvingRank = counts[0] + replica.Subsets(2).TakeWhile(x => !x.SequenceEqual(improving)).LongCount() + 1;
-        MaybeWrite("traversal", new
-        {
-            Counts = counts, ReferenceIndexes = referenceIndexes, ReferenceRank = referenceRank, ImprovingPair = improving,
-            ImprovingRank = improvingRank, sweep.Baseline, SingletonCosts = sweep.Costs,
-            SingletonSweepExpansions = total, Reach = Budgets.Zip(reach, (b, r) => new { Budget = b, r.Entered, r.Completed, r.Spent })
-        });
-        // 62 singletons; the larger sizes count only subsets that survive exclusive-outcome and graph-redundancy pruning.
-        Assert.Equal([62L, 1698L, 28580L, 339189L], counts);
-        Assert.Equal(185139L, total);
-        Assert.Equal(43, sweep.Costs.Count(c => c == 4097)); // The scheduler's bound (4096) plus the evaluation itself.
-        // Only the largest budget completes the sweep; it then has 77,005 expansions left for pairs. Smaller budgets end inside it.
-        Assert.Equal([1, 1, 2, 4, 18, 62], reach.Select(r => r.Completed));
-        Assert.Equal([2, 2, 3, 5, 19, 62], reach.Select(r => r.Entered));
-        Assert.Equal([1024, 4096, 8192, 16384, 65536, 185139], reach.Select(r => r.Spent));
-        // Even at one expansion per evaluation the reference set (cardinality 4) is far beyond every budget; the improving pair is not.
-        Assert.True(referenceRank > Budgets[^1], "enumeration rank of the reference set exceeds the largest budget");
-        Assert.True(improvingRank > counts[0] + 0, "pairs follow the sweep");
     }
 
     [Fact]

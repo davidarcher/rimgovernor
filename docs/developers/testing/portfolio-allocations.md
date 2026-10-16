@@ -289,8 +289,8 @@ This is the diagnosis of the plain cardinality order that production followed un
 order, not today's traversal. `PortfolioSearchDiagnosisTests` observes the production
 search and scheduler through their public API. Its
 `TraversalReplica` mirrors the plain subset order of `CompareActivityOutcomes` for counting
-only (`PlainCardinalityOrderNeverLeavesTheSingleRootSweep`). **Measurements** below are
-asserted by those tests unless marked *opt-in*; the opt-in run
+only. **Measurements** below are asserted by those tests unless marked *opt-in* or
+*recorded*; the opt-in run
 (`RIMGOVERNOR_PORTFOLIO_OUTPUT`, `-method '*WriteSearchDiagnosisMeasurements'`, about
 four minutes) writes `search-diagnosis.*.json` and also covers the budgets too slow
 for the normal gate. **Hypotheses** are labeled as such.
@@ -304,7 +304,9 @@ for the normal gate. **Hypotheses** are labeled as such.
    reference (activity, worker) pair is a generated option. The production chain root
    `food/27/composition/18` is also present. The smallest portfolio that serves four
    ingestions has four roots.
-2. **Traversal never reaches cardinality 4, nor most of 2.** After exclusive-outcome and
+2. **Traversal never reaches cardinality 4, nor most of 2.** *Recorded*: the test that
+   asserted these counts cost 18–40 s per gate run for an order production no longer
+   follows, so it was deleted. After exclusive-outcome and
    graph-redundancy pruning, the search enumerates 62 / 1,698 / 28,580 / 339,189 subsets
    at cardinality 1 / 2 / 3 / 4. The reference set is the 357,973rd evaluation, which is
    beyond the largest budget even at one expansion per evaluation. Each evaluation
