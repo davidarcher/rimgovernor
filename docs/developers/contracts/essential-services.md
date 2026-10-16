@@ -127,3 +127,29 @@ ordinary review/journal/Hands and requires actual frame work, powered heat and w
 while unrelated construction stays in place. `production/coupled-needs` supplies the
 corresponding normal harvest/ingestion evidence; `production/productive-cooking`
 covers useful cooking. Registration and compilation do not establish gameplay success.
+
+## Observed evidence and remaining gaps
+
+Real-game runs under the normal planner (no fixture-selected winner) at the #3167 close-out:
+
+| Case | Result | What it establishes |
+| --- | --- | --- |
+| `production/productive-cooking` | passes (ordinary crew, prepared level-5 cooking skill) | the planner plans and cooks, a meal is produced, and the level-5 skill is observed rather than boosted |
+| `production/maintenance-range`, `production/maintenance-sparring` | pass | an assigned role floor with a real deficit is maintained by existing range and sparring |
+| `production/coupled-needs`, `lifecycle/load` | pass | normal harvest/ingestion and load preserve ownership |
+| `shelter/service-investment` | fails: reviews run, no shelter investment is selected (#3245) | food/shelter investment is **not** observed in the real game; the pure paired tests still cover the decision |
+| `production/coupled-thermal` | fails: the first review supplies no small bedroom (#3246) | thermal evidence is **not** observed |
+| `service/restart` | cannot run locally: the harness does not start the game with the case's routine families (#3268) | restart evidence is **not** observed |
+
+Cooking ingredients are staged on a free cell near the bench, never on its interaction
+cell, because the finished product drops there and a strict-exact-destination delivery
+refuses any occupied cell. A refused delivery now names the blocking item or condition in
+its receipt.
+
+The maintenance fixture cannot hold an assigned role below its skill floor in vanilla:
+the role is unassigned when its requirement fails. The fixture therefore suppresses that
+recache for its own role so a real deficit exists; run it with an ordinary crew, since the
+harness's default skill boost would erase the deficit. Predicted-versus-observed rows are in
+`coupled_selection`/`coupled_observed` telemetry (see [OTLP signals](otel-signals.md)).
+Urgent-interruption, satisfaction/obsolescence and changed-assignment behavior is covered by
+pure paired tests only; no real-game run observes it yet.
