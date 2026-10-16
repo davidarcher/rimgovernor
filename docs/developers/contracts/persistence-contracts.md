@@ -26,6 +26,13 @@ constraints live in the C# domain constructors a payload is rebuilt through. The
 upgrade: a file of another version is moved aside to `<path>.v<old>.bak` by `Store.OpenOrReplace` and a new one
 is created, so there are no migrations.
 
+Standards, their Episodes, the `standard/<id>` blobs, `standard_methods` and the
+`trade-mission` blobs are legacy. Under the
+[target model](../architecture/control-loop.md#durable-state) the save keeps only
+player intent and `family/*` records; Need-owned Methods live in `need_methods`
+(`plan_owner` kind `need`, journal version 14). Each migrating slice amends the
+rows below when it changes them.
+
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
 copy of a fact is a bug, not a cache.
 
@@ -235,7 +242,9 @@ or `incident_methods` (keyed by owner and MethodID). `plan_owner(plan_id PRIMARY
 KEY, kind)` holds one row per bound plan and each method table references it by `(plan_id, kind)` with
 a constant `kind`, so a plan has at most one owner across the two tables. Plan-to-owner lookups read
 the `plan_methods` view (plan_id, kind, owner_id, episode, method_id, priority, reason; episode is NULL
-outside Standards).
+outside Standards). The `need` owner kind and `need_methods` table are the
+[target model's](../architecture/control-loop.md#method-journal-claim-admission)
+replacement for `standard_methods`; this paragraph is updated when they land.
 
 ## Bounded working set
 
@@ -245,7 +254,9 @@ leave active capacity and cannot be modified or reused.
 
 - A method that completed in the current Episode is not proposed again. A deficit measured after the
   Standard's settling, once no plan's effects are open, starts a new Episode so the same Method can
-  repair a regression (a lamp removed behind a lit bench).
+  repair a regression (a lamp removed behind a lit bench). This Episode rule is legacy: a Need-owned
+  Method instead continues while its MethodId is open and may be admitted again once its Need is unmet
+  ([claim admission](../architecture/control-loop.md#method-journal-claim-admission)).
 - Retirement records a per-world observation-tick floor so an older observation cannot make retired
   reservations spendable again.
 - The database grows with completed work; each launch opens a fresh database by default, which is the

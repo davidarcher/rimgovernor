@@ -236,7 +236,9 @@ and `risk-fallout`/`risk-frost` credits for feasible indoor sites. Zero-glow cro
 require observed darkness and a native diet allowance; ideology penalties exclude
 nutrifungus. Unknown worker facts add no terms.
 
-**Open work exemptions.** Open hunting, foraging or butcher-spot build under
+**Open work exemptions** (legacy; replaced by
+[claim admission](../architecture/control-loop.md#method-journal-claim-admission)
+when the food family migrates). Open hunting, foraging or butcher-spot build under
 `EnsureFoodSupply` does not block a field batch, and a sown field does not block
 acquisition. A spot waits only for a pending spot, a bill only for an open bill. A second
 field batch waits for the first to resolve.

@@ -95,7 +95,8 @@ the current pawn job and target establish whether repair, breakdown or refuel
 work still serves an observed pending need. Increasing hit points or fuel does
 not justify replacing that useful job. Unknown jobs or targets hold admission.
 When the job ends, selection can reconsider known work using the shared Episode's
-used Method identities; refusal does not erase that history.
+used Method identities; refusal does not erase that history. (Episodes are legacy;
+see the [target model](../architecture/control-loop.md#target-model-needs-families-and-claimed-methods).)
 
 The scheduler's existing game-tick review deadline releases its wait and obtains
 fresh observations; it does not cancel the native job. Native building state and

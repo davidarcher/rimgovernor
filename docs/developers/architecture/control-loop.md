@@ -5,7 +5,258 @@
 The governor inspects the colony, selects bounded work, issues orders and observes
 progress. The scheduler and native clock operate independently of launcher refresh.
 
-## Concerns and their forms
+The loop is moving from Rounds, Concerns and Standards onto Needs, Families and
+claimed Methods ([epic #3231](https://github.com/davidarcher/rimgovernor/issues/3231)).
+The [target model](#target-model-needs-families-and-claimed-methods) is the
+contract every migrating family follows. The
+[legacy model](#legacy-rounds-concerns-and-standards) still runs every family
+that has not migrated, and is deleted in the final slice.
+
+## Target model: Needs, Families and claimed Methods
+
+Four layers sit between "what does the colony need" and "what work is admitted"
+today: the Concern registry, Rounds, durable Standards and per-Concern planners.
+The target model keeps what carries weight (observation, per-family policy,
+selection, the Method journal, Hands, explain and telemetry keys) and replaces
+the rest with three things: Needs derived fresh from facts, Families that propose
+work for them, and a Method journal that admits work by what it claims.
+
+```mermaid
+flowchart LR
+    Facts[Coherent native facts] --> Derive[Family derives Needs]
+    Derive --> Pre{Preconditions hold?}
+    Pre -->|no| Wait[Explain: waiting on NeedId]
+    Pre -->|yes| Propose[Family proposes candidate Methods]
+    Propose --> Select[Select: tier, then forecast or family choice]
+    Select --> Admit[Journal admits by claims, owner = NeedId]
+    Admit -->|overlap| Conflict[ClaimConflict planner reason]
+    Admit --> Hands[Hands dispatch]
+    Hands --> Outcome[Observed outcome wakes the family]
+    Outcome --> Facts
+```
+
+### Need
+
+A Need is derived fresh on every review from current facts. Nothing about it is
+stored: not its finding, not an episode, not a settled flag. It replaces the
+Concern registry row, the Rounds assessment and the Standard episode.
+
+| Field | Meaning |
+| --- | --- |
+| Id (`NeedId`) | `family/kind[/subject]`, stable across reviews and loads, for example `food-stores/refrigeration` or `medical/critical/<pawn>`. The family segment is the owning Family's id. A subject names one occurrence or target: a pawn, an event, a building. The id must be reproducible from facts alone; never hash a load token or tick into it. |
+| Evidence | The facts the finding rests on, with explicit unknowns. |
+| Satisfaction predicate | `met`, `unmet` or `unknown` over what stands now. Unknown never counts as met. |
+| Deficit | How far from met, in the family's own unit; used by selection and explain. |
+| Tier | `SeriousHarm`, `Wellbeing` or `Development`. Selection orders by tier first; `SeriousHarm` Needs also run in the [immediate pass](#scheduling-and-the-immediate-pass). |
+| Preconditions | Optional: other NeedIds whose predicate must be met before this Need is proposed for ([below](#preconditions)). |
+
+The old forms map onto this one shape:
+
+- A **Standard** (a held target) is a Need whose predicate is the target.
+- An **Incident** is a Need whose subject is the occurrence (a pawn, an event).
+  It exists while the occurrence is observed and disappears when it is not.
+- A **Once** Standard is a predicate over what stands (the room exists, the
+  ritual has been held this year), not a stored "settled" bit.
+- A **chore** is a Need whose predicate is "no outstanding work".
+
+There are no Episodes, Settle or Once states. Churn is prevented by stable Need
+ids and Method continuation: the same unmet Need yields the same MethodId, and
+a request for an open MethodId continues it rather than opening another.
+
+### Family
+
+A Family is one module per domain (`IFamily`). It replaces the Concern
+registry rows, Inspect bodies, `Workable` checks, phase latches and per-planner
+whole-owner `ExistingWork` guards of the Concerns it absorbs.
+
+| Member | Contract |
+| --- | --- |
+| Id | The `family` segment of its NeedIds (for example `food-stores`). |
+| Fact reads | The fact families it reads, declared like a planner's today; tests reject undeclared reads. |
+| `Derive(facts) -> Needs` | Pure. Derives every Need of the family from the current facts. |
+| `Propose(needs, facts) -> candidate Methods` | Pure policy. Proposes candidate Methods for unmet Needs whose preconditions hold. |
+| SeriousHarm reads | The narrow facts its `SeriousHarm` Needs read in the immediate pass. A family without such Needs declares none. |
+
+A family may keep several internal steps (one per kind of work it owns). They run
+in order inside the family's single scheduler entry and share one fact read. A
+step files its planner reasons under the NeedId it served, not under a planner
+or Concern name. Candidate generation and binding stay family-specific, as
+[Method selection and binding](plans-and-hands.md#method-selection-and-binding)
+describes.
+
+### Selection
+
+Tier order first (`SeriousHarm`, then `Wellbeing`, then `Development`). Within a
+tier, a family with forecast candidates uses the shared ColonyForecast comparator;
+any other family makes its own choice. The model adds no selection or valuation
+logic: the comparator and its adoption belong to #3124, #3160 and #3166.
+
+### Method journal: claim admission
+
+Need-owned Methods have their own journal owner: `plan_owner` kind `need`, a
+`need_methods` table keyed by NeedId and MethodId, and a `NeedOwner : IMethodOwner`
+beside the Standard and Incident owners. Adding it moves `Store.SchemaVersion`
+from 13 to 14; the journal is replaced on a version change, so there is no
+migration. The `need` owner is opted into claim admission; every other owner
+keeps the open-work gate until the final slice.
+
+**Claims.** A Method's claims are derived from its actions at admission, never
+stored on the Method: `WorkClaimsOf` over the actions yields a `WorkResourceClaims`
+(pawns, targets, materials and shared targets). Targets cover the cells, things,
+zones and sources the work touches; a building claims its full footprint
+(definition size and rotation), not its anchor cell. Shared targets (sleep,
+recreation, observed food) admit a second owner up to their capacity. Materials
+stay under the existing in-transaction material-budget check. Every action kind a
+family can propose must yield its claims (gear, bills, pawn activities,
+haul and forage, area edits, apparel policy).
+
+**Admission** for an opted-in owner, inside the commit transaction:
+
+| Request | Result |
+| --- | --- |
+| MethodId already open for this NeedId | Continue that Method: no new row, no exception. |
+| Claims overlap an open Method of any owner | Refused with `ClaimConflict`, naming the holding Method and the overlapping claim; the family records it as a planner reason. No exception. |
+| Otherwise | Admitted. A released or completed MethodId may be admitted again when its Need is unmet again. |
+
+This replaces the one-open-Method gate, its eleven `*OpenWorkExempt` carve-outs
+and the families' whole-owner guards. Continuation, release and cleanup are
+unchanged ([Method continuation](../contracts/method-continuation.md)).
+
+### Durable state
+
+Only two kinds of brain state persist in the save:
+
+- player intent, unchanged ([durable policy](../contracts/durable-policy.md));
+- keyed family records under `family/*`, which already exist (layout plan,
+  soldier squad, combat restoration and others).
+
+`standard/<id>` goes away. A migrating family moves any payload a Standard's
+`Record` carried (ideoligion reform, creep joiners, trade requests) into a
+`family/*` record. New saves stop writing `standard/<id>` blobs, and the final
+slice ignores old ones on load. Saved `trade-mission` blobs are dropped on
+upgrade: the economy family re-derives missions from facts. The
+[persistence table](../contracts/persistence-contracts.md) is amended by the
+slice that changes each of these.
+
+### Scheduling and the immediate pass
+
+A migrated family is **one** due-queue entry in the planner catalog. Its old
+planner entries are deleted in the same slice. The entry declares its fact reads,
+action kinds and cadence like a planner entry does today, and wakes on:
+
+- invalidation of a fact family it reads;
+- outcomes of its own Methods;
+- its cadence.
+
+The **immediate pass** runs the `SeriousHarm` Needs of registered families,
+reading only their declared narrow facts, beside the legacy `ImmediateConcern`
+set. `ImmediateConcern` is deleted when the last immediate Concern migrates.
+Immediate-protection behavior does not change; only its bookkeeping moves.
+
+### Preconditions
+
+Ordering between Needs is a precondition: "this Need waits on Need X's
+predicate". A Need whose precondition is not met is derived (so explain can show
+it) but not proposed for; explain shows it as waiting on that NeedId. An
+`unknown` precondition does not hold. Preconditions replace the hard-coded phase
+latches (Housing, Comfort, Medical) as their families migrate.
+
+### Forecast owners and coverage
+
+ColonyForecast proposals and essential-service rows already attach to an owner
+and are recomputed every review. Under this model the owner is the NeedId. Each
+family slice re-keys its `ServiceTarget`s (`EssentialServices.cs`) and its
+coupled-candidate gates (`ForecastCoupledCandidates.cs`) from Concern ids to
+NeedIds, and keeps coverage honest: an owner that moves must not turn its service
+row into Unknown. Moving a family's choice onto the shared comparator stays with
+#3124 and #3166.
+
+### Explain, progress and telemetry keys
+
+Explain (`concern_transitions`), launcher progress, the [player API](../contracts/player-api.md),
+OTLP attributes and the `rg` ReviewTimeline are keyed by NeedId for a migrated
+family and by Concern id for the rest. History restarts for a family when it
+migrates. ReviewTimeline drops its Ensure/Maintain prefix filter. A new OTLP kind
+or attribute is registered with its reader in [OTEL signals](../contracts/otel-signals.md).
+
+### Migration
+
+The model lands as a strangler, one family at a time, not a big-bang redesign.
+The spine lands beside the old machinery in two children: claim admission
+(#3249), then the Need/Family contracts, `need` owner and family scheduling
+(#3250). Until the final slice the two paths coexist: the legacy path runs every
+unmigrated Concern exactly as below, and a migrated family's Concerns leave the
+registry.
+
+A family slice:
+
+1. Implements the family's `Derive` and `Propose` with stable NeedIds, tiers and
+   preconditions, from the bodies of its Concerns' Inspect functions and planners.
+2. Replaces its planner entries with one family entry, and deletes its registry
+   rows, Inspect bodies, `Workable` and phase checks and whole-owner guards.
+3. Admits its Methods under the `need` owner (claims, not the gate), and deletes
+   any `*OpenWorkExempt` only it used.
+4. Moves any Standard `Record` payload it owns to a `family/*` record.
+5. Re-keys its forecast owners and coupled gates, and its explain, progress and
+   telemetry keys.
+6. Declares its `SeriousHarm` Needs and their narrow reads, retiring its entries
+   from `ImmediateConcern`.
+
+The final slice deletes Rounds, the Concern registry, Standards (with Episodes,
+Settle and Once), `standard_methods`, the open-work gate and its exemptions, and
+ignores saved `standard/<id>` blobs.
+
+Two decisions travel with the migration rather than any one family:
+
+- **MaintainFireSafety is deleted outright**, not migrated. Pawns fight fires
+  natively; firefighter work stays assigned through work assignments, and home
+  fires no longer pause development work.
+- **Food stores is the first family** (MaintainFoodStorage and
+  MaintainRefrigeration): both are Food owners in the forecast with real
+  planners, and its slice deletes the ReserveAccess exemption.
+
+**Family map.** The grouping of the first consolidation pass sets the family
+boundaries: EnsureCooking and MaintainBabyFeeding join Food, MaintainShelter (the
+Safe-area edit) stays its own Need in Shelter, and MaintainPopulation splits
+three ways.
+
+| Family | Today's Concerns |
+| --- | --- |
+| Food stores | MaintainFoodStorage, MaintainRefrigeration |
+| Food | EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight |
+| Home upkeep | MaintainEssentialRepairs, ClearHomeObstructions (MaintainFireSafety deleted) |
+| Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |
+| Layout | MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope, EnsureDefensiveLayout |
+| Shelter | MaintainHousing, MaintainShelter, EnsureTemperatureSafety |
+| Power | EnsureBasicPower |
+| Medical | CriticalMedicine, MaintainMedicalReserves, MaintainSurgery |
+| Military | ActiveCombat, RestoreWorkers, EnsureBasicDefense, MaintainEquipment, MaintainTraining, ClearPests |
+| Animals | MaintainHerd, MaintainAnimalContainment |
+| Ideology | MaintainIdeoRoles, MaintainRituals, ImproveIdeoligion |
+| Biotech | MaintainMechs, EnsureMechCharger, MaintainGeneBank, ManagePollution |
+| Royalty | MaintainPermits, MaintainPsylink |
+| Prisoners | MaintainPopulation (prisoner recruit, custody) |
+| Joiners and quests | MaintainPopulation (joiners, quests, letters, ceremonies, decrees, monuments, departures, refugees, grav inspection) |
+| Anomaly | MaintainPopulation (entity capture, door, tend, bioferrite, monolith); lance placement is decided when the slice is groomed |
+| Economy | EnsureResearch, MaintainResource, MaintainTrade, TradeWithCaravan, trade missions |
+| Colony admin | EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles, MaintainBurial, ManageSupplySafety, ManageCreepJoiners |
+| People | EnsureMood, AnswerDialog |
+| Disaster | RecoverDisasterServices |
+
+**Order.** Fire-safety deletion (#3252) is independent. After the spine:
+food stores (#3251) first, then food (#3254, after food stores) and home upkeep
+(#3253, after fire safety). Rooms, layout, shelter and power, medical, military,
+animals and ideology, biotech and royalty, the population split, economy, and
+colony admin with people and disaster can then run in parallel, one writer per
+family. The deletion slice (#3265) comes last. The epic tracks the live list.
+
+## Legacy: Rounds, Concerns and Standards
+
+This section describes the path that every unmigrated Concern still takes. It is
+kept until the deletion slice (#3265); new work follows the
+[target model](#target-model-needs-families-and-claimed-methods).
+
+### Concerns and their forms
 
 A **Round** runs **Inspections** on **Concerns**, grouped into **Departments**.
 A selected **Method** pursues a Concern through a Plan of actions.
@@ -24,6 +275,16 @@ Durable intent and session Method ownership are defined by the
 [persistence contract](../contracts/persistence-contracts.md).
 The [glossary](../glossary.md) defines the shared terms.
 
+### The one-open-Method gate
+
+A Standard admits a new Method only while none of its Methods has open work
+(`StandardOpenWork`; a refusal is `OpenMethodException`). Eleven
+`*OpenWorkExempt` carve-outs in `MethodAdmission.cs` let independent work through
+beside open work, and an uncertain trade request does not hold the gate. The gate
+is also the only same-MethodId duplicate guard for these owners. Owners opted
+into [claim admission](#method-journal-claim-admission) skip it; the gate and its
+exemptions are deleted in the final slice.
+
 ## Observe and prioritize
 
 Native frames provide coherent facts at an observed tick. Independently fetched
@@ -31,7 +292,8 @@ reads can span world changes, so identity and authority still require validation
 Absent or incomplete observations remain unknown; forecast harvest is not stock.
 
 The planner catalog declares required sections, fact families, action kinds and
-tick cadence. The due queue selects dirty or due planners. Action outcomes wake
+tick cadence; a migrated family is one such entry
+([scheduling](#scheduling-and-the-immediate-pass)). The due queue selects dirty or due planners. Action outcomes wake
 their consumers; invalidated fact families wake their readers; authority changes
 force reconciliation. Tests reject undeclared planner reads.
 
@@ -73,8 +335,10 @@ end-to-end latency gate.
 
 Policy selects supported controlled-pawn work and needs. Native priorities do not
 choose their voluntary jobs. Concerns do not reserve
-exclusive development slots. Method ownership, open work, Safeguards,
-dependencies and per-planner bounds prevent duplicate or unsafe admission.
+exclusive development slots. Method ownership, Safeguards, dependencies and
+per-planner bounds prevent duplicate or unsafe admission, together with the
+[legacy open-work gate](#the-one-open-method-gate) for unmigrated owners and
+[claim overlap](#method-journal-claim-admission) for Need owners.
 
 Explicit pawn activity Methods select exact work through policy and Hands rather
 than delegating those choices to vanilla priorities. The live food planner

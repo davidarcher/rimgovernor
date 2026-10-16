@@ -5,9 +5,11 @@
 Player requests and routine automation share admission checks, resource accounting
 and completion tracking. A Concern owns the outcome being pursued; an admitted
 Method associates that attempt with its Plan of actions. Hands deterministically
-executes accepted work. Advisers cannot commit game orders. Each concern is a Standard
+executes accepted work. Advisers cannot commit game orders. Each unmigrated concern is a Standard
 or Incident, and Safeguards veto proposals at admission; see
-[concerns and their forms](control-loop.md#concerns-and-their-forms).
+[concerns and their forms](control-loop.md#concerns-and-their-forms) (legacy). A migrated
+family owns its Methods by Need instead and is admitted by
+[claim overlap](control-loop.md#method-journal-claim-admission).
 
 ```mermaid
 flowchart LR

@@ -50,6 +50,11 @@ unification. New writers must also use Hands.
 
 ## From a Concern to work
 
+Concerns are being replaced by Needs and Families one family at a time; see the
+[target model](control-loop.md#target-model-needs-families-and-claimed-methods).
+The flow below holds for both: a migrated family proposes candidates for a Need
+instead of a Concern.
+
 A Concern states the desired outcome. A Method is an admitted attempt to achieve
 it through a Plan of actions. Candidate generation, forecast comparison and
 binding are pure policy steps in choosing that Method, not additional domain
@@ -112,7 +117,7 @@ Concern still waits for a finished building. Unknown facts never prove recovery.
 
 ## Read next
 
-- [Control loop](control-loop.md): Rounds, scheduling, native events and Manual.
+- [Control loop](control-loop.md): the Need/Family/claimed-Method target model and its migration, legacy Rounds, scheduling, native events and Manual.
 - [Plans and Hands](plans-and-hands.md): admission, dispatch and completion.
 - [Sessions and recovery](sessions-and-recovery.md): saves, authority and uncertain writes.
 - [Space and resources](space-and-resources.md), [supply](supply-model.md),
