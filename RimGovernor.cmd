@@ -55,7 +55,10 @@ set "PREV=%CUR%"
 set "VER=v%RANDOM%%RANDOM%"
 if exist "%TOOLS%\%VER%" goto :pick
 echo RimGovernor.cmd: building the tool host (tools\rg) ... 1>&3
-dotnet publish "%ROOT%tools\rg\rg.csproj" -c Release -r win-x64 --self-contained false -p:PublishReadyToRun=true -p:NodeReuse=false --nologo -v q -o "%TOOLS%\%VER%" >"%TOOLS%\build.log" 2>&1
+rem rg references brain projects (Acceptance.Cases -> Host -> NativeFacade ...). Their bin\obj belong to the brain build,
+rem which may be running at the same moment; two builds writing one dll once left a zero-filled NativeFacade output.
+rem The tool host therefore builds every project under its own artifacts root, shared only with itself (under the lock).
+dotnet publish "%ROOT%tools\rg\rg.csproj" -c Release -r win-x64 --self-contained false -p:PublishReadyToRun=true -p:NodeReuse=false -p:UseArtifactsOutput=true "-p:ArtifactsPath=%TOOLS%\build" --nologo -v q -o "%TOOLS%\%VER%" >"%TOOLS%\build.log" 2>&1
 if errorlevel 1 (
     type "%TOOLS%\build.log" 1>&3
     echo RimGovernor.cmd: building the tool host failed. 1>&3
