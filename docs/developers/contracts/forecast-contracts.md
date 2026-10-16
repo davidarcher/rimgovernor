@@ -138,13 +138,31 @@ exposure and pressure within the mood tier, so mood far above every threshold ha
 no comparator value. Otherwise the vector keeps
 `mental_break_probability_unassessed` and the raw ticks rank as before. The
 serious-harm, unmet-needs and development ordering is unchanged; there is no
-mood-to-labor rate. A commitment's in-memory `MoodMemories` start for their pawn
-when all its activities complete inside the horizon. Failed or later work grants
-nothing, and unknown completion leaves that pawn's mood unassessed.
-Power reserve risk likewise persists across unavailable reads and serialization;
-recovery requires readable current networks.
+mood-to-labor rate. Power reserve risk likewise persists across unavailable
+reads and serialization; recovery requires readable current networks.
 
 Forecast validation and pawn outcomes are different evidence levels.
+
+### Commitment mood and comfort inputs
+
+A commitment's in-memory forecast inputs (none is a wire or save field) take
+effect when all its activities complete inside the horizon, or at the forecast
+start when it has no activities (#3282). Failed or later work changes nothing;
+unknown completion leaves that pawn's mood, or thermal exposure, unassessed.
+
+- `MoodMemories` add a memory to the pawn's mood timeline from that tick.
+- `SituationalChanges` add `OffsetDelta` to the pawn's mood target from that
+  tick; removing an active -11 thought is +11. Every other situational thought
+  stays constant inside `MoodUnclampedTarget`, so the
+  `unmodeled_situational_thoughts_constant` finding remains. Changing one
+  thought twice for a pawn is `unsupported_situational_change_stacking`.
+  `BreakRisk` values the change like any other target movement.
+- `ComfortShifts` add `MinDelta`/`MaxDelta` to the pawn's observed
+  `ComfortableMin`/`ComfortableMax` in the stationary thermal exposure. The
+  observed range already includes the current outfit, so a shift is the
+  insulation difference between the predicted outfit and the current one.
+  Shifts for one pawn add. They change the pawn's own exposure, not
+  `StationaryThermalRelief`, which stays outfit-neutral shelter relief.
 
 ## Coherent coupled observation frame
 

@@ -292,6 +292,68 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     [Theory]
+    [InlineData(.28, true)]
+    [InlineData(.9, false)]
+    public void SituationalChangeWinsOnlyWhereItLowersBreakRisk(double mood, bool wins)
+    {
+        // A labor-free commitment removing an active -11 situational thought (a dead man's parka) from the forecast start.
+        var facts = Review(level: 1, fall: 0);
+        var candidates = facts.CoupledAlternatives!;
+        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood) };
+        var change = new ForecastCommitment("gear", []) { SituationalChanges = [new("pawn", "DeadMansApparel", 11)] };
+        facts = facts with { CoupledAlternatives = candidates with
+        {
+            Alternatives = [change],
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
+        } };
+        var result = Select(facts);
+        var vector = wins ? result.SelectedVector : result.Rejected.First(r => r.Commitments.SequenceEqual(["gear"])).Consequences!;
+        Assert.True(vector.BreakRisk.IsKnown);
+        Assert.DoesNotContain("mental_break_probability_unassessed", vector.Unknown);
+        if (!wins)
+        {
+            Assert.Empty(result.Selection.Selected);
+            Assert.Equal(result.BaselineVector.BreakRisk, vector.BreakRisk);
+            return;
+        }
+        Assert.Equal(["gear"], result.Selection.Selected);
+        Assert.True(vector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+        var moodResult = result.Selected.Needs["pawn"].Mood!;
+        // The change counts from the forecast start; every other situational thought is still held constant.
+        Assert.Equal(mood + .11, moodResult.Trajectory[0].Target.Value, 9);
+        Assert.Contains("unmodeled_situational_thoughts_constant", moodResult.Findings);
+    }
+
+    [Fact]
+    public void LaborFreeMoodMemoryCountsFromTheForecastStart()
+    {
+        var facts = Review(level: 1, fall: 0);
+        var candidates = facts.CoupledAlternatives!;
+        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = Known(.28), MoodTarget = Known(.28), MoodUnclampedTarget = Known(.28) };
+        var memory = new NeedMemory("KnowBuriedInSarcophagus", 4, Known(8d * GameTime.TicksPerDay), false);
+        facts = facts with { CoupledAlternatives = candidates with
+        {
+            Alternatives = [new ForecastCommitment("memory", []) { MoodMemories = [new("pawn", memory)] }],
+            Context = candidates.Context with { Needs = candidates.Context.Needs with { Pawns = [pawn] } }
+        } };
+        var result = Select(facts);
+        Assert.Equal(["memory"], result.Selection.Selected);
+        var needs = result.Selected.Needs["pawn"];
+        Assert.DoesNotContain("commitment_mood_memory_unassessed", needs.Findings);
+        Assert.Equal(.32, needs.Mood!.Trajectory[0].Target.Value, 9);
+        Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+    }
+
+    [Fact]
+    public void ChangingOneSituationalThoughtTwiceIsUnassessed()
+    {
+        var pawn = Review().CoupledAlternatives!.Context.Needs.Pawns[0];
+        var mood = ForecastMoodTimeline(pawn, Horizon, [], situational: [("DeadMansApparel", 11, 0), ("DeadMansApparel", 11, 10)]);
+        Assert.False(mood.BreakRisk.IsKnown);
+        Assert.Equal(["unsupported_situational_change_stacking"], mood.Findings);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void EffectSourceBuildAndHaulWinsOnlyWhenItsMaterialIsFunded(bool funded)

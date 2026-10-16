@@ -1,3 +1,4 @@
+using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
@@ -315,13 +316,48 @@ public sealed class ForecastCoupledTests
             Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
         };
         var projection = ForecastShelters([room], new([], 0, 0), 300);
-        ForecastThermalExposure Exposure(string location) => ForecastThermalExposureOf(context,
+        ForecastThermalExposure Exposure(string location, Dictionary<string, List<(double, double, double)>>? comfort = null) => ForecastThermalExposureOf(context,
             new() { Activities = [new("work", location, location, [])] },
-            new([new("work", "pawn", 0, 0, 0, 300, 0, 0, 300, 300, 0)], 300, 300), projection, 300).Single();
+            new([new("work", "pawn", 0, 0, 0, 300, 0, 0, 300, 300, 0)], 300, 300), projection, 300, comfort: comfort).Single();
         var outdoors = Exposure("cell/5/5"); var indoors = Exposure("cell/1/1");
         Assert.Equal(6000, outdoors.ColdDegreeTicks.Value);
+        // A -20 comfort shift from tick 100 removes the cold for the remaining 200 ticks.
+        Assert.Equal(2000, Exposure("cell/5/5", new() { ["pawn"] = [(-20, 0, 100)] }).ColdDegreeTicks.Value);
         Assert.True(indoors.ColdDegreeTicks.Value < outdoors.ColdDegreeTicks.Value);
         Assert.Equal(0, outdoors.UnknownTicks);
+    }
+
+    [Fact]
+    public void ComfortShiftLowersColdExposureOnlyAtAStationaryOutdoorTask()
+    {
+        var facts = Review();
+        var generated = facts.CoupledAlternatives!;
+        var cells = generated.Context.Activities.Activities.SelectMany(t => new[] { t.Location, t.EndLocation })
+            .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct()
+            .Select(l => l.Split('/')).Select(p => new Cell(int.Parse(p[1], CultureInfo.InvariantCulture), int.Parse(p[2], CultureInfo.InvariantCulture)));
+        generated = generated with
+        {
+            Context = generated.Context with
+            {
+                Shelters = [],
+                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", "", false, false, 0, false))) },
+                Needs = generated.Context.Needs with { Pawns = [generated.Context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
+            }
+        };
+        facts = facts with { CoupledAlternatives = generated };
+        ForecastCoupledOutcome Outcome(params ForecastCommitment[] c) => Evaluate(facts, c).Proposed.Coupled!.Alternatives.First(p => p.Feasible == Known(true));
+        var outdoor = generated.Alternatives.Where(c => c.ActivityCompletions.Count > 0).Select(c => (Commitment: c, Outcome: Outcome(c)))
+            .First(p => p.Outcome.ThermalExposure.Single().AssessedTicks > 0);
+        // A labor-free outfit change applies from the forecast start, so it covers the outdoor work.
+        var gear = new ForecastCommitment("gear", []) { ComfortShifts = [new("pawn", -20, 0)] };
+        var plain = outdoor.Outcome.ThermalExposure.Single();
+        var warm = Outcome(outdoor.Commitment, gear).ThermalExposure.Single();
+        Assert.True(plain.AssessedColdDegreeTicks > 0);
+        Assert.True(warm.AssessedColdDegreeTicks < plain.AssessedColdDegreeTicks);
+        Assert.Equal(plain.AssessedTicks, warm.AssessedTicks);
+        // No stationary outdoor task: the shift has no exposure to change.
+        var idle = Outcome(gear).ThermalExposure.Single();
+        Assert.Equal(Evaluate(facts).Baseline.Coupled!.Alternatives.Single().ThermalExposure.Single(), idle);
     }
 
     [Fact]

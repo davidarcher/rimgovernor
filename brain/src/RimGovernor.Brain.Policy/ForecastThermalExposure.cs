@@ -12,7 +12,8 @@ public sealed record ForecastThermalExposure(string Pawn, double AssessedTicks, 
 public static partial class PolicyFunctions
 {
     public static EquatableArray<ForecastThermalExposure> ForecastThermalExposureOf(ForecastCoupledContext context,
-        ForecastActivityProblem problem, ForecastActivityPlan schedule, EquatableArray<ForecastShelterOutcome> shelters, double horizon, ForecastActivityPlan? physicalSchedule = null)
+        ForecastActivityProblem problem, ForecastActivityPlan schedule, EquatableArray<ForecastShelterOutcome> shelters, double horizon, ForecastActivityPlan? physicalSchedule = null,
+        IReadOnlyDictionary<string, List<(double MinDelta, double MaxDelta, double Start)>>? comfort = null)
     {
         var tasks = problem.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
         var physical = context.Thermal?.Cells.ToDictionary(c => Methods.Generation.ForecastLocations.Of(c.Cell)) ?? [];
@@ -57,8 +58,19 @@ public static partial class PolicyFunctions
             void Integrate(double from, double to, double initial, double final)
             {
                 assessed += to - from;
-                cold += Area(pawn.ComfortableMin.Value - initial, pawn.ComfortableMin.Value - final, to - from);
-                hot += Area(initial - pawn.ComfortableMax.Value, final - pawn.ComfortableMax.Value, to - from);
+                var shifts = comfort?.GetValueOrDefault(pawn.Pawn) ?? [];
+                // The comfort range is piecewise constant between shift starts; temperature stays linear within the span.
+                var cuts = shifts.Select(s => s.Start).Where(t => t > from && t < to).Append(from).Append(to).Distinct().Order().ToArray();
+                for (var i = 0; i < cuts.Length - 1; i++)
+                {
+                    var a = cuts[i]; var b = cuts[i + 1];
+                    var ta = At(a); var tb = At(b);
+                    var min = pawn.ComfortableMin.Value + shifts.Where(s => s.Start <= a).Sum(s => s.MinDelta);
+                    var max = pawn.ComfortableMax.Value + shifts.Where(s => s.Start <= a).Sum(s => s.MaxDelta);
+                    cold += Area(min - ta, min - tb, b - a);
+                    hot += Area(ta - max, tb - max, b - a);
+                }
+                double At(double tick) => tick == from ? initial : tick == to ? final : initial + (final - initial) * (tick - from) / (to - from);
             }
         }
         return EquatableArray.From(results);

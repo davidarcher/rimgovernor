@@ -16,12 +16,19 @@ public static partial class PolicyFunctions
 {
     /// <summary>Conditional thoughts are native mechanics, independent of candidate family or trait names.
     /// Target and actual mood remain separate; threshold exposure is not itself a break probability. Granted
-    /// memories (a commitment's MoodMemories) start at their tick like a completed meal's thoughts.</summary>
+    /// memories (a commitment's MoodMemories) start at their tick like a completed meal's thoughts. A situational
+    /// change adds its offset delta from its tick; every other situational thought stays inside MoodUnclampedTarget.</summary>
     public static ForecastMoodResult ForecastMoodTimeline(NeedsForecastPawn pawn, double horizon,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
-        IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null)
+        IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
+        IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null)
     {
         NeedHorizon(horizon);
+        situational ??= [];
+        // Changing one thought twice is not additive evidence.
+        if (situational.Select(s => s.Thought).Distinct(StringComparer.Ordinal).Count() != situational.Count
+            || situational.Any(s => !double.IsFinite(s.OffsetDelta)))
+            return new([], default, default, default, default, default, ["unsupported_situational_change_stacking"]);
         var unknown = new SortedSet<string>(StringComparer.Ordinal) { "unmodeled_situational_thoughts_constant" };
         var trajectory = new List<ForecastMoodPoint>();
         var events = new SortedSet<double> { 0, horizon };
@@ -50,6 +57,7 @@ public static partial class PolicyFunctions
         foreach (var meal in meals)
             if (!meal.Thought.Permanent && meal.Start + meal.Thought.RemainingTicks.Value < horizon)
                 events.Add(meal.Start + meal.Thought.RemainingTicks.Value);
+        foreach (var change in situational) if (change.Start > 0 && change.Start < horizon) events.Add(change.Start);
         var actualKnown = pawn.Mood.IsKnown && pawn.MoodRisePerTick.IsKnown && pawn.MoodFallPerTick.IsKnown
             && pawn.MoodFreezesWhileAsleep.IsKnown;
         var actual = pawn.Mood.ValueOrDefault;
@@ -88,6 +96,7 @@ public static partial class PolicyFunctions
             foreach (var meal in meals)
                 if (meal.Start <= time) mealMemories += Memory(meal.Thought, time - meal.Start);
             changedMemories += mealMemories;
+            foreach (var change in situational) if (change.Start <= time) changedMemories += change.OffsetDelta;
             return Math.Clamp(pawn.MoodUnclampedTarget.Value + (conditional - currentConditionalOffset + changedMemories) / 100, 0, 1);
         }
         for (var i = 0; i < points.Length; i++)

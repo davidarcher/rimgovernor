@@ -335,13 +335,19 @@ public static partial class PolicyFunctions
         }
         ApplyExternal(horizon);
         Expire(horizon);
-        // A commitment's mood memories start when all its activities have completed inside the horizon. Failed or
-        // later work grants nothing here; unknown completion leaves those pawns' mood unassessed.
+        // A commitment's mood memories, situational changes and comfort shifts take effect when all its activities
+        // have completed inside the horizon, or at the forecast start when it has none. Failed or later work changes
+        // nothing here; unknown completion leaves those pawns' mood (or thermal exposure) unassessed.
         var granted = new Dictionary<string, List<(NeedMemory Thought, double Start)>>(StringComparer.Ordinal);
+        var situational = new Dictionary<string, List<(string Thought, double OffsetDelta, double Start)>>(StringComparer.Ordinal);
+        var comfort = new Dictionary<string, List<(double MinDelta, double MaxDelta, double Start)>>(StringComparer.Ordinal);
         var grantUnknown = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var commitment in commitments.Values.Where(c => c.MoodMemories.Count > 0))
+        var comfortUnknown = new HashSet<string>(StringComparer.Ordinal);
+        static void Add<T>(Dictionary<string, List<T>> rows, string pawn, T row)
+        { if (!rows.TryGetValue(pawn, out var list)) rows[pawn] = list = []; list.Add(row); }
+        foreach (var commitment in commitments.Values.Where(c => c.MoodMemories.Count + c.SituationalChanges.Count + c.ComfortShifts.Count > 0))
         {
-            Fact<double> at = commitment.ActivityCompletions.Count == 0 ? default : Known(0.0);
+            Fact<double> at = Known(0.0);
             foreach (var id in commitment.ActivityCompletions)
             {
                 var done = completed.GetValueOrDefault(id);
@@ -352,11 +358,13 @@ public static partial class PolicyFunctions
             }
             foreach (var row in commitment.MoodMemories)
                 if (!at.IsKnown) grantUnknown.Add(row.Pawn);
-                else if (at.Value <= horizon)
-                {
-                    if (!granted.TryGetValue(row.Pawn, out var list)) granted[row.Pawn] = list = [];
-                    list.Add((row.Memory, at.Value));
-                }
+                else if (at.Value <= horizon) Add(granted, row.Pawn, (row.Memory, at.Value));
+            foreach (var row in commitment.SituationalChanges)
+                if (!at.IsKnown) grantUnknown.Add(row.Pawn);
+                else if (at.Value <= horizon) Add(situational, row.Pawn, (row.Thought, row.OffsetDelta, at.Value));
+            foreach (var row in commitment.ComfortShifts)
+                if (!at.IsKnown) comfortUnknown.Add(row.Pawn);
+                else if (at.Value <= horizon) Add(comfort, row.Pawn, (row.MinDelta, row.MaxDelta, at.Value));
         }
         var needs = new Dictionary<string, ForecastNeedsResult>(StringComparer.Ordinal);
         var rejectedWork = new HashSet<string>(unavailableWork, StringComparer.Ordinal);
@@ -401,7 +409,8 @@ public static partial class PolicyFunctions
             else foreach (var work in productive)
                 if (!able.Any(w => w.Start <= work.Depart && w.End >= work.End))
                 { rejectedWork.Add(work.Activity); completed[work.Activity] = Known(false); Refuse("work_outside_recovered_capacity", work.Activity, work.Start); }
-            var projected = ForecastNeedsTimeline(pawn, input, choices, granted: granted.GetValueOrDefault(pawn.Pawn));
+            var projected = ForecastNeedsTimeline(pawn, input, choices, granted: granted.GetValueOrDefault(pawn.Pawn),
+                situational: situational.GetValueOrDefault(pawn.Pawn));
             var mealsUnknown = context.NeedTasks.Any(n => n.Pawn == pawn.Pawn && !n.ThoughtsComplete && allocations.ContainsKey(n.Task));
             if (mealsUnknown || grantUnknown.Contains(pawn.Pawn))
                 projected = projected with
@@ -433,7 +442,9 @@ public static partial class PolicyFunctions
         findings.AddRange(inventory.Findings);
         var shelters = ForecastShelters(context.Shelters, plan with
         { Allocations = plan.Allocations.Where(a => completed.GetValueOrDefault(a.Activity) == Known(true)).ToArray() }, horizon);
-        var exposure = ForecastThermalExposureOf(context, problem, plan, shelters, horizon);
+        // Comfort shifts change the pawn's own exposure, not what a shelter relieves (relief below is outfit-neutral).
+        var exposure = EquatableArray.From(ForecastThermalExposureOf(context, problem, plan, shelters, horizon, comfort: comfort)
+            .Select(t => comfortUnknown.Contains(t.Pawn) ? new ForecastThermalExposure(t.Pawn, 0, horizon, 0, 0) : t));
         var existingRooms = EquatableArray.From(context.Shelters.Where(r => r.Prerequisites.Count == 0 && r.AlternativePrerequisites.Count == 0));
         var use = plan with { Allocations = plan.Allocations.Where(a => context.NeedTasks.Any(n => n.Task == a.Activity)).ToArray() };
         var changedUse = ForecastThermalExposureOf(context, problem, use, shelters, horizon, plan);

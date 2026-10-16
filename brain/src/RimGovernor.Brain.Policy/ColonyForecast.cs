@@ -20,12 +20,25 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
     /// <summary>Observed standing construction owned by this Method; no second supplied stock effect.</summary>
     public Building? Construction { get; init; }
     public Fact<double> AlternativeLaborCost { get; init; }
-    /// <summary>Mood memories this Method grants when all its activities complete; in-memory forecast evidence, not a wire or save field.</summary>
+    /// <summary>Mood memories this Method grants when all its activities complete (at the forecast start when it has
+    /// none); in-memory forecast evidence, not a wire or save field. The same effective tick applies below.</summary>
     public EquatableArray<ForecastMoodMemory> MoodMemories { get; init; }
+    /// <summary>Changes to situational thoughts the forecast otherwise holds constant.</summary>
+    public EquatableArray<ForecastSituationalChange> SituationalChanges { get; init; }
+    /// <summary>Shifts of a pawn's observed comfortable temperature range (e.g. an outfit's insulation difference).</summary>
+    public EquatableArray<ForecastComfortShift> ComfortShifts { get; init; }
 }
 
-/// <summary>One pawn's memory granted by a commitment; it starts at the commitment's completion.</summary>
+/// <summary>One pawn's memory granted by a commitment; it starts at the commitment's effective tick.</summary>
 public sealed record ForecastMoodMemory(string Pawn, NeedMemory Memory);
+
+/// <summary>Adds OffsetDelta to the pawn's mood target from the commitment's effective tick; removing an active
+/// -11 thought is +11. Every other situational thought stays constant.</summary>
+public sealed record ForecastSituationalChange(string Pawn, string Thought, double OffsetDelta);
+
+/// <summary>Adds the deltas to the pawn's observed ComfortableMin/ComfortableMax from the commitment's effective tick.
+/// Observed stats include the current outfit, so the deltas are relative to it. Shifts for one pawn add.</summary>
+public sealed record ForecastComfortShift(string Pawn, double MinDelta, double MaxDelta);
 
 /// <summary>Replace by removing an ID and adding its new version. Empty means continue.</summary>
 public sealed record ColonyForecastDelta
