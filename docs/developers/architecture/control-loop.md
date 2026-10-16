@@ -122,6 +122,26 @@ This replaces the one-open-Method gate, its eleven `*OpenWorkExempt` carve-outs
 and the families' whole-owner guards. Continuation, release and cleanup are
 unchanged ([Method continuation](../contracts/method-continuation.md)).
 
+**Implemented (#3249).** An owner opts in by committing through
+`Store.CommitClaimedMethod`, which returns a `ClaimCommit` (Admitted, Continued or
+Conflict with its `ClaimConflict`). Until the `need` owner lands (#3250), only
+tests opt a Standard in. Claims come from `PolicyFunctions.MethodClaimsOf`:
+
+- `WorkClaimsOf(..., footprint: true)` supplies labor pawns, gear-batch benches
+  and workers, activity targets and every cell of a building's rotated
+  footprint. The footprint is sized from the review's building costs
+  (`WorkBuildingCost.Size`); an unpriced definition claims its anchor.
+- Each other action kind adds its subject while its work is open: the forage,
+  haul or crop source, zone cells, `bill/<bench>/<recipe>`, `area/<name>/x/z`,
+  `gear/<pawn>`, `settings/<pawn>`, an assigned bed or throne.
+
+Every open, unretired Method in the same world, of any owner, is compared. The
+default `WorkClaimsOf` (anchor cells) is unchanged for work resource admission.
+Family admission, Safeguards, the current-review check and work resource
+admission still run. The Standard's methods table is keyed by episode, so a
+released MethodId is admitted again once the Standard reopens a new episode; in
+the same episode reusing it still raises `MethodBoundException`.
+
 ### Durable state
 
 Only two kinds of brain state persist in the save:

@@ -10,7 +10,8 @@ namespace RimGovernor.Brain.Store;
 /// authoritative; each value is ASCII JSON (non-ASCII escaped as <c>\uXXXX</c>) with a top-level
 /// <c>schemaVersion</c>, and the shapes are those of the Go journal so saves written by either side load:
 /// <list type="bullet">
-/// <item><c>standard/&lt;id&gt;</c>: <c>{schemaVersion, standard, revision}</c>, one per unretired standard.</item>
+/// <item><c>standard/&lt;id&gt;</c>: <c>{schemaVersion, standard, revision}</c>, one per unretired standard. On load
+/// only trade missions and standards carrying a <c>Record</c> are re-inserted (<see cref="RebuildStandards"/>).</item>
 /// <item><c>family/layout_plan</c>, <c>family/defense_layout</c>, <c>family/production_ladder</c>,
 /// <c>family/soldier_squad</c>, <c>family/combat_restoration</c>: <c>{schemaVersion, scope?, record}</c>.</item>
 /// </list>
@@ -225,10 +226,13 @@ public sealed partial class Store
     public Task RebuildFamiliesAsync(IReadOnlyDictionary<string, string> saved, CancellationToken cancellationToken) => Task.Run(() => RebuildFamilies(saved, cancellationToken), cancellationToken);
 
     /// <summary>
-    /// Replaces the store's standards with the save's <c>standard/*</c> blobs: the save wins. Standards absent from
-    /// the save are deleted; every standard method row is deleted and its plan retired after one orphans pass sees
-    /// them all, so methods start empty and are re-planned. A save without standard blobs leaves no standards. An
-    /// incident's method rows are not touched.
+    /// Replaces the store's standards with the save's <c>standard/*</c> blobs that still carry state: the save wins.
+    /// Only a trade mission (read through <see cref="OpenStandards"/>) or a standard with a <see cref="Standard.Record"/>
+    /// is re-inserted. A routine row with neither is skipped: the review that follows every load mints new
+    /// load-token-hashed ids (rounds are reset on load), so such a row is never re-bound and would only stay open
+    /// toward <see cref="MaxActiveStandards"/> (#3249). Standards absent from what is kept are deleted; every standard
+    /// method row is deleted and its plan retired after one orphans pass sees them all, so methods start empty and
+    /// are re-planned. A save without standard blobs leaves no standards. An incident's method rows are not touched.
     /// </summary>
     /// <param name="orphans">Sees the plans the rebuild is about to retire, before they are retired; null skips it.</param>
     public void RebuildStandards(IReadOnlyDictionary<string, string> saved, Action<IReadOnlyList<PlanState>, CancellationToken>? orphans, CancellationToken cancellationToken)
@@ -253,6 +257,10 @@ public sealed partial class Store
             if (standard.Id.Value != key[GovernorStandardKeyPrefix.Length..])
             {
                 throw new StoreCorruptException($"{key}: standard identity mismatch");
+            }
+            if (standard.Kind != Concerns.TradeMission && string.IsNullOrEmpty(standard.Record))
+            {
+                continue;
             }
             goals[standard.Id] = (standard, document.RootElement.U64("revision"));
         }

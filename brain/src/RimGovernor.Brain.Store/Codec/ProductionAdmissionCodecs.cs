@@ -47,9 +47,10 @@ internal sealed class WorkTargetCapacityConverter : ObjectCodec<WorkTargetCapaci
 
 internal sealed class WorkBuildingCostConverter : ObjectCodec<WorkBuildingCost>
 {
-    protected override WorkBuildingCost Read(JsonElement e, Codecs o) => new(e.Str("Definition"), e.Str("Stuff"), e.Get<Fact<EquatableArray<Amount>>>("Materials", o));
+    protected override WorkBuildingCost Read(JsonElement e, Codecs o) => new(e.Str("Definition"), e.Str("Stuff"), e.Get<Fact<EquatableArray<Amount>>>("Materials", o))
+    { Size = e.GetOr<Fact<Cell>>("Size", default, o) };
     protected override void WriteFields(Utf8JsonWriter w, WorkBuildingCost v, Codecs o)
-    { w.WriteString("Definition", v.Definition); w.WriteString("Stuff", v.Stuff); w.Put("Materials", v.Materials, o); }
+    { w.WriteString("Definition", v.Definition); w.WriteString("Stuff", v.Stuff); w.Put("Materials", v.Materials, o); if (v.Size.IsKnown) w.Put("Size", v.Size, o); }
 }
 
 internal sealed class WorkPawnAvailabilityConverter : ObjectCodec<WorkPawnAvailability>

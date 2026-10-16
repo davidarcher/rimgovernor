@@ -225,6 +225,13 @@ enabled review reactivates the same Standards. The stores the departments declar
 stockpiles) are re-derived on every `MaintainStockpiles` pass; the standing zones are
 their only record. Durable Standards come back from the save blobs, so nothing needs a restore step.
 
+The save still writes every unretired Standard as `standard/<id>`, but `RebuildStandards` re-inserts only the
+rows that carry state: trade missions (read by kind through `OpenStandards`) and Standards with a `Record`.
+Rounds are reset on load and the next review mints load-token-hashed ids, so a routine row was never re-bound;
+re-inserted, it only stayed Open toward the `MaxActiveStandards` cap (#3249, `OrphanStandardTests`). The Record
+readers still find their rows only through the review's bindings, which carry the new ids; moving those records
+to `family/*` is part of #3231.
+
 ## Method ownership
 
 Selected coordinated activities keep their remaining tasks, dependency identities,

@@ -1,6 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record WorkBuildingCost(string Definition, string Stuff, Fact<EquatableArray<Amount>> Materials);
+public sealed record WorkBuildingCost(string Definition, string Stuff, Fact<EquatableArray<Amount>> Materials)
+{
+    /// <summary>The definition's North footprint (x by z); unknown when the catalog did not state it.</summary>
+    public Fact<Cell> Size { get; init; }
+}
 public sealed record WorkPawnAvailability(string Pawn, Fact<bool> Available, Fact<bool> Applies,
     Fact<bool> Occupied, Fact<string> Target)
 {
@@ -107,8 +111,12 @@ public static partial class PolicyFunctions
             });
         return EquatableArray.From(result);
     }
-    /// <summary>Project commitments from the journal; no native writes and no independently mutable claims.</summary>
-    public static WorkResourceClaims WorkClaimsOf(WorkAdmissionEvidence evidence, IEnumerable<WorkAction> actions)
+    /// <summary>
+    /// Project commitments from the journal; no native writes and no independently mutable claims. A building
+    /// claims its anchor cell, or with <paramref name="footprint"/> every cell of its footprint
+    /// (<see cref="BuildingClaimTargets"/>).
+    /// </summary>
+    public static WorkResourceClaims WorkClaimsOf(WorkAdmissionEvidence evidence, IEnumerable<WorkAction> actions, bool footprint = false)
     {
         var materials = new List<ForecastCommitment>();
         var activityMaterials = new Dictionary<(string Pawn, string Assignment), List<ForecastMaterialClaim>>();
@@ -147,7 +155,8 @@ public static partial class PolicyFunctions
                 if (evidence.Standing.TryGetValue(out var standing) && standing.Contains(building)) continue;
                 if (!progress.Unresolved && progress.Stage is Stage.Completed or Stage.Cancelled or Stage.Unsuccessful && progress.Tick < evidence.Tick
                     && evidence.Standing.IsKnown) continue;
-                Take(BuildingClaimTarget(building));
+                if (footprint) foreach (var cell in BuildingClaimTargets(evidence, building)) Take(cell);
+                else Take(BuildingClaimTarget(building));
                 var cost = evidence.Buildings.TryGetValue(out var costs)
                     ? costs.SingleOrDefault(c => c.Definition == building.Definition && c.Stuff == building.Stuff) : null;
                 if (cost is null || !cost.Materials.TryGetValue(out var units))

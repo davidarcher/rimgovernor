@@ -1,0 +1,111 @@
+namespace RimGovernor.Brain.Policy;
+
+/// <summary>
+/// What one Method holds for claim-overlap admission (#3249): the labor pawns and exclusive targets
+/// <see cref="PolicyFunctions.WorkClaimsOf"/> derives (buildings at their whole footprint), plus the subject of every
+/// other action kind that has one. <see cref="Shared"/> targets are capacity targets (a bed, an observed food
+/// stack); two Methods may both share one, and work resource admission bounds them by capacity.
+/// </summary>
+public sealed record MethodClaims(EquatableArray<string> Pawns, EquatableArray<string> Targets, EquatableArray<WorkTargetClaim> Shared);
+
+public static partial class PolicyFunctions
+{
+    /// <summary>
+    /// The claims of one Method's actions. Labor, buildings and gear batches are <see cref="WorkClaimsOf"/>'s; the
+    /// other kinds claim their subject while the action's work is open:
+    /// <list type="bullet">
+    /// <item>bills: <c>bill/&lt;bench&gt;/&lt;recipe&gt;</c> and the bill they replace or remove (<c>bill/&lt;id&gt;</c>);</item>
+    /// <item>forage, hunts, hauls, grower crops: the source thing;</item>
+    /// <item>zones: their cells (<c>cell/x/z</c>, the namespace buildings use), and an existing zone by id (<c>zone/&lt;id&gt;</c>);</item>
+    /// <item>area edits: the edited cells of the area (<c>area/&lt;name&gt;/x/z</c>), or the whole area for create and delete;</item>
+    /// <item>dressing (apparel policy, gear replacement, equip): <c>gear/&lt;pawn&gt;</c> and the item;</item>
+    /// <item>work assignments and pawn settings: <c>settings/&lt;pawn&gt;</c>;</item>
+    /// <item>deconstruction and uninstalling: the cell and the thing;</item>
+    /// <item>assignments (a bed, a throne), bed use and building claims: the thing.</item>
+    /// </list>
+    /// Any other kind claims nothing beyond its MethodId.
+    /// </summary>
+    public static MethodClaims MethodClaimsOf(WorkAdmissionEvidence evidence, IReadOnlyCollection<WorkAction> actions)
+    {
+        var work = WorkClaimsOf(evidence, actions, footprint: true);
+        var targets = new HashSet<string>(work.Targets, StringComparer.Ordinal);
+        foreach (var row in actions)
+        {
+            var v = row.Progress;
+            if (!(v.Unresolved || v.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation)) continue;
+            targets.UnionWith(ActionSubjects(row.Action).Where(t => t.Length != 0));
+        }
+        return new(work.Pawns, EquatableArray.From(targets.Order(StringComparer.Ordinal)), work.Shared);
+    }
+
+    /// <summary>
+    /// The first claim <paramref name="candidate"/> shares with <paramref name="held"/>, or null when they are
+    /// disjoint. A target both share as a capacity target is not an overlap.
+    /// </summary>
+    public static string? MethodClaimOverlap(MethodClaims candidate, MethodClaims held)
+    {
+        if (candidate.Pawns.FirstOrDefault(held.Pawns.Contains) is { } pawn) return "pawn/" + pawn;
+        var heldTargets = held.Targets.ToHashSet(StringComparer.Ordinal);
+        var sharedHere = candidate.Shared.Select(s => s.Target).ToHashSet(StringComparer.Ordinal);
+        var sharedThere = held.Shared.Select(s => s.Target).ToHashSet(StringComparer.Ordinal);
+        return candidate.Targets.FirstOrDefault(t => heldTargets.Contains(t) && !(sharedHere.Contains(t) && sharedThere.Contains(t)));
+    }
+
+    /// <summary>
+    /// Every cell a building occupies, as claim targets: its definition's footprint rotated about the anchor, read
+    /// from the review's building costs. A definition the review did not price falls back to the anchor alone;
+    /// work resource admission refuses such a building before it is committed (unknown_building_materials), so
+    /// only an already committed Method can claim that way.
+    /// </summary>
+    public static IReadOnlyList<string> BuildingClaimTargets(WorkAdmissionEvidence evidence, Building building)
+    {
+        var size = evidence.Buildings.TryGetValue(out var costs)
+            ? costs.FirstOrDefault(c => c.Definition == building.Definition && c.Size.IsKnown)?.Size ?? default
+            : default;
+        if (size.TryGetValue(out var known))
+        {
+            var rect = OccupiedRect(building.Cell, known, building.Rotation);
+            if (rect.Width > 0 && rect.Height > 0) return [.. RectangleCells(rect).Select(CellClaimTarget)];
+        }
+        return [BuildingClaimTarget(building)];
+    }
+
+    private static string CellClaimTarget(Cell c) => "cell/" + c.X + "/" + c.Z;
+
+    private static IEnumerable<string> ActionSubjects(DomainAction a)
+    {
+        if (a.ProductionBill is { } bill)
+        {
+            yield return "bill/" + bill.Bench + "/" + bill.ClaimRecipe;
+            if (bill.Replaces.Length != 0) yield return "bill/" + bill.Replaces;
+        }
+        else if (a.RemoveProductionBill is { } removal) yield return "bill/" + removal.Bill;
+        else if (a.Acquisition is { } source) yield return source.Thing;
+        else if (a.Haul is { } haul) yield return haul.Thing;
+        else if (a.WastepackHaul is { } waste) yield return waste.Thing;
+        else if (a.GrowerCrop is { } crop) yield return crop.Thing;
+        else if (a.ZoneCreate is { } zone)
+        {
+            foreach (var c in zone.Cells) yield return CellClaimTarget(c);
+            if (zone.ExtendId.Length != 0) yield return "zone/" + zone.ExtendId;
+        }
+        else if (a.ZoneCellEdit is { } edit) yield return "zone/" + edit.Zone;
+        else if (a.ZoneDelete is { } deleted) yield return "zone/" + deleted.Zone;
+        else if (a.Area is { } area)
+        {
+            var name = "area/" + (area.PollutionClear ? "pollution" : area.Home ? "home" : "allowed:" + area.Key);
+            if (area.Operation is AreaOperation.Create or AreaOperation.Delete) yield return name;
+            else foreach (var c in area.Cells) yield return name + "/" + c.X + "/" + c.Z;
+        }
+        else if (a.ApparelPolicy is { } apparel) yield return "gear/" + apparel.Pawn.Value;
+        else if (a.GearReplace is { } gear) { yield return "gear/" + gear.Pawn.Value; yield return gear.Thing; }
+        else if (a.Equip is { } equip) { yield return "gear/" + equip.Pawn.Value; yield return equip.Thing; }
+        else if (a.WorkAssignment is { } assignment) yield return "settings/" + assignment.Pawn.Value;
+        else if (a.PawnSettings is { } settings) yield return "settings/" + settings.Pawn.Value;
+        else if (a.Deconstruction is { } cut) { yield return CellClaimTarget(cut.Cell); yield return cut.Target; }
+        else if (a.UninstallBuilding is { } uninstall) yield return CellClaimTarget(uninstall.Cell);
+        else if (a.Assign is { } assign) yield return assign.Thing;
+        else if (a.BedUse is { } bed) yield return bed.Thing;
+        else if (a.ClaimBuilding is { } claimed) yield return claimed.Thing;
+    }
+}
