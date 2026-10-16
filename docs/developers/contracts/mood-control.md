@@ -147,6 +147,18 @@ unknown or missing field, an unknown status or a schema other than `MechanicCard
 empty catalog. Every card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
 and consumers ignore it for live play. Nothing consumes the cards yet.
 
+`MechanicCardGuards.Evaluate` (pure, #3223) evaluates one card site's guards for one target (`CardGuardFacts`: the
+target corpse, the container instance, the waste census, the colonists) to `holds`, `fails`, `achievable` (action kind
+and actor constraint) or `unknown` (reason). Existing things and target properties bind through the hand-kept
+`Bindings` table (decl -> typed observation); an unmapped symbol is unknown. A field of the site's own type with a writer
+entry is the container's state, reasoned from its writers: a planned fresh instance (empty `Instance`) starts from
+defaults, an existing one reads the followed field through `Bindings`. A sarcophagus's `everNonEmpty` is observed only
+as "holds a body", so an empty existing sarcophagus is unknown and the search uses fresh instances. A followed field set
+by a writer with no reset makes the instance `Exhausted` after one grant. Actor guards bind through the `SiteActions`
+map (site -> existing action kind and constraint; the sarcophagus haul is `Haul` by a colonist). A card is `Usable` only
+when `Live` and every guard holds or is achievable. `thoughtaudit -guards` fails when a table row names a decl or site
+absent from the shipped cards or the decompiled sources (`GuardTableCheck`, also run over the embedded cards by a test).
+
 ### Mood ledger
 
 `policy.BuildMoodLedger` (pure) turns pawns' thought rows (`MoodLedgerPawn`: the

@@ -40,6 +40,8 @@
   <ItemGroup>
     <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardIndex.cs" Link="ThoughtAudit/GuardIndex.cs" />
     <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardAnalysis.cs" Link="ThoughtAudit/GuardAnalysis.cs" />
+    <Compile Include="../../../tools/rg/Commands/ThoughtAudit/GuardTableCheck.cs" Link="ThoughtAudit/GuardTableCheck.cs" />
+    <Compile Include="../../../tools/rg/Common/ToolException.cs" Link="ThoughtAudit/ToolException.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Baselines/*.quality.json" LogicalName="RimGovernor.Brain.Domain.Tests.%(Filename)%(Extension)" />

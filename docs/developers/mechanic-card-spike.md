@@ -143,4 +143,5 @@ The spike is self-contained: delete `tools/rg/Commands/ThoughtAudit/Guard*.cs`, 
 `tools/rg/rg.csproj` (its version repeats the central pin in `brain/Directory.Packages.props`, because `tools/` sits
 outside that file's scope), `GuardAnalysisTests.cs` with its two `Compile Include` lines in the domain test project,
 this page and the two generated files. Since Gate 1 the extraction also feeds the shipped `mechanic_cards.json` and its
-`MechanicCards` loader in Brain.Policy, which would have to go with it.
+`MechanicCards` loader in Brain.Policy, which would have to go with it, as would `MechanicCardGuards` (#3223) and its
+tests.
