@@ -43,8 +43,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsBuildingResult? Sleeping { get; set; }
 
-    public RoundsBuildingResult? Cooking { get; set; }
-
     public RoundsBuildingResult? Comfort { get; set; }
 
     public RoundsBuildingResult? BasicComfort { get; set; }
@@ -159,7 +157,6 @@ public sealed class ClockSchedulerResult
         Ledger = other.Ledger ?? Ledger;
         Armory = other.Armory ?? Armory;
         Sleeping = other.Sleeping ?? Sleeping;
-        Cooking = other.Cooking ?? Cooking;
         Comfort = other.Comfort ?? Comfort;
         BasicComfort = other.BasicComfort ?? BasicComfort;
         Workshop = other.Workshop ?? Workshop;

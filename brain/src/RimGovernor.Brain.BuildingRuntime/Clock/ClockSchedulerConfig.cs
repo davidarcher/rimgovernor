@@ -50,8 +50,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsBuildingPlanner? Sleeping { get; init; }
 
-    public RoundsBuildingPlanner? Cooking { get; init; }
-
     public RoundsBuildingPlanner? Comfort { get; init; }
 
     public RoundsBuildingPlanner? BasicComfort { get; init; }

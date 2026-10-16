@@ -74,7 +74,7 @@ AteNonMeat_Know_Abhorrent	memory		unknown	0	0	0	no-code-or-xml-reference
 AteNonMeat_Know_Disapproved	memory		unknown	0	0	0	no-code-or-xml-reference
 AteNonMeat_Know_Horrible	memory		unknown	0	0	0	no-code-or-xml-reference
 AteNutrientPasteMeal	memory		unknown	0	0	0	no-code-or-xml-reference
-AteRawFood	memory	EnsureCooking	partial	1	7	1	unsupported-syntax
+AteRawFood	memory	food/cooking	partial	1	7	1	unsupported-syntax
 AteRawHumanlikeMeat	memory		unknown	0	0	0	xml-granted
 AteRottenFood	memory		partial	1	2	1	unsupported-syntax
 AteTwistedMeat	memory		unknown	0	0	0	xml-granted

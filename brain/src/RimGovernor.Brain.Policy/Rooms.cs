@@ -332,7 +332,7 @@ public static partial class PolicyFunctions
             // room a Barracks while the bench keeps working.
             new() { Role = RoomRole.Workshop, Status = FacilityStatus.Implemented, Compatible = Hosts(RoomRole.Barracks), FurnitureFromGame = true },
             new() { Role = RoomRole.Storeroom, Status = FacilityStatus.Pending },
-            // A kitchen is its own planned room: EnsureCooking shells it at Masonry and above and holds the
+            // A kitchen is its own planned room: the food/cooking Need shells it at Masonry and above and holds the
             // stove to its interior.
             new() { Role = RoomRole.Kitchen, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
             // A tomb is its own planned room: MaintainBurial shells it and places a sarcophagus while a dead

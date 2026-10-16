@@ -15,7 +15,7 @@ public static class OperationIntent
         [MaintainFlooring] = "Flooring",
         [MaintainHousing] = "Housing",
         [EnsureTemperatureSafety] = "Temperature",
-        [EnsureCooking] = "Cooking",
+        [CookingNeed.FilingKey] = "Cooking",
         [EnsureBasicPower] = "Power",
         [MilitaryFamily.Defense.FilingKey] = "Defense",
         [MilitaryFamily.Pests.FilingKey] = "Clear pests",

@@ -74,7 +74,7 @@ AteNonMeat_Know_Abhorrent	memory	other unreferenced	other
 AteNonMeat_Know_Disapproved	memory	other unreferenced	other	
 AteNonMeat_Know_Horrible	memory	other unreferenced	other	
 AteNutrientPasteMeal	memory	other unreferenced	other	
-AteRawFood	memory	other ThingDefGenerator_Meat.ImpliedMeatDefs,xml:Core/Defs/ThingDefs_Items/Items_Resource_AnimalProduct.xml,xml:Core/Defs/ThingDefs_Items/Items_Resource_RawPlant.xml,xml:Core/Defs/TraitDefs/Traits_Singular.xml,xml:Odyssey/Defs/ThingDefs_Items/Items_Resource_Fish.xml	other	EnsureCooking
+AteRawFood	memory	other ThingDefGenerator_Meat.ImpliedMeatDefs,xml:Core/Defs/ThingDefs_Items/Items_Resource_AnimalProduct.xml,xml:Core/Defs/ThingDefs_Items/Items_Resource_RawPlant.xml,xml:Core/Defs/TraitDefs/Traits_Singular.xml,xml:Odyssey/Defs/ThingDefs_Items/Items_Resource_Fish.xml	other	food/cooking
 AteRawHumanlikeMeat	memory	ritual xml:Core/Defs/PreceptDefs/Precepts_Cannibalism.xml	other	
 AteRottenFood	memory	ingest FoodUtility.ThoughtsFromIngesting	other	
 AteTwistedMeat	memory	other xml:Anomaly/Defs/ThingDefs_Items/Items_Various.xml	other	

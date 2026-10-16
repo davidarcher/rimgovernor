@@ -324,6 +324,27 @@ serialize. `ConstructionClaimsIn` reads Need-owned building plans too. A Need's
 MethodIds are once per Need history, so a destroyed bench is not rebuilt under
 the same id. MaintainResource and trade stay Concerns until the rest of #3263.
 
+**Food, cooking (#3254).** EnsureCooking (a Once) is now the `food/cooking` Need
+(`Food.cs`, `CookingNeedOf`), a Wellbeing Need of the `food` family entry
+(`FoodRounds.Runner`), composed by the cooking or bill toggle. It is a plain
+threshold: unmet while no meal of the tier the meal policy picks can be made (an
+active bill of the tier's recipe, or a stocked, powered paste dispenser) or a
+cooking campfire a stove kitchen supersedes waits to be taken down; unknown while
+the cooking fact is unread; otherwise met. It is not a Once: a lost kitchen
+reopens the Need on the next review. Its building work (campfire, paste
+dispenser and hopper, kitchen shell, stove, the campfire's deconstruction) is the
+family's `work` step running the shared building planner under the Need owner,
+admitted by claims with no whole-owner guard; MethodIds stay once per Need
+history, so a destroyed stove is not re-placed under the same id. The family
+reads the room census with the colony's construction claims and wakes on Building
+outcomes. The CookFood bill declares under the Need's filing key and reports the
+Need's standing; the forecast Cooking owner row is `NeedCoverage` of the same
+Need, and the recipe-capability target is `ServiceTarget.ForNeed(food/cooking,
+"recipe-capability", "recipe_eligibility_and_inputs")`. The food bill purposes'
+verdicts file under subject keys of their Need (`food/cooking/bills`,
+`food-stores/storage/bills`, `food-stores/refrigeration/bills`), never a Concern
+id. Supply, baby feeding and blight are still Concerns.
+
 **Military, first part (#3259).** `EnsureBasicDefense`, `ClearPests` and
 `MaintainTraining` are the `military/defense`, `military/pests` and
 `military/training` Needs (`Military.cs`), run by the `military` catalog entry
@@ -411,14 +432,14 @@ record is read once at load when the blob is absent.
    conflict; then update the contract docs that named the Concern.
 
 **Family map.** The grouping of the first consolidation pass sets the family
-boundaries: EnsureCooking and MaintainBabyFeeding join Food, MaintainShelter (the
+boundaries: cooking and MaintainBabyFeeding join Food, MaintainShelter (the
 Safe-area edit) stays its own Need in Shelter, and MaintainPopulation splits
 three ways.
 
 | Family | Today's Concerns |
 | --- | --- |
 | Food stores | food-stores/storage (was MaintainFoodStorage, #3251), food-stores/refrigeration (#3280) |
-| Food | EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight |
+| Food | `food`: Need `cooking` (#3254; EnsureCooking deleted); EnsureFoodSupply, MaintainBabyFeeding, RemoveBlight |
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |
 | Layout | MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope, EnsureDefensiveLayout |

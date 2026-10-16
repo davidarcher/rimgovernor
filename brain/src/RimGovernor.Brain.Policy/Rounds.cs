@@ -233,7 +233,7 @@ public sealed record RoundsFacts
     /// </summary>
     public Fact<bool> PartySpotOwed { get; init; }
 
-    /// <summary>A stove kitchen supersedes a cooking campfire; it keeps EnsureCooking open.</summary>
+    /// <summary>A stove kitchen supersedes a cooking campfire; it keeps the food/cooking Need unmet.</summary>
     public Fact<bool> CampfireRetireOwed { get; init; }
 
     /// <summary>A weapon bench stands beside the crafting spot that stood in for it; it keeps MaintainEquipment open for the deconstruction.</summary>
@@ -713,7 +713,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId EnsureFoodSupply = new("EnsureFoodSupply");
     public static readonly ConcernId MaintainHousing = new("MaintainHousing");
     public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");
-    public static readonly ConcernId EnsureCooking = new("EnsureCooking");
     public static readonly ConcernId EnsureBasicPower = new("EnsureBasicPower");
     public static readonly ConcernId MaintainMedicalReserves = new("MaintainMedicalReserves");
     public static readonly ConcernId EnsureComfort = new("EnsureComfort");
@@ -1047,16 +1046,6 @@ public static partial class PolicyFunctions
         }
         r.EssentialServices = ReviewEssentialServices(f, p, c.Demand, r.All());
         return r;
-    }
-
-    /// <summary>EnsureCooking's recovery: cooking ready and no cooking campfire owed its retirement.</summary>
-    internal static Fact<bool> CookingMet(RoundsFacts f)
-    {
-        if (Positive(f.CampfireRetireOwed))
-        {
-            return Known(false);
-        }
-        return f.Cooking;
     }
 
     /// <summary>

@@ -120,7 +120,7 @@ public static partial class PolicyFunctions
             stress.Add(new(target, unavailable, result.Coverage, result.Missing));
         }
         Owner(EssentialService.Food, EnsureFoodSupply);
-        Owner(EssentialService.Cooking, EnsureCooking);
+        NeedOwner(EssentialService.Cooking, CookingNeedOf(FoodFacts.From(facts)));
         Owner(EssentialService.Medical, CriticalMedicine);
         Owner(EssentialService.Medical, MaintainSurgery);
         Owner(EssentialService.Medical, MaintainMedicalReserves);
@@ -191,7 +191,7 @@ public static partial class PolicyFunctions
     private static void AssessServiceCooking(RoundsFacts facts, DerivedDemand demand, List<ServiceAssessment> rows,
         Action<ServiceTarget, string, Func<(ServiceCoverage, EquatableArray<string>)>> scenario)
     {
-        var target = new ServiceTarget(EnsureCooking, "recipe-capability", "recipe_eligibility_and_inputs", default);
+        var target = ServiceTarget.ForNeed(CookingNeed, "recipe-capability", "recipe_eligibility_and_inputs");
         if (!facts.FoodPlan.IsKnown || !FoodPlanSupport(facts.FoodPlan, CandidateKind.Cook, "cooking-capacity"))
         {
             rows.Add(new(EssentialService.Cooking, target, facts.FoodPlan.IsKnown ? ServiceCoverage.NotApplicable : ServiceCoverage.Unknown,

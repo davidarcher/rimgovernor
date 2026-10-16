@@ -30,7 +30,6 @@ public sealed partial class BrainComposition
         RoundsBuildingPlanner? cfgButcher = null;
         var families = new List<FamilyRunner>();
         RoundsBuildingPlanner? cfgComfort = null;
-        RoundsBuildingPlanner? cfgCooking = null;
         RoundsDefensePlanner? cfgDefense = null;
         RoundsDefenseLayoutPlanner? cfgDefenseLayout = null;
         RoundsDialogPlanner? cfgDialog = null;
@@ -259,6 +258,11 @@ public sealed partial class BrainComposition
             }
             families.Add(foodStores.Runner());
         }
+        if (cooking || bills)
+        {
+            // The cooking and bill toggles compose the food family's cooking Need (#3254).
+            families.Add(new FoodRounds(reviewer, RoundsBuildingPlanner.NewRoundsCookingPlanner(reviewer, client)).Runner());
+        }
         if (husbandry || animalContainment)
         {
             // The husbandry toggle composes the animals family's herd and sterilize Needs, the containment toggle its
@@ -396,10 +400,6 @@ public sealed partial class BrainComposition
             {
                 cfgRoutes = RoundsBuildingPlanner.NewRoundsRoutesPlanner(reviewer, client);
             }
-            if (cooking || bills)
-            {
-                cfgCooking = RoundsBuildingPlanner.NewRoundsCookingPlanner(reviewer, client);
-            }
             if (expansion)
             {
                 cfgExpansion = RoundsBuildingPlanner.NewRoundsExpansionPlanner(reviewer, client);
@@ -439,7 +439,6 @@ public sealed partial class BrainComposition
             Burial = cfgBurial,
             Butcher = cfgButcher,
             Comfort = cfgComfort,
-            Cooking = cfgCooking,
             Defense = cfgDefense,
             DefenseLayout = cfgDefenseLayout,
             Dialog = cfgDialog,
@@ -553,7 +552,7 @@ public sealed partial class BrainComposition
         Add(sc.Acquisition || sc.Field || sc.Bill, EnsureFoodSupply);
         Add(sc.Work, EnsureWorkAssignments);
         Add(sc.Acquisition, MaintainResource);
-        Add(sc.Bill, EnsureCooking, MaintainBabyFeeding);
+        Add(sc.Bill, MaintainBabyFeeding);
         Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);
         Add(sc.Temperature, EnsureTemperatureSafety);
         Add(sc.Power, EnsureBasicPower);
@@ -593,7 +592,8 @@ public sealed partial class BrainComposition
         }
         Add(sc.Medical, MaintainMedicalReserves, MaintainSurgery);
         Add(sc.Trade, TradeWithCaravan);
-        // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions.
+        // The migrated Needs whose facts the review reads: refrigeration's rooms, training's range and ring definitions,
+        // cooking's kitchen and meal review.
         var needs = new List<NeedId>();
         if (sc.Refrigeration)
         {
@@ -602,6 +602,10 @@ public sealed partial class BrainComposition
         if (sc.Training)
         {
             needs.Add(MilitaryFamily.Training);
+        }
+        if (sc.Cooking || sc.Bill)
+        {
+            needs.Add(CookingNeed);
         }
         return (thresholds, new RoundsCapabilities { Methods = methods, Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
     }

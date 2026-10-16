@@ -266,7 +266,7 @@ successor; reserve and butcher bills never go through this path. The replacement
 ID survives a restart; a tracked old action receives a superseded
 outcome.
 
-High native expectations plus a measured mood deficit raise EnsureCooking through
+High native expectations plus a measured mood deficit name the `food/cooking` Need through
 MoodProvision. Paste is a PlanSiteType construction method: one firm network,
 connector reach, native definition sizes and a clear apron select a dispenser
 and adjacent hopper. Both placements and combined costs pass ordinary building

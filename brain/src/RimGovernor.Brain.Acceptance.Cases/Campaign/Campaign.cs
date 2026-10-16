@@ -93,7 +93,7 @@ internal sealed class CampaignRun
     internal static readonly IReadOnlyList<string> CampaignConcerns =
     [
         PolicyFunctions.MaintainHousing.Value,
-        PolicyFunctions.EnsureCooking.Value,
+        PolicyFunctions.CookingNeed.Value,
         PolicyFunctions.EnsureTemperatureSafety.Value,
         PolicyFunctions.MaintainResource.Value,
         MilitaryFamily.Defense.Value,

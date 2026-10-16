@@ -333,7 +333,7 @@ public sealed partial class Rounder
         var playerPlans = await p.Journal.PlayerPlansAsync(Player.PlayerWorld(state.Snapshot), ct).ConfigureAwait(false);
         var definitions = RoundsProjectDefinitions(plans, state.Snapshot, playerPlans);
         var readDefinitions = definitions;
-        if (MethodEnabled(PolicyApi.EnsureCooking))
+        if (Needs.Contains(PolicyApi.CookingNeed))
         {
             readDefinitions = [.. readDefinitions, "NutrientPasteDispenser", "Hopper"];
         }
@@ -354,7 +354,7 @@ public sealed partial class Rounder
         {
             readDefinitions = [.. readDefinitions, .. MilitaryRounds.TrainingDefinitions];
         }
-        if (MethodEnabled(PolicyApi.EnsureCooking) || Needs.Contains(PolicyApi.RefrigerationNeed) || JailShell)
+        if (Needs.Contains(PolicyApi.CookingNeed) || Needs.Contains(PolicyApi.RefrigerationNeed) || JailShell)
         {
             // The planned kitchen, freezer and jail shells; the jail bed is a furniture rule's, read with every catalog.
             readDefinitions = [.. readDefinitions, "Wall", "Door"];

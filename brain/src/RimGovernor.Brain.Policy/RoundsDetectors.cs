@@ -199,15 +199,6 @@ public static partial class PolicyFunctions
         c.Assess(EnsureTemperatureSafety, AllFacts(temperatureMet, LatchRecovered(l.Cold, Fallback(f.SleepingMin, f.OutdoorTemperature)), LatchRecovered(l.Hot, Fallback(f.SleepingMax, f.OutdoorTemperature))));
     }
 
-    internal static void InspectCooking(RoundsRun c)
-    {
-        if (!Positive(CookingMet(c.F)))
-        {
-            c.Raise(EnsureCooking);
-        }
-        c.Assess(EnsureCooking, CookingMet(c.F));
-    }
-
     internal static void InspectBasicPower(RoundsRun c)
     {
         var powerMet = FootholdPower(c.F);

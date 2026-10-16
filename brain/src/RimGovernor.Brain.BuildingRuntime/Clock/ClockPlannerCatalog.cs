@@ -203,8 +203,6 @@ internal static class ClockPlannerCatalog
             c => c.Flooring is not null, (s, ct, e, a) => s.Config.Flooring!.StepAsync(a, ct, e), (o, m) => o.Flooring = m, MaintainFlooring),
         E("routes", O, [ActionKind.Building, ActionKind.DoorControl, ActionKind.OwnedDraft, ActionKind.Movement], SectionsBuilding,
             c => c.Routes is not null, (s, ct, e, a) => s.Config.Routes!.StepAsync(a, ct, e), (o, m) => o.Routes = m, MaintainRoutes),
-        E("cooking", O, [ActionKind.Building], SectionsBuilding,
-            c => c.Cooking is not null, (s, ct, e, a) => s.Config.Cooking!.StepAsync(a, ct, e), (o, m) => o.Cooking = m, EnsureCooking),
         E("butcher", O, [ActionKind.Building], SectionsBuilding,
             c => c.Butcher is not null, (s, ct, e, a) => s.Config.Butcher!.StepAsync(a, ct, e), (o, m) => o.Butcher = m, EnsureFoodSupply),
         E("basicComfort", O, [ActionKind.Building], SectionsBuilding,

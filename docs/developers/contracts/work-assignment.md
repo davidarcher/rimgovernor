@@ -445,7 +445,7 @@ bench bills, and are outside the ledger. Not carried over: stale part-bill remov
 and the replacement of an inadequate baby food bill (an adequate new bill is placed
 beside it), both waiting for orphan removal of these kinds.
 
-The food bills (#2602) are the second migration: `EnsureCooking`, `MaintainFoodStorage` (now the `food-stores/storage` Need, #3251),
+The food bills (#2602) are the second migration: cooking (now the `food/cooking` Need, #3254), `MaintainFoodStorage` (now the `food-stores/storage` Need, #3251),
 `EnsureFoodSupply` and refrigeration (now the `food-stores/refrigeration` Need, #3280) declare to the ledger. The cooking,
 reserve (preserve), butcher and cook-ahead `RoundsBillPlanner`s and the food-storage
 upkeep planner declare through `policy.DeclareFoodOrders` (`FoodOrders.cs`): the
@@ -471,11 +471,12 @@ own reports existing work; otherwise it reports what its declaration noted
 reserve, sculpture or export bill runs. A journal read that fails reports the
 purpose unavailable and never fails bill placement. Art and export file under
 `MaintainArt` and `MaintainTrade`, which no other planner serves. The four food
-purposes file under subject keys of their own (`cookingBills`, `preservationBills`,
-`butcherBills`, `cookAheadBills`), because their concerns carry the building,
-acquisition and storage planners' notes: a bill verdict filed on the concern would
-compete with them for its one winning cause and relabel its strip with another
-purpose's reason.
+purposes file under subject keys of their own (`food/cooking/bills`,
+`food-stores/storage/bills`, `butcherBills`, `food-stores/refrigeration/bills`), because
+their owners carry the building, acquisition and storage notes: a bill verdict filed on
+the Need or concern would compete with them for its one winning cause and relabel its
+strip with another purpose's reason. A purpose that serves a Need reads the Need's
+standing (`PurposeReport.Need`) instead of open work.
 
 `MaintainResource` (#2601) is migrated too: `RoundsResourcePlanner` declares
 `policy.DeclareResourceOrders` (a stock-target order, with `Product` and

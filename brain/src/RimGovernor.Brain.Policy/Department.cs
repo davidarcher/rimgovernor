@@ -47,7 +47,6 @@ public static partial class PolicyFunctions
 
         // Food
         [EnsureFoodSupply] = 1,
-        [EnsureCooking] = 1,
         [MaintainBabyFeeding] = 1,
         [RemoveBlight] = 1,
 

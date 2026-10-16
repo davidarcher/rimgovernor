@@ -15,7 +15,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsCookingPlanner: reviewer == nil || native == nil");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.EnsureCooking, Definition = "Campfire", Environment = PlacementEnvironment.Anywhere };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = PolicyApi.CookingNeed.FilingKey, Need = PolicyApi.CookingNeed, Definition = "Campfire", Environment = PlacementEnvironment.Anywhere };
     }
 
     public static RoundsBuildingPlanner NewRoundsButcherPlanner(Rounder reviewer, IRoundsBuildingSource native)
@@ -198,7 +198,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             return (missing, new MethodId(string.Create(CultureInfo.InvariantCulture, $"{prefix}indoor-sleeping-{count}-{missing}")), default);
         }
-        if (c == PolicyApi.EnsureCooking)
+        if (c == PolicyApi.CookingNeed.FilingKey)
         {
             if (Paste.Count > 0)
             {

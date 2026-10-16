@@ -132,7 +132,6 @@ public sealed partial class ClockScheduler
             (c.GeneBank, c.GeneBank?.Reviewer, null, null),
             (c.Ledger, c.Ledger?.Reviewer, null, null),
             (c.Sleeping, c.Sleeping?.Reviewer, c.Sleeping?.Concern, MaintainHousing),
-            (c.Cooking, c.Cooking?.Reviewer, c.Cooking?.Concern, EnsureCooking),
             (c.Comfort, c.Comfort?.Reviewer, c.Comfort?.Concern, EnsureComfort),
             (c.BasicComfort, c.BasicComfort?.Reviewer, c.BasicComfort?.Concern, EnsureComfort),
             (c.Workshop, c.Workshop?.Reviewer, c.Workshop?.Concern, MaintainResource),

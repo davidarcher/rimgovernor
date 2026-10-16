@@ -32,12 +32,12 @@ public static partial class PolicyFunctions
         {
             return rows;
         }
-        if (rows.Any(row => row.Concern == EnsureCooking))
+        if (rows.Any(row => row.Concern == CookingNeed.FilingKey))
         {
             return rows;
         }
         var result = rows.ToList();
-        result.Add(new MoodProvision(EnsureCooking, -Math.Max(1, (target - mood) * 100)));
+        result.Add(new MoodProvision(CookingNeed.FilingKey, -Math.Max(1, (target - mood) * 100)));
         return SortProvision(result);
     }
 

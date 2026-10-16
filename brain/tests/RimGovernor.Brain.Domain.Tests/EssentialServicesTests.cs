@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static readonly ConcernId[] Owners = [EnsureFoodSupply, EnsureCooking, CriticalMedicine, MaintainSurgery,
+    private static readonly ConcernId[] Owners = [EnsureFoodSupply, CriticalMedicine, MaintainSurgery,
         MaintainMedicalReserves, MaintainHousing, MaintainShelter, EnsureTemperatureSafety,
         EnsureBasicPower, MaintainRoutes, MaintainResource];
     private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };

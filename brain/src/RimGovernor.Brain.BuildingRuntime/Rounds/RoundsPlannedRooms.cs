@@ -11,7 +11,7 @@ public sealed partial class RoundsBuildingPlanner
 
     internal (PlannedRole Role, bool Ok) PlannedRoomModule()
     {
-        if (Concern == PolicyFunctions.EnsureCooking && Paste.Count == 0)
+        if (Concern == PolicyFunctions.CookingNeed.FilingKey && Paste.Count == 0)
         {
             return (PlannedRole.Kitchen, true);
         }
@@ -86,7 +86,7 @@ public sealed partial class RoundsBuildingPlanner
 
         if (Definition == PolicyConstants.ShelterHeatDef)
         {
-            var cooking = Concern == PolicyFunctions.EnsureCooking && Paste.Count == 0;
+            var cooking = Concern == PolicyFunctions.CookingNeed.FilingKey && Paste.Count == 0;
             return known && plan!.Cold && PolicyFunctions.ShelterHosts(Capability.Heat) && (cooking || (Temperature is not null && Temperature.Method == TemperatureMethod.Heat));
         }
 
