@@ -68,7 +68,7 @@ reachable edge cell, then exits it. From then on it is neither target nor shoote
 id, a repeated id, a tick outside `0-MaxTicks` or another kind rejects by field (`Departures[0].Tick`). Per pawn the result
 reports `DepartureTick` (-1 when none applied, e.g. the pawn was already down), `GotAway` (off the map alive) and `LastShotTick`
 (no shot after the departure). Each fight restarts the map's snow depth from the baseline, so later seeds and `Verify` replays
-start from the same ground.
+start from the same ground. The baseline is bare: snow the generator laid is cleared, as in the native lab (snow slows pathing).
 
 **The result** carries the same `Schema` as the request (the shape changes with the version). Per pawn it exports game facts
 and no derived scores, read from the game objects after the fight: `Injuries` (every hediff but missing parts: def, part

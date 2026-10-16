@@ -143,6 +143,12 @@ public sealed class Arena : IDisposable
             _map.weatherManager.curWeatherAge = 0;
         }
 
+        // Snow from generation sets path cost and the pawns' pace; the native lab only runs on bare ground, so the baseline is bare too.
+        foreach (var cell in _map.AllCells)
+        {
+            if (_map.snowGrid.GetDepth(cell) != 0) _map.snowGrid.SetDepth(cell, 0f);
+        }
+
         foreach (var t in _req.Things)
         {
             var def = DefDatabase<ThingDef>.GetNamed(t.Def);
