@@ -114,7 +114,8 @@ internal static class CoupledShelterCandidates
                     options.Add(new(id, worker.Pawn, worker.RoofCellWorkTicks, Known(0d)));
                     routes.TryAdd((worker.Pawn, "start", location), new(worker.Pawn, "start", location, approach));
                     bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work,
-                        "roof", "BuildRoofs", "BuildRoof", 0, deadline, cell) { Destination = cell };
+                        // One claim target per cell: a shared "roof" target made two pawns on different cells refuse each other at admission.
+                        "roof/" + cell.X + "/" + cell.Z, "BuildRoofs", "BuildRoof", 0, deadline, cell) { Destination = cell };
                 }
                 groups.Add([id]);
                 demands.Add(new("roof/" + id, supply.Resource, Known(1), location, ForecastRequirementKind.Reusable,

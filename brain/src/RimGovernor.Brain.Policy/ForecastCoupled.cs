@@ -159,6 +159,21 @@ public static partial class PolicyFunctions
         }
         var alternatives = compared?.Alternatives ?? [new ForecastActivityPlan([], 0, 0)];
         var results = alternatives.Select(plan => EvaluateCoupledSchedule(request, commitments, problem, plan)).ToArray();
+        // The assignment search is bounded and tries pawns in id order, so every plan it reaches can hand the same work to a pawn the
+        // needs timeline then shows cannot do it. When that leaves nothing feasible, search again without those pawn choices.
+        var retried = problem;
+        for (var round = 0; round < 2 && compared is not null && results.All(r => r.Feasible != Known(true)); round++)
+        {
+            var barred = results.SelectMany(r => r.Findings.Where(f => f.Reason == "work_outside_recovered_capacity")
+                .SelectMany(f => r.Plan.Allocations.Where(a => a.Activity == f.Commitment).Select(a => (a.Activity, a.Pawn)))).ToHashSet();
+            var options = retried.Options.Where(o => !barred.Contains((o.Activity, o.Pawn))
+                || !retried.Options.Any(other => other.Activity == o.Activity && !barred.Contains((other.Activity, other.Pawn)))).ToArray();
+            if (options.Length == retried.Options.Length) break;
+            retried = retried with { Options = options };
+            var again = CompareActivityPlans(retried);
+            findings.UnionWith(again.Findings);
+            results = [.. results, .. again.Alternatives.Select(plan => EvaluateCoupledSchedule(request, commitments, retried, plan))];
+        }
         // Inventory-only clients keep their conditional diagnostics; migrated consumers inspect each coupled alternative.
         return ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         {

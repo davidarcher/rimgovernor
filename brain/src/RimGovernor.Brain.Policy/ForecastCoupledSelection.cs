@@ -287,8 +287,8 @@ public static partial class PolicyFunctions
     {
         if (a.Support.UrgentFirstCareTicks.IsKnown && b.Support.UrgentFirstCareTicks.IsKnown)
         { var rank = a.Support.UrgentFirstCareTicks.Value.CompareTo(b.Support.UrgentFirstCareTicks.Value); if (rank != 0) return rank; }
-        var sameThermalUse = a.ThermalOccupancy.Length != 0 && a.ThermalOccupancy == b.ThermalOccupancy;
-        foreach (var pair in a.Urgent.Zip(b.Urgent).Concat(a.Needs.Zip(b.Needs).Skip(sameThermalUse ? 0 : 1)))
+        // Relief is measured against each outcome's own unimproved rooms, so it ranks even when the sleeps differ in time.
+        foreach (var pair in a.Urgent.Zip(b.Urgent).Concat(a.Needs.Zip(b.Needs)))
         {
             if (!pair.First.IsKnown || !pair.Second.IsKnown) continue;
             var rank = pair.First.Value.CompareTo(pair.Second.Value); if (rank != 0) return rank;

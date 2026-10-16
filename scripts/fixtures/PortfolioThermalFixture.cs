@@ -96,7 +96,7 @@ public sealed partial class PawnControlFixture
             {
                 pawn.jobs.StopAll();
                 pawn.needs.food.CurLevelPercentage = .95f;
-                pawn.needs.rest.CurLevelPercentage = pawn == thermalSleeper ? .22f : .95f;
+                pawn.needs.rest.CurLevelPercentage = .95f;
                 pawn.needs.joy.CurLevelPercentage = .95f;
             }
             thermalSleeper.Position = new IntVec3(x + 1, 0, z + height - 2);

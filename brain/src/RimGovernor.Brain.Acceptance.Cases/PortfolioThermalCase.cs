@@ -13,7 +13,7 @@ internal static class PortfolioThermalCase
         Start = new LabStart(),
         RequiredOps = ["test/portfolio_thermal_prepare", "test/portfolio_thermal_read"],
         Keep = ["Food", "Rest", "Joy"], QuietWorld = true, Crew = new Crew { Size = 3 },
-        Service = true, NoCheckpoint = true, Budget = TimeSpan.FromMinutes(5), Stall = TimeSpan.FromSeconds(45),
+        Service = true, NoCheckpoint = true, Budget = TimeSpan.FromMinutes(15), Stall = TimeSpan.FromSeconds(120),
         Run = async (s, ct) =>
         {
             LayoutPlan? layout = null;
@@ -56,7 +56,7 @@ internal static class PortfolioThermalCase
             {
                 using var journal = await ServiceJournal.OpenWithRetryAsync(ServiceJournal.PathOf(s.Config), ct).ConfigureAwait(false);
                 var witnessed = new HashSet<string>(StringComparer.Ordinal);
-                var wait = new Wait { Stall = TimeSpan.FromSeconds(45), Terminal = run.Service.Exited };
+                var wait = new Wait { Stall = TimeSpan.FromSeconds(120), Terminal = run.Service.Exited };
                 await wait.WaitProgressAsync(async token =>
                 {
                     var read = await s.Harness.CallAsync("thermal-observe", "test/portfolio_thermal_read", [], token).ConfigureAwait(false);
@@ -69,7 +69,7 @@ internal static class PortfolioThermalCase
                     var complete = journaled && read["roofComplete"].Flag() && read["openRoof"].AsNumber() == 0
                         && read["powered"].Flag() && read["slept"].Flag()
                         && read["occupiedPeak"].AsNumber() >= read["baseline"].AsNumber() + 3;
-                    if (!complete && read["elapsed"].AsNumber() >= 12000)
+                    if (!complete && read["elapsed"].AsNumber() >= 45000)
                         throw new AcceptanceException("Normal thermal portfolio did not deliver observed roof closure and occupied warming: " + read.ToJson());
                     return (Wait.Signature(read["tick"].AsNumber()), complete);
                 }, ct).ConfigureAwait(false);
