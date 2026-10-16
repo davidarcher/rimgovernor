@@ -70,6 +70,8 @@ public static class WireMethods
         ["lifecycle_read_load"] = (typeof(W.Lifecycle.RequestStatus), typeof(W.Lifecycle.LoadReply)),
         ["lifecycle_new_colony"] = (typeof(W.Lifecycle.NewColonyRequest), typeof(W.Lifecycle.NewColonyReply)),
         ["lifecycle_read_new_colony"] = (typeof(W.Lifecycle.RequestStatus), typeof(W.Lifecycle.NewColonyReply)),
+        ["lifecycle_menu"] = (typeof(W.Lifecycle.MenuRequest), typeof(W.Lifecycle.MenuReply)),
+        ["lifecycle_read_menu"] = (typeof(W.Lifecycle.RequestStatus), typeof(W.Lifecycle.MenuReply)),
         ["lifecycle_save"] = (typeof(W.Lifecycle.SaveRequest), typeof(W.Lifecycle.SaveReply)),
         ["lifecycle_read_save"] = (typeof(W.Lifecycle.RequestStatus), typeof(W.Lifecycle.SaveReply)),
         ["presentation_overlay"] = (typeof(W.Presentation.OverlayRequest), typeof(W.Presentation.OverlayReply)),

@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Observation;
@@ -41,6 +42,27 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
             {
                 reading = await ObservationPackage.Observe(source, clock, cancellationToken).ConfigureAwait(false);
                 reading.Snapshot.CheckFresh(clock.Now(), maxAge, reading.Snapshot.After);
+            }
+            catch (NotLoadedException e)
+            {
+                // No game is loaded (the main menu, between loads): the ended game's identity is gone, not merely
+                // stale, so nothing keeps naming it (#3298).
+                lock (_mu)
+                {
+                    _gamePaused = false;
+                    _snapshot = _snapshot with
+                    {
+                        Connected = false,
+                        Stale = true,
+                        Status = "No game is loaded",
+                        Identity = default,
+                        Tick = default,
+                        Paused = default,
+                        ObservedAt = default,
+                    };
+                }
+
+                throw new InvalidOperationException("observation refresh failed: " + e.Message, e);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

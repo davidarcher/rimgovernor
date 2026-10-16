@@ -176,6 +176,10 @@ public interface INativeFacade
 
     Task<Lifecycle.NewColonyReply> PollNewColonyAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken);
 
+    Task<Lifecycle.MenuReply> StartMenuAsync(Lifecycle.MenuRequest request, CancellationToken cancellationToken);
+
+    Task<Lifecycle.MenuReply> PollMenuAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken);
+
     Task<Lifecycle.SaveReply> SaveGameAsync(Lifecycle.SaveRequest request, CancellationToken cancellationToken);
 
     Task<Lifecycle.SaveReply> PollSaveAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken);

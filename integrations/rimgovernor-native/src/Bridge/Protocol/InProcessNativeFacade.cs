@@ -257,6 +257,12 @@ namespace HomeBridge.BridgeTools
         public Task<Lifecycle.NewColonyReply> PollNewColonyAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken)
             => Write("lifecycle_read_new_colony", request, () => ProtoLifecycleNewColonyTools.PollNewColony(request), cancellationToken);
 
+        public Task<Lifecycle.MenuReply> StartMenuAsync(Lifecycle.MenuRequest request, CancellationToken cancellationToken)
+            => Write("lifecycle_menu", request, () => ProtoLifecycleMenuTools.StartMenu(request), cancellationToken);
+
+        public Task<Lifecycle.MenuReply> PollMenuAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken)
+            => Write("lifecycle_read_menu", request, () => ProtoLifecycleMenuTools.PollMenu(request), cancellationToken);
+
         public Task<Lifecycle.SaveReply> SaveGameAsync(Lifecycle.SaveRequest request, CancellationToken cancellationToken)
             => Write("lifecycle_save", request, () => ProtoLifecycleSaveTools.Apply(request), cancellationToken);
 

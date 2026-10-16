@@ -438,6 +438,77 @@ public sealed record RequestStatus
 }
 
 /// <summary>
+/// Return to the main menu: native ends the loaded game without saving, the way the player's quit-to-menu does, and
+/// the process stays up. Like Load it starts at once and is polled by request id; it is a completed no-op when the
+/// game is already at a fresh main menu.
+/// </summary>
+public sealed record MenuRequest
+{
+    public string? RequestId { get; init; }
+
+    /// <summary>
+    /// Required when a colony map is loaded: the identity and direction of the game the request ends.
+    /// </summary>
+    public PlayerLifecycleContext? ExpectedPlayer { get; init; }
+}
+
+/// <summary>
+/// The game is at a fresh main menu (no game, no queued long event). <c>unloaded</c> is false when it already was.
+/// </summary>
+public sealed record MenuCompleted
+{
+    public string? RequestId { get; init; }
+
+    public bool? Unloaded { get; init; }
+}
+
+public sealed record MenuPending
+{
+    public string? RequestId { get; init; }
+
+    public string? Detail { get; init; }
+}
+
+public sealed record MenuReply
+{
+    public MenuReplyOutcome? Outcome { get; init; }
+}
+
+/// <summary>The <c>outcome</c> choice of <see cref="MenuReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(MenuReplyOutcome.CompletedCase), "completed")]
+[JsonDerivedType(typeof(MenuReplyOutcome.PendingCase), "pending")]
+[JsonDerivedType(typeof(MenuReplyOutcome.FailureCase), "failure")]
+public abstract record MenuReplyOutcome
+{
+    private protected MenuReplyOutcome() { }
+
+    /// <summary>The <c>Completed</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public MenuCompleted? Completed => (this as CompletedCase)?.Value;
+
+    public sealed record CompletedCase(MenuCompleted Value) : MenuReplyOutcome;
+
+    public static implicit operator MenuReplyOutcome(MenuCompleted value) => new CompletedCase(value);
+
+    /// <summary>The <c>Pending</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public MenuPending? Pending => (this as PendingCase)?.Value;
+
+    public sealed record PendingCase(MenuPending Value) : MenuReplyOutcome;
+
+    public static implicit operator MenuReplyOutcome(MenuPending value) => new PendingCase(value);
+
+    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
+    [JsonIgnore]
+    public Common.Failure? Failure => (this as FailureCase)?.Value;
+
+    public sealed record FailureCase(Common.Failure Value) : MenuReplyOutcome;
+
+    public static implicit operator MenuReplyOutcome(Common.Failure value) => new FailureCase(value);
+}
+
+/// <summary>
 /// New colony: native generates a colony from a spec on a fresh main
 /// menu and saves it as the last phase, so the spec carries the save name.
 /// Unset temperature fields leave the game default. world_temperature is the

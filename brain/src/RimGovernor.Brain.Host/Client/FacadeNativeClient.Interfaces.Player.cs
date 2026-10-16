@@ -41,4 +41,10 @@ internal sealed partial class FacadeNativeClient : IPresentationReader, IPresent
 
     async Task<PbLifecycle.NewColonyReply> ILifecycleWriter.ReadNewColonyAsync(string requestId, CancellationToken cancellationToken) =>
         (await ReadNewColonyAsync(requestId, cancellationToken).ConfigureAwait(false)).Reply;
+
+    async Task<PbLifecycle.MenuReply> ILifecycleWriter.MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken) =>
+        (await MenuAsync(request, cancellationToken).ConfigureAwait(false)).Reply;
+
+    async Task<PbLifecycle.MenuReply> ILifecycleWriter.ReadMenuAsync(string requestId, CancellationToken cancellationToken) =>
+        (await ReadMenuAsync(requestId, cancellationToken).ConfigureAwait(false)).Reply;
 }

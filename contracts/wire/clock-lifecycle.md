@@ -9,6 +9,7 @@
 | `lifecycle.Lifecycle.Save` | Explicit session action; completed save, unchanged identity/direction/tick and observed pause. |
 | `lifecycle.Lifecycle.NewColony` | `NewColonySpec` is a required base `scenario` plus typed scenario parts (`starting_things`, `forced_traits`, `forced_hediffs`, `naked`, `set_need_levels`, `perma_game_conditions`, `disallowed_buildings`, `disabled_incidents`) and mandatory-part overrides (`player_faction`, `arrival_method`; the pawn count is `colonist_count`). Native builds game ScenParts from them (`NativeNewColonyScenarioParts`) and puts them on the copy of the scenario before the colonists are generated. Parts replace by kind: a non-empty list removes the base scenario's parts of that kind (all three `starting_things` placements are one kind) and a list left empty keeps the base's, so Crashlanded plus a full list yields exactly that list. It refuses, naming the field, an unknown defName, a trait degree the trait lacks, a hediff that is not `scenarioCanAdd` or above its editor cap, a non-major need, a part that cannot coexist with another, or a stuff/quality the thing does not take. `perma_game_conditions` accepts any condition def, not only `canBePermanent` ones (ColdSnap works); 1.6 has no map-scoped permanent part. |
 | `lifecycle.Lifecycle.Load` | Distinguish pending/map/visual readiness, reread fresh native context. |
+| `lifecycle.Lifecycle.Menu` (`rimgovernor/lifecycle_menu`, `rimgovernor/lifecycle_read_menu`) | End the loaded game without saving, as the player's quit-to-menu does (`GenScene.GoToMainMenu`); the process stays up. `MenuPending` until the game is at a fresh main menu (Entry program state, no game, no queued long event), the precondition NewColony starts from; then `MenuCompleted`. Already at a fresh main menu, it completes at once with `unloaded` false. |
 | the brain gamehost process adapter | the harness owns process lifetime. No second native process manager. Stop only owned instance; detach attached sessions. |
 
 ## Clock validation
@@ -73,6 +74,15 @@ input/UI captures, pending actions and observation cursors (drafts are plan-owne
 is no saved-lease restoration, old-format conversion or compatibility override.
 The lifecycle facade uses the existing SDK implementation; its method descriptor
 does not imply another in-game loader or native process server.
+
+Menu requires a `request_id`. Ending a live colony map requires `expected_player` with
+that map's current identity and a nonzero direction, as replacing one by Load does. Menu
+refuses as `UNAVAILABLE` while any long event is queued, because the menu return would
+clear that event: a load, a new colony phase or a save. It also refuses while another
+menu request is still running. A retry of a known request id answers that request's
+status. ReadMenu of an unknown request id is `NOT_FOUND`. The ledger keeps 32 entries
+and prunes completed ones first. Ending the game revokes native authority as
+`REVOCATION_REASON_SHUTDOWN`, like any orderly game end.
 
 Load admission validates the exact owned/attached instance and trusted current
 player direction; replacing a live map additionally requires `expected_player`

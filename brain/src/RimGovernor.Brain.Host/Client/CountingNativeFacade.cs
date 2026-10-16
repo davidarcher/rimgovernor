@@ -141,6 +141,10 @@ internal sealed class CountingNativeFacade(INativeFacade inner) : INativeFacade
 
     public Task<Lifecycle.NewColonyReply> PollNewColonyAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken) => Count("lifecycle_read_new_colony", () => inner.PollNewColonyAsync(request, cancellationToken));
 
+    public Task<Lifecycle.MenuReply> StartMenuAsync(Lifecycle.MenuRequest request, CancellationToken cancellationToken) => Count("lifecycle_menu", () => inner.StartMenuAsync(request, cancellationToken));
+
+    public Task<Lifecycle.MenuReply> PollMenuAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken) => Count("lifecycle_read_menu", () => inner.PollMenuAsync(request, cancellationToken));
+
     public Task<Lifecycle.SaveReply> SaveGameAsync(Lifecycle.SaveRequest request, CancellationToken cancellationToken) => Count("lifecycle_save", () => inner.SaveGameAsync(request, cancellationToken));
 
     public Task<Lifecycle.SaveReply> PollSaveAsync(Lifecycle.RequestStatus request, CancellationToken cancellationToken) => Count("lifecycle_read_save", () => inner.PollSaveAsync(request, cancellationToken));

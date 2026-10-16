@@ -164,6 +164,20 @@ Other fields (`method`,
 The HTTP read route `/api/routines` carries no finding string; the values reach
 clients through the colony-review timeline (`need` per concern) and the acceptance reports.
 
+## Return to the main menu
+
+`POST /api/lifecycle/menu` with `{"requestId":"..."}` ends the loaded game without saving, the way
+the player's quit-to-menu does, and leaves the process and the in-process brain running. When the
+controller observes a game, the request names it, and native refuses to end a different one. It
+answers 202 `{"status":"pending","requestId","detail"}` while the game unloads, and 201
+`{"status":"completed","requestId","unloaded"}` once the game is at a fresh main menu, the state
+`/api/lifecycle/new` starts from. `unloaded` is false when the game was already there. Poll
+`GET /api/lifecycle/menu?requestId=`, which answers both outcomes with 200. Native refuses while
+another long event, such as a load or save, is queued, or when the named identity does not match.
+The in-process client raises that refusal, so the route answers 503 `unavailable`. After the
+return, the state route reports no identity (`status` "No game is loaded"). The bot takes no action
+until a colony map loads again.
+
 ## New colony scenario parts
 
 `POST /api/lifecycle/new` accepts, beside the base `scenario` and the world settings, typed

@@ -76,6 +76,66 @@ internal sealed partial class FacadeNativeClient
         return (reply, NoReceipt);
     }
 
+    /// <summary>
+    /// Starts the return to the main menu (#3298) and returns at once: completed when the game already is at a fresh
+    /// main menu, otherwise pending, which the caller polls with <see cref="ReadMenuAsync"/>.
+    /// </summary>
+    internal async Task<(PbLifecycle.MenuReply Reply, BridgeResult Result)> MenuAsync(PbLifecycle.MenuRequest request, CancellationToken cancellationToken)
+    {
+        if (request?.RequestId is null || !IsValidId(request.RequestId))
+        {
+            throw Contract("menu request requires a request id");
+        }
+
+        if (request.ExpectedPlayer?.RequestId is { } playerRequest && !IsValidId(playerRequest))
+        {
+            throw Contract("menu request expected player request id invalid");
+        }
+
+        var reply = await Facade.StartMenuAsync(request, cancellationToken).ConfigureAwait(false);
+        LifecycleMenuInterpret(reply, request.RequestId);
+        return (reply, NoReceipt);
+    }
+
+    /// <summary>Polls the outcome of a request a prior <see cref="MenuAsync"/> started.</summary>
+    internal async Task<(PbLifecycle.MenuReply Reply, BridgeResult Result)> ReadMenuAsync(string requestId, CancellationToken cancellationToken)
+    {
+        if (!IsValidId(requestId ?? ""))
+        {
+            throw Contract("read menu requires a request id");
+        }
+
+        var reply = await Facade.PollMenuAsync(new PbLifecycle.RequestStatus { RequestId = requestId }, cancellationToken).ConfigureAwait(false);
+        LifecycleMenuInterpret(reply, requestId);
+        return (reply, NoReceipt);
+    }
+
+    /// <summary>Validates a menu reply's shape; a failure arm throws.</summary>
+    private static void LifecycleMenuInterpret(PbLifecycle.MenuReply reply, string? requestId)
+    {
+        switch (reply.Outcome)
+        {
+            case PbLifecycle.MenuReplyOutcome.CompletedCase { Value: var completed }:
+                if (completed.RequestId is null || completed.RequestId != requestId || completed.Unloaded is null)
+                {
+                    throw Contract("invalid menu completed");
+                }
+
+                break;
+            case PbLifecycle.MenuReplyOutcome.PendingCase { Value: var pending }:
+                if (pending.RequestId is null || pending.RequestId != requestId)
+                {
+                    throw Contract("invalid menu pending");
+                }
+
+                break;
+            case PbLifecycle.MenuReplyOutcome.FailureCase { Value: var failure }:
+                throw Failure(failure);
+            default:
+                throw Contract("menu outcome missing");
+        }
+    }
+
     /// <summary>Go <c>interpretLoadReply</c>: validates a load reply's shape; a failure arm throws.</summary>
     private static void LifecycleLoadInterpret(PbLifecycle.LoadReply reply, string? requestId, string? saveName)
     {

@@ -179,8 +179,8 @@ public interface INotificationReader
 }
 
 /// <summary>
-/// The explicit session lifecycle capability: one trusted checkpoint save, one native load and one new-colony
-/// generation, plus recovery reads for a request the caller never received a reply for. Each call returns the
+/// The explicit session lifecycle capability: one trusted checkpoint save, one native load, one new-colony
+/// generation and one return to the main menu, plus recovery reads for a request the caller never received a reply for. Each call returns the
 /// native reply as it is, with its outcome (completed, pending, superseded, failure); the route maps the outcome.
 /// A transport failure is thrown. The implementation owns any retry after a blocking-attention acknowledgement.
 /// </summary>
@@ -197,4 +197,9 @@ public interface ILifecycleWriter
     Task<NewColonyReply> NewColonyAsync(NewColonyRequest request, CancellationToken cancellationToken);
 
     Task<NewColonyReply> ReadNewColonyAsync(string requestId, CancellationToken cancellationToken);
+
+    /// <summary>Ends the loaded game without saving and returns the running process to a fresh main menu.</summary>
+    Task<MenuReply> MenuAsync(MenuRequest request, CancellationToken cancellationToken);
+
+    Task<MenuReply> ReadMenuAsync(string requestId, CancellationToken cancellationToken);
 }

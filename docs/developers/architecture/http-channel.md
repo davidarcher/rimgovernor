@@ -53,7 +53,7 @@ reloads. A route family whose provider is null is not registered, so it answers 
 | `PlayerRoutes.Register(routes, player, controls, clock)` | `GET /api/player/session`, `control`, `POST control/resume`, `control/pause`, `GET clock`, `POST clock/acknowledge` | `IPlayerControl`, `IControlReader`, `IClockReview` |
 | `ReadRoutes.Register(routes, snapshots, plans, rounds, colony)` | `GET /api/state`, `/api/plan?id=`, `/api/routines`, `/api/player/colony` | `ISnapshotProvider`, `IPlanReader` (both required), `IRoundsProvider`, `IColonyStatusReader` |
 | `PresentationRoutes.Register(routes, snapshots, reader, media, notifications)` | `GET /api/presentation/camera`, `selection`, `colonists`, `render-state`, `notifications`; `POST render-demand` | `IPresentationReader`, `IPresentationMediaWriter`, `INotificationReader` |
-| `LifecycleRoutes.Register(routes, snapshots, lifecycle)` | `POST` and `GET ?requestId=` on `/api/lifecycle/save`, `load`, `new` | `ILifecycleWriter` |
+| `LifecycleRoutes.Register(routes, snapshots, lifecycle)` | `POST` and `GET ?requestId=` on `/api/lifecycle/save`, `load`, `new`, `menu` | `ILifecycleWriter` |
 
 ## Behavior carried over from the brain, and where it differs
 
@@ -68,7 +68,9 @@ reloads. A route family whose provider is null is not registered, so it answers 
   decision of #3083 is the request guard alone.
 - Lifecycle: save needs a fresh identity and manual mode (409 otherwise) and answers 201 with the completed
   checkpoint; load answers 201 completed, 202 pending, 409 superseded; new colony answers 201 completed, 202
-  pending, 409 superseded or the native refusal as `native_<code>` (400, 404, 409 or 502). The GET recovery reads
+  pending, 409 superseded or the native refusal as `native_<code>` (400, 404, 409 or 502); the return to the main
+  menu (`menu`, [player API](../contracts/player-api.md#return-to-the-main-menu)) answers 201 completed or 202
+  pending and maps a refusal the same way. The GET recovery reads
   answer 200 for completed and pending. `ILifecycleWriter` returns the native reply as it is; the retry after a
   blocking-attention acknowledgement is the writer's, not the route's. Request bodies are `StrictJson`-checked
   (duplicate keys and nesting beyond 8 are refused, as on the player routes), and field names match exactly,

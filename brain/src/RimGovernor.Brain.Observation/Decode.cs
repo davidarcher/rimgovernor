@@ -63,8 +63,11 @@ public static partial class ObservationPackage
                 var result = ContextIdentity(loaded.Context);
                 return loaded.Paused is not null ? result with { Paused = Known(loaded.Paused.GetValueOrDefault()) } : result;
             }
-            case TickReplyOutcome.UnavailableCase:
-                throw new BridgeUnavailableException();
+            case TickReplyOutcome.UnavailableCase { Value: var unavailable }:
+                // No colony map (the main menu, between loads) is the expected NotLoaded state, not a fault.
+                throw unavailable.Reason == C.UnavailableReason.NotLoaded
+                    ? new NotLoadedException("native observation unavailable: no colony map is loaded")
+                    : new BridgeUnavailableException();
             case TickReplyOutcome.FailureCase:
                 throw new BridgeRefusedException();
             default:

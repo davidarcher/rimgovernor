@@ -20,8 +20,10 @@ public sealed class Game : IGameHold
     /// <summary>Controls whether the RimWorld process stays alive between harness binaries.</summary>
     public const string KeepGameEnv = "RIMGOVERNOR_ACCEPT_KEEP_GAME";
 
-    /// <summary>Returns the loaded game to the main menu without saving (ShutdownFixture); every fixture build carries it.</summary>
-    public const string UnloadTool = "test/shutdown_unload";
+    /// <summary>The production return-to-menu op (#3298): ends the loaded game without saving, the process stays up.</summary>
+    private const string MenuMethod = "lifecycle_menu";
+
+    private const string MenuReadMethod = "lifecycle_read_menu";
 
     private static readonly TimeSpan CloseBudget = TimeSpan.FromSeconds(90);
     private static readonly TimeSpan MenuCeiling = TimeSpan.FromSeconds(90);
@@ -317,34 +319,63 @@ public sealed class Game : IGameHold
         // A harness of its own over the same session, so the unloads number their evidence under the warm directory; it is
         // never closed here because that would end the session.
         var h = new Harness(Harness.Transport, _output);
-        if (!await GameLoadedAsync(h, label + "-identity", cancellationToken).ConfigureAwait(false))
+        var requestId = string.Create(CultureInfo.InvariantCulture, $"{label}-{DateTime.UtcNow.Ticks}");
+        var started = false;
+        var attempt = 0;
+        JsonObject? last = null;
+        try
         {
-            return;
-        }
+            await new Wait { Ceiling = MenuCeiling, Interval = MenuInterval }.WaitProgressAsync(
+                async ct =>
+                {
+                    var step = string.Create(CultureInfo.InvariantCulture, $"{label}-{attempt++}");
+                    var reply = started
+                        ? await h.WireAsync(step + "-read", MenuReadMethod, new JsonObject { ["requestId"] = requestId }, ct).ConfigureAwait(false)
+                        : await h.WireAsync(step + "-menu", MenuMethod, await MenuRequestAsync(h, step, requestId, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
+                    last = reply;
+                    if (reply["completed"].AsMap() is not null)
+                    {
+                        return ("", true);
+                    }
 
-        var names = await h.DiscoveryAsync(cancellationToken).ConfigureAwait(false) ?? [];
-        if (!Session.HasTool(names, UnloadTool))
+                    if (reply["pending"].AsMap() is not null)
+                    {
+                        started = true;
+                        return (Wait.Signature("pending"), false);
+                    }
+
+                    // A long event already queued (a load or save finishing) refuses the start as unavailable; it is
+                    // asked again once that is done. Any other refusal is final.
+                    var code = reply["failure"].AsMap()?["code"].AsString();
+                    if (!started && code == "FAILURE_CODE_UNAVAILABLE")
+                    {
+                        return (Wait.Signature("busy"), false);
+                    }
+
+                    throw new AcceptanceException($"{MenuMethod} refused: {reply.ToJson()}");
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (WaitError e)
         {
-            throw new AcceptanceException($"a game is loaded and {UnloadTool} is not installed: build the mod with a fixture or stop the game");
+            throw new AcceptanceException($"{MenuMethod} did not reach the main menu; last reply {last?.ToJson()}: {e.Message}", e);
         }
-
-        var reply = await h.CallAsync(label + "-unload", UnloadTool, [], cancellationToken).ConfigureAwait(false);
-        if (reply["success"].AsBool() != true)
-        {
-            throw new AcceptanceException($"{UnloadTool} refused: {reply.ToJson()}");
-        }
-
-        var wait = new Wait { Ceiling = MenuCeiling, Interval = MenuInterval };
-        await wait.WaitProgressAsync(
-            async ct => ("", !await GameLoadedAsync(h, label + "-menu", ct).ConfigureAwait(false)),
-            cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>Whether <c>lifecycle_read_identity</c> reports a loaded game; an unavailable or failure outcome is the main menu.</summary>
-    private static async Task<bool> GameLoadedAsync(Harness h, string label, CancellationToken cancellationToken)
+    /// <summary>
+    /// The production return-to-menu request (#3298): it names the loaded game, read from <c>lifecycle_read_identity</c>,
+    /// since native refuses to end a live map the caller did not name; at the main menu there is nothing to name.
+    /// </summary>
+    private static async Task<JsonObject> MenuRequestAsync(Harness h, string label, string requestId, CancellationToken cancellationToken)
     {
-        var reply = await h.WireAsync(label, "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
-        return reply["loaded"].AsMap() is not null;
+        var request = new JsonObject { ["requestId"] = requestId };
+        var reply = await h.WireAsync(label + "-identity", "lifecycle_read_identity", new JsonObject(), cancellationToken).ConfigureAwait(false);
+        if (reply["loaded"].AsMap()?["context"].AsMap()?["identity"].AsMap() is { } identity)
+        {
+            request["expectedPlayer"] = new JsonObject { ["identity"] = identity.DeepClone(), ["playerDirection"] = 1, ["requestId"] = requestId };
+        }
+
+        return request;
     }
 
     /// <summary>

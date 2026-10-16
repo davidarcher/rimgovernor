@@ -11,6 +11,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class LifecycleShutdown
 {
+    /// <summary>Returns the loaded game to the main menu without saving and reports the tick it ended at (ShutdownFixture).</summary>
+    private const string UnloadTool = "test/shutdown_unload";
+
     internal static AcceptanceCase Case() => new()
     {
         Name = "lifecycle/shutdown",
@@ -28,9 +31,9 @@ internal static class LifecycleShutdown
         var h = s.Harness;
         var report = s.Report;
         LifecycleCases.RequireTools(s, "rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/lifecycle_read_identity");
-        if (!Dyn.Contains(s.Names, Game.UnloadTool))
+        if (!Dyn.Contains(s.Names, UnloadTool))
         {
-            throw new AcceptanceException($"missing {Game.UnloadTool} in discovery; rebuild the native mod with -Fixture ShutdownFixture");
+            throw new AcceptanceException($"missing {UnloadTool} in discovery; rebuild the native mod with -Fixture ShutdownFixture");
         }
 
         // The runner opened the game paused; this is the identity the unload ends.
@@ -54,7 +57,7 @@ internal static class LifecycleShutdown
 
         // Case 1: end the game with Auto still granted. The unload is queued as a long event, so the read is polled until
         // no game is loaded and the retained state answers for the ended identity.
-        var unloaded = await h.CallAsync("unload", Game.UnloadTool, new JsonObject(), cancellationToken).ConfigureAwait(false);
+        var unloaded = await h.CallAsync("unload", UnloadTool, new JsonObject(), cancellationToken).ConfigureAwait(false);
         if (unloaded["success"].AsBool() != true)
         {
             throw new AcceptanceException($"unload refused: {unloaded.ToJson()}");

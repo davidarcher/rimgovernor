@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.PlayerApi;
 
 /// <summary>
 /// The explicit session lifecycle routes (Go <c>httpapi</c> <c>lifecycle.go</c> and <c>lifecycle_new.go</c>): save,
-/// load and new colony, each a POST that starts the operation and a GET by request id that recovers its outcome.
+/// load, new colony and the return to the main menu (#3298), each a POST that starts the operation and a GET by request id that recovers its outcome.
 /// The routes carry no token; the channel's request guard is the only access check (issue #3083). The
 /// <see cref="ILifecycleWriter"/> returns the native reply as it is and owns the retry after a blocking-attention
 /// acknowledgement; the routes map each outcome (completed, pending, superseded, failure) to a status.
@@ -23,13 +23,15 @@ public static class LifecycleRoutes
 
     public const string NewPath = "/api/lifecycle/new";
 
+    public const string MenuPath = "/api/lifecycle/menu";
+
     private const int MinLoadTimeoutMs = 1000;
 
     private const int MaxLoadTimeoutMs = 120_000;
 
     private static readonly RouteOptions Bounded = new() { MaxBodyBytes = StrictJson.Limit };
 
-    /// <summary>Registers the three lifecycle routes (POST and GET each); dispose the result to remove them all.</summary>
+    /// <summary>Registers the four lifecycle routes (POST and GET each); dispose the result to remove them all.</summary>
     public static IDisposable Register(RouteTable routes, ISnapshotProvider snapshots, ILifecycleWriter lifecycle) => new ReadRoutes.Registrations(
     [
         routes.Map("POST", SavePath, (request, ct) => SaveAsync(snapshots, lifecycle, request, ct), Bounded),
@@ -38,6 +40,8 @@ public static class LifecycleRoutes
         routes.Map("GET", LoadPath, (request, ct) => ReadAsync(request, id => ReadLoadAsync(lifecycle, id, ct), ct), Bounded),
         routes.Map("POST", NewPath, (request, ct) => NewColonyAsync(lifecycle, request, ct), Bounded),
         routes.Map("GET", NewPath, (request, ct) => ReadAsync(request, id => ReadNewAsync(lifecycle, id, ct), ct), Bounded),
+        routes.Map("POST", MenuPath, (request, ct) => MenuAsync(snapshots, lifecycle, request, ct), Bounded),
+        routes.Map("GET", MenuPath, (request, ct) => ReadAsync(request, id => ReadMenuAsync(lifecycle, id, ct), ct), Bounded),
     ]);
 
     // Go handleLifecycleRead: exactly one parameter, requestId, with a valid id.
@@ -69,6 +73,9 @@ public static class LifecycleRoutes
 
     private static async Task<ChannelResponse> ReadNewAsync(ILifecycleWriter lifecycle, string id, CancellationToken ct) =>
         NewColonyResponse(await lifecycle.ReadNewColonyAsync(id, ct).ConfigureAwait(false), 200, 200);
+
+    private static async Task<ChannelResponse> ReadMenuAsync(ILifecycleWriter lifecycle, string id, CancellationToken ct) =>
+        MenuResponse(await lifecycle.ReadMenuAsync(id, ct).ConfigureAwait(false), 200, 200);
 
     private static ChannelResponse? NoQuery(ChannelRequest request) =>
         request.Query.Length == 0 ? null : ChannelResponse.Failure(400, "invalid_request", "Mutation requires a bounded body and no query");
@@ -239,6 +246,65 @@ public static class LifecycleRoutes
         }
     }
 
+    // The return to the main menu (#3298): ends the loaded game without saving. Like a load, it names the game it
+    // ends when the controller observes one; at the main menu it has nothing to assert and native completes at once.
+    private static async Task<ChannelResponse> MenuAsync(ISnapshotProvider snapshots, ILifecycleWriter lifecycle, ChannelRequest request, CancellationToken ct)
+    {
+        if (NoQuery(request) is { } refusal)
+        {
+            return refusal;
+        }
+
+        string id;
+        try
+        {
+            var fields = StrictJson.Object(request.Body, "requestId");
+            id = StrictJson.String(fields["requestId"]);
+            if (!new PlanId(id).IsValid)
+            {
+                throw new StrictJsonException("invalid menu request");
+            }
+        }
+        catch (StrictJsonException)
+        {
+            return ChannelResponse.Failure(400, "invalid_request", "requestId is required");
+        }
+
+        try
+        {
+            var menu = new MenuRequest { RequestId = id };
+            if (await CurrentIdentityAsync(snapshots, ct).ConfigureAwait(false) is { } current)
+            {
+                menu = menu with { ExpectedPlayer = new PlayerLifecycleContext { Identity = current.Wire, PlayerDirection = NewColonyBounds.LifecycleDirection, RequestId = id } };
+            }
+
+            var reply = await lifecycle.MenuAsync(menu, ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            return MenuResponse(reply, 201, 202);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return ReadRoutes.ReadFailure(e);
+        }
+    }
+
+    // A menu return is completed or still pending (the poller's ordinary case); a native refusal is shown as new
+    // colony's is.
+    private static ChannelResponse MenuResponse(MenuReply reply, int completedStatus, int pendingStatus)
+    {
+        switch (reply.Outcome)
+        {
+            case MenuReplyOutcome.PendingCase { Value: var pending }:
+                return ChannelResponse.Json(pendingStatus, PlayerJson.Serialize(new MenuPendingDto("pending", pending.RequestId ?? "", pending.Detail ?? "")));
+            case MenuReplyOutcome.FailureCase { Value: var failure }:
+                return ChannelResponse.Failure(RefusalStatus(failure.Code.GetValueOrDefault()), "native_" + CodeName(failure.Code.GetValueOrDefault()), failure.Detail ?? "");
+            case MenuReplyOutcome.CompletedCase { Value: var done }:
+                return ChannelResponse.Json(completedStatus, PlayerJson.Serialize(new MenuCompletedDto("completed", done.RequestId ?? "", done.Unloaded.GetValueOrDefault())));
+            default:
+                return ReadRoutes.ReadFailure(new InvalidOperationException("menu not completed"));
+        }
+    }
+
     /// <summary>
     /// Go <c>currentLifecycleIdentity</c>: the fresh, connected world identity and control mode the controller observes,
     /// or null when it has none (disconnected, stale, or identity or generation unknown). It never reaches native.
@@ -379,6 +445,10 @@ internal sealed record SaveReplyDto(
 internal sealed record LoadPendingDto(string Status, string RequestId, string Detail);
 
 internal sealed record LoadReplyDto(string RequestId, string SaveName, IdentityDto Identity, bool Paused, string Readiness);
+
+internal sealed record MenuPendingDto(string Status, string RequestId, string Detail);
+
+internal sealed record MenuCompletedDto(string Status, string RequestId, bool Unloaded);
 
 internal sealed record NewColonyPendingDto(string Status, string RequestId, string Phase, string Detail, ulong ElapsedMs, uint RerollCount);
 
