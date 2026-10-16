@@ -126,5 +126,5 @@ public static partial class PolicyFunctions
     public static InteriorReading InteriorOpen(this PlannedRoom r, IReadOnlyList<SiteCell> cells) => InteriorOf(r.Region.Bounds(), cells);
 
     /// <summary>Reports whether role is a room whose purpose is a store, the dug rooms whose excavation is a priority.</summary>
-    public static bool IsStoreRoom(PlannedRole role) => role is PlannedRole.Storage or PlannedRole.Armory or PlannedRole.Wardrobe;
+    public static bool IsStoreRoom(PlannedRole role) => role is PlannedRole.Storage;
 }

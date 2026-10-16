@@ -128,8 +128,6 @@ public static partial class PolicyFunctions
     {
         Tomb = [5, 5],
         Morgue = [5, 4],
-        Armory = [7, 5],
-        Wardrobe = [7, 5],
         Battery = [5, 7],
         Holds = ["Grave", "Sarcophagus", "Dresser", "Shelf"],
     };
@@ -148,14 +146,6 @@ public static partial class PolicyFunctions
         if (role == PlannedMorgue)
         {
             return t.Morgue;
-        }
-        if (role == PlannedRole.Armory)
-        {
-            return t.Armory;
-        }
-        if (role == PlannedRole.Wardrobe)
-        {
-            return t.Wardrobe;
         }
         if (role == PlannedBattery)
         {
@@ -184,8 +174,6 @@ public sealed record RoomSizeTable
 {
     public int[] Tomb { get; init; } = [0, 0];
     public int[] Morgue { get; init; } = [0, 0];
-    public int[] Armory { get; init; } = [0, 0];
-    public int[] Wardrobe { get; init; } = [0, 0];
     public int[] Battery { get; init; } = [0, 0];
     public IReadOnlyList<string> Holds { get; init; } = [];
 }

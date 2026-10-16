@@ -181,9 +181,9 @@ public sealed record StationFacts
     /// <summary>What the regrouping prices conflicts with: a colonist's work from the food census and crops, the mood model and the expected mood.</summary>
     public RegroupPrice RegroupPriceOf() => new() { Work = PolicyFunctions.StationWorkPrice(this), Mood = Catalog.Mood, Expected = ExpectedMood };
 
-    /// <summary>The room nodes the facts ask beyond the station chain's: the gear and child rooms, the yards, and the pens.</summary>
+    /// <summary>The room nodes the facts ask beyond the station chain's: the child rooms, the yards, and the pens.</summary>
     internal IReadOnlyList<RoomNode> RoomNodes() =>
-        [.. PolicyFunctions.GearRoomNodes(Plan, Demand), .. PolicyFunctions.ChildRoomNodes(Plan, Child), .. PolicyFunctions.YardRoomNodes(Plan, Demand), .. PolicyFunctions.HerdRoomNodes(Plan, Pens)];
+        [.. PolicyFunctions.ChildRoomNodes(Plan, Child), .. PolicyFunctions.YardRoomNodes(Plan, Demand), .. PolicyFunctions.HerdRoomNodes(Plan, Pens)];
 
     /// <summary>Assembles the graph's input, or throws a StationFactsException naming the unknown fact.</summary>
     public StationGraphInput GraphInput()
@@ -600,7 +600,7 @@ public static partial class PolicyFunctions
         nodes.AddRange(SeedRoomNodes(new SeedRooms { Shelter = true, Colonists = 1, ThroneArea = 1 }));
         nodes.Add(new RoomNode { Role = PlannedRole.Circulation });
         var output = new HashSet<PlannedRole>(nodes.Select(n => n.Role));
-        foreach (var role in GearRooms.Concat(ChildNodeRoles))
+        foreach (var role in ChildNodeRoles)
         {
             output.Add(role);
         }

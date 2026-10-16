@@ -42,8 +42,6 @@ public static partial class PolicyFunctions
         [PlannedRole.Reserve] = ConstructionTier.Expand,
         [PlannedRole.Circulation] = ConstructionTier.Expand,
         [PlannedRole.Battery] = ConstructionTier.Expand,
-        [PlannedRole.Armory] = ConstructionTier.Secure,
-        [PlannedRole.Wardrobe] = ConstructionTier.Secure,
         [PlannedRole.Nursery] = ConstructionTier.Expand,
         [PlannedRole.Playroom] = ConstructionTier.Expand,
         [PlannedRole.Classroom] = ConstructionTier.Expand,

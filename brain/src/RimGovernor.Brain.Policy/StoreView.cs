@@ -54,7 +54,7 @@ public sealed partial record StoreView
     /// <summary>The piece shapes the hospital template plans its beds with (the medicine store sits nearest them).</summary>
     public PieceShapes Shapes { get; init; } = new();
 
-    /// <summary>The serviceable gear held and the gear stores' filters; null while the gear census is unread (see GearStore).</summary>
+    /// <summary>The gear stores' filters; null while the catalog's armor split is unread (see GearStore).</summary>
     public GearStore? Gear { get; init; }
 
     /// <summary>The standing stockpile zones, read for the warehouse siting.</summary>
@@ -71,15 +71,10 @@ public sealed partial record StoreView
 }
 
 /// <summary>
-/// The departments' signal to layout that stored goods outgrew the warehouse: the armory for weapons and armor,
-/// the wardrobe for clothing. The departments never plan the rooms; layout adds them (GearRoomsOwed).
+/// The departments' signal to layout for further rooms; the departments never plan them, layout adds them.
 /// </summary>
 public sealed record RoomDemand
 {
-    public bool Armory { get; init; }
-
-    public bool Wardrobe { get; init; }
-
     /// <summary>The graveyards the plan should hold, 0 for no demand (a further graveyard; see GraveyardsWanted).</summary>
     public int Graveyards { get; init; }
 
@@ -92,6 +87,4 @@ public sealed record RoomDemand
     /// <summary>The materials yards the plan should hold, 0 for no demand (a further yard; see YardRoomsWanted).</summary>
     public int Yard { get; init; }
 
-    /// <summary>Set when the gear census was read, so a false Armory or Wardrobe is a reading and not a gap.</summary>
-    public bool Known { get; init; }
 }

@@ -233,8 +233,6 @@ public static partial class PolicyFunctions
         [PlannedRole.Kitchen] = RoomRole.Kitchen,
         [PlannedRole.Workshop] = RoomRole.Workshop,
         [PlannedRole.Storage] = RoomRole.Storeroom,
-        [PlannedRole.Armory] = RoomRole.Storeroom,
-        [PlannedRole.Wardrobe] = RoomRole.Storeroom,
         [PlannedRole.Prison] = RoomRole.PrisonCell,
     };
 

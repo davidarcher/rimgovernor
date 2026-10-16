@@ -90,12 +90,6 @@ public enum PlannedRole
     [WireName("circulation")]
     Circulation,
 
-    [WireName("armory")]
-    Armory,
-
-    [WireName("wardrobe")]
-    Wardrobe,
-
     [WireName("isolation-room")]
     IsolationRoom,
 

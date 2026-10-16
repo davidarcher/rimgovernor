@@ -14,7 +14,7 @@ shelter's 3x3 starter-storage patch, one Low priority general zone until a
 storage room or freezer stands, then deleted so its contents haul to the better
 stores; it is only the patch because the placement search treats zoned cells as
 unplaceable, so a whole-interior zone starved the campfire slot, tracked by the
-layout epic), Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (armory, wardrobe),
+layout epic), Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (the weapons and apparel zones),
 People (tomb, morgue, graveyard) and Sanitation (waste dump); the
 animal feed store belongs to Husbandry.
 
@@ -50,7 +50,7 @@ separate rectangle drags and excluded from growth.
 | Freezer shelves | `rawmeat:*`, `rawveg:*`, `corpses:*`, `perishables:*` | Three 2x2 shelves in the planned freezer (raw meat and raw vegetables nearest the kitchen door, carcasses by the butchery door) and the perishables cover over the rest, all declared by the Food department from plan time on open ground (a rock or unseen interior defers the create; no room census) | Critical, perishables Preferred | Raw meat, raw vegetables, the corpse larder, the perishables catch-all |
 | Medicine store | `medicine:*` | A 2x2 in the planned hospital, nearest the template's bed slots by walking distance (nearest the door without slots), from plan time | Important | Medicine |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
-| Gear | `apparel`, `weapons` | The storage room (apparel) and armory (weapons) | Preferred | Clothing and armor, weapons |
+| Gear | `apparel`, `weapons` | A 3x3 patch each inside the first planned warehouse, which leaves the cells out (weapons: clear of every prison) | Preferred | Clothing, and weapons with armor |
 | Waste dump | `wastedump` | The waste yard interior (the Sanitation department's declared store, planned room cover from plan time) | Low | Everything storable except the native not-burnable special |
 
 Low priority on the warehouse and yard is deliberate: the higher-priority
@@ -62,32 +62,31 @@ hauls to it from anywhere. Fresh animal corpses use the freezer shelf and the
 butchery; there is no dump role for them. Zones of the retired `dump:*` roles
 in older saves are deleted.
 
-## Gear rooms
+## Gear zones
 
-When every gear store is at 85% used (`StockpileFurtherRoomFill`), the Military department raises `RoomDemand` for each
-kind of serviceable gear the colony holds (armory for weapons and armor,
-wardrobe for clothing) and layout adds the room: the armory beside the
-storage room, the wardrobe beside the workshop with the tailor bench, with no
-wealth gate and no item-count threshold. Layout keeps the armory and every prison
-out of each other's weapon clearance; a standing armory with no free cell clear
-of a prison is `ErrArmoryNearPrison` in `StoreDeclaration.Err`, logged by the
-reviewer. A catalog naming no armor def fails the stockpile review with
-`ErrNoArmorDefs`.
+Gear has no rooms of its own: the Military department declares an `apparel` and a `weapons` store as fixed
+patches of the warehouse (`policy.GearPatchesOf`) and the warehouse zone leaves their cells out. A prison
+within reach of weapons is a hazard, so the weapons patch takes no cell within the prison weapon clearance
+(six cells of any prison cell, walls included); a warehouse with no such square hosts no weapons zone and the
+next warehouse is tried. A full gear zone grows by the storage capacity options (#3227), not by a gear
+trigger. A catalog naming no armor def fails the stockpile review with `NoArmorDefsException`. Saves
+holding `armory:` or `wardrobe:` zones or rooms migrate by the replan: no store claims them, and their
+stock drains by vanilla hauling.
 
 ## Headroom
 
 Storage rooms are not asked for by a fill reading: the layout graph sizes the
 storage and cold-store nodes from held stock (stacks over the station's slots),
 and an outgrown room gets a successor ([facilities](facilities.md#station-plan-and-successor-rooms)).
-When every zone of a yard, armory or wardrobe store is at 85% used
+When every zone of a yard store is at 85% used
 (`StockpileFurtherRoomFill`), the department's `RoomDemand` asks layout for a
-further room (`Yard`, armory or wardrobe, one more than the plan holds; graveyards
+further room (`Yard`, one more than the plan holds; graveyards
 use the same fill against grave slots) and that room's zone is created once it is
 planned and open.
 
 ## Planned rooms
 
-Layout plans the storage, armory and wardrobe rooms;
+Layout plans the storage rooms;
 the shared room reconciliation builds them ([facilities](facilities.md)). A
 store's zone does not wait for the shell: zoning needs no builder.
 

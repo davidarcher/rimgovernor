@@ -146,9 +146,6 @@ internal sealed partial class FacadeNativeClient
     Task<(EquipRead Read, BridgeResult Result)> ILoadoutWeaponSource.ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell to, CancellationToken ct) =>
         ReadEquipWeaponsAsync(identity, from, to, ct);
 
-    Task<(EquipRead Read, BridgeResult Result)> IWeaponCensus.ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell toCell, CancellationToken ct) =>
-        ReadEquipWeaponsAsync(identity, from, toCell, ct);
-
     // ---- Emergency and pawn reads ---------------------------------------------------------------------------
 
     Task<(EmergencyObservation Observation, BridgeResult Result)> IRoundsEquipSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>

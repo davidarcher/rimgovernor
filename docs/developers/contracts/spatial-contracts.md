@@ -603,9 +603,10 @@ the waste yard interior, allowing all storable items. Warehouse gear (apparel or
 `general` zone) below the gear hit-point or quality floor sells to traders (`policy.SaleGear`);
 unknown hit points or quality is not sale gear.
 
-**Gear rooms.** Gear is stored in layout's armory and wardrobe rooms; until a room stands,
-gear stays in the warehouse. The armory leaves out cells within six of a prison, and layout
-keeps both rooms out of each other's clearance.
+**Gear zones.** Gear is warehouse zones, not rooms: a 3x3 `apparel` zone and a 3x3 `weapons` zone
+sited inside the planned warehouse (`policy.GearPatchesOf`), which leaves their cells out. The
+weapons zone takes no cell within six of a prison (the weapon clearance); a warehouse with no such
+square hosts none, and the next warehouse is tried.
 
 ### Spatial program
 

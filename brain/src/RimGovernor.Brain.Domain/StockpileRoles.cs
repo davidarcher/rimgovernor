@@ -23,11 +23,11 @@ public static partial class DomainConstants
     public const string YardRole = "yard";
     public const string MedicineRolePrefix = "medicine:";
 
-    /// <summary>The armory: weapons and armor, filling its room.</summary>
-    public const string ArmoryRolePrefix = "armory:";
+    /// <summary>The weapons zone: weapons and armor, a patch of the warehouse.</summary>
+    public const string WeaponsRole = "weapons";
 
-    /// <summary>The wardrobe: clothing, filling its room.</summary>
-    public const string WardrobeRolePrefix = "wardrobe:";
+    /// <summary>The apparel zone: clothing, a patch of the warehouse.</summary>
+    public const string ApparelRole = "apparel";
 
     /// <summary>The waste yard's one dump zone, a Sanitation store.</summary>
     public const string DumpRole = "wastedump";

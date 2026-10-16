@@ -30,7 +30,7 @@ is distinct from tier 0.
 | 2 Comfort | Dining and rec rooms, throne/worship rooms, suites, animal shelter |
 | 3 Produce | Other workshops and their bench input stores |
 | 4 Expand | Graveyard, waste yard, outskirts, anything unlisted |
-| 5 Secure | Defense ring, turrets and conduits, killbox, gates, mortars, IEDs, bait, wall support, armory and wardrobe (#2527) |
+| 5 Secure | Defense ring, turrets and conduits, killbox, gates, mortars, IEDs, bait, wall support (#2527) |
 
 Power for something other than the cooler/freezer takes the tier of what it
 serves; unlisted power is Expand.
@@ -42,7 +42,7 @@ through by orchestration:
   `PlannedRole`; a test fails a new role without a row. `commitBuilds` stamps
   every wall, door, floor and furniture build of a room with its role's tier.
   Storage rooms are Sustain (the role cannot tell a food store from a bench
-  input store), armory and wardrobe are Secure.
+  input store).
 - Loose buildings a Concern's planner places: `policy.PlannerTier(concern,
   phase)`; a concern the ladder does not list is Expand by decision. Defense
   concerns and the defense admit paths are Expand until #2527 assigns Secure,

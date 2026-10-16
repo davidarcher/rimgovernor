@@ -97,8 +97,6 @@ public static partial class PolicyFunctions
             [PlannedRole.MealCloset] = St(PlanCyan, "meal closet"),
             [PlannedButchery] = St(PlanBrown, "butchery"),
             [PlannedStorage] = St(PlanTan, "storage"),
-            [PlannedRole.Armory] = St(PlanTan, "armory"),
-            [PlannedRole.Wardrobe] = St(PlanTan, "wardrobe"),
             [PlannedWorkshop] = St(PlanBrown, "workshop"),
             [PlannedReserve] = St(PlanGray, "reserve"),
             [PlannedRole.Circulation] = St(PlanGray, "circulation"),

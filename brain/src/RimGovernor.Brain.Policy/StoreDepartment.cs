@@ -16,7 +16,7 @@ public sealed record Store
 
     /// <summary>
     /// The planned room the department asks layout for when the store's standing zones are at
-    /// StockpileFurtherRoomFill (PlannedStorage, PlannedArmory or PlannedWardrobe); null asks for none.
+    /// StockpileFurtherRoomFill (PlannedStorage or PlannedYard); null asks for none.
     /// </summary>
     public PlannedRole? Further { get; init; }
 
@@ -76,27 +76,12 @@ public interface IStoreOwner
     RoomDemand RoomDemand(StoreView view);
 }
 
-/// <summary>An owner that asks layout for rooms even before any store stands (Go's optional <c>RoomsAsked</c> method).</summary>
-public interface IRoomsAsker
-{
-    IReadOnlyList<PlannedRole> RoomsAsked();
-}
-
-/// <summary>An owner that can report a store it could not site (Go's optional <c>StoreErr</c> method).</summary>
-public interface IStoreErrorSource
-{
-    Exception? StoreErr(StoreView view);
-}
-
 /// <summary>Every owner's stores and room demand, merged.</summary>
 public sealed record StoreDeclaration
 {
     public IReadOnlyList<Store> Stores { get; init; } = [];
 
     public RoomDemand Demand { get; init; } = new();
-
-    /// <summary>Joins what an owner could not site (ErrArmoryNearPrison).</summary>
-    public Exception? Err { get; init; }
 
     /// <summary>The room roles whose demand a declared store owns.</summary>
     internal HashSet<PlannedRole> Covers { get; init; } = [];
@@ -112,20 +97,11 @@ public sealed record StoreDeclaration
         {
             next = next with { Yard = Demand.Yard };
         }
-        if (Covers.Contains(PlannedRole.Armory))
-        {
-            next = next with { Armory = Demand.Armory };
-        }
-        if (Covers.Contains(PlannedRole.Wardrobe))
-        {
-            next = next with { Wardrobe = Demand.Wardrobe };
-        }
         return next with
         {
             Graveyards = Demand.Graveyards,
             Ranges = Demand.Ranges,
             Rings = Demand.Rings,
-            Known = old.Known || Demand.Known,
         };
     }
 }
@@ -155,7 +131,6 @@ public static partial class PolicyFunctions
         var covers = new HashSet<PlannedRole>();
         var stores = new List<Store>();
         var demand = new RoomDemand();
-        var errors = new List<Exception>();
         foreach (var o in owners)
         {
             var owned = o.Stores(view);
@@ -167,43 +142,22 @@ public static partial class PolicyFunctions
                 }
             }
             stores.AddRange(owned);
-            if (o is IRoomsAsker asker)
-            {
-                foreach (var role in asker.RoomsAsked())
-                {
-                    covers.Add(role);
-                }
-            }
-            if (o is IStoreErrorSource source && source.StoreErr(view) is { } err)
-            {
-                errors.Add(err);
-            }
             var got = o.RoomDemand(view);
             demand = demand with
             {
-                Armory = demand.Armory || got.Armory,
-                Wardrobe = demand.Wardrobe || got.Wardrobe,
                 Yard = Math.Max(demand.Yard, got.Yard),
                 Graveyards = Math.Max(demand.Graveyards, got.Graveyards),
                 Ranges = Math.Max(demand.Ranges, got.Ranges),
                 Rings = Math.Max(demand.Rings, got.Rings),
-                Known = demand.Known || got.Known,
             };
         }
-        Exception? joined = errors.Count switch
-        {
-            0 => null,
-            1 => errors[0],
-            _ => new AggregateException(errors),
-        };
-        return new StoreDeclaration { Stores = stores, Demand = demand, Err = joined, Covers = covers };
+        return new StoreDeclaration { Stores = stores, Demand = demand, Covers = covers };
     }
 
     /// <summary>
-    /// The capacity-based room demand of stores: an armory or wardrobe store at capacity asks for its room
-    /// (Known: a gear store reads the gear census, a yard store does not); yard stores ask for one more room
-    /// than the plan holds once every one stands and is full. A store whose room does not stand yet is a wait,
-    /// never a demand. Warehouse rooms are sized from held stock by the layout graph, not asked for here.
+    /// The capacity-based room demand of stores: yard stores ask for one more room than the plan holds once
+    /// every one stands and is full. A store whose room does not stand yet is a wait, never a demand. Warehouse
+    /// rooms are sized from held stock by the layout graph, not asked for here.
     /// </summary>
     public static RoomDemand DeclaredDemand(StoreView view, IReadOnlyList<Store> stores)
     {
@@ -227,12 +181,6 @@ public static partial class PolicyFunctions
                         fullYards++;
                     }
                     waiting = waiting || !reading.Standing;
-                    break;
-                case PlannedRole.Armory:
-                    demand = demand with { Known = true, Armory = demand.Armory || reading.Full };
-                    break;
-                case PlannedRole.Wardrobe:
-                    demand = demand with { Known = true, Wardrobe = demand.Wardrobe || reading.Full };
                     break;
             }
         }

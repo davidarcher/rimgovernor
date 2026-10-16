@@ -1719,8 +1719,6 @@ internal static partial class BuildingRuntimePackage
                 case Pol.PlannedRole.ContainmentCell:
                 case Pol.PlannedRole.IsolationRoom:
                 case Pol.PlannedRole.Storage:
-                case Pol.PlannedRole.Armory:
-                case Pol.PlannedRole.Wardrobe:
                     cells.AddRange(PlannedRoomInterior(room));
                     break;
             }

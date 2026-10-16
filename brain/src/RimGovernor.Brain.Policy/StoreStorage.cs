@@ -20,6 +20,7 @@ internal sealed class StorageOwner : IStoreOwner
             return [];
         }
         var output = new List<Store>();
+        var gear = PolicyFunctions.GearPatchesOf(v.Layout).Cells();
         foreach (var room in v.PlannedStorageRooms())
         {
             output.Add(new Store
@@ -29,6 +30,7 @@ internal sealed class StorageOwner : IStoreOwner
                     Role = DomainConstants.GeneralRole,
                     Interior = room.Region.Bounds(),
                     Region = room.Region,
+                    Avoid = gear,
                     Filter = StockpileFilter.GeneralFilter(),
                     Priority = StockpilePriority.Low,
                 },

@@ -5,24 +5,9 @@ internal sealed class StockpileMemory
 {
     private readonly object _gate = new();
 
-    // The storage planner's latest layout demand for demandWorld: layout reads it to add the armory and wardrobe.
+    // The storage planner's latest layout demand for demandWorld: layout reads it to add further rooms.
     private Pol.RoomDemand _demand = new();
     private string _demandWorld = "";
-
-    // The last storage-plan site report logged, so a standing failure logs once and again when it changes or clears.
-    private string _siteErr = "";
-
-    /// <summary>Records the report and says whether a non-empty one differs from the last logged.</summary>
-    public bool SiteErrChanged(Exception? err)
-    {
-        lock (_gate)
-        {
-            var text = err?.Message ?? "";
-            var changed = text != "" && text != _siteErr;
-            _siteErr = text;
-            return changed;
-        }
-    }
 
     /// <summary>Records the planner's layout demands for world.</summary>
     public void SetDemand(string world, Pol.RoomDemand demand)
@@ -42,12 +27,6 @@ internal sealed class StockpileMemory
             return _demandWorld != world ? new Pol.RoomDemand() : _demand;
         }
     }
-}
-
-/// <summary>The loose-weapon read the weapons role counts from.</summary>
-public interface IWeaponCensus
-{
-    Task<(EquipRead Read, BridgeResult Result)> ReadEquipWeaponsAsync(C.Identity identity, Cell from, Cell toCell, CancellationToken ct);
 }
 
 public sealed class RoundsStockpileResult : IPlannerMethod
@@ -71,7 +50,7 @@ internal static partial class BuildingRuntimePackage
     {
         var request = new Pol.StockpileRequest { Tick = projection.Identity.Tick, Cells = projection.Cells, Bounds = projection.Bounds, Protected = protectedCells };
         var rooms = new List<Pol.PlannedRole>();
-        foreach (var module in new[] { Pol.PlannedRole.Storage, Pol.PlannedRole.Armory, Pol.PlannedRole.Wardrobe })
+        foreach (var module in new[] { Pol.PlannedRole.Storage })
         {
             var (_, owedRoom) = PlannedRoomOwed(projection, module);
             if (owedRoom)
@@ -92,7 +71,6 @@ internal static partial class BuildingRuntimePackage
         var declared = Pol.PolicyFunctions.DeclareStores(storage);
         request = request with { Stores = declared.Stores };
         request = request with { RoomDemand = declared.Apply(new Pol.RoomDemand()) };
-        request = request with { SiteErr = declared.Err };
         return request;
     }
 
@@ -154,7 +132,6 @@ public sealed partial class Rounder
             return projection;
         }
         Stockpiles.SetDemand(StockpileWorld(snapshot), request.RoomDemand);
-        Stockpiles.SiteErrChanged(request.SiteErr);
         var review = Pol.PolicyFunctions.PlanStockpileMaintenance(request);
         projection = projection with { Facts = projection.Facts with { Stockpiles = Known(review) } };
         foreach (var e in review.Edits)
@@ -190,7 +167,7 @@ public sealed partial class Rounder
         {
             zoneGoal[z.Id] = z.Owner;
         }
-        var gear = await GearStoreAsync(snapshot, projection, ct).ConfigureAwait(false);
+        var gear = GearStore(projection);
         var protectedCells = ReservedGround(snapshot, projection, ct);
         var request = BuildingRuntimePackage.StockpileRequest(projection, owned, patches, Known<IReadOnlyDictionary<string, bool>>(benches), BenchInputs(census, projection), gear, protectedCells);
         var canBuild = Native is IRoundsBuildingSource;
@@ -258,64 +235,8 @@ public sealed partial class Rounder
         return protectedCells;
     }
 
-    /// <summary>
-    /// The serviceable gear the colony holds for the armory and wardrobe: the stored apparel the gear census
-    /// counts, split into armor and clothing by the catalog (ItemFacts.Armor), and the weapons lying on the map.
-    /// The weapons read is skipped once layout plans the armory, which no longer needs the count. A catalog
-    /// naming no armor fails with <see cref="Pol.NoArmorDefsException"/>; an unknown stored census counts nothing.
-    /// </summary>
-    internal async Task<Pol.GearStore> GearStoreAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
-    {
-        if (projection.Facts.Items.Armor.Count == 0)
-        {
-            throw new Pol.NoArmorDefsException();
-        }
-        var weapons = 0;
-        if (!projection.LayoutPlan.TryGetValue(out var plan) || Pol.PolicyFunctions.GearRoomsOwed(plan, new Pol.RoomDemand { Armory = true }).Count > 0)
-        {
-            weapons = await LooseWeaponsAsync(snapshot, projection.Bounds, ct).ConfigureAwait(false);
-        }
-        IReadOnlyList<Pol.GearStock> stored = [];
-        if (projection.Facts.Gear.TryGetValue(out var gear))
-        {
-            gear.Stored.TryGetValue(out var known);
-            stored = known;
-        }
-        return Pol.GearStore.NewGearStore(projection.Facts.Items, stored, weapons);
-    }
-
-    /// <summary>Counts the unbiocoded weapons by trade lying on the map; a source without the read counts none.</summary>
-    internal async Task<int> LooseWeaponsAsync(GenerationSnapshot snapshot, Pol.Bounds bounds, CancellationToken ct)
-    {
-        if (Native is not IWeaponCensus source || bounds.Width <= 0 || bounds.Height <= 0)
-        {
-            return 0;
-        }
-        var (read, _) = await source.ReadEquipWeaponsAsync(Boundary.Identity(snapshot), default, new Cell(bounds.Width - 1, bounds.Height - 1), ct).ConfigureAwait(false);
-        try
-        {
-            Boundary.Context(read.Context, snapshot);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            throw new ControlException("looseWeapons: " + e.Message);
-        }
-        var catalog = await PawnCatalogAsync(Native, Boundary.Identity(snapshot), ct).ConfigureAwait(false);
-        var count = 0;
-        foreach (var w in read.Targets)
-        {
-            if (w.Biocoded)
-            {
-                continue;
-            }
-            var facts = catalog?.WeaponOf(w.Definition) ?? new Pol.WeaponDef();
-            if (Pol.PolicyFunctions.ClassifyWeapon(facts.ByTrade, facts.Ranged, facts.Melee) != Pol.WeaponClass.Makeshift)
-            {
-                count++;
-            }
-        }
-        return count;
-    }
+    /// <summary>The gear stores' filters from the catalog's armor split; a catalog naming no armor fails with <see cref="Pol.NoArmorDefsException"/>.</summary>
+    internal static Pol.GearStore GearStore(Observation.ColonyProjection projection) => Pol.GearStore.NewGearStore(projection.Facts.Items);
 
     /// <summary>The bench census (bills and recipes per bench).</summary>
     internal async Task<IReadOnlyList<GearBenchRead>> BenchCensusAsync(GenerationSnapshot snapshot, Observation.Identity expected, CancellationToken ct)
@@ -341,7 +262,7 @@ public sealed partial class RoundsStockpilePlanner
     private readonly IRoundsStockpileSource _native;
     private readonly StockpileZones _zones;
 
-    // Shells the planned armory and wardrobe; null for a source that cannot preview buildings.
+    // Shells the planned storage rooms and yards; null for a source that cannot preview buildings.
     private readonly RoundsBuildingPlanner? _building;
 
     public RoundsStockpilePlanner(Rounder reviewer, IRoundsStockpileSource native)
@@ -414,7 +335,7 @@ public sealed partial class RoundsStockpilePlanner
             throw new ControlException("step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
-        // The medicine store reads the medical beds, so the census carries them. The gear rooms are shelled from
+        // The medicine store reads the medical beds, so the census carries them. The planned rooms are shelled from
         // the same reading, so the census carries the wall and door definitions.
         string[] definitions = [ShellWallDefinition, ShellDoorDefinition, PenFenceDefinition, PenGateDefinition, ShelfDefinition];
         var read = _reviewer.RoomsEnabled()

@@ -121,7 +121,7 @@ public sealed record StockpileRequest
     /// <summary>The departments' report of stores they could not make usable (StoreDeclaration.Err); the review itself does not read it.</summary>
     public Exception? SiteErr { get; init; }
 
-    /// <summary>The planned storage rooms (storage, armory and wardrobe, the materials yard's fence ring) not yet standing: the planner raises their shells (StockpileReview.Rooms).</summary>
+    /// <summary>The planned storage rooms (storage, the materials yard's fence ring) not yet standing: the planner raises their shells (StockpileReview.Rooms).</summary>
     public IReadOnlyList<PlannedRole> Rooms { get; init; } = [];
 
     /// <summary>The shelves placed for the zones, built or in flight.</summary>
