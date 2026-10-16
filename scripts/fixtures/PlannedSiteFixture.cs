@@ -20,7 +20,7 @@ public sealed partial class PawnControlFixture
 {
     private static IntVec3 plannedOrigin;
 
-    [Tool("test/planned_site_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear one open 10x7 patch near a builder; spawn a wood stack, one wood wall and one deep-water cell.")]
+    [Tool("test/planned_site_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear one open 10x10 patch near a builder; spawn a wood stack, one wood wall and one deep-water cell.")]
     public async Task<object> PlannedSitePrepare(IRimBridgeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() =>
         {
@@ -29,14 +29,14 @@ public sealed partial class PawnControlFixture
             var builder = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
                 .FirstOrDefault(p => !p.Downed && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction))
                 ?? throw new InvalidOperationException("No colonist able to construct.");
-            const int width = 10, height = 7;
+            const int width = 10, height = 10;
             plannedOrigin = GenRadial.RadialCellsAround(builder.Position, 40, true).FirstOrDefault(c =>
                 new CellRect(c.x, c.z, width, height).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
                     && cell.GetEdifice(map) == null && cell.GetZone(map) == null && !cell.GetTerrain(map).IsWater
                     && cell.GetTerrain(map).passability != Traversability.Impassable
                     && !cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Pawn || t.def.category == ThingCategory.Building))
                 && builder.CanReach(c, PathEndMode.Touch, Danger.None));
-            if (plannedOrigin == default) throw new InvalidOperationException("No open reachable 10x7 patch.");
+            if (plannedOrigin == default) throw new InvalidOperationException("No open reachable 10x10 patch.");
             foreach (var cell in new CellRect(plannedOrigin.x, plannedOrigin.z, width, height).Cells)
             {
                 foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category is ThingCategory.Item or ThingCategory.Filth).ToList()) thing.Destroy();
@@ -101,14 +101,91 @@ public sealed partial class PawnControlFixture
                 report.Add(new { site = site.Id, rows = answer.Options.Count, complete = complete.Length, work, finish = complete[0].FinishTicks.Value,
                     approach = complete[0].ApproachTicks.Value, delivery = complete[0].DeliveryTicks.Value, blockers = answer.Blockers.Count });
             }
-            foreach (var site in illegal)
+            // #3274: the standing colony wall is removable but not estimable; deep water is illegal.
+            var verdicts = new[] { Obs.PlannedSiteVerdict.Unestimable, Obs.PlannedSiteVerdict.Illegal };
+            for (var i = 0; i < illegal.Length; i++)
             {
+                var site = illegal[i];
                 var answer = Read(site, out _);
                 if (!answer.CanPlace.IsKnown || answer.CanPlace.Value || answer.Rejections.Count == 0)
                     throw new InvalidOperationException("Site " + site.Id + " should be known and rejected with a reason.");
-                report.Add(new { site = site.Id, canPlace = false, reasons = answer.Rejections.Select(r => r.Reason).ToArray(),
-                    blockers = answer.Blockers.Select(b => b.Definition).ToArray() });
+                if (answer.Verdict != verdicts[i])
+                    throw new InvalidOperationException("Site " + site.Id + " verdict " + answer.Verdict + ", expected " + verdicts[i] + ": " + string.Join("; ", answer.Rejections));
+                report.Add(new { site = site.Id, canPlace = false, verdict = answer.Verdict.ToString(), reasons = answer.Rejections.Select(r => r.Reason).ToArray(),
+                    blockers = answer.Blockers.Select(b => b.Definition + ":" + b.Verdict).ToArray() });
             }
             return new { success = true, sites = report };
+        }, ct).ConfigureAwait(false);
+
+    // #3274: spawn and read in one main-thread call, so no colonist hauls, cuts or mines between the two.
+    [Tool("test/planned_site_clearing", Description = "UNSAFE FOR MODEL EXECUTION. On the prepared patch's free rows spawn grass and a grown tree, a steel stack beside a small stockpile, and two natural rock cells; read planned walls over each and check Cut, Haul and Mine ops against native work.")]
+    public async Task<object> PlannedSiteClearing(IRimBridgeContext ctx, CancellationToken ct)
+        => await ctx.MainThread.InvokeAsync<object>(() =>
+        {
+            if (plannedOrigin == default) throw new InvalidOperationException("Prepare planned_site first.");
+            var map = Find.CurrentMap;
+            var identity = Context().Identity!;
+            var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+            map.zoneManager.RegisterZone(zone);
+            foreach (var x in new[] { 0, 1, 2 }) zone.AddCell(At(x, 9));
+            var grass = (Plant)ThingMaker.MakeThing(ThingDef.Named("Plant_Grass"));
+            grass.Growth = 1f;
+            GenSpawn.Spawn(grass, At(0, 7), map);
+            var tree = (Plant)ThingMaker.MakeThing(ThingDef.Named("Plant_TreeOak"));
+            tree.Growth = 1f;
+            GenSpawn.Spawn(tree, At(1, 7), map);
+            var steel = ThingMaker.MakeThing(ThingDefOf.Steel);
+            steel.stackCount = 30;
+            GenSpawn.Spawn(steel, At(4, 7), map);
+            var granite = DefDatabase<ThingDef>.GetNamed("Granite");
+            var rock = new[] { At(6, 7), At(7, 7) }.Select(c => GenSpawn.Spawn(ThingMaker.MakeThing(granite), c, map)).ToArray();
+            Cell C(int x, int z) { var cell = At(x, z); return new(cell.x, cell.z); }
+            Obs.PlannedSiteAnswer Read(string id, params Cell[] cells)
+            {
+                var read = NativeConstructionActivity.Read(new(identity, default)
+                    { Planned = [new(id, "Wall", "WoodLog", RimGovernor.Brain.Domain.Rotation.North, RimGovernor.Brain.Domain.EquatableArray.From(cells))] });
+                var answer = read.Planned.SingleOrDefault(a => a.Site == id) ?? throw new InvalidOperationException("Planned site " + id + " has no answer.");
+                if (answer.Verdict != Obs.PlannedSiteVerdict.Feasible)
+                    throw new InvalidOperationException("Site " + id + " verdict " + answer.Verdict + "; rejections " + string.Join("; ", answer.Rejections)
+                        + "; blockers " + string.Join("; ", answer.Blockers) + "; findings " + string.Join(",", read.Findings));
+                return answer;
+            }
+            Pawn PawnOf(string id) => map.mapPawns.FreeColonistsSpawned.Single(p => p.GetUniqueLoadID() == id);
+            Obs.PlannedSiteClearing Op(Obs.PlannedSiteAnswer answer, Obs.PlannedClearingKind kind, Thing thing)
+            {
+                var op = answer.Clearing.SingleOrDefault(c => c.Kind == kind) ?? throw new InvalidOperationException("Site " + answer.Site + " has no " + kind + " op: " + string.Join("; ", answer.Clearing));
+                var blocker = answer.Blockers.SingleOrDefault(b => b.Thing == thing.GetUniqueLoadID());
+                if (blocker == null || blocker.Verdict != Obs.PlannedBlockerVerdict.Cleared || blocker.Clearing != op.Id)
+                    throw new InvalidOperationException("Blocker " + thing.GetUniqueLoadID() + " is not cleared by " + op.Id + ": " + blocker);
+                if (!op.Options.Any(o => o.FinishTicks.IsKnown && o.SiteApproachTicks.IsKnown))
+                    throw new InvalidOperationException("Op " + op.Id + " has no row with finite approach and finish: " + string.Join("; ", op.Options));
+                return op;
+            }
+            void Agree(Obs.PlannedSiteClearing op, Func<Pawn, double> expected)
+            {
+                foreach (var row in op.Options.Where(o => o.FinishTicks.IsKnown))
+                {
+                    var value = expected(PawnOf(row.Pawn));
+                    if (!double.IsFinite(row.FinishTicks.Value) || Math.Abs(row.FinishTicks.Value - value) > Math.Max(1.0, value * 1e-4))
+                        throw new InvalidOperationException("Op " + op.Id + " row for " + row.Pawn + " disagrees with native work " + value + ": " + row);
+                }
+            }
+            var plants = Read("on-plants", C(0, 7), C(1, 7));
+            var cut = Op(plants, Obs.PlannedClearingKind.Cut, tree);
+            Agree(cut, pawn => cut.Cells.Contains(C(0, 7))
+                ? tree.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, tree) + grass.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, grass)
+                : tree.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, tree));
+            var stack = Read("on-stack", C(4, 7));
+            var haul = Op(stack, Obs.PlannedClearingKind.Haul, steel);
+            if (!haul.Options.Any(o => o.ApproachTicks.IsKnown && o.DeliveryTicks.IsKnown && o.Count == steel.stackCount && o.Input == steel.GetUniqueLoadID()))
+                throw new InvalidOperationException("Haul op " + haul.Id + " has no finite pickup and carry row for the whole stack: " + string.Join("; ", haul.Options));
+            var mountain = Read("in-rock", C(6, 7), C(7, 7));
+            var mine = Op(mountain, Obs.PlannedClearingKind.Mine, rock[0]);
+            Agree(mine, pawn => rock.Sum(r => Math.Ceiling(r.HitPoints / 80.0)) * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / pawn.GetStatValue(StatDefOf.MiningSpeed)));
+            object Summary(Obs.PlannedSiteAnswer answer) => new { site = answer.Site, canPlace = answer.CanPlace.IsKnown ? answer.CanPlace.Value.ToString() : "unknown",
+                ops = answer.Clearing.Select(c => new { c.Id, kind = c.Kind.ToString(), cells = c.Cells.Count, rows = c.Options.Count,
+                    finish = c.Options.Where(o => o.FinishTicks.IsKnown).Select(o => o.FinishTicks.Value).DefaultIfEmpty(-1).First() }).ToArray(),
+                blockers = answer.Blockers.Select(b => b.Definition + ":" + b.Verdict).ToArray() };
+            return new { success = true, sites = new[] { Summary(plants), Summary(stack), Summary(mountain) } };
         }, ct).ConfigureAwait(false);
 }

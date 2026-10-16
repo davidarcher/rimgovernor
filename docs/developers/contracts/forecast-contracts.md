@@ -217,9 +217,43 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   Unknown when native cannot resolve the definition or stuff, the site is empty,
   out of bounds or over the position cap; the reason is a read finding
   (`planned_site_*`).
-- `Rejections`: each refused position with the native reason.
-- `Blockers`: every thing in the footprint (cell, thing id, definition, category),
-  unclassified. Deciding what must be cut, hauled or mined is the reader's.
+- `Rejections`: each refused position with the native reason. `Illegal` is set when
+  the refusal outlasts clearing: native re-checks the piece with every removable
+  footprint thing skipped, and the reason is then the one that still refuses
+  (terrain affordance or water, map edge, research, interaction spots).
+- `Blockers`: every thing in the footprint (cell, thing id, definition, category)
+  with a `Verdict`, in `GenConstruct.HandleBlockingThingJob`'s kinds:
+  `NoClearing` (a pawn, something blueprint placement wipes, or something
+  `CanPlaceBlueprintOver` allows that does not `BlocksConstruction`); `Cleared`
+  with the op id in `Clearing` (a plant, a haulable item, natural rock);
+  `Unestimable` (removable but not estimated: a colony building or frame to
+  deconstruct or cancel, a non-natural mineable, a never-haulable item);
+  `Illegal` (another faction's building); `Unspecified` (unknown: a haulable with
+  no accepting storage, finding `planned_clearing_haul_destination_unknown`).
+- `Clearing`: the clearing prerequisites, each an id, a `Kind` (`Cut`, `Haul`,
+  `Mine`), its cells and per-pawn `ConstructionActivityOption` rows with `Site` set
+  to the op id and `Definition` to the planned site's. One `Cut` op (`<site>/cut`)
+  covers the site's plants: `FinishTicks` sums `harvestWork /
+  JobDriver_PlantWork.WorkDonePerTick` (PlantWorkSpeed scaled by growth), for a
+  pawn not incapable of both PlantCutting and Construction and willing to cut
+  every plant. One `Mine` op (`<site>/mine`) covers its natural rock: `FinishTicks`
+  sums `ceil(HitPoints / 80)` pick hits at `round(100 / MiningSpeed)` ticks
+  (JobDriver_Mine), for a pawn not incapable of Mining. For both, `SiteApproachTicks`
+  is the route to the target nearest the pawn and `Location` is that target;
+  walking between targets is not modelled. One `Haul` op per stack
+  (`<site>/haul/<thing>`): `Origin`/`Input`/`Resource`/`Count` are the stack,
+  `Location` is the nearest cell of the best-priority player storage accepting it
+  outside the footprint, `ApproachTicks` (and `SiteApproachTicks`) the pickup route,
+  `DeliveryTicks` the loaded carries plus returns over `Capacity`, and `FinishTicks`
+  is a known 0. Native's own blocking haul moves the stack aside; the forecast
+  charges a carry to storage instead (#3241). A speed of zero leaves `FinishTicks`
+  unknown; a pawn with no route or unable to do the work has no row.
+- `Verdict`: `Illegal` when a rejection or a blocker is illegal (infeasible);
+  else `Unestimable` when a blocker is, or a refused piece is fogged (finding
+  `planned_site_fogged`): leave the alternative unvalued; else `Unspecified` when
+  a blocker is unknown; else `Feasible`. `CanPlace` stays native legality as the
+  footprint stands, so a site needing only clearing reads `CanPlace` false and
+  `Verdict` `Feasible`.
 - `Options`: the placed-site `ConstructionActivityOption` rows, one per pawn and
   whole-stack material source. `FinishTicks` is `WorkToBuild(stuff)` summed over
   the pieces over the pawn's `ConstructionSpeed`. Routes end at the piece nearest
@@ -230,10 +264,13 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
 
 Caps per read: 16 planned sites, 16 colonists, 16 sources per site, 128 positions
 per site, 32 rejections and 32 blockers per site and 128 rows over all planned
-sites (placed sites have their own 128). Excess sets `Truncated`; the caller
-batches. The coupled census passes no planned sites; Rounds ask them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)). The prepared
-`observations/planned-site` case checks open-ground walls, a door and a shelf, and
-rejection on a standing wall and on deep water.
+sites (placed sites have their own 128, and clearing rows another 128). Excess sets
+`Truncated`; the caller batches. Verdicts classify every footprint thing, including
+those past the 32 reported. The coupled census passes no planned sites; Rounds ask
+them per round ([planned-site facts](../architecture/colony-forecast.md#planned-site-facts)).
+The prepared `observations/planned-site` case checks open-ground walls, a door and a
+shelf; rejection on a standing wall (`Unestimable`) and on deep water (`Illegal`);
+and Cut, Haul and Mine ops over a tree, a steel stack and natural rock.
 
 ## Food reserve components
 

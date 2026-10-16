@@ -220,9 +220,10 @@ namespace HomeBridge.BridgeTools
         private static bool NaturalRock(Thing thing) => thing.def.building?.isNaturalRock == true;
 
         internal static PlacementRotation EvaluateRotation(Map map, BuildableDef definition, ThingDef? blueprint,
-            IntVec3 center, Rot4 rotation, ThingDef? material, bool godMode, bool bounded = true, bool ignoreNaturalRock = false)
+            IntVec3 center, Rot4 rotation, ThingDef? material, bool godMode, bool bounded = true, bool ignoreNaturalRock = false, Predicate<Thing>? skip = null)
         {
-            Predicate<Thing>? skipRock = ignoreNaturalRock ? NaturalRock : null;
+            // skip: footprint things previewed as already removed (a planned site's clearable blockers).
+            Predicate<Thing>? skipRock = ignoreNaturalRock ? (skip == null ? NaturalRock : t => NaturalRock(t) || skip(t)) : skip;
             var report = GenConstruct.CanPlaceBlueprintAt_NewTemp(definition, center, rotation, map, godMode, null, null, material, skipBlockingThing: skipRock);
             var result = new PlacementRotation {
                 rotation = RotationNames[rotation.AsInt & 3], accepted = report.Accepted,

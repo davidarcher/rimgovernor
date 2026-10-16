@@ -146,6 +146,73 @@ public sealed class WireCodecTests
     }
 
     [Fact]
+    public void PlannedSiteClearingRoundTripsEachVerdictAndKeepsUnknownsUnknown()
+    {
+        var known = RimGovernor.Brain.Domain.Fact.Known(12.0);
+        var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
+        {
+            Known = true,
+            Planned = [
+                new("clearable", RimGovernor.Brain.Domain.Fact.Known(false))
+                {
+                    Verdict = RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Feasible,
+                    Rejections = [new(new(6, 7), "Space already occupied")],
+                    Blockers = [
+                        new(new(1, 7), "Plant_TreeOak_1", "Plant_TreeOak", "Plant") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Cleared, Clearing = "clearable/cut" },
+                        new(new(0, 7), "Plant_Grass_2", "Plant_Grass", "Plant") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.NoClearing },
+                    ],
+                    Clearing = [
+                        new("clearable/cut", RimGovernor.Contracts.Wire.Observations.PlannedClearingKind.Cut, [new(1, 7)])
+                        { Options = [new("clearable/cut", "Wall", new(1, 7), "pawn", "", "", new(1, 7), 0, 0, "PlantsCut", default, default, known) { SiteApproachTicks = known }] },
+                        new("clearable/mine", RimGovernor.Contracts.Wire.Observations.PlannedClearingKind.Mine, [new(6, 7), new(7, 7)])
+                        { Options = [new("clearable/mine", "Wall", new(6, 7), "slow", "", "", new(6, 7), 0, 0, "Miner", default, default, default) { SiteApproachTicks = known }] },
+                        new("clearable/haul/Steel_3", RimGovernor.Contracts.Wire.Observations.PlannedClearingKind.Haul, [new(4, 7)])
+                        { Options = [new("clearable/haul/Steel_3", "Wall", new(1, 9), "pawn", "Steel", "Steel_3", new(4, 7), 30, 75, "HaulGeneral", known, known, RimGovernor.Brain.Domain.Fact.Known(0.0))] },
+                    ],
+                },
+                new("no-storage", RimGovernor.Brain.Domain.Fact.Known(true))
+                { Blockers = [new(new(4, 7), "Steel_4", "Steel", "Item")] },
+                new("on-wall", RimGovernor.Brain.Domain.Fact.Known(false))
+                {
+                    Verdict = RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Unestimable,
+                    Rejections = [new(new(4, 5), "Identical thing exists")],
+                    Blockers = [new(new(4, 5), "Wall_5", "Wall", "Building") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Unestimable }],
+                },
+                new("on-water", RimGovernor.Brain.Domain.Fact.Known(false))
+                {
+                    Verdict = RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Illegal,
+                    Rejections = [new(new(7, 5), "Terrain lacks affordance") { Illegal = true }],
+                    Blockers = [new(new(7, 5), "Hive_6", "Hive", "Building") { Verdict = RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Illegal }],
+                },
+            ],
+            Findings = ["planned_clearing_haul_destination_unknown"],
+        };
+        var json = WireJson.Serialize(read);
+        Assert.Contains("PLANNED_SITE_VERDICT_FEASIBLE", json);
+        Assert.Contains("PLANNED_CLEARING_KIND_HAUL", json);
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(json);
+        Assert.Equal(read.Planned, decoded.Planned);
+        var clearable = decoded.Planned[0];
+        Assert.Equal(RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Feasible, clearable.Verdict);
+        Assert.False(Assert.Single(clearable.Rejections).Illegal);
+        Assert.Equal("clearable/cut", clearable.Blockers[0].Clearing);
+        Assert.Equal("", clearable.Blockers[1].Clearing);
+        Assert.Equal(12.0, clearable.Clearing[0].Options[0].FinishTicks.Value);
+        // A pawn without mining speed keeps an unknown finish, never zero.
+        Assert.False(Assert.Single(clearable.Clearing[1].Options).FinishTicks.IsKnown);
+        Assert.Equal(30, Assert.Single(clearable.Clearing[2].Options).Count);
+        // No accepting storage: the haulable stays unknown, and so does the site.
+        var unknown = decoded.Planned[1];
+        Assert.Equal(RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Unspecified, unknown.Verdict);
+        Assert.Equal(RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Unspecified, Assert.Single(unknown.Blockers).Verdict);
+        Assert.Empty(unknown.Clearing);
+        Assert.Equal(RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Unestimable, decoded.Planned[2].Verdict);
+        Assert.Equal(RimGovernor.Contracts.Wire.Observations.PlannedSiteVerdict.Illegal, decoded.Planned[3].Verdict);
+        Assert.True(Assert.Single(decoded.Planned[3].Rejections).Illegal);
+        Assert.Equal(RimGovernor.Contracts.Wire.Observations.PlannedBlockerVerdict.Illegal, Assert.Single(decoded.Planned[3].Blockers).Verdict);
+    }
+
+    [Fact]
     public void NeedTargetMaxPawnsRoundTripsKnownAndUnknownAsNumberOrNull()
     {
         var read = new RimGovernor.Contracts.Wire.Observations.NeedsForecastRead

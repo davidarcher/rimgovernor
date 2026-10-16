@@ -61,15 +61,16 @@ public sealed class NativeConstructionActivity
                 p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)), finishGiver, placed, options);
         }
         var planned = new Budget { Truncated = request.Planned.Count > SiteCap || roster.Length > PawnCap };
-        var answers = request.Planned.Take(SiteCap).Select(s => Planned(map, roster, s, finishGiver, planned)).ToArray();
-        return new() { Context = context, Known = true, Truncated = placed.Truncated || planned.Truncated, Options = EquatableArray.From(options),
+        var clearing = new Budget();
+        var answers = request.Planned.Take(SiteCap).Select(s => Planned(map, roster, s, finishGiver, planned, clearing)).ToArray();
+        return new() { Context = context, Known = true, Truncated = placed.Truncated || planned.Truncated || clearing.Truncated, Options = EquatableArray.From(options),
             Planned = EquatableArray.From(answers),
-            Findings = EquatableArray.From(placed.Findings.Concat(planned.Findings).Distinct().OrderBy(s => s, StringComparer.Ordinal)) };
+            Findings = EquatableArray.From(placed.Findings.Concat(planned.Findings).Concat(clearing.Findings).Distinct().OrderBy(s => s, StringComparer.Ordinal)) };
     }
 
     // A hypothetical site: native blueprint legality for every piece, then the placed-site rows against its cells.
     // Anything native cannot resolve leaves the site unknown (no verdict, no rows), never a default.
-    private static Obs.PlannedSiteAnswer Planned(Map map, Pawn[] roster, Obs.PlannedConstructionSite request, WorkGiverDef? finishGiver, Budget budget)
+    private static Obs.PlannedSiteAnswer Planned(Map map, Pawn[] roster, Obs.PlannedConstructionSite request, WorkGiverDef? finishGiver, Budget budget, Budget clearingBudget)
     {
         var unknown = new Obs.PlannedSiteAnswer(request.Id, default);
         if (request.Positions.Count == 0) { budget.Findings.Add("planned_site_empty"); return unknown; }
@@ -90,19 +91,56 @@ public sealed class NativeConstructionActivity
         var rotation = new Rot4((int)request.Rotation);
         var research = definition.IsResearchFinished;
         var rejections = new List<Obs.PlannedSiteRejection>();
-        var blockers = new List<Obs.PlannedSiteBlocker>();
+        // The site's blueprint, never spawned (no thing id): GenConstruct.BlocksConstruction reads only its def.
+        var plan = new Blueprint_Build { def = definition.blueprintDef };
+        var kinds = new Dictionary<Thing, Clear>();
+        Clear Kind(Thing thing) => kinds.TryGetValue(thing, out var kind) ? kind : kinds[thing] = Classify(plan, definition, stuff, thing);
+        var things = new List<PlacementBlocker>();
+        var footprint = new HashSet<IntVec3>();
         var seen = new HashSet<int>();
-        var accepted = research;
+        bool accepted = research, illegal = !research, fogged = false;
         foreach (var cell in cells)
         {
             var row = PlacementPreviewOperation.EvaluateRotation(map, definition, definition.blueprintDef, cell, rotation, stuff, godMode: false);
             accepted &= row.accepted;
-            var reason = !research ? "Required research for this definition is not finished." : row.accepted ? null : row.reason;
-            if (reason != null && Report(rejections.Count, budget)) rejections.Add(new(new(cell.x, cell.z), reason));
-            foreach (var blocker in row.blockingThings.Where(b => seen.Add(b.Thing.thingIDNumber)))
-                if (Report(blockers.Count, budget))
-                    blockers.Add(new(new(blocker.Thing.Position.x, blocker.Thing.Position.z), blocker.Thing.GetUniqueLoadID(), blocker.Thing.def.defName, blocker.category));
+            footprint.UnionWith(row.Rect.Cells);
+            things.AddRange(row.blockingThings.Where(b => seen.Add(b.Thing.thingIDNumber)));
+            Obs.PlannedSiteRejection? rejection = null;
+            if (!research) rejection = new(new(cell.x, cell.z), "Required research for this definition is not finished.") { Illegal = true };
+            else if (!row.accepted)
+            {
+                // Native legality with every removable footprint thing skipped: what still refuses is not clearing's to fix.
+                var cleared = PlacementPreviewOperation.EvaluateRotation(map, definition, definition.blueprintDef, cell, rotation, stuff, godMode: false,
+                    skip: t => Kind(t) != Clear.Illegal);
+                var hidden = !cleared.accepted && cell.Fogged(map);
+                fogged |= hidden;
+                illegal |= !cleared.accepted && !hidden;
+                rejection = cleared.accepted || hidden ? new(new(cell.x, cell.z), row.reason) : new(new(cell.x, cell.z), cleared.reason) { Illegal = true };
+            }
+            if (rejection != null && Report(rejections.Count, budget)) rejections.Add(rejection);
         }
+        if (fogged) budget.Findings.Add("planned_site_fogged");
+        var clearing = Clearing(map, roster, request.Id, definition, things.Select(b => (b.Thing, Kind: Kind(b.Thing))).ToArray(), footprint, clearingBudget,
+            out var ops, out var unsure);
+        var blockers = new List<Obs.PlannedSiteBlocker>();
+        foreach (var blocker in things)
+        {
+            var thing = blocker.Thing;
+            illegal |= Kind(thing) == Clear.Illegal;
+            if (!Report(blockers.Count, budget)) continue;
+            var verdict = Kind(thing) switch
+            {
+                Clear.None => Obs.PlannedBlockerVerdict.NoClearing,
+                Clear.Unestimable => Obs.PlannedBlockerVerdict.Unestimable,
+                Clear.Illegal => Obs.PlannedBlockerVerdict.Illegal,
+                _ => ops.ContainsKey(thing) ? Obs.PlannedBlockerVerdict.Cleared : Obs.PlannedBlockerVerdict.Unspecified,
+            };
+            blockers.Add(new(new(thing.Position.x, thing.Position.z), thing.GetUniqueLoadID(), thing.def.defName, blocker.category)
+                { Verdict = verdict, Clearing = ops.TryGetValue(thing, out var op) ? op : "" });
+        }
+        var siteVerdict = illegal ? Obs.PlannedSiteVerdict.Illegal
+            : fogged || things.Any(b => Kind(b.Thing) == Clear.Unestimable) ? Obs.PlannedSiteVerdict.Unestimable
+            : unsure ? Obs.PlannedSiteVerdict.Unspecified : Obs.PlannedSiteVerdict.Feasible;
         var owed = costs.Where(c => c.count > 0).Select(c => (c.Definition, Count: c.count * cells.Length)).ToArray();
         // No finishing minimum is stored before placement: gate on the native prerequisite alone and say so.
         if (definition is ThingDef built && built.HasComp(typeof(CompQuality))) budget.Findings.Add("planned_quality_minimum_unset");
@@ -111,8 +149,131 @@ public sealed class NativeConstructionActivity
         var options = new List<Obs.ConstructionActivityOption>();
         Rows(map, roster, new Site(request.Id, definition, cells[0], Nearest, null, owed, work, _ => true, _ => true), finishGiver, budget, options);
         return new(request.Id, Fact.Known(accepted))
-            { Rejections = EquatableArray.From(rejections), Blockers = EquatableArray.From(blockers), Options = EquatableArray.From(options) };
+        {
+            Rejections = EquatableArray.From(rejections), Blockers = EquatableArray.From(blockers), Options = EquatableArray.From(options),
+            Verdict = siteVerdict, Clearing = EquatableArray.From(clearing)
+        };
     }
+
+    // What clearing one footprint thing takes, in GenConstruct.HandleBlockingThingJob's kinds.
+    private enum Clear { None, Cut, Haul, Mine, Unestimable, Illegal }
+
+    // JobDriver_Mine.BaseDamagePerPickHit_NaturalRock (private): a pick hit's damage to natural rock.
+    private const int NaturalRockDamagePerPickHit = 80;
+
+    private static Clear Classify(Blueprint plan, BuildableDef definition, ThingDef? stuff, Thing thing)
+    {
+        // Pawns step aside; placing the blueprint wipes what SpawningWipes names; the rest stays unless it blocks.
+        if (thing is Pawn || GenSpawn.SpawningWipes(plan.def, thing.def)) return Clear.None;
+        if (GenConstruct.CanPlaceBlueprintOver(definition, thing.def, stuff, thing.Stuff) && !GenConstruct.BlocksConstruction(plan, thing)) return Clear.None;
+        if (thing.def.category == ThingCategory.Plant) return thing is Plant ? Clear.Cut : Clear.Unestimable;
+        if (thing.def.category == ThingCategory.Item) return thing.def.EverHaulable ? Clear.Haul : Clear.Unestimable;
+        if (thing is Mineable && thing.def.building?.isNaturalRock == true) return Clear.Mine;
+        if (thing is Verse.Building building) return building.DeconstructibleBy(Faction.OfPlayer).Accepted || thing.def.mineable ? Clear.Unestimable : Clear.Illegal;
+        return thing.Faction == Faction.OfPlayer ? Clear.Unestimable : Clear.Illegal;
+    }
+
+    // Clearing ops: one Cut for the plants, one Mine for the natural rock, one Haul per haulable stack with per-pawn
+    // rows. A stack with no accepting storage outside the footprint has no op (unknown). ops maps each cleared thing
+    // to its op id.
+    private static List<Obs.PlannedSiteClearing> Clearing(Map map, Pawn[] roster, string site, BuildableDef definition,
+        (Thing Thing, Clear Kind)[] things, HashSet<IntVec3> footprint, Budget budget, out Dictionary<Thing, string> ops, out bool unknown)
+    {
+        var result = new List<Obs.PlannedSiteClearing>();
+        var cleared = ops = new Dictionary<Thing, string>();
+        unknown = false;
+        var pawns = roster.Take(PawnCap).Where(Free).ToArray();
+        string Giver<T>() => DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is T)?.defName ?? "";
+        var plants = things.Where(t => t.Kind == Clear.Cut).Select(t => (Plant)t.Thing).OrderBy(t => t.thingIDNumber).ToArray();
+        if (plants.Length > 0)
+            result.Add(Work(site + "/cut", Obs.PlannedClearingKind.Cut, plants, Giver<WorkGiver_PlantsCut>(),
+                pawn => (!pawn.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting) || !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction))
+                    && plants.All(p => PlantUtility.PawnWillingToCutPlant_Job(p, pawn)),
+                pawn => plants.Select(p => (double)JobDriver_PlantWork.WorkDonePerTick(pawn, p)).All(r => r > 0)
+                    ? Fact.Known(plants.Sum(p => (double)p.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, p))) : default));
+        var rock = things.Where(t => t.Kind == Clear.Mine).Select(t => t.Thing).OrderBy(t => t.thingIDNumber).ToArray();
+        if (rock.Length > 0)
+            result.Add(Work(site + "/mine", Obs.PlannedClearingKind.Mine, rock, Giver<WorkGiver_Miner>(),
+                pawn => !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Mining),
+                pawn =>
+                {
+                    // JobDriver_Mine: a hit every round(100 / MiningSpeed) ticks; the hit that finds HP at or under the damage destroys it.
+                    var speed = pawn.GetStatValue(StatDefOf.MiningSpeed);
+                    return speed > 0 ? Fact.Known(rock.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit))
+                        * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / speed)) : default;
+                }));
+        var haulGiver = Giver<WorkGiver_HaulGeneral>();
+        foreach (var item in things.Where(t => t.Kind == Clear.Haul).Select(t => t.Thing).OrderBy(t => t.thingIDNumber))
+        {
+            if (Destination(map, item, footprint) is not { } destination) { unknown = true; budget.Findings.Add("planned_clearing_haul_destination_unknown"); continue; }
+            var id = site + "/haul/" + item.GetUniqueLoadID();
+            ops[item] = id;
+            var rows = new List<Obs.ConstructionActivityOption>();
+            foreach (var pawn in pawns)
+            {
+                var capacity = pawn.carryTracker.MaxStackSpaceEver(item.def);
+                if (capacity <= 0 || item.IsForbidden(pawn) || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
+                    || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)) continue;
+                if (!budget.Take()) break;
+                var parms = TraverseParms.For(pawn, Danger.None);
+                using var first = map.pathFinder.FindPathNow(pawn.Position, item, parms, peMode: PathEndMode.Touch);
+                using var loaded = map.pathFinder.FindPathNow(item.Position, destination, parms, peMode: PathEndMode.OnCell);
+                using var returning = map.pathFinder.FindPathNow(destination, item, parms, peMode: PathEndMode.Touch);
+                if (!first.Found || !loaded.Found || !returning.Found) continue;
+                var trips = (item.stackCount + capacity - 1) / capacity;
+                rows.Add(new(id, definition.defName, new(destination.x, destination.z), pawn.GetUniqueLoadID(), item.def.defName, item.GetUniqueLoadID(),
+                    new(item.Position.x, item.Position.z), item.stackCount, capacity, haulGiver, Fact.Known((double)first.TotalCost),
+                    Fact.Known((double)loaded.TotalCost * trips + returning.TotalCost * (trips - 1)), Fact.Known(0.0))
+                    { SiteApproachTicks = Fact.Known((double)first.TotalCost), AvailableInput = Fact.Known((double)item.stackCount) });
+            }
+            result.Add(new(id, Obs.PlannedClearingKind.Haul, [new(item.Position.x, item.Position.z)]) { Options = EquatableArray.From(rows) });
+        }
+        return result;
+
+        // A work op over its things: the route reaches the one nearest the pawn; finish is the summed native work.
+        Obs.PlannedSiteClearing Work(string id, Obs.PlannedClearingKind kind, Thing[] targets, string giver, Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish)
+        {
+            foreach (var target in targets) cleared[target] = id;
+            var rows = new List<Obs.ConstructionActivityOption>();
+            foreach (var pawn in pawns.Where(able))
+            {
+                if (!budget.Take()) break;
+                var nearest = targets.OrderBy(t => t.Position.DistanceToSquared(pawn.Position)).ThenBy(t => t.thingIDNumber).First();
+                using var route = map.pathFinder.FindPathNow(pawn.Position, nearest, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.Touch);
+                if (!route.Found) continue;
+                var cell = new Cell(nearest.Position.x, nearest.Position.z);
+                rows.Add(new(id, definition.defName, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default, finish(pawn))
+                    { SiteApproachTicks = Fact.Known((double)route.TotalCost) });
+            }
+            return new(id, kind, EquatableArray.From(targets.Select(t => new Cell(t.Position.x, t.Position.z)).Distinct())) { Options = EquatableArray.From(rows) };
+        }
+    }
+
+    // The nearest cell of the best-priority player storage that accepts the stack, outside the footprint
+    // (StoreUtility.TryFindBestBetterStoreCellFor's order, scanned exactly instead of sampled).
+    private static IntVec3? Destination(Map map, Thing item, HashSet<IntVec3> footprint)
+    {
+        IntVec3? best = null;
+        var bestDistance = float.MaxValue;
+        var found = StoragePriority.Unstored;
+        foreach (var group in map.haulDestinationManager.AllGroupsListInPriorityOrder)
+        {
+            var priority = group.Settings.Priority;
+            if (priority <= StoragePriority.Unstored || (best != null && priority < found)) break;
+            if ((group.parent is Thing parent && parent.Faction != Faction.OfPlayer) || !group.parent.HaulDestinationEnabled || !group.Settings.AllowedToAccept(item)) continue;
+            foreach (var cell in group.CellsList)
+            {
+                var distance = (item.Position - cell).LengthHorizontalSquared;
+                if (distance >= bestDistance || footprint.Contains(cell) || !StoreUtility.IsGoodStoreCell(cell, map, item, null, Faction.OfPlayer)) continue;
+                best = cell; bestDistance = distance; found = priority;
+            }
+        }
+        return best;
+    }
+
+    // A colonist free to take new work: the same gate the site rows apply.
+    private static bool Free(Pawn pawn) => !(pawn.Drafted || pawn.Downed || pawn.InMentalState || !NativeFoodActivity.Available(pawn)
+        || NativePawnActivities.Owned(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 || pawn.carryTracker.CarriedThing != null);
 
     private static bool Report(int count, Budget budget)
     {
@@ -134,9 +295,7 @@ public sealed class NativeConstructionActivity
         LocalTargetInfo To(IntVec3 origin) => site.Thing != null ? new LocalTargetInfo(site.Thing) : new LocalTargetInfo(site.Target(origin));
         foreach (var pawn in roster.Take(PawnCap))
         {
-            if (pawn.Drafted || pawn.Downed || pawn.InMentalState || !NativeFoodActivity.Available(pawn)
-                || NativePawnActivities.Owned(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0
-                || pawn.carryTracker.CarriedThing != null || !site.Eligible(pawn)) continue;
+            if (!Free(pawn) || !site.Eligible(pawn)) continue;
             if (!budget.Take()) break;
             var parms = TraverseParms.For(pawn, Danger.None);
             using var siteRoute = map.pathFinder.FindPathNow(pawn.Position, To(pawn.Position), parms, peMode: PathEndMode.Touch);
