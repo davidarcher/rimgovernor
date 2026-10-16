@@ -17,15 +17,14 @@ namespace HomeBridge.BridgeTools
         private sealed class Site { public Thing Thing = null!; public int Tier; public List<ThingDef> Needs = new List<ThingDef>(); }
         private static readonly Dictionary<Map, List<Site>> cache = new Dictionary<Map, List<Site>>();
         private static int cacheTick = -1;
-        private static bool installed;
+        private static int installed;
 
         internal static void Install()
         {
-            if (installed) return;
+            if (System.Threading.Interlocked.CompareExchange(ref installed, 1, 0) != 0) return;
             new Harmony("rimgovernor.construction-tier-gate").Patch(
                 AccessTools.Method(typeof(WorkGiver_ConstructDeliverResources), "ResourceDeliverJobFor"),
                 postfix: new HarmonyMethod(typeof(ConstructionTierGate), nameof(Gate)));
-            installed = true;
         }
 
         // The vanilla job is HaulToContainer: targetA is the resource, targetC the site it

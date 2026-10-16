@@ -38,7 +38,10 @@ namespace HomeBridge.BridgeTools
         {
             internal Job? At(Pawn pawn, Thing target) => CanInteractWith(pawn, target, false) ? TryGivePlayJob(pawn, target) : null;
         }
-        private static bool installed;
+        // The once-guard (taken before the work); installed is the readiness Validate reads (set after it).
+        private static int installing;
+        private const string HarmonyOwner = "rimgovernor.activity-execution";
+        private static volatile bool installed;
         private static JobDef holdDef = null!;
         private static JobDef deliveryDef = null!;
         private static JobDef recipeDef = null!;
@@ -66,7 +69,7 @@ namespace HomeBridge.BridgeTools
         }
         internal static void Install()
         {
-            if (installed) return;
+            if (System.Threading.Interlocked.CompareExchange(ref installing, 1, 0) != 0) return;
             holdDef = new JobDef { defName = "RimGovernorWait", driverClass = typeof(JobDriver_GovernorWait), reportString = "Waiting for the colony plan.", casualInterruptible = false };
             DefDatabase<JobDef>.Add(holdDef);
             deliveryDef = new JobDef { defName = "RimGovernorDeliver", driverClass = typeof(JobDriver_GovernorDeliver), reportString = "Delivering to the colony plan's destination.", casualInterruptible = false };
@@ -75,7 +78,7 @@ namespace HomeBridge.BridgeTools
             DefDatabase<JobDef>.Add(recipeDef);
             tendDef = new JobDef { defName = "RimGovernorTend", driverClass = typeof(JobDriver_GovernorTend), reportString = "Performing the selected treatment.", casualInterruptible = false };
             DefDatabase<JobDef>.Add(tendDef);
-            var h = new Harmony("rimgovernor.activity-execution");
+            var h = new Harmony(HarmonyOwner);
             void Patch(Type t, string name, string? before = null, string? after = null) => h.Patch(AccessTools.Method(t, name),
                 before == null ? null : new HarmonyMethod(typeof(NativePawnActivities), before),
                 after == null ? null : new HarmonyMethod(typeof(NativePawnActivities), after));
@@ -101,6 +104,10 @@ namespace HomeBridge.BridgeTools
             NativeControlAuthority.GenerationChanged += AuthorityChanged;
             installed = true;
         }
+
+        /// <summary>How many times this installer's <c>StartJob</c> prefix is patched in: 1 once installed, more if it ran twice (#3289).</summary>
+        internal static int StartJobPrefixes()
+            => Harmony.GetPatchInfo(AccessTools.Method(typeof(Pawn_JobTracker), "StartJob"))?.Prefixes.Count(p => p.owner == HarmonyOwner) ?? 0;
 
         internal static Common.Failure? Validate(PawnActivities? batch, Common.ObservationContext context)
         {

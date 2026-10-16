@@ -40,7 +40,10 @@ The mod side is `HttpChannelHost.cs` in the Bridge: `NativeToolInvoker` reflects
 argument is `request` and runs them with a context carrying the caller's arguments and the host's game-thread
 access, so the facade and HTTP share one implementation; `HttpChannelBootstrap` (a module initializer) starts the server
 when `RIMGOVERNOR_OTLP_DIR` is set (the directory of the OTLP rings; `RIMGOVERNOR_RUN_ID` optionally names the run).
-Unset, nothing listens.
+Unset, nothing listens. The channel binds only after the host has built its registry (`RimBridgeToolAccess.Published`,
+on the game thread once play data has loaded) and runs instance tools on the host's own tool-class instances
+(`RimBridgeToolAccess.TryGetInstance`): tool constructors install Harmony patches and add Defs, so each tool class is
+constructed once, by the host (#3289). A type the host did not construct is skipped with a warning.
 
 The brain host (#3082) registers PlayerApi's routes on the shared `RouteTable` and disposes the results when it
 reloads. A route family whose provider is null is not registered, so it answers 404:

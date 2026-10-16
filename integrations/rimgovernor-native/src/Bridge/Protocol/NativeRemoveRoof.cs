@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
     // the whole intent. Applied means designated: pawns remove the roof.
     internal static class NativeRemoveRoof
     {
-        private static bool installed;
+        private static int installed;
         // Vanilla auto-roof (AutoBuildRoofAreaSetter) re-adds an enclosed
         // room's cells to the BuildRoof area without clearing NoRoof, so
         // pawns would rebuild the roof they are removing. The NoRoof
@@ -25,10 +25,9 @@ namespace HomeBridge.BridgeTools
         // for roof building.
         private static void Install()
         {
-            if (installed) return;
+            if (System.Threading.Interlocked.CompareExchange(ref installed, 1, 0) != 0) return;
             new Harmony("rimgovernor.remove-roof").Patch(AccessTools.Method(typeof(WorkGiver_BuildRoof), nameof(WorkGiver_BuildRoof.HasJobOnCell)),
                 postfix: new HarmonyMethod(typeof(NativeRemoveRoof), nameof(NoRoofHoldsBuild)));
-            installed = true;
         }
         private static void NoRoofHoldsBuild(Pawn pawn, IntVec3 c, ref bool __result)
         { if (__result && pawn.Map != null && pawn.Map.areaManager.NoRoof[c]) __result = false; }

@@ -179,10 +179,10 @@ namespace HomeBridge.BridgeTools
         }
 
         // ---- job hooks ----
-        private static bool installed;
+        private static int installed;
         internal static void Install()
         {
-            if (installed) return;
+            if (System.Threading.Interlocked.CompareExchange(ref installed, 1, 0) != 0) return;
             var harmony = new Harmony("rimgovernor.designation-guards");
             harmony.Patch(AccessTools.Method(typeof(JobDriver_Deconstruct), "FinishedRemoving"),
                 prefix: new HarmonyMethod(typeof(NativeDesignationGuards), nameof(BeforeRemoval)),
@@ -202,7 +202,6 @@ namespace HomeBridge.BridgeTools
                 // release runs unscoped.
                 if (!snapshot.Active) ReleaseAll();
             };
-            installed = true;
         }
 
         private static GuardedDesignation? Deconstruction(Thing? t) =>

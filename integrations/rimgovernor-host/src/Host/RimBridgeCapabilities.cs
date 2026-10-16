@@ -53,7 +53,20 @@ internal static class RimBridgeCapabilities
         LogJournal = logJournal;
         Registry = registry;
         LegacyToolExecution.Initialize(registry);
-        RimGovernor.Host.Sdk.RimBridgeToolAccess.Current = new RegistryToolInvoker(registry);
+        RimGovernor.Host.Sdk.RimBridgeToolAccess.Publish(new RegistryToolInvoker(registry), ToolInstances(extensionProviders));
+    }
+
+    /// <summary>Every tool-class instance the providers built, by type, for the HTTP channel to share (#3289).</summary>
+    private static Dictionary<Type, object> ToolInstances(IEnumerable<AnnotatedExtensionCapabilityProvider> providers)
+    {
+        var instances = new Dictionary<Type, object>();
+        foreach (var toolClass in providers.SelectMany(provider => provider.ToolClasses))
+        {
+            if (toolClass.Instance != null)
+                instances[toolClass.Type] = toolClass.Instance;
+        }
+
+        return instances;
     }
 
     /// <summary>

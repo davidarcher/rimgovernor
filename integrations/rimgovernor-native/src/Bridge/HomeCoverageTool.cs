@@ -13,11 +13,11 @@ namespace HomeBridge.BridgeTools
 {
     internal static class HomeCoverage
     {
-        private static bool installed;
+        private static int installed;
         internal static bool PreparingFixture = false;
         internal static void Install()
         {
-            if (installed) return;
+            if (System.Threading.Interlocked.CompareExchange(ref installed, 1, 0) != 0) return;
             var harmony = new Harmony("rimgovernor.home-coverage");
             harmony.Patch(AccessTools.Method(typeof(Area_Home), "Set"),
                 prefix: new HarmonyMethod(typeof(HomeCoverage), nameof(Set)));
@@ -25,7 +25,6 @@ namespace HomeBridge.BridgeTools
                 prefix: new HarmonyMethod(typeof(HomeCoverage), nameof(Clear)));
             harmony.Patch(AccessTools.Method(typeof(Area), nameof(Area.Invert)),
                 prefix: new HarmonyMethod(typeof(HomeCoverage), nameof(Invert)));
-            installed = true;
         }
         // Every Home edit advances the revision. Autonomous maintenance
         // restores missing cells; there is no player-exclusion ledger.

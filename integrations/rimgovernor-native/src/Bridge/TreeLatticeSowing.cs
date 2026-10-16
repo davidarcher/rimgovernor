@@ -20,15 +20,14 @@ namespace HomeBridge.BridgeTools
     internal static class TreeLatticeSowing
     {
         internal const int Pitch = 2;
-        private static bool installed;
+        private static int installed;
 
         internal static void Install()
         {
-            if (installed) return;
+            if (System.Threading.Interlocked.CompareExchange(ref installed, 1, 0) != 0) return;
             var harmony = new Harmony("rimgovernor.tree-lattice-sowing");
             harmony.Patch(AccessTools.Method(typeof(WorkGiver_GrowerSow), nameof(WorkGiver_GrowerSow.JobOnCell)),
                 prefix: new HarmonyMethod(typeof(TreeLatticeSowing), nameof(Before)));
-            installed = true;
         }
 
         // OnLattice reports whether c is a sowing cell for a blockAdjacentSow

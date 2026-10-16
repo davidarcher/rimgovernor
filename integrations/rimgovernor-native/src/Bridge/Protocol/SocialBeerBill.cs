@@ -12,13 +12,12 @@ namespace HomeBridge.BridgeTools
     {
         public SocialBeerBill() { }
         public SocialBeerBill(RecipeDef recipe) : base(recipe, null) { }
-        private static bool installed;
+        private static int installed;
         internal static void Install()
         {
-            if (installed) return;
+            if (System.Threading.Interlocked.CompareExchange(ref installed, 1, 0) != 0) return;
             new Harmony("rimgovernor.beer-reserve").Patch(AccessTools.Method(typeof(RecipeWorkerCounter), nameof(RecipeWorkerCounter.CountProducts)),
                 postfix: new HarmonyMethod(typeof(SocialBeerBill), nameof(Count)));
-            installed = true;
         }
         private static void Count(Bill_Production bill, ref int __result)
         {

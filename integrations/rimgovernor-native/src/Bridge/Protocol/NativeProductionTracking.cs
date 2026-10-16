@@ -23,8 +23,8 @@ namespace HomeBridge.BridgeTools {
  internal static class NativeProductionTracking {
   private const string Owner="rimgovernor.native.production";
   private sealed class State {internal readonly Dictionary<Bill,NativeProductionRecord>Bills=new Dictionary<Bill,NativeProductionRecord>();}
-  private static readonly ConditionalWeakTable<Game,State> States=new ConditionalWeakTable<Game,State>();private static MethodBase? target;private static bool installed;
-  internal static void Install(){if(installed)return;installed=true;try{var harmony=new Harmony(Owner);
+  private static readonly ConditionalWeakTable<Game,State> States=new ConditionalWeakTable<Game,State>();private static MethodBase? target;private static int installed;
+  internal static void Install(){if(System.Threading.Interlocked.CompareExchange(ref installed,1,0)!=0)return;try{var harmony=new Harmony(Owner);
    target=AccessTools.Method(typeof(GenRecipe),"MakeRecipeProducts",new[]{typeof(RecipeDef),typeof(Pawn),typeof(List<Thing>),typeof(Thing),typeof(IBillGiver),typeof(Precept_ThingStyle),typeof(ThingStyleDef),typeof(int?)});
    if(target==null)throw new MissingMethodException("Production hook missing");
    harmony.Patch(target,null,new HarmonyMethod(typeof(NativeProductionTracking),nameof(Products)));

@@ -27,6 +27,9 @@ namespace HomeBridge.BridgeTools
 
         private NativeToolInvoker(Dictionary<string, Tool> tools) { _tools = tools; }
 
+        /// <summary>How many ProtoJSON tools this assembly routes directly.</summary>
+        internal int Count => _tools.Count;
+
         /// <summary>
         /// The ProtoJSON tools of this assembly plus every other tool the host registry knows (the host's own
         /// <c>rimgovernor/set_time_speed</c>, <c>test/*</c> fixture ops, tools with other arguments). The registry fills
@@ -48,12 +51,15 @@ namespace HomeBridge.BridgeTools
 
         /// <summary>
         /// Every <c>[Tool]</c> of the assembly whose only caller argument is <c>request</c>: the ProtoJSON tools.
-        /// Tools that take other arguments (the supervised-play and preview tools) are not routed here.
+        /// Tools that take other arguments (the supervised-play and preview tools) are not routed here. Instance tools
+        /// run on the host's own tool-class instance (<see cref="RimBridgeToolAccess.TryGetInstance"/>), so it is called
+        /// after the host has published its registry: a tool constructor installs patches and Defs and must run once
+        /// (#3289). A type the host did not construct is skipped, never constructed here.
         /// </summary>
         internal static NativeToolInvoker Discover(Assembly assembly)
         {
             var tools = new Dictionary<string, Tool>(StringComparer.Ordinal);
-            var instances = new Dictionary<Type, object?>();
+            var skipped = new HashSet<Type>();
             foreach (var type in assembly.GetTypes().Where(t => t.IsClass && !t.IsAbstract).OrderBy(t => t.FullName, StringComparer.Ordinal))
             {
                 foreach (var method in type.GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.DeclaredOnly))
@@ -61,16 +67,11 @@ namespace HomeBridge.BridgeTools
                     var attribute = method.GetCustomAttribute<ToolAttribute>(inherit: false);
                     if (attribute == null || !attribute.Name.StartsWith(Prefix, StringComparison.Ordinal) || !TakesOnlyRequest(method)) continue;
                     object? instance = null;
-                    if (!method.IsStatic && !instances.TryGetValue(type, out instance))
+                    if (!method.IsStatic && !RimBridgeToolAccess.TryGetInstance(type, out instance))
                     {
-                        try { instance = Activator.CreateInstance(type, nonPublic: true); }
-                        catch (Exception e) when (e is MissingMethodException or TargetInvocationException)
-                        {
-                            Log.Warning($"[RimGovernor] HTTP channel skips tool type {type.FullName}: {e.Message}");
-                        }
-                        instances[type] = instance;
+                        if (skipped.Add(type)) Log.Warning($"[RimGovernor] HTTP channel skips tool type {type.FullName}: the host did not construct it.");
+                        continue;
                     }
-                    if (!method.IsStatic && instance == null) continue;
                     tools[attribute.Name.Substring(Prefix.Length)] = new Tool(attribute.Name, instance, method);
                 }
             }
@@ -174,6 +175,8 @@ namespace HomeBridge.BridgeTools
     {
         internal const string DirectoryVariable = "RIMGOVERNOR_OTLP_DIR";
         internal const string RunIdVariable = "RIMGOVERNOR_RUN_ID";
+        // A hang guard, as long as the brain's own wait for loaded Defs: a cold data load takes seconds, not minutes.
+        private static readonly TimeSpan RegistryBudget = TimeSpan.FromMinutes(20);
         private static HttpChannelServer? server;
         private static readonly TaskCompletionSource<RouteTable?> published = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -197,13 +200,21 @@ namespace HomeBridge.BridgeTools
             }
             var runId = Environment.GetEnvironmentVariable(RunIdVariable);
             // Binding and writing the file are off the loading thread: a slow disk must not delay the host's mod load.
-            Task.Run(() =>
+            // The routes wait for the host's registry, which shares the tool instances (#3289): the host builds it on
+            // the game thread once play data has loaded.
+            Task.Run(async () =>
             {
                 try
                 {
+                    var registry = RimBridgeToolAccess.Published;
+                    if (await Task.WhenAny(registry, Task.Delay(RegistryBudget)).ConfigureAwait(false) != registry)
+                        throw new TimeoutException($"the host registry was not published within {RegistryBudget.TotalMinutes:0} minutes");
                     var routes = new RouteTable();
                     NativeRoutes.RegisterHealth(routes);
                     var invoker = NativeToolInvoker.Discover(typeof(HttpChannelBootstrap).Assembly);
+                    var prefixes = NativePawnActivities.StartJobPrefixes();
+                    Log.Message($"[RimGovernor] HTTP channel routes {invoker.Count} ProtoJSON tools on the host's instances; activity-execution StartJob prefixes: {prefixes}.");
+                    if (prefixes > 1) Log.Warning($"[RimGovernor] The activity-execution installer ran {prefixes} times.");
                     NativeRoutes.RegisterToolList(routes, invoker);
                     NativeRoutes.Register(routes, invoker);
                     var options = new HttpChannelOptions { EndpointDirectory = directory, RunId = string.IsNullOrWhiteSpace(runId) ? Guid.NewGuid().ToString("N") : runId! };

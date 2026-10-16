@@ -11,7 +11,7 @@ namespace HomeBridge.BridgeTools
 {
     internal static class ConstructionSkillGuard
     {
-        private static bool installed;
+        private static int installed;
         private static ConstructionSkillState State => Current.Game.GetComponent<ConstructionSkillState>();
         internal static bool Quality(Thing t) => t.def.entityDefToBuild is ThingDef d && d.HasComp(typeof(CompQuality));
         internal static ConstructionSkillSetting? Setting(Thing t) => Current.Game == null ? null : State.Find(t);
@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
         }
         internal static void Install()
         {
-            if (installed) return;
+            if (System.Threading.Interlocked.CompareExchange(ref installed, 1, 0) != 0) return;
             var h = new Harmony("rimgovernor.construction-skill");
             h.Patch(AccessTools.DeclaredMethod(typeof(WorkGiver_Scanner), nameof(WorkGiver_Scanner.HasJobOnThing)),
                 postfix: new HarmonyMethod(typeof(ConstructionSkillGuard), nameof(Eligible)));
@@ -86,7 +86,6 @@ namespace HomeBridge.BridgeTools
             foreach (var type in new[] { typeof(Frame), typeof(Blueprint_Build) })
                 h.Patch(AccessTools.Method(type, nameof(Thing.GetInspectString)),
                     postfix: new HarmonyMethod(typeof(ConstructionSkillGuard), nameof(Inspect)));
-            installed = true;
         }
         // WorkGiver_ConstructFinishFrames inherits HasJobOnThing, and Harmony only
         // patches a declared virtual, so the base method is patched and filtered.
