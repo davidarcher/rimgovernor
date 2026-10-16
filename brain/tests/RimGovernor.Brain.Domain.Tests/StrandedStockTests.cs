@@ -21,7 +21,7 @@ public sealed class StrandedStockTests
     private static StockpileRequest Request(params LootItem[] rows) => new()
     {
         Zones = [Zone("Zone_yard", "yard", YardRoom), Zone("Zone_warehouse", "general", WarehouseRoom)],
-        Shelves = [new StockpileShelf { Building = "Shelf_7", Zone = "Zone_warehouse", Cells = 2 }],
+        Shelves = [new StockpileShelf { Building = "Shelf_7", Zone = "Zone_warehouse" }],
         Loot = Known(EquatableArray.From(rows)),
     };
 
