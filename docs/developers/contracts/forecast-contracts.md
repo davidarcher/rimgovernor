@@ -205,6 +205,36 @@ recipe batch counts and unpowered-source evidence. These native reads cannot be
 proved by a policy-only unit test. It does not dispatch a colony portfolio or
 establish prediction accuracy from registration/compilation alone.
 
+### Planned construction sites
+
+`ConstructionActivityRequest.Planned` asks the construction activity read about
+hypothetical, unplaced sites. A `PlannedConstructionSite` is an id, a definition
+(thing or floor), a stuff, a rotation and its `Positions`: one placement anchor per
+piece (every cell of a wall run; the one anchor of a 2x1 shelf). Each comes back as
+a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
+
+- `CanPlace`: native `CanPlaceBlueprintAt` for every piece, plus finished research.
+  Unknown when native cannot resolve the definition or stuff, the site is empty,
+  out of bounds or over the position cap; the reason is a read finding
+  (`planned_site_*`).
+- `Rejections`: each refused position with the native reason.
+- `Blockers`: every thing in the footprint (cell, thing id, definition, category),
+  unclassified. Deciding what must be cut, hauled or mined is the reader's.
+- `Options`: the placed-site `ConstructionActivityOption` rows, one per pawn and
+  whole-stack material source. `FinishTicks` is `WorkToBuild(stuff)` summed over
+  the pieces over the pawn's `ConstructionSpeed`. Routes end at the piece nearest
+  the origin. Material owed is the piece cost times the pieces. A pawn with no route
+  has no row. A quality definition has no stored finishing minimum before placement,
+  so only its native skill prerequisite gates `FinishTicks` (finding
+  `planned_quality_minimum_unset`).
+
+Caps per read: 16 planned sites, 16 colonists, 16 sources per site, 128 positions
+per site, 32 rejections and 32 blockers per site and 128 rows over all planned
+sites (placed sites have their own 128). Excess sets `Truncated`; the caller
+batches. The coupled census passes no planned sites. The prepared
+`observations/planned-site` case checks open-ground walls, a door and a shelf, and
+rejection on a standing wall and on deep water.
+
 ## Food reserve components
 
 Native reports forbidden stacks (the thing row's `forbidden`) with their

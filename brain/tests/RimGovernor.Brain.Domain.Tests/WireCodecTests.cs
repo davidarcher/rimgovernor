@@ -106,6 +106,46 @@ public sealed class WireCodecTests
         Assert.False(Assert.Single(decoded.Clothing.Retained).CompletionTicks.IsKnown);
     }
     [Fact]
+    public void PlannedSitesRoundTripWithUnknownRouteIllegalAndUnknownVerdicts()
+    {
+        var request = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest(new() { ColonyId = "c", LoadToken = "l", MapId = 1 }, default)
+        {
+            Planned = [new("walls", "Wall", "WoodLog", RimGovernor.Brain.Domain.Rotation.East, [new(1, 1), new(2, 1)])],
+        };
+        var decodedRequest = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRequest>(WireJson.Serialize(request));
+        Assert.Equal(request.Planned, decodedRequest.Planned);
+        Assert.Equal(RimGovernor.Brain.Domain.Rotation.East, decodedRequest.Planned[0].Rotation);
+
+        var read = new RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead
+        {
+            Known = true,
+            Planned = [
+                new("walls", RimGovernor.Brain.Domain.Fact.Known(true)) { Options = [new("walls", "Wall", new(1, 1), "pawn", "WoodLog", "stack", new(5, 5), 10, 75, "ConstructFinishFrames",
+                    default, default, RimGovernor.Brain.Domain.Fact.Known(270.0)) { SiteApproachTicks = RimGovernor.Brain.Domain.Fact.Known(0.0) }] },
+                new("on-water", RimGovernor.Brain.Domain.Fact.Known(false)) { Rejections = [new(new(7, 5), "Terrain lacks affordance")],
+                    Blockers = [new(new(7, 5), "Wall_1", "Wall", "Building")] },
+                new("unresolved", default),
+            ],
+            Findings = ["planned_site_definition_unresolved"],
+        };
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ConstructionActivityRead>(WireJson.Serialize(read));
+        var walls = decoded.Planned[0];
+        Assert.True(walls.CanPlace.Value);
+        var row = Assert.Single(walls.Options);
+        Assert.False(row.ApproachTicks.IsKnown);
+        Assert.False(row.DeliveryTicks.IsKnown);
+        Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(0.0), row.SiteApproachTicks);
+        Assert.Equal(270.0, row.FinishTicks.Value);
+        var water = decoded.Planned[1];
+        Assert.Equal(RimGovernor.Brain.Domain.Fact.Known(false), water.CanPlace);
+        Assert.Equal("Terrain lacks affordance", Assert.Single(water.Rejections).Reason);
+        Assert.Equal("Wall_1", Assert.Single(water.Blockers).Thing);
+        Assert.False(decoded.Planned[2].CanPlace.IsKnown);
+        Assert.Empty(decoded.Planned[2].Options);
+        Assert.Equal(read.Planned, decoded.Planned);
+    }
+
+    [Fact]
     public void NeedTargetMaxPawnsRoundTripsKnownAndUnknownAsNumberOrNull()
     {
         var read = new RimGovernor.Contracts.Wire.Observations.NeedsForecastRead

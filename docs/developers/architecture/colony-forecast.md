@@ -388,8 +388,9 @@ the same plan the shared construction demand reads, so the two cannot disagree.
 
 Not modelled: nothing is placed yet, so there is no work amount, route or finish time to schedule and labor is
 declared in `UnsupportedEffects` (`planned_construction_labor`). Scheduling planned rooms against pawn capacity
-needs a planned-site notion with a work estimate (the catalog's work to build) and a legality read; that is
-forecast work, not done here. A wall, door, vent or piece with a blueprint or frame already placed is left out of the planned claim: the standing site owes its outstanding material through the construction census, so nothing is claimed twice.
+needs a planned-site notion with a work estimate and a legality read. Native provides both through the
+construction activity read's [planned sites](../contracts/forecast-contracts.md#planned-construction-sites);
+Rounds do not request them yet. A wall, door, vent or piece with a blueprint or frame already placed is left out of the planned claim: the standing site owes its outstanding material through the construction census, so nothing is claimed twice.
 
 ## Review inputs and pawn windows
 

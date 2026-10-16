@@ -86,6 +86,7 @@
     <Compile Include="../../../../scripts/fixtures/CoordinatedWorkFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PawnCookingFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CoupledForecastFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/PlannedSiteFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ClothingActivityFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PawnActivityFixture.cs" Condition="'$(PawnActivityFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ForecastFixture.cs" Condition="'$(ForecastFixture)' == 'true'" />
