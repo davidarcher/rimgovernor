@@ -724,10 +724,8 @@ public sealed record RoundsAssessment
     public Finding Finding { get; set; }
 
     /// <summary>
-    /// Marks an emergency-tier upkeep need (a home fire) whose serve family this runtime did not declare. The
-    /// review still records the need, but it must not suspend every other goal: with no method to clear it
-    /// and the clock held for it, nothing could ever resume, which parked a power enclosure build behind an
-    /// unfought short-circuit fire.
+    /// Marks a need whose method this runtime did not declare (or whose inspection holds it): the review still
+    /// records the need, and its progress reads held as unavailable rather than stalled.
     /// </summary>
     public bool MethodUnavailable { get; set; }
 
@@ -1088,8 +1086,7 @@ public static partial class PolicyFunctions
                     concern.MethodUnavailable = true;
                 }
             }
-            // Each upkeep need's method is its own serve family; an undeclared one at emergency priority is
-            // recorded without the suspension.
+            // Each upkeep need's method is its own serve family; an undeclared one is recorded as unavailable.
             var declarable = new HashSet<ConcernId>();
             foreach (var n in c.Upkeep.Needs)
             {

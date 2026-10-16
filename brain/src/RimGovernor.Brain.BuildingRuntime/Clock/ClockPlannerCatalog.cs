@@ -14,10 +14,10 @@ internal sealed record PlannerEntry
     /// <summary>Receives this planner's refusal. Multi-concern planners leave it default and file under their own name (<see cref="FilingKey"/>).</summary>
     public ConcernId Concern { get; init; }
 
-    /// <summary>Marks a protection planner: combat, tend, rescue, recovery, fire and shelter run in the immediate review ahead of the ordinary planners.</summary>
+    /// <summary>Marks a protection planner: combat, tend, rescue, recovery and shelter run in the immediate review ahead of the ordinary planners.</summary>
     public bool Immediate { get; init; }
 
-    /// <summary>Says whether the admission cycle waits on the planner: critical for the preempt and critical priority classes and the emergency evidence (fire safety), optional for the development reviews.</summary>
+    /// <summary>Says whether the admission cycle waits on the planner: critical for the preempt and critical priority classes, optional for the development reviews.</summary>
     public PlannerClass Class { get; init; }
 
     /// <summary>The action kinds the planner dispatches (or, where commented on its entry, deliberately waits on). A terminal outcome of one of these kinds is the planner's own work completing, so a wake carrying it re-runs the planner (and only planners of that kind).</summary>
@@ -120,7 +120,6 @@ internal static class ClockPlannerCatalog
     private static readonly FactSection[] SectionsRecovery = [FactSection.Pawns, FactSection.Emergency, FactSection.Colony];
     private static readonly FactSection[] SectionsCustody = [FactSection.Pawns, FactSection.Population, FactSection.Emergency, FactSection.Colony];
     private static readonly FactSection[] SectionsResearch = [FactSection.Research, FactSection.Colony, FactSection.Buildings, FactSection.Rooms];
-    private static readonly FactSection[] SectionsFire = [FactSection.Emergency, FactSection.Colony];
     private static readonly FactSection[] SectionsResource = [FactSection.Colony, FactSection.Bills, FactSection.Buildings, FactSection.Zones];
     // The bills and threat sets plus the research census the armory tier is capped by.
     private static readonly FactSection[] SectionsArmory = [FactSection.Colony, FactSection.Bills, FactSection.Pawns, FactSection.Emergency, FactSection.Research];
@@ -234,9 +233,6 @@ internal static class ClockPlannerCatalog
             c => c.Equip is not null, (s, ct, e, a) => s.Config.Equip!.StepAsync(a, ct, e), (o, m) => o.Equip = m, EnsureBasicDefense, families: FamiliesEmergency),
         E("repair", O, [ActionKind.Repair], SectionsBuilding,
             c => c.Repair is not null, (s, ct, e, a) => s.Config.Repair!.StepAsync(a, ct, e), (o, m) => o.Repair = m, MaintainEssentialRepairs, families: FamiliesEmergency),
-        // fireSafety takes no arbiter: it dispatches no plan of its own.
-        E("fireSafety", C, [], SectionsFire,
-            c => c.FireSafety is not null, (s, ct, e, _) => s.Config.FireSafety!.StepAsync(ct, e), (o, m) => o.FireSafety = m, MaintainFireSafety, immediate: true),
         E("clearance", O, [ActionKind.Deconstruction], SectionsColony,
             c => c.Clearance is not null, (s, ct, e, a) => s.Config.Clearance!.StepAsync(a, ct, e), (o, m) => o.Clearance = m, ClearHomeObstructions),
         E("pollution", O, [ActionKind.Area, ActionKind.SupplyAllow, ActionKind.WastepackHaul], SectionsBuilding,

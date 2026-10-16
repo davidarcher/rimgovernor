@@ -184,7 +184,7 @@ queued control hops before observation hops within a frame (untyped tools bypass
 that ordering).
 
 **Critical and optional planners.** The wave waits on the critical class
-only. Each catalog entry is `critical` (combat, custody, medicine, recovery, fire safety and the like) or `optional` (the development reviews). The Rounder review completes first; `StepBudget.Wall` bounds the subsequent
+only. Each catalog entry is `critical` (combat, custody, medicine, recovery and the like) or `optional` (the development reviews). The Rounder review completes first; `StepBudget.Wall` bounds the subsequent
 planner wave; past it, planners still
 evaluating are named on `ClockSchedulerResult.HeldBy` (`held_by` on the row) and the
 step does not complete (`HeldException`; the next step evaluates again). Optional

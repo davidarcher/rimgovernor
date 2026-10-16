@@ -70,9 +70,6 @@ public sealed record BrainFamilies
     /// <summary>The <c>repair</c> family.</summary>
     public bool Repair { get; init; } = true;
 
-    /// <summary>The <c>fire</c> family.</summary>
-    public bool FireSafety { get; init; } = true;
-
     /// <summary>The <c>burial</c> family.</summary>
     public bool Burial { get; init; } = true;
 
@@ -218,7 +215,6 @@ public sealed record BrainFamilies
         new("rescue", f => f.Rescue, (f, on) => f with { Rescue = on }),
         new("equip", f => f.Equip, (f, on) => f with { Equip = on }),
         new("repair", f => f.Repair, (f, on) => f with { Repair = on }),
-        new("fire", f => f.FireSafety, (f, on) => f with { FireSafety = on }),
         new("burial", f => f.Burial, (f, on) => f with { Burial = on }),
         new("training", f => f.Training, (f, on) => f with { Training = on }),
         new("envelope", f => f.Envelope, (f, on) => f with { Envelope = on }),

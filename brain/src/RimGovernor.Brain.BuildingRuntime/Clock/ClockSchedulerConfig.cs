@@ -90,8 +90,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsRepairPlanner? Repair { get; init; }
 
-    public RoundsFireSafetyPlanner? FireSafety { get; init; }
-
     public RoundsGearPlanner? Gear { get; init; }
 
     public RoundsMedicalPlanner? Medical { get; init; }

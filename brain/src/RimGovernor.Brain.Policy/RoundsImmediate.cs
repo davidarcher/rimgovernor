@@ -4,51 +4,7 @@ public static partial class PolicyFunctions
 {
     /// <summary>The closed safety scope; ordinary planning stays on its own inspection clock even when these concerns need repeated observation.</summary>
     public static bool ImmediateConcern(ConcernId id) =>
-        id == ActiveCombat || id == CriticalMedicine || id == RestoreWorkers || id == MaintainFireSafety || id == MaintainShelter || id == RecoverDisasterServices;
-
-    /// <summary>
-    /// Shared by ordinary and immediate reviews. Other upkeep facts and latches cannot make a fresh fire
-    /// observation fail or age. Throws DomainException on an invalid fire row.
-    /// </summary>
-    public static UpkeepNeed ReviewFireSafety(Fact<EquatableArray<UpkeepFire>> fires, bool previous, bool issued)
-    {
-        var active = previous || issued;
-        var unsafeFire = false;
-        var targets = Unknown<EquatableArray<string>>();
-        var metric = Unknown<double>();
-        if (fires.TryGetValue(out var rows))
-        {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            var selected = new List<string>();
-            var total = 0.0;
-            var measured = true;
-            foreach (var row in rows)
-            {
-                var known = row.Size.TryGetValue(out var size);
-                if (!FoodId(row.Id) || !seen.Add(row.Id) || (known && (!FoodNumber(size) || size < 0)))
-                {
-                    throw new DomainException("invalid upkeep fire");
-                }
-                if (!row.Home)
-                {
-                    continue;
-                }
-                selected.Add(row.Id);
-                total += size;
-                measured = measured && known;
-                unsafeFire = unsafeFire || !known || size > 1;
-            }
-            selected.Sort(StringComparer.Ordinal);
-            targets = Known(EquatableArray.From(selected));
-            active = selected.Count > 0 || issued;
-            unsafeFire = unsafeFire || selected.Count > 3;
-            if (measured)
-            {
-                metric = Known(total);
-            }
-        }
-        return new UpkeepNeed { Concern = MaintainFireSafety, Active = active, Unsafe = unsafeFire, Targets = targets, Metric = metric };
-    }
+        id == ActiveCombat || id == CriticalMedicine || id == RestoreWorkers || id == MaintainShelter || id == RecoverDisasterServices;
 
     /// <summary>The immediate (safety-scope) review. Throws DomainException on invalid facts.</summary>
     public static RoundsFindings InspectImmediateRounds(RoundsFacts f, RoundsLatches previous, RoundsPolicy p)
@@ -61,13 +17,11 @@ public static partial class PolicyFunctions
                 throw new DomainException("invalid immediate count");
             }
         }
-        var fire = ReviewFireSafety(f.Upkeep.Fires, previous.Upkeep.Fire, f.IsIssued(MaintainFireSafety));
-        var latches = previous with { Upkeep = previous.Upkeep with { Fire = fire.Active }, Dash = DashLatch(f.Dash) };
+        var latches = previous with { Dash = DashLatch(f.Dash) };
         var c = new RoundsRun(f, previous, p)
         {
             L = previous with { },
             R = new RoundsFindings { Latches = latches, Disaster = f.Disaster },
-            Upkeep = new UpkeepReview { Needs = [fire] },
         };
         foreach (var d in InspectionRegistry.Inspections)
         {
@@ -111,13 +65,6 @@ public static partial class PolicyFunctions
             foreach (var n in c.R.Concerns)
             {
                 if (!available.Contains(n.Id))
-                {
-                    n.MethodUnavailable = true;
-                }
-            }
-            foreach (var n in c.R.Assessments)
-            {
-                if (n.Id == MaintainFireSafety && !available.Contains(n.Id))
                 {
                     n.MethodUnavailable = true;
                 }

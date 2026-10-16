@@ -9,7 +9,6 @@ public sealed partial class Store
     private static readonly ConcernId[] UpkeepIssuedConcerns =
     [
         PolicyFunctions.ClearHomeObstructions,
-        PolicyFunctions.MaintainFireSafety,
         PolicyFunctions.MaintainEssentialRepairs,
         PolicyFunctions.MaintainMedicalReserves,
         PolicyFunctions.MaintainFoodStorage,

@@ -129,7 +129,7 @@ Observe tab reads log rows, which carry no explanation rows.
 The derived `rounds` payload records its last inspection scope (`Immediate`) and
 last full enabled inspection time (`OrdinaryTick`) separately from the latest
 review `Tick`. Immediate reviews update only combat, critical care, worker
-restoration, fire safety, shelter and protective area needs. Other bindings,
+restoration, shelter and protective area needs. Other bindings,
 methods, progress and derived histories retain their original observation times.
 Disaster service history and recovery selections are not refreshed from missing
 ordinary inputs. An active hunt retains its incident and prey until a review has

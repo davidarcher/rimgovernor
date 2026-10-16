@@ -15,8 +15,6 @@ public sealed record UpkeepObservation
 
     public Fact<EquatableArray<UpkeepStructure>> Structures { get; init; }
 
-    public Fact<EquatableArray<UpkeepFire>> Fires { get; init; }
-
     public Fact<EquatableArray<UpkeepFilth>> Filth { get; init; }
 
     /// <summary>The measured room census of the same read.</summary>
@@ -50,15 +48,6 @@ public sealed record UpkeepStructure
     public int Priority { get; init; }
 }
 
-public sealed record UpkeepFire
-{
-    public string Id { get; init; } = "";
-
-    public bool Home { get; init; }
-
-    public Fact<double> Size { get; init; }
-}
-
 public sealed record UpkeepFilth
 {
     public string Id { get; init; } = "";
@@ -82,15 +71,13 @@ public sealed record UpkeepHistory
 {
     public bool Clearance { get; init; }
 
-    public bool Fire { get; init; }
-
     public bool Repairs { get; init; }
 }
 
-public sealed record UpkeepNeed(ConcernId Concern, bool Active, Fact<EquatableArray<string>> Targets, Fact<double> Metric, bool Unsafe)
+public sealed record UpkeepNeed(ConcernId Concern, bool Active, Fact<EquatableArray<string>> Targets, Fact<double> Metric)
 {
     /// <summary>The zero value Go's struct literal starts from.</summary>
-    public UpkeepNeed() : this(default, false, default, default, false)
+    public UpkeepNeed() : this(default, false, default, default)
     {
     }
 }
@@ -104,8 +91,6 @@ public sealed record UpkeepReview
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId MaintainFireSafety = new("MaintainFireSafety");
-
     public static readonly ConcernId MaintainEssentialRepairs = new("MaintainEssentialRepairs");
 
     /// <summary>
@@ -116,14 +101,14 @@ public static partial class PolicyFunctions
     {
         var needs = new List<UpkeepNeed>();
         var history = new UpkeepHistory();
-        bool Add(ConcernId goal, bool active, Fact<EquatableArray<string>> targets, Fact<double> metric, bool unsafeNeed)
+        bool Add(ConcernId goal, bool active, Fact<EquatableArray<string>> targets, Fact<double> metric)
         {
             if (targets.TryGetValue(out var rows))
             {
                 active = rows.Count > 0;
             }
             active = active || (issued?.GetValueOrDefault(goal) ?? false);
-            needs.Add(new UpkeepNeed(goal, active, targets, metric, unsafeNeed));
+            needs.Add(new UpkeepNeed(goal, active, targets, metric));
             return active;
         }
         static bool Valid(HashSet<string> seen, string id)
@@ -137,9 +122,6 @@ public static partial class PolicyFunctions
         }
         UpkeepReview Result() => new() { History = history, Needs = needs };
 
-        var fire = ReviewFireSafety(v.Fires, previous.Fire, (issued?.GetValueOrDefault(MaintainFireSafety) ?? false));
-        history = history with { Fire = fire.Active };
-        needs.Add(fire);
         var targets = Unknown<EquatableArray<string>>();
         var metric = Unknown<double>();
         if (v.Structures.TryGetValue(out var structures))
@@ -181,7 +163,7 @@ public static partial class PolicyFunctions
             targets = Known(EquatableArray.From(result));
             metric = Known(total);
         }
-        history = history with { Repairs = Add(MaintainEssentialRepairs, previous.Repairs, targets, metric, false) };
+        history = history with { Repairs = Add(MaintainEssentialRepairs, previous.Repairs, targets, metric) };
         if (v.Filth.TryGetValue(out var filth))
         {
             var seen = new HashSet<string>();
@@ -230,7 +212,7 @@ public static partial class PolicyFunctions
             }
             clearanceTargets = Known(EquatableArray.From(selected));
         }
-        history = history with { Clearance = Add(ClearHomeObstructions, previous.Clearance, clearanceTargets, Unknown<double>(), false) };
+        history = history with { Clearance = Add(ClearHomeObstructions, previous.Clearance, clearanceTargets, Unknown<double>()) };
         return Result();
     }
 }

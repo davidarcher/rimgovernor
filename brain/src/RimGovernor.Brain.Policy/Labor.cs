@@ -40,7 +40,6 @@ public static partial class PolicyFunctions
         Set([WorkType.Construction], MaintainTraining);
         Set([WorkType.Handling], MaintainHerd);
         Set([WorkType.Cooking], MaintainBabyFeeding);
-        Set([WorkType.Firefighter], MaintainFireSafety);
 
         // Vents are built over standing walls and roofs are designated for builders.
         Set([WorkType.Construction], MaintainClimateEnvelope);

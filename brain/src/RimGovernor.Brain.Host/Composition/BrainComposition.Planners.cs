@@ -40,7 +40,6 @@ public sealed partial class BrainComposition
         RoundsEquipPlanner? cfgEquip = null;
         RoundsBuildingPlanner? cfgExpansion = null;
         RoundsFieldPlanner? cfgFields = null;
-        RoundsFireSafetyPlanner? cfgFireSafety = null;
         RoundsFirebreakPlanner? cfgFirebreak = null;
         RoundsBuildingPlanner? cfgFlooring = null;
         RoundsAcquisitionPlanner? cfgFoodAcquisition = null;
@@ -121,7 +120,6 @@ public sealed partial class BrainComposition
         var rescue = sc.Rescue;
         var equip = sc.Equip;
         var repair = sc.Repair;
-        var fireSafety = sc.FireSafety;
         var blight = sc.Blight;
         var pollution = sc.Pollution;
         var mechCharger = sc.MechCharger;
@@ -151,7 +149,7 @@ public sealed partial class BrainComposition
         var training = sc.Training;
         var envelope = sc.Envelope;
 
-        if (!routine && (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || fireSafety || blight || pollution || mechCharger || geneBank || armory || clearance || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
+        if (!routine && (bills || fields || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || repair || blight || pollution || mechCharger || geneBank || armory || clearance || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || sc.Art || sc.Mechs || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.PopulationJoiner || homeCoverage || sc.Sheltering || stoneShell || stockpiles || defensiveLayout || dialog || trade || resourceTargets))
         {
             throw new InvalidOperationException("building plans require rounds");
         }
@@ -222,10 +220,6 @@ public sealed partial class BrainComposition
         if (equip)
         {
             cfgEquip = new RoundsEquipPlanner(reviewer);
-        }
-        if (fireSafety)
-        {
-            cfgFireSafety = new RoundsFireSafetyPlanner(reviewer, client);
         }
         if (repair)
         {
@@ -481,7 +475,6 @@ public sealed partial class BrainComposition
             Equip = cfgEquip,
             Expansion = cfgExpansion,
             Fields = cfgFields,
-            FireSafety = cfgFireSafety,
             Firebreak = cfgFirebreak,
             Flooring = cfgFlooring,
             FoodAcquisition = cfgFoodAcquisition,
@@ -615,7 +608,6 @@ public sealed partial class BrainComposition
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
         Add(sc.AnimalContainment, MaintainAnimalContainment);
         Add(sc.Repair, MaintainEssentialRepairs);
-        Add(sc.FireSafety, MaintainFireSafety);
         Add(sc.Burial, MaintainBurial);
         Add(sc.Training, MaintainTraining);
         Add(sc.Envelope, MaintainClimateEnvelope);

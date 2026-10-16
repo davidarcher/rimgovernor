@@ -2618,14 +2618,12 @@ internal sealed class UpkeepHistoryConverter : ObjectCodec<UpkeepHistory>
         new()
         {
             Clearance = e.Bool("Clearance"),
-            Fire = e.Bool("Fire"),
             Repairs = e.Bool("Repairs"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, UpkeepHistory v, Codecs o)
     {
         w.WriteBoolean("Clearance", v.Clearance);
-        w.WriteBoolean("Fire", v.Fire);
         w.WriteBoolean("Repairs", v.Repairs);
     }
 }

@@ -83,8 +83,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsRepairResult? Repair { get; set; }
 
-    public RoundsFireSafetyResult? FireSafety { get; set; }
-
     public RoundsGearResult? Gear { get; set; }
 
     public RoundsMedicalResult? Medical { get; set; }
@@ -207,7 +205,6 @@ public sealed class ClockSchedulerResult
         Rescue = other.Rescue ?? Rescue;
         Equip = other.Equip ?? Equip;
         Repair = other.Repair ?? Repair;
-        FireSafety = other.FireSafety ?? FireSafety;
         Gear = other.Gear ?? Gear;
         Medical = other.Medical ?? Medical;
         Surgery = other.Surgery ?? Surgery;

@@ -20,7 +20,7 @@ non-damageable markers such as sleeping spots are never repair targets.
 | Storage | Slot cells, roof, occupancy and item-specific filtered capacity. Cell count alone is not usable capacity; native hauling decides worker access and delivery. |
 | Sleeping | Bed definition, slots, owners, current users, pawn-specific access, roof, temperature. Capacity does not establish use or suitable worn protection. |
 | Home and structures | Occupied/protected cells with home coverage; building condition, material, roof, native construction lineage. `Observations.ReadRoofSupport` checks roof connectivity with one wall excluded; it does not prove enclosure, escape routes or replacement admission. |
-| Fire, cleaning, repair | `GiveJobIntent` Repair/Clean use the installed WorkGivers and their normal eligibility, and need home coverage and enabled work; the reach check uses the forced-order danger (`NativeOrderDanger`, Deadly, as vanilla's float menu), and a pawn needing tending is not refused. Firefighting is not directly orderable: enabled workers respond normally while the brain watches at most three home fires of size at most one. |
+| Fire, cleaning, repair | `GiveJobIntent` Repair/Clean use the installed WorkGivers and their normal eligibility, and need home coverage and enabled work; the reach check uses the forced-order danger (`NativeOrderDanger`, Deadly, as vanilla's float menu), and a pawn needing tending is not refused. Firefighting is not directly orderable and the brain does not plan it: pawns fight fires natively, and work assignments keep Firefighter pinned at priority 1 for every pawn that can do it. |
 | Pawns, animals, medicine | `observations_list_pawns` supplies medical, work, settings and schedule reads. Animal feed counts only reachable stored feed under native eating eligibility and allowed-area access (no pasture or future harvest); pets have no pen-containment predicate. Medicine is identified by native item definitions; no future production or season is credited as stock. |
 
 ## Maintained jobs
@@ -223,20 +223,14 @@ Home at a time, nearest the colony center first.
   removal is selected per fresh census; dispatch revalidates the census and emergency
   read and resumes without a duplicate designation. Selection never adds Home cells.
 
-### Repairs, fire, bench cleaning
+### Repairs, bench cleaning
 
-- `MaintainEssentialRepairs` and `MaintainFireSafety` keep
-  their concern identities across recovery and recurrence. Any observed target enters
+- `MaintainEssentialRepairs` keeps its concern identity across recovery and recurrence. Any observed target enters
   maintenance; recovery needs no deficit and no unresolved issued action. Missing
   evidence retains active risk; a first unavailable read is an ordinary visible blocker,
   not an invented emergency.
-- Fire risk preempts development only while the fire family is declared; without it
-  the review records the need without suspending other concerns. Unknown or oversized fire
-  intervention retains an emergency hold, including a fire that grows oversized while
-  firefighting is under way. Fire monitoring uses Normal speed and at most 60 ticks
-  between reviews; unavailable safe workers retain the hold. `MaintainFireSafety` has no
-  order to issue: the `fire` family only keeps the clock running
-  while `EvaluateFireSafety` finds a bounded fire with an eligible firefighter.
+- No concern owns fire. A home fire neither raises a need nor pauses development work;
+  native firefighting answers it.
 - A pending, never-issued repair is cancelled on the next repair step, before the need
   gate, once the concern recovered or its hold says the structure is ineligible.
 - Methods inspect at most eight targets and eight enabled, available workers per
@@ -265,8 +259,7 @@ Home at a time, nearest the colony center first.
   receipts and watchdog holds stay authoritative.
 - An `upkeep_target` action waits after the native job receipt: hauling needs the same
   item identity and at least its original quantity in roofed valid storage; repair needs
-  full observed health; cleaning needs target absence from a complete census; fire needs
-  no remaining home fire. Disappearing hauled items (including merges) and partial
+  full observed health; cleaning needs target absence from a complete census. Disappearing hauled items (including merges) and partial
   delivery stay blockers. Load or player-direction changes invalidate ownership;
   uncertain writes are not replayed; the no-progress watchdog bounds waiting. Verified
   completed orders may be retired through the action archive when the target needs

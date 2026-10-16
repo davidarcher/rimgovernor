@@ -86,13 +86,11 @@ internal static class DefensePerimeter
 
     /// <summary>
     /// The families a perimeter campaign serves. Work staffs the layout's construction (every building method's builder
-    /// check needs the work priorities only that family applies). Fire belongs here because a raid can leave a home fire
-    /// burning on the corridor, and MaintainFireSafety is a priority-1 emergency whose only method is a short
-    /// native-firefighting window; without the family nothing admits one, so the fire holds every other goal suspended.
+    /// check needs the work priorities only that family applies).
     /// Supply belongs here too: a dead raider's drops lie in the trap lane, where the hauling safety verdict flaps unsafe,
     /// and ManageSupplySafety is then a priority-0 emergency that only the supplies planner clears.
     /// </summary>
-    internal static readonly string[] PerimeterFamilies = ["defensive-layout", "defense", "tend", "rescue", "fire", "supply", "work"];
+    internal static readonly string[] PerimeterFamilies = ["defensive-layout", "defense", "tend", "rescue", "supply", "work"];
 
     private static readonly DefenseVariant s_raid = new() { Strategy = "ImmediateAttack", Arrival = "EdgeWalkIn", Threat = "raid" };
 

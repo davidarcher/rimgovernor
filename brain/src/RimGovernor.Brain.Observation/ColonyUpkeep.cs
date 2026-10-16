@@ -60,24 +60,6 @@ public static partial class ObservationPackage
                 r = r with { Structures = Known(EquatableArray.From(rows)) };
             }
         }
-        if (!HasIssue(u.Issues, "fires"))
-        {
-            var rows = new List<UpkeepFire>();
-            var known = true;
-            foreach (var item in u.Fires)
-            {
-                if (item.Home is null)
-                {
-                    known = false;
-                    break;
-                }
-                rows.Add(new UpkeepFire { Id = item.Fire?.Id ?? "", Home = item.Home.GetValueOrDefault(), Size = Optional(item.Size is not null, item.Size.GetValueOrDefault()) });
-            }
-            if (known)
-            {
-                r = r with { Fires = Known(EquatableArray.From(rows)) };
-            }
-        }
         if (!HasIssue(u.Issues, "filth") && Headed(tables, u.Filth, f => f.Filth))
         {
             var rows = new List<UpkeepFilth>();

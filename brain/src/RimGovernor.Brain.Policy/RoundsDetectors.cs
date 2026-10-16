@@ -486,20 +486,14 @@ public static partial class PolicyFunctions
                 {
                     g.Deficit = Known(1.0);
                 }
-                // MaintainEssentialRepairs and ClearHomeObstructions have composed
-                // dispatch methods; the rest of the direct upkeep orders remain visible-only until their
-                // own dispatch verticals land.
+                // Both direct upkeep goals have composed dispatch methods; hold only orders clearance behind repairs.
                 g.MethodUnavailable = hold is not null && hold(c);
             }
         }
     };
 
-    /// <summary>Fire safety has no composed method of its own: it stays visible-only.</summary>
-    internal static bool HoldFireSafety(RoundsRun c) => true;
-
     /// <summary>
-    /// Clearance ranks below repairs and above direct cleaning. Safety goals already suspend all development
-    /// work through the shared emergency gate.
+    /// Clearance ranks below repairs and above direct cleaning.
     /// </summary>
     internal static bool HoldClearance(RoundsRun c) => c.Upkeep.History.Repairs;
 

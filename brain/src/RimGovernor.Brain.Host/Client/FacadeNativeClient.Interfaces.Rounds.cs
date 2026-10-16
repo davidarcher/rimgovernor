@@ -151,9 +151,6 @@ internal sealed partial class FacadeNativeClient
     Task<(EmergencyObservation Observation, BridgeResult Result)> IRoundsEquipSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
-    Task<BridgeEmergencyObservation> IRoundsFireSafetySource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
-        Only(ReadEmergencyAsync(identity, FramePawnsAsync, ct));
-
     Task<(EmergencyObservation Emergency, BridgeResult Result)> IRoundsRepairSource.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>
         ReadEmergencyAsync(identity, FramePawnsAsync, ct);
 
@@ -171,9 +168,6 @@ internal sealed partial class FacadeNativeClient
 
     Task<(O.ListPawnsReply Reply, BridgeResult Result)> IRoundsRescueSource.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
         ReadCombatPawnsAsync(identity, ids, ct);
-
-    Task<O.ListPawnsReply> IRoundsFireSafetySource.ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
-        Only(ReadTendPawnsAsync(identity, ids, ct));
 
     Task<(O.ListPawnsReply Reply, BridgeResult Result)> IRoundsRepairSource.ReadTendPawnsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
         ReadTendPawnsAsync(identity, ids, ct);

@@ -57,7 +57,6 @@ internal sealed partial class FacadeNativeClient :
     IFieldBuildingPreview,
     IFieldGrowerCrop,
     IRoundsFirebreakSource,
-    IRoundsFireSafetySource,
     IDefenseSiteReader,
     IFoodReserveSupplyReader,
     IRoundsFoodStorageUpkeepSource,
