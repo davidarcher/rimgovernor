@@ -97,6 +97,14 @@ public sealed class HuntingQualificationTests
     }
 
     [Fact]
+    public void CensoredSamplesStillYieldADurationInterval()
+    {
+        var samples = Enumerable.Range(0, 16).Select(i => Sample(i) with { DurationTicks = i < 14 ? 400 : 6000, HorizonReached = i >= 14 }).ToArray();
+        Assert.Equal(new HuntingInterval(400, 400, 400), HuntingQualification.PredictedDuration(samples));
+        Assert.Null(HuntingQualification.PredictedDuration([]));
+    }
+
+    [Fact]
     public void PreyDownedRequiresEveryPreyDownedBeforeTheHorizon()
     {
         var request = Request([1]);

@@ -48,7 +48,8 @@ public static class HuntingQualification
 
     public static HuntingInterval? PredictedDuration(IReadOnlyList<EncounterSample> samples)
     {
-        if (samples.Count == 0 || samples.Any(s => s.HorizonReached)) return null;
+        // A sample that reaches the horizon is a valid "at least this long" outcome; its duration is the horizon.
+        if (samples.Count == 0) return null;
         var d = samples.Select(s => s.DurationTicks).Order().ToArray();
         return new(d[(int)Math.Floor(.25 * (d.Length - 1))], d[(int)Math.Ceiling(.75 * (d.Length - 1))], d[(d.Length - 1) / 2]);
     }
