@@ -42,7 +42,7 @@ internal static class NativeFoodCooking
                 if (speed <= 0 || work <= 0) continue;
                 var staging = pinned is null
                     ? GenRadial.RadialCellsAround(bench.Position, 3, true).Where(c => c.InBounds(map) && c != source.Position
-                        && c.DistanceTo(bench.Position) <= bill.ingredientSearchRadius && JobDriver_GovernorDeliver.DestinationAvailable(pawn, c))
+                        && c.DistanceTo(bench.Position) <= bill.ingredientSearchRadius && map.haulDestinationManager.SlotGroupAt(c) == null && JobDriver_GovernorDeliver.DestinationAvailable(pawn, c))
                         .OrderBy(c => c.x).ThenBy(c => c.z).Take(3).ToArray()
                     : new[] { source.Position };
                 if (staging.Length > 2) truncated = true;

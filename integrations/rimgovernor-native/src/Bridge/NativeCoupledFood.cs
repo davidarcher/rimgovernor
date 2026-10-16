@@ -66,6 +66,7 @@ internal static class NativeCoupledFood
                     if (recipe.workTableSpeedStat != null) speed *= bench.GetStatValue(recipe.workTableSpeedStat);
                     canCook &= speed > 0;
                     if (!canCook && !canHaul) continue;
+                    var stage = NativeSupportActivities.Staging(map, bench, raw);
                     var skillWork = canCook ? NativeProductiveSkill.Read(pawn, recipe, bench) : null;
                     foreach (var product in recipe.products)
                     {
@@ -76,7 +77,7 @@ internal static class NativeCoupledFood
                         {
                             if (!JobDriver_GovernorDeliver.DestinationAvailable(pawn, destination)) continue;
                             using var approach = map.pathFinder.FindPathNow(pawn.Position, source, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.Touch);
-                            using var supply = map.pathFinder.FindPathNow(source.Position, bench.InteractionCell, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
+                            using var supply = map.pathFinder.FindPathNow(source.Position, stage, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
                             using var delivery = map.pathFinder.FindPathNow(bench.InteractionCell, destination, TraverseParms.For(pawn, Danger.None), peMode: PathEndMode.OnCell);
                             if (!approach.Found || !supply.Found || !delivery.Found) continue;
                             var productCapacity = pawn.carryTracker.MaxStackSpaceEver(product.thingDef);
@@ -89,7 +90,7 @@ internal static class NativeCoupledFood
                             }
                             conversions.Add(new(source.GetUniqueLoadID(), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), recipe.defName,
                                 raw.defName, (int)required, product.thingDef.defName, product.count,
-                                new(source.Position.x, source.Position.z), new(bench.InteractionCell.x, bench.InteractionCell.z), new(destination.x, destination.z),
+                                new(source.Position.x, source.Position.z), new(stage.x, stage.z), new(destination.x, destination.z),
                                 Fact.Known((double)approach.TotalCost), Fact.Known((double)supply.TotalCost),
                                 speed > 0 ? Fact.Known(recipe.WorkAmountTotal(null) / (double)speed) : default, deliveryTicks, capacity, availableInput) { WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanCook = canCook, CanSupply = canHaul, CanDeliver = canHaul && productCapacity > 0,
                                     SkillWork = skillWork });

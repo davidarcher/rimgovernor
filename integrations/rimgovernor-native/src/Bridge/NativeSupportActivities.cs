@@ -38,7 +38,7 @@ internal static class NativeSupportActivities
                 truncated |= sources.Length > 16;
                 foreach (var source in sources.Take(16))
                 {
-                    var destination = bench.InteractionCell;
+                    var destination = Staging(map, bench, source.def);
                     var needed = Required(bill, source.def);
                     var deficit = needed - Staged(map, destination, source.def);
                     if (deficit <= 0 || source.Position == destination) continue;
@@ -216,6 +216,11 @@ internal static class NativeSupportActivities
         .OrderBy(d => d.defName, StringComparer.Ordinal).FirstOrDefault();
     internal static bool NoMedicine(Pawn patient) => patient.playerSettings?.medCare == MedicalCareCategory.NoMeds;
     private static int Required(Bill_Production bill, ThingDef def) => (int)Math.Ceiling(bill.recipe.ingredients.Sum(i => (double)i.CountRequiredOfFor(def, bill.recipe, bill)));
+    // A finished product drops where the cook stands, the interaction cell. Staging there is blocked by it for every later delivery,
+    // so stage on the nearest cell that is free of unrelated items; the bill finds ingredients anywhere within its radius.
+    internal static IntVec3 Staging(Map map, Building_WorkTable bench, ThingDef def) =>
+        GenRadial.RadialCellsAround(bench.InteractionCell, 1.5f, false).Where(c => c.InBounds(map) && c.Standable(map) && !c.Fogged(map) && map.haulDestinationManager.SlotGroupAt(c) == null
+            && c.GetThingList(map).All(t => t.def.category != ThingCategory.Item || t.def == def)).Cast<IntVec3?>().FirstOrDefault() ?? bench.InteractionCell;
     private static int Staged(Map map, IntVec3 destination, ThingDef def) => destination.GetThingList(map).Where(t => t.def == def).Sum(t => t.stackCount);
     internal static int Remaining(Map map, PawnActivityStep step, ThingDef resource)
     {
@@ -226,13 +231,17 @@ internal static class NativeSupportActivities
         if (bill == null || !bill.ShouldDoNow() || !bill.IsFixedOrAllowedIngredient(resource) || !bill.recipe.ingredients.All(i => i.filter.Allows(resource))) return 0;
         return Math.Max(0, Required(bill, resource) - Staged(map, new(destination.X, 0, destination.Z), resource));
     }
-    internal static bool DestinationAllowed(Pawn pawn, Thing source, IntVec3 cell, int count)
+    internal static bool DestinationAllowed(Pawn pawn, Thing source, IntVec3 cell, int count) => DestinationRefusal(pawn, source, cell, count) == null;
+    // Names the failed condition so a repeated refusal is diagnosable from the receipt.
+    internal static string? DestinationRefusal(Pawn pawn, Thing source, IntVec3 cell, int count)
     {
-        if (!cell.InBounds(pawn.Map) || !cell.Standable(pawn.Map) || cell.Fogged(pawn.Map) || cell.IsForbidden(pawn)
-            || !pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.None)) return false;
+        if (!cell.InBounds(pawn.Map) || !cell.Standable(pawn.Map) || cell.Fogged(pawn.Map) || cell.IsForbidden(pawn)) return "cell not standable, fogged or forbidden";
+        if (!pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.None))
+            return pawn.Map.reservationManager.FirstRespectedReserver(cell, pawn) is { } holder ? "cell reserved by " + holder.GetUniqueLoadID() : "cell unreachable";
         var group = pawn.Map.haulDestinationManager.SlotGroupAt(cell);
-        if (group != null && !StoreUtility.IsGoodStoreCell(cell, pawn.Map, source, pawn, pawn.Faction)) return false;
-        return !cell.GetThingList(pawn.Map).Any(t => t.def.category == ThingCategory.Item && (!t.CanStackWith(source) || t.stackCount + count > t.def.stackLimit));
+        if (group != null && !StoreUtility.IsGoodStoreCell(cell, pawn.Map, source, pawn, pawn.Faction)) return "stockpile cell not accepting";
+        var blocker = cell.GetThingList(pawn.Map).FirstOrDefault(t => t.def.category == ThingCategory.Item && (!t.CanStackWith(source) || t.stackCount + count > t.def.stackLimit));
+        return blocker == null ? null : "cell holds " + blocker.def.defName + " x" + blocker.stackCount;
     }
 }
 

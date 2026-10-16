@@ -153,7 +153,7 @@ namespace HomeBridge.BridgeTools
                     if (step.Kind == PawnActivityKind.Eat && (!target.IngestibleNow || !pawn.RaceProps.CanEverEat(target) || step.Count > target.stackCount)) return Refuse("Selected food/count unavailable.");
                     if (step.Kind == PawnActivityKind.Recreation && (target.def.defName != "HorseshoesPin" || pawn.needs.joy == null || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation))) return Refuse("Selected recreation unavailable.");
                     if (step.Kind == PawnActivityKind.Sleep && !RestUtility.CanUseBedNow(target, pawn, true)) return Refuse("Selected bed unavailable.");
-                    if (step.Kind == PawnActivityKind.Deliver && !DeliveryAllowed(pawn, target, step)) return Refuse("Selected delivery unavailable.");
+                    if (step.Kind == PawnActivityKind.Deliver && DeliveryRefusal(pawn, target, step) is { } deliveryWhy) return Refuse("Selected delivery unavailable: " + deliveryWhy + ".");
                     if (step.Kind == PawnActivityKind.Supply && !SupplyAllowed(pawn, target, step)) return Refuse("Selected material delivery unavailable.");
                     if (step.Kind == PawnActivityKind.Recipe && !NativeActivityRecipe.Resolve(pawn, target, step, out _, out _, out var cookingReason)) return Refuse(cookingReason);
                 }
@@ -184,17 +184,22 @@ namespace HomeBridge.BridgeTools
         private static Common.Failure Refuse(string text) => ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, text);
         private static Thing? Thing(string id) => Find.CurrentMap.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
 
-        private static bool DeliveryAllowed(Pawn pawn, Thing target, PawnActivityStep step)
+        private static bool DeliveryAllowed(Pawn pawn, Thing target, PawnActivityStep step) => DeliveryRefusal(pawn, target, step) == null;
+
+        // Names the failed condition: a refusal the brain cannot tell apart is retried verbatim every review.
+        private static string? DeliveryRefusal(Pawn pawn, Thing target, PawnActivityStep step)
         {
-            if (step.Destination is not { } destination || target.def.category != ThingCategory.Item || !target.def.EverHaulable
-                || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
-                || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-                || pawn.carryTracker.CarriedThing != null && (pawn.carryTracker.CarriedThing != target || target.stackCount != step.Count)
-                || target.stackCount < step.Count || pawn.carryTracker.MaxStackSpaceEver(target.def) < step.Count) return false;
+            if (step.Destination is not { } destination) return "no destination";
+            if (target.def.category != ThingCategory.Item || !target.def.EverHaulable) return "target not haulable";
+            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)) return "pawn cannot haul";
+            if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) return "pawn cannot manipulate";
+            if (pawn.carryTracker.CarriedThing != null && (pawn.carryTracker.CarriedThing != target || target.stackCount != step.Count)) return "pawn carries something else";
+            if (target.stackCount < step.Count) return "stack smaller than count";
+            if (pawn.carryTracker.MaxStackSpaceEver(target.def) < step.Count) return "count exceeds carry capacity";
             var cell = new IntVec3(destination.X, 0, destination.Z);
-            return NativeSupportActivities.Remaining(pawn.Map, step, target.def) >= step.Count
-                && (step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationAllowed(pawn, target, cell, step.Count) : JobDriver_GovernorDeliver.DestinationAvailable(pawn, cell))
-                && pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.Some);
+            if (NativeSupportActivities.Remaining(pawn.Map, step, target.def) < step.Count) return "bill needs fewer than count";
+            if ((step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationRefusal(pawn, target, cell, step.Count) : JobDriver_GovernorDeliver.DestinationRefusal(pawn, cell)) is { } destinationWhy) return "destination (" + cell.x + "," + cell.z + ") not available for " + target.def.defName + " x" + step.Count + ": " + destinationWhy;
+            return pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.Some) ? null : "destination cannot be reserved or reached";
         }
 
         internal static bool SupplyAllowed(Pawn pawn, Thing target, PawnActivityStep step)
@@ -579,9 +584,13 @@ namespace HomeBridge.BridgeTools
     /// <summary>Native walking/reservation/carrying mechanics, with no storage search or nearby-drop fallback.</summary>
     public sealed class JobDriver_GovernorDeliver : JobDriver
     {
-        internal static bool DestinationAvailable(Pawn pawn, IntVec3 cell) => cell.InBounds(pawn.Map)
-            && cell.Standable(pawn.Map) && !cell.Fogged(pawn.Map) && !cell.IsForbidden(pawn)
-            && !cell.GetThingList(pawn.Map).Any(t => t.def.category == ThingCategory.Item);
+        internal static bool DestinationAvailable(Pawn pawn, IntVec3 cell) => DestinationRefusal(pawn, cell) == null;
+        internal static string? DestinationRefusal(Pawn pawn, IntVec3 cell)
+        {
+            if (!cell.InBounds(pawn.Map) || !cell.Standable(pawn.Map) || cell.Fogged(pawn.Map) || cell.IsForbidden(pawn)) return "cell not standable, fogged or forbidden";
+            var item = cell.GetThingList(pawn.Map).FirstOrDefault(t => t.def.category == ThingCategory.Item);
+            return item == null ? null : "cell holds " + item.def.defName + " x" + item.stackCount;
+        }
 
         public override bool TryMakePreToilReservations(bool errorOnFailed) =>
             (pawn.carryTracker.CarriedThing == job.targetA.Thing || pawn.Reserve(job.targetA, job, 1, job.count, null, errorOnFailed))
