@@ -25,23 +25,15 @@ public sealed record BlightedPlant
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// RemoveBlight cuts blighted crops before the blight spreads through the colony's growing zones. The goal
-    /// opens while the native blighted-plant census (the planning window's plant things) is non-empty and
-    /// settles when it is empty again: a cut designation is the method, not the outcome, so a receipt never
-    /// settles it. It is a Standard whose target is no outstanding work.
-    /// </summary>
-    public static readonly ConcernId RemoveBlight = new("RemoveBlight");
-
-    /// <summary>
-    /// The binary RemoveBlight deficit signal: an unknown census stays unknown (absence is never evidence of
-    /// recovery); otherwise deficit is simply "any blighted plant still stands", designated or not, because
-    /// the goal settles on the cut, not on the order.
+    /// The binary food/blight deficit signal (<see cref="BlightNeedOf"/>): an unknown census stays unknown (absence is
+    /// never evidence of recovery); otherwise deficit is simply "any blighted plant still stands", designated or not,
+    /// because the Need is met by the cut, not by the order.
     /// </summary>
     public static Fact<bool> BlightDeficit(Fact<EquatableArray<BlightedPlant>> plants) =>
         plants.TryGetValue(out var rows) ? Known(rows.Count > 0) : Unknown<bool>();
 
     /// <summary>
-    /// The plants RemoveBlight designates this cycle: every undesignated census row not already claimed by an
+    /// The plants the blight Need designates this cycle: every undesignated census row not already claimed by an
     /// open admission, lowest plant ID first, at most <paramref name="limit"/> rows. A designated plant is
     /// left to the work it already has; a claimed one to the admission that holds it.
     /// </summary>

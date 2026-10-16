@@ -25,8 +25,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsSupplyResult? Supplies { get; set; }
 
-    public RoundsBlightResult? Blight { get; set; }
-
     public RoundsPollutionResult? Pollution { get; set; }
 
     public RoundsBuildingResult? MechCharger { get; set; }
@@ -143,7 +141,6 @@ public sealed class ClockSchedulerResult
         ResourceAcquisition = other.ResourceAcquisition ?? ResourceAcquisition;
         Work = other.Work ?? Work;
         Supplies = other.Supplies ?? Supplies;
-        Blight = other.Blight ?? Blight;
         Pollution = other.Pollution ?? Pollution;
         MechCharger = other.MechCharger ?? MechCharger;
         GeneBank = other.GeneBank ?? GeneBank;

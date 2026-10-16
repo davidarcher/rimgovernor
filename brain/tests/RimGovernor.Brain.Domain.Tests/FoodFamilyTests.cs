@@ -159,21 +159,7 @@ public sealed class FoodFamilyTests
     /// <summary>A reviewed colony whose food family works the cooking Need by committing the listed builds under the Need.</summary>
     private static Colony Open()
     {
-        var ct = TestContext.Current.CancellationToken;
-        var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-food-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with
-        {
-            Resources = Known<EquatableArray<Amount>>([new(new("WoodLog"), 1000)]),
-            Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0),
-            WorkAdmission = facts.WorkAdmission with
-            {
-                Buildings = Known<EquatableArray<WorkBuildingCost>>([
-                    new("Campfire", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 20)])) { Size = Known(new Cell(1, 1)) },
-                    new("Cooler", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 10)])) { Size = Known(new Cell(1, 1)) }]),
-            },
-        };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        var journal = Reviewed();
         Colony? colony = null;
         var runner = new FamilyRunner<FoodFacts>(new FoodFamily(true, true), (_, _) => Task.FromResult(colony!.Facts),
             FoodRounds.Schedule,
@@ -198,6 +184,27 @@ public sealed class FoodFamilyTests
             });
         colony = new Colony { Journal = journal, Runner = runner };
         return colony;
+    }
+
+    /// <summary>A journal holding an enabled review of <see cref="World"/> with three pawns' work resources.</summary>
+    private static Journal Reviewed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-food-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        var facts = WorkResourceTestFacts.Create("a", "b", "c");
+        facts = facts with
+        {
+            Resources = Known<EquatableArray<Amount>>([new(new("WoodLog"), 1000)]),
+            Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0),
+            WorkAdmission = facts.WorkAdmission with
+            {
+                Buildings = Known<EquatableArray<WorkBuildingCost>>([
+                    new("Campfire", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 20)])) { Size = Known(new Cell(1, 1)) },
+                    new("Cooler", "", Known<EquatableArray<Amount>>([new(new("WoodLog"), 10)])) { Size = Known(new Cell(1, 1)) }]),
+            },
+        };
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        return journal;
     }
 
     [Fact]
@@ -293,4 +300,119 @@ public sealed class FoodFamilyTests
         var row = Assert.Single(colony.Journal.LoadRounds(ct).Progress, p => p.Concern == FoodSupplyNeed.FilingKey);
         Assert.True(row.Cooled("acquire/berry-2", review.Tick));
     }
+
+    private static Need BabyFeedingOf(FoodFacts facts) => Assert.Single(new FoodFamily(false, false, babyFeeding: true).Derive(facts));
+
+    private static Need BlightOf(FoodFacts facts) => Assert.Single(new FoodFamily(false, false, blight: true).Derive(facts));
+
+    private static BlightedPlant Blighted(string id, int x, bool designated = false, bool eligible = true) =>
+        new() { ID = id, Definition = "Plant_Rice", Cell = new(x, 3), Designated = designated, Eligible = eligible };
+
+    private static FoodFacts Census(params BlightedPlant[] plants) => new() { Blight = Known<EquatableArray<BlightedPlant>>([.. plants]) };
+
+    [Fact]
+    public void TheBabyFeedingNeedIsUnmetWhileBabyFoodIsShortAndUnknownUnread()
+    {
+        var stocked = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Babies = 1, StockNutrition = 10, TargetNutrition = 5 }) });
+        Assert.Equal((BabyFeedingNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (stocked.Id, stocked.Tier, stocked.Satisfaction, stocked.Deficit));
+        Assert.Contains(new NeedEvidence("baby_food", Known("stocked")), stocked.Evidence);
+
+        var breastfed = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Babies = 2, Breastfed = true }) });
+        Assert.Equal(Satisfaction.Met, breastfed.Satisfaction);
+        Assert.Contains(new NeedEvidence("baby_food", Known("breastfed")), breastfed.Evidence);
+
+        var shortFood = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { Babies = 1, TargetNutrition = 5, IsShort = true }) });
+        Assert.Equal((Satisfaction.Unmet, Known(1.0)), (shortFood.Satisfaction, shortFood.Deficit));
+        Assert.Contains(new NeedEvidence("babies", Known("1")), shortFood.Evidence);
+
+        var unread = BabyFeedingOf(new());
+        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+
+        // The bill is the work ledger's: the family proposes nothing for the Need.
+        var family = new FoodFamily(false, false, babyFeeding: true);
+        Assert.Empty(family.Propose([shortFood], new() { BabyFeeding = Known(new BabyFeeding { IsShort = true }) }));
+    }
+
+    [Fact]
+    public void TheBlightNeedIsUnmetWhileABlightedPlantStandsAndUnknownUnread()
+    {
+        var clear = BlightOf(Census());
+        Assert.Equal((BlightNeed, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (clear.Id, clear.Tier, clear.Satisfaction, clear.Deficit));
+
+        // A designated plant still stands: the Need is met by the cut, not the order.
+        var standing = BlightOf(Census(Blighted("plant-1", 1, designated: true)));
+        Assert.Equal((Satisfaction.Unmet, Known(1.0)), (standing.Satisfaction, standing.Deficit));
+        Assert.Contains(new NeedEvidence("blighted_plants", Known("1")), standing.Evidence);
+
+        var unread = BlightOf(new());
+        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal([FoodSupplyNeed, CookingNeed, BabyFeedingNeed, BlightNeed], new FoodFamily(true, true, true, true).Derive(new()).Select(n => n.Id));
+    }
+
+    [Fact]
+    public void TheBlightNeedProposesOneStableBatchOfEligibleUndesignatedUnrefusedPlants()
+    {
+        var family = new FoodFamily(false, false, blight: true);
+        IReadOnlyList<NeedMethod> Propose(FoodFacts f) => family.Propose([.. family.Derive(f).Where(n => n.Satisfaction == Satisfaction.Unmet)], f);
+        var plants = Enumerable.Range(0, 12).Select(i => Blighted($"plant-{i:D2}", i)).ToList();
+        plants.Add(Blighted("plant-designated", 20, designated: true));
+        plants.Add(Blighted("plant-ineligible", 21, eligible: false));
+        var facts = Census([.. plants]) with { BlightRefused = ["plant-00"] };
+
+        var method = Assert.Single(Propose(facts));
+        Assert.Null(method.Hold);
+        Assert.StartsWith("cut-", method.Method.Value, StringComparison.Ordinal);
+        var plan = method.Plan(new PlanId("plan-1"));
+        var cuts = plan.Actions.Select(a => a.CutPlant!.Plant).ToList();
+        Assert.Equal(Enumerable.Range(1, FoodFamily.BlightCutLimit).Select(i => $"plant-{i:D2}"), cuts);
+        Assert.Equal("plan-1-0", plan.Actions[0].Id.Value);
+
+        // The same census proposes the same MethodId, so an open batch continues; another set is another batch.
+        Assert.Equal(method.Method, Assert.Single(Propose(Census([.. plants]) with { BlightRefused = ["plant-00"] })).Method);
+        Assert.NotEqual(method.Method, Assert.Single(Propose(Census([.. plants]))).Method);
+
+        // Only designated plants left: their cuts are under way, nothing more to propose.
+        Assert.Empty(Propose(Census(Blighted("plant-1", 1, designated: true), Blighted("plant-2", 2, eligible: false))));
+
+        // Nothing designated and nothing eligible: the Need is held.
+        var held = Assert.Single(Propose(Census(Blighted("plant-2", 2, eligible: false))));
+        Assert.Equal(new NeedHold("blight_cut_targets", "no_eligible_plant"), held.Hold);
+
+        Assert.Empty(Propose(Census()));
+    }
+
+    [Fact]
+    public void BlightBatchesAreAdmittedSideBySideAndAnOverlappingBatchIsAClaimConflict()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var journal = Reviewed();
+        FoodFacts facts = Census(Blighted("plant-1", 1), Blighted("plant-2", 2));
+        var runner = new FamilyRunner<FoodFacts>(new FoodFamily(false, false, blight: true), (_, _) => Task.FromResult(facts),
+            FoodRounds.Schedule, (work, _, _) => Task.FromResult(Verdict.AwaitingPlan(work.Need.Id.Value, "no_method")));
+        using var colony = new Colony { Journal = journal, Runner = runner };
+
+        var first = colony.Run();
+        Assert.Equal(Outcome.Admitted, Colony.Report(first, BlightNeed).Outcome);
+        var batch = Assert.Single(first.Methods);
+        Assert.Equal(BlightNeed.FilingKey, journal.PlanMethod(batch.Plan, ct)!.Concern);
+
+        // The same census again continues the open batch.
+        Assert.Equal(BuildingRuntimePackage.BuildingReasonExistingWork, Colony.Report(colony.Run(), BlightNeed));
+        Assert.Single(journal.LoadNeed(BlightNeed, World, ct).Methods);
+
+        // The first batch's plants designated, a new plant is a second batch beside it: no whole-goal gate holds it.
+        facts = Census(Blighted("plant-1", 1, designated: true), Blighted("plant-2", 2, designated: true), Blighted("plant-3", 3));
+        Assert.Equal(Outcome.Admitted, Colony.Report(colony.Run(), BlightNeed).Outcome);
+        Assert.Equal(2, journal.LoadNeed(BlightNeed, World, ct).Methods.Count);
+
+        // A batch naming a plant an open batch still holds is refused on that plant's claim.
+        facts = Census(Blighted("plant-2", 2), Blighted("plant-4", 4));
+        var refused = Colony.Report(colony.Run(), BlightNeed);
+        Assert.True(refused.Is(Cause.Claim), refused.ToString());
+        Assert.Equal(2, journal.LoadNeed(BlightNeed, World, ct).Methods.Count);
+        Assert.Empty(BlightRefusedOf(journal));
+    }
+
+    private static EquatableArray<string> BlightRefusedOf(Journal journal) =>
+        FoodRounds.BlightRefused(journal, World, TestContext.Current.CancellationToken);
 }

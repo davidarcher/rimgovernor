@@ -11,8 +11,7 @@ public static partial class PolicyConstants
     /// CompDissolution); a forbidden pack cannot be hauled at all. The goal is in deficit while any wastepack
     /// is exposed or forbidden, or the game counts a polluted cell outside the pollution-clear area; it
     /// settles when none is. The methods are designations and area edits, never the outcome (the pack frozen
-    /// or atomized, the cell inside the area). It is a Standard whose target is no outstanding work, like
-    /// RemoveBlight. The existing toxic-fallout shelter and crop-pollution handling are separate.
+    /// or atomized, the cell inside the area). It is a Standard whose target is no outstanding work. The existing toxic-fallout shelter and crop-pollution handling are separate.
     /// </summary>
     public static readonly ConcernId ManagePollution = new("ManagePollution");
 }

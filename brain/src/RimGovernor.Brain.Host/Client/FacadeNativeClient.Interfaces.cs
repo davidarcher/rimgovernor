@@ -45,7 +45,6 @@ internal sealed partial class FacadeNativeClient :
     IRoundsWorkBenchSource,
     IArtBenchSource,
     IMechSource,
-    IRoundsBlightSource,
     IRoundsClearanceSource,
     ILoadoutWeaponSource,
     IDeepDrillBuildingSource,

@@ -25,7 +25,6 @@ public sealed partial class BrainComposition
         // ClockSchedulerConfig is init-only, so the planners are built into locals and the config is made last.
         RoundsArmoryPlanner? cfgArmory = null;
         RoundsBuildingPlanner? cfgBasicComfort = null;
-        RoundsBlightPlanner? cfgBlight = null;
         RoundsBurialPlanner? cfgBurial = null;
         RoundsBuildingPlanner? foodButcher = null;
         var families = new List<FamilyRunner>();
@@ -149,13 +148,15 @@ public sealed partial class BrainComposition
         {
             cfgLedger = RoundsLedgerPlanner.NewRoundsLedgerPlanner(reviewer);
         }
-        if (bills || medical || sc.Mechs)
+        if (medical || sc.Mechs)
         {
-            // The surgery part, baby food and mech gestation bills are the ledger's, declare-only (#2604).
-            reviewer.AddOrderDeclarer(new RoundsCareBillDeclarer(reviewer, client, medical, bills, sc.Mechs));
+            // The surgery part and mech gestation bills are the ledger's, declare-only (#2604).
+            reviewer.AddOrderDeclarer(new RoundsCareBillDeclarer(reviewer, client, medical, sc.Mechs));
         }
         if (bills)
         {
+            // The food/baby-feeding Need's baby food bill is the ledger's too, filed under the Need (#3254).
+            reviewer.AddOrderDeclarer(new BabyFoodDeclarer());
             foreach (var purpose in new[] { CookFood, PreserveFood, ButcherFood })
             {
                 reviewer.AddOrderDeclarer(new RoundsBillPlanner(reviewer, purpose));
@@ -216,10 +217,6 @@ public sealed partial class BrainComposition
             cfgArmory = new RoundsArmoryPlanner(reviewer, client);
             reviewer.AddOrderDeclarer(new RoundsArmoryDeclarer(cfgArmory));
         }
-        if (blight)
-        {
-            cfgBlight = new RoundsBlightPlanner(reviewer, client);
-        }
         if (burial)
         {
             cfgBurial = new RoundsBurialPlanner(reviewer);
@@ -258,13 +255,14 @@ public sealed partial class BrainComposition
             }
             families.Add(foodStores.Runner());
         }
-        if (cooking || bills || acquisition || fields)
+        if (cooking || bills || acquisition || fields || blight)
         {
             // The acquisition, field and bill toggles compose the food family's supply Need with its hunts and
-            // forage, food fields and butcher bench; the cooking and bill toggles its cooking Need (#3254).
+            // forage, food fields and butcher bench; the cooking and bill toggles its cooking Need; the bill toggle
+            // its baby feeding Need and the blight toggle its blight Need (#3254).
             var supply = acquisition || fields || bills;
             families.Add(new FoodRounds(reviewer, supply, foodButcher, foodAcquisition, supply ? cfgFields : null,
-                cooking || bills ? RoundsBuildingPlanner.NewRoundsCookingPlanner(reviewer, client) : null).Runner());
+                cooking || bills ? RoundsBuildingPlanner.NewRoundsCookingPlanner(reviewer, client) : null, babyFeeding: bills, blight: blight).Runner());
         }
         if (husbandry || animalContainment)
         {
@@ -438,7 +436,6 @@ public sealed partial class BrainComposition
             Families = families,
             Armory = cfgArmory,
             BasicComfort = cfgBasicComfort,
-            Blight = cfgBlight,
             Burial = cfgBurial,
             Comfort = cfgComfort,
             Defense = cfgDefense,
@@ -552,7 +549,6 @@ public sealed partial class BrainComposition
 
         Add(sc.Work, EnsureWorkAssignments);
         Add(sc.Acquisition, MaintainResource);
-        Add(sc.Bill, MaintainBabyFeeding);
         Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);
         Add(sc.Temperature, EnsureTemperatureSafety);
         Add(sc.Power, EnsureBasicPower);
@@ -566,7 +562,6 @@ public sealed partial class BrainComposition
         Add(sc.Burial, MaintainBurial);
         Add(sc.Envelope, MaintainClimateEnvelope);
         Add(sc.Gear, MaintainEquipment);
-        Add(sc.Blight, RemoveBlight);
         Add(sc.Recovery, RecoverDisasterServices);
         Add(sc.PopulationCustody || sc.PopulationJoiner, MaintainPopulation);
         Add(sc.Pollution, ManagePollution);

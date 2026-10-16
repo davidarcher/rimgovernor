@@ -429,8 +429,9 @@ candidate is pending, and the declared batches are the ingredient demand of
 
 The second migration (#2604) is declare-only: `RoundsMedicalPlanner` declares
 MaintainMedicalReserves' stock-target medicine bill (`policy.DeclareMedicine`) and
-`RoundsCareBillDeclarer` the surgery part (MaintainSurgery), baby food
-(MaintainBabyFeeding) and mech gestation (MaintainMechs) bills
+`RoundsCareBillDeclarer` the surgery part (MaintainSurgery) and mech gestation
+(MaintainMechs) bills (the baby food bill is now `BabyFoodDeclarer`'s, filed
+under the `food/baby-feeding` Need, #3254)
 (`policy.DeclareSelection` over the unchanged selectors), each only while its concern
 is workable; the old `RoundsBillPlanner` purposes are deleted. These bills are
 placed and kept but never removed in the first pass (a gestation bill is the mech

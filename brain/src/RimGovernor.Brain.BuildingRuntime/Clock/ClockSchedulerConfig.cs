@@ -32,8 +32,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsSupplyPlanner? Supplies { get; init; }
 
-    public RoundsBlightPlanner? Blight { get; init; }
-
     public RoundsPollutionPlanner? Pollution { get; init; }
 
     public RoundsMechChargerPlanner? MechCharger { get; init; }

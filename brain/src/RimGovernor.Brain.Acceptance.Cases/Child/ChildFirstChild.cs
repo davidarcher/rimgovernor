@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>child/first-child</c> (Go <c>first_child.go</c>) proves a Biotech colony raises its first child end to end in
-/// vanilla: a baby with no breastfeeder in the colony is fed through the baby food the MaintainBabyFeeding goal has the
+/// vanilla: a baby with no breastfeeder in the colony is fed through the baby food the food/baby-feeding Need has the
 /// colony cook, and grows into the Child developmental stage alive and not starved.
 /// </summary>
 internal static class ChildFirstChild
@@ -24,7 +24,7 @@ internal static class ChildFirstChild
     internal static AcceptanceCase Case() => new()
     {
         Name = "child/first-child",
-        Scope = "Issue #1691: with no breastfeeder in the colony, the MaintainBabyFeeding standard has the colony cook baby-edible food "
+        Scope = "Issue #1691: with no breastfeeder in the colony, the food/baby-feeding Need has the colony cook baby-edible food "
             + "and the baby is fed by it until it reaches the Child developmental stage. A Go snapshot over recorded facts cannot "
             + "cover it: the chain is vanilla's own (bottle-feeding on Childcare work, the baby's food need, ageing and the "
             + "stage change), asserted on the live pawn.",

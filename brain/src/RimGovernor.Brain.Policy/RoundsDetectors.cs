@@ -458,17 +458,6 @@ public static partial class PolicyFunctions
         }
     }
 
-    /// <summary>Owed while babies have no breastfeeder and too little baby-edible food; unknown raises nothing.</summary>
-    internal static void InspectBabyFeeding(RoundsRun c)
-    {
-        var recovered = Measured(c.F.BabyFeeding, b => !b.IsShort);
-        c.Assess(MaintainBabyFeeding, recovered);
-        if (recovered.TryGetValue(out var v) && !v)
-        {
-            c.Raise(MaintainBabyFeeding);
-        }
-    }
-
     /// <summary>
     /// A ranked development project: a dark bench costs work speed and mood, not lives, so it competes for
     /// a project slot like the other upkeep needs. The deficit is the measured dark fraction.
@@ -638,21 +627,6 @@ public static partial class PolicyFunctions
         if (!Positive(recovered))
         {
             c.Raise(MaintainPopulation).MethodUnavailable = true;
-        }
-    }
-
-    /// <summary>Census-driven: any standing blighted plant is a full deficit; availability is gated through AvailableMethods.</summary>
-    internal static void InspectBlight(RoundsRun c)
-    {
-        var recovered = Unknown<bool>();
-        if (BlightDeficit(c.F.Blight).TryGetValue(out var deficit))
-        {
-            recovered = Known(!deficit);
-        }
-        c.Assess(RemoveBlight, recovered);
-        if (!Positive(recovered))
-        {
-            c.Raise(RemoveBlight);
         }
     }
 

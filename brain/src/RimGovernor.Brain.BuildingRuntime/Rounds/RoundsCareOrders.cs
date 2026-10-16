@@ -1,20 +1,18 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>Declares the surgery, baby feeding and mech bills of the care purposes through the rounds review.</summary>
+/// <summary>Declares the surgery and mech bills of the care purposes through the rounds review.</summary>
 public sealed class RoundsCareBillDeclarer : IOrderDeclarer
 {
     private readonly Rounder _reviewer;
     private readonly object _native;
     private readonly bool _surgery;
-    private readonly bool _baby;
     private readonly bool _mech;
 
-    public RoundsCareBillDeclarer(Rounder reviewer, object native, bool surgery, bool baby, bool mech)
+    public RoundsCareBillDeclarer(Rounder reviewer, object native, bool surgery, bool mech)
     {
         _reviewer = reviewer;
         _native = native;
         _surgery = surgery;
-        _baby = baby;
         _mech = mech;
     }
 
@@ -24,10 +22,6 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         if (_surgery)
         {
             output.Add(PolicyApi.MaintainSurgery);
-        }
-        if (_baby)
-        {
-            output.Add(PolicyApi.MaintainBabyFeeding);
         }
         if (_mech)
         {
@@ -70,15 +64,6 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
             var (parts, productions) = SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
             var (selected, gap) = PolicyApi.SelectSurgeryPartBill(productions, parts);
             return Task.FromResult(PolicyApi.DeclareSelection(selected, gap == default, benches));
-        }).ConfigureAwait(false);
-        await Collect(PolicyApi.MaintainBabyFeeding, _baby, () =>
-        {
-            if (!projection.Facts.BabyFeeding.TryGetValue(out var babies))
-            {
-                return Task.FromResult(PolicyApi.Abstaining(Cause.UnreadBabyFeeding));
-            }
-            var (selected, ok) = PolicyApi.SelectProductionBill(PolicyApi.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists, default(Fact<double>), default(Fact<double>), 1, new ProductionBillContext { BabyFeeding = babies });
-            return Task.FromResult(PolicyApi.DeclareSelection(selected, ok, benches));
         }).ConfigureAwait(false);
         await Collect(PolicyApi.MaintainMechs, _mech, async () =>
         {

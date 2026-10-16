@@ -379,7 +379,7 @@ public sealed record RoundsFacts
     /// <summary>The map trader census (bridge.ListTraders) TradeWithCaravan needs; a source without the read leaves it unknown and the goal off.</summary>
     public Fact<EquatableArray<TraderFacts>> Traders { get; init; }
 
-    /// <summary>RemoveBlight's blighted-plant census (the colony read's plant things of the planning window), for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
+    /// <summary>The food/blight Need's blighted-plant census (the colony read's plant things of the planning window), for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
     public Fact<EquatableArray<BlightedPlant>> Blight { get; init; }
 
     /// <summary>ManagePollution's wastepack verdicts and the polluted cells outside the clear area (the Biotech colony section); unknown without Biotech or when the read failed, and then the need is unknown.</summary>

@@ -34,7 +34,7 @@ public static class OperationIntent
         [AdminFamily.CreepJoiners.FilingKey] = "Creep joiners",
         [TradeWithCaravan] = "Trade",
         [ActiveCombat] = "Combat",
-        [RemoveBlight] = "Blight",
+        [BlightNeed.FilingKey] = "Blight",
         [ManagePollution] = "Pollution",
         [EnsureMechCharger] = "Mech charger",
         [MaintainGeneBank] = "Gene bank",

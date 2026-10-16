@@ -15,7 +15,7 @@ public static partial class PolicyFunctions
     /// other kinds claim their subject while the action's work is open:
     /// <list type="bullet">
     /// <item>bills: <c>bill/&lt;bench&gt;/&lt;recipe&gt;</c> and the bill they replace or remove (<c>bill/&lt;id&gt;</c>);</item>
-    /// <item>forage, hunts, hauls, grower crops: the source thing;</item>
+    /// <item>forage, hunts, hauls, grower crops, plant cuts: the source thing;</item>
     /// <item>zones: their cells (<c>cell/x/z</c>, the namespace buildings use), and an existing zone by id (<c>zone/&lt;id&gt;</c>);</item>
     /// <item>area edits: the edited cells of the area (<c>area/&lt;name&gt;/x/z</c>), or the whole area for create and delete;</item>
     /// <item>dressing (apparel policy, gear replacement, equip): <c>gear/&lt;pawn&gt;</c> and the item;</item>
@@ -90,6 +90,7 @@ public static partial class PolicyFunctions
         else if (a.RemoveProductionBill is { } removal) yield return "bill/" + removal.Bill;
         else if (a.Acquisition is { } source) yield return source.Thing;
         else if (a.Haul is { } haul) yield return haul.Thing;
+        else if (a.CutPlant is { } plant) yield return plant.Plant;
         else if (a.WastepackHaul is { } waste) yield return waste.Thing;
         else if (a.GrowerCrop is { } crop) yield return crop.Thing;
         else if (a.ZoneCreate is { } zone)

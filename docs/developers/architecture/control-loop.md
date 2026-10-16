@@ -358,7 +358,7 @@ Need, and the recipe-capability target is `ServiceTarget.ForNeed(food/cooking,
 "recipe-capability", "recipe_eligibility_and_inputs")`. The food bill purposes'
 verdicts file under subject keys of their Need (`food/cooking/bills`,
 `food-stores/storage/bills`, `food-stores/refrigeration/bills`), never a Concern
-id. Baby feeding and blight are still Concerns.
+id.
 
 **Food, supply (#3254).** EnsureFoodSupply is now the `food/supply` Need
 (`FoodSupplyNeedOf`), a Wellbeing Need of the same `food` entry, composed by the
@@ -379,6 +379,24 @@ MaintainResource. Its stall cooldowns live on the Need's progress row and outliv
 the run that rebuilds it. The ButcherFood bill reports the Need's standing under
 `food/supply/bills`, and the forecast Food owner row and food-plan-gap rows are
 keyed to the Need; the coupled-candidate gate reads `RoundsFacts.AvailableNeeds`.
+
+**Food, baby feeding and blight (#3254).** MaintainBabyFeeding and RemoveBlight
+are the `food/baby-feeding` and `food/blight` Needs (`BabyFeedingNeedOf`,
+`BlightNeedOf`), Wellbeing Needs of the same `food` entry. Baby feeding is
+composed by the bill toggle: unmet while babies live, no colonist can breastfeed
+and the stock a baby eats is under the low-baby-food floor, unknown while that
+review is unread. Its one remedy is the standing baby food bill, which
+`BabyFoodDeclarer` declares to the work ledger under the Need's filing key
+(nothing while met, an abstain while unread); the family has no Methods of its
+own for it, so its work verdict waits on the bill (`baby_food_bill`). Blight is
+composed by the blight toggle: unmet while any blighted plant stands (designated
+or not, since the cut meets it, not the order), met on an empty census, unknown
+unread. Its Method is the family's pure proposal of the next batch of at most
+eight eligible, undesignated plants not refused to an open cut,
+`cut-<hash of the plants>`, each plant a claim, so batches run side by side and
+the same batch continues; with nothing eligible and nothing designated the Need
+is held (`no_eligible_plant`). The `blight` clock slot and `RoundsBlightPlanner`
+are deleted; the cuts run under the food entry, which wakes on CutPlant outcomes.
 
 **Military, first part (#3259).** `EnsureBasicDefense`, `ClearPests` and
 `MaintainTraining` are the `military/defense`, `military/pests` and
@@ -469,14 +487,14 @@ record is read once at load when the blob is absent.
    conflict; then update the contract docs that named the Concern.
 
 **Family map.** The grouping of the first consolidation pass sets the family
-boundaries: cooking and MaintainBabyFeeding join Food, MaintainShelter (the
+boundaries: cooking and baby feeding join Food, MaintainShelter (the
 Safe-area edit) stays its own Need in Shelter, and MaintainPopulation splits
 three ways.
 
 | Family | Today's Concerns |
 | --- | --- |
 | Food stores | food-stores/storage (was MaintainFoodStorage, #3251), food-stores/refrigeration (#3280) |
-| Food | `food`: Needs `supply`, `cooking` (#3254; EnsureFoodSupply, EnsureCooking deleted); MaintainBabyFeeding, RemoveBlight |
+| Food | `food`: Needs `supply`, `cooking`, `baby-feeding`, `blight` (#3254; EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight deleted) |
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | MaintainLighting, MaintainFlooring, MaintainArt, EnsureComfort, HoldGatherings |
 | Layout | MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope, EnsureDefensiveLayout |

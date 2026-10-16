@@ -561,7 +561,7 @@ capacity beyond the casket allows.
    definition catalog's; a role whose required furniture is unavailable or has
    no known size is passed over, and any available definition of the role
    answers an unresearched one.
-3. Feeding is `MaintainBabyFeeding` (below); play and lessons belong to the
+3. Feeding is the `food/baby-feeding` Need (below); play and lessons belong to the
    next children.
 
 ### Baby feeding (Biotech)
@@ -573,8 +573,8 @@ can eat, which is baby food, milk or insect jelly
 `IngestibleProperties.babiesCanIngest`, read from the def row by
 `DefinitionCatalog.BabyEdible`).
 The mother is Urgent and every other pawn Childcare by default. No write
-beyond the existing production bill is owed. `MaintainBabyFeeding`
-(Food domain) is raised while babies live, no colonist can
+beyond the existing production bill is owed. The `food/baby-feeding` Need
+(food family) is unmet while babies live, no colonist can
 breastfeed and the shared stock a baby eats (stocks whose eaters include a
 baby) is under the game's low-baby-food alert level per baby
 (`policy.BabyFoodAlertNutrition`, `Alert_LowBabyFood`). It places one

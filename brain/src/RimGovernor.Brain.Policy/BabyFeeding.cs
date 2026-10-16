@@ -1,15 +1,15 @@
 namespace RimGovernor.Brain.Policy;
 
 // Go: baby_feeding.go
-// MaintainBabyFeeding keeps babies fed. The game feeds a baby itself: a lactating pawn breastfeeds any baby,
-// otherwise a colonist on Childcare work bottle-feeds it food it can eat (baby food, milk or insect jelly).
+// The food family's baby-feeding Need keeps babies fed. The game feeds a baby itself: a lactating pawn breastfeeds
+// any baby, otherwise a colonist on Childcare work bottle-feeds it food it can eat (baby food, milk or insect jelly).
 // Childcare is pinned work for every pawn already, so the one thing the colony owes is the food: with no
-// breastfeeder and too little baby-edible stock, the goal places a standing target-count bill for a
+// breastfeeder and too little baby-edible stock, the work ledger places a standing target-count bill for a
 // baby-edible recipe through the existing production bill write.
 
 /// <summary>
-/// The review of baby food: what the babies' foods hold against what they need. <see cref="IsShort"/> is the
-/// goal's deficit.
+/// The review of baby food: what the babies' foods hold against what they need. <see cref="IsShort"/> leaves the
+/// food/baby-feeding Need unmet.
 /// </summary>
 public sealed record BabyFeeding
 {
@@ -31,10 +31,7 @@ public sealed record BabyFeeding
 
 public static partial class PolicyFunctions
 {
-    /// <summary>MaintainBabyFeeding keeps babies fed.</summary>
-    public static readonly ConcernId MaintainBabyFeeding = new("MaintainBabyFeeding");
-
-    /// <summary>MaintainBabyFeeding's bill purpose.</summary>
+    /// <summary>The food/baby-feeding Need's bill purpose.</summary>
     public static readonly BillPurpose BabyFoodBill = new("baby_food");
 
     /// <summary>

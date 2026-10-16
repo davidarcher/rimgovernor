@@ -9,15 +9,15 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>farm/blight</c> (Go <c>blight.go</c>) is the blight responder vertical: a live game and a live service composed with
 /// the blight family. The private test/blight_prepare fixture sows a small rice zone near the colonists and blights a few
 /// plants. The controller's blight census (plant things in the planning window) must list exactly those plants
-/// undesignated; the rounds open RemoveBlight on the census, the planner admits plans of CutPlant designations on the
-/// blighted plants only, the colonist cuts them within a stall-bounded window, and the goal settles on the census
-/// emptying, never on the receipt. After the service releases the game slot an independent native census confirms no
+/// undesignated; the food family derives the food/blight Need unmet on the census and admits Methods of CutPlant
+/// designations on the blighted plants only, the colonist cuts them within a stall-bounded window, and the Need is met
+/// on the census emptying, never on the receipt. After the service releases the game slot an independent native census confirms no
 /// blighted plant stands.
 /// </summary>
 /// <remarks>
 /// Adaptations: the service is the serve lifecycle of <see cref="ISession.ServeAsync"/> (the brain is in-process), so the
 /// journal reads are the <see cref="IWatchStore"/> projections: one poll reads every plan (<c>PlanHistoryAsync("*")</c>) and
-/// the RemoveBlight goal (<c>StandardSummaryAsync</c>, settled when its status reads <c>settled</c> and its need <c>met</c>)
+/// the food/blight Need (<c>SampleStandardAsync</c>, met once its progress row is pruned)
 /// instead of Go's per-plan waits; the checks on each plan (cut_plant rows only, 1 to 8 of them, fixture plants, each once)
 /// are the same. The blight census comes from <see cref="StarterSiteHost.BlightSurveyAsync"/> (the controller's projection
 /// is not buildable out of process).
@@ -30,9 +30,9 @@ internal static class FarmBlight
     internal static AcceptanceCase Case() => new()
     {
         Name = "farm/blight",
-        Scope = "Native blight responder: the planning-window blight census drives the live rounder/planner to open "
-            + "RemoveBlight and admit CutPlant designations on the blighted plants only; the colonists cut them within a "
-            + "stall-bounded window and the standard settles on the census emptying, confirmed by an independent native read (#245).",
+        Scope = "Native blight responder: the planning-window blight census leaves the food family's food/blight Need unmet "
+            + "and it admits CutPlant designations on the blighted plants only; the colonists cut them within a "
+            + "stall-bounded window and the Need is met on the census emptying, confirmed by an independent native read (#245).",
         Start = new FixtureStart { Op = PrepareOp, On = new LabStart() },
         Serve = new ServeSpec
         {
@@ -103,10 +103,12 @@ internal static class FarmBlight
         return new Census(survey.Tick, rows);
     }
 
-    private static bool Settled(JsonObject? goal) =>
-        goal is not null
-        && string.Equals(goal["status"].AsString(), "settled", StringComparison.OrdinalIgnoreCase)
-        && string.Equals(goal["need"].AsString(), "met", StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// The food/blight Need is met: the review exists and the Need has no progress row (a met Need's row is pruned,
+    /// an unmet one carries its blocker). With a completed cut seen first, that is the census emptying.
+    /// </summary>
+    private static bool Settled(JsonObject? sample) =>
+        sample is not null && sample["concern_bound"].AsBool() == true && !sample.ContainsKey("blocked");
 
     private static JsonArray Names(IEnumerable<string> values) => new([.. values.Order(StringComparer.Ordinal).Select(v => (JsonNode?)v)]);
 
@@ -163,7 +165,7 @@ internal static class FarmBlight
             var plansSeen = 0;
             var zoneCreated = false;
             var wait = new Wait { Ceiling = TimeSpan.FromMinutes(5), Stall = Wait.StallBudget(), Terminal = service.Exited };
-            var concern = PolicyFunctions.RemoveBlight.Value;
+            var concern = PolicyFunctions.BlightNeed.Value;
 
             // Each plan is CutPlant designations on fixture plants only, each plant once. Vanilla never cuts blight
             // undesignated, yet on the lab the other blighted plants leave the census within a few thousand ticks of the first
@@ -227,17 +229,17 @@ internal static class FarmBlight
                         }
 
                         plansSeen = batches;
-                        var goal = await store.StandardSummaryAsync(concern, ct).ConfigureAwait(false);
+                        var goal = await store.SampleStandardAsync(concern, ct).ConfigureAwait(false);
                         settled = goal;
                         var done = Settled(goal) && cut.Count > 0 && zoneCreated;
-                        return (Wait.Signature(batches, cut.Count, zoneCreated, goal?["status"].AsString(), goal?["need"].AsString()), done);
+                        return (Wait.Signature(batches, cut.Count, zoneCreated, Settled(goal)), done);
                     },
                     cancellationToken).ConfigureAwait(false);
             }
             catch (WaitError e)
             {
                 throw new AcceptanceException(
-                    $"RemoveBlight neither settled on the emptied census with a completed cut nor was followed by a second field (plans={plansSeen} cut={cut.Count} second_field={zoneCreated} goal={settled.ToJson()}): {e.Message}",
+                    $"food/blight was neither met on the emptied census with a completed cut nor was followed by a second field (plans={plansSeen} cut={cut.Count} second_field={zoneCreated} goal={settled.ToJson()}): {e.Message}",
                     e);
             }
 

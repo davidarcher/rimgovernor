@@ -233,8 +233,6 @@ internal static class ClockPlannerCatalog
             c => c.GeneBank is not null, (s, ct, e, a) => s.Config.GeneBank!.StepAsync(a, ct, e), (o, m) => o.GeneBank = m, MaintainGeneBank),
         E("workLedger", O, [ActionKind.ProductionBill, ActionKind.RemoveProductionBill], SectionsBills,
             c => c.Ledger is not null, (s, ct, e, a) => s.Config.Ledger!.StepAsync(a, ct, e), (o, m) => o.Ledger = m, MaintainWorkLedger),
-        E("blight", O, [ActionKind.CutPlant], SectionsColony,
-            c => c.Blight is not null, (s, ct, e, a) => s.Config.Blight!.StepAsync(a, ct, e), (o, m) => o.Blight = m, RemoveBlight),
         E("armory", O, [ActionKind.Building], SectionsArmory,
             c => c.Armory is not null, (s, ct, e, a) => s.Config.Armory!.StepAsync(a, ct, e), (o, m) => o.Armory = m),
         E("burial", O, [ActionKind.Building], SectionsBuilding,
