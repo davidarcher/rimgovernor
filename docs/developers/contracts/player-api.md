@@ -27,6 +27,17 @@ read-only service exposes none of these player routes.
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
 | POST | `/api/player/clock-speed` | Set the speed the brain requests while it owns the clock (`{"speed":"Normal\|Fast\|Superfast\|Ultrafast"}`, else 400); the next step sends it, see [interface contracts](interface-contracts.md) |
 | GET | `/api/player/colony` | Live colony census (below) |
+| POST | `/api/telemetry/spans` | Launch phases timed outside the game, replayed into the brain's `traces.jsonl` (below) |
+
+`/api/telemetry/spans` (`TelemetryRoutes`) takes the acceptance harness's and the launcher's launch
+phases, because the in-process brain is the only writer of the run's traces ring. The body is a JSON
+array of at most 32 `{"name","parent","startUtc","endUtc","attributes"}`: `parent` is `""` for a child
+of the root or the name of an earlier span in the body, times are ISO-8601 UTC ending in `Z` with the
+end not before the start, and `attributes` holds string values that become span tags. The brain
+replays them as one `launch` tree under its own run id (a kept game's spans join that game's run) and
+answers `{"spans": n}`; a malformed body is 400. Senders retry only while the route is not yet
+registered (404) and drop the spans with a logged reason otherwise; spans never fail a run. See
+[launch spans](otel-signals.md#launch-spans).
 
 `/api/player/colony` fields; unknown facts are null:
 

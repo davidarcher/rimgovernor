@@ -95,7 +95,11 @@ public static class GameSessions
             }
 
             var game = StartOrAttach(configDir, gameId, launchEnv);
-            await ConnectAsync(transport, game, configDir, gameId, ConnectBudget, cancellationToken).ConfigureAwait(false);
+            using (LaunchTrace.Span("launch.connect"))
+            {
+                await ConnectAsync(transport, game, configDir, gameId, ConnectBudget, cancellationToken).ConfigureAwait(false);
+            }
+
             ok = true;
             return transport;
         }
@@ -141,6 +145,12 @@ public static class GameSessions
     public static GameProcess StartOrAttach(string configDir, string gameId, IReadOnlyDictionary<string, string>? launchEnv = null)
     {
         var stateDir = HeadlessProfile.MustAbs(configDir);
+        var directory = EndpointDirectory(configDir, gameId);
+        if (LaunchTrace.Current is { } trace)
+        {
+            trace.Directory = directory;
+        }
+
         var existing = GameProcess.Attach(stateDir, gameId);
         if (existing is not null)
         {
@@ -148,7 +158,6 @@ public static class GameSessions
         }
 
         var spec = LaunchSpecFromConfig(configDir, gameId);
-        var directory = EndpointDirectory(configDir, gameId);
         var stale = EndpointFile.PathIn(directory);
         try
         {
@@ -173,6 +182,7 @@ public static class GameSessions
         env[RunIdVariable] = Guid.NewGuid().ToString("N");
         try
         {
+            using var phase = LaunchTrace.Span("launch.process_start");
             return GameProcess.StartDetached(new GameLaunchSpec
             {
                 GameId = spec.GameId,

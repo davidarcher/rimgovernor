@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
+using RimGovernor.Brain.Acceptance;
 using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Launcher;
@@ -227,9 +228,19 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
 
     private async Task GenerateAsync(NewColonySpec chosen, string seed, string id, CancellationToken ct)
     {
-        var baseUrl = await host.ReusableGameAsync(ct).ConfigureAwait(false) is { } running
-            ? await ReturnToMenuAsync(running.TrimEnd('/'), id, ct).ConfigureAwait(false)
-            : await RestartAsync(ct).ConfigureAwait(false);
+        var trace = new LaunchTrace("launcher");
+        string? baseUrl;
+        if (await host.ReusableGameAsync(ct).ConfigureAwait(false) is { } running)
+        {
+            using (trace.Time("launch.to_main_menu"))
+            {
+                baseUrl = await ReturnToMenuAsync(running.TrimEnd('/'), id, ct).ConfigureAwait(false);
+            }
+        }
+        else
+        {
+            baseUrl = await RestartAsync(ct).ConfigureAwait(false);
+        }
 
         // From the new colony post on, only ending the game stops native.
         if (baseUrl is null || !Update(p => p with { State = ColonyState.Connecting, Stale = false, StaleError = null, Detail = null }, closeOnCancel: true))
@@ -240,6 +251,7 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
         var body = JsonSerializer.SerializeToUtf8Bytes(
             new NewColonyRequestBody(id, (uint)Timeout.TotalMilliseconds, chosen.ForWire(seed)), LauncherJson.Compact);
         var accepted = false;
+        var generating = trace.Time("start.generate");
         await RepeatAsync(
             async token =>
             {
@@ -282,6 +294,13 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
             Timeout,
             "Timed out waiting for the colony.",
             ct).ConfigureAwait(false);
+
+        // The phases go to the game's brain like Play's launch phases; a drop is logged, never a failure.
+        generating.Dispose();
+        if (!ct.IsCancellationRequested && await trace.PostAsync(http, baseUrl, LaunchTrace.PostWait, CancellationToken.None).ConfigureAwait(false) is { } dropped)
+        {
+            host.Log("new colony: " + dropped);
+        }
     }
 
     /// <summary>Closes the game and starts it afresh; its channel's address, or null when the run already ended.</summary>

@@ -4,19 +4,24 @@ namespace RimGovernor.Brain.Telemetry;
 
 /// <summary>
 /// One buffered launch phase: a UTC interval, its id and the id of the phase it nests in (0 for a direct child of
-/// the root). A parent's id is lower than its children's (ids are taken when a phase starts).
+/// the root). A parent's id is lower than its children's (ids are taken when a phase starts). <paramref name="Attributes"/>
+/// become the span's tags (the harness and launcher name their <c>rimgovernor.launch.source</c>).
 /// </summary>
-public sealed record LaunchInterval(int Id, int Parent, string Name, DateTime StartUtc, DateTime EndUtc);
+public sealed record LaunchInterval(int Id, int Parent, string Name, DateTime StartUtc, DateTime EndUtc, IReadOnlyDictionary<string, string>? Attributes = null);
 
 /// <summary>
-/// Replays the game-side launch waterfall (#3286) as spans once the brain's span listener exists: one root
-/// <c>launch</c> from the earliest phase to <paramref name="endUtc"/> (brain started), each phase a child of its
-/// parent phase or of the root, with the recorded start and end times. Component <c>launch</c>.
+/// Replays a launch waterfall as spans: one root <c>launch</c> from the earliest phase to <paramref name="endUtc"/>,
+/// each phase a child of its parent phase or of the root, with the recorded start and end times. Component
+/// <c>launch</c>. The game-side waterfall (#3286) is replayed once the brain's span listener exists, ending when the
+/// brain started; the harness's and launcher's phases (#3287) arrive over <c>POST /api/telemetry/spans</c> and are
+/// replayed as their own <c>launch</c> tree, ending with their last phase.
 /// </summary>
 public static class LaunchSpans
 {
     public const string Component = "launch";
     public const string Root = "launch";
+
+    private static readonly Dictionary<string, string> EmptyAttributes = [];
 
     /// <summary>Emits the spans and returns how many were written (0 when nothing listens or there is no phase).</summary>
     public static int Replay(IReadOnlyList<LaunchInterval> phases, DateTime endUtc)
@@ -48,6 +53,10 @@ public static class LaunchSpans
                 if (span is null)
                 {
                     continue;
+                }
+                foreach (var (key, value) in phase.Attributes ?? EmptyAttributes)
+                {
+                    span.SetTag(key, value);
                 }
                 span.SetEndTime(End(phase.StartUtc, phase.EndUtc));
                 byId[phase.Id] = span;

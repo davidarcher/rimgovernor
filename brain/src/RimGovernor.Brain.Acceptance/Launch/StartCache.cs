@@ -168,6 +168,7 @@ public sealed class ProfileStartCache : IStartCache
     public async Task LoadAsync(Harness harness, string name, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
+        using var phase = LaunchTrace.Span("start.load");
         try
         {
             await harness.CallAsync(

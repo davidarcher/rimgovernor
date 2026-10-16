@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// <para>
 /// By default (<see cref="KeepGameEnv"/> unset, or anything but 0/false/no) <see cref="Close"/> returns the game to the
 /// main menu instead of stopping it, and the next <see cref="OpenGameAsync"/> under the same root attaches to the running
-/// process and skips the boot and def load, roughly 80 s of every run; a batch stops the game once at the end
+/// process and skips the boot and def load (a cold open is 15–22 s; <c>boot_phases</c> in result.json splits it); a batch stops the game once at the end
 /// (<c>acceptance stop</c>). Mod static state is process-scoped and survives the reuse: a harness asserting on statics, or
 /// one that must see a first-boot process, runs with <c>RIMGOVERNOR_ACCEPT_KEEP_GAME=0</c>.
 /// </para>
@@ -134,6 +134,7 @@ public sealed class Game : IGameHold
         {
             try
             {
+                using var phase = LaunchTrace.Span("launch.to_main_menu");
                 await game.ToMainMenuAsync("warm-open", cancellationToken).ConfigureAwait(false);
             }
             catch (AcceptanceException e)

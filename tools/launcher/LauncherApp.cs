@@ -554,11 +554,16 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
 
         try
         {
-            var address = await LaunchAsync(settings, cts.Token).ConfigureAwait(false);
+            var trace = new LaunchTrace("launcher");
+            var address = await LaunchAsync(settings, trace, cts.Token).ConfigureAwait(false);
             SetState(GameState.Running, "");
             if (load && settings.LoadSave.Length > 0)
             {
-                _ = LoadInBackgroundAsync(address, settings.LoadSave);
+                _ = LoadInBackgroundAsync(address, settings.LoadSave, trace);
+            }
+            else
+            {
+                _ = PostLaunchAsync(trace, address);
             }
 
             return address;
@@ -586,9 +591,10 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
     /// <summary>
     /// Starts the configured game detached with <c>-rimgovernor-inproc</c> and the settings' extra arguments, the
     /// endpoint directory and a new run id in its environment, and waits for it to announce a healthy channel. Returns
-    /// the channel's base address.
+    /// the channel's base address. A fresh launch records <c>launch.process_start</c> and <c>launch.connect</c> in
+    /// <paramref name="trace"/>; an adopted game records nothing.
     /// </summary>
-    private async Task<string> LaunchAsync(Settings settings, CancellationToken ct)
+    private async Task<string> LaunchAsync(Settings settings, LaunchTrace trace, CancellationToken ct)
     {
         string gameId;
         try
@@ -642,6 +648,7 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         GameProcess game;
         try
         {
+            using var phase = trace.Time("launch.process_start");
             GameSessions.PrepareFreshLaunch(ConfigDir);
             game = GameProcess.StartDetached(new GameLaunchSpec
             {
@@ -660,6 +667,7 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
 
         Log($"RimWorld {string.Join(' ', args)}");
         var log = GameProcess.LogPath(ConfigDir, gameId);
+        using var connect = trace.Time("launch.connect");
         for (var deadline = DateTimeOffset.UtcNow + StartBudget; DateTimeOffset.UtcNow < deadline;)
         {
             ct.ThrowIfCancellationRequested();
@@ -804,13 +812,18 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         return address;
     }
 
-    private async Task LoadInBackgroundAsync(string address, string save)
+    private async Task LoadInBackgroundAsync(string address, string save, LaunchTrace trace)
     {
         Log($"load: {save}");
         try
         {
-            await _loader.LoadAsync(address, save, TimeSpan.FromMinutes(5), CancellationToken.None).ConfigureAwait(false);
+            using (trace.Time("start.load"))
+            {
+                await _loader.LoadAsync(address, save, TimeSpan.FromMinutes(5), CancellationToken.None).ConfigureAwait(false);
+            }
+
             Log($"load: {save} loaded");
+            await PostLaunchAsync(trace, address).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -824,6 +837,25 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         {
             // Nothing awaits this task: an unlogged fault here is a save that silently never loads.
             Log($"load: {save} failed: {e}");
+        }
+    }
+
+    /// <summary>
+    /// Ships the launch phases to the game's brain (<see cref="LaunchTrace"/>), waiting for its routes; a drop is
+    /// logged and never fails the launch. Nothing awaits it on a plain Play, so every fault is logged here.
+    /// </summary>
+    private async Task PostLaunchAsync(LaunchTrace trace, string address)
+    {
+        try
+        {
+            if (await trace.PostAsync(_http, address, LaunchTrace.PostWait, CancellationToken.None).ConfigureAwait(false) is { } dropped)
+            {
+                Log("play: " + dropped);
+            }
+        }
+        catch (Exception e)
+        {
+            Log("play: launch spans dropped: " + e.Message);
         }
     }
 

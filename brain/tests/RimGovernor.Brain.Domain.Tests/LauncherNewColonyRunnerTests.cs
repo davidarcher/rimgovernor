@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using RimGovernor.Brain.Acceptance;
 using RimGovernor.Launcher;
 using Xunit;
 
@@ -25,6 +26,12 @@ public sealed class LauncherNewColonyRunnerTests
         Assert.Equal(
             ["POST /api/lifecycle/menu 202", "GET /api/lifecycle/menu 200", "POST /api/lifecycle/new 202", "GET /api/lifecycle/new 200"],
             game.Log);
+
+        // The menu return and the generation are shipped to the game's brain as launch phases.
+        var spans = await game.Spans.Task.WaitAsync(Bound, TestContext.Current.CancellationToken);
+        Assert.Contains("\"launch.to_main_menu\"", spans, StringComparison.Ordinal);
+        Assert.Contains("\"start.generate\"", spans, StringComparison.Ordinal);
+        Assert.Contains("\"rimgovernor.launch.source\":\"launcher\"", spans, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -142,10 +149,19 @@ public sealed class LauncherNewColonyRunnerTests
 
         public TaskCompletionSource MenuPosted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        /// <summary>The launch spans body the runner posted once its run ended (#3287); kept out of <see cref="Log"/>.</summary>
+        public TaskCompletionSource<string> Spans { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var path = request.RequestUri!.AbsolutePath;
             var post = request.Method == HttpMethod.Post;
+            if (path == LaunchTrace.Route && post)
+            {
+                _ = Spans.TrySetResult(await request.Content!.ReadAsStringAsync(cancellationToken));
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"spans":3}""", Encoding.UTF8, "application/json") };
+            }
+
             (HttpStatusCode Status, string Body) reply = (path, post) switch
             {
                 ("/api/lifecycle/menu", true) when Interlocked.Increment(ref _menuPosts) <= BusyMenuPosts =>
@@ -167,7 +183,7 @@ public sealed class LauncherNewColonyRunnerTests
                 _ = MenuPosted.TrySetResult();
             }
 
-            return Task.FromResult(new HttpResponseMessage(reply.Status) { Content = new StringContent(reply.Body, Encoding.UTF8, "application/json") });
+            return new HttpResponseMessage(reply.Status) { Content = new StringContent(reply.Body, Encoding.UTF8, "application/json") };
         }
     }
 }

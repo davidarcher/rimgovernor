@@ -88,6 +88,7 @@ public static class ScenarioStarts
         var wire = Spec(spec, DefaultStoryteller(quiet));
         var id = string.Create(CultureInfo.InvariantCulture, $"scenario-start-{DateTime.UtcNow.Ticks}");
         var request = NewColony.NewColonyRequest(id, wire, spec.Timeout);
+        using var phase = LaunchTrace.Span("start.generate");
         try
         {
             return await NewColony.RunNewColonyAsync(harness, request, "new-colony", cancellationToken).ConfigureAwait(false);

@@ -240,6 +240,32 @@ run inside RimWorld stages). A phase whose parent was not recorded sits under
 the root. Phases past the buffer are dropped and the count is logged as a
 warning.
 
+The acceptance harness and the launcher time their side in their own process
+(`RimGovernor.Brain.Acceptance.LaunchTrace`) and post it to the brain over
+`POST /api/telemetry/spans` ([player API](player-api.md)), which replays each
+post as another `launch` tree in the same ring; every span carries
+`rimgovernor.launch.source` (`harness` or `launcher`). The harness posts once at
+the end of a session open (`Session.OpenAsync`, also when it fails), the
+launcher after Play connects (after the load when Play loads a save) and after a
+New colony generation.
+
+```text
+launch.prepare          harness: profile prepare and package hashes
+launch.process_start    harness, launcher: the detached game launch (not run for a kept game)
+launch.connect          harness: endpoint, /api/health and a first native read; launcher: endpoint health
+launch.to_main_menu     harness: a reused game unloaded to the main menu; launcher: New colony on the running game
+start.load              harness: a save or cached-start load; launcher: Play's save load
+start.generate          harness: the new-colony op of a debug, lab or scenario start; launcher: New colony
+start.first_action      harness: started world → the case body can act (pause, quiet world, fixture op, frozen needs)
+```
+
+Acceptance `result.json` carries `boot_phases`, name → ms, read at Finalize
+from the game's `traces.jsonl` (`BootPhases.Read`): every non-root span of each
+`launch` tree whose root starts at or after the report's `started_at`, so a kept
+game's earlier boot is not counted. A repeated name sums. Phases overlap, so the
+map does not add up to `boot_ms`. A ring that cannot be read leaves
+`boot_phases_error`; spans the game did not take leave `launch_spans_error`.
+
 ## Pawn activity
 
 The [pawn activity contract](../architecture/pawn-activity.md) owns these event kinds:

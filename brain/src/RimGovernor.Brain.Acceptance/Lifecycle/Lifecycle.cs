@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.HttpChannel;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -231,6 +232,7 @@ public static class StartOps
             timeout = TimeSpan.FromSeconds(90);
         }
 
+        using var phase = LaunchTrace.Span("start.load");
         try
         {
             await harness.CallAsync(
@@ -400,18 +402,24 @@ public sealed class Session
         var began = Stopwatch.StartNew();
         start ??= new DebugStart();
         report ??= new Report();
-        if (config.Configuration.Length == 0)
+        var trace = LaunchTrace.Begin("harness");
+        using (LaunchTrace.Span("launch.prepare"))
         {
-            if (config.FixtureOps.Count == 0)
+            if (config.Configuration.Length == 0)
             {
-                config.FixtureOps = StartOps.FixtureOps(start);
+                if (config.FixtureOps.Count == 0)
+                {
+                    config.FixtureOps = StartOps.FixtureOps(start);
+                }
+
+                await host.PrepareAsync(config, StartOps.Saves(start), cancellationToken).ConfigureAwait(false);
             }
 
-            await host.PrepareAsync(config, StartOps.Saves(start), cancellationToken).ConfigureAwait(false);
+            report["package_files"] = host.PackageFiles(config);
         }
 
-        report["package_files"] = host.PackageFiles(config);
         var held = await host.OpenGameAsync(config, report, cancellationToken).ConfigureAwait(false);
+        report.LaunchDirectory = trace.Directory;
         var session = new Session(config, host, held, held.Harness, report, []);
         try
         {
@@ -419,13 +427,39 @@ public sealed class Session
         }
         catch
         {
+            await PostLaunchAsync(trace, report, TimeSpan.Zero, CancellationToken.None).ConfigureAwait(false);
             held.Close(report);
             throw;
         }
 
         session.Boot = began.Elapsed;
         report["boot_ms"] = (long)session.Boot.TotalMilliseconds;
+        await PostLaunchAsync(trace, report, LaunchTrace.PostWait, cancellationToken).ConfigureAwait(false);
         return session;
+    }
+
+    /// <summary>
+    /// Ships the open's launch phases to the game's brain (<see cref="LaunchTrace"/>); a drop is recorded as
+    /// <c>launch_spans_error</c> and never fails the open. <paramref name="wait"/> bounds the wait for the brain's route.
+    /// </summary>
+    private static async Task PostLaunchAsync(LaunchTrace trace, Report report, TimeSpan wait, CancellationToken cancellationToken)
+    {
+        if (trace.Directory.Length == 0)
+        {
+            return;
+        }
+
+        if (EndpointFile.Read(trace.Directory) is not { } endpoint || endpoint.Address.Length == 0)
+        {
+            report["launch_spans_error"] = "launch spans dropped: the game announced no channel";
+            return;
+        }
+
+        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        if (await trace.PostAsync(http, endpoint.Address, wait, cancellationToken).ConfigureAwait(false) is { } dropped)
+        {
+            report["launch_spans_error"] = dropped;
+        }
     }
 
     /// <summary>
@@ -501,6 +535,8 @@ public sealed class Session
         Harness.Tools = names;
         Report["discovery"] = ToArray(names);
         var row = await StartOps.LoadAsync(start, this, quiet, cancellationToken).ConfigureAwait(false);
+        // From the started world to the moment the case body can act: pause, quiet world, identity, fixture op, frozen needs.
+        using var firstAction = LaunchTrace.Span("start.first_action");
         Report["start"] = row;
         if (start is LabStart)
         {

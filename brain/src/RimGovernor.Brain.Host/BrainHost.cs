@@ -219,6 +219,7 @@ public sealed class BrainHost : IAsyncDisposable
                 new HostControlReader(journal),
                 new HostClockReview(journal, options.ProfileDirectory),
                 planners.TargetSpeed is { } targetSpeed ? new HostClockSpeed(targetSpeed) : null));
+            _routes.Add(TelemetryRoutes.Register(routes));
             var natives = parts.Player;
             if (natives?.Source is { } source)
             {

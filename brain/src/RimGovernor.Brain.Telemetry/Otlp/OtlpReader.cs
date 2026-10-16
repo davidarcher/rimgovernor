@@ -11,11 +11,24 @@ namespace RimGovernor.Brain.Telemetry.Otlp;
 public static class OtlpReader
 {
     /// <summary>Calls <paramref name="onSpan"/> with every span of the traces ring at <paramref name="path"/>, oldest first.</summary>
-    public static void ReadSpans(string path, Action<OtlpSpan> onSpan)
+    public static void ReadSpans(string path, Action<OtlpSpan> onSpan) => ReadSpans(path, null, onSpan);
+
+    /// <summary>
+    /// <see cref="ReadSpans(string, Action{OtlpSpan})"/> over only the lines that carry the instrumentation scope of
+    /// <paramref name="component"/> (<see cref="Spans.Source"/>), skipping the rest unparsed (each line holds one span
+    /// under its scope). Null reads every line.
+    /// </summary>
+    public static void ReadSpans(string path, string? component, Action<OtlpSpan> onSpan)
     {
         ArgumentNullException.ThrowIfNull(onSpan);
+        var needle = component is null ? null : System.Text.Encoding.UTF8.GetBytes("\"" + Spans.ScopePrefix + component + "\"");
         OtlpRing.Scan(path, (pos, line) =>
         {
+            if (needle is not null && line.Span.IndexOf(needle) < 0)
+            {
+                return;
+            }
+
             using var doc = Parse(line);
             if (doc is null || !Items(doc.RootElement, "resourceSpans", "scopeSpans", "spans", out var groups))
             {

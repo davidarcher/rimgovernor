@@ -1,11 +1,12 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Telemetry.Otlp;
 
 namespace RimGovernor.Brain.Acceptance;
 
 // Every result.json carries the run's timing so a slower harness is visible without inferring runtimes from
 // evidence mtimes: Create stamps started_at, Finalize adds finished_at, wall_ms, boot_ms (from the session open or
-// game_reuse.openMs), ticks_advanced (the game ticks the harness observed pass, see TickStats) and wall_tps, and
+// game_reuse.openMs), boot_phases (from the game's launch spans, see BootPhases), ticks_advanced (the game ticks the harness observed pass, see TickStats) and wall_tps, and
 // fails a passing run whose wall time exceeds its budget_ms.
 public sealed partial class Report
 {
@@ -22,6 +23,12 @@ public sealed partial class Report
     public const string TicksAdvancedKey = "ticks_advanced";
 
     public const string WallTpsKey = "wall_tps";
+
+    /// <summary>
+    /// The opened game's channel directory, where it writes its OTLP rings; Finalize reads <c>boot_phases</c>
+    /// (<see cref="BootPhases"/>) from its traces when set. Not a report field.
+    /// </summary>
+    public string LaunchDirectory { get; set; } = "";
 
     /// <summary>
     /// Records the report's budget (<c>budget_ms</c>): the wall-clock budget a passing run fails on when its wall time
@@ -59,6 +66,18 @@ public sealed partial class Report
         if (!Has(BootMsKey) && Data["game_reuse"].AsMap() is { } reuse && reuse["openMs"].AsUInt64() is { } openMs)
         {
             this[BootMsKey] = (long)openMs;
+        }
+
+        if (!Has(BootPhases.Key) && LaunchDirectory.Length > 0)
+        {
+            try
+            {
+                this[BootPhases.Key] = BootPhases.Read(OtlpFiles.RingPath(LaunchDirectory, OtlpSignal.Traces), started);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                this[BootPhases.Key + "_error"] = e.Message;
+            }
         }
 
         var advanced = Data[TicksAdvancedKey].AsUInt64();
