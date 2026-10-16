@@ -47,7 +47,6 @@ public sealed class StoreStacksTests
         Assert.Equal(4, zone.Cells.Count);
         Assert.Equal(Known(4 + (3 * 2)), zone.Capacity);
         Assert.Equal(Known(1 + 2), zone.Used);
-        Assert.Equal(Known(0.3), zone.Fill());
     }
 
     [Fact]
@@ -68,7 +67,6 @@ public sealed class StoreStacksTests
 
         Assert.Equal(Known(10), zone.Capacity);
         Assert.False(zone.Used.IsKnown);
-        Assert.False(zone.Fill().IsKnown);
         var count = Assert.Single(PolicyFunctions.StockpileRoleCounts([zone]));
         Assert.False(count.Used.IsKnown);
         Assert.Equal(Known(10), count.Capacity);

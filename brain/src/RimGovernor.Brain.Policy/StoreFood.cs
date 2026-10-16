@@ -11,7 +11,7 @@ internal sealed class FoodOwner : IStoreOwner
 {
     public Department Department => Department.Food;
 
-    public RoomDemand RoomDemand(StoreView v) => PolicyFunctions.DeclaredDemand(v, Stores(v));
+    public RoomDemand RoomDemand(StoreView v) => new();
 
     /// <summary>
     /// Most important first: the meal store, the freezer's Critical shelves nearest the kitchen door (raw meat,

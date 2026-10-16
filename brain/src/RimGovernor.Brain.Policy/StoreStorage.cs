@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The Storage department's stores: the warehouse over the whole interior of each planned storage room, and the
 // materials yard over the whole interior of each planned yard. Each is one zone, sized once. Layout sizes the
-// storage rooms from held stock; a full yard asks for a further yard through RoomDemand.
+// storage rooms from held stock; the yard asks for a further yard from its runway and stranded stock (YardDemand).
 
 /// <summary>The Storage department.</summary>
 internal sealed class StorageOwner : IStoreOwner
@@ -48,11 +48,10 @@ internal sealed class StorageOwner : IStoreOwner
                     Filter = StockpileFilter.YardFilter(),
                     Priority = StockpilePriority.Low,
                 },
-                Further = PlannedRole.Yard,
             });
         }
         return output;
     }
 
-    public RoomDemand RoomDemand(StoreView v) => PolicyFunctions.DeclaredDemand(v, Stores(v));
+    public RoomDemand RoomDemand(StoreView v) => new();
 }

@@ -4,8 +4,8 @@
 
 Each department owns its stockpiles. A Department that holds stock is a
 `policy.StoreOwner` (registered in `storeOwners`): it declares its `Stores` (a
-`policy.Store`: role, planned room or rectangle, filter, priority, the room it
-asks for when full) and its `RoomDemand` from capacity. `MaintainStockpiles` is
+`policy.Store`: role, planned room or rectangle, filter, priority) and its
+`RoomDemand` (the yard's further room is asked from runway; see Headroom). `MaintainStockpiles` is
 the one applier, through the ordinary zone create, cell-edit, patch and delete actions; the
 standing zones are the only record (see
 [persistence contracts](../contracts/persistence-contracts.md)). Rooms stay
@@ -80,12 +80,26 @@ A store's capacity and use are counted in stacks, from the native per-cell
 `storage_stacks` and `storage_capacity` grid columns: one stack per zone cell,
 plus `maxItemsInCell` (3) per cell of each built shelf serving the zone (a
 shelf's cells leave the zone natively, so they are added back). A cell whose
-count is unknown leaves the store's count unknown, never 0, and an unknown
-store never reads as full.
-When every zone of a yard store has 85% of its stacks used
-(`StockpileFurtherRoomFill`), the department's `RoomDemand` asks layout for a
-further room (`Yard`, one more than the plan holds) and that room's zone is created once it is
-planned and open.
+count is unknown leaves the store's count unknown, never 0.
+
+`policy.StoreCapacity` reports a declared store's facts: capacity and used
+stacks over the zones serving it, net inflow (below), stranded stacks (below)
+and its runway, free stacks over net inflow in days (known infinite when inflow
+is not positive, unknown while inflow or a count is). An option's lead time
+(`StorageLeadDays`) is its build work at base construction speed (one work tick
+per game tick) plus `MaintenanceHorizonDays` (5 days); unknown work leaves the
+option unvalued. A further yard builds nothing, so its lead time is the horizon.
+
+The yard asks layout for a further room (`policy.YardDemand`, `RoomDemand.Yard`:
+one more than the declared yards) once every yard's zone stands and either a
+yard has stranded stacks (the "now" signal) or the yards' runway (their free
+stacks summed over their inflow summed) is shorter than that lead time. A
+small colony filling its yard in a day asks long before a large one filling it
+in a month at the same fill. Unknown stays unknown: an unread inflow with no
+stranded stock asks nothing, and a draining yard never asks. The ask needs the
+loot census and the occupancy ring, so it is decided over the stockpile
+request rather than the department's `StoreView`. The new room's zone is
+created once it is planned and open.
 
 ### Stranded stock
 
@@ -97,8 +111,7 @@ ignoring space (`LootItem.AcceptedBy`). `policy.StrandedStacks` counts a
 store's stranded stacks over the zones serving it and the shelves in them. It
 is unknown, never zero, while the census is unread, while any unforbidden row's
 headroom is unknown, or when a zero-headroom row of unknown safety names the
-store. The runway work of the storage capacity options (#3227) reads it; nothing
-acts on it yet.
+store. The yard's further-room ask reads it.
 
 ### Store inflow
 
@@ -112,8 +125,8 @@ of its zones and built shelves over the inflow window
 zones and their shelves of each group's least-squares slope of held stacks over the
 last `StoreInflowWindowDays` (3). A negative inflow is a known reading (the store
 drains). It is unknown, never zero, while the ring is unread, when the store has no
-group, or while any of its groups has under a day of samples. Nothing acts on it
-yet; the yard runway (#3236) reads it.
+group, or while any of its groups has under a day of samples. The yard runway
+reads it.
 
 ### Shelves
 

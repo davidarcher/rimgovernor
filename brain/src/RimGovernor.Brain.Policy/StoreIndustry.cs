@@ -79,7 +79,7 @@ internal sealed class IndustryOwner : IStoreOwner
         return [.. output.OrderBy(s => s.Role, StringComparer.Ordinal)];
     }
 
-    public RoomDemand RoomDemand(StoreView v) => PolicyFunctions.DeclaredDemand(v, Stores(v));
+    public RoomDemand RoomDemand(StoreView v) => new();
 
     private static (Room? Room, bool Ok) RoomHolding(IReadOnlyList<Room> rooms, Cell cell)
     {

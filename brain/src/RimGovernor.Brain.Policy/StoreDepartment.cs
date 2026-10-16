@@ -7,18 +7,12 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One declared stockpile: its site (role, planned room or clean rectangle inside it, filter, priority) and what
-/// the department does when it is full or gone. Whole-footprint stores fill cleared site ground; fixed-size
+/// the department does when it is gone. Whole-footprint stores fill cleared site ground; fixed-size
 /// stores keep their requested rectangle. (Go embeds <c>StoreSite</c>; here it is the <see cref="Site"/> member.)
 /// </summary>
 public sealed record Store
 {
     public StoreSite Site { get; init; } = new();
-
-    /// <summary>
-    /// The planned room the department asks layout for when the store's standing zones are at
-    /// StockpileFurtherRoomFill (PlannedStorage or PlannedYard); null asks for none.
-    /// </summary>
-    public PlannedRole? Further { get; init; }
 
     /// <summary>
     /// States the store's purpose is gone (a bench demolished): the zones of its role are deleted. Absence is
@@ -29,22 +23,6 @@ public sealed record Store
     public string Role => Site.Role;
 
     internal bool Serves(StockpileZone z) => Site.Serves(z);
-
-    /// <summary>Reads the store against the standing zones.</summary>
-    public StoreReading Reading(IReadOnlyList<StockpileZone> zones)
-    {
-        var standing = false;
-        var full = true;
-        foreach (var z in zones)
-        {
-            if (Serves(z))
-            {
-                standing = true;
-                full = full && z.Fill().TryGetValue(out var fill) && fill >= PolicyFunctions.StockpileFurtherRoomFill;
-            }
-        }
-        return new StoreReading(standing, full && standing);
-    }
 
     /// <summary>Reports a zone carrying the store's role (the prefix, or the whole key for an exact site), wherever it stands.</summary>
     internal bool RoleOf(StockpileZone z)
@@ -72,7 +50,10 @@ public interface IStoreOwner
     /// <summary>The department's declared stores, most important first.</summary>
     IReadOnlyList<Store> Stores(StoreView view);
 
-    /// <summary>The department's ask of layout, from capacity: usually DeclaredDemand over its own stores.</summary>
+    /// <summary>
+    /// The department's ask of layout from the view (the training range and ring). The yard's further-room ask
+    /// reads capacity facts the view lacks, so it is YardDemand over the maintenance request.
+    /// </summary>
     RoomDemand RoomDemand(StoreView view);
 }
 
@@ -82,31 +63,7 @@ public sealed record StoreDeclaration
     public IReadOnlyList<Store> Stores { get; init; } = [];
 
     public RoomDemand Demand { get; init; } = new();
-
-    /// <summary>The room roles whose demand a declared store owns.</summary>
-    internal HashSet<PlannedRole> Covers { get; init; } = [];
-
-    /// <summary>
-    /// The layout demand once the declared stores answer for their rooms: a covered room takes the declared
-    /// reading, the rest keeps old.
-    /// </summary>
-    public RoomDemand Apply(RoomDemand old)
-    {
-        var next = old;
-        if (Covers.Contains(PlannedRole.Yard))
-        {
-            next = next with { Yard = Demand.Yard };
-        }
-        return next with
-        {
-            Ranges = Demand.Ranges,
-            Rings = Demand.Rings,
-        };
-    }
 }
-
-/// <summary>A store's capacity now: Standing when a zone serves it, Full when every serving zone's used stacks (its built shelves' included) are known at StockpileFurtherRoomFill. A sized-once store has no room to grow onto, so full is the whole reading.</summary>
-public readonly record struct StoreReading(bool Standing, bool Full);
 
 public static partial class PolicyFunctions
 {
@@ -186,20 +143,11 @@ public static partial class PolicyFunctions
 
     internal static StoreDeclaration DeclareStores(IReadOnlyList<IStoreOwner> owners, StoreView view)
     {
-        var covers = new HashSet<PlannedRole>();
         var stores = new List<Store>();
         var demand = new RoomDemand();
         foreach (var o in owners)
         {
-            var owned = o.Stores(view);
-            foreach (var s in owned)
-            {
-                if (s.Further is { } further && !s.Retired)
-                {
-                    covers.Add(further);
-                }
-            }
-            stores.AddRange(owned);
+            stores.AddRange(o.Stores(view));
             var got = o.RoomDemand(view);
             demand = demand with
             {
@@ -208,44 +156,7 @@ public static partial class PolicyFunctions
                 Rings = Math.Max(demand.Rings, got.Rings),
             };
         }
-        return new StoreDeclaration { Stores = stores, Demand = demand, Covers = covers };
-    }
-
-    /// <summary>
-    /// The capacity-based room demand of stores: yard stores ask for one more room than the plan holds once
-    /// every one stands and is full. A store whose room does not stand yet is a wait, never a demand. Warehouse
-    /// rooms are sized from held stock by the layout graph, not asked for here.
-    /// </summary>
-    public static RoomDemand DeclaredDemand(StoreView view, IReadOnlyList<Store> stores)
-    {
-        var demand = new RoomDemand();
-        var yards = 0;
-        var fullYards = 0;
-        var waiting = false;
-        foreach (var s in stores)
-        {
-            if (s.Retired || s.Further is null)
-            {
-                continue;
-            }
-            var reading = s.Reading(view.Zones);
-            switch (s.Further)
-            {
-                case PlannedRole.Yard:
-                    yards++;
-                    if (reading.Full)
-                    {
-                        fullYards++;
-                    }
-                    waiting = waiting || !reading.Standing;
-                    break;
-            }
-        }
-        if (yards > 0 && !waiting && fullYards == yards)
-        {
-            demand = demand with { Yard = view.Layout!.RoomsOf(PlannedRole.Yard).Count + 1 };
-        }
-        return demand;
+        return new StoreDeclaration { Stores = stores, Demand = demand };
     }
 
     /// <summary>

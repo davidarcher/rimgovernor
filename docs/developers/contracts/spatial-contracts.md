@@ -590,8 +590,10 @@ never claims a furnished cell.
 
 Geometry maintenance preserves blockers, unknown ground, exclusions, unrelated
 zones and separate store sites. Fixed-size stores retain their requested size.
-A yard store whose zones have 85% of their stacks used (zone cells plus built shelf cells, from the
-planning cells' `StorageStacks`/`StorageCapacity`; unknown counts never read as full) asks layout for a further room; storage rooms are sized from held stock. A role-less legacy claim
+The yard asks layout for a further room (`policy.YardDemand`) when it has stranded stacks or its
+runway (free stacks, from the planning cells' `StorageStacks`/`StorageCapacity` with built shelf
+cells, over net inflow) is shorter than a further yard's lead time; an unknown runway with no
+stranded stock asks nothing ([storage](../architecture/storage.md#headroom)). Storage rooms are sized from held stock. A role-less legacy claim
 stands as created. A source answers nothing while the fact it judges by is unknown.
 
 `RoundsStockpilePlanner` commits the edits as one plan per cycle, each action under

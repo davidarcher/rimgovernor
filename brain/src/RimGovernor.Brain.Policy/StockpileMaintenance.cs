@@ -28,11 +28,6 @@ public sealed record StockpileZone
 
     public StockpilePriority Priority { get; init; }
 
-    /// <summary>The used-stack fraction; a zone without capacity is 0, unknown while either count is.</summary>
-    public Fact<double> Fill() =>
-        !Capacity.TryGetValue(out var capacity) || !Used.TryGetValue(out var used) ? Unknown<double>()
-        : Known(capacity == 0 ? 0 : (double)used / capacity);
-
     /// <summary>The held stacks for an explanation: the count, or "unknown".</summary>
     internal string UsedText() => Used.TryGetValue(out var used) ? used.ToString(CultureInfo.InvariantCulture) : "unknown";
 }
@@ -125,7 +120,7 @@ public sealed record StockpileRequest
     /// </summary>
     public IReadOnlyList<Store> Stores { get; init; } = [];
 
-    /// <summary>The departments' room demand for layout; the review itself does not read it.</summary>
+    /// <summary>The departments' room demand for layout (the yard's from YardDemand); the review itself does not read it.</summary>
     public RoomDemand RoomDemand { get; init; } = new();
 
     /// <summary>The departments' report of stores they could not make usable (StoreDeclaration.Err); the review itself does not read it.</summary>
@@ -262,9 +257,6 @@ public static partial class PolicyFunctions
 
     /// <summary>The deficit a standing edit ranks with: small, like the tidy's, so it never outranks real shortfalls.</summary>
     internal const double StockpileDeficit = 0.1;
-
-    /// <summary>The used-stack fraction at which a store's standing zones count as full and the department asks layout for further room.</summary>
-    public const double StockpileFurtherRoomFill = 0.85;
 
     /// <summary>
     /// Patches every shelf whose settings differ from its zone's desired ones: its declared store's, else the

@@ -5,7 +5,7 @@ internal sealed class MedicalOwner : IStoreOwner
 {
     public Department Department => Department.Medical;
 
-    public RoomDemand RoomDemand(StoreView v) => PolicyFunctions.DeclaredDemand(v, Stores(v));
+    public RoomDemand RoomDemand(StoreView v) => new();
 
     public IReadOnlyList<Store> Stores(StoreView v)
     {

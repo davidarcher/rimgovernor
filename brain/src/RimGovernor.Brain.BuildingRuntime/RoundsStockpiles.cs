@@ -69,7 +69,7 @@ internal static partial class BuildingRuntimePackage
         storage = storage with { TrainingStands = stands, TrainingRings = rings };
         var declared = Pol.PolicyFunctions.DeclareStores(storage);
         request = request with { Stores = declared.Stores };
-        request = request with { RoomDemand = declared.Apply(new Pol.RoomDemand()) };
+        request = request with { RoomDemand = declared.Demand };
         return request;
     }
 
@@ -214,6 +214,7 @@ public sealed partial class Rounder
         request = request with { ShelfRecords = shelfRecords };
         request = request with { Shelves = shelfRows };
         request = request with { Occupancy = await StorageOccupancyAsync(request, tick, ct).ConfigureAwait(false) };
+        request = request with { RoomDemand = request.RoomDemand with { Yard = Pol.PolicyFunctions.YardDemand(request) } };
         return (request, "");
     }
 
