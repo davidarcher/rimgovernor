@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 // plan role only: the game scores it a bedroom, which is what its furnishing makes it.
 //
 // A creepjoiner is held in the room by restricting its allowed area to the bot-owned Isolation area
-// (IsolationAreaKey), once the room stands with its bed; ManageCreepJoiners releases the restriction when the
+// (IsolationAreaKey), once the room stands with its bed; the admin/creep-joiners Need releases the restriction when the
 // downside shows, when the colony's record says the inspection is done, or while the pawn is hungry (a pawn
 // restricted to an area treats food outside it as forbidden, decompile: ForbidUtility.InAllowedArea).
 //

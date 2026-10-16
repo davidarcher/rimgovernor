@@ -281,8 +281,6 @@ internal static class ClockPlannerCatalog
             c => c.Firebreak is not null, (s, ct, e, a) => s.Config.Firebreak!.StepAsync(a, ct, e), (o, m) => o.Firebreak = m, MaintainFirebreak),
         E("psylink", O, [ActionKind.UseItem], SectionsBuilding,
             c => c.Psylink is not null, (s, ct, e, a) => s.Config.Psylink!.StepAsync(a, ct, e), (o, m) => o.Psylink = m, MaintainPsylink),
-        E("creepJoiners", O, [ActionKind.DropEquipment, ActionKind.Surgery, ActionKind.WorkAssignment], SectionsMedical,
-            c => c.CreepJoiners is not null, (s, ct, e, a) => s.Config.CreepJoiners!.StepAsync(a, ct, e), (o, m) => o.CreepJoiners = m, ManageCreepJoiners),
         E("ideoRoles", O, [ActionKind.Assign], SectionsBuilding,
             c => c.IdeoRoles is not null, (s, ct, e, a) => s.Config.IdeoRoles!.StepAsync(a, ct, e), (o, m) => o.IdeoRoles = m, MaintainIdeoRoles),
         E("rituals", O, [ActionKind.Ritual], SectionsRituals,

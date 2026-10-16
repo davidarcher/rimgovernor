@@ -30,6 +30,7 @@ public static class OperationIntent
         [MaintainEquipment] = "Equipment",
         [HomeUpkeepFamily.Repairs.FilingKey] = "Repairs",
         [HomeUpkeepFamily.Clearance.FilingKey] = "Clear home obstructions",
+        [AdminFamily.CreepJoiners.FilingKey] = "Creep joiners",
         [TradeWithCaravan] = "Trade",
         [ActiveCombat] = "Combat",
         [RemoveBlight] = "Blight",

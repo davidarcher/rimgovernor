@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // reveals crumbling mind, organ decay and psychic agony early (the hediffs become visible) and nothing else
 // (https://rimworldwiki.com/wiki/Doctoring#Surgical_inspection). The game records no "inspected" flag on the
 // pawn: a clean inspection leaves a letter, a temporary Anesthetic hediff and a small surgical cut. So the
-// colony keeps its own record, in ManageCreepJoiners's goal record (the save's GovernorState blob,
+// colony keeps its own record, the admin family's family/admin/creep_joiners record (the save's GovernorState blob,
 // persistence-contracts.md): the pawns it ordered an inspection of, and those whose inspection bill has ended.
 
 /// <summary>Where the colony's inspection of one creepjoiner is.</summary>
@@ -24,12 +24,12 @@ public enum InspectionStage
     Done,
 }
 
-/// <summary>ManageCreepJoiners's goal record: the colony's inspection of each creepjoiner it has ordered one for.</summary>
+/// <summary>The admin/creep-joiners Need's record: the colony's inspection of each creepjoiner it has ordered one for.</summary>
 public sealed record CreepJoinerRecord
 {
     public IReadOnlyDictionary<PawnId, InspectionStage> Inspections { get; init; } = new Dictionary<PawnId, InspectionStage>();
 
-    /// <summary>Reads a goal record; an empty record is empty. Throws <see cref="DomainException"/> on malformed text.</summary>
+    /// <summary>Reads an encoded record; an empty record is empty. Throws <see cref="DomainException"/> on malformed text.</summary>
     public static CreepJoinerRecord Parse(string raw)
     {
         if (raw.Length == 0)
@@ -72,7 +72,7 @@ public sealed record CreepJoinerRecord
         return new CreepJoinerRecord { Inspections = inspections };
     }
 
-    /// <summary>The record as stored on the goal; an empty record encodes the empty string.</summary>
+    /// <summary>The record as text; an empty record encodes the empty string.</summary>
     public string Encode()
     {
         if (Inspections.Count == 0)

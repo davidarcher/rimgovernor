@@ -105,8 +105,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsPsylinkResult? Psylink { get; set; }
 
-    public RoundsCreepJoinerResult? CreepJoiners { get; set; }
-
     public RoundsPermitsResult? Permits { get; set; }
 
     public RoundsIdeoRolesResult? IdeoRoles { get; set; }
@@ -209,7 +207,6 @@ public sealed class ClockSchedulerResult
         MaintainShelter = other.MaintainShelter ?? MaintainShelter;
         Firebreak = other.Firebreak ?? Firebreak;
         Psylink = other.Psylink ?? Psylink;
-        CreepJoiners = other.CreepJoiners ?? CreepJoiners;
         Permits = other.Permits ?? Permits;
         IdeoRoles = other.IdeoRoles ?? IdeoRoles;
         Ideoligion = other.Ideoligion ?? Ideoligion;

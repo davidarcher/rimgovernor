@@ -391,14 +391,3 @@ public sealed record CreepJoinerHand
         return (new InspectionOrder(Pawn, chosen ?? "", bestPart), "");
     }
 }
-
-public static partial class PolicyFunctions
-{
-    /// <summary>
-    /// Keeps a creepjoiner unarmed until its downside shows: the colonist drops the weapon it holds with the
-    /// game's own drop job (DropEquipment), and the equipment planner arms it only once the downside is
-    /// revealed (EquipCandidatePawn.NoArms). A creepjoiner's downside is hidden at arrival, so an armed one is
-    /// a risk until it shows.
-    /// </summary>
-    public static readonly ConcernId ManageCreepJoiners = new("ManageCreepJoiners");
-}

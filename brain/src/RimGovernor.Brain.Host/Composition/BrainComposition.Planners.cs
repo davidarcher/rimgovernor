@@ -32,7 +32,6 @@ public sealed partial class BrainComposition
         var families = new List<FamilyRunner>();
         RoundsBuildingPlanner? cfgComfort = null;
         RoundsBuildingPlanner? cfgCooking = null;
-        RoundsCreepJoinerPlanner? cfgCreepJoiners = null;
         RoundsDefensePlanner? cfgDefense = null;
         RoundsDefenseLayoutPlanner? cfgDefenseLayout = null;
         RoundsDialogPlanner? cfgDialog = null;
@@ -332,8 +331,8 @@ public sealed partial class BrainComposition
         }
         if (sc.CreepJoiner)
         {
-            // ManageCreepJoiners plans from the review's frame; no read of its own.
-            cfgCreepJoiners = new RoundsCreepJoinerPlanner(reviewer);
+            // The colony admin family (#3264): today only admin/creep-joiners, read from the owned census.
+            families.Add(new AdminRounds(reviewer, sc.CreepJoiner).Runner());
         }
         if (sc.Sheltering)
         {
@@ -465,7 +464,6 @@ public sealed partial class BrainComposition
             Butcher = cfgButcher,
             Comfort = cfgComfort,
             Cooking = cfgCooking,
-            CreepJoiners = cfgCreepJoiners,
             Defense = cfgDefense,
             DefenseLayout = cfgDefenseLayout,
             Dialog = cfgDialog,
@@ -614,7 +612,6 @@ public sealed partial class BrainComposition
         Add(sc.Sheltering, MaintainShelter);
         Add(sc.Firebreak, MaintainFirebreak);
         Add(sc.Psylink, MaintainPsylink);
-        Add(sc.CreepJoiner, ManageCreepJoiners);
         Add(sc.Permits, MaintainPermits);
         Add(sc.IdeoRoles, MaintainIdeoRoles);
         Add(sc.Rituals, MaintainRituals);

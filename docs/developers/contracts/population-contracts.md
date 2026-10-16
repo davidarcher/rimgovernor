@@ -96,12 +96,15 @@ no def name is written in the brain, and the colonist's own downside def is neve
 the answer unknown, and unknown holds the colonist back; a colonist with no Anomaly block is no
 creepjoiner.
 
-- **`ManageCreepJoiners`** (People, `policy.CreepJoinerDownsides.WeaponDrops`): each review
-  reads the frame's colonist rows (complete roster only) and opens the concern while an available
-  colonist held back from arms holds a weapon. Its planner orders one `drop_equipment` action per such
-  colonist in one plan (job token `DropWeapon`, [action contracts](action-contracts.md)); a drop is
-  development-exempt like an `Equip`. The concern recovers when the weapon is out of the colonist's
-  hands; the dropped weapon is then loose stock.
+- **`admin/creep-joiners`** (Wellbeing Need of the colony admin family, `policy.AdminFamily`, #3264):
+  each family run reads the owned census's colonist rows (complete roster only) and the stored record,
+  and the Need is unmet while a weapon drop, an inspection, an isolation move or a disarm order is owed,
+  or the record changed; unknown while the roster or a creepjoiner's downside cannot be read. An
+  available colonist held back from arms that holds a weapon (`policy.CreepJoinerDownsides.WeaponDrops`)
+  is not dropped yet: the Need is held as `unsupported_forecast_precautionary_disarm` until a drop is a
+  shared forecast outcome. Every other order is its own Need-owned Method
+  (`creepjoiner-{isolate|release|inspect|disarm}-<pawn>`), admitted by claims: independent pawns run side
+  by side, the same order continues its open Method, and an overlapping claim is refused.
 - **Arms consumers.** The equipment planner, the armory's weapon demand and the fight loadout set
   `EquipCandidatePawn.NoArms` from the same check ([weapon planner](weapon-planner.md)); the
   basic-defense unarmed count skips the colonist so `EnsureBasicDefense` does not stay open for it.
@@ -110,22 +113,22 @@ creepjoiner.
   nothing else. The game keeps no "inspected" flag; a clean one leaves a letter, an Anesthetic hediff
   (60000 ticks) and a small surgical cut.
   - A creepjoiner whose downside is unrevealed and who has no entry in the colony's record is queued
-    the inspection by the same concern through the medical `ProductionBillIntent` (patient, recipe,
+    the inspection by the same Need through the medical `ProductionBillIntent` (patient, recipe,
     `part_index`). The recipe is the catalog's `RecipeDef` whose `workerClass` is
     `Recipe_SurgicalInspection`, on the operation the pawn's native surgery read offers (lowest part
     index), with an eligible doctor and its ingredients on the map. A creepjoiner that cannot be
     ordered one stays unordered and the reason is logged.
-  - The record is `policy.CreepJoinerRecord` in the concern's `Record` (the `GovernorState` concern blob,
-    [persistence](persistence-contracts.md)): `ordered` when the bill is queued with the plan (one
-    transaction), `done` once the pawn has no inspection bill queued. A bill the player removes also
+  - The record is the `family/admin/creep_joiners` family record (`Store.CreepJoinersRecord`, the
+    `GovernorState` blob, [persistence](persistence-contracts.md)), read back after a reload of the same
+    colony and map: `ordered` when the inspection Method is admitted (one transaction), `done` once the pawn has no inspection bill queued. A bill the player removes also
     reads as done: the colony cannot tell a finished bill from a removed one. Pawns that left the colony
     drop out. An inspection that reveals nothing leaves the downside unrevealed.
 - **Isolation.** A creepjoiner held apart (downside known hidden and no finished inspection in the
   record, `policy.CreepJoinerDownsides.Isolated`) owes one isolation room: a planned child room
   (`policy.IsolationRoomNeed`, role `RoomRoleIsolationRoom`, one bed) whose bed is the first
   `bed_humanlike` def the furniture rules resolve. `MaintainShelter` plans a bot-owned `Isolation`
-  allowed area over its interior. Once the room stands the `ManageCreepJoiners` plan moves the pawn
-  into the area (an area-only `WorkAssignment`, development-exempt) and releases it, by clearing the
+  allowed area over its interior. Once the room stands the `admin/creep-joiners` Need moves the pawn
+  into the area (an area-only `WorkAssignment`) and releases it, by clearing the
   area, when its downside shows, its inspection is done or it is hungry: the game treats food outside
   an allowed area as forbidden with no starvation exemption (`ForbidUtility.InAllowedArea`), so a
   hungry pawn is not kept in. The `Safe` area excludes the room. Known edges: a threat's shelter move
@@ -142,7 +145,7 @@ creepjoiner.
     the lowest part holding every part of that group in `BodyDef` pre-order index
     (`bridge.CreepJoinerDisarm`, `policy.CreepJoinerDisarm`).
   - For each colony prisoner with a creepjoiner tracker (`PrisonerFacts.CreepJoiner`, `Kind`),
-    `ManageCreepJoiners` queues, one bill at a time, the removal of an installed part first, else the
+    `admin/creep-joiners` queues, one bill at a time, the removal of an installed part first, else the
     cheapest install the game offers on a site that is no violation, with an eligible doctor and
     stocked ingredients. Price is the items the recipe names singly (`IngredientCount.count` at market
     value) plus the operation's medicine value; a recipe with no known price is refused with a log line.

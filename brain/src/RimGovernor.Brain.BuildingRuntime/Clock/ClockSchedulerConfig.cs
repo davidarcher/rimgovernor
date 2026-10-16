@@ -112,8 +112,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsPsylinkPlanner? Psylink { get; init; }
 
-    public RoundsCreepJoinerPlanner? CreepJoiners { get; init; }
-
     public RoundsPermitsPlanner? Permits { get; init; }
 
     public RoundsIdeoRolesPlanner? IdeoRoles { get; init; }

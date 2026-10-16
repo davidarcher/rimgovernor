@@ -79,7 +79,6 @@ public static partial class PolicyFunctions
         [MaintainRituals] = 1,
         [HoldGatherings] = 1,
         [MaintainPermits] = 1,
-        [ManageCreepJoiners] = 1,
         [MaintainHerd] = 1,
         [MaintainPopulation] = 1,
         [MaintainAnimalContainment] = 1,

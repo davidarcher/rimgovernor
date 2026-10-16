@@ -24,6 +24,7 @@ public static partial class PolicyFunctions
     /// <item>roof removal: each roof cell (<c>roof/x/z</c>); floor removal: its cell (<c>floor/x/z</c>);</item>
     /// <item>assignments (a bed, a throne), bed use and building claims: the thing;</item>
     /// <item>supply allow and forbid: the stack;</item>
+    /// <item>surgery bills: <c>surgery/&lt;patient&gt;/&lt;recipe&gt;/&lt;part&gt;</c>.</item>
     /// <item>research selection: the project (<c>research/&lt;project&gt;</c>).</item>
     /// </list>
     /// Any other kind claims nothing beyond its MethodId.
@@ -113,6 +114,7 @@ public static partial class PolicyFunctions
         else if (a.BedUse is { } bed) yield return bed.Thing;
         else if (a.ClaimBuilding is { } claimed) yield return claimed.Thing;
         else if (a.SupplyAllow is { } supply) yield return supply.Thing;
+        else if (a.Surgery is { } surgery) yield return "surgery/" + surgery.Pawn.Value + "/" + surgery.Recipe + "/" + surgery.Part;
         else if (a.ResearchSelect is { } research) yield return "research/" + research.Project;
     }
 }

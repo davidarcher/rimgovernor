@@ -324,6 +324,16 @@ serialize. `ConstructionClaimsIn` reads Need-owned building plans too. A Need's
 MethodIds are once per Need history, so a destroyed bench is not rebuilt under
 the same id. MaintainResource and trade stay Concerns until the rest of #3263.
 
+**Colony admin, creep joiners (#3264).** `ManageCreepJoiners` is now the
+`admin/creep-joiners` Need (`ColonyAdmin.cs`, `AdminRounds`), a Wellbeing Need of
+the `admin` family entry. Its Standard `Record` moved to the
+`family/admin/creep_joiners` record, keyed by colony and map, so the inspection
+record is read after a reload. The family's step commits one Method per pawn and
+order (`creepjoiner-{isolate|release|inspect|disarm}-<pawn>`) under the Need
+owner, writing the record with each inspection it admits; surgery bills claim
+`surgery/<patient>/<recipe>/<part>`. A weapon drop stays held as an unsupported
+forecast outcome.
+
 **Per-family migration checklist** (as followed for food-stores/storage):
 
 1. Write the facts record and `IFamily` in Policy: `Derive` from the Inspect body
@@ -373,7 +383,7 @@ three ways.
 | Joiners and quests | MaintainPopulation (joiners, quests, letters, ceremonies, decrees, monuments, departures, refugees, grav inspection) |
 | Anomaly | MaintainPopulation (entity capture, door, tend, bioferrite, monolith); lance placement is decided when the slice is groomed |
 | Economy | `economy`: Need `research` (#3263; EnsureResearch deleted); MaintainResource, MaintainTrade, TradeWithCaravan, trade missions |
-| Colony admin | EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles, MaintainBurial, ManageSupplySafety, ManageCreepJoiners |
+| Colony admin | `admin`: Need `creep-joiners` (#3264); EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles, MaintainBurial, ManageSupplySafety |
 | People | EnsureMood, AnswerDialog |
 | Disaster | RecoverDisasterServices |
 

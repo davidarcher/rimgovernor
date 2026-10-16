@@ -1,237 +1,55 @@
-using System.Globalization;
-
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>The creep joiner work one review found: weapon drops, surgical inspections, isolation moves and arrested ones to disarm.</summary>
-internal sealed class CreepJoinerWork
+internal static partial class BuildingRuntimePackage
 {
-    public IReadOnlyList<WeaponDrop> Drops = [];
-    public Inspections Inspections = new();
-    public IReadOnlyList<IsolationMove> Isolation = [];
-    public DisarmWork Disarm = new();
-}
-
-/// <summary>The creep joiner work of the latest review, handed to the planner of the same tick.</summary>
-internal sealed class CreepJoinerMemory
-{
-    private readonly object _mu = new();
-    private string _world = "";
-    private Tick _tick;
-    private CreepJoinerWork _work = new();
-    private bool _known;
-
-    internal Fact<bool> Review(GenerationSnapshot current, Tick tick, ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
+    /// <summary>
+    /// The creepjoiner work a census owes against the stored inspection record (#3264): weapon drops, inspections and
+    /// isolation moves while the colonist census is complete, and disarm orders for arrested creepjoiners. Owed is
+    /// unknown while the census or a creepjoiner's facts cannot be read and nothing is known owed.
+    /// </summary>
+    internal static CreepJoinerWork CreepJoinerWorkOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
     {
         var owed = Unknown<bool>();
-        var work = new CreepJoinerWork();
+        var work = new CreepJoinerWork { Record = record };
         if (CreepJoinerHands(frame) is { } hands)
         {
             var defs = catalog ?? throw new ControlException("creepJoiner review: no definition catalog");
             var downsides = defs.CreepJoinerDownsides();
-            (work.Drops, owed) = downsides.WeaponDrops(hands);
-            work.Inspections = downsides.Inspections(hands, defs.SurgicalInspectionRecipes(), record);
-            if (work.Inspections.Owed(record))
+            var (drops, dropsOwed) = downsides.WeaponDrops(hands);
+            owed = dropsOwed;
+            var inspections = downsides.Inspections(hands, defs.SurgicalInspectionRecipes(), record);
+            if (inspections.Owed(record))
             {
                 owed = Known(true);
             }
             facts.Facts.IsolationArea.TryGetValue(out var area);
-            work.Isolation = downsides.IsolationMoves(hands, work.Inspections.Record, area ?? "", IsolationReady(facts));
-            if (work.Isolation.Count > 0)
+            var projection = facts with { Isolation = CreepJoinerIsolation(facts, frame, catalog, record) };
+            var isolation = downsides.IsolationMoves(hands, inspections.Record, area ?? "", IsolationReady(projection));
+            if (isolation.Count > 0)
             {
                 owed = Known(true);
             }
+            work = work with { Drops = drops, Inspections = inspections, Isolation = isolation };
         }
         if (facts.Facts.Prisoners.TryGetValue(out var prisoners))
         {
+            DisarmWork disarm;
             try
             {
-                var disarm = (catalog ?? throw new ControlException("creepJoiner review: no definition catalog")).CreepJoinerDisarm();
-                work.Disarm = disarm.Orders(prisoners);
-                if (work.Disarm.Orders.Count > 0)
-                {
-                    owed = Known(true);
-                }
+                disarm = (catalog ?? throw new ControlException("creepJoiner review: no definition catalog")).CreepJoinerDisarm().Orders(prisoners);
             }
             catch (DomainException)
             {
                 // The disarm recipe is not in the catalog: nothing to order.
+                disarm = new DisarmWork();
             }
-        }
-        lock (_mu)
-        {
-            _world = StockpileWorld(current);
-            _tick = tick;
-            _work = work;
-            _known = owed.IsKnown;
-        }
-        return owed;
-    }
-
-    internal bool Take(string world, Tick tick, out CreepJoinerWork work)
-    {
-        lock (_mu)
-        {
-            if (_world != world || _tick != tick || !_known)
+            work = work with { Disarm = disarm };
+            if (disarm.Orders.Count > 0)
             {
-                work = new CreepJoinerWork();
-                return false;
-            }
-            work = _work;
-            return true;
-        }
-    }
-}
-
-public sealed class RoundsCreepJoinerResult : IPlannerMethod
-{
-    public Verdict Verdict { get; init; }
-
-    public PlanId Plan { get; init; }
-}
-
-/// <summary>Holds back the creep joiners until their downside shows: weapon drop, surgical inspection, isolation and disarm orders.</summary>
-public sealed class RoundsCreepJoinerPlanner
-{
-    private readonly Rounder _reviewer;
-    private readonly CreepJoinerMemory _memory;
-
-    public RoundsCreepJoinerPlanner(Rounder reviewer)
-    {
-        if (reviewer is null || !reviewer.MethodEnabled(PolicyApi.ManageCreepJoiners))
-        {
-            throw new ControlException("NewRoundsCreepJoinerPlanner: reviewer == nil || !reviewer.methodEnabled(policy.ManageCreepJoiners)");
-        }
-        reviewer.CreepJoiners = new CreepJoinerMemory();
-        _reviewer = reviewer;
-        _memory = reviewer.CreepJoiners;
-    }
-
-    internal async Task<RoundsCreepJoinerResult> StepAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
-    {
-        var p = _reviewer.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
-        {
-            return new RoundsCreepJoinerResult { Verdict = BuildingReasonDisabled };
-        }
-        if (!state.ObservationKnown || !state.Snapshot.IsValid)
-        {
-            throw new ControlException("step: !state.ObservationKnown || state.Snapshot.Validate() != nil");
-        }
-        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        if (!review.Enabled || review.Snapshot != state.Snapshot)
-        {
-            return new RoundsCreepJoinerResult { Verdict = BuildingReasonNoReview };
-        }
-        var (goal, workable) = await p.Journal.WorkableAsync(review, PolicyApi.ManageCreepJoiners, call).ConfigureAwait(false);
-        if (!workable || goal is null)
-        {
-            return new RoundsCreepJoinerResult { Verdict = BuildingReasonNoDeficit };
-        }
-        foreach (var method in goal.Methods)
-        {
-            var plan0 = await p.Journal.LoadPlanAsync(method.Plan, call).ConfigureAwait(false);
-            if (StorePackage.PlanOpen(plan0))
-            {
-                return new RoundsCreepJoinerResult { Verdict = BuildingReasonExistingWork };
+                owed = Known(true);
             }
         }
-        if (!_memory.Take(StockpileWorld(state.Snapshot), review.Tick, out var work))
-        {
-            return new RoundsCreepJoinerResult { Verdict = BuildingReasonNoReview };
-        }
-        var was = CreepJoinerRecord.Parse(goal.Standard.Record ?? "");
-        var id = PlanIds.MintPlanId();
-        var actions = new List<DomainAction>();
-        var claimed = new List<PawnId>();
-        ActionId Next() => new(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}"));
-        if (work.Drops.Count > 0)
-            return new RoundsCreepJoinerResult { Verdict = AwaitingPlan("unsupported_forecast_precautionary_disarm",
-                "Precautionary disarming requires shared participant admission; immediate combat protection remains separately owned.") };
-        foreach (var move in work.Isolation)
-        {
-            var pawn = move.Pawn;
-            if (!arbiter.TryClaim([pawn]))
-            {
-                continue;
-            }
-            claimed.Add(pawn);
-            var assignment = WorkAssignment.NewAreaAssignment((Domain.PawnId)pawn, move.Area == "", move.Area);
-            actions.Add(DomainAction.NewWorkAssignmentAction(Next(), assignment));
-        }
-        var ordered = work.Inspections.Record;
-        foreach (var order in work.Inspections.Orders)
-        {
-            var pawn = order.Pawn;
-            if (!arbiter.TryClaim([pawn]))
-            {
-                ordered = ordered with { Inspections = ordered.Inspections.Where(entry => entry.Key != order.Pawn).ToDictionary(entry => entry.Key, entry => entry.Value) };
-                continue;
-            }
-            claimed.Add(pawn);
-            actions.Add(DomainAction.NewSurgeryAction(Next(), new Surgery((Domain.PawnId)pawn, order.Recipe, order.Part, false)));
-        }
-        foreach (var order in work.Disarm.Orders)
-        {
-            var pawn = order.Pawn;
-            if (!arbiter.TryClaim([pawn]))
-            {
-                continue;
-            }
-            claimed.Add(pawn);
-            actions.Add(DomainAction.NewSurgeryAction(Next(), new Surgery((Domain.PawnId)pawn, order.Recipe, order.Part, false)));
-        }
-        if (actions.Count == 0)
-        {
-            if (ordered.Encode() != was.Encode())
-            {
-                p.Current(call, epoch);
-                await p.Journal.RecordStandardAsync(goal.Standard.Id, goal.Revision, ordered.Encode(), call).ConfigureAwait(false);
-                return new RoundsCreepJoinerResult { Verdict = WaitFor(Cause.MethodUsed, "creepjoiner_order_recorded") };
-            }
-            if (work.Inspections.Waiting.Count > 0)
-            {
-                return new RoundsCreepJoinerResult { Verdict = AwaitingPlan("creepjoiner_inspection", "") };
-            }
-            return new RoundsCreepJoinerResult { Verdict = WaitFor(Cause.MethodUsed, "creepjoiner_order") };
-        }
-        var spec = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
-        if (p.Session.State() != state)
-        {
-            throw new ControlException("step: p.session.State() != state");
-        }
-        var methodId = NextWaveMethod(goal, "creepjoiner-drop-");
-        var reason = $"creepjoiner: [{string.Join(' ', claimed.Select(c => c.Value))}] are held back (weapon dropped, surgical inspection, isolation room, arrested ones disarmed) until their downside shows";
-        await p.Journal.CommitMethodRecordAsync(goal.Standard.Id, goal.Revision, methodId, reason, spec, ordered.Encode(), call).ConfigureAwait(false);
-        return new RoundsCreepJoinerResult { Verdict = BuildingReasonAdmitted, Plan = id };
-    }
-}
-
-internal static partial class BuildingRuntimePackage
-{
-    /// <summary>The creep joiner record of the standard bound to the creep joiner concern; empty while there is no review or standard.</summary>
-    internal static CreepJoinerRecord CreepJoinerRecordOf(StoreJournal journal, CancellationToken ct)
-    {
-        RoundsReview review;
-        try
-        {
-            review = journal.LoadRounds(ct);
-        }
-        catch (NotFoundException)
-        {
-            return new CreepJoinerRecord();
-        }
-        foreach (var binding in review.Standards)
-        {
-            if (binding.Concern != PolicyApi.ManageCreepJoiners)
-            {
-                continue;
-            }
-            var state = journal.LoadStandard(binding.Standard, ct);
-            return CreepJoinerRecord.Parse(state.Standard.Record ?? "");
-        }
-        return new CreepJoinerRecord();
+        return work with { Owed = owed };
     }
 
     /// <summary>The hands of the colonists when the frame's pawn census is complete; null otherwise.</summary>

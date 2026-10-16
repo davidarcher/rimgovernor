@@ -671,9 +671,6 @@ public static partial class PolicyFunctions
     /// <summary>MaintainRituals: a ritual is due, calm and ready to begin.</summary>
     internal static void InspectRituals(RoundsRun c) => c.Owed(MaintainRituals, c.F.RitualsOwed);
 
-    /// <summary>ManageCreepJoiners: a creepjoiner holds a weapon before its downside has shown.</summary>
-    internal static void InspectCreepJoiners(RoundsRun c) => c.Owed(ManageCreepJoiners, c.F.CreepJoinerOwed);
-
     /// <summary>A colonist holds permit points for a permit worth taking. Unknown without the royalty read raises nothing.</summary>
     internal static void InspectPermits(RoundsRun c)
     {

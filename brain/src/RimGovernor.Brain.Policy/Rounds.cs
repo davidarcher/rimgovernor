@@ -269,9 +269,6 @@ public sealed record RoundsFacts
     /// <summary>A willing colonist has no psylink and a psylink neuroformer is held (PsylinkOwed); it holds MaintainPsylink open. Unknown unless the method is composed.</summary>
     public Fact<bool> PsylinkOwed { get; init; }
 
-    /// <summary>A creepjoiner whose downside has not shown holds a weapon (CreepJoinerDownsides.WeaponDrops); it holds ManageCreepJoiners open. Unknown unless the method is composed.</summary>
-    public Fact<bool> CreepJoinerOwed { get; init; }
-
     /// <summary>An active ideoligion role has a free place and a fitting believer (RolesOwed); it holds MaintainIdeoRoles open.</summary>
     public Fact<bool> RolesOwed { get; init; }
 
@@ -310,7 +307,7 @@ public sealed record RoundsFacts
     /// <summary>The pawns with Hauling enabled.</summary>
     public Fact<EquatableArray<PawnId>> DangerHaulers { get; init; }
 
-    /// <summary>The Isolation allowed area's native load id, "" when the map has none (ManageCreepJoiners).</summary>
+    /// <summary>The Isolation allowed area's native load id, "" when the map has none (the admin/creep-joiners Need).</summary>
     public Fact<string> IsolationArea { get; init; }
 
     /// <summary>Counts the packed art no owed room reserves (SaleSculptures); read only while the wealth headroom is negative, it opens a trade as the shed_art need.</summary>

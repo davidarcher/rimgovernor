@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Store;
 /// <item><c>standard/&lt;id&gt;</c>: <c>{schemaVersion, standard, revision}</c>, one per unretired standard. On load
 /// only trade missions and standards carrying a <c>Record</c> are re-inserted (<see cref="RebuildStandards"/>).</item>
 /// <item><c>family/layout_plan</c>, <c>family/defense_layout</c>, <c>family/production_ladder</c>,
-/// <c>family/soldier_squad</c>, <c>family/combat_restoration</c>: <c>{schemaVersion, scope?, record}</c>.</item>
+/// <c>family/soldier_squad</c>, <c>family/combat_restoration</c>, <c>family/admin/creep_joiners</c>: <c>{schemaVersion, scope?, record}</c>.</item>
 /// </list>
 /// The layout plan is a world row, so its blob carries the scope (colony, map, tick) of the newest row written.
 /// </summary>
@@ -22,7 +22,7 @@ public sealed partial class Store
     /// <summary>Versions every governor state blob; a breaking change bumps it.</summary>
     public const int GovernorStateSchemaVersion = 6;
 
-    private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "colony_extent_events"];
+    private static readonly string[] _familyTables = ["colony_layout_plans", "defense_layout", "production_ladder", "soldier_squad", "combat_restoration", "admin_creep_joiners", "colony_extent_events"];
 
     private static string Blob(Action<Utf8JsonWriter> body)
     {
@@ -93,6 +93,10 @@ public sealed partial class Store
                 {
                     output[GovernorCombatRestorationKey] = FamilyBlob(StoreJson.Serialize(restoration), null);
                 }
+                if (LoadCreepJoinersIn(tx) is { } creepJoiners)
+                {
+                    output[GovernorCreepJoinersKey] = FamilyBlob(StoreJson.Serialize(creepJoiners), null);
+                }
                 return (IReadOnlyDictionary<string, string>)output;
             },
             cancellationToken
@@ -146,7 +150,7 @@ public sealed partial class Store
         var blobs = new Dictionary<string, FamilyBlobIn>(StringComparer.Ordinal);
         try
         {
-            foreach (var key in new[] { GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey, GovernorCombatRestorationKey })
+            foreach (var key in new[] { GovernorLayoutPlanKey, GovernorDefenseLayoutKey, GovernorProductionLadderKey, GovernorSoldierSquadKey, GovernorCombatRestorationKey, GovernorCreepJoinersKey })
             {
                 if (!saved.TryGetValue(key, out var raw))
                 {
@@ -209,6 +213,10 @@ public sealed partial class Store
                         var r = Codecs.Default.Read<CombatRestoration>(restoration.Record);
                         r.Validate();
                         PutSingleton(tx, "combat_restoration", r, MaxCombatRestorationBytes);
+                    }
+                    if (blobs.TryGetValue(GovernorCreepJoinersKey, out var creepJoiners))
+                    {
+                        PutCreepJoinersIn(tx, Codecs.Default.Read<CreepJoinersRecord>(creepJoiners.Record));
                     }
                 },
                 cancellationToken

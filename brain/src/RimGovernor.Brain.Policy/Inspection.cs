@@ -80,7 +80,6 @@ internal static class InspectionRegistry
         new(MaintainRituals, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Colony], InspectRituals),
         new(HoldGatherings, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Colony, FactFamily.Emergency], InspectGathering),
         new(MaintainPermits, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Definitions, FactFamily.Colony], InspectPermits),
-        new(ManageCreepJoiners, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Emergency], InspectCreepJoiners),
         new(MaintainHerd, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Colony, FactFamily.Rooms], InspectHerd),
         new(MaintainPopulation, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Colony, FactFamily.World], InspectPopulation),
         new(MaintainAnimalContainment, ConcernType.StandardConcern, Department.People, [FactFamily.Colony, FactFamily.Pawns, FactFamily.Rooms], InspectAnimalContainment),

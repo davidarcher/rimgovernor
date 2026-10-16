@@ -267,7 +267,7 @@ public sealed class NeedFamilyTests
     }
 
     [Fact]
-    public void TheJournalOpensAtSchema14AndReplacesAVersion13File()
+    public void TheJournalOpensAtItsSchemaAndReplacesAnOlderFile()
     {
         var ct = TestContext.Current.CancellationToken;
         var path = Path.Combine(Path.GetTempPath(), "rg-need-schema-" + Guid.NewGuid().ToString("N") + ".db");
@@ -277,8 +277,8 @@ public sealed class NeedFamilyTests
             connection.Open();
             using var read = connection.CreateCommand();
             read.CommandText = "PRAGMA user_version";
-            Assert.Equal(14L, Convert.ToInt64(read.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture));
-            read.CommandText = "PRAGMA user_version=13";
+            Assert.Equal((long)Journal.SchemaVersion, Convert.ToInt64(read.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture));
+            read.CommandText = $"PRAGMA user_version={Journal.SchemaVersion - 1}";
             read.ExecuteNonQuery();
         }
         SqliteConnection.ClearAllPools();
@@ -288,7 +288,7 @@ public sealed class NeedFamilyTests
         using (journal)
         {
             Assert.NotNull(aside);
-            Assert.EndsWith("-13.bak", aside);
+            Assert.EndsWith($"-{Journal.SchemaVersion - 1}.bak", aside);
             Assert.Empty(journal.LoadNeed(Bleeding, World, ct).Methods);
         }
     }

@@ -2405,6 +2405,24 @@ internal sealed class SoldierSquadRecordConverter : ObjectCodec<SoldierSquadReco
     }
 }
 
+internal sealed class CreepJoinersRecordConverter : ObjectCodec<CreepJoinersRecord>
+{
+    protected override CreepJoinersRecord Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            World = e.Get<World>("World", o),
+            Ordered = e.Get<IReadOnlyList<global::RimGovernor.Brain.Domain.PawnId>>("Ordered", o),
+            Done = e.Get<IReadOnlyList<global::RimGovernor.Brain.Domain.PawnId>>("Done", o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, CreepJoinersRecord v, Codecs o)
+    {
+        w.Put("World", v.World, o);
+        w.Put("Ordered", v.Ordered, o);
+        w.Put("Done", v.Done, o);
+    }
+}
+
 internal sealed class StartingSupplyConverter : ObjectCodec<StartingSupply>
 {
     protected override StartingSupply Read(JsonElement e, Codecs o) =>

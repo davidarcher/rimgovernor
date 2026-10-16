@@ -61,8 +61,8 @@ public sealed partial class Rounder
     /// <summary>MaintainFirebreak's review memory, set when its planner is composed.</summary>
     internal FirebreakMemory? Firebreak;
 
-    /// <summary>ManageCreepJoiners's review memory, set when its planner is composed.</summary>
-    internal CreepJoinerMemory? CreepJoiners;
+    /// <summary>Set when the admin family runs admin/creep-joiners: the review reads its record for the isolation room.</summary>
+    internal bool CreepJoinerIsolation;
 
     /// <summary>Set when the mood relief planner is composed: it casts mood psycasts, so the review reads the royalty facts.</summary>
 
@@ -395,10 +395,9 @@ public sealed partial class Rounder
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { ConstructionClaims = reading.Projection.Facts.ConstructionClaims } });
         ReviewRoyalty(state.Snapshot, reading, ct);
         // A creepjoiner held apart owes the isolation room, so the census is read before the child rooms and the layout.
-        CreepJoinerRecord creepRecord = new();
-        if (CreepJoiners is not null)
+        if (CreepJoinerIsolation)
         {
-            creepRecord = CreepJoinerRecordOf(p.Journal, ct);
+            var creepRecord = await p.Journal.LoadCreepJoinersAsync(Player.PlayerWorld(state.Snapshot), ct).ConfigureAwait(false);
             reading = reading.WithProjection(reading.Projection with { Isolation = CreepJoinerIsolation(reading.Projection, reading.Frame, reading.Catalog, creepRecord) });
         }
         reading = ReviewChildRooms(reading);
@@ -498,10 +497,6 @@ public sealed partial class Rounder
             var (candidates, psylinkOwed) = await Psylink.ReviewAsync(Boundary.Identity(state.Snapshot), state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
             psylinkCandidates = candidates;
             reading = reading.WithFacts(rf => rf with { PsylinkOwed = psylinkOwed });
-        }
-        if (CreepJoiners is not null)
-        {
-            reading = reading.WithFacts(rf => rf with { CreepJoinerOwed = CreepJoiners.Review(state.Snapshot, reading.Projection.Identity.Tick, reading.Projection, reading.Frame, reading.Catalog, creepRecord) });
         }
         if (MethodEnabled(PolicyConstants.MaintainIdeoRoles))
         {

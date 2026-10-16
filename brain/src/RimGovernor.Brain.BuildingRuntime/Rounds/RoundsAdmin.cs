@@ -1,0 +1,169 @@
+namespace RimGovernor.Brain.BuildingRuntime;
+
+/// <summary>
+/// The runtime half of the colony admin family (#3264): its full read (the owned rounds census and the stored
+/// creepjoiner record) and the creepjoiner step, which claims each pawn on the step's arbiter and commits one Method
+/// per order under the admin/creep-joiners Need, writing the record with each inspection order it admits.
+/// </summary>
+public sealed class AdminRounds
+{
+    private readonly Rounder _reviewer;
+    private readonly bool _creepJoiners;
+
+    public AdminRounds(Rounder reviewer, bool creepJoiners)
+    {
+        _reviewer = reviewer ?? throw new ControlException("AdminRounds: reviewer is missing");
+        _creepJoiners = creepJoiners;
+        // A creepjoiner held apart owes the isolation room: the review reads the record before the child rooms.
+        reviewer.CreepJoinerIsolation = creepJoiners;
+    }
+
+    /// <summary>An optional entry woken by the outcomes of its surgeries and area moves.</summary>
+    public static FamilySchedule Schedule { get; } = new()
+    {
+        Class = PlannerClass.Optional,
+        Kinds = [ActionKind.Surgery, ActionKind.WorkAssignment],
+    };
+
+    /// <summary>The family's scheduler entry.</summary>
+    public FamilyRunner Runner() => new FamilyRunner<AdminFacts>(new AdminFamily(_creepJoiners), ReadAsync, Schedule, WorkAsync);
+
+    /// <summary>
+    /// Reads the family's facts in <paramref name="scope"/>'s world: the owned rounds census and, for the creepjoiner
+    /// Need, the stored inspection record and the work the census owes against it. Throws when the read is from
+    /// another world or older than the review.
+    /// </summary>
+    internal async Task<AdminFacts> ReadAsync(FamilyReadScope scope, CancellationToken ct)
+    {
+        if (scope.Immediate)
+        {
+            // No SeriousHarm Needs: the immediate pass reads nothing.
+            return new AdminFacts();
+        }
+        var journal = _reviewer.Player.Journal;
+        var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);
+        var expected = await StepScopeAsync(_reviewer.Native, ct).ConfigureAwait(false);
+        if (!RoundsBuildingBoundary(expected, scope.World, review.Tick))
+        {
+            throw new ControlException("admin read: the scope is another world or older than the review");
+        }
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
+        var facts = new AdminFacts();
+        if (_creepJoiners)
+        {
+            var record = await journal.LoadCreepJoinersAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
+            facts = facts with { CreepJoiners = CreepJoinerWorkOf(reading.Projection, reading.Frame, reading.Catalog, record) };
+        }
+        return facts;
+    }
+
+    /// <summary>The asynchronous step of a ready Need: the creepjoiner orders; any other Need has no step.</summary>
+    internal async Task<Verdict> WorkAsync(NeedWork work, AdminFacts facts, CancellationToken ct)
+    {
+        if (work.Need.Id == AdminFamily.CreepJoiners && facts.CreepJoiners is { } creep)
+        {
+            return await Task.Run(() => CreepJoinerStep(_reviewer.Player.Journal, work, creep, ct), ct).ConfigureAwait(false);
+        }
+        return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
+    }
+
+    /// <summary>
+    /// One Method per order: <c>creepjoiner-isolate-&lt;pawn&gt;</c> or <c>creepjoiner-release-&lt;pawn&gt;</c> (an
+    /// area-only assignment), <c>creepjoiner-inspect-&lt;pawn&gt;</c> and <c>creepjoiner-disarm-&lt;pawn&gt;</c> (a surgery
+    /// bill). Each pawn is claimed once on the step's arbiter, so a pawn gets one order per step as before. An
+    /// inspection's record entry is written with its Method; one not admitted leaves the pawn unordered. The record
+    /// changes a review alone finds (an ended bill, a pawn gone) are saved after the orders.
+    /// </summary>
+    internal static Verdict CreepJoinerStep(JournalStore journal, NeedWork work, CreepJoinerWork creep, CancellationToken ct)
+    {
+        if (creep.Drops.Count > 0)
+        {
+            return Verdict.AwaitingPlan(AdminFamily.UnsupportedDisarm, AdminFamily.UnsupportedDisarmDetail);
+        }
+        var need = work.Need.Id;
+        var world = work.Owner.Snapshot;
+        bool Claim(PawnId pawn) => work.Arbiter?.TryClaim([pawn]) ?? true;
+        var outcomes = new List<(ClaimOutcome Outcome, ClaimConflict? Conflict)>();
+
+        void Commit(string method, string reason, Func<ActionId, DomainAction> action)
+        {
+            var id = PlanIds.MintPlanId();
+            var spec = new PlanSpec(id, new PlanRevision(1), [action(new ActionId(id.Value + "-0"))]);
+            var commit = journal.CommitClaimedMethod(need, world, new MethodId(method), reason, spec, ct);
+            outcomes.Add((commit.Outcome, commit.Conflict));
+        }
+
+        foreach (var move in creep.Isolation)
+        {
+            if (!Claim(move.Pawn))
+            {
+                continue;
+            }
+            var release = move.Area.Length == 0;
+            Commit((release ? "creepjoiner-release-" : "creepjoiner-isolate-") + move.Pawn.Value,
+                release ? $"creepjoiner: {move.Pawn.Value} leaves the isolation area" : $"creepjoiner: {move.Pawn.Value} is held in the isolation area until its downside shows",
+                a => DomainAction.NewWorkAssignmentAction(a, WorkAssignment.NewAreaAssignment(move.Pawn, release, move.Area)));
+        }
+
+        // The orders' pawns start unordered; each admitted (or still open) inspection marks its pawn ordered.
+        var ordering = creep.Inspections.Orders.Select(o => o.Pawn).ToHashSet();
+        var record = new Dictionary<PawnId, InspectionStage>(creep.Inspections.Record.Inspections.Where(e => !ordering.Contains(e.Key)));
+        foreach (var order in creep.Inspections.Orders)
+        {
+            if (!Claim(order.Pawn))
+            {
+                continue;
+            }
+            var next = new Dictionary<PawnId, InspectionStage>(record) { [order.Pawn] = InspectionStage.Ordered };
+            var id = PlanIds.MintPlanId();
+            var spec = new PlanSpec(id, new PlanRevision(1), [DomainAction.NewSurgeryAction(new ActionId(id.Value + "-0"), new Surgery(order.Pawn, order.Recipe, order.Part, false))]);
+            var commit = journal.CommitCreepJoinerMethod(need, world, new MethodId("creepjoiner-inspect-" + order.Pawn.Value),
+                $"creepjoiner: {order.Pawn.Value} gets a surgical inspection while its downside is hidden", spec, new CreepJoinerRecord { Inspections = next }, ct);
+            outcomes.Add((commit.Outcome, commit.Conflict));
+            if (commit.Outcome != ClaimOutcome.Conflict)
+            {
+                record = next;
+            }
+        }
+
+        foreach (var order in creep.Disarm.Orders)
+        {
+            if (!Claim(order.Pawn))
+            {
+                continue;
+            }
+            Commit("creepjoiner-disarm-" + order.Pawn.Value, $"creepjoiner: arrested {order.Pawn.Value} is disarmed ({order.Recipe})",
+                a => DomainAction.NewSurgeryAction(a, new Surgery(order.Pawn, order.Recipe, order.Part, false)));
+        }
+
+        var left = new CreepJoinerRecord { Inspections = record };
+        var recorded = false;
+        if (left.Encode() != journal.LoadCreepJoiners(Player.PlayerWorld(world), ct).Encode())
+        {
+            journal.SaveCreepJoiners(Player.PlayerWorld(world), left, ct);
+            recorded = true;
+        }
+
+        if (outcomes.Any(o => o.Outcome == ClaimOutcome.Admitted))
+        {
+            return BuildingReasonAdmitted;
+        }
+        if (outcomes.Any(o => o.Outcome == ClaimOutcome.Continued))
+        {
+            return BuildingReasonExistingWork;
+        }
+        if (outcomes.FirstOrDefault(o => o.Conflict is not null).Conflict is { } conflict)
+        {
+            return Verdict.ClaimHeld(conflict.Claim);
+        }
+        if (recorded)
+        {
+            return WaitFor(Cause.MethodUsed, "creepjoiner_order_recorded");
+        }
+        if (creep.Inspections.Waiting.Count > 0)
+        {
+            return AwaitingPlan("creepjoiner_inspection", "");
+        }
+        return WaitFor(Cause.MethodUsed, "creepjoiner_order");
+    }
+}

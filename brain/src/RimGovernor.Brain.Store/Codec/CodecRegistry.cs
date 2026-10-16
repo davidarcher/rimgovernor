@@ -235,6 +235,7 @@ internal static class CodecRegistry
         codecs.Register(new SleepingHistoryConverter());
         codecs.Register(new SleepingUseConverter());
         codecs.Register(new SoldierSquadRecordConverter());
+        codecs.Register(new CreepJoinersRecordConverter());
         codecs.Register(new StandardConverter());
         codecs.Register(new StandardIdConverter());
         codecs.Register(new StartingSupplyConverter());

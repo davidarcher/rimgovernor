@@ -271,15 +271,17 @@ public sealed partial class Store
         }
         var bound = false;
         var areaOnly = false;
-        // A creepjoiner's isolation is an area move among its drops and inspections: the other actions pass, each
-        // assignment is area-only.
+        // A creepjoiner's isolation (the admin/creep-joiners Need) is an area move: each assignment is area-only.
         var isolation = false;
         var need = EnsureWorkAssignments;
-        if (owner.OwnerNeed(review, out var served))
+        if (owner is NeedOwner { Need: var held })
+        {
+            isolation = held == AdminFamily.CreepJoiners;
+        }
+        else if (owner.OwnerNeed(review, out var served))
         {
             bound = served == need;
             areaOnly = served == RecoverDisasterServices;
-            isolation = served == ManageCreepJoiners;
         }
         if (!bound && !areaOnly && !isolation)
         {
