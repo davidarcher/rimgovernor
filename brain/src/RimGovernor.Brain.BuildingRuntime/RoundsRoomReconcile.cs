@@ -551,11 +551,26 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>
-    /// True when the owner has not committed method yet: in a Standard's current episode, or ever in a Need's world,
-    /// so a released wave is not re-issued (<see cref="Sto.Store.OwnerMethodPlan"/>).
+    /// True when the owner may commit method now. A Standard: it has not committed it in its current episode. A Need
+    /// (decision 19, #3301): it never did, or its latest attempt is released and what that attempt built is gone
+    /// in <paramref name="product"/>, the family's construction census, so the same MethodId is admitted again as
+    /// the next attempt. An open attempt, a product that stands, a census left unknown (the default) or an
+    /// attempt that built nothing (a roof, a removal, a cancelled wave) holds it.
     /// </summary>
-    internal bool MethodOnce(Sto.IWorkOwner goal, MethodId method, CancellationToken call) =>
-        Reviewer.Player.Journal.OwnerMethodPlan(goal, method, call) is null;
+    internal bool MethodOnce(Sto.IWorkOwner goal, MethodId method, CancellationToken call, Fact<Pol.CurrentConstruction> product = default)
+    {
+        var journal = Reviewer.Player.Journal;
+        if (journal.OwnerMethodPlan(goal, method, call) is not { } prior)
+        {
+            return true;
+        }
+        if (goal is not Sto.NeedOwner)
+        {
+            return false;
+        }
+        var plan = journal.LoadPlan(prior, call);
+        return !Sto.StorePackage.PlanWorkOpen(plan, product) && Pol.PolicyFunctions.PlanProductGone(plan.Progress, product);
+    }
 
     /// <summary>Commits actions as one owner method.</summary>
     internal RoundsBuildingResult CommitOwnerActions(ControlState state, Sto.IWorkOwner goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, CancellationToken call, CancellationToken epoch)
@@ -845,7 +860,7 @@ public sealed partial class RoundsBuildingPlanner
             return WaitingHeld(rr.Name, w, [.. refused], call);
         }
         var method = new MethodId($"{rr.Name}-build-{DigestHex(key.ToString(), 8)}");
-        if (!MethodOnce(goal, method, call))
+        if (!MethodOnce(goal, method, call, facts.Facts.CurrentConstruction))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, rr.Name + "_build") };
         }

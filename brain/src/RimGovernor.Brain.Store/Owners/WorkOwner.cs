@@ -31,8 +31,9 @@ public sealed partial class Store
     /// <summary>
     /// The plan <paramref name="owner"/> last bound <paramref name="method"/> to, retired plans included; null when it
     /// never did. This is the planner's once-per-target key: a Standard's reads its current episode (a new episode
-    /// issues again), a Need's reads its whole <c>need_methods</c> history in its world, so a wave already committed
-    /// for a target is not re-issued because its Method was released.
+    /// issues again), a Need's reads its latest attempt in its world. A Need's MethodId is admitted again only once
+    /// that attempt is released and what it built is gone per the family's facts (decision 19); the building
+    /// planner's <c>MethodOnce</c> judges that, and nothing about it is stored.
     /// </summary>
     public PlanId? OwnerMethodPlan(IWorkOwner owner, MethodId method, CancellationToken cancellationToken)
     {

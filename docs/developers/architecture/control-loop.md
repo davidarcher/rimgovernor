@@ -129,10 +129,8 @@ A new family needs no progress code.
 **Implemented (#3279).** The shared building planner takes any work owner: Store
 `IWorkOwner` (`StandardState` or `NeedOwner`) with `OwnerMethodPlan`,
 `OwnerMethodHistory` and `CommitOwnerWork`. A Standard keeps its episode lookup,
-open-work gate and revision check; a Need commits through `CommitClaimedMethod`,
-and its "once" check reads the whole `need_methods` history, so a ring, roof,
-removal or dig wave committed for a target is not re-issued after release. A
-claim conflict or continued MethodId is a verdict (`claim`, open work), never an
+open-work gate and revision check; a Need commits through `CommitClaimedMethod`.
+A claim conflict or continued MethodId is a verdict (`claim`, open work), never an
 exception. Building work runs as the family's async step: `FamilyRunner<TFacts>`
 takes an optional `work(NeedWork, facts, ct)` that runs per ready Need after the
 pure proposals, with the Need, its `NeedOwner`, the step's `ControlState`, epoch
@@ -141,6 +139,21 @@ and arbiter; it calls the planner (`CommitBuildsAsync`, `CommitRoof`,
 on the run. The shelter room stays Standard-only. A Need-owned shell records no
 material shortfall dependency yet, and Need-owned buildings are not yet in the
 construction-claim census (`ConstructionClaimsIn`).
+
+**Re-issue when the product is gone (decision 19, #3301).** The planner's
+once-check (`RoundsBuildingPlanner.MethodOnce`) holds a Need's MethodId only
+while its latest attempt is open work (`StorePackage.PlanWorkOpen`, a placed
+blueprint or frame included) or while what that attempt built still stands.
+The family says what stands by passing the construction census of its read;
+`PolicyFunctions.PlanProductGone` judges the attempt's applied buildings
+against it: gone when every one is neither built nor a blueprint or frame.
+A gone product admits the same MethodId again as the next `need_methods`
+attempt; nothing new is stored. An unknown census, a census not passed (the
+default), or an attempt that applied no building (a roof, a removal, a dig,
+a cancelled wave) holds the MethodId, so unknown never reads as gone. The
+building waves of a room reconcile, the generic building step (the
+laboratory bench) and the refrigeration cooler pass their census; a Standard's
+once-check is unchanged (its current episode).
 
 **Claims.** A Method's claims are derived from its actions at admission, never
 stored on the Method: `WorkClaimsOf` over the actions yields a `WorkResourceClaims`
@@ -304,8 +317,9 @@ coolers the Need itself committed in its world (`OwnerMethodHistory`). Its build
 work is the family runner's `work` step (`FoodStoresRounds.WorkAsync` calling
 `RoundsBuildingPlanner.RefrigerationStepAsync` with the Need owner): the meal
 closet ring, a cooler setpoint, the freezer ring, the exhaust dig and the cooler,
-each committed once per world under the Need and held apart by claims, not by a
-whole-owner guard. With refrigeration on, the family reads the room census and
+each committed once under the Need while its attempt is open or what it built
+stands (a destroyed cooler or ring is committed again, decision 19), and held
+apart by claims, not by a whole-owner guard. With refrigeration on, the family reads the room census and
 wakes on Building and BuildingTemperature outcomes. The review reads the cooler
 and room definitions when `RoundsCapabilities.Needs` lists the Need (a Need has no
 registry row, so it is not a `Methods` entry). The CookAheadFood bill declares
@@ -320,9 +334,9 @@ to fund; unknown when the census is unread. Its pure Method is
 current project or a bench-locked rung holds the Need. The family's work step
 raises the laboratory benches (`laboratory-<def>`, the high-tech bench and the
 analyzer) under the same Need owner beside the selection, so the two no longer
-serialize. `ConstructionClaimsIn` reads Need-owned building plans too. A Need's
-MethodIds are once per Need history, so a destroyed bench is not rebuilt under
-the same id. MaintainResource and trade stay Concerns until the rest of #3263.
+serialize. `ConstructionClaimsIn` reads Need-owned building plans too. The bench
+step reads the room census, so a destroyed bench is raised again under the same
+`laboratory-<def>` as the next attempt (decision 19). MaintainResource and trade stay Concerns until the rest of #3263.
 
 **Food, cooking (#3254).** EnsureCooking (a Once) is now the `food/cooking` Need
 (`Food.cs`, `CookingNeedOf`), a Wellbeing Need of the `food` family entry
@@ -334,8 +348,9 @@ the cooking fact is unread; otherwise met. It is not a Once: a lost kitchen
 reopens the Need on the next review. Its building work (campfire, paste
 dispenser and hopper, kitchen shell, stove, the campfire's deconstruction) is the
 family's `work` step running the shared building planner under the Need owner,
-admitted by claims with no whole-owner guard; MethodIds stay once per Need
-history, so a destroyed stove is not re-placed under the same id. The family
+admitted by claims with no whole-owner guard; a stove or campfire whose work
+closed yields to a numbered successor MethodId (`NextSleepingBedMethod`) ahead
+of the once-check. The family
 reads the room census with the colony's construction claims and wakes on Building
 outcomes. The CookFood bill declares under the Need's filing key and reports the
 Need's standing; the forecast Cooking owner row is `NeedCoverage` of the same
@@ -438,7 +453,9 @@ record is read once at load when the blob is absent.
    slot, its scheduler-result merge and its planner classes.
 4. Bind the Method kinds' admission (`MethodAdmission`) to the `NeedOwner`; make
    sure `MethodClaims.ActionSubjects` yields a subject for every action kind the
-   Methods carry; delete the `*OpenWorkExempt` the old owner used.
+   Methods carry; delete the `*OpenWorkExempt` the old owner used. A building
+   step reads a construction census and passes it to `MethodOnce`, so a
+   destroyed product is re-issued ([decision 19](#method-journal-claim-admission)).
 5. Delete the Concern constant and every registry row: Inspection, Department,
    Labor, ConstructionTier, `RoundsConcern` deficit, latches and their codec
    fields, `UpkeepIssuedConcerns`, the acceptance concern samplers.

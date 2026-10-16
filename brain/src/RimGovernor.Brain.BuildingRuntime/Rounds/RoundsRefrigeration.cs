@@ -58,7 +58,8 @@ public sealed partial class RoundsBuildingPlanner
     /// The refrigeration Need's work step (#3280), run by the food stores family for the ready Need under its owner.
     /// It reads the rooms, shells the owed meal closet, picks the cooler method, and commits the setpoint, or the
     /// freezer's ring, the exhaust dig and the cooler itself. No whole-owner guard holds it: each target is
-    /// committed once under the Need, and an overlapping footprint is held by the claim.
+    /// committed once under the Need while its work is open or what it built stands (a destroyed cooler or ring is
+    /// committed again, decision 19), and an overlapping footprint is held by the claim.
     /// </summary>
     internal async Task<Verdict> RefrigerationStepAsync(NeedWork work, CancellationToken call)
     {
@@ -139,7 +140,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return gate;
         }
-        if (!r.MethodOnce(goal, method, call))
+        if (!r.MethodOnce(goal, method, call, facts.Facts.CurrentConstruction))
         {
             return WaitFor(Cause.MethodUsed, "sleeping_method");
         }

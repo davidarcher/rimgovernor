@@ -47,6 +47,38 @@ public static partial class PolicyFunctions
         return true;
     }
 
+    /// <summary>
+    /// What the plan built is gone (#3301): it applied at least one building, and the known colony census shows
+    /// none of them built, as a blueprint or as a frame. An unknown census, or a plan that applied no building,
+    /// is never gone.
+    /// </summary>
+    public static bool PlanProductGone(IReadOnlyList<Progress> progress, Fact<CurrentConstruction> census)
+    {
+        if (!census.TryGetValue(out var known) || !known.Colony)
+        {
+            return false;
+        }
+
+        var applied = false;
+        foreach (var p in progress)
+        {
+            var v = p.View;
+            if (p.Action.Kind != ActionKind.Building || p.Action.ConstructionTarget.Length != 0
+                || v.Stage != Stage.Completed || !v.Effect.TryGetValue(out var effect) || effect != Effect.Completed)
+            {
+                continue;
+            }
+
+            applied = true;
+            if (BuildingWorkOpen(p, census) != BuildingWork.BuildingGone)
+            {
+                return false;
+            }
+        }
+
+        return applied;
+    }
+
     /// <summary>WorkOpen for a building progress row.</summary>
     private static BuildingWork BuildingWorkOpen(Progress p, Fact<CurrentConstruction> census)
     {

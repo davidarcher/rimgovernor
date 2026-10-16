@@ -247,7 +247,7 @@ public sealed partial class RoundsBuildingPlanner
             if (r.Need.IsValid)
             {
                 // A Need-owned step has no whole-owner guard: its Methods are admitted by their claims, and a
-                // MethodId already committed is not re-issued (MethodOnce).
+                // MethodId already committed is re-issued only once its product is gone (MethodOnce).
                 continue;
             }
             if (StorePackage.PlanOpen(plan))
@@ -723,7 +723,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             method = r.NextSleepingBedMethod(goal, method, facts.Facts.CurrentConstruction, call);
         }
-        if (!r.MethodOnce(goal, method, call))
+        if (!r.MethodOnce(goal, method, call, facts.Facts.CurrentConstruction))
         {
             if (ringAfter is not null)
             {
