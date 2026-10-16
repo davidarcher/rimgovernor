@@ -34,11 +34,14 @@
     <ProjectReference Include="../../src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
     <ProjectReference Include="../../src/RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
   </ItemGroup>
-  <!-- The launcher is a WinExe outside this solution; its new-colony form and save loader (no WinForms dependency) are compiled in to pin the presets and the load retries. -->
+  <!-- The launcher is a WinExe outside this solution; its new-colony form and runner and the save loader (no WinForms dependency) are compiled in to pin the presets, the game reuse and the load retries. -->
   <ItemGroup>
     <Compile Include="../../../tools/launcher/NewColony.cs" Link="Launcher/NewColony.cs" />
     <Compile Include="../../../tools/launcher/LauncherException.cs" Link="Launcher/LauncherException.cs" />
     <Compile Include="../../../tools/launcher/SaveLoader.cs" Link="Launcher/SaveLoader.cs" />
+    <Compile Include="../../../tools/launcher/NewColonyRunner.cs" Link="Launcher/NewColonyRunner.cs" />
+    <Compile Include="../../../tools/launcher/Settings.cs" Link="Launcher/Settings.cs" />
+    <Compile Include="../../../tools/launcher/LauncherJson.cs" Link="Launcher/LauncherJson.cs" />
   </ItemGroup>
   <!-- The thoughtaudit guard analysis (#3218 spike) is pure syntax analysis; compiled in to pin its unknown handling without the game. -->
   <ItemGroup>

@@ -40,6 +40,9 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
     private Settings _settings = new();
     private CancellationTokenSource? _startCts;
 
+    /// <summary>What this launcher last started the game with; a running game it did not start (or forgot, on a relaunch of the launcher) is restarted before reuse.</summary>
+    private LaunchedGame? _launched;
+
     public LauncherApp(string repo)
     {
         Repo = repo;
@@ -598,14 +601,24 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         }
 
         var endpointDir = GameSessions.EndpointDirectory(ConfigDir, gameId);
+        var spec = GameSessions.LaunchSpecFromConfig(ConfigDir, gameId);
+        var (args, hostEnv) = LaunchInputs(spec, settings, endpointDir);
         if (GameProcess.Attach(ConfigDir, gameId) is { } running)
         {
-            if (await EndpointAsync(endpointDir, running.Pid, ct).ConfigureAwait(false) is { } adopted)
+            if (await EndpointAsync(endpointDir, running.Pid, ct).ConfigureAwait(false) is not { } adopted)
+            {
+                throw new LauncherException("RimWorld is already running without the in-process brain; use Close game first");
+            }
+
+            // Loading into the running game is a reuse like New colony's: a process started with another mod list,
+            // package, command line or host environment restarts.
+            if (ReuseMismatch(running.Pid, args, hostEnv) is not { Length: > 0 } reason)
             {
                 return adopted;
             }
 
-            throw new LauncherException("RimWorld is already running without the in-process brain; use Close game first");
+            Log($"play: restarting the running game ({reason})");
+            await StopGamesAsync(ct).ConfigureAwait(false);
         }
 
         if ((await SetupProcesses.RunningGamesAsync(Layout.GameCopy, ct).ConfigureAwait(false)).Count > 0)
@@ -613,7 +626,6 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
             throw new LauncherException("RimWorld is already running from the game copy; use Close game first");
         }
 
-        var spec = GameSessions.LaunchSpecFromConfig(ConfigDir, gameId);
         var stale = EndpointFile.PathIn(endpointDir);
         try
         {
@@ -626,18 +638,7 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
             throw new LauncherException($"remove stale {stale}: {e.Message}", e);
         }
 
-        var env = new Dictionary<string, string>(spec.Env, StringComparer.Ordinal)
-        {
-            ["RIMGOVERNOR_OTLP_DIR"] = endpointDir,
-            ["RIMGOVERNOR_RUN_ID"] = Guid.NewGuid().ToString("N"),
-        };
-        foreach (var (name, value) in settings.HostEnvironment())
-        {
-            env[name] = value;
-        }
-
-        // The shared launch config carries the acceptance probes' pause-on-load flag; a player's game must run after a load.
-        string[] args = [.. spec.Args.Where(a => !string.Equals(a, "-rimgovernor-pause-on-load", StringComparison.Ordinal)), .. settings.GameArguments()];
+        var env = new Dictionary<string, string>(hostEnv, StringComparer.Ordinal) { ["RIMGOVERNOR_RUN_ID"] = Guid.NewGuid().ToString("N") };
         GameProcess game;
         try
         {
@@ -650,6 +651,11 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)
         {
             throw new LauncherException(e.Message, e);
+        }
+
+        lock (_mu)
+        {
+            _launched = new LaunchedGame(game.Pid, args, hostEnv);
         }
 
         Log($"RimWorld {string.Join(' ', args)}");
@@ -672,6 +678,130 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         }
 
         throw new LauncherException($"RimWorld did not announce its channel within {StartBudget.TotalMinutes:0} minutes; see {log}");
+    }
+
+    /// <summary>
+    /// The command line and environment a start with <paramref name="settings"/> uses, less the per-run id: the shared
+    /// config's, without the acceptance probes' pause-on-load flag (a player's game must run after a load), then the
+    /// settings' own.
+    /// </summary>
+    private static (string[] Args, Dictionary<string, string> Env) LaunchInputs(GameLaunchSpec spec, Settings settings, string endpointDir)
+    {
+        var env = new Dictionary<string, string>(spec.Env, StringComparer.Ordinal) { ["RIMGOVERNOR_OTLP_DIR"] = endpointDir };
+        foreach (var (name, value) in settings.HostEnvironment())
+        {
+            env[name] = value;
+        }
+
+        string[] args = [.. spec.Args.Where(a => !string.Equals(a, "-rimgovernor-pause-on-load", StringComparison.Ordinal)), .. settings.GameArguments()];
+        return (args, env);
+    }
+
+    /// <summary>
+    /// Why the running game <paramref name="pid"/> cannot be reused for a start with <paramref name="args"/> and
+    /// <paramref name="env"/>, or "" when it can. The mod list and package come from the launch snapshots
+    /// (<see cref="HeadlessProfile.LaunchedMismatch"/>, as acceptance's kept game); the command line and host environment
+    /// from this launcher's own record, since the game reads both once at start.
+    /// </summary>
+    private string ReuseMismatch(int pid, string[] args, Dictionary<string, string> env)
+    {
+        string snapshot;
+        try
+        {
+            snapshot = HeadlessProfile.LaunchedMismatch(ConfigDir);
+        }
+        catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)
+        {
+            return "launch snapshot: " + e.Message;
+        }
+
+        LaunchedGame? launched;
+        bool pending;
+        lock (_mu)
+        {
+            (launched, pending) = (_launched, _modPending);
+        }
+
+        if (snapshot.Length > 0)
+        {
+            return snapshot;
+        }
+
+        if (pending)
+        {
+            return "mod update pending";
+        }
+
+        if (launched is null || launched.Pid != pid)
+        {
+            return "unrecorded";
+        }
+
+        if (!launched.Args.SequenceEqual(args, StringComparer.Ordinal))
+        {
+            return "args";
+        }
+
+        return launched.Env.Count == env.Count && env.All(e => launched.Env.TryGetValue(e.Key, out var v) && v == e.Value) ? "" : "env";
+    }
+
+    // INewColonyHost
+    public async Task<string?> ReusableGameAsync(CancellationToken ct)
+    {
+        lock (_mu)
+        {
+            if (_state == GameState.Starting)
+            {
+                return null; // a Play start is not a game to reuse yet; the restart ends it as before
+            }
+        }
+
+        string gameId;
+        try
+        {
+            gameId = Settings.ConfiguredGame(await File.ReadAllTextAsync(ConfigPath, ct).ConfigureAwait(false));
+        }
+        catch (Exception e) when (e is IOException or LauncherException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+
+        if (GameProcess.Attach(ConfigDir, gameId) is not { } running)
+        {
+            return null;
+        }
+
+        var endpointDir = GameSessions.EndpointDirectory(ConfigDir, gameId);
+        if (await EndpointAsync(endpointDir, running.Pid, ct).ConfigureAwait(false) is not { } address)
+        {
+            Log("new colony: restarting the game (its channel does not answer)");
+            return null;
+        }
+
+        Settings settings;
+        lock (_mu)
+        {
+            settings = _settings;
+        }
+
+        string reason;
+        try
+        {
+            var (args, env) = LaunchInputs(GameSessions.LaunchSpecFromConfig(ConfigDir, gameId), settings, endpointDir);
+            reason = ReuseMismatch(running.Pid, args, env);
+        }
+        catch (Exception e) when (e is AcceptanceException or LauncherException)
+        {
+            reason = e.Message;
+        }
+
+        if (reason.Length > 0)
+        {
+            Log($"new colony: restarting the game ({reason})");
+            return null;
+        }
+
+        return address;
     }
 
     private async Task LoadInBackgroundAsync(string address, string save)
@@ -712,9 +842,17 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
             await starting.CancelAsync().ConfigureAwait(false);
         }
 
+        await StopGamesAsync(CancellationToken.None).ConfigureAwait(false);
+        SetState(GameState.Stopped, "");
+        await PollAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Ends every RimWorld process of the game copy.</summary>
+    private async Task StopGamesAsync(CancellationToken ct)
+    {
         try
         {
-            var pids = await SetupProcesses.StopGamesAsync(Layout.GameCopy, CancellationToken.None).ConfigureAwait(false);
+            var pids = await SetupProcesses.StopGamesAsync(Layout.GameCopy, ct).ConfigureAwait(false);
             if (pids.Count > 0)
             {
                 Log($"closed RimWorld (pid {string.Join(' ', pids)})");
@@ -724,9 +862,6 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         {
             Log("close game: " + e.Message);
         }
-
-        SetState(GameState.Stopped, "");
-        await PollAsync().ConfigureAwait(false);
     }
 
     public async Task RestartAsync()
@@ -765,4 +900,7 @@ public sealed class LauncherApp : INewColonyHost, IAcceptHost, IDisposable
         _loader.Dispose();
         _http.Dispose();
     }
+
+    /// <summary>A game this launcher started: its process and the command line and environment (less the run id) it got.</summary>
+    private sealed record LaunchedGame(int Pid, string[] Args, Dictionary<string, string> Env);
 }

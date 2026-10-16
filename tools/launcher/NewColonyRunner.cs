@@ -14,6 +14,13 @@ public interface INewColonyHost
     /// <summary>The saves folder the launcher lists.</summary>
     string SavesDir { get; }
 
+    /// <summary>
+    /// The base address of the running game when New colony can reuse it: this launcher started it with the mod list,
+    /// package, arguments and host environment a start now would use, and its channel answers. Null, after logging why,
+    /// when nothing runs or a restart is needed.
+    /// </summary>
+    Task<string?> ReusableGameAsync(CancellationToken ct);
+
     /// <summary>Closes the game.</summary>
     Task CloseGameAsync();
 
@@ -27,13 +34,18 @@ public interface INewColonyHost
 
 /// <summary>
 /// The launcher's orchestration of <c>POST /api/lifecycle/new</c> against the game's in-process brain (Go
-/// <c>colonyRunner</c>). One generation at a time: close the game, start it afresh, post the spec, poll the request
-/// until native saves the colony. The page holds no labels, ordering or ranges: it renders <see cref="View"/> and calls
-/// <see cref="Generate"/> and <see cref="CancelAsync"/>.
+/// <c>colonyRunner</c>). One generation at a time. Native generates only from a fresh main menu: a running game the
+/// host can reuse returns there (<c>/api/lifecycle/menu</c>), any other is closed and started afresh. Then it posts
+/// the spec and polls the request until native saves the colony. The page holds no labels, ordering or ranges: it
+/// renders <see cref="View"/> and calls <see cref="Generate"/> and <see cref="CancelAsync"/>.
 /// </summary>
 public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewColonySpec spec)
 {
     public const string ObserveNotice = "generating a colony needs control: turn off Observe mode";
+
+    private const string NewPath = "/api/lifecycle/new";
+
+    private const string MenuPath = "/api/lifecycle/menu";
 
     private readonly Lock _mu = new();
     private NewColonySpec _spec = spec;
@@ -41,6 +53,7 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
     private DateTimeOffset _started;
     private DateTimeOffset _ended;
     private CancellationTokenSource? _cancel;
+    private bool _closeOnCancel;
 
     /// <summary>The wait between requests.</summary>
     internal TimeSpan Poll { get; init; } = TimeSpan.FromMilliseconds(250);
@@ -48,10 +61,13 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
     /// <summary>Bounds the generation once the game answers; it is also the wire's timeoutMs.</summary>
     internal TimeSpan Timeout { get; init; } = TimeSpan.FromMilliseconds(NewColonyBounds.MaxTimeoutMs);
 
+    /// <summary>Bounds the return to the main menu, retries of a busy game included (the harness's own menu ceiling).</summary>
+    internal TimeSpan MenuTimeout { get; init; } = TimeSpan.FromSeconds(90);
+
     internal Func<DateTimeOffset> Now { get; init; } = () => DateTimeOffset.UtcNow;
 
     private bool Active =>
-        _progress.State is ColonyState.Restarting or ColonyState.Connecting or ColonyState.Generating;
+        _progress.State is ColonyState.Returning or ColonyState.Restarting or ColonyState.Connecting or ColonyState.Generating;
 
     /// <summary>The page's snapshot.</summary>
     public NewColonyView View()
@@ -107,6 +123,7 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
             cts = new CancellationTokenSource();
             id = "launcher-new-" + Now().ToUnixTimeMilliseconds().ToString("x", CultureInfo.InvariantCulture);
             _cancel = cts;
+            _closeOnCancel = false;
             _spec = chosen;
             _started = Now();
             _progress = new NewColonyProgress { State = ColonyState.Restarting, RequestId = id, Seed = seed, SaveName = chosen.SaveName };
@@ -125,10 +142,14 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
         _ = Task.Run(() => RunAsync(chosen, seed, id, cts.Token), CancellationToken.None);
     }
 
-    /// <summary>Ends the game (native has no cancel op) and reports cancelled. A no-op when nothing is generating.</summary>
+    /// <summary>
+    /// Reports cancelled. Once the game restarts or generates it is ended (native has no cancel op); before that,
+    /// while a reused game only returns to the main menu, it keeps running. A no-op when nothing is generating.
+    /// </summary>
     public async Task CancelAsync()
     {
         CancellationTokenSource? cancel;
+        bool close;
         lock (_mu)
         {
             if (!Active)
@@ -136,18 +157,32 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
                 return;
             }
 
-            _progress = _progress with { State = ColonyState.Cancelled, Error = null };
+            close = _closeOnCancel;
+            _progress = _progress with
+            {
+                State = ColonyState.Cancelled,
+                Error = close ? "The game was closed." : "The game was left running.",
+            };
             _ended = Now();
             cancel = _cancel;
         }
 
         await cancel!.CancelAsync().ConfigureAwait(false);
+        if (!close)
+        {
+            host.Log("new colony: cancelled before generating; the game keeps running");
+            return;
+        }
+
         host.Log("new colony: cancelled; closing the game");
         await host.CloseGameAsync().ConfigureAwait(false);
     }
 
-    /// <summary>Applies <paramref name="change"/> unless the run already ended (Cancel wins).</summary>
-    private bool Update(Func<NewColonyProgress, NewColonyProgress> change)
+    /// <summary>
+    /// Applies <paramref name="change"/> unless the run already ended (Cancel wins); <paramref name="closeOnCancel"/>
+    /// marks the point from which a cancel must end the game.
+    /// </summary>
+    private bool Update(Func<NewColonyProgress, NewColonyProgress> change, bool closeOnCancel = false)
     {
         lock (_mu)
         {
@@ -157,6 +192,7 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
             }
 
             _progress = change(_progress);
+            _closeOnCancel |= closeOnCancel;
             return true;
         }
     }
@@ -191,140 +227,218 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
 
     private async Task GenerateAsync(NewColonySpec chosen, string seed, string id, CancellationToken ct)
     {
+        var baseUrl = await host.ReusableGameAsync(ct).ConfigureAwait(false) is { } running
+            ? await ReturnToMenuAsync(running.TrimEnd('/'), id, ct).ConfigureAwait(false)
+            : await RestartAsync(ct).ConfigureAwait(false);
+
+        // From the new colony post on, only ending the game stops native.
+        if (baseUrl is null || !Update(p => p with { State = ColonyState.Connecting, Stale = false, StaleError = null, Detail = null }, closeOnCancel: true))
+        {
+            return;
+        }
+
+        var body = JsonSerializer.SerializeToUtf8Bytes(
+            new NewColonyRequestBody(id, (uint)Timeout.TotalMilliseconds, chosen.ForWire(seed)), LauncherJson.Compact);
+        var accepted = false;
+        await RepeatAsync(
+            async token =>
+            {
+                var (status, data) = await SendAsync(baseUrl + NewPath, id, body, accepted, token).ConfigureAwait(false);
+                if (!Succeeded(status))
+                {
+                    return Retry(status, data, accepted, "");
+                }
+
+                if (Decode<Reply>(data) is not { } reply)
+                {
+                    Uncertain($"undecodable reply (HTTP {(int)status})");
+                    return true;
+                }
+
+                if (reply.Status == "completed")
+                {
+                    Update(p => p with
+                    {
+                        State = ColonyState.Completed, Stale = false, StaleError = null, SaveName = reply.SaveName,
+                        Seed = string.IsNullOrEmpty(reply.Seed) ? p.Seed : reply.Seed, Phase = null, Detail = null,
+                    });
+                    lock (_mu)
+                    {
+                        _ended = Now();
+                    }
+
+                    host.Log($"new colony: {reply.SaveName} saved (seed {reply.Seed})");
+                    return false;
+                }
+
+                accepted = true;
+                Update(p => p with
+                {
+                    State = ColonyState.Generating, Stale = false, StaleError = null, Phase = reply.Phase, Detail = reply.Detail,
+                    NativeElapsedMs = reply.ElapsedMs, RerollCount = reply.RerollCount,
+                });
+                return true;
+            },
+            Timeout,
+            "Timed out waiting for the colony.",
+            ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Closes the game and starts it afresh; its channel's address, or null when the run already ended.</summary>
+    private async Task<string?> RestartAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (!Update(p => p with { State = ColonyState.Restarting }, closeOnCancel: true))
+        {
+            return null;
+        }
+
         await host.CloseGameAsync().ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
-        string baseUrl;
         try
         {
-            baseUrl = (await host.StartGameAsync(ct).ConfigureAwait(false)).TrimEnd('/');
+            return (await host.StartGameAsync(ct).ConfigureAwait(false)).TrimEnd('/');
         }
         catch (LauncherException e)
         {
             throw new LauncherException("The game did not start: " + e.Message, e);
         }
+    }
 
-        if (!Update(p => p with { State = ColonyState.Connecting }))
+    /// <summary>
+    /// Ends the reused game's loaded colony without saving (<c>/api/lifecycle/menu</c>) and waits for the fresh main
+    /// menu new colony starts from. Returns <paramref name="baseUrl"/> once there, or null when the run ended (failed,
+    /// timed out or cancelled). A busy game (a load or save queued) is asked again with the same request id.
+    /// </summary>
+    private async Task<string?> ReturnToMenuAsync(string baseUrl, string id, CancellationToken ct)
+    {
+        if (!Update(p => p with { State = ColonyState.Returning }))
         {
-            return;
+            return null;
         }
 
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        deadline.CancelAfter(Timeout);
-        var token = deadline.Token;
-        var body = JsonSerializer.SerializeToUtf8Bytes(
-            new NewColonyRequestBody(id, (uint)Timeout.TotalMilliseconds, chosen.ForWire(seed)), LauncherJson.Compact);
-        var posted = false;
-        while (true)
-        {
-            try
+        host.Log("new colony: reusing the running game; returning it to the main menu");
+        var menuId = id + "-menu";
+        var body = JsonSerializer.SerializeToUtf8Bytes(new MenuRequestBody(menuId), LauncherJson.Compact);
+        var accepted = false;
+        var done = false;
+        await RepeatAsync(
+            async token =>
             {
-                if (!await StepAsync(baseUrl, id, body, posted, token).ConfigureAwait(false))
+                var (status, data) = await SendAsync(baseUrl + MenuPath, menuId, body, accepted, token).ConfigureAwait(false);
+                if (!Succeeded(status))
                 {
-                    return;
+                    return Retry(status, data, accepted, "The game did not return to the main menu: ");
                 }
 
-                posted = true;
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                Fail("Timed out waiting for the colony.");
-                return;
-            }
-            catch (HttpRequestException e)
-            {
-                Uncertain(e.Message); // an unresolved POST is retried with the same request id
-            }
+                if (Decode<MenuReply>(data) is not { } reply)
+                {
+                    Uncertain($"undecodable reply (HTTP {(int)status})");
+                    return true;
+                }
 
-            try
+                if (reply.Status == "completed")
+                {
+                    done = true;
+                    host.Log(reply.Unloaded ? "new colony: the game is back at the main menu" : "new colony: the game was at the main menu");
+                    return false;
+                }
+
+                accepted = true;
+                Update(p => p with { Stale = false, StaleError = null, Detail = reply.Detail });
+                return true;
+            },
+            MenuTimeout,
+            "Timed out returning the game to the main menu.",
+            ct).ConfigureAwait(false);
+        return done ? baseUrl : null;
+    }
+
+    /// <summary>
+    /// Runs <paramref name="step"/> (one request; false when the run is over) every <see cref="Poll"/> within
+    /// <paramref name="budget"/>, keeping the last good progress across transport failures. Fails with
+    /// <paramref name="timedOut"/> when the budget runs out; a cancel just ends it.
+    /// </summary>
+    private async Task RepeatAsync(Func<CancellationToken, Task<bool>> step, TimeSpan budget, string timedOut, CancellationToken ct)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        deadline.CancelAfter(budget);
+        var token = deadline.Token;
+        try
+        {
+            while (true)
             {
+                try
+                {
+                    if (!await step(token).ConfigureAwait(false))
+                    {
+                        return;
+                    }
+                }
+                catch (HttpRequestException e)
+                {
+                    Uncertain(e.Message); // an unresolved POST is retried with the same request id
+                }
+
                 await Task.Delay(Poll, token).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                Fail("Timed out waiting for the colony.");
-                return;
-            }
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            Fail(timedOut);
         }
     }
 
-    /// <summary>One request. Returns false when the run is over; throws on a transport failure.</summary>
-    private async Task<bool> StepAsync(string baseUrl, string id, byte[] body, bool posted, CancellationToken ct)
+    /// <summary>The POST of <paramref name="body"/> to <paramref name="url"/>, or once <paramref name="accepted"/>, the GET of request <paramref name="id"/>.</summary>
+    private async Task<(HttpStatusCode Status, byte[] Data)> SendAsync(string url, string id, byte[] body, bool accepted, CancellationToken ct)
     {
-        using var request = posted
-            ? new HttpRequestMessage(HttpMethod.Get, baseUrl + "/api/lifecycle/new?requestId=" + Uri.EscapeDataString(id))
-            : new HttpRequestMessage(HttpMethod.Post, baseUrl + "/api/lifecycle/new") { Content = JsonBody(body) };
+        using var request = accepted
+            ? new HttpRequestMessage(HttpMethod.Get, url + "?requestId=" + Uri.EscapeDataString(id))
+            : new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonBody(body) };
         using var response = await http.SendAsync(request, ct).ConfigureAwait(false);
-        var data = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
-        var status = response.StatusCode;
-        if (status is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.Accepted)
+        return (response.StatusCode, await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false));
+    }
+
+    private static bool Succeeded(HttpStatusCode status) => status is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.Accepted;
+
+    /// <summary>
+    /// A failure reply: a refusal (409, any other 4xx, a native 502) fails the run with <paramref name="prefix"/> and
+    /// returns false; anything else (the routes not registered yet, a busy game's 503) is retried.
+    /// </summary>
+    private bool Retry(HttpStatusCode status, byte[] data, bool accepted, string prefix)
+    {
+        var failure = Decode<Failure>(data);
+        var code = failure?.Code ?? "";
+        if (status == HttpStatusCode.NotFound && code == "not_found" && !accepted)
         {
-            Reply? reply;
-            try
-            {
-                reply = JsonSerializer.Deserialize<Reply>(data, LauncherJson.Compact);
-            }
-            catch (JsonException)
-            {
-                reply = null;
-            }
-
-            if (reply is null)
-            {
-                Uncertain($"undecodable reply (HTTP {(int)status})");
-                return true;
-            }
-
-            if (reply.Status == "completed")
-            {
-                Update(p => p with
-                {
-                    State = ColonyState.Completed, Stale = false, StaleError = null, SaveName = reply.SaveName,
-                    Seed = string.IsNullOrEmpty(reply.Seed) ? p.Seed : reply.Seed, Phase = null, Detail = null,
-                });
-                lock (_mu)
-                {
-                    _ended = Now();
-                }
-
-                host.Log($"new colony: {reply.SaveName} saved (seed {reply.Seed})");
-                return false;
-            }
-
-            Update(p => p with
-            {
-                State = ColonyState.Generating, Stale = false, StaleError = null, Phase = reply.Phase, Detail = reply.Detail,
-                NativeElapsedMs = reply.ElapsedMs, RerollCount = reply.RerollCount,
-            });
+            // The channel answers from mod load, but the brain registers /api/lifecycle only after the Defs load.
+            Uncertain("the game is still starting");
             return true;
         }
 
-        Failure? failure = null;
-        try
+        var detail = string.IsNullOrEmpty(failure?.Detail) ? $"HTTP {(int)status}" : failure.Detail;
+        if (status == HttpStatusCode.Conflict || (int)status is >= 400 and < 500
+            || (status == HttpStatusCode.BadGateway && code.StartsWith("native_", StringComparison.Ordinal)))
         {
-            failure = JsonSerializer.Deserialize<Failure>(data, LauncherJson.Compact);
-        }
-        catch (JsonException)
-        {
-        }
-
-        var code = failure?.Code ?? "";
-        var code4xx = (int)status is >= 400 and < 500;
-        if (status == HttpStatusCode.NotFound && code == "not_found" && !posted)
-        {
-            // The channel answers from mod load, but the brain registers /api/lifecycle only after the Defs load.
-            throw new HttpRequestException("the game is still starting");
-        }
-
-        var terminal = status == HttpStatusCode.Conflict || code4xx
-            || (status == HttpStatusCode.BadGateway && code.StartsWith("native_", StringComparison.Ordinal));
-        if (terminal)
-        {
-            Fail(string.IsNullOrEmpty(failure?.Detail) ? $"HTTP {(int)status}" : failure.Detail);
+            Fail(prefix + detail);
             return false;
         }
 
-        Uncertain($"HTTP {(int)status}");
+        Uncertain(detail);
         return true;
+    }
+
+    private static T? Decode<T>(byte[] data)
+        where T : class
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<T>(data, LauncherJson.Compact);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static ByteArrayContent JsonBody(byte[] body)
@@ -341,6 +455,11 @@ public sealed class NewColonyRunner(INewColonyHost host, HttpClient http, NewCol
 
     /// <summary>The reply body of <c>/api/lifecycle/new</c>.</summary>
     private sealed record Reply(string Status, string? Phase, string? Detail, ulong ElapsedMs, uint RerollCount, string? SaveName, string? Seed);
+
+    private sealed record MenuRequestBody(string RequestId);
+
+    /// <summary>The reply body of <c>/api/lifecycle/menu</c>: pending with a detail, or completed.</summary>
+    private sealed record MenuReply(string Status, string? Detail, bool Unloaded);
 
     private sealed record Failure(string? Code, string? Detail);
 }

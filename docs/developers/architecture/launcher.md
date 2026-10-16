@@ -75,6 +75,15 @@ once the channel answers: `SaveLoader` posts `POST /api/lifecycle/load` every
 request every 250 ms until the map is loaded. There is no separate brain process: the brain runs inside
 the game, so Stop and Close game both end RimWorld.
 
+A running game is reused (Play adopting one, New colony) only when it can serve
+the start as a fresh launch would: the mod list and package match the launch
+snapshots `GameSessions.PrepareFreshLaunch` records (`HeadlessProfile.LaunchedMismatch`,
+the check acceptance's kept game uses), no mod update is pending, and the
+launcher itself started that process with the command line and host
+environment the current settings give. That last record is in memory, so a
+game started before the launcher (re)opened is restarted. Anything else closes
+the game and starts it afresh; the log names the reason.
+
 Settings are saved in `.rimgovernor/launcher.json`. Extra arguments and the save
 to load act in the launcher. Observe, continue and layout overlay reach the
 in-process host as the `RIMGOVERNOR_OBSERVE`, `RIMGOVERNOR_CONTINUE_STATE` and
@@ -106,8 +115,10 @@ cancels the run; Close game ends the game it left open. See the
 [NewColony.cs](../../../tools/launcher/NewColony.cs) supplies the option lists,
 ranges, DLC requirements and the Rhadamant preset; the page renders them without
 inventing or filtering them. The runner
-([NewColonyRunner.cs](../../../tools/launcher/NewColonyRunner.cs)) closes the
-game, starts it afresh, posts `POST /api/lifecycle/new` and polls
+([NewColonyRunner.cs](../../../tools/launcher/NewColonyRunner.cs)) returns a
+reusable running game to the main menu (`POST /api/lifecycle/menu`, polled, a
+busy game's 503 asked again for up to 90 s), or closes the game and starts it
+afresh, then posts `POST /api/lifecycle/new` and polls
 `GET /api/lifecycle/new?requestId=` every 250 ms. Its elapsed timer advances between polls;
 failed polls mark retained values stale. The form is validated by the same
 `BridgeFunctions.ValidateNewColonyRequest` the game's route uses, and the spec

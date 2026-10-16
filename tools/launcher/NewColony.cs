@@ -164,10 +164,11 @@ public sealed record ScenarioPartDefaults(string Placement, uint Count, float Ch
 /// <summary>The validation ranges the form shows.</summary>
 public sealed record NewColonyRanges(int ColonistsMin, int ColonistsMax, double TemperatureAbs, int PartsPerKind, int ThingCountMax, int TraitDegreeAbs, double SeverityMax);
 
-/// <summary>Generation states. Active ones: restarting, connecting, generating.</summary>
+/// <summary>Generation states. Active ones: returning (a reused game to the main menu), restarting, connecting, generating.</summary>
 public static class ColonyState
 {
     public const string Idle = "idle";
+    public const string Returning = "returning";
     public const string Restarting = "restarting";
     public const string Connecting = "connecting";
     public const string Generating = "generating";

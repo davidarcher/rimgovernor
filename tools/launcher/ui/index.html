@@ -524,7 +524,7 @@ $('acStop').onclick = async () => {
 // Launch tab is showing, skips a tick while a call is in flight, and ticks the
 // timer from its own clock between polls (anchored on progress.elapsedMs).
 const nc = { ready: false, prev: null, view: null, anchor: null, shown: 0, rid: '', sending: false };
-const ncActive = st => st === 'restarting' || st === 'connecting' || st === 'generating';
+const ncActive = st => st === 'returning' || st === 'restarting' || st === 'connecting' || st === 'generating';
 const ncOpt = o => `<option value="${esc(o.value)}">${esc(o.label)}${o.requires ? ' (needs ' + esc(o.requires) + ')' : ''}</option>`;
 function ncFill(v) {
   const o = v.options, sp = v.spec, r = v.ranges;
@@ -701,7 +701,7 @@ function ncRender(v) {
   let result = '';
   if (p.state === 'completed') result = `<span class="ncok">Saved as ${esc(p.saveName)}</span>${p.seed ? ' (seed ' + esc(p.seed) + ')' : ''}. It is selected in Saved game; press Play to load it.`;
   else if (p.state === 'failed') result = esc(p.error || 'Generation failed.');
-  else if (p.state === 'cancelled') result = 'Cancelled. The game was closed.';
+  else if (p.state === 'cancelled') result = esc('Cancelled. ' + (p.error || ''));
   $('ncResult').innerHTML = result;
   ncTimer();
   // A run that finishes while this page watches selects its save once; a page

@@ -57,11 +57,13 @@ components, 30 medicine, a rifle) and 720 steel, 7 survival meals and 3 ship
 chunks scattered. The seed is pinned but editable; edit any row afterwards, or
 pick **Custom** to return to the defaults.
 
-Generation closes the running game and brain, restarts them, builds the
-world and saves the colony, so it needs Autopilot (Observe only shows a notice
+Generation returns the running game to the main menu without saving (or, when
+the game was started with other mods, another mod build or other settings,
+closes and restarts it), builds the world and saves the colony, so it needs Autopilot (Observe only shows a notice
 instead). The panel shows the state, the current phase, a timer, the reroll
 count and, if the brain stops answering, the last values marked as stale.
-**Cancel** closes the game and reports cancelled. When it completes, the save is
+**Cancel** closes the game and reports cancelled; pressed while the game is still
+returning to the main menu, it stops there and leaves the game running. When it completes, the save is
 selected in **Saved game**; press **Play** to load it. See [save and
 resume](save-and-resume.md#new-colony-saves).
 
