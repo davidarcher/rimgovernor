@@ -33,8 +33,12 @@ public sealed record OrderSpec
     /// <summary>How fast a shortfall must refill. Not identity.</summary>
     public ResourceClass Class { get; init; }
 
-    /// <summary>The concern that declared the order. Not identity either: two concerns declaring one spec coalesce into one order (OrderOwners).</summary>
-    public ConcernId Owner { get; init; }
+    /// <summary>
+    /// The filing key of the owner that declared the order (#3231 decision 21): a Need's <c>NeedId.FilingKey</c> or an
+    /// unmigrated Concern's id; empty when undeclared. Not identity either: two owners declaring one spec coalesce
+    /// into one order (OrderOwners).
+    /// </summary>
+    public string Owner { get; init; } = "";
 
     /// <summary>
     /// The canonical spec identity. The mode is its wire class: native tells bills apart by repeat mode and count
@@ -48,8 +52,11 @@ public sealed record OrderSpec
     }
 }
 
-/// <summary>Names the input a concern lacked this Round. Its silence about a bill proves nothing, so the ledger removes nothing while any concern abstains.</summary>
-public sealed record Abstain(ConcernId Concern, Cause Fact);
+/// <summary>
+/// Names the input an owner (by filing key, as <see cref="OrderSpec.Owner"/>) lacked this Round. Its silence about a
+/// bill proves nothing, so the ledger removes nothing while any owner abstains.
+/// </summary>
+public sealed record Abstain(string Owner, Cause Fact);
 
 /// <summary>What one planner wants this Round. Abstains name the concerns that lacked a fact, so the planner's silence about a bill proves nothing.</summary>
 public sealed class Declared
@@ -63,7 +70,7 @@ public sealed class Declared
     {
         if (!Abstains.Any(a => a.Fact == fact))
         {
-            Abstains.Add(new Abstain(default, fact));
+            Abstains.Add(new Abstain("", fact));
         }
         return this;
     }
@@ -72,14 +79,15 @@ public sealed class Declared
     public bool Abstained() => Abstains.Count > 0;
 
     /// <summary>
-    /// The declaration made on behalf of concern: every order without an owner is owned by it and every abstain
-    /// without a concern names it. A declarer serving several concerns calls For per concern's part.
+    /// The declaration made on behalf of the owner filed under <paramref name="owner"/> (a Need's filing key or a
+    /// Concern id): every order and abstain without an owner is owned by it. A declarer serving several owners calls
+    /// For per owner's part.
     /// </summary>
-    public Declared For(ConcernId concern) =>
+    public Declared For(string owner) =>
         new()
         {
-            Orders = [.. Orders.Select(o => o.Owner.IsEmpty ? o with { Owner = concern } : o)],
-            Abstains = [.. Abstains.Select(a => a.Concern.IsEmpty ? a with { Concern = concern } : a)],
+            Orders = [.. Orders.Select(o => o.Owner.Length == 0 ? o with { Owner = owner } : o)],
+            Abstains = [.. Abstains.Select(a => a.Owner.Length == 0 ? a with { Owner = owner } : a)],
         };
 
     /// <summary>Appends other's orders and abstains.</summary>
@@ -169,9 +177,6 @@ public static partial class PolicyFunctions
     /// </summary>
     public const int OrphanGraceRounds = 3;
 
-    /// <summary>Keeps the benches' production bills equal to the orders the planners declared (ReconcileLedger).</summary>
-    public static readonly ConcernId MaintainWorkLedger = new("MaintainWorkLedger");
-
     /// <summary>The vanilla bill stack cap of one bench.</summary>
     public const int LedgerBenchSlots = 15;
 
@@ -214,16 +219,16 @@ public static partial class PolicyFunctions
     /// <summary>The fact when unread holds, else none.</summary>
     public static Cause UnreadIf(bool unread, Cause fact) => unread ? fact : Cause.None;
 
-    /// <summary>Every concern that declared each wanted spec, by spec Key. Two concerns declaring one spec coalesce into one order that both own.</summary>
-    public static IReadOnlyDictionary<string, IReadOnlyList<ConcernId>> OrderOwners(IReadOnlyList<Declared> declared)
+    /// <summary>Every owner (by filing key) that declared each wanted spec, by spec Key. Two owners declaring one spec coalesce into one order that both own.</summary>
+    public static IReadOnlyDictionary<string, IReadOnlyList<string>> OrderOwners(IReadOnlyList<Declared> declared)
     {
-        var owners = new Dictionary<string, List<ConcernId>>();
+        var owners = new Dictionary<string, List<string>>();
         foreach (var d in declared)
         {
             foreach (var o in d.Orders)
             {
                 var k = o.Key();
-                if (!o.Owner.IsEmpty)
+                if (o.Owner.Length != 0)
                 {
                     if (!owners.TryGetValue(k, out var list))
                     {
@@ -236,10 +241,10 @@ public static partial class PolicyFunctions
                 }
             }
         }
-        var output = new Dictionary<string, IReadOnlyList<ConcernId>>();
+        var output = new Dictionary<string, IReadOnlyList<string>>();
         foreach (var (k, list) in owners)
         {
-            list.Sort(static (a, b) => string.CompareOrdinal(a.Value, b.Value));
+            list.Sort(StringComparer.Ordinal);
             output[k] = list;
         }
         return output;
@@ -374,7 +379,7 @@ public static partial class PolicyFunctions
         return (output, true);
     }
 
-    /// <summary>MaintainWorkLedger's finding: owed while the plan places or removes anything.</summary>
+    /// <summary>The admin/work-ledger Need's finding (#3304): owed while the plan places or removes anything.</summary>
     public static bool LedgerDiffOwed(LedgerPlan plan) => plan.Place.Count > 0 || plan.Remove.Count > 0;
 
     /// <summary>
@@ -487,15 +492,5 @@ public static partial class PolicyFunctions
             }
         }
         return false;
-    }
-
-    // Unknown while the declarations or the bench readback are unread, and then it raises no Concern.
-    internal static void InspectWorkLedger(RoundsRun c)
-    {
-        c.Assess(MaintainWorkLedger, NotFact(c.F.LedgerOwed));
-        if (c.F.LedgerOwed.TryGetValue(out var owed) && owed)
-        {
-            c.Raise(MaintainWorkLedger);
-        }
     }
 }

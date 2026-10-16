@@ -341,32 +341,35 @@ frame or open plan holds it. Powering it is the power concern's (a bank is a 40 
 consumer wired like any other); harvesting, assembly and implanting are other
 concerns.
 
-`MaintainWorkLedger` (`WorkLedger.cs`,
-`RoundsLedger.cs`) is the bot's production-bill ledger (epic #2590). A Standard in
-the Industry department over the Colony fact family. The ledger is memory only
+The `admin/work-ledger` Need (`WorkLedger.cs`, `ColonyAdmin.cs`,
+`RoundsLedger.cs`, #3304) is the bot's production-bill ledger (epic #2590); it replaced the
+`MaintainWorkLedger` Concern. The ledger is memory only
 (`Rounder.ledger`): a planner that has migrated implements
 `buildingruntime.OrderDeclarer` (`DeclareOrders(ctx, snapshot, projection, benches)` returns a
-`policy.Declared`: its whole wanted `OrderSpec` set, plus an `Abstain{Concern, Fact}` per
-concern that lacks a fact: `policy.Abstaining(Cause)` is the only constructor, the `CauseUnread*` members of `policy.Cause` are a
-closed typed set, and the declarer stamps the concern and every order's `OrderSpec.Owner` with
-`Declared.For(concern)`. Owner is not part of `Key`; two concerns declaring one spec coalesce into one
+`policy.Declared`: its whole wanted `OrderSpec` set, plus an `Abstain{Owner, Fact}` per
+owner that lacks a fact: `policy.Abstaining(Cause)` is the only constructor, the `CauseUnread*` members of `policy.Cause` are a
+closed typed set, and the declarer stamps the owner and every order's `OrderSpec.Owner` with
+`Declared.For(filingKey)`. The owner is a filing-key string (decision 21): a Need's `FilingKey.Value` or an
+unmigrated Concern's id, so Needs and Concerns share one ledger. Owner is not part of `Key`; two owners declaring one spec coalesce into one
 order that lists both. Any abstain, of any concern, still skips orphan removal for the Round) and commits no bill method of its own. Each review calls every declarer,
 reads every bench's bills through the bench census (`ReadGearBenches`;
 `policy.LedgerActuals` is unknown while any bench's bills or any bill's spec is
-unread), and runs `policy.ReconcileLedger`. The finding is `RoundsFacts.LedgerOwed`:
-owed exactly while the diff places or removes anything, unknown with no
+unread), and runs `policy.ReconcileLedger`. The finding is the Need's
+(`Rounder.LedgerOwedIn`): unmet exactly while the diff places or removes anything, unknown with no
 declarer or an unread readback (so a ledger with no declarers never touches a
 bill). Orders are identified as native identifies bills: recipe, ingredient
 filter, worker pin and repeat mode with its count (`OrderSpec.Key` uses the wire
 class, so a food target equals a stock target); no native tag. A bill is
 identified across Rounds by its native `UniqueLoadID`, which vanilla scribes
 with the bill, so ids survive Rounds and save/load; a restart empties the
-orphan counters and only delays removal. The ledger planner commits the review's
-plan as one attempt-numbered owner method of `production_bill` and
+orphan counters and only delays removal. The Need's work step commits the review's
+plan as one Need Method of `production_bill` and
 `remove_production_bill` actions (removals first, at most
-`store.MaxBillPlanActions`), under one multi-key arbiter claim (every bench and
-each removed bill id), at most once per review and never while an earlier plan of the
-owner is open (an unknown receipt blocks until its resend resolves).
+`store.MaxBillPlanActions`) whose MethodId hashes the diff, under one multi-key arbiter claim (every bench and
+each removed bill id), at most once per review. Claim admission replaces the old whole-owner open-plan
+gate: a diff over other benches is admitted beside an open one, the same diff continues, and a diff that
+touches a bill an open Method claims (`bill/<bench>/<recipe>`, `bill/<id>`) is a claim conflict until it
+resolves (an unknown receipt holds its claims until its resend resolves).
 
 The bench dispatcher (`WorkDispatch.cs`, `WorkDispatchMemory.cs`; pure policy,
 memory in `Rounder.ledger.dispatch`) sizes and places the orders. A declared order
@@ -458,13 +461,13 @@ fact or a food-plan channel not yet open abstains; the cook-ahead bill ends with
 solar flare. The food-plan gates, the purposes' verdicts and the reserve
 work-lending ride on the declarers, not on catalog planners: `DeclareOrders` notes
 each verdict on the request that declares (`purposeReporter`) and the ledger step
-files it (`RoundsLedgerResult.Reports`; see below). Human-meat and survival-pack ingredient filters
+files it (`AdminRounds.LedgerPurposeReports`; see below). Human-meat and survival-pack ingredient filters
 ride in the declared spec. Food orders set no `Product`/`Class`, so each stands on
 one bench until the resource census covers meals.
 
 The food, art and export declarers are also `purposeReporter`s: no catalog
-planner stands for them, and the `workLedger` step files their verdicts beside its
-own (`RoundsLedgerResult.Reports`, filed by `recordPlannerReasons`). A purpose
+planner stands for them, and the admin family files their verdicts beside its
+Need reports (`AdminRounds.LedgerPurposeReports`, through `FamilyRun.Filed`). A purpose
 whose concern is not workable reports no deficit; a purpose with open work of its
 own reports existing work; otherwise it reports what its declaration noted
 (awaiting the food plan, a missing cooking or butcher bench, an unread fact, or

@@ -105,11 +105,6 @@ public static partial class PolicyFunctions
             // A charger owed is a full deficit, none owed none.
             return OwedDeficit(f.MechChargerOwed);
         }
-        else if (id == MaintainWorkLedger)
-        {
-            // A non-empty diff is a full deficit, an empty one none.
-            return OwedDeficit(f.LedgerOwed);
-        }
         else if (id == MaintainGeneBank)
         {
             // A bank owed is a full deficit, none owed none.

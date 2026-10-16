@@ -121,6 +121,52 @@ public sealed class AdminFamilyTests
     }
 
     [Fact]
+    public void WorkLedgerIsMetUnmetOrUnknownByTheReconcileDiff()
+    {
+        var ledger = new AdminFamily(new AdminNeeds { WorkLedger = true });
+        Need Ledger(AdminFacts facts) => Assert.Single(ledger.Derive(facts));
+
+        var met = Ledger(new AdminFacts { WorkLedger = Known(false) });
+        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing, "admin/work-ledger"), (met.Satisfaction, met.Deficit.Value, met.Tier, met.Id.Value));
+        Assert.Equal((Satisfaction.Unmet, 1.0), (Ledger(new AdminFacts { WorkLedger = Known(true) }).Satisfaction, Ledger(new AdminFacts { WorkLedger = Known(true) }).Deficit.Value));
+        // Unread declarations or bench bills are Unknown, never met.
+        Assert.Equal(Satisfaction.Unknown, Ledger(new AdminFacts { WorkLedger = Unknown<bool>() }).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Ledger(new AdminFacts()).Satisfaction);
+    }
+
+    private static PlanSpec Bills(Func<ActionId, DomainAction> action)
+    {
+        var id = PlanIds.MintPlanId();
+        return new PlanSpec(id, new PlanRevision(1), [action(new ActionId(id.Value + "-0"))]);
+    }
+
+    [Fact]
+    public void LedgerDiffsOverOtherBenchesAreAdmittedSideBySideAndASharedBenchRecipeIsAClaimConflict()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        BridgeFunctions.RegisterIntentKinds();
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-ledger-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
+        Func<ActionId, DomainAction> Place(string bench) => a => DomainAction.NewProductionBillAction(a, new ProductionBill(bench, "TestRecipe", BillMode.StockTarget, 1, "Rice"));
+        Func<ActionId, DomainAction> Remove(string bench, string bill) => a => DomainAction.NewRemoveProductionBillAction(a, new RemoveProductionBill(bench, bill));
+
+        var place = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminRounds.LedgerMethod("place-a"), "", Bills(Place("bench-a")), ct);
+        var remove = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminRounds.LedgerMethod("remove-b"), "", Bills(Remove("bench-b", "bill-1")), ct);
+        Assert.Equal((ClaimOutcome.Admitted, ClaimOutcome.Admitted), (place.Outcome, remove.Outcome));
+        Assert.Equal(AdminFamily.WorkLedger.FilingKey, journal.PlanMethod(place.Owner.Methods[0].Plan, ct)!.Concern);
+
+        // The same diff continues; another diff placing the same recipe on the same bench waits on that bill's claim.
+        Assert.Equal(ClaimOutcome.Continued, journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminRounds.LedgerMethod("place-a"), "", Bills(Place("bench-a")), ct).Outcome);
+        var overlap = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, AdminRounds.LedgerMethod("place-a-and-more"), "", Bills(Place("bench-a")), ct);
+        Assert.Equal(ClaimOutcome.Conflict, overlap.Outcome);
+        Assert.Equal("bill/bench-a/TestRecipe", overlap.Conflict!.Claim);
+        Assert.Equal(2, journal.LoadNeed(AdminFamily.WorkLedger, World, ct).Methods.Count);
+
+        // Only the work ledger's Need admits bills among the Need owners.
+        Assert.ThrowsAny<Exception>(() => journal.CommitClaimedMethod(AdminFamily.Burial, World, new MethodId("bill"), "", Bills(Place("bench-c")), ct));
+    }
+
+    [Fact]
     public void AWeaponDropIsHeldAsAnUnsupportedForecast()
     {
         var need = new Need { Id = AdminFamily.CreepJoiners, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet };

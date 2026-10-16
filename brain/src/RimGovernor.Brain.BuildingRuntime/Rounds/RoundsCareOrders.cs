@@ -39,7 +39,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         {
             foreach (var c in Concerns())
             {
-                output.Merge(PolicyApi.Abstaining(Cause.UnreadReview).For(c));
+                output.Merge(PolicyApi.Abstaining(Cause.UnreadReview).For(c.Value));
             }
             return output;
         }
@@ -56,7 +56,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
                 return;
             }
             var one = await declare().ConfigureAwait(false);
-            output.Merge(one.For(need));
+            output.Merge(one.For(need.Value));
         }
 
         await Collect(PolicyApi.MaintainSurgery, _surgery, () =>

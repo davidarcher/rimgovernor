@@ -13,7 +13,7 @@ internal static class WorkResourceTestFacts
 {
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
-        Tick = new(100), LedgerOwed = Known(true), MechGestationOwed = Known(true),
+        Tick = new(100), MechGestationOwed = Known(true), PsylinkOwed = Known(true),
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
             Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }]),
@@ -229,7 +229,7 @@ public sealed class WorkResourcesTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-shared-work-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        var foodOwner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
+        var foodOwner = Assert.Single(review.Standards, s => s.Standard.Kind == PolicyConstants.MaintainPsylink);
         var craftOwner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         journal.CommitMethod(foodOwner.Standard.Id, foodOwner.Revision, new("method"), Plan("food", Delivery("food")), ct);
         Assert.Throws<ProductionMaterialException>(() => journal.CommitMethod(craftOwner.Standard.Id, craftOwner.Revision,
@@ -246,8 +246,8 @@ public sealed class WorkResourcesTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-contested-proposal-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
-        var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
-        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
+        var existing = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
+        var proposer = Assert.Single(review.Standards, s => s.Standard.Kind == PolicyConstants.MaintainPsylink);
         journal.CommitMethod(existing.Standard.Id, existing.Revision, new("method"), Plan("held", Delivery("held")), ct);
         var proposed = Delivery("proposed", "helper").PawnActivities!;
         proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };

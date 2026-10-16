@@ -154,7 +154,7 @@ public sealed class MaterialChoiceTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-material-options-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
-        var facts = new RoundsFacts { Tick = new Tick(100), LedgerOwed = Known(true),
+        var facts = new RoundsFacts { Tick = new Tick(100), MechGestationOwed = Known(true),
             ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             Resources = Known<EquatableArray<Amount>>([new(Metal, 10), new(Timber, 10)]),
@@ -162,7 +162,7 @@ public sealed class MaterialChoiceTests
             BillReservations = Known(default(EquatableArray<IngredientReservation>)),
             WorkAdmission = new() { Recipes = View().Recipes, Bills = Known(default(EquatableArray<ProductionBatchState>)) } };
         var review = journal.ReviewRounds(new() { Current = world, Tick = facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
+        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         var selected = SelectLedgerMaterials([Flexible, Machine], journal.ProductionMaterials(world, ct));
         var batches = selected.Selected.Select((p, i) => Batch(p, "action-" + i)).ToArray();
         var spec = new PlanSpec(new PlanId("joint"), new PlanRevision(1), batches.Select(b => DomainAction.NewProductionBillAction(b.Progress.Action, b.Order)));

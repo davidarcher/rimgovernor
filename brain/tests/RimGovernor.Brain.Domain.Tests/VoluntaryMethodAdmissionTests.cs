@@ -39,8 +39,8 @@ public sealed class VoluntaryMethodAdmissionTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-voluntary-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn") with { PsylinkOwed = Fact.Known(true) } }, ct);
-        var labor = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
-        var other = Assert.Single(review.Standards, s => s.Standard.Kind == (kind == "neuroformer" ? PolicyConstants.MaintainPsylink : MaintainMechs));
+        var labor = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
+        var other = Assert.Single(review.Standards, s => s.Standard.Kind == PolicyConstants.MaintainPsylink);
         var held = new PlanSpec(new("coupled-plan"), new(1),
             [DomainAction.NewPawnActivitiesAction(new("coupled-action"), new(1,
                 [new("pawn", "assignment", "coupled-method", 0, 1, false,

@@ -42,6 +42,9 @@ public sealed record FamilyRun : IPlannerMethod
 
     /// <summary>The run derived every Need of the family (a reviewed full pass): a Need it did not report no longer exists. False for the immediate pass, which judges only SeriousHarm Needs, and for a run that judged nothing.</summary>
     public bool Complete { get; init; }
+
+    /// <summary>Verdicts the run files under keys other than its NeedIds: the work ledger's purpose reports (#3304). Empty for every other family.</summary>
+    public IReadOnlyList<LedgerReport> Filed { get; init; } = [];
 }
 
 /// <summary>A verdict filed under one NeedId and the Method the Need works (admitted, continued or still open; empty when none).</summary>
@@ -192,13 +195,15 @@ public abstract class FamilyRunner
 /// The family's asynchronous step for each ready Need after its pure proposals (#3279), or null. It runs behind the
 /// step's fence and returns the Need's verdict; Methods it commits under the Need owner are reported on the run.
 /// </param>
+/// <param name="filed">The verdicts a full pass files beside the family's Needs (<see cref="FamilyRun.Filed"/>), or null for none.</param>
 public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyReadScope, CancellationToken, Task<TFacts>> read, FamilySchedule? schedule = null,
-    Func<NeedWork, TFacts, CancellationToken, Task<Verdict>>? work = null)
+    Func<NeedWork, TFacts, CancellationToken, Task<Verdict>>? work = null, Func<GenerationSnapshot, CancellationToken, IReadOnlyList<LedgerReport>>? filed = null)
     : FamilyRunner(family, schedule ?? new FamilySchedule())
 {
     private readonly IFamily<TFacts> _family = family;
     private readonly Func<FamilyReadScope, CancellationToken, Task<TFacts>> _read = read ?? throw new ArgumentNullException(nameof(read));
     private readonly Func<NeedWork, TFacts, CancellationToken, Task<Verdict>>? _work = work;
+    private readonly Func<GenerationSnapshot, CancellationToken, IReadOnlyList<LedgerReport>>? _filed = filed;
 
     private protected override async Task<FamilyRun> StepAsync(FamilyStep step, CancellationToken call)
     {
@@ -310,6 +315,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             SeriousHarmPlans = seriousHarm,
             UndeclaredReads = facts.Undeclared,
             Complete = !step.Immediate,
+            Filed = _filed is null || step.Immediate ? [] : await Task.Run(() => _filed(step.World, call), call).ConfigureAwait(false),
         };
     }
 

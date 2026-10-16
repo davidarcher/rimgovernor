@@ -43,7 +43,7 @@ public static class OperationIntent
         [ManagePollution] = "Pollution",
         [EnsureMechCharger] = "Mech charger",
         [MaintainGeneBank] = "Gene bank",
-        [MaintainWorkLedger] = "Production orders",
+        [AdminFamily.WorkLedger.FilingKey] = "Production orders",
         [MilitaryFamily.Training.FilingKey] = "Training",
         [LayoutFamily.ClimateEnvelope.FilingKey] = "Climate envelope",
         [LayoutFamily.HomeCoverage.FilingKey] = "Home coverage",

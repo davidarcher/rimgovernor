@@ -30,7 +30,12 @@ public sealed partial class Store
             AND json_extract(g.payload,'$.Snapshot.Load')=$load AND json_extract(g.payload,'$.Snapshot.Map')=$map
             AND EXISTS(SELECT 1 FROM actions a WHERE a.plan_id=m.plan_id AND a.kind='production_bill'
                 AND json_extract(a.body,'$.Payload.Mode')='gear_batch')
-            ORDER BY m.plan_id LIMIT 257
+            UNION ALL
+            SELECT n.plan_id,n.need_id FROM need_methods n
+            WHERE n.colony=$colony AND n.load_token=$load AND n.map_id=$map
+              AND EXISTS(SELECT 1 FROM actions a WHERE a.plan_id=n.plan_id AND a.kind='production_bill'
+                AND json_extract(a.body,'$.Payload.Mode')='gear_batch')
+            ORDER BY 1 LIMIT 257
             """, current);
         if (links.Count > MaxProductionClaims) return Fact.Unknown<EquatableArray<ProductionBatch>>();
         var result = new List<ProductionBatch>();

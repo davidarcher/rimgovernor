@@ -17,7 +17,7 @@ public sealed class ProductionAdmissionTests
         new ProgressView { Action = new ActionId(id), Stage = Stage.Pending });
     private static RoundsFacts Facts => new()
     {
-        Tick = new Tick(100), LedgerOwed = Known(true), MechGestationOwed = Known(true),
+        Tick = new Tick(100), MechGestationOwed = Known(true),
         WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
         ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
         WorkProfiles = Known<EquatableArray<PawnProfile>>([new() { Id = new("artist"),
@@ -98,7 +98,7 @@ public sealed class ProductionAdmissionTests
         var immediate = journal.ReviewRounds(request with { Revision = full.Review.Revision, Immediate = true, Tick = new Tick(101), Facts = new() }, ct);
         Assert.Equal(60, journal.LoadRounds(ct).WorkEvidence!.Stock.Value[0].Count);
         var unread = journal.ReviewRounds(request with { Revision = immediate.Review.Revision, Tick = new Tick(102), Facts = Facts with { Resources = default } }, ct);
-        var owner = Assert.Single(unread.Standards, s => s.Standard.Kind == MaintainWorkLedger);
+        var owner = Assert.Single(unread.Standards, s => s.Standard.Kind == MaintainMechs);
         Assert.Throws<ProductionMaterialException>(() => journal.CommitMethod(owner.Standard.Id, owner.Revision, new MethodId("unread"), Plan("unread"), ct));
         var changed = journal.ReviewRounds(request with { Revision = unread.Review.Revision, Immediate = true, Current = World with { Load = new LoadId("new-load") }, Tick = new Tick(103), Facts = new() }, ct);
         Assert.Null(changed.Review.WorkEvidence);
@@ -111,14 +111,20 @@ public sealed class ProductionAdmissionTests
         var path = Path.Combine(Path.GetTempPath(), "rg-admission-" + Guid.NewGuid().ToString("N") + ".db");
         using var first = Journal.Open(path, ct);
         var reviewed = first.ReviewRounds(new() { Current = World, Tick = Facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = Facts }, ct);
-        var owners = new[] { Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainWorkLedger), Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainMechs) };
+        // The two bill owners: the mech Standard and the admin/work-ledger Need.
+        var mechs = Assert.Single(reviewed.Standards, s => s.Standard.Kind == MaintainMechs);
+        void Commit(Journal store, int i)
+        {
+            if (i == 0) store.CommitMethod(mechs.Standard.Id, mechs.Revision, new MethodId("batch"), Plan("candidate-0"), ct);
+            else store.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("batch"), "", Plan("candidate-1"), ct);
+        }
         using var second = Journal.Open(path, ct);
         using var start = new ManualResetEventSlim();
         var stores = new[] { first, second };
         var tasks = Enumerable.Range(0, 2).Select(i => Task.Run(() =>
         {
             start.Wait(ct);
-            try { stores[i].CommitMethod(owners[i].Standard.Id, owners[i].Revision, new MethodId("batch"), Plan("candidate-" + i), ct); return true; }
+            try { Commit(stores[i], i); return true; }
             catch (ProductionMaterialException) { return false; }
         }, ct)).ToArray();
         start.Set();
@@ -129,7 +135,7 @@ public sealed class ProductionAdmissionTests
         var loser = 1 - winner;
         first.Cancel(new PlanId("candidate-" + winner), new ActionId("candidate-" + winner), ct);
         // The failed transaction left neither a method binding nor a plan behind; its exact retry can commit.
-        second.CommitMethod(owners[loser].Standard.Id, owners[loser].Revision, new MethodId("batch"), Plan("candidate-" + loser), ct);
+        Commit(second, loser);
         Assert.Equal(2, first.ProductionBatches(World, Facts.Tick, ct).Value.Count);
     }
 }

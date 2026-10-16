@@ -4,7 +4,7 @@ public sealed partial class RoundsResourcePlanner
 {
     /// <summary>Declares the production orders the resource targets owe, scoped to the economy/resource Need.</summary>
     public Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        InternalDeclareOrders(snapshot, projection, benches, ct).For(EconomyFamily.Resource.FilingKey);
+        InternalDeclareOrders(snapshot, projection, benches, ct).For(EconomyFamily.Resource.FilingKey.Value);
 
     private Declared InternalDeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {

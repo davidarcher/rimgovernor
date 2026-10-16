@@ -171,7 +171,7 @@ public sealed class RoundsMedicalPlanner : IOrderDeclarer
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var declared = DeclareOrdersInner(snapshot, projection, benches, ct);
-        return Task.FromResult(declared.For(PolicyFunctions.MaintainMedicalReserves));
+        return Task.FromResult(declared.For(PolicyFunctions.MaintainMedicalReserves.Value));
     }
 
     private Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)

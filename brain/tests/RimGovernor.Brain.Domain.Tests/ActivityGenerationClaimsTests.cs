@@ -24,7 +24,7 @@ public sealed class ActivityGenerationClaimsTests
             Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L) };
         var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
+        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500) { Destination = new(2, 2) }])
@@ -95,7 +95,7 @@ public sealed class ActivityGenerationClaimsTests
             Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L) };
         var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
+        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500) { Destination = new(2, 2) }])

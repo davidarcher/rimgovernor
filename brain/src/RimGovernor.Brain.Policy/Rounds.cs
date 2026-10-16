@@ -239,9 +239,6 @@ public sealed record RoundsFacts
     /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture (SculptureRoomsOwed); the work ledger's art bills read it. Unknown unless the rooms/art Need is composed.</summary>
     public Fact<bool> SculptureRoomsOwed { get; init; }
 
-    /// <summary>The work ledger's reconcile diff is non-empty (LedgerDiffOwed); it holds MaintainWorkLedger open. Unknown unless the ledger has declarers and read every bench's bills.</summary>
-    public Fact<bool> LedgerOwed { get; init; }
-
     /// <summary>The dispatcher's unmet throughput per bench kind (units a day short and why), sorted by kind; the facilities ladder reads it. Empty when nothing is short or the ledger has no declarers.</summary>
     public EquatableArray<UnmetThroughput> UnmetThroughput { get; init; }
 

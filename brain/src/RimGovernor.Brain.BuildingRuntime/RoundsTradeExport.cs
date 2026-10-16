@@ -163,7 +163,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
 
     /// <summary>The declaration owned by MaintainTrade.</summary>
     public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct) =>
-        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(MaintainTrade);
+        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(MaintainTrade.Value);
 
     /// <summary>Declares the export batches (OrderDeclarer) and files the sale path's inputs. Any unread input abstains: the ledger removes nothing.</summary>
     private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct)

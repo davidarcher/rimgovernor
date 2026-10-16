@@ -42,6 +42,9 @@ public sealed record AdminFacts
 
     /// <summary>Whether a tomb, grave or morgue step is due; unknown while the rooms, plan or corpses cannot be read.</summary>
     public Fact<bool>? Burial { get; init; }
+
+    /// <summary>Whether the work ledger's reconcile diff places or removes a bill (LedgerDiffOwed); unknown unless the ledger has declarers and read every bench's bills.</summary>
+    public Fact<bool>? WorkLedger { get; init; }
 }
 
 /// <summary>Which of the colony admin family's Needs the runtime composes.</summary>
@@ -52,6 +55,8 @@ public sealed record AdminNeeds
     public bool SupplySafety { get; init; }
 
     public bool Burial { get; init; }
+
+    public bool WorkLedger { get; init; }
 }
 
 /// <summary>
@@ -67,6 +72,9 @@ public sealed record AdminNeeds
 /// step forbids the unsafe stacks first, then allows the safe ones, one Method per batch.</item>
 /// <item><c>admin/burial</c> (Wellbeing): no tomb, grave or morgue step is due. It replaced the MaintainBurial
 /// Concern; the runtime step builds the morgue, the tomb or the next plain grave.</item>
+/// <item><c>admin/work-ledger</c> (Wellbeing): the benches' production bills equal the orders the declarers want, so
+/// the ledger's reconcile places and removes nothing. It replaced the MaintainWorkLedger Concern; the runtime step
+/// commits the reconcile's places and removals, one Method per diff, each bill claiming its bench and recipe.</item>
 /// </list>
 /// </summary>
 public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
@@ -78,6 +86,8 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     public static readonly NeedId SupplySafety = NeedId.Of(FamilyId, "supply-safety");
 
     public static readonly NeedId Burial = NeedId.Of(FamilyId, "burial");
+
+    public static readonly NeedId WorkLedger = NeedId.Of(FamilyId, "work-ledger");
 
     /// <summary>The stable refusal subject of a creepjoiner weapon drop.</summary>
     public const string UnsupportedDisarm = "unsupported_forecast_precautionary_disarm";
@@ -98,7 +108,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
 
     public IReadOnlyList<Need> Derive(AdminFacts facts)
     {
-        var needs = new List<Need>(3);
+        var needs = new List<Need>(4);
         if (composed.CreepJoiners)
         {
             needs.Add(CreepJoinersNeed(facts.CreepJoiners ?? new CreepJoinerWork()));
@@ -110,6 +120,10 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         if (composed.Burial)
         {
             needs.Add(BurialNeed(facts.Burial ?? Fact.Unknown<bool>()));
+        }
+        if (composed.WorkLedger)
+        {
+            needs.Add(WorkLedgerNeed(facts.WorkLedger ?? Fact.Unknown<bool>()));
         }
         return needs;
     }
@@ -183,6 +197,23 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
             Satisfaction = due ? Satisfaction.Unmet : Satisfaction.Met,
             Deficit = Fact.Known(due ? 1.0 : 0.0),
             Evidence = [new("burial_owed", Fact.Known(due ? "true" : "false"))],
+        };
+    }
+
+    /// <summary>Unmet while the ledger's reconcile places or removes a bill, unknown while the declarations or the bench readback are unread, met otherwise.</summary>
+    public static Need WorkLedgerNeed(Fact<bool> owed)
+    {
+        if (!owed.TryGetValue(out var diff))
+        {
+            return new Need { Id = WorkLedger, Tier = NeedTier.Wellbeing, Evidence = [new("ledger_diff", default)] };
+        }
+        return new Need
+        {
+            Id = WorkLedger,
+            Tier = NeedTier.Wellbeing,
+            Satisfaction = diff ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Fact.Known(diff ? 1.0 : 0.0),
+            Evidence = [new("ledger_diff", Fact.Known(diff ? "true" : "false"))],
         };
     }
 

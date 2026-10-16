@@ -507,7 +507,7 @@ public static partial class PolicyFunctions
 
     /// <summary>One planner's declaration summary.</summary>
     public static LedgerDeclarerView DeclarerView(string name, Declared d) =>
-        new(name, d.Orders.Count, [.. d.Abstains.Select(a => new AbstainView(a.Concern.Value, a.Fact))]);
+        new(name, d.Orders.Count, [.. d.Abstains.Select(a => new AbstainView(a.Owner, a.Fact))]);
 
     /// <summary>The view of one export declaration against the gap it read. The candidates are the best scored pairs plus every ordered one.</summary>
     public static ExportView NewExportView(ExportPlan plan, Fact<double> gap)
@@ -593,7 +593,7 @@ public static partial class PolicyFunctions
             var row = new LedgerOrderView
             {
                 Key = k,
-                Owners = owners.TryGetValue(k, out var names) ? [.. names.Select(c => c.Value)] : [],
+                Owners = owners.TryGetValue(k, out var names) ? names : [],
                 Recipe = o.Recipe,
                 Product = o.Product.Value,
                 Mode = BillModeName(o.Mode),

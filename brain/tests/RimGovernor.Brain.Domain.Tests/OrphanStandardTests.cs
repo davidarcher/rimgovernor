@@ -23,7 +23,7 @@ public sealed class OrphanStandardTests
         using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-orphan-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var review = source.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.NotEmpty(review.Standards);
-        var ledger = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
+        var ledger = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         var delivery = DomainAction.NewPawnActivitiesAction(new("deliver"), new(1, [new("a", "assignment", "record-method", 0, 1, false,
             [new(PawnActivityKind.Deliver, "stack", "", "", 1, 500) { Destination = new(2, 2) }])]));
         source.CommitMethodRecord(ledger.Standard.Id, ledger.Revision, new("record-method"), "",

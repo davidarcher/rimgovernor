@@ -145,7 +145,7 @@ public sealed class RoundsBillPlanner : IPurposeReporter
     }
 
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(_need));
+        Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(_need.Value));
 
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {

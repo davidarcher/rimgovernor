@@ -184,7 +184,7 @@ public sealed class FoodRounds
 public sealed class BabyFoodDeclarer : IOrderDeclarer
 {
     public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        Task.FromResult(Declare(projection, benches).For(PolicyFunctions.BabyFeedingNeed.FilingKey));
+        Task.FromResult(Declare(projection, benches).For(PolicyFunctions.BabyFeedingNeed.FilingKey.Value));
 
     internal static Declared Declare(ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {

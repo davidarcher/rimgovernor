@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// The runtime half of the colony admin family (#3264, #3304): its full read (the owned rounds census, or the rooms
 /// census when burial is composed, the stored creepjoiner record and the review's event-loot cohort) and the work
 /// steps of its Needs, each committing under the Need owner and admitted by claims: the creepjoiner orders, the
-/// supply-safety batches and the burial rooms and graves.
+/// supply-safety batches, the burial rooms and graves and the work ledger's bill reconcile.
 /// </summary>
 public sealed partial class AdminRounds
 {
@@ -42,12 +42,13 @@ public sealed partial class AdminRounds
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
-        Kinds = [ActionKind.Surgery, ActionKind.WorkAssignment, ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.Building],
+        Kinds = [ActionKind.Surgery, ActionKind.WorkAssignment, ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.Building,
+            ActionKind.ProductionBill, ActionKind.RemoveProductionBill],
     };
 
-    /// <summary>The family's scheduler entry.</summary>
+    /// <summary>The family's scheduler entry; with the work ledger composed it also files the ledger's purpose verdicts.</summary>
     public FamilyRunner Runner() => new FamilyRunner<AdminFacts>(new AdminFamily(_needs), ReadAsync,
-        _needs.SupplySafety ? Schedule with { Class = PlannerClass.Critical } : Schedule, WorkAsync);
+        _needs.SupplySafety ? Schedule with { Class = PlannerClass.Critical } : Schedule, WorkAsync, LedgerPurposeReports);
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the owned rounds census (the rooms census when
@@ -92,6 +93,10 @@ public sealed partial class AdminRounds
         {
             facts = facts with { Burial = BurialOwed(reading.Projection) };
         }
+        if (_needs.WorkLedger)
+        {
+            facts = facts with { WorkLedger = _reviewer.LedgerOwedIn(scope.World) };
+        }
         return facts;
     }
 
@@ -109,6 +114,10 @@ public sealed partial class AdminRounds
         if (work.Need.Id == AdminFamily.Burial && _needs.Burial)
         {
             return await BurialStepAsync(work, ct).ConfigureAwait(false);
+        }
+        if (work.Need.Id == AdminFamily.WorkLedger && _needs.WorkLedger)
+        {
+            return await WorkLedgerStepAsync(work, ct).ConfigureAwait(false);
         }
         return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
     }

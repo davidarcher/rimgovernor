@@ -271,7 +271,7 @@ internal sealed class PlannerWave : IDisposable
         }
     }
 
-    /// <summary>The purpose verdicts the returned ledger step filed beside its own, and each returned family's verdicts under its NeedIds.</summary>
+    /// <summary>Each returned family's verdicts under its NeedIds, and those it files beside them (the work ledger's purposes).</summary>
     public IReadOnlyList<LedgerReport> Reports()
     {
         lock (_mu)
@@ -279,13 +279,10 @@ internal sealed class PlannerWave : IDisposable
             var output = new List<LedgerReport>();
             foreach (var name in _finished)
             {
-                if (_results[name].Ledger is { } ledger)
-                {
-                    output.AddRange(ledger.Reports);
-                }
                 if (_reasons.ContainsKey(name) && _results[name].Families.TryGetValue(name, out var family))
                 {
                     output.AddRange(family.Reports.Select(r => new LedgerReport(r.Need.FilingKey, r.Verdict)));
+                    output.AddRange(family.Filed);
                 }
             }
             return output;

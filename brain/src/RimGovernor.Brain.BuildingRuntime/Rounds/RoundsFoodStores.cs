@@ -134,7 +134,7 @@ public sealed class FoodStoresRounds
 
     /// <summary>The stock-target meal order that stores food, filed under the food-stores/storage Need.</summary>
     public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        (await DeclareMealOrderAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(PolicyFunctions.FoodStorageNeed.FilingKey);
+        (await DeclareMealOrderAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(PolicyFunctions.FoodStorageNeed.FilingKey.Value);
 
     /// <summary>
     /// While reserve access or a larder change is due only the standing stock orders stand; otherwise, with

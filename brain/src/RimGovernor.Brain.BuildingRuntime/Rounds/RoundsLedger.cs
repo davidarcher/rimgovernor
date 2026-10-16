@@ -54,6 +54,9 @@ internal sealed class WorkLedger
 
     public LedgerPending? Pending { get; set; }
 
+    /// <summary>Whether the latest review's reconcile in <see cref="World"/> places or removes a bill; unknown while unread.</summary>
+    public Fact<bool> Owed { get; set; }
+
     public List<LedgerPurpose> Reports { get; set; } = [];
 
     public GenerationSnapshot ReportsWorld { get; set; }
@@ -126,21 +129,12 @@ public sealed partial class Rounder
         return (new LedgerPurpose(key, need, reporter.Report()), true);
     }
 
-    internal IReadOnlyList<ConcernId> PurposeKeys()
+    /// <summary>The latest review's ledger diff in <paramref name="world"/> (the admin/work-ledger Need's fact); unknown for another world or before a review read it.</summary>
+    internal Fact<bool> LedgerOwedIn(GenerationSnapshot world)
     {
         lock (Ledger.Mu)
         {
-            var keys = new List<ConcernId>();
-            foreach (var d in Ledger.Declarers)
-            {
-                var (purpose, ok) = PurposeOf(d, true);
-                if (ok)
-                {
-                    keys.Add(purpose.Key);
-                }
-            }
-
-            return keys;
+            return Ledger.World == world ? Ledger.Owed : Unknown<bool>();
         }
     }
 
@@ -181,6 +175,7 @@ public sealed partial class Rounder
             }
 
             l.Pending = null;
+            l.Owed = Unknown<bool>();
             l.Reports = [];
             l.ReportsWorld = snapshot;
             if (l.World != snapshot && (l.World.Colony != snapshot.Colony || l.World.Load != snapshot.Load || l.World.Map != snapshot.Map))
@@ -284,68 +279,35 @@ public sealed partial class Rounder
             return Known(owed);
         }
     }
-
-    internal IReadOnlyList<LedgerReport> HeldReports(Verdict v) => PurposeKeys().Select(key => new LedgerReport(key, v)).ToList();
 }
 
-public sealed class RoundsLedgerPlanner
+public sealed partial class AdminRounds
 {
-    private readonly Rounder reviewer;
-    internal Rounder Reviewer => reviewer;
-
-    private RoundsLedgerPlanner(Rounder reviewer) => this.reviewer = reviewer;
-
-    public static RoundsLedgerPlanner NewRoundsLedgerPlanner(Rounder reviewer)
+    /// <summary>
+    /// The verdicts the work ledger files beside the family's Needs (#3304): one per declaring purpose under its
+    /// key, read from the review's ledger reports. Empty unless the ledger is composed and the reports are this
+    /// world's.
+    /// </summary>
+    internal IReadOnlyList<LedgerReport> LedgerPurposeReports(GenerationSnapshot world, CancellationToken call)
     {
-        if (reviewer is null)
+        if (!_needs.WorkLedger)
         {
-            throw new ControlException("NewRoundsLedgerPlanner: reviewer == null");
+            return [];
         }
 
-        return new RoundsLedgerPlanner(reviewer);
-    }
-
-    internal async Task<RoundsLedgerResult> StepAsync(StepArbiter? arbiter, CancellationToken call, CancellationToken epoch)
-    {
-        var r = reviewer;
-        var p = r.Player;
-        var state = p.Session.State();
-        if (!state.Enabled)
+        var review = _reviewer.Player.Journal.LoadRounds(call);
+        if (!review.Enabled || review.Snapshot != world)
         {
-            return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonDisabled, Reports = r.HeldReports(BuildingRuntimePackage.BuildingReasonDisabled) };
+            return [];
         }
 
-        if (!state.ObservationKnown)
-        {
-            throw new ControlException("step: !state.ObservationKnown");
-        }
-
-        var review = await p.Journal.LoadRoundsAsync(call).ConfigureAwait(false);
-        if (!review.Enabled || review.Snapshot != state.Snapshot)
-        {
-            return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonNoReview };
-        }
-
-        var reports = PurposeReports(state.Snapshot, review, call);
-        var result = await CommitAsync(arbiter, state, review, call, epoch).ConfigureAwait(false);
-        return result with { Reports = reports };
-    }
-
-    private List<LedgerReport> PurposeReports(GenerationSnapshot snapshot, Rounds review, CancellationToken call)
-    {
         List<LedgerPurpose> purposes;
-        lock (reviewer.Ledger.Mu)
+        lock (_reviewer.Ledger.Mu)
         {
-            purposes = reviewer.Ledger.ReportsWorld == snapshot ? [.. reviewer.Ledger.Reports] : [];
+            purposes = _reviewer.Ledger.ReportsWorld == world ? [.. _reviewer.Ledger.Reports] : [];
         }
 
-        var reports = new List<LedgerReport>();
-        foreach (var purpose in purposes)
-        {
-            reports.Add(new LedgerReport(purpose.Key, PurposeVerdict(review, purpose, call)));
-        }
-
-        return reports;
+        return [.. purposes.Select(purpose => new LedgerReport(purpose.Key, PurposeVerdict(review, purpose, call)))];
     }
 
     private Verdict PurposeVerdict(Rounds review, LedgerPurpose purpose, CancellationToken call)
@@ -363,7 +325,7 @@ public sealed class RoundsLedgerPlanner
             };
         }
 
-        var journal = reviewer.Player.Journal;
+        var journal = _reviewer.Player.Journal;
         StandardState? owner;
         bool workable;
         try
@@ -401,25 +363,18 @@ public sealed class RoundsLedgerPlanner
         return purpose.Report.Order;
     }
 
-    private async Task<RoundsLedgerResult> CommitAsync(StepArbiter? arbiter, ControlState state, Rounds review, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// The admin/work-ledger work (#3304): commits the review's pending reconcile (removals first, then the chosen
+    /// placements, at most <c>MaxBillPlanActions</c>) as one Method named by the diff it carries, under the Need
+    /// owner and admitted by claims. Each bill claims its bench and recipe and each removal its bill, so a diff over
+    /// other benches is admitted beside an open one, the same diff continues, and an overlapping one is refused with
+    /// a claim conflict until the open one ends.
+    /// </summary>
+    private Task<Verdict> WorkLedgerStepAsync(NeedWork work, CancellationToken call)
     {
-        var r = reviewer;
+        var r = _reviewer;
         var p = r.Player;
-        var (owner, workable) = await p.Journal.WorkableAsync(review, PolicyFunctions.MaintainWorkLedger, call).ConfigureAwait(false);
-        if (!workable || owner is null)
-        {
-            return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
-        }
-
-        foreach (var method in owner.Methods)
-        {
-            var plan0 = await p.Journal.LoadPlanAsync(method.Plan, call).ConfigureAwait(false);
-            if (StorePackage.PlanOpen(plan0))
-            {
-                return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonExistingWork };
-            }
-        }
-
+        var state = work.State;
         LedgerPending? pending;
         lock (r.Ledger.Mu)
         {
@@ -428,12 +383,12 @@ public sealed class RoundsLedgerPlanner
 
         if (pending is null || pending.Snapshot != state.Snapshot)
         {
-            return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonNoDeficit };
+            return Task.FromResult(BuildingReasonNoDeficit);
         }
 
         if (pending.Actions() == 0)
         {
-            return new RoundsLedgerResult { Verdict = Verdict.AwaitingPlan("ledger_bench", "") };
+            return Task.FromResult(Verdict.AwaitingPlan("ledger_bench", ""));
         }
 
         var id = PlanIds.MintPlanId();
@@ -442,20 +397,28 @@ public sealed class RoundsLedgerPlanner
         var chosen = new LedgerPending { Snapshot = pending.Snapshot, Remove = pending.Remove, Place = materials.Selected };
         var (actions, claims, key) = LedgerActions(id, chosen);
         if (actions.Count == 0)
-            return new RoundsLedgerResult { Verdict = Verdict.AwaitingPlan("production_material", selectionReason) };
-        if (arbiter is not null && !arbiter.TryClaim([], [.. claims]))
         {
-            return new RoundsLedgerResult { Verdict = Verdict.ClaimHeld("bench") };
+            return Task.FromResult(Verdict.AwaitingPlan("production_material", selectionReason));
+        }
+
+        if (work.Arbiter is not null && !work.Arbiter.TryClaim([], [.. claims]))
+        {
+            return Task.FromResult(Verdict.ClaimHeld("bench"));
         }
 
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
+        p.Current(call, work.Epoch);
         if (p.Session.State() != state)
         {
-            throw new ControlException("step: p.session.State() != state");
+            throw new ControlException("work ledger: the session moved");
         }
 
-        await p.Journal.CommitMethodReasonAsync(owner.Standard.Id, owner.Revision, LedgerMethod(owner, key), selectionReason, plan, call).ConfigureAwait(false);
+        var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, LedgerMethod(key), selectionReason, plan, call);
+        if (commit.Outcome != ClaimOutcome.Admitted)
+        {
+            return Task.FromResult(OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonExistingWork);
+        }
+
         lock (r.Ledger.Mu)
         {
             var removed = Math.Min(pending.Remove.Count, actions.Count);
@@ -471,7 +434,7 @@ public sealed class RoundsLedgerPlanner
             r.NotePlacement(id, action, new ProgressView());
         }
 
-        return new RoundsLedgerResult { Verdict = BuildingRuntimePackage.BuildingReasonAdmitted, Plan = id };
+        return Task.FromResult(BuildingReasonAdmitted);
     }
 
     internal static (List<DomainAction> Actions, List<string> Claims, string Key) LedgerActions(PlanId plan, LedgerPending p)
@@ -538,26 +501,7 @@ public sealed class RoundsLedgerPlanner
         return s.Worker != "" ? bill.PinWorker(s.Worker) : bill;
     }
 
-    internal static MethodId LedgerMethod(StandardState owner, string key)
-    {
-        var tried = owner.History.Select(m => m.MethodId).ToHashSet();
-        for (var attempt = 0; ; attempt++)
-        {
-            var digest = SHA256.HashData(Encoding.UTF8.GetBytes($"ledger/{key}/{attempt}"));
-            var method = new MethodId(Rounder.LedgerMethodPrefix + Convert.ToHexStringLower(digest.AsSpan(0, 16)));
-            if (!tried.Contains(method))
-            {
-                return method;
-            }
-        }
-    }
-}
-
-public readonly record struct RoundsLedgerResult : IPlannerMethod
-{
-    public Verdict Verdict { get; init; }
-
-    public PlanId Plan { get; init; }
-
-    public IReadOnlyList<LedgerReport> Reports { get; init; }
+    /// <summary>The diff's MethodId: the same diff continues its open Method and is admitted again as the next attempt once that one is released.</summary>
+    internal static MethodId LedgerMethod(string key) =>
+        new(Rounder.LedgerMethodPrefix + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes($"ledger/{key}")).AsSpan(0, 16)));
 }

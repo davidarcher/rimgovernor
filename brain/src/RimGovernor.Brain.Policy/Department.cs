@@ -48,7 +48,6 @@ public static partial class PolicyFunctions
         // Industry
         [EnsureBasicPower] = 1,
         [MaintainTrade] = 1,
-        [MaintainWorkLedger] = 1,
         [MaintainMechs] = 1,
         [EnsureMechCharger] = 1,
 

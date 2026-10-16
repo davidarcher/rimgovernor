@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class JoinersRounds
 {
     public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(JoinersFamily.Decrees.FilingKey);
+        (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(JoinersFamily.Decrees.FilingKey.Value);
 
     /// <summary>
     /// Declares the production batches of the open produce-item decrees (OrderDeclarer) and notes whether one is

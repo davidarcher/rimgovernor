@@ -641,8 +641,12 @@ public sealed partial class Rounder
             }
         }
         reading = reading.WithFacts(rf => rf with { AvailableMethods = Methods, AvailableNeeds = AvailableNeeds });
-        var vLedgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { LedgerOwed = vLedgerOwed });
+        // The admin/work-ledger Need reads the diff from the ledger's memory (LedgerOwedIn).
+        var ledgerOwed = await ReviewLedgerAsync(state.Snapshot, expected, reading.Projection, ct).ConfigureAwait(false);
+        lock (Ledger.Mu)
+        {
+            Ledger.Owed = ledgerOwed;
+        }
         // The Grafana ledger dashboard reads a derived copy of the review's view.
         try
         {

@@ -101,9 +101,9 @@ public sealed class ClaimAdmissionTests
     public void GearDressedTwiceForOnePawnIsRefused()
     {
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainWorkLedger, "dress-a", Dress("d1", "a")).Outcome);
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainWorkLedger, "dress-b", Dress("d2", "b")).Outcome);
-        var refused = colony.Commit(MaintainWorkLedger, "dress-a-again", Dress("d3", "a"));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainMechs, "dress-a", Dress("d1", "a")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainMechs, "dress-b", Dress("d2", "b")).Outcome);
+        var refused = colony.Commit(MaintainMechs, "dress-a-again", Dress("d3", "a"));
         Assert.Equal(ClaimOutcome.Conflict, refused.Outcome);
         Assert.Equal("gear/a", refused.Conflict!.Claim);
     }
@@ -165,18 +165,18 @@ public sealed class ClaimAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        var first = colony.Commit(MaintainWorkLedger, "deliver", Delivery("d1", "a", "deliver"));
+        var first = colony.Commit(MaintainMechs, "deliver", Delivery("d1", "a", "deliver"));
         Assert.Equal(ClaimOutcome.Admitted, first.Outcome);
         colony.Journal.Cancel(Assert.Single(first.State.Methods).Plan, new("d1"), ct);
         // The deficit clears, then returns: the Standard opens a new episode.
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         var met = colony.Journal.ReviewRounds(new() { Revision = colony.Review.Review.Revision, Current = World, Tick = new(110), Enabled = true,
-            Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(110), LedgerOwed = Known(false) } }, ct);
+            Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(110), MechGestationOwed = Known(false) } }, ct);
         colony.Journal.ReviewRounds(new() { Revision = met.Review.Revision, Current = World, Tick = new(120), Enabled = true,
             Policy = DefaultRoundsPolicy(), Facts = facts with { Tick = new(120) } }, ct);
-        var owner = colony.Owner(MaintainWorkLedger);
+        var owner = colony.Owner(MaintainMechs);
         Assert.Equal(first.State.Standard.Episode + 1, owner.Standard.Episode);
-        var reopened = colony.Commit(MaintainWorkLedger, "deliver", Delivery("d2", "a", "deliver"));
+        var reopened = colony.Commit(MaintainMechs, "deliver", Delivery("d2", "a", "deliver"));
         Assert.Equal(ClaimOutcome.Admitted, reopened.Outcome);
         Assert.Equal(owner.Standard.Episode, Assert.Single(reopened.State.Methods).Episode);
     }
@@ -186,13 +186,13 @@ public sealed class ClaimAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        var first = colony.Commit(MaintainWorkLedger, "deliver", Delivery("d1", "a", "deliver"));
+        var first = colony.Commit(MaintainMechs, "deliver", Delivery("d1", "a", "deliver"));
         Assert.Equal(ClaimOutcome.Admitted, first.Outcome);
-        var again = colony.Commit(MaintainWorkLedger, "deliver", Delivery("d2", "b", "deliver"));
+        var again = colony.Commit(MaintainMechs, "deliver", Delivery("d2", "b", "deliver"));
         Assert.Equal(ClaimOutcome.Continued, again.Outcome);
         Assert.Null(again.Conflict);
         Assert.Equal(first.State.Revision, again.State.Revision);
-        Assert.Single(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainWorkLedger), ct));
+        Assert.Single(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainMechs), ct));
     }
 
     [Fact]
@@ -200,16 +200,16 @@ public sealed class ClaimAdmissionTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainWorkLedger, "ledger", Delivery("l1", "a", "ledger")).Outcome);
-        var other = colony.Commit(MaintainMechs, "art", Delivery("a1", "a", "art"));
+        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainMechs, "ledger", Delivery("l1", "a", "ledger")).Outcome);
+        var other = colony.Commit(PolicyConstants.MaintainPsylink, "art", Delivery("a1", "a", "art"));
         Assert.Equal(ClaimOutcome.Conflict, other.Outcome);
         Assert.Equal("pawn/a", other.Conflict!.Claim);
         Assert.Equal("ledger", other.Conflict.Method.Value);
-        Assert.Empty(colony.Journal.LoadOwnerMethods(colony.Owner(MaintainMechs), ct));
+        Assert.Empty(colony.Journal.LoadOwnerMethods(colony.Owner(PolicyConstants.MaintainPsylink), ct));
         // Opted in, a disjoint second Method beside the owner's own open one is admitted ...
-        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainWorkLedger, "ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Commit(MaintainMechs, "ledger-2", Delivery("l2", "b", "ledger-2")).Outcome);
         // ... while the ordinary commit keeps the one-open-Method gate.
-        var owner = colony.Owner(MaintainWorkLedger);
+        var owner = colony.Owner(MaintainMechs);
         Assert.Throws<OpenMethodException>(() => colony.Journal.CommitMethod(owner.Standard.Id, owner.Revision, new("ledger-3"),
             new PlanSpec(new("ledger-3-plan"), new(1), [Delivery("l3", "c", "ledger-3")]), ct));
     }

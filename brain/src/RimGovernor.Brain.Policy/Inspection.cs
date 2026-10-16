@@ -55,7 +55,6 @@ internal static class InspectionRegistry
         new(MaintainRoutes, ConcernType.StandardConcern, Department.Shelter, [FactFamily.World, FactFamily.Colony], InspectRoutes),
         new(MaintainTrade, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony, FactFamily.Pawns, FactFamily.Definitions, FactFamily.World], InspectExport),
         new(MaintainShelter, ConcernType.StandardConcern, Department.Shelter, [FactFamily.Rooms, FactFamily.World, FactFamily.Emergency], InspectShelter),
-        new(MaintainWorkLedger, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony], InspectWorkLedger),
         new(MaintainMechs, ConcernType.StandardConcern, Department.Industry, [FactFamily.Colony, FactFamily.Pawns], InspectMechs),
         new(MaintainPsylink, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Colony], InspectPsylink),
         new(MaintainPermits, ConcernType.StandardConcern, Department.People, [FactFamily.Pawns, FactFamily.Definitions, FactFamily.Colony], InspectPermits),

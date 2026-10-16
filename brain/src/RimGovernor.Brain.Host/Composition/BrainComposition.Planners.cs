@@ -38,7 +38,6 @@ public sealed partial class BrainComposition
         RoundsAcquisitionPlanner? foodAcquisition = null;
         RoundsGeneBankPlanner? cfgGeneBank = null;
         RoundsHospitalPlanner? cfgHospital = null;
-        RoundsLedgerPlanner? cfgLedger = null;
         RoundsBuildingPlanner? roomsLighting = null;
         MaintainShelterPlanner? cfgMaintainShelter = null;
         RoundsMechChargerPlanner? cfgMechCharger = null;
@@ -135,10 +134,8 @@ public sealed partial class BrainComposition
         capabilities = capabilities with { Undraft = writer };
         var reviewer = new Rounder(context.Player, client, SystemClock.Instance, thresholds, StepTimeout, capabilities);
         cfgRounds = reviewer;
-        if (bills || gear || armory || sc.Art || sc.PopulationJoiner || foodStorageUpkeep || refrigeration || medical || sc.Mechs)
-        {
-            cfgLedger = RoundsLedgerPlanner.NewRoundsLedgerPlanner(reviewer);
-        }
+        // Any toggle that declares production orders composes the admin family's work-ledger Need (#3304).
+        var workLedger = bills || gear || armory || sc.Art || sc.PopulationJoiner || foodStorageUpkeep || refrigeration || medical || sc.Mechs;
         if (medical || sc.Mechs)
         {
             // The surgery part and mech gestation bills are the ledger's, declare-only (#2604).
@@ -289,10 +286,10 @@ public sealed partial class BrainComposition
             // The role, ritual and reform toggles compose the ideology family's three Needs (#3260).
             families.Add(IdeologyReader.Runner(reviewer, sc.IdeoRoles, sc.Rituals, sc.Ideoligion));
         }
-        var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial };
-        if (admin.CreepJoiners || admin.SupplySafety || admin.Burial)
+        var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial, WorkLedger = workLedger };
+        if (admin.CreepJoiners || admin.SupplySafety || admin.Burial || admin.WorkLedger)
         {
-            // The colony admin family (#3264, #3304): creep joiners, supply safety and burial.
+            // The colony admin family (#3264, #3304): creep joiners, supply safety, burial and the work ledger.
             families.Add(new AdminRounds(reviewer, admin, supplies ? client : null).Runner());
         }
         if (sc.Sheltering)
@@ -426,7 +423,6 @@ public sealed partial class BrainComposition
             Expansion = cfgExpansion,
             GeneBank = cfgGeneBank,
             Hospital = cfgHospital,
-            Ledger = cfgLedger,
             MaintainShelter = cfgMaintainShelter,
             MechCharger = cfgMechCharger,
             Medical = cfgMedical,
@@ -515,7 +511,6 @@ public sealed partial class BrainComposition
         }
 
         Add(sc.Work, EnsureWorkAssignments);
-        Add(sc.Bill || sc.Gear || sc.Armory || sc.Art || sc.PopulationJoiner || sc.FoodStorageUpkeep || sc.Refrigeration || sc.Medical || sc.Mechs, MaintainWorkLedger);
         Add(sc.Temperature, EnsureTemperatureSafety);
         Add(sc.Power, EnsureBasicPower);
         Add(sc.Art, MaintainTrade);

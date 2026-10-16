@@ -25,7 +25,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsBuildingResult? GeneBank { get; set; }
 
-    public RoundsLedgerResult? Ledger { get; set; }
 
     public RoundsBuildingResult? Sleeping { get; set; }
 
@@ -105,7 +104,6 @@ public sealed class ClockSchedulerResult
         Pollution = other.Pollution ?? Pollution;
         MechCharger = other.MechCharger ?? MechCharger;
         GeneBank = other.GeneBank ?? GeneBank;
-        Ledger = other.Ledger ?? Ledger;
         Sleeping = other.Sleeping ?? Sleeping;
         Hospital = other.Hospital ?? Hospital;
         SleepingUpkeep = other.SleepingUpkeep ?? SleepingUpkeep;

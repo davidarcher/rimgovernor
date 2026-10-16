@@ -116,7 +116,6 @@ internal static class ClockPlannerCatalog
     private static readonly FactSection[] SectionsColony = [FactSection.Colony];
     // The ritual plan reads the ideoligion, the building sites, the colonists and the emergency census.
     private static readonly FactSection[] SectionsRituals = [FactSection.Colony, FactSection.Pawns, FactSection.Emergency, FactSection.Buildings, FactSection.Ideology];
-    private static readonly FactSection[] SectionsBills = [FactSection.Colony, FactSection.Bills];
     private static readonly FactSection[] SectionsPawns = [FactSection.Pawns];
     private static readonly FactSection[] SectionsMedical = [FactSection.Pawns, FactSection.Colony];
     private static readonly FactSection[] SectionsThreat = [FactSection.Pawns, FactSection.Emergency];
@@ -208,8 +207,6 @@ internal static class ClockPlannerCatalog
             c => c.MechCharger is not null, (s, ct, e, a) => s.Config.MechCharger!.StepAsync(a, ct, e), (o, m) => o.MechCharger = m, EnsureMechCharger),
         E("genebank", O, [ActionKind.Building], SectionsBuilding,
             c => c.GeneBank is not null, (s, ct, e, a) => s.Config.GeneBank!.StepAsync(a, ct, e), (o, m) => o.GeneBank = m, MaintainGeneBank),
-        E("workLedger", O, [ActionKind.ProductionBill, ActionKind.RemoveProductionBill], SectionsBills,
-            c => c.Ledger is not null, (s, ct, e, a) => s.Config.Ledger!.StepAsync(a, ct, e), (o, m) => o.Ledger = m, MaintainWorkLedger),
         E("moodRelief", O, [ActionKind.Ability], SectionsPawns,
             c => c.MoodRelief is not null, (s, ct, e, a) => s.Config.MoodRelief!.StepAsync(a, ct, e), (o, m) => o.MoodRelief = m),
         E("recovery", C, [ActionKind.RecoveryService, ActionKind.WorkAssignment, ActionKind.Husbandry], SectionsRecovery,

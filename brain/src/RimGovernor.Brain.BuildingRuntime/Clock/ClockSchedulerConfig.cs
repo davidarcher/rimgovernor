@@ -32,7 +32,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsGeneBankPlanner? GeneBank { get; init; }
 
-    public RoundsLedgerPlanner? Ledger { get; init; }
 
     public RoundsBuildingPlanner? Sleeping { get; init; }
 

@@ -104,7 +104,7 @@ public sealed partial class Rounder
         return view.WithAttempts(attempts);
     }
 
-    /// <summary>Seeds the placement index once from the owner's recorded ledger plans.</summary>
+    /// <summary>Seeds the placement index once from the admin/work-ledger Need's unretired ledger plans in the ledger's world.</summary>
     internal bool SeedPlacements(CancellationToken ct)
     {
         var x = Ledger.Attempts;
@@ -117,26 +117,31 @@ public sealed partial class Rounder
         }
 
         var journal = Player.Journal;
-        StandardState? owner;
+        GenerationSnapshot world;
+        lock (Ledger.Mu)
+        {
+            world = Ledger.World;
+        }
+
+        if (!world.IsValid)
+        {
+            return false;
+        }
+
+        NeedOwner owner;
         try
         {
-            var review = journal.LoadRounds(ct);
-            (owner, _) = journal.Workable(review, PolicyFunctions.MaintainWorkLedger, ct);
+            owner = journal.LoadNeed(AdminFamily.WorkLedger, world, ct);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return false;
         }
 
-        if (owner is null || owner.Standard.Id.Value == "")
-        {
-            return false;
-        }
-
         var found = new Dictionary<string, PlacementEntry>();
-        foreach (var method in owner.History)
+        foreach (var method in owner.Methods)
         {
-            if (!method.MethodId.Value.StartsWith(LedgerMethodPrefix, StringComparison.Ordinal))
+            if (!method.Method.Value.StartsWith(LedgerMethodPrefix, StringComparison.Ordinal))
             {
                 continue;
             }

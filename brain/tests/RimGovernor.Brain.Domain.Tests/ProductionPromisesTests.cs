@@ -142,14 +142,14 @@ public sealed class ProductionPromisesTests
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
         var facts = Facts(Known(default(EquatableArray<ForecastCommitment>))) with
         {
-            Tick = new Tick(100), LedgerOwed = Known(true), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
+            Tick = new Tick(100), MechGestationOwed = Known(true), Resources = Known<EquatableArray<Amount>>([new(Material, 120)]),
             ForecastObserved = new() { WorkPawns = Known(default(EquatableArray<WorkPawn>)) },
             WorkResources = Known(default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>)),
             WorkAdmission = new() { Recipes = Known<EquatableArray<ProductionRecipeInput>>([new("TestRecipe", Batch.Slots, Known(false))]),
                 Bills = Known(default(EquatableArray<ProductionBatchState>)) },
         };
         var review = journal.ReviewRounds(new RoundsRequest { Current = world, Tick = facts.Tick, Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, lifetime.Token);
-        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainWorkLedger);
+        var owner = Assert.Single(review.Standards, s => s.Standard.Kind == MaintainMechs);
         Assert.Empty(journal.ProductionBatches(world, facts.Tick, lifetime.Token).Value);
         var action = DomainAction.NewProductionBillAction(new ActionId("batch"), Batch.Order);
         var plan = new PlanSpec(new PlanId("method-plan"), new PlanRevision(1), [action]);
