@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace RimGovernor.Tools.Commands.ThoughtAudit;
 
-/// <summary>Writes the draft cards (JSON) and the all-defs coverage table (TSV) of <c>thoughtaudit -guards</c>; byte-identical for identical input.</summary>
+/// <summary>Writes the draft cards (JSON), the shipped card file (JSON) and the all-defs coverage table (TSV) of <c>thoughtaudit -guards</c>; byte-identical for identical input.</summary>
 internal static class GuardOutput
 {
     private static readonly string[] Scalars =
@@ -91,6 +91,67 @@ internal static class GuardOutput
         return Encoding.UTF8.GetString(ms.ToArray()) + "\n";
     }
 
+    /// <summary>The schema of the shipped card file; <c>MechanicCards</c> in Brain.Policy rejects any other.</summary>
+    public const int ShippedSchema = 1;
+
+    private static readonly string[] ShippedNumbers = ["durationDays", "stackLimit", "stackedEffectMultiplier"];
+
+    /// <summary>
+    /// The shipped card file (<c>brain/src/RimGovernor.Brain.Policy/mechanic_cards.json</c>, #3220): the given cards with typed
+    /// XML numbers and only the fields the brain's records read. Every card is <c>extracted</c> until a probe verifies it.
+    /// </summary>
+    public static string Shipped(string game, IReadOnlyList<Card> cards)
+    {
+        using var ms = new MemoryStream();
+        using (var w = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true, NewLine = "\n", Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
+        {
+            w.WriteStartObject();
+            w.WriteNumber("schema", ShippedSchema);
+            w.WriteString("game", game);
+            w.WriteStartArray("cards");
+            foreach (var c in cards)
+            {
+                w.WriteStartObject();
+                w.WriteString("def", c.Def);
+                w.WriteString("kind", c.Kind);
+                w.WriteString("status", "extracted");
+                w.WriteStartObject("xml");
+                foreach (var name in ShippedNumbers.Where(c.Data.Fields.ContainsKey))
+                {
+                    w.WriteNumber(name, double.Parse(c.Data.Fields[name].Value.Trim(), System.Globalization.CultureInfo.InvariantCulture));
+                }
+                w.WriteStartArray("nullifyingTraits");
+                foreach (var li in c.Data.Fields.TryGetValue("nullifyingTraits", out var traits) ? traits.Elements("li") : [])
+                {
+                    w.WriteStringValue(li.Value.Trim());
+                }
+                w.WriteEndArray();
+                w.WriteStartArray("stages");
+                foreach (var li in c.Data.Fields.TryGetValue("stages", out var stages) ? stages.Elements("li") : [])
+                {
+                    w.WriteStartObject();
+                    if (li.Element("baseMoodEffect") is { } e)
+                    {
+                        w.WriteNumber("baseMoodEffect", double.Parse(e.Value.Trim(), System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                    w.WriteEndObject();
+                }
+                w.WriteEndArray();
+                w.WriteEndObject();
+                w.WriteStartArray("sites");
+                foreach (var s in c.Sites)
+                {
+                    WriteSite(w, s, shipped: true);
+                }
+                w.WriteEndArray();
+                w.WriteEndObject();
+            }
+            w.WriteEndArray();
+            w.WriteEndObject();
+        }
+        return Encoding.UTF8.GetString(ms.ToArray()) + "\n";
+    }
+
     private static void WriteAny(Utf8JsonWriter w, object value)
     {
         switch (value)
@@ -160,54 +221,61 @@ internal static class GuardOutput
         w.WriteStartArray("sites");
         foreach (var s in c.Sites)
         {
-            WriteSite(w, s);
+            WriteSite(w, s, shipped: false);
         }
         w.WriteEndArray();
         w.WriteEndObject();
     }
 
-    private static void WriteSite(Utf8JsonWriter w, Site s)
+    /// <summary>A site; <paramref name="shipped"/> leaves out the draft-only fields (file, guard text and resolution, writer totals, derived inputs).</summary>
+    private static void WriteSite(Utf8JsonWriter w, Site s, bool shipped)
     {
         w.WriteStartObject();
         w.WriteString("site", s.Name);
-        w.WriteString("file", s.File);
+        if (!shipped)
+        {
+            w.WriteString("file", s.File);
+        }
         w.WriteString("bodyHash", s.Hash);
         w.WriteString("access", s.Access);
         w.WriteNumber("callers", s.Callers);
         w.WriteStartArray("guards");
         foreach (var g in s.Guards)
         {
-            WriteGuard(w, g);
+            WriteGuard(w, g, shipped);
         }
         w.WriteEndArray();
         w.WriteStartArray("writers");
         foreach (var f in s.Writers)
         {
-            WriteFieldWriters(w, f);
+            WriteFieldWriters(w, f, shipped);
         }
         w.WriteEndArray();
         w.WriteEndObject();
     }
 
-    private static void WriteGuard(Utf8JsonWriter w, Guard g)
+    private static void WriteGuard(Utf8JsonWriter w, Guard g, bool shipped)
     {
         w.WriteStartObject();
         w.WriteString("origin", g.Origin);
-        w.WriteString("text", Exprs.Render(g.Cond));
-        w.WriteString("conditions", Exprs.Resolved(g.Cond) ? "resolved" : "unknown");
+        if (!shipped)
+        {
+            w.WriteString("text", Exprs.Render(g.Cond));
+            w.WriteString("conditions", Exprs.Resolved(g.Cond) ? "resolved" : "unknown");
+        }
         w.WritePropertyName("expr");
         WriteExpr(w, g.Cond);
         w.WriteEndObject();
     }
 
-    private static void WriteFieldWriters(Utf8JsonWriter w, FieldWriters f)
+    private static void WriteFieldWriters(Utf8JsonWriter w, FieldWriters f, bool shipped)
     {
         w.WriteStartObject();
         w.WriteString("field", f.Field);
         w.WriteString("kind", f.Kind);
         w.WriteNumber("writersFound", f.Total);
         w.WriteNumber("resetWriters", f.Writers.Count(x => x.Kind == "reset"));
-        if (f.Derived.Count > 0)
+        if (!shipped && f.Derived.Count > 0)
         {
             w.WriteStartArray("derivedFrom");
             foreach (var d in f.Derived)
@@ -231,7 +299,7 @@ internal static class GuardOutput
             w.WriteStartArray("guards");
             foreach (var g in x.Guards)
             {
-                WriteGuard(w, g);
+                WriteGuard(w, g, shipped);
             }
             w.WriteEndArray();
             w.WriteEndObject();
@@ -240,7 +308,7 @@ internal static class GuardOutput
         w.WriteStartArray("follows");
         foreach (var n in f.Following)
         {
-            WriteFieldWriters(w, n);
+            WriteFieldWriters(w, n, shipped);
         }
         w.WriteEndArray();
         w.WriteEndObject();

@@ -131,6 +131,22 @@ There is no check mode; a stale row shows as unowned. Modded thoughts are out of
 installed game, so the table has no rows for them and no owner entry exists; high
 expectations reach the review only through the pawn's `HighExpectations` flag.
 
+#### Mechanic cards
+
+`brain/src/RimGovernor.Brain.Policy/mechanic_cards.json` holds a mechanic card for each ThoughtDef with a live
+consumer (an allowlist in `ThoughtAuditCommand`; today only `KnowBuriedInSarcophagus`, epic #3217). `RimGovernor.cmd
+thoughtaudit -guards` regenerates it with the [spike's](../mechanic-card-spike.md) syntax-only extraction; the output is
+byte-identical for one decompiled tree. A card carries the def, its kind, the XML fields (`durationDays`, `stackLimit`,
+`stackedEffectMultiplier`, `nullifyingTraits`, stages with `baseMoodEffect`), and each granting site (member, access,
+caller count, `bodyHash` drift hash) with its guard expression trees and origins and the writers of the fields those
+guards read (method and `bodyHash`, write kind, value, guards, `resetWriters`, `writersFound`, followed fields).
+Unresolved leaves stay `unknown` with their reason. Modded defs get no cards.
+
+`MechanicCards.ByDef` embeds the file and parses it on first use into `MechanicCard` records. A malformed file, an
+unknown or missing field, an unknown status or a schema other than `MechanicCards.Schema` throws; it never yields an
+empty catalog. Every card's `status` is `extracted` until a probe verifies it; such a card loads, but `Live` is false
+and consumers ignore it for live play. Nothing consumes the cards yet.
+
 ### Mood ledger
 
 `policy.BuildMoodLedger` (pure) turns pawns' thought rows (`MoodLedgerPawn`: the

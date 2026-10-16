@@ -1,0 +1,305 @@
+{
+  "schema": 1,
+  "game": "1.7.4979 rev109",
+  "cards": [
+    {
+      "def": "KnowBuriedInSarcophagus",
+      "kind": "memory",
+      "status": "extracted",
+      "xml": {
+        "durationDays": 8,
+        "stackLimit": 4,
+        "stackedEffectMultiplier": 0.5,
+        "nullifyingTraits": [],
+        "stages": [
+          {
+            "baseMoodEffect": 4
+          }
+        ]
+      },
+      "sites": [
+        {
+          "site": "Building_Sarcophagus.Notify_HauledTo",
+          "bodyHash": "91b24c626f95fc53",
+          "access": "public override",
+          "callers": 3,
+          "guards": [
+            {
+              "origin": "early-exit",
+              "expr": {
+                "sym": "thisIsFirstBodyEver",
+                "kind": "field",
+                "decl": "Building_Sarcophagus.thisIsFirstBodyEver",
+                "type": "bool"
+              }
+            },
+            {
+              "origin": "early-exit",
+              "expr": {
+                "sym": "hauler.IsColonist",
+                "kind": "prop",
+                "decl": "Pawn.IsColonist",
+                "type": "bool"
+              }
+            },
+            {
+              "origin": "early-exit",
+              "expr": {
+                "sym": "base.Corpse.InnerPawn.def.race.Humanlike",
+                "kind": "prop",
+                "decl": "RaceProperties.Humanlike",
+                "type": "bool"
+              }
+            },
+            {
+              "origin": "early-exit",
+              "expr": {
+                "op": "not",
+                "args": [
+                  {
+                    "sym": "base.Corpse.everBuriedInSarcophagus",
+                    "kind": "field",
+                    "decl": "Corpse.everBuriedInSarcophagus",
+                    "type": "bool"
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "foreach",
+              "expr": {
+                "op": "nonempty",
+                "args": [
+                  {
+                    "sym": "base.Map.mapPawns.FreeColonists",
+                    "kind": "prop",
+                    "decl": "MapPawns.FreeColonists",
+                    "type": "List"
+                  }
+                ]
+              }
+            },
+            {
+              "origin": "if",
+              "expr": {
+                "op": "!=",
+                "args": [
+                  {
+                    "sym": "freeColonist.needs.mood",
+                    "kind": "field",
+                    "decl": "Pawn_NeedsTracker.mood",
+                    "type": "Need_Mood"
+                  },
+                  {
+                    "lit": "null"
+                  }
+                ]
+              }
+            }
+          ],
+          "writers": [
+            {
+              "field": "Building_Sarcophagus.thisIsFirstBodyEver",
+              "kind": "field",
+              "writersFound": 1,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "Building_Sarcophagus.TryAcceptThing",
+                  "bodyHash": "4507054591858954",
+                  "write": "set",
+                  "value": "!everNonEmpty",
+                  "guards": [
+                    {
+                      "origin": "if",
+                      "expr": {
+                        "op": "call",
+                        "args": [
+                          {
+                            "sym": "base.TryAcceptThing",
+                            "kind": "method",
+                            "decl": "Building_Sarcophagus.TryAcceptThing",
+                            "type": "bool"
+                          },
+                          {
+                            "sym": "thing",
+                            "kind": "param",
+                            "decl": "",
+                            "type": "Thing"
+                          },
+                          {
+                            "sym": "allowSpecialEffects",
+                            "kind": "param",
+                            "decl": "",
+                            "type": "bool"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "follows": [
+                {
+                  "field": "Building_Sarcophagus.everNonEmpty",
+                  "kind": "field",
+                  "writersFound": 2,
+                  "resetWriters": 0,
+                  "writers": [
+                    {
+                      "method": "Building_Sarcophagus.ExposeData",
+                      "bodyHash": "a137096c44fc738e",
+                      "write": "serialization",
+                      "value": "ref",
+                      "guards": []
+                    },
+                    {
+                      "method": "Building_Sarcophagus.TryAcceptThing",
+                      "bodyHash": "4507054591858954",
+                      "write": "set",
+                      "value": "true",
+                      "guards": [
+                        {
+                          "origin": "if",
+                          "expr": {
+                            "op": "call",
+                            "args": [
+                              {
+                                "sym": "base.TryAcceptThing",
+                                "kind": "method",
+                                "decl": "Building_Sarcophagus.TryAcceptThing",
+                                "type": "bool"
+                              },
+                              {
+                                "sym": "thing",
+                                "kind": "param",
+                                "decl": "",
+                                "type": "Thing"
+                              },
+                              {
+                                "sym": "allowSpecialEffects",
+                                "kind": "param",
+                                "decl": "",
+                                "type": "bool"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "follows": []
+                }
+              ]
+            },
+            {
+              "field": "Pawn.IsColonist",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "RaceProperties.Humanlike",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Corpse.everBuriedInSarcophagus",
+              "kind": "field",
+              "writersFound": 2,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "Building_Sarcophagus.Notify_HauledTo",
+                  "bodyHash": "91b24c626f95fc53",
+                  "write": "set",
+                  "value": "true",
+                  "guards": [
+                    {
+                      "origin": "early-exit",
+                      "expr": {
+                        "sym": "thisIsFirstBodyEver",
+                        "kind": "field",
+                        "decl": "Building_Sarcophagus.thisIsFirstBodyEver",
+                        "type": "bool"
+                      }
+                    },
+                    {
+                      "origin": "early-exit",
+                      "expr": {
+                        "sym": "hauler.IsColonist",
+                        "kind": "prop",
+                        "decl": "Pawn.IsColonist",
+                        "type": "bool"
+                      }
+                    },
+                    {
+                      "origin": "early-exit",
+                      "expr": {
+                        "sym": "base.Corpse.InnerPawn.def.race.Humanlike",
+                        "kind": "prop",
+                        "decl": "RaceProperties.Humanlike",
+                        "type": "bool"
+                      }
+                    },
+                    {
+                      "origin": "early-exit",
+                      "expr": {
+                        "op": "not",
+                        "args": [
+                          {
+                            "sym": "base.Corpse.everBuriedInSarcophagus",
+                            "kind": "field",
+                            "decl": "Corpse.everBuriedInSarcophagus",
+                            "type": "bool"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "method": "Corpse.ExposeData",
+                  "bodyHash": "b567ad26f52e6622",
+                  "write": "serialization",
+                  "value": "ref",
+                  "guards": []
+                }
+              ],
+              "follows": []
+            },
+            {
+              "field": "MapPawns.FreeColonists",
+              "kind": "derived",
+              "writersFound": 0,
+              "resetWriters": 0,
+              "writers": [],
+              "follows": []
+            },
+            {
+              "field": "Pawn_NeedsTracker.mood",
+              "kind": "field",
+              "writersFound": 1,
+              "resetWriters": 0,
+              "writers": [
+                {
+                  "method": "Pawn_NeedsTracker.BindDirectNeedFields",
+                  "bodyHash": "1f27ff160017e7f0",
+                  "write": "ref-arg",
+                  "value": "out",
+                  "guards": []
+                }
+              ],
+              "follows": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

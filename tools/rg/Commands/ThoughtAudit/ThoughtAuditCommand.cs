@@ -21,20 +21,27 @@ namespace RimGovernor.Tools.Commands.ThoughtAudit;
 /// (syntax only) to write draft mechanic cards: each grant site's guard conditions and the writers of the fields they read,
 /// with anything unresolved emitted as <c>unknown</c> and a reason. It writes -cards (JSON, the -only defs, default the
 /// three Gate 0 benchmarks) and -coverage (TSV, every def) under <c>docs/developers/</c>; see
-/// <c>docs/developers/mechanic-card-spike.md</c>.
+/// <c>docs/developers/mechanic-card-spike.md</c>. It also writes -shipped (default
+/// <c>brain/src/RimGovernor.Brain.Policy/mechanic_cards.json</c>, #3220): the cards of the defs with a live consumer
+/// (<see cref="LiveConsumers"/>), which the policy assembly embeds.
 /// </para>
 /// </summary>
 internal static class ThoughtAuditCommand
 {
-    private const string Usage = "usage: thoughtaudit [-rimworld dir] [-out table] [-decompiled dir] [-guards [-cards file] [-coverage file] [-only Def,Def]]";
+    private const string Usage = "usage: thoughtaudit [-rimworld dir] [-out table] [-decompiled dir] [-guards [-cards file] [-coverage file] [-shipped file] [-only Def,Def]]";
 
     private static readonly string[] DefaultTable = ["brain", "src", "RimGovernor.Brain.Policy", "thought_triggers.tsv"];
 
+    private static readonly string[] DefaultShipped = ["brain", "src", "RimGovernor.Brain.Policy", "mechanic_cards.json"];
+
     private static readonly string[] DefaultBenchmarks = ["KnowBuriedInSarcophagus", "AteWithoutTable", "EnvironmentDark"];
+
+    /// <summary>The defs whose cards ship in mechanic_cards.json: those with a live consumer (Gate 1 of #3217: the stranger sarcophagus).</summary>
+    private static readonly string[] LiveConsumers = ["KnowBuriedInSarcophagus"];
 
     public static async Task<int> RunAsync(string[] args, CancellationToken ct)
     {
-        var flags = Flags.Parse(args, new HashSet<string> { "guards" }, new HashSet<string> { "rimworld", "out", "decompiled", "cards", "coverage", "only" });
+        var flags = Flags.Parse(args, new HashSet<string> { "guards" }, new HashSet<string> { "rimworld", "out", "decompiled", "cards", "coverage", "shipped", "only" });
         if (flags.HelpRequested)
         {
             Log.Info(Usage);
@@ -44,6 +51,7 @@ internal static class ThoughtAuditCommand
             Log.Info("  -guards      write draft mechanic cards and the coverage table instead of the trigger table (#3218)");
             Log.Info("  -cards       with -guards: card JSON (default docs/developers/mechanic-card-drafts.json)");
             Log.Info("  -coverage    with -guards: coverage TSV (default docs/developers/mechanic-card-coverage.tsv)");
+            Log.Info("  -shipped     with -guards: shipped card file (default brain/src/RimGovernor.Brain.Policy/mechanic_cards.json)");
             Log.Info($"  -only        with -guards: comma-separated defs to write as cards (default {string.Join(',', DefaultBenchmarks)})");
             return 0;
         }
@@ -59,18 +67,22 @@ internal static class ThoughtAuditCommand
         }
         if (flags.Bool("guards"))
         {
-            var docs = Path.Combine(Repo.Require(Directory.GetCurrentDirectory()), "docs", "developers");
+            var repo = Repo.Require(Directory.GetCurrentDirectory());
+            var docs = Path.Combine(repo, "docs", "developers");
             var cards = flags.String("cards", Path.Combine(docs, "mechanic-card-drafts.json"));
             var coverage = flags.String("coverage", Path.Combine(docs, "mechanic-card-coverage.tsv"));
+            var shipped = flags.String("shipped", Path.Combine([repo, .. DefaultShipped]));
             var only = flags.String("only").Length > 0 ? flags.String("only").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : DefaultBenchmarks;
-            await WithDecompiled(rimworld, flags.String("decompiled"), root => GuardsAsync(rimworld, root, outPath, cards, coverage, only, ct), ct).ConfigureAwait(false);
+            await WithDecompiled(rimworld, flags.String("decompiled"), root => GuardsAsync(rimworld, root, outPath, new GuardPaths(cards, coverage, shipped), only, ct), ct).ConfigureAwait(false);
             return 0;
         }
         await WithDecompiled(rimworld, flags.String("decompiled"), decompiled => AuditAsync(rimworld, outPath, decompiled, ct), ct).ConfigureAwait(false);
         return 0;
     }
 
-    private static async Task GuardsAsync(string rimworld, string root, string tablePath, string cardsPath, string coveragePath, string[] only, CancellationToken ct)
+    private sealed record GuardPaths(string Cards, string Coverage, string Shipped);
+
+    private static async Task GuardsAsync(string rimworld, string root, string tablePath, GuardPaths paths, string[] only, CancellationToken ct)
     {
         var (defs, xmlFiles) = ThoughtDefs.Load(Path.Combine(rimworld, "Data"));
         var owners = File.Exists(tablePath) ? ThoughtRows.ParseOwners(await File.ReadAllTextAsync(tablePath, ct).ConfigureAwait(false)) : [];
@@ -80,9 +92,16 @@ internal static class ThoughtAuditCommand
         var all = cards.Build(defs, owners, xmlFiles);
         var game = File.Exists(Path.Combine(rimworld, "Version.txt")) ? (await File.ReadAllTextAsync(Path.Combine(rimworld, "Version.txt"), ct).ConfigureAwait(false)).Trim() : "unknown";
         var chosen = all.Where(c => only.Contains(c.Def)).ToList();
-        await File.WriteAllTextAsync(cardsPath, GuardOutput.Cards(game, GuardOutput.Summarize(all), chosen), new System.Text.UTF8Encoding(false), ct).ConfigureAwait(false);
-        await File.WriteAllTextAsync(coveragePath, GuardOutput.Coverage(all), new System.Text.UTF8Encoding(false), ct).ConfigureAwait(false);
-        Log.Info(string.Create(CultureInfo.InvariantCulture, $"thoughtaudit -guards: {all.Count} defs from {files.Count} sources; wrote {chosen.Count} cards to {cardsPath} and coverage to {coveragePath}"));
+        var live = all.Where(c => LiveConsumers.Contains(c.Def)).ToList();
+        if (live.Count != LiveConsumers.Length)
+        {
+            throw new ToolException("thoughtaudit -guards: a live-consumer def has no card: " + string.Join(',', LiveConsumers.Except(live.Select(c => c.Def))));
+        }
+        var utf8 = new System.Text.UTF8Encoding(false);
+        await File.WriteAllTextAsync(paths.Cards, GuardOutput.Cards(game, GuardOutput.Summarize(all), chosen), utf8, ct).ConfigureAwait(false);
+        await File.WriteAllTextAsync(paths.Coverage, GuardOutput.Coverage(all), utf8, ct).ConfigureAwait(false);
+        await File.WriteAllTextAsync(paths.Shipped, GuardOutput.Shipped(game, live), utf8, ct).ConfigureAwait(false);
+        Log.Info(string.Create(CultureInfo.InvariantCulture, $"thoughtaudit -guards: {all.Count} defs from {files.Count} sources; wrote {chosen.Count} cards to {paths.Cards}, coverage to {paths.Coverage} and {live.Count} shipped cards to {paths.Shipped}"));
     }
 
     /// <summary>Runs <paramref name="work"/> on a decompiled tree: the given directory (decompiled into when empty), else a temporary one removed afterwards.</summary>

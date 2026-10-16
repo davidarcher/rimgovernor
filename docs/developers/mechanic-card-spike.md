@@ -4,8 +4,10 @@
 
 A spike, kept in the repository whatever its outcome, that asks one question: can the guard conditions and flag
 writers behind a memory thought be extracted from the game's own code well enough to build mechanic cards? It is a
-dev tool only. Nothing under `brain/src`, `integrations/` or any shipped assembly reads it, `thought_triggers.tsv` and
-its owner column are untouched, and it adds no persistence, wire format, save format or action kind.
+dev tool only; `thought_triggers.tsv` and its owner column are untouched, and it adds no persistence, wire format, save
+format or action kind. Gate 1 (#3220) ships the cards of the defs with a live consumer in
+`brain/src/RimGovernor.Brain.Policy/mechanic_cards.json`, which the same run writes; see
+[mechanic cards](contracts/mood-control.md#mechanic-cards). The drafts and coverage table below stay here.
 
 ## What it does
 
@@ -57,8 +59,9 @@ verified it.
 | --- | --- |
 | [`mechanic-card-drafts.json`](mechanic-card-drafts.json) | Coverage summary plus the draft cards for `KnowBuriedInSarcophagus`, `AteWithoutTable` and `EnvironmentDark` (`-only` picks others). |
 | [`mechanic-card-coverage.tsv`](mechanic-card-coverage.tsv) | One line per ThoughtDef: kind, owner (read from `thought_triggers.tsv`), status, counts and primary unknown reason. |
+| [`mechanic_cards.json`](../../brain/src/RimGovernor.Brain.Policy/mechanic_cards.json) | The shipped cards (#3220): live-consumer defs only, typed XML numbers, status `extracted` or `verified` (`-shipped` overrides the path). |
 
-Both are generated; two runs over the same decompiled tree are byte-identical (checked by comparing `sha256` of the
+All are generated; two runs over the same decompiled tree are byte-identical (checked by comparing `sha256` of the
 two runs). Regenerate with `RimGovernor.cmd thoughtaudit -guards`.
 
 ## Results (game 1.7.4979 rev109, 923 ThoughtDefs, 9254 decompiled files)
@@ -139,4 +142,5 @@ The spike is self-contained: delete `tools/rg/Commands/ThoughtAudit/Guard*.cs`, 
 `ThoughtAuditCommand`, the `Fields` member of `ThoughtDef`, the `Microsoft.CodeAnalysis.CSharp` reference in
 `tools/rg/rg.csproj` (its version repeats the central pin in `brain/Directory.Packages.props`, because `tools/` sits
 outside that file's scope), `GuardAnalysisTests.cs` with its two `Compile Include` lines in the domain test project,
-this page and the two generated files.
+this page and the two generated files. Since Gate 1 the extraction also feeds the shipped `mechanic_cards.json` and its
+`MechanicCards` loader in Brain.Policy, which would have to go with it.
