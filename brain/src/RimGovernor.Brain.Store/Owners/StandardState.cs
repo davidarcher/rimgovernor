@@ -20,8 +20,12 @@ namespace RimGovernor.Brain.Store;
 /// <paramref name="Methods"/>: a retired plan drops out of Methods, and re-deriving its id fails plans.id's unique
 /// constraint.
 /// </param>
-public sealed record StandardState(Standard Standard, ulong Revision, EquatableArray<Method> Methods, int Admitted, EquatableArray<Method> History, bool Retired) : IMethodOwner
+public sealed record StandardState(Standard Standard, ulong Revision, EquatableArray<Method> Methods, int Admitted, EquatableArray<Method> History, bool Retired) : IMethodOwner, IWorkOwner
 {
+    string IWorkOwner.OwnerKey => Standard.Id.Value;
+
+    IReadOnlyList<OwnedMethod> IWorkOwner.OpenMethods => [.. Methods.Select(m => new OwnedMethod(m.MethodId, m.Plan))];
+
     /// <summary>An open standard whose review found a deficit: the state a planner may work.</summary>
     public bool Deficit => Standard.Status == StandardStatus.Open && Standard.Finding == Finding.Unmet;
 

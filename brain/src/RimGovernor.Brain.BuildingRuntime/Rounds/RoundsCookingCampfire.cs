@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Commits the auto-refuel switch of a heat campfire as one owner method.</summary>
-    internal RoundsBuildingResult CommitCampfireRefuel(StandardState goal, Action check, CancellationToken call)
+    internal RoundsBuildingResult CommitCampfireRefuel(IWorkOwner goal, Action check, CancellationToken call)
     {
         var p = Reviewer.Player;
         var proposal = Temperature;
@@ -13,38 +13,29 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("commitCampfireRefuel: not a refuel proposal");
         }
-        try
+        if (p.Journal.OwnerMethodPlan(goal, proposal.Key, call) is not null)
         {
-            p.Journal.LoadOwnerMethod(goal, proposal.Key, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "campfire_refuel_method") };
-        }
-        catch (NotFoundException)
-        {
         }
         var value = new AutoRefuel(proposal.Thing, proposal.Method == Pol.TemperatureMethod.RefuelOn);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewAutoRefuelAction(new ActionId($"{id}-0"), value);
         var spec = new PlanSpec(id, new PlanRevision(1), [action]);
         check();
-        p.Journal.CommitOwnerMethod(goal, proposal.Key, "", spec, call);
-        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
+        return new RoundsBuildingResult { Verdict = OwnerCommitVerdict(p.Journal.CommitOwnerWork(goal, proposal.Key, "", spec, call)) };
     }
 
-    internal async Task<RoundsBuildingResult> RetireCampfireAsync(ControlState state, RoundsReview review, StandardState goal, ColonyReading reading, CurrentBuilding campfire, CancellationToken call, CancellationToken epoch) =>
+    internal async Task<RoundsBuildingResult> RetireCampfireAsync(ControlState state, RoundsReview review, IWorkOwner goal, ColonyReading reading, CurrentBuilding campfire, CancellationToken call, CancellationToken epoch) =>
         await RetireBuildingAsync(state, review, goal, reading, campfire.Id, (campfire.Building ?? throw new ControlException("campfire retire: current building carries no building")).Definition, campfire.Cells[0], "campfire-retire", "building_retire_method", call, epoch).ConfigureAwait(false);
 
     /// <summary>Deconstructs one standing building through an excavation-style admission, once per building.</summary>
-    internal async Task<RoundsBuildingResult> RetireBuildingAsync(ControlState state, RoundsReview review, StandardState goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> RetireBuildingAsync(ControlState state, RoundsReview review, IWorkOwner goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var method = RetireMethodId(prefix, id);
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, reason) };
-        }
-        catch (NotFoundException)
-        {
         }
         var snapshot = state.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
 
@@ -68,7 +59,7 @@ public sealed partial class RoundsBuildingPlanner
             Verdict = "admitted",
             Reason = "building_retire",
             Target = id,
-            Attrs = new Dictionary<string, object?> { ["family"] = "building", ["owner"] = goal.Standard.Id.Value, ["x"] = cell.X, ["z"] = cell.Z },
+            Attrs = new Dictionary<string, object?> { ["family"] = "building", ["owner"] = goal.OwnerKey, ["x"] = cell.X, ["z"] = cell.Z },
         });
         var facts = reading.Projection;
         return await AdmitExcavationAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading }, snapshot, method, spec, null, new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick }, Check, call, epoch).ConfigureAwait(false);

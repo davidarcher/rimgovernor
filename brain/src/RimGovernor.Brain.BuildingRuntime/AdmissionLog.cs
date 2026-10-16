@@ -39,7 +39,7 @@ internal static class AdmissionLog
     /// </summary>
     internal static Decision MethodAdmissionDecision(BuildingMethodRequest r, BuildingMethodDecision decision)
     {
-        var attrs = new Dictionary<string, object?> { ["concern"] = r.Owner.Standard.Id.Value };
+        var attrs = new Dictionary<string, object?> { ["concern"] = r.Owner.OwnerKey };
         var d = new Decision
         {
             Kind = "admission",
@@ -48,7 +48,17 @@ internal static class AdmissionLog
             Reason = "method_committed",
             Target = r.Method.Value,
         };
-        if (!decision.Admitted)
+        if (decision.Conflict is { } conflict)
+        {
+            // A Need-owned method whose claims overlap an open Method's is held, not refused (#3279).
+            attrs["held_by"] = conflict.Holder + " method " + conflict.Method.Value;
+            d = d with { Verdict = "held", Reason = "claim_conflict" };
+        }
+        else if (decision.Continued)
+        {
+            d = d with { Verdict = "held", Reason = "method_continued" };
+        }
+        else if (!decision.Admitted)
         {
             attrs["refused"] = RefusalSummary(decision.Refused);
             d = d with
@@ -91,6 +101,14 @@ internal static class AdmissionLog
     /// </summary>
     public static Verdict AdmissionRefused(BuildingMethodDecision decision)
     {
+        if (decision.Conflict is { } conflict)
+        {
+            return Verdict.ClaimHeld(conflict.Claim);
+        }
+        if (decision.Continued)
+        {
+            return BuildingRuntimePackage.BuildingReasonExistingWork;
+        }
         if (decision.Refused.Count == 0)
         {
             return Verdict.Refuse(Cause.SharedAdmission, "candidates_left_unadmitted", "");

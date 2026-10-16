@@ -31,6 +31,13 @@ public sealed partial class RoundsBuildingPlanner
 
     internal ConcernId Concern { get; set; }
 
+    /// <summary>
+    /// The Need that owns this planner's work (#3279): its Methods bind under the Need and are admitted by claims.
+    /// Default for a Standard-owned planner, which works its <see cref="Concern"/>'s Standard. <see cref="Concern"/>
+    /// still selects what the planner builds either way.
+    /// </summary>
+    internal NeedId Need { get; set; }
+
     /// <summary>MaintainEquipment's stand-in planner: the spot goes in the planned workshop and leaves when a weapon bench stands.</summary>
     internal bool CraftingSpot { get; set; }
 
@@ -91,6 +98,24 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>The shared room the PartySpot step places in; empty places in any roofed indoor cell.</summary>
     internal string PartySpotRoom { get; set; } = "";
 
+    /// <summary>
+    /// The owner the step works under, loaded fresh: the <see cref="Need"/>'s in the review's world when one owns
+    /// the planner (its family already judged it unmet), else the Concern's Standard while the review finds it workable.
+    /// </summary>
+    internal (Sto.IWorkOwner? Owner, bool Workable) WorkOwner(Sto.Rounds review, CancellationToken call)
+    {
+        if (Need.IsValid)
+        {
+            return (Reviewer.Player.Journal.LoadNeed(Need, review.Snapshot, call), true);
+        }
+        var (goal, workable) = Reviewer.Player.Journal.Workable(review, Concern, call);
+        return (goal, workable);
+    }
+
+    /// <summary>The Standard a not yet migrated step (the shelter room) works under; a Need-owned planner does not reach it.</summary>
+    internal static Sto.StandardState StandardOwned(Sto.IWorkOwner owner, string step) =>
+        owner as Sto.StandardState ?? throw new ControlException($"{step}: Standard-owned only until its family migrates");
+
     /// <summary>A copy for a derived planner (Go's <c>spot := *r</c>); the proposals it holds stay shared, as the Go pointers do.</summary>
     internal RoundsBuildingPlanner Copy() => (RoundsBuildingPlanner)MemberwiseClone();
 
@@ -141,7 +166,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoReview };
         }
-        var (goal, workable) = p.Journal.Workable(review, r.Concern, call);
+        var (goal, workable) = r.WorkOwner(review, call);
         if (!workable || goal is null)
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
@@ -162,7 +187,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         var bunksOpen = false;
         var ringOpen = false;
-        foreach (var m in goal.Methods)
+        foreach (var m in goal.OpenMethods)
         {
             var plan = p.Journal.LoadPlan(m.Plan, call);
             if (r.CraftingSpot)
@@ -189,7 +214,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
                 continue;
             }
-            if (r.Phase == Pol.Phase.HousingShelter && IsShelterBunkMethod(m.MethodId))
+            if (r.Phase == Pol.Phase.HousingShelter && IsShelterBunkMethod(m.Method))
             {
                 // An open bunk rung does not hold the ring: the walls and door stand on cells the bunks never take
                 // (the ring is sited around them), and a stalled bed must not keep the colony outdoors. The rungs
@@ -201,19 +226,19 @@ public sealed partial class RoundsBuildingPlanner
                 }
                 continue;
             }
-            if (r.Shelter && r.Phase == Pol.Phase.HousingShelter && IsShellMethod(m.MethodId))
+            if (r.Shelter && r.Phase == Pol.Phase.HousingShelter && IsShellMethod(m.Method))
             {
                 // The ring's open wave does not hold the bunk ladder: the shelter room is one continuous
                 // reconcile (StepShelterRoom), which leaves the open wave alone and goes on up the rungs.
                 ringOpen = ringOpen || StorePackage.PlanOpen(plan);
                 continue;
             }
-            if (r.Shelter && IsRoomDigMethod(m.MethodId))
+            if (r.Shelter && IsRoomDigMethod(m.Method))
             {
                 // Mining is separate work from the ring: PrepareShell reads the dig's own state and the ring goes up beside it.
                 continue;
             }
-            if (!r.Shelter && IsShellMethod(m.MethodId))
+            if (!r.Shelter && IsShellMethod(m.Method))
             {
                 // A planned room's open ring wave does not hold the furniture raised on its interior with it: the
                 // ring and the slot are admitted together, and ReconcileRoom leaves the ring alone while its wave is open.
@@ -606,7 +631,7 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
         var planner = r;
-        async Task<RoundsBuildingResult> AdmitRingAsync(Sto.StandardState owner, RoomReconcile ring) =>
+        async Task<RoundsBuildingResult> AdmitRingAsync(Sto.IWorkOwner owner, RoomReconcile ring) =>
             await planner.ReconcileRoomAsync(state, review, owner, new Observation.RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, ring, call, epoch).ConfigureAwait(false);
         var (plannedModule, plannedModuleOk) = r.PlannedRoomModule();
         if (plannedModuleOk)
@@ -737,7 +762,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (r.Shelter)
         {
-            var site = new ShelterSite { State = state, Review = review, Owner = goal, Facts = facts, Read = reading, Check = Check };
+            var site = new ShelterSite { State = state, Review = review, Owner = StandardOwned(goal, "shelter room"), Facts = facts, Read = reading, Check = Check };
             var shelterResult = await r.StepShelterRoomAsync(site, roofingOnly, call, epoch).ConfigureAwait(false);
             if (ringOpen && shelterResult.Verdict != BuildingReasonAdmitted)
             {
@@ -755,16 +780,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             method = r.NextSleepingBedMethod(goal, method, facts.Facts.CurrentConstruction, call);
         }
-        var methodUsed = false;
-        try
-        {
-            p.Journal.LoadOwnerMethod(goal, method, call);
-            methodUsed = true;
-        }
-        catch (Sto.NotFoundException)
-        {
-        }
-        if (methodUsed)
+        if (!r.MethodOnce(goal, method, call))
         {
             if (ringAfter is not null)
             {
@@ -839,7 +855,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         // Building intents admitted on other goals' plans but not yet applied show nothing on the map; keep off their anchors.
         var own = new List<PlanId>();
-        foreach (var m in goal.Methods)
+        foreach (var m in goal.OpenMethods)
         {
             own.Add(m.Plan);
         }
@@ -912,7 +928,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         // The slot is admitted: the shelter's ring wave goes in around it. The slot's admission moved the owner
         // on, so the ring commits against the fresh owner; a ring that is not ready now is tried again next step.
-        var (owner, ownerWorkable) = p.Journal.Workable(review, r.Concern, call);
+        var (owner, ownerWorkable) = r.WorkOwner(review, call);
         if (!ownerWorkable || owner is null)
         {
             return admitted;
@@ -927,7 +943,7 @@ internal sealed record RoundsAdmission
 {
     public ControlState State { get; init; }
     public Sto.Rounds Review { get; init; } = null!;
-    public Sto.StandardState Owner { get; init; } = null!;
+    public Sto.IWorkOwner Owner { get; init; } = null!;
     public Observation.ColonyProjection Facts { get; init; } = null!;
     public MethodId Method { get; init; }
 
@@ -984,11 +1000,12 @@ public sealed partial class RoundsBuildingPlanner
             // MaintainResource supplies covers it. The review keeps a record only while its actions stay open.
             // A Project owner (the planned kitchen's shell under EnsureCooking) has no Standard: the record
             // names Episodes, so it records none.
-            if (a.Purpose == Pol.Purpose.Shelter && !decision.Standard.Standard.Id.IsEmpty)
+            // A Need owner has no Episodes either, so it records none until its family carries the demand (#3279).
+            if (a.Purpose == Pol.Purpose.Shelter && decision.Owner is Sto.StandardState { Standard.Id.IsEmpty: false } held)
             {
                 foreach (var resource in PreviewResources(a.Selected))
                 {
-                    if (Sto.DependencyRecord.ShortfallDependency(Concern, decision.Standard.Standard, a.Method, plan.Id, a.Selected, a.Stock, resource, a.Facts.Identity.Tick) is not { } rec)
+                    if (Sto.DependencyRecord.ShortfallDependency(Concern, held.Standard, a.Method, plan.Id, a.Selected, a.Stock, resource, a.Facts.Identity.Tick) is not { } rec)
                     {
                         continue;
                     }
@@ -1549,22 +1566,17 @@ public sealed partial class RoundsBuildingPlanner
     /// building gone from the census (a campfire that burnt out, a bed that disappeared) and one never built both
     /// mean try again.
     /// </summary>
-    internal MethodId NextSleepingBedMethod(Sto.StandardState goal, MethodId method, Fact<Pol.CurrentConstruction> census, CancellationToken call)
+    internal MethodId NextSleepingBedMethod(Sto.IWorkOwner goal, MethodId method, Fact<Pol.CurrentConstruction> census, CancellationToken call)
     {
         var p = Reviewer.Player;
         var baseMethod = method;
         for (var n = 1; n < SleepingBedsPerEpoch; n++)
         {
-            Method existing;
-            try
-            {
-                existing = p.Journal.LoadOwnerMethod(goal, method, call);
-            }
-            catch (Sto.NotFoundException)
+            if (p.Journal.OwnerMethodPlan(goal, method, call) is not { } existing)
             {
                 return method;
             }
-            var plan = p.Journal.LoadPlan(existing.Plan, call);
+            var plan = p.Journal.LoadPlan(existing, call);
             if (StorePackage.PlanWorkOpen(plan, census))
             {
                 return method;

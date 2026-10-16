@@ -112,6 +112,22 @@ admit a Method (Admitted, Continued or Conflict on a held claim). BuildingRuntim
 SeriousHarm reads also runs in the immediate pass on those reads only. No real
 family is wired yet; each migrating slice adds its family.
 
+**Implemented (#3279).** The shared building planner takes any work owner: Store
+`IWorkOwner` (`StandardState` or `NeedOwner`) with `OwnerMethodPlan`,
+`OwnerMethodHistory` and `CommitOwnerWork`. A Standard keeps its episode lookup,
+open-work gate and revision check; a Need commits through `CommitClaimedMethod`,
+and its "once" check reads the whole `need_methods` history, so a ring, roof,
+removal or dig wave committed for a target is not re-issued after release. A
+claim conflict or continued MethodId is a verdict (`claim`, open work), never an
+exception. Building work runs as the family's async step: `FamilyRunner<TFacts>`
+takes an optional `work(NeedWork, facts, ct)` that runs per ready Need after the
+pure proposals, with the Need, its `NeedOwner`, the step's `ControlState`, epoch
+and arbiter; it calls the planner (`CommitBuildsAsync`, `CommitRoof`,
+`ReconcileRoomAsync`, ...) with the owner, and the Methods it added are reported
+on the run. The shelter room stays Standard-only. A Need-owned shell records no
+material shortfall dependency yet, and Need-owned buildings are not yet in the
+construction-claim census (`ConstructionClaimsIn`).
+
 **Claims.** A Method's claims are derived from its actions at admission, never
 stored on the Method: `WorkClaimsOf` over the actions yields a `WorkResourceClaims`
 (pawns, targets, materials and shared targets). Targets cover the cells, things,

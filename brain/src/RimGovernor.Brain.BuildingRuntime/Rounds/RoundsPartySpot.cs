@@ -17,9 +17,9 @@ internal static partial class BuildingRuntimePackage
     internal static MethodId PartySpotPlaceMethod(string room) => RetireMethodId(PartySpotPlacePrefix, "room:" + room);
 
     /// <summary>Whether a party-spot retire or place method was already spent on the id.</summary>
-    internal static Func<bool, string, bool> PartySpotSpent(IReadOnlyList<Method> methods)
+    internal static Func<bool, string, bool> PartySpotSpent(IEnumerable<MethodId> methods)
     {
-        var used = methods.Select(m => m.MethodId).ToHashSet();
+        var used = methods.ToHashSet();
         return (retire, id) => retire ? used.Contains(RetireMethodId(PartySpotRetirePrefix, id)) : used.Contains(PartySpotPlaceMethod(id));
     }
 
@@ -55,7 +55,7 @@ public sealed partial class Rounder
             var state = Player.Journal.LoadStandard(binding.Standard, ct);
             if (state.Standard.Finding == Finding.Unmet)
             {
-                spent = BuildingRuntimePackage.PartySpotSpent(state.Methods);
+                spent = BuildingRuntimePackage.PartySpotSpent(state.Methods.Select(m => m.MethodId));
             }
         }
 
@@ -71,9 +71,9 @@ public sealed partial class Rounder
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Retires a stale party spot, or resolves the planner to place a new one; the planner is null when the step is already decided.</summary>
-    internal async Task<(RoundsBuildingResult Result, RoundsBuildingPlanner? Placing)> PartySpotStepAsync(ControlState state, Rounds review, StandardState goal, ColonyReading reading, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, RoundsBuildingPlanner? Placing)> PartySpotStepAsync(ControlState state, Rounds review, IWorkOwner goal, ColonyReading reading, CancellationToken call, CancellationToken epoch)
     {
-        if (!BuildingRuntimePackage.PartySpotReview(reading.Projection, BuildingRuntimePackage.PartySpotSpent(goal.Methods)).TryGetValue(out var need) || !need.Owed)
+        if (!BuildingRuntimePackage.PartySpotReview(reading.Projection, BuildingRuntimePackage.PartySpotSpent(goal.OpenMethods.Select(m => m.Method))).TryGetValue(out var need) || !need.Owed)
         {
             return (new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit }, null);
         }

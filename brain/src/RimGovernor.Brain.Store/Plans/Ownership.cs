@@ -8,8 +8,11 @@ namespace RimGovernor.Brain.Store;
 /// <summary>One building method for admission (Go <c>BuildingMethodRequest</c>).</summary>
 public sealed record BuildingMethodRequest
 {
-    /// <summary>The standard the method binds to, as loaded: its revision scopes the commit.</summary>
-    public required StandardState Owner { get; init; }
+    /// <summary>
+    /// The owner the method binds to, as loaded: a Standard's revision scopes the commit; a Need commits through
+    /// claim admission (#3279).
+    /// </summary>
+    public required IWorkOwner Owner { get; init; }
 
     public MethodId Method { get; init; }
 
@@ -31,8 +34,17 @@ public sealed record BuildingMethodRequest
     public string Reason { get; init; } = "";
 }
 
-/// <summary>Reports an admission; <see cref="Refused"/> lists a refusal's reasons.</summary>
-public sealed record BuildingMethodDecision(bool Admitted, StandardState Standard, IReadOnlyList<Refusal> Refused);
+/// <summary>
+/// Reports an admission; <see cref="Refused"/> lists a refusal's reasons. A Need-owned method that was not
+/// admitted because its MethodId is open work already is <see cref="Continued"/>, and one whose claims overlap an
+/// open Method's names the holder in <see cref="Conflict"/>; nothing was written for either.
+/// </summary>
+public sealed record BuildingMethodDecision(bool Admitted, IWorkOwner Owner, IReadOnlyList<Refusal> Refused)
+{
+    public bool Continued { get; init; }
+
+    public ClaimConflict? Conflict { get; init; }
+}
 
 /// <summary>
 /// One zone this colony created, by native zone identity: the completed zone_create's kind, crop, cells and
@@ -77,12 +89,24 @@ public sealed partial class Store
             tx =>
             {
                 Floors.Guard(r.Current, r.Tick);
-                var owner = LoadStandard(tx, r.Owner.Standard.Id);
-                if (owner.Revision != r.Owner.Revision)
+                IMethodOwner owner;
+                switch (r.Owner)
                 {
-                    throw new StaleOwnerException($"{((IMethodOwner)owner).OwnerLabel} revision {owner.Revision}, method scoped to {r.Owner.Revision}");
+                    case StandardState scoped:
+                        var standard = LoadStandard(tx, scoped.Standard.Id);
+                        if (standard.Revision != scoped.Revision)
+                        {
+                            throw new StaleOwnerException($"{((IMethodOwner)standard).OwnerLabel} revision {standard.Revision}, method scoped to {scoped.Revision}");
+                        }
+                        owner = standard;
+                        break;
+                    case NeedOwner need:
+                        owner = LoadNeedIn(tx, need.Need, need.Snapshot);
+                        break;
+                    default:
+                        throw new DomainException("unsupported work owner");
                 }
-                var old = owner.Standard.Snapshot;
+                var old = owner.OwnerSnapshot;
                 DomainException.Require(old.Colony == r.Current.Colony && old.Map == r.Current.Map, "method observation differs from reviewed standard");
                 var candidates = new List<Candidate>();
                 foreach (var a in actions)
@@ -138,10 +162,24 @@ public sealed partial class Store
                     decision = Admit(input);
                     if (decision.Refused.Count != 0 || decision.Admitted.Count != candidates.Count)
                     {
-                        return new BuildingMethodDecision(false, owner, decision.Refused);
+                        return new BuildingMethodDecision(false, (IWorkOwner)owner, decision.Refused);
                     }
                 }
-                var committed = CommitMethodIn(tx, owner.Standard.Id, owner.Revision, r.Method, r.Reason, r.Plan);
+                IWorkOwner committed;
+                if (owner is StandardState held)
+                {
+                    committed = CommitMethodIn(tx, held.Standard.Id, held.Revision, r.Method, r.Reason, r.Plan);
+                }
+                else
+                {
+                    var need = (NeedOwner)owner;
+                    var claimed = CommitClaimedNeedMethodIn(tx, need.Need, need.Snapshot, r.Method, r.Reason, r.Plan);
+                    if (claimed.Outcome != ClaimOutcome.Admitted)
+                    {
+                        return new BuildingMethodDecision(false, claimed.Owner, []) { Continued = claimed.Outcome == ClaimOutcome.Continued, Conflict = claimed.Conflict };
+                    }
+                    committed = claimed.Owner;
+                }
                 foreach (var h in decision.Admitted)
                 {
                     var admission = new Admission(h.Snapshot, r.Tick, h.Footprint);

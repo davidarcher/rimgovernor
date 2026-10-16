@@ -110,17 +110,12 @@ public sealed partial class RoundsBuildingPlanner
         var admitted = method;
         for (var wave = 0; ; wave++)
         {
-            Method prior;
-            try
-            {
-                prior = Reviewer.Player.Journal.LoadOwnerMethod(s.Owner, admitted, call);
-            }
-            catch (NotFoundException)
+            if (Reviewer.Player.Journal.OwnerMethodPlan(s.Owner, admitted, call) is not { } prior)
             {
                 break;
             }
 
-            var plan0 = Reviewer.Player.Journal.LoadPlan(prior.Plan, call);
+            var plan0 = Reviewer.Player.Journal.LoadPlan(prior, call);
             if (Standard.WorkOpen(plan0.Progress))
             {
                 return (new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "dig_plan") }, true);

@@ -415,7 +415,7 @@ public sealed partial class RoundsBuildingPlanner
     /// Reconciles one owner's room: it is diffed, then the next wave is committed: foreign obstructions,
     /// removals, installs from packed stock, then the on-site builds (CommitBuilds).
     /// </summary>
-    internal async Task<RoundsBuildingResult> ReconcileRoomAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, PackedStock? stock, RoomReconcile rr, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> ReconcileRoomAsync(ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, PackedStock? stock, RoomReconcile rr, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
         if (!facts.LayoutPlan.TryGetValue(out var plan))
@@ -522,7 +522,7 @@ public sealed partial class RoundsBuildingPlanner
     /// stands (OpRoofIn), one method per cell set so a designation pawns have not finished is not repeated
     /// (#2962). done is false when nothing is owed or the set was designated before.
     /// </summary>
-    internal (RoundsBuildingResult Result, bool Done) CommitRoof(ControlState state, Sto.StandardState goal, RoomWork w, CancellationToken call, CancellationToken epoch)
+    internal (RoundsBuildingResult Result, bool Done) CommitRoof(ControlState state, Sto.IWorkOwner goal, RoomWork w, CancellationToken call, CancellationToken epoch)
     {
         IReadOnlyList<Cell> cells = [];
         foreach (var op in w.Ops)
@@ -550,22 +550,15 @@ public sealed partial class RoundsBuildingPlanner
         return (result, true);
     }
 
-    /// <summary>True when the owner has not committed method yet.</summary>
-    internal bool MethodOnce(Sto.StandardState goal, MethodId method, CancellationToken call)
-    {
-        try
-        {
-            Reviewer.Player.Journal.LoadOwnerMethod(goal, method, call);
-            return false;
-        }
-        catch (Sto.NotFoundException)
-        {
-            return true;
-        }
-    }
+    /// <summary>
+    /// True when the owner has not committed method yet: in a Standard's current episode, or ever in a Need's world,
+    /// so a released wave is not re-issued (<see cref="Sto.Store.OwnerMethodPlan"/>).
+    /// </summary>
+    internal bool MethodOnce(Sto.IWorkOwner goal, MethodId method, CancellationToken call) =>
+        Reviewer.Player.Journal.OwnerMethodPlan(goal, method, call) is null;
 
     /// <summary>Commits actions as one owner method.</summary>
-    internal RoundsBuildingResult CommitOwnerActions(ControlState state, Sto.StandardState goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, CancellationToken call, CancellationToken epoch)
+    internal RoundsBuildingResult CommitOwnerActions(ControlState state, Sto.IWorkOwner goal, MethodId method, PlanId id, IReadOnlyList<DomainAction> actions, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
@@ -574,15 +567,22 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("commitOwnerActions: p.session.State() != state");
         }
-        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
-        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
+        return new RoundsBuildingResult { Verdict = OwnerCommitVerdict(p.Journal.CommitOwnerWork(goal, method, "", plan, call)) };
     }
+
+    /// <summary>The verdict an owner commit files: admitted, open work for a continued MethodId, or the held claim.</summary>
+    internal static Verdict OwnerCommitVerdict(Sto.WorkCommit commit) => commit.Outcome switch
+    {
+        Sto.ClaimOutcome.Admitted => BuildingReasonAdmitted,
+        Sto.ClaimOutcome.Continued => BuildingReasonExistingWork,
+        _ => Verdict.ClaimHeld(commit.Conflict!.Claim),
+    };
 
     /// <summary>
     /// Takes down what the room holds that it should not: packable buildings are packed (uninstalled), the
     /// rest deconstructed one at a time, the wrong floors removed, one method per wave.
     /// </summary>
-    internal RoundsBuildingResult CommitRemoval(ControlState state, Sto.StandardState goal, RoomReconcile rr, Pol.Operation op, CancellationToken call, CancellationToken epoch)
+    internal RoundsBuildingResult CommitRemoval(ControlState state, Sto.IWorkOwner goal, RoomReconcile rr, Pol.Operation op, CancellationToken call, CancellationToken epoch)
     {
         var step = new Pol.GroundStep { Phase = op.Label, Targets = [.. op.Targets], Floors = [.. op.Floors] };
         if (op.Kind == Pol.OpKind.FurnitureOut)
@@ -606,7 +606,7 @@ public sealed partial class RoundsBuildingPlanner
     /// the room's own. A wave already committed is skipped, not waited on: the cells it covers are blocked in
     /// the diff, so the rest of the room proceeds. done is false when nothing was committed.
     /// </summary>
-    internal (RoundsBuildingResult Result, bool Done) CommitObstructions(ControlState state, Sto.StandardState goal, RoomWork w, CancellationToken call, CancellationToken epoch)
+    internal (RoundsBuildingResult Result, bool Done) CommitObstructions(ControlState state, Sto.IWorkOwner goal, RoomWork w, CancellationToken call, CancellationToken epoch)
     {
         foreach (var kind in ObstructionKinds)
         {
@@ -641,7 +641,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>Commits one wave of kind over targets as an owner method named for them; done is false when that wave was committed before.</summary>
-    internal (RoundsBuildingResult Result, bool Done) CommitObstructionWave(ControlState state, Sto.StandardState goal, string name, Pol.OpKind kind, IReadOnlyList<Pol.ClearanceTarget> targets, CancellationToken call, CancellationToken epoch)
+    internal (RoundsBuildingResult Result, bool Done) CommitObstructionWave(ControlState state, Sto.IWorkOwner goal, string name, Pol.OpKind kind, IReadOnlyList<Pol.ClearanceTarget> targets, CancellationToken call, CancellationToken epoch)
     {
         var id = PlanIds.MintPlanId();
         var actions = new List<DomainAction>();
@@ -661,7 +661,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>Moves the pieces the packed stock holds to their slots; done is false when none is stored after all, so the pieces are built on site.</summary>
-    internal async Task<(RoundsBuildingResult Result, bool Done)> CommitInstallsAsync(ControlState state, Sto.StandardState goal, PackedStock? stock, RoomReconcile rr, IReadOnlyList<Pol.WantedPiece> pieces, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Done)> CommitInstallsAsync(ControlState state, Sto.IWorkOwner goal, PackedStock? stock, RoomReconcile rr, IReadOnlyList<Pol.WantedPiece> pieces, CancellationToken call, CancellationToken epoch)
     {
         var actions = new List<DomainAction>();
         var key = new StringBuilder();
@@ -694,7 +694,7 @@ public sealed partial class RoundsBuildingPlanner
     /// as one method; a refused placement is left for a later pass. There is no cap on cells and no funding
     /// limit: the native tier gate orders material delivery.
     /// </summary>
-    internal async Task<RoundsBuildingResult> CommitBuildsAsync(ControlState state, Sto.Rounds review, Sto.StandardState goal, Observation.RoundsReading reading, Pol.LayoutPlan plan, RoomWork w, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> CommitBuildsAsync(ControlState state, Sto.Rounds review, Sto.IWorkOwner goal, Observation.RoundsReading reading, Pol.LayoutPlan plan, RoomWork w, CancellationToken call, CancellationToken epoch)
     {
         var facts = reading.Projection;
         var rr = w.Rr;

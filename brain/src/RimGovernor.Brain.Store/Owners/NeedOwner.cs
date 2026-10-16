@@ -14,8 +14,12 @@ public sealed record NeedMethodBinding(MethodId Method, long Attempt, PlanId Pla
 /// </summary>
 /// <param name="Snapshot">The world the Need was derived in; only its colony, load and map key the rows.</param>
 /// <param name="Methods">The bound Methods whose plans are not retired, in admission order.</param>
-public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, EquatableArray<NeedMethodBinding> Methods) : IMethodOwner
+public sealed record NeedOwner(NeedId Need, GenerationSnapshot Snapshot, EquatableArray<NeedMethodBinding> Methods) : IMethodOwner, IWorkOwner
 {
+    string IWorkOwner.OwnerKey => Need.Value;
+
+    IReadOnlyList<OwnedMethod> IWorkOwner.OpenMethods => [.. Methods.Select(m => new OwnedMethod(m.Method, m.Plan))];
+
     GenerationSnapshot IMethodOwner.OwnerSnapshot => Snapshot;
 
     IReadOnlyList<PlanId> IMethodOwner.OwnerPlans => [.. Methods.Select(m => m.Plan)];

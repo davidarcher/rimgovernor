@@ -334,7 +334,7 @@ internal static class ClockPlannerCatalog
             Families = families,
             Every = runner.Schedule.Every,
             Configured = c => c.Rounds is not null,
-            Run = async (s, ct, epoch, output, _) =>
+            Run = async (s, ct, epoch, output, arbiter) =>
             {
                 var p = s.Config.Rounds!.Player;
                 var state = p.Session.State();
@@ -352,6 +352,9 @@ internal static class ClockPlannerCatalog
                     Journal = p.Journal,
                     World = state.Snapshot,
                     Immediate = ReviewScope.Immediate,
+                    State = state,
+                    Epoch = epoch,
+                    Arbiter = arbiter,
                     Fence = () =>
                     {
                         p.Current(ct, epoch);

@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Opens or holds the doors of rooms the policy wants changed (heat passage or routes), at most one change per step; handled is false when nothing was owed.</summary>
-    internal (RoundsBuildingResult Result, bool Handled) ControlRoomDoor(ControlState state, StandardState goal, ColonyProjection facts, CancellationToken call, CancellationToken epoch)
+    internal (RoundsBuildingResult Result, bool Handled) ControlRoomDoor(ControlState state, IWorkOwner goal, ColonyProjection facts, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         if (p.Journal.OpenCombatFights(call).Count > 0)
@@ -46,8 +46,7 @@ public sealed partial class RoundsBuildingPlanner
                 throw new ControlException("controlRoomDoor: session state changed");
             }
             var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"door-{change.Door.Cell.X}-{change.Door.Cell.Z}-{id}"));
-            p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
-            return (new RoundsBuildingResult { Verdict = BuildingReasonAdmitted }, true);
+            return (new RoundsBuildingResult { Verdict = OwnerCommitVerdict(p.Journal.CommitOwnerWork(goal, method, "", plan, call)) }, true);
         }
         return (new RoundsBuildingResult(), false);
     }

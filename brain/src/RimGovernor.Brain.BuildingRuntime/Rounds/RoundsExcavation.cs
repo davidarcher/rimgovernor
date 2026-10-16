@@ -13,7 +13,7 @@ internal sealed class ExcavationStep
 {
     public ControlState State;
     public RoundsReview Review = new();
-    public required StandardState Owner;
+    public required IWorkOwner Owner;
     public ColonyProjection Facts = new();
     public ColonyReading Read = new();
     public ExcavationTarget Target = new();
@@ -26,9 +26,9 @@ public sealed partial class RoundsBuildingPlanner
     internal const long ExcavationStallTicks = GameTime.TicksPerHour;
     internal const int ExcavationCandidates = 4;
 
-    internal ExcavationTarget? ExcavationProject(StandardState goal, CancellationToken call)
+    internal ExcavationTarget? ExcavationProject(IWorkOwner goal, CancellationToken call)
     {
-        var methods = Reviewer.Player.Journal.LoadOwnerMethods(goal, call);
+        var methods = Reviewer.Player.Journal.OwnerMethodHistory(goal, call);
         var (latest, _) = ExcavationProgress(methods);
         return latest;
     }
@@ -64,7 +64,7 @@ public sealed partial class RoundsBuildingPlanner
     {
         var p = Reviewer.Player;
         var journal = p.Journal;
-        var methods = journal.LoadOwnerMethods(s.Owner, call);
+        var methods = journal.OwnerMethodHistory(s.Owner, call);
         var (_, stage) = ExcavationProgress(methods);
         void Check()
         {
@@ -208,13 +208,13 @@ public sealed partial class RoundsBuildingPlanner
     public static bool IsExcavationMethod(MethodId method) => ExcavationMethod(method).Ok;
 
     /// <summary>The target of the latest stage among the methods and the number of the next stage.</summary>
-    internal static (ExcavationTarget? Latest, int Next) ExcavationProgress(IEnumerable<Method> methods)
+    internal static (ExcavationTarget? Latest, int Next) ExcavationProgress(IEnumerable<OwnedMethod> methods)
     {
         ExcavationTarget? latest = null;
         var next = 0;
         foreach (var m in methods)
         {
-            var (stage, target, ok) = ExcavationMethod(m.MethodId);
+            var (stage, target, ok) = ExcavationMethod(m.Method);
             if (ok && stage >= next)
             {
                 next = stage + 1;

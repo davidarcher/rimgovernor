@@ -52,9 +52,9 @@ public sealed partial class RoundsBuildingPlanner
     /// Whether the cooling window of the standard's coolers has run out, and whether that rests on the latch alone
     /// (no method in the epoch, so no cooler is known to be settling).
     /// </summary>
-    internal static (bool Exhausted, bool LatchOnly) RefrigerationCooling(StoreJournal journal, StandardState goal, GenerationSnapshot current, Tick tick, Tick since, CancellationToken ct)
+    internal static (bool Exhausted, bool LatchOnly) RefrigerationCooling(StoreJournal journal, IWorkOwner goal, GenerationSnapshot current, Tick tick, Tick since, CancellationToken ct)
     {
-        var methods = journal.LoadOwnerMethods(goal, ct);
+        var methods = journal.OwnerMethodHistory(goal, ct);
         if (methods.Count == 0)
         {
             return (RefrigerationLatchExhausted(since, tick), true);
@@ -195,7 +195,7 @@ public sealed partial class RoundsBuildingPlanner
         return ([p], stock, default);
     }
 
-    internal RoundsBuildingResult CommitRefrigerationTarget(StandardState goal, Action check, CancellationToken call)
+    internal RoundsBuildingResult CommitRefrigerationTarget(IWorkOwner goal, Action check, CancellationToken call)
     {
         var p = Reviewer.Player;
         var proposal = Refrigeration;
@@ -205,13 +205,9 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var method = proposal.Key;
-        try
+        if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
-            p.Journal.LoadOwnerMethod(goal, method, call);
             return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "refrigeration_target") };
-        }
-        catch (NotFoundException)
-        {
         }
 
         var patch = new BuildingTemperature(proposal.Cooler, proposal.TargetC);
@@ -219,7 +215,6 @@ public sealed partial class RoundsBuildingPlanner
         var action = DomainAction.NewBuildingTemperatureAction(new ActionId($"{id}-0"), patch);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);
         check();
-        p.Journal.CommitOwnerMethod(goal, method, "", plan, call);
-        return new RoundsBuildingResult { Verdict = BuildingReasonAdmitted };
+        return new RoundsBuildingResult { Verdict = OwnerCommitVerdict(p.Journal.CommitOwnerWork(goal, method, "", plan, call)) };
     }
 }

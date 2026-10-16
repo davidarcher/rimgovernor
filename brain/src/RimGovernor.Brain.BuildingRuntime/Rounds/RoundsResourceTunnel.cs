@@ -87,9 +87,9 @@ public sealed partial class RoundsResourcePlanner
         (RoundsResourceResult Result, bool Dispatched) Finish(RoundsBuildingResult result)
         {
             var output = new RoundsResourceResult { Verdict = result.Verdict };
-            foreach (var m in result.Decision?.Standard.Methods ?? [])
+            foreach (var m in result.Decision?.Owner.OpenMethods ?? [])
             {
-                if (RoundsBuildingPlanner.IsExcavationMethod(m.MethodId))
+                if (RoundsBuildingPlanner.IsExcavationMethod(m.Method))
                 {
                     output = output with { Plan = m.Plan };
                 }

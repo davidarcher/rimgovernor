@@ -132,17 +132,12 @@ public sealed partial class RoundsBuildingPlanner
     internal bool RoofStalled(ExcavationStep s, MethodId method, CancellationToken call)
     {
         var journal = Reviewer.Player.Journal;
-        Method prior;
-        try
-        {
-            prior = journal.LoadOwnerMethod(s.Owner, method, call);
-        }
-        catch (NotFoundException)
+        if (journal.OwnerMethodPlan(s.Owner, method, call) is not { } prior)
         {
             return false;
         }
 
-        var plan = journal.LoadPlan(prior.Plan, call);
+        var plan = journal.LoadPlan(prior, call);
         foreach (var progress in plan.Progress)
         {
             if (progress.Action.RemoveRoof is null)

@@ -55,6 +55,36 @@ internal sealed record FamilyStep
 
     /// <summary>Throws when the world or the session moved since the step began; runs before every commit.</summary>
     public Action Fence { get; init; } = static () => { };
+
+    /// <summary>The session state the step began on; a building step fences its own commits against it.</summary>
+    public ControlState State { get; init; }
+
+    /// <summary>The player epoch the step runs under.</summary>
+    public CancellationToken Epoch { get; init; }
+
+    /// <summary>The step's pawn and resource arbiter, when the pass has one.</summary>
+    public StepArbiter? Arbiter { get; init; }
+}
+
+/// <summary>
+/// One ready Need's asynchronous work (#3279): the Need, its owner as loaded for the step's world, and the step's
+/// session state, epoch and arbiter. Building work (native previews, room reconciles) runs here between choosing
+/// and committing, and commits under <see cref="Owner"/> through the shared building planner, so every commit is a
+/// claimed Need commit: once per target, refused with a claim conflict on a held footprint.
+/// </summary>
+public sealed record NeedWork
+{
+    public required Need Need { get; init; }
+
+    public required NeedOwner Owner { get; init; }
+
+    public required ControlState State { get; init; }
+
+    public CancellationToken Epoch { get; init; }
+
+    public StepArbiter? Arbiter { get; init; }
+
+    public bool Immediate { get; init; }
 }
 
 /// <summary>
@@ -155,11 +185,17 @@ public abstract class FamilyRunner
 
 /// <summary>A family over its own fact type, with the full read and the immediate pass's narrow read.</summary>
 /// <param name="read">Reads the facts for the scope; in the immediate pass only the SeriousHarm families, the rest left unknown.</param>
-public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyReadScope, CancellationToken, Task<TFacts>> read, FamilySchedule? schedule = null)
+/// <param name="work">
+/// The family's asynchronous step for each ready Need after its pure proposals (#3279), or null. It runs behind the
+/// step's fence and returns the Need's verdict; Methods it commits under the Need owner are reported on the run.
+/// </param>
+public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyReadScope, CancellationToken, Task<TFacts>> read, FamilySchedule? schedule = null,
+    Func<NeedWork, TFacts, CancellationToken, Task<Verdict>>? work = null)
     : FamilyRunner(family, schedule ?? new FamilySchedule())
 {
     private readonly IFamily<TFacts> _family = family;
     private readonly Func<FamilyReadScope, CancellationToken, Task<TFacts>> _read = read ?? throw new ArgumentNullException(nameof(read));
+    private readonly Func<NeedWork, TFacts, CancellationToken, Task<Verdict>>? _work = work;
 
     private protected override async Task<FamilyRun> StepAsync(FamilyStep step, CancellationToken call)
     {
@@ -215,6 +251,16 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
                     methods.Add(committed);
                 }
                 reports[candidate.Need] = Stronger(reports[candidate.Need], verdict);
+            }
+
+            if (_work is not null)
+            {
+                foreach (var need in ready)
+                {
+                    var (verdict, worked) = await Work(step, need, facts.Facts, call).ConfigureAwait(false);
+                    methods.AddRange(worked);
+                    reports[need.Id] = Stronger(reports[need.Id], verdict);
+                }
             }
         }
 
@@ -302,6 +348,26 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             default:
                 return (Verdict.ClaimHeld(commit.Conflict!.Claim), null);
         }
+    }
+
+    /// <summary>Runs the family's work for one ready Need under its owner and reports the Methods it added.</summary>
+    private async Task<(Verdict Verdict, IReadOnlyList<FamilyMethod> Methods)> Work(FamilyStep step, Need need, TFacts facts, CancellationToken call)
+    {
+        var before = await Task.Run(() => step.Journal.LoadNeed(need.Id, step.World, call), call).ConfigureAwait(false);
+        step.Fence();
+        Verdict verdict;
+        try
+        {
+            verdict = await _work!(new NeedWork { Need = need, Owner = before, State = step.State, Epoch = step.Epoch, Arbiter = step.Arbiter, Immediate = step.Immediate }, facts, call).ConfigureAwait(false);
+        }
+        catch (NotAdmittedException e)
+        {
+            // A Safeguard vetoes routine work: the Need waits on nothing it can do.
+            return (Verdict.Refuse(Cause.SharedAdmission, e.Message, ""), []);
+        }
+        var after = await Task.Run(() => step.Journal.LoadNeed(need.Id, step.World, call), call).ConfigureAwait(false);
+        var seen = before.Methods.Select(m => m.Plan).ToHashSet();
+        return (verdict, [.. after.Methods.Where(m => !seen.Contains(m.Plan)).Select(m => new FamilyMethod(need.Id, m.Method, m.Plan, ClaimOutcome.Admitted))]);
     }
 
     /// <summary>Of two verdicts for one Need, the one it files: admitted, then open work, then a claim or Safeguard refusal over no method.</summary>
