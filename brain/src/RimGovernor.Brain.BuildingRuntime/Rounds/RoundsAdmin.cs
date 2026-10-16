@@ -1,37 +1,60 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The runtime half of the colony admin family (#3264): its full read (the owned rounds census and the stored
-/// creepjoiner record) and the creepjoiner step, which claims each pawn on the step's arbiter and commits one Method
-/// per order under the admin/creep-joiners Need, writing the record with each inspection order it admits.
+/// The runtime half of the colony admin family (#3264, #3304): its full read (the owned rounds census, or the rooms
+/// census when burial is composed, the stored creepjoiner record and the review's event-loot cohort) and the work
+/// steps of its Needs, each committing under the Need owner and admitted by claims: the creepjoiner orders, the
+/// supply-safety batches and the burial rooms and graves.
 /// </summary>
-public sealed class AdminRounds
+public sealed partial class AdminRounds
 {
     private readonly Rounder _reviewer;
-    private readonly bool _creepJoiners;
+    private readonly AdminNeeds _needs;
+    private readonly IRoundsSupplySource? _supplies;
+    private readonly RoundsBuildingPlanner? _building;
 
-    public AdminRounds(Rounder reviewer, bool creepJoiners)
+    public AdminRounds(Rounder reviewer, bool creepJoiners) : this(reviewer, new AdminNeeds { CreepJoiners = creepJoiners }, null)
     {
-        _reviewer = reviewer ?? throw new ControlException("AdminRounds: reviewer is missing");
-        _creepJoiners = creepJoiners;
-        // A creepjoiner held apart owes the isolation room: the review reads the record before the child rooms.
-        reviewer.CreepJoinerIsolation = creepJoiners;
     }
 
-    /// <summary>An optional entry woken by the outcomes of its surgeries and area moves.</summary>
+    /// <summary>The family with <paramref name="needs"/> composed; supply safety reads and writes through <paramref name="supplies"/>.</summary>
+    public AdminRounds(Rounder reviewer, AdminNeeds needs, IRoundsSupplySource? supplies)
+    {
+        _reviewer = reviewer ?? throw new ControlException("AdminRounds: reviewer is missing");
+        _needs = needs ?? throw new ControlException("AdminRounds: needs are missing");
+        if (needs.SupplySafety && supplies is null)
+        {
+            throw new ControlException("AdminRounds: supply safety needs a supply source");
+        }
+        _supplies = supplies;
+        if (needs.Burial && reviewer.Native is IRoundsBuildingSource source)
+        {
+            _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source };
+        }
+        // A creepjoiner held apart owes the isolation room: the review reads the record before the child rooms.
+        reviewer.CreepJoinerIsolation = needs.CreepJoiners;
+    }
+
+    /// <summary>
+    /// An optional entry woken by the outcomes of its surgeries, area moves, supply batches and burial buildings.
+    /// The runner is critical while supply safety is composed, as its own planner was.
+    /// </summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
-        Kinds = [ActionKind.Surgery, ActionKind.WorkAssignment],
+        Kinds = [ActionKind.Surgery, ActionKind.WorkAssignment, ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.Building],
     };
 
     /// <summary>The family's scheduler entry.</summary>
-    public FamilyRunner Runner() => new FamilyRunner<AdminFacts>(new AdminFamily(_creepJoiners), ReadAsync, Schedule, WorkAsync);
+    public FamilyRunner Runner() => new FamilyRunner<AdminFacts>(new AdminFamily(_needs), ReadAsync,
+        _needs.SupplySafety ? Schedule with { Class = PlannerClass.Critical } : Schedule, WorkAsync);
 
     /// <summary>
-    /// Reads the family's facts in <paramref name="scope"/>'s world: the owned rounds census and, for the creepjoiner
-    /// Need, the stored inspection record and the work the census owes against it. Throws when the read is from
-    /// another world or older than the review.
+    /// Reads the family's facts in <paramref name="scope"/>'s world: the owned rounds census (the rooms census when
+    /// burial is composed) and, for the creepjoiner Need, the stored inspection record and the work the census owes
+    /// against it; for supply safety the review's event-loot cohort, unknown while the census has no loot read; for
+    /// burial whether a tomb, grave or morgue step is due. Throws when the read is from another world or older than
+    /// the review.
     /// </summary>
     internal async Task<AdminFacts> ReadAsync(FamilyReadScope scope, CancellationToken ct)
     {
@@ -47,22 +70,45 @@ public sealed class AdminRounds
         {
             throw new ControlException("admin read: the scope is another world or older than the review");
         }
-        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
+        var reading = _needs.Burial
+            ? await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), BurialDefinitions, ct).ConfigureAwait(false)
+            : await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), ct).ConfigureAwait(false);
         var facts = new AdminFacts();
-        if (_creepJoiners)
+        if (_needs.CreepJoiners)
         {
             var record = await journal.LoadCreepJoinersAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
             facts = facts with { CreepJoiners = CreepJoinerWorkOf(reading.Projection, reading.Frame, reading.Catalog, record) };
         }
+        if (_needs.SupplySafety)
+        {
+            facts = facts with
+            {
+                SupplySafety = reading.Projection.Facts.EventLoot.IsKnown
+                    ? Known(EquatableArray.From(review.EventLoot.Pending))
+                    : Unknown<EquatableArray<StartingSupply>>(),
+            };
+        }
+        if (_needs.Burial)
+        {
+            facts = facts with { Burial = BurialOwed(reading.Projection) };
+        }
         return facts;
     }
 
-    /// <summary>The asynchronous step of a ready Need: the creepjoiner orders; any other Need has no step.</summary>
+    /// <summary>The asynchronous step of a ready Need: its orders, batches or buildings; a Need without a step has none.</summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, AdminFacts facts, CancellationToken ct)
     {
         if (work.Need.Id == AdminFamily.CreepJoiners && facts.CreepJoiners is { } creep)
         {
             return await Task.Run(() => CreepJoinerStep(_reviewer.Player.Journal, work, creep, ct), ct).ConfigureAwait(false);
+        }
+        if (work.Need.Id == AdminFamily.SupplySafety && facts.SupplySafety is { } loot && loot.TryGetValue(out var cohort) && _supplies is not null)
+        {
+            return await SupplyStepAsync(work, cohort, ct).ConfigureAwait(false);
+        }
+        if (work.Need.Id == AdminFamily.Burial && _needs.Burial)
+        {
+            return await BurialStepAsync(work, ct).ConfigureAwait(false);
         }
         return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
     }
@@ -144,6 +190,24 @@ public sealed class AdminRounds
             recorded = true;
         }
 
+        if (OutcomeVerdict(outcomes) is { } verdict)
+        {
+            return verdict;
+        }
+        if (recorded)
+        {
+            return WaitFor(Cause.MethodUsed, "creepjoiner_order_recorded");
+        }
+        if (creep.Inspections.Waiting.Count > 0)
+        {
+            return AwaitingPlan("creepjoiner_inspection", "");
+        }
+        return WaitFor(Cause.MethodUsed, "creepjoiner_order");
+    }
+
+    /// <summary>What a run's claimed commits came to: admitted if any was, else open work if any continued, else the first held claim; null when nothing was committed.</summary>
+    internal static Verdict? OutcomeVerdict(IReadOnlyList<(ClaimOutcome Outcome, ClaimConflict? Conflict)> outcomes)
+    {
         if (outcomes.Any(o => o.Outcome == ClaimOutcome.Admitted))
         {
             return BuildingReasonAdmitted;
@@ -156,14 +220,6 @@ public sealed class AdminRounds
         {
             return Verdict.ClaimHeld(conflict.Claim);
         }
-        if (recorded)
-        {
-            return WaitFor(Cause.MethodUsed, "creepjoiner_order_recorded");
-        }
-        if (creep.Inspections.Waiting.Count > 0)
-        {
-            return AwaitingPlan("creepjoiner_inspection", "");
-        }
-        return WaitFor(Cause.MethodUsed, "creepjoiner_order");
+        return null;
     }
 }

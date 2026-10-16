@@ -4,6 +4,10 @@ internal static partial class BuildingRuntimePackage
 {
     internal static readonly string[] BurialDefinitions = ["Wall", "Door", PolicyApi.GraveDefinition];
 
+    /// <summary>The method name of a planned room reconcile: the role and the room's id.</summary>
+    internal static string RoomName(string role, PlannedRoom room) =>
+        string.Create(CultureInfo.InvariantCulture, $"{role}-room{room.Id}");
+
     internal static TombStep TombStep(ColonyProjection facts)
     {
         if (!TombOwed(facts).TryGetValue(out var owed) || !owed)

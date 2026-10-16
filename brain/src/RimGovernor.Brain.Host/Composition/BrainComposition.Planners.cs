@@ -25,7 +25,6 @@ public sealed partial class BrainComposition
         // ClockSchedulerConfig is init-only, so the planners are built into locals and the config is made last.
         RoundsArmoryPlanner? cfgArmory = null;
         RoundsBuildingPlanner? cfgBasicComfort = null;
-        RoundsBurialPlanner? cfgBurial = null;
         RoundsBuildingPlanner? foodButcher = null;
         var families = new List<FamilyRunner>();
         RoundsBuildingPlanner? cfgComfort = null;
@@ -66,7 +65,6 @@ public sealed partial class BrainComposition
         RoundsStockpilePlanner? cfgStockpiles = null;
         RoundsStoneShellPlanner? cfgStoneShell = null;
         FactStore? cfgStore = null;
-        RoundsSupplyPlanner? cfgSupplies = null;
         RoundsSurgeryPlanner? cfgSurgery = null;
         RoundsBuildingPlanner? cfgTemperature = null;
         RoundsTendPlanner? cfgTend = null;
@@ -217,10 +215,6 @@ public sealed partial class BrainComposition
             cfgArmory = new RoundsArmoryPlanner(reviewer, client);
             reviewer.AddOrderDeclarer(new RoundsArmoryDeclarer(cfgArmory));
         }
-        if (burial)
-        {
-            cfgBurial = new RoundsBurialPlanner(reviewer);
-        }
         if (envelope)
         {
             cfgEnvelope = new RoundsEnvelopePlanner(reviewer);
@@ -311,10 +305,11 @@ public sealed partial class BrainComposition
             // HoldGatherings plans from the mood ledger, pawn rows, building table and emergency census.
             cfgGathering = RoundsGatheringPlanner.NewRoundsGatheringPlanner(reviewer);
         }
-        if (sc.CreepJoiner)
+        var admin = new AdminNeeds { CreepJoiners = sc.CreepJoiner, SupplySafety = supplies, Burial = burial };
+        if (admin.CreepJoiners || admin.SupplySafety || admin.Burial)
         {
-            // The colony admin family (#3264): today only admin/creep-joiners, read from the owned census.
-            families.Add(new AdminRounds(reviewer, sc.CreepJoiner).Runner());
+            // The colony admin family (#3264, #3304): creep joiners, supply safety and burial.
+            families.Add(new AdminRounds(reviewer, admin, supplies ? client : null).Runner());
         }
         if (sc.Sheltering)
         {
@@ -358,10 +353,6 @@ public sealed partial class BrainComposition
         {
             cfgResource = RoundsResourcePlanner.NewRoundsResourcePlanner(reviewer, client);
             reviewer.AddOrderDeclarer(new RoundsResourceDeclarer(cfgResource));
-        }
-        if (supplies)
-        {
-            cfgSupplies = RoundsSupplyPlanner.Create(reviewer, client);
         }
         if (sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || lighting || flooring || routes || mechCharger || geneBank)
         {
@@ -436,7 +427,6 @@ public sealed partial class BrainComposition
             Families = families,
             Armory = cfgArmory,
             BasicComfort = cfgBasicComfort,
-            Burial = cfgBurial,
             Comfort = cfgComfort,
             Defense = cfgDefense,
             DefenseLayout = cfgDefenseLayout,
@@ -474,7 +464,6 @@ public sealed partial class BrainComposition
             Stockpiles = cfgStockpiles,
             StoneShell = cfgStoneShell,
             Store = cfgStore,
-            Supplies = cfgSupplies,
             Surgery = cfgSurgery,
             Temperature = cfgTemperature,
             Tend = cfgTend,
@@ -559,7 +548,6 @@ public sealed partial class BrainComposition
         Add(sc.Routes, MaintainRoutes);
         Add(sc.Comfort, EnsureComfort);
         Add(sc.Sleeping || sc.Expansion, MaintainHousing);
-        Add(sc.Burial, MaintainBurial);
         Add(sc.Envelope, MaintainClimateEnvelope);
         Add(sc.Gear, MaintainEquipment);
         Add(sc.Recovery, RecoverDisasterServices);
@@ -605,6 +593,10 @@ public sealed partial class BrainComposition
         if (sc.Cooking || sc.Bill)
         {
             needs.Add(CookingNeed);
+        }
+        if (sc.Burial)
+        {
+            needs.Add(AdminFamily.Burial);
         }
         return (thresholds, new RoundsCapabilities { Methods = methods, Needs = needs, LayoutOverlay = layoutOverlay, ClearanceCensus = sc.Clearance, JailShell = sc.PrisonerInteraction });
     }

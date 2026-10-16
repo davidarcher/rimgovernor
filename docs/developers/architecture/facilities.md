@@ -872,8 +872,8 @@ saved plan no longer decodes (the role is gone), so the review derives a fresh
 plan without it; its graves stand untouched. `PlannedRole.IsOutdoor` lists the
 Outdoor roles.
 
-`MaintainBurial` (People, #2196) stages the tomb, the graves and the morgue
-(`RoundsBurialPlanner`) and its `burialOwner` declares the tomb and morgue stores
+The `admin/burial` Need (People, #2196, #3304) stages the tomb, the graves and the morgue
+(`AdminRounds`, under the Need owner: rooms by name, graves as `grave-<n>`) and its `burialOwner` declares the tomb and morgue stores
 (`policy.StoreOwner`); it asks layout for no room. With no grave site the
 preview accepts, the body waits in the morgue. The morgue holds every human corpse, fresh or rotten, at
 `MorguePriority` (Normal), below the graves and sarcophagi that take a colonist

@@ -56,7 +56,7 @@ public sealed class PauseSafeguard : ISafeguard
 
 /// <summary>
 /// Refuses allowing an item the safety census reported unsafe. Forbidding stays open: that is
-/// ManageSupplySafety's Standard work. A veto refuses only that action, and the rest of its plan dispatches.
+/// the admin/supply-safety Need's work. A veto refuses only that action, and the rest of its plan dispatches.
 /// </summary>
 public sealed class UnsafeLootSafeguard : ISafeguard
 {

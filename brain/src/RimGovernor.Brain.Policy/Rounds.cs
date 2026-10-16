@@ -218,9 +218,6 @@ public sealed record RoundsFacts
     /// <summary>The stock covers the butcher table's build cost (its cheapest stuff choice).</summary>
     public Fact<bool> ButcherTableAffordable { get; init; }
 
-    /// <summary>A tomb, grave or morgue step is due; it keeps MaintainBurial open while a corpse waits on one.</summary>
-    public Fact<bool> BurialOwed { get; init; }
-
     /// <summary>The warm standing tombs, morgues and meal closets (WarmCoolingRooms); they join the food-stores/refrigeration Need's rooms.</summary>
     public Fact<EquatableArray<string>> WarmRooms { get; init; }
 
@@ -426,8 +423,6 @@ public sealed record RoundsFacts
     public Fact<double> ComfortDeficit { get; init; }
 
     public Fact<EquatableArray<LootItem>> EventLoot { get; init; }
-
-    public Fact<bool> EventLootPending { get; init; }
 
     public Fact<Bounds> MapBounds { get; init; }
 
@@ -709,7 +704,6 @@ public static partial class PolicyFunctions
     public static readonly ConcernId ActiveCombat = new("ActiveCombat");
     public static readonly ConcernId CriticalMedicine = new("CriticalMedical");
     public static readonly ConcernId RestoreWorkers = new("RestoreWorkers");
-    public static readonly ConcernId ManageSupplySafety = new("ManageSupplySafety");
     public static readonly ConcernId EnsureWorkAssignments = new("EnsureWorkAssignments");
     public static readonly ConcernId MaintainHousing = new("MaintainHousing");
     public static readonly ConcernId EnsureTemperatureSafety = new("EnsureTemperatureSafety");

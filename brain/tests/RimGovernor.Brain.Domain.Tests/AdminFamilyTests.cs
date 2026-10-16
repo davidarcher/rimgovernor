@@ -50,6 +50,76 @@ public sealed class AdminFamilyTests
         Assert.Empty(new AdminFamily(creepJoiners: false).Derive(new AdminFacts()));
     }
 
+    private static readonly AdminFamily Composed = new(new AdminNeeds { SupplySafety = true, Burial = true });
+
+    private static StartingSupply Stack(string thing, int x, bool forbid) => new() { Thing = thing, Definition = "Steel", Cell = new(x, 1), Forbid = forbid };
+
+    [Fact]
+    public void SupplySafetyIsMetUnmetOrUnknownByTheCohort()
+    {
+        Need Supply(AdminFacts facts) => Assert.Single(Composed.Derive(facts), n => n.Id == AdminFamily.SupplySafety);
+
+        var met = Supply(new AdminFacts { SupplySafety = Known(EquatableArray.From(Array.Empty<StartingSupply>())) });
+        Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing, "admin/supply-safety"), (met.Satisfaction, met.Deficit.Value, met.Tier, met.Id.Value));
+
+        var unmet = Supply(new AdminFacts { SupplySafety = Known(EquatableArray.From([Stack("s1", 1, true), Stack("s2", 2, false), Stack("s3", 3, false)])) });
+        Assert.Equal((Satisfaction.Unmet, 3.0), (unmet.Satisfaction, unmet.Deficit.Value));
+        Assert.Contains(unmet.Evidence, e => e.Fact == "forbid" && e.Value.Value == "1");
+        Assert.Contains(unmet.Evidence, e => e.Fact == "allow" && e.Value.Value == "2");
+
+        // An unread census (or a read that never ran) is Unknown, never met.
+        Assert.Equal(Satisfaction.Unknown, Supply(new AdminFacts()).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Supply(new AdminFacts { SupplySafety = Unknown<EquatableArray<StartingSupply>>() }).Satisfaction);
+    }
+
+    [Fact]
+    public void BurialIsMetUnmetOrUnknownByTheStepOwed()
+    {
+        Need Burial(AdminFacts facts) => Assert.Single(Composed.Derive(facts), n => n.Id == AdminFamily.Burial);
+
+        Assert.Equal((Satisfaction.Met, 0.0, "admin/burial"), (Burial(new AdminFacts { Burial = Known(false) }).Satisfaction, Burial(new AdminFacts { Burial = Known(false) }).Deficit.Value, AdminFamily.Burial.Value));
+        var unmet = Burial(new AdminFacts { Burial = Known(true) });
+        Assert.Equal((Satisfaction.Unmet, 1.0, NeedTier.Wellbeing), (unmet.Satisfaction, unmet.Deficit.Value, unmet.Tier));
+        Assert.Equal(Satisfaction.Unknown, Burial(new AdminFacts { Burial = Unknown<bool>() }).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Burial(new AdminFacts()).Satisfaction);
+        // Only the composed Needs are derived.
+        Assert.Equal([AdminFamily.SupplySafety, AdminFamily.Burial], Composed.Derive(new AdminFacts()).Select(n => n.Id));
+    }
+
+    private static PlanSpec Forbid(params StartingSupply[] stacks)
+    {
+        var id = PlanIds.MintPlanId();
+        return new PlanSpec(id, new PlanRevision(1), [.. stacks.Select((s, i) => DomainAction.NewSupplyAllowAction(new ActionId(id.Value + "-" + i), SupplyAllow.NewSupplyForbid(s.Thing, s.Definition, s.Cell)))]);
+    }
+
+    [Fact]
+    public void SupplyBatchesAreAdmittedSideBySideUnderTheNeedAndAStackTwoShareIsAClaimConflict()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        BridgeFunctions.RegisterIntentKinds();
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-supply-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        LootItem Unsafe(StartingSupply s) => new() { Supply = s with { Forbid = false }, Forbidden = false, SafeToHaul = false, SafetyKnown = true };
+        var stacks = new[] { Stack("s1", 1, true), Stack("s2", 2, true), Stack("s3", 3, true) };
+        var facts = WorkResourceTestFacts.Create("a", "b", "c") with { EventLoot = Known(EquatableArray.From(stacks.Select(Unsafe))) };
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = DefaultRoundsPolicy(), Facts = facts }, ct);
+        Assert.Equal(["s1", "s2", "s3"], journal.LoadRounds(ct).EventLoot.Pending.Select(p => p.Thing));
+
+        var first = journal.CommitClaimedMethod(AdminFamily.SupplySafety, World, new MethodId("supply-a"), "", Forbid(stacks[0]), ct);
+        var second = journal.CommitClaimedMethod(AdminFamily.SupplySafety, World, new MethodId("supply-b"), "", Forbid(stacks[1]), ct);
+        Assert.Equal((ClaimOutcome.Admitted, ClaimOutcome.Admitted), (first.Outcome, second.Outcome));
+        Assert.Equal(AdminFamily.SupplySafety.FilingKey, journal.PlanMethod(first.Owner.Methods[0].Plan, ct)!.Concern);
+
+        // The same batch continues; a batch over a stack an open batch holds is held by that stack's claim.
+        Assert.Equal(ClaimOutcome.Continued, journal.CommitClaimedMethod(AdminFamily.SupplySafety, World, new MethodId("supply-a"), "", Forbid(stacks[0]), ct).Outcome);
+        var overlap = journal.CommitClaimedMethod(AdminFamily.SupplySafety, World, new MethodId("supply-c"), "", Forbid(stacks[0], stacks[2]), ct);
+        Assert.Equal(ClaimOutcome.Conflict, overlap.Outcome);
+        Assert.Equal("s1", overlap.Conflict!.Claim);
+
+        // A stack the cohort does not list is never admitted.
+        Assert.ThrowsAny<Exception>(() => journal.CommitClaimedMethod(AdminFamily.SupplySafety, World, new MethodId("supply-d"), "", Forbid(Stack("gone", 9, true)), ct));
+        Assert.Equal(2, journal.LoadNeed(AdminFamily.SupplySafety, World, ct).Methods.Count);
+    }
+
     [Fact]
     public void AWeaponDropIsHeldAsAnUnsupportedForecast()
     {

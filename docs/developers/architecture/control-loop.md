@@ -510,7 +510,7 @@ three ways.
 | Joiners and quests | MaintainPopulation (joiners, quests, letters, ceremonies, decrees, monuments, departures, refugees, grav inspection) |
 | Anomaly | MaintainPopulation (entity capture, door, tend, bioferrite, monolith, lance) |
 | Economy | `economy`: Need `research` (#3263; EnsureResearch deleted); MaintainResource, MaintainTrade, TradeWithCaravan, trade missions |
-| Colony admin | `admin`: Need `creep-joiners` (#3264); EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles, MaintainBurial, ManageSupplySafety |
+| Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial` (#3304); EnsureWorkAssignments, MaintainWorkLedger, MaintainStockpiles |
 | People | EnsureMood, AnswerDialog |
 | Disaster | RecoverDisasterServices |
 

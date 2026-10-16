@@ -100,11 +100,6 @@ public static partial class PolicyFunctions
             var targetKnown = review.Target.TryGetValue(out target);
             known = known && targetKnown;
         }
-        else if (id == MaintainBurial)
-        {
-            // Census-driven: a tomb, grave or morgue step due is a full deficit.
-            return OwedDeficit(f.BurialOwed);
-        }
         else if (id == EnsureMechCharger)
         {
             // A charger owed is a full deficit, none owed none.

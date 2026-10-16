@@ -72,7 +72,7 @@ public sealed class RoundsEnvelopePlanner
         var verdict = BuildingReasonNoDeficit;
         foreach (var room in rooms)
         {
-            var rr = new RoomReconcile { Room = room, Name = RoundsBurialPlanner.RoomName("envelope", room), Reason = "envelope", RingOnly = true, ClimateOnly = true };
+            var rr = new RoomReconcile { Room = room, Name = RoomName("envelope", room), Reason = "envelope", RingOnly = true, ClimateOnly = true };
             var result = await _building.ReconcileRoomAsync(state, review, goal, reading, null, rr, call, epoch).ConfigureAwait(false);
             verdict = result.Verdict;
             if (verdict.Outcome == Outcome.Admitted)

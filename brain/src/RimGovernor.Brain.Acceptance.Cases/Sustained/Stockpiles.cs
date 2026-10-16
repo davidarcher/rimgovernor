@@ -16,7 +16,7 @@ internal static class SustainedStockpiles
 
     /// <summary>
     /// The tribal start stacks the scenario forbids. Only Pemmican gates: wood stacks outside the base stay forbidden
-    /// on purpose (ManageSupplySafety, outside_base:insufficient_defense), so wood is only reported.
+    /// on purpose (admin/supply-safety, outside_base:insufficient_defense), so wood is only reported.
     /// </summary>
     private static readonly string[] StartingSupplyDefs = ["Pemmican", "WoodLog"];
 

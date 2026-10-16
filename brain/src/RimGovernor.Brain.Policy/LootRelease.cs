@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Ports <c>loot_release.go</c>. Pawn deaths drop forbidden items: a dead colonist's corpse and gear arrive
-/// forbidden and are released by ManageSupplySafety's standing census (ReviewEventLoot), one stack at a time.
+/// forbidden and are released by the admin/supply-safety Need's standing census (ReviewEventLoot), one stack at a time.
 /// Release is selective: FilterLootRelease keeps back what a native spawner forbids on purpose and whatever lies
 /// in danger.
 /// </summary>

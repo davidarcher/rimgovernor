@@ -335,7 +335,7 @@ public static partial class PolicyFunctions
             // A kitchen is its own planned room: the food/cooking Need shells it at Masonry and above and holds the
             // stove to its interior.
             new() { Role = RoomRole.Kitchen, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
-            // A tomb is its own planned room: MaintainBurial shells it and places a sarcophagus while a dead
+            // A tomb is its own planned room: the admin/burial Need shells it and places a sarcophagus while a dead
             // colonist has none waiting.
             new() { Role = RoomRole.Tomb, Status = FacilityStatus.Implemented, FurnitureFromGame = true },
             // A throne room is its own planned room: MaintainHousing shells it sized to the next title's area,

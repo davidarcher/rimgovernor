@@ -1,36 +1,18 @@
 namespace RimGovernor.Brain.Policy;
 
 // Go: burial.go
-// MaintainBurial is the People department's burial: the tomb's sarcophagus or the plain grave near the base,
-// the morgue's shell, and the tomb and morgue stores. It is a Standard whose target is no human corpse owed a
-// shell, a sarcophagus or a grave. Vanilla haulers carry the corpses; nothing here hauls.
+// The admin/burial Need (AdminFamily.Burial) is the People department's burial: the tomb's sarcophagus or the
+// plain grave near the base, the morgue's shell, and the tomb and morgue stores. It is met while no human corpse is
+// owed a shell, a sarcophagus or a grave. Vanilla haulers carry the corpses; nothing here hauls.
 
 public static partial class PolicyFunctions
 {
-    public static readonly ConcernId MaintainBurial = new("MaintainBurial");
-
     /// <summary>
     /// Ranks the morgue below graves and sarcophagi, which take a colonist corpse the morgue holds until one
     /// has room, and above the Low corpse dump. The native acceptance case burial/grave_over_morgue verifies
     /// the ranking.
     /// </summary>
     public const StockpilePriority MorguePriority = StockpilePriority.Normal;
-
-    /// <summary>Raises MaintainBurial while a tomb, grave or morgue step is due.</summary>
-    internal static void InspectBurial(RoundsRun c)
-    {
-        var recovered = Unknown<bool>();
-        if (c.F.BurialOwed.TryGetValue(out var owed))
-        {
-            recovered = Known(!owed);
-        }
-
-        c.Assess(MaintainBurial, recovered);
-        if (!Positive(recovered))
-        {
-            c.Raise(MaintainBurial);
-        }
-    }
 }
 
 /// <summary>

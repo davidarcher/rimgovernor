@@ -188,9 +188,6 @@ internal static class ClockPlannerCatalog
             c => c.Fields is not null, (s, ct, e, a) => s.Config.Fields!.StepAsync(a, ct, e), (o, m) => o.Fields = m, MaintainResource),
         E("resourceAcquisition", O, [ActionKind.Acquisition, ActionKind.AcquisitionWithdraw], SectionsColony,
             c => c.ResourceAcquisition is not null, (s, ct, e, a) => s.Config.ResourceAcquisition!.StepAsync(a, ct, e), (o, m) => o.ResourceAcquisition = m, MaintainResource),
-        // Event loot the colony allows or forbids: supply safety, not food.
-        E("supplies", C, [ActionKind.SupplyAllow, ActionKind.SupplyForbid], SectionsColony,
-            c => c.Supplies is not null, (s, ct, e, a) => s.Config.Supplies!.StepAsync(a, ct, e), (o, m) => o.Supplies = m, ManageSupplySafety),
         E("sleeping", O, [ActionKind.Building, ActionKind.Deconstruction], SectionsBuilding,
             c => c.Sleeping is not null, (s, ct, e, a) => s.Config.Sleeping!.StepAsync(a, ct, e), (o, m) => o.Sleeping = m, MaintainHousing),
         E("power", O, [ActionKind.Building], SectionsBuilding,
@@ -235,8 +232,6 @@ internal static class ClockPlannerCatalog
             c => c.Ledger is not null, (s, ct, e, a) => s.Config.Ledger!.StepAsync(a, ct, e), (o, m) => o.Ledger = m, MaintainWorkLedger),
         E("armory", O, [ActionKind.Building], SectionsArmory,
             c => c.Armory is not null, (s, ct, e, a) => s.Config.Armory!.StepAsync(a, ct, e), (o, m) => o.Armory = m),
-        E("burial", O, [ActionKind.Building], SectionsBuilding,
-            c => c.Burial is not null, (s, ct, e, a) => s.Config.Burial!.StepAsync(a, ct, e), (o, m) => o.Burial = m, MaintainBurial),
         E("envelope", O, [ActionKind.Building, ActionKind.BuildRoof], SectionsBuilding,
             c => c.Envelope is not null, (s, ct, e, a) => s.Config.Envelope!.StepAsync(a, ct, e), (o, m) => o.Envelope = m, MaintainClimateEnvelope),
         E("moodRelief", O, [ActionKind.Ability], SectionsPawns,

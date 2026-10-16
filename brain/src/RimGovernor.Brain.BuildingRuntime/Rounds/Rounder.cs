@@ -350,7 +350,7 @@ public sealed partial class Rounder
             // The traffic tier prices its floor in the review.
             readDefinitions = [.. readDefinitions, .. Policy.Flooring.Floors];
         }
-        if (MethodEnabled(PolicyApi.MaintainBurial))
+        if (Needs.Contains(AdminFamily.Burial))
         {
             readDefinitions = [.. readDefinitions, .. BurialDefinitions];
         }
@@ -419,7 +419,6 @@ public sealed partial class Rounder
         Census.RememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan);
         reading = reading.WithFacts(rf => rf with { TitleClaimQuests = [.. TitleClaimQuests(reading.Projection)] });
         reading = reading.WithFacts(rf => rf with { BedroomsOwed = BedroomsOwedOf(reading.Projection) });
-        reading = reading.WithFacts(rf => rf with { BurialOwed = BurialOwed(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = ButcherTableAffordable(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { WarmRooms = WarmCoolingRooms(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { PlanLit = RoundsBuildingPlanner.PlanLitRooms(reading.Projection) });

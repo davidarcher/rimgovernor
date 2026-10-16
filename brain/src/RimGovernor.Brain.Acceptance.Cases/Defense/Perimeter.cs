@@ -88,7 +88,7 @@ internal static class DefensePerimeter
     /// The families a perimeter campaign serves. Work staffs the layout's construction (every building method's builder
     /// check needs the work priorities only that family applies).
     /// Supply belongs here too: a dead raider's drops lie in the trap lane, where the hauling safety verdict flaps unsafe,
-    /// and ManageSupplySafety is then a priority-0 emergency that only the supplies planner clears.
+    /// and admin/supply-safety is then the Need that only the admin family clears.
     /// </summary>
     internal static readonly string[] PerimeterFamilies = ["defensive-layout", "defense", "tend", "rescue", "supply", "work"];
 

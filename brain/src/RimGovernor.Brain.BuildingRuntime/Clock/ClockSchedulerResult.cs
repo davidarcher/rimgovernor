@@ -23,8 +23,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsWorkResult? Work { get; set; }
 
-    public RoundsSupplyResult? Supplies { get; set; }
-
     public RoundsPollutionResult? Pollution { get; set; }
 
     public RoundsBuildingResult? MechCharger { get; set; }
@@ -97,8 +95,6 @@ public sealed class ClockSchedulerResult
 
     public RoundsDefenseLayoutResult? DefenseLayout { get; set; }
 
-    public RoundsBurialResult? Burial { get; set; }
-
     public RoundsEnvelopeResult? Envelope { get; set; }
 
     public RoundsMoodReliefResult? MoodRelief { get; set; }
@@ -140,7 +136,6 @@ public sealed class ClockSchedulerResult
         Fields = other.Fields ?? Fields;
         ResourceAcquisition = other.ResourceAcquisition ?? ResourceAcquisition;
         Work = other.Work ?? Work;
-        Supplies = other.Supplies ?? Supplies;
         Pollution = other.Pollution ?? Pollution;
         MechCharger = other.MechCharger ?? MechCharger;
         GeneBank = other.GeneBank ?? GeneBank;
@@ -177,7 +172,6 @@ public sealed class ClockSchedulerResult
         StoneShell = other.StoneShell ?? StoneShell;
         Stockpiles = other.Stockpiles ?? Stockpiles;
         DefenseLayout = other.DefenseLayout ?? DefenseLayout;
-        Burial = other.Burial ?? Burial;
         Envelope = other.Envelope ?? Envelope;
         MoodRelief = other.MoodRelief ?? MoodRelief;
         Dialog = other.Dialog ?? Dialog;

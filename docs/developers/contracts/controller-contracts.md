@@ -83,7 +83,7 @@ shelter room is one continuous reconcile: the first review admits the spots rung
 together, and later reviews go on up the ladder (the clearing, then the beds) while the ring's
 wave is open (disjoint cells; `store.shelterOpenWorkExempt`). A ring is not
 placed in a stuff with no accessible stock while the start kit is still forbidden
-(`awaiting_plan:start_kit`); the supplies planner releases the kit like any safe forbidden
+(`awaiting_plan:start_kit`); the admin/supply-safety Need releases the kit like any safe forbidden
 stack (one plan allows every pending stack), with or without storage, so the
 wait is short. The `clock_step` row carries
 the pacing reason, effective TPS and last clock-stop latency split (shown by the Observe tab's Now view (the `clock_step` rows)).
@@ -534,7 +534,7 @@ batch through journaled Hands is tracked in
 
 ## Autonomous supply safety
 
-`ManageSupplySafety` owns both directions of the forbid flag for visible, player-owned or
+The `admin/supply-safety` Need (#3304) owns both directions of the forbid flag for visible, player-owned or
 unowned haulable items, including later event drops. A complete `event_loot` census
 reports each item's identity, cell, forbid flag, native hauling safety and storage
 headroom; a zero-headroom unforbidden row also names the storage groups that accept it
@@ -552,8 +552,10 @@ colonist cannot veto an item another reaches safely, and an item nobody reaches 
 unknown, not unsafe. Routes price the colony's own trap cells out. Fire within two
 cells, traps on the path, native region danger and visible hostiles with line of sight
 prevent Allow (hostile exposure: weapon range plus five cells, twelve minimum for melee).
-This is a current observation, not a prediction. The planner re-reads every review and
-cancels a pending action the fresh census no longer supports. The native boundary applies
+This is a current observation, not a prediction. The admin family re-reads every review and
+cancels a pending action the fresh census no longer supports. Each forbid or allow batch is
+one Need-owned Method named by its stacks, so batches over different stacks are admitted
+side by side and a stack two batches share is a claim conflict. The native boundary applies
 Allow and Forbid with no safety rule of its own, because the flag has other owners (the
 reserve food and frozen corpses the `food-stores/storage` Need holds).
 

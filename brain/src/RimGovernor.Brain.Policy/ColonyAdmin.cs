@@ -33,29 +33,62 @@ public sealed record CreepJoinerWork
 public sealed record AdminFacts
 {
     public CreepJoinerWork? CreepJoiners { get; init; }
+
+    /// <summary>
+    /// The event loot whose forbid state the latest safety census found wrong (the review's cohort): unsafe stacks to
+    /// forbid and safe forbidden stacks to allow. Unknown while the census cannot be read.
+    /// </summary>
+    public Fact<EquatableArray<StartingSupply>>? SupplySafety { get; init; }
+
+    /// <summary>Whether a tomb, grave or morgue step is due; unknown while the rooms, plan or corpses cannot be read.</summary>
+    public Fact<bool>? Burial { get; init; }
+}
+
+/// <summary>Which of the colony admin family's Needs the runtime composes.</summary>
+public sealed record AdminNeeds
+{
+    public bool CreepJoiners { get; init; }
+
+    public bool SupplySafety { get; init; }
+
+    public bool Burial { get; init; }
 }
 
 /// <summary>
-/// The colony admin family (#3264). Today it carries one Need:
+/// The colony admin family (#3264, #3304). Its Needs:
 /// <list type="bullet">
 /// <item><c>admin/creep-joiners</c> (Wellbeing): no creepjoiner whose downside has not shown is owed a weapon drop,
 /// a surgical inspection or an isolation move, no arrested creepjoiner is owed a disarming surgery, and the
 /// inspection record is current. It replaced the ManageCreepJoiners Concern. A weapon drop is not yet a supported
 /// forecast outcome, so a Need with drops owed is held as <c>unsupported_forecast_precautionary_disarm</c>; the other
 /// work is the runtime step's (the record is written with the inspection orders it admits).</item>
+/// <item><c>admin/supply-safety</c> (Wellbeing): every event-loot stack's forbid state matches its safety, so no
+/// unsafe stack is left allowed and no safe one forbidden. It replaced the ManageSupplySafety Concern; the runtime
+/// step forbids the unsafe stacks first, then allows the safe ones, one Method per batch.</item>
+/// <item><c>admin/burial</c> (Wellbeing): no tomb, grave or morgue step is due. It replaced the MaintainBurial
+/// Concern; the runtime step builds the morgue, the tomb or the next plain grave.</item>
 /// </list>
 /// </summary>
-public sealed class AdminFamily(bool creepJoiners = true) : IFamily<AdminFacts>
+public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
 {
     public const string FamilyId = "admin";
 
     public static readonly NeedId CreepJoiners = NeedId.Of(FamilyId, "creep-joiners");
+
+    public static readonly NeedId SupplySafety = NeedId.Of(FamilyId, "supply-safety");
+
+    public static readonly NeedId Burial = NeedId.Of(FamilyId, "burial");
 
     /// <summary>The stable refusal subject of a creepjoiner weapon drop.</summary>
     public const string UnsupportedDisarm = "unsupported_forecast_precautionary_disarm";
 
     public const string UnsupportedDisarmDetail =
         "Precautionary disarming requires shared participant admission; immediate combat protection remains separately owned.";
+
+    /// <summary>The family with only the creepjoiner Need, as the first slice composed it.</summary>
+    public AdminFamily(bool creepJoiners = true) : this(new AdminNeeds { CreepJoiners = creepJoiners })
+    {
+    }
 
     public string Id => FamilyId;
 
@@ -65,15 +98,23 @@ public sealed class AdminFamily(bool creepJoiners = true) : IFamily<AdminFacts>
 
     public IReadOnlyList<Need> Derive(AdminFacts facts)
     {
-        var needs = new List<Need>(1);
-        if (creepJoiners)
+        var needs = new List<Need>(3);
+        if (composed.CreepJoiners)
         {
             needs.Add(CreepJoinersNeed(facts.CreepJoiners ?? new CreepJoinerWork()));
+        }
+        if (composed.SupplySafety)
+        {
+            needs.Add(SupplySafetyNeed(facts.SupplySafety ?? Fact.Unknown<EquatableArray<StartingSupply>>()));
+        }
+        if (composed.Burial)
+        {
+            needs.Add(BurialNeed(facts.Burial ?? Fact.Unknown<bool>()));
         }
         return needs;
     }
 
-    /// <summary>Only the weapon drop hold: the creepjoiner orders are the runtime step's, which claims each pawn and writes the record.</summary>
+    /// <summary>Only the weapon drop hold: the other Needs' work is the runtime step's, which reads the native targets and claims them.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, AdminFacts facts)
     {
         var output = new List<NeedMethod>();
@@ -104,6 +145,44 @@ public sealed class AdminFamily(bool creepJoiners = true) : IFamily<AdminFacts>
                 new("isolation_moves", Count(work.Isolation.Count)),
                 new("disarm_orders", Count(work.Disarm.Orders.Count)),
             ],
+        };
+    }
+
+    /// <summary>
+    /// Unmet while the safety census leaves any event-loot stack to forbid or allow, unknown while it cannot be
+    /// read, met otherwise. The deficit is the number of stacks.
+    /// </summary>
+    public static Need SupplySafetyNeed(Fact<EquatableArray<StartingSupply>> pending)
+    {
+        if (!pending.TryGetValue(out var rows))
+        {
+            return new Need { Id = SupplySafety, Tier = NeedTier.Wellbeing, Evidence = [new("event_loot", default)] };
+        }
+        var forbid = rows.Count(r => r.Forbid);
+        return new Need
+        {
+            Id = SupplySafety,
+            Tier = NeedTier.Wellbeing,
+            Satisfaction = rows.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Fact.Known((double)rows.Count),
+            Evidence = [new("forbid", Count(forbid)), new("allow", Count(rows.Count - forbid))],
+        };
+    }
+
+    /// <summary>Unmet while a tomb, grave or morgue step is due, unknown while that cannot be read, met otherwise.</summary>
+    public static Need BurialNeed(Fact<bool> owed)
+    {
+        if (!owed.TryGetValue(out var due))
+        {
+            return new Need { Id = Burial, Tier = NeedTier.Wellbeing, Evidence = [new("burial_owed", default)] };
+        }
+        return new Need
+        {
+            Id = Burial,
+            Tier = NeedTier.Wellbeing,
+            Satisfaction = due ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Fact.Known(due ? 1.0 : 0.0),
+            Evidence = [new("burial_owed", Fact.Known(due ? "true" : "false"))],
         };
     }
 

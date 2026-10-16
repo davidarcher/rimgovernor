@@ -68,7 +68,6 @@ public static partial class PolicyFunctions
         [HoldGatherings] = 1,
         [MaintainPermits] = 1,
         [MaintainPopulation] = 1,
-        [MaintainBurial] = 1,
     };
 
     /// <summary>The number of stockpile-zone creations one method of concern may carry; zero means the concern owns no store.</summary>

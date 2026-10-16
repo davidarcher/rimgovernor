@@ -31,9 +31,6 @@ public static partial class PolicyFunctions
         Set([WorkType.Construction, WorkType.Tailoring, WorkType.Smithing, WorkType.Crafting], MaintainEquipment);
         Set([WorkType.Hauling], ManagePollution);
 
-        // The shell, sarcophagus and graves are built; vanilla haulers carry the corpses.
-        Set([WorkType.Construction], MaintainBurial);
-
         // Vents are built over standing walls and roofs are designated for builders.
         Set([WorkType.Construction], MaintainClimateEnvelope);
 

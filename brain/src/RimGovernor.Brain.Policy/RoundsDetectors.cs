@@ -122,15 +122,6 @@ public static partial class PolicyFunctions
         c.Assess(RestoreWorkers, NotFact(f.CleanupPawns));
     }
 
-    internal static void InspectManageSupplySafety(RoundsRun c)
-    {
-        if (Positive(c.F.EventLootPending))
-        {
-            c.Raise(ManageSupplySafety);
-        }
-        c.Assess(ManageSupplySafety, NotFact(c.F.EventLootPending));
-    }
-
     internal static void InspectWorkAssignments(RoundsRun c)
     {
         var f = c.F;

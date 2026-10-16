@@ -176,7 +176,7 @@ internal static class EffectSourceCandidates
         };
     }
 
-    /// <summary>A colonist's body, and a container holding one, belong to colonist burial (MaintainBurial), not this search.</summary>
+    /// <summary>A colonist's body, and a container holding one, belong to colonist burial (the admin/burial Need), not this search.</summary>
     private static bool Owned(WasteItem item) => item.CorpseOf == CorpseOf.Colonist;
 
     /// <summary>

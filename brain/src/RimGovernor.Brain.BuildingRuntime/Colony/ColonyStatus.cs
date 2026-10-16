@@ -186,7 +186,7 @@ public sealed class ColonyStatus
 
     private static Fact<bool> OptionalFact(bool has, bool value) => has ? Known(value) : Unknown<bool>();
 
-    /// <summary>Whether the loot census lists a safe stack still forbidden, the stack ManageSupplySafety releases.</summary>
+    /// <summary>Whether the loot census lists a safe stack still forbidden, the stack the admin/supply-safety Need releases.</summary>
     internal static Fact<bool> ForbiddenSupplies(Fact<EquatableArray<LootItem>> census)
     {
         if (!census.TryGetValue(out var rows))

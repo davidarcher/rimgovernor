@@ -234,17 +234,13 @@ public sealed partial class Store
             comfort = comfortReview.History;
             facts = facts with { ComfortRecovered = comfortReview.Recovered(), ComfortDeficit = comfortReview.Deficit() };
             var (lootCensus, held) = LootReachFilter(request with { Facts = facts });
-            var (lootHistory, lootPending) = PolicyFunctions.ReviewEventLoot(lootCensus, loot);
+            // The cohort is the admin/supply-safety Need's work (AdminRounds reads it from the review).
+            var (lootHistory, _) = PolicyFunctions.ReviewEventLoot(lootCensus, loot);
             loot = lootHistory;
-            facts = facts with { EventLootPending = lootPending };
             // The food reserve owns the forbid state of reserve food; drop its stacks from the cohort so the
             // planners cannot flip them.
             loot = loot with { Held = held };
             loot = loot with { Pending = EquatableArray.From(PolicyFunctions.DropReserveHeld(loot.Pending, facts.FoodReserve)) };
-            if (facts.EventLootPending.TryGetValue(out _))
-            {
-                facts = facts with { EventLootPending = Known(loot.Pending.Count > 0) };
-            }
             if (facts.Upkeep.Clearance.TryGetValue(out var rows))
             {
                 var req = PolicyFunctions.ReviewRecoveryRequest(request.Policy, facts, rows, facts.Upkeep.RoomObstructions);

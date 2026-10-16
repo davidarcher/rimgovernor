@@ -194,13 +194,13 @@ public sealed class MilitaryRounds
         if (ranges.Count > 0)
         {
             var room = ranges[0];
-            rooms.Add(new RoomReconcile { Room = room, Template = RangeTemplate(room), Name = RoundsBurialPlanner.RoomName("range", room), Reason = "range" });
+            rooms.Add(new RoomReconcile { Room = room, Template = RangeTemplate(room), Name = RoomName("range", room), Reason = "range" });
         }
         var rings = layout.RingRooms();
         if (rings.Count > 0)
         {
             var room = rings[0];
-            rooms.Add(new RoomReconcile { Room = room, Template = RingTemplate(room), Name = RoundsBurialPlanner.RoomName("ring", room), Reason = "ring" });
+            rooms.Add(new RoomReconcile { Room = room, Template = RingTemplate(room), Name = RoomName("ring", room), Reason = "ring" });
         }
         if (rooms.Count == 0)
         {

@@ -30,8 +30,6 @@ public sealed class ClockSchedulerConfig
 
     public RoundsWorkPlanner? Work { get; init; }
 
-    public RoundsSupplyPlanner? Supplies { get; init; }
-
     public RoundsPollutionPlanner? Pollution { get; init; }
 
     public RoundsMechChargerPlanner? MechCharger { get; init; }
@@ -103,8 +101,6 @@ public sealed class ClockSchedulerConfig
     public RoundsStockpilePlanner? Stockpiles { get; init; }
 
     public RoundsDefenseLayoutPlanner? DefenseLayout { get; init; }
-
-    public RoundsBurialPlanner? Burial { get; init; }
 
     public RoundsEnvelopePlanner? Envelope { get; init; }
 

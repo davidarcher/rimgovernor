@@ -56,7 +56,7 @@ internal sealed class CampaignRun
 
     /// <summary>
     /// The campaign's serve process: every routine family (null Families; the supply family must be in, or
-    /// ManageSupplySafety parks every concern after a raid), the player control path's clock flags and the campaign's
+    /// the admin/supply-safety Need parks every concern after a raid), the player control path's clock flags and the campaign's
     /// own request prefix. The player's Ultrafast is the control path, which serve runs under the player pacing.
     /// </summary>
     internal static ServeSpec ServeSpecFor(string prefix) => new()

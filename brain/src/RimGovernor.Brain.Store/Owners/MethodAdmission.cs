@@ -313,7 +313,7 @@ public sealed partial class Store
 
     /// <summary>
     /// Admits only stacks the review's cohort still lists, each at the cell the census last reported: the event loot
-    /// for ManageSupplySafety, and the larder corpse and reserve stacks for the food-stores/storage Need.
+    /// for the admin/supply-safety Need, and the larder corpse and reserve stacks for the food-stores/storage Need.
     /// </summary>
     private static void AdmitSupplyMethod(StoreTransaction tx, IMethodOwner owner, PlanSpec plan)
     {
@@ -340,11 +340,11 @@ public sealed partial class Store
                     reserve[row.Thing] = row;
                 }
             }
-        }
-        else if (owner.OwnerNeed(review, out var need) && need == ManageSupplySafety)
-        {
-            bound = true;
-            cohort = review.EventLoot.Pending;
+            else if (held == AdminFamily.SupplySafety)
+            {
+                bound = true;
+                cohort = review.EventLoot.Pending;
+            }
         }
         if (!bound)
         {
