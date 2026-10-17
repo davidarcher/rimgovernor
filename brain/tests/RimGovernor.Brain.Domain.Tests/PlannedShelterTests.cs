@@ -170,6 +170,38 @@ public sealed class PlannedShelterTests
         Assert.Contains(result.Selected.Plan.Allocations, a => candidates.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "rest"));
     }
 
+    /// <summary>
+    /// The handoff follows what the selected plan completes, not its root ids (#3342): the shelter root alone, or the
+    /// site roots its schedule equals, record the room's wall, door, roof and heater, and the reconcile places all four.
+    /// </summary>
+    [Fact]
+    public void ASelectedShelterRootPlacesItsRoomsShellRoofAndHeaterSites()
+    {
+        var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true);
+        var candidates = facts.CoupledAlternatives!;
+        var result = Select(facts);
+        var shelter = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("shelter/planned/1", StringComparison.Ordinal)).Id;
+        string[] sites = ["planned/room1/build/Heater/1/1", "planned/room1/door/WoodLog", "planned/room1/roof", "planned/room1/wall/WoodLog"];
+        PlannedSelection Record(params string[] roots) =>
+            PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites, 100)!;
+
+        var record = Record(shelter);
+        Assert.Equal(sites, record.Sites.Select(s => s.Id));
+        Assert.Equal(record, Record([.. sites.Where(id => candidates.Alternatives.Any(c => c.Id == id))]));
+        var (gate, selected) = PlannedRoomGateOf(record, 1, started: false);
+        Assert.Equal(PlannedRoomGate.Selected, gate);
+        var heater = new WantedPiece { DefName = "Heater", Minimum = Inside, Maximum = Inside, Size = new(1, 1), Rot = Rotation.North };
+        IReadOnlyList<Operation> ops =
+        [
+            new() { Kind = OpKind.WallIn, Cells = [WallCell] },
+            new() { Kind = OpKind.DoorIn, Cells = [DoorCell] },
+            new() { Kind = OpKind.RoofIn, Cells = [Inside] },
+            new() { Kind = OpKind.Build, Pieces = [heater] },
+            new() { Kind = OpKind.FloorIn, Floors = [new() { Cell = Inside, DefName = "WoodPlankFloor" }] },
+        ];
+        Assert.Equal([OpKind.WallIn, OpKind.DoorIn, OpKind.RoofIn, OpKind.Build], SelectedPlannedOps(ops, selected).Select(o => o.Kind));
+    }
+
     [Fact]
     public void WithoutThePlannedThermalReadAnUnplacedRoomStaysExplicitlyUnknown()
     {

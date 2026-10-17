@@ -184,6 +184,15 @@ rooms it assessed (a valued alternative in `Context.PlannedRooms`) and the
 selected sites with their op, def, stuff and cells. A review that compared
 nothing keeps the record; a room observed started drops its sites.
 
+The selected sites are the planned sites whose finish the selected plan
+completes inside the horizon, as its evaluated outcome counts them
+(`ForecastCoupledOutcome.RequestedDevelopment`), whichever roots carried them
+(`PlannedSelectionOf`). A shelter root therefore selects its room's wall,
+door, roof and heater; a room alternative selects its scope's sites; and the
+equivalent root sets that share one schedule give one record, whichever the
+search reached first. A site the plan names but does not finish inside the
+horizon is not selected: it is placed once its room has started.
+
 `ReconcileRoomAsync` gates an unstarted planned room on that record
 (`PlannedRoomGateOf`):
 

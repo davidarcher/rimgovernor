@@ -18,8 +18,9 @@ How a room becomes admitted work (`RoundsRoomReconcile.cs`):
 1. An owning concern calls `ReconcileRoomAsync` for its `PlannedRoom`. The reconcile is a stateless diff of
    the plan against the world's walls, doors, floors and furniture, so "what is built" is re-read every pass.
    An unstarted room the latest coupled comparison assessed is gated on that selection first
-   ([portfolio selection](portfolio-selection.md#planned-rooms)): held when none of its sites was selected,
-   otherwise narrowed to the selected sites in their compared stuff. Once started it reconciles as below.
+   ([portfolio selection](portfolio-selection.md#planned-rooms)): held when the selected plan completes none of
+   its sites, otherwise narrowed to the sites it completes, in their compared stuff, whichever root (site, room
+   alternative or shelter) carried them. Once started it reconciles as below.
 2. The diff's operations commit as waves: removals first, then installs from packed stock, then the on-site
    builds (`RoomBuildKinds`: door, wall, floor, furniture, vent).
 3. `CommitBuildsAsync` previews each ready piece natively and admits the accepted ones as one method:

@@ -271,6 +271,10 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(PlannedRoomGate.Place, PlannedRoomGateOf(record, 1, started: true).Gate);
     }
 
+    /// <summary>
+    /// The record holds the sites the selected plan completes (#3342): the room alternative root, or the site roots its
+    /// schedule equals, give one record of its scope's sites.
+    /// </summary>
     [Fact]
     public void ASelectedAlternativeRootSelectsAllItsSitesAndAnUnassessedRoomPlacesAsBefore()
     {
@@ -278,10 +282,13 @@ public sealed class PlannedRoomActivitiesTests
         var candidates = facts.CoupledAlternatives!;
         var root = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
         var result = Select(facts);
-        var only = result with { Selection = result.Selection with { Selected = [root.Id] } };
-        var record = PlannedSelectionOf(candidates, only, facts.PlannedSites, 100)!;
+        Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], result.Selected.RequestedDevelopment);
+        PlannedSelection Record(params string[] roots) =>
+            PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = roots } }, facts.PlannedSites, 100)!;
+        var record = Record(root.Id);
         Assert.Equal(["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], record.Sites.Select(s => s.Id));
         Assert.Equal([OpKind.DoorIn, OpKind.WallIn], record.Sites.Select(s => s.Op));
+        Assert.Equal(record, Record("planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"));
         Assert.Equal(PlannedRoomGate.Place, PlannedRoomGateOf(record, 2, started: false).Gate);
         // A review that compared nothing leaves no record of its own.
         Assert.Null(PlannedSelectionOf(candidates, null, facts.PlannedSites, 100));
@@ -298,5 +305,26 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(["planned/room1/wall/WoodLog"], room.CompletedSites);
         Assert.Empty(room.Complete);
         Assert.Contains(result.Selected.Findings, f => f.Reason == "planned_room_effect_unassessed" && f.Commitment == "planned/room1");
+    }
+
+    /// <summary>
+    /// The handoff places only what the plan completes (#3278, #3342): the door's finish falls past the horizon (its
+    /// delivery may be scheduled, its finish is not completed), so a selected alternative root that names the door
+    /// records the wall alone; the reconcile places the door once the room has started.
+    /// </summary>
+    [Fact]
+    public void ASiteNotFinishedInTheHorizonIsNotPlacedByTheSelection()
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 400, count: 5, available: 50)]);
+        var result = Select(facts);
+        var candidates = facts.CoupledAlternatives!;
+        var door = candidates.Context.PlannedSites.Single(s => s.Site == "planned/room1/door/WoodLog");
+        Assert.DoesNotContain(result.Selected.Plan.Allocations, a => door.Finishes.Contains(a.Activity) && a.End <= Horizon);
+        Assert.DoesNotContain(door.Site, result.Selected.RequestedDevelopment);
+        var root = Assert.Single(candidates.Alternatives, c => c.Id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
+        var record = PlannedSelectionOf(candidates, result with { Selection = result.Selection with { Selected = [root.Id] } }, facts.PlannedSites, 100)!;
+        var (gate, sites) = PlannedRoomGateOf(record, 1, started: false);
+        Assert.Equal(PlannedRoomGate.Selected, gate);
+        Assert.Equal(["planned/room1/wall/WoodLog"], sites.Select(s => s.Id));
     }
 }

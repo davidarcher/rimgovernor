@@ -532,8 +532,8 @@ Selection treats planned allocations as requested development: the thermal-relie
 the closure of selected commitments that carry requested-development relief. Binding skips planned allocations
 (`CoordinatedActivityBinding.Start`): a planned site has no action template until placed. A selection whose
 only work is planned starts no order and records `coupled_selection` with target `planned_unplaced`. The room
-reconcile then places exactly the selected sites of an unstarted assessed room, in their stuff, and holds an
-assessed room with none selected ([portfolio selection](portfolio-selection.md#planned-rooms)).
+reconcile then places exactly the sites the selected plan completes (`RequestedDevelopment`) of an unstarted
+assessed room, in their stuff, and holds an assessed room with none completed ([portfolio selection](portfolio-selection.md#planned-rooms)).
 
 ## Review inputs and pawn windows
 

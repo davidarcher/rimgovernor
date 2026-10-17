@@ -35,11 +35,13 @@ public enum PlannedRoomGate
 public static partial class PolicyFunctions
 {
     /// <summary>
-    /// The planned-room selection of one comparison (#3278); null when the review compared nothing (no candidates or no
-    /// selection). A selected root names a planned site itself or a room alternative (<c>planned/room{id}/[{stuff}/]{scope}</c>,
-    /// which selects all its sites); composition variants (<c>/composition/N</c>) name their root. The sites are joined
-    /// to the round's planned-site facts for their operation, def, stuff and anchors; one the facts no longer name is
-    /// left out.
+    /// The planned-room selection of one comparison (#3278, #3342); null when the review compared nothing (no candidates
+    /// or no selection). The selected sites are the planned sites the selected plan completes inside the horizon, as its
+    /// evaluated outcome counts them (ForecastCoupledOutcome.RequestedDevelopment), whichever roots carried them: a site
+    /// root, a room alternative or a shelter. Root ids play no part, so equivalent root sets that share one schedule give
+    /// one record, and a site the plan schedules but does not finish inside the horizon is not selected (it is placed
+    /// once its room has started). The sites are joined to the round's planned-site facts for their operation, def,
+    /// stuff and anchors; one the facts no longer name is left out.
     /// </summary>
     public static PlannedSelection? PlannedSelectionOf(ForecastCoupledCandidates? candidates, ForecastCoupledSelection? selection,
         Fact<PlannedSiteFacts> planned, long tick)
@@ -48,21 +50,7 @@ public static partial class PolicyFunctions
         {
             return null;
         }
-        var sites = candidates.Context.PlannedSites.Select(s => s.Site).ToHashSet(StringComparer.Ordinal);
-        var alternatives = candidates.Context.PlannedRooms.ToDictionary(a => a.Id, StringComparer.Ordinal);
-        var chosen = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var id in selection.Selection.Selected)
-        {
-            var root = id.IndexOf("/composition/", StringComparison.Ordinal) is var i and >= 0 ? id[..i] : id;
-            if (sites.Contains(root))
-            {
-                chosen.Add(root);
-            }
-            else if (alternatives.TryGetValue(root, out var alternative))
-            {
-                chosen.UnionWith(alternative.Sites);
-            }
-        }
+        var chosen = new SortedSet<string>(selection.Selected.RequestedDevelopment, StringComparer.Ordinal);
         var facts = planned.TryGetValue(out var known)
             ? known.Sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToDictionary(s => s.Id, StringComparer.Ordinal)
             : [];
