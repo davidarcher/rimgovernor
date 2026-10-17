@@ -85,10 +85,23 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
+      # Compiling tools/rg needs the game's reference assemblies (brain/Game.props);
+      # the script decrypts just those from the bundle, builds from the trusted
+      # checkout and deletes them and the identity before it returns.
       - name: Publish the trusted tool host (rg.exe)
-        run: >
-          dotnet publish trusted/tools/rg/rg.csproj -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o C:\rg
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
+        run: ./trusted/scripts/publish_trusted_rg.ps1 -Trusted "$env:GITHUB_WORKSPACE/trusted" -Out C:\rg
+      # The site job (below) runs this same trusted host; the artifact is the exe
+      # alone, never the decrypted reference assemblies or the identity.
+      - name: Upload the trusted tool host for the site job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: colony-review-tools-${{ github.run_id }}
+          path: C:\rg\rg.exe
+          if-no-files-found: error
+          retention-days: 1
       - name: Plan the review case
         env:
           RIMGOVERNOR_REVIEW_SEED: ${{ inputs.seed }}
@@ -184,26 +197,35 @@ jobs:
           Write-Host "The play step failed; the report records it."
           exit 1
 
-  pages:
+  # Builds the site with the trusted rg.exe the review job published. Windows
+  # because rg.exe needs the game's assemblies to compile (brain/Game.props) and
+  # runs as a win-x64 exe; it needs no secret (the identity stays in the review
+  # job) and runs no tested code. The site goes up as a plain artifact; the pages
+  # job below deploys it from Linux, where upload-pages-artifact and
+  # deploy-pages are known to work.
+  site:
     needs: review
     if: always() && needs.review.outputs.report != ''
-    runs-on: ubuntu-24.04
+    runs-on: windows-2022
     timeout-minutes: 15
+    environment: remote-acceptance
     permissions:
       contents: read
       actions: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
           persist-credentials: false
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+      - name: Recheck authorization
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase authorize
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          dotnet-version: 10.0.x
+          name: colony-review-tools-${{ github.run_id }}
+          path: C:\rg
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: colony-review-report
@@ -211,19 +233,47 @@ jobs:
       # Earlier reports come back from their own runs' artifacts, so the
       # site needs no branch of its own.
       - name: Fetch earlier reports
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run list -R "$GITHUB_REPOSITORY" -w colony-review.yml -L "$KEEP_RUNS" --json databaseId -q '.[].databaseId' |
-            while read -r id; do
-              [ "$id" = "$GITHUB_RUN_ID" ] && continue
-              gh run download "$id" -R "$GITHUB_REPOSITORY" -n colony-review-report -D runs || echo "run $id: no report artifact"
-            done
-          ls runs | sort -r | tail -n +"$((KEEP_RUNS + 1))" | while read -r old; do rm -rf "runs/$old"; done
+          $ids = gh run list -R $env:GITHUB_REPOSITORY -w colony-review.yml -L $env:KEEP_RUNS --json databaseId -q '.[].databaseId'
+          foreach ($id in $ids) {
+            if ("$id" -eq $env:GITHUB_RUN_ID) { continue }
+            gh run download $id -R $env:GITHUB_REPOSITORY -n colony-review-report -D runs
+            if ($LASTEXITCODE) { Write-Host "run ${id}: no report artifact" }
+          }
+          Get-ChildItem runs -Directory | Sort-Object Name -Descending | Select-Object -Skip ([int]$env:KEEP_RUNS) |
+            ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
+          $global:LASTEXITCODE = 0
       - name: Build the site
-        run: dotnet run --project tools/rg -c Release -- colonyreview site -runs runs -out site
-        shell: bash
+        run: |
+          & C:\rg\rg.exe colonyreview site -runs runs -out site
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: colony-review-site-${{ github.run_id }}
+          path: site
+          if-no-files-found: error
+          retention-days: 1
+
+  # Deploy only: no game, no secret, no checkout.
+  pages:
+    needs: site
+    if: always() && needs.site.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: colony-review-site-${{ github.run_id }}
+          path: site
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

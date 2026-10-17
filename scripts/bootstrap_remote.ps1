@@ -92,7 +92,7 @@ $taskReportPath = Join-Path $taskJob 'bootstrap.json'
 $taskOldLocation = Get-Location
 try {
     Set-Location $Repo
-    # The trusted tool host published by the workflow's tools job (C:\rg\rg.exe); bootstrap re-invokes it for setup and doctor.
+    # The trusted tool host published by the workflow's plan job (publish_trusted_rg.ps1; C:\rg\rg.exe); bootstrap re-invokes it for setup and doctor.
     & $RgTool remotebundle bootstrap -repo $Repo -out $taskJob -cache $Cache `
         -manifest $Manifest -sha256 $ManifestSHA256 -trust $Trust -identity $Identity -role $Role `
         -7z $taskExecutables['7z'] -age $taskExecutables['age']

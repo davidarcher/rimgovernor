@@ -66,10 +66,14 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
+      # Compiling tools/rg needs the game's reference assemblies (brain/Game.props);
+      # the script decrypts just those from the bundle, builds from the trusted
+      # checkout and deletes them and the identity before it returns.
       - name: Publish the trusted tool host (rg.exe)
-        run: >
-          dotnet publish trusted/tools/rg/rg.csproj -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o C:\rg
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
+        run: ./trusted/scripts/publish_trusted_rg.ps1 -Trusted "$env:GITHUB_WORKSPACE/trusted" -Out C:\rg
       - name: Plan the factory case
         run: ./trusted/scripts/remote_workflow.ps1 -Phase plan
       - name: Bootstrap and run sustained/colony
